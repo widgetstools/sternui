@@ -14,6 +14,7 @@
     "description": "Packages below may need version adjustments depending on corporate artifactory availability.",
     "bundled-locally": {
       "@widgetstools/react-dock-manager": "Not on corporate registry — packed from npm public v0.1.7",
+      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.7",
       "react-day-picker": "Not on corporate registry — packed from npm public v9.14.0"
     },
     "downgraded-for-registry": {
@@ -52,6 +53,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.7.tgz",
     "@widgetstools/react-dock-manager": "file:libs/widgetstools-react-dock-manager-0.1.7.tgz",
     "ag-grid-community": "^35.1.0",
     "ag-grid-enterprise": "^35.1.0",
