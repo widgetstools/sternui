@@ -357,7 +357,10 @@ const NAV_TABS = [
   imports: [CommonModule, FormsModule, DockManagerCoreComponent],
   template: `
     <!-- Top Bar -->
-    <div style="flex-shrink:0;background:var(--bn-bg1);border-bottom:1px solid var(--bn-border)">
+    <div
+      data-nav
+      style="flex-shrink:0;background:var(--bn-bg1);border-bottom:1px solid var(--bn-border)"
+    >
       <!-- Main nav bar -->
       <div
         style="display:flex;align-items:center;height:44px;padding:0 16px;gap:0;border-bottom:1px solid var(--bn-border)"
@@ -458,6 +461,7 @@ const NAV_TABS = [
           <button
             (click)="resetLayout()"
             title="Reset layout"
+            aria-label="Reset layout"
             style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);border:none;cursor:pointer"
           >
             <svg

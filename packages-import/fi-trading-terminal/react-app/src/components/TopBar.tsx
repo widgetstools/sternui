@@ -36,7 +36,7 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
   const pctChg = +(change24h/mid*100).toFixed(2);
 
   return (
-    <div className="flex-shrink-0" style={{background:'var(--bn-bg1)',borderBottom:'1px solid var(--bn-border)'}}>
+    <div data-nav className="flex-shrink-0" style={{background:'var(--bn-bg1)',borderBottom:'1px solid var(--bn-border)'}}>
       {/* ── Main nav bar ── */}
       <div className="flex items-center h-11 px-4 gap-0" style={{borderBottom:'1px solid var(--bn-border)'}}>
         {/* Logo */}
@@ -92,7 +92,8 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
                 transform: saveFlash ? 'scale(0.9)' : 'scale(1)',
                 transition: 'all 0.15s ease',
               }}
-              title="Save layout">
+              title="Save layout"
+              aria-label="Save layout">
               {saveFlash ? <Check size={13} strokeWidth={2.5} /> : <Save size={13} />}
             </button>
           )}
@@ -100,14 +101,16 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
             <button onClick={onResetLayout}
               className="flex items-center justify-center w-7 h-7 rounded transition-colors"
               style={{ background: 'var(--bn-bg3)', color: 'var(--bn-t1)' }}
-              title="Reset layout to default">
+              title="Reset layout to default"
+              aria-label="Reset layout">
               <RotateCcw size={13} />
             </button>
           )}
           <button onClick={toggleTheme}
             className="flex items-center justify-center w-7 h-7 rounded transition-colors"
             style={{ background: 'var(--bn-bg3)', color: 'var(--bn-t1)' }}
-            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
             {isDark ? <Sun size={13} /> : <Moon size={13} />}
           </button>
         </div>

@@ -54,23 +54,27 @@ The design system uses a three-tier token hierarchy:
 
 ### Color Palette
 
-| Role | Dark Mode | Light Mode |
-|------|-----------|------------|
-| Surface ground | `#0b0e11` | `#f5f5f5` |
-| Surface primary | `#161a1e` | `#ffffff` |
-| Text primary | `#eaecef` | `#1a1a2e` |
-| Text secondary | `#a0a8b4` | `#5f6673` |
-| Border | `#313944` | `#e0e3e7` |
+| Role | Dark Mode | Light Mode (VS Code Light Modern) |
+|------|-----------|-----------------------------------|
+| Surface ground | `#0b0e11` | `#f8f8f8` (neutral gray) |
+| Surface primary | `#161a1e` | `#ffffff` (white cards) |
+| Surface secondary | `#1e2329` | `#f3f3f3` (neutral hover) |
+| Surface tertiary | `#2b3139` | `#e8e8e8` (neutral active) |
+| Text primary | `#eaecef` | `#3b3b3b` |
+| Text secondary | `#a0a8b4` | `#616161` |
+| Text muted | `#7a8494` | `#767676` |
+| Border | `#313944` | `#e5e5e5` |
 | Positive (buy) | `#2dd4bf` (teal-400) | `#0d9488` (teal-600) |
 | Negative (sell) | `#f87171` (red-400) | `#dc2626` (red-600) |
-| Warning | `#f0b90b` | `#b45309` |
-| Info | `#3da0ff` | `#2563eb` |
+| Warning | `#f0b90b` | `#d97706` (amber-600) |
+| Info | `#3da0ff` | `#2563eb` (blue-600) |
+| Highlight | `#22d3ee` | `#0891b2` (cyan-600) |
 
 ### Typography Scale
 
 | Tier | Size | Usage |
 |------|------|-------|
-| `xs` | 9px | Column headers, badges, timestamps, captions |
+| `xs` | 10px (light) / 9px (dark) | Column headers, badges, timestamps, captions |
 | `sm` | 11px | Body text, table cells, data values **(default)** |
 | `md` | 13px | Section titles, CTA buttons |
 | `lg` | 18px | KPI headline numbers |
@@ -247,21 +251,21 @@ console.log(darkComponents.table.headerBackground); // '#1e2329'
 
 | Variable | Dark | Light | Usage |
 |----------|------|-------|-------|
-| `--bn-bg` | `#0b0e11` | `#f5f5f5` | Page background |
+| `--bn-bg` | `#0b0e11` | `#f8f8f8` | Page background |
 | `--bn-bg1` | `#161a1e` | `#ffffff` | Card/panel background |
-| `--bn-bg2` | `#1e2329` | `#f0f1f3` | Hover/header background |
-| `--bn-bg3` | `#2b3139` | `#e6e8eb` | Active/pressed background |
-| `--bn-border` | `#313944` | `#e0e3e7` | Borders, dividers |
-| `--bn-border2` | `#3e4754` | `#d1d5db` | Interactive borders |
+| `--bn-bg2` | `#1e2329` | `#f3f3f3` | Hover/header background |
+| `--bn-bg3` | `#2b3139` | `#e8e8e8` | Active/pressed background |
+| `--bn-border` | `#313944` | `#e5e5e5` | Borders, dividers |
+| `--bn-border2` | `#3e4754` | `#d4d4d4` | Interactive borders |
 
 ### Text
 
 | Variable | Dark | Light | Usage |
 |----------|------|-------|-------|
-| `--bn-t0` | `#eaecef` | `#1a1a2e` | Primary text |
-| `--bn-t1` | `#a0a8b4` | `#5f6673` | Labels, descriptions |
-| `--bn-t2` | `#7a8494` | `#9ca3af` | Captions, muted |
-| `--bn-t3` | `#4a5568` | `#d1d5db` | Disabled, placeholder |
+| `--bn-t0` | `#eaecef` | `#3b3b3b` | Primary text |
+| `--bn-t1` | `#a0a8b4` | `#616161` | Labels, descriptions |
+| `--bn-t2` | `#7a8494` | `#767676` | Captions, muted |
+| `--bn-t3` | `#4a5568` | `#a0a0a0` | Disabled, placeholder |
 
 ### Semantic Colors
 
@@ -269,7 +273,7 @@ console.log(darkComponents.table.headerBackground); // '#1e2329'
 |----------|------|-------|-------|
 | `--bn-green` | `#2dd4bf` | `#0d9488` | Buy, positive, success |
 | `--bn-red` | `#f87171` | `#dc2626` | Sell, negative, error |
-| `--bn-yellow` | `#f0b90b` | `#b45309` | Warning, highlight |
+| `--bn-yellow` | `#f0b90b` | `#d97706` | Warning, highlight |
 | `--bn-blue` | `#3da0ff` | `#2563eb` | Info, links |
 | `--bn-cyan` | `#22d3ee` | `#0891b2` | Secondary accent |
 
@@ -279,10 +283,19 @@ console.log(darkComponents.table.headerBackground); // '#1e2329'
 |----------|-------|-------|
 | `--fi-mono` | `'JetBrains Mono', monospace` | Data, numbers |
 | `--fi-sans` | `'Geist', sans-serif` | UI labels |
-| `--fi-font-xs` | `9px` | Column headers, badges |
+| `--fi-font-xs` | `9px` (dark) / `10px` (light) | Column headers, badges |
 | `--fi-font-sm` | `11px` | Body text (default) |
 | `--fi-font-md` | `13px` | Buttons, titles |
 | `--fi-font-lg` | `18px` | KPI numbers |
+
+### Light Mode Enhancements
+
+The light theme ("Cool Ivory") includes additional styling beyond color swaps:
+
+- **Panel shadows**: `box-shadow: 0 1px 3px rgba(0,0,0,0.05)` on dock panels for depth
+- **Nav shadow**: subtle bottom shadow on the navigation bar
+- **Badge overrides**: vibrant rgba backgrounds tuned for white card surfaces
+- **Focus rings**: `outline: 2px solid var(--bn-blue)` on `:focus-visible` for keyboard navigation
 
 ---
 

@@ -13,7 +13,7 @@ import { CommonModule } from '@angular/common';
       <div style="flex:1;overflow-y:auto">
         <div
           *ngFor="let l of limits"
-          style="padding:10px 14px;border-bottom:1px solid rgba(43,49,57,0.5)"
+          style="padding:10px 14px;border-bottom:1px solid var(--bn-border)"
         >
           <div style="display:flex;justify-content:space-between;margin-bottom:5px">
             <span style="font-size:11px;color:var(--bn-t1);font-family:JetBrains Mono,monospace">{{
@@ -33,11 +33,11 @@ import { CommonModule } from '@angular/common';
             ></div>
           </div>
           <div style="display:flex;justify-content:space-between;margin-top:4px">
-            <span style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace"
-              >{{ l.unit }}{{ l.used.toLocaleString() }}</span
-            >
-            <span style="font-size:9px;color:var(--bn-t3);font-family:JetBrains Mono,monospace"
-              >/ {{ l.unit }}{{ l.limit.toLocaleString() }}</span
+            <span style="font-size:10px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">{{
+              fmtVal(l.used, l.unit)
+            }}</span>
+            <span style="font-size:10px;color:var(--bn-t3);font-family:JetBrains Mono,monospace"
+              >/ {{ fmtVal(l.limit, l.unit) }}</span
             >
           </div>
         </div>
@@ -60,6 +60,14 @@ export class RiskLimitsWidget {
   }
   getColor(l: any) {
     const pct = this.getPct(l);
-    return pct > 85 ? 'var(--bn-red)' : pct > 65 ? '#f0b90b' : 'var(--bn-green)';
+    return pct > 85 ? 'var(--bn-red)' : pct > 65 ? 'var(--bn-yellow)' : 'var(--bn-green)';
+  }
+  fmtVal(v: number, unit: string) {
+    // "$" prefix only, "$K"/"$M" → prefix $ + suffix K/M, "yr" → suffix only
+    if (unit === '$') return '$' + v.toLocaleString();
+    if (unit === '$K') return '$' + v.toLocaleString() + 'K';
+    if (unit === '$M') return '$' + v.toLocaleString() + 'M';
+    if (unit === 'yr') return v.toLocaleString() + 'yr';
+    return unit + v.toLocaleString();
   }
 }

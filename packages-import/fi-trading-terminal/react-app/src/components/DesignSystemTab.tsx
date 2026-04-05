@@ -132,41 +132,41 @@ export function DesignSystemTab() {
       <div style={{ marginBottom: 40 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--bn-t0)', margin: 0 }}>FI Design System</h1>
         <p style={{ fontSize: 11, color: 'var(--bn-t2)', marginTop: 4 }}>
-          Token reference, component examples, and usage patterns for the Fixed Income Trading Terminal.
+          Token reference, component examples, and usage patterns. Dark theme + VS Code Light Modern-style light theme. All values adapt via CSS custom properties.
         </p>
       </div>
 
       {/* ━━ 1. Color Palette ━━ */}
       <section style={S.section}>
         <h2 style={S.sectionTitle}>1. Color Palette</h2>
-        <p style={S.sectionDesc}>All colors are exposed as CSS custom properties on :root via fi-dark.css.</p>
+        <p style={S.sectionDesc}>All colors adapt to the active theme via CSS variables. Dark: fi-dark.css · Light (VS Code Light Modern): fi-light.css</p>
 
         {/* Surface Colors */}
         <h3 style={S.subTitle}>Surface Colors</h3>
         <div style={S.row}>
-          <Swatch bg="var(--bn-bg)" label="--bn-bg" hex="#0b0e11" />
-          <Swatch bg="var(--bn-bg1)" label="--bn-bg1" hex="#161a1e" />
-          <Swatch bg="var(--bn-bg2)" label="--bn-bg2" hex="#1e2329" />
-          <Swatch bg="var(--bn-bg3)" label="--bn-bg3" hex="#2b3139" />
+          <Swatch bg="var(--bn-bg)" label="--bn-bg" hex="D:#0b0e11 L:#f8f8f8" />
+          <Swatch bg="var(--bn-bg1)" label="--bn-bg1" hex="D:#161a1e L:#ffffff" />
+          <Swatch bg="var(--bn-bg2)" label="--bn-bg2" hex="D:#1e2329 L:#f3f3f3" />
+          <Swatch bg="var(--bn-bg3)" label="--bn-bg3" hex="D:#2b3139 L:#e8e8e8" />
         </div>
 
         {/* Text Colors */}
         <h3 style={S.subTitle}>Text Colors</h3>
-        <TextSample cssVar="var(--bn-t0)" label="--bn-t0" hex="#eaecef" />
-        <TextSample cssVar="var(--bn-t1)" label="--bn-t1" hex="#a0a8b4" />
-        <TextSample cssVar="var(--bn-t2)" label="--bn-t2" hex="#7a8494" />
-        <TextSample cssVar="var(--bn-t3)" label="--bn-t3" hex="#4a5568" />
+        <TextSample cssVar="var(--bn-t0)" label="--bn-t0" hex="D:#eaecef L:#3b3b3b" />
+        <TextSample cssVar="var(--bn-t1)" label="--bn-t1" hex="D:#a0a8b4 L:#616161" />
+        <TextSample cssVar="var(--bn-t2)" label="--bn-t2" hex="D:#7a8494 L:#767676" />
+        <TextSample cssVar="var(--bn-t3)" label="--bn-t3" hex="D:#4a5568 L:#a0a0a0" />
 
         {/* Semantic Colors */}
         <h3 style={S.subTitle}>Semantic Colors</h3>
         <div style={S.row}>
-          <Swatch bg="var(--bn-green)" label="Green (Positive)" hex="#2dd4bf" />
-          <Swatch bg="var(--bn-green2)" label="Green Hover" hex="#14b8a6" />
-          <Swatch bg="var(--bn-red)" label="Red (Negative)" hex="#f87171" />
-          <Swatch bg="var(--bn-red2)" label="Red Hover" hex="#ef4444" />
-          <Swatch bg="var(--bn-yellow)" label="Yellow (Warning)" hex="#f0b90b" />
-          <Swatch bg="var(--bn-blue)" label="Blue (Info)" hex="#3da0ff" />
-          <Swatch bg="var(--bn-cyan)" label="Cyan (Highlight)" hex="#22d3ee" />
+          <Swatch bg="var(--bn-green)" label="Green (Positive)" hex="D:#2dd4bf L:#0d9488" />
+          <Swatch bg="var(--bn-green2)" label="Green Hover" hex="D:#14b8a6 L:#0f766e" />
+          <Swatch bg="var(--bn-red)" label="Red (Negative)" hex="D:#f87171 L:#dc2626" />
+          <Swatch bg="var(--bn-red2)" label="Red Hover" hex="D:#ef4444 L:#b91c1c" />
+          <Swatch bg="var(--bn-yellow)" label="Yellow (Warning)" hex="D:#f0b90b L:#d97706" />
+          <Swatch bg="var(--bn-blue)" label="Blue (Info)" hex="D:#3da0ff L:#2563eb" />
+          <Swatch bg="var(--bn-cyan)" label="Cyan (Highlight)" hex="D:#22d3ee L:#0891b2" />
           <Swatch bg="#c084fc" label="Purple (Accent)" hex="#c084fc" />
         </div>
 

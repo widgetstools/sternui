@@ -12,7 +12,7 @@ export const agGridLightParams: Record<string, unknown> = {
   foregroundColor:           light.text.primary,
   headerBackgroundColor:     light.surface.secondary,
   headerForegroundColor:     light.text.secondary,
-  oddRowBackgroundColor:     '#f6f4f0',
+  oddRowBackgroundColor:     '#fafafa',
   rowHoverColor:             light.surface.secondary,
   selectedRowBackgroundColor:'rgba(14,203,129,0.08)',
   borderColor:               light.border.primary,

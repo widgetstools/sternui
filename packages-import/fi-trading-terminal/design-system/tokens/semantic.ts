@@ -80,43 +80,43 @@ export const dark: ColorScheme = {
   scrollbar: colors.neutral[700],
 };
 
-// ── Light Scheme ──
-// Warm cream/parchment tones — no stark whites.
-// Text contrast boosted for WCAG AA readability.
+// ── Light Scheme (VS Code Light Modern style) ──
+// Pure neutral grays — no blue/warm tint in chrome.
+// Trading accents provide all color. WCAG AA text contrast.
 export const light: ColorScheme = {
   surface: {
-    ground:    '#f3f0eb',   // warm parchment
-    primary:   '#faf8f5',   // soft cream (not pure white)
-    secondary: '#efece6',   // warm hover
-    tertiary:  '#e4e0d9',   // warm pressed
+    ground:    '#f8f8f8',   // neutral gray ground (VS Code bg)
+    primary:   '#ffffff',   // white cards/panels
+    secondary: '#f3f3f3',   // hover/header (VS Code sidebar)
+    tertiary:  '#e8e8e8',   // pressed/active state
   },
   text: {
-    primary:   '#1c1917',   // near-black warm (high contrast)
-    secondary: '#44403c',   // stone-700 — strong labels
-    muted:     '#78716c',   // stone-500 — readable captions
-    faint:     '#a8a29e',   // stone-400 — placeholders
+    primary:   '#3b3b3b',   // VS Code editor foreground
+    secondary: '#616161',   // VS Code description foreground
+    muted:     '#767676',   // WCAG AA minimum on white
+    faint:     '#a0a0a0',   // placeholders, disabled
   },
   border: {
-    primary:   '#d6d3cd',   // warm border
-    secondary: '#c8c4bc',   // warm interactive border
+    primary:   '#e5e5e5',   // neutral border (VS Code panel border)
+    secondary: '#d4d4d4',   // interactive border
   },
   accent: {
-    positive:      colors.teal[700],    // #0f766e — deeper for warm bg
-    positiveHover: colors.teal[800],    // #115e59
-    negative:      colors.red[700],     // #b91c1c — deeper red
-    negativeHover: colors.red[800],     // #991b1b
-    warning:       '#92400e',           // amber-800 — rich warm amber
-    info:          colors.blue[700],    // #1d4ed8 — deeper blue
-    highlight:     colors.cyan[700],    // #0e7490 — deeper cyan
+    positive:      colors.teal[600],    // #0d9488 — vibrant buy/positive
+    positiveHover: colors.teal[700],    // #0f766e
+    negative:      colors.red[600],     // #dc2626 — visible red
+    negativeHover: colors.red[700],     // #b91c1c
+    warning:       '#d97706',           // amber-600 — reads as warning
+    info:          '#2563eb',           // blue-600 — bright info
+    highlight:     '#0891b2',           // cyan-600 — bright highlight
     purple:        colors.purple[600],  // #9333ea
   },
   action: {
-    buyBg:    colors.teal[700],   // #0f766e
+    buyBg:    colors.teal[600],   // #0d9488
     buyText:  '#ffffff',
-    sellBg:   colors.red[700],    // #b91c1c
+    sellBg:   colors.red[600],    // #dc2626
     sellText: '#ffffff',
   },
-  scrollbar: '#c8c4bc',
+  scrollbar: '#c4c4c4',
 };
 
 // ── Shared (non-theme-dependent) ──

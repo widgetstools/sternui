@@ -178,6 +178,8 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
             <button
               key={opt.v}
               onClick={() => setView(opt.v as any)}
+              aria-label={`Show ${opt.v}`}
+              title={`Show ${opt.v}`}
               className="w-6 h-5 rounded text-xs"
               style={{
                 background: view === opt.v ? 'var(--bn-bg3)' : 'transparent',
@@ -189,7 +191,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-mono-fi" style={{ fontSize: 9, color: 'var(--bn-t2)' }}>
+          <span className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t2)' }}>
             {asks.length + bids.length} levels
           </span>
           <span

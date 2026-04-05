@@ -113,6 +113,8 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
           <button
             *ngFor="let opt of viewOpts"
             (click)="setView(opt.v)"
+            [attr.aria-label]="'Show ' + opt.v"
+            [attr.title]="'Show ' + opt.v"
             style="width:24px;height:20px;border-radius:4px;font-size:11px;border:none;cursor:pointer"
             [style.background]="view === opt.v ? 'var(--bn-bg3)' : 'transparent'"
             [style.color]="

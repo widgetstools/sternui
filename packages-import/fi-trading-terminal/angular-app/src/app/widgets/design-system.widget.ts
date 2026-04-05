@@ -18,8 +18,8 @@ import { CommonModule } from '@angular/common';
           FI Design System
         </h1>
         <p style="font-size:11px;color:var(--bn-t2);margin:0;font-family:var(--fi-mono)">
-          Color palette, typography, spacing, and component reference for the MarketsUI FI trading
-          terminal.
+          Color palette, typography, spacing, and component reference. Dark theme + VS Code Light
+          Modern-style light theme. All values adapt via CSS custom properties.
         </p>
       </div>
 
@@ -1011,32 +1011,33 @@ export class DesignSystemWidget {
   @Input() panel: any;
 
   // ── 1. Color Palette data ──
+  // Hex values show Dark / Light (VS Code Light Modern) pairs
   surfaceColors = [
-    { name: '--bn-bg', hex: '#0b0e11', var: 'var(--bn-bg)' },
-    { name: '--bn-bg1', hex: '#161a1e', var: 'var(--bn-bg1)' },
-    { name: '--bn-bg2', hex: '#1e2329', var: 'var(--bn-bg2)' },
-    { name: '--bn-bg3', hex: '#2b3139', var: 'var(--bn-bg3)' },
+    { name: '--bn-bg', hex: 'D:#0b0e11 L:#f8f8f8', var: 'var(--bn-bg)' },
+    { name: '--bn-bg1', hex: 'D:#161a1e L:#ffffff', var: 'var(--bn-bg1)' },
+    { name: '--bn-bg2', hex: 'D:#1e2329 L:#f3f3f3', var: 'var(--bn-bg2)' },
+    { name: '--bn-bg3', hex: 'D:#2b3139 L:#e8e8e8', var: 'var(--bn-bg3)' },
   ];
 
   textColors = [
-    { name: '--bn-t0', hex: '#eaecef', var: 'var(--bn-t0)' },
-    { name: '--bn-t1', hex: '#a0a8b4', var: 'var(--bn-t1)' },
-    { name: '--bn-t2', hex: '#7a8494', var: 'var(--bn-t2)' },
-    { name: '--bn-t3', hex: '#4a5568', var: 'var(--bn-t3)' },
+    { name: '--bn-t0', hex: 'D:#eaecef L:#3b3b3b', var: 'var(--bn-t0)' },
+    { name: '--bn-t1', hex: 'D:#a0a8b4 L:#616161', var: 'var(--bn-t1)' },
+    { name: '--bn-t2', hex: 'D:#7a8494 L:#767676', var: 'var(--bn-t2)' },
+    { name: '--bn-t3', hex: 'D:#4a5568 L:#a0a0a0', var: 'var(--bn-t3)' },
   ];
 
   semanticColors = [
-    { name: 'Green (Buy)', hex: '#2dd4bf', var: 'var(--bn-green)' },
-    { name: 'Red (Sell)', hex: '#f87171', var: 'var(--bn-red)' },
-    { name: 'Yellow (Warn)', hex: '#f0b90b', var: 'var(--bn-yellow)' },
-    { name: 'Blue (Info)', hex: '#3da0ff', var: 'var(--bn-blue)' },
-    { name: 'Cyan (HL)', hex: '#22d3ee', var: 'var(--bn-cyan)' },
+    { name: 'Green (Buy)', hex: 'D:#2dd4bf L:#0d9488', var: 'var(--bn-green)' },
+    { name: 'Red (Sell)', hex: 'D:#f87171 L:#dc2626', var: 'var(--bn-red)' },
+    { name: 'Yellow (Warn)', hex: 'D:#f0b90b L:#d97706', var: 'var(--bn-yellow)' },
+    { name: 'Blue (Info)', hex: 'D:#3da0ff L:#2563eb', var: 'var(--bn-blue)' },
+    { name: 'Cyan (HL)', hex: 'D:#22d3ee L:#0891b2', var: 'var(--bn-cyan)' },
     { name: 'Purple', hex: '#c084fc', var: 'var(--fi-purple)' },
   ];
 
   // ── 2. Typography data ──
   fontScale = [
-    { label: 'xs', size: '9px', sample: 'Column Header / Caption' },
+    { label: 'xs', size: '9px (10px light)', sample: 'Column Header / Caption' },
     { label: 'sm', size: '11px', sample: 'Body text, table cells, data values (default)' },
     { label: 'md', size: '13px', sample: 'Section titles, nav tabs, CTA buttons' },
     { label: 'lg', size: '18px', sample: 'KPI headline numbers' },
