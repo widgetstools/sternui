@@ -333,19 +333,36 @@ export function DesignSystemTab() {
           </div>
         </div>
 
-        {/* Badges */}
+        {/* Status Badges */}
         <h3 style={S.subTitle}>Status Badges</h3>
         <div style={{ ...S.row, gap: 8 }}>
           {[
-            { label: 'Filled', bg: 'var(--bn-green)', color: '#fff' },
-            { label: 'Partial', bg: 'var(--bn-yellow)', color: '#000' },
-            { label: 'Pending', bg: 'var(--bn-blue)', color: '#fff' },
-            { label: 'Cancelled', bg: 'var(--bn-red)', color: '#fff' },
-            { label: 'Working', bg: 'var(--bn-cyan)', color: '#000' },
+            { label: 'Filled', bg: 'rgba(45,212,191,0.15)', color: 'var(--bn-green)' },
+            { label: 'Partial', bg: 'rgba(240,185,11,0.15)', color: 'var(--bn-yellow)' },
+            { label: 'Pending', bg: 'rgba(30,144,255,0.15)', color: 'var(--bn-blue)' },
+            { label: 'Cancelled', bg: 'rgba(248,113,113,0.15)', color: 'var(--bn-red)' },
+            { label: 'Working', bg: 'rgba(0,188,212,0.15)', color: 'var(--bn-cyan)' },
           ].map(b => (
-            <span key={b.label} style={{ fontSize: 9, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '2px 8px', borderRadius: 2, background: b.bg, color: b.color, letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>
+            <span key={b.label} style={{ fontSize: 9, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '3px 8px', borderRadius: 3, background: b.bg, color: b.color, letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>
               {b.label}
             </span>
+          ))}
+        </div>
+
+        {/* Quote Type Badges */}
+        <h3 style={S.subTitle}>Quote Type Badges (Order Book)</h3>
+        <div style={{ ...S.row, gap: 8, alignItems: 'center' }}>
+          {[
+            { label: 'STREAM', bg: 'rgba(14,203,129,0.12)', color: 'var(--bn-green)', desc: 'Firm / executable' },
+            { label: 'RFQ', bg: 'rgba(30,144,255,0.12)', color: 'var(--bn-blue)', desc: 'Request for quote' },
+            { label: 'IND', bg: 'rgba(240,185,11,0.12)', color: 'var(--bn-yellow)', desc: 'Indicative only' },
+          ].map(b => (
+            <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, background: b.bg, color: b.color, letterSpacing: '0.03em' }}>
+                {b.label}
+              </span>
+              <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>{b.desc}</span>
+            </div>
           ))}
         </div>
 
@@ -423,38 +440,131 @@ export function DesignSystemTab() {
           ))}
         </div>
 
-        {/* Order Book style */}
-        <h3 style={S.subTitle}>Order Book — Bid/Ask with Fill Bars</h3>
-        <div style={{ width: 280, background: 'var(--bn-bg1)', border: '1px solid var(--bn-border)', borderRadius: 3, padding: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--bn-t2)', marginBottom: 6, padding: '0 6px', fontFamily: 'var(--fi-mono)' }}>
-            <span>PRICE</span><span>SIZE</span>
+        {/* Order Book — Professional FI Layout */}
+        <h3 style={S.subTitle}>Order Book — FI Desk (Dealer, Price, Yield, Face, DV01, Type)</h3>
+        <div style={{ width: 560, background: 'var(--bn-bg1)', border: '1px solid var(--bn-border)', borderRadius: 3, overflow: 'hidden' }}>
+          {/* Instrument context bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 8px', borderBottom: '1px solid var(--bn-border)', background: 'rgba(0,188,212,0.04)' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--bn-cyan)', fontFamily: 'var(--fi-mono)' }}>UST 4.625 06/26</span>
+            <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>US Treasury</span>
+            <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>CUSIP 912828ZT0</span>
+            <span style={{ fontSize: 9, color: 'var(--bn-t1)', fontFamily: 'var(--fi-mono)' }}>Aaa</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}>
+                <span style={{ color: 'var(--bn-t2)' }}>OAS </span><span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>+8</span>
+              </span>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}>
+                <span style={{ color: 'var(--bn-t2)' }}>DUR </span><span style={{ color: '#1e90ff', fontWeight: 600 }}>1.85</span>
+              </span>
+            </div>
           </div>
-          {/* Asks (sells) — top */}
+          {/* Column headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '4px 8px', background: 'var(--bn-bg2)' }}>
+            {['Dealer', 'Price', 'Yield', 'Face (MM)', 'DV01 ($K)', 'Type'].map((h, i) => (
+              <div key={h} style={{ fontSize: 9, fontWeight: 600, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)', letterSpacing: '0.04em', textTransform: 'uppercase' as const, textAlign: i === 0 ? 'left' : i === 5 ? 'center' : 'right' as const }}>{h}</div>
+            ))}
+          </div>
+          {/* Asks label */}
+          <div style={{ padding: '2px 8px', fontSize: 9, fontWeight: 700, color: 'var(--bn-red)', letterSpacing: '0.06em', fontFamily: 'var(--fi-mono)' }}>OFFERS (ASK)</div>
+          {/* Ask rows */}
           {[
-            { price: '100.250', size: '1.2M', fill: 30 },
-            { price: '100.220', size: '3.8M', fill: 76 },
-            { price: '100.197', size: '5.0M', fill: 100 },
+            { dealer: 'BARC', price: '100.247', yld: '4.496', face: '2.5', dv01: '4.6', type: 'IND' as const, fill: 35 },
+            { dealer: 'GS', price: '100.222', yld: '4.504', face: '3.8', dv01: '7.0', type: 'STREAM' as const, fill: 70 },
+            { dealer: 'JPM', price: '100.197', yld: '4.512', face: '5.0', dv01: '9.3', type: 'STREAM' as const, fill: 100 },
           ].map((r, i) => (
-            <div key={`a${i}`} style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', padding: '2px 6px', marginBottom: 1 }}>
-              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'var(--bn-red)', opacity: 0.08 }} />
-              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-red)', fontWeight: 600, position: 'relative' }}>{r.price}</span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t1)', position: 'relative' }}>{r.size}</span>
+            <div key={`a${i}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '2px 8px' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'rgba(248,113,113,0.10)' }} />
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t1)', position: 'relative' }}>{r.dealer}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-red)', textAlign: 'right', position: 'relative' }}>{r.price}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.yld}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.face}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: '#1e90ff', textAlign: 'right', position: 'relative' }}>{r.dv01}</span>
+              <span style={{ textAlign: 'center', position: 'relative' }}>
+                <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, letterSpacing: '0.03em', background: r.type === 'STREAM' ? 'rgba(14,203,129,0.12)' : r.type === 'RFQ' ? 'rgba(30,144,255,0.12)' : 'rgba(240,185,11,0.12)', color: r.type === 'STREAM' ? 'var(--bn-green)' : r.type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-yellow)' }}>{r.type}</span>
+              </span>
             </div>
           ))}
-          {/* Spread */}
-          <div style={{ textAlign: 'center', fontSize: 9, color: 'var(--bn-yellow)', padding: '4px 0', fontFamily: 'var(--fi-mono)' }}>
-            Spread: 0.125 (1.2bp)
+          {/* Spread bar */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderTop: '1px solid var(--bn-border)', borderBottom: '1px solid var(--bn-border)', background: 'linear-gradient(90deg, rgba(14,203,129,0.08), var(--bn-bg2), rgba(246,70,93,0.08))' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--bn-green)', fontFamily: 'var(--fi-mono)' }}>100.135</span>
+            <span style={{ fontSize: 11, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)', marginLeft: 12 }}>≈ $100.135</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Spread </span><span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>0.125</span></span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Mid Yld </span><span style={{ color: '#00bcd4', fontWeight: 600 }}>4.520</span></span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Z-Spd </span><span style={{ color: '#c084fc', fontWeight: 600 }}>8</span></span>
+            </div>
           </div>
-          {/* Bids (buys) — bottom */}
+          {/* Bids label */}
+          <div style={{ padding: '2px 8px', fontSize: 9, fontWeight: 700, color: 'var(--bn-green)', letterSpacing: '0.06em', fontFamily: 'var(--fi-mono)' }}>BIDS</div>
+          {/* Bid rows */}
           {[
-            { price: '100.072', size: '4.5M', fill: 90 },
-            { price: '100.050', size: '2.8M', fill: 56 },
-            { price: '100.031', size: '1.5M', fill: 30 },
+            { dealer: 'MS', price: '100.072', yld: '4.528', face: '4.5', dv01: '8.3', type: 'STREAM' as const, fill: 90 },
+            { dealer: 'CITI', price: '100.050', yld: '4.536', face: '2.8', dv01: '5.2', type: 'RFQ' as const, fill: 56 },
+            { dealer: 'DB', price: '100.031', yld: '4.544', face: '1.5', dv01: '2.8', type: 'STREAM' as const, fill: 30 },
           ].map((r, i) => (
-            <div key={`b${i}`} style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', padding: '2px 6px', marginBottom: 1 }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${r.fill}%`, background: 'var(--bn-green)', opacity: 0.08 }} />
-              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-green)', fontWeight: 600, position: 'relative' }}>{r.price}</span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t1)', position: 'relative' }}>{r.size}</span>
+            <div key={`b${i}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '2px 8px' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'rgba(45,212,191,0.10)' }} />
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t1)', position: 'relative' }}>{r.dealer}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-green)', textAlign: 'right', position: 'relative' }}>{r.price}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.yld}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.face}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: '#1e90ff', textAlign: 'right', position: 'relative' }}>{r.dv01}</span>
+              <span style={{ textAlign: 'center', position: 'relative' }}>
+                <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, letterSpacing: '0.03em', background: r.type === 'STREAM' ? 'rgba(14,203,129,0.12)' : r.type === 'RFQ' ? 'rgba(30,144,255,0.12)' : 'rgba(240,185,11,0.12)', color: r.type === 'STREAM' ? 'var(--bn-green)' : r.type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-yellow)' }}>{r.type}</span>
+              </span>
+            </div>
+          ))}
+          {/* Aggregate footer */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderTop: '1px solid var(--bn-border)', background: 'var(--bn-bg2)' }}>
+            <div style={{ display: 'flex', gap: 16 }}>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>BID DV01 </span><span style={{ color: 'var(--bn-green)', fontWeight: 600 }}>$16.3K</span></span>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>ASK DV01 </span><span style={{ color: 'var(--bn-red)', fontWeight: 600 }}>$20.9K</span></span>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>MIN SIZE </span><span style={{ color: 'var(--bn-t1)', fontWeight: 600 }}>1.5MM</span></span>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>FIRM </span><span style={{ color: 'var(--bn-green)', fontWeight: 600 }}>4</span></span>
+              <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>SETTLE </span><span style={{ color: 'var(--bn-t1)', fontWeight: 600 }}>T+1</span></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Instrument Context Bar */}
+        <h3 style={S.subTitle}>Instrument Context Bar</h3>
+        <p style={{ fontSize: 9, color: 'var(--bn-t2)', marginBottom: 8, marginTop: -4 }}>
+          Appears atop Order Book and Trade Ticket. Shows bond identity, CUSIP, rating, and live analytics.
+        </p>
+        <div style={{ width: 560, display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px', background: 'rgba(0,188,212,0.04)', border: '1px solid var(--bn-border)', borderRadius: 3 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--bn-cyan)', fontFamily: 'var(--fi-mono)' }}>AAPL 3.25 02/29</span>
+          <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>Apple Inc</span>
+          <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>CUSIP 037833DV8</span>
+          <span style={{ fontSize: 9, color: 'var(--bn-t1)', fontFamily: 'var(--fi-mono)' }}>Aa1</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
+            <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>OAS </span><span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>+65</span></span>
+            <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>DUR </span><span style={{ color: '#1e90ff', fontWeight: 600 }}>2.68</span></span>
+          </div>
+        </div>
+
+        {/* Countdown Ring */}
+        <h3 style={S.subTitle}>Countdown Ring (RFQ TTL)</h3>
+        <p style={{ fontSize: 9, color: 'var(--bn-t2)', marginBottom: 8, marginTop: -4 }}>
+          SVG ring depletes over 30s TTL. Color transitions: blue (safe) → amber (warning &lt;10s) → red (expiring &lt;5s).
+        </p>
+        <div style={{ ...S.row, gap: 24, alignItems: 'center' }}>
+          {[
+            { secs: 25, color: '#3da0ff', dash: '69 75.4', label: '25s — blue (safe)' },
+            { secs: 8, color: '#f0b90b', dash: '20 75.4', label: '8s — amber (warning)' },
+            { secs: 3, color: 'var(--bn-red)', dash: '7.5 75.4', label: '3s — red (expiring)' },
+          ].map(r => (
+            <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="28" height="28" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="12" fill="none" stroke="var(--bn-bg2)" strokeWidth="2.5" />
+                <circle cx="14" cy="14" r="12" fill="none" stroke={r.color} strokeWidth="2.5"
+                  strokeDasharray={r.dash} strokeDashoffset="18.85" strokeLinecap="round"
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
+                <text x="14" y="14" textAnchor="middle" dominantBaseline="central"
+                  style={{ fontSize: 9, fontFamily: 'var(--fi-mono)', fontWeight: 600, fill: r.color }}>{r.secs}</text>
+              </svg>
+              <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>{r.label}</span>
             </div>
           ))}
         </div>

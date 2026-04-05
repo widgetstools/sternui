@@ -321,7 +321,7 @@ export default function App() {
       api.bringToFront('rfq');
     } else {
       api.addPanel({ id: 'rfq', title: 'RFQ Workbench', widgetType: 'rfq', closable: true, dockable: false });
-      api.floatPanel({ panelId: 'rfq', x: 120, y: 60, width: 720, height: 520 });
+      api.floatPanel({ panelId: 'rfq', x: 80, y: 50, width: 820, height: 540 });
     }
   }, []);
 

@@ -152,6 +152,10 @@ body {
   text-transform: uppercase;
 }
 
+// ── Order book grid columns ──
+.ob-grid-cols { grid-template-columns: 48px 1fr 1fr 70px 70px 52px; }
+.ob-trades-cols { grid-template-columns: 40px 48px 1fr 1fr 60px 64px; }
+
 // ── Order book row backgrounds ──
 .ob-row-ask {
   position: relative;
@@ -160,7 +164,7 @@ body {
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: var(--fill-pct, 0%);
-    background: rgba(248,113,113,0.06);
+    background: rgba(248,113,113,0.10);
     pointer-events: none;
   }
 }
@@ -171,7 +175,7 @@ body {
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: var(--fill-pct, 0%);
-    background: rgba(45,212,191,0.06);
+    background: rgba(45,212,191,0.10);
     pointer-events: none;
   }
 }

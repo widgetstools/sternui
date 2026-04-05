@@ -344,7 +344,7 @@ import { CommonModule } from '@angular/common';
             <span class="ds-badge" style="background:rgba(45,212,191,0.15);color:var(--bn-green)"
               >Filled</span
             >
-            <span class="ds-badge" style="background:rgba(59,130,246,0.15);color:var(--bn-blue)"
+            <span class="ds-badge" style="background:rgba(30,144,255,0.15);color:var(--bn-blue)"
               >Partial</span
             >
             <span class="ds-badge" style="background:rgba(240,185,11,0.15);color:var(--bn-yellow)"
@@ -353,9 +353,28 @@ import { CommonModule } from '@angular/common';
             <span class="ds-badge" style="background:rgba(248,113,113,0.15);color:var(--bn-red)"
               >Cancelled</span
             >
-            <span class="ds-badge" style="background:rgba(192,132,252,0.15);color:var(--fi-purple)"
+            <span class="ds-badge" style="background:rgba(0,188,212,0.15);color:var(--bn-cyan)"
               >Working</span
             >
+          </div>
+        </div>
+
+        <!-- Quote Type Badges -->
+        <div style="margin-bottom:20px">
+          <div class="ds-sub-heading">Quote Type Badges (Order Book)</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+            <div *ngFor="let qt of quoteTypeBadges" style="display:flex;align-items:center;gap:8px">
+              <span
+                class="font-mono-fi"
+                style="font-size:8px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                [style.background]="qt.bg"
+                [style.color]="qt.color"
+                >{{ qt.label }}</span
+              >
+              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)">{{
+                qt.desc
+              }}</span>
+            </div>
           </div>
         </div>
 
@@ -456,53 +475,118 @@ import { CommonModule } from '@angular/common';
           </div>
         </div>
 
-        <!-- Order Book -->
+        <!-- Order Book — FI Desk Layout -->
         <div>
-          <div class="ds-sub-heading">Order Book (Bid / Ask)</div>
-          <div style="display:flex;gap:2px;max-width:500px">
-            <!-- Bids -->
-            <div style="flex:1">
-              <div
-                style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono);padding:4px 8px;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--bn-border)"
-              >
-                Bid
-              </div>
-              <div
-                *ngFor="let b of bids"
-                style="display:flex;justify-content:space-between;padding:3px 8px;position:relative"
-              >
-                <div class="ds-ob-bar-bid" [style.width.%]="b.pct"></div>
-                <span
-                  style="font-size:11px;color:var(--bn-green);font-family:var(--fi-mono);position:relative;z-index:1;font-weight:600"
-                  >{{ b.price }}</span
-                >
-                <span
-                  style="font-size:11px;color:var(--bn-t1);font-family:var(--fi-mono);position:relative;z-index:1"
-                  >{{ b.size }}</span
-                >
+          <div class="ds-sub-heading">Order Book — FI Desk (Dealer, Price, Yield, Face, DV01, Type)</div>
+          <div style="max-width:560px;background:var(--bn-bg1);border:1px solid var(--bn-border);border-radius:3px;overflow:hidden">
+            <!-- Instrument context bar -->
+            <div style="display:flex;align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--bn-border);background:rgba(0,188,212,0.04)">
+              <span class="font-mono-fi" style="font-size:12px;font-weight:700;color:var(--bn-cyan)">UST 4.625 06/26</span>
+              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">US Treasury</span>
+              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">CUSIP 912828ZT0</span>
+              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t1)">Aaa</span>
+              <div style="margin-left:auto;display:flex;gap:12px">
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">OAS </span><span style="color:var(--bn-amber);font-weight:600">+8</span></span>
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">DUR </span><span style="color:#1e90ff;font-weight:600">1.85</span></span>
               </div>
             </div>
-            <!-- Asks -->
-            <div style="flex:1">
-              <div
-                style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono);padding:4px 8px;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--bn-border);text-align:right"
-              >
-                Ask
+            <!-- Column headers -->
+            <div class="ob-grid-cols" style="display:grid;padding:4px 8px;background:var(--bn-bg2)">
+              <div class="col-hdr" style="text-align:left">Dealer</div>
+              <div class="col-hdr" style="text-align:right">Price</div>
+              <div class="col-hdr" style="text-align:right">Yield</div>
+              <div class="col-hdr" style="text-align:right">Face (MM)</div>
+              <div class="col-hdr" style="text-align:right">DV01 ($K)</div>
+              <div class="col-hdr" style="text-align:center">Type</div>
+            </div>
+            <!-- Ask label + rows -->
+            <div class="font-mono-fi" style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-red);letter-spacing:0.06em">OFFERS (ASK)</div>
+            <div *ngFor="let r of dsAskRows" class="ob-grid-cols" style="display:grid;padding:2px 8px;position:relative">
+              <div class="ds-ob-bar-ask" [style.width.%]="r.fill"></div>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t1);position:relative;z-index:1">{{ r.dealer }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-red);text-align:right;position:relative;z-index:1">{{ r.price }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1">{{ r.yld }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1">{{ r.face }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:#1e90ff;text-align:right;position:relative;z-index:1">{{ r.dv01 }}</span>
+              <span style="text-align:center;position:relative;z-index:1">
+                <span class="font-mono-fi" style="font-size:8px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                  [style.background]="qtBadgeBg(r.type)" [style.color]="qtBadgeColor(r.type)">{{ r.type }}</span>
+              </span>
+            </div>
+            <!-- Spread bar -->
+            <div style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);background:linear-gradient(90deg, rgba(14,203,129,0.08), var(--bn-bg2), rgba(246,70,93,0.08))">
+              <span class="font-mono-fi" style="font-size:14px;font-weight:700;color:var(--bn-green)">100.135</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t2);margin-left:12px">≈ $100.135</span>
+              <div style="margin-left:auto;display:flex;gap:16px">
+                <span class="font-mono-fi" style="font-size:10px"><span style="color:var(--bn-t2)">Spread </span><span style="color:var(--bn-amber);font-weight:600">0.125</span></span>
+                <span class="font-mono-fi" style="font-size:10px"><span style="color:var(--bn-t2)">Mid Yld </span><span style="color:#00bcd4;font-weight:600">4.520</span></span>
+                <span class="font-mono-fi" style="font-size:10px"><span style="color:var(--bn-t2)">Z-Spd </span><span style="color:#c084fc;font-weight:600">8</span></span>
               </div>
-              <div
-                *ngFor="let a of asks"
-                style="display:flex;justify-content:space-between;padding:3px 8px;position:relative"
-              >
-                <div class="ds-ob-bar-ask" [style.width.%]="a.pct"></div>
-                <span
-                  style="font-size:11px;color:var(--bn-t1);font-family:var(--fi-mono);position:relative;z-index:1"
-                  >{{ a.size }}</span
-                >
-                <span
-                  style="font-size:11px;color:var(--bn-red);font-family:var(--fi-mono);position:relative;z-index:1;font-weight:600"
-                  >{{ a.price }}</span
-                >
+            </div>
+            <!-- Bid label + rows -->
+            <div class="font-mono-fi" style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-green);letter-spacing:0.06em">BIDS</div>
+            <div *ngFor="let r of dsBidRows" class="ob-grid-cols" style="display:grid;padding:2px 8px;position:relative">
+              <div class="ds-ob-bar-bid" [style.width.%]="r.fill"></div>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t1);position:relative;z-index:1">{{ r.dealer }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-green);text-align:right;position:relative;z-index:1">{{ r.price }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1">{{ r.yld }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1">{{ r.face }}</span>
+              <span class="font-mono-fi" style="font-size:11px;color:#1e90ff;text-align:right;position:relative;z-index:1">{{ r.dv01 }}</span>
+              <span style="text-align:center;position:relative;z-index:1">
+                <span class="font-mono-fi" style="font-size:8px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                  [style.background]="qtBadgeBg(r.type)" [style.color]="qtBadgeColor(r.type)">{{ r.type }}</span>
+              </span>
+            </div>
+            <!-- Aggregate footer -->
+            <div style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--bn-border);background:var(--bn-bg2)">
+              <div style="display:flex;gap:16px">
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">BID DV01 </span><span style="color:var(--bn-green);font-weight:600">$16.3K</span></span>
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">ASK DV01 </span><span style="color:var(--bn-red);font-weight:600">$20.9K</span></span>
               </div>
+              <div style="margin-left:auto;display:flex;gap:16px">
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">MIN SIZE </span><span style="color:var(--bn-t1);font-weight:600">1.5MM</span></span>
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">FIRM </span><span style="color:var(--bn-green);font-weight:600">4</span></span>
+                <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">SETTLE </span><span style="color:var(--bn-t1);font-weight:600">T+1</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instrument Context Bar -->
+        <div style="margin-top:20px">
+          <div class="ds-sub-heading">Instrument Context Bar</div>
+          <div style="font-size:9px;color:var(--bn-t2);margin-bottom:8px">
+            Appears atop Order Book and Trade Ticket. Shows bond identity, CUSIP, rating, and live analytics.
+          </div>
+          <div style="max-width:560px;display:flex;align-items:center;gap:12px;padding:6px 12px;background:rgba(0,188,212,0.04);border:1px solid var(--bn-border);border-radius:3px">
+            <span class="font-mono-fi" style="font-size:12px;font-weight:700;color:var(--bn-cyan)">AAPL 3.25 02/29</span>
+            <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">Apple Inc</span>
+            <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">CUSIP 037833DV8</span>
+            <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t1)">Aa1</span>
+            <div style="margin-left:auto;display:flex;gap:12px">
+              <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">OAS </span><span style="color:var(--bn-amber);font-weight:600">+65</span></span>
+              <span class="font-mono-fi" style="font-size:9px"><span style="color:var(--bn-t2)">DUR </span><span style="color:#1e90ff;font-weight:600">2.68</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Countdown Ring -->
+        <div style="margin-top:20px">
+          <div class="ds-sub-heading">Countdown Ring (RFQ TTL)</div>
+          <div style="font-size:9px;color:var(--bn-t2);margin-bottom:8px">
+            SVG ring depletes over 30s TTL. Color transitions: blue (safe) → amber (warning &lt;10s) → red (expiring &lt;5s).
+          </div>
+          <div style="display:flex;gap:24px;align-items:center">
+            <div *ngFor="let r of countdownRings" style="display:flex;align-items:center;gap:8px">
+              <svg [attr.width]="28" [attr.height]="28" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="12" fill="none" stroke="var(--bn-bg2)" stroke-width="2.5"/>
+                <circle cx="14" cy="14" r="12" fill="none" [attr.stroke]="r.color" stroke-width="2.5"
+                  [attr.stroke-dasharray]="r.dash" stroke-dashoffset="18.85" stroke-linecap="round"
+                  style="transform:rotate(-90deg);transform-origin:center"/>
+                <text x="14" y="14" text-anchor="middle" dominant-baseline="central"
+                  [attr.fill]="r.color" style="font-size:9px;font-family:var(--fi-mono);font-weight:600">{{ r.secs }}</text>
+              </svg>
+              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">{{ r.label }}</span>
             </div>
           </div>
         </div>
@@ -880,20 +964,37 @@ export class DesignSystemWidget {
     },
   ];
 
-  bids = [
-    { price: '99.875', size: '5MM', pct: 80 },
-    { price: '99.844', size: '12MM', pct: 100 },
-    { price: '99.813', size: '8MM', pct: 65 },
-    { price: '99.781', size: '3MM', pct: 40 },
-    { price: '99.750', size: '7MM', pct: 55 },
+  // Quote type badges
+  quoteTypeBadges = [
+    { label: 'STREAM', bg: 'rgba(14,203,129,0.12)', color: 'var(--bn-green)', desc: 'Firm / executable' },
+    { label: 'RFQ', bg: 'rgba(30,144,255,0.12)', color: 'var(--bn-blue)', desc: 'Request for quote' },
+    { label: 'IND', bg: 'rgba(240,185,11,0.12)', color: 'var(--bn-yellow)', desc: 'Indicative only' },
   ];
 
-  asks = [
-    { price: '99.938', size: '4MM', pct: 70 },
-    { price: '99.969', size: '10MM', pct: 100 },
-    { price: '100.000', size: '6MM', pct: 55 },
-    { price: '100.031', size: '2MM', pct: 30 },
-    { price: '100.063', size: '9MM', pct: 85 },
+  qtBadgeBg(type: string) {
+    return type === 'STREAM' ? 'rgba(14,203,129,0.12)' : type === 'RFQ' ? 'rgba(30,144,255,0.12)' : 'rgba(240,185,11,0.12)';
+  }
+  qtBadgeColor(type: string) {
+    return type === 'STREAM' ? 'var(--bn-green)' : type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-yellow)';
+  }
+
+  // Order book sample data (FI desk layout)
+  dsAskRows = [
+    { dealer: 'BARC', price: '100.247', yld: '4.496', face: '2.5', dv01: '4.6', type: 'IND', fill: 35 },
+    { dealer: 'GS', price: '100.222', yld: '4.504', face: '3.8', dv01: '7.0', type: 'STREAM', fill: 70 },
+    { dealer: 'JPM', price: '100.197', yld: '4.512', face: '5.0', dv01: '9.3', type: 'STREAM', fill: 100 },
+  ];
+  dsBidRows = [
+    { dealer: 'MS', price: '100.072', yld: '4.528', face: '4.5', dv01: '8.3', type: 'STREAM', fill: 90 },
+    { dealer: 'CITI', price: '100.050', yld: '4.536', face: '2.8', dv01: '5.2', type: 'RFQ', fill: 56 },
+    { dealer: 'DB', price: '100.031', yld: '4.544', face: '1.5', dv01: '2.8', type: 'STREAM', fill: 30 },
+  ];
+
+  // Countdown ring examples
+  countdownRings = [
+    { secs: 25, color: '#3da0ff', dash: '69 75.4', label: '25s — blue (safe)' },
+    { secs: 8, color: '#f0b90b', dash: '20 75.4', label: '8s — amber (warning)' },
+    { secs: 3, color: 'var(--bn-red)', dash: '7.5 75.4', label: '3s — red (expiring)' },
   ];
 
   // ── 6. Code snippets ──

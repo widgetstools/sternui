@@ -56,10 +56,19 @@ export function TradeTicket({ bond, clickedPrice }: TradeTicketProps) {
 
   return (
     <div className="flex flex-col h-full" style={{background:'var(--bn-bg1)'}}>
-      {/* Security label */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b flex-shrink-0" style={{borderColor:'var(--bn-border)'}}>
-        <span className="font-mono-fi font-bold" style={{fontSize:11,color:'var(--bn-cyan)'}}>{bond.ticker} {bond.cpn} {bond.mat}</span>
-        <span className="font-mono-fi" style={{fontSize:11,color:'var(--bn-t1)'}}>{mid.toFixed(3)}</span>
+      {/* Security header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0" style={{borderColor:'var(--bn-border)', background:'rgba(0,188,212,0.04)'}}>
+        <span className="font-mono-fi font-bold" style={{fontSize:12,color:'var(--bn-cyan)'}}>{bond.ticker} {bond.cpn} {bond.mat}</span>
+        <span className="font-mono-fi font-semibold" style={{fontSize:11,color:'var(--bn-t0)'}}>{mid.toFixed(3)}</span>
+      </div>
+      {/* Bid / Ask strip */}
+      <div className="grid grid-cols-2 gap-px flex-shrink-0" style={{background:'var(--bn-border)'}}>
+        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'rgba(61,158,255,0.06)',color:'var(--bn-blue)'}}>
+          <span style={{fontSize:8,color:'var(--bn-t2)',display:'block'}}>BID</span>{bond.bid.toFixed(3)}
+        </div>
+        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'rgba(255,61,94,0.06)',color:'var(--bn-red)'}}>
+          <span style={{fontSize:8,color:'var(--bn-t2)',display:'block'}}>ASK</span>{bond.ask.toFixed(3)}
+        </div>
       </div>
 
       {/* Buy / Sell toggle */}
@@ -159,8 +168,8 @@ export function TradeTicket({ bond, clickedPrice }: TradeTicketProps) {
         )}
 
         {/* Order summary */}
-        <div style={{padding:'6px 8px',borderRadius:3,background:'var(--bn-bg2)',fontSize:9,color:'var(--bn-t2)',fontFamily:'JetBrains Mono,monospace',lineHeight:1.6}}>
-          {side} {amount || '—'}MM {bond.ticker} {bond.cpn} {bond.mat}<br/>
+        <div style={{padding:'6px 8px',borderRadius:3,background:'var(--bn-bg2)',fontSize:9,color:'var(--bn-t2)',fontFamily:'JetBrains Mono,monospace',lineHeight:1.6, borderLeft:`3px solid ${side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)'}`}}>
+          <span style={{color: side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)', fontWeight: 700}}>{side}</span> {amount || '—'}MM {bond.ticker} {bond.cpn} {bond.mat}<br/>
           {orderType}{orderType !== 'Market' ? ` @ ${price}` : ''}{orderType === 'Stop-Limit' ? ` stop ${stopPrice || '—'}` : ''} · {tif}
         </div>
       </div>

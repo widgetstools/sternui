@@ -75,7 +75,7 @@ export function BookRiskSummary() {
           defaultColDef={defaultColDef}
           headerHeight={28}
           rowHeight={26}
-          domLayout='autoHeight'
+          domLayout='normal'
         />
       </div>
       {/* OAS heatmap */}

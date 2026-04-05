@@ -2,27 +2,75 @@ import { Component, Input, OnInit, OnDestroy, inject, effect, signal } from '@an
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SharedStateService } from '../services/shared-state.service';
+import { DEALERS } from '../services/trading-data.service';
+
+/* ── Types ── */
+type QuoteType = 'STREAM' | 'RFQ' | 'IND';
 
 interface Level {
+  dealer: string;
   price: number;
-  qty: number;
+  yield: number;
+  face: number;
+  dv01: number;
+  quoteType: QuoteType;
   total: number;
   pct: number;
 }
 
-function genLevels(mid: number, side: 'ask' | 'bid', n = 14): Level[] {
+interface RecentTrade {
+  side: 'BUY' | 'SELL';
+  dealer: string;
+  price: number;
+  yield: number;
+  face: number;
+  time: string;
+}
+
+/* ── Helpers ── */
+const pickDealer = () => DEALERS[Math.floor(Math.random() * DEALERS.length)];
+const pickQuoteType = (): QuoteType => {
+  const r = Math.random();
+  return r < 0.55 ? 'STREAM' : r < 0.85 ? 'RFQ' : 'IND';
+};
+
+function genLevels(
+  mid: number,
+  bondYtm: number,
+  bondDv01: number,
+  side: 'ask' | 'bid',
+  n = 15,
+): Level[] {
   const levels: Level[] = [];
-  let cumQty = 0;
+  let cumFace = 0;
   for (let i = 0; i < n; i++) {
     const offset = side === 'ask' ? (i + 0.5) * 0.025 : -(i + 0.5) * 0.025;
     const price = +(mid + offset).toFixed(3);
-    const qty = +(Math.random() * 0.5 + 0.001).toFixed(5);
-    cumQty += qty;
-    levels.push({ price, qty, total: +cumQty.toFixed(5), pct: 0 });
+    const yieldOffset = side === 'ask' ? -(i + 0.5) * 0.008 : (i + 0.5) * 0.008;
+    const yld = +(bondYtm + yieldOffset).toFixed(3);
+    const face = +(Math.random() * 4 + 0.5).toFixed(1);
+    cumFace += face;
+    const dv01 = +(face * bondDv01 * 0.01).toFixed(1);
+    levels.push({
+      dealer: pickDealer(),
+      price,
+      yield: yld,
+      face,
+      dv01,
+      quoteType: pickQuoteType(),
+      total: +cumFace.toFixed(1),
+      pct: 0,
+    });
   }
   const maxTotal = levels[levels.length - 1].total;
   return levels.map((l) => ({ ...l, pct: (l.total / maxTotal) * 100 }));
 }
+
+const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
+  STREAM: { bg: 'rgba(14,203,129,0.12)', color: 'var(--bn-green)' },
+  RFQ: { bg: 'rgba(30,144,255,0.12)', color: 'var(--bn-blue)' },
+  IND: { bg: 'rgba(240,185,11,0.12)', color: 'var(--bn-yellow)' },
+};
 
 @Component({
   selector: 'order-book-widget',
@@ -31,9 +79,35 @@ function genLevels(mid: number, side: 'ask' | 'bid', n = 14): Level[] {
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1)">
+      <!-- Instrument context bar -->
+      <div
+        style="display:flex;align-items:center;gap:12px;padding:6px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
+      >
+        <span class="font-mono-fi font-bold" style="font-size:12px;color:var(--bn-cyan)">
+          {{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}
+        </span>
+        <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">{{ bond.issuer }}</span>
+        <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)"
+          >CUSIP {{ bond.cusip }}</span
+        >
+        <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t1)">{{ bond.rtg }}</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">OAS </span>
+            <span style="color:var(--bn-amber);font-weight:600">{{
+              bond.oas > 0 ? '+' + bond.oas : bond.oas
+            }}</span>
+          </span>
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">DUR </span>
+            <span style="color:#1e90ff;font-weight:600">{{ bond.dur }}</span>
+          </span>
+        </div>
+      </div>
+
       <!-- Toolbar -->
       <div
-        style="display:flex;align-items:center;justify-content:flex-end;padding:6px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0"
+        style="display:flex;align-items:center;justify-content:space-between;padding:4px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0"
       >
         <div style="display:flex;align-items:center;gap:4px">
           <button
@@ -51,112 +125,221 @@ function genLevels(mid: number, side: 'ask' | 'bid', n = 14): Level[] {
           >
             {{ opt.icon }}
           </button>
-          <select
-            [(ngModel)]="precision"
-            class="font-mono-fi"
-            style="font-size:11px;border-radius:4px;padding:2px 4px;border:1px solid var(--bn-border2);background:var(--bn-bg2);color:var(--bn-t1)"
-          >
-            <option *ngFor="let p of precisions">{{ p }}</option>
-          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">
+            {{ asks().length + bids().length }} levels
+          </span>
+          <span
+            class="live-dot"
+            style="width:5px;height:5px;border-radius:50%;background:var(--bn-green);display:inline-block"
+          ></span>
+          <span class="font-mono-fi" style="font-size:8px;color:var(--bn-green)">LIVE</span>
         </div>
       </div>
+
       <!-- Column headers -->
       <div
-        style="display:grid;grid-template-columns:repeat(3,1fr);padding:4px 12px;background:var(--bn-bg2);flex-shrink:0"
+        class="ob-grid-cols"
+        style="display:grid;padding:4px 8px;background:var(--bn-bg2);flex-shrink:0"
       >
-        <div style="font-size:11px;color:var(--bn-t1);text-align:left">Price (USD)</div>
-        <div style="font-size:11px;color:var(--bn-t1);text-align:right">Amount (MM)</div>
-        <div style="font-size:11px;color:var(--bn-t1);text-align:right">Total</div>
+        <div class="col-hdr" style="text-align:left">Dealer</div>
+        <div class="col-hdr" style="text-align:right">Price</div>
+        <div class="col-hdr" style="text-align:right">Yield</div>
+        <div class="col-hdr" style="text-align:right">Face (MM)</div>
+        <div class="col-hdr" style="text-align:right">DV01 ($K)</div>
+        <div class="col-hdr" style="text-align:center">Type</div>
       </div>
+
       <!-- Order book levels -->
-      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0">
         <!-- Asks -->
         <div
           *ngIf="view === 'both' || view === 'asks'"
-          style="display:flex;flex-direction:column-reverse;overflow-y:auto"
-          [style.flex]="view === 'asks' ? '1' : '0 0 auto'"
+          style="display:flex;flex-direction:column;overflow-y:auto;flex:1;min-height:0"
         >
-          <div
-            *ngFor="let a of asks(); let i = index"
-            (click)="onClickPrice(a.price)"
-            style="display:grid;grid-template-columns:repeat(3,1fr);padding:2px 12px;cursor:pointer;position:relative"
-            class="ob-row-ask"
-            [style.--fill-pct]="a.pct + '%'"
-          >
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-red)">
-              {{ a.price.toFixed(3) }}
+          <div style="margin-top:auto">
+            <div
+              class="font-mono-fi"
+              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-red);letter-spacing:0.06em"
+            >
+              OFFERS (ASK)
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
-              {{ a.qty.toFixed(5) }}
-            </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1);text-align:right">
-              {{ a.total.toFixed(5) }}
+            <div
+              *ngFor="let a of asks(); let i = index"
+              (click)="onClickPrice(a.price)"
+              class="ob-row-ask ob-grid-cols"
+              style="display:grid;padding:2px 8px;cursor:pointer;position:relative"
+              [style.--fill-pct]="a.pct + '%'"
+            >
+              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">
+                {{ a.dealer }}
+              </div>
+              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-red);text-align:right">
+                {{ a.price.toFixed(3) }}
+              </div>
+              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+                {{ a.yield.toFixed(3) }}
+              </div>
+              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+                {{ a.face.toFixed(1) }}
+              </div>
+              <div class="font-mono-fi" style="font-size:11px;color:#1e90ff;text-align:right">
+                {{ a.dv01.toFixed(1) }}
+              </div>
+              <div style="text-align:center">
+                <span
+                  class="font-mono-fi"
+                  [style.fontSize.px]="8"
+                  style="font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                  [style.background]="badgeStyle(a.quoteType).bg"
+                  [style.color]="badgeStyle(a.quoteType).color"
+                  >{{ a.quoteType }}</span
+                >
+              </div>
             </div>
           </div>
         </div>
-        <!-- Spread row -->
+
+        <!-- Spread bar -->
         <div
           *ngIf="view === 'both'"
-          style="display:flex;align-items:center;gap:12px;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);background:var(--bn-bg2);flex-shrink:0"
+          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);flex-shrink:0;background:linear-gradient(90deg, rgba(14,203,129,0.08), var(--bn-bg2), rgba(246,70,93,0.08))"
         >
-          <span
-            class="font-mono-fi font-bold"
-            style="font-size:13px"
-            [style.color]="spreadColor()"
-            >{{ mid().toFixed(3) }}</span
-          >
-          <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)"
-            >Spread: {{ spread() }} ({{ spreadPct() }}%)</span
-          >
+          <span class="font-mono-fi font-bold" style="font-size:14px" [style.color]="spreadColor()">
+            {{ mid().toFixed(3) }}
+          </span>
+          <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t2);margin-left:12px">
+            ≈ {{ '$' + mid().toFixed(3) }}
+          </span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+            <span class="font-mono-fi" style="font-size:10px">
+              <span style="color:var(--bn-t2)">Spread </span>
+              <span style="color:var(--bn-amber);font-weight:600">{{ spread().toFixed(3) }}</span>
+              <span style="color:var(--bn-t2)"> ({{ spreadPct() }}%)</span>
+            </span>
+            <span class="font-mono-fi" style="font-size:10px">
+              <span style="color:var(--bn-t2)">Mid Yld </span>
+              <span style="color:#00bcd4;font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
+            </span>
+            <span class="font-mono-fi" style="font-size:10px">
+              <span style="color:var(--bn-t2)">Z-Spd </span>
+              <span style="color:#c084fc;font-weight:600">{{ bond.gSpd }}</span>
+            </span>
+            <span [style.color]="spreadColor()" style="font-size:12px;font-weight:700">
+              {{ spread() < 0 ? '↓' : '↑' }}
+            </span>
+          </div>
         </div>
+
         <!-- Bids -->
-        <div *ngIf="view === 'both' || view === 'bids'" style="flex:1;overflow-y:auto">
+        <div *ngIf="view === 'both' || view === 'bids'" style="flex:1;overflow-y:auto;min-height:0">
+          <div
+            class="font-mono-fi"
+            style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-green);letter-spacing:0.06em"
+          >
+            BIDS
+          </div>
           <div
             *ngFor="let b of bids(); let i = index"
             (click)="onClickPrice(b.price)"
-            style="display:grid;grid-template-columns:repeat(3,1fr);padding:2px 12px;cursor:pointer;position:relative"
-            class="ob-row-bid"
+            class="ob-row-bid ob-grid-cols"
+            style="display:grid;padding:2px 8px;cursor:pointer;position:relative"
             [style.--fill-pct]="b.pct + '%'"
           >
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-green)">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">{{ b.dealer }}</div>
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-green);text-align:right">
               {{ b.price.toFixed(3) }}
             </div>
             <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
-              {{ b.qty.toFixed(5) }}
+              {{ b.yield.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1);text-align:right">
-              {{ b.total.toFixed(5) }}
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+              {{ b.face.toFixed(1) }}
+            </div>
+            <div class="font-mono-fi" style="font-size:11px;color:#1e90ff;text-align:right">
+              {{ b.dv01.toFixed(1) }}
+            </div>
+            <div style="text-align:center">
+              <span
+                class="font-mono-fi"
+                [style.fontSize.px]="8"
+                style="font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                [style.background]="badgeStyle(b.quoteType).bg"
+                [style.color]="badgeStyle(b.quoteType).color"
+                >{{ b.quoteType }}</span
+              >
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Aggregate DV01 footer -->
+      <div
+        style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);background:var(--bn-bg2);flex-shrink:0"
+      >
+        <div style="display:flex;align-items:center;gap:16px">
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">BID DV01 </span>
+            <span style="color:var(--bn-green);font-weight:600">{{ '$' + bidDv01() + 'K' }}</span>
+          </span>
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">ASK DV01 </span>
+            <span style="color:var(--bn-red);font-weight:600">{{ '$' + askDv01() + 'K' }}</span>
+          </span>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">MIN SIZE </span>
+            <span style="color:var(--bn-t1);font-weight:600">{{ minSize() }}MM</span>
+          </span>
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">FIRM </span>
+            <span style="color:var(--bn-green);font-weight:600">{{ firmCount() }}</span>
+          </span>
+          <span class="font-mono-fi" style="font-size:9px">
+            <span style="color:var(--bn-t2)">SETTLE </span>
+            <span style="color:var(--bn-t1);font-weight:600">T+1</span>
+          </span>
+        </div>
+      </div>
+
       <!-- Recent trades -->
       <div
-        style="border-top:1px solid var(--bn-border);flex-shrink:0;max-height:180px;overflow:hidden;display:flex;flex-direction:column"
+        style="border-top:1px solid var(--bn-border);flex-shrink:0;max-height:160px;overflow:hidden;display:flex;flex-direction:column"
       >
-        <div
-          style="display:grid;grid-template-columns:repeat(3,1fr);padding:4px 12px;background:var(--bn-bg2)"
-        >
-          <div style="font-size:11px;color:var(--bn-t1);text-align:left">Price (USD)</div>
-          <div style="font-size:11px;color:var(--bn-t1);text-align:right">Amount (MM)</div>
-          <div style="font-size:11px;color:var(--bn-t1);text-align:right">Time</div>
+        <div class="ob-trades-cols" style="display:grid;padding:4px 8px;background:var(--bn-bg2)">
+          <div class="col-hdr" style="text-align:left">Side</div>
+          <div class="col-hdr" style="text-align:left">Cpty</div>
+          <div class="col-hdr" style="text-align:right">Price</div>
+          <div class="col-hdr" style="text-align:right">Yield</div>
+          <div class="col-hdr" style="text-align:right">Face</div>
+          <div class="col-hdr" style="text-align:right">Time</div>
         </div>
         <div style="overflow-y:auto;flex:1">
           <div
             *ngFor="let t of trades()"
-            style="display:grid;grid-template-columns:repeat(3,1fr);padding:2px 12px"
+            class="ob-trades-cols"
+            style="display:grid;padding:2px 8px"
           >
             <div
               class="font-mono-fi"
-              style="font-size:11px"
-              [style.color]="t.side === 'B' ? 'var(--bn-green)' : 'var(--bn-red)'"
+              style="font-size:10px;font-weight:700"
+              [style.color]="t.side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)'"
             >
+              {{ t.side }}
+            </div>
+            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t1)">{{ t.dealer }}</div>
+            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t0);text-align:right">
               {{ t.price.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
-              {{ t.qty.toFixed(5) }}
+            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t0);text-align:right">
+              {{ t.yield.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1);text-align:right">
+            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t0);text-align:right">
+              {{ t.face.toFixed(1) }}
+            </div>
+            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t2);text-align:right">
               {{ t.time }}
             </div>
           </div>
@@ -174,10 +357,8 @@ export class OrderBookWidget implements OnInit, OnDestroy {
 
   asks = signal<Level[]>([]);
   bids = signal<Level[]>([]);
-  trades = signal<{ price: number; qty: number; side: 'B' | 'S'; time: string }[]>([]);
+  trades = signal<RecentTrade[]>([]);
   view: 'both' | 'asks' | 'bids' = 'both';
-  precision = '0.01';
-  precisions = ['0.001', '0.01', '0.1'];
   viewOpts = [
     { v: 'both', icon: '\u2580\u2584' },
     { v: 'bids', icon: '\u2584' },
@@ -188,6 +369,22 @@ export class OrderBookWidget implements OnInit, OnDestroy {
   spread = signal(0);
   spreadPct = signal('0');
   spreadColor = signal('var(--bn-green)');
+
+  // Aggregate computed signals
+  bidDv01 = signal('0');
+  askDv01 = signal('0');
+  firmCount = signal(0);
+  minSize = signal('0');
+
+  readonly badgeStyles = BADGE_STYLES;
+
+  get bond() {
+    return this.shared.selectedBond();
+  }
+
+  badgeStyle(type: QuoteType) {
+    return BADGE_STYLES[type];
+  }
 
   constructor() {
     effect(() => {
@@ -207,22 +404,32 @@ export class OrderBookWidget implements OnInit, OnDestroy {
 
   private generateBook() {
     if (this.intervalId) clearInterval(this.intervalId);
-    this.asks.set(genLevels(this.mid(), 'ask', 14).reverse());
-    this.bids.set(genLevels(this.mid(), 'bid', 14));
+    const bond = this.shared.selectedBond();
+    this.asks.set(genLevels(this.mid(), bond.ytm, bond.dv01, 'ask', 15).reverse());
+    this.bids.set(genLevels(this.mid(), bond.ytm, bond.dv01, 'bid', 15));
     this.updateSpread();
+    this.updateAggregates();
 
     this.intervalId = setInterval(() => {
+      const b = this.shared.selectedBond();
       const newMid = this.mid() + (Math.random() - 0.5) * 0.04;
-      this.asks.set(genLevels(newMid, 'ask', 14).reverse());
-      this.bids.set(genLevels(newMid, 'bid', 14));
+      this.asks.set(genLevels(newMid, b.ytm, b.dv01, 'ask', 15).reverse());
+      this.bids.set(genLevels(newMid, b.ytm, b.dv01, 'bid', 15));
       this.updateSpread();
-      const side = Math.random() > 0.5 ? ('B' as const) : ('S' as const);
-      const price = +(newMid + (side === 'B' ? 0.012 : -0.012)).toFixed(3);
-      const qty = +(Math.random() * 0.3 + 0.001).toFixed(5);
+      this.updateAggregates();
+
+      // Generate trade
+      const side: 'BUY' | 'SELL' = Math.random() > 0.5 ? 'BUY' : 'SELL';
+      const price = +(newMid + (side === 'BUY' ? 0.012 : -0.012)).toFixed(3);
+      const yld = +(b.ytm + (side === 'BUY' ? -0.005 : 0.005)).toFixed(3);
+      const face = +(Math.random() * 3 + 0.5).toFixed(1);
       const now = new Date();
       const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-      this.trades.set([{ price, qty, side, time }, ...this.trades().slice(0, 24)]);
-    }, 1000);
+      this.trades.set([
+        { side, dealer: pickDealer(), price, yield: yld, face, time },
+        ...this.trades().slice(0, 14),
+      ]);
+    }, 1200);
   }
 
   private updateSpread() {
@@ -238,6 +445,16 @@ export class OrderBookWidget implements OnInit, OnDestroy {
           : 'var(--bn-green)',
       );
     }
+  }
+
+  private updateAggregates() {
+    const a = this.asks();
+    const b = this.bids();
+    this.bidDv01.set(b.reduce((s, l) => s + l.dv01, 0).toFixed(1));
+    this.askDv01.set(a.reduce((s, l) => s + l.dv01, 0).toFixed(1));
+    this.firmCount.set([...a, ...b].filter((l) => l.quoteType === 'STREAM').length);
+    const all = [...a, ...b];
+    this.minSize.set(all.length ? Math.min(...all.map((l) => l.face)).toFixed(1) : '0');
   }
 
   setView(v: string) {

@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, inject, effect } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, inject, effect, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SharedStateService } from '../services/shared-state.service';
@@ -10,6 +10,7 @@ import {
   type RfqQuote,
 } from '../services/trading-data.service';
 
+const RFQ_TTL = 30;
 let rfqCounter = 1;
 function makeQuote(bond: Bond, side: 'Buy' | 'Sell', dealer: string): RfqQuote {
   const spread = 0.04 + Math.random() * 0.08;
@@ -38,6 +39,17 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
   standalone: true,
   imports: [CommonModule, FormsModule],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
+  styles: [
+    `
+      .rfq-history-item .rfq-remove-btn {
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .rfq-history-item:hover .rfq-remove-btn {
+        opacity: 1;
+      }
+    `,
+  ],
   template: `
     <div style="display:flex;flex-direction:column;height:100%;background:var(--fi-bg1)">
       <!-- Live count toolbar -->
@@ -56,9 +68,22 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
           style="display:flex;flex-direction:column;flex-shrink:0;width:220px;background:var(--fi-bg2)"
         >
           <div
-            style="display:flex;align-items:center;padding:0 12px;height:28px;border-bottom:1px solid var(--fi-border)"
+            style="display:flex;align-items:center;padding:0 12px;height:28px;border-bottom:1px solid var(--fi-border);background:rgba(61,158,255,0.06)"
           >
-            <span class="col-hdr">New RFQ</span>
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--fi-blue)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="margin-right:6px"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            <span class="col-hdr" style="color:var(--fi-blue)">New RFQ</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;padding:12px">
             <!-- Instrument -->
@@ -68,7 +93,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 *ngIf="activeBond && !instrOpen"
                 (click)="instrOpen = true"
                 class="font-mono-fi"
-                style="font-size:11px;padding:6px 8px;border-radius:2px;border:1px solid var(--fi-border2);background:var(--fi-bg3);color:var(--fi-cyan);cursor:pointer;display:flex;align-items:center;justify-content:space-between"
+                style="font-size:11px;font-weight:700;padding:6px 8px;border-radius:2px;border:1px solid rgba(0,188,212,0.25);background:rgba(0,188,212,0.06);color:var(--fi-cyan);cursor:pointer;display:flex;align-items:center;justify-content:space-between"
               >
                 <span>{{ activeBond.ticker }} {{ activeBond.cpn }} {{ activeBond.mat }}</span>
               </div>
@@ -113,15 +138,21 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             >
               <div
                 class="font-mono-fi"
-                style="font-size:9px;padding:4px 8px;border-radius:2px;background:var(--fi-bg3);color:var(--fi-blue);text-align:right"
+                style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(61,158,255,0.08);color:var(--fi-blue);text-align:right;border:1px solid rgba(61,158,255,0.15)"
               >
-                Bid: {{ activeBond.bid.toFixed(3) }}
+                <span style="font-size:8px;color:var(--fi-t2);display:block;margin-bottom:1px"
+                  >BID</span
+                >
+                {{ activeBond.bid.toFixed(3) }}
               </div>
               <div
                 class="font-mono-fi"
-                style="font-size:9px;padding:4px 8px;border-radius:2px;background:var(--fi-bg3);color:var(--fi-red);text-align:right"
+                style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(255,61,94,0.08);color:var(--fi-red);text-align:right;border:1px solid rgba(255,61,94,0.15)"
               >
-                Ask: {{ activeBond.ask.toFixed(3) }}
+                <span style="font-size:8px;color:var(--fi-t2);display:block;margin-bottom:1px"
+                  >ASK</span
+                >
+                {{ activeBond.ask.toFixed(3) }}
               </div>
             </div>
             <!-- Side -->
@@ -214,34 +245,127 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
           <!-- RFQ history -->
           <div style="border-top:1px solid var(--fi-border);flex:1;overflow-y:auto">
             <div
-              style="display:flex;align-items:center;padding:0 12px;height:28px;border-bottom:1px solid var(--fi-border)"
+              style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:28px;border-bottom:1px solid var(--fi-border)"
             >
               <span class="col-hdr">RFQ History</span>
+              <button
+                *ngIf="hasCompletedRfqs"
+                (click)="clearHistory()"
+                class="font-mono-fi"
+                style="font-size:8px;color:var(--fi-t3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:3px"
+                (mouseenter)="$any($event.currentTarget).style.color = 'var(--fi-red)'"
+                (mouseleave)="$any($event.currentTarget).style.color = 'var(--fi-t3)'"
+              >
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  />
+                </svg>
+                CLEAR
+              </button>
             </div>
             <div
               *ngFor="let r of requests"
               (click)="activeId = r.id"
-              style="padding:8px 12px;border-bottom:1px solid var(--fi-border);cursor:pointer"
+              class="rfq-history-item"
+              style="padding:8px 12px;border-bottom:1px solid var(--fi-border);cursor:pointer;position:relative"
               [style.background]="activeId === r.id ? 'var(--fi-bg3)' : 'transparent'"
             >
               <div
                 style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px"
               >
-                <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--fi-cyan)">{{
-                  r.id
-                }}</span>
-                <span
-                  class="font-mono-fi"
-                  style="font-size:9px;padding:1px 6px;border-radius:2px"
-                  [style.background]="statusBg(r.status)"
-                  [style.color]="statusColor(r.status)"
-                  [style.border]="'1px solid ' + statusBorder(r.status)"
-                  >{{ r.status.toUpperCase() }}</span
-                >
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--fi-cyan)">{{
+                    r.id
+                  }}</span>
+                  <span
+                    class="font-mono-fi"
+                    style="font-size:9px;font-weight:600"
+                    [style.color]="r.side === 'Buy' ? 'var(--fi-green)' : 'var(--fi-red)'"
+                    >{{ r.side.toUpperCase() }}</span
+                  >
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span
+                    class="font-mono-fi"
+                    style="font-size:9px;padding:1px 6px;border-radius:2px"
+                    [style.background]="statusBg(r.status)"
+                    [style.color]="statusColor(r.status)"
+                    [style.border]="'1px solid ' + statusBorder(r.status)"
+                    >{{ r.status.toUpperCase() }}</span
+                  >
+                  <button
+                    *ngIf="r.status === 'done' || r.status === 'cancelled'"
+                    (click)="removeRfq(r.id); $event.stopPropagation()"
+                    class="rfq-remove-btn"
+                    style="background:none;border:none;cursor:pointer;padding:0;color:var(--fi-t3);line-height:0"
+                    (mouseenter)="$any($event.currentTarget).style.color = 'var(--fi-red)'"
+                    (mouseleave)="$any($event.currentTarget).style.color = 'var(--fi-t3)'"
+                  >
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div class="font-mono-fi" style="font-size:9px;color:var(--fi-t1)">{{ r.bond }}</div>
-              <div class="font-mono-fi" style="font-size:9px;color:var(--fi-t2)">
-                {{ r.side }} - {{ r.size }} - {{ r.quotes.length }} quotes
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="font-mono-fi" style="font-size:9px;color:var(--fi-t2)">
+                  {{ r.size }} · {{ r.quotes.length }} quotes
+                </span>
+                <div
+                  *ngIf="r.status === 'pending' || r.status === 'quoted'"
+                  style="position:relative;width:28px;height:28px;flex-shrink:0"
+                >
+                  <svg viewBox="0 0 28 28" width="28" height="28">
+                    <circle
+                      cx="14"
+                      cy="14"
+                      r="11"
+                      fill="none"
+                      stroke="var(--fi-bg3)"
+                      stroke-width="2.5"
+                    />
+                    <circle
+                      cx="14"
+                      cy="14"
+                      r="11"
+                      fill="none"
+                      [attr.stroke]="countdownColor(r.createdAt)"
+                      stroke-width="2.5"
+                      [attr.stroke-dasharray]="countdownDash(r.createdAt)"
+                      stroke-linecap="round"
+                      transform="rotate(-90 14 14)"
+                      style="transition:stroke-dasharray 0.15s linear,stroke 0.3s ease"
+                    />
+                  </svg>
+                  <div
+                    style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700"
+                    [style.color]="countdownColor(r.createdAt)"
+                  >
+                    {{ countdownSecs(r.createdAt) }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -269,6 +393,55 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 <span class="font-mono-fi" style="font-size:11px;color:var(--fi-t1)">{{
                   activeReq.size
                 }}</span>
+              </div>
+              <!-- Countdown ring + cancel for live RFQs -->
+              <div
+                *ngIf="activeReq.status === 'pending' || activeReq.status === 'quoted'"
+                style="display:flex;align-items:center;gap:8px"
+              >
+                <div style="position:relative;width:28px;height:28px;flex-shrink:0">
+                  <svg viewBox="0 0 28 28" width="28" height="28">
+                    <circle
+                      cx="14"
+                      cy="14"
+                      r="11"
+                      fill="none"
+                      stroke="var(--fi-bg3)"
+                      stroke-width="2.5"
+                    />
+                    <circle
+                      cx="14"
+                      cy="14"
+                      r="11"
+                      fill="none"
+                      [attr.stroke]="countdownColor(activeReq.createdAt)"
+                      stroke-width="2.5"
+                      [attr.stroke-dasharray]="countdownDash(activeReq.createdAt)"
+                      stroke-linecap="round"
+                      transform="rotate(-90 14 14)"
+                      style="transition:stroke-dasharray 0.15s linear,stroke 0.3s ease"
+                    />
+                  </svg>
+                  <div
+                    style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700"
+                    [style.color]="countdownColor(activeReq.createdAt)"
+                  >
+                    {{ countdownSecs(activeReq.createdAt) }}
+                  </div>
+                </div>
+                <span
+                  *ngIf="activeReq.status === 'pending'"
+                  class="font-mono-fi"
+                  style="font-size:9px;color:var(--fi-amber)"
+                  >Awaiting quotes…</span
+                >
+                <button
+                  (click)="cancelRfq(activeReq.id)"
+                  class="font-mono-fi"
+                  style="font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(255,61,94,0.08);border:1px solid rgba(255,61,94,0.3);color:var(--fi-red);cursor:pointer"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
             <!-- Best quote banner -->
@@ -486,6 +659,8 @@ export class RfqWidget implements OnInit, OnDestroy {
   private shared = inject(SharedStateService);
   private quoteInterval: any;
   private staleInterval: any;
+  private tickInterval: any;
+  tick = signal(0); // triggers template re-render for countdown
 
   dealers = DEALERS;
   rfqSide: 'Buy' | 'Sell' = 'Buy';
@@ -540,7 +715,58 @@ export class RfqWidget implements OnInit, OnDestroy {
     });
   }
 
+  // Countdown helpers (called from template — read tick() to stay reactive)
+  countdownRemaining(createdAt: number): number {
+    this.tick(); // subscribe to tick signal
+    return Math.max(0, RFQ_TTL - (Date.now() - createdAt) / 1000);
+  }
+  countdownSecs(createdAt: number): string {
+    const s = Math.ceil(this.countdownRemaining(createdAt));
+    return s > 0 ? `${s}` : '—';
+  }
+  countdownColor(createdAt: number): string {
+    const r = this.countdownRemaining(createdAt);
+    return r > 15 ? 'var(--fi-blue)' : r > 7 ? 'var(--fi-amber)' : 'var(--fi-red)';
+  }
+  countdownDash(createdAt: number): string {
+    const r = this.countdownRemaining(createdAt);
+    const C = 2 * Math.PI * 11;
+    return `${(r / RFQ_TTL) * C} ${C}`;
+  }
+
+  get hasCompletedRfqs(): boolean {
+    return this.requests.some((r) => r.status === 'done' || r.status === 'cancelled');
+  }
+
+  cancelRfq(rfqId: string) {
+    this.shared.rfqRequests.update((prev) =>
+      prev.map((r) =>
+        r.id === rfqId
+          ? {
+              ...r,
+              status: 'cancelled' as const,
+              quotes: r.quotes.map((q) => ({ ...q, status: 'stale' as const })),
+            }
+          : r,
+      ),
+    );
+  }
+
+  removeRfq(rfqId: string) {
+    this.shared.rfqRequests.update((prev) => prev.filter((r) => r.id !== rfqId));
+    if (this.activeId === rfqId) this.activeId = '';
+  }
+
+  clearHistory() {
+    this.shared.rfqRequests.update((prev) =>
+      prev.filter((r) => r.status === 'pending' || r.status === 'quoted'),
+    );
+    this.activeId = '';
+  }
+
   ngOnInit() {
+    // Tick signal drives countdown ring re-renders
+    this.tickInterval = setInterval(() => this.tick.update((v) => v + 1), 200);
     this.quoteInterval = setInterval(() => {
       this.shared.rfqRequests.update((prev) =>
         prev.map((r) => {
@@ -566,20 +792,33 @@ export class RfqWidget implements OnInit, OnDestroy {
     }, 600);
     this.staleInterval = setInterval(() => {
       this.shared.rfqRequests.update((prev) =>
-        prev.map((r) => ({
-          ...r,
-          quotes: r.quotes.map((q) => ({
-            ...q,
-            status: (q.status === 'live' && Date.now() - q.ts > 30000 ? 'stale' : q.status) as any,
-          })),
-        })),
+        prev.map((r) => {
+          const elapsed = (Date.now() - r.createdAt) / 1000;
+          if ((r.status === 'pending' || r.status === 'quoted') && elapsed >= RFQ_TTL) {
+            return {
+              ...r,
+              status: 'cancelled' as const,
+              quotes: r.quotes.map((q) => ({ ...q, status: 'stale' as const })),
+            };
+          }
+          return {
+            ...r,
+            quotes: r.quotes.map((q) => ({
+              ...q,
+              status: (q.status === 'live' && Date.now() - q.ts > RFQ_TTL * 1000
+                ? 'stale'
+                : q.status) as any,
+            })),
+          };
+        }),
       );
-    }, 5000);
+    }, 1000);
   }
 
   ngOnDestroy() {
     if (this.quoteInterval) clearInterval(this.quoteInterval);
     if (this.staleInterval) clearInterval(this.staleInterval);
+    if (this.tickInterval) clearInterval(this.tickInterval);
   }
 
   pickBond(b: Bond) {

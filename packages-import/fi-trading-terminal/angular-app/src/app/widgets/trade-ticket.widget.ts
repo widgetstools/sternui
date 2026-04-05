@@ -10,16 +10,35 @@ import { SharedStateService } from '../services/shared-state.service';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1)">
-      <!-- Security label -->
+      <!-- Security header -->
       <div
-        style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0"
+        style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
       >
-        <span class="font-mono-fi font-bold" style="font-size:11px;color:var(--bn-cyan)"
+        <span class="font-mono-fi font-bold" style="font-size:12px;color:var(--bn-cyan)"
           >{{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}</span
         >
-        <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">{{
+        <span class="font-mono-fi font-semibold" style="font-size:11px;color:var(--bn-t0)">{{
           mid.toFixed(3)
         }}</span>
+      </div>
+      <!-- Bid / Ask strip -->
+      <div
+        style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bn-border);flex-shrink:0"
+      >
+        <div
+          class="font-mono-fi"
+          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:rgba(61,158,255,0.06);color:var(--bn-blue)"
+        >
+          <span style="font-size:8px;color:var(--bn-t2);display:block">BID</span>
+          {{ bond.bid.toFixed(3) }}
+        </div>
+        <div
+          class="font-mono-fi"
+          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:rgba(255,61,94,0.06);color:var(--bn-red)"
+        >
+          <span style="font-size:8px;color:var(--bn-t2);display:block">ASK</span>
+          {{ bond.ask.toFixed(3) }}
+        </div>
       </div>
       <!-- Buy/Sell toggle -->
       <div
@@ -169,10 +188,16 @@ import { SharedStateService } from '../services/shared-state.service';
         <!-- Summary -->
         <div
           style="padding:6px 8px;border-radius:3px;background:var(--bn-bg2);font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace;line-height:1.6"
+          [style.borderLeft]="'3px solid ' + (side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)')"
         >
-          {{ side }} {{ amount || '---' }}MM {{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}<br />
+          <span
+            [style.color]="side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)'"
+            style="font-weight:700"
+            >{{ side }}</span
+          >
+          {{ amount || '---' }}MM {{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}<br />
           {{ orderType }}{{ orderType !== 'Market' ? ' @ ' + price : ''
-          }}{{ orderType === 'Stop-Limit' ? ' stop ' + (stopPrice || '---') : '' }} - {{ tif }}
+          }}{{ orderType === 'Stop-Limit' ? ' stop ' + (stopPrice || '---') : '' }} · {{ tif }}
         </div>
       </div>
       <!-- Submit CTA -->

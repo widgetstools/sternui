@@ -761,7 +761,7 @@ export class App implements OnDestroy {
         closable: true,
         dockable: false,
       });
-      this.dockApi.floatPanel({ panelId: 'rfq', x: 120, y: 60, width: 720, height: 520 });
+      this.dockApi.floatPanel({ panelId: 'rfq', x: 80, y: 50, width: 820, height: 540 });
     }
   }
 

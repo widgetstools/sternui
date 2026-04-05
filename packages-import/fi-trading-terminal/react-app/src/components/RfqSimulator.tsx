@@ -3,7 +3,9 @@ import { toast } from 'sonner';
 import type { Bond, RfqRequest, RfqQuote } from '@/data/tradingData';
 import { BONDS, DEALERS } from '@/data/tradingData';
 import { Badge } from '@/components/ui/badge';
-import { X, CheckCircle, Clock, Zap, Search } from 'lucide-react';
+import { X, CheckCircle, Clock, Zap, Search, Trash2 } from 'lucide-react';
+
+const RFQ_TTL = 30; // seconds before quotes go stale
 
 let rfqCounter = 1;
 
@@ -13,6 +15,45 @@ function makeQuote(bond: Bond, side: 'Buy' | 'Sell', dealer: string): RfqQuote {
   const bid = +(mid - spread / 2 + (Math.random() - 0.5) * 0.02).toFixed(3);
   const ask = +(mid + spread / 2 + (Math.random() - 0.5) * 0.02).toFixed(3);
   return { dealer, bid, ask, bidSize: `$${(Math.floor(Math.random()*8+2))}MM`, askSize: `$${(Math.floor(Math.random()*8+2))}MM`, ts: Date.now(), status: 'live' };
+}
+
+/* ── Countdown ring: depleting arc with seconds in center ── */
+function CountdownRing({ createdAt, ttl = RFQ_TTL }: { createdAt: number; ttl?: number }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, ttl - (Date.now() - createdAt) / 1000));
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const r = Math.max(0, ttl - (Date.now() - createdAt) / 1000);
+      setRemaining(r);
+      if (r <= 0) clearInterval(id);
+    }, 100);
+    return () => clearInterval(id);
+  }, [createdAt, ttl]);
+
+  const pct = remaining / ttl;
+  const R = 11;
+  const C = 2 * Math.PI * R;
+  const dash = pct * C;
+  const color = remaining > 15 ? 'var(--fi-blue)' : remaining > 7 ? 'var(--fi-amber)' : 'var(--fi-red)';
+  const secs = Math.ceil(remaining);
+
+  return (
+    <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
+      <svg viewBox="0 0 28 28" width={28} height={28}>
+        <circle cx="14" cy="14" r={R} fill="none" stroke="var(--fi-bg3)" strokeWidth="2.5" />
+        <circle cx="14" cy="14" r={R} fill="none" stroke={color} strokeWidth="2.5"
+          strokeDasharray={`${dash} ${C}`} strokeLinecap="round"
+          transform="rotate(-90 14 14)"
+          style={{ transition: 'stroke-dasharray 0.15s linear, stroke 0.3s ease' }} />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, color,
+      }}>
+        {secs > 0 ? secs : '—'}
+      </div>
+    </div>
+  );
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
@@ -183,17 +224,24 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
     return () => clearInterval(ids);
   }, [activeBond]);
 
-  // Stale quotes
+  // Stale quotes + auto-expire RFQs at TTL
   useEffect(() => {
     const id = setInterval(() => {
-      setRequests(prev => prev.map(r => ({
-        ...r,
-        quotes: r.quotes.map(q => ({
-          ...q,
-          status: q.status === 'live' && (Date.now() - q.ts) > 30000 ? 'stale' : q.status,
-        })),
-      })));
-    }, 5000);
+      setRequests(prev => prev.map(r => {
+        const elapsed = (Date.now() - r.createdAt) / 1000;
+        // Auto-cancel expired RFQs
+        if ((r.status === 'pending' || r.status === 'quoted') && elapsed >= RFQ_TTL) {
+          return { ...r, status: 'cancelled', quotes: r.quotes.map(q => ({ ...q, status: 'stale' as const })) };
+        }
+        return {
+          ...r,
+          quotes: r.quotes.map(q => ({
+            ...q,
+            status: q.status === 'live' && (Date.now() - q.ts) > RFQ_TTL * 1000 ? 'stale' : q.status,
+          })),
+        };
+      }));
+    }, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -254,6 +302,16 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
     setRequests(prev => prev.map(r => r.id === rfqId ? { ...r, status: 'cancelled' } : r));
   }, [setRequests]);
 
+  const removeRfq = useCallback((rfqId: string) => {
+    setRequests(prev => prev.filter(r => r.id !== rfqId));
+    if (activeId === rfqId) setActiveId(null);
+  }, [setRequests, activeId]);
+
+  const clearHistory = useCallback(() => {
+    setRequests(prev => prev.filter(r => r.status === 'pending' || r.status === 'quoted'));
+    setActiveId(null);
+  }, [setRequests]);
+
   const activeReq = requests.find(r => r.id === activeId) || requests[0] || null;
   const bestBid = activeReq ? Math.max(...activeReq.quotes.map(q => q.bid)) : 0;
   const bestAsk = activeReq ? Math.min(...activeReq.quotes.map(q => q.ask)) : 9999;
@@ -272,9 +330,10 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
 
       <div className="flex flex-1 overflow-hidden gap-px" style={{ background: 'var(--fi-border)' }}>
         {/* Left: RFQ ticket */}
-        <div className="flex flex-col flex-shrink-0" style={{ width: 220, background: 'var(--fi-bg2)' }}>
-          <div className="flex items-center px-3 h-7 border-b" style={{ borderColor: 'var(--fi-border)' }}>
-            <span className="col-hdr">New RFQ</span>
+        <div className="flex flex-col flex-shrink-0" style={{ width: 220, minWidth: 180, background: 'var(--fi-bg2)' }}>
+          <div className="flex items-center px-3 h-7 border-b" style={{ borderColor: 'var(--fi-border)', background: 'rgba(61,158,255,0.06)' }}>
+            <Zap size={10} style={{ color: 'var(--fi-blue)', marginRight: 6 }} />
+            <span className="col-hdr" style={{ color: 'var(--fi-blue)' }}>New RFQ</span>
           </div>
           <div className="flex flex-col gap-2 p-3">
             {/* Instrument search */}
@@ -284,8 +343,8 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
               {activeBond && !instrOpen ? (
                 <div className="font-mono-fi px-2 py-1.5 rounded-sm border cursor-pointer flex items-center justify-between"
                   onClick={() => { setInstrOpen(true); setInstrSearch(''); }}
-                  style={{ fontSize:11, background: 'var(--fi-bg3)', borderColor: 'var(--fi-border2)', color: 'var(--fi-cyan)' }}>
-                  <span>{activeBond.ticker} {activeBond.cpn} {activeBond.mat}</span>
+                  style={{ fontSize:11, background: 'rgba(0,188,212,0.06)', borderColor: 'rgba(0,188,212,0.25)', color: 'var(--fi-cyan)' }}>
+                  <span style={{ fontWeight: 700 }}>{activeBond.ticker} {activeBond.cpn} {activeBond.mat}</span>
                   <Search size={10} style={{color:'var(--fi-t2)',flexShrink:0}}/>
                 </div>
               ) : (
@@ -330,8 +389,12 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
             </div>
             {activeBond && !instrOpen && (
               <div className="grid grid-cols-2 gap-1 text-right">
-                <div className="font-mono-fi px-2 py-1 rounded-sm" style={{ fontSize: 9, background: 'var(--fi-bg3)', color: 'var(--fi-blue)' }}>Bid: {activeBond.bid.toFixed(3)}</div>
-                <div className="font-mono-fi px-2 py-1 rounded-sm" style={{ fontSize: 9, background: 'var(--fi-bg3)', color: 'var(--fi-red)' }}>Ask: {activeBond.ask.toFixed(3)}</div>
+                <div className="font-mono-fi px-2 py-1.5 rounded-sm" style={{ fontSize: 10, fontWeight: 600, background: 'rgba(61,158,255,0.08)', color: 'var(--fi-blue)', border: '1px solid rgba(61,158,255,0.15)' }}>
+                  <span style={{ fontSize: 8, color: 'var(--fi-t2)', display: 'block', marginBottom: 1 }}>BID</span>{activeBond.bid.toFixed(3)}
+                </div>
+                <div className="font-mono-fi px-2 py-1.5 rounded-sm" style={{ fontSize: 10, fontWeight: 600, background: 'rgba(255,61,94,0.08)', color: 'var(--fi-red)', border: '1px solid rgba(255,61,94,0.15)' }}>
+                  <span style={{ fontSize: 8, color: 'var(--fi-t2)', display: 'block', marginBottom: 1 }}>ASK</span>{activeBond.ask.toFixed(3)}
+                </div>
               </div>
             )}
             {/* Side */}
@@ -381,21 +444,46 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
 
           {/* RFQ history list */}
           <div className="border-t flex-1 overflow-y-auto" style={{ borderColor: 'var(--fi-border)' }}>
-            <div className="flex items-center px-3 h-7 border-b" style={{ borderColor: 'var(--fi-border)' }}>
+            <div className="flex items-center justify-between px-3 h-7 border-b" style={{ borderColor: 'var(--fi-border)' }}>
               <span className="col-hdr">RFQ History</span>
+              {requests.some(r => r.status === 'done' || r.status === 'cancelled') && (
+                <button onClick={clearHistory} className="font-mono-fi flex items-center gap-1"
+                  style={{ fontSize: 8, color: 'var(--fi-t3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--fi-red)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--fi-t3)')}>
+                  <Trash2 size={9} /> CLEAR
+                </button>
+              )}
             </div>
             {requests.map(r => (
               <div key={r.id} onClick={() => setActiveId(r.id)}
-                className="px-3 py-2 border-b cursor-pointer"
+                className="group px-3 py-2 border-b cursor-pointer relative"
                 style={{ borderColor: 'var(--fi-border)', background: activeId === r.id ? 'var(--fi-bg3)' : 'transparent' }}>
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-mono-fi font-bold" style={{ fontSize: 9, color: 'var(--fi-cyan)' }}>{r.id}</span>
-                  <span className="font-mono-fi px-1.5 py-0 rounded-sm" style={{ fontSize:9, background: r.status === 'pending' ? 'rgba(61,158,255,0.1)' : r.status === 'quoted' ? 'rgba(245,166,35,0.1)' : r.status === 'done' ? 'rgba(0,229,160,0.1)' : 'rgba(255,61,94,0.1)', color: r.status === 'pending' ? 'var(--fi-blue)' : r.status === 'quoted' ? 'var(--fi-amber)' : r.status === 'done' ? 'var(--fi-green)' : 'var(--fi-red)', border: `1px solid ${r.status === 'pending' ? 'rgba(61,158,255,0.25)' : r.status === 'quoted' ? 'rgba(245,166,35,0.25)' : r.status === 'done' ? 'rgba(0,229,160,0.25)' : 'rgba(255,61,94,0.25)'}` }}>
-                    {r.status.toUpperCase()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono-fi font-bold" style={{ fontSize: 9, color: 'var(--fi-cyan)' }}>{r.id}</span>
+                    <span className="font-mono-fi" style={{ fontSize: 9, color: r.side === 'Buy' ? 'var(--fi-green)' : 'var(--fi-red)', fontWeight: 600 }}>{r.side.toUpperCase()}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono-fi px-1.5 py-0 rounded-sm" style={{ fontSize:9, background: r.status === 'pending' ? 'rgba(61,158,255,0.1)' : r.status === 'quoted' ? 'rgba(245,166,35,0.1)' : r.status === 'done' ? 'rgba(0,229,160,0.1)' : 'rgba(255,61,94,0.1)', color: r.status === 'pending' ? 'var(--fi-blue)' : r.status === 'quoted' ? 'var(--fi-amber)' : r.status === 'done' ? 'var(--fi-green)' : 'var(--fi-red)', border: `1px solid ${r.status === 'pending' ? 'rgba(61,158,255,0.25)' : r.status === 'quoted' ? 'rgba(245,166,35,0.25)' : r.status === 'done' ? 'rgba(0,229,160,0.25)' : 'rgba(255,61,94,0.25)'}` }}>
+                      {r.status.toUpperCase()}
+                    </span>
+                    {(r.status === 'done' || r.status === 'cancelled') && (
+                      <button onClick={e => { e.stopPropagation(); removeRfq(r.id); }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--fi-t3)', lineHeight: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--fi-red)')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--fi-t3)')}>
+                        <X size={11} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="font-mono-fi" style={{ fontSize: 9, color: 'var(--fi-t1)' }}>{r.bond}</div>
-                <div className="font-mono-fi" style={{ fontSize:9, color: 'var(--fi-t2)' }}>{r.side} · {r.size} · {r.quotes.length} quotes</div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono-fi" style={{ fontSize:9, color: 'var(--fi-t2)' }}>{r.size} · {r.quotes.length} quotes</span>
+                  {(r.status === 'pending' || r.status === 'quoted') && <CountdownRing createdAt={r.createdAt} ttl={RFQ_TTL} />}
+                </div>
               </div>
             ))}
           </div>
@@ -412,10 +500,12 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
                   <span className="font-mono-fi" style={{ fontSize:11, color: activeReq.side === 'Buy' ? 'var(--fi-green)' : 'var(--fi-red)', fontWeight: 700 }}>{activeReq.side.toUpperCase()}</span>
                   <span className="font-mono-fi" style={{ fontSize:11, color: 'var(--fi-t1)' }}>{activeReq.size}</span>
                 </div>
-                {activeReq.status === 'pending' && (
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={10} style={{ color: 'var(--fi-amber)' }} />
-                    <span className="font-mono-fi" style={{ fontSize: 9, color: 'var(--fi-amber)' }}>Awaiting quotes…</span>
+                {(activeReq.status === 'pending' || activeReq.status === 'quoted') && (
+                  <div className="flex items-center gap-2">
+                    <CountdownRing createdAt={activeReq.createdAt} />
+                    {activeReq.status === 'pending' && (
+                      <span className="font-mono-fi" style={{ fontSize: 9, color: 'var(--fi-amber)' }}>Awaiting quotes…</span>
+                    )}
                     <button onClick={() => cancelRfq(activeReq.id)} className="font-mono-fi px-2 py-0.5 rounded-sm border" style={{ fontSize: 9, background: 'rgba(255,61,94,0.08)', borderColor: 'rgba(255,61,94,0.3)', color: 'var(--fi-red)' }}>Cancel</button>
                   </div>
                 )}

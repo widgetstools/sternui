@@ -76,6 +76,7 @@ export function componentTokens(scheme: ColorScheme) {
       borderRadius: radius.sm,
       paddingX:     `${spacing[1.5]}px`,
       paddingY:     '1px',
+      // Order status badges
       filled: {
         background: `rgba(45,212,191,0.12)`,
         color:      scheme.accent.positive,
@@ -96,6 +97,42 @@ export function componentTokens(scheme: ColorScheme) {
         color:      scheme.accent.negative,
         border:     `rgba(248,113,113,0.3)`,
       },
+      // Quote type badges (order book)
+      stream: {
+        background: `rgba(45,212,191,0.12)`,
+        color:      scheme.accent.positive,
+      },
+      rfq: {
+        background: `rgba(30,144,255,0.12)`,
+        color:      scheme.accent.info,
+      },
+      indicative: {
+        background: `rgba(240,185,11,0.12)`,
+        color:      scheme.accent.warning,
+      },
+    },
+
+    // ── Instrument Context Bar ──
+    instrumentBar: {
+      fontFamily:   typography.fontFamily.mono,
+      background:   `rgba(0,188,212,0.04)`,
+      borderColor:  scheme.border.primary,
+      tickerColor:  scheme.accent.highlight,
+      tickerSize:   typography.fontSize.sm,
+      metaColor:    scheme.text.muted,
+      metaSize:     typography.fontSize.xs,
+    },
+
+    // ── Countdown Ring ──
+    countdownRing: {
+      size:         28,
+      strokeWidth:  2.5,
+      trackColor:   scheme.surface.secondary,
+      activeColor:  scheme.accent.info,
+      warningColor: scheme.accent.warning,
+      dangerColor:  scheme.accent.negative,
+      fontSize:     typography.fontSize.xs,
+      fontFamily:   typography.fontFamily.mono,
     },
 
     // ── Data Table ──
