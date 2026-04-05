@@ -468,9 +468,9 @@ export function DesignSystemTab() {
           <div style={{ padding: '2px 8px', fontSize: 9, fontWeight: 700, color: 'var(--bn-red)', letterSpacing: '0.06em', fontFamily: 'var(--fi-mono)' }}>OFFERS (ASK)</div>
           {/* Ask rows */}
           {[
-            { dealer: 'BARC', price: '100.247', yld: '4.496', face: '2.5', dv01: '4.6', type: 'IND' as const, fill: 35 },
-            { dealer: 'GS', price: '100.222', yld: '4.504', face: '3.8', dv01: '7.0', type: 'STREAM' as const, fill: 70 },
-            { dealer: 'JPM', price: '100.197', yld: '4.512', face: '5.0', dv01: '9.3', type: 'STREAM' as const, fill: 100 },
+            { dealer: 'BARC', price: '100.247', yld: '4.496', face: '2.5', dv01: '4.6', type: 'IND' as string, fill: 35 },
+            { dealer: 'GS', price: '100.222', yld: '4.504', face: '3.8', dv01: '7.0', type: 'STREAM' as string, fill: 70 },
+            { dealer: 'JPM', price: '100.197', yld: '4.512', face: '5.0', dv01: '9.3', type: 'STREAM' as string, fill: 100 },
           ].map((r, i) => (
             <div key={`a${i}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '2px 8px' }}>
               <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'rgba(248,113,113,0.10)' }} />
@@ -498,9 +498,9 @@ export function DesignSystemTab() {
           <div style={{ padding: '2px 8px', fontSize: 9, fontWeight: 700, color: 'var(--bn-green)', letterSpacing: '0.06em', fontFamily: 'var(--fi-mono)' }}>BIDS</div>
           {/* Bid rows */}
           {[
-            { dealer: 'MS', price: '100.072', yld: '4.528', face: '4.5', dv01: '8.3', type: 'STREAM' as const, fill: 90 },
-            { dealer: 'CITI', price: '100.050', yld: '4.536', face: '2.8', dv01: '5.2', type: 'RFQ' as const, fill: 56 },
-            { dealer: 'DB', price: '100.031', yld: '4.544', face: '1.5', dv01: '2.8', type: 'STREAM' as const, fill: 30 },
+            { dealer: 'MS', price: '100.072', yld: '4.528', face: '4.5', dv01: '8.3', type: 'STREAM' as string, fill: 90 },
+            { dealer: 'CITI', price: '100.050', yld: '4.536', face: '2.8', dv01: '5.2', type: 'RFQ' as string, fill: 56 },
+            { dealer: 'DB', price: '100.031', yld: '4.544', face: '1.5', dv01: '2.8', type: 'STREAM' as string, fill: 30 },
           ].map((r, i) => (
             <div key={`b${i}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '2px 8px' }}>
               <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'rgba(45,212,191,0.10)' }} />
