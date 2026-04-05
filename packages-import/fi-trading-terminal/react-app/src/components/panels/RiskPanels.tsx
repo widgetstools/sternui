@@ -6,7 +6,7 @@ import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { fiGridTheme } from '@/lib/agGridTheme';
 import { RISK_POSITIONS, BONDS } from '@/data/tradingData';
-import { BookNameRenderer, OasValueRenderer, PnlValueRenderer } from '@design-system/cell-renderers';
+import { BookNameRenderer, OasValueRenderer, PnlValueRenderer } from '@/lib/cell-renderers';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 

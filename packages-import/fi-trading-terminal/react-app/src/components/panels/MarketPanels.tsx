@@ -6,7 +6,7 @@ import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import type { ColDef, GridApi, GridReadyEvent, ICellRendererParams } from 'ag-grid-community';
 import { fiGridTheme } from '@/lib/agGridTheme';
 import { MARKET_INDICES, YC_CHART_DATA } from '@/data/tradingData';
-import { ChangeValueRenderer, YtdValueRenderer } from '@design-system/cell-renderers';
+import { ChangeValueRenderer, YtdValueRenderer } from '@/lib/cell-renderers';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 

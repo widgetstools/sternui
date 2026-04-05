@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TICKER_STRIP, type Bond } from '@/data/tradingData';
-import { Sun, Moon, Save, RotateCcw } from 'lucide-react';
+import { Sun, Moon, Save, RotateCcw, Check } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 
 const NAV_TABS = ['Prices','Trade','Risk','Market','Research','Orders','Analytics','Design System'];
@@ -18,6 +18,13 @@ interface TopBarProps {
 export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpenRfq, onSaveLayout, onResetLayout }: TopBarProps) {
   const { isDark, toggleTheme } = useTheme();
   const [time, setTime] = useState('');
+  const [saveFlash, setSaveFlash] = useState(false);
+
+  const handleSave = useCallback(() => {
+    onSaveLayout?.();
+    setSaveFlash(true);
+    setTimeout(() => setSaveFlash(false), 800);
+  }, [onSaveLayout]);
   useEffect(() => {
     const f = () => setTime(new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',second:'2-digit'})+' ET');
     f(); const id = setInterval(f, 1000); return () => clearInterval(id);
@@ -77,11 +84,16 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
           <span className="font-mono-fi" style={{color:'var(--bn-t1)',fontSize:11}}>{time}</span>
           <div style={{width:1,height:14,background:'var(--bn-border)',flexShrink:0}}/>
           {onSaveLayout && (
-            <button onClick={onSaveLayout}
-              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-              style={{ background: 'var(--bn-bg3)', color: 'var(--bn-t1)' }}
+            <button onClick={handleSave}
+              className="flex items-center justify-center w-7 h-7 rounded"
+              style={{
+                background: saveFlash ? 'rgba(45,212,191,0.25)' : 'var(--bn-bg3)',
+                color: saveFlash ? 'var(--bn-green)' : 'var(--bn-t1)',
+                transform: saveFlash ? 'scale(0.9)' : 'scale(1)',
+                transition: 'all 0.15s ease',
+              }}
               title="Save layout">
-              <Save size={13} />
+              {saveFlash ? <Check size={13} strokeWidth={2.5} /> : <Save size={13} />}
             </button>
           )}
           {onResetLayout && (

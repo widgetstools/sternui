@@ -174,12 +174,16 @@ export function DesignSystemTab() {
         <h3 style={S.subTitle}>Trading Colors</h3>
         <div style={{ ...S.row, gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-            <button style={{ padding: '6px 24px', borderRadius: 3, background: 'var(--bn-buy-bg)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>BUY</button>
+            <button style={{ padding: '6px 24px', borderRadius: 3, background: 'var(--bn-buy-bg)', color: 'var(--bn-cta-text)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>BUY</button>
             <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>--bn-buy-bg #0d9488</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-            <button style={{ padding: '6px 24px', borderRadius: 3, background: 'var(--bn-sell-bg)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>SELL</button>
+            <button style={{ padding: '6px 24px', borderRadius: 3, background: 'var(--bn-sell-bg)', color: 'var(--bn-cta-text)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>SELL</button>
             <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>--bn-sell-bg #dc2626</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+            <button style={{ padding: '6px 24px', borderRadius: 3, background: 'var(--bn-blue)', color: 'var(--bn-cta-text)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>SEND RFQ</button>
+            <span style={{ fontSize: 9, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)' }}>--bn-cta-text #ffffff</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
             <span style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-mono)', color: 'var(--bn-green)' }}>+0.32%</span>
@@ -290,11 +294,11 @@ export function DesignSystemTab() {
         <h3 style={S.subTitle}>Buttons</h3>
         <div style={{ ...S.row, gap: 12, alignItems: 'center' }}>
           {/* Buy CTA */}
-          <button style={{ padding: '8px 32px', borderRadius: 3, background: 'var(--bn-buy-bg)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Buy</button>
-          <button style={{ padding: '6px 20px', borderRadius: 3, background: 'var(--bn-buy-bg)', color: '#fff', fontSize: 11, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Buy SM</button>
+          <button style={{ padding: '8px 32px', borderRadius: 3, background: 'var(--bn-buy-bg)', color: 'var(--bn-cta-text)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Buy</button>
+          <button style={{ padding: '6px 20px', borderRadius: 3, background: 'var(--bn-buy-bg)', color: 'var(--bn-cta-text)', fontSize: 11, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Buy SM</button>
           {/* Sell CTA */}
-          <button style={{ padding: '8px 32px', borderRadius: 3, background: 'var(--bn-sell-bg)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Sell</button>
-          <button style={{ padding: '6px 20px', borderRadius: 3, background: 'var(--bn-sell-bg)', color: '#fff', fontSize: 11, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Sell SM</button>
+          <button style={{ padding: '8px 32px', borderRadius: 3, background: 'var(--bn-sell-bg)', color: 'var(--bn-cta-text)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Sell</button>
+          <button style={{ padding: '6px 20px', borderRadius: 3, background: 'var(--bn-sell-bg)', color: 'var(--bn-cta-text)', fontSize: 11, fontWeight: 600, fontFamily: 'var(--fi-sans)', border: 'none', cursor: 'pointer' }}>Sell SM</button>
           {/* Ghost */}
           <button style={{ padding: '8px 24px', borderRadius: 3, background: 'transparent', color: 'var(--bn-t0)', fontSize: 13, fontWeight: 500, fontFamily: 'var(--fi-sans)', border: '1px solid var(--bn-border2)', cursor: 'pointer' }}>Ghost</button>
           <button style={{ padding: '6px 16px', borderRadius: 3, background: 'var(--bn-bg3)', color: 'var(--bn-t0)', fontSize: 11, fontWeight: 600, fontFamily: 'var(--fi-mono)', border: '1px solid var(--bn-border2)', cursor: 'pointer' }}>+ New Order</button>
@@ -458,9 +462,53 @@ export function DesignSystemTab() {
 
       <div style={S.separator} />
 
-      {/* ━━ 6. Usage Guide ━━ */}
+      {/* ━━ 6. Cell Renderers ━━ */}
       <section style={S.section}>
-        <h2 style={S.sectionTitle}>6. Usage Guide</h2>
+        <h2 style={S.sectionTitle}>6. AG Grid Cell Renderers</h2>
+        <p style={S.sectionDesc}>
+          Shared vanilla TypeScript cell renderers from design-system/cell-renderers.ts.
+          Framework-agnostic — used in both React and Angular apps via ICellRendererComp.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {[
+            { name: 'SideCellRenderer', desc: 'BUY / SELL with green / red color', example: 'BUY', color: 'var(--bn-green)' },
+            { name: 'StatusBadgeRenderer', desc: 'Filled, Partial, Pending, Cancelled', example: 'FILLED', color: 'var(--bn-green)' },
+            { name: 'ColoredValueRenderer', desc: 'Positive green, negative red', example: '+0.125', color: 'var(--bn-green)' },
+            { name: 'OasValueRenderer', desc: 'OAS with warning threshold >80', example: '+42', color: 'var(--bn-green)' },
+            { name: 'SignedValueRenderer', desc: 'Signed spread values', example: '+3.2', color: 'var(--bn-t1)' },
+            { name: 'TickerCellRenderer', desc: 'Cyan bold ticker symbol', example: 'UST', color: 'var(--bn-cyan)' },
+            { name: 'RatingBadgeRenderer', desc: 'Credit rating badge (Aaa-HY)', example: 'Aa2', color: 'var(--bn-green)' },
+            { name: 'PnlValueRenderer', desc: 'P&L with K suffix', example: '+120K', color: 'var(--bn-green)' },
+            { name: 'FilledAmountRenderer', desc: 'Green if full, yellow if partial', example: '5000', color: 'var(--bn-yellow)' },
+            { name: 'BookNameRenderer', desc: 'Cyan book/desk name', example: 'IG-NYC', color: 'var(--bn-cyan)' },
+            { name: 'ChangeValueRenderer', desc: 'Market index change', example: '+0.45', color: 'var(--bn-green)' },
+            { name: 'RfqStatusRenderer', desc: 'LIVE / DONE / STALE badge', example: 'LIVE', color: 'var(--bn-blue)' },
+          ].map(r => (
+            <div key={r.name} style={{ background: 'var(--bn-bg1)', border: '1px solid var(--bn-border)', borderRadius: 3, padding: '8px 12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--bn-t0)', fontFamily: 'var(--fi-mono)' }}>{r.name}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: r.color, fontFamily: 'var(--fi-mono)' }}>{r.example}</span>
+              </div>
+              <span style={{ fontSize: 9, color: 'var(--bn-t2)' }}>{r.desc}</span>
+            </div>
+          ))}
+        </div>
+
+        <h3 style={S.subTitle}>Usage</h3>
+        <pre style={S.code}>{`import { SideCellRenderer, StatusBadgeRenderer } from '@/lib/cell-renderers';
+
+const colDefs = [
+  { field: 'side',   cellRenderer: SideCellRenderer },
+  { field: 'status', cellRenderer: StatusBadgeRenderer },
+];`}</pre>
+      </section>
+
+      <div style={S.separator} />
+
+      {/* ━━ 7. Usage Guide ━━ */}
+      <section style={S.section}>
+        <h2 style={S.sectionTitle}>7. Usage Guide</h2>
         <p style={S.sectionDesc}>How to consume design system tokens in application code.</p>
 
         <h3 style={S.subTitle}>CSS Variable Usage</h3>
@@ -479,7 +527,10 @@ color: var(--bn-green); /* positive / buy */
 color: var(--bn-red);   /* negative / sell */
 color: var(--bn-yellow);/* warning */
 color: var(--bn-blue);  /* info */
-color: var(--bn-cyan);  /* highlight / emphasis */`}</pre>
+color: var(--bn-cyan);  /* highlight / emphasis */
+
+/* CTA button text (always readable on colored backgrounds) */
+color: var(--bn-cta-text); /* use on --bn-buy-bg, --bn-sell-bg, --bn-blue */`}</pre>
 
         <h3 style={S.subTitle}>AG Grid Theming</h3>
         <pre style={S.code}>{`/* AG Grid picks up CSS variables automatically via ag-theme-quartz-dark.

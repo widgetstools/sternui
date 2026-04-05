@@ -84,7 +84,8 @@ import { CommonModule } from '@angular/common';
             <div
               style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bn-buy-bg);border-radius:3px"
             >
-              <span style="font-size:11px;font-weight:600;color:#fff;font-family:var(--fi-mono)"
+              <span
+                style="font-size:11px;font-weight:600;color:var(--bn-cta-text);font-family:var(--fi-mono)"
                 >BUY +0.125</span
               >
               <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--fi-mono)"
@@ -94,11 +95,23 @@ import { CommonModule } from '@angular/common';
             <div
               style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bn-sell-bg);border-radius:3px"
             >
-              <span style="font-size:11px;font-weight:600;color:#fff;font-family:var(--fi-mono)"
+              <span
+                style="font-size:11px;font-weight:600;color:var(--bn-cta-text);font-family:var(--fi-mono)"
                 >SELL -0.250</span
               >
               <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--fi-mono)"
                 >--bn-sell-bg</span
+              >
+            </div>
+            <div
+              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bn-blue);border-radius:3px"
+            >
+              <span
+                style="font-size:11px;font-weight:600;color:var(--bn-cta-text);font-family:var(--fi-mono)"
+                >SEND RFQ</span
+              >
+              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--fi-mono)"
+                >--bn-cta-text</span
               >
             </div>
             <div
@@ -498,10 +511,49 @@ import { CommonModule } from '@angular/common';
       <div class="ds-divider"></div>
 
       <!-- ══════════════════════════════════════════════════════ -->
-      <!-- 6. ANGULAR USAGE GUIDE -->
+      <!-- 6. AG GRID CELL RENDERERS -->
       <!-- ══════════════════════════════════════════════════════ -->
       <section style="margin-bottom:32px">
-        <div class="ds-section-heading">6. Angular Usage Guide</div>
+        <div class="ds-section-heading">6. AG Grid Cell Renderers</div>
+        <div style="font-size:11px;color:var(--bn-t2);margin-bottom:16px">
+          Shared vanilla TypeScript cell renderers from design-system/cell-renderers.ts.
+          Framework-agnostic — used in both React and Angular apps via ICellRendererComp.
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          @for (r of cellRenderers; track r.name) {
+            <div
+              style="background:var(--bn-bg1);border:1px solid var(--bn-border);border-radius:3px;padding:8px 12px"
+            >
+              <div
+                style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"
+              >
+                <span
+                  style="font-size:11px;font-weight:600;color:var(--bn-t0);font-family:var(--fi-mono)"
+                  >{{ r.name }}</span
+                >
+                <span
+                  [style.color]="r.color"
+                  style="font-size:11px;font-weight:700;font-family:var(--fi-mono)"
+                  >{{ r.example }}</span
+                >
+              </div>
+              <span style="font-size:9px;color:var(--bn-t2)">{{ r.desc }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="ds-sub-heading" style="margin-top:16px">Usage</div>
+        <pre class="ds-code">{{ cellRendererUsageCode }}</pre>
+      </section>
+
+      <div class="ds-divider"></div>
+
+      <!-- ══════════════════════════════════════════════════════ -->
+      <!-- 7. ANGULAR USAGE GUIDE -->
+      <!-- ══════════════════════════════════════════════════════ -->
+      <section style="margin-bottom:32px">
+        <div class="ds-section-heading">7. Angular Usage Guide</div>
 
         <!-- PrimeNG Preset -->
         <div style="margin-bottom:20px">
@@ -924,4 +976,88 @@ toggleTheme() {
 // <button (click)="toggleTheme()">
 //   {{ isDark() ? 'Light' : 'Dark' }}
 // </button>`;
+
+  // ── 6. Cell Renderers data ──
+  cellRenderers = [
+    {
+      name: 'SideCellRenderer',
+      desc: 'BUY / SELL with green / red color',
+      example: 'BUY',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'StatusBadgeRenderer',
+      desc: 'Filled, Partial, Pending, Cancelled',
+      example: 'FILLED',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'ColoredValueRenderer',
+      desc: 'Positive green, negative red',
+      example: '+0.125',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'OasValueRenderer',
+      desc: 'OAS with warning threshold >80',
+      example: '+42',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'SignedValueRenderer',
+      desc: 'Signed spread values',
+      example: '+3.2',
+      color: 'var(--bn-t1)',
+    },
+    {
+      name: 'TickerCellRenderer',
+      desc: 'Cyan bold ticker symbol',
+      example: 'UST',
+      color: 'var(--bn-cyan)',
+    },
+    {
+      name: 'RatingBadgeRenderer',
+      desc: 'Credit rating badge (Aaa-HY)',
+      example: 'Aa2',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'PnlValueRenderer',
+      desc: 'P&L with K suffix',
+      example: '+120K',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'FilledAmountRenderer',
+      desc: 'Green if full, yellow if partial',
+      example: '5000',
+      color: 'var(--bn-yellow)',
+    },
+    {
+      name: 'BookNameRenderer',
+      desc: 'Cyan book/desk name',
+      example: 'IG-NYC',
+      color: 'var(--bn-cyan)',
+    },
+    {
+      name: 'ChangeValueRenderer',
+      desc: 'Market index change',
+      example: '+0.45',
+      color: 'var(--bn-green)',
+    },
+    {
+      name: 'RfqStatusRenderer',
+      desc: 'LIVE / DONE / STALE badge',
+      example: 'LIVE',
+      color: 'var(--bn-blue)',
+    },
+  ];
+
+  cellRendererUsageCode = `import { SideCellRenderer, StatusBadgeRenderer }
+  from '../services/cell-renderers';
+
+colDefs: ColDef[] = [
+  { field: 'side',   cellRenderer: SideCellRenderer },
+  { field: 'status', cellRenderer: StatusBadgeRenderer },
+];`;
 }

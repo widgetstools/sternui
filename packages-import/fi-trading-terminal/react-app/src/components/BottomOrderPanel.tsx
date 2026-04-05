@@ -6,7 +6,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { fiGridTheme } from '@/lib/agGridTheme';
 import type { Bond } from '@/data/tradingData';
 import { INITIAL_ORDERS, INITIAL_TRADES } from '@/data/tradingData';
-import { SideCellRenderer, StatusBadgeRenderer, FilledAmountRenderer } from '@design-system/cell-renderers';
+import { SideCellRenderer, StatusBadgeRenderer, FilledAmountRenderer } from '@/lib/cell-renderers';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 

@@ -260,9 +260,8 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--fi-bg1)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-8 border-b flex-shrink-0" style={{ borderColor: 'var(--fi-border)' }}>
-        <span className="ph-title">RFQ Workbench</span>
+      {/* Live count + close button toolbar */}
+      <div className="flex items-center justify-end px-3 h-8 border-b flex-shrink-0" style={{ borderColor: 'var(--fi-border)' }}>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-mono-fi" style={{ fontSize: 9, background: 'rgba(61,158,255,0.08)', color: 'var(--fi-blue)', borderColor: 'rgba(61,158,255,0.2)' }}>
             {requests.filter(r => r.status === 'pending' || r.status === 'quoted').length} live

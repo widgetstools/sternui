@@ -40,11 +40,10 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div style="display:flex;flex-direction:column;height:100%;background:var(--fi-bg1)">
-      <!-- Header -->
+      <!-- Live count toolbar -->
       <div
-        style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:32px;border-bottom:1px solid var(--fi-border);flex-shrink:0"
+        style="display:flex;align-items:center;justify-content:flex-end;padding:0 12px;height:32px;border-bottom:1px solid var(--fi-border);flex-shrink:0"
       >
-        <span class="ph-title">RFQ Workbench</span>
         <span
           class="font-mono-fi"
           style="font-size:9px;padding:1px 6px;border-radius:2px;background:rgba(61,158,255,0.08);color:var(--fi-blue);border:1px solid rgba(61,158,255,0.2)"

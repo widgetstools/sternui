@@ -5,7 +5,7 @@ import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { fiGridTheme } from '@/lib/agGridTheme';
 import { INITIAL_ORDERS } from '@/data/tradingData';
-import { SideCellRenderer, StatusBadgeRenderer, FilledAmountRenderer } from '@design-system/cell-renderers';
+import { SideCellRenderer, StatusBadgeRenderer, FilledAmountRenderer } from '@/lib/cell-renderers';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
@@ -129,7 +129,7 @@ export function OrderBlotter() {
   const FILTERS=['All','Filled','Partial','Pending','Cancelled'];
   const filtered=useMemo(()=>orders.filter(o=>filter==='All'||o.status===filter),[orders,filter]);
 
-  const colDefs = useMemo<ColDef<Order>[]>(()=>[
+  const colDefs = useMemo(()=>[
     {field:'time', headerName:'TIME',   width:60, cellStyle:{fontSize:9,color:'var(--bn-t2)'}},
     {field:'bond', headerName:'BOND',   flex:1,   cellStyle:{color:'#00bcd4'}},
     {field:'side', headerName:'SIDE',   width:55, cellRenderer:SideCellRenderer},
@@ -139,7 +139,7 @@ export function OrderBlotter() {
     {field:'px',  headerName:'PX',  width:75, type:'numericColumn', valueFormatter:p=>p.value>0?p.value.toFixed(3):'—'},
     {field:'ytm', headerName:'YTM', width:65, type:'numericColumn', valueFormatter:p=>p.value>0?p.value.toFixed(2)+'%':'—', cellStyle:{color:'var(--bn-t1)'}},
     {field:'status', headerName:'STATUS', width:80, cellRenderer:StatusBadgeRenderer},
-  ],[]);
+  ] as ColDef<Order>[],[]);
 
   const defaultColDef = useMemo<ColDef>(()=>({
     suppressMovable:true,
