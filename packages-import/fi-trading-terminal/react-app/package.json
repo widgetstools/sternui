@@ -26,7 +26,6 @@
   },
 
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -60,7 +59,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^0.554.0",
     "next-themes": "^0.4.6",
@@ -72,14 +70,10 @@
     "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
-    "vaul": "^1.1.2",
-    "zod": "^4.3.6"
+    "vaul": "^1.1.2"
   },
 
   "//devDependencies-registry-notes": {
-    "bundled-locally": {
-      "parcel-resolver-tspaths": "Not on corporate registry — packed from npm public v0.0.9"
-    },
     "downgraded-for-registry": {
       "@eslint/js":                 { "public": "^9.39.4",  "corporate": "^9.39.3" },
       "@types/node":                { "public": "^24.12.0", "corporate": "^22.19.15" },
@@ -88,27 +82,21 @@
       "eslint":                     { "public": "^9.39.4",  "corporate": "^9.39.3" },
       "eslint-plugin-react-refresh": { "public": "^0.5.2",  "corporate": "^0.4.24" },
       "globals":                    { "public": "^17.4.0",  "corporate": "^16.5.0" },
-      "html-inline":                { "public": "^1.2.0",   "corporate": "^1.0.0" },
       "vite":                       { "public": "^8.0.1",   "corporate": "^7.0.8" }
     }
   },
 
   "devDependencies": {
     "@eslint/js": "^9.39.3",
-    "@parcel/config-default": "^2.16.4",
     "@types/node": "^22.19.15",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.24",
-    "buffer": "^6.0.3",
     "eslint": "^9.39.3",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "html-inline": "^1.0.0",
-    "parcel": "^2.16.4",
-    "parcel-resolver-tspaths": "file:libs/parcel-resolver-tspaths-0.0.9.tgz",
     "postcss": "^8.5.8",
     "tailwindcss": "3.4.1",
     "tailwindcss-animate": "^1.0.7",
