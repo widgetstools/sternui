@@ -69,10 +69,12 @@
   /* ── Order Book / Trade Ticket fills ── */
   /* Cleaner, more vibrant tints — avoids the muddy brown look from
      low-opacity warm hues sitting on the dark navy background. */
-  --ob-bid-fill:   rgba(20, 184, 166, 0.16);   /* teal-500 @ 16% */
-  --ob-ask-fill:   rgba(239, 68, 68, 0.14);    /* red-500  @ 14% */
+  /* Use rose-500 (cooler red) instead of red-500 — warm red at low alpha
+     mixes with the dark navy bg into a muddy brown. Rose stays pink. */
+  --ob-bid-fill:   rgba(20, 184, 166, 0.18);   /* teal-500 @ 18% */
+  --ob-ask-fill:   rgba(244, 63, 94, 0.18);    /* rose-500 @ 18% */
   --tt-bid-strip:  rgba(61, 158, 255, 0.10);   /* blue     @ 10% */
-  --tt-ask-strip:  rgba(239, 68, 68, 0.10);    /* red      @ 10% */
+  --tt-ask-strip:  rgba(244, 63, 94, 0.12);    /* rose-500 @ 12% */
 
   /* ── Misc ── */
   --scrollbar-thumb: #4a5568;
