@@ -473,7 +473,7 @@ export function DesignSystemTab() {
             { dealer: 'JPM', price: '100.197', yld: '4.512', face: '5.0', dv01: '9.3', type: 'STREAM' as string, fill: 100 },
           ].map((r, i) => (
             <div key={`a${i}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '2px 8px' }}>
-              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'rgba(248,113,113,0.10)' }} />
+              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'var(--ob-ask-fill)' }} />
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t1)', position: 'relative' }}>{r.dealer}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-red)', textAlign: 'right', position: 'relative' }}>{r.price}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.yld}</span>
@@ -503,7 +503,7 @@ export function DesignSystemTab() {
             { dealer: 'DB', price: '100.031', yld: '4.544', face: '1.5', dv01: '2.8', type: 'STREAM' as string, fill: 30 },
           ].map((r, i) => (
             <div key={`b${i}`} style={{ position: 'relative', display: 'grid', gridTemplateColumns: '48px 1fr 1fr 70px 70px 52px', padding: '2px 8px' }}>
-              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'rgba(45,212,191,0.10)' }} />
+              <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: `${r.fill}%`, background: 'var(--ob-bid-fill)' }} />
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t1)', position: 'relative' }}>{r.dealer}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-green)', textAlign: 'right', position: 'relative' }}>{r.price}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.yld}</span>

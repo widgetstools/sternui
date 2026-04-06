@@ -27,12 +27,12 @@
 .ob-row-ask { position: relative; }
 .ob-row-ask::after {
   content: ''; position: absolute; right: 0; top: 0; bottom: 0;
-  background: rgba(248,113,113,0.10);
+  background: var(--ob-ask-fill);
   width: var(--fill-pct, 0%);
 }
 .ob-row-bid::after {
   content: ''; position: absolute; right: 0; top: 0; bottom: 0;
-  background: rgba(45,212,191,0.10);
+  background: var(--ob-bid-fill);
   width: var(--fill-pct, 0%);
 }
 

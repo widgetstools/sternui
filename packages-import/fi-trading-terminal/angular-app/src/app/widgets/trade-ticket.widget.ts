@@ -27,14 +27,14 @@ import { SharedStateService } from '../services/shared-state.service';
       >
         <div
           class="font-mono-fi"
-          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:rgba(61,158,255,0.06);color:var(--bn-blue)"
+          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--bn-blue)"
         >
           <span style="font-size:8px;color:var(--bn-t2);display:block">BID</span>
           {{ bond.bid.toFixed(3) }}
         </div>
         <div
           class="font-mono-fi"
-          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:rgba(255,61,94,0.06);color:var(--bn-red)"
+          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--bn-red)"
         >
           <span style="font-size:8px;color:var(--bn-t2);display:block">ASK</span>
           {{ bond.ask.toFixed(3) }}

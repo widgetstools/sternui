@@ -164,7 +164,7 @@ body {
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: var(--fill-pct, 0%);
-    background: rgba(248,113,113,0.10);
+    background: var(--ob-ask-fill);
     pointer-events: none;
   }
 }
@@ -175,7 +175,7 @@ body {
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: var(--fill-pct, 0%);
-    background: rgba(45,212,191,0.10);
+    background: var(--ob-bid-fill);
     pointer-events: none;
   }
 }

@@ -63,10 +63,10 @@ export function TradeTicket({ bond, clickedPrice }: TradeTicketProps) {
       </div>
       {/* Bid / Ask strip */}
       <div className="grid grid-cols-2 gap-px flex-shrink-0" style={{background:'var(--bn-border)'}}>
-        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'rgba(61,158,255,0.06)',color:'var(--bn-blue)'}}>
+        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'var(--tt-bid-strip)',color:'var(--bn-blue)'}}>
           <span style={{fontSize:8,color:'var(--bn-t2)',display:'block'}}>BID</span>{bond.bid.toFixed(3)}
         </div>
-        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'rgba(255,61,94,0.06)',color:'var(--bn-red)'}}>
+        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'var(--tt-ask-strip)',color:'var(--bn-red)'}}>
           <span style={{fontSize:8,color:'var(--bn-t2)',display:'block'}}>ASK</span>{bond.ask.toFixed(3)}
         </div>
       </div>
