@@ -41,9 +41,14 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
       <div className="flex items-center h-11 px-4 gap-0" style={{borderBottom:'1px solid var(--bn-border)'}}>
         {/* Logo */}
         <div className="flex items-center gap-2 mr-6 flex-shrink-0">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <rect width="22" height="22" rx="4" fill="var(--bn-yellow)"/>
-            <path d="M11 4l2.5 2.5L11 9 8.5 6.5 11 4zM4 11l2.5-2.5L9 11l-2.5 2.5L4 11zM11 18l-2.5-2.5L11 13l2.5 2.5L11 18zM18 11l-2.5 2.5L13 11l2.5-2.5L18 11zM11 9.5L12.5 11 11 12.5 9.5 11 11 9.5z" fill="var(--bn-logo-bg)"/>
+          <svg width="22" height="22" viewBox="0 0 64 64">
+            <polygon points="11,18 19,14 19,33 11,33" fill="#a5c3e1"/>
+            <polygon points="11,33 19,33 19,52 11,52" fill="#4ba5c3"/>
+            <polygon points="21,30 29,26 29,52 21,52" fill="#ff870f"/>
+            <polygon points="31,26 39,30 39,52 31,52" fill="#ff0f0f"/>
+            <polygon points="41,14 49,18 49,33 41,33" fill="#a5c3e1"/>
+            <polygon points="41,33 49,33 49,52 41,52" fill="#4ba5c3"/>
+            <rect x="11" y="52" width="38" height="2" fill="#2d4b69"/>
           </svg>
           <span className="font-bold text-sm tracking-wide" style={{color:'var(--bn-t0)'}}>MarketsUI <span style={{color:'var(--bn-yellow)'}}>FI</span></span>
         </div>

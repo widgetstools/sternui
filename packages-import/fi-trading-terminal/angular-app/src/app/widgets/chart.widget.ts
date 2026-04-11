@@ -56,9 +56,9 @@ function getCssVar(name: string): string {
   imports: [CommonModule],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
-    <!-- Toolbar -->
+    <!-- Toolbar — compact, wraps on narrow containers -->
     <div
-      style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0"
+      style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px 8px;border-bottom:1px solid var(--bn-border);flex-shrink:0;min-height:28px"
     >
       <button
         *ngFor="let iv of intervals"
@@ -66,18 +66,21 @@ function getCssVar(name: string): string {
         class="font-mono-fi"
         [style.background]="interval === iv ? 'var(--bn-bg3)' : 'transparent'"
         [style.color]="interval === iv ? 'var(--bn-yellow)' : 'var(--bn-t1)'"
-        style="font-size:11px;padding:4px 10px;border-radius:4px;border:none;cursor:pointer"
+        style="font-size:10px;padding:2px 6px;line-height:16px;border-radius:4px;border:none;cursor:pointer"
       >
         {{ iv }}
       </button>
-      <div style="width:1px;height:14px;background:var(--bn-border2);margin:0 4px"></div>
+      <div
+        style="width:1px;height:12px;background:var(--bn-border2);margin:0 2px;flex-shrink:0"
+      ></div>
       <span
         *ngFor="let ind of indicators"
         class="font-mono-fi"
-        style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);cursor:pointer"
+        style="font-size:10px;padding:2px 5px;line-height:16px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);cursor:pointer"
         >{{ ind }}</span
       >
-      <div style="margin-left:auto;display:flex;align-items:center;gap:4px">
+      <div style="flex:1 1 0;min-width:4px"></div>
+      <div style="display:flex;align-items:center;gap:2px">
         <button
           *ngFor="let ct of chartTypes"
           (click)="chartType = ct"
@@ -85,14 +88,17 @@ function getCssVar(name: string): string {
           [style.background]="chartType === ct ? 'var(--bn-bg3)' : 'transparent'"
           [style.borderColor]="chartType === ct ? 'var(--bn-border2)' : 'transparent'"
           [style.color]="chartType === ct ? 'var(--bn-t0)' : 'var(--bn-t1)'"
-          style="font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid transparent;cursor:pointer"
+          style="font-size:10px;padding:2px 6px;line-height:16px;border-radius:4px;border:1px solid transparent;cursor:pointer"
         >
           {{ ct }}
         </button>
       </div>
     </div>
-    <div style="flex:1;position:relative">
-      <canvas #chartCanvas style="width:100%;height:100%;display:block"></canvas>
+    <div style="flex:1;position:relative;min-height:0">
+      <canvas
+        #chartCanvas
+        style="position:absolute;inset:0;width:100%;height:100%;display:block"
+      ></canvas>
     </div>
   `,
 })
@@ -130,17 +136,28 @@ export class ChartWidget implements OnInit, OnDestroy, AfterViewInit {
     this.candles = generateCandles(bond.bid, 120);
   }
 
+  private logicalW = 800;
+  private logicalH = 400;
+
   ngAfterViewInit() {
     const canvas = this.canvasRef.nativeElement;
-    this.resizeObs = new ResizeObserver(() => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+    const container = canvas.parentElement!;
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.logicalW = w;
+      this.logicalH = h;
       this.redraw();
-    });
-    this.resizeObs.observe(canvas.parentElement!);
-    canvas.width = canvas.offsetWidth || 800;
-    canvas.height = canvas.offsetHeight || 400;
-    this.redraw();
+    };
+    this.resizeObs = new ResizeObserver(resize);
+    this.resizeObs.observe(container);
+    resize();
 
     this.liveId = setInterval(() => {
       const last = { ...this.candles[this.candles.length - 1] };
@@ -165,8 +182,8 @@ export class ChartWidget implements OnInit, OnDestroy, AfterViewInit {
     const ctx = canvas.getContext('2d');
     if (!ctx || !this.candles.length) return;
 
-    const W = canvas.width,
-      H = canvas.height;
+    const W = this.logicalW,
+      H = this.logicalH;
     const pad = { l: 50, r: 16, t: 28, b: 48, vol: 60 };
     const chartH = H - pad.t - pad.b - pad.vol;
     ctx.clearRect(0, 0, W, H);

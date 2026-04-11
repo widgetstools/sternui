@@ -34,18 +34,9 @@ LicenseManager.setLicenseKey('');
         >
           {{ t.label }}
         </button>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:16px;padding-right:16px">
-          <label
-            style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--bn-t1);cursor:pointer"
-          >
-            <input type="checkbox" style="accent-color:var(--bn-yellow)" /> Hide Other Pairs
-          </label>
-          <button
-            style="font-size:11px;color:var(--bn-yellow);background:none;border:none;cursor:pointer"
-          >
-            Cancel All
-          </button>
-        </div>
+        <div
+          style="margin-left:auto;display:flex;align-items:center;gap:16px;padding-right:16px"
+        ></div>
       </div>
       <!-- Content -->
       <div style="flex:1;overflow:hidden">

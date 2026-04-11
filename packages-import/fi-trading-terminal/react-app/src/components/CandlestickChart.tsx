@@ -28,7 +28,8 @@ function generateCandles(base:number, n=120): Candle[] {
 function drawChart(canvas: HTMLCanvasElement, candles: Candle[], ma7: number[], ma25: number[], ma99: number[]) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const W = canvas.width, H = canvas.height;
+  const W = (canvas as any).__logicalW || canvas.width;
+  const H = (canvas as any).__logicalH || canvas.height;
   const pad = { l:50, r:16, t:28, b:48, vol:60 };
   const chartH = H - pad.t - pad.b - pad.vol;
   ctx.clearRect(0,0,W,H);
@@ -166,15 +167,24 @@ export function CandlestickChart({ bond }: CandlestickChartProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const obs = new ResizeObserver(() => {
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+    const container = canvas.parentElement!;
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      if (ctx) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+      // drawChart uses canvas.width/height — override for logical size
+      (canvas as any).__logicalW = w;
+      (canvas as any).__logicalH = h;
       redraw();
-    });
-    obs.observe(canvas.parentElement!);
-    canvas.width  = canvas.offsetWidth  || 800;
-    canvas.height = canvas.offsetHeight || 400;
-    redraw();
+    };
+    const obs = new ResizeObserver(resize);
+    obs.observe(container);
+    resize();
     return () => obs.disconnect();
   }, [redraw]);
 
@@ -200,33 +210,33 @@ export function CandlestickChart({ bond }: CandlestickChartProps) {
 
   return (
     <div className="flex flex-col h-full" style={{background:'var(--bn-bg1)'}}>
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 px-3 py-1.5 border-b flex-shrink-0" style={{borderColor:'var(--bn-border)'}}>
+      {/* Toolbar — compact, wraps on narrow containers */}
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border-b flex-shrink-0" style={{borderColor:'var(--bn-border)',minHeight:28}}>
         {INTERVALS.map(iv => (
           <button key={iv} onClick={() => setIntervalState(iv)}
-            className="font-mono-fi px-2.5 py-1 rounded text-xs"
-            style={{background: interval===iv ? 'var(--bn-bg3)':'transparent', color: interval===iv ? 'var(--bn-yellow)':'var(--bn-t1)'}}>
+            className="font-mono-fi rounded"
+            style={{padding:'2px 6px',fontSize:10,lineHeight:'16px',background: interval===iv ? 'var(--bn-bg3)':'transparent', color: interval===iv ? 'var(--bn-yellow)':'var(--bn-t1)'}}>
             {iv}
           </button>
         ))}
-        <div style={{width:1,height:14,background:'var(--bn-border2)',margin:'0 4px'}}/>
+        <div style={{width:1,height:12,background:'var(--bn-border2)',margin:'0 2px',flexShrink:0}}/>
         {INDICATORS.map(ind => (
-          <span key={ind} className="font-mono-fi text-xs px-2 py-0.5 rounded" style={{background:'var(--bn-bg3)',color:'var(--bn-t1)',cursor:'pointer'}}>{ind}</span>
+          <span key={ind} className="font-mono-fi rounded" style={{padding:'2px 5px',fontSize:10,lineHeight:'16px',background:'var(--bn-bg3)',color:'var(--bn-t1)',cursor:'pointer'}}>{ind}</span>
         ))}
-        <div className="ml-auto flex items-center gap-1">
+        <div style={{flex:'1 1 0',minWidth:4}}/>
+        <div className="flex items-center gap-0.5">
           {CHART_TYPES.map(ct => (
             <button key={ct} onClick={() => setChartType(ct)}
-              className="font-mono-fi text-xs px-2.5 py-1 rounded border"
-              style={{background:chartType===ct?'var(--bn-bg3)':'transparent',borderColor:chartType===ct?'var(--bn-border2)':'transparent',color:chartType===ct?'var(--bn-t0)':'var(--bn-t1)'}}>
+              className="font-mono-fi rounded border"
+              style={{padding:'2px 6px',fontSize:10,lineHeight:'16px',background:chartType===ct?'var(--bn-bg3)':'transparent',borderColor:chartType===ct?'var(--bn-border2)':'transparent',color:chartType===ct?'var(--bn-t0)':'var(--bn-t1)'}}>
               {ct}
             </button>
           ))}
-          <button className="px-2" title="Fullscreen" style={{color:'var(--bn-t1)'}}>⛶</button>
         </div>
       </div>
-      {/* Canvas */}
-      <div className="flex-1 relative">
-        <canvas ref={canvasRef} style={{width:'100%',height:'100%',display:'block'}}/>
+      {/* Canvas — fills remaining space -->  */}
+      <div className="flex-1 relative" style={{minHeight:0}}>
+        <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/>
       </div>
     </div>
   );

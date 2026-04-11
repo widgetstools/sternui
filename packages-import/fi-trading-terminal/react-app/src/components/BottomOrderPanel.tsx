@@ -60,11 +60,6 @@ export function BottomOrderPanel({ bond }: BottomOrderPanelProps) {
           </button>
         ))}
         <div className="ml-auto flex items-center gap-4 pr-4">
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{color:'var(--bn-t1)'}}>
-            <input type="checkbox" className="rounded" style={{accentColor:'var(--bn-yellow)'}}/> Hide Other Pairs
-          </label>
-          <button className="text-xs" style={{color:'var(--bn-yellow)'}}>Cancel All</button>
-          <button className="text-xs" style={{color:'var(--bn-t1)'}}>▾</button>
         </div>
       </div>
 
