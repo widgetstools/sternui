@@ -12,8 +12,8 @@
   "//dependencies-registry-notes": {
     "description": "Packages below may need version adjustments depending on corporate artifactory availability.",
     "bundled-locally": {
-      "@widgetstools/react-dock-manager": "Not on corporate registry — packed from npm public v0.1.35",
-      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.35",
+      "@widgetstools/react-dock-manager": "Not on corporate registry — packed from npm public v0.1.36",
+      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.36",
       "react-day-picker": "Not on corporate registry — packed from npm public v9.14.0",
       "@tabby_ai/hijri-converter": "Not on corporate registry — transitive dep of react-day-picker, packed from npm public v1.0.5"
     },
@@ -54,8 +54,8 @@
     "@radix-ui/react-toggle-group": "file:libs/radix-ui-react-toggle-group-1.1.11.tgz",
     "@radix-ui/react-tooltip": "file:libs/radix-ui-react-tooltip-1.2.8.tgz",
     "@tabby_ai/hijri-converter": "file:libs/tabby_ai-hijri-converter-1.0.5.tgz",
-    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.35.tgz",
-    "@widgetstools/react-dock-manager": "file:libs/widgetstools-react-dock-manager-0.1.35.tgz",
+    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.37.tgz",
+    "@widgetstools/react-dock-manager": "file:libs/widgetstools-react-dock-manager-0.1.37.tgz",
     "ag-grid-community": "file:libs/ag-grid-community-35.1.0.tgz",
     "ag-grid-enterprise": "file:libs/ag-grid-enterprise-35.1.0.tgz",
     "ag-grid-react": "file:libs/ag-grid-react-35.1.0.tgz",
