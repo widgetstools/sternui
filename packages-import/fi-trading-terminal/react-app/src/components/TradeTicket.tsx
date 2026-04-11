@@ -58,16 +58,16 @@ export function TradeTicket({ bond, clickedPrice }: TradeTicketProps) {
     <div className="flex flex-col h-full" style={{background:'var(--bn-bg1)'}}>
       {/* Security header */}
       <div className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0" style={{borderColor:'var(--bn-border)', background:'rgba(0,188,212,0.04)'}}>
-        <span className="font-mono-fi font-bold" style={{fontSize:12,color:'var(--bn-cyan)'}}>{bond.ticker} {bond.cpn} {bond.mat}</span>
+        <span className="font-mono-fi font-bold" style={{fontSize:9,color:'var(--bn-cyan)'}}>{bond.ticker} {bond.cpn} {bond.mat}</span>
         <span className="font-mono-fi font-semibold" style={{fontSize:11,color:'var(--bn-t0)'}}>{mid.toFixed(3)}</span>
       </div>
       {/* Bid / Ask strip */}
       <div className="grid grid-cols-2 gap-px flex-shrink-0" style={{background:'var(--bn-border)'}}>
-        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'var(--tt-bid-strip)',color:'var(--bn-blue)'}}>
-          <span style={{fontSize:8,color:'var(--bn-t2)',display:'block'}}>BID</span>{bond.bid.toFixed(3)}
+        <div className="font-mono-fi text-center py-1.5" style={{fontSize:11,fontWeight:600,background:'var(--tt-bid-strip)',color:'var(--bn-blue)'}}>
+          <span style={{fontSize:9,color:'var(--bn-t2)',display:'block'}}>BID</span>{bond.bid.toFixed(3)}
         </div>
-        <div className="font-mono-fi text-center py-1.5" style={{fontSize:10,fontWeight:600,background:'var(--tt-ask-strip)',color:'var(--bn-red)'}}>
-          <span style={{fontSize:8,color:'var(--bn-t2)',display:'block'}}>ASK</span>{bond.ask.toFixed(3)}
+        <div className="font-mono-fi text-center py-1.5" style={{fontSize:11,fontWeight:600,background:'var(--tt-ask-strip)',color:'var(--bn-red)'}}>
+          <span style={{fontSize:9,color:'var(--bn-t2)',display:'block'}}>ASK</span>{bond.ask.toFixed(3)}
         </div>
       </div>
 

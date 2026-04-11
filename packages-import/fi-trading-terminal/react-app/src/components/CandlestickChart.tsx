@@ -215,20 +215,20 @@ export function CandlestickChart({ bond }: CandlestickChartProps) {
         {INTERVALS.map(iv => (
           <button key={iv} onClick={() => setIntervalState(iv)}
             className="font-mono-fi rounded"
-            style={{padding:'2px 6px',fontSize:10,lineHeight:'16px',background: interval===iv ? 'var(--bn-bg3)':'transparent', color: interval===iv ? 'var(--bn-yellow)':'var(--bn-t1)'}}>
+            style={{padding:'2px 6px',fontSize:11,lineHeight:'16px',background: interval===iv ? 'var(--bn-bg3)':'transparent', color: interval===iv ? 'var(--bn-yellow)':'var(--bn-t1)'}}>
             {iv}
           </button>
         ))}
         <div style={{width:1,height:12,background:'var(--bn-border2)',margin:'0 2px',flexShrink:0}}/>
         {INDICATORS.map(ind => (
-          <span key={ind} className="font-mono-fi rounded" style={{padding:'2px 5px',fontSize:10,lineHeight:'16px',background:'var(--bn-bg3)',color:'var(--bn-t1)',cursor:'pointer'}}>{ind}</span>
+          <span key={ind} className="font-mono-fi rounded" style={{padding:'2px 5px',fontSize:11,lineHeight:'16px',background:'var(--bn-bg3)',color:'var(--bn-t1)',cursor:'pointer'}}>{ind}</span>
         ))}
         <div style={{flex:'1 1 0',minWidth:4}}/>
         <div className="flex items-center gap-0.5">
           {CHART_TYPES.map(ct => (
             <button key={ct} onClick={() => setChartType(ct)}
               className="font-mono-fi rounded border"
-              style={{padding:'2px 6px',fontSize:10,lineHeight:'16px',background:chartType===ct?'var(--bn-bg3)':'transparent',borderColor:chartType===ct?'var(--bn-border2)':'transparent',color:chartType===ct?'var(--bn-t0)':'var(--bn-t1)'}}>
+              style={{padding:'2px 6px',fontSize:11,lineHeight:'16px',background:chartType===ct?'var(--bn-bg3)':'transparent',borderColor:chartType===ct?'var(--bn-border2)':'transparent',color:chartType===ct?'var(--bn-t0)':'var(--bn-t1)'}}>
               {ct}
             </button>
           ))}

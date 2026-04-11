@@ -366,7 +366,7 @@ import { CommonModule } from '@angular/common';
             <div *ngFor="let qt of quoteTypeBadges" style="display:flex;align-items:center;gap:8px">
               <span
                 class="font-mono-fi"
-                style="font-size:8px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
                 [style.background]="qt.bg"
                 [style.color]="qt.color"
                 >{{ qt.label }}</span
@@ -487,7 +487,7 @@ import { CommonModule } from '@angular/common';
             <div
               style="display:flex;align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--bn-border);background:rgba(0,188,212,0.04)"
             >
-              <span class="font-mono-fi" style="font-size:12px;font-weight:700;color:var(--bn-cyan)"
+              <span class="font-mono-fi" style="font-size:9px;font-weight:700;color:var(--bn-cyan)"
                 >UST 4.625 06/26</span
               >
               <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">US Treasury</span>
@@ -556,7 +556,7 @@ import { CommonModule } from '@angular/common';
               <span style="text-align:center;position:relative;z-index:1">
                 <span
                   class="font-mono-fi"
-                  style="font-size:8px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                  style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
                   [style.background]="qtBadgeBg(r.type)"
                   [style.color]="qtBadgeColor(r.type)"
                   >{{ r.type }}</span
@@ -569,22 +569,22 @@ import { CommonModule } from '@angular/common';
             >
               <span
                 class="font-mono-fi"
-                style="font-size:14px;font-weight:700;color:var(--bn-green)"
+                style="font-size:11px;font-weight:700;color:var(--bn-green)"
                 >100.135</span
               >
-              <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t2);margin-left:12px"
+              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2);margin-left:12px"
                 >≈ $100.135</span
               >
               <div style="margin-left:auto;display:flex;gap:16px">
-                <span class="font-mono-fi" style="font-size:10px"
+                <span class="font-mono-fi" style="font-size:9px"
                   ><span style="color:var(--bn-t2)">Spread </span
                   ><span style="color:var(--bn-amber);font-weight:600">0.125</span></span
                 >
-                <span class="font-mono-fi" style="font-size:10px"
+                <span class="font-mono-fi" style="font-size:9px"
                   ><span style="color:var(--bn-t2)">Mid Yld </span
                   ><span style="color:#00bcd4;font-weight:600">4.520</span></span
                 >
-                <span class="font-mono-fi" style="font-size:10px"
+                <span class="font-mono-fi" style="font-size:9px"
                   ><span style="color:var(--bn-t2)">Z-Spd </span
                   ><span style="color:#c084fc;font-weight:600">8</span></span
                 >
@@ -631,7 +631,7 @@ import { CommonModule } from '@angular/common';
               <span style="text-align:center;position:relative;z-index:1">
                 <span
                   class="font-mono-fi"
-                  style="font-size:8px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
+                  style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
                   [style.background]="qtBadgeBg(r.type)"
                   [style.color]="qtBadgeColor(r.type)"
                   >{{ r.type }}</span
@@ -680,7 +680,7 @@ import { CommonModule } from '@angular/common';
           <div
             style="max-width:560px;display:flex;align-items:center;gap:12px;padding:6px 12px;background:rgba(0,188,212,0.04);border:1px solid var(--bn-border);border-radius:3px"
           >
-            <span class="font-mono-fi" style="font-size:12px;font-weight:700;color:var(--bn-cyan)"
+            <span class="font-mono-fi" style="font-size:9px;font-weight:700;color:var(--bn-cyan)"
               >AAPL 3.25 02/29</span
             >
             <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">Apple Inc</span>

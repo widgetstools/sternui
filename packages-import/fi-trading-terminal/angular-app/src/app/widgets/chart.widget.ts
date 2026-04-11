@@ -66,7 +66,7 @@ function getCssVar(name: string): string {
         class="font-mono-fi"
         [style.background]="interval === iv ? 'var(--bn-bg3)' : 'transparent'"
         [style.color]="interval === iv ? 'var(--bn-yellow)' : 'var(--bn-t1)'"
-        style="font-size:10px;padding:2px 6px;line-height:16px;border-radius:4px;border:none;cursor:pointer"
+        style="font-size:11px;padding:2px 6px;line-height:16px;border-radius:4px;border:none;cursor:pointer"
       >
         {{ iv }}
       </button>
@@ -76,7 +76,7 @@ function getCssVar(name: string): string {
       <span
         *ngFor="let ind of indicators"
         class="font-mono-fi"
-        style="font-size:10px;padding:2px 5px;line-height:16px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);cursor:pointer"
+        style="font-size:11px;padding:2px 5px;line-height:16px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);cursor:pointer"
         >{{ ind }}</span
       >
       <div style="flex:1 1 0;min-width:4px"></div>
@@ -88,7 +88,7 @@ function getCssVar(name: string): string {
           [style.background]="chartType === ct ? 'var(--bn-bg3)' : 'transparent'"
           [style.borderColor]="chartType === ct ? 'var(--bn-border2)' : 'transparent'"
           [style.color]="chartType === ct ? 'var(--bn-t0)' : 'var(--bn-t1)'"
-          style="font-size:10px;padding:2px 6px;line-height:16px;border-radius:4px;border:1px solid transparent;cursor:pointer"
+          style="font-size:11px;padding:2px 6px;line-height:16px;border-radius:4px;border:1px solid transparent;cursor:pointer"
         >
           {{ ct }}
         </button>

@@ -72,7 +72,7 @@ function QuoteBadge({ type }: { type: QuoteType }) {
     <span
       className="font-mono-fi"
       style={{
-        fontSize: 8,
+        fontSize: 9,
         fontWeight: 600,
         padding: '1px 4px',
         borderRadius: 2,
@@ -140,7 +140,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
         className="flex items-center gap-3 px-3 py-1.5 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--bn-border)', background: 'rgba(0,188,212,0.04)' }}
       >
-        <span className="font-mono-fi font-bold" style={{ fontSize: 12, color: 'var(--bn-cyan)' }}>
+        <span className="font-mono-fi font-bold" style={{ fontSize: 9, color: 'var(--bn-cyan)' }}>
           {bond.ticker} {bond.cpn} {bond.mat}
         </span>
         <span className="font-mono-fi" style={{ fontSize: 9, color: 'var(--bn-t2)' }}>
@@ -191,7 +191,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t2)' }}>
+          <span className="font-mono-fi" style={{ fontSize: 9, color: 'var(--bn-t2)' }}>
             {asks.length + bids.length} levels
           </span>
           <span
@@ -204,7 +204,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
             }}
             className="live-dot"
           />
-          <span className="font-mono-fi" style={{ fontSize: 8, color: 'var(--bn-green)' }}>LIVE</span>
+          <span className="font-mono-fi" style={{ fontSize: 9, color: 'var(--bn-green)' }}>LIVE</span>
         </div>
       </div>
 
@@ -262,27 +262,27 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
               borderBottom: '1px solid var(--bn-border)',
             }}
           >
-            <span className="font-mono-fi font-bold" style={{ fontSize: 14, color: spreadColor }}>
+            <span className="font-mono-fi font-bold" style={{ fontSize: 11, color: spreadColor }}>
               {mid.toFixed(3)}
             </span>
-            <span className="font-mono-fi text-xs ml-3" style={{ color: 'var(--bn-t2)' }}>
+            <span className="font-mono-fi ml-3" style={{ fontSize: 9, color: 'var(--bn-t2)' }}>
               ≈ ${mid.toFixed(3)}
             </span>
             <div className="ml-auto flex items-center gap-4">
-              <span className="font-mono-fi" style={{ fontSize: 10 }}>
+              <span className="font-mono-fi" style={{ fontSize: 9 }}>
                 <span style={{ color: 'var(--bn-t2)' }}>Spread </span>
                 <span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>{spread.toFixed(3)}</span>
                 <span style={{ color: 'var(--bn-t2)' }}> ({spreadPct}%)</span>
               </span>
-              <span className="font-mono-fi" style={{ fontSize: 10 }}>
+              <span className="font-mono-fi" style={{ fontSize: 9 }}>
                 <span style={{ color: 'var(--bn-t2)' }}>Mid Yld </span>
                 <span style={{ color: '#00bcd4', fontWeight: 600 }}>{midYield.toFixed(3)}</span>
               </span>
-              <span className="font-mono-fi" style={{ fontSize: 10 }}>
+              <span className="font-mono-fi" style={{ fontSize: 9 }}>
                 <span style={{ color: 'var(--bn-t2)' }}>Z-Spd </span>
                 <span style={{ color: '#c084fc', fontWeight: 600 }}>{bond.gSpd}</span>
               </span>
-              <span style={{ color: spreadColor, fontSize: 12, fontWeight: 700 }}>{spread < 0 ? '↓' : '↑'}</span>
+              <span style={{ color: spreadColor, fontSize: 9, fontWeight: 700 }}>{spread < 0 ? '↓' : '↑'}</span>
             </div>
           </div>
         )}
@@ -364,15 +364,15 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
             <div key={i} className="ob-trades-cols px-2 py-[2px]" style={{ display: 'grid' }}>
               <div
                 className="font-mono-fi"
-                style={{ fontSize: 10, fontWeight: 700, color: t.side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)' }}
+                style={{ fontSize: 11, fontWeight: 700, color: t.side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)' }}
               >
                 {t.side}
               </div>
-              <div className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t1)' }}>{t.dealer}</div>
-              <div className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t0)', textAlign: 'right' }}>{t.price.toFixed(3)}</div>
-              <div className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t0)', textAlign: 'right' }}>{t.yield.toFixed(3)}</div>
-              <div className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t0)', textAlign: 'right' }}>{t.face.toFixed(1)}</div>
-              <div className="font-mono-fi" style={{ fontSize: 10, color: 'var(--bn-t2)', textAlign: 'right' }}>{t.time}</div>
+              <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t1)' }}>{t.dealer}</div>
+              <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{t.price.toFixed(3)}</div>
+              <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{t.yield.toFixed(3)}</div>
+              <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{t.face.toFixed(1)}</div>
+              <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t2)', textAlign: 'right' }}>{t.time}</div>
             </div>
           ))}
         </div>

@@ -14,7 +14,7 @@ import { SharedStateService } from '../services/shared-state.service';
       <div
         style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
       >
-        <span class="font-mono-fi font-bold" style="font-size:12px;color:var(--bn-cyan)"
+        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--bn-cyan)"
           >{{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}</span
         >
         <span class="font-mono-fi font-semibold" style="font-size:11px;color:var(--bn-t0)">{{
@@ -27,16 +27,16 @@ import { SharedStateService } from '../services/shared-state.service';
       >
         <div
           class="font-mono-fi"
-          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--bn-blue)"
+          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--bn-blue)"
         >
-          <span style="font-size:8px;color:var(--bn-t2);display:block">BID</span>
+          <span style="font-size:9px;color:var(--bn-t2);display:block">BID</span>
           {{ bond.bid.toFixed(3) }}
         </div>
         <div
           class="font-mono-fi"
-          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--bn-red)"
+          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--bn-red)"
         >
-          <span style="font-size:8px;color:var(--bn-t2);display:block">ASK</span>
+          <span style="font-size:9px;color:var(--bn-t2);display:block">ASK</span>
           {{ bond.ask.toFixed(3) }}
         </div>
       </div>

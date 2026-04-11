@@ -13,8 +13,8 @@
   "//dependencies-registry-notes": {
     "description": "Packages below may need version adjustments depending on corporate artifactory availability.",
     "bundled-locally": {
-      "@widgetstools/angular-dock-manager": "Not on corporate registry — packed from npm public v0.1.34",
-      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.34"
+      "@widgetstools/angular-dock-manager": "Not on corporate registry — packed from npm public v0.1.35",
+      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.35"
     },
     "downgraded-for-registry": {
       "@angular/*":        { "public": "^21.2.x", "corporate": "21.1.2" },
@@ -36,8 +36,8 @@
     "@angular/platform-browser": "21.1.2",
     "@angular/router": "21.1.2",
     "@primeng/themes": "^20.3.0",
-    "@widgetstools/angular-dock-manager": "file:libs/widgetstools-angular-dock-manager-0.1.34.tgz",
-    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.34.tgz",
+    "@widgetstools/angular-dock-manager": "file:libs/widgetstools-angular-dock-manager-0.1.35.tgz",
+    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.35.tgz",
     "ag-grid-angular": "^35.1.0",
     "ag-grid-community": "^35.1.0",
     "ag-grid-enterprise": "^35.1.0",

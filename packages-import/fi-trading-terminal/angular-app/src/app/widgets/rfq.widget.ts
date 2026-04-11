@@ -138,18 +138,18 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             >
               <div
                 class="font-mono-fi"
-                style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(61,158,255,0.08);color:var(--fi-blue);text-align:right;border:1px solid rgba(61,158,255,0.15)"
+                style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(61,158,255,0.08);color:var(--fi-blue);text-align:right;border:1px solid rgba(61,158,255,0.15)"
               >
-                <span style="font-size:8px;color:var(--fi-t2);display:block;margin-bottom:1px"
+                <span style="font-size:9px;color:var(--fi-t2);display:block;margin-bottom:1px"
                   >BID</span
                 >
                 {{ activeBond.bid.toFixed(3) }}
               </div>
               <div
                 class="font-mono-fi"
-                style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(255,61,94,0.08);color:var(--fi-red);text-align:right;border:1px solid rgba(255,61,94,0.15)"
+                style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(255,61,94,0.08);color:var(--fi-red);text-align:right;border:1px solid rgba(255,61,94,0.15)"
               >
-                <span style="font-size:8px;color:var(--fi-t2);display:block;margin-bottom:1px"
+                <span style="font-size:9px;color:var(--fi-t2);display:block;margin-bottom:1px"
                   >ASK</span
                 >
                 {{ activeBond.ask.toFixed(3) }}
@@ -252,7 +252,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 *ngIf="hasCompletedRfqs"
                 (click)="clearHistory()"
                 class="font-mono-fi"
-                style="font-size:8px;color:var(--fi-t3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:3px"
+                style="font-size:9px;color:var(--fi-t3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:3px"
                 (mouseenter)="$any($event.currentTarget).style.color = 'var(--fi-red)'"
                 (mouseleave)="$any($event.currentTarget).style.color = 'var(--fi-t3)'"
               >
@@ -481,7 +481,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 style="display:flex;align-items:center;justify-content:center;height:100%"
               >
                 <div style="text-align:center">
-                  <div class="font-mono-fi" style="font-size:24px;color:var(--fi-border2)">...</div>
+                  <div class="font-mono-fi" style="font-size:18px;color:var(--fi-border2)">...</div>
                   <div class="font-mono-fi" style="font-size:11px;color:var(--fi-t3)">
                     Quotes incoming from dealers...
                   </div>
