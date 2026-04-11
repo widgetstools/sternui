@@ -18,7 +18,9 @@
     "pinning-strategy": "Use exact pins for Angular core and AG Grid; tilde (~) for PrimeNG/Chart.js. Prevents pulling bleeding-edge versions not yet mirrored to corporate artifactory.",
     "downgraded-for-registry": {
       "@angular/*": {
-        "public-latest": "21.2.8",
+        "public-latest": "21.1.2.7"
+      },
+      "@primeng/t2.8",
         "corporate": "21.2.7 (pinned exact — minimum for XSS fix GHSA-g93w)"
       },
       "@angular/build": {
@@ -27,9 +29,7 @@
       },
       "@angular/cli": {
         "public-latest": "21.2.7",
-        "corporate": "21.2.7"
-      },
-      "@primeng/themes": {
+        "corporate": "2hemes": {
         "public": "^21.0.4",
         "corporate": "~20.3.0"
       },

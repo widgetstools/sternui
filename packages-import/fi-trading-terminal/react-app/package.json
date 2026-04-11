@@ -20,7 +20,7 @@
     "pinning-strategy": "Use tilde (~) ranges for core framework deps to avoid pulling bleeding-edge minors not yet mirrored to corporate artifactory.",
     "version-notes": {
       "react": "19.2.x stable since Oct 2025; do not upgrade to 19.3+ without corporate mirror check",
-      "vite": "7.3.2+ required — 7.0.0-7.3.1 has security vulnerabilities (GHSA-4w7w, GHSA-v2wj, GHSA-p9ff)",
+      "vite": "8.0.x — requires @vitejs/plugin-react v6",
       "ag-grid-*": "35.1.0 pinned exact — corporate registry does not yet mirror 35.2.x",
       "tailwindcss": "Pinned to 3.4.1 — Tailwind 4.x is a breaking change, do not upgrade",
       "typescript": "5.9.x — do not upgrade to 6.x without Angular/Vite compatibility check"
@@ -81,7 +81,7 @@
     "@types/node": "~22.19.15",
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
-    "@vitejs/plugin-react": "~5.1.4",
+    "@vitejs/plugin-react": "~6.0.1",
     "autoprefixer": "^10.4.24",
     "eslint": "~9.39.3",
     "eslint-plugin-react-hooks": "~7.0.1",
@@ -93,6 +93,6 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "~5.9.3",
     "typescript-eslint": "~8.53.1",
-    "vite": "~7.3.2"
+    "vite": "~8.0.8"
   }
 }
