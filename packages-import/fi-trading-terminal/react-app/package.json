@@ -7,9 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "cache-libs": "node -e \"const r=require('fs').readdirSync,e=require('child_process').execSync;r('libs').filter(f=>f.endsWith('.tgz')).forEach(f=>{try{e('npm cache add libs/'+f,{stdio:'pipe',timeout:10000})}catch(x){}});console.log('Cache populated from libs/')\"",
-    "setup": "npm run cache-libs && npm install"
+    "preview": "vite preview"
   },
   "//dependencies-registry-notes": {
     "description": "Packages below may need version adjustments depending on corporate artifactory availability.",

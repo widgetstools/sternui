@@ -5,9 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "cache-libs": "node -e \"const r=require('fs').readdirSync,e=require('child_process').execSync;r('libs').filter(f=>f.endsWith('.tgz')).forEach(f=>{try{e('npm cache add libs/'+f,{stdio:'pipe',timeout:10000})}catch(x){}});console.log('Cache populated from libs/')\"",
-    "setup": "npm run cache-libs && npm install"
+    "watch": "ng build --watch --configuration development"
   },
   "private": true,
   "packageManager": "npm@11.3.0",
