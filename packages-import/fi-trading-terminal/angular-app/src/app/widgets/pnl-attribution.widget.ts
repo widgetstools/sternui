@@ -1,67 +1,100 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { UIChart } from 'primeng/chart';
 import { PNL_DATA } from '../services/trading-data.service';
+
+const pnlTotal = PNL_DATA.reduce((a, d) => a + d.pnl, 0);
+const chartItems = [
+  ...PNL_DATA.map((d) => ({ attr: d.attr, pnl: d.pnl })),
+  { attr: 'Total', pnl: pnlTotal },
+];
 
 @Component({
   selector: 'pnl-attribution-widget',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, UIChart],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
       style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
     >
-      <div style="flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:4px">
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px">
-          <div *ngFor="let d of data" style="display:flex;align-items:center;gap:8px">
-            <span
-              style="font-size:9px;color:var(--bn-t1);width:42px;text-align:right;flex-shrink:0"
-              >{{ d.attr }}</span
-            >
-            <div style="flex:1;position:relative;height:18px">
-              <div
-                style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--bn-bg3)"
-              ></div>
-              <div
-                style="position:absolute;top:2px;height:14px;border-radius:3px;opacity:0.7;transition:width 0.3s ease"
-                [style.background]="d.pnl >= 0 ? '#1e90ff' : 'var(--bn-red)'"
-                [style.left]="d.pnl >= 0 ? '50%' : 'auto'"
-                [style.right]="d.pnl < 0 ? '50%' : 'auto'"
-                [style.width.%]="getBarPct(d)"
-              ></div>
-            </div>
-            <span
-              class="font-mono-fi font-semibold"
-              style="font-size:11px;width:48px;text-align:right;flex-shrink:0"
-              [style.color]="d.pnl >= 0 ? '#1e90ff' : 'var(--bn-red)'"
-              >{{ fmtPnl(d) }}</span
-            >
-            <span
-              class="font-mono-fi"
-              style="font-size:9px;color:var(--bn-t2);width:40px;text-align:right;flex-shrink:0"
-              >S{{ d.cum }}</span
-            >
-          </div>
-        </div>
-        <div
-          style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--bn-border)"
-        >
-          <span style="font-size:9px;color:var(--bn-t1)">NET P&L MTD</span>
-          <span class="font-mono-fi font-bold" style="font-size:18px;color:#1e90ff">+$362K</span>
-        </div>
+      <div style="flex:1;padding:8px 6px 0">
+        <p-chart
+          type="bar"
+          [data]="chartData"
+          [options]="chartOptions"
+          width="100%"
+          height="100%"
+        />
+      </div>
+      <div
+        style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--bn-border);flex-shrink:0"
+      >
+        <span style="font-size:9px;color:var(--bn-t1)">NET P&L MTD</span>
+        <span class="font-mono-fi font-bold" style="font-size:18px;color:#1e90ff">{{
+          netPnlLabel
+        }}</span>
       </div>
     </div>
   `,
 })
-export class PnlAttributionWidget {
+export class PnlAttributionWidget implements OnInit {
   @Input() api: any;
   @Input() panel: any;
-  data = PNL_DATA;
-  maxAbs = Math.max(...PNL_DATA.map((d) => Math.abs(d.pnl)));
-  getBarPct(d: any): number {
-    return (Math.abs(d.pnl) / this.maxAbs) * 50;
-  }
-  fmtPnl(d: any): string {
-    return (d.pnl >= 0 ? '+' : '') + '$' + d.pnl + 'K';
+  netPnlLabel = `+$${pnlTotal}K`;
+
+  chartData: any = {};
+  chartOptions: any = {};
+
+  ngOnInit() {
+    const colors = chartItems.map((d) => {
+      if (d.attr === 'Total') return d.pnl >= 0 ? '#0ecb81' : '#f6465d';
+      return d.pnl >= 0 ? 'rgba(30,144,255,0.75)' : 'rgba(246,70,93,0.75)';
+    });
+
+    this.chartData = {
+      labels: chartItems.map((d) => d.attr),
+      datasets: [
+        {
+          label: 'P&L ($K)',
+          data: chartItems.map((d) => d.pnl),
+          backgroundColor: colors,
+          borderRadius: 3,
+          barPercentage: 0.6,
+        },
+      ],
+    };
+
+    this.chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(30,35,45,0.95)',
+          titleFont: { size: 11, family: 'JetBrains Mono,monospace' },
+          bodyFont: { size: 11, family: 'JetBrains Mono,monospace' },
+          padding: 8,
+          cornerRadius: 3,
+          callbacks: {
+            label: (ctx: any) => ` ${ctx.raw >= 0 ? '+' : ''}$${ctx.raw}K`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          grid: { display: false },
+        },
+        y: {
+          ticks: {
+            color: '#8a8f98',
+            font: { size: 9, family: 'JetBrains Mono,monospace' },
+            callback: (v: number) => `${v > 0 ? '+' : ''}$${v}K`,
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+        },
+      },
+    };
   }
 }
