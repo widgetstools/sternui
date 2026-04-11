@@ -15,60 +15,58 @@
       "@widgetstools/angular-dock-manager": "Not on corporate registry — packed from npm public v0.1.35",
       "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.35"
     },
+    "pinning-strategy": "Use exact pins for Angular core and AG Grid; tilde (~) for PrimeNG/Chart.js. Prevents pulling bleeding-edge versions not yet mirrored to corporate artifactory.",
     "downgraded-for-registry": {
       "@angular/*": {
-        "public": "^21.2.x",
-        "corporate": "21.1.2"
+        "public-latest": "21.2.8",
+        "corporate": "21.2.7 (pinned exact — minimum for XSS fix GHSA-g93w)"
       },
       "@angular/build": {
-        "public": "^21.2.6",
-        "corporate": "21.1.2"
+        "public-latest": "21.2.7",
+        "corporate": "21.2.7"
       },
       "@angular/cli": {
-        "public": "^21.2.6",
-        "corporate": "21.1.2"
+        "public-latest": "21.2.7",
+        "corporate": "21.2.7"
       },
       "@primeng/themes": {
         "public": "^21.0.4",
-        "corporate": "^20.3.0"
+        "corporate": "~20.3.0"
       },
-      "ag-grid-angular": {
-        "public": "^35.2.0",
-        "corporate": "^35.1.0"
+      "ag-grid-*": {
+        "public": "35.2.1",
+        "corporate": "35.1.0 (pinned exact)"
       },
-      "ag-grid-community": {
-        "public": "^35.2.0",
-        "corporate": "^35.1.0"
-      },
-      "ag-grid-enterprise": {
-        "public": "^35.2.0",
-        "corporate": "^35.1.0"
+      "chart.js": {
+        "public": "^4.5.1",
+        "corporate": "~4.4.8 (established stable)"
       }
     }
   },
   "dependencies": {
-    "@angular/animations": "21.1.2",
-    "@angular/common": "21.1.2",
-    "@angular/compiler": "21.1.2",
-    "@angular/core": "21.1.2",
-    "@angular/forms": "21.1.2",
-    "@angular/platform-browser": "21.1.2",
-    "@angular/router": "21.1.2",
-    "@primeng/themes": "^20.3.0",
+    "@angular/animations": "21.2.7",
+    "@angular/cdk": "21.2.6",
+    "@angular/common": "21.2.7",
+    "@angular/compiler": "21.2.7",
+    "@angular/core": "21.2.7",
+    "@angular/forms": "21.2.7",
+    "@angular/platform-browser": "21.2.7",
+    "@angular/router": "21.2.7",
+    "@primeng/themes": "~20.3.0",
     "@widgetstools/angular-dock-manager": "file:libs/widgetstools-angular-dock-manager-0.1.35.tgz",
     "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.35.tgz",
-    "ag-grid-angular": "^35.1.0",
-    "ag-grid-community": "^35.1.0",
-    "ag-grid-enterprise": "^35.1.0",
-    "chart.js": "^4.5.1",
-    "primeng": "^21.1.3",
+    "ag-grid-angular": "35.1.0",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "chart.js": "~4.4.8",
+    "primeng": "~21.1.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@angular/build": "21.1.2",
-    "@angular/cli": "21.1.2",
-    "@angular/compiler-cli": "21.1.2",
+    "@angular/build": "21.2.7",
+    "@angular/cli": "21.2.7",
+    "@angular/compiler-cli": "21.2.7",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
   }
