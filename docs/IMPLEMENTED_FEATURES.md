@@ -759,6 +759,33 @@ Within the planned 4,500–5,500 LOC envelope (v1 is 14,107 LOC across 20 module
   metadata + serialize/deserialize round-trip + dep-enforcement test.
 - UI surface deferred to sub-project #4 (FormattingToolbar v2 port).
 
+### SettingsSheet + ConditionalStylingPanel (v2 sub-project #2.5)
+
+- New `SettingsSheet` drawer in `@grid-customizer/markets-grid-v2` — auto-discovers
+  any module that exposes a `SettingsPanel` slot on its `Module<S>` definition
+  and renders it in a left-rail nav. Live editing with ~300ms auto-persist; no
+  Save/Cancel dance. ESC closes.
+- New `GridProvider` / `useGridStore` / `useGridCore` context in
+  `@grid-customizer/core-v2` so SettingsPanel components reach the live store
+  and core without prop-drilling. Mirrors v1's `GridCustomizerContext` on v2
+  types.
+- First SettingsPanel wired: `conditional-styling` now ships
+  `ConditionalStylingPanel` as its `SettingsPanel`. Subsequent module ports
+  (v2.1+) register their own panels the same way — no SettingsSheet changes
+  needed per new module.
+- `MarketsGrid` v2 gains a `showSettingsButton` prop (default `true`) and a
+  Settings toolbar button.
+- `useMarketsGridV2` now exposes aggregated `gridOptions` from the module
+  pipeline (rowClassRules, pagination, rowSelection) so the host can spread
+  them onto `AgGridReact` under explicit prop overrides.
+- 2 new v2 E2E specs: `v2-conditional-styling.spec.ts` (drawer lifecycle +
+  rule CRUD) and `v2-conditional-styling-columns.spec.ts` (FI-trading-desk
+  scenarios with reload-persistence proof). Total v2 E2E: 16 passing.
+- Also fixed a latent bug from sub-project #2: commit `d284044` exported
+  `GridContext` from `core-v2`'s barrel while the file was untracked, making
+  the clean committed state unbootable. Landing the `ui/GridContext.tsx` file
+  in this bundle closes that gap.
+
 ### See also
 - `docs/MIGRATION.md` — prop-by-prop guide for switching a consumer app from v1 to v2, including the one-shot legacy-key migration and the E2E selector compatibility matrix.
 
