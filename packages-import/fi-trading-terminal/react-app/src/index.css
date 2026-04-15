@@ -50,10 +50,6 @@
 .order-type-tab { font-size: var(--fi-font-sm); font-weight: 500; padding: 6px 0; border-bottom: 2px solid transparent; cursor: pointer; color: var(--bn-t1); }
 .order-type-tab.active { color: var(--bn-yellow); border-bottom-color: var(--bn-yellow); }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Animations ── */
 @keyframes flash-green { 0% { background-color: rgba(45,212,191,0.25) !important; } 100% { background-color: transparent; } }

@@ -22,10 +22,6 @@ body {
   font-size: var(--fi-font-sm);
 }
 
-// ── Scrollbar ──
-::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
 // ── Font utilities ──
 .font-mono-fi { font-family: var(--fi-mono); }
