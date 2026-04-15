@@ -8,6 +8,7 @@ import {
   type LegacyColumnCustomizationState,
 } from './state';
 import { cellStyleToAgStyle } from './adapters/cellStyleToAgStyle';
+import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplate';
 
 /**
  * Walk the column-def tree (handles ColGroupDef.children recursively) and
@@ -53,6 +54,9 @@ function applyAssignments(
     }
     if (a.headerStyleOverrides !== undefined) {
       merged.headerStyle = cellStyleToAgStyle(a.headerStyleOverrides);
+    }
+    if (a.valueFormatterTemplate !== undefined) {
+      merged.valueFormatter = valueFormatterFromTemplate(a.valueFormatterTemplate);
     }
     return merged;
   });

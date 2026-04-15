@@ -191,6 +191,46 @@ describe('column-customization module — transformColumnDefs', () => {
     expect(out[0].cellStyle).toEqual({ backgroundColor: '#000' });
     expect(out[0].headerStyle).toEqual({ backgroundColor: '#fff' });
   });
+
+  it('emits colDef.valueFormatter from a preset template', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        price: {
+          colId: 'price',
+          valueFormatterTemplate: { kind: 'preset', preset: 'currency' },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(typeof out[1].valueFormatter).toBe('function');
+    const fmt = out[1].valueFormatter as (params: { value: unknown }) => string;
+    expect(fmt({ value: 1234.5 })).toBe('$1,234.50');
+  });
+
+  it('emits colDef.valueFormatter from an expression template', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        price: {
+          colId: 'price',
+          valueFormatterTemplate: { kind: 'expression', expression: "x + ' USD'" },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    const fmt = out[1].valueFormatter as (params: { value: unknown }) => string;
+    expect(fmt({ value: 100 })).toBe('100 USD');
+  });
+
+  it('does NOT touch colDef.valueFormatter when template is absent', () => {
+    const defsWithFormatter: AnyColDef[] = [
+      { field: 'price', valueFormatter: 'value + " original"' } satisfies ColDef,
+    ];
+    const state: ColumnCustomizationState = {
+      assignments: { price: { colId: 'price', headerName: 'Price' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(defsWithFormatter, state, ctx) as ColDef[];
+    expect(out[0].valueFormatter).toBe('value + " original"');
+  });
 });
 
 describe('column-customization module — serialize / deserialize', () => {
