@@ -30,6 +30,41 @@ export const INITIAL_COLUMN_CUSTOMIZATION: ColumnCustomizationState = {
   assignments: {},
 };
 
+// ─── Style override shapes (used by FormattingToolbar in v2.1) ──────────────
+//
+// Structured discriminated shapes — closed set matching the FormattingToolbar's
+// editor controls. The flattener in `adapters/cellStyleToAgStyle.ts` converts
+// these into a CSS object AG-Grid consumes via `colDef.cellStyle` / `headerStyle`.
+
+export interface BorderSpec {
+  width: number;                                  // px
+  color: string;                                  // hex / css color
+  style: 'solid' | 'dashed' | 'dotted';
+}
+
+export interface CellStyleOverrides {
+  typography?: {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    fontSize?: number;                            // px
+  };
+  colors?: {
+    text?: string;
+    background?: string;
+  };
+  alignment?: {
+    horizontal?: 'left' | 'center' | 'right';
+    vertical?: 'top' | 'middle' | 'bottom';
+  };
+  borders?: {
+    top?: BorderSpec;
+    right?: BorderSpec;
+    bottom?: BorderSpec;
+    left?: BorderSpec;
+  };
+}
+
 // ─── Migration from v1 ──────────────────────────────────────────────────────
 //
 // v1 stored `state.overrides[colId] = { headerName, headerStyle, ... }`. v2
