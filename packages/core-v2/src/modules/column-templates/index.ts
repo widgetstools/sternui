@@ -23,12 +23,18 @@ export const columnTemplatesModule: Module<ColumnTemplatesState> = {
   schemaVersion: 1,
   priority: 5,
 
-  getInitialState: () => ({ ...INITIAL_COLUMN_TEMPLATES }),
+  // INITIAL_COLUMN_TEMPLATES is deep-frozen (see ./state.ts) — spreading the
+  // outer alone leaves `templates` / `typeDefaults` as frozen references that
+  // throw on mutation in strict mode. Module<S>.getInitialState must return a
+  // fully-mutable fresh object, so build one here.
+  getInitialState: () => ({ templates: {}, typeDefaults: {} }),
 
   serialize: (state) => state,
 
   deserialize: (data) => {
-    if (!data || typeof data !== 'object') return { ...INITIAL_COLUMN_TEMPLATES };
+    // Same frozen-inner concern as `getInitialState` — return a fully fresh,
+    // mutable shape rather than spreading the deep-frozen INITIAL.
+    if (!data || typeof data !== 'object') return { templates: {}, typeDefaults: {} };
     const raw = data as Partial<ColumnTemplatesState>;
     return {
       templates:

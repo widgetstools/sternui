@@ -20,6 +20,18 @@ describe('column-templates module — metadata', () => {
     expect(columnTemplatesModule.transformColumnDefs).toBeUndefined();
     expect(columnTemplatesModule.SettingsPanel).toBeUndefined();
   });
+
+  it('getInitialState returns a fresh object each call (no shared frozen inner refs)', () => {
+    const a = columnTemplatesModule.getInitialState();
+    const b = columnTemplatesModule.getInitialState();
+    expect(a).not.toBe(b);
+    expect(a.templates).not.toBe(b.templates);
+    expect(a.typeDefaults).not.toBe(b.typeDefaults);
+    // And critically — the returned state must be mutable (Module contract).
+    expect(() => {
+      a.templates['x'] = { id: 'x', name: 'X', createdAt: 0, updatedAt: 0 };
+    }).not.toThrow();
+  });
 });
 
 describe('column-templates module — serialize / deserialize', () => {
@@ -45,5 +57,15 @@ describe('column-templates module — serialize / deserialize', () => {
       typeDefaults: 42,
     });
     expect(out).toEqual(INITIAL_COLUMN_TEMPLATES);
+  });
+
+  it('deserialize(null) returns a fresh mutable shape, not a frozen INITIAL spread', () => {
+    const out = columnTemplatesModule.deserialize(null);
+    // Same mutability guarantee that `getInitialState` provides.
+    expect(() => {
+      out.templates['x'] = { id: 'x', name: 'X', createdAt: 0, updatedAt: 0 };
+    }).not.toThrow();
+    // Two calls must not alias each other.
+    expect(columnTemplatesModule.deserialize(null)).not.toBe(out);
   });
 });
