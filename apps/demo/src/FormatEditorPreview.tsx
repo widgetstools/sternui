@@ -1020,318 +1020,272 @@ function CompactSidesEditor({
   sides: Record<BorderSide, SideSpec>;
   onChange: (next: Record<BorderSide, SideSpec>) => void;
 }) {
-  // Multi-select: edits apply to EVERY selected side at once. Initial state
-  // is all four selected so a first tweak is immediately useful.
-  const [selected, setSelected] = useState<Set<BorderSide>>(
-    () => new Set<BorderSide>(['top', 'right', 'bottom', 'left']),
-  );
+  // Explicit 5-row table: All, Top, Bottom, Left, Right. Each row shows the
+  // same four columns (label, visibility, thickness, color). Editing a side
+  // row only touches that side; editing the "All" row fans out to every side.
+  // No selection state, no modes — every control is directly actionable.
 
-  const toggleSelected = (side: BorderSide, exclusive: boolean) => {
-    setSelected((prev) => {
-      if (exclusive) return new Set([side]);
-      const next = new Set(prev);
-      if (next.has(side)) next.delete(side);
-      else next.add(side);
-      if (next.size === 0) next.add(side); // never allow zero-selection
-      return next;
-    });
-  };
+  const patchSide = (side: BorderSide, p: Partial<SideSpec>) =>
+    onChange({ ...sides, [side]: { ...sides[side], ...p } });
 
-  const selectedList = EDGE_ORDER.filter((s) => selected.has(s));
-
-  // Derived common values — when sides disagree, we show a "mixed" indicator.
-  const first = selectedList[0] ? sides[selectedList[0]] : defaultSide;
-  const allSame = <K extends keyof SideSpec>(key: K): boolean =>
-    selectedList.every((s) => sides[s][key] === first[key]);
-  const commonColor = allSame('color') ? first.color : null;
-  const commonAlpha = allSame('alpha') ? first.alpha : null;
-  const commonWidth = allSame('width') ? first.width : null;
-  const commonStyle = allSame('style') ? first.style : null;
-  const commonVisible = allSame('visible') ? first.visible : null;
-
-  const patchSelected = (p: Partial<SideSpec>) => {
+  const patchAll = (p: Partial<SideSpec>) => {
     const next: Record<BorderSide, SideSpec> = { ...sides };
-    for (const side of selectedList) next[side] = { ...sides[side], ...p };
+    for (const s of EDGE_ORDER) next[s] = { ...sides[s], ...p };
     onChange(next);
   };
 
-  // Hex input is local so typing doesn't commit per-keystroke.
-  const [hexInput, setHexInput] = useState(
-    commonColor ? commonColor.replace(/^#/, '').toUpperCase() : '',
-  );
-  useEffect(() => {
-    setHexInput(commonColor ? commonColor.replace(/^#/, '').toUpperCase() : '');
-  }, [commonColor]);
+  // Derive the "All" row's displayed values from whatever the four sides have
+  // in common. When they disagree, show a "mixed" indicator — editing still
+  // works and snaps every side to the new shared value.
+  const allSame = <K extends keyof SideSpec>(key: K): boolean =>
+    EDGE_ORDER.every((s) => sides[s][key] === sides.top[key]);
+  const allColor = allSame('color') ? sides.top.color : null;
+  const allAlpha = allSame('alpha') ? sides.top.alpha : null;
+  const allWidth = allSame('width') ? sides.top.width : null;
+  const allVisible = allSame('visible') ? sides.top.visible : null;
 
-  const sidePills: Array<{ key: BorderSide; label: string; Icon: typeof PanelTop }> = [
-    { key: 'top', label: 'Top', Icon: PanelTop },
-    { key: 'right', label: 'Right', Icon: PanelRight },
-    { key: 'bottom', label: 'Bottom', Icon: PanelBottom },
-    { key: 'left', label: 'Left', Icon: PanelLeft },
-  ];
-
-  // Preset selections — one click hits a useful combination.
-  const presets: Array<{ label: string; sides: BorderSide[] }> = [
-    { label: 'All', sides: ['top', 'right', 'bottom', 'left'] },
-    { label: 'None', sides: [] },
-    { label: '⇕ Horizontal', sides: ['top', 'bottom'] },
-    { label: '⇔ Vertical', sides: ['left', 'right'] },
-  ];
-
-  const presetMatches = (set: BorderSide[]) => {
-    if (set.length !== selected.size) return false;
-    return set.every((s) => selected.has(s));
+  type RowDef = {
+    key: 'all' | BorderSide;
+    label: string;
+    getSpec: () => {
+      color: string | null; alpha: number | null; width: number | null; visible: boolean | null;
+    };
+    patch: (p: Partial<SideSpec>) => void;
   };
 
+  const rows: RowDef[] = [
+    {
+      key: 'all',
+      label: 'All',
+      getSpec: () => ({ color: allColor, alpha: allAlpha, width: allWidth, visible: allVisible }),
+      patch: patchAll,
+    },
+    ...(EDGE_ORDER.map((s) => ({
+      key: s,
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      getSpec: () => ({
+        color: sides[s].color,
+        alpha: sides[s].alpha,
+        width: sides[s].width,
+        visible: sides[s].visible,
+      }),
+      patch: (p: Partial<SideSpec>) => patchSide(s, p),
+    })) satisfies RowDef[]),
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 236 }}>
-      {/* Header: "Editing N sides" + select-all shortcut */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ color: T.textMid, fontSize: 10, letterSpacing: '0.02em' }}>
-          Editing{' '}
-          <span style={{ color: T.text, fontWeight: 600 }}>
-            {selectedList.length} {selectedList.length === 1 ? 'side' : 'sides'}
-          </span>
-          {selectedList.length < 4 && (
-            <span style={{ color: T.textDim }}> · {selectedList.map((s) => s[0].toUpperCase()).join(' ')}</span>
-          )}
-        </span>
+    <div style={{ display: 'flex', flexDirection: 'column', width: 236 }}>
+      {/* Column headers */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '50px 22px 1fr 22px',
+          alignItems: 'center',
+          gap: 6,
+          padding: '2px 6px 4px',
+          color: T.textDim,
+          fontSize: 9,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        <span>Side</span>
+        <span></span>
+        <span>Thickness</span>
+        <span></span>
       </div>
 
-      {/* Preset chips — one-click multi-selection */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {presets.map((p) => {
-          const active = presetMatches(p.sides);
-          return (
-            <button
-              key={p.label}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setSelected(new Set(p.sides.length ? p.sides : ['top']))}
-              disabled={p.sides.length === 0 && selectedList.length === 1}
-              title={`Select ${p.label}`}
-              style={{
-                padding: '2px 8px',
-                background: active ? T.accentDim : T.surface,
-                border: `1px solid ${active ? T.accentRim : 'transparent'}`,
-                borderRadius: 3,
-                color: active ? T.accent : T.textMid,
-                fontSize: 10,
-                fontWeight: active ? 600 : 500,
-                cursor: 'pointer',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
+      {rows.map((row, idx) => (
+        <BorderRow
+          key={row.key}
+          row={row}
+          emphasized={row.key === 'all'}
+          divider={idx === 0}
+        />
+      ))}
+    </div>
+  );
+}
 
-      {/* Multi-select side grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-        {sidePills.map(({ key, label, Icon }) => {
-          const spec = sides[key];
-          const isSelected = selected.has(key);
-          const isVisible = spec.visible && spec.width > 0;
-          return (
-            <div
-              key={key}
-              onClick={(e) => toggleSelected(key, !(e.shiftKey || e.metaKey || e.ctrlKey))}
-              role="button"
-              aria-pressed={isSelected}
-              title={`Click to edit only this side · shift-click to add/remove from selection`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '0 8px',
-                height: 26,
-                background: isSelected ? T.accentDim : T.surface,
-                border: `1px solid ${isSelected ? T.accentRim : 'transparent'}`,
-                borderRadius: T.radius,
-                cursor: 'pointer',
-                transition: 'background 120ms ease, border-color 120ms ease',
-              }}
-            >
-              <button
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChange({ ...sides, [key]: { ...sides[key], visible: !spec.visible } });
-                }}
-                title={isVisible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
-                style={{
-                  width: 14,
-                  height: 14,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: isVisible ? T.accent : 'transparent',
-                  border: `1.5px solid ${isVisible ? T.accent : T.borderStrong}`,
-                  borderRadius: 3,
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: '#fff',
-                  flexShrink: 0,
-                }}
-              >
-                {isVisible && <Check size={9} strokeWidth={3} />}
-              </button>
+/** One row of the 5-row border table: [label] [visibility] [thickness] [color]. */
+function BorderRow({
+  row,
+  emphasized,
+  divider,
+}: {
+  row: {
+    key: 'all' | BorderSide;
+    label: string;
+    getSpec: () => { color: string | null; alpha: number | null; width: number | null; visible: boolean | null };
+    patch: (p: Partial<SideSpec>) => void;
+  };
+  emphasized?: boolean;
+  divider?: boolean;
+}) {
+  const { color, alpha, width, visible } = row.getSpec();
+  const colorDisplay = color ?? '';
+  const hexInitial = color ? color.replace(/^#/, '').toUpperCase() : '';
+  const [hexInput, setHexInput] = useState(hexInitial);
+  useEffect(() => { setHexInput(hexInitial); }, [hexInitial]);
 
-              <Icon
-                size={11}
-                strokeWidth={1.75}
-                color={isSelected ? T.accent : T.textMid}
-              />
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: 11,
-                  fontWeight: isSelected ? 600 : 500,
-                  color: isSelected ? T.accent : T.text,
-                  opacity: isVisible ? 1 : 0.55,
-                }}
-              >
-                {label}
-              </span>
-              {isVisible && (
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 10,
-                    height: Math.max(1, Math.min(4, spec.width)),
-                    background: hexWithAlpha(spec.color, spec.alpha),
-                    borderRadius: 1,
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+  const isHidden = visible === false;
+  const isMixed = color === null || width === null || alpha === null || visible === null;
 
-      {/* Editor row — applies to every selected side. Mixed-value cells show
-          an em-dash indicator; clicking/typing commits the new shared value. */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        background: T.surface, borderRadius: T.radius,
-        padding: '0 6px', height: T.rowH,
-      }}>
-        <FormatPopover
-          trigger={
-            <button
-              style={{
-                width: 14, height: 14, borderRadius: 2,
-                background: commonColor ?? 'transparent',
-                backgroundImage: commonColor
-                  ? undefined
-                  : 'repeating-linear-gradient(45deg, #444 0 3px, #222 3px 6px)',
-                border: `1px solid ${T.border}`,
-                padding: 0, cursor: 'pointer', flexShrink: 0,
-              }}
-              title={commonColor ? 'Color' : 'Mixed colors — click to set a shared color'}
-            />
-          }
-          width={260}
-        >
-          <FormatColorPicker
-            value={commonColor ?? '#000000'}
-            alpha={commonAlpha ?? 100}
-            onChange={(hex) => patchSelected({ color: hex })}
-            onAlpha={(a) => patchSelected({ alpha: a })}
-          />
-        </FormatPopover>
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '50px 22px 1fr 22px',
+        alignItems: 'center',
+        gap: 6,
+        padding: '4px 6px',
+        background: emphasized ? T.surface : 'transparent',
+        borderRadius: emphasized ? T.radius : 0,
+        borderBottom: divider ? `1px dashed ${T.border}` : 'none',
+        marginBottom: divider ? 4 : 0,
+        opacity: isHidden ? 0.55 : 1,
+        transition: 'opacity 120ms ease',
+      }}
+    >
+      {/* Label */}
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: emphasized ? 600 : 500,
+          color: emphasized ? T.text : T.textMid,
+          letterSpacing: emphasized ? '-0.01em' : 'normal',
+        }}
+      >
+        {row.label}
+      </span>
 
+      {/* Visibility toggle */}
+      <button
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => row.patch({ visible: visible === false ? true : false })}
+        title={visible === false ? 'Show' : 'Hide'}
+        style={{
+          width: 20,
+          height: 20,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'transparent',
+          border: 'none',
+          borderRadius: 3,
+          color: visible === false ? T.textDim : T.textMid,
+          cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        {visible === false
+          ? <EyeOff size={12} strokeWidth={1.75} />
+          : <Eye size={12} strokeWidth={1.75} />}
+      </button>
+
+      {/* Thickness */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          background: T.surface,
+          borderRadius: 3,
+          padding: '0 6px',
+          height: 22,
+        }}
+      >
         <input
-          value={commonColor ? hexInput : ''}
-          placeholder={commonColor ? '' : 'Mixed'}
-          onChange={(e) => setHexInput(e.target.value.toUpperCase().slice(0, 6))}
-          onBlur={() => {
-            if (hexInput.length === 6 && /^[0-9A-F]+$/.test(hexInput)) patchSelected({ color: '#' + hexInput });
-            else setHexInput(commonColor ? commonColor.replace(/^#/, '').toUpperCase() : '');
+          type="number"
+          min={0}
+          max={12}
+          value={width ?? ''}
+          placeholder={width === null ? '—' : ''}
+          onChange={(e) => {
+            const n = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0);
+            row.patch({ width: n });
           }}
-          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
           style={{
             flex: 1,
             minWidth: 0,
             background: 'transparent',
             border: 'none',
             outline: 'none',
-            color: commonColor ? T.text : T.textDim,
+            color: width !== null ? T.text : T.textDim,
             fontFamily: T.fontMono,
             fontSize: 11,
+            textAlign: 'right',
             padding: 0,
-            textTransform: 'uppercase',
           }}
         />
+        <span style={{ color: T.textDim, fontSize: 9 }}>px</span>
+      </div>
 
-        <FormatDropdown
-          trigger={
-            <button
+      {/* Color picker */}
+      <FormatPopover
+        trigger={
+          <button
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 3,
+              background: colorDisplay || 'transparent',
+              backgroundImage: isMixed && !colorDisplay
+                ? 'repeating-linear-gradient(45deg, #444 0 3px, #222 3px 6px)'
+                : undefined,
+              border: `1px solid ${T.border}`,
+              padding: 0,
+              cursor: 'pointer',
+            }}
+            title={colorDisplay ? hexInput : 'Mixed — pick a shared color'}
+          />
+        }
+        width={260}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <FormatColorPicker
+            value={color ?? '#000000'}
+            alpha={alpha ?? 100}
+            onChange={(hex) => row.patch({ color: hex })}
+            onAlpha={(a) => row.patch({ alpha: a })}
+          />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 8px',
+              background: T.surface,
+              borderRadius: 4,
+              height: T.rowH,
+            }}
+          >
+            <span style={{ color: T.textDim, fontFamily: T.fontMono, fontSize: 10 }}>#</span>
+            <input
+              value={hexInput}
+              onChange={(e) => setHexInput(e.target.value.toUpperCase().slice(0, 6))}
+              onBlur={() => {
+                if (hexInput.length === 6 && /^[0-9A-F]+$/.test(hexInput)) row.patch({ color: '#' + hexInput });
+                else setHexInput(color ? color.replace(/^#/, '').toUpperCase() : '');
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              placeholder={color ? '' : 'Mixed'}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 22, height: 20,
+                flex: 1,
+                minWidth: 0,
                 background: 'transparent',
                 border: 'none',
-                borderRadius: 3,
-                color: commonStyle ? T.text : T.textDim,
-                cursor: 'pointer',
+                outline: 'none',
+                color: color ? T.text : T.textDim,
+                fontFamily: T.fontMono,
+                fontSize: 11,
+                padding: 0,
+                textTransform: 'uppercase',
               }}
-              title={commonStyle ? 'Style' : 'Mixed stroke styles'}
-            >
-              {commonStyle
-                ? strokeStyleIcon(commonStyle)
-                : <span style={{ fontSize: 11, fontFamily: T.fontMono }}>—</span>}
-            </button>
-          }
-          value={commonStyle ?? 'solid'}
-          onChange={(v) => patchSelected({ style: v as BorderStyle })}
-          options={[
-            { value: 'solid', label: 'Solid', icon: strokeStyleIcon('solid') },
-            { value: 'dashed', label: 'Dashed', icon: strokeStyleIcon('dashed') },
-            { value: 'dotted', label: 'Dotted', icon: strokeStyleIcon('dotted') },
-          ]}
-        />
-
-        <input
-          type="number"
-          min={0}
-          max={12}
-          value={commonWidth ?? ''}
-          placeholder={commonWidth === null ? '—' : ''}
-          onChange={(e) => {
-            const n = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0);
-            patchSelected({ width: n });
-          }}
-          style={{
-            width: 28,
-            textAlign: 'right',
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: commonWidth !== null ? T.text : T.textDim,
-            fontFamily: T.fontMono,
-            fontSize: 11,
-            padding: 0,
-          }}
-        />
-        <span style={{ color: T.textDim, fontSize: 10 }}>px</span>
-
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() =>
-            patchSelected({ visible: commonVisible === null ? true : !commonVisible })
-          }
-          style={iconBtnStyle}
-          title={commonVisible === false ? 'Show selected' : 'Hide selected'}
-        >
-          {commonVisible === false
-            ? <EyeOff size={12} strokeWidth={1.75} />
-            : <Eye size={12} strokeWidth={1.75} />}
-        </button>
-      </div>
+            />
+          </div>
+        </div>
+      </FormatPopover>
     </div>
   );
 }
