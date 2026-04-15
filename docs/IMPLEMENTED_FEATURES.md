@@ -759,6 +759,23 @@ Within the planned 4,500–5,500 LOC envelope (v1 is 14,107 LOC across 20 module
   metadata + serialize/deserialize round-trip + dep-enforcement test.
 - UI surface deferred to sub-project #4 (FormattingToolbar v2 port).
 
+### FiltersToolbar v2 — scroll chrome + parity sweep (v2 sub-project #3)
+
+- Restored v1's scroll-overflow caret chrome on `packages/markets-grid-v2/src/FiltersToolbar.tsx`:
+  left/right chevrons appear when the pill row's `scrollWidth` exceeds its
+  `clientWidth`, click-to-scroll by 150px increments, ResizeObserver +
+  scroll listener keep the caret state live. Pure UI — no coupling to
+  `rowData` or grid api state.
+- New `e2e/v2-filters-toolbar.spec.ts` (13 tests) mirrors v1's
+  `filters-toolbar.spec.ts` for every preserved feature: empty state,
+  capture, toggle on/off, AND across columns, OR within a set-filter
+  column, hover icons, rename, remove, clear-all, auto-save persistence
+  through reload (no Save All click), and the new scroll-overflow chrome.
+- `docs/MIGRATION.md` documents the three deliberate v1→v2 cuts:
+  `activeFiltersRef` (replaced by `useModuleState('saved-filters')`),
+  per-pill row-count badges (would re-couple to `rowData`), and legacy
+  `gc-filters:<gridId>` migration (v2 is greenfield).
+
 ### SettingsSheet + ConditionalStylingPanel (v2 sub-project #2.5)
 
 - New `SettingsSheet` drawer in `@grid-customizer/markets-grid-v2` — auto-discovers

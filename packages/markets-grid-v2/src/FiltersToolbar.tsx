@@ -5,7 +5,7 @@ import {
   type SavedFiltersState,
   useModuleState,
 } from '@grid-customizer/core-v2';
-import { Plus, Pencil, Trash2, FunnelX } from 'lucide-react';
+import { Plus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { SavedFilter } from './types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -185,11 +185,54 @@ export function FiltersToolbar({ core, store }: FiltersToolbarProps) {
 
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // ─── Scroll overflow chrome ─────────────────────────────────────────────
+  // v1 parity: show left/right chevrons when the pill row overflows its
+  // container so the hidden pills are discoverable. Pure UI — no coupling
+  // to rowData or grid state.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) { setCanScrollLeft(false); setCanScrollRight(false); return; }
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+  }, [filters, updateScrollState]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    const ro = new ResizeObserver(updateScrollState);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', updateScrollState); ro.disconnect(); };
+  }, [updateScrollState]);
+
+  const scrollBy = useCallback((dir: number) => {
+    scrollRef.current?.scrollBy({ left: dir * 150, behavior: 'smooth' });
+  }, []);
+
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
     <div className="gc-toolbar-content gc-filters-bar" data-testid="filters-toolbar">
-      <div className="gc-filter-scroll">
+      {canScrollLeft && (
+        <button
+          type="button"
+          className="gc-filters-caret"
+          onClick={() => scrollBy(-1)}
+          title="Scroll left"
+          data-testid="filters-caret-left"
+        >
+          <ChevronLeft size={12} strokeWidth={2.5} />
+        </button>
+      )}
+      <div ref={scrollRef} className="gc-filter-scroll">
         {filters.map((f) => {
           if (renameId === f.id) {
             return (
@@ -264,6 +307,17 @@ export function FiltersToolbar({ core, store }: FiltersToolbarProps) {
           <Plus size={16} strokeWidth={2.75} />
         </button>
       </div>
+      {canScrollRight && (
+        <button
+          type="button"
+          className="gc-filters-caret"
+          onClick={() => scrollBy(1)}
+          title="Scroll right"
+          data-testid="filters-caret-right"
+        >
+          <ChevronRight size={12} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }

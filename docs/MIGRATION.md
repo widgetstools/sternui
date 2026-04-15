@@ -96,6 +96,16 @@ New in v2.1:
 
 - `showSettingsButton?: boolean` (default `true`) — renders a Settings toolbar button that opens the `SettingsSheet` drawer. The drawer auto-discovers any module exposing a `SettingsPanel` slot and renders it in a left-rail nav. As of v2.1 only `conditional-styling` ships a SettingsPanel; subsequent module ports register more.
 
+### FiltersToolbar — v1→v2 deltas
+
+The v2 `FiltersToolbar` preserves all v1 capture/toggle/rename/remove/AND-OR semantics including the same `mergeFilterModels` algorithm (set-filter values union; same-column simple filters get folded into an OR fan-out; cross-column AND). Scroll-overflow chevrons (`gc-filters-caret`) are also preserved. Three v1 features are deliberately cut:
+
+- **`activeFiltersRef` is gone.** v1 mutated a ref out-of-band so other components could read the active filter list. v2 has no ref — anything that needs the active set reads `useModuleState('saved-filters')` directly. Cleaner, but consumers that relied on the ref must update.
+- **Per-pill row-count badges are gone.** v1 displayed `(42 rows)` on each pill, computed by client-side filter evaluation against `rowData`. Restoring this would re-couple the toolbar to `rowData` (a regression on v2's clean prop surface). Deferred until we have a way to read filtered counts from the AG-Grid api without prop coupling.
+- **Legacy localStorage migration is gone.** v1 read `gc-filters:<gridId>` for upgrade compatibility. v2 is greenfield — there's no legacy `gc-filters:` key to migrate from in this code base.
+
+E2E coverage parity: see `e2e/v2-filters-toolbar.spec.ts` (13 tests) which mirrors v1's `e2e/filters-toolbar.spec.ts` minus the localStorage-key save assertion.
+
 Removed or renamed:
 
 | v1 prop          | v2 equivalent                                    |
