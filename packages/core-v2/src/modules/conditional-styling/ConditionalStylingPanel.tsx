@@ -1,4 +1,5 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ExpressionEngine,
   PropertySection,
@@ -10,7 +11,6 @@ import {
   Button,
   Input,
   Switch,
-  Popover,
   Tooltip,
   ColorPickerPopover,
   cn,
@@ -45,6 +45,91 @@ import type { ConditionalRule, ConditionalStylingState } from './state';
  */
 
 const engine = new ExpressionEngine();
+
+// ─── Portal popover ─────────────────────────────────────────────────────────
+//
+// The shared `Popover` from @grid-customizer/core uses `position: absolute`
+// inline — fine in most places, but the conditional-styling rule editor lives
+// inside a `PropertySection` whose card wrapper sets `overflow: hidden`, so
+// any popover content rendered as a descendant gets clipped.
+//
+// This local PortalPopover renders the menu into a floating layer on `body`
+// positioned next to the trigger, so the overflow ancestor never sees it.
+// Uses React.cloneElement to attach the open/close click handler directly
+// onto the trigger button — avoids relying on event bubbling past any inner
+// stopPropagation calls the trigger button may have.
+function PortalPopover({
+  trigger,
+  children,
+  className,
+}: {
+  trigger: React.ReactElement<{ onClick?: (e: React.MouseEvent) => void; ref?: React.Ref<HTMLElement> }>;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (triggerRef.current?.contains(target) || contentRef.current?.contains(target)) return;
+      if (target.tagName === 'SELECT' || target.tagName === 'INPUT' || target.tagName === 'OPTION') return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const prevOnClick = trigger.props.onClick;
+  const clonedTrigger = React.cloneElement(trigger, {
+    ref: (el: HTMLElement | null) => { triggerRef.current = el; },
+    onClick: (e: React.MouseEvent) => {
+      prevOnClick?.(e);
+      setOpen((p) => !p);
+    },
+  });
+
+  return (
+    <>
+      {clonedTrigger}
+      {open && createPortal(
+        <div
+          ref={contentRef}
+          className={cn(
+            'rounded-md border border-border bg-card shadow-lg',
+            className,
+          )}
+          // Use inline styles for position/z-index so we don't depend on the
+          // host app's Tailwind JIT picking up arbitrary classes like
+          // `z-[10100]` from a deeply-nested package source file.
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            zIndex: 10100,
+          }}
+          onMouseDown={(e) => {
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
+          }}
+        >
+          {children}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
 
 // ─── Style editor (rich formatting palette for a single rule) ───────────────
 //
@@ -252,7 +337,7 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
       </CsTGroup>
 
       {/* Font size */}
-      <Popover
+      <PortalPopover
         trigger={
           <button
             type="button"
@@ -280,7 +365,7 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
             </button>
           ))}
         </div>
-      </Popover>
+      </PortalPopover>
 
       {/* Alignment */}
       <CsTGroup>
@@ -330,7 +415,7 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
       </CsTGroup>
 
       {/* Borders */}
-      <Popover
+      <PortalPopover
         trigger={
           <button
             type="button"
@@ -396,7 +481,7 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
             />
           </div>
         </div>
-      </Popover>
+      </PortalPopover>
 
       {/* Reset */}
       <CsTBtn
