@@ -82,7 +82,30 @@ const useV2 = (() => {
   } catch { return false; }
 })();
 
+// Separate standalone preview of the proposed Figma-inspired Format Editor.
+// Reachable at ?fmt=preview — does not mount the grid; used to evaluate the
+// component library before integrating into the real toolbars / panels.
+const useFormatPreview = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get('fmt') === 'preview';
+  } catch { return false; }
+})();
+
 export function App() {
+  if (useFormatPreview) {
+    const LazyPreview = React.lazy(() =>
+      import('./FormatEditorPreview').then((m) => ({ default: m.FormatEditorPreview })),
+    );
+    return (
+      <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading format preview…</div>}>
+        <LazyPreview />
+      </React.Suspense>
+    );
+  }
+  return <AppInner />;
+}
+
+function AppInner() {
   const [rowData] = useState(() => generateOrders(500));
   const [isDark, setIsDark] = useState(() => {
     try { return localStorage.getItem('gc-theme') !== 'light'; }
