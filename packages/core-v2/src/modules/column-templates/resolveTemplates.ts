@@ -1,7 +1,6 @@
 import type {
   CellStyleOverrides,
   ColumnAssignment,
-  ValueFormatterTemplate,
 } from '../column-customization/state';
 import type {
   ColumnDataType,
@@ -26,6 +25,13 @@ import type {
  *
  * Pure: same input always produces equal output. Reference equality is only
  * promised on the identity short-circuit (no templates apply).
+ *
+ * Aliasing contract: callers must treat `ColumnTemplate` instances in
+ * `state.templates` as immutable. The returned `ColumnAssignment`'s nested
+ * leaf objects (BorderSpec entries under `cellStyleOverrides.borders` /
+ * `headerStyleOverrides.borders`, `cellEditorParams`, and
+ * `valueFormatterTemplate.options`) may alias template state — do not
+ * mutate them in place.
  */
 export function resolveTemplates(
   assignment: ColumnAssignment,
@@ -78,7 +84,7 @@ function applyTemplateLikeOver(
   }
   // Last-writer-wins for everything else.
   if (source.valueFormatterTemplate !== undefined) {
-    target.valueFormatterTemplate = source.valueFormatterTemplate as ValueFormatterTemplate;
+    target.valueFormatterTemplate = source.valueFormatterTemplate;
   }
   if (source.sortable !== undefined) target.sortable = source.sortable;
   if (source.filterable !== undefined) target.filterable = source.filterable;

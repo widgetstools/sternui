@@ -221,15 +221,31 @@ describe('resolveTemplates — unknown ids and typeDefaults', () => {
 });
 
 describe('resolveTemplates — purity, borders, opaque params', () => {
-  it('test 17 — pure function: same input produces equal output values', () => {
-    const a = baseAssignment({ templateIds: ['t1'], sortable: false });
+  it('test 17 — pure function: does not mutate the assignment or templates state', () => {
+    const a = baseAssignment({
+      templateIds: ['t1'],
+      sortable: false,
+      cellStyleOverrides: { typography: { italic: true } },
+    });
     const state: ColumnTemplatesState = {
-      templates: { t1: tpl('t1', { sortable: true, filterable: true }) },
+      templates: {
+        t1: tpl('t1', {
+          sortable: true,
+          filterable: true,
+          cellStyleOverrides: {
+            typography: { bold: true, fontSize: 14 },
+            borders: { top: { width: 1, style: 'solid', color: '#aaa' } },
+          },
+          cellEditorParams: { values: ['A', 'B'] },
+        }),
+      },
       typeDefaults: {},
     };
-    const out1 = resolveTemplates(a, state, undefined);
-    const out2 = resolveTemplates(a, state, undefined);
-    expect(out1).toEqual(out2);
+    const assignmentSnapshot = structuredClone(a);
+    const stateSnapshot = structuredClone(state);
+    resolveTemplates(a, state, undefined);
+    expect(a).toEqual(assignmentSnapshot);
+    expect(state).toEqual(stateSnapshot);
   });
 
   it('test 18 — borders: t1 sets only top, t2 sets only bottom → both present in resolved', () => {
@@ -287,5 +303,37 @@ describe('resolveTemplates — purity, borders, opaque params', () => {
     expect(out.cellEditorParams).toEqual({ values: ['X', 'Y'] });
     // But cellEditorName came from t1 and is unchanged (t2 didn't set it).
     expect(out.cellEditorName).toBe('agSelectCellEditor');
+  });
+});
+
+describe('resolveTemplates — header styles and typeDefault interaction', () => {
+  it('test 21 — overlapping headerStyleOverrides.typography → per-field merge (mirrors test 5 on header side)', () => {
+    const a = baseAssignment({ templateIds: ['t1', 't2'] });
+    const state: ColumnTemplatesState = {
+      templates: {
+        t1: tpl('t1', { headerStyleOverrides: { typography: { bold: false, fontSize: 12 } } }),
+        t2: tpl('t2', { headerStyleOverrides: { typography: { bold: true } } }),
+      },
+      typeDefaults: {},
+    };
+    const out = resolveTemplates(a, state, undefined);
+    expect(out.headerStyleOverrides?.typography?.bold).toBe(true);
+    expect(out.headerStyleOverrides?.typography?.fontSize).toBe(12);
+  });
+
+  it('test 22 — typeDefault does NOT apply when templateIds is present and non-empty', () => {
+    const a = baseAssignment({ templateIds: ['t1'] });
+    const state: ColumnTemplatesState = {
+      templates: {
+        t1: tpl('t1', { sortable: true }),
+        numericTpl: tpl('numericTpl', { filterable: true, resizable: false }),
+      },
+      typeDefaults: { numeric: 'numericTpl' },
+    };
+    const out = resolveTemplates(a, state, 'numeric');
+    // Only t1 contributed; typeDefault was suppressed by the explicit non-empty templateIds.
+    expect(out.sortable).toBe(true);
+    expect(out.filterable).toBeUndefined();
+    expect(out.resizable).toBeUndefined();
   });
 });
