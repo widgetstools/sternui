@@ -77,6 +77,10 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
       // default to undefined. Tolerate non-object inputs (defensive — core
       // calls migrate with whatever was on disk).
       if (!raw || typeof raw !== 'object') {
+        console.warn(
+          `[core-v2] column-customization`,
+          `malformed v1 snapshot (not an object); falling back to initial state.`,
+        );
         return { ...INITIAL_COLUMN_CUSTOMIZATION };
       }
       return raw as ColumnCustomizationState;

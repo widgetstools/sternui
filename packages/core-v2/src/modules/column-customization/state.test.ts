@@ -29,10 +29,14 @@ describe('column-customization — migrate (schemaVersion 1 → 2)', () => {
     warnSpy.mockRestore();
   });
 
-  it('falls back to initial state when raw is not an object at v1', () => {
+  it('falls back to initial state with a warning when raw is not an object at v1', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(columnCustomizationModule.migrate!(null, 1)).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
     expect(columnCustomizationModule.migrate!('garbage', 1)).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('column-customization'),
+      expect.stringContaining('malformed v1 snapshot'),
+    );
     warnSpy.mockRestore();
   });
 });
