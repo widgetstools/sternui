@@ -1,5 +1,15 @@
-import type { CSSProperties } from 'react';
 import type { BorderSpec, CellStyleOverrides } from '../state';
+
+/**
+ * AG-Grid's `CellStyle` and `HeaderStyle` types both require an index
+ * signature (`{ [cssProperty: string]: string | number | undefined }`).
+ * React's `CSSProperties` is structurally narrower and is NOT assignable to
+ * either, so we build with a plain Record keyed by CSS property name. The
+ * concrete keys we set (`fontWeight`, `fontSize`, `textAlign`, `color`,
+ * `backgroundColor`, `border*`, etc.) are all standard CSS — the values are
+ * always strings or numbers.
+ */
+export type AgGridStyle = Record<string, string | number>;
 
 /**
  * Flatten the structured `CellStyleOverrides` shape into a plain CSS object
@@ -10,8 +20,8 @@ import type { BorderSpec, CellStyleOverrides } from '../state';
  * Pure function — same input always produces the same output. No internal
  * state. Safe to call on every transform-pipeline pass.
  */
-export function cellStyleToAgStyle(overrides: CellStyleOverrides): CSSProperties {
-  const out: CSSProperties = {};
+export function cellStyleToAgStyle(overrides: CellStyleOverrides): AgGridStyle {
+  const out: AgGridStyle = {};
 
   const t = overrides.typography;
   if (t) {
