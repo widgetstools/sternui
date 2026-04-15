@@ -156,6 +156,41 @@ describe('column-customization module — transformColumnDefs', () => {
     expect(out[0].cellStyle).toEqual({ color: 'red' });
     expect(out[0].headerName).toBe('Ticker');
   });
+
+  it('emits colDef.headerStyle when headerStyleOverrides is set', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          headerStyleOverrides: {
+            typography: { bold: true, fontSize: 13 },
+            alignment: { horizontal: 'center' },
+          },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(out[0].headerStyle).toEqual({
+      fontWeight: 'bold',
+      fontSize: '13px',
+      textAlign: 'center',
+    });
+  });
+
+  it('cellStyleOverrides + headerStyleOverrides on same column emit both', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          cellStyleOverrides: { colors: { background: '#000' } },
+          headerStyleOverrides: { colors: { background: '#fff' } },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(out[0].cellStyle).toEqual({ backgroundColor: '#000' });
+    expect(out[0].headerStyle).toEqual({ backgroundColor: '#fff' });
+  });
 });
 
 describe('column-customization module — serialize / deserialize', () => {

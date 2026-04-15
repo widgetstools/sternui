@@ -51,6 +51,9 @@ function applyAssignments(
     if (a.cellStyleOverrides !== undefined) {
       merged.cellStyle = cellStyleToAgStyle(a.cellStyleOverrides);
     }
+    if (a.headerStyleOverrides !== undefined) {
+      merged.headerStyle = cellStyleToAgStyle(a.headerStyleOverrides);
+    }
     return merged;
   });
 }
