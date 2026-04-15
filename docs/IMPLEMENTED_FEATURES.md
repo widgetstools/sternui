@@ -712,16 +712,52 @@ Remaining modules (cell-flashing, calculated-columns, column-groups, column-temp
 - **Unit tests**: core-v2 Vitest suite — 142 tests passing.
 - **v1 regression guard**: all 24 in-scope E2E tests (profiles, default-profile, saved-filters-per-profile, toolbar-visibility) stay green against the v1 mount with v2 packages installed.
 - **v2 auto-save contract**: `e2e/v2-autosave.spec.ts` — 4 tests covering Default-profile auto-seed, user-profile persistence without Save All, filter-pill persistence without Save All, and Save All remaining available as a flush affordance.
-- **v2 perf parity**: `e2e/v2-perf.spec.ts` — v2 mount median 301ms vs v1 321ms (0.938 ratio, v2 is ~6% faster); v2 auto-save observable in IndexedDB within 97ms of the trigger (target 300ms debounce + 1s margin).
+- **v2 conditional-styling UI**: `e2e/v2-conditional-styling.spec.ts` — 4 tests covering Settings drawer open/close, rule add → cells styled, disable → styling cleared, delete → rule + styling removed, plus rule-survives-reload via auto-save.
+- **v2 conditional-styling against real columns**: `e2e/v2-conditional-styling-columns.spec.ts` — 6 tests exercising real blotter conditions (`x == 'BUY'` on Side, `x == 'FILLED'` on Status, `x > 1000` on Quantity, `x > 50` on Spread, row-scope `data.status == 'FILLED'`, multi-rule survival across reload). Each test asserts both the painted DOM and the IndexedDB snapshot of the Default profile (`__default__`), proving the rules round-trip via auto-save with no Save All click.
+- **v2 perf parity**: `e2e/v2-perf.spec.ts` — v2 mount median 321ms vs v1 363ms (0.884 ratio, v2 is ~12% faster); v2 auto-save observable in IndexedDB within 84ms of the trigger (target 300ms debounce + 1s margin).
+
+### v2.1 — first deferred-module port (conditional-styling SettingsPanel UI)
+v2.0 shipped the conditional-styling **engine** (state, transforms, ExpressionEngine wiring, CssInjector) but no UI to author rules. v2.1 adds:
+- `packages/core-v2/src/ui/GridContext.tsx` — `<GridProvider>` + `useGridStore()` / `useGridCore()` hooks. Lets module SettingsPanels reach the live store/core without prop-drilling, mirroring v1's `GridCustomizerContext`.
+- `packages/core-v2/src/modules/conditional-styling/ConditionalStylingPanel.tsx` — port of the v1 panel adapted to v2's `useModuleState(store, id)` API. No draft layer (v2 has none — every edit lands in the live store and auto-saves on a 300ms debounce). Includes a chip-style multi-select column picker that reads columns live from `core.getGridApi()`, replacing v1's `ColumnPickerMulti` which couples to v1 context.
+- `packages/markets-grid-v2/src/SettingsSheet.tsx` — drawer host that enumerates `modules.filter(m => m.SettingsPanel)`, renders a left-rail nav, and slots the active module's panel into the body. Wraps content in `<GridProvider>`. Reuses v1's `gc-settings-styles` CSS string for visual continuity.
+- New `Settings` toolbar button in `MarketsGrid` v2 (`data-testid="v2-settings-open-btn"`) opens the sheet; ESC or `Done` closes. No Apply/Reset buttons — auto-save makes them obsolete.
+
+### v2.1 follow-up — `transformGridOptions` pipeline wiring
+The conditional-styling row-scope path exposed a v2 gap: `useMarketsGridV2` was building `columnDefs` via `core.transformColumnDefs` but never invoking `core.transformGridOptions`, so module outputs that live on `GridOptions` (`rowClassRules`, `pagination`, `rowSelection`) never reached AG-Grid. v2.1 closes this:
+- `useMarketsGridV2` now memoizes a `gridOptions` value from `core.transformGridOptions({})`, recomputed on every store tick.
+- `MarketsGrid` v2 spreads that `gridOptions` onto `<AgGridReact>` BEFORE explicit host props, so consumer-supplied `rowHeight` / `headerHeight` / etc. still win on conflict, but module-only outputs flow through unchanged.
+- Critically, `gridOptions` is also pushed imperatively via `api.setGridOption(key, value)` in a `useEffect` keyed on the memo. AG-Grid's React adapter does **not** reactively forward grid-options-shaped props to the live grid instance — those have to be re-pushed via the API. Followed by `api.redrawRows()` so already-rendered viewport rows pick up freshly-applied predicates instead of keeping stale classes.
 
 ### v2 code size
 | Package                              | LOC   |
 |--------------------------------------|-------|
-| `packages/core-v2` (core + 5 modules + tests) | ~3,800 |
-| `packages/markets-grid-v2`            | ~890   |
-| **Total v2**                          | **~4,700** |
+| `packages/core-v2` (core + 5 modules + tests + v2.1 UI) | ~4,300 |
+| `packages/markets-grid-v2` (incl. SettingsSheet)        | ~1,100 |
+| **Total v2 (v2.0 + v2.1)**                              | **~5,400** |
 
 Within the planned 4,500–5,500 LOC envelope (v1 is 14,107 LOC across 20 modules).
+
+### Column Templates (v2 sub-project #2)
+
+- New `column-templates` module in `@grid-customizer/core-v2` — passive state
+  store of `Record<id, ColumnTemplate>` plus `typeDefaults` keyed by
+  AG-Grid `cellDataType`.
+- Pure `resolveTemplates(assignment, templatesState, cellDataType)` resolver:
+  composes a chain of templateIds + an optional typeDefault fallback into a
+  composite assignment; assignment fields always win last.
+- Per-field merge for `cellStyleOverrides` / `headerStyleOverrides` (typography,
+  colors, alignment, borders); last-writer-wins for everything else.
+  `cellEditorParams` replaced wholesale (opaque-object semantic).
+- `column-customization` module bumped to `schemaVersion: 3` with three new
+  optional fields on `ColumnAssignment` (`cellEditorName`, `cellEditorParams`,
+  `cellRendererName`) and a new `dependencies: ['column-templates']`
+  declaration — first real exercise of the v2 core's dep enforcement.
+- `GridContext` extended with `getModuleState<T>(moduleId)` so cross-module
+  reads work from inside `transformColumnDefs`.
+- 22 resolver unit tests + 9 column-customization integration tests + module
+  metadata + serialize/deserialize round-trip + dep-enforcement test.
+- UI surface deferred to sub-project #4 (FormattingToolbar v2 port).
 
 ### See also
 - `docs/MIGRATION.md` — prop-by-prop guide for switching a consumer app from v1 to v2, including the one-shot legacy-key migration and the E2E selector compatibility matrix.
@@ -739,10 +775,10 @@ Within the planned 4,500–5,500 LOC envelope (v1 is 14,107 LOC across 20 module
 | Cell Renderers | 6 |
 | Shadcn UI Components | 11 |
 | CSS Variables | 50+ |
-| E2E Test Suites | 8 (6 v1 + v2-autosave + v2-perf) |
-| E2E Tests | 120 (114 v1 + 4 v2-autosave + 2 v2-perf) |
-| v2 Modules Shipped | 5 of 20 (remaining ported in v2.1 / v2.2) |
-| v2 Total LOC | ~4,700 (core-v2 3,800 + markets-grid-v2 890) |
+| E2E Test Suites | 10 (6 v1 + v2-autosave + v2-perf + v2-conditional-styling + v2-conditional-styling-columns) |
+| E2E Tests | 130 (114 v1 + 4 v2-autosave + 2 v2-perf + 4 v2-conditional-styling + 6 v2-conditional-styling-columns) |
+| v2 Modules Shipped | 5 engines + 1 SettingsPanel UI (conditional-styling) of 20 |
+| v2 Total LOC | ~5,400 (core-v2 4,300 + markets-grid-v2 1,100) |
 | Expression Token Types | 21 |
 | Named Query Operators | 15 |
 | Entitlement Types | 3 |
