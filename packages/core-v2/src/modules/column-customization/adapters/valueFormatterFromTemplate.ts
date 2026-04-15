@@ -95,9 +95,14 @@ const presetRegistry: Record<PresetId, PresetFactory> = {
 
 // ─── Expression branch (CSP-unsafe; cached per expression string) ───────────
 
+// Unbounded — fine for user-authored templates (handful per profile). Revisit
+// with an LRU if expressions ever come from programmatic / less-trusted sources.
 const expressionCache = new Map<string, Formatter>();
 
-/** Test-only: clear the cache between tests so cache-hit assertions are reliable. */
+/**
+ * Test-only: clear the cache between tests so cache-hit assertions are reliable.
+ * @internal
+ */
 export function __resetExpressionCacheForTests(): void {
   expressionCache.clear();
 }

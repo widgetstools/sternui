@@ -58,6 +58,8 @@ function applyAssignments(
     if (a.valueFormatterTemplate !== undefined) {
       merged.valueFormatter = valueFormatterFromTemplate(a.valueFormatterTemplate);
     }
+    // `a.templateIds` is intentionally not wired here — column-templates resolution
+    // lives in the column-templates module (sub-project #2). Field is storage-only in v2.1.
     return merged;
   });
 }
