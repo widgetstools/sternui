@@ -65,6 +65,21 @@ export interface CellStyleOverrides {
   };
 }
 
+// ─── Value-formatter template ───────────────────────────────────────────────
+//
+// Hybrid discriminated union: `kind: 'preset'` covers the FormattingToolbar's
+// menu (CSP-safe, validates at edit time); `kind: 'expression'` is the v1
+// escape hatch for users who need full Intl.NumberFormat / arbitrary fns.
+//
+// `kind: 'expression'` compiles via `new Function(...)` — CSP-unsafe by design.
+// Under strict CSP it falls back to identity formatter (see adapter for details).
+
+export type PresetId = 'currency' | 'percent' | 'number' | 'date' | 'duration';
+
+export type ValueFormatterTemplate =
+  | { kind: 'preset'; preset: PresetId; options?: Record<string, unknown> }
+  | { kind: 'expression'; expression: string };
+
 // ─── Migration from v1 ──────────────────────────────────────────────────────
 //
 // v1 stored `state.overrides[colId] = { headerName, headerStyle, ... }`. v2
