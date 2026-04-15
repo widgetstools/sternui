@@ -1074,7 +1074,7 @@ function CompactSidesEditor({
     const row = rows.find((r) => r.key === editingColorFor);
     if (!row) { setEditingColorFor(null); return null; }
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 236 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
         {/* Header with back button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
@@ -1112,7 +1112,7 @@ function CompactSidesEditor({
 
   // ─── Default view: 5-row table ────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: 236 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       {/* Column headers */}
       <div
         style={{
@@ -1388,7 +1388,7 @@ function BorderSidePicker({
   // link at the bottom lets the user drop back to a preset side.
   if (isCustom && sides && onSidesChange) {
     return (
-      <FormatPopover trigger={trigger} width={220}>
+      <FormatPopover trigger={trigger} width={260}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <CompactSidesEditor sides={sides} onChange={onSidesChange} />
           <button
