@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ExpressionEngine,
   PropertySection,
@@ -10,8 +10,20 @@ import {
   Button,
   Input,
   Switch,
+  Popover,
+  Tooltip,
+  ColorPickerPopover,
+  cn,
 } from '@grid-customizer/core';
-import { Plus, Trash2 } from 'lucide-react';
+import {
+  Plus, Trash2, Bold, Italic, Underline,
+  AlignLeft, AlignCenter, AlignRight,
+  Type, PaintBucket, Sun, Moon,
+  Square, X, ChevronDown,
+  PanelTop, PanelBottom, PanelLeft, PanelRight,
+  Grid3X3,
+} from 'lucide-react';
+import type { CellStyleProperties } from '@grid-customizer/core';
 import type { SettingsPanelProps } from '../../core/types';
 import { useGridStore, useGridCore } from '../../ui/GridContext';
 import { useModuleState } from '../../store/useModuleState';
@@ -33,6 +45,370 @@ import type { ConditionalRule, ConditionalStylingState } from './state';
  */
 
 const engine = new ExpressionEngine();
+
+// ─── Style editor (rich formatting palette for a single rule) ───────────────
+//
+// Writes to the rule's `CellStyleProperties` shape (flat v1 shape — fontWeight,
+// color, backgroundColor, textAlign, borderTopWidth, ...). Most controls push
+// the same value into both `rule.style.light` and `rule.style.dark` because
+// type/alignment/border choices shouldn't change between themes; only the
+// backgrounds have separate per-theme pickers.
+
+/** Toolbar icon button — same look as markets-grid-v2 FormattingToolbar */
+function CsTBtn({ children, active, onClick, tooltip, className }: {
+  children: React.ReactNode; active?: boolean; onClick?: () => void;
+  tooltip?: string; className?: string;
+}) {
+  const btn = (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      className={cn(
+        'shrink-0 w-7 h-7 rounded-[4px] transition-all duration-150 gc-tbtn',
+        active && 'gc-tbtn-active',
+        className,
+      )}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick?.();
+      }}
+    >
+      {children}
+    </Button>
+  );
+  return tooltip ? <Tooltip content={tooltip}>{btn}</Tooltip> : btn;
+}
+
+function CsTGroup({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('flex items-center gap-0.5 px-1.5 py-1 rounded-[4px] bg-accent/40', className)}>
+      {children}
+    </div>
+  );
+}
+
+const FONT_SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
+
+/** Apply `patch` to both light and dark style sub-objects. Passing `undefined`
+ * for a key removes it so toggle-off truly drops the property. */
+function mergeBothThemes(
+  style: { light?: CellStyleProperties; dark?: CellStyleProperties } | undefined,
+  patch: Partial<CellStyleProperties>,
+): { light: CellStyleProperties; dark: CellStyleProperties } {
+  const stripUndefined = (src: CellStyleProperties): CellStyleProperties => {
+    const out: Record<string, string | undefined> = { ...src };
+    for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
+    return out as CellStyleProperties;
+  };
+  const light = stripUndefined({ ...(style?.light ?? {}), ...patch });
+  const dark = stripUndefined({ ...(style?.dark ?? {}), ...patch });
+  return { light, dark };
+}
+
+function mergeOneTheme(
+  style: { light?: CellStyleProperties; dark?: CellStyleProperties } | undefined,
+  which: 'light' | 'dark',
+  patch: Partial<CellStyleProperties>,
+): { light: CellStyleProperties; dark: CellStyleProperties } {
+  const stripUndefined = (src: CellStyleProperties): CellStyleProperties => {
+    const out: Record<string, string | undefined> = { ...src };
+    for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
+    return out as CellStyleProperties;
+  };
+  return {
+    light: which === 'light'
+      ? stripUndefined({ ...(style?.light ?? {}), ...patch })
+      : (style?.light ?? {}),
+    dark: which === 'dark'
+      ? stripUndefined({ ...(style?.dark ?? {}), ...patch })
+      : (style?.dark ?? {}),
+  };
+}
+
+const BORDER_SIDES = ['Top', 'Right', 'Bottom', 'Left'] as const;
+type BorderSide = typeof BORDER_SIDES[number];
+
+function keysForSide(side: BorderSide): Array<keyof CellStyleProperties> {
+  return [`border${side}Width`, `border${side}Style`, `border${side}Color`] as const as Array<keyof CellStyleProperties>;
+}
+
+function sideHasBorder(style: CellStyleProperties | undefined, side: BorderSide): boolean {
+  if (!style) return false;
+  return !!style[`border${side}Width` as keyof CellStyleProperties];
+}
+
+const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
+  style,
+  onUpdate,
+}: {
+  style: { light: CellStyleProperties; dark: CellStyleProperties };
+  onUpdate: (next: { light: CellStyleProperties; dark: CellStyleProperties }) => void;
+}) {
+  // We read from `style.light` for all "shared" controls because we keep light
+  // and dark in sync for everything except backgroundColor.
+  const ref = style.light;
+
+  const toggle = (key: keyof CellStyleProperties, onValue: string) => {
+    const isOn = ref[key] === onValue;
+    onUpdate(mergeBothThemes(style, { [key]: isOn ? undefined : onValue } as Partial<CellStyleProperties>));
+  };
+
+  const setAlign = (v: 'left' | 'center' | 'right') => {
+    const isOn = ref.textAlign === v;
+    onUpdate(mergeBothThemes(style, { textAlign: isOn ? undefined : v }));
+  };
+
+  const setFontSize = (px: number) => {
+    onUpdate(mergeBothThemes(style, { fontSize: `${px}px` }));
+  };
+
+  const setTextColor = (hex?: string) => {
+    onUpdate(mergeBothThemes(style, { color: hex }));
+  };
+
+  const setBg = (which: 'light' | 'dark', hex?: string) => {
+    onUpdate(mergeOneTheme(style, which, { backgroundColor: hex }));
+  };
+
+  // ─── Borders ──────────────────────────────────────────────────────────
+  const activeSides = BORDER_SIDES.filter((s) => sideHasBorder(ref, s));
+  const firstActive = activeSides[0];
+  const widthStr = firstActive ? ref[`border${firstActive}Width` as keyof CellStyleProperties] as string | undefined : undefined;
+  const colorStr = firstActive ? ref[`border${firstActive}Color` as keyof CellStyleProperties] as string | undefined : undefined;
+  const styleStr = firstActive ? ref[`border${firstActive}Style` as keyof CellStyleProperties] as string | undefined : undefined;
+  const widthN = widthStr ? parseInt(widthStr, 10) : 1;
+  const colorVal = colorStr ?? '#eaecef';
+  const styleVal = styleStr ?? 'solid';
+
+  const setBordersAll = () => {
+    const patch: Partial<CellStyleProperties> = {};
+    for (const s of BORDER_SIDES) {
+      patch[`border${s}Width` as keyof CellStyleProperties] = `${widthN}px` as never;
+      patch[`border${s}Style` as keyof CellStyleProperties] = styleVal as never;
+      patch[`border${s}Color` as keyof CellStyleProperties] = colorVal as never;
+    }
+    onUpdate(mergeBothThemes(style, patch));
+  };
+
+  const setBordersNone = () => {
+    const patch: Partial<CellStyleProperties> = {};
+    for (const s of BORDER_SIDES) for (const k of keysForSide(s)) (patch as Record<string, undefined>)[k] = undefined;
+    onUpdate(mergeBothThemes(style, patch));
+  };
+
+  const toggleSide = (side: BorderSide) => {
+    const hasIt = sideHasBorder(ref, side);
+    const patch: Partial<CellStyleProperties> = {};
+    if (hasIt) {
+      for (const k of keysForSide(side)) (patch as Record<string, undefined>)[k] = undefined;
+    } else {
+      patch[`border${side}Width` as keyof CellStyleProperties] = `${widthN}px` as never;
+      patch[`border${side}Style` as keyof CellStyleProperties] = styleVal as never;
+      patch[`border${side}Color` as keyof CellStyleProperties] = colorVal as never;
+    }
+    onUpdate(mergeBothThemes(style, patch));
+  };
+
+  const updateBorderWidth = (px: number) => {
+    if (activeSides.length === 0) return;
+    const patch: Partial<CellStyleProperties> = {};
+    for (const s of activeSides) patch[`border${s}Width` as keyof CellStyleProperties] = `${px}px` as never;
+    onUpdate(mergeBothThemes(style, patch));
+  };
+
+  const updateBorderStyle = (v: string) => {
+    if (activeSides.length === 0) return;
+    const patch: Partial<CellStyleProperties> = {};
+    for (const s of activeSides) patch[`border${s}Style` as keyof CellStyleProperties] = v as never;
+    onUpdate(mergeBothThemes(style, patch));
+  };
+
+  const updateBorderColor = (c: string) => {
+    if (activeSides.length === 0) return;
+    const patch: Partial<CellStyleProperties> = {};
+    for (const s of activeSides) patch[`border${s}Color` as keyof CellStyleProperties] = c as never;
+    onUpdate(mergeBothThemes(style, patch));
+  };
+
+  const fontSizeLabel = ref.fontSize ? parseInt(ref.fontSize as string, 10) + 'px' : '12px';
+
+  return (
+    <div
+      className="gc-cs-style-editor flex flex-wrap items-center gap-1 p-2 rounded-md border border-border bg-card"
+      data-testid="cs-style-editor"
+    >
+      {/* Typography */}
+      <CsTGroup>
+        <CsTBtn tooltip="Bold" active={ref.fontWeight === '700'} onClick={() => toggle('fontWeight', '700')}>
+          <Bold size={14} strokeWidth={1.75} />
+        </CsTBtn>
+        <CsTBtn tooltip="Italic" active={ref.fontStyle === 'italic'} onClick={() => toggle('fontStyle', 'italic')}>
+          <Italic size={14} strokeWidth={1.75} />
+        </CsTBtn>
+        <CsTBtn tooltip="Underline" active={ref.textDecoration === 'underline'} onClick={() => toggle('textDecoration', 'underline')}>
+          <Underline size={14} strokeWidth={1.75} />
+        </CsTBtn>
+      </CsTGroup>
+
+      {/* Font size */}
+      <Popover
+        trigger={
+          <button
+            type="button"
+            className="gc-tbtn flex items-center gap-1 px-2.5 py-1 h-7 rounded-[4px] text-[9px] font-mono transition-all duration-150 cursor-pointer"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <span className="tracking-wider">{fontSizeLabel}</span>
+            <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
+          </button>
+        }
+      >
+        <div className="p-1.5 min-w-[68px]">
+          {FONT_SIZES.map((sz) => (
+            <button
+              key={sz}
+              type="button"
+              className={cn(
+                'flex items-center w-full px-2.5 py-1 rounded-md text-[11px] font-mono hover:bg-accent cursor-pointer transition-colors',
+                fontSizeLabel === `${sz}px` ? 'text-primary' : 'text-foreground',
+              )}
+              onClick={() => setFontSize(sz)}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {sz}px
+            </button>
+          ))}
+        </div>
+      </Popover>
+
+      {/* Alignment */}
+      <CsTGroup>
+        <CsTBtn tooltip="Align Left" active={ref.textAlign === 'left'} onClick={() => setAlign('left')}>
+          <AlignLeft size={14} strokeWidth={1.75} />
+        </CsTBtn>
+        <CsTBtn tooltip="Align Center" active={ref.textAlign === 'center'} onClick={() => setAlign('center')}>
+          <AlignCenter size={14} strokeWidth={1.75} />
+        </CsTBtn>
+        <CsTBtn tooltip="Align Right" active={ref.textAlign === 'right'} onClick={() => setAlign('right')}>
+          <AlignRight size={14} strokeWidth={1.75} />
+        </CsTBtn>
+      </CsTGroup>
+
+      {/* Colors: text + per-theme background */}
+      <CsTGroup>
+        <Tooltip content="Text Color">
+          <div className="inline-flex">
+            <ColorPickerPopover
+              value={ref.color}
+              icon={<Type size={11} strokeWidth={2} />}
+              onChange={(c) => setTextColor(c)}
+              compact
+            />
+          </div>
+        </Tooltip>
+        <Tooltip content="Background (Light Theme)">
+          <div className="inline-flex">
+            <ColorPickerPopover
+              value={style.light.backgroundColor}
+              icon={<Sun size={11} strokeWidth={2} />}
+              onChange={(c) => setBg('light', c)}
+              compact
+            />
+          </div>
+        </Tooltip>
+        <Tooltip content="Background (Dark Theme)">
+          <div className="inline-flex">
+            <ColorPickerPopover
+              value={style.dark.backgroundColor}
+              icon={<Moon size={11} strokeWidth={2} />}
+              onChange={(c) => setBg('dark', c)}
+              compact
+            />
+          </div>
+        </Tooltip>
+      </CsTGroup>
+
+      {/* Borders */}
+      <Popover
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              'gc-tbtn flex items-center gap-1 px-2.5 py-1 h-7 rounded-[4px] text-[10px] transition-all duration-150 cursor-pointer',
+              activeSides.length > 0 && 'gc-tbtn-active',
+            )}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <Grid3X3 size={12} strokeWidth={1.75} />
+            <span>Borders</span>
+            <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
+          </button>
+        }
+      >
+        <div className="p-2 min-w-[200px] flex flex-col gap-2">
+          <div className="grid grid-cols-3 gap-1">
+            <Button variant="ghost" size="sm" className="gc-tbtn h-7 text-[10px]" onMouseDown={(e) => e.preventDefault()} onClick={setBordersAll}>All</Button>
+            <Button variant="ghost" size="sm" className="gc-tbtn h-7 text-[10px]" onMouseDown={(e) => e.preventDefault()} onClick={setBordersNone}>None</Button>
+            <div />
+            <CsTBtn tooltip="Top" active={sideHasBorder(ref, 'Top')} onClick={() => toggleSide('Top')}>
+              <PanelTop size={13} strokeWidth={1.75} />
+            </CsTBtn>
+            <CsTBtn tooltip="Bottom" active={sideHasBorder(ref, 'Bottom')} onClick={() => toggleSide('Bottom')}>
+              <PanelBottom size={13} strokeWidth={1.75} />
+            </CsTBtn>
+            <div />
+            <CsTBtn tooltip="Left" active={sideHasBorder(ref, 'Left')} onClick={() => toggleSide('Left')}>
+              <PanelLeft size={13} strokeWidth={1.75} />
+            </CsTBtn>
+            <CsTBtn tooltip="Right" active={sideHasBorder(ref, 'Right')} onClick={() => toggleSide('Right')}>
+              <PanelRight size={13} strokeWidth={1.75} />
+            </CsTBtn>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <label className="text-[9px] text-muted-foreground w-10">Width</label>
+            <select
+              value={widthN}
+              onChange={(e) => updateBorderWidth(parseInt(e.target.value, 10))}
+              className="text-[10px] bg-card border border-border rounded px-1 py-0.5 flex-1"
+            >
+              {[1, 2, 3].map((w) => <option key={w} value={w}>{w}px</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <label className="text-[9px] text-muted-foreground w-10">Style</label>
+            <select
+              value={styleVal}
+              onChange={(e) => updateBorderStyle(e.target.value)}
+              className="text-[10px] bg-card border border-border rounded px-1 py-0.5 flex-1"
+            >
+              {['solid', 'dashed', 'dotted'].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <label className="text-[9px] text-muted-foreground w-10">Color</label>
+            <ColorPickerPopover
+              value={colorVal}
+              icon={<Square size={11} strokeWidth={2} />}
+              onChange={(c) => { if (c) updateBorderColor(c); }}
+              compact
+            />
+          </div>
+        </div>
+      </Popover>
+
+      {/* Reset */}
+      <CsTBtn
+        tooltip="Clear all styles"
+        onClick={() => onUpdate({ light: {}, dark: {} })}
+        className="ml-auto"
+      >
+        <X size={14} strokeWidth={1.75} />
+      </CsTBtn>
+    </div>
+  );
+});
 
 function generateId(): string {
   return `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -270,55 +646,10 @@ const RuleEditor = memo(function RuleEditor({
       </PropertySection>
 
       <PropertySection title="Appearance" defaultOpen>
-        <PropRow label="Light Theme BG">
-          <PropColor
-            value={rule.style.light.backgroundColor}
-            onChange={(v) =>
-              onUpdate({ style: { ...rule.style, light: { ...rule.style.light, backgroundColor: v } } })
-            }
-          />
-        </PropRow>
-        <PropRow label="Dark Theme BG">
-          <PropColor
-            value={rule.style.dark.backgroundColor}
-            onChange={(v) =>
-              onUpdate({ style: { ...rule.style, dark: { ...rule.style.dark, backgroundColor: v } } })
-            }
-          />
-        </PropRow>
-        <PropRow label="Text Color">
-          <PropColor
-            value={rule.style.light.color}
-            onChange={(v) =>
-              onUpdate({
-                style: {
-                  light: { ...rule.style.light, color: v },
-                  dark: { ...rule.style.dark, color: v },
-                },
-              })
-            }
-          />
-        </PropRow>
-        <PropRow label="Font Weight">
-          <PropSelect
-            value={rule.style.light.fontWeight ?? 'normal'}
-            onChange={(v) => {
-              const fw = v === 'normal' ? undefined : v;
-              onUpdate({
-                style: {
-                  light: { ...rule.style.light, fontWeight: fw },
-                  dark: { ...rule.style.dark, fontWeight: fw },
-                },
-              });
-            }}
-            options={[
-              { value: 'normal', label: 'Normal' },
-              { value: '500', label: 'Medium' },
-              { value: '600', label: 'Semibold' },
-              { value: '700', label: 'Bold' },
-            ]}
-          />
-        </PropRow>
+        <ConditionalStyleEditor
+          style={rule.style}
+          onUpdate={(next) => onUpdate({ style: next })}
+        />
       </PropertySection>
     </div>
   );

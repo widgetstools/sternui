@@ -52,6 +52,13 @@ function styleToCSS(style: CellStyleProperties): string {
   if (style.fontWeight) parts.push(`font-weight: ${style.fontWeight}`);
   if (style.fontStyle) parts.push(`font-style: ${style.fontStyle}`);
   if (style.fontSize) parts.push(`font-size: ${style.fontSize}`);
+  if (style.fontFamily) parts.push(`font-family: ${style.fontFamily}`);
+  if (style.textAlign) parts.push(`text-align: ${style.textAlign}`);
+  if (style.textDecoration) parts.push(`text-decoration: ${style.textDecoration}`);
+  if (style.paddingTop) parts.push(`padding-top: ${style.paddingTop}`);
+  if (style.paddingRight) parts.push(`padding-right: ${style.paddingRight}`);
+  if (style.paddingBottom) parts.push(`padding-bottom: ${style.paddingBottom}`);
+  if (style.paddingLeft) parts.push(`padding-left: ${style.paddingLeft}`);
   if (style.borderTopWidth) {
     parts.push(`border-top: ${style.borderTopWidth} ${style.borderTopStyle ?? 'solid'} ${style.borderTopColor ?? 'currentColor'}`);
   }
