@@ -45,19 +45,34 @@ describe('column-customization — migrate (schemaVersion 1 → 3)', () => {
   });
 });
 
-describe('column-customization — migrate from v2 (no backward compat by design)', () => {
-  it('v2 snapshots hit the "cannot migrate from schemaVersion 2" warning + fall back to initial', () => {
+describe('column-customization — migrate from v2 (lossless pass-through)', () => {
+  it('migrates a v2 snapshot to v3 unchanged (v3 is a strict superset)', () => {
+    const v2Snapshot = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          headerName: 'Symbol',
+          sortable: true,
+          cellStyleOverrides: { typography: { bold: true } },
+        },
+      },
+    };
+    const result = columnCustomizationModule.migrate!(v2Snapshot, 2) as ColumnCustomizationState;
+    // Pass-through: every v2 field survives, new v3 fields are absent (undefined).
+    expect(result).toEqual(v2Snapshot);
+    expect(result.assignments.symbol.cellEditorName).toBeUndefined();
+    expect(result.assignments.symbol.cellEditorParams).toBeUndefined();
+    expect(result.assignments.symbol.cellRendererName).toBeUndefined();
+  });
+
+  it('falls back to initial state on a malformed v2 snapshot (defensive)', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const v2 = { assignments: { symbol: { colId: 'symbol', headerName: 'Ticker' } } };
-      const out = columnCustomizationModule.migrate!(v2, 2) as ColumnCustomizationState;
-      expect(out).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('column-customization'),
-        expect.stringContaining('cannot migrate from schemaVersion 2'),
-      );
-    } finally {
-      warnSpy.mockRestore();
-    }
+    const result = columnCustomizationModule.migrate!(null, 2) as ColumnCustomizationState;
+    expect(result).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('column-customization'),
+      expect.stringMatching(/malformed v2 snapshot/),
+    );
+    warnSpy.mockRestore();
   });
 });

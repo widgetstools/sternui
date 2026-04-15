@@ -109,14 +109,16 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   getInitialState: () => ({ ...INITIAL_COLUMN_CUSTOMIZATION }),
 
   migrate(raw, fromVersion) {
-    if (fromVersion === 1) {
-      // No field renames between v1 and v2; new fields are all optional and
-      // default to undefined. Tolerate non-object inputs (defensive — core
-      // calls migrate with whatever was on disk).
+    // v1 → v3 and v2 → v3: v3 is a strict superset; both lower versions
+    // roundtrip losslessly because the new fields are all optional and absent
+    // ones decode as `undefined` (the same value `getInitialState` produces).
+    // Tolerate non-object inputs defensively — core calls migrate with
+    // whatever was on disk.
+    if (fromVersion === 1 || fromVersion === 2) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           `[core-v2] column-customization`,
-          `malformed v1 snapshot (not an object); falling back to initial state.`,
+          `malformed v${fromVersion} snapshot (not an object); falling back to initial state.`,
         );
         return { ...INITIAL_COLUMN_CUSTOMIZATION };
       }
