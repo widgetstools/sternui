@@ -5,7 +5,26 @@ import {
   INITIAL_COLUMN_CUSTOMIZATION,
   type ColumnCustomizationState,
 } from './index';
-import type { AnyColDef } from '../../core/types';
+import type { AnyColDef, GridContext } from '../../core/types';
+import type { ColumnTemplatesState } from '../column-templates';
+
+// Build a stub GridContext for transform tests, with `getModuleState` wired
+// to return a column-templates state of the caller's choosing.
+function makeCtx(templates: Partial<ColumnTemplatesState> = {}): GridContext {
+  const tplState: ColumnTemplatesState = {
+    templates: templates.templates ?? {},
+    typeDefaults: templates.typeDefaults ?? {},
+  };
+  return {
+    gridId: 'test',
+    gridApi: {} as never,
+    getRowId: () => '0',
+    getModuleState: <T,>(id: string) => {
+      if (id === 'column-templates') return tplState as T;
+      throw new Error(`makeCtx: no stub for module "${id}"`);
+    },
+  };
+}
 
 describe('column-customization module — metadata', () => {
   it('declares schemaVersion and stable id', () => {
@@ -21,15 +40,7 @@ describe('column-customization module — metadata', () => {
 });
 
 describe('column-customization module — transformColumnDefs', () => {
-  // Stub GridContext for transform tests. `getModuleState` returns an empty
-  // templates state so the walker's resolver call is a no-op until tests opt in
-  // by overriding the stub via `makeCtx({...})` (added in Task 7).
-  const ctx = {
-    gridId: 'test',
-    gridApi: {} as never,
-    getRowId: () => '0',
-    getModuleState: <T,>(_id: string) => ({ templates: {}, typeDefaults: {} } as T),
-  } as never;
+  const ctx = makeCtx();
 
   const baseDefs: AnyColDef[] = [
     { field: 'symbol' } satisfies ColDef,
@@ -268,6 +279,180 @@ describe('column-customization module — transformColumnDefs', () => {
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
     expect(out[0].cellRenderer).toBe('sideRenderer');
+  });
+
+  it('reads column-templates state via ctx.getModuleState (templateIds emit fields from referenced template)', () => {
+    const localCtx = makeCtx({
+      templates: {
+        bold: {
+          id: 'bold',
+          name: 'Bold',
+          cellStyleOverrides: { typography: { bold: true } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: { symbol: { colId: 'symbol', templateIds: ['bold'] } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
+    expect(out[0].cellStyle).toEqual({ fontWeight: 'bold' });
+  });
+
+  it('assignment fields beat template fields (per-field for styling, last-writer for the rest)', () => {
+    const localCtx = makeCtx({
+      templates: {
+        tpl: {
+          id: 'tpl',
+          name: 'tpl',
+          sortable: true,
+          cellStyleOverrides: { typography: { bold: true, fontSize: 14 } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          templateIds: ['tpl'],
+          sortable: false,
+          cellStyleOverrides: { typography: { bold: false } },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
+    expect(out[0].sortable).toBe(false);
+    // `cellStyleToAgStyle` only emits fontWeight when bold is truthy — assignment's
+    // bold:false suppresses the template's fontWeight, leaving only fontSize.
+    expect(out[0].cellStyle).toEqual({ fontSize: '14px' });
+  });
+
+  it('typeDefault for the column\'s cellDataType applies when the assignment has no templateIds', () => {
+    const defsWithType: AnyColDef[] = [
+      { field: 'price', cellDataType: 'numeric' } satisfies ColDef,
+    ];
+    const localCtx = makeCtx({
+      templates: {
+        num: {
+          id: 'num',
+          name: 'num',
+          cellStyleOverrides: { alignment: { horizontal: 'right' } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+      typeDefaults: { numeric: 'num' },
+    });
+    // Empty assignment subscribes the column to the typeDefault.
+    const state: ColumnCustomizationState = {
+      assignments: { price: { colId: 'price' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(defsWithType, state, localCtx) as ColDef[];
+    expect(out[0].cellStyle).toEqual({ textAlign: 'right' });
+  });
+
+  it('typeDefault is a no-op when colDef.cellDataType is undefined (resolver requires the data-type field)', () => {
+    // `baseDefs` columns have no cellDataType set.
+    const localCtx = makeCtx({
+      templates: {
+        num: {
+          id: 'num',
+          name: 'num',
+          cellStyleOverrides: { alignment: { horizontal: 'right' } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+      typeDefaults: { numeric: 'num' },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: { price: { colId: 'price' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
+    expect(out[1].cellStyle).toBeUndefined();
+  });
+
+  it('templates compose with explicit assignment cellEditor — assignment wins last', () => {
+    const localCtx = makeCtx({
+      templates: {
+        tpl: {
+          id: 'tpl',
+          name: 'tpl',
+          cellEditorName: 'agSelectCellEditor',
+          cellEditorParams: { values: ['A', 'B'] },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          templateIds: ['tpl'],
+          cellEditorParams: { values: ['X'] },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
+    expect(out[0].cellEditor).toBe('agSelectCellEditor');         // from template
+    expect(out[0].cellEditorParams).toEqual({ values: ['X'] });    // assignment wholesale-replaces
+  });
+
+  it('identity short-circuit still fires when assignments map is empty (no templates state read)', () => {
+    // Build a context whose getModuleState THROWS so we know the walker never read it.
+    const throwCtx: GridContext = {
+      gridId: 'test',
+      gridApi: {} as never,
+      getRowId: () => '0',
+      getModuleState: () => {
+        throw new Error('should not have been called');
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, INITIAL_COLUMN_CUSTOMIZATION, throwCtx);
+    expect(out).toBe(baseDefs);
+  });
+
+  it('unknown template ids in templateIds are silently skipped (template was deleted but assignment still references it)', () => {
+    const localCtx = makeCtx({
+      templates: {
+        ok: { id: 'ok', name: 'ok', sortable: true, createdAt: 0, updatedAt: 0 },
+      },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: { symbol: { colId: 'symbol', templateIds: ['ghost', 'ok'] } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
+    expect(out[0].sortable).toBe(true);
+  });
+
+  it('two templateIds compose styling per-field on emitted cellStyle', () => {
+    const localCtx = makeCtx({
+      templates: {
+        a: {
+          id: 'a',
+          name: 'a',
+          cellStyleOverrides: { typography: { bold: true }, colors: { background: '#000' } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+        b: {
+          id: 'b',
+          name: 'b',
+          cellStyleOverrides: { colors: { text: '#fff' } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: { symbol: { colId: 'symbol', templateIds: ['a', 'b'] } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
+    expect(out[0].cellStyle).toEqual({ fontWeight: 'bold', backgroundColor: '#000', color: '#fff' });
   });
 });
 

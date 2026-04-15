@@ -1,5 +1,5 @@
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
-import type { AnyColDef, Module } from '../../core/types';
+import type { AnyColDef, GridContext, Module } from '../../core/types';
 import {
   INITIAL_COLUMN_CUSTOMIZATION,
   migrateFromLegacy,
@@ -9,6 +9,8 @@ import {
 } from './state';
 import { cellStyleToAgStyle } from './adapters/cellStyleToAgStyle';
 import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplate';
+import { resolveTemplates } from '../column-templates/resolveTemplates';
+import type { ColumnTemplatesState, ColumnDataType } from '../column-templates/state';
 
 /**
  * Walk the column-def tree (handles ColGroupDef.children recursively) and
@@ -20,12 +22,13 @@ import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplat
 function applyAssignments(
   defs: AnyColDef[],
   assignments: Record<string, ColumnAssignment>,
+  templatesState: ColumnTemplatesState,
 ): AnyColDef[] {
   return defs.map((def) => {
     // Group: recurse into children. The group itself has no colId so it
     // can't be assigned — only leaves can.
     if ('children' in def && Array.isArray(def.children)) {
-      const next = applyAssignments(def.children, assignments);
+      const next = applyAssignments(def.children, assignments, templatesState);
       // Only rebuild the group if a child actually changed reference, so
       // upstream React/AG-Grid memoization can short-circuit.
       const childrenUnchanged =
@@ -40,29 +43,37 @@ function applyAssignments(
     const a = assignments[colId];
     if (!a) return def;
 
+    // Resolve templates + typeDefault into a composite assignment.
+    // `cellDataType` is AG-Grid's dataType vocabulary (numeric / date / string /
+    // boolean) — the resolver only fires the typeDefault fallback when this is
+    // set on the colDef AND the assignment has no explicit `templateIds`.
+    const resolved = resolveTemplates(
+      a,
+      templatesState,
+      colDef.cellDataType as ColumnDataType | undefined,
+    );
+
     const merged: ColDef = { ...colDef };
-    if (a.headerName !== undefined) merged.headerName = a.headerName;
-    if (a.headerTooltip !== undefined) merged.headerTooltip = a.headerTooltip;
-    if (a.initialWidth !== undefined) merged.initialWidth = a.initialWidth;
-    if (a.initialHide !== undefined) merged.initialHide = a.initialHide;
-    if (a.initialPinned !== undefined) merged.initialPinned = a.initialPinned;
-    if (a.sortable !== undefined) merged.sortable = a.sortable;
-    if (a.filterable !== undefined) merged.filter = a.filterable;
-    if (a.resizable !== undefined) merged.resizable = a.resizable;
-    if (a.cellStyleOverrides !== undefined) {
-      merged.cellStyle = cellStyleToAgStyle(a.cellStyleOverrides);
+    if (resolved.headerName !== undefined) merged.headerName = resolved.headerName;
+    if (resolved.headerTooltip !== undefined) merged.headerTooltip = resolved.headerTooltip;
+    if (resolved.initialWidth !== undefined) merged.initialWidth = resolved.initialWidth;
+    if (resolved.initialHide !== undefined) merged.initialHide = resolved.initialHide;
+    if (resolved.initialPinned !== undefined) merged.initialPinned = resolved.initialPinned;
+    if (resolved.sortable !== undefined) merged.sortable = resolved.sortable;
+    if (resolved.filterable !== undefined) merged.filter = resolved.filterable;
+    if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
+    if (resolved.cellStyleOverrides !== undefined) {
+      merged.cellStyle = cellStyleToAgStyle(resolved.cellStyleOverrides);
     }
-    if (a.headerStyleOverrides !== undefined) {
-      merged.headerStyle = cellStyleToAgStyle(a.headerStyleOverrides);
+    if (resolved.headerStyleOverrides !== undefined) {
+      merged.headerStyle = cellStyleToAgStyle(resolved.headerStyleOverrides);
     }
-    if (a.valueFormatterTemplate !== undefined) {
-      merged.valueFormatter = valueFormatterFromTemplate(a.valueFormatterTemplate);
+    if (resolved.valueFormatterTemplate !== undefined) {
+      merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
     }
-    if (a.cellEditorName !== undefined) merged.cellEditor = a.cellEditorName;
-    if (a.cellEditorParams !== undefined) merged.cellEditorParams = a.cellEditorParams;
-    if (a.cellRendererName !== undefined) merged.cellRenderer = a.cellRendererName;
-    // `a.templateIds` is intentionally not wired here — column-templates resolution
-    // lives in the column-templates module (sub-project #2). Field is storage-only in v2.1.
+    if (resolved.cellEditorName !== undefined) merged.cellEditor = resolved.cellEditorName;
+    if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;
+    if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
     return merged;
   });
 }
@@ -109,9 +120,11 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     return { ...INITIAL_COLUMN_CUSTOMIZATION };
   },
 
-  transformColumnDefs(defs, state) {
+  transformColumnDefs(defs, state, ctx) {
     if (Object.keys(state.assignments).length === 0) return defs;
-    return applyAssignments(defs, state.assignments);
+    const templatesState =
+      ctx.getModuleState<ColumnTemplatesState>('column-templates');
+    return applyAssignments(defs, state.assignments, templatesState);
   },
 
   serialize: (state) => state,
