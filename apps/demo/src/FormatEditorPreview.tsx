@@ -936,6 +936,15 @@ function FormatPopover({
 
 type BorderSide = 'top' | 'right' | 'bottom' | 'left';
 type BorderMode = 'all' | BorderSide | 'custom';
+type BorderStyle = 'solid' | 'dashed' | 'dotted';
+
+interface SideSpec {
+  color: string;
+  alpha: number;
+  width: number;
+  style: BorderStyle;
+  visible: boolean;
+}
 
 interface Style {
   fontWeight: '400' | '500' | '600' | '700';
@@ -947,14 +956,26 @@ interface Style {
   textAlpha: number;
   fillColor: string;
   fillAlpha: number;
+  // Shared stroke values — used when borderMode is 'all' / 'top' / etc.
   strokeColor: string;
   strokeAlpha: number;
   strokeWidth: number;
+  strokeStyle: BorderStyle;
   strokePosition: 'inside' | 'outside' | 'center';
+  // Per-side overrides — used when borderMode is 'custom'.
+  sides: Record<BorderSide, SideSpec>;
   borderMode: BorderMode;
   cornerRadius: number;
   opacity: number;
 }
+
+const defaultSide: SideSpec = {
+  color: '#000000',
+  alpha: 100,
+  width: 1,
+  style: 'solid',
+  visible: true,
+};
 
 const initialStyle: Style = {
   fontWeight: '400',
@@ -969,11 +990,196 @@ const initialStyle: Style = {
   strokeColor: '#000000',
   strokeAlpha: 100,
   strokeWidth: 1,
+  strokeStyle: 'solid',
   strokePosition: 'inside',
+  sides: {
+    top: { ...defaultSide },
+    right: { ...defaultSide },
+    bottom: { ...defaultSide },
+    left: { ...defaultSide },
+  },
   borderMode: 'all',
   cornerRadius: 0,
   opacity: 100,
 };
+
+// ─── Per-side border row ─────────────────────────────────────────────────────
+//
+// One compact row per side (top/right/bottom/left) in "Custom" mode. Layout:
+//   [side-icon]  [color-swatch] [hex] [alpha] [style-dropdown] [width]px [eye]
+
+function PerSideRow({
+  side,
+  spec,
+  onChange,
+}: {
+  side: BorderSide;
+  spec: SideSpec;
+  onChange: (next: SideSpec) => void;
+}) {
+  const patch = (p: Partial<SideSpec>) => onChange({ ...spec, ...p });
+  const Icon =
+    side === 'top' ? PanelTop
+    : side === 'bottom' ? PanelBottom
+    : side === 'left' ? PanelLeft
+    : PanelRight;
+  const [hexInput, setHexInput] = useState(spec.color.replace(/^#/, '').toUpperCase());
+  useEffect(() => { setHexInput(spec.color.replace(/^#/, '').toUpperCase()); }, [spec.color]);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        background: T.surface,
+        borderRadius: T.radius,
+        padding: '0 6px',
+        height: T.rowH,
+        opacity: spec.visible ? 1 : 0.5,
+      }}
+    >
+      <span
+        style={{
+          width: 18, height: 18,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          color: spec.visible ? T.textMid : T.textDim,
+          flexShrink: 0,
+        }}
+        title={side.charAt(0).toUpperCase() + side.slice(1)}
+      >
+        <Icon size={12} strokeWidth={1.75} />
+      </span>
+
+      <FormatPopover
+        trigger={
+          <button
+            style={{
+              width: 14, height: 14, borderRadius: 2,
+              background: spec.color,
+              border: `1px solid ${T.border}`,
+              padding: 0, cursor: 'pointer', flexShrink: 0,
+            }}
+            title="Color"
+          />
+        }
+        width={260}
+      >
+        <FormatColorPicker
+          value={spec.color}
+          alpha={spec.alpha}
+          onChange={(hex) => patch({ color: hex })}
+          onAlpha={(a) => patch({ alpha: a })}
+        />
+      </FormatPopover>
+
+      <input
+        value={hexInput}
+        onChange={(e) => setHexInput(e.target.value.toUpperCase().slice(0, 6))}
+        onBlur={() => {
+          if (hexInput.length === 6 && /^[0-9A-F]+$/.test(hexInput)) patch({ color: '#' + hexInput });
+          else setHexInput(spec.color.replace(/^#/, '').toUpperCase());
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        style={{
+          width: 58,
+          minWidth: 0,
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          color: T.text,
+          fontFamily: T.fontMono,
+          fontSize: 11,
+          padding: 0,
+          textTransform: 'uppercase',
+        }}
+      />
+
+      <FormatDropdown
+        trigger={
+          <button
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 24, height: 20,
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 3,
+              color: T.text,
+              cursor: 'pointer',
+            }}
+            title="Style"
+          >
+            {strokeStyleIcon(spec.style)}
+          </button>
+        }
+        value={spec.style}
+        onChange={(v) => patch({ style: v as BorderStyle })}
+        options={[
+          { value: 'solid', label: 'Solid', icon: strokeStyleIcon('solid') },
+          { value: 'dashed', label: 'Dashed', icon: strokeStyleIcon('dashed') },
+          { value: 'dotted', label: 'Dotted', icon: strokeStyleIcon('dotted') },
+        ]}
+      />
+
+      <input
+        type="number"
+        min={0}
+        max={12}
+        value={spec.width}
+        onChange={(e) => patch({ width: Math.max(0, Number(e.target.value) || 0) })}
+        style={{
+          width: 36,
+          textAlign: 'right',
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          color: T.text,
+          fontFamily: T.fontMono,
+          fontSize: 11,
+          padding: 0,
+        }}
+      />
+      <span style={{ color: T.textDim, fontSize: 10 }}>px</span>
+
+      <span style={{ width: 1, height: 14, background: T.border, marginInline: 2 }} />
+
+      <button
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => patch({ visible: !spec.visible })}
+        style={iconBtnStyle}
+        title={spec.visible ? 'Hide side' : 'Show side'}
+      >
+        {spec.visible ? <Eye size={12} strokeWidth={1.75} /> : <EyeOff size={12} strokeWidth={1.75} />}
+      </button>
+    </div>
+  );
+}
+
+function strokeStyleIcon(style: BorderStyle) {
+  const base: CSSProperties = {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    display: 'inline-block',
+  };
+  if (style === 'solid') return <span style={{ ...base, background: 'currentColor' }} />;
+  if (style === 'dashed') return (
+    <span style={{
+      ...base,
+      background: 'transparent',
+      backgroundImage: 'repeating-linear-gradient(to right, currentColor 0 4px, transparent 4px 7px)',
+    }} />
+  );
+  return (
+    <span style={{
+      ...base,
+      background: 'transparent',
+      backgroundImage: 'repeating-linear-gradient(to right, currentColor 0 2px, transparent 2px 5px)',
+    }} />
+  );
+}
 
 // ─── Composite editors ───────────────────────────────────────────────────────
 
@@ -1149,59 +1355,115 @@ function SettingsPanelDemo({ style, setStyle }: { style: Style; setStyle: (s: St
           </>
         }
       >
-        <FormatSwatch
-          value={style.strokeColor}
-          opacity={style.strokeAlpha}
-          onChange={(v) => patch({ strokeColor: v })}
-          onOpacity={(n) => patch({ strokeAlpha: n })}
-        />
-        <FormatRow label="Position">
-          <FormatDropdown
-            trigger={
-              <button
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 6,
-                  padding: '0 8px',
-                  height: T.rowH,
-                  width: '100%',
-                  background: T.surface,
-                  border: 'none',
-                  borderRadius: T.radius,
-                  color: T.text,
-                  fontFamily: T.fontSans,
-                  fontSize: 11,
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ textTransform: 'capitalize' }}>{style.strokePosition}</span>
-                <ChevronDown size={10} strokeWidth={2} color={T.textDim} />
-              </button>
-            }
-            value={style.strokePosition}
-            onChange={(v) => patch({ strokePosition: v as Style['strokePosition'] })}
-            options={[
-              { value: 'inside', label: 'Inside' },
-              { value: 'outside', label: 'Outside' },
-              { value: 'center', label: 'Center' },
-            ]}
-          />
-        </FormatRow>
-        <FormatRow label="Weight">
-          <FormatIconInput
-            value={style.strokeWidth}
-            icon={<Hash size={11} strokeWidth={2} />}
-            suffix="px"
-            align="right"
-            onChange={(v) => patch({ strokeWidth: Number(v) || 0 })}
-          />
-          <button style={iconBtnStyle} title="Advanced">
-            <Sliders size={12} strokeWidth={1.75} />
-          </button>
-          <BorderSidePicker value={style.borderMode} onChange={(m) => patch({ borderMode: m })} />
-        </FormatRow>
+        {/* Shared editor — one color/weight/style applies to the selected side(s) */}
+        {style.borderMode !== 'custom' && (
+          <>
+            <FormatSwatch
+              value={style.strokeColor}
+              opacity={style.strokeAlpha}
+              onChange={(v) => patch({ strokeColor: v })}
+              onOpacity={(n) => patch({ strokeAlpha: n })}
+            />
+            <FormatRow label="Position">
+              <FormatDropdown
+                trigger={
+                  <button
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 6,
+                      padding: '0 8px',
+                      height: T.rowH,
+                      width: '100%',
+                      background: T.surface,
+                      border: 'none',
+                      borderRadius: T.radius,
+                      color: T.text,
+                      fontFamily: T.fontSans,
+                      fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ textTransform: 'capitalize' }}>{style.strokePosition}</span>
+                    <ChevronDown size={10} strokeWidth={2} color={T.textDim} />
+                  </button>
+                }
+                value={style.strokePosition}
+                onChange={(v) => patch({ strokePosition: v as Style['strokePosition'] })}
+                options={[
+                  { value: 'inside', label: 'Inside' },
+                  { value: 'outside', label: 'Outside' },
+                  { value: 'center', label: 'Center' },
+                ]}
+              />
+            </FormatRow>
+            <FormatRow label="Weight">
+              <FormatIconInput
+                value={style.strokeWidth}
+                icon={<Hash size={11} strokeWidth={2} />}
+                suffix="px"
+                align="right"
+                onChange={(v) => patch({ strokeWidth: Number(v) || 0 })}
+              />
+              <FormatDropdown
+                trigger={
+                  <button
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '0 8px',
+                      height: T.rowH,
+                      background: T.surface,
+                      border: 'none',
+                      borderRadius: T.radius,
+                      color: T.text,
+                      fontFamily: T.fontSans,
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                    }}
+                    title="Border style"
+                  >
+                    {strokeStyleIcon(style.strokeStyle)}
+                    <span>{style.strokeStyle}</span>
+                    <ChevronDown size={10} strokeWidth={2} color={T.textDim} />
+                  </button>
+                }
+                value={style.strokeStyle}
+                onChange={(v) => patch({ strokeStyle: v as BorderStyle })}
+                options={[
+                  { value: 'solid', label: 'Solid', icon: strokeStyleIcon('solid') },
+                  { value: 'dashed', label: 'Dashed', icon: strokeStyleIcon('dashed') },
+                  { value: 'dotted', label: 'Dotted', icon: strokeStyleIcon('dotted') },
+                ]}
+              />
+              <BorderSidePicker value={style.borderMode} onChange={(m) => patch({ borderMode: m })} />
+            </FormatRow>
+          </>
+        )}
+
+        {/* Per-side editor — each of top/right/bottom/left owns its own spec */}
+        {style.borderMode === 'custom' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              paddingBottom: 4, color: T.textMid, fontSize: 10, letterSpacing: '0.02em',
+            }}>
+              <span>Per-side strokes</span>
+              <BorderSidePicker value={style.borderMode} onChange={(m) => patch({ borderMode: m })} />
+            </div>
+            {(['top', 'right', 'bottom', 'left'] as BorderSide[]).map((side) => (
+              <PerSideRow
+                key={side}
+                side={side}
+                spec={style.sides[side]}
+                onChange={(next) => patch({ sides: { ...style.sides, [side]: next } })}
+              />
+            ))}
+          </div>
+        )}
       </FormatSection>
 
       <FormatSection title="Effects"
@@ -1350,10 +1612,46 @@ function InlineToolbarDemo({ style, setStyle }: { style: Style; setStyle: (s: St
 
       <div style={{ flex: 1 }} />
       <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.fontMono }}>
-        {style.fontWeight} · {style.fontSize}px · {style.align} · {style.borderMode}
+        {style.fontWeight} · {style.fontSize}px · {style.align} · {borderSummary(style)}
       </span>
     </div>
   );
+}
+
+// ─── Border state → CSS helpers ──────────────────────────────────────────────
+
+function borderSummary(s: Style): string {
+  if (s.borderMode !== 'custom') return s.borderMode;
+  const on = (['top', 'right', 'bottom', 'left'] as BorderSide[])
+    .filter((k) => s.sides[k].visible && s.sides[k].width > 0)
+    .map((k) => k[0].toUpperCase())
+    .join('');
+  return on.length ? `custom (${on})` : 'custom (none)';
+}
+
+function borderStyleFromState(s: Style): CSSProperties {
+  if (s.borderMode === 'custom') {
+    const sideCSS = (side: BorderSide) => {
+      const spec = s.sides[side];
+      if (!spec.visible || spec.width <= 0) return '';
+      return `${spec.width}px ${spec.style} ${hexWithAlpha(spec.color, spec.alpha)}`;
+    };
+    return {
+      borderTop: sideCSS('top') || 'none',
+      borderRight: sideCSS('right') || 'none',
+      borderBottom: sideCSS('bottom') || 'none',
+      borderLeft: sideCSS('left') || 'none',
+    };
+  }
+  const shared = `${s.strokeWidth}px ${s.strokeStyle} ${hexWithAlpha(s.strokeColor, s.strokeAlpha)}`;
+  switch (s.borderMode) {
+    case 'all': return { border: shared };
+    case 'top': return { borderTop: shared };
+    case 'right': return { borderRight: shared };
+    case 'bottom': return { borderBottom: shared };
+    case 'left': return { borderLeft: shared };
+    default: return {};
+  }
 }
 
 // ─── Preview page ────────────────────────────────────────────────────────────
@@ -1412,11 +1710,7 @@ export function FormatEditorPreview() {
             background: hexWithAlpha(style.fillColor, style.fillAlpha),
             borderRadius: style.cornerRadius,
             opacity: style.opacity / 100,
-            ...(style.borderMode === 'all' && { border: `${style.strokeWidth}px solid ${hexWithAlpha(style.strokeColor, style.strokeAlpha)}` }),
-            ...(style.borderMode === 'top' && { borderTop: `${style.strokeWidth}px solid ${hexWithAlpha(style.strokeColor, style.strokeAlpha)}` }),
-            ...(style.borderMode === 'right' && { borderRight: `${style.strokeWidth}px solid ${hexWithAlpha(style.strokeColor, style.strokeAlpha)}` }),
-            ...(style.borderMode === 'bottom' && { borderBottom: `${style.strokeWidth}px solid ${hexWithAlpha(style.strokeColor, style.strokeAlpha)}` }),
-            ...(style.borderMode === 'left' && { borderLeft: `${style.strokeWidth}px solid ${hexWithAlpha(style.strokeColor, style.strokeAlpha)}` }),
+            ...borderStyleFromState(style),
             position: 'relative',
           }}>
             <div style={{
