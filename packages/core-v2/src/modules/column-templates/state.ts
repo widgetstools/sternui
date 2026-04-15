@@ -58,7 +58,11 @@ export interface ColumnTemplatesState {
   typeDefaults: Partial<Record<ColumnDataType, string>>;
 }
 
-export const INITIAL_COLUMN_TEMPLATES: ColumnTemplatesState = {
-  templates: {},
-  typeDefaults: {},
-};
+// Deep-frozen so accidental mutation of the shared reference (e.g. when a
+// `deserialize` fallback returns INITIAL directly) throws in strict mode
+// instead of silently corrupting subsequent reads. Callers that need a
+// mutable copy must replace the nested objects, not just spread the outer.
+export const INITIAL_COLUMN_TEMPLATES: ColumnTemplatesState = Object.freeze({
+  templates: Object.freeze({}) as Record<string, ColumnTemplate>,
+  typeDefaults: Object.freeze({}) as Partial<Record<ColumnDataType, string>>,
+}) as ColumnTemplatesState;
