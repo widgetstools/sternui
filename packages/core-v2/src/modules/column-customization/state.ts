@@ -2,12 +2,9 @@
  * Per-column inline override. Every field is optional — only fields the user
  * has actually changed are stored, so a fresh column has `{ colId }` only.
  *
- * v2.0 deliberately ships a *narrow* subset of the v1 ColumnAssignment shape:
- *   - Cell/header styling: deferred until the FormattingToolbar lands in v2.1
- *   - Template composition: column-templates module is out of v2.0 scope
- *   - Cell editor / renderer overrides: deferred (rarely used; FormattingToolbar)
- * What ships here is the surface the in-scope E2E specs actually exercise:
- * label/tooltip/width/visibility/pin/sort/filter/resize.
+ * v2.1 schema (schemaVersion: 2) extends v2.0 with optional appearance,
+ * formatter, and template-reference fields. All new fields are optional and
+ * default to undefined, so existing v2.0 snapshots roundtrip unchanged.
  */
 export interface ColumnAssignment {
   readonly colId: string;
@@ -19,6 +16,16 @@ export interface ColumnAssignment {
   sortable?: boolean;
   filterable?: boolean;
   resizable?: boolean;
+
+  // ─── New in schemaVersion 2 ──────────────────────────────────────────────
+  // Per-column appearance + formatting. All optional; absent = no override.
+  // Wired into AG-Grid by the transformers in `index.ts` via the adapters in
+  // `./adapters/`. `templateIds` is stored only — column-templates resolution
+  // ships in a future module port.
+  cellStyleOverrides?: CellStyleOverrides;
+  headerStyleOverrides?: CellStyleOverrides;
+  valueFormatterTemplate?: ValueFormatterTemplate;
+  templateIds?: string[];                         // order = application order; later wins
 }
 
 export interface ColumnCustomizationState {
