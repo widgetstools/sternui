@@ -38,6 +38,9 @@ export { MemoryAdapter } from './persistence/MemoryAdapter';
 export { DexieAdapter } from './persistence/DexieAdapter';
 export { migrateLegacyLocalStorage } from './persistence/migrations';
 
+// UI context (v2 SettingsPanel host integration)
+export { GridProvider, useGridStore, useGridCore } from './ui/GridContext';
+
 // Profile manager
 export { useProfileManager } from './profiles/useProfileManager';
 export type {
@@ -49,6 +52,9 @@ export type {
 // Built-in modules
 export { generalSettingsModule, INITIAL_GENERAL_SETTINGS } from './modules/general-settings';
 export type { GeneralSettingsState } from './modules/general-settings';
+export { columnTemplatesModule, INITIAL_COLUMN_TEMPLATES } from './modules/column-templates';
+export type { ColumnTemplate, ColumnDataType, ColumnTemplatesState } from './modules/column-templates';
+export { resolveTemplates } from './modules/column-templates/resolveTemplates';
 export { columnCustomizationModule, INITIAL_COLUMN_CUSTOMIZATION } from './modules/column-customization';
 export type { ColumnAssignment, ColumnCustomizationState } from './modules/column-customization';
 export { conditionalStylingModule, INITIAL_CONDITIONAL_STYLING } from './modules/conditional-styling';

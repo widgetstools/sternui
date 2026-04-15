@@ -4,6 +4,7 @@ import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
 import {
   generalSettingsModule,
+  columnTemplatesModule,
   columnCustomizationModule,
   conditionalStylingModule,
   savedFiltersModule,
@@ -32,6 +33,7 @@ function ensureAgGridRegistered() {
  */
 export const DEFAULT_V2_MODULES: AnyModule[] = [
   generalSettingsModule,
+  columnTemplatesModule,
   columnCustomizationModule,
   conditionalStylingModule,
   savedFiltersModule,
