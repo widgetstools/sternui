@@ -43,7 +43,7 @@ import { createPortal } from 'react-dom';
 import {
   AlignCenter, AlignLeft, AlignRight,
   Bold, Italic, Underline,
-  ChevronDown, ChevronRight, Check,
+  ChevronDown, ChevronLeft, ChevronRight, Check,
   Eye, EyeOff, Minus, Plus,
   Square, PanelTop, PanelBottom, PanelLeft, PanelRight,
   Sliders, Type, PaintBucket, Grid3X3, Sun, Moon,
@@ -1020,10 +1020,10 @@ function CompactSidesEditor({
   sides: Record<BorderSide, SideSpec>;
   onChange: (next: Record<BorderSide, SideSpec>) => void;
 }) {
-  // Explicit 5-row table: All, Top, Bottom, Left, Right. Each row shows the
-  // same four columns (label, visibility, thickness, color). Editing a side
-  // row only touches that side; editing the "All" row fans out to every side.
-  // No selection state, no modes — every control is directly actionable.
+  // Drill-in state: when non-null, the popover swaps the 5-row table for
+  // an inline color picker view for the target row. Clicking "← Back" or
+  // picking a color returns to the table.
+  const [editingColorFor, setEditingColorFor] = useState<'all' | BorderSide | null>(null);
 
   const patchSide = (side: BorderSide, p: Partial<SideSpec>) =>
     onChange({ ...sides, [side]: { ...sides[side], ...p } });
@@ -1034,9 +1034,6 @@ function CompactSidesEditor({
     onChange(next);
   };
 
-  // Derive the "All" row's displayed values from whatever the four sides have
-  // in common. When they disagree, show a "mixed" indicator — editing still
-  // works and snaps every side to the new shared value.
   const allSame = <K extends keyof SideSpec>(key: K): boolean =>
     EDGE_ORDER.every((s) => sides[s][key] === sides.top[key]);
   const allColor = allSame('color') ? sides.top.color : null;
@@ -1047,9 +1044,10 @@ function CompactSidesEditor({
   type RowDef = {
     key: 'all' | BorderSide;
     label: string;
-    getSpec: () => {
-      color: string | null; alpha: number | null; width: number | null; visible: boolean | null;
-    };
+    color: string | null;
+    alpha: number | null;
+    width: number | null;
+    visible: boolean | null;
     patch: (p: Partial<SideSpec>) => void;
   };
 
@@ -1057,29 +1055,69 @@ function CompactSidesEditor({
     {
       key: 'all',
       label: 'All',
-      getSpec: () => ({ color: allColor, alpha: allAlpha, width: allWidth, visible: allVisible }),
+      color: allColor, alpha: allAlpha, width: allWidth, visible: allVisible,
       patch: patchAll,
     },
-    ...(EDGE_ORDER.map((s) => ({
+    ...EDGE_ORDER.map<RowDef>((s) => ({
       key: s,
       label: s.charAt(0).toUpperCase() + s.slice(1),
-      getSpec: () => ({
-        color: sides[s].color,
-        alpha: sides[s].alpha,
-        width: sides[s].width,
-        visible: sides[s].visible,
-      }),
+      color: sides[s].color,
+      alpha: sides[s].alpha,
+      width: sides[s].width,
+      visible: sides[s].visible,
       patch: (p: Partial<SideSpec>) => patchSide(s, p),
-    })) satisfies RowDef[]),
+    })),
   ];
 
+  // ─── Drill-in: inline color picker ────────────────────────────────────
+  if (editingColorFor) {
+    const row = rows.find((r) => r.key === editingColorFor);
+    if (!row) { setEditingColorFor(null); return null; }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 236 }}>
+        {/* Header with back button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setEditingColorFor(null)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 2,
+              padding: '2px 6px 2px 4px',
+              background: 'transparent',
+              border: 'none',
+              color: T.textMid,
+              fontSize: 11,
+              cursor: 'pointer',
+              borderRadius: 3,
+            }}
+            title="Back to sides"
+          >
+            <ChevronLeft size={12} strokeWidth={2} />
+            Back
+          </button>
+          <span style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 600, color: T.text }}>
+            {row.label} color
+          </span>
+          <span style={{ width: 44 }} />
+        </div>
+        <FormatColorPicker
+          value={row.color ?? '#000000'}
+          alpha={row.alpha ?? 100}
+          onChange={(hex) => row.patch({ color: hex })}
+          onAlpha={(a) => row.patch({ alpha: a })}
+        />
+      </div>
+    );
+  }
+
+  // ─── Default view: 5-row table ────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: 236 }}>
       {/* Column headers */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '50px 22px 1fr 22px',
+          gridTemplateColumns: '46px 22px 1fr 22px',
           alignItems: 'center',
           gap: 6,
           padding: '2px 6px 4px',
@@ -1101,41 +1139,40 @@ function CompactSidesEditor({
           row={row}
           emphasized={row.key === 'all'}
           divider={idx === 0}
+          onEditColor={() => setEditingColorFor(row.key)}
         />
       ))}
     </div>
   );
 }
 
-/** One row of the 5-row border table: [label] [visibility] [thickness] [color]. */
+/** One row of the 5-row border table: [label] [eye] [thickness-select] [color]. */
 function BorderRow({
   row,
   emphasized,
   divider,
+  onEditColor,
 }: {
   row: {
     key: 'all' | BorderSide;
     label: string;
-    getSpec: () => { color: string | null; alpha: number | null; width: number | null; visible: boolean | null };
+    color: string | null; alpha: number | null; width: number | null; visible: boolean | null;
     patch: (p: Partial<SideSpec>) => void;
   };
   emphasized?: boolean;
   divider?: boolean;
+  onEditColor: () => void;
 }) {
-  const { color, alpha, width, visible } = row.getSpec();
+  const { color, width, visible } = row;
   const colorDisplay = color ?? '';
-  const hexInitial = color ? color.replace(/^#/, '').toUpperCase() : '';
-  const [hexInput, setHexInput] = useState(hexInitial);
-  useEffect(() => { setHexInput(hexInitial); }, [hexInitial]);
-
   const isHidden = visible === false;
-  const isMixed = color === null || width === null || alpha === null || visible === null;
+  const isMixedColor = color === null;
 
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '50px 22px 1fr 22px',
+        gridTemplateColumns: '46px 22px 1fr 22px',
         alignItems: 'center',
         gap: 6,
         padding: '4px 6px',
@@ -1183,110 +1220,98 @@ function BorderRow({
           : <Eye size={12} strokeWidth={1.75} />}
       </button>
 
-      {/* Thickness */}
-      <div
+      {/* Thickness as a compact 0–5 select (shadcn-style) */}
+      <ThicknessSelect
+        value={width}
+        onChange={(n) => row.patch({ width: n })}
+      />
+
+      {/* Color swatch — clicking drills in, doesn't open a side popover */}
+      <button
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onEditColor}
+        title={colorDisplay ? `Edit ${row.label.toLowerCase()} color` : 'Pick a shared color'}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          background: T.surface,
+          width: 20,
+          height: 20,
           borderRadius: 3,
-          padding: '0 6px',
-          height: 22,
+          background: colorDisplay || 'transparent',
+          backgroundImage: isMixedColor
+            ? 'repeating-linear-gradient(45deg, #444 0 3px, #222 3px 6px)'
+            : undefined,
+          border: `1px solid ${T.border}`,
+          padding: 0,
+          cursor: 'pointer',
         }}
-      >
-        <input
-          type="number"
-          min={0}
-          max={12}
-          value={width ?? ''}
-          placeholder={width === null ? '—' : ''}
-          onChange={(e) => {
-            const n = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0);
-            row.patch({ width: n });
-          }}
+      />
+    </div>
+  );
+}
+
+/** Compact shadcn-style select for 0..5 px thickness. Same portal dropdown
+ *  primitive as everything else, with a tight trigger button. */
+function ThicknessSelect({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <FormatDropdown
+      trigger={
+        <button
+          onMouseDown={(e) => e.preventDefault()}
           style={{
-            flex: 1,
-            minWidth: 0,
-            background: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 4,
+            height: 22,
+            padding: '0 6px',
+            background: T.surface,
             border: 'none',
-            outline: 'none',
-            color: width !== null ? T.text : T.textDim,
+            borderRadius: 3,
+            color: value !== null ? T.text : T.textDim,
             fontFamily: T.fontMono,
             fontSize: 11,
-            textAlign: 'right',
-            padding: 0,
+            cursor: 'pointer',
+            width: '100%',
           }}
-        />
-        <span style={{ color: T.textDim, fontSize: 9 }}>px</span>
-      </div>
+          title="Thickness"
+        >
+          <span>{value === null ? '—' : value}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <span style={{ color: T.textDim, fontSize: 9 }}>px</span>
+            <ChevronDown size={9} strokeWidth={2} color={T.textDim} />
+          </span>
+        </button>
+      }
+      value={value ?? -1}
+      onChange={(v) => onChange(Number(v))}
+      options={[0, 1, 2, 3, 4, 5].map((n) => ({
+        value: n,
+        label: n === 0 ? '0 · none' : `${n} px`,
+        icon: <ThicknessBar width={n} />,
+      }))}
+    />
+  );
+}
 
-      {/* Color picker */}
-      <FormatPopover
-        trigger={
-          <button
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 3,
-              background: colorDisplay || 'transparent',
-              backgroundImage: isMixed && !colorDisplay
-                ? 'repeating-linear-gradient(45deg, #444 0 3px, #222 3px 6px)'
-                : undefined,
-              border: `1px solid ${T.border}`,
-              padding: 0,
-              cursor: 'pointer',
-            }}
-            title={colorDisplay ? hexInput : 'Mixed — pick a shared color'}
-          />
-        }
-        width={260}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <FormatColorPicker
-            value={color ?? '#000000'}
-            alpha={alpha ?? 100}
-            onChange={(hex) => row.patch({ color: hex })}
-            onAlpha={(a) => row.patch({ alpha: a })}
-          />
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 8px',
-              background: T.surface,
-              borderRadius: 4,
-              height: T.rowH,
-            }}
-          >
-            <span style={{ color: T.textDim, fontFamily: T.fontMono, fontSize: 10 }}>#</span>
-            <input
-              value={hexInput}
-              onChange={(e) => setHexInput(e.target.value.toUpperCase().slice(0, 6))}
-              onBlur={() => {
-                if (hexInput.length === 6 && /^[0-9A-F]+$/.test(hexInput)) row.patch({ color: '#' + hexInput });
-                else setHexInput(color ? color.replace(/^#/, '').toUpperCase() : '');
-              }}
-              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              placeholder={color ? '' : 'Mixed'}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: color ? T.text : T.textDim,
-                fontFamily: T.fontMono,
-                fontSize: 11,
-                padding: 0,
-                textTransform: 'uppercase',
-              }}
-            />
-          </div>
-        </div>
-      </FormatPopover>
-    </div>
+/** Visual indicator next to each option in the thickness select. */
+function ThicknessBar({ width }: { width: number }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: 18,
+        height: Math.max(1, width),
+        background: width === 0 ? 'transparent' : T.text,
+        borderRadius: 1,
+        opacity: width === 0 ? 0.4 : 1,
+        border: width === 0 ? `1px dashed ${T.textDim}` : 'none',
+      }}
+    />
   );
 }
 
