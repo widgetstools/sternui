@@ -14,6 +14,13 @@ import {
   Tooltip,
   ColorPickerPopover,
   cn,
+  // Format-editor primitives (promoted from the preview)
+  FormatPopover as GcFormatPopover,
+  BorderSidesEditor as GcBorderSidesEditor,
+  type SideSpec as GcSideSpec,
+  type BorderSide as GcBorderSide,
+  type BorderStyle as GcBorderStyle,
+  makeDefaultSides as gcMakeDefaultSides,
 } from '@grid-customizer/core';
 import {
   Plus, Trash2, Bold, Italic, Underline,
@@ -223,6 +230,64 @@ function sideHasBorder(style: CellStyleProperties | undefined, side: BorderSide)
   return !!style[`border${side}Width` as keyof CellStyleProperties];
 }
 
+// ─── Bridging: CellStyleProperties (flat) ↔ SideSpec (structured) ──────────
+//
+// The conditional-styling state persists the v1 flat shape
+// (borderTopWidth / Style / Color, etc.); the promoted BorderSidesEditor
+// consumes/produces a structured Record<BorderSide, SideSpec>. These helpers
+// translate both directions so the editor can be used without changing the
+// persisted state shape.
+
+const GC_SIDE_LOWER: GcBorderSide[] = ['top', 'right', 'bottom', 'left'];
+
+function parseStyle(s: string | undefined): GcBorderStyle {
+  if (s === 'dashed' || s === 'dotted') return s;
+  return 'solid';
+}
+
+function sidesFromCellStyle(style: CellStyleProperties): Record<GcBorderSide, GcSideSpec> {
+  const base = gcMakeDefaultSides();
+  for (const lower of GC_SIDE_LOWER) {
+    const Upper = (lower[0].toUpperCase() + lower.slice(1)) as BorderSide;
+    const widthStr = style[`border${Upper}Width` as keyof CellStyleProperties] as string | undefined;
+    const colorStr = style[`border${Upper}Color` as keyof CellStyleProperties] as string | undefined;
+    const styleStr = style[`border${Upper}Style` as keyof CellStyleProperties] as string | undefined;
+    const hasIt = !!widthStr;
+    base[lower] = {
+      color: colorStr ?? '#000000',
+      alpha: 100,
+      width: hasIt ? (parseInt(widthStr!, 10) || 0) : 0,
+      style: parseStyle(styleStr),
+      visible: hasIt,
+    };
+  }
+  return base;
+}
+
+function applySidesToCellStyle(
+  style: CellStyleProperties,
+  sides: Record<GcBorderSide, GcSideSpec>,
+): CellStyleProperties {
+  const out: CellStyleProperties = { ...style };
+  for (const lower of GC_SIDE_LOWER) {
+    const Upper = (lower[0].toUpperCase() + lower.slice(1)) as BorderSide;
+    const spec = sides[lower];
+    const wKey = `border${Upper}Width` as keyof CellStyleProperties;
+    const sKey = `border${Upper}Style` as keyof CellStyleProperties;
+    const cKey = `border${Upper}Color` as keyof CellStyleProperties;
+    if (spec.visible && spec.width > 0) {
+      (out as Record<string, string>)[wKey as string] = `${spec.width}px`;
+      (out as Record<string, string>)[sKey as string] = spec.style;
+      (out as Record<string, string>)[cKey as string] = spec.color;
+    } else {
+      delete (out as Record<string, unknown>)[wKey as string];
+      delete (out as Record<string, unknown>)[sKey as string];
+      delete (out as Record<string, unknown>)[cKey as string];
+    }
+  }
+  return out;
+}
+
 const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
   style,
   onUpdate,
@@ -257,64 +322,12 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
   };
 
   // ─── Borders ──────────────────────────────────────────────────────────
+  //
+  // Border reads/writes go through the promoted BorderSidesEditor primitive
+  // (see the Borders popover below). `activeSides` is only used for the
+  // trigger button's "on"/"off" styling — indicates whether ANY side has a
+  // width set, which maps to the GcBorderSidesEditor showing visible rows.
   const activeSides = BORDER_SIDES.filter((s) => sideHasBorder(ref, s));
-  const firstActive = activeSides[0];
-  const widthStr = firstActive ? ref[`border${firstActive}Width` as keyof CellStyleProperties] as string | undefined : undefined;
-  const colorStr = firstActive ? ref[`border${firstActive}Color` as keyof CellStyleProperties] as string | undefined : undefined;
-  const styleStr = firstActive ? ref[`border${firstActive}Style` as keyof CellStyleProperties] as string | undefined : undefined;
-  const widthN = widthStr ? parseInt(widthStr, 10) : 1;
-  const colorVal = colorStr ?? '#eaecef';
-  const styleVal = styleStr ?? 'solid';
-
-  const setBordersAll = () => {
-    const patch: Partial<CellStyleProperties> = {};
-    for (const s of BORDER_SIDES) {
-      patch[`border${s}Width` as keyof CellStyleProperties] = `${widthN}px` as never;
-      patch[`border${s}Style` as keyof CellStyleProperties] = styleVal as never;
-      patch[`border${s}Color` as keyof CellStyleProperties] = colorVal as never;
-    }
-    onUpdate(mergeBothThemes(style, patch));
-  };
-
-  const setBordersNone = () => {
-    const patch: Partial<CellStyleProperties> = {};
-    for (const s of BORDER_SIDES) for (const k of keysForSide(s)) (patch as Record<string, undefined>)[k] = undefined;
-    onUpdate(mergeBothThemes(style, patch));
-  };
-
-  const toggleSide = (side: BorderSide) => {
-    const hasIt = sideHasBorder(ref, side);
-    const patch: Partial<CellStyleProperties> = {};
-    if (hasIt) {
-      for (const k of keysForSide(side)) (patch as Record<string, undefined>)[k] = undefined;
-    } else {
-      patch[`border${side}Width` as keyof CellStyleProperties] = `${widthN}px` as never;
-      patch[`border${side}Style` as keyof CellStyleProperties] = styleVal as never;
-      patch[`border${side}Color` as keyof CellStyleProperties] = colorVal as never;
-    }
-    onUpdate(mergeBothThemes(style, patch));
-  };
-
-  const updateBorderWidth = (px: number) => {
-    if (activeSides.length === 0) return;
-    const patch: Partial<CellStyleProperties> = {};
-    for (const s of activeSides) patch[`border${s}Width` as keyof CellStyleProperties] = `${px}px` as never;
-    onUpdate(mergeBothThemes(style, patch));
-  };
-
-  const updateBorderStyle = (v: string) => {
-    if (activeSides.length === 0) return;
-    const patch: Partial<CellStyleProperties> = {};
-    for (const s of activeSides) patch[`border${s}Style` as keyof CellStyleProperties] = v as never;
-    onUpdate(mergeBothThemes(style, patch));
-  };
-
-  const updateBorderColor = (c: string) => {
-    if (activeSides.length === 0) return;
-    const patch: Partial<CellStyleProperties> = {};
-    for (const s of activeSides) patch[`border${s}Color` as keyof CellStyleProperties] = c as never;
-    onUpdate(mergeBothThemes(style, patch));
-  };
 
   const fontSizeLabel = ref.fontSize ? parseInt(ref.fontSize as string, 10) + 'px' : '12px';
 
@@ -414,8 +427,11 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
         </Tooltip>
       </CsTGroup>
 
-      {/* Borders */}
-      <PortalPopover
+      {/* Borders — powered by the promoted BorderSidesEditor (5-row table,
+          per-side thickness/colour/visibility, inline drill-in color picker).
+          Changes fan out to BOTH light and dark themes so the border matches
+          in both modes; tweak if we ever want per-theme borders. */}
+      <GcFormatPopover
         trigger={
           <button
             type="button"
@@ -430,58 +446,16 @@ const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
             <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
           </button>
         }
+        width={260}
       >
-        <div className="p-2 min-w-[200px] flex flex-col gap-2">
-          <div className="grid grid-cols-3 gap-1">
-            <Button variant="ghost" size="sm" className="gc-tbtn h-7 text-[10px]" onMouseDown={(e) => e.preventDefault()} onClick={setBordersAll}>All</Button>
-            <Button variant="ghost" size="sm" className="gc-tbtn h-7 text-[10px]" onMouseDown={(e) => e.preventDefault()} onClick={setBordersNone}>None</Button>
-            <div />
-            <CsTBtn tooltip="Top" active={sideHasBorder(ref, 'Top')} onClick={() => toggleSide('Top')}>
-              <PanelTop size={13} strokeWidth={1.75} />
-            </CsTBtn>
-            <CsTBtn tooltip="Bottom" active={sideHasBorder(ref, 'Bottom')} onClick={() => toggleSide('Bottom')}>
-              <PanelBottom size={13} strokeWidth={1.75} />
-            </CsTBtn>
-            <div />
-            <CsTBtn tooltip="Left" active={sideHasBorder(ref, 'Left')} onClick={() => toggleSide('Left')}>
-              <PanelLeft size={13} strokeWidth={1.75} />
-            </CsTBtn>
-            <CsTBtn tooltip="Right" active={sideHasBorder(ref, 'Right')} onClick={() => toggleSide('Right')}>
-              <PanelRight size={13} strokeWidth={1.75} />
-            </CsTBtn>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <label className="text-[9px] text-muted-foreground w-10">Width</label>
-            <select
-              value={widthN}
-              onChange={(e) => updateBorderWidth(parseInt(e.target.value, 10))}
-              className="text-[10px] bg-card border border-border rounded px-1 py-0.5 flex-1"
-            >
-              {[1, 2, 3].map((w) => <option key={w} value={w}>{w}px</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-1">
-            <label className="text-[9px] text-muted-foreground w-10">Style</label>
-            <select
-              value={styleVal}
-              onChange={(e) => updateBorderStyle(e.target.value)}
-              className="text-[10px] bg-card border border-border rounded px-1 py-0.5 flex-1"
-            >
-              {['solid', 'dashed', 'dotted'].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-1">
-            <label className="text-[9px] text-muted-foreground w-10">Color</label>
-            <ColorPickerPopover
-              value={colorVal}
-              icon={<Square size={11} strokeWidth={2} />}
-              onChange={(c) => { if (c) updateBorderColor(c); }}
-              compact
-            />
-          </div>
-        </div>
-      </PortalPopover>
+        <GcBorderSidesEditor
+          sides={sidesFromCellStyle(ref)}
+          onChange={(next) => onUpdate({
+            light: applySidesToCellStyle(style.light, next),
+            dark: applySidesToCellStyle(style.dark, next),
+          })}
+        />
+      </GcFormatPopover>
 
       {/* Reset */}
       <CsTBtn

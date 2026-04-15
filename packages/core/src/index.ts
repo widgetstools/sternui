@@ -97,6 +97,21 @@ export { cn } from './ui/shadcn/utils';
 export { ToggleGroup, ToggleGroupItem } from './ui/shadcn/toggle-group';
 export { ColorPicker, ColorPickerPopover } from './ui/shadcn/color-picker';
 
+// ─── Format Editor primitives (Figma-inspired, portal-based) ────────────────
+export {
+  FormatPopover,
+  FormatDropdown,
+  FormatColorPicker,
+  FormatSwatch,
+  BorderSidesEditor,
+  registerPopoverRoot,
+  clickIsInsideAnyOpenPopover,
+  EDGE_ORDER,
+  defaultSideSpec,
+  makeDefaultSides,
+} from './ui/format-editor';
+export type { BorderSide, BorderStyle, BorderMode, SideSpec } from './ui/format-editor';
+
 // ─── All Modules (ordered by priority) ───────────────────────────────────────
 import { generalSettingsModule } from './modules/general-settings';
 import { themingModule } from './modules/theming';
