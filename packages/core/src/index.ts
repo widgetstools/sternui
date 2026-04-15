@@ -80,6 +80,7 @@ export { FieldRow, SwitchField, NumberField, TextField, SelectField, ColorField,
 export { GridCustomizerProvider, useGridCustomizerStore, useGridCustomizerCore } from './ui/GridCustomizerContext';
 export { ColumnPickerSingle, ColumnPickerMulti, useGridColumns } from './ui/ColumnPicker';
 export { PropertySection, PropRow, PropSwitch, PropSelect, PropNumber, PropText, PropColor } from './ui/PropertyPanel';
+export { settingsCSS, STYLE_ID } from './ui/styles';
 
 // ─── Shadcn Components ───────────────────────────────────────────────────────
 export { Button, buttonVariants } from './ui/shadcn/button';

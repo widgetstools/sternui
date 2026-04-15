@@ -11,11 +11,12 @@ import {
   toolbarVisibilityModule,
   type AnyModule,
 } from '@grid-customizer/core-v2';
-import { Save, Check } from 'lucide-react';
+import { Save, Check, Settings as SettingsIcon } from 'lucide-react';
 import type { MarketsGridV2Props } from './types';
 import { useMarketsGridV2 } from './useMarketsGridV2';
 import { FiltersToolbar } from './FiltersToolbar';
 import { ProfileSelector } from './ProfileSelector';
+import { SettingsSheet } from './SettingsSheet';
 
 // AG-Grid Enterprise registration is global and idempotent — calling it on
 // every mount is fine, but we guard with a one-shot flag to keep the console
@@ -52,6 +53,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
     showToolbar = true,
     showFiltersToolbar = false,
     showSaveButton = true,
+    showSettingsButton = true,
     showProfileSelector = true,
     autoSaveDebounceMs,
     rowHeight = 36,
@@ -70,7 +72,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
 
   const gridRef = useRef<AgGridReact<TData>>(null);
 
-  const { core, store, columnDefs, onGridReady, onGridPreDestroyed, profiles } = useMarketsGridV2({
+  const { core, store, columnDefs, gridOptions, onGridReady, onGridPreDestroyed, profiles } = useMarketsGridV2({
     gridId,
     rowIdField,
     modules,
@@ -84,6 +86,10 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
   // their click actually persisted (auto-save is silent by design).
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Settings sheet visibility — local UI state, not persisted in the store
+  // (the sheet itself is ephemeral chrome; everything inside it auto-saves).
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleSaveAll = useCallback(async () => {
     try {
@@ -184,12 +190,42 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
               <span>Save</span>
             </button>
           )}
+
+          {showSettingsButton && (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              title="Open settings"
+              data-testid="v2-settings-open-btn"
+              style={{
+                height: 44, padding: '0 10px',
+                background: 'var(--card, #161a1e)',
+                borderBottom: '1px solid var(--border, #313944)',
+                border: 'none', borderLeft: '1px solid var(--border, #313944)',
+                color: 'var(--muted-foreground, #a0a8b4)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
+                fontSize: 11, fontWeight: 500,
+                transition: 'color 150ms',
+              }}
+            >
+              <SettingsIcon size={13} strokeWidth={1.75} />
+              <span>Settings</span>
+            </button>
+          )}
         </div>
       )}
 
       <div style={{ flex: 1 }}>
         <AgGridReact
           ref={gridRef}
+          // Spread the module-pipeline options FIRST so explicit host props
+          // (rowHeight / headerHeight / animateRows / etc.) win on conflict —
+          // preserves v1 ergonomics where the consumer's prop is authoritative
+          // unless a module deliberately wants to override it. Module outputs
+          // that have no host-prop counterpart (rowClassRules, pagination
+          // toggles, rowSelection) flow through unchanged.
+          {...(gridOptions as Record<string, unknown>)}
           theme={theme}
           rowData={rowData}
           columnDefs={columnDefs as never}
@@ -204,6 +240,15 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
           onGridPreDestroyed={onGridPreDestroyed}
         />
       </div>
+
+      <SettingsSheet
+        core={core}
+        store={store}
+        modules={modules}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialModuleId="conditional-styling"
+      />
     </div>
   );
 }

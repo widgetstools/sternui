@@ -53,6 +53,8 @@ export interface MarketsGridV2Props<TData = unknown> {
   /** Show the explicit Save button. With auto-save on, this is a "force
    *  flush + visible confirmation" affordance, not a correctness requirement. */
   showSaveButton?: boolean;
+  /** Show the Settings button (opens the SettingsSheet drawer). Default true. */
+  showSettingsButton?: boolean;
   /** Show the profile selector dropdown. */
   showProfileSelector?: boolean;
   /** Auto-save debounce window. Default 300ms. Set to 0 to write on every

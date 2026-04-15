@@ -8,7 +8,7 @@ import {
   type StorageAdapter,
   type UseProfileManagerResult,
 } from '@grid-customizer/core-v2';
-import type { GridReadyEvent } from 'ag-grid-community';
+import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
 
 /**
  * Boots the core-v2 stack for a single grid:
@@ -37,6 +37,11 @@ export interface UseMarketsGridV2Result {
   store: GridStore;
   /** Transformed column defs — feed straight to `<AgGridReact columnDefs={...}>`. */
   columnDefs: unknown[];
+  /** Aggregated grid options from the module pipeline. The host should spread
+   *  this onto `<AgGridReact>` (under any explicit prop overrides) so module
+   *  outputs like `rowClassRules` (conditional-styling row scope), pagination,
+   *  rowSelection, etc. actually reach AG-Grid. */
+  gridOptions: Partial<GridOptions>;
   /** Pass to `<AgGridReact onGridReady>`. Wires the GridApi into the core
    *  and re-runs the transform pipeline once the api is alive. */
   onGridReady: (event: GridReadyEvent) => void;
@@ -95,6 +100,44 @@ export function useMarketsGridV2(opts: UseMarketsGridV2Options): UseMarketsGridV
     [core, baseColumnDefs, tick],
   );
 
+  // Re-run the grid-options pipeline alongside the column-defs pipeline so
+  // module outputs that live on GridOptions (rowClassRules, pagination toggles,
+  // rowSelection, etc.) flow into AG-Grid the same way structural column
+  // changes do.
+  const gridOptions = useMemo(
+    () => core.transformGridOptions({}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [core, tick],
+  );
+
+  // AG-Grid's React adapter does NOT reactively forward grid-options-shaped
+  // props (rowClassRules, pagination, etc.) to the live grid instance — those
+  // have to be pushed via `api.setGridOption()`. Without this, a row-scope
+  // conditional rule lives in the rendered prop but never actually paints
+  // because AG-Grid's internal state never sees it.
+  //
+  // We then force a row redraw so already-rendered rows in the viewport pick
+  // up the freshly-applied predicate (AG-Grid only EVALUATES rules at row
+  // render time, so existing rows keep stale classes otherwise).
+  //
+  // Cheap when called post-mount; a no-op while the api isn't alive yet.
+  useEffect(() => {
+    const api = core.getGridApi();
+    if (!api) return;
+    try {
+      // Push every key the module pipeline emits — keeps rowClassRules,
+      // pagination toggles, rowSelection etc. in sync without us having to
+      // enumerate which ones are reactive in the React adapter.
+      for (const [key, value] of Object.entries(gridOptions)) {
+        // Cast: `setGridOption` is keyof GridOptions but Object.entries widens.
+        (api.setGridOption as (k: string, v: unknown) => void)(key, value);
+      }
+      api.redrawRows();
+    } catch {
+      /* ignore — happens during teardown / hot-reload windows */
+    }
+  }, [core, gridOptions]);
+
   // ─── Grid lifecycle ──────────────────────────────────────────────────────
 
   const onGridReady = (event: GridReadyEvent) => {
@@ -108,5 +151,5 @@ export function useMarketsGridV2(opts: UseMarketsGridV2Options): UseMarketsGridV
     core.onGridDestroy();
   };
 
-  return { core, store, columnDefs, onGridReady, onGridPreDestroyed, profiles };
+  return { core, store, columnDefs, gridOptions, onGridReady, onGridPreDestroyed, profiles };
 }

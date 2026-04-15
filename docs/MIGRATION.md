@@ -35,12 +35,12 @@ v1's `module.dependencies[]` field was declared but never enforced. v2's `core.r
 |------------------------|-------|-------|
 | general-settings       | ✓     | ✓     |
 | column-customization   | ✓     | ✓     |
-| conditional-styling    | ✓     | ✓     |
+| conditional-styling    | ✓     | ✓ (engine + SettingsPanel UI as of v2.1) |
 | saved-filters          | ✓     | ✓     |
 | toolbar-visibility     | ✓     | ✓ (state only; pills/stacked UI pending) |
-| cell-flashing          | ✓     | deferred to v2.1 |
-| calculated-columns     | ✓     | deferred to v2.1 |
-| column-groups          | ✓     | deferred to v2.2 |
+| cell-flashing          | ✓     | deferred to v2.2 |
+| calculated-columns     | ✓     | in progress (v2.1 — after column-groups) |
+| column-groups          | ✓     | in progress (v2.1 — next port) |
 | column-templates       | ✓     | deferred to v2.1 |
 | data-management        | ✓     | deferred to v2.2 |
 | editing                | ✓     | deferred to v2.2 |
@@ -92,6 +92,10 @@ The prop surface is a **strict subset** of v1's — these props are identical in
 - `rowHeight`, `headerHeight`, `animateRows`, `sideBar`, `statusBar`, `defaultColDef`
 - `onGridReady`, `className`, `style`, `toolbarExtras`
 
+New in v2.1:
+
+- `showSettingsButton?: boolean` (default `true`) — renders a Settings toolbar button that opens the `SettingsSheet` drawer. The drawer auto-discovers any module exposing a `SettingsPanel` slot and renders it in a left-rail nav. As of v2.1 only `conditional-styling` ships a SettingsPanel; subsequent module ports register more.
+
 Removed or renamed:
 
 | v1 prop          | v2 equivalent                                    |
@@ -116,3 +120,21 @@ Specs that targeted v1's DOM contract continue to work unchanged against v1. For
 
 ## Rollback
 v1 remains the default in the demo app (`/`). To rollback a v2 consumer app that went to prod, revert the import change; no data migration is needed since v1 and v2 use different IndexedDB databases.
+
+---
+
+## v2.1 — Conditional Styling SettingsPanel UI
+
+v2.0 shipped the conditional-styling **engine** (rule evaluation, CSS injection, AG-Grid `cellClassRules` wiring) but no UI to manage rules. v2.1 closes that gap.
+
+### What's new
+- **`SettingsSheet`** (`@grid-customizer/markets-grid-v2`) — a generic drawer host that auto-discovers any module exposing a `SettingsPanel` slot and renders them in a left-rail nav. Auto-save means there is no Apply / Reset — just a Done button (and ESC / overlay click) to close.
+- **`ConditionalStylingPanel`** (`@grid-customizer/core-v2`) — port of the v1 panel adapted to v2's `useModuleState(store, 'conditional-styling')` API. Adds rules, edits expression / scope / target columns / appearance, deletes rules. Reuses v1's `PropertySection`, `PropRow`, `PropColor`, `Button`, `Input`, `Switch` primitives via the existing v1 core dep.
+- **`GridProvider` / `useGridStore` / `useGridCore`** (`@grid-customizer/core-v2`) — context wrappers so module SettingsPanel components can reach the live store + core without prop-drilling.
+- **Settings toolbar button** (testid `v2-settings-open-btn`) — togglable via `showSettingsButton` prop (default `true`).
+
+### Authoring a SettingsPanel for a v2 module
+Add a `SettingsPanel: ComponentType<SettingsPanelProps>` field to your module's definition. The component receives `{ gridId }` and reads/writes module state via `useModuleState(store, moduleId)` from inside the `<GridProvider>` that `SettingsSheet` mounts. See `packages/core-v2/src/modules/conditional-styling/ConditionalStylingPanel.tsx` as the reference implementation.
+
+### E2E
+`e2e/v2-conditional-styling.spec.ts` covers: drawer reachability, add-rule + paint-cells + survive-reload (auto-save, no Save All click), disable-rule removes styling without deleting, delete-rule removes from panel and grid. 4 tests, all green.

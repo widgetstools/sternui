@@ -7,6 +7,7 @@ import type {
 import { ExpressionEngine } from '@grid-customizer/core';
 import type { AnyColDef, Module } from '../../core/types';
 import { CssInjector } from './cssInjector';
+import { ConditionalStylingPanel } from './ConditionalStylingPanel';
 import {
   INITIAL_CONDITIONAL_STYLING,
   type CellStyleProperties,
@@ -249,6 +250,8 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     const d = raw as Partial<ConditionalStylingState>;
     return { rules: Array.isArray(d.rules) ? d.rules : [] };
   },
+
+  SettingsPanel: ConditionalStylingPanel,
 };
 
 // ─── Test-only escape hatch ────────────────────────────────────────────────

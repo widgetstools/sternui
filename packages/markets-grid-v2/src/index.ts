@@ -8,6 +8,7 @@
 export { MarketsGrid, DEFAULT_V2_MODULES } from './MarketsGrid';
 export { FiltersToolbar } from './FiltersToolbar';
 export { ProfileSelector } from './ProfileSelector';
+export { SettingsSheet } from './SettingsSheet';
 export { useMarketsGridV2 } from './useMarketsGridV2';
 
 export type { MarketsGridV2Props, SavedFilter } from './types';
