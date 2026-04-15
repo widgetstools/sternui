@@ -26,6 +26,15 @@ export interface ColumnAssignment {
   headerStyleOverrides?: CellStyleOverrides;
   valueFormatterTemplate?: ValueFormatterTemplate;
   templateIds?: string[];                         // order = application order; later wins
+
+  // ─── New in schemaVersion 3 (sub-project #2) ─────────────────────────────
+  // Direct editor / renderer overrides. Resolved by AG-Grid's component
+  // registry by name — consumers are responsible for registering components
+  // via `GridOptions.components`. `cellEditorParams` is treated as opaque
+  // and replaced wholesale on template merge (no deep merge).
+  cellEditorName?: string;
+  cellEditorParams?: Record<string, unknown>;
+  cellRendererName?: string;
 }
 
 export interface ColumnCustomizationState {

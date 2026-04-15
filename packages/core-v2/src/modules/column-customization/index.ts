@@ -58,6 +58,9 @@ function applyAssignments(
     if (a.valueFormatterTemplate !== undefined) {
       merged.valueFormatter = valueFormatterFromTemplate(a.valueFormatterTemplate);
     }
+    if (a.cellEditorName !== undefined) merged.cellEditor = a.cellEditorName;
+    if (a.cellEditorParams !== undefined) merged.cellEditorParams = a.cellEditorParams;
+    if (a.cellRendererName !== undefined) merged.cellRenderer = a.cellRendererName;
     // `a.templateIds` is intentionally not wired here — column-templates resolution
     // lives in the column-templates module (sub-project #2). Field is storage-only in v2.1.
     return merged;
@@ -77,7 +80,7 @@ function applyAssignments(
 export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: 'column-customization',
   name: 'Columns',
-  schemaVersion: 2,
+  schemaVersion: 3,                          // bumped from 2
   // After general-settings (which sets defaultColDef) so per-column overrides
   // win when they conflict with the grid-wide defaults.
   priority: 10,

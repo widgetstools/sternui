@@ -10,7 +10,7 @@ import type { AnyColDef } from '../../core/types';
 describe('column-customization module — metadata', () => {
   it('declares schemaVersion and stable id', () => {
     expect(columnCustomizationModule.id).toBe('column-customization');
-    expect(columnCustomizationModule.schemaVersion).toBe(2);
+    expect(columnCustomizationModule.schemaVersion).toBe(3);
     // After general-settings (priority 0) so per-column overrides win.
     expect(columnCustomizationModule.priority).toBeGreaterThan(0);
   });
@@ -21,7 +21,15 @@ describe('column-customization module — metadata', () => {
 });
 
 describe('column-customization module — transformColumnDefs', () => {
-  const ctx = {} as never;
+  // Stub GridContext for transform tests. `getModuleState` returns an empty
+  // templates state so the walker's resolver call is a no-op until tests opt in
+  // by overriding the stub via `makeCtx({...})` (added in Task 7).
+  const ctx = {
+    gridId: 'test',
+    gridApi: {} as never,
+    getRowId: () => '0',
+    getModuleState: <T,>(_id: string) => ({ templates: {}, typeDefaults: {} } as T),
+  } as never;
 
   const baseDefs: AnyColDef[] = [
     { field: 'symbol' } satisfies ColDef,
@@ -230,6 +238,36 @@ describe('column-customization module — transformColumnDefs', () => {
     };
     const out = columnCustomizationModule.transformColumnDefs!(defsWithFormatter, state, ctx) as ColDef[];
     expect(out[0].valueFormatter).toBe('value + " original"');
+  });
+
+  it('emits colDef.cellEditor when cellEditorName is set on the assignment', () => {
+    const state: ColumnCustomizationState = {
+      assignments: { symbol: { colId: 'symbol', cellEditorName: 'agSelectCellEditor' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(out[0].cellEditor).toBe('agSelectCellEditor');
+  });
+
+  it('emits colDef.cellEditorParams when cellEditorParams is set on the assignment', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          cellEditorName: 'agSelectCellEditor',
+          cellEditorParams: { values: ['A', 'B'] },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(out[0].cellEditorParams).toEqual({ values: ['A', 'B'] });
+  });
+
+  it('emits colDef.cellRenderer when cellRendererName is set on the assignment', () => {
+    const state: ColumnCustomizationState = {
+      assignments: { symbol: { colId: 'symbol', cellRendererName: 'sideRenderer' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(out[0].cellRenderer).toBe('sideRenderer');
   });
 });
 

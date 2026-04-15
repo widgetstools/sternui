@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { columnCustomizationModule, INITIAL_COLUMN_CUSTOMIZATION } from './index';
 import type { ColumnCustomizationState } from './state';
 
-describe('column-customization — migrate (schemaVersion 1 → 2)', () => {
-  it('passes a v1 snapshot through unchanged (new fields default to undefined)', () => {
+describe('column-customization — migrate (schemaVersion 1 → 3)', () => {
+  it('passes a v1 snapshot through unchanged (new v2 + v3 fields default to undefined)', () => {
     const v1State = {
       assignments: {
         symbol: { colId: 'symbol', headerName: 'Ticker', initialWidth: 120 },
@@ -16,6 +16,10 @@ describe('column-customization — migrate (schemaVersion 1 → 2)', () => {
     expect(out.assignments.symbol.headerStyleOverrides).toBeUndefined();
     expect(out.assignments.symbol.valueFormatterTemplate).toBeUndefined();
     expect(out.assignments.symbol.templateIds).toBeUndefined();
+    // None of the new v3 fields should be auto-populated either.
+    expect(out.assignments.symbol.cellEditorName).toBeUndefined();
+    expect(out.assignments.symbol.cellEditorParams).toBeUndefined();
+    expect(out.assignments.symbol.cellRendererName).toBeUndefined();
   });
 
   it('falls back to initial state with a warning for unknown older versions', () => {
@@ -38,5 +42,22 @@ describe('column-customization — migrate (schemaVersion 1 → 2)', () => {
       expect.stringContaining('malformed v1 snapshot'),
     );
     warnSpy.mockRestore();
+  });
+});
+
+describe('column-customization — migrate from v2 (no backward compat by design)', () => {
+  it('v2 snapshots hit the "cannot migrate from schemaVersion 2" warning + fall back to initial', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const v2 = { assignments: { symbol: { colId: 'symbol', headerName: 'Ticker' } } };
+      const out = columnCustomizationModule.migrate!(v2, 2) as ColumnCustomizationState;
+      expect(out).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('column-customization'),
+        expect.stringContaining('cannot migrate from schemaVersion 2'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
