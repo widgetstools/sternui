@@ -818,6 +818,15 @@ the structured types (`BorderSpec`, `CellStyleOverrides`, `ValueFormatterTemplat
 `PresetId`) from the package root so the toolbar can reach them without
 deep-importing module internals.
 
+**Template-apply UX deviation from v1 (intentional):** v1's "apply template"
+appended the new id to the existing chain (`templateIds: [...existing, tplId]`).
+v2's toolbar replaces the chain instead (`templateIds: [tplId]`). Rationale:
+v2's resolver supports stacking, but exposing that through a single dropdown
+click is non-obvious to users — clicking "Bold" then "BlueAccent" should result
+in the column showing BlueAccent, not the union of both. Templates that should
+compose are still applied programmatically by setting `templateIds: [a, b]`
+directly through `setModuleState`.
+
 ### SettingsSheet + ConditionalStylingPanel (v2 sub-project #2.5)
 
 - New `SettingsSheet` drawer in `@grid-customizer/markets-grid-v2` — auto-discovers
