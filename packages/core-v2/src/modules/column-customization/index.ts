@@ -64,12 +64,29 @@ function applyAssignments(
 export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: 'column-customization',
   name: 'Columns',
-  schemaVersion: 1,
+  schemaVersion: 2,
   // After general-settings (which sets defaultColDef) so per-column overrides
   // win when they conflict with the grid-wide defaults.
   priority: 10,
 
   getInitialState: () => ({ ...INITIAL_COLUMN_CUSTOMIZATION }),
+
+  migrate(raw, fromVersion) {
+    if (fromVersion === 1) {
+      // No field renames between v1 and v2; new fields are all optional and
+      // default to undefined. Tolerate non-object inputs (defensive — core
+      // calls migrate with whatever was on disk).
+      if (!raw || typeof raw !== 'object') {
+        return { ...INITIAL_COLUMN_CUSTOMIZATION };
+      }
+      return raw as ColumnCustomizationState;
+    }
+    console.warn(
+      `[core-v2] column-customization`,
+      `cannot migrate from schemaVersion ${fromVersion}; falling back to initial state.`,
+    );
+    return { ...INITIAL_COLUMN_CUSTOMIZATION };
+  },
 
   transformColumnDefs(defs, state) {
     if (Object.keys(state.assignments).length === 0) return defs;

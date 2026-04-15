@@ -10,7 +10,7 @@ import type { AnyColDef } from '../../core/types';
 describe('column-customization module — metadata', () => {
   it('declares schemaVersion and stable id', () => {
     expect(columnCustomizationModule.id).toBe('column-customization');
-    expect(columnCustomizationModule.schemaVersion).toBe(1);
+    expect(columnCustomizationModule.schemaVersion).toBe(2);
     // After general-settings (priority 0) so per-column overrides win.
     expect(columnCustomizationModule.priority).toBeGreaterThan(0);
   });
