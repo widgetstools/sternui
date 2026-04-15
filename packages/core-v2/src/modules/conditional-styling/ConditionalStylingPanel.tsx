@@ -99,7 +99,21 @@ const ColumnPickerMulti = memo(function ColumnPickerMulti({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 22 }}>
         {value.length === 0 ? (
-          <span style={{ fontSize: 10, color: 'var(--gc-text-dim)' }}>No columns selected</span>
+          <span
+            role="alert"
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              color: 'var(--gc-warning, #d97706)',
+              background: 'var(--gc-warning-bg, rgba(217,119,6,0.08))',
+              border: '1px solid var(--gc-warning, #d97706)',
+              borderRadius: 3,
+              padding: '2px 6px',
+            }}
+            data-testid="cs-no-columns-warning"
+          >
+            No columns selected — rule won't apply until you add at least one
+          </span>
         ) : (
           value.map((colId) => {
             const col = cols.find((c) => c.colId === colId);
@@ -318,13 +332,27 @@ export function ConditionalStylingPanel(_props: SettingsPanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const addRule = useCallback(() => {
+    // Default to `row` scope so the rule applies immediately as the user tweaks
+    // the style controls — v1 defaulted to `cell` with an empty columns array,
+    // which silently did nothing until the user found and used the Target
+    // Columns picker. Users hitting that cliff reported "I set styles but
+    // nothing happened". Row scope applies visibly on first tweak; anyone who
+    // needs column-scoped styling switches the Scope dropdown and gets the
+    // explicit "No columns selected — rule won't apply until you add columns"
+    // warning below.
+    // Default expression `true` so the rule applies to everything immediately
+    // and the user sees their style changes take effect. For cell scope the
+    // engine binds `x` to the cell value; for row scope it binds `x` to null
+    // — so v1's default of `x > 0` silently matched nothing when users
+    // switched to row scope. `true` works across both and is the obvious
+    // "everything matches" starting point.
     const newRule: ConditionalRule = {
       id: generateId(),
       name: 'New Rule',
       enabled: true,
       priority: state.rules.length,
-      scope: { type: 'cell', columns: [] },
-      expression: 'x > 0',
+      scope: { type: 'row' },
+      expression: 'true',
       style: {
         light: { backgroundColor: 'rgba(16,185,129,0.12)' },
         dark: { backgroundColor: 'rgba(33,184,164,0.15)' },

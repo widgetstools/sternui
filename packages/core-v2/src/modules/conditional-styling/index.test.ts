@@ -125,9 +125,15 @@ describe('conditional-styling module — transformColumnDefs', () => {
     const styleEl = document.head.querySelector('style[data-gc-module="conditional-styling"]');
     expect(styleEl).not.toBeNull();
     expect(styleEl!.textContent).toContain('.gc-rule-r1');
-    // Light + dark selectors.
-    expect(styleEl!.textContent).toContain(':root:not(.dark) .gc-rule-r1');
+    // Light selector excludes both `.dark` class AND `[data-theme="dark"]`
+    // so the rule applies regardless of which theme-signalling convention
+    // the host app uses.
+    expect(styleEl!.textContent).toContain(
+      ':root:not(.dark):not([data-theme="dark"]) .gc-rule-r1',
+    );
+    // Dark selector matches both conventions.
     expect(styleEl!.textContent).toContain('.dark .gc-rule-r1');
+    expect(styleEl!.textContent).toContain('[data-theme="dark"] .gc-rule-r1');
     expect(styleEl!.textContent).toContain('background-color: yellow');
     expect(styleEl!.textContent).toContain('background-color: darkred');
   });

@@ -71,15 +71,31 @@ function styleToCSS(style: CellStyleProperties): string {
  * Build the CSS text for one rule. Two selectors so the dark-mode swap is a
  * pure CSS event (no JS recompute) — this is why we inject CSS rather than
  * setting inline `cellStyle`.
+ *
+ * We match both theme-signalling conventions a host app might use:
+ *   - `.dark` class on the root element (Tailwind-style)
+ *   - `[data-theme="dark"]` attribute on the root (CSS-variables style, what
+ *     the demo app happens to use)
+ * Hitting only one of these was the v2-RC bug where user-defined rules got
+ * their `.gc-rule-<id>` class applied to rows but the matching CSS never
+ * took effect because the selector didn't match the demo's theme signal.
  */
 function buildCssText(ruleId: string, light: CellStyleProperties, dark: CellStyleProperties): string {
   const lightProps = styleToCSS(light);
   const darkProps = styleToCSS(dark);
   const lines: string[] = [];
-  if (lightProps) lines.push(`:root:not(.dark) .gc-rule-${ruleId} { ${lightProps} }`);
-  if (darkProps) lines.push(`.dark .gc-rule-${ruleId} { ${darkProps} }`);
+  if (lightProps) {
+    lines.push(
+      `:root:not(.dark):not([data-theme="dark"]) .gc-rule-${ruleId} { ${lightProps} }`,
+    );
+  }
+  if (darkProps) {
+    lines.push(
+      `.dark .gc-rule-${ruleId}, [data-theme="dark"] .gc-rule-${ruleId} { ${darkProps} }`,
+    );
+  }
   // Fallback when only light is configured — still shows up outside the
-  // theme system (e.g. consumers without a `.dark` class on root).
+  // theme system (e.g. consumers without a `.dark` class or data-theme attr).
   if (lightProps && !darkProps) lines.push(`.gc-rule-${ruleId} { ${lightProps} }`);
   return lines.join('\n');
 }
