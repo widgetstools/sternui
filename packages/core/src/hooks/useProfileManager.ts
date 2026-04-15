@@ -5,6 +5,19 @@ import type { GridCustomizerCore } from '../core/GridCustomizerCore';
 import type { GridStore } from '../stores/createGridStore';
 import { CURRENT_SCHEMA_VERSION } from '../types/profile';
 
+/**
+ * Reserved id for the built-in "Default" profile. Every grid is guaranteed to
+ * have one of these — it is auto-seeded on first load and protected from
+ * deletion. Acts as the always-available fallback when no other profile is
+ * active or marked as user-default.
+ */
+export const RESERVED_DEFAULT_PROFILE_ID = '__default__';
+export const RESERVED_DEFAULT_PROFILE_NAME = 'Default';
+
+export function isReservedDefaultProfile(profileId: string | null | undefined): boolean {
+  return profileId === RESERVED_DEFAULT_PROFILE_ID;
+}
+
 export interface UseProfileManagerOptions {
   gridId: string;
   core: GridCustomizerCore;
@@ -17,10 +30,33 @@ export function useProfileManager(options: UseProfileManagerOptions) {
   const [profiles, setProfiles] = useState<ProfileMeta[]>([]);
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Ensure the built-in Default profile exists for this grid. Idempotent —
+   * a no-op once seeded. Captures the current (initial) module state at the
+   * time of seeding so loading Default returns the user to a clean baseline.
+   */
+  const ensureDefaultProfile = useCallback(async () => {
+    const existing = await storage.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+    if (existing) return;
+    const moduleStates = core.serializeAll();
+    const snapshot: ProfileSnapshot = {
+      version: CURRENT_SCHEMA_VERSION,
+      gridId,
+      name: RESERVED_DEFAULT_PROFILE_NAME,
+      description: 'Built-in default profile (cannot be deleted)',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      agGridState: null,
+      modules: moduleStates,
+    };
+    await storage.saveProfile(gridId, RESERVED_DEFAULT_PROFILE_ID, snapshot);
+  }, [storage, gridId, core]);
+
   const refresh = useCallback(async () => {
-    const list = await storage.list(gridId);
+    await ensureDefaultProfile();
+    const list = await storage.listProfiles(gridId);
     setProfiles(list);
-  }, [storage, gridId]);
+  }, [storage, gridId, ensureDefaultProfile]);
 
   useEffect(() => {
     refresh();
@@ -46,7 +82,7 @@ export function useProfileManager(options: UseProfileManagerOptions) {
           modules: moduleStates,
         };
 
-        await storage.save(profileId, snapshot);
+        await storage.saveProfile(gridId, profileId, snapshot);
         store.getState().setActiveProfile(profileId);
         store.getState().setDirty(false);
         core.eventBus.emit('profile:saved', { gridId, profileId });
@@ -63,7 +99,7 @@ export function useProfileManager(options: UseProfileManagerOptions) {
     async (profileId: string) => {
       setLoading(true);
       try {
-        const snapshot = await storage.load(profileId);
+        const snapshot = await storage.loadProfile(gridId, profileId);
         if (!snapshot) return;
 
         core.deserializeAll(snapshot.modules);
@@ -86,9 +122,14 @@ export function useProfileManager(options: UseProfileManagerOptions) {
 
   const remove = useCallback(
     async (profileId: string) => {
-      await storage.delete(profileId);
+      // The built-in Default profile is permanent — silently no-op so callers
+      // (UI delete buttons, programmatic cleanup) don't crash.
+      if (isReservedDefaultProfile(profileId)) return;
+      await storage.deleteProfile(gridId, profileId);
       if (store.getState().activeProfileId === profileId) {
-        store.getState().setActiveProfile(null);
+        // Fall back to the always-present Default rather than leaving the user
+        // with no profile selected — keeps the grid in a known-good state.
+        store.getState().setActiveProfile(RESERVED_DEFAULT_PROFILE_ID);
       }
       core.eventBus.emit('profile:deleted', { gridId, profileId });
       await refresh();
@@ -107,30 +148,87 @@ export function useProfileManager(options: UseProfileManagerOptions) {
 
   const exportProfile = useCallback(
     async (profileId: string) => {
-      return storage.exportJson(profileId);
+      return storage.exportProfile(gridId, profileId);
     },
-    [storage],
+    [storage, gridId],
   );
 
   const importProfile = useCallback(
     async (json: string) => {
-      const profileId = await storage.importJson(json);
+      const profileId = await storage.importProfile(gridId, json);
       await refresh();
       return profileId;
     },
-    [storage, refresh],
+    [storage, gridId, refresh],
   );
 
   const rename = useCallback(
     async (profileId: string, newName: string) => {
-      const snapshot = await storage.load(profileId);
+      const snapshot = await storage.loadProfile(gridId, profileId);
       if (!snapshot) return;
       snapshot.name = newName;
       snapshot.updatedAt = Date.now();
-      await storage.save(profileId, snapshot);
+      await storage.saveProfile(gridId, profileId, snapshot);
       await refresh();
     },
-    [storage, refresh],
+    [storage, gridId, refresh],
+  );
+
+  /**
+   * Overwrite an existing profile's snapshot with the current grid state.
+   * Used by the global Save button to push live edits into the active profile.
+   */
+  const update = useCallback(
+    async (profileId: string) => {
+      setLoading(true);
+      try {
+        const existing = await storage.loadProfile(gridId, profileId);
+        if (!existing) return false;
+
+        const api = core.getGridApi();
+        const agGridState = api ? (api as any).getState?.() ?? null : null;
+        const moduleStates = core.serializeAll();
+
+        const snapshot: ProfileSnapshot = {
+          ...existing,
+          updatedAt: Date.now(),
+          agGridState,
+          modules: moduleStates,
+        };
+
+        await storage.saveProfile(gridId, profileId, snapshot);
+        store.getState().setDirty(false);
+        core.eventBus.emit('profile:saved', { gridId, profileId });
+        await refresh();
+        return true;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [gridId, core, store, storage, refresh],
+  );
+
+  // ─── Whole-grid operations ──────────────────────────────────────────────
+
+  const exportGridConfig = useCallback(
+    async () => storage.exportGridConfig(gridId),
+    [storage, gridId],
+  );
+
+  const importGridConfig = useCallback(
+    async (json: string, asGridId?: string) => {
+      const id = await storage.importGridConfig(json, asGridId);
+      if (!asGridId || asGridId === gridId) await refresh();
+      return id;
+    },
+    [storage, gridId, refresh],
+  );
+
+  const cloneGridConfigTo = useCallback(
+    async (destGridId: string) => {
+      await storage.cloneGridConfig(gridId, destGridId);
+    },
+    [storage, gridId],
   );
 
   return {
@@ -144,5 +242,9 @@ export function useProfileManager(options: UseProfileManagerOptions) {
     exportProfile,
     importProfile,
     refresh,
+    update,
+    exportGridConfig,
+    importGridConfig,
+    cloneGridConfigTo,
   };
 }

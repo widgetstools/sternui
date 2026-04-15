@@ -1,95 +1,101 @@
 import Dexie from 'dexie';
-import type { ProfileSnapshot, ProfileMeta } from '../types/profile';
-import type { StorageAdapter } from './StorageAdapter';
-import { migrateSnapshot } from './migrations';
+import type { ProfileSnapshot, GridConfig } from '../types/profile';
+import { CURRENT_SCHEMA_VERSION } from '../types/profile';
+import { BaseStorageAdapter } from './BaseStorageAdapter';
 
-interface ProfileRecord extends ProfileSnapshot {
-  id: string;
+interface GridConfigRecord extends GridConfig {
+  // primary key is `gridId` (already on GridConfig)
 }
 
-interface DefaultRecord {
+// Legacy v1 shape — kept solely for one-time migration
+interface LegacyProfileRecord extends ProfileSnapshot {
+  id: string;
+}
+interface LegacyDefaultRecord {
   gridId: string;
   profileId: string;
 }
 
 class GridCustomizerDB extends Dexie {
-  profiles!: Dexie.Table<ProfileRecord, string>;
-  defaults!: Dexie.Table<DefaultRecord, string>;
+  // v2: single document per grid
+  gridConfigs!: Dexie.Table<GridConfigRecord, string>;
+  // v1 tables — left in the schema only so migration can read from them
+  profiles!: Dexie.Table<LegacyProfileRecord, string>;
+  defaults!: Dexie.Table<LegacyDefaultRecord, string>;
 
   constructor() {
     super('GridCustomizerDB');
+
+    // v1: legacy per-profile schema (existing data)
     this.version(1).stores({
       profiles: 'id, gridId, name, updatedAt',
       defaults: 'gridId',
     });
+
+    // v2: per-grid schema. Migrate old per-profile rows into a single
+    // GridConfig per gridId, then leave the old tables in place (Dexie
+    // can't drop them mid-migration without data loss for older clients).
+    this.version(2)
+      .stores({
+        gridConfigs: 'gridId, updatedAt',
+        profiles: 'id, gridId, name, updatedAt',
+        defaults: 'gridId',
+      })
+      .upgrade(async (tx) => {
+        const oldProfiles = await tx.table<LegacyProfileRecord>('profiles').toArray();
+        const oldDefaults = await tx.table<LegacyDefaultRecord>('defaults').toArray();
+        const defaultMap = new Map(oldDefaults.map((d) => [d.gridId, d.profileId]));
+
+        // Bucket profiles by gridId
+        const buckets = new Map<string, GridConfigRecord>();
+        for (const rec of oldProfiles) {
+          const gridId = rec.gridId;
+          let bucket = buckets.get(gridId);
+          if (!bucket) {
+            bucket = {
+              version: CURRENT_SCHEMA_VERSION,
+              gridId,
+              defaultProfileId: defaultMap.get(gridId) ?? null,
+              profiles: {},
+              updatedAt: Date.now(),
+            };
+            buckets.set(gridId, bucket);
+          }
+          // Strip the synthetic `id` field — it lived on the row, not the snapshot
+          const { id, ...snapshot } = rec;
+          bucket.profiles[id] = snapshot as ProfileSnapshot;
+        }
+
+        if (buckets.size > 0) {
+          await tx.table<GridConfigRecord>('gridConfigs').bulkPut(Array.from(buckets.values()));
+        }
+      });
   }
 }
 
-export class DexieAdapter implements StorageAdapter {
+export class DexieAdapter extends BaseStorageAdapter {
   private db: GridCustomizerDB;
 
   constructor() {
+    super();
     this.db = new GridCustomizerDB();
   }
 
-  async save(profileId: string, snapshot: ProfileSnapshot): Promise<void> {
-    await this.db.profiles.put({ ...snapshot, id: profileId });
+  async loadGridConfig(gridId: string): Promise<GridConfig | null> {
+    const rec = await this.db.gridConfigs.get(gridId);
+    return rec ?? null;
   }
 
-  async load(profileId: string): Promise<ProfileSnapshot | null> {
-    const record = await this.db.profiles.get(profileId);
-    if (!record) return null;
-    return migrateSnapshot(record);
+  async saveGridConfig(config: GridConfig): Promise<void> {
+    await this.db.gridConfigs.put(config);
   }
 
-  async list(gridId?: string): Promise<ProfileMeta[]> {
-    let collection = this.db.profiles.orderBy('updatedAt').reverse();
-    if (gridId) {
-      collection = this.db.profiles.where('gridId').equals(gridId).reverse();
-    }
-    const records = await collection.toArray();
-    const defaults = await this.db.defaults.toArray();
-    const defaultMap = new Map(defaults.map((d) => [d.gridId, d.profileId]));
-
-    return records.map((r) => ({
-      id: r.id,
-      gridId: r.gridId,
-      name: r.name,
-      description: r.description,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-      isDefault: defaultMap.get(r.gridId) === r.id,
-    }));
+  async deleteGridConfig(gridId: string): Promise<void> {
+    await this.db.gridConfigs.delete(gridId);
   }
 
-  async delete(profileId: string): Promise<void> {
-    await this.db.profiles.delete(profileId);
-  }
-
-  async getDefault(gridId: string): Promise<string | null> {
-    const record = await this.db.defaults.get(gridId);
-    return record?.profileId ?? null;
-  }
-
-  async setDefault(gridId: string, profileId: string | null): Promise<void> {
-    if (profileId === null) {
-      await this.db.defaults.delete(gridId);
-    } else {
-      await this.db.defaults.put({ gridId, profileId });
-    }
-  }
-
-  async exportJson(profileId: string): Promise<string> {
-    const snapshot = await this.load(profileId);
-    if (!snapshot) throw new Error(`Profile not found: ${profileId}`);
-    return JSON.stringify(snapshot, null, 2);
-  }
-
-  async importJson(json: string): Promise<string> {
-    const parsed = JSON.parse(json) as ProfileSnapshot;
-    const migrated = migrateSnapshot(parsed);
-    const profileId = `imported-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await this.save(profileId, migrated);
-    return profileId;
+  /** List every grid that has a config record — useful for clone UIs. */
+  async listGridIds(): Promise<string[]> {
+    return this.db.gridConfigs.orderBy('updatedAt').reverse().primaryKeys();
   }
 }

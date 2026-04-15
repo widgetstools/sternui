@@ -19,20 +19,20 @@ function generateId(): string {
 
 const S: Record<string, React.CSSProperties> = {
   panel: { background: 'var(--gc-surface)', borderRadius: 'var(--gc-radius)', border: '1px solid var(--gc-border)', overflow: 'hidden', marginTop: 8 },
-  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', cursor: 'pointer', userSelect: 'none' as const, borderBottom: '1px solid var(--gc-border)' },
-  headerLabel: { fontSize: 10, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--gc-text-muted)', display: 'flex', alignItems: 'center', gap: 6 },
+  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', cursor: 'pointer', userSelect: 'none' as const, borderBottom: '1px solid var(--gc-border)' },
+  headerLabel: { fontSize: 9, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', color: 'var(--gc-text-muted)', display: 'flex', alignItems: 'center', gap: 6 },
   body: { padding: '8px 10px' },
   row: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
-  label: { fontSize: 10, color: 'var(--gc-text-dim)', width: 28, flexShrink: 0, textAlign: 'right' as const },
-  segmented: { display: 'flex', height: 26, borderRadius: 5, border: '1px solid var(--gc-border)', overflow: 'hidden' },
+  label: { fontSize: 9, color: 'var(--gc-text-dim)', width: 28, flexShrink: 0, textAlign: 'right' as const },
+  segmented: { display: 'flex', height: 28, borderRadius: 4, border: '1px solid var(--gc-border)', overflow: 'hidden' },
   segBtn: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gc-text-dim)', fontSize: 11, padding: '0 6px', transition: 'all 100ms', fontFamily: 'var(--gc-font)' },
   segBtnActive: { background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)' },
-  miniInput: { height: 24, flex: 1, minWidth: 0, padding: '0 6px', background: 'var(--gc-bg)', border: '1px solid var(--gc-border)', borderRadius: 4, color: 'var(--gc-text)', fontSize: 11, fontFamily: 'var(--gc-font)', outline: 'none' },
+  miniInput: { height: 28, flex: 1, minWidth: 0, padding: '6px 10px', background: 'var(--gc-bg)', border: '1px solid var(--gc-border)', borderRadius: 3, color: 'var(--gc-text)', fontSize: 11, fontFamily: 'var(--gc-font-mono)', outline: 'none' },
   colorRow: { display: 'flex', alignItems: 'center', gap: 6, height: 28 },
-  colorWell: { width: 24, height: 24, borderRadius: 5, border: '1px solid var(--gc-border)', cursor: 'pointer', position: 'relative' as const, overflow: 'hidden', flexShrink: 0 },
+  colorWell: { width: 24, height: 24, borderRadius: 4, border: '1px solid var(--gc-border)', cursor: 'pointer', position: 'relative' as const, overflow: 'hidden', flexShrink: 0 },
   colorInput: { position: 'absolute' as const, inset: -4, width: 32, height: 32, cursor: 'pointer', opacity: 0 },
   divider: { height: 1, background: 'var(--gc-border)', margin: '6px 0' },
-  sectionLabel: { fontSize: 9, fontWeight: 600, color: 'var(--gc-text-dim)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 6, marginTop: 2 },
+  sectionLabel: { fontSize: 9, fontWeight: 600, color: 'var(--gc-text-dim)', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 6, marginTop: 2 },
   borderRow: { display: 'grid', gridTemplateColumns: '28px 24px 1fr 60px', gap: 4, alignItems: 'center', marginBottom: 4 },
 };
 
@@ -45,7 +45,7 @@ function InlineColor({ value, onChange, label }: { value: string | undefined; on
       <div style={{ ...S.colorWell, background: value || 'transparent' }}>
         <input type="color" style={S.colorInput} value={value || '#000000'} onChange={(e) => onChange(e.target.value)} />
       </div>
-      <span style={{ fontSize: 10, fontFamily: 'var(--gc-font-mono)', color: 'var(--gc-text-dim)' }}>{value || '—'}</span>
+      <span style={{ fontSize: 9, fontFamily: 'var(--gc-font-mono)', color: 'var(--gc-text-dim)' }}>{value || '—'}</span>
     </div>
   );
 }
@@ -57,7 +57,7 @@ function StyleEditor({ label, style, onChange }: { label: string; style: CellSty
     <div style={S.panel}>
       <div style={S.header} onClick={() => setOpen(!open)}>
         <div style={S.headerLabel}>
-          <span style={{ fontSize: 8, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>&#9654;</span>
+          <span style={{ fontSize: 9, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>&#9654;</span>
           {label}
           {has && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gc-accent)' }} />}
         </div>
@@ -71,7 +71,7 @@ function StyleEditor({ label, style, onChange }: { label: string; style: CellSty
           <div style={S.divider} />
           <div style={S.sectionLabel}>Typography</div>
           <div style={S.row}><span style={S.label}>Sz</span>
-            <Input style={{ height: 24, flex: 1, minWidth: 0 }} value={style.fontSize ?? ''} placeholder="12px" onChange={(e) => onChange({ fontSize: e.target.value || undefined })} />
+            <Input style={{ height: 28, flex: 1, minWidth: 0 }} value={style.fontSize ?? ''} placeholder="11px" onChange={(e) => onChange({ fontSize: e.target.value || undefined })} />
             <Select style={{ maxWidth: 80 }} value={style.fontWeight ?? ''} onChange={(e) => onChange({ fontWeight: e.target.value || undefined })}>
               <option value="">—</option><option value="300">Light</option><option value="400">Regular</option><option value="500">Medium</option><option value="600">Semi</option><option value="700">Bold</option>
             </Select>
@@ -97,11 +97,11 @@ function StyleEditor({ label, style, onChange }: { label: string; style: CellSty
             const sK = `border${side}Style` as keyof CellStyleProperties;
             const hasColor = !!(style[cK] as string);
             const hasWidth = !!(style[wK] as string);
-            return (<div key={side} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+            return (<div key={side} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <span style={{ fontSize: 9, color: 'var(--gc-text-dim)', width: 14, textAlign: 'right', flexShrink: 0 }}>{side[0]}</span>
               {/* Color */}
               <label style={{
-                width: 26, height: 26, borderRadius: 4, flexShrink: 0,
+                width: 24, height: 24, borderRadius: 4, flexShrink: 0,
                 border: '1px solid var(--gc-border)', cursor: 'pointer',
                 background: (style[cK] as string) || '#313944',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -119,7 +119,7 @@ function StyleEditor({ label, style, onChange }: { label: string; style: CellSty
                 />
               </label>
               {/* Width */}
-              <Select style={{ height: 24, fontSize: 10, flex: 1 }}
+              <Select style={{ height: 28, fontSize: 9, flex: 1 }}
                 value={(style[wK] as string) ?? ''}
                 onChange={(e) => onChange({ [wK]: e.target.value || undefined })}>
                 <option value="">None</option>
@@ -129,7 +129,7 @@ function StyleEditor({ label, style, onChange }: { label: string; style: CellSty
                 <option value="4px">4px</option>
               </Select>
               {/* Style */}
-              <Select style={{ height: 24, fontSize: 10, width: 60, flexShrink: 0 }}
+              <Select style={{ height: 28, fontSize: 9, width: 60, flexShrink: 0 }}
                 value={(style[sK] as string) ?? 'solid'}
                 onChange={(e) => onChange({ [sK]: e.target.value || undefined })}>
                 <option value="solid">Solid</option>
@@ -224,7 +224,7 @@ function ValueFormatterField({ value, onChange }: { value: string; onChange: (v:
         </div>
       )}
       {matchedPreset && matchedPreset.value !== '' && matchedPreset.value !== 'CUSTOM' && (
-        <div style={{ fontSize: 9, color: 'var(--gc-text-dim)', marginTop: 3, paddingLeft: 2 }}>
+        <div style={{ fontSize: 9, color: 'var(--gc-text-dim)', marginTop: 4, paddingLeft: 2 }}>
           Preview: <span style={{ fontFamily: 'var(--gc-font-mono)', color: 'var(--gc-accent)' }}>{matchedPreset.desc}</span>
         </div>
       )}
@@ -250,13 +250,13 @@ const TemplateEditor = React.memo(function TemplateEditor({
           <Button variant="ghost" size="icon-sm" style={{ color: 'var(--gc-danger)' }} onClick={onDelete}><Icons.Trash size={11} /></Button>
         </div>
       </div>
-      <div style={{ fontSize: 10, color: 'var(--gc-text-dim)', marginBottom: columnNames.length > 0 ? 4 : 10 }}>
+      <div style={{ fontSize: 9, color: 'var(--gc-text-dim)', marginBottom: columnNames.length > 0 ? 4 : 10 }}>
         Applied to {columnCount} column{columnCount !== 1 ? 's' : ''}
       </div>
       {columnNames.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
           {columnNames.map((n) => (
-            <span key={n} style={{ padding: '2px 6px', borderRadius: 3, background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)', fontSize: 9, fontWeight: 500 }}>{n}</span>
+            <span key={n} style={{ padding: '1px 6px', borderRadius: 2, background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)', fontSize: 9, fontWeight: 500 }}>{n}</span>
           ))}
         </div>
       )}
@@ -381,7 +381,7 @@ export function ColumnTemplatesPanel({ gridId }: SettingsPanelProps) {
     <div>
       <div className="gc-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <p style={{ fontSize: 10, color: 'var(--gc-text-dim)', margin: 0 }}>
+          <p style={{ fontSize: 9, color: 'var(--gc-text-dim)', margin: 0 }}>
             Reusable style templates. Create once, apply to many columns.
           </p>
           <Button variant="default" size="sm" onClick={addTemplate}>
@@ -400,14 +400,14 @@ export function ColumnTemplatesPanel({ gridId }: SettingsPanelProps) {
                 onClick={() => setEditingId(editingId === tpl.id ? null : tpl.id)}>
                 <div className="gc-rule-card-header">
                   <div className="gc-rule-card-title">{tpl.name}</div>
-                  <span style={{ fontSize: 10, color: count > 0 ? 'var(--gc-accent)' : 'var(--gc-text-dim)', fontWeight: count > 0 ? 500 : 400 }}>
+                  <span style={{ fontSize: 9, color: count > 0 ? 'var(--gc-accent)' : 'var(--gc-text-dim)', fontWeight: count > 0 ? 500 : 400 }}>
                     {count} column{count !== 1 ? 's' : ''}
                   </span>
                 </div>
                 {names.length > 0 && (
-                  <div style={{ fontSize: 9, color: 'var(--gc-text-dim)', padding: '2px 10px 6px', display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                  <div style={{ fontSize: 9, color: 'var(--gc-text-dim)', padding: '2px 10px 6px', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {names.map((n) => (
-                      <span key={n} style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)', fontSize: 9 }}>{n}</span>
+                      <span key={n} style={{ padding: '1px 6px', borderRadius: 2, background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)', fontSize: 9 }}>{n}</span>
                     ))}
                   </div>
                 )}

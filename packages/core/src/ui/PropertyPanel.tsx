@@ -32,7 +32,7 @@ export function PropertySection({ title, badge, defaultOpen = true, actions, chi
         className="flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer select-none border-b border-border hover:bg-accent/50"
       >
         <ChevronRight className={cn('size-3 text-muted-foreground transition-transform', open && 'rotate-90')} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex-1">
+        <span className="text-[9px] font-semibold uppercase tracking-[0.05em] text-muted-foreground flex-1">
           {title}
         </span>
         {badge !== undefined && (
@@ -78,7 +78,7 @@ export function PropRow({ label, hint, children, vertical }: PropRowProps) {
   }
 
   return (
-    <div className="flex items-center justify-between py-1 min-h-[28px] gap-2">
+    <div className="flex items-center justify-between py-1 min-h-7 gap-2">
       <div className="shrink-0">
         <Label className="text-[11px]">{label}</Label>
         {hint && <p className="text-[9px] text-muted-foreground mt-0.5">{hint}</p>}
@@ -146,7 +146,7 @@ export function PropText({ value, onChange, placeholder, mono, width }: {
   };
 
   return (
-    <Input className={cn(mono && 'font-mono text-[10px]')} style={{ width }}
+    <Input className={cn(mono && 'font-mono text-[9px]')} style={{ width }}
       value={local} placeholder={placeholder}
       onChange={(e) => setLocal(e.target.value)}
       onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} />
@@ -182,7 +182,7 @@ export function PropColor({ value, onChange, label }: {
         {value || '—'}
       </span>
       {open && (
-        <div className="absolute z-50 mt-1 top-full left-0 rounded-md border border-[#313944] bg-[#161a1e] shadow-xl shadow-black/40">
+        <div className="absolute z-50 mt-1 top-full left-0 rounded-[6px] border border-border bg-card shadow-lg shadow-black/25">
           <ColorPicker
             value={value}
             onChange={(c) => { if (c) onChange(c); setOpen(false); }}

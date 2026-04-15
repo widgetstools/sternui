@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@grid-customizer/core": "*",
+    "@grid-customizer/core-v2": "*",
     "@grid-customizer/markets-grid": "*",
+    "@grid-customizer/markets-grid-v2": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "ag-grid-community": "^35.1.0",

@@ -83,27 +83,26 @@ async function clickToolbarBtn(page: Page, tooltipText: string) {
   await page.waitForTimeout(300);
 }
 
-/** Click the HDR button in the segmented CELL|HDR control */
-async function toggleToHDR(page: Page) {
-  await page.evaluate(() => {
+/** Click a ToggleGroup item by matching its text content */
+function clickToggleItem(page: Page, label: string) {
+  return page.evaluate((lbl) => {
     const toolbar = document.querySelector('[class*="z-[10000]"]');
-    const btns = toolbar?.querySelectorAll('button') ?? [];
-    for (const btn of btns) {
-      if (btn.textContent?.trim() === 'HDR') { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); return; }
+    const tabs = toolbar?.querySelectorAll('[role="tab"]') ?? [];
+    for (const tab of tabs) {
+      if (tab.textContent?.trim() === lbl) { (tab as HTMLElement).click(); return; }
     }
-  });
+  }, label);
+}
+
+/** Switch the Cell/Header toggle to "header" */
+async function toggleToHDR(page: Page) {
+  await clickToggleItem(page, 'Header');
   await page.waitForTimeout(300);
 }
 
-/** Click the CELL button in the segmented CELL|HDR control */
+/** Switch the Cell/Header toggle to "cell" */
 async function toggleToCELL(page: Page) {
-  await page.evaluate(() => {
-    const toolbar = document.querySelector('[class*="z-[10000]"]');
-    const btns = toolbar?.querySelectorAll('button') ?? [];
-    for (const btn of btns) {
-      if (btn.textContent?.trim() === 'CELL') { btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); return; }
-    }
-  });
+  await clickToggleItem(page, 'Cell');
   await page.waitForTimeout(300);
 }
 
@@ -643,6 +642,36 @@ test.describe('Toolbar Buttons — Headers', () => {
   });
 
   // ── Multiple header styles compose ──
+
+  test('undo reverses bold on headers', async ({ page }) => {
+    const colId = await getFirstDataColId(page);
+    await selectCell(page, colId);
+    await toggleToHDR(page);
+    await clickToolbarBtn(page, 'Bold');
+    await page.waitForTimeout(500);
+    const fwBefore = await getHeaderStyle(page, colId, 'font-weight');
+    expect(fwBefore === '700' || fwBefore === 'bold').toBe(true);
+
+    await clickToolbarBtn(page, 'Undo');
+    await page.waitForTimeout(1000);
+    const fwAfter = await getHeaderStyle(page, colId, 'font-weight');
+    // After undo, header should NOT be bold (700). AG-Grid theme default is 500.
+    expect(fwAfter !== '700' && fwAfter !== 'bold').toBe(true);
+  });
+
+  test('redo re-applies bold on headers', async ({ page }) => {
+    const colId = await getFirstDataColId(page);
+    await selectCell(page, colId);
+    await toggleToHDR(page);
+    await clickToolbarBtn(page, 'Bold');
+    await page.waitForTimeout(500);
+    await clickToolbarBtn(page, 'Undo');
+    await page.waitForTimeout(500);
+    await clickToolbarBtn(page, 'Redo');
+    await page.waitForTimeout(1000);
+    const fw = await getHeaderStyle(page, colId, 'font-weight');
+    expect(fw === '700' || fw === 'bold').toBe(true);
+  });
 
   test('multiple header styles compose on the same column', async ({ page }) => {
     const colId = await getFirstDataColId(page);

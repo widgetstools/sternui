@@ -8,7 +8,12 @@ export { GridLifecycle } from './core/lifecycle';
 // ─── Hooks ───────────────────────────────────────────────────────────────────
 export { useGridCustomizer } from './hooks/useGridCustomizer';
 export type { UseGridCustomizerOptions, UseGridCustomizerReturn } from './hooks/useGridCustomizer';
-export { useProfileManager } from './hooks/useProfileManager';
+export {
+  useProfileManager,
+  RESERVED_DEFAULT_PROFILE_ID,
+  RESERVED_DEFAULT_PROFILE_NAME,
+  isReservedDefaultProfile,
+} from './hooks/useProfileManager';
 export { useModuleState } from './stores/useModuleState';
 
 // ─── Stores ──────────────────────────────────────────────────────────────────
@@ -21,6 +26,7 @@ export type { ExpressionNode, EvaluationContext, ValidationResult, FunctionDefin
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
 export type { StorageAdapter } from './persistence/StorageAdapter';
+export { BaseStorageAdapter } from './persistence/BaseStorageAdapter';
 export { DexieAdapter } from './persistence/DexieAdapter';
 export { LocalStorageAdapter } from './persistence/LocalStorageAdapter';
 export { RestAdapter } from './persistence/RestAdapter';
@@ -44,7 +50,13 @@ export { exportClipboardModule } from './modules/export-clipboard';
 export { performanceModule } from './modules/performance';
 export { themingModule } from './modules/theming';
 export { profilesModule } from './modules/profiles';
+export { setProfilesPanelConfig } from './modules/profiles/ProfilesPanel';
+export type { ProfilesPanelConfig } from './modules/profiles/ProfilesPanel';
 export { expressionEditorModule } from './modules/expression-editor';
+export { toolbarVisibilityModule } from './modules/toolbar-visibility';
+export type { ToolbarVisibilityState } from './modules/toolbar-visibility';
+export { savedFiltersModule } from './modules/saved-filters';
+export type { SavedFiltersState } from './modules/saved-filters';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type { GridCustomizerModule, SettingsPanelProps, AnyModule } from './types/module';
@@ -58,7 +70,7 @@ export type {
   ThemeAwareStyle,
   ColumnOverride,
 } from './types/common';
-export type { ProfileSnapshot, ProfileMeta } from './types/profile';
+export type { ProfileSnapshot, ProfileMeta, GridConfig } from './types/profile';
 export { CURRENT_SCHEMA_VERSION } from './types/profile';
 
 // ─── UI ──────────────────────────────────────────────────────────────────────
@@ -81,6 +93,7 @@ export { Tooltip } from './ui/shadcn/tooltip';
 export { Separator } from './ui/shadcn/separator';
 export { Label } from './ui/shadcn/label';
 export { cn } from './ui/shadcn/utils';
+export { ToggleGroup, ToggleGroupItem } from './ui/shadcn/toggle-group';
 export { ColorPicker, ColorPickerPopover } from './ui/shadcn/color-picker';
 
 // ─── All Modules (ordered by priority) ───────────────────────────────────────
@@ -102,9 +115,12 @@ import { exportClipboardModule } from './modules/export-clipboard';
 import { performanceModule } from './modules/performance';
 import { profilesModule } from './modules/profiles';
 import { expressionEditorModule } from './modules/expression-editor';
+import { toolbarVisibilityModule } from './modules/toolbar-visibility';
+import { savedFiltersModule } from './modules/saved-filters';
 
 export const allModules = [
   generalSettingsModule,
+  profilesModule,
   themingModule,
   columnTemplatesModule,
   columnCustomizationModule,
@@ -120,8 +136,9 @@ export const allModules = [
   dataManagementModule,
   exportClipboardModule,
   performanceModule,
-  profilesModule,
   expressionEditorModule,
+  toolbarVisibilityModule,
+  savedFiltersModule,
 ];
 
 /** Lightweight default set for quick start */
@@ -130,4 +147,6 @@ export const defaultModules = [
   columnCustomizationModule,
   conditionalStylingModule,
   profilesModule,
+  toolbarVisibilityModule,
+  savedFiltersModule,
 ];

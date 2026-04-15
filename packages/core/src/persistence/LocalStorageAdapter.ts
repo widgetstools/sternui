@@ -1,83 +1,104 @@
-import type { ProfileSnapshot, ProfileMeta } from '../types/profile';
-import type { StorageAdapter } from './StorageAdapter';
-import { migrateSnapshot } from './migrations';
+import type { GridConfig, ProfileSnapshot } from '../types/profile';
+import { CURRENT_SCHEMA_VERSION } from '../types/profile';
+import { BaseStorageAdapter } from './BaseStorageAdapter';
 
-const PREFIX = 'gc-profile:';
-const DEFAULTS_KEY = 'gc-defaults';
+const PREFIX = 'gc-grid:';
+// Legacy v1 keys — read once for migration, then ignored.
+const LEGACY_PROFILE_PREFIX = 'gc-profile:';
+const LEGACY_DEFAULTS_KEY = 'gc-defaults';
 
-export class LocalStorageAdapter implements StorageAdapter {
-  async save(profileId: string, snapshot: ProfileSnapshot): Promise<void> {
-    localStorage.setItem(PREFIX + profileId, JSON.stringify(snapshot));
+export class LocalStorageAdapter extends BaseStorageAdapter {
+  constructor() {
+    super();
+    this.migrateFromLegacy();
   }
 
-  async load(profileId: string): Promise<ProfileSnapshot | null> {
-    const raw = localStorage.getItem(PREFIX + profileId);
+  async loadGridConfig(gridId: string): Promise<GridConfig | null> {
+    const raw = localStorage.getItem(PREFIX + gridId);
     if (!raw) return null;
-    return migrateSnapshot(JSON.parse(raw));
+    try {
+      return JSON.parse(raw) as GridConfig;
+    } catch {
+      return null;
+    }
   }
 
-  async list(gridId?: string): Promise<ProfileMeta[]> {
-    const defaults = this.getDefaultsMap();
-    const results: ProfileMeta[] = [];
+  async saveGridConfig(config: GridConfig): Promise<void> {
+    localStorage.setItem(PREFIX + config.gridId, JSON.stringify(config));
+  }
 
+  async deleteGridConfig(gridId: string): Promise<void> {
+    localStorage.removeItem(PREFIX + gridId);
+  }
+
+  async listGridIds(): Promise<string[]> {
+    const ids: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key?.startsWith(PREFIX)) continue;
-      const profileId = key.slice(PREFIX.length);
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-
-      const snapshot: ProfileSnapshot = JSON.parse(raw);
-      if (gridId && snapshot.gridId !== gridId) continue;
-
-      results.push({
-        id: profileId,
-        gridId: snapshot.gridId,
-        name: snapshot.name,
-        description: snapshot.description,
-        createdAt: snapshot.createdAt,
-        updatedAt: snapshot.updatedAt,
-        isDefault: defaults[snapshot.gridId] === profileId,
-      });
+      if (key?.startsWith(PREFIX)) ids.push(key.slice(PREFIX.length));
     }
-
-    return results.sort((a, b) => b.updatedAt - a.updatedAt);
+    return ids;
   }
 
-  async delete(profileId: string): Promise<void> {
-    localStorage.removeItem(PREFIX + profileId);
-  }
+  /**
+   * One-time, best-effort migration from the v1 per-profile schema. Reads any
+   * `gc-profile:*` entries, groups them by gridId, writes one `gc-grid:*` blob
+   * per group, then removes the old keys.
+   */
+  private migrateFromLegacy(): void {
+    try {
+      const buckets = new Map<string, GridConfig>();
+      const oldKeys: string[] = [];
 
-  async getDefault(gridId: string): Promise<string | null> {
-    return this.getDefaultsMap()[gridId] ?? null;
-  }
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(LEGACY_PROFILE_PREFIX)) continue;
+        oldKeys.push(key);
+        const profileId = key.slice(LEGACY_PROFILE_PREFIX.length);
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        let snap: ProfileSnapshot;
+        try { snap = JSON.parse(raw); } catch { continue; }
 
-  async setDefault(gridId: string, profileId: string | null): Promise<void> {
-    const defaults = this.getDefaultsMap();
-    if (profileId === null) {
-      delete defaults[gridId];
-    } else {
-      defaults[gridId] = profileId;
+        const gridId = snap.gridId;
+        let bucket = buckets.get(gridId);
+        if (!bucket) {
+          bucket = {
+            version: CURRENT_SCHEMA_VERSION,
+            gridId,
+            defaultProfileId: null,
+            profiles: {},
+            updatedAt: Date.now(),
+          };
+          buckets.set(gridId, bucket);
+        }
+        bucket.profiles[profileId] = snap;
+      }
+
+      if (buckets.size === 0) return;
+
+      // Apply legacy defaults
+      const defaultsRaw = localStorage.getItem(LEGACY_DEFAULTS_KEY);
+      if (defaultsRaw) {
+        try {
+          const defaults = JSON.parse(defaultsRaw) as Record<string, string>;
+          for (const [gridId, profileId] of Object.entries(defaults)) {
+            const bucket = buckets.get(gridId);
+            if (bucket) bucket.defaultProfileId = profileId;
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Persist new buckets, then strip legacy entries
+      for (const config of buckets.values()) {
+        // Don't clobber an already-migrated bucket if one exists
+        if (localStorage.getItem(PREFIX + config.gridId)) continue;
+        localStorage.setItem(PREFIX + config.gridId, JSON.stringify(config));
+      }
+      for (const key of oldKeys) localStorage.removeItem(key);
+      if (defaultsRaw) localStorage.removeItem(LEGACY_DEFAULTS_KEY);
+    } catch {
+      /* migration failures are non-fatal */
     }
-    localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaults));
-  }
-
-  async exportJson(profileId: string): Promise<string> {
-    const snapshot = await this.load(profileId);
-    if (!snapshot) throw new Error(`Profile not found: ${profileId}`);
-    return JSON.stringify(snapshot, null, 2);
-  }
-
-  async importJson(json: string): Promise<string> {
-    const parsed = JSON.parse(json) as ProfileSnapshot;
-    const migrated = migrateSnapshot(parsed);
-    const profileId = `imported-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await this.save(profileId, migrated);
-    return profileId;
-  }
-
-  private getDefaultsMap(): Record<string, string> {
-    const raw = localStorage.getItem(DEFAULTS_KEY);
-    return raw ? JSON.parse(raw) : {};
   }
 }

@@ -6,7 +6,7 @@ export const profilesModule: GridCustomizerModule<ProfilesState> = {
   id: 'profiles',
   name: 'Profiles',
   icon: 'Save',
-  priority: 90,
+  priority: 2,
 
   getInitialState: () => ({ ...INITIAL_PROFILES }),
 

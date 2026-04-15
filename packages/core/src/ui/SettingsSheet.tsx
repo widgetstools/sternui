@@ -104,8 +104,7 @@ function SettingsSheetInner({
             {isDirty && (
               <span
                 style={{
-                  width: 6,
-                  height: 6,
+                  width: 6, height: 6,
                   borderRadius: '50%',
                   background: 'var(--gc-warning)',
                   marginLeft: 4,
@@ -132,8 +131,8 @@ function SettingsSheetInner({
               <SettingsPanel gridId={core.gridId} />
             ) : (
               <div className="gc-empty">
-                <p style={{ fontSize: 13, marginBottom: 4 }}>{activeModule?.name ?? 'Module'}</p>
-                <p>Settings panel coming soon</p>
+                <p style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>{activeModule?.name ?? 'Module'}</p>
+                <p style={{ fontSize: 11 }}>Settings panel coming soon</p>
               </div>
             )}
           </div>
@@ -148,7 +147,7 @@ function SettingsSheetInner({
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {isDirty && (
-              <span style={{ fontSize: 10, color: 'var(--gc-text-dim)', marginRight: 4 }}>
+              <span style={{ fontSize: 9, color: 'var(--gc-text-dim)', marginRight: 4 }}>
                 Unsaved changes
               </span>
             )}

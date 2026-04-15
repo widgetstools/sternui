@@ -22,7 +22,7 @@ interface FieldRowProps {
 export function FieldRow({ label, desc, children, vertical }: FieldRowProps) {
   return (
     <div className={cn(
-      'flex min-h-[28px] py-1',
+      'flex min-h-7 py-1',
       vertical ? 'flex-col gap-1' : 'items-center justify-between gap-3'
     )}>
       <div className={vertical ? '' : 'shrink-0'}>
@@ -111,7 +111,7 @@ export function TextField({
   return (
     <FieldRow label={label} desc={desc} vertical={vertical}>
       <Input
-        className={cn(mono && 'font-mono text-[10px]')}
+        className={cn(mono && 'font-mono text-[9px]')}
         style={{ width: width ?? (vertical ? '100%' : 180) }}
         value={local}
         placeholder={placeholder}
@@ -184,7 +184,7 @@ export function ExpressionField({
   return (
     <FieldRow label={label} desc={desc} vertical>
       <Input
-        className="font-mono text-[10px]"
+        className="font-mono text-[9px]"
         value={local}
         placeholder={placeholder}
         error={valid === false}

@@ -40,9 +40,9 @@ function addRecentColor(color: string): void {
 
 // ─── Swatch ─────────────────────────────────────────────────────────────────
 
-const SWATCH_SIZE = 19;
-const SWATCH_GAP = 2;
-const SWATCH_RADIUS = 3;
+const SWATCH_SIZE = 20;   // spacing[5]
+const SWATCH_GAP = 2;     // spacing[0.5]
+const SWATCH_RADIUS = 3;  // radius.md
 
 function Swatch({ color, selected, onClick }: {
   color: string; selected: boolean; onClick: () => void;
@@ -139,7 +139,7 @@ export function ColorPicker({ value, onChange, allowClear = true }: ColorPickerP
       {/* ── Recent colors ── */}
       {recentColors.length > 0 && (
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--muted-foreground)', marginBottom: 5 }}>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' as const, color: 'var(--muted-foreground)', marginBottom: 4 }}>
             Recent
           </div>
           <div style={{ display: 'flex', gap: SWATCH_GAP }}>
@@ -151,11 +151,11 @@ export function ColorPicker({ value, onChange, allowClear = true }: ColorPickerP
       )}
 
       {/* ── Bottom bar: pipette + hex input + clear + confirm ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
         {/* Pipette / native color picker */}
         <label
           style={{
-            width: 22, height: 22, borderRadius: SWATCH_RADIUS,
+            width: 20, height: 20, borderRadius: SWATCH_RADIUS,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', position: 'relative', overflow: 'hidden',
             background: draft || 'var(--accent)',
@@ -184,9 +184,9 @@ export function ColorPicker({ value, onChange, allowClear = true }: ColorPickerP
           }}
           placeholder="#000000"
           style={{
-            flex: 1, height: 22, padding: '0 8px',
+            flex: 1, height: 20, padding: '0 8px',
             borderRadius: SWATCH_RADIUS,
-            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9, fontFamily: "var(--fi-mono, 'JetBrains Mono', monospace)",
             background: 'var(--background)', color: 'var(--foreground)',
             border: '1px solid var(--border)', outline: 'none',
             minWidth: 0,
@@ -200,7 +200,7 @@ export function ColorPicker({ value, onChange, allowClear = true }: ColorPickerP
             onMouseDown={(e) => e.preventDefault()}
             title="No color"
             style={{
-              width: 22, height: 22, borderRadius: SWATCH_RADIUS,
+              width: 20, height: 20, borderRadius: SWATCH_RADIUS,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', transition: 'all 150ms',
               background: 'var(--accent)',
@@ -218,7 +218,7 @@ export function ColorPicker({ value, onChange, allowClear = true }: ColorPickerP
           onMouseDown={(e) => e.preventDefault()}
           title="Apply color"
           style={{
-            width: 22, height: 22, borderRadius: SWATCH_RADIUS,
+            width: 20, height: 20, borderRadius: SWATCH_RADIUS,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', transition: 'all 150ms',
             background: draft ? 'var(--foreground)' : 'var(--accent)',
@@ -277,14 +277,14 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
         <button
           disabled={disabled}
           className={cn(
-            'shrink-0 rounded-[3px] gc-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
+            'shrink-0 rounded-[4px] gc-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
             disabled && 'opacity-25 pointer-events-none',
           )}
         >
           <span className="flex flex-col items-center gap-[1px]">
             {icon}
             <span
-              className="w-3.5 h-[2.5px] rounded-full transition-colors"
+              className="w-3.5 h-[2px] rounded-full transition-colors"
               style={{ background: value || 'var(--muted-foreground)' }}
             />
           </span>
@@ -294,10 +294,10 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
         <div
           className="absolute z-50 top-full mt-1 left-0"
           style={{
-            borderRadius: 8,
+            borderRadius: 6,
             border: '1px solid var(--border)',
             background: 'var(--card)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
           }}
         >
           <ColorPicker

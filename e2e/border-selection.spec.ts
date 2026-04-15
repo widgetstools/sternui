@@ -309,12 +309,9 @@ test.describe('Border styling and cell selection coexistence', () => {
     // Switch to HDR mode
     await page.evaluate(() => {
       const toolbar = document.querySelector('[class*="z-[10000]"]');
-      const btns = toolbar?.querySelectorAll('button') ?? [];
-      for (const btn of btns) {
-        if (btn.textContent?.trim() === 'HDR') {
-          btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-          return;
-        }
+      const tabs = toolbar?.querySelectorAll('[role="tab"]') ?? [];
+      for (const tab of tabs) {
+        if (tab.textContent?.trim() === 'Header') { (tab as HTMLElement).click(); return; }
       }
     });
     await page.waitForTimeout(300);

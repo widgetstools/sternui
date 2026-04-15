@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { GridCustomizerCore, GridStore, GridCustomizerStore, CellStyleProperties } from '@grid-customizer/core';
-import { Button, Popover, Separator, Tooltip, Select, ColorPickerPopover, cn } from '@grid-customizer/core';
+import { Button, Popover, Separator, Tooltip, Select, ToggleGroup, ToggleGroupItem, ColorPickerPopover, cn } from '@grid-customizer/core';
 import {
   Undo2, Redo2, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
   Type, PaintBucket,
-  Save, Trash2, Grid3X3, Check,
+  Trash2, Grid3X3, Check,
   ChevronDown, ArrowLeft, ArrowRight,
   DollarSign, Percent, Hash,
   Columns3, Rows3,
@@ -53,7 +53,7 @@ function TBtn({ children, active, disabled, tooltip, onClick, className }: {
       size="icon-sm"
       disabled={disabled}
       className={cn(
-        'shrink-0 w-7 h-7 rounded-[5px] transition-all duration-150 gc-tbtn',
+        'shrink-0 w-7 h-7 rounded-[4px] transition-all duration-150 gc-tbtn',
         active && 'gc-tbtn-active',
         disabled && 'opacity-25 pointer-events-none',
         className,
@@ -77,7 +77,7 @@ function TBtn({ children, active, disabled, tooltip, onClick, className }: {
 /** Toolbar group — clusters related tools with a subtle background */
 function TGroup({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('flex items-center gap-[3px] px-1.5 py-1 rounded-md bg-accent/40', className)}>
+    <div className={cn('flex items-center gap-0.5 px-1.5 py-1 rounded-[4px] bg-accent/40', className)}>
       {children}
     </div>
   );
@@ -88,7 +88,7 @@ function TGroup({ children, className }: { children: React.ReactNode; className?
 /** Flash a checkmark icon for 1s after an action, then revert to original icon */
 function useFlashConfirm(): [boolean, () => void] {
   const [confirmed, setConfirmed] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const flash = useCallback(() => {
     setConfirmed(true);
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -467,8 +467,8 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   targetRef.current = target;
   const fmt = useColumnFormatting(store, colIds, target);
   const disabled = colIds.length === 0;
+  const isHeader = target === 'header';
   const [clearConfirmed, flashClear] = useFlashConfirm();
-  const [saveConfirmed, flashSave] = useFlashConfirm();
   const [saveAsTplConfirmed, flashSaveAsTpl] = useFlashConfirm();
   const [saveAsTplName, setSaveAsTplName] = useState('');
 
@@ -564,52 +564,19 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
 
   return (
     <div
-      className={cn('flex items-center gap-2 h-[42px] shrink-0 border-b border-border bg-card text-xs relative z-[10000]', !disabled && 'gc-toolbar-enabled')}
+      className={cn('flex items-center gap-2 h-11 shrink-0 border-b border-border bg-card text-xs relative z-[10000]', !disabled && 'gc-toolbar-enabled')}
       style={{ paddingLeft: 16, paddingRight: 16 }}
       onMouseDown={(e) => {
         const tag = (e.target as HTMLElement).tagName;
         if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
       }}
     >
-      {/* ── Column context + CELL/HDR segmented control ── */}
-      <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-md shrink-0 border border-border">
-        <span className={cn(
-          'text-[10px] font-mono tracking-wider max-w-[100px] overflow-hidden text-ellipsis whitespace-nowrap select-none px-1',
-          colIds.length > 0 ? 'text-foreground' : 'text-muted-foreground',
-        )} title={colIds.join(', ')}>
-          {colLabel}
-        </span>
-        <div className="flex h-7 rounded-md overflow-hidden border border-border">
-          <Button
-            variant={target === 'cell' ? 'default' : 'ghost'}
-            size="xs"
-            className={cn(
-              'h-full rounded-none text-[9px] font-semibold tracking-wider uppercase',
-              target === 'cell' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:text-foreground',
-            )}
-            style={{ paddingLeft: 14, paddingRight: 14 }}
-            onMouseDown={(e) => { e.preventDefault(); setTarget('cell'); }}
-          >CELL</Button>
-          <Button
-            variant={target === 'header' ? 'default' : 'ghost'}
-            size="xs"
-            className={cn(
-              'h-full rounded-none text-[9px] font-semibold tracking-wider uppercase',
-              target === 'header' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:text-foreground',
-            )}
-            style={{ paddingLeft: 14, paddingRight: 14 }}
-            onMouseDown={(e) => { e.preventDefault(); setTarget('header'); }}
-          >HDR</Button>
-        </div>
-      </div>
-
-      <div className="gc-toolbar-sep h-5" />
 
       {/* ── Templates ── */}
       {!disabled && (
         <TGroup>
           <select
-            className="h-7 text-[10px] font-mono rounded-md px-2 cursor-pointer transition-all gc-tbtn bg-card border border-border text-foreground max-w-[110px]"
+            className="h-7 text-[9px] font-mono rounded-[4px] px-2.5 cursor-pointer transition-all gc-tbtn bg-card border border-border text-foreground max-w-[110px]"
             value=""
             onChange={(e) => {
               const tplId = e.target.value;
@@ -635,10 +602,10 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
               </TBtn>
             }
           >
-            <div className="p-3.5 w-[230px]" onMouseDown={(e) => {
+            <div className="p-3 w-[230px]" onMouseDown={(e) => {
               if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
             }}>
-              <div className="text-[9px] uppercase tracking-[0.08em] mb-1.5 text-muted-foreground">
+              <div className="text-[9px] uppercase tracking-[0.05em] mb-1.5 text-muted-foreground font-semibold">
                 Save as template
               </div>
               <input
@@ -653,7 +620,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
                   }
                 }}
                 placeholder={colLabel + ' Style'}
-                className="w-full h-7 px-2 rounded-md text-[11px] mb-2 bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-ring"
+                className="w-full h-7 px-2.5 rounded-[3px] text-[11px] font-mono mb-2 bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-ring"
                 autoFocus
               />
               <Button
@@ -707,7 +674,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
           trigger={
             <button disabled={disabled}
               className={cn(
-                'flex items-center gap-1 px-2 py-[3px] rounded-[4px] text-[10px] font-mono transition-all duration-150 cursor-pointer gc-tbtn',
+                'flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-[9px] font-mono transition-all duration-150 cursor-pointer gc-tbtn',
                 disabled && 'opacity-20 pointer-events-none',
               )}
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -755,12 +722,12 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
 
       <div className="gc-toolbar-sep h-5" />
 
-      {/* ── Number Format ── */}
-      <TGroup>
+      {/* ── Number Format (cell-only — formatters don't apply to headers) ── */}
+      <TGroup className={isHeader ? 'opacity-30 pointer-events-none' : undefined}>
         <Popover
           trigger={
-            <Button variant="ghost" size="icon-sm" disabled={disabled}
-              className={cn('shrink-0 w-7 h-7 rounded-[5px] gc-tbtn transition-all duration-150', disabled && 'opacity-25 pointer-events-none')}
+            <Button variant="ghost" size="icon-sm" disabled={disabled || isHeader}
+              className={cn('shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150', (disabled || isHeader) && 'opacity-25 pointer-events-none')}
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
               <DollarSign size={14} strokeWidth={1.75} />
             </Button>
@@ -780,21 +747,21 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
             ))}
           </div>
         </Popover>
-        <TBtn disabled={disabled} tooltip="Percentage"
-          active={fmt.valueFormatter?.includes('percent')}
+        <TBtn disabled={disabled || isHeader} tooltip="Percentage"
+          active={!isHeader && fmt.valueFormatter?.includes('percent')}
           onClick={() => doFormat(fmt.valueFormatter?.includes('percent') ? undefined : FORMATTERS.PERCENT.expr)}>
           <Percent size={14} strokeWidth={1.75} />
         </TBtn>
-        <TBtn disabled={disabled} tooltip="Thousands"
-          active={fmt.valueFormatter?.includes('maximumFractionDigits:0')}
+        <TBtn disabled={disabled || isHeader} tooltip="Thousands"
+          active={!isHeader && fmt.valueFormatter?.includes('maximumFractionDigits:0')}
           onClick={() => doFormat(fmt.valueFormatter?.includes('maximumFractionDigits:0') ? undefined : FORMATTERS.COMMA.expr)}>
           <Hash size={14} strokeWidth={1.75} />
         </TBtn>
         <div className="gc-toolbar-sep h-4 opacity-50" />
-        <TBtn disabled={disabled} tooltip="Fewer decimals" onClick={decreaseDecimals}>
+        <TBtn disabled={disabled || isHeader} tooltip="Fewer decimals" onClick={decreaseDecimals}>
           <span className="flex items-center gap-px text-[9px] font-mono"><ArrowLeft size={9} strokeWidth={2} />.0</span>
         </TBtn>
-        <TBtn disabled={disabled} tooltip="More decimals" onClick={increaseDecimals}>
+        <TBtn disabled={disabled || isHeader} tooltip="More decimals" onClick={increaseDecimals}>
           <span className="flex items-center gap-px text-[9px] font-mono">.0<ArrowRight size={9} strokeWidth={2} /></span>
         </TBtn>
       </TGroup>
@@ -805,7 +772,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
       <Popover
         trigger={
           <Button variant="ghost" size="icon-sm" disabled={disabled}
-            className={cn('shrink-0 w-7 h-7 rounded-[5px] gc-tbtn transition-all duration-150', disabled && 'opacity-25 pointer-events-none')}
+            className={cn('shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150', disabled && 'opacity-25 pointer-events-none')}
             onMouseDown={(e) => { e.preventDefault(); }}>
             <Grid3X3 size={14} strokeWidth={1.75} />
           </Button>
@@ -888,18 +855,18 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
           );
 
           return (
-            <div style={{ padding: 14, width: 240 }}
+            <div style={{ padding: 12, width: 240 }}
               onMouseDown={(e) => { const tag = (e.target as HTMLElement).tagName; if (tag !== 'SELECT' && tag !== 'INPUT') e.preventDefault(); }}>
 
               {/* ── Header ── */}
               <div style={{ marginBottom: 10 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Borders</span>
+                <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Borders</span>
               </div>
 
               {/* ── Cell preview ── */}
               <div style={{
-                position: 'relative', width: '100%', height: 56,
-                borderRadius: 6, marginBottom: 12,
+                position: 'relative', width: '100%', height: 48,
+                borderRadius: 4, marginBottom: 12,
                 background: 'var(--background)',
                 border: '1px dashed var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -913,7 +880,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
                   borderLeft: hasL ? `${activeWidth} solid ${activeColor}` : '1px dashed var(--border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
+                  <span style={{ fontSize: 9, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
                     {target === 'header' ? 'Header' : 'Cell'}
                   </span>
                 </div>
@@ -922,35 +889,35 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
               {/* ── Preset buttons: All, Top, Right, Btm, Left, None ── */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, marginBottom: 12 }}>
                 <button onClick={() => setAllBorders(activeWidth)} onMouseDown={(e) => e.preventDefault()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', borderRadius: 6, cursor: 'pointer', border: hasAny && hasT && hasR && hasB && hasL ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasT && hasR && hasB && hasL ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 8, fontWeight: 500 }}>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: hasAny && hasT && hasR && hasB && hasL ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasT && hasR && hasB && hasL ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 9, fontWeight: 500 }}>
                   <BorderIcon top right bottom left active={hasT && hasR && hasB && hasL} />All
                 </button>
                 <button onClick={() => toggleSide('Top')} onMouseDown={(e) => e.preventDefault()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', borderRadius: 6, cursor: 'pointer', border: hasT ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasT ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 8, fontWeight: 500 }}>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: hasT ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasT ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 9, fontWeight: 500 }}>
                   <BorderIcon top active={hasT} />Top
                 </button>
                 <button onClick={() => toggleSide('Right')} onMouseDown={(e) => e.preventDefault()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', borderRadius: 6, cursor: 'pointer', border: hasR ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasR ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 8, fontWeight: 500 }}>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: hasR ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasR ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 9, fontWeight: 500 }}>
                   <BorderIcon right active={hasR} />Right
                 </button>
                 <button onClick={() => toggleSide('Bottom')} onMouseDown={(e) => e.preventDefault()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', borderRadius: 6, cursor: 'pointer', border: hasB ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasB ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 8, fontWeight: 500 }}>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: hasB ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasB ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 9, fontWeight: 500 }}>
                   <BorderIcon bottom active={hasB} />Btm
                 </button>
                 <button onClick={() => toggleSide('Left')} onMouseDown={(e) => e.preventDefault()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', borderRadius: 6, cursor: 'pointer', border: hasL ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasL ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 8, fontWeight: 500 }}>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: hasL ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: hasL ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)', color: 'var(--foreground)', fontSize: 9, fontWeight: 500 }}>
                   <BorderIcon left active={hasL} />Left
                 </button>
                 <button onClick={clearAll} onMouseDown={(e) => e.preventDefault()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 0', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--destructive)', fontSize: 8, fontWeight: 500 }}>
-                  <X size={18} strokeWidth={1.5} />None
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--destructive)', fontSize: 9, fontWeight: 500 }}>
+                  <X size={16} strokeWidth={1.5} />None
                 </button>
               </div>
 
               {/* ── Color swatch + Style dropdown + Width ── */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <label style={{
-                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                  width: 28, height: 28, borderRadius: 4, flexShrink: 0,
                   cursor: 'pointer', position: 'relative', overflow: 'hidden',
                   background: activeColor, border: '1px solid var(--border)',
                 }}>
@@ -958,7 +925,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
                 </label>
                 <select
-                  style={{ flex: 1, height: 28, fontSize: 10, borderRadius: 6, padding: '0 8px', cursor: 'pointer', background: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                  style={{ flex: 1, height: 28, fontSize: 9, borderRadius: 3, padding: '0 10px', cursor: 'pointer', background: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)', fontFamily: "'JetBrains Mono', monospace" }}
                   value={activeStyle} onChange={(e) => updateStyle(e.target.value)}>
                   <option value="solid">Solid</option>
                   <option value="dashed">Dashed</option>
@@ -966,7 +933,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
                   <option value="double">Double</option>
                 </select>
                 <select
-                  style={{ width: 42, height: 28, fontSize: 10, borderRadius: 6, padding: '0 4px', cursor: 'pointer', background: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'center' }}
+                  style={{ width: 40, height: 28, fontSize: 9, borderRadius: 3, padding: '0 4px', cursor: 'pointer', background: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace" }}
                   value={widthNum.toString()} onChange={(e) => updateWidth(e.target.value + 'px')}>
                   <option value="1">1</option>
                   <option value="2">2</option>
@@ -1013,21 +980,29 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
             : <Trash2 size={14} strokeWidth={1.75} />
           }
         </TBtn>
-        <TBtn tooltip="Save" onClick={() => {
-          try {
-            const serialized = core.serializeAll();
-            localStorage.setItem(`gc-state:${(core as any).gridId}`, JSON.stringify(serialized));
-            store.getState().setDirty(false);
-            store.setState({ undoStack: [], redoStack: [] });
-          } catch { /* */ }
-          flashSave();
-        }} className={saveConfirmed ? 'gc-tbtn-confirm' : undefined}>
-          {saveConfirmed
-            ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
-            : <Save size={14} strokeWidth={1.75} />
-          }
-        </TBtn>
       </TGroup>
+
+      {/* ── Spacer to push column context to the right ── */}
+      <div className="flex-1" />
+
+      {/* ── Column context + Cell/Header toggle ── */}
+      <div className="flex items-center gap-4 shrink-0">
+        <span className={cn(
+          'text-[11px] max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap select-none',
+          colIds.length > 0 ? 'text-foreground' : 'text-muted-foreground',
+        )} title={colIds.join(', ')}>
+          {colLabel}
+        </span>
+        <ToggleGroup
+          value={target}
+          onValueChange={(v) => setTarget(v as 'cell' | 'header')}
+          size="sm"
+          className="min-w-[75px]"
+        >
+          <ToggleGroupItem value="cell" className="flex-1">Cell</ToggleGroupItem>
+          <ToggleGroupItem value="header" className="flex-1">Header</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
     </div>
   );
 }

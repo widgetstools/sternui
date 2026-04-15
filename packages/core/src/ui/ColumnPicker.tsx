@@ -68,7 +68,7 @@ const dropdownStyles: Record<string, React.CSSProperties> = {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
     marginTop: 4, maxHeight: 220, overflowY: 'auto',
     background: 'var(--gc-bg)', border: '1px solid var(--gc-border)',
-    borderRadius: 'var(--gc-radius)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    borderRadius: 'var(--gc-radius)', boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
   },
   item: {
     display: 'flex', alignItems: 'center', gap: 6, width: '100%',
@@ -77,13 +77,13 @@ const dropdownStyles: Record<string, React.CSSProperties> = {
     cursor: 'pointer', textAlign: 'left' as const, transition: 'background 80ms',
   },
   dot: {
-    width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+    width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
   },
   field: {
     fontSize: 9, fontFamily: 'var(--gc-font-mono)', color: 'var(--gc-text-dim)',
   },
   pin: {
-    fontSize: 8, padding: '1px 4px', borderRadius: 3,
+    fontSize: 9, padding: '1px 6px', borderRadius: 2,
     background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)',
   },
   empty: {
@@ -95,13 +95,13 @@ const dropdownStyles: Record<string, React.CSSProperties> = {
   },
   chip: {
     display: 'inline-flex', alignItems: 'center', gap: 4,
-    padding: '2px 6px 2px 8px', borderRadius: 4,
+    padding: '1px 6px 1px 8px', borderRadius: 2,
     background: 'var(--gc-accent-muted)', color: 'var(--gc-accent)',
-    fontSize: 10, fontWeight: 500,
+    fontSize: 9, fontWeight: 500,
   },
   chipX: {
     background: 'none', border: 'none', cursor: 'pointer',
-    color: 'var(--gc-accent)', fontSize: 12, lineHeight: 1, padding: 0,
+    color: 'var(--gc-accent)', fontSize: 11, lineHeight: 1, padding: 0,
     opacity: 0.6,
   },
 };

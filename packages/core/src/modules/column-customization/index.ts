@@ -300,57 +300,57 @@ function applyToColumnDefs(
       }
     }
 
-    // Header styling — functional headerStyle (excludes floating filters)
-    // + headerClass for alignment and border overlays via CSS injection.
+    // Header styling — ALL via CSS injection (same pattern as cells).
+    // This avoids AG-Grid's headerStyle caching which breaks undo/redo.
     if (hasAnyProp(resolved.headerStyle)) {
-      const headerProps = { ...resolved.headerStyle! };
+      const style = { ...resolved.headerStyle! };
       const cls = `gc-hdr-c-${colId}`;
+      const rules: string[] = [];
 
-      // AG-Grid headers use flexbox — textAlign must be converted to justify-content
-      // via CSS on .ag-header-cell-label (headerStyle inline can't reach this child)
-      const textAlign = headerProps.textAlign;
-      if (textAlign) {
-        delete headerProps.textAlign;
+      // Non-inheritable (apply to header cell only)
+      if (style.backgroundColor) rules.push(`background-color: ${style.backgroundColor} !important`);
+
+      // AG-Grid headers use flexbox — textAlign → justify-content on label child
+      if (style.textAlign) {
         const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
-        const justify = justifyMap[textAlign] ?? 'flex-start';
+        const justify = justifyMap[style.textAlign] ?? 'flex-start';
         cssInjector.addRule(`hdr-align-${colId}`, `.${cls} .ag-header-cell-label { justify-content: ${justify} !important; }`);
       } else {
         cssInjector.removeRule(`hdr-align-${colId}`);
       }
 
-      // Border overlay via ::after on header (CSS injection, not inline)
-      const borderOverlay = borderOverlayCSS(`.${cls}`, headerProps);
+      // Border overlay via ::after on header
+      const borderOverlay = borderOverlayCSS(`.${cls}`, style);
       if (borderOverlay) cssInjector.addRule(`hdr-bo-${colId}`, borderOverlay);
       else cssInjector.removeRule(`hdr-bo-${colId}`);
-      // Remove border keys from inline style — they're handled by ::after
-      for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
-        delete (headerProps as any)[`border${side}Width`];
-        delete (headerProps as any)[`border${side}Style`];
-        delete (headerProps as any)[`border${side}Color`];
+
+      // Inheritable (apply to header AND descendants)
+      const inheritRules: string[] = [];
+      if (style.color) inheritRules.push(`color: ${style.color} !important`);
+      if (style.fontWeight) inheritRules.push(`font-weight: ${style.fontWeight} !important`);
+      if (style.fontStyle) inheritRules.push(`font-style: ${style.fontStyle} !important`);
+      if (style.fontSize) inheritRules.push(`font-size: ${style.fontSize} !important`);
+      if (style.fontFamily) inheritRules.push(`font-family: ${style.fontFamily} !important`);
+      if (style.textDecoration) inheritRules.push(`text-decoration: ${style.textDecoration} !important`);
+
+      // Build CSS: header-level rules + inherited rules on header and descendants
+      const allRules = [...rules, ...inheritRules];
+      if (allRules.length > 0) {
+        // Target non-floating-filter header cells only
+        let cssText = `.ag-header-cell.${cls}:not(.ag-floating-filter) { ${allRules.join('; ')}; }`;
+        if (inheritRules.length > 0) {
+          cssText += `\n.ag-header-cell.${cls}:not(.ag-floating-filter) * { ${inheritRules.join('; ')}; }`;
+        }
+        cssInjector.addRule(`hdr-c-${colId}`, cssText);
       }
 
-      // Remaining properties applied via functional headerStyle (excludes floating filters)
-      if (hasAnyProp(headerProps)) {
-        const inlineStyle = stylePropsToInline(headerProps);
-        merged.headerStyle = (params: { floatingFilter: boolean }) => {
-          if (params.floatingFilter) return {};
-          return inlineStyle;
-        };
-      }
-
-      // Add class for alignment + border overlay targeting
+      // Add class for CSS targeting
       const existing = typeof merged.headerClass === 'string' ? merged.headerClass : '';
       merged.headerClass = [existing, cls].filter(Boolean).join(' ');
     } else {
       cssInjector.removeRule(`hdr-align-${colId}`);
       cssInjector.removeRule(`hdr-bo-${colId}`);
-      // AG-Grid caches headerStyle results as inline styles on the DOM element.
-      // Setting headerStyle to undefined doesn't clear existing inline styles.
-      // We must return explicit resets for all properties we may have previously set.
-      merged.headerStyle = () => ({
-        backgroundColor: '', color: '', fontWeight: '', fontStyle: '',
-        fontSize: '', fontFamily: '', textDecoration: '',
-      });
+      cssInjector.removeRule(`hdr-c-${colId}`);
       merged.headerClass = undefined;
     }
 

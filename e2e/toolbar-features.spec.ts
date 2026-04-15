@@ -104,36 +104,34 @@ async function clickToolbarBtn(page: Page, tooltipText: string) {
   await page.waitForTimeout(300);
 }
 
-/** Toggle to the other mode — click HDR if currently CELL, or CELL if currently HDR */
-async function toggleCellHeader(page: Page) {
-  const mode = await getTargetMode(page);
-  const target = mode === 'CELL' ? 'HDR' : 'CELL';
-  await page.evaluate((t) => {
+/** Click a ToggleGroup item by matching its text content */
+function clickToggleItem(page: Page, label: string) {
+  return page.evaluate((lbl) => {
     const toolbar = document.querySelector('[class*="z-[10000]"]');
     if (!toolbar) throw new Error('Toolbar not found');
-    const btns = toolbar.querySelectorAll('button');
-    for (const btn of btns) {
-      if (btn.textContent?.trim() === t) {
-        btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-        return;
-      }
+    const tabs = toolbar.querySelectorAll('[role="tab"]');
+    for (const tab of tabs) {
+      if (tab.textContent?.trim() === lbl) { (tab as HTMLElement).click(); return; }
     }
-  }, target);
+  }, label);
+}
+
+/** Toggle to the other mode — switch the Cell/Header toggle */
+async function toggleCellHeader(page: Page) {
+  const mode = await getTargetMode(page);
+  await clickToggleItem(page, mode === 'CELL' ? 'Header' : 'Cell');
   await page.waitForTimeout(300);
 }
 
-/** Get the current CELL/HDR toggle state — the active one has bg-primary class */
+/** Get the current Cell/Header toggle state — the active one has data-state="active" */
 async function getTargetMode(page: Page): Promise<'CELL' | 'HDR'> {
   return page.evaluate(() => {
     const toolbar = document.querySelector('[class*="z-[10000]"]');
-    const btns = toolbar?.querySelectorAll('button') ?? [];
-    for (const btn of btns) {
-      const text = btn.textContent?.trim();
-      if ((text === 'CELL' || text === 'HDR') && btn.className.includes('bg-primary')) {
-        return text as 'CELL' | 'HDR';
-      }
+    const tabs = toolbar?.querySelectorAll('[role="tab"]') ?? [];
+    for (const tab of tabs) {
+      if (tab.getAttribute('data-state') === 'active' && tab.textContent?.trim() === 'Header') return 'HDR';
     }
-    return 'CELL'; // default
+    return 'CELL';
   }) as Promise<'CELL' | 'HDR'>;
 }
 

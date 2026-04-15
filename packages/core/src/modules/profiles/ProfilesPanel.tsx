@@ -1,12 +1,14 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useSyncExternalStore } from 'react';
 import type { SettingsPanelProps } from '../../types/module';
 import { Icons } from '../../ui/icons';
 import { PropertySection, PropRow, PropText } from '../../ui/PropertyPanel';
 import { Button } from '../../ui/shadcn/button';
 import { Input } from '../../ui/shadcn/input';
+import { isReservedDefaultProfile } from '../../hooks/useProfileManager';
 
 // The Profiles panel is special — it uses useProfileManager which needs
-// the core and storage adapter. We expose a factory to create it.
+// the core and storage adapter. Config is injected per-gridId through
+// a tiny pub-sub so the panel re-renders whenever the manager state changes.
 
 export interface ProfilesPanelConfig {
   profiles: Array<{
@@ -28,11 +30,39 @@ export interface ProfilesPanelConfig {
   onImport: (json: string) => void;
 }
 
-let _profilesConfig: ProfilesPanelConfig | null = null;
-export function setProfilesPanelConfig(config: ProfilesPanelConfig) { _profilesConfig = config; }
+// ─── Per-gridId subscribable config store ──────────────────────────────────
+const _configs = new Map<string, ProfilesPanelConfig>();
+const _listeners = new Map<string, Set<() => void>>();
+
+function notify(gridId: string) {
+  const set = _listeners.get(gridId);
+  if (!set) return;
+  for (const l of set) l();
+}
+
+export function setProfilesPanelConfig(gridId: string, config: ProfilesPanelConfig | null) {
+  if (config) _configs.set(gridId, config);
+  else _configs.delete(gridId);
+  notify(gridId);
+}
+
+function subscribe(gridId: string, listener: () => void) {
+  let set = _listeners.get(gridId);
+  if (!set) { set = new Set(); _listeners.set(gridId, set); }
+  set.add(listener);
+  return () => { set!.delete(listener); };
+}
+
+function getSnapshot(gridId: string): ProfilesPanelConfig | null {
+  return _configs.get(gridId) ?? null;
+}
 
 export function ProfilesPanel({ gridId }: SettingsPanelProps) {
-  const config = _profilesConfig;
+  const config = useSyncExternalStore(
+    useCallback((l) => subscribe(gridId, l), [gridId]),
+    useCallback(() => getSnapshot(gridId), [gridId]),
+    useCallback(() => getSnapshot(gridId), [gridId]),
+  );
   const [newName, setNewName] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -127,11 +157,14 @@ export function ProfilesPanel({ gridId }: SettingsPanelProps) {
         {profiles.length === 0 ? (
           <div className="gc-empty">No saved profiles yet</div>
         ) : (
-          profiles.map((profile) => (
+          profiles.map((profile) => {
+            const isReserved = isReservedDefaultProfile(profile.id);
+            return (
             <div
               key={profile.id}
               className="gc-profile-item"
               data-active={activeProfileId === profile.id}
+              data-reserved={isReserved || undefined}
               onClick={() => onLoad(profile.id)}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -174,13 +207,15 @@ export function ProfilesPanel({ gridId }: SettingsPanelProps) {
               </div>
 
               <div className="gc-profile-actions" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost" size="icon-sm"
-                  onClick={() => { setRenamingId(profile.id); setRenameValue(profile.name); }}
-                  title="Rename"
-                >
-                  <Icons.Edit size={11} />
-                </Button>
+                {!isReserved && (
+                  <Button
+                    variant="ghost" size="icon-sm"
+                    onClick={() => { setRenamingId(profile.id); setRenameValue(profile.name); }}
+                    title="Rename"
+                  >
+                    <Icons.Edit size={11} />
+                  </Button>
+                )}
                 <Button
                   variant="ghost" size="icon-sm"
                   onClick={() => onSetDefault(profile.isDefault ? null : profile.id)}
@@ -195,17 +230,20 @@ export function ProfilesPanel({ gridId }: SettingsPanelProps) {
                 >
                   <Icons.Download size={11} />
                 </Button>
-                <Button
-                  variant="ghost" size="icon-sm"
-                  onClick={() => onDelete(profile.id)}
-                  title="Delete"
-                  style={{ color: 'var(--gc-danger)' }}
-                >
-                  <Icons.Trash size={11} />
-                </Button>
+                {!isReserved && (
+                  <Button
+                    variant="ghost" size="icon-sm"
+                    onClick={() => onDelete(profile.id)}
+                    title="Delete"
+                    style={{ color: 'var(--gc-danger)' }}
+                  >
+                    <Icons.Trash size={11} />
+                  </Button>
+                )}
               </div>
             </div>
-          ))
+          );
+          })
         )}
       </div>
     </div>

@@ -12,8 +12,8 @@ export function StatusRenderer(params: any) {
   const c = COLORS[params.value] ?? COLORS.OPEN;
   return (
     <span style={{
-      padding: '2px 8px', borderRadius: 4,
-      fontSize: 9, fontWeight: 600, letterSpacing: '0.03em',
+      padding: '1px 6px', borderRadius: 2,
+      fontSize: 9, fontWeight: 500, letterSpacing: '0.03em',
       background: c.bg, color: c.text,
     }}>
       {params.value}

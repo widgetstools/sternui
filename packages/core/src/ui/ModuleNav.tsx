@@ -56,9 +56,12 @@ export const ModuleNav = React.memo(function ModuleNav({
   activeModuleId,
   onSelect,
 }: ModuleNavProps) {
+  // Hide state-only modules (no SettingsPanel) from the settings nav.
+  const visibleModules = modules.filter((m) => !!m.SettingsPanel);
+
   return (
     <nav className="gc-nav">
-      {modules.map((mod) => {
+      {visibleModules.map((mod) => {
         const IconComponent = iconMap[mod.icon] ?? Icons.Settings;
         const label = shortLabels[mod.id] ?? mod.name;
         return (

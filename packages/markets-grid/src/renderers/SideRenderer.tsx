@@ -5,7 +5,7 @@ export function SideRenderer(params: any) {
   const isBuy = params.value === 'BUY';
   return (
     <span style={{
-      color: isBuy ? '#2dd4bf' : '#f87171',
+      color: isBuy ? 'var(--bn-green, #2dd4bf)' : 'var(--bn-red, #f87171)',
       fontWeight: 600,
       fontSize: 9,
       letterSpacing: '0.04em',

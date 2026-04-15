@@ -1,0 +1,346 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { GridCore } from '../core/GridCore';
+import type { GridStore } from '../store/createGridStore';
+import { startAutoSave, type AutoSaveHandle } from '../store/autosave';
+import {
+  RESERVED_DEFAULT_PROFILE_ID,
+  activeProfileKey,
+  type ProfileSnapshot,
+  type StorageAdapter,
+} from '../persistence/StorageAdapter';
+import { migrateLegacyLocalStorage } from '../persistence/migrations';
+
+export interface UseProfileManagerOptions {
+  gridId: string;
+  core: GridCore;
+  store: GridStore;
+  adapter: StorageAdapter;
+  /** Auto-save debounce window. Default 300ms — see `startAutoSave`. */
+  autoSaveDebounceMs?: number;
+  /** Disable auto-save entirely — useful for tests that want to drive the
+   *  pipeline manually. Default false (auto-save on). */
+  disableAutoSave?: boolean;
+}
+
+export interface ProfileMeta {
+  readonly id: string;
+  readonly name: string;
+  readonly updatedAt: number;
+  readonly isDefault: boolean;
+}
+
+export interface UseProfileManagerResult {
+  /** Active profile id. `__default__` while Default is loaded. */
+  activeProfileId: string;
+  /** Sorted by name; Default is always present and first. */
+  profiles: ProfileMeta[];
+  /** True until the initial load + migration finishes. */
+  isLoading: boolean;
+  /** Load a profile, applying its snapshot via `core.deserializeAll`. Pending
+   *  auto-save flushes first so we don't lose un-persisted edits to the
+   *  outgoing profile. */
+  loadProfile: (id: string) => Promise<void>;
+  /** Persist the current store snapshot into the active profile. Called by
+   *  the auto-save engine; also exposed for explicit Save All buttons. */
+  saveActiveProfile: () => Promise<void>;
+  /** Create a new profile seeded from the current store snapshot, then make
+   *  it active. Rejects if `id` collides with the reserved Default sentinel. */
+  createProfile: (name: string, opts?: { id?: string }) => Promise<ProfileMeta>;
+  /** Delete a profile. Cannot delete Default — silently no-ops in that case
+   *  rather than throwing, since the call usually comes from a UI handler
+   *  that's already gated by the `isDefault` flag. */
+  deleteProfile: (id: string) => Promise<void>;
+  /** Rename. Cannot rename Default. */
+  renameProfile: (id: string, name: string) => Promise<void>;
+}
+
+/**
+ * Profile manager v2. Owns:
+ *  - The reserved Default profile (auto-created on first mount, never deletable).
+ *  - The active-profile pointer (single localStorage key per grid).
+ *  - The auto-save engine wired to write the live snapshot into the active
+ *    profile on a debounce.
+ *  - One-shot legacy migration from the v1 localStorage layout.
+ *
+ * Single source of truth: the only persisted state is `ProfileSnapshot`
+ * records in the adapter. The Zustand store is the only runtime state. The
+ * core is the only thing that knows how to serialize/deserialize across the
+ * two. Nothing duplicates state across stores or caches.
+ */
+export function useProfileManager(opts: UseProfileManagerOptions): UseProfileManagerResult {
+  const { gridId, core, store, adapter } = opts;
+
+  const [activeProfileId, setActiveProfileId] = useState<string>(RESERVED_DEFAULT_PROFILE_ID);
+  const [profiles, setProfiles] = useState<ProfileMeta[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Refs let async closures see the *current* active id without re-binding
+  // every render — the profile manager outlives any individual render.
+  const activeIdRef = useRef(activeProfileId);
+  activeIdRef.current = activeProfileId;
+
+  const autoSaveRef = useRef<AutoSaveHandle | null>(null);
+
+  // ─── Persist the live snapshot into whichever profile is active ──────────
+  //
+  // Read the *current* active id from the ref so a profile switch that hasn't
+  // been re-rendered yet doesn't write to the previous profile.
+  const persistSnapshot = useCallback(async () => {
+    const id = activeIdRef.current;
+    const snap = core.serializeAll();
+    const existing = await adapter.loadProfile(gridId, id);
+    const now = Date.now();
+    const next: ProfileSnapshot = existing
+      ? { ...existing, state: snap, updatedAt: now }
+      : {
+          id,
+          gridId,
+          name: id === RESERVED_DEFAULT_PROFILE_ID ? 'Default' : id,
+          state: snap,
+          createdAt: now,
+          updatedAt: now,
+        };
+    await adapter.saveProfile(next);
+    core.eventBus.emit('profile:saved', { gridId, profileId: id });
+  }, [adapter, core, gridId]);
+
+  const refreshProfiles = useCallback(async () => {
+    const list = await adapter.listProfiles(gridId);
+    setProfiles(toMetaList(list));
+  }, [adapter, gridId]);
+
+  // ─── Boot: legacy migrate → ensure Default → load active → wire auto-save ─
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await migrateLegacyLocalStorage(gridId, adapter);
+
+        // Make sure Default exists. If a fresh Default was just seeded by
+        // legacy migration, this load returns it; otherwise we create a blank.
+        let defaultProfile = await adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+        if (!defaultProfile) {
+          const now = Date.now();
+          defaultProfile = {
+            id: RESERVED_DEFAULT_PROFILE_ID,
+            gridId,
+            name: 'Default',
+            state: {},
+            createdAt: now,
+            updatedAt: now,
+          };
+          await adapter.saveProfile(defaultProfile);
+        }
+
+        // Resolve which profile to load (fallback chain):
+        //   1. localStorage active id, if it points at an existing profile
+        //   2. Default
+        const lsId = readActiveId(gridId);
+        let resolvedId = RESERVED_DEFAULT_PROFILE_ID;
+        let snapshot: ProfileSnapshot = defaultProfile;
+        if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID) {
+          const candidate = await adapter.loadProfile(gridId, lsId);
+          if (candidate) {
+            resolvedId = lsId;
+            snapshot = candidate;
+          } else {
+            // Stale pointer — clear it and fall through to Default.
+            writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
+          }
+        }
+
+        if (cancelled) return;
+
+        // Apply the snapshot before announcing — modules see correct state in
+        // any 'profile:loaded' handler that fires synchronously below.
+        core.resetAll();
+        core.deserializeAll(snapshot.state);
+
+        setActiveProfileId(resolvedId);
+        writeActiveId(gridId, resolvedId);
+        core.eventBus.emit('profile:loaded', { gridId, profileId: resolvedId });
+
+        await refreshProfiles();
+        setIsLoading(false);
+
+        if (!opts.disableAutoSave) {
+          autoSaveRef.current = startAutoSave({
+            core,
+            store,
+            persist: persistSnapshot,
+            debounceMs: opts.autoSaveDebounceMs ?? 300,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[core-v2] profile manager boot failed:', err);
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      // Flush any pending write before tearing down the auto-save loop —
+      // unmounting mid-edit shouldn't lose the user's last keystroke. The
+      // promise is intentionally floated; React's effect cleanup is sync.
+      const h = autoSaveRef.current;
+      autoSaveRef.current = null;
+      if (h) {
+        void h.flushNow().finally(() => h.dispose());
+      }
+    };
+    // gridId is the only thing that can semantically change — re-mount the
+    // effect on grid changes (rare, but defensible). Other deps are refs or
+    // stable identities provided by the caller.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridId]);
+
+  // ─── User-facing API ─────────────────────────────────────────────────────
+
+  const saveActiveProfile = useCallback(async () => {
+    // Cancel the debounce and persist now so the explicit save is the next
+    // thing to land in the adapter.
+    if (autoSaveRef.current) {
+      await autoSaveRef.current.flushNow();
+    } else {
+      await persistSnapshot();
+    }
+  }, [persistSnapshot]);
+
+  const loadProfile = useCallback(
+    async (id: string) => {
+      // Drain any pending auto-save for the *outgoing* profile before we
+      // overwrite the in-memory store. Otherwise the next debounce fire would
+      // write the new profile's snapshot into the old one's slot.
+      if (autoSaveRef.current) {
+        await autoSaveRef.current.flushNow();
+      }
+
+      const target = await adapter.loadProfile(gridId, id);
+      if (!target) {
+        throw new Error(`[core-v2] No profile "${id}" exists for grid "${gridId}"`);
+      }
+      core.resetAll();
+      core.deserializeAll(target.state);
+      activeIdRef.current = id;
+      setActiveProfileId(id);
+      writeActiveId(gridId, id);
+      core.eventBus.emit('profile:loaded', { gridId, profileId: id });
+      await refreshProfiles();
+    },
+    [adapter, core, gridId, refreshProfiles],
+  );
+
+  const createProfile = useCallback(
+    async (name: string, createOpts?: { id?: string }): Promise<ProfileMeta> => {
+      const id = createOpts?.id ?? generateProfileId(name);
+      if (id === RESERVED_DEFAULT_PROFILE_ID) {
+        throw new Error(
+          `[core-v2] Cannot use reserved id "${RESERVED_DEFAULT_PROFILE_ID}" for a new profile`,
+        );
+      }
+      const now = Date.now();
+      const snap: ProfileSnapshot = {
+        id,
+        gridId,
+        name: name.trim() || id,
+        state: core.serializeAll(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await adapter.saveProfile(snap);
+      activeIdRef.current = id;
+      setActiveProfileId(id);
+      writeActiveId(gridId, id);
+      core.eventBus.emit('profile:saved', { gridId, profileId: id });
+      core.eventBus.emit('profile:loaded', { gridId, profileId: id });
+      await refreshProfiles();
+      return toMeta(snap);
+    },
+    [adapter, core, gridId, refreshProfiles],
+  );
+
+  const deleteProfile = useCallback(
+    async (id: string) => {
+      if (id === RESERVED_DEFAULT_PROFILE_ID) return; // can't delete Default
+      await adapter.deleteProfile(gridId, id);
+      core.eventBus.emit('profile:deleted', { gridId, profileId: id });
+      // If the deleted profile was active, fall back to Default.
+      if (activeIdRef.current === id) {
+        await loadProfile(RESERVED_DEFAULT_PROFILE_ID);
+      } else {
+        await refreshProfiles();
+      }
+    },
+    [adapter, core, gridId, loadProfile, refreshProfiles],
+  );
+
+  const renameProfile = useCallback(
+    async (id: string, name: string) => {
+      if (id === RESERVED_DEFAULT_PROFILE_ID) {
+        throw new Error('[core-v2] Cannot rename the Default profile');
+      }
+      const existing = await adapter.loadProfile(gridId, id);
+      if (!existing) return;
+      await adapter.saveProfile({ ...existing, name: name.trim() || id, updatedAt: Date.now() });
+      await refreshProfiles();
+    },
+    [adapter, gridId, refreshProfiles],
+  );
+
+  return {
+    activeProfileId,
+    profiles,
+    isLoading,
+    loadProfile,
+    saveActiveProfile,
+    createProfile,
+    deleteProfile,
+    renameProfile,
+  };
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const readActiveId = (gridId: string): string | null => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    return localStorage.getItem(activeProfileKey(gridId));
+  } catch {
+    return null;
+  }
+};
+
+const writeActiveId = (gridId: string, id: string): void => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(activeProfileKey(gridId), id);
+  } catch {
+    /* quota / private mode — best-effort persistence */
+  }
+};
+
+const toMeta = (p: ProfileSnapshot): ProfileMeta => ({
+  id: p.id,
+  name: p.name,
+  updatedAt: p.updatedAt,
+  isDefault: p.id === RESERVED_DEFAULT_PROFILE_ID,
+});
+
+const toMetaList = (list: ProfileSnapshot[]): ProfileMeta[] =>
+  list
+    .map(toMeta)
+    // Default first; otherwise sort by display name (case-insensitive).
+    .sort((a, b) => {
+      if (a.isDefault) return -1;
+      if (b.isDefault) return 1;
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+
+const generateProfileId = (name: string): string => {
+  const base = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  // Suffix with a short random tag so two profiles named "Trades" don't collide.
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return base ? `${base}-${suffix}` : `profile-${suffix}`;
+};
