@@ -50,6 +50,10 @@ export interface MarketsGridV2Props<TData = unknown> {
   showToolbar?: boolean;
   /** Show the saved-filters toolbar (pills). */
   showFiltersToolbar?: boolean;
+  /** Show the inline formatting toolbar (Bold/Italic/Align/Colors/Borders/
+   *  Templates/etc.). Mirrors v1's FormattingToolbar but writes into v2's
+   *  structured `cellStyleOverrides`. Defaults to false so hosts opt in. */
+  showFormattingToolbar?: boolean;
   /** Show the explicit Save button. With auto-save on, this is a "force
    *  flush + visible confirmation" affordance, not a correctness requirement. */
   showSaveButton?: boolean;

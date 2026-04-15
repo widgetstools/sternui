@@ -57,6 +57,15 @@ export type { ColumnTemplate, ColumnDataType, ColumnTemplatesState } from './mod
 export { resolveTemplates } from './modules/column-templates/resolveTemplates';
 export { columnCustomizationModule, INITIAL_COLUMN_CUSTOMIZATION } from './modules/column-customization';
 export type { ColumnAssignment, ColumnCustomizationState } from './modules/column-customization';
+// Type-only re-exports for the structured style/formatter shapes — consumers
+// like FormattingToolbar build these at edit time, so they must be reachable
+// from the package root without deep-importing module internals.
+export type {
+  BorderSpec,
+  CellStyleOverrides,
+  ValueFormatterTemplate,
+  PresetId,
+} from './modules/column-customization/state';
 export { conditionalStylingModule, INITIAL_CONDITIONAL_STYLING } from './modules/conditional-styling';
 export type {
   CellStyleProperties,

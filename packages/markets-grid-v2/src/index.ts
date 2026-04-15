@@ -7,11 +7,13 @@
 
 export { MarketsGrid, DEFAULT_V2_MODULES } from './MarketsGrid';
 export { FiltersToolbar } from './FiltersToolbar';
+export { FormattingToolbar } from './FormattingToolbar';
 export { ProfileSelector } from './ProfileSelector';
 export { SettingsSheet } from './SettingsSheet';
 export { useMarketsGridV2 } from './useMarketsGridV2';
 
 export type { MarketsGridV2Props, SavedFilter } from './types';
 export type { FiltersToolbarProps } from './FiltersToolbar';
+export type { FormattingToolbarProps } from './FormattingToolbar';
 export type { ProfileSelectorProps } from './ProfileSelector';
 export type { UseMarketsGridV2Options, UseMarketsGridV2Result } from './useMarketsGridV2';

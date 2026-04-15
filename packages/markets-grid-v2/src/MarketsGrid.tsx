@@ -15,6 +15,7 @@ import { Save, Check, Settings as SettingsIcon } from 'lucide-react';
 import type { MarketsGridV2Props } from './types';
 import { useMarketsGridV2 } from './useMarketsGridV2';
 import { FiltersToolbar } from './FiltersToolbar';
+import { FormattingToolbar } from './FormattingToolbar';
 import { ProfileSelector } from './ProfileSelector';
 import { SettingsSheet } from './SettingsSheet';
 
@@ -52,6 +53,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
     modules = DEFAULT_V2_MODULES,
     showToolbar = true,
     showFiltersToolbar = false,
+    showFormattingToolbar = false,
     showSaveButton = true,
     showSettingsButton = true,
     showProfileSelector = true,
@@ -214,6 +216,10 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
             </button>
           )}
         </div>
+      )}
+
+      {showFormattingToolbar && (
+        <FormattingToolbar core={core} store={store} />
       )}
 
       <div style={{ flex: 1 }}>

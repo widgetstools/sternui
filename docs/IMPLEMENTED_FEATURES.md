@@ -776,6 +776,48 @@ Within the planned 4,500–5,500 LOC envelope (v1 is 14,107 LOC across 20 module
   per-pill row-count badges (would re-couple to `rowData`), and legacy
   `gc-filters:<gridId>` migration (v2 is greenfield).
 
+### FormattingToolbar v2 — inline cell/header formatting (v2 sub-project #4)
+
+Port of v1's 1,008-LOC `FormattingToolbar` to v2's structured state shape.
+Lives at `packages/markets-grid-v2/src/FormattingToolbar.tsx` and is wired
+through a new `showFormattingToolbar` prop on `MarketsGrid` v2 (default
+`false`; demo opts in for both versions).
+
+Features (12 of 14 ported; 2 deferred):
+
+- Templates dropdown + Save-as popover — writes to `column-templates.templates`
+  and sets `assignments[colId].templateIds = [tplId]` on apply
+- Bold / Italic / Underline — write `cellStyleOverrides.typography.{bold|italic|underline}`
+- Font-size dropdown (10 presets, 9-24px) — writes `typography.fontSize` as a number
+- Text + background color pickers — write `colors.{text|background}`
+- Alignment L / C / R — writes `alignment.horizontal`
+- Currency presets (USD/EUR/GBP/JPY) — `valueFormatterTemplate.kind = 'preset'`
+  with `preset: 'currency'` and the matching ISO code
+- Percent / Thousands — preset `percent` / preset `number` with `decimals: 0`
+- BPS — falls back to `kind: 'expression'` because there's no `bps` preset
+- Decimal precision ± — reads / increments `valueFormatterTemplate.options.decimals`
+- Borders popover — All / per-side / None buttons + width (1-3) + style (solid/
+  dashed/dotted) + color picker. Each side stored as a `BorderSpec`; the
+  flattener (`cellStyleToAgStyle`) emits `border-{top|right|bottom|left}` shorthands
+- Clear all — resets `assignments[colId] = { colId }`, dropping every override
+  and template reference
+- Cell / Header target toggle — local component state; writes route to
+  `cellStyleOverrides` or `headerStyleOverrides`
+
+Deferred:
+
+- Save All — already exists in `MarketsGrid` v2 toolbar; no duplicate added
+- Undo / Redo — v2 has no undo-redo module yet; buttons render disabled with
+  a "deferred to v2.2" tooltip for layout parity
+
+The v2 column-customization walker (`cellStyleToAgStyle.ts`) and template
+resolver (`resolveTemplates.ts`) shipped with sub-project #2 already convert
+the structured shapes into AG-Grid CSS / colDef fields, so this port did not
+need any module-internal changes. The only core-v2 change was to re-export
+the structured types (`BorderSpec`, `CellStyleOverrides`, `ValueFormatterTemplate`,
+`PresetId`) from the package root so the toolbar can reach them without
+deep-importing module internals.
+
 ### SettingsSheet + ConditionalStylingPanel (v2 sub-project #2.5)
 
 - New `SettingsSheet` drawer in `@grid-customizer/markets-grid-v2` — auto-discovers

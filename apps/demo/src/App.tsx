@@ -157,6 +157,7 @@ export function App() {
             theme={theme}
             rowIdField="id"
             showFiltersToolbar={true}
+            showFormattingToolbar={true}
             storageAdapter={storageAdapterV2}
             sideBar={{ toolPanels: ['columns', 'filters'] }}
             statusBar={{
