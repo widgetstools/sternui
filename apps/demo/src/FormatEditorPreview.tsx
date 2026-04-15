@@ -50,6 +50,27 @@ import {
   CornerDownRight, Hash, CaseSensitive,
 } from 'lucide-react';
 
+// ─── Shared popover stack ───────────────────────────────────────────────────
+//
+// Every FormatPopover / FormatDropdown portal registers its content element
+// here while open. Any popover's close-on-outside-click check consults this
+// stack: if the click's target lives inside ANY currently-open popover, we
+// treat it as "still inside the popover UI" and don't close. This is what
+// lets a nested thickness dropdown or color picker open from INSIDE an outer
+// popover without closing the outer as a side effect.
+//
+// Without this shared stack each popover only knows about its own contentRef
+// and interprets every click in a sibling popover's portal as "outside",
+// which was closing the border editor the instant you picked a value from
+// any of its child dropdowns.
+
+const openPopoverRoots = new Set<HTMLElement>();
+
+function clickIsInsideAnyOpenPopover(target: Node): boolean {
+  for (const el of openPopoverRoots) if (el.contains(target)) return true;
+  return false;
+}
+
 // ─── Tokens ──────────────────────────────────────────────────────────────────
 
 const T = {
@@ -765,11 +786,21 @@ function FormatDropdown<V extends string | number>({
     setPos({ top: rect.bottom + 4, left: rect.left });
   }, [open]);
 
+  // Register this popover's content in the shared stack while open so
+  // nested popovers can open inside without tripping outside-click closes.
+  useEffect(() => {
+    if (!open || !contentRef.current) return;
+    const el = contentRef.current;
+    openPopoverRoots.add(el);
+    return () => { openPopoverRoots.delete(el); };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || contentRef.current?.contains(t)) return;
+      if (triggerRef.current?.contains(t)) return;
+      if (clickIsInsideAnyOpenPopover(t)) return;
       setOpen(false);
     };
     document.addEventListener('mousedown', handler);
@@ -880,11 +911,21 @@ function FormatPopover({
     setPos({ top: rect.bottom + 4, left: rect.left });
   }, [open]);
 
+  // Register this popover's content in the shared stack while open so
+  // nested popovers can open inside without tripping outside-click closes.
+  useEffect(() => {
+    if (!open || !contentRef.current) return;
+    const el = contentRef.current;
+    openPopoverRoots.add(el);
+    return () => { openPopoverRoots.delete(el); };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || contentRef.current?.contains(t)) return;
+      if (triggerRef.current?.contains(t)) return;
+      if (clickIsInsideAnyOpenPopover(t)) return;
       setOpen(false);
     };
     document.addEventListener('mousedown', handler);
