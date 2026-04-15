@@ -124,6 +124,38 @@ describe('column-customization module — transformColumnDefs', () => {
     const out = columnCustomizationModule.transformColumnDefs!(groupedDefs, state, ctx);
     expect(out[0]).toBe(groupedDefs[0]);
   });
+
+  it('emits colDef.cellStyle when cellStyleOverrides is set', () => {
+    const state: ColumnCustomizationState = {
+      assignments: {
+        symbol: {
+          colId: 'symbol',
+          cellStyleOverrides: {
+            typography: { bold: true },
+            colors: { background: '#161a1e' },
+          },
+        },
+      },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
+    expect(out[0].cellStyle).toEqual({ fontWeight: 'bold', backgroundColor: '#161a1e' });
+    // Untouched column has no cellStyle assigned.
+    expect(out[1].cellStyle).toBeUndefined();
+  });
+
+  it('does NOT touch colDef.cellStyle when cellStyleOverrides is absent', () => {
+    const defsWithExistingStyle: AnyColDef[] = [
+      { field: 'symbol', cellStyle: { color: 'red' } } satisfies ColDef,
+    ];
+    const state: ColumnCustomizationState = {
+      assignments: { symbol: { colId: 'symbol', headerName: 'Ticker' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(defsWithExistingStyle, state, ctx) as ColDef[];
+    // The transformer left the upstream cellStyle in place — multi-module
+    // composition contract.
+    expect(out[0].cellStyle).toEqual({ color: 'red' });
+    expect(out[0].headerName).toBe('Ticker');
+  });
 });
 
 describe('column-customization module — serialize / deserialize', () => {

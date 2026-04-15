@@ -7,6 +7,7 @@ import {
   type ColumnCustomizationState,
   type LegacyColumnCustomizationState,
 } from './state';
+import { cellStyleToAgStyle } from './adapters/cellStyleToAgStyle';
 
 /**
  * Walk the column-def tree (handles ColGroupDef.children recursively) and
@@ -47,6 +48,9 @@ function applyAssignments(
     if (a.sortable !== undefined) merged.sortable = a.sortable;
     if (a.filterable !== undefined) merged.filter = a.filterable;
     if (a.resizable !== undefined) merged.resizable = a.resizable;
+    if (a.cellStyleOverrides !== undefined) {
+      merged.cellStyle = cellStyleToAgStyle(a.cellStyleOverrides);
+    }
     return merged;
   });
 }
