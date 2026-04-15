@@ -325,8 +325,9 @@ describe('column-customization module — transformColumnDefs', () => {
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
     expect(out[0].sortable).toBe(false);
-    // `cellStyleToAgStyle` only emits fontWeight when bold is truthy — assignment's
-    // bold:false suppresses the template's fontWeight, leaving only fontSize.
+    // Deviates from plan expectation {fontWeight:'normal', fontSize:'14px'}:
+    // cellStyleToAgStyle only emits fontWeight when bold is truthy, so bold:false
+    // from the assignment simply suppresses the template's fontWeight.
     expect(out[0].cellStyle).toEqual({ fontSize: '14px' });
   });
 
@@ -373,6 +374,30 @@ describe('column-customization module — transformColumnDefs', () => {
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
     expect(out[1].cellStyle).toBeUndefined();
+  });
+
+  it('cellDataType values outside the ColumnDataType domain do not trigger typeDefault', () => {
+    const defsWithCustomType: AnyColDef[] = [
+      { field: 'price', cellDataType: 'object' } satisfies ColDef,
+    ];
+    const localCtx = makeCtx({
+      templates: {
+        num: {
+          id: 'num',
+          name: 'num',
+          cellStyleOverrides: { alignment: { horizontal: 'right' } },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+      typeDefaults: { numeric: 'num' },
+    });
+    const state: ColumnCustomizationState = {
+      assignments: { price: { colId: 'price' } },
+    };
+    const out = columnCustomizationModule.transformColumnDefs!(defsWithCustomType, state, localCtx) as ColDef[];
+    // 'object' is not in our ColumnDataType union — typeDefault must NOT apply.
+    expect(out[0].cellStyle).toBeUndefined();
   });
 
   it('templates compose with explicit assignment cellEditor — assignment wins last', () => {

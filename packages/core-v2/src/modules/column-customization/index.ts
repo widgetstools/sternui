@@ -13,6 +13,19 @@ import { resolveTemplates } from '../column-templates/resolveTemplates';
 import type { ColumnTemplatesState, ColumnDataType } from '../column-templates/state';
 
 /**
+ * Narrow AG-Grid's `cellDataType` (boolean | string) to our `ColumnDataType`
+ * union. AG-Grid supports `true` for auto-infer plus custom string types like
+ * `'object'`; the typeDefaults registry only keys on the four known domain
+ * types, so anything else is reported as `undefined` (no typeDefault applies).
+ */
+function cellDataTypeToDomain(value: unknown): ColumnDataType | undefined {
+  if (value === 'numeric' || value === 'date' || value === 'string' || value === 'boolean') {
+    return value;
+  }
+  return undefined;
+}
+
+/**
  * Walk the column-def tree (handles ColGroupDef.children recursively) and
  * apply per-column inline overrides from `state.assignments`. Columns that
  * don't have an assignment pass through untouched — important for the common
@@ -47,11 +60,7 @@ function applyAssignments(
     // `cellDataType` is AG-Grid's dataType vocabulary (numeric / date / string /
     // boolean) — the resolver only fires the typeDefault fallback when this is
     // set on the colDef AND the assignment has no explicit `templateIds`.
-    const resolved = resolveTemplates(
-      a,
-      templatesState,
-      colDef.cellDataType as ColumnDataType | undefined,
-    );
+    const resolved = resolveTemplates(a, templatesState, cellDataTypeToDomain(colDef.cellDataType));
 
     const merged: ColDef = { ...colDef };
     if (resolved.headerName !== undefined) merged.headerName = resolved.headerName;
