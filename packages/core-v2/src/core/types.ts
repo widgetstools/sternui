@@ -25,6 +25,15 @@ export interface GridContext {
   readonly gridId: string;
   readonly gridApi: GridApi;
   readonly getRowId: GetRowIdFunc;
+  /**
+   * Read another module's current state. The same accessor that `ModuleContext`
+   * exposes; surfaced here so cross-module reads work from inside
+   * `transformColumnDefs` / `transformGridOptions`.
+   *
+   * Caller must know the target module's state shape — pass the type via the
+   * generic, e.g. `ctx.getModuleState<ColumnTemplatesState>('column-templates')`.
+   */
+  readonly getModuleState: <T>(moduleId: string) => T;
 }
 
 export interface ModuleContext {

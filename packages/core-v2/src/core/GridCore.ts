@@ -226,6 +226,7 @@ export class GridCore {
       gridApi: this.gridApi,
       getRowId: (params: GetRowIdParams) =>
         String((params.data as Record<string, unknown>)[field]),
+      getModuleState: this.getModuleStateFn,
     };
   }
 }

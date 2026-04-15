@@ -232,6 +232,55 @@ describe('GridCore — transformColumnDefs', () => {
       { field: 'fromA', hide: true },
     ]);
   });
+
+  it('exposes ctx.getModuleState to transformColumnDefs so a module can read sibling state', () => {
+    // sibling module owns a list of pinned colIds; the consumer module reads it.
+    interface SiblingState { pinned: string[] }
+    const sibling: Module<SiblingState> = {
+      id: 'sibling',
+      name: 'Sibling',
+      schemaVersion: 1,
+      priority: 0,
+      getInitialState: () => ({ pinned: ['a'] }),
+      serialize: (s) => s,
+      deserialize: (raw) => (raw as SiblingState) ?? { pinned: [] },
+    };
+    const consumer: Module<{}> = {
+      id: 'consumer',
+      name: 'Consumer',
+      schemaVersion: 1,
+      priority: 10,
+      dependencies: ['sibling'],
+      getInitialState: () => ({}),
+      serialize: () => ({}),
+      deserialize: () => ({}),
+      transformColumnDefs(defs, _state, ctx) {
+        const s = ctx.getModuleState<SiblingState>('sibling');
+        return defs.map((d) =>
+          'field' in d && d.field && s.pinned.includes(d.field)
+            ? { ...d, pinned: 'left' as const }
+            : d,
+        );
+      },
+    };
+    const stateMap = new Map<string, unknown>([
+      ['sibling', sibling.getInitialState()],
+      ['consumer', consumer.getInitialState()],
+    ]);
+    const core = new GridCore({
+      gridId: 'g1',
+      modules: [sibling, consumer],
+      getModuleState: <T>(id: string) => stateMap.get(id) as T,
+      setModuleState: () => {},
+    });
+    // Attach a fake gridApi so createGridContext returns non-null. This matches
+    // the pattern used by every other transform-pipeline test in this file
+    // (search `core.onGridReady(fakeApi)` for examples).
+    core.onGridReady({} as never);
+    const out = core.transformColumnDefs([{ field: 'a' }, { field: 'b' }]);
+    expect(out[0]).toEqual({ field: 'a', pinned: 'left' });
+    expect(out[1]).toEqual({ field: 'b' });
+  });
 });
 
 describe('GridCore — transformGridOptions', () => {
