@@ -17,7 +17,11 @@ const currency: PresetFactory = (opts) => {
     maximumFractionDigits: typeof opts?.decimals === 'number' ? opts.decimals : 2,
     minimumFractionDigits: typeof opts?.decimals === 'number' ? opts.decimals : 2,
   });
-  return ({ value }) => (value == null ? '' : fmt.format(Number(value)));
+  return ({ value }) => {
+    if (value == null) return '';
+    const n = Number(value);
+    return Number.isFinite(n) ? fmt.format(n) : '';
+  };
 };
 
 const percent: PresetFactory = (opts) => {
@@ -27,7 +31,11 @@ const percent: PresetFactory = (opts) => {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
-  return ({ value }) => (value == null ? '' : fmt.format(Number(value)));
+  return ({ value }) => {
+    if (value == null) return '';
+    const n = Number(value);
+    return Number.isFinite(n) ? fmt.format(n) : '';
+  };
 };
 
 const number: PresetFactory = (opts) => {
@@ -38,7 +46,11 @@ const number: PresetFactory = (opts) => {
     maximumFractionDigits: decimals,
     useGrouping: thousands,
   });
-  return ({ value }) => (value == null ? '' : fmt.format(Number(value)));
+  return ({ value }) => {
+    if (value == null) return '';
+    const n = Number(value);
+    return Number.isFinite(n) ? fmt.format(n) : '';
+  };
 };
 
 const date: PresetFactory = (opts) => {

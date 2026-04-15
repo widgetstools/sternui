@@ -67,6 +67,17 @@ describe('valueFormatterFromTemplate — preset branch', () => {
     expect(fn(params(null))).toBe('');
     expect(fn(params(undefined))).toBe('');
   });
+
+  it('numeric presets: non-numeric strings return "" (no "NaN" leak)', () => {
+    // The file-level contract promises we never render "NaN". Number("abc") is
+    // NaN, so the guard must reject it explicitly before handing to Intl.
+    const cur = valueFormatterFromTemplate({ kind: 'preset', preset: 'currency' });
+    const pct = valueFormatterFromTemplate({ kind: 'preset', preset: 'percent' });
+    const num = valueFormatterFromTemplate({ kind: 'preset', preset: 'number' });
+    expect(cur(params('abc'))).toBe('');
+    expect(pct(params('abc'))).toBe('');
+    expect(num(params('abc'))).toBe('');
+  });
 });
 
 describe('valueFormatterFromTemplate — expression branch', () => {
