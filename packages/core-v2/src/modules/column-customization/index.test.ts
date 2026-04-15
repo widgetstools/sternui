@@ -15,8 +15,8 @@ describe('column-customization module — metadata', () => {
     expect(columnCustomizationModule.priority).toBeGreaterThan(0);
   });
 
-  it('declares no module dependencies in v2.0 (templates module is out of scope)', () => {
-    expect(columnCustomizationModule.dependencies ?? []).toEqual([]);
+  it('declares column-templates as a dependency (enforced at registration)', () => {
+    expect(columnCustomizationModule.dependencies).toEqual(['column-templates']);
   });
 });
 
@@ -328,5 +328,23 @@ describe('column-customization module — serialize / deserialize', () => {
     expect(columnCustomizationModule.deserialize(null)).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
     expect(columnCustomizationModule.deserialize(undefined)).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
     expect(columnCustomizationModule.deserialize('garbage')).toEqual(INITIAL_COLUMN_CUSTOMIZATION);
+  });
+});
+
+describe('column-customization module — dependency enforcement', () => {
+  it('topoSortModules throws when column-templates is missing from the module list', async () => {
+    const { topoSortModules } = await import('../../core/topoSort');
+    expect(() => topoSortModules([columnCustomizationModule])).toThrow(
+      /column-templates/,
+    );
+  });
+
+  it('topoSortModules orders column-templates BEFORE column-customization', async () => {
+    const { topoSortModules } = await import('../../core/topoSort');
+    const { columnTemplatesModule } = await import('../column-templates');
+    // Pass them in the "wrong" order to make sure topo-sort actually reorders.
+    const sorted = topoSortModules([columnCustomizationModule, columnTemplatesModule]);
+    const ids = sorted.map((m) => m.id);
+    expect(ids.indexOf('column-templates')).toBeLessThan(ids.indexOf('column-customization'));
   });
 });

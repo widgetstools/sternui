@@ -81,6 +81,7 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: 'column-customization',
   name: 'Columns',
   schemaVersion: 3,                          // bumped from 2
+  dependencies: ['column-templates'],
   // After general-settings (which sets defaultColDef) so per-column overrides
   // win when they conflict with the grid-wide defaults.
   priority: 10,
