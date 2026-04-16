@@ -32,6 +32,7 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.15",
     "dexie": "^4.0.0",
     "zustand": "^5.0.0"
   },
