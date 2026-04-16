@@ -1,13 +1,15 @@
-import type { ColDef, ColGroupDef } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import type { AnyColDef, GridContext, Module } from '../../core/types';
+import { CssInjector } from '../../core/CssInjector';
 import {
   INITIAL_COLUMN_CUSTOMIZATION,
   migrateFromLegacy,
+  type BorderSpec,
+  type CellStyleOverrides,
   type ColumnAssignment,
   type ColumnCustomizationState,
   type LegacyColumnCustomizationState,
 } from './state';
-import { cellStyleToAgStyle } from './adapters/cellStyleToAgStyle';
 import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplate';
 import { resolveTemplates } from '../column-templates/resolveTemplates';
 import type { ColumnTemplatesState, ColumnDataType } from '../column-templates/state';
@@ -25,25 +27,162 @@ function cellDataTypeToDomain(value: unknown): ColumnDataType | undefined {
   return undefined;
 }
 
+// ─── CSS generation helpers ─────────────────────────────────────────────────
+
 /**
- * Walk the column-def tree (handles ColGroupDef.children recursively) and
- * apply per-column inline overrides from `state.assignments`. Columns that
- * don't have an assignment pass through untouched — important for the common
- * case where most columns are unmodified, so we don't build new objects we
- * don't need.
+ * Convert structured CellStyleOverrides to CSS declaration text (non-border
+ * properties only). Used to build the injected `.gc-col-c-{colId}` rules.
  */
+function styleOverridesToCSS(o: CellStyleOverrides): string {
+  const parts: string[] = [];
+  const t = o.typography;
+  if (t) {
+    if (t.bold) parts.push('font-weight: bold');
+    if (t.italic) parts.push('font-style: italic');
+    if (t.underline) parts.push('text-decoration: underline');
+    if (t.fontSize != null) parts.push(`font-size: ${t.fontSize}px`);
+  }
+  const c = o.colors;
+  if (c) {
+    if (c.text !== undefined) parts.push(`color: ${c.text}`);
+    if (c.background !== undefined) parts.push(`background-color: ${c.background}`);
+  }
+  const a = o.alignment;
+  if (a) {
+    if (a.horizontal !== undefined) parts.push(`text-align: ${a.horizontal}`);
+    if (a.vertical !== undefined) parts.push(`vertical-align: ${a.vertical}`);
+  }
+  // Borders NOT included — handled via ::after overlay in borderOverlayFromOverrides().
+  return parts.join('; ');
+}
+
+/**
+ * Build CSS for a ::after pseudo-element that renders per-side borders using
+ * inset box-shadow. See memory/styling_architecture.md for full rationale.
+ *
+ * Returns empty string if no borders are set.
+ */
+function borderOverlayFromOverrides(selector: string, o: CellStyleOverrides): string {
+  const b = o.borders;
+  if (!b) return '';
+  const shadows: string[] = [];
+  const sideMap: Record<string, (spec: BorderSpec) => string> = {
+    top:    (s) => `inset 0 ${s.width}px 0 0 ${s.color}`,
+    right:  (s) => `inset -${s.width}px 0 0 0 ${s.color}`,
+    bottom: (s) => `inset 0 -${s.width}px 0 0 ${s.color}`,
+    left:   (s) => `inset ${s.width}px 0 0 0 ${s.color}`,
+  };
+  for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+    const spec = b[side];
+    if (spec && spec.width > 0) shadows.push(sideMap[side](spec));
+  }
+  if (shadows.length === 0) return '';
+  return [
+    `${selector} { position: relative; }`,
+    `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: ${shadows.join(', ')}; z-index: 1; }`,
+  ].join('\n');
+}
+
+/**
+ * Header alignment needs special treatment — AG-Grid header cells use flexbox,
+ * so `text-align` doesn't work. Map to `justify-content` on the label container.
+ */
+function headerAlignCSS(selector: string, horizontal: string): string {
+  const map: Record<string, string> = {
+    left: 'flex-start',
+    center: 'center',
+    right: 'flex-end',
+  };
+  const jc = map[horizontal] ?? horizontal;
+  return `${selector} .ag-header-cell-label { justify-content: ${jc}; }`;
+}
+
+// ─── Per-grid resources ─────────────────────────────────────────────────────
+
+interface GridResources {
+  cellInjector: CssInjector;
+  headerInjector: CssInjector;
+}
+
+const _gridResources = new Map<string, GridResources>();
+
+function getOrCreate(gridId: string): GridResources {
+  let r = _gridResources.get(gridId);
+  if (!r) {
+    r = {
+      cellInjector: new CssInjector(gridId, 'column-customization-cells'),
+      headerInjector: new CssInjector(gridId, 'column-customization-headers'),
+    };
+    _gridResources.set(gridId, r);
+  }
+  return r;
+}
+
+/**
+ * Re-inject all CSS rules for every assigned column. Called on every
+ * transformColumnDefs pass (which runs whenever state changes). The
+ * CssInjector is keyed by colId, so re-applying just replaces the old text.
+ */
+function reinjectCSS(
+  res: GridResources,
+  assignments: Record<string, ColumnAssignment>,
+  templatesState: ColumnTemplatesState,
+  defs: AnyColDef[],
+): void {
+  res.cellInjector.clear();
+  res.headerInjector.clear();
+
+  const walk = (defList: AnyColDef[]) => {
+    for (const def of defList) {
+      if ('children' in def && Array.isArray(def.children)) {
+        walk(def.children);
+        continue;
+      }
+      const colDef = def as ColDef;
+      const colId = colDef.colId ?? colDef.field;
+      if (!colId) continue;
+      const a = assignments[colId];
+      if (!a) continue;
+
+      const resolved = resolveTemplates(a, templatesState, cellDataTypeToDomain(colDef.cellDataType));
+      const cellCls = `gc-col-c-${colId}`;
+      const hdrCls = `gc-hdr-c-${colId}`;
+
+      // Cell styles
+      if (resolved.cellStyleOverrides) {
+        const css = styleOverridesToCSS(resolved.cellStyleOverrides);
+        if (css) res.cellInjector.addRule(`cell-${colId}`, `.${cellCls} { ${css} }`);
+        // Border overlay
+        const border = borderOverlayFromOverrides(`.${cellCls}`, resolved.cellStyleOverrides);
+        if (border) res.cellInjector.addRule(`cell-bo-${colId}`, border);
+      }
+
+      // Header styles
+      if (resolved.headerStyleOverrides) {
+        const css = styleOverridesToCSS(resolved.headerStyleOverrides);
+        if (css) res.headerInjector.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
+        // Header alignment via justify-content
+        const align = resolved.headerStyleOverrides.alignment?.horizontal;
+        if (align) res.headerInjector.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, align));
+        // Border overlay for headers
+        const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
+        if (border) res.headerInjector.addRule(`hdr-bo-${colId}`, border);
+      }
+    }
+  };
+  walk(defs);
+}
+
+// ─── Walker: emit cellClass/headerClass instead of cellStyle/headerStyle ────
+
 function applyAssignments(
   defs: AnyColDef[],
   assignments: Record<string, ColumnAssignment>,
   templatesState: ColumnTemplatesState,
 ): AnyColDef[] {
   return defs.map((def) => {
-    // Group: recurse into children. The group itself has no colId so it
-    // can't be assigned — only leaves can.
     if ('children' in def && Array.isArray(def.children)) {
       const next = applyAssignments(def.children, assignments, templatesState);
-      // Only rebuild the group if a child actually changed reference, so
-      // upstream React/AG-Grid memoization can short-circuit.
       const childrenUnchanged =
         next.length === def.children.length &&
         next.every((c, i) => c === def.children[i]);
@@ -56,13 +195,11 @@ function applyAssignments(
     const a = assignments[colId];
     if (!a) return def;
 
-    // Resolve templates + typeDefault into a composite assignment.
-    // `cellDataType` is AG-Grid's dataType vocabulary (numeric / date / string /
-    // boolean) — the resolver only fires the typeDefault fallback when this is
-    // set on the colDef AND the assignment has no explicit `templateIds`.
     const resolved = resolveTemplates(a, templatesState, cellDataTypeToDomain(colDef.cellDataType));
 
     const merged: ColDef = { ...colDef };
+
+    // Structural overrides (non-styling — these still go on the ColDef)
     if (resolved.headerName !== undefined) merged.headerName = resolved.headerName;
     if (resolved.headerTooltip !== undefined) merged.headerTooltip = resolved.headerTooltip;
     if (resolved.initialWidth !== undefined) merged.initialWidth = resolved.initialWidth;
@@ -71,49 +208,55 @@ function applyAssignments(
     if (resolved.sortable !== undefined) merged.sortable = resolved.sortable;
     if (resolved.filterable !== undefined) merged.filter = resolved.filterable;
     if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
-    if (resolved.cellStyleOverrides !== undefined) {
-      merged.cellStyle = cellStyleToAgStyle(resolved.cellStyleOverrides);
-    }
-    if (resolved.headerStyleOverrides !== undefined) {
-      merged.headerStyle = cellStyleToAgStyle(resolved.headerStyleOverrides);
-    }
     if (resolved.valueFormatterTemplate !== undefined) {
       merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
     }
     if (resolved.cellEditorName !== undefined) merged.cellEditor = resolved.cellEditorName;
     if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;
     if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
+
+    // Styling via CSS class injection (NOT cellStyle/headerStyle).
+    // The actual CSS is injected by reinjectCSS() into a <style> tag.
+    // AG-Grid applies the class to every cell in this column.
+    if (resolved.cellStyleOverrides !== undefined) {
+      const cls = `gc-col-c-${colId}`;
+      const existing = colDef.cellClass;
+      if (Array.isArray(existing)) {
+        merged.cellClass = [...existing, cls];
+      } else if (typeof existing === 'string') {
+        merged.cellClass = [existing, cls];
+      } else {
+        merged.cellClass = cls;
+      }
+    }
+    if (resolved.headerStyleOverrides !== undefined) {
+      const cls = `gc-hdr-c-${colId}`;
+      const existing = colDef.headerClass;
+      if (Array.isArray(existing)) {
+        merged.headerClass = [...existing, cls];
+      } else if (typeof existing === 'string') {
+        merged.headerClass = [existing, cls];
+      } else {
+        merged.headerClass = cls;
+      }
+    }
+
     return merged;
   });
 }
 
-/**
- * v2.0 Column Customization. Pure transformColumnDefs — no CSS injection, no
- * template composition (column-templates is out of v2.0 scope), no module
- * dependencies.
- *
- * Pure-fn design (no `_ctxMap` singleton like v1) — the module reads/writes
- * everything it needs through the state argument and the GridContext passed
- * to the transform. That removes the React-strict-mode hazard around stale
- * closure context that v1 worked around by retaining a `_lastRegisteredGridId`.
- */
+// ─── Module definition ──────────────────────────────────────────────────────
+
 export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: 'column-customization',
   name: 'Columns',
-  schemaVersion: 3,                          // bumped from 2
+  schemaVersion: 3,
   dependencies: ['column-templates'],
-  // After general-settings (which sets defaultColDef) so per-column overrides
-  // win when they conflict with the grid-wide defaults.
   priority: 10,
 
   getInitialState: () => ({ ...INITIAL_COLUMN_CUSTOMIZATION }),
 
   migrate(raw, fromVersion) {
-    // v1 → v3 and v2 → v3: v3 is a strict superset; both lower versions
-    // roundtrip losslessly because the new fields are all optional and absent
-    // ones decode as `undefined` (the same value `getInitialState` produces).
-    // Tolerate non-object inputs defensively — core calls migrate with
-    // whatever was on disk.
     if (fromVersion === 1 || fromVersion === 2) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
@@ -131,10 +274,29 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     return { ...INITIAL_COLUMN_CUSTOMIZATION };
   },
 
+  onRegister(ctx) {
+    // Eagerly create the CssInjector so the first transformColumnDefs has it.
+    getOrCreate(ctx.gridId);
+  },
+
+  onGridDestroy(ctx) {
+    const r = _gridResources.get(ctx.gridId);
+    if (r) {
+      r.cellInjector.destroy();
+      r.headerInjector.destroy();
+      _gridResources.delete(ctx.gridId);
+    }
+  },
+
   transformColumnDefs(defs, state, ctx) {
     if (Object.keys(state.assignments).length === 0) return defs;
-    const templatesState =
-      ctx.getModuleState<ColumnTemplatesState>('column-templates');
+    const templatesState = ctx.getModuleState<ColumnTemplatesState>('column-templates');
+
+    // Inject CSS rules into <style> tags for every assigned column.
+    const res = getOrCreate(ctx.gridId);
+    reinjectCSS(res, state.assignments, templatesState, defs);
+
+    // Walk defs and emit cellClass/headerClass (NOT cellStyle/headerStyle).
     return applyAssignments(defs, state.assignments, templatesState);
   },
 
@@ -145,13 +307,9 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
       return { ...INITIAL_COLUMN_CUSTOMIZATION };
     }
     const raw = data as Record<string, unknown>;
-    // v1 shape: { overrides: {...} }, no 'assignments' key.
     if ('overrides' in raw && !('assignments' in raw)) {
       return migrateFromLegacy(raw as unknown as LegacyColumnCustomizationState);
     }
-    // v1.x stored `templates` inside this module's state; that field has
-    // moved to the `column-templates` module. Drop it on read so we don't
-    // carry dead data forward.
     const { templates: _drop, ...rest } = raw as { templates?: unknown };
     void _drop;
     return {

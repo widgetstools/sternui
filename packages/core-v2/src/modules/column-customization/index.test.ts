@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
 import {
   columnCustomizationModule,
@@ -46,6 +46,14 @@ describe('column-customization module — transformColumnDefs', () => {
     { field: 'symbol' } satisfies ColDef,
     { field: 'price', headerName: 'Price' } satisfies ColDef,
   ];
+
+  beforeEach(() => {
+    columnCustomizationModule.onRegister?.({ gridId: 'test' } as any);
+  });
+
+  afterEach(() => {
+    columnCustomizationModule.onGridDestroy?.({ gridId: 'test' } as any);
+  });
 
   it('returns the same array reference when no assignments exist', () => {
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, INITIAL_COLUMN_CUSTOMIZATION, ctx);
@@ -144,7 +152,7 @@ describe('column-customization module — transformColumnDefs', () => {
     expect(out[0]).toBe(groupedDefs[0]);
   });
 
-  it('emits colDef.cellStyle when cellStyleOverrides is set', () => {
+  it('emits colDef.cellClass when cellStyleOverrides is set and injects CSS into a <style> tag', () => {
     const state: ColumnCustomizationState = {
       assignments: {
         symbol: {
@@ -157,9 +165,17 @@ describe('column-customization module — transformColumnDefs', () => {
       },
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
-    expect(out[0].cellStyle).toEqual({ fontWeight: 'bold', backgroundColor: '#161a1e' });
-    // Untouched column has no cellStyle assigned.
-    expect(out[1].cellStyle).toBeUndefined();
+    // cellClass contains the generated class name instead of inline cellStyle.
+    expect(out[0].cellClass).toContain('gc-col-c-symbol');
+    // Untouched column has no cellClass assigned.
+    expect(out[1].cellClass).toBeUndefined();
+
+    // The actual CSS is injected into a <style> tag.
+    const styleEl = document.querySelector('style[data-gc-module="column-customization-cells"]');
+    expect(styleEl).not.toBeNull();
+    const css = styleEl!.textContent!;
+    expect(css).toContain('font-weight: bold');
+    expect(css).toContain('background-color: #161a1e');
   });
 
   it('does NOT touch colDef.cellStyle when cellStyleOverrides is absent', () => {
@@ -176,7 +192,7 @@ describe('column-customization module — transformColumnDefs', () => {
     expect(out[0].headerName).toBe('Ticker');
   });
 
-  it('emits colDef.headerStyle when headerStyleOverrides is set', () => {
+  it('emits colDef.headerClass when headerStyleOverrides is set and injects CSS into a <style> tag', () => {
     const state: ColumnCustomizationState = {
       assignments: {
         symbol: {
@@ -189,14 +205,18 @@ describe('column-customization module — transformColumnDefs', () => {
       },
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
-    expect(out[0].headerStyle).toEqual({
-      fontWeight: 'bold',
-      fontSize: '13px',
-      textAlign: 'center',
-    });
+    expect(out[0].headerClass).toContain('gc-hdr-c-symbol');
+
+    const styleEl = document.querySelector('style[data-gc-module="column-customization-headers"]');
+    expect(styleEl).not.toBeNull();
+    const css = styleEl!.textContent!;
+    expect(css).toContain('font-weight: bold');
+    expect(css).toContain('font-size: 13px');
+    // Header alignment uses justify-content on the label container, not text-align.
+    expect(css).toContain('justify-content: center');
   });
 
-  it('cellStyleOverrides + headerStyleOverrides on same column emit both', () => {
+  it('cellStyleOverrides + headerStyleOverrides on same column emit both classes and inject both <style> tags', () => {
     const state: ColumnCustomizationState = {
       assignments: {
         symbol: {
@@ -207,8 +227,16 @@ describe('column-customization module — transformColumnDefs', () => {
       },
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, ctx) as ColDef[];
-    expect(out[0].cellStyle).toEqual({ backgroundColor: '#000' });
-    expect(out[0].headerStyle).toEqual({ backgroundColor: '#fff' });
+    expect(out[0].cellClass).toContain('gc-col-c-symbol');
+    expect(out[0].headerClass).toContain('gc-hdr-c-symbol');
+
+    const cellStyleEl = document.querySelector('style[data-gc-module="column-customization-cells"]');
+    expect(cellStyleEl).not.toBeNull();
+    expect(cellStyleEl!.textContent).toContain('background-color: #000');
+
+    const hdrStyleEl = document.querySelector('style[data-gc-module="column-customization-headers"]');
+    expect(hdrStyleEl).not.toBeNull();
+    expect(hdrStyleEl!.textContent).toContain('background-color: #fff');
   });
 
   it('emits colDef.valueFormatter from a preset template', () => {
@@ -281,7 +309,7 @@ describe('column-customization module — transformColumnDefs', () => {
     expect(out[0].cellRenderer).toBe('sideRenderer');
   });
 
-  it('reads column-templates state via ctx.getModuleState (templateIds emit fields from referenced template)', () => {
+  it('reads column-templates state via ctx.getModuleState (templateIds emit cellClass from referenced template)', () => {
     const localCtx = makeCtx({
       templates: {
         bold: {
@@ -297,7 +325,11 @@ describe('column-customization module — transformColumnDefs', () => {
       assignments: { symbol: { colId: 'symbol', templateIds: ['bold'] } },
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
-    expect(out[0].cellStyle).toEqual({ fontWeight: 'bold' });
+    expect(out[0].cellClass).toContain('gc-col-c-symbol');
+
+    const styleEl = document.querySelector('style[data-gc-module="column-customization-cells"]');
+    expect(styleEl).not.toBeNull();
+    expect(styleEl!.textContent).toContain('font-weight: bold');
   });
 
   it('assignment fields beat template fields (per-field for styling, last-writer for the rest)', () => {
@@ -325,10 +357,15 @@ describe('column-customization module — transformColumnDefs', () => {
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
     expect(out[0].sortable).toBe(false);
-    // Deviates from plan expectation {fontWeight:'normal', fontSize:'14px'}:
-    // cellStyleToAgStyle only emits fontWeight when bold is truthy, so bold:false
-    // from the assignment simply suppresses the template's fontWeight.
-    expect(out[0].cellStyle).toEqual({ fontSize: '14px' });
+    expect(out[0].cellClass).toContain('gc-col-c-symbol');
+
+    // bold:false from assignment suppresses the template's fontWeight;
+    // only fontSize survives in the injected CSS.
+    const styleEl = document.querySelector('style[data-gc-module="column-customization-cells"]');
+    expect(styleEl).not.toBeNull();
+    const css = styleEl!.textContent!;
+    expect(css).toContain('font-size: 14px');
+    expect(css).not.toContain('font-weight');
   });
 
   it('typeDefault for the column\'s cellDataType applies when the assignment has no templateIds', () => {
@@ -352,7 +389,11 @@ describe('column-customization module — transformColumnDefs', () => {
       assignments: { price: { colId: 'price' } },
     };
     const out = columnCustomizationModule.transformColumnDefs!(defsWithType, state, localCtx) as ColDef[];
-    expect(out[0].cellStyle).toEqual({ textAlign: 'right' });
+    expect(out[0].cellClass).toContain('gc-col-c-price');
+
+    const styleEl = document.querySelector('style[data-gc-module="column-customization-cells"]');
+    expect(styleEl).not.toBeNull();
+    expect(styleEl!.textContent).toContain('text-align: right');
   });
 
   it('typeDefault is a no-op when colDef.cellDataType is undefined (resolver requires the data-type field)', () => {
@@ -454,7 +495,7 @@ describe('column-customization module — transformColumnDefs', () => {
     expect(out[0].sortable).toBe(true);
   });
 
-  it('two templateIds compose styling per-field on emitted cellStyle', () => {
+  it('two templateIds compose styling per-field in injected CSS', () => {
     const localCtx = makeCtx({
       templates: {
         a: {
@@ -477,7 +518,14 @@ describe('column-customization module — transformColumnDefs', () => {
       assignments: { symbol: { colId: 'symbol', templateIds: ['a', 'b'] } },
     };
     const out = columnCustomizationModule.transformColumnDefs!(baseDefs, state, localCtx) as ColDef[];
-    expect(out[0].cellStyle).toEqual({ fontWeight: 'bold', backgroundColor: '#000', color: '#fff' });
+    expect(out[0].cellClass).toContain('gc-col-c-symbol');
+
+    const styleEl = document.querySelector('style[data-gc-module="column-customization-cells"]');
+    expect(styleEl).not.toBeNull();
+    const css = styleEl!.textContent!;
+    expect(css).toContain('font-weight: bold');
+    expect(css).toContain('background-color: #000');
+    expect(css).toContain('color: #fff');
   });
 });
 

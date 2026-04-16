@@ -6,7 +6,7 @@ import type {
 } from 'ag-grid-community';
 import { ExpressionEngine } from '@grid-customizer/core';
 import type { AnyColDef, Module } from '../../core/types';
-import { CssInjector } from './cssInjector';
+import { CssInjector } from '../../core/CssInjector';
 import { ConditionalStylingPanel } from './ConditionalStylingPanel';
 import {
   INITIAL_CONDITIONAL_STYLING,
@@ -37,7 +37,7 @@ const _gridResources = new Map<string, GridResources>();
 function getOrCreateResources(gridId: string): GridResources {
   let r = _gridResources.get(gridId);
   if (!r) {
-    r = { engine: new ExpressionEngine(), cssInjector: new CssInjector(gridId) };
+    r = { engine: new ExpressionEngine(), cssInjector: new CssInjector(gridId, 'conditional-styling') };
     _gridResources.set(gridId, r);
   }
   return r;
