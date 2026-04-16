@@ -11,7 +11,7 @@ import {
   toolbarVisibilityModule,
   type AnyModule,
 } from '@grid-customizer/core-v2';
-import { Save, Check, Settings as SettingsIcon } from 'lucide-react';
+import { Save, Check, Settings as SettingsIcon, Brush, X as XIcon } from 'lucide-react';
 import type { MarketsGridV2Props } from './types';
 import { useMarketsGridV2 } from './useMarketsGridV2';
 import { FiltersToolbar } from './FiltersToolbar';
@@ -93,6 +93,11 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
   // (the sheet itself is ephemeral chrome; everything inside it auto-saves).
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Formatting toolbar visibility — toggled via the Style pill on the
+  // filter bar. v1 used a ToolbarSwitcher for this; v2 uses a simple
+  // pill + X-button on the toolbar itself.
+  const [styleToolbarOpen, setStyleToolbarOpen] = useState(showFormattingToolbar);
+
   const handleSaveAll = useCallback(async () => {
     try {
       await profiles.saveActiveProfile();
@@ -166,6 +171,33 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
             </div>
           )}
 
+          {/* Style pill — toggles the formatting toolbar */}
+          {showFormattingToolbar !== undefined && (
+            <button
+              type="button"
+              onClick={() => setStyleToolbarOpen((p) => !p)}
+              title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
+              style={{
+                height: 44, padding: '0 10px',
+                background: styleToolbarOpen
+                  ? 'rgba(45, 212, 191, 0.08)'
+                  : 'var(--card, #161a1e)',
+                borderBottom: '1px solid var(--border, #313944)',
+                border: 'none', borderLeft: '1px solid var(--border, #313944)',
+                color: styleToolbarOpen
+                  ? 'var(--bn-green, #2dd4bf)'
+                  : 'var(--muted-foreground, #a0a8b4)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
+                fontSize: 11, fontWeight: styleToolbarOpen ? 600 : 500,
+                transition: 'all 150ms',
+              }}
+            >
+              <Brush size={13} strokeWidth={1.75} />
+              <span>Style</span>
+            </button>
+          )}
+
           {showSaveButton && (
             <button
               type="button"
@@ -218,8 +250,33 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
         </div>
       )}
 
-      {showFormattingToolbar && (
-        <FormattingToolbar core={core} store={store} />
+      {styleToolbarOpen && (
+        <div style={{ position: 'relative' }}>
+          <FormattingToolbar core={core} store={store} />
+          {/* X button to hide the toolbar — mirrors v1's close behavior */}
+          <button
+            type="button"
+            onClick={() => setStyleToolbarOpen(false)}
+            title="Hide formatting toolbar"
+            style={{
+              position: 'absolute',
+              top: 4, right: 6,
+              width: 22, height: 22,
+              borderRadius: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--muted-foreground, #a0a8b4)',
+              cursor: 'pointer',
+              opacity: 0.6,
+              transition: 'opacity 150ms',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+          >
+            <XIcon size={14} strokeWidth={2} />
+          </button>
+        </div>
       )}
 
       <div style={{ flex: 1 }}>
