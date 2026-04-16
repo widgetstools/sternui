@@ -85,20 +85,23 @@ export function FormatPopover({
         createPortal(
           <div
             ref={contentRef}
+            // Portal renders on document.body, outside [data-gc-settings],
+            // so --gc-* vars may not resolve. Use explicit dark fallbacks.
+            data-gc-settings=""
             style={{
               position: 'fixed',
               top: pos.top,
               left: pos.left,
               zIndex: 10100,
-              background: 'var(--gc-surface)',
-              border: '1px solid var(--gc-border)',
+              background: 'var(--gc-surface, #161a1e)',
+              border: '1px solid var(--gc-border, #313944)',
               borderRadius: 'var(--gc-radius-xl, 6px)',
               padding: 10,
               width,
               boxShadow: '0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02) inset',
-              fontFamily: 'var(--gc-font)',
-              fontSize: 'var(--gc-font-sm)',
-              color: 'var(--gc-text)',
+              fontFamily: 'var(--gc-font, "Geist", "Inter", -apple-system, sans-serif)',
+              fontSize: 'var(--gc-font-sm, 11px)',
+              color: 'var(--gc-text, #eaecef)',
             }}
             onMouseDown={(e) => {
               // Stop propagation so no ancestor's document.mousedown handler
