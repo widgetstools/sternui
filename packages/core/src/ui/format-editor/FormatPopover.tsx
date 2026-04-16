@@ -101,6 +101,11 @@ export function FormatPopover({
               color: 'var(--gc-text)',
             }}
             onMouseDown={(e) => {
+              // Stop propagation so no ancestor's document.mousedown handler
+              // interprets this click as "outside" and closes the popover.
+              // This is the primary mechanism that keeps the color picker
+              // (and any nested popover content) alive while the user interacts.
+              e.stopPropagation();
               const tag = (e.target as HTMLElement).tagName;
               if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
             }}

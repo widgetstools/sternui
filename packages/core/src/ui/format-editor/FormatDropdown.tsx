@@ -81,6 +81,11 @@ export function FormatDropdown<V extends string | number>({
         createPortal(
           <div
             ref={contentRef}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              const tag = (e.target as HTMLElement).tagName;
+              if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
+            }}
             style={{
               position: 'fixed',
               top: pos.top,
