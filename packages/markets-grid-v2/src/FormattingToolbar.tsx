@@ -29,7 +29,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
-  Popover,
+  PopoverCompat as Popover,
   Tooltip,
   ToggleGroup,
   ToggleGroupItem,

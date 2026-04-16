@@ -1,21 +1,12 @@
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
-import { createPortal } from 'react-dom';
+import * as React from 'react';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Check } from 'lucide-react';
+import { cn } from '../shadcn/utils';
 import { clickIsInsideAnyOpenPopover, registerPopoverRoot } from './popoverStack';
 
 /**
- * Portal dropdown with Figma-style checkmark rail. Used for select-style
- * choices where only one option can be active (thickness, style, preset, ...).
- *
- * `trigger` is cloned with an onClick that toggles open. Shares the popover
- * stack so it doesn't close its parent popover when picked.
+ * Portal dropdown with Figma-style checkmark rail, built on Radix Popover.
+ * Used for select-style choices (thickness, style, preset, font-size, etc.)
  */
 export function FormatDropdown<V extends string | number>({
   trigger,
@@ -25,140 +16,110 @@ export function FormatDropdown<V extends string | number>({
   footer,
   width,
 }: {
-  trigger: ReactElement<{ onClick?: (e: React.MouseEvent) => void }>;
-  options: Array<{ value: V; label: string; icon?: ReactNode }>;
+  trigger: React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>;
+  options: Array<{ value: V; label: string; icon?: React.ReactNode }>;
   value: V;
   onChange: (v: V) => void;
-  footer?: ReactNode;
-  /** Optional explicit min-width override; otherwise sizes to content. */
+  footer?: React.ReactNode;
   width?: number;
 }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLElement | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [open, setOpen] = React.useState(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: rect.left });
-  }, [open]);
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (!open || !contentRef.current) return;
     return registerPopoverRoot(contentRef.current);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t)) return;
-      if (clickIsInsideAnyOpenPopover(t)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const clonedTrigger = React.cloneElement(
-    trigger as ReactElement<Record<string, unknown>>,
-    {
-      ref: (el: HTMLElement | null) => {
-        triggerRef.current = el;
-      },
-      onClick: (e: React.MouseEvent) => {
-        (trigger.props as { onClick?: (e: React.MouseEvent) => void }).onClick?.(e);
-        setOpen((p) => !p);
-      },
-    } as Record<string, unknown>,
-  );
-
   return (
-    <>
-      {clonedTrigger}
-      {open &&
-        createPortal(
-          <div
-            ref={contentRef}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              const tag = (e.target as HTMLElement).tagName;
-              if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
-            }}
-            data-gc-settings=""
-            style={{
-              position: 'fixed',
-              top: pos.top,
-              left: pos.left,
-              zIndex: 10100,
-              background: 'var(--gc-surface, #161a1e)',
-              border: '1px solid var(--gc-border, #313944)',
-              borderRadius: 'var(--gc-radius-xl, 6px)',
-              padding: 4,
-              minWidth: width ?? 180,
-              boxShadow: '0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02) inset',
-              fontFamily: 'var(--gc-font, "Geist", "Inter", -apple-system, sans-serif)',
-              fontSize: 'var(--gc-font-sm, 11px)',
-              color: 'var(--gc-text, #eaecef)',
-            }}
-          >
-            {options.map((o) => {
-              const selected = o.value === value;
-              return (
-                <button
-                  key={String(o.value)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onChange(o.value);
-                    setOpen(false);
-                  }}
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Trigger asChild>
+        {trigger}
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          ref={contentRef}
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          data-gc-settings=""
+          className={cn(
+            'z-[2147483647] rounded-md',
+            'bg-[var(--gc-surface,#161a1e)] text-[var(--gc-text,#eaecef)]',
+            'border border-[var(--gc-border,#313944)]',
+            'shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
+            'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)] text-[11px]',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+            'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
+          )}
+          style={{ minWidth: width ?? 180, padding: 4 }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (clickIsInsideAnyOpenPopover(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
+        >
+          {options.map((o) => {
+            const selected = o.value === value;
+            return (
+              <button
+                key={String(o.value)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '6px 8px 6px 4px',
+                  background: 'transparent',
+                  color: 'var(--gc-text, #eaecef)',
+                  border: 'none',
+                  borderRadius: 'var(--gc-radius-sm, 4px)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'var(--gc-font)',
+                  fontSize: 'var(--gc-font-sm, 11px)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gc-surface-hover, #1e2329)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    width: '100%',
-                    padding: '6px 8px 6px 4px',
-                    background: 'transparent',
-                    color: 'var(--gc-text)',
-                    border: 'none',
-                    borderRadius: 'var(--gc-radius-sm, 4px)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontFamily: 'var(--gc-font)',
-                    fontSize: 'var(--gc-font-sm)',
+                    width: 14,
+                    display: 'inline-flex',
+                    justifyContent: 'center',
+                    color: selected ? 'var(--gc-positive, #2dd4bf)' : 'transparent',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gc-surface-hover)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <span
-                    style={{
-                      width: 14,
-                      display: 'inline-flex',
-                      justifyContent: 'center',
-                      color: selected ? 'var(--gc-positive)' : 'transparent',
-                    }}
-                  >
-                    <Check size={11} strokeWidth={2} />
+                  <Check size={11} strokeWidth={2} />
+                </span>
+                {o.icon && (
+                  <span style={{ color: selected ? 'var(--gc-positive)' : 'var(--gc-text-muted)', display: 'inline-flex' }}>
+                    {o.icon}
                   </span>
-                  {o.icon && (
-                    <span style={{ color: selected ? 'var(--gc-positive)' : 'var(--gc-text-muted)', display: 'inline-flex' }}>
-                      {o.icon}
-                    </span>
-                  )}
-                  <span style={{ flex: 1 }}>{o.label}</span>
-                </button>
-              );
-            })}
-            {footer && (
-              <>
-                <div style={{ height: 1, background: 'var(--gc-border)', margin: '4px 0' }} />
-                {footer}
-              </>
-            )}
-          </div>,
-          document.body,
-        )}
-    </>
+                )}
+                <span style={{ flex: 1 }}>{o.label}</span>
+              </button>
+            );
+          })}
+          {footer && (
+            <>
+              <div style={{ height: 1, background: 'var(--gc-border)', margin: '4px 0' }} />
+              {footer}
+            </>
+          )}
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }

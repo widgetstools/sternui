@@ -89,7 +89,9 @@ export { Input } from './ui/shadcn/input';
 export type { InputProps } from './ui/shadcn/input';
 export { Select } from './ui/shadcn/select';
 export { Switch } from './ui/shadcn/switch';
-export { Popover } from './ui/shadcn/popover';
+export {
+  Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverClose, PopoverCompat,
+} from './ui/shadcn/popover';
 export { Tooltip } from './ui/shadcn/tooltip';
 export { Separator } from './ui/shadcn/separator';
 export { Label } from './ui/shadcn/label';
