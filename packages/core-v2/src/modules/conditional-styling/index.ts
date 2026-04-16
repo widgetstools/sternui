@@ -45,6 +45,11 @@ function getOrCreateResources(gridId: string): GridResources {
 
 // ─── CSS generation ─────────────────────────────────────────────────────────
 
+/**
+ * Convert non-border style properties to a CSS declaration string.
+ * Border properties are handled separately via `borderOverlayCSS` which
+ * uses a `::after` pseudo-element with `inset box-shadow`.
+ */
 function styleToCSS(style: CellStyleProperties): string {
   const parts: string[] = [];
   if (style.backgroundColor) parts.push(`background-color: ${style.backgroundColor}`);
@@ -59,19 +64,55 @@ function styleToCSS(style: CellStyleProperties): string {
   if (style.paddingRight) parts.push(`padding-right: ${style.paddingRight}`);
   if (style.paddingBottom) parts.push(`padding-bottom: ${style.paddingBottom}`);
   if (style.paddingLeft) parts.push(`padding-left: ${style.paddingLeft}`);
-  if (style.borderTopWidth) {
-    parts.push(`border-top: ${style.borderTopWidth} ${style.borderTopStyle ?? 'solid'} ${style.borderTopColor ?? 'currentColor'}`);
-  }
-  if (style.borderRightWidth) {
-    parts.push(`border-right: ${style.borderRightWidth} ${style.borderRightStyle ?? 'solid'} ${style.borderRightColor ?? 'currentColor'}`);
-  }
-  if (style.borderBottomWidth) {
-    parts.push(`border-bottom: ${style.borderBottomWidth} ${style.borderBottomStyle ?? 'solid'} ${style.borderBottomColor ?? 'currentColor'}`);
-  }
-  if (style.borderLeftWidth) {
-    parts.push(`border-left: ${style.borderLeftWidth} ${style.borderLeftStyle ?? 'solid'} ${style.borderLeftColor ?? 'currentColor'}`);
-  }
+  // Border properties NOT included here — see borderOverlayCSS below.
   return parts.join('; ');
+}
+
+/**
+ * Build CSS for a ::after pseudo-element that renders per-side borders
+ * using inset box-shadow. Ported from v1's column-customization module.
+ *
+ * WHY ::after + box-shadow instead of real CSS borders:
+ *   1. AG-Grid cells have overflow:hidden — real borders on the cell element
+ *      get clipped at the cell boundary, especially bottom/right edges.
+ *   2. AG-Grid uses its own border mechanism for column separators — real
+ *      border-* properties on the cell conflict with those separators and
+ *      cause double-borders or missing separators.
+ *   3. inset box-shadow draws INSIDE the cell without changing the box-model
+ *      size, so it doesn't shift cell content or affect column widths.
+ *   4. The ::after is position:absolute + inset:0, so it fills the cell
+ *      exactly. pointer-events:none lets AG-Grid selection work through it.
+ *   5. Each side is an independent shadow, so per-side color/width works
+ *      naturally with comma-separated box-shadow values.
+ *
+ * @param selector  CSS selector for the target element (e.g. `.gc-rule-abc`)
+ * @param style     CellStyleProperties containing border* fields
+ * @returns CSS text for the ::after rule, or empty string if no borders set
+ */
+function borderOverlayCSS(selector: string, style: CellStyleProperties): string {
+  const shadows: string[] = [];
+  const sideMap = {
+    Top:    (w: string, c: string) => `inset 0 ${w} 0 0 ${c}`,
+    Right:  (w: string, c: string) => `inset -${w} 0 0 0 ${c}`,
+    Bottom: (w: string, c: string) => `inset 0 -${w} 0 0 ${c}`,
+    Left:   (w: string, c: string) => `inset ${w} 0 0 0 ${c}`,
+  };
+  for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
+    const width = style[`border${side}Width` as keyof CellStyleProperties] as string | undefined;
+    const color = (style[`border${side}Color` as keyof CellStyleProperties] as string) ?? 'currentColor';
+    if (width && width !== '0px' && width !== 'none') {
+      shadows.push(sideMap[side](width, color));
+    }
+  }
+  if (shadows.length === 0) return '';
+  // The cell needs position:relative so ::after can be absolute-positioned
+  // inside it. AG-Grid cells may or may not have this already — setting it
+  // is safe because AG-Grid's own layout doesn't depend on the cell being
+  // static.
+  return [
+    `${selector} { position: relative; }`,
+    `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: ${shadows.join(', ')}; z-index: 1; }`,
+  ].join('\n');
 }
 
 /**
@@ -88,22 +129,33 @@ function styleToCSS(style: CellStyleProperties): string {
  * took effect because the selector didn't match the demo's theme signal.
  */
 function buildCssText(ruleId: string, light: CellStyleProperties, dark: CellStyleProperties): string {
+  const cls = `.gc-rule-${ruleId}`;
   const lightProps = styleToCSS(light);
   const darkProps = styleToCSS(dark);
   const lines: string[] = [];
+
+  // ── Non-border properties (theme-aware selectors) ──
   if (lightProps) {
-    lines.push(
-      `:root:not(.dark):not([data-theme="dark"]) .gc-rule-${ruleId} { ${lightProps} }`,
-    );
+    lines.push(`:root:not(.dark):not([data-theme="dark"]) ${cls} { ${lightProps} }`);
   }
   if (darkProps) {
-    lines.push(
-      `.dark .gc-rule-${ruleId}, [data-theme="dark"] .gc-rule-${ruleId} { ${darkProps} }`,
-    );
+    lines.push(`.dark ${cls}, [data-theme="dark"] ${cls} { ${darkProps} }`);
   }
-  // Fallback when only light is configured — still shows up outside the
-  // theme system (e.g. consumers without a `.dark` class or data-theme attr).
-  if (lightProps && !darkProps) lines.push(`.gc-rule-${ruleId} { ${lightProps} }`);
+  if (lightProps && !darkProps) lines.push(`${cls} { ${lightProps} }`);
+
+  // ── Border overlay via ::after pseudo-element + inset box-shadow ──
+  // Borders are theme-aware too: light borders for light theme, dark for dark.
+  const lightBorder = borderOverlayCSS(`:root:not(.dark):not([data-theme="dark"]) ${cls}`, light);
+  const darkBorder = borderOverlayCSS(`.dark ${cls}`, dark)
+    + (borderOverlayCSS(`[data-theme="dark"] ${cls}`, dark) ? '\n' + borderOverlayCSS(`[data-theme="dark"] ${cls}`, dark) : '');
+  if (lightBorder) lines.push(lightBorder);
+  if (darkBorder) lines.push(darkBorder);
+  // Fallback (same as non-border)
+  if (lightBorder && !darkBorder) {
+    const fallback = borderOverlayCSS(cls, light);
+    if (fallback) lines.push(fallback);
+  }
+
   return lines.join('\n');
 }
 
