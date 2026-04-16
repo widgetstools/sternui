@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { X, Check, Pipette } from 'lucide-react';
 import { cn } from './utils';
 import { FormatColorPicker } from '../format-editor/FormatColorPicker';
+import { FormatPopover } from '../format-editor/FormatPopover';
 
 // ─── Color Palette ──────────────────────────────────────────────────────────
 
@@ -107,36 +108,19 @@ export interface ColorPickerPopoverProps {
   compact?: boolean;
 }
 
-export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear = true, compact }: ColorPickerPopoverProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT') return;
-      if (ref.current && !ref.current.contains(target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const handleChange = useCallback((c: string | undefined) => {
-    onChange(c);
-    setOpen(false);
-  }, [onChange]);
-
+/**
+ * ColorPickerPopover — toolbar icon button that opens the unified color
+ * picker in a portal-based FormatPopover. Used by FormattingToolbar for
+ * text color and background color buttons.
+ *
+ * The picker stays open while the user interacts (SV pad dragging, preset
+ * clicks, hue slider, hex typing) — it only closes when the user clicks
+ * outside every open popover.
+ */
+export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear = true }: ColorPickerPopoverProps) {
   return (
-    <div ref={ref} className="relative inline-flex">
-      <div
-        className="cursor-pointer"
-        onMouseDown={(e) => {
-          const tag = (e.target as HTMLElement).tagName;
-          if (tag !== 'INPUT') e.preventDefault();
-        }}
-        onClick={() => setOpen(!open)}
-      >
+    <FormatPopover
+      trigger={
         <button
           disabled={disabled}
           className={cn(
@@ -152,24 +136,14 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
             />
           </span>
         </button>
-      </div>
-      {open && (
-        <div
-          className="absolute z-50 top-full mt-1 left-0"
-          style={{
-            borderRadius: 6,
-            border: '1px solid var(--border)',
-            background: 'var(--card)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-          }}
-        >
-          <ColorPicker
-            value={value}
-            onChange={handleChange}
-            allowClear={allowClear}
-          />
-        </div>
-      )}
-    </div>
+      }
+      width={240}
+    >
+      <FormatColorPicker
+        value={value || '#000000'}
+        onChange={(c) => onChange(c || undefined)}
+        allowClear={allowClear}
+      />
+    </FormatPopover>
   );
 }
