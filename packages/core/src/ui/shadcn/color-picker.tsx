@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { X, Check, Pipette } from 'lucide-react';
 import { cn } from './utils';
+import { FormatColorPicker } from '../format-editor/FormatColorPicker';
 
 // ─── Color Palette ──────────────────────────────────────────────────────────
 
@@ -76,159 +77,21 @@ export interface ColorPickerProps {
   compact?: boolean;
 }
 
+/**
+ * Color picker — delegates to the unified FormatColorPicker primitive so
+ * every color picker in the app uses the same component (SV pad + hue
+ * slider + presets + recent colors + native pipette + hex input).
+ */
 export function ColorPicker({ value, onChange, allowClear = true }: ColorPickerProps) {
-  const [draft, setDraft] = useState(value || '');
-  const [hexInput, setHexInput] = useState(value || '');
-  const [recentColors, setRecentColors] = useState<string[]>(getRecentColors);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setDraft(value || '');
-    setHexInput(value || '');
-  }, [value]);
-
-  const selectColor = useCallback((c: string) => {
-    setDraft(c);
-    setHexInput(c);
-  }, []);
-
-  const confirm = useCallback(() => {
-    if (draft) {
-      addRecentColor(draft);
-      setRecentColors(getRecentColors());
-    }
-    onChange(draft || undefined);
-  }, [draft, onChange]);
-
-  const clear = useCallback(() => {
-    setDraft('');
-    setHexInput('');
-    onChange(undefined);
-  }, [onChange]);
-
-  const commitHex = useCallback(() => {
-    const hex = hexInput.trim();
-    if (/^#?[0-9a-fA-F]{3,8}$/.test(hex)) {
-      const normalized = hex.startsWith('#') ? hex : `#${hex}`;
-      selectColor(normalized);
-    }
-  }, [hexInput, selectColor]);
-
-  const gridStyle = { display: 'flex', gap: SWATCH_GAP, marginBottom: SWATCH_GAP };
-
   return (
     <div style={{ padding: 8 }} onMouseDown={(e) => {
       if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
     }}>
-      {/* ── Grayscale row ── */}
-      <div style={gridStyle}>
-        {GRAYSCALE.map((c) => (
-          <Swatch key={c} color={c} selected={draft === c} onClick={() => selectColor(c)} />
-        ))}
-      </div>
-
-      {/* ── Hue grid ── */}
-      {HUE_GRID.map((row, ri) => (
-        <div key={ri} style={gridStyle}>
-          {row.map((c) => (
-            <Swatch key={c} color={c} selected={draft === c} onClick={() => selectColor(c)} />
-          ))}
-        </div>
-      ))}
-
-      {/* ── Recent colors ── */}
-      {recentColors.length > 0 && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' as const, color: 'var(--muted-foreground)', marginBottom: 4 }}>
-            Recent
-          </div>
-          <div style={{ display: 'flex', gap: SWATCH_GAP }}>
-            {recentColors.map((c) => (
-              <Swatch key={c} color={c} selected={draft === c} onClick={() => selectColor(c)} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Bottom bar: pipette + hex input + clear + confirm ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-        {/* Pipette / native color picker */}
-        <label
-          style={{
-            width: 20, height: 20, borderRadius: SWATCH_RADIUS,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', position: 'relative', overflow: 'hidden',
-            background: draft || 'var(--accent)',
-            border: '1px solid var(--border)',
-          }}
-          title="Pick custom color"
-        >
-          <Pipette size={10} strokeWidth={1.5} style={{ color: 'var(--foreground)', opacity: 0.7 }} />
-          <input
-            type="color"
-            value={draft || '#000000'}
-            onChange={(e) => selectColor(e.target.value)}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
-          />
-        </label>
-
-        {/* Hex input */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={hexInput}
-          onChange={(e) => setHexInput(e.target.value)}
-          onBlur={commitHex}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { commitHex(); confirm(); }
-          }}
-          placeholder="#000000"
-          style={{
-            flex: 1, height: 20, padding: '0 8px',
-            borderRadius: SWATCH_RADIUS,
-            fontSize: 9, fontFamily: "var(--fi-mono, 'JetBrains Mono', monospace)",
-            background: 'var(--background)', color: 'var(--foreground)',
-            border: '1px solid var(--border)', outline: 'none',
-            minWidth: 0,
-          }}
-        />
-
-        {/* Clear (×) */}
-        {allowClear && (
-          <button
-            onClick={clear}
-            onMouseDown={(e) => e.preventDefault()}
-            title="No color"
-            style={{
-              width: 20, height: 20, borderRadius: SWATCH_RADIUS,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', transition: 'all 150ms',
-              background: 'var(--accent)',
-              border: '1px solid var(--border)',
-              color: 'var(--foreground)',
-            }}
-          >
-            <X size={10} strokeWidth={2} />
-          </button>
-        )}
-
-        {/* Confirm (✓) */}
-        <button
-          onClick={confirm}
-          onMouseDown={(e) => e.preventDefault()}
-          title="Apply color"
-          style={{
-            width: 20, height: 20, borderRadius: SWATCH_RADIUS,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', transition: 'all 150ms',
-            background: draft ? 'var(--foreground)' : 'var(--accent)',
-            color: draft ? 'var(--background)' : 'var(--muted-foreground)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <Check size={10} strokeWidth={2.5} />
-        </button>
-      </div>
+      <FormatColorPicker
+        value={value || '#000000'}
+        onChange={(c) => onChange(c || undefined)}
+        allowClear={allowClear}
+      />
     </div>
   );
 }

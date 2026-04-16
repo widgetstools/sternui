@@ -1,22 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pipette, X } from 'lucide-react';
 
 /**
- * Self-contained HSV color picker matching the border-editor-v4 reference.
+ * Unified color picker used across the entire app.
  *
- * Layout:
- *   ┌──────────────────────┐
- *   │    SV pad (100px)    │  ← drag crosshair
- *   ├──────────────────────┤
- *   │    Hue strip (12px)  │  ← drag thumb
- *   ├──────────────────────┤
- *   │ ⬛⬛⬛⬛⬛⬛⬛⬛  │  ← 16 preset swatches (8×2)
- *   ├──────────────────────┤
- *   │ [■] #hex input       │
- *   └──────────────────────┘
+ * Layout (~240px wide, ~250px tall):
+ *   ┌─────────────────────────┐
+ *   │     SV pad (90px)       │  drag crosshair
+ *   ├─────────────────────────┤
+ *   │   Hue strip (10px)     │  drag thumb
+ *   ├─────────────────────────┤
+ *   │ ⬛⬛⬛⬛⬛⬛⬛⬛ (×2)  │  16 preset swatches
+ *   ├─────────────────────────┤
+ *   │ Recent: ⬛⬛⬛⬛⬛…    │  last 10 (localStorage)
+ *   ├─────────────────────────┤
+ *   │ [🎨][■] #hex     [×]   │  pipette + chip + hex + clear
+ *   └─────────────────────────┘
  *
- * No alpha slider — matches the reference design. Mouse + touch drag via
- * window event listeners (same approach as the reference).
+ * Commits immediately on every interaction (no confirm button).
+ * Used by: PropColor, ColorPickerPopover, FormatSwatch, BorderSidesEditor.
  */
+
+// ─── Presets ─────────────────────────────────────────────────────────────────
 
 const PRESETS = [
   '#0f172a', '#1e293b', '#334155', '#475569',
@@ -25,11 +30,38 @@ const PRESETS = [
   '#94a3b8', '#cbd5e1', '#e2e8f0', '#ffffff',
 ];
 
-function hexToHsv(hex: string): { h: number; s: number; v: number } {
+// ─── Recent colors (localStorage) ────────────────────────────────────────────
+
+const LS_KEY = 'gc-recent-colors';
+const MAX_RECENT = 10;
+
+function getRecent(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY) || '[]').slice(0, MAX_RECENT);
+  } catch {
+    return [];
+  }
+}
+
+function addRecent(color: string): void {
+  try {
+    const list = getRecent().filter((c) => c.toLowerCase() !== color.toLowerCase());
+    list.unshift(color);
+    localStorage.setItem(LS_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
+  } catch {
+    /* noop */
+  }
+}
+
+// ─── HSV math ────────────────────────────────────────────────────────────────
+
+export function hexToHsv(hex: string): { h: number; s: number; v: number } {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    d = max - min;
   let h = 0;
   if (d) {
     if (max === r) h = ((g - b) / d + 6) % 6;
@@ -40,53 +72,72 @@ function hexToHsv(hex: string): { h: number; s: number; v: number } {
   return { h, s: max ? d / max : 0, v: max };
 }
 
-function hsvToHex(h: number, s: number, v: number): string {
+export function hsvToHex(h: number, s: number, v: number): string {
   const c = v * s,
     x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
     m = v - c;
-  let rr = 0, gg = 0, bb = 0;
+  let rr = 0,
+    gg = 0,
+    bb = 0;
   if (h < 60) { rr = c; gg = x; }
   else if (h < 120) { rr = x; gg = c; }
   else if (h < 180) { gg = c; bb = x; }
   else if (h < 240) { gg = x; bb = c; }
   else if (h < 300) { rr = x; bb = c; }
   else { rr = c; bb = x; }
-  const toH = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+  const toH = (n: number) =>
+    Math.round((n + m) * 255)
+      .toString(16)
+      .padStart(2, '0');
   return `#${toH(rr)}${toH(gg)}${toH(bb)}`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export interface FormatColorPickerProps {
+  value: string;
+  onChange: (hex: string) => void;
+  /** Show a "clear" (×) button that calls onChange with empty string. */
+  allowClear?: boolean;
+  /** Height of the SV pad. Default 90. */
+  svHeight?: number;
 }
 
 export function FormatColorPicker({
   value,
   onChange,
-  svHeight = 100,
-}: {
-  value: string;
-  onChange: (hex: string) => void;
-  /** Height of the SV pad in px. Default 100 (matching the reference). */
-  svHeight?: number;
-}) {
-  const hsv = hexToHsv(value);
+  allowClear = false,
+  svHeight = 90,
+}: FormatColorPickerProps) {
+  const hsv = hexToHsv(value || '#000000');
   const [h, setH] = useState(hsv.h);
   const [s, setS] = useState(hsv.s);
   const [v, setV] = useState(hsv.v);
-  const [hex, setHex] = useState(value);
+  const [hex, setHex] = useState(value || '#000000');
+  const [recent, setRecent] = useState<string[]>(getRecent);
   const padRef = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<'pad' | 'hue' | null>(null);
 
   useEffect(() => {
-    const next = hexToHsv(value);
+    const val = value || '#000000';
+    const next = hexToHsv(val);
     setH(next.h);
     setS(next.s);
     setV(next.v);
-    setHex(value);
+    setHex(val);
   }, [value]);
 
-  const emit = (hh: number, ss: number, vv: number) => {
-    const c = hsvToHex(hh, ss, vv);
-    setHex(c);
-    onChange(c);
-  };
+  const emit = useCallback(
+    (hh: number, ss: number, vv: number) => {
+      const c = hsvToHex(hh, ss, vv);
+      setHex(c);
+      addRecent(c);
+      setRecent(getRecent());
+      onChange(c);
+    },
+    [onChange],
+  );
 
   const handlePad = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
@@ -97,7 +148,7 @@ export function FormatColorPicker({
       setV(nv);
       emit(h, ns, nv);
     },
-    [h], // eslint-disable-line react-hooks/exhaustive-deps
+    [h, emit],
   );
 
   const handleHue = useCallback(
@@ -107,7 +158,7 @@ export function FormatColorPicker({
       setH(nh);
       emit(nh, s, v);
     },
-    [s, v], // eslint-disable-line react-hooks/exhaustive-deps
+    [s, v, emit],
   );
 
   useEffect(() => {
@@ -127,6 +178,17 @@ export function FormatColorPicker({
     };
   }, [handlePad, handleHue]);
 
+  const selectPreset = (c: string) => {
+    const next = hexToHsv(c);
+    setH(next.h);
+    setS(next.s);
+    setV(next.v);
+    setHex(c);
+    addRecent(c);
+    setRecent(getRecent());
+    onChange(c);
+  };
+
   const handleHexInput = (val: string) => {
     setHex(val);
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
@@ -134,12 +196,29 @@ export function FormatColorPicker({
       setH(next.h);
       setS(next.s);
       setV(next.v);
+      addRecent(val);
+      setRecent(getRecent());
       onChange(val);
     }
   };
 
+  const swatchStyle = (c: string, selected: boolean): React.CSSProperties => ({
+    width: '100%',
+    aspectRatio: '1',
+    borderRadius: 4,
+    padding: 0,
+    cursor: 'pointer',
+    border: selected ? '2px solid var(--gc-positive, #2dd4bf)' : '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+    background: c,
+    boxShadow: selected
+      ? '0 0 0 2px rgba(45,212,191,0.20)'
+      : c === '#ffffff' || c === '#e2e8f0'
+        ? 'inset 0 0 0 1px rgba(0,0,0,0.08)'
+        : 'none',
+  });
+
   return (
-    <div onClick={(e) => e.stopPropagation()}>
+    <div onClick={(e) => e.stopPropagation()} style={{ width: '100%' }}>
       {/* SV Pad */}
       <div
         ref={padRef}
@@ -150,11 +229,11 @@ export function FormatColorPicker({
         style={{
           width: '100%',
           height: svHeight,
-          borderRadius: 'var(--gc-radius-xl, 6px)',
+          borderRadius: 6,
           cursor: 'crosshair',
           position: 'relative',
           overflow: 'hidden',
-          marginBottom: 8,
+          marginBottom: 6,
           background: `hsl(${h}, 100%, 50%)`,
         }}
       >
@@ -185,13 +264,12 @@ export function FormatColorPicker({
         }}
         style={{
           width: '100%',
-          height: 12,
-          borderRadius: 6,
+          height: 10,
+          borderRadius: 5,
           cursor: 'pointer',
           position: 'relative',
           marginBottom: 8,
-          background:
-            'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
+          background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
         }}
       >
         <div
@@ -199,8 +277,8 @@ export function FormatColorPicker({
             position: 'absolute',
             left: `${(h / 360) * 100}%`,
             top: '50%',
-            width: 14,
-            height: 14,
+            width: 12,
+            height: 12,
             borderRadius: '50%',
             border: '2px solid #fff',
             boxShadow: '0 0 0 1px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.3)',
@@ -211,83 +289,126 @@ export function FormatColorPicker({
         />
       </div>
 
-      {/* Preset swatches */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          gap: 4,
-          marginBottom: 8,
-        }}
-      >
+      {/* Preset swatches (8×2) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 3, marginBottom: 6 }}>
         {PRESETS.map((c) => (
-          <button
-            key={c}
-            onClick={() => {
-              onChange(c);
-              const next = hexToHsv(c);
-              setH(next.h);
-              setS(next.s);
-              setV(next.v);
-              setHex(c);
-            }}
-            style={{
-              width: '100%',
-              aspectRatio: '1',
-              borderRadius: 'var(--gc-radius-sm, 4px)',
-              padding: 0,
-              cursor: 'pointer',
-              border:
-                value.toLowerCase() === c.toLowerCase()
-                  ? '2px solid var(--gc-positive, #2dd4bf)'
-                  : '1px solid var(--gc-border)',
-              background: c,
-              boxShadow:
-                value.toLowerCase() === c.toLowerCase()
-                  ? '0 0 0 2px rgba(45,212,191,0.20)'
-                  : c === '#ffffff' || c === '#e2e8f0'
-                    ? 'inset 0 0 0 1px rgba(0,0,0,0.08)'
-                    : 'none',
-            }}
-          />
+          <button key={c} onClick={() => selectPreset(c)} onMouseDown={(e) => e.preventDefault()} style={swatchStyle(c, hex.toLowerCase() === c.toLowerCase())} />
         ))}
       </div>
 
-      {/* Hex input */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <div
+      {/* Recent colors */}
+      {recent.length > 0 && (
+        <div style={{ marginBottom: 6 }}>
+          <div
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--gc-text-dim, #64748b)',
+              marginBottom: 3,
+            }}
+          >
+            Recent
+          </div>
+          <div style={{ display: 'flex', gap: 3 }}>
+            {recent.slice(0, 8).map((c) => (
+              <button
+                key={c}
+                onClick={() => selectPreset(c)}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  padding: 0,
+                  cursor: 'pointer',
+                  border: hex.toLowerCase() === c.toLowerCase() ? '2px solid var(--gc-positive, #2dd4bf)' : '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+                  background: c,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom bar: pipette + chip + hex input + clear */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {/* Native color picker (pipette) */}
+        <label
           style={{
-            width: 26,
+            width: 24,
             height: 22,
-            borderRadius: 'var(--gc-radius-sm, 4px)',
-            background: value,
-            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden',
+            background: hex,
+            border: '1px solid var(--gc-border, rgba(255,255,255,0.12))',
             flexShrink: 0,
           }}
-        />
+          title="Pick any color"
+        >
+          <Pipette size={10} strokeWidth={1.5} style={{ color: '#fff', opacity: 0.8 }} />
+          <input
+            type="color"
+            value={hex}
+            onChange={(e) => selectPreset(e.target.value)}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+          />
+        </label>
+
+        {/* Hex input */}
         <input
           type="text"
           value={hex}
           onChange={(e) => handleHexInput(e.target.value)}
           style={{
             flex: 1,
-            height: 24,
-            border: '1px solid var(--gc-border)',
-            borderRadius: 'var(--gc-radius, 5px)',
-            background: 'var(--gc-bg)',
-            color: 'var(--gc-text)',
+            height: 22,
+            border: '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+            borderRadius: 4,
+            background: 'var(--gc-bg, #0c1018)',
+            color: 'var(--gc-text, #e2e8f0)',
             fontSize: 11,
             fontWeight: 500,
             fontFamily: 'var(--gc-font-mono)',
             padding: '0 8px',
             outline: 'none',
+            minWidth: 0,
           }}
         />
+
+        {/* Clear */}
+        {allowClear && (
+          <button
+            onClick={() => {
+              setHex('');
+              onChange('');
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            title="Clear color"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              background: 'rgba(248,113,113,0.08)',
+              border: 'none',
+              color: 'var(--gc-negative, #f87171)',
+              flexShrink: 0,
+            }}
+          >
+            <X size={10} strokeWidth={2} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
-
-// Re-export the color conversion utilities so consumers (like the border
-// editor) can do their own conversions if they need to.
-export { hexToHsv, hsvToHex };

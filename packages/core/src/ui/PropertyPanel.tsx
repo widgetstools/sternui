@@ -3,9 +3,10 @@ import { Input } from './shadcn/input';
 import { Select } from './shadcn/select';
 import { Switch } from './shadcn/switch';
 import { Label } from './shadcn/label';
-import { ColorPicker } from './shadcn/color-picker';
 import { cn } from './shadcn/utils';
 import { ChevronRight } from 'lucide-react';
+import { FormatPopover } from './format-editor/FormatPopover';
+import { FormatColorPicker } from './format-editor/FormatColorPicker';
 
 /**
  * PropertyPanel — Figma/VS-style collapsible property section.
@@ -156,41 +157,26 @@ export function PropText({ value, onChange, placeholder, mono, width }: {
 export function PropColor({ value, onChange, label }: {
   value: string | undefined; onChange: (v: string) => void; label?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT') return;
-      if (ref.current && !ref.current.contains(target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   return (
-    <div className="flex items-center gap-1.5" ref={ref}>
+    <div className="flex items-center gap-1.5">
       {label && <span className="text-[9px] text-muted-foreground w-6">{label}</span>}
-      <button
-        className="relative block w-6 h-6 rounded border border-border cursor-pointer overflow-hidden"
-        style={{ background: value || 'transparent' }}
-        onClick={() => setOpen(!open)}
-      />
-      <span className="text-[9px] font-mono text-muted-foreground cursor-pointer" onClick={() => setOpen(!open)}>
+      <FormatPopover
+        trigger={
+          <button
+            className="relative block w-6 h-6 rounded border border-border cursor-pointer overflow-hidden"
+            style={{ background: value || 'transparent' }}
+          />
+        }
+        width={240}
+      >
+        <FormatColorPicker
+          value={value || '#000000'}
+          onChange={(c) => { if (c) onChange(c); }}
+        />
+      </FormatPopover>
+      <span className="text-[9px] font-mono text-muted-foreground">
         {value || '—'}
       </span>
-      {open && (
-        <div className="absolute z-50 mt-1 top-full left-0 rounded-[6px] border border-border bg-card shadow-lg shadow-black/25">
-          <ColorPicker
-            value={value}
-            onChange={(c) => { if (c) onChange(c); setOpen(false); }}
-            allowClear={false}
-            compact
-          />
-        </div>
-      )}
     </div>
   );
 }
