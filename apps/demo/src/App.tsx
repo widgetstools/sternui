@@ -17,7 +17,7 @@ const sharedParams = {
   headerFontSize: 10,  // primitives.typography.fontSize.xs + 1 (9+1=10)
   cellHorizontalPaddingScale: 0.6,
   wrapperBorder: false,
-  columnBorder: false,  // matches design-system/adapters/ag-grid.ts
+  columnBorder: true,
   spacing: 6,
   borderRadius: 0,
   wrapperBorderRadius: 0,
