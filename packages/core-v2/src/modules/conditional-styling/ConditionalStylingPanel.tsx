@@ -288,184 +288,215 @@ function applySidesToCellStyle(
   return out;
 }
 
-const ConditionalStyleEditor = memo(function ConditionalStyleEditor({
+/**
+ * Appearance section — vertical PropRow layout that fits the ~250px panel.
+ *
+ * Previous version tried to mimic the FormattingToolbar's horizontal
+ * layout inside the panel, which was unusable at that width. This version
+ * uses the same PropertySection + PropRow primitives as the Rule
+ * Configuration section above it — one labeled row per control — so every
+ * control gets enough space and the user isn't fighting overflow.
+ *
+ * Controls applied to BOTH light and dark theme (via mergeBothThemes)
+ * except backgrounds which are per-theme.
+ */
+const AppearanceSection = memo(function AppearanceSection({
   style,
   onUpdate,
 }: {
   style: { light: CellStyleProperties; dark: CellStyleProperties };
   onUpdate: (next: { light: CellStyleProperties; dark: CellStyleProperties }) => void;
 }) {
-  // We read from `style.light` for all "shared" controls because we keep light
-  // and dark in sync for everything except backgroundColor.
   const ref = style.light;
+  const [showBorders, setShowBorders] = useState(false);
 
   const toggle = (key: keyof CellStyleProperties, onValue: string) => {
     const isOn = ref[key] === onValue;
     onUpdate(mergeBothThemes(style, { [key]: isOn ? undefined : onValue } as Partial<CellStyleProperties>));
   };
 
-  const setAlign = (v: 'left' | 'center' | 'right') => {
-    const isOn = ref.textAlign === v;
-    onUpdate(mergeBothThemes(style, { textAlign: isOn ? undefined : v }));
-  };
-
-  const setFontSize = (px: number) => {
-    onUpdate(mergeBothThemes(style, { fontSize: `${px}px` }));
-  };
-
-  const setTextColor = (hex?: string) => {
-    onUpdate(mergeBothThemes(style, { color: hex }));
-  };
-
-  const setBg = (which: 'light' | 'dark', hex?: string) => {
-    onUpdate(mergeOneTheme(style, which, { backgroundColor: hex }));
-  };
-
-  // ─── Borders ──────────────────────────────────────────────────────────
-  //
-  // Border reads/writes go through the promoted BorderSidesEditor primitive
-  // (see the Borders popover below). `activeSides` is only used for the
-  // trigger button's "on"/"off" styling — indicates whether ANY side has a
-  // width set, which maps to the GcBorderSidesEditor showing visible rows.
-  const activeSides = BORDER_SIDES.filter((s) => sideHasBorder(ref, s));
-
-  const fontSizeLabel = ref.fontSize ? parseInt(ref.fontSize as string, 10) + 'px' : '12px';
-
   return (
-    <div
-      className="gc-cs-style-editor flex flex-wrap items-center gap-1 p-2 rounded-md border border-border bg-card"
-      data-testid="cs-style-editor"
-    >
-      {/* Typography */}
-      <CsTGroup>
-        <CsTBtn tooltip="Bold" active={ref.fontWeight === '700'} onClick={() => toggle('fontWeight', '700')}>
-          <Bold size={14} strokeWidth={1.75} />
-        </CsTBtn>
-        <CsTBtn tooltip="Italic" active={ref.fontStyle === 'italic'} onClick={() => toggle('fontStyle', 'italic')}>
-          <Italic size={14} strokeWidth={1.75} />
-        </CsTBtn>
-        <CsTBtn tooltip="Underline" active={ref.textDecoration === 'underline'} onClick={() => toggle('textDecoration', 'underline')}>
-          <Underline size={14} strokeWidth={1.75} />
-        </CsTBtn>
-      </CsTGroup>
-
-      {/* Font size */}
-      <PortalPopover
-        trigger={
-          <button
-            type="button"
-            className="gc-tbtn flex items-center gap-1 px-2.5 py-1 h-7 rounded-[4px] text-[9px] font-mono transition-all duration-150 cursor-pointer"
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          >
-            <span className="tracking-wider">{fontSizeLabel}</span>
-            <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
-          </button>
-        }
-      >
-        <div className="p-1.5 min-w-[68px]">
-          {FONT_SIZES.map((sz) => (
+    <PropertySection title="Appearance" defaultOpen>
+      {/* Typography: B / I / U — compact toggle row */}
+      <PropRow label="Text Style">
+        <div style={{ display: 'flex', gap: 2 }}>
+          {[
+            { key: 'fontWeight' as const, val: '700', icon: <Bold size={12} strokeWidth={2} />, tip: 'Bold' },
+            { key: 'fontStyle' as const, val: 'italic', icon: <Italic size={12} strokeWidth={2} />, tip: 'Italic' },
+            { key: 'textDecoration' as const, val: 'underline', icon: <Underline size={12} strokeWidth={2} />, tip: 'Underline' },
+          ].map(({ key, val, icon, tip }) => (
             <button
-              key={sz}
-              type="button"
-              className={cn(
-                'flex items-center w-full px-2.5 py-1 rounded-md text-[11px] font-mono hover:bg-accent cursor-pointer transition-colors',
-                fontSizeLabel === `${sz}px` ? 'text-primary' : 'text-foreground',
-              )}
-              onClick={() => setFontSize(sz)}
+              key={key}
+              title={tip}
               onMouseDown={(e) => e.preventDefault()}
+              onClick={() => toggle(key, val)}
+              style={{
+                width: 26, height: 24, borderRadius: 4,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: ref[key] === val ? 'var(--gc-positive-muted, rgba(45,212,191,0.10))' : 'var(--gc-surface)',
+                color: ref[key] === val ? 'var(--gc-positive, #2dd4bf)' : 'var(--gc-text)',
+                border: ref[key] === val ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
+                cursor: 'pointer',
+              }}
             >
-              {sz}px
+              {icon}
             </button>
           ))}
         </div>
-      </PortalPopover>
+      </PropRow>
 
       {/* Alignment */}
-      <CsTGroup>
-        <CsTBtn tooltip="Align Left" active={ref.textAlign === 'left'} onClick={() => setAlign('left')}>
-          <AlignLeft size={14} strokeWidth={1.75} />
-        </CsTBtn>
-        <CsTBtn tooltip="Align Center" active={ref.textAlign === 'center'} onClick={() => setAlign('center')}>
-          <AlignCenter size={14} strokeWidth={1.75} />
-        </CsTBtn>
-        <CsTBtn tooltip="Align Right" active={ref.textAlign === 'right'} onClick={() => setAlign('right')}>
-          <AlignRight size={14} strokeWidth={1.75} />
-        </CsTBtn>
-      </CsTGroup>
+      <PropRow label="Alignment">
+        <div style={{ display: 'flex', gap: 2 }}>
+          {[
+            { val: 'left', icon: <AlignLeft size={12} strokeWidth={2} /> },
+            { val: 'center', icon: <AlignCenter size={12} strokeWidth={2} /> },
+            { val: 'right', icon: <AlignRight size={12} strokeWidth={2} /> },
+          ].map(({ val, icon }) => (
+            <button
+              key={val}
+              title={val.charAt(0).toUpperCase() + val.slice(1)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const isOn = ref.textAlign === val;
+                onUpdate(mergeBothThemes(style, { textAlign: isOn ? undefined : val }));
+              }}
+              style={{
+                width: 26, height: 24, borderRadius: 4,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: ref.textAlign === val ? 'var(--gc-positive-muted)' : 'var(--gc-surface)',
+                color: ref.textAlign === val ? 'var(--gc-positive)' : 'var(--gc-text)',
+                border: ref.textAlign === val ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
+                cursor: 'pointer',
+              }}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
+      </PropRow>
 
-      {/* Colors: text + per-theme background */}
-      <CsTGroup>
-        <Tooltip content="Text Color">
-          <div className="inline-flex">
-            <ColorPickerPopover
-              value={ref.color}
-              icon={<Type size={11} strokeWidth={2} />}
-              onChange={(c) => setTextColor(c)}
-              compact
-            />
-          </div>
-        </Tooltip>
-        <Tooltip content="Background (Light Theme)">
-          <div className="inline-flex">
-            <ColorPickerPopover
-              value={style.light.backgroundColor}
-              icon={<Sun size={11} strokeWidth={2} />}
-              onChange={(c) => setBg('light', c)}
-              compact
-            />
-          </div>
-        </Tooltip>
-        <Tooltip content="Background (Dark Theme)">
-          <div className="inline-flex">
-            <ColorPickerPopover
-              value={style.dark.backgroundColor}
-              icon={<Moon size={11} strokeWidth={2} />}
-              onChange={(c) => setBg('dark', c)}
-              compact
-            />
-          </div>
-        </Tooltip>
-      </CsTGroup>
-
-      {/* Borders — powered by the promoted BorderSidesEditor (5-row table,
-          per-side thickness/colour/visibility, inline drill-in color picker).
-          Changes fan out to BOTH light and dark themes so the border matches
-          in both modes; tweak if we ever want per-theme borders. */}
-      <GcFormatPopover
-        trigger={
-          <button
-            type="button"
-            className={cn(
-              'gc-tbtn flex items-center gap-1 px-2.5 py-1 h-7 rounded-[4px] text-[10px] transition-all duration-150 cursor-pointer',
-              activeSides.length > 0 && 'gc-tbtn-active',
-            )}
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          >
-            <Grid3X3 size={12} strokeWidth={1.75} />
-            <span>Borders</span>
-            <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
-          </button>
-        }
-        width={260}
-      >
-        <GcBorderSidesEditor
-          sides={sidesFromCellStyle(ref)}
-          onChange={(next) => onUpdate({
-            light: applySidesToCellStyle(style.light, next),
-            dark: applySidesToCellStyle(style.dark, next),
-          })}
+      {/* Font Size */}
+      <PropRow label="Font Size">
+        <PropSelect
+          value={ref.fontSize ? parseInt(ref.fontSize, 10).toString() : '11'}
+          onChange={(v) => onUpdate(mergeBothThemes(style, { fontSize: `${v}px` }))}
+          options={[9, 10, 11, 12, 13, 14, 16, 18, 20, 24].map((n) => ({
+            value: n.toString(),
+            label: `${n}px`,
+          }))}
         />
-      </GcFormatPopover>
+      </PropRow>
 
-      {/* Reset */}
-      <CsTBtn
-        tooltip="Clear all styles"
-        onClick={() => onUpdate({ light: {}, dark: {} })}
-        className="ml-auto"
-      >
-        <X size={14} strokeWidth={1.75} />
-      </CsTBtn>
-    </div>
+      {/* Font Weight */}
+      <PropRow label="Font Weight">
+        <PropSelect
+          value={ref.fontWeight ?? 'normal'}
+          onChange={(v) => {
+            const fw = v === 'normal' ? undefined : v;
+            onUpdate({
+              light: { ...style.light, fontWeight: fw },
+              dark: { ...style.dark, fontWeight: fw },
+            });
+          }}
+          options={[
+            { value: 'normal', label: 'Normal' },
+            { value: '500', label: 'Medium' },
+            { value: '600', label: 'Semibold' },
+            { value: '700', label: 'Bold' },
+          ]}
+        />
+      </PropRow>
+
+      {/* Text Color */}
+      <PropRow label="Text Color">
+        <PropColor
+          value={ref.color}
+          onChange={(v) =>
+            onUpdate({
+              light: { ...style.light, color: v },
+              dark: { ...style.dark, color: v },
+            })
+          }
+        />
+      </PropRow>
+
+      {/* Background — per-theme */}
+      <PropRow label="Light BG">
+        <PropColor
+          value={style.light.backgroundColor}
+          onChange={(v) =>
+            onUpdate({ ...style, light: { ...style.light, backgroundColor: v } })
+          }
+        />
+      </PropRow>
+      <PropRow label="Dark BG">
+        <PropColor
+          value={style.dark.backgroundColor}
+          onChange={(v) =>
+            onUpdate({ ...style, dark: { ...style.dark, backgroundColor: v } })
+          }
+        />
+      </PropRow>
+
+      {/* Borders — expandable inline, NOT a popover */}
+      <PropRow label="Borders" vertical>
+        <button
+          onClick={() => setShowBorders((p) => !p)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            width: '100%', padding: '4px 8px', borderRadius: 4,
+            background: showBorders ? 'var(--gc-positive-muted)' : 'var(--gc-surface)',
+            color: showBorders ? 'var(--gc-positive)' : 'var(--gc-text-muted)',
+            border: showBorders ? '1px solid rgba(45,212,191,0.25)' : '1px solid var(--gc-border)',
+            cursor: 'pointer', fontSize: 11, fontWeight: 500,
+            fontFamily: 'var(--gc-font)',
+          }}
+        >
+          <Grid3X3 size={12} strokeWidth={1.75} />
+          <span>{showBorders ? 'Hide border editor' : 'Configure borders…'}</span>
+          <ChevronDown
+            size={10}
+            strokeWidth={2}
+            style={{
+              marginLeft: 'auto',
+              transition: 'transform 150ms',
+              transform: showBorders ? 'rotate(180deg)' : 'none',
+              color: 'var(--gc-text-dim)',
+            }}
+          />
+        </button>
+        {showBorders && (
+          <div style={{ marginTop: 8 }} data-gc-settings>
+            <GcBorderSidesEditor
+              sides={sidesFromCellStyle(ref)}
+              onChange={(next) => onUpdate({
+                light: applySidesToCellStyle(style.light, next),
+                dark: applySidesToCellStyle(style.dark, next),
+              })}
+            />
+          </div>
+        )}
+      </PropRow>
+
+      {/* Clear all */}
+      <PropRow label="">
+        <button
+          onClick={() => onUpdate({ light: {}, dark: {} })}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '4px 8px', borderRadius: 4,
+            background: 'rgba(248,113,113,0.08)',
+            color: 'var(--gc-negative)',
+            border: 'none', cursor: 'pointer',
+            fontSize: 10, fontWeight: 500,
+          }}
+        >
+          <X size={11} strokeWidth={2} />
+          Clear all styles
+        </button>
+      </PropRow>
+    </PropertySection>
   );
 });
 
@@ -704,12 +735,10 @@ const RuleEditor = memo(function RuleEditor({
         </PropRow>
       </PropertySection>
 
-      <PropertySection title="Appearance" defaultOpen>
-        <ConditionalStyleEditor
-          style={rule.style}
-          onUpdate={(next) => onUpdate({ style: next })}
-        />
-      </PropertySection>
+      <AppearanceSection
+        style={rule.style}
+        onUpdate={(next) => onUpdate({ style: next })}
+      />
     </div>
   );
 });
