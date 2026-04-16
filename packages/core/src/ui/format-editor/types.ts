@@ -7,7 +7,7 @@
  */
 
 export type BorderSide = 'top' | 'right' | 'bottom' | 'left';
-export type BorderStyle = 'solid' | 'dashed' | 'dotted';
+export type BorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'groove' | 'ridge' | 'none';
 export type BorderMode = 'all' | BorderSide | 'custom';
 
 export interface SideSpec {

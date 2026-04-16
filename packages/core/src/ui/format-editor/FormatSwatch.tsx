@@ -74,9 +74,7 @@ export function FormatSwatch({
       >
         <FormatColorPicker
           value={value}
-          alpha={opacity}
           onChange={(hex) => onChange?.(hex)}
-          onAlpha={(a) => onOpacity?.(a)}
         />
       </FormatPopover>
       <input
