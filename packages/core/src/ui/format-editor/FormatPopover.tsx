@@ -35,17 +35,46 @@ export function FormatPopover({
   const contentRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
+  // Re-measure on scroll / resize while open so the popover tracks its trigger.
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    let left = align === 'end' ? rect.right - width : rect.left;
-    // Auto-flip away from the viewport edge: if the popover would overflow
-    // right, pin it to the right; if it would overflow left, pin to the left.
-    const margin = 8;
-    const maxLeft = window.innerWidth - width - margin;
-    if (left > maxLeft) left = Math.max(margin, maxLeft);
-    if (left < margin) left = margin;
-    setPos({ top: rect.bottom + 4, left });
+    const measure = () => {
+      const trigger = triggerRef.current;
+      const content = contentRef.current;
+      if (!trigger) return;
+      const tRect = trigger.getBoundingClientRect();
+      const cHeight = content?.offsetHeight ?? 300; // estimate before first paint
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const gap = 4;
+      const margin = 8;
+
+      // ── Vertical: prefer below, flip above if clipped ──
+      const spaceBelow = vh - tRect.bottom - gap - margin;
+      const spaceAbove = tRect.top - gap - margin;
+      let top: number;
+      if (spaceBelow >= cHeight || spaceBelow >= spaceAbove) {
+        // Below the trigger
+        top = tRect.bottom + gap;
+      } else {
+        // Above the trigger
+        top = tRect.top - gap - cHeight;
+      }
+      // Clamp so it never goes off-screen
+      top = Math.max(margin, Math.min(top, vh - cHeight - margin));
+
+      // ── Horizontal: start-aligned, flip if clipped ──
+      let left = align === 'end' ? tRect.right - width : tRect.left;
+      const maxLeft = vw - width - margin;
+      if (left > maxLeft) left = Math.max(margin, maxLeft);
+      if (left < margin) left = margin;
+
+      setPos({ top, left });
+    };
+    measure();
+    // Re-measure once more after the portal content paints (actual height known).
+    const raf = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(raf);
   }, [open, width, align]);
 
   useEffect(() => {
@@ -92,12 +121,15 @@ export function FormatPopover({
               position: 'fixed',
               top: pos.top,
               left: pos.left,
-              zIndex: 10100,
+              zIndex: 2147483647, // max 32-bit int — always topmost
               background: 'var(--gc-surface, #161a1e)',
               border: '1px solid var(--gc-border, #313944)',
               borderRadius: 'var(--gc-radius-xl, 6px)',
               padding: 10,
               width,
+              maxWidth: 'calc(100vw - 16px)',
+              maxHeight: 'calc(100vh - 16px)',
+              overflowY: 'auto',
               boxShadow: '0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.02) inset',
               fontFamily: 'var(--gc-font, "Geist", "Inter", -apple-system, sans-serif)',
               fontSize: 'var(--gc-font-sm, 11px)',
