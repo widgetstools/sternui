@@ -67,7 +67,36 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
     const sorted = state.virtualColumns
       .slice()
       .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
-    const virtualDefs = sorted.map((v) => buildVirtualColDef(v, engine));
+
+    // Cross-module read: column-customization may carry a
+    // `valueFormatterTemplate` for a virtual column — that happens when
+    // the user applies a format via the FormattingToolbar while a
+    // virtual column is selected. The toolbar writes into
+    // `ColumnCustomizationState.assignments[colId].valueFormatterTemplate`
+    // (the single source of truth the toolbar knows about); calculated-
+    // columns state carries its OWN `valueFormatterTemplate` for the
+    // virtual column (written by the Calculated Column editor). The
+    // toolbar takes precedence so a format the user just picked in the
+    // toolbar wins over a stale editor-time choice — matching the
+    // "last write wins" feel every other style the toolbar emits has.
+    let overrides: Record<string, { valueFormatterTemplate?: unknown }> = {};
+    try {
+      const cust = gridCtx.getModuleState<{
+        assignments?: Record<string, { valueFormatterTemplate?: unknown }>;
+      }>('column-customization');
+      overrides = cust?.assignments ?? {};
+    } catch {
+      /* column-customization not mounted — fall back to virtual-col defaults */
+    }
+
+    const virtualDefs = sorted.map((v) => {
+      const override = overrides[v.colId];
+      const merged =
+        override?.valueFormatterTemplate !== undefined
+          ? { ...v, valueFormatterTemplate: override.valueFormatterTemplate as typeof v.valueFormatterTemplate }
+          : v;
+      return buildVirtualColDef(merged, engine);
+    });
     return [...defs, ...virtualDefs];
   },
 
