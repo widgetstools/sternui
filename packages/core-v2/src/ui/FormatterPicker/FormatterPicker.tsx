@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Hash } from 'lucide-react';
-import { FormatDropdown } from '@grid-customizer/core';
+import { ChevronDown, ChevronLeft, Hash, Info, X } from 'lucide-react';
+import { FormatDropdown, FormatPopover } from '@grid-customizer/core';
 import { isValidExcelFormat } from '../../modules/column-customization/adapters/excelFormatter';
 import { valueFormatterFromTemplate } from '../../modules/column-customization/adapters/valueFormatterFromTemplate';
 import type { ValueFormatterTemplate } from '../../modules/column-customization/state';
-import { Caps, IconInput } from '../SettingsPanel';
+import { Caps, IconInput, SubLabel } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';
+import { EXCEL_EXAMPLES } from './excelExamples';
 import {
   defaultSampleValue,
   findMatchingPreset,
@@ -15,23 +16,30 @@ import {
 } from './presetsForDataType';
 
 /**
- * FormatterPicker — the shared, horizontally-collapsible format
- * selector. Embedded in three hosts:
+ * FormatterPicker — the shared format selector. Two presentations:
  *
- *   - FormattingToolbar (applies to selected columns).
- *   - Style Rule editor (single-cell rules only).
- *   - Calculated Column editor (sets the virtual column's display).
+ *   compact  (toolbar host)   → single chip trigger that opens a
+ *                               shadcn popover containing:
+ *                                 • live preview of the current format
+ *                                 • tiled preset grid grouped by
+ *                                   category (pattern mirrors the
+ *                                   IndicatorPicker)
+ *                                 • custom Excel input + info button
+ *                                 • "Clear" action
+ *                               One toolbar slot replaces the old
+ *                               preset dropdown + custom input + info
+ *                               icon triple.
  *
- * The value is a `ValueFormatterTemplate | undefined` — same shape
- * that every downstream resolver (cell renderer, rule, virtual col)
- * already consumes. The picker never owns its own bespoke format
- * string; everything routes through the template union so persistence
- * and rendering stay coherent.
+ *   non-compact (editor hosts) → inline row: collapse chevron, preset
+ *                                dropdown, custom Excel input, info
+ *                                popover, live preview chip. Editors
+ *                                have horizontal room to breathe, so
+ *                                the inline layout stays faster to
+ *                                scan than a popover.
  *
- * Collapse animates WIDTH, not height, to preserve toolbar row
- * alignment. Collapsed state is local per instance (no profile
- * persistence) — hosts can pass `defaultCollapsed` to match their own
- * density. Each host's collapse state is therefore independent.
+ * The value shape stays `ValueFormatterTemplate | undefined` across
+ * both presentations, so hosts and downstream resolvers are unaware of
+ * the UI split. Test-ids are preserved so existing tests keep working.
  */
 export interface FormatterPickerProps {
   dataType: FormatterPickerDataType;
@@ -40,11 +48,11 @@ export interface FormatterPickerProps {
   /** Optional explicit sample value used for the live preview. Falls
    *  back to `defaultSampleValue(dataType)` when omitted. */
   sampleValue?: unknown;
-  /** Start collapsed? Host-dependent; picker defaults to expanded in
-   *  editors and collapsed in the toolbar (host passes the flag). */
+  /** Start collapsed? Host-dependent. Ignored in compact mode (the
+   *  trigger chip is always the collapsed form there). */
   defaultCollapsed?: boolean;
-  /** Compact chrome for dense surfaces (toolbar). Editors can pass
-   *  `false` for a slightly larger footprint. */
+  /** Toolbar = true, editors = false. Controls the entire
+   *  presentation (popover vs inline). */
   compact?: boolean;
   'data-testid'?: string;
 }
@@ -89,20 +97,75 @@ function renderPreview(
   }
 }
 
-/** Trim trailing `%` / `$` when converting a custom Excel string into
- *  a stable display caption. Used ONLY for the collapsed-trigger text. */
-function compactCaption(template: ValueFormatterTemplate | undefined): string {
-  if (!template) return '—';
+/** Short caption for the compact trigger chip. Prefer the active
+ *  preset's label when one is selected; fall back to a truncated
+ *  format-string / token. */
+function triggerCaption(
+  template: ValueFormatterTemplate | undefined,
+  activePreset: FormatterPreset | undefined,
+): string {
+  if (!template) return 'Format';
+  if (activePreset) return activePreset.label;
   switch (template.kind) {
     case 'preset':
       return template.preset;
     case 'excelFormat':
-      return template.format.length > 18 ? template.format.slice(0, 17) + '…' : template.format;
+      return template.format.length > 20 ? template.format.slice(0, 19) + '…' : template.format;
     case 'expression':
-      return 'expr';
+      return 'Custom expression';
     case 'tick':
       return template.tick.replace('TICK', '').replace('_PLUS', '+').toLowerCase();
   }
+}
+
+/** Category labels for the popover's preset tile grid. Covers every
+ *  `group` key in `presetsForDataType`. */
+const GROUP_LABELS: Record<string, string> = {
+  number: 'Number',
+  decimals: 'Decimals',
+  negatives: 'Negatives',
+  scientific: 'Scientific',
+  bps: 'Basis points',
+  tick: 'Fixed-income tick',
+  currency: 'Currency',
+  percent: 'Percent',
+  date: 'Date',
+  datetime: 'Date + time',
+  string: 'String',
+  boolean: 'Boolean',
+};
+
+/**
+ * Derive a category key for a preset from its id. The preset catalog
+ * isn't explicitly tagged, so group by id-prefix:
+ *   num-*        → 'number' / 'decimals' / 'negatives' / 'scientific' / 'bps'
+ *   tick-*       → 'tick'
+ *   cur-*        → 'currency'
+ *   pct-*        → 'percent'
+ *   date-/dt-*   → 'date' / 'datetime'
+ *   str-*        → 'string'
+ *   bool-*       → 'boolean'
+ *
+ * Groupings within 'number' are refined so the popover can show
+ * related presets together (e.g. all the green/red variants under
+ * 'Negatives' rather than scattered through 'Number').
+ */
+function groupKeyForPreset(p: FormatterPreset): string {
+  const id = p.id;
+  if (id.startsWith('tick-')) return 'tick';
+  if (id.startsWith('cur-')) return 'currency';
+  if (id.startsWith('pct-')) return 'percent';
+  if (id.startsWith('date-')) return 'date';
+  if (id.startsWith('dt-')) return 'datetime';
+  if (id.startsWith('str-')) return 'string';
+  if (id.startsWith('bool-')) return 'boolean';
+  if (id.startsWith('num-')) {
+    if (/neg|green-red/.test(id)) return 'negatives';
+    if (/scientific/.test(id)) return 'scientific';
+    if (/bps/.test(id)) return 'bps';
+    return /\d/.test(id) || /integer/.test(id) ? 'decimals' : 'number';
+  }
+  return 'number';
 }
 
 export function FormatterPicker({
@@ -114,21 +177,17 @@ export function FormatterPicker({
   compact = false,
   'data-testid': testId,
 }: FormatterPickerProps) {
-  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const presets = useMemo(() => presetsForDataType(dataType), [dataType]);
   const activePreset = useMemo(() => findMatchingPreset(dataType, value), [dataType, value]);
   const sample = sampleValue !== undefined ? sampleValue : defaultSampleValue(dataType);
 
-  // Custom-input local state: the source of truth is the committed
-  // template, but while the user is typing we hold the working string
-  // so validation errors don't cause a state thrash between renders.
-  const excelFromTemplate =
-    value?.kind === 'excelFormat' ? value.format : '';
+  // Custom-input draft — source of truth stays the committed template,
+  // but while the user is typing we hold the working string so a
+  // validation error doesn't thrash the input.
+  const excelFromTemplate = value?.kind === 'excelFormat' ? value.format : '';
   const [draftExcel, setDraftExcel] = useState(excelFromTemplate);
   const lastCommittedRef = useRef(excelFromTemplate);
   useEffect(() => {
-    // Keep the input in sync when the template changes from outside
-    // (e.g. a preset click or a profile reload).
     if (value?.kind !== 'excelFormat' || value.format !== lastCommittedRef.current) {
       const nextText = value?.kind === 'excelFormat' ? value.format : '';
       setDraftExcel(nextText);
@@ -146,7 +205,7 @@ export function FormatterPicker({
         onChange(undefined);
         return;
       }
-      if (!isValidExcelFormat(trimmed)) return; // block invalid; stay with draft
+      if (!isValidExcelFormat(trimmed)) return;
       onChange({ kind: 'excelFormat', format: trimmed });
     },
     [onChange],
@@ -155,10 +214,6 @@ export function FormatterPicker({
   const pickPreset = useCallback(
     (preset: FormatterPreset) => {
       onChange(preset.template);
-      // Populate the custom input with the Excel equivalent when
-      // possible so the user sees (and can tweak) the underlying
-      // expression. Tick / expression presets are not round-trippable
-      // into Excel syntax, so we leave the input blank for those.
       if (preset.template.kind === 'excelFormat') {
         setDraftExcel(preset.template.format);
         lastCommittedRef.current = preset.template.format;
@@ -176,7 +231,358 @@ export function FormatterPicker({
     return renderPreview(value, presetSample);
   }, [value, activePreset, sample]);
 
-  // ── Collapsed ───────────────────────────────────────────────────────────
+  // ── Compact mode: single chip → popover ────────────────────────────────
+  if (compact) {
+    return (
+      <CompactFormatterPicker
+        value={value}
+        onChange={onChange}
+        presets={presets}
+        activePreset={activePreset}
+        preview={preview}
+        draftExcel={draftExcel}
+        setDraftExcel={setDraftExcel}
+        isExcelValid={isExcelValid}
+        commitExcel={commitExcel}
+        pickPreset={pickPreset}
+        dataType={dataType}
+        testId={testId}
+      />
+    );
+  }
+
+  // ── Non-compact (editors): inline expanded form ────────────────────────
+  // Kept intentionally unchanged — editors have room for the full layout
+  // and the inline row scans faster than a popover in a dense settings panel.
+  return (
+    <InlineFormatterPicker
+      value={value}
+      onChange={onChange}
+      presets={presets}
+      activePreset={activePreset}
+      preview={preview}
+      draftExcel={draftExcel}
+      setDraftExcel={setDraftExcel}
+      isExcelValid={isExcelValid}
+      commitExcel={commitExcel}
+      pickPreset={pickPreset}
+      dataType={dataType}
+      defaultCollapsed={defaultCollapsed}
+      testId={testId}
+    />
+  );
+}
+
+// ─── Compact (toolbar) presentation ─────────────────────────────────────
+
+interface SharedBodyProps {
+  value: ValueFormatterTemplate | undefined;
+  onChange: (template: ValueFormatterTemplate | undefined) => void;
+  presets: ReadonlyArray<FormatterPreset>;
+  activePreset: FormatterPreset | undefined;
+  preview: string;
+  draftExcel: string;
+  setDraftExcel: (next: string) => void;
+  isExcelValid: boolean;
+  commitExcel: (format: string) => void;
+  pickPreset: (preset: FormatterPreset) => void;
+  dataType: FormatterPickerDataType;
+  testId?: string;
+}
+
+function CompactFormatterPicker({
+  value,
+  onChange,
+  presets,
+  activePreset,
+  preview,
+  draftExcel,
+  setDraftExcel,
+  isExcelValid,
+  commitExcel,
+  pickPreset,
+  dataType,
+  testId,
+}: SharedBodyProps) {
+  const groups = useMemo(() => {
+    const grouped: Record<string, FormatterPreset[]> = {};
+    for (const p of presets) {
+      const g = groupKeyForPreset(p);
+      (grouped[g] ??= []).push(p);
+    }
+    return grouped;
+  }, [presets]);
+
+  return (
+    <FormatPopover
+      width={360}
+      trigger={
+        <button
+          type="button"
+          title="Value formatter"
+          data-testid={testId ? `${testId}-trigger` : undefined}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            height: 26,
+            padding: '0 8px',
+            background: 'var(--ck-bg, var(--background))',
+            border: `1px solid ${
+              value ? 'var(--ck-green-dim, var(--border))' : 'var(--ck-border-hi, var(--border))'
+            }`,
+            borderRadius: 2,
+            color: value ? 'var(--ck-green, var(--primary))' : 'var(--ck-t0, var(--foreground))',
+            fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+            fontSize: 11,
+            cursor: 'pointer',
+            transition: 'background 120ms, border-color 120ms, color 120ms',
+          }}
+        >
+          <Hash size={12} strokeWidth={1.75} style={{ opacity: 0.7 }} />
+          <span
+            style={{
+              maxWidth: 140,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              fontFamily:
+                activePreset || !value
+                  ? 'var(--ck-font-sans, sans-serif)'
+                  : 'var(--ck-font-mono, monospace)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {triggerCaption(value, activePreset)}
+          </span>
+          <ChevronDown size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
+        </button>
+      }
+    >
+      <div
+        data-testid={testId}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+          padding: 2,
+        }}
+      >
+        {/* Top bar — current / preview / clear */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <SubLabel>CURRENT</SubLabel>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              height: 22,
+              padding: '0 8px',
+              background: preview
+                ? 'var(--ck-green-bg, color-mix(in srgb, var(--primary) 10%, transparent))'
+                : 'var(--ck-bg, var(--background))',
+              border: `1px dashed ${
+                preview ? 'var(--ck-green-dim, var(--border))' : 'var(--ck-border-hi, var(--border))'
+              }`,
+              borderRadius: 2,
+              color: preview ? 'var(--ck-green, var(--primary))' : 'var(--ck-t3)',
+              fontFamily: 'var(--ck-font-mono, monospace)',
+              fontSize: 11,
+              fontVariantNumeric: 'tabular-nums',
+              flex: 1,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={preview || 'No formatter applied'}
+          >
+            {preview || '—'}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setDraftExcel('');
+              onChange(undefined);
+            }}
+            disabled={!value}
+            title="Clear formatter"
+            data-testid={testId ? `${testId}-clear` : undefined}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 22,
+              height: 22,
+              padding: 0,
+              background: 'transparent',
+              border: '1px solid var(--ck-border-hi, var(--border))',
+              borderRadius: 2,
+              color: value ? 'var(--ck-red, var(--destructive))' : 'var(--ck-t3)',
+              cursor: value ? 'pointer' : 'default',
+              opacity: value ? 1 : 0.4,
+            }}
+          >
+            <X size={11} strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Preset tile grid, grouped by category */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            maxHeight: 360,
+            overflowY: 'auto',
+            paddingRight: 2,
+            scrollbarColor: 'var(--gc-border, #313944) transparent',
+            scrollbarWidth: 'thin',
+          }}
+        >
+          {Object.entries(groups).map(([groupKey, items]) => (
+            <div key={groupKey}>
+              <SubLabel>{GROUP_LABELS[groupKey] ?? groupKey.toUpperCase()}</SubLabel>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 4,
+                  marginTop: 4,
+                }}
+              >
+                {items.map((p) => {
+                  const active = activePreset?.id === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => pickPreset(p)}
+                      title={p.hint ? `${p.label} · ${p.hint}` : p.label}
+                      data-testid={testId ? `${testId}-preset-${p.id}` : undefined}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: 2,
+                        padding: '6px 8px',
+                        background: active
+                          ? 'var(--ck-green-bg, color-mix(in srgb, var(--primary) 14%, transparent))'
+                          : 'var(--ck-bg, var(--background))',
+                        border: `1px solid ${
+                          active ? 'var(--ck-green, var(--primary))' : 'var(--ck-border-hi, var(--border))'
+                        }`,
+                        borderRadius: 2,
+                        color: active ? 'var(--ck-green, var(--primary))' : 'var(--ck-t0, var(--foreground))',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontFamily: 'inherit',
+                        fontSize: 11,
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, lineHeight: 1.1 }}>{p.label}</span>
+                      {p.hint ? (
+                        <span
+                          style={{
+                            fontFamily: 'var(--ck-font-mono, monospace)',
+                            fontSize: 9,
+                            color: active ? 'var(--ck-green, var(--primary))' : 'var(--ck-t3)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: '100%',
+                          }}
+                        >
+                          {p.hint}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {presets.length === 0 ? (
+            <Caps size={10} color="var(--ck-t3)">
+              No presets for this data type — use the custom format below.
+            </Caps>
+          ) : null}
+        </div>
+
+        <div style={{ height: 1, background: 'var(--ck-border, var(--border))' }} />
+
+        {/* Custom Excel input + info */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <SubLabel>Custom Excel format</SubLabel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ flex: 1 }}>
+              <IconInput
+                icon={<Hash size={12} strokeWidth={2} />}
+                value={draftExcel}
+                onChange={(v) => {
+                  setDraftExcel(v);
+                  const trimmed = v.trim();
+                  if (!trimmed) {
+                    if (value?.kind === 'excelFormat') onChange(undefined);
+                    return;
+                  }
+                  if (isValidExcelFormat(trimmed)) {
+                    onChange({ kind: 'excelFormat', format: trimmed });
+                  }
+                }}
+                onCommit={commitExcel}
+                monospace
+                placeholder={
+                  dataType === 'date' || dataType === 'datetime' ? 'yyyy-mm-dd' : '#,##0.00'
+                }
+                error={!isExcelValid}
+                data-testid={testId ? `${testId}-excel` : undefined}
+              />
+            </div>
+            <ExcelReferencePopover
+              onPick={(format) => {
+                setDraftExcel(format);
+                commitExcel(format);
+              }}
+              data-testid={testId ? `${testId}-info` : undefined}
+            />
+          </div>
+          <Caps size={9} color="var(--ck-t3)">
+            {EXCEL_EXAMPLES.length} categories of example formats in the{' '}
+            <Info size={9} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+            reference.
+          </Caps>
+        </div>
+      </div>
+    </FormatPopover>
+  );
+}
+
+// ─── Non-compact (editor) presentation ──────────────────────────────────
+//
+// Inline layout unchanged from the previous implementation — editors
+// have the vertical + horizontal room for a full row of controls, and
+// the inline form scans faster than opening a popover on every format
+// tweak inside a dense settings panel.
+
+function InlineFormatterPicker({
+  value,
+  onChange,
+  presets,
+  activePreset,
+  preview,
+  draftExcel,
+  setDraftExcel,
+  isExcelValid,
+  commitExcel,
+  pickPreset,
+  dataType,
+  defaultCollapsed,
+  testId,
+}: SharedBodyProps & { defaultCollapsed: boolean }) {
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
+  const rowHeight = 28;
+
   if (!expanded) {
     return (
       <button
@@ -188,7 +594,7 @@ export function FormatterPicker({
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
-          height: compact ? 26 : 28,
+          height: 28,
           padding: '0 8px',
           background: 'var(--ck-bg, var(--background))',
           border: '1px solid var(--ck-border-hi, var(--border))',
@@ -203,7 +609,7 @@ export function FormatterPicker({
         <Hash size={12} strokeWidth={1.75} style={{ opacity: 0.6 }} />
         <span
           style={{
-            maxWidth: 120,
+            maxWidth: 140,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -211,20 +617,13 @@ export function FormatterPicker({
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {compactCaption(value)}
+          {triggerCaption(value, activePreset)}
         </span>
-        {preview ? (
-          <Caps size={9} color="var(--ck-t3)">
-            = {preview.length > 14 ? preview.slice(0, 13) + '…' : preview}
-          </Caps>
-        ) : null}
-        <ChevronRight size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
+        <ChevronDown size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
       </button>
     );
   }
 
-  // ── Expanded ────────────────────────────────────────────────────────────
-  const rowHeight = compact ? 26 : 28;
   return (
     <div
       data-testid={testId}
@@ -232,14 +631,13 @@ export function FormatterPicker({
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        padding: compact ? 2 : 4,
+        padding: 4,
         background: 'var(--ck-card, transparent)',
-        border: compact ? 'none' : '1px solid var(--ck-border, var(--border))',
+        border: '1px solid var(--ck-border, var(--border))',
         borderRadius: 2,
         fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
       }}
     >
-      {/* Collapse affordance */}
       <button
         type="button"
         onClick={() => setExpanded(false)}
@@ -260,7 +658,6 @@ export function FormatterPicker({
         <ChevronLeft size={12} strokeWidth={1.75} />
       </button>
 
-      {/* Preset dropdown */}
       <FormatDropdown<string>
         value={activePreset?.id ?? ''}
         onChange={(id) => {
@@ -282,8 +679,8 @@ export function FormatterPicker({
               alignItems: 'center',
               gap: 6,
               height: rowHeight,
-              minWidth: compact ? 88 : 120,
-              maxWidth: compact ? 140 : 240,
+              minWidth: 120,
+              maxWidth: 240,
               padding: '0 6px 0 10px',
               background: 'var(--ck-bg, var(--background))',
               border: '1px solid var(--ck-border-hi, var(--border))',
@@ -311,26 +708,19 @@ export function FormatterPicker({
         }
       />
 
-      {/* Custom Excel input */}
-      <div style={{ width: compact ? 120 : 180 }}>
+      <div style={{ width: 180 }}>
         <IconInput
           icon={<Hash size={12} strokeWidth={2} />}
           value={draftExcel}
           onChange={(v) => {
             setDraftExcel(v);
-            // Opportunistic commit on every keystroke WHEN valid so the
-            // grid updates live. Invalid intermediate states stay local.
             const trimmed = v.trim();
             if (!trimmed) {
-              // Clearing the input clears the formatter — but only when
-              // the template was excelFormat; preserving preset / tick
-              // picks while the input is empty would be confusing.
               if (value?.kind === 'excelFormat') onChange(undefined);
               return;
             }
             if (isValidExcelFormat(trimmed)) {
               onChange({ kind: 'excelFormat', format: trimmed });
-              lastCommittedRef.current = trimmed;
             }
           }}
           onCommit={commitExcel}
@@ -341,7 +731,6 @@ export function FormatterPicker({
         />
       </div>
 
-      {/* Info popover */}
       <ExcelReferencePopover
         onPick={(format) => {
           setDraftExcel(format);
@@ -350,12 +739,7 @@ export function FormatterPicker({
         data-testid={testId ? `${testId}-info` : undefined}
       />
 
-      {/* Live preview chip — hidden in compact toolbar mode because the
-          Excel input placeholder already shows the format string; keeping
-          the chip there pushed the toolbar past the viewport and
-          triggered a page-level scrollbar. Editor hosts (non-compact)
-          still render it. */}
-      {preview && !compact ? (
+      {preview ? (
         <span
           style={{
             display: 'inline-flex',
