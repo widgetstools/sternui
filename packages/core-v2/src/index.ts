@@ -143,6 +143,12 @@ export type { ColumnTemplate, ColumnDataType, ColumnTemplatesState } from './mod
 export { resolveTemplates } from './modules/column-templates/resolveTemplates';
 export { isValidExcelFormat } from './modules/column-customization/adapters/excelFormatter';
 export { presetToExcelFormat } from './modules/column-customization/adapters/presetToExcelFormat';
+export {
+  tickFormatter,
+  TICK_LABELS,
+  TICK_SAMPLES,
+} from './modules/column-customization/adapters/tickFormatter';
+export { valueFormatterFromTemplate } from './modules/column-customization/adapters/valueFormatterFromTemplate';
 export { columnCustomizationModule, INITIAL_COLUMN_CUSTOMIZATION } from './modules/column-customization';
 export type { ColumnAssignment, ColumnCustomizationState } from './modules/column-customization';
 // Type-only re-exports for the structured style/formatter shapes — consumers
@@ -153,6 +159,7 @@ export type {
   CellStyleOverrides,
   ValueFormatterTemplate,
   PresetId,
+  TickToken,
 } from './modules/column-customization/state';
 export { conditionalStylingModule, INITIAL_CONDITIONAL_STYLING } from './modules/conditional-styling';
 export type {

@@ -1,5 +1,6 @@
 import type { PresetId, ValueFormatterTemplate } from '../state';
 import { excelFormatter } from './excelFormatter';
+import { tickFormatter } from './tickFormatter';
 
 export type FormatterParams = { value: unknown; data?: unknown };
 export type Formatter = (params: FormatterParams) => string;
@@ -142,6 +143,15 @@ export function valueFormatterFromTemplate(t: ValueFormatterTemplate): Formatter
   if (t.kind === 'excelFormat') {
     // SSF-backed; caches by format string internally.
     return excelFormatter(t.format);
+  }
+  if (t.kind === 'tick') {
+    // Pure function — lightweight enough to skip caching. Each call
+    // returns a closure over a fixed switch branch.
+    const render = tickFormatter(t.tick);
+    return ({ value }) => {
+      if (value == null) return '';
+      return render(value);
+    };
   }
   // kind: 'expression' — cache by expression string.
   let fn = expressionCache.get(t.expression);
