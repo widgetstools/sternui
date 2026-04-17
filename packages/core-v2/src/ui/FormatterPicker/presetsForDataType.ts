@@ -186,16 +186,25 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
     template: { kind: 'excelFormat', format: '€#,##0.00' },
   },
   {
+    // SSF only treats `$` and `€` as bare currency characters. `£`,
+    // `¥`, `₹` need to be wrapped in a quoted string literal or SSF
+    // throws "unrecognized character" at format-compile time.
     id: 'cur-gbp',
     label: 'GBP',
     hint: '£1,234.56',
-    template: { kind: 'excelFormat', format: '£#,##0.00' },
+    template: { kind: 'excelFormat', format: '"£"#,##0.00' },
   },
   {
     id: 'cur-jpy',
     label: 'JPY',
     hint: '¥1,235',
-    template: { kind: 'excelFormat', format: '¥#,##0' },
+    template: { kind: 'excelFormat', format: '"¥"#,##0' },
+  },
+  {
+    id: 'cur-inr',
+    label: 'INR',
+    hint: '₹1,234.56',
+    template: { kind: 'excelFormat', format: '"₹"#,##0.00' },
   },
   // Per-currency Green/Red (no sign) variants. Same Bloomberg-style
   // P&L cue as the number-preset `num-green-red-usd` but with the
@@ -215,12 +224,14 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
     sampleValue: -1234.5678,
   },
   {
+    // Symbol wrapped in `"…"` — SSF requires the quoted-literal form
+    // for every currency char that isn't `$` or `€`.
     id: 'cur-gbp-green-red-nosign',
     label: 'GBP Green / Red (no sign)',
     hint: '[Green]£1,234.57 · [Red]£1,234.57',
     template: {
       kind: 'excelFormat',
-      format: '[Green]£#,##0.00;[Red]£#,##0.00',
+      format: '[Green]"£"#,##0.00;[Red]"£"#,##0.00',
     },
     sampleValue: -1234.5678,
   },
@@ -231,7 +242,17 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
     // JPY: no decimal by convention.
     template: {
       kind: 'excelFormat',
-      format: '[Green]¥#,##0;[Red]¥#,##0',
+      format: '[Green]"¥"#,##0;[Red]"¥"#,##0',
+    },
+    sampleValue: -1234.5678,
+  },
+  {
+    id: 'cur-inr-green-red-nosign',
+    label: 'INR Green / Red (no sign)',
+    hint: '[Green]₹1,234.57 · [Red]₹1,234.57',
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]"₹"#,##0.00;[Red]"₹"#,##0.00',
     },
     sampleValue: -1234.5678,
   },

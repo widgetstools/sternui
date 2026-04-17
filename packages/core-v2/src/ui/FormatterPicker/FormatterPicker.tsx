@@ -118,6 +118,48 @@ function triggerCaption(
   }
 }
 
+/**
+ * Currency symbols offered by the quick-insert row above the custom
+ * input. Ordered by desk frequency. `symbol` is what actually lands
+ * in the Excel format string — SSF only recognises `$` and `€` as
+ * bare currency characters; every other glyph has to be wrapped in
+ * a quoted string literal (`"£"`, `"¥"`, `"₹"`, `"CHF "`) so SSF
+ * emits it verbatim without trying to interpret it as a format code.
+ */
+const CURRENCY_QUICK_INSERT: ReadonlyArray<{ label: string; symbol: string; aria: string }> = [
+  { label: '$', symbol: '$', aria: 'US dollar' },
+  { label: '€', symbol: '€', aria: 'Euro' },
+  { label: '£', symbol: '"£"', aria: 'British pound' },
+  { label: '¥', symbol: '"¥"', aria: 'Japanese yen' },
+  { label: '₹', symbol: '"₹"', aria: 'Indian rupee' },
+  { label: 'CHF', symbol: '"CHF "', aria: 'Swiss franc' },
+];
+
+/** Regex matching any currency symbol we know about, including quoted
+ *  literal variants. The outer alternation tries the quoted forms
+ *  first so e.g. `"£"` is consumed as a single token instead of the
+ *  inner `£`. */
+const CURRENCY_SYMBOL_RE = /("£"|"¥"|"₹"|"[A-Z]{3} ?"|[$€])/;
+
+/**
+ * Insert `symbol` into the current Excel format string. Behaviour:
+ *   1. Contains a currency symbol we recognise → swap every occurrence.
+ *      Excel two-section formats (positive;negative) carry the symbol
+ *      in both sections; swapping both keeps the format consistent.
+ *   2. Non-empty format, no symbol → prepend the symbol.
+ *   3. Empty → seed `${symbol}#,##0.00` as a sensible default.
+ *
+ * Pure function so the popover's click handler stays short.
+ */
+function applyCurrencySymbol(current: string, symbol: string): string {
+  const trimmed = current.trim();
+  if (!trimmed) return `${symbol}#,##0.00`;
+  if (CURRENCY_SYMBOL_RE.test(trimmed)) {
+    return trimmed.replace(new RegExp(CURRENCY_SYMBOL_RE.source, 'g'), symbol);
+  }
+  return `${symbol}${trimmed}`;
+}
+
 /** Category labels for the popover's preset tile grid. Covers every
  *  `group` key in `presetsForDataType`. */
 const GROUP_LABELS: Record<string, string> = {
@@ -514,6 +556,65 @@ function CompactFormatterPicker({
         {/* Custom Excel input + info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <SubLabel>Custom Excel format</SubLabel>
+
+          {/* Currency symbol quick-insert — one click swaps the symbol
+               in the current format, or seeds `${symbol}#,##0.00` if
+               the input is empty. Saves users from hunting for the
+               right keyboard shortcut (especially ₹ / €). */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Caps size={9} color="var(--ck-t3)" style={{ paddingRight: 4 }}>
+              SYMBOL
+            </Caps>
+            {CURRENCY_QUICK_INSERT.map((c) => (
+              <button
+                key={c.symbol}
+                type="button"
+                title={`Insert ${c.aria}`}
+                aria-label={`Insert ${c.aria}`}
+                data-testid={testId ? `${testId}-currency-${c.label.toLowerCase()}` : undefined}
+                onClick={() => {
+                  const next = applyCurrencySymbol(draftExcel, c.symbol);
+                  setDraftExcel(next);
+                  commitExcel(next);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 26,
+                  height: 22,
+                  padding: '0 6px',
+                  background: 'var(--ck-bg, var(--background))',
+                  border: '1px solid var(--ck-border-hi, var(--border))',
+                  borderRadius: 2,
+                  color: 'var(--ck-t0, var(--foreground))',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--ck-font-mono, monospace)',
+                  fontSize: 11,
+                  lineHeight: 1,
+                  transition: 'background 100ms, border-color 100ms',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    'var(--ck-surface-hover, var(--accent))';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    'var(--ck-bg, var(--background))';
+                }}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ flex: 1 }}>
               <IconInput
