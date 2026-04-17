@@ -7,12 +7,17 @@ import type {
 import { ExpressionEngine } from '@grid-customizer/core';
 import type { AnyColDef, Module } from '../../core/types';
 import { CssInjector } from '../../core/CssInjector';
-import { ConditionalStylingPanel } from './ConditionalStylingPanel';
+import {
+  ConditionalStylingEditor,
+  ConditionalStylingList,
+  ConditionalStylingPanel,
+} from './ConditionalStylingPanel';
 import {
   INITIAL_CONDITIONAL_STYLING,
   type CellStyleProperties,
   type ConditionalRule,
   type ConditionalStylingState,
+  type FlashTarget,
 } from './state';
 
 // ─── Per-grid singletons ────────────────────────────────────────────────────
@@ -30,6 +35,16 @@ import {
 interface GridResources {
   engine: ExpressionEngine;
   cssInjector: CssInjector;
+  /** Cleanup for the header-flash re-evaluation listener (scans the row
+   *  model after every model update to toggle the pulse class on
+   *  qualifying column headers). Only attached when at least one rule
+   *  uses `target: 'headers' | 'cells+headers'`. */
+  headerFlashDetach?: () => void;
+  /** Invokes a fresh header-flash evaluation. Called from outside the
+   *  data-event listener when the rule list changes (e.g. flash
+   *  enabled/disabled via the panel) — data events alone don't catch
+   *  a rule-state toggle that leaves data untouched. */
+  headerFlashEvaluate?: () => void;
 }
 
 const _gridResources = new Map<string, GridResources>();
@@ -42,6 +57,38 @@ function getOrCreateResources(gridId: string): GridResources {
   }
   return r;
 }
+
+// ─── Flash-pulse CSS (injected once per grid) ───────────────────────────────
+//
+// The user-facing semantic is "this rule is a warning — pulse the target
+// continuously while the condition holds, stop when it clears". That maps
+// cleanly onto CSS: attach a class via the same predicate that drives the
+// style class, and let a keyframes animation loop forever.
+//
+// `inset box-shadow` is the pulse surface because:
+//   - It overlays the cell without shifting layout.
+//   - It doesn't fight the rule's own `background-color` (styling). The
+//     pulse visibly alternates between the amber highlight and fully
+//     transparent, so the rule's background shows through on the off-beat.
+//   - AG-Grid's column separators and borders are untouched.
+//
+// Headers reuse the same keyframes via `.gc-flash-hdr-{id}-{colId}` classes
+// toggled from a modelUpdated listener (AG-Grid doesn't have
+// `headerClassRules`, so per-column state has to be pushed imperatively).
+
+const FLASH_PULSE_RULE_ID = '__flash-pulse-keyframes__';
+const FLASH_PULSE_CSS = `
+@keyframes gc-flash-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 9999px var(--gc-flash-color, rgba(251, 191, 36, 0.42)); }
+  50%      { box-shadow: inset 0 0 0 9999px transparent; }
+}
+.gc-flash-pulse {
+  animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out;
+}
+.ag-header-cell.gc-flash-hdr-pulse {
+  animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out;
+}
+`;
 
 // ─── CSS generation ─────────────────────────────────────────────────────────
 
@@ -70,49 +117,58 @@ function styleToCSS(style: CellStyleProperties): string {
 
 /**
  * Build CSS for a ::after pseudo-element that renders per-side borders
- * using inset box-shadow. Ported from v1's column-customization module.
+ * using real CSS borders on the pseudo-element. Ported from v1's
+ * column-customization module; the previous `inset box-shadow` variant
+ * could not render dashed/dotted styles (box-shadow has no style axis).
  *
- * WHY ::after + box-shadow instead of real CSS borders:
- *   1. AG-Grid cells have overflow:hidden — real borders on the cell element
- *      get clipped at the cell boundary, especially bottom/right edges.
- *   2. AG-Grid uses its own border mechanism for column separators — real
- *      border-* properties on the cell conflict with those separators and
- *      cause double-borders or missing separators.
- *   3. inset box-shadow draws INSIDE the cell without changing the box-model
- *      size, so it doesn't shift cell content or affect column widths.
- *   4. The ::after is position:absolute + inset:0, so it fills the cell
- *      exactly. pointer-events:none lets AG-Grid selection work through it.
- *   5. Each side is an independent shadow, so per-side color/width works
- *      naturally with comma-separated box-shadow values.
+ * WHY ::after (instead of the cell element) for the real borders:
+ *   1. AG-Grid cells have overflow:hidden — real borders on the cell
+ *      element get clipped at the cell boundary, especially bottom/right
+ *      edges.
+ *   2. AG-Grid uses its own border mechanism for column separators —
+ *      real border-* properties on the cell would conflict with those
+ *      separators and cause double-borders or missing separators.
+ *   3. The ::after is position:absolute + inset:0 + box-sizing:border-box,
+ *      so each side's border draws INSIDE the pseudo-element footprint
+ *      without affecting the cell's box-model or column widths.
+ *   4. pointer-events:none lets AG-Grid selection work through the
+ *      overlay.
+ *   5. Each side uses its own `border-{side}: <width> <style> <color>`
+ *      declaration, so dashed / dotted render correctly per side.
  *
  * @param selector  CSS selector for the target element (e.g. `.gc-rule-abc`)
  * @param style     CellStyleProperties containing border* fields
  * @returns CSS text for the ::after rule, or empty string if no borders set
  */
 function borderOverlayCSS(selector: string, style: CellStyleProperties): string {
-  const shadows: string[] = [];
-  const sideMap = {
-    Top:    (w: string, c: string) => `inset 0 ${w} 0 0 ${c}`,
-    Right:  (w: string, c: string) => `inset -${w} 0 0 0 ${c}`,
-    Bottom: (w: string, c: string) => `inset 0 -${w} 0 0 ${c}`,
-    Left:   (w: string, c: string) => `inset ${w} 0 0 0 ${c}`,
-  };
+  const parts: string[] = [];
   for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
     const width = style[`border${side}Width` as keyof CellStyleProperties] as string | undefined;
-    const color = (style[`border${side}Color` as keyof CellStyleProperties] as string) ?? 'currentColor';
+    const color = (style[`border${side}Color` as keyof CellStyleProperties] as string | undefined) ?? 'currentColor';
+    const styleName =
+      (style[`border${side}Style` as keyof CellStyleProperties] as string | undefined) ?? 'solid';
     if (width && width !== '0px' && width !== 'none') {
-      shadows.push(sideMap[side](width, color));
+      parts.push(`border-${side.toLowerCase()}: ${width} ${styleName} ${color}`);
     }
   }
-  if (shadows.length === 0) return '';
-  // The cell needs position:relative so ::after can be absolute-positioned
-  // inside it. AG-Grid cells may or may not have this already — setting it
-  // is safe because AG-Grid's own layout doesn't depend on the cell being
-  // static.
-  return [
-    `${selector} { position: relative; }`,
-    `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: ${shadows.join(', ')}; z-index: 1; }`,
-  ].join('\n');
+  if (parts.length === 0) return '';
+  // Do NOT emit `position: relative` on the target element. AG-Grid already
+  // makes cells `position: relative` and rows `position: absolute` (via
+  // `.ag-row-position-absolute`, used for virtual-scroll transforms). Either
+  // one is a positioned ancestor, so `::after` with `position: absolute;
+  // inset: 0` anchors correctly inside the target.
+  //
+  // Forcing `position: relative` on a row drops it into the normal flow
+  // (because of the higher specificity when combined with theme ancestor
+  // selectors like `.dark` or `[data-theme="dark"]`), while AG-Grid still
+  // applies its `translateY(index * rowHeight)` — the row then occupies
+  // rowHeight of flow space AND gets transformed, producing a visible gap
+  // between styled rows and the rest of the grid.
+  //
+  // `box-sizing: border-box` anchors each border INSIDE the pseudo-element's
+  // inset:0 rect, matching the previous box-shadow overlay footprint while
+  // honouring dashed / dotted styles (which CSS box-shadow cannot render).
+  return `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-sizing: border-box; z-index: 1; ${parts.join('; ')}; }`;
 }
 
 /**
@@ -128,7 +184,13 @@ function borderOverlayCSS(selector: string, style: CellStyleProperties): string 
  * their `.gc-rule-<id>` class applied to rows but the matching CSS never
  * took effect because the selector didn't match the demo's theme signal.
  */
-function buildCssText(ruleId: string, light: CellStyleProperties, dark: CellStyleProperties): string {
+function buildCssText(
+  ruleId: string,
+  scopeType: 'cell' | 'row',
+  light: CellStyleProperties,
+  dark: CellStyleProperties,
+  pulse: { enabled: boolean; scope: 'cell' | 'row'; target: FlashTarget } | null = null,
+): string {
   const cls = `.gc-rule-${ruleId}`;
   const lightProps = styleToCSS(light);
   const darkProps = styleToCSS(dark);
@@ -142,6 +204,35 @@ function buildCssText(ruleId: string, light: CellStyleProperties, dark: CellStyl
     lines.push(`.dark ${cls}, [data-theme="dark"] ${cls} { ${darkProps} }`);
   }
   if (lightProps && !darkProps) lines.push(`${cls} { ${lightProps} }`);
+
+  // ── Flash pulse ──
+  // Runs for the duration the predicate matches. AG-Grid attaches
+  // `.gc-rule-{id}` via cellClassRules/rowClassRules when truthy and
+  // removes it when falsy, so the animation starts and stops
+  // automatically as values cross the condition boundary.
+  //
+  // `target: 'headers'` alone does NOT paint the row/cell — only the
+  // header watcher toggles DOM classes. `cells` and `cells+headers`
+  // both pulse the cell/row here.
+  if (
+    pulse?.enabled &&
+    (pulse.target === 'cells' || pulse.target === 'cells+headers' || pulse.target === 'row')
+  ) {
+    lines.push(`${cls} { animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out; }`);
+  }
+
+  // ── Row-scope separator kill ──
+  // When the class lands on `.ag-row`, AG-Grid's own `border-bottom`
+  // (driven by the theme's `rowBorderColor`) still paints on top of the
+  // highlight — adjacent styled rows end up separated by a stripe.
+  // `!important` is required: the theme emits its rule via `.ag-theme-* .ag-row`
+  // which matches at the same specificity level AND loads after our <style>
+  // tag on re-mount, so plain 2-class specificity isn't enough in practice.
+  // This matches the `!important` pattern shown in AG-Grid's own rowClassRules
+  // docs for background overrides.
+  if (scopeType === 'row') {
+    lines.push(`.ag-row${cls} { border-color: transparent !important; }`);
+  }
 
   // ── Border overlay via ::after pseudo-element + inset box-shadow ──
   // Borders are theme-aware too: light borders for light theme, dark for dark.
@@ -161,9 +252,18 @@ function buildCssText(ruleId: string, light: CellStyleProperties, dark: CellStyl
 
 function reinjectAllRules(injector: CssInjector, rules: ConditionalRule[]): void {
   injector.clear();
+  // Keep flash keyframes alive across every re-inject — they're
+  // module-scoped, not per-rule.
+  injector.addRule(FLASH_PULSE_RULE_ID, FLASH_PULSE_CSS);
   for (const rule of rules) {
     if (!rule.enabled) continue;
-    injector.addRule(`conditional-${rule.id}`, buildCssText(rule.id, rule.style.light, rule.style.dark));
+    const pulse = rule.flash?.enabled
+      ? { enabled: true, scope: rule.scope.type, target: rule.flash.target }
+      : null;
+    injector.addRule(
+      `conditional-${rule.id}`,
+      buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, pulse),
+    );
   }
 }
 
@@ -257,11 +357,161 @@ function applyCellRulesToDefs(
   });
 }
 
+// ─── Flash runtime ──────────────────────────────────────────────────────────
+//
+// The "flash" is a continuous CSS pulse that runs WHILE the rule's
+// condition is true — it's a warning indicator, not a transient
+// highlight. The class that drives the pulse is attached by AG-Grid's
+// own cellClassRules / rowClassRules (same predicate as the style
+// class), so when the value transitions out of match range the class
+// falls off and the pulse stops automatically.
+//
+// For HEADERS target we can't use cellClassRules (AG-Grid has no
+// `headerClassRules`), so we watch `modelUpdated` and toggle a
+// `.gc-flash-hdr-pulse` class on each qualifying column header whenever
+// ANY cell in that column currently matches the rule.
+
+type HeaderFlashApi = {
+  addEventListener: (evt: string, fn: (e: unknown) => void) => void;
+  removeEventListener: (evt: string, fn: (e: unknown) => void) => void;
+  forEachNode?: (cb: (n: { data?: Record<string, unknown> }) => void) => void;
+  forEachNodeAfterFilter?: (cb: (n: { data?: Record<string, unknown> }) => void) => void;
+};
+
+function togglePulseHeader(colId: string, on: boolean): void {
+  const nodes = document.querySelectorAll(`.ag-header-cell[col-id="${CSS.escape(colId)}"]`);
+  nodes.forEach((el) => {
+    const node = el as HTMLElement;
+    if (on) node.classList.add('gc-flash-hdr-pulse');
+    else node.classList.remove('gc-flash-hdr-pulse');
+  });
+}
+
+/**
+ * Attach a modelUpdated listener that, for every rule with
+ * `target: 'headers' | 'cells+headers'`, evaluates the rule against
+ * every visible row to determine whether ANY row currently matches for
+ * each target column. Qualifying column headers get the pulse class;
+ * non-qualifying headers lose it.
+ *
+ * No-op at the data-layer level when no rules currently need header
+ * pulses — iteration still runs but is bounded by rules × columns and
+ * short-circuits when nothing is subscribed.
+ */
+function attachHeaderFlashWatcher(
+  gridId: string,
+  ctx: { gridApi: unknown; getModuleState: <T>(id: string) => T },
+): void {
+  const api = ctx.gridApi as HeaderFlashApi | undefined;
+  if (!api || typeof api.addEventListener !== 'function') return;
+
+  const resources = getOrCreateResources(gridId);
+
+  // Guard against double-attach on hot-reload.
+  resources.headerFlashDetach?.();
+
+  const evaluate = () => {
+    const state = ctx.getModuleState<ConditionalStylingState>('conditional-styling');
+    const { engine } = resources;
+
+    // Collect all (ruleId, colId) pairs we need to check. Headers are
+    // cell-scope only — row-scope rules don't have a column to paint.
+    const headerRules = state.rules.filter(
+      (r) =>
+        r.enabled &&
+        r.flash?.enabled &&
+        r.scope.type === 'cell' &&
+        (r.flash.target === 'headers' || r.flash.target === 'cells+headers'),
+    );
+
+    // STEP 1: clear every currently-pulsing header. This handles the
+    // case where the user disables a rule (or flips its target off
+    // "headers") — those columns are no longer in `headerRules`, so
+    // iterating only the current rule set would never touch them and
+    // the stale `.gc-flash-hdr-pulse` class would stick forever.
+    document.querySelectorAll('.ag-header-cell.gc-flash-hdr-pulse').forEach((el) => {
+      el.classList.remove('gc-flash-hdr-pulse');
+    });
+
+    // STEP 2: compute which columns should be pulsing now.
+    const columnsOn = new Set<string>();
+    for (const rule of headerRules) {
+      if (rule.scope.type !== 'cell') continue;
+      let anyMatch = false;
+      const iter = api.forEachNodeAfterFilter ?? api.forEachNode;
+      if (!iter) continue;
+      iter.call(api, (node) => {
+        if (anyMatch) return;
+        const data = node.data ?? {};
+        try {
+          const ok = Boolean(
+            engine.parseAndEvaluate(rule.expression, {
+              x: null,
+              value: null,
+              data,
+              columns: data,
+            }),
+          );
+          if (ok) anyMatch = true;
+        } catch {
+          /* swallow per-row errors */
+        }
+      });
+      if (anyMatch) {
+        for (const colId of rule.scope.columns) columnsOn.add(colId);
+      }
+    }
+
+    // STEP 3: paint the qualifying columns.
+    for (const colId of columnsOn) {
+      togglePulseHeader(colId, true);
+    }
+  };
+
+  const listener = () => evaluate();
+  api.addEventListener('modelUpdated', listener);
+  api.addEventListener('filterChanged', listener);
+  api.addEventListener('cellValueChanged', listener);
+
+  // Run once immediately so rules whose match state is already true at
+  // mount (common: a profile load) paint the header pulse without
+  // waiting for a data event.
+  evaluate();
+
+  resources.headerFlashDetach = () => {
+    try {
+      api.removeEventListener('modelUpdated', listener);
+      api.removeEventListener('filterChanged', listener);
+      api.removeEventListener('cellValueChanged', listener);
+    } catch {
+      /* api may already be gone */
+    }
+    // Clear any leftover pulse classes so destroyed grids don't leave
+    // stray animations on cached header DOM.
+    document.querySelectorAll('.ag-header-cell.gc-flash-hdr-pulse').forEach((el) => {
+      el.classList.remove('gc-flash-hdr-pulse');
+    });
+    resources.headerFlashEvaluate = undefined;
+  };
+  // Expose the evaluator so rule-state changes (not data changes) can
+  // trigger a re-evaluation from outside the listener — specifically
+  // from transformColumnDefs/Options, which re-run whenever the rule
+  // list is edited but don't necessarily produce a data event.
+  resources.headerFlashEvaluate = evaluate;
+}
+
+function detachHeaderFlashWatcher(gridId: string): void {
+  const r = _gridResources.get(gridId);
+  r?.headerFlashDetach?.();
+  if (r) r.headerFlashDetach = undefined;
+}
+
 // ─── Module ─────────────────────────────────────────────────────────────────
 
 export const conditionalStylingModule: Module<ConditionalStylingState> = {
   id: 'conditional-styling',
-  name: 'Conditional Styling',
+  name: 'Style Rules',
+  code: '01',
   schemaVersion: 1,
   // Runs after column-customization (priority 10) so per-rule classes layer
   // on top of any structural changes. Stays in front of any host-specific
@@ -274,13 +524,22 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     // Allocate the per-grid resources up front + inject CSS for any rules
     // that came in from a profile load. transformColumnDefs may run before
     // this on first mount (depends on host), so this `getOrCreateResources`
-    // is intentionally idempotent.
+    // is intentionally idempotent. `reinjectAllRules` also restamps the
+    // header-flash keyframes.
     const { cssInjector } = getOrCreateResources(ctx.gridId);
     const state = ctx.getModuleState<ConditionalStylingState>('conditional-styling');
     reinjectAllRules(cssInjector, state.rules);
   },
 
+  onGridReady(ctx) {
+    // Header-flash target can't ride cellClassRules (AG-Grid has no
+    // headerClassRules), so we watch data updates and toggle a pulse
+    // class on qualifying column headers imperatively.
+    attachHeaderFlashWatcher(ctx.gridId, ctx);
+  },
+
   onGridDestroy(ctx) {
+    detachHeaderFlashWatcher(ctx.gridId);
     const r = _gridResources.get(ctx.gridId);
     if (!r) return;
     r.cssInjector.destroy();
@@ -288,11 +547,20 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
   },
 
   transformColumnDefs(defs, state, gridCtx) {
-    const { engine, cssInjector } = getOrCreateResources(gridCtx.gridId);
+    const resources = getOrCreateResources(gridCtx.gridId);
+    const { engine, cssInjector } = resources;
     // Keep the <style> tag in lockstep with the rule list. Cheap: we only
     // diff via Map size + iteration in `flush`, and the transform pipeline
     // re-runs on state changes anyway.
     reinjectAllRules(cssInjector, state.rules);
+
+    // Re-run the header-flash evaluator whenever the rule list changes
+    // so "disable flash" (or change target) in the panel clears any
+    // stale `.gc-flash-hdr-pulse` classes that data events alone
+    // wouldn't touch. No-op if the watcher hasn't attached yet
+    // (onGridReady runs after the first transformColumnDefs on some
+    // host layouts).
+    resources.headerFlashEvaluate?.();
 
     const cellRules = state.rules
       .filter((r) => r.enabled && r.scope.type === 'cell')
@@ -305,9 +573,15 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     const rowRules = state.rules
       .filter((r) => r.enabled && r.scope.type === 'row')
       .sort((a, b) => a.priority - b.priority);
-    if (rowRules.length === 0) return opts;
 
     const { engine } = getOrCreateResources(gridCtx.gridId);
+
+    // Always emit `rowClassRules` — even when empty — so the host's
+    // `setGridOption` sync loop clears stale predicates when a rule's scope
+    // flips from `row` → `cell`. Returning `opts` unchanged leaves AG-Grid
+    // with the previous `gc-rule-<id>` class still attached to every row,
+    // which is exactly the "style always applies to the row even when a
+    // column is selected" bug.
     const rowClassRules: NonNullable<typeof opts.rowClassRules> = {
       ...((opts.rowClassRules as Record<string, unknown>) ?? {}),
     } as NonNullable<typeof opts.rowClassRules>;
@@ -323,10 +597,36 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
   deserialize: (raw) => {
     if (!raw || typeof raw !== 'object') return { rules: [] };
     const d = raw as Partial<ConditionalStylingState>;
-    return { rules: Array.isArray(d.rules) ? d.rules : [] };
+    const rules = Array.isArray(d.rules) ? d.rules : [];
+    // Defensive shape-normalization: legacy profiles won't have `flash`;
+    // newer profiles with a malformed flash block get coerced to a no-op
+    // so the runtime never sees a partially-valid state.
+    return {
+      rules: rules.map((r) => {
+        if (!r.flash) return r;
+        const { enabled, target, flashDuration, fadeDuration } = r.flash;
+        const scope = r.scope?.type ?? 'cell';
+        const allowed: Record<string, true> =
+          scope === 'row'
+            ? { row: true }
+            : { cells: true, headers: true, 'cells+headers': true };
+        const normalizedTarget = allowed[target as string] ? target : scope === 'row' ? 'row' : 'cells';
+        return {
+          ...r,
+          flash: {
+            enabled: Boolean(enabled),
+            target: normalizedTarget,
+            ...(typeof flashDuration === 'number' ? { flashDuration } : {}),
+            ...(typeof fadeDuration === 'number' ? { fadeDuration } : {}),
+          },
+        };
+      }),
+    };
   },
 
   SettingsPanel: ConditionalStylingPanel,
+  ListPane: ConditionalStylingList,
+  EditorPane: ConditionalStylingEditor,
 };
 
 // ─── Test-only escape hatch ────────────────────────────────────────────────
@@ -342,6 +642,8 @@ export type {
   CellStyleProperties,
   ConditionalRule,
   ConditionalStylingState,
+  FlashConfig,
+  FlashTarget,
   RuleScope,
   ThemeAwareStyle,
 } from './state';

@@ -32,8 +32,10 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-popover": "^1.1.15",
     "dexie": "^4.0.0",
+    "monaco-editor": "^0.55.1",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

@@ -120,12 +120,50 @@ export interface Module<S = unknown> {
   transformGridOptions?(opts: Partial<GridOptions>, state: S, ctx: GridContext): Partial<GridOptions>;
 
   // ─── Optional UI surface ─────────────────────────────────────────────────
+  //
+  // Two shapes are supported:
+  //
+  //   1. Legacy flat: `SettingsPanel` — renders a single panel inside the
+  //      sheet's content area. The module owns its full UI. Kept for
+  //      modules that don't fit the master-detail pattern.
+  //
+  //   2. Master-detail: `ListPane` + `EditorPane`. When BOTH are provided
+  //      (and the sheet supports it), the sheet renders `ListPane` in its
+  //      items rail and `EditorPane` in the editor area. Selection state
+  //      lives in the sheet; modules receive / report it via props.
+  //
+  // Modules may provide both for host flexibility. Precedence: if the host
+  // is the v2 Cockpit sheet it uses the master-detail shape; otherwise it
+  // falls back to `SettingsPanel`.
 
   SettingsPanel?: ComponentType<SettingsPanelProps>;
+  ListPane?: ComponentType<ListPaneProps>;
+  EditorPane?: ComponentType<EditorPaneProps>;
+
+  /** Optional: the module's code-point in the top-nav rail (e.g. "01").
+   *  Purely cosmetic — Cockpit uses it to label the nav button. */
+  readonly code?: string;
 }
 
 export interface SettingsPanelProps {
   gridId: string;
+}
+
+/** Master-detail list pane. The sheet owns selection; the module reports
+ *  changes via `onSelect` and reflects the current `selectedId`. */
+export interface ListPaneProps {
+  gridId: string;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+/** Master-detail editor pane. Receives the currently-selected id from
+ *  the sheet. Modules render the config for that item; when `selectedId`
+ *  is null they should render an empty-state prompting the user to pick
+ *  or add an item from the list. */
+export interface EditorPaneProps {
+  gridId: string;
+  selectedId: string | null;
 }
 
 export type AnyModule = Module<any>;

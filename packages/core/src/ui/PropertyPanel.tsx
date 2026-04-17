@@ -154,9 +154,17 @@ export function PropText({ value, onChange, placeholder, mono, width }: {
   );
 }
 
-export function PropColor({ value, onChange, label }: {
-  value: string | undefined; onChange: (v: string) => void; label?: string;
+export function PropColor({ value, onChange, onClear, label }: {
+  value: string | undefined;
+  onChange: (v: string) => void;
+  /** When provided AND value is set, a small × clear-button is shown next to
+   * the swatch so the user can drop the color back to undefined without
+   * having to type/guess a sentinel. Callers keep backwards compatibility by
+   * simply not passing `onClear`. */
+  onClear?: () => void;
+  label?: string;
 }) {
+  const hasValue = Boolean(value);
   return (
     <div className="flex items-center gap-1.5">
       {label && <span className="text-[9px] text-muted-foreground w-6">{label}</span>}
@@ -165,7 +173,20 @@ export function PropColor({ value, onChange, label }: {
           <button
             className="relative block w-6 h-6 rounded border border-border cursor-pointer overflow-hidden"
             style={{ background: value || 'transparent' }}
-          />
+            title={value ? `Edit ${value}` : 'Pick a color'}
+          >
+            {/* Diagonal "empty" hatching when no color is set, so the user
+                can distinguish an un-set color from a transparent one. */}
+            {!hasValue && (
+              <span
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage:
+                    'repeating-linear-gradient(45deg, var(--gc-border, #313944) 0 1px, transparent 1px 4px)',
+                }}
+              />
+            )}
+          </button>
         }
         width={240}
       >
@@ -177,6 +198,22 @@ export function PropColor({ value, onChange, label }: {
       <span className="text-[9px] font-mono text-muted-foreground">
         {value || '—'}
       </span>
+      {onClear && hasValue && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClear();
+          }}
+          className="flex items-center justify-center w-4 h-4 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+          style={{ fontSize: 11, lineHeight: 1 }}
+          title="Clear color"
+          aria-label="Clear color"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }

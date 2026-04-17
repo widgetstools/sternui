@@ -77,9 +77,18 @@ const columnDefs: ColDef<Order>[] = [
   { field: 'desk', headerName: 'Desk', initialWidth: 90, filter: 'agSetColumnFilter' },
   { field: 'trader', headerName: 'Trader', initialWidth: 110, filter: 'agSetColumnFilter' },
   { field: 'notional', headerName: 'Notional', initialWidth: 120, filter: 'agNumberColumnFilter' },
-  { field: 'currency', headerName: 'CCY', initialWidth: 70 },
-  { field: 'settlementDate', headerName: 'Settle Date', initialWidth: 110 },
+  { field: 'currency', headerName: 'CCY', initialWidth: 70, filter: 'agSetColumnFilter' },
+  { field: 'settlementDate', headerName: 'Settle Date', initialWidth: 110, filter: 'agTextColumnFilter' },
 ];
+
+// Every column gets a floating filter by default; columns set their specific
+// filter type (text/number/set) on the column def itself.
+const defaultColDef: ColDef<Order> = {
+  floatingFilter: true,
+  filter: true,
+  sortable: true,
+  resizable: true,
+};
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
@@ -100,6 +109,22 @@ const useFormatPreview = (() => {
   } catch { return false; }
 })();
 
+// Standalone A/B/C preview for the settings-panel visual style decision.
+// Reachable at ?panel=preview. Delete once a pattern is chosen.
+const usePanelPreview = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get('panel') === 'preview';
+  } catch { return false; }
+})();
+
+// Cockpit Terminal aesthetic proposal — sample before wholesale redesign.
+// Reachable at ?panel=cockpit.
+const useCockpitPreview = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get('panel') === 'cockpit';
+  } catch { return false; }
+})();
+
 export function App() {
   if (useFormatPreview) {
     const LazyPreview = React.lazy(() =>
@@ -107,6 +132,26 @@ export function App() {
     );
     return (
       <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading format preview…</div>}>
+        <LazyPreview />
+      </React.Suspense>
+    );
+  }
+  if (usePanelPreview) {
+    const LazyPreview = React.lazy(() =>
+      import('./PanelStylePreview').then((m) => ({ default: m.PanelStylePreview })),
+    );
+    return (
+      <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading panel preview…</div>}>
+        <LazyPreview />
+      </React.Suspense>
+    );
+  }
+  if (useCockpitPreview) {
+    const LazyPreview = React.lazy(() =>
+      import('./CockpitPreview').then((m) => ({ default: m.CockpitPreview })),
+    );
+    return (
+      <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading cockpit preview…</div>}>
         <LazyPreview />
       </React.Suspense>
     );
@@ -186,6 +231,7 @@ function AppInner() {
             gridId="demo-blotter-v2"
             rowData={rowData}
             columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
             theme={theme}
             rowIdField="id"
             showFiltersToolbar={true}

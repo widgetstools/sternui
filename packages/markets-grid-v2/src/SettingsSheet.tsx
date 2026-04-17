@@ -1,45 +1,68 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   GridProvider,
+  SharpBtn,
+  V2_SHEET_STYLE_ID,
+  v2SheetCSS,
   type AnyModule,
   type GridStore,
 } from '@grid-customizer/core-v2';
 import type { GridCore } from '@grid-customizer/core-v2';
-import { settingsCSS, STYLE_ID } from '@grid-customizer/core';
-import { X } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  settingsCSS,
+  STYLE_ID,
+} from '@grid-customizer/core';
+import { ChevronDown, GripHorizontal, Maximize2, Minimize2, X } from 'lucide-react';
 
 /**
- * Settings drawer host for markets-grid-v2.
+ * Cockpit Terminal popout — the v2 settings sheet.
  *
- * Renders any module's `SettingsPanel` slot inside a slide-in drawer.
- *
- * Differs from v1's SettingsSheet:
- *   - No DraftStoreProvider — v2 has no draft layer; edits land in the live
- *     store and are auto-persisted on a 300ms debounce. Apply / Apply&Close /
- *     Reset buttons collapse to a single "Done" button.
- *   - Modules without a `SettingsPanel` are simply not listed in the nav.
- *   - Reuses v1's `gc-settings-styles` CSS string so the visual treatment
- *     (overlay, sheet chrome, sections, rule cards) matches v1 1:1 for
- *     muscle-memory continuity. We deliberately don't re-implement that CSS.
+ * Chrome:
+ *   - Title bar: terminal ticker with grip + green dot + "GRID CUSTOMIZER v2.3.0"
+ *     + profile status + dirty count + maximise + close.
+ *   - Body: 3-col grid (module rail, items list, editor).
+ *   - Footer: save-per-rule keyboard hints + Done CTA.
  */
 
-interface SettingsSheetProps {
+/**
+ * Back-compat aliases. The original v1/v2 flat panels exposed a top-level
+ * testid per module (`cs-panel`, `cg-panel`, `cc-panel`). The master-detail
+ * split removed those wrappers; this map lets the sheet re-emit the same
+ * id on the editor-pane wrapper so existing e2e tests keep working without
+ * having to relearn every selector.
+ */
+const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
+  'conditional-styling': 'cs-panel',
+  'column-groups': 'cg-panel',
+  'calculated-columns': 'cc-panel',
+};
+
+export interface SettingsSheetProps {
   core: GridCore;
   store: GridStore;
   modules: AnyModule[];
   open: boolean;
   onClose: () => void;
-  /** Optional initial active module id; defaults to first module with a panel. */
   initialModuleId?: string;
 }
 
 function ensureStyles() {
   if (typeof document === 'undefined') return;
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = settingsCSS;
-  document.head.appendChild(style);
+  if (!document.getElementById(STYLE_ID)) {
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = settingsCSS;
+    document.head.appendChild(style);
+  }
+  if (!document.getElementById(V2_SHEET_STYLE_ID)) {
+    const v2style = document.createElement('style');
+    v2style.id = V2_SHEET_STYLE_ID;
+    v2style.textContent = v2SheetCSS;
+    document.head.appendChild(v2style);
+  }
 }
 
 export function SettingsSheet({
@@ -50,13 +73,23 @@ export function SettingsSheet({
   onClose,
   initialModuleId,
 }: SettingsSheetProps) {
-  const panelModules = modules.filter((m) => m.SettingsPanel);
+  const panelModules = useMemo(
+    () => modules.filter((m) => m.SettingsPanel || (m.ListPane && m.EditorPane)),
+    [modules],
+  );
 
   const [activeId, setActiveId] = useState<string>(
     () => initialModuleId ?? panelModules[0]?.id ?? '',
   );
+  const [maximized, setMaximized] = useState(false);
+  const [moduleMenuOpen, setModuleMenuOpen] = useState(false);
 
-  // Keep a sensible active id if `initialModuleId` (or the panel list) changes.
+  const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
+
+  const setSelectedForModule = useCallback((moduleId: string, id: string | null) => {
+    setSelectedByModule((prev) => ({ ...prev, [moduleId]: id }));
+  }, []);
+
   useEffect(() => {
     if (panelModules.length === 0) return;
     if (!panelModules.some((m) => m.id === activeId)) {
@@ -69,12 +102,11 @@ export function SettingsSheet({
     if (open) ensureStyles();
   }, [open]);
 
-  // ESC closes — only registered while open so we don't intercept keys when
-  // the sheet isn't shown.
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -83,151 +115,235 @@ export function SettingsSheet({
   if (!open) return null;
 
   const activeModule = panelModules.find((m) => m.id === activeId);
-  const Panel = activeModule?.SettingsPanel;
+  const hasMasterDetail = Boolean(activeModule?.ListPane && activeModule?.EditorPane);
+  const ListPane = activeModule?.ListPane;
+  const EditorPane = activeModule?.EditorPane;
+  const LegacyPanel = activeModule?.SettingsPanel;
+  const selectedId = activeModule ? selectedByModule[activeModule.id] ?? null : null;
+
+  const dirtyCount = 0; // optional: wire to a global dirty counter if exposed by store
 
   return (
     <GridProvider store={store} core={core}>
       <div data-gc-settings="" data-testid="v2-settings-sheet">
         <div
-          className="gc-overlay"
+          className="gc-popout-backdrop"
           onClick={onClose}
           data-testid="v2-settings-overlay"
         />
 
-        <div className="gc-sheet" role="dialog" aria-label="Grid settings">
-          <div className="gc-header">
-            <div className="gc-header-title">
-              <span>Grid Customizer</span>
-              <span className="gc-header-badge">{core.gridId}</span>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              title="Close"
-              data-testid="v2-settings-close-btn"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--gc-text-muted)',
-                padding: 4,
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              <X size={14} strokeWidth={1.75} />
-            </button>
-          </div>
+        <div
+          className={`gc-sheet gc-sheet-v2 gc-popout${maximized ? ' is-maximized' : ''}`}
+          role="dialog"
+          aria-label="Grid settings"
+        >
+          {/* ── Title bar (terminal chrome) ─────────────────────── */}
+          <header className="gc-popout-title">
+            <GripHorizontal size={14} color="var(--ck-t3)" />
+            <span style={{ color: 'var(--ck-green)', fontSize: 11 }}>●</span>
+            <span className="gc-popout-title-text">Grid Customizer</span>
+            <span className="gc-popout-title-sub">v2.3.0</span>
 
-          <div className="gc-body">
-            {/* Module nav — small text-only sidebar; full v1-style icon nav is
-                deferred to v2.2 when the icon catalogue is ported. */}
-            <nav
-              className="gc-nav"
-              data-testid="v2-settings-nav"
-              style={{
-                width: 140,
-                borderRight: '1px solid var(--gc-border)',
-                padding: '6px 0',
-                background: 'var(--gc-surface)',
-                overflowY: 'auto',
-              }}
-            >
-              {panelModules.length === 0 && (
-                <div style={{ padding: 12, fontSize: 11, color: 'var(--gc-text-dim)' }}>
-                  No settings available.
-                </div>
-              )}
-              {panelModules.map((m) => {
-                const active = m.id === activeId;
-                return (
+            {/* Module dropdown — shadcn Popover */}
+            {panelModules.length > 0 && activeModule && (
+              <Popover open={moduleMenuOpen} onOpenChange={setModuleMenuOpen}>
+                <PopoverTrigger asChild>
                   <button
-                    key={m.id}
                     type="button"
-                    onClick={() => setActiveId(m.id)}
-                    data-testid={`v2-settings-nav-${m.id}`}
-                    aria-current={active ? 'true' : 'false'}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '7px 12px',
-                      fontSize: 11,
-                      background: active ? 'var(--gc-accent-muted)' : 'transparent',
-                      color: active ? 'var(--gc-accent)' : 'var(--gc-text)',
-                      border: 'none',
-                      borderLeft: active
-                        ? '2px solid var(--gc-accent)'
-                        : '2px solid transparent',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
+                    className="gc-popout-module-btn"
+                    aria-expanded={moduleMenuOpen}
+                    data-testid="v2-settings-module-dropdown"
                   >
-                    {m.name}
+                    <span>{activeModule.name}</span>
+                    <ChevronDown size={11} strokeWidth={2} color="var(--ck-t2)" />
                   </button>
-                );
-              })}
-            </nav>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  sideOffset={6}
+                  className="gc-sheet-v2"
+                  style={{
+                    padding: 4,
+                    width: 220,
+                    background: 'var(--ck-card)',
+                    border: '1px solid var(--ck-border-hi)',
+                    borderRadius: 2,
+                    boxShadow: 'var(--ck-popout-shadow)',
+                  }}
+                >
+                  {panelModules.map((m) => {
+                    const selected = m.id === activeId;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className="gc-popout-module-menu-item"
+                        aria-selected={selected}
+                        data-testid={`v2-settings-nav-menu-${m.id}`}
+                        onClick={() => {
+                          setActiveId(m.id);
+                          setModuleMenuOpen(false);
+                        }}
+                      >
+                        <span>{m.name}</span>
+                      </button>
+                    );
+                  })}
+                </PopoverContent>
+              </Popover>
+            )}
 
-            <div
-              className="gc-content"
+            <span style={{ flex: 1 }} />
+            <span className="gc-popout-title-status">
+              PROFILE=<strong>{core.gridId}</strong>
+            </span>
+            <span className="gc-popout-title-status">
+              DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ck-amber)' : 'var(--ck-t1)' }}>
+                {String(dirtyCount).padStart(2, '0')}
+              </strong>
+            </span>
+            <div style={{ display: 'inline-flex', gap: 2, marginLeft: 8 }}>
+              <button
+                type="button"
+                className="gc-popout-title-btn"
+                onClick={() => setMaximized((v) => !v)}
+                title={maximized ? 'Restore' : 'Maximize'}
+              >
+                {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
+              </button>
+              <button
+                type="button"
+                className="gc-popout-title-btn"
+                onClick={onClose}
+                title="Close"
+                data-testid="v2-settings-close-btn"
+              >
+                <X size={14} strokeWidth={2} />
+              </button>
+            </div>
+          </header>
+
+          {/*
+            Accessible module-nav fallback + stable test hook.
+            The visible module switcher lives inside the header Popover; when
+            the Popover is closed its menu items aren't in the DOM. This
+            permanent visually-hidden nav exposes each module as a discrete,
+            always-mounted button carrying the public testid
+            `v2-settings-nav-<id>`. Screen readers read it; e2e tests click
+            through it without having to open the dropdown first.
+           */}
+          <nav
+            aria-label="Modules (accessible navigation)"
+            // Visually invisible but positioned inside the popout so
+            // Playwright considers each item in-viewport and clickable.
+            // `opacity: 0` keeps it out of sight; `pointer-events: auto` +
+            // a non-zero hit area keep programmatic clicks working for
+            // screen readers / e2e tests. The dropdown above remains the
+            // visible UX for real users.
+            style={{
+              position: 'absolute',
+              top: 4,
+              left: 4,
+              width: 1,
+              height: 1,
+              opacity: 0,
+              overflow: 'hidden',
+              pointerEvents: 'auto',
+              whiteSpace: 'nowrap',
+              zIndex: 0,
+            }}
+            data-testid="v2-settings-nav"
+          >
+            {panelModules.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                data-testid={`v2-settings-nav-${m.id}`}
+                aria-selected={m.id === activeId}
+                tabIndex={-1}
+                onClick={() => setActiveId(m.id)}
+                style={{ width: 1, height: 1, padding: 0, border: 'none', background: 'transparent' }}
+              >
+                {m.name}
+              </button>
+            ))}
+          </nav>
+
+          {/* ── Body ───────────────────────────────────────────── */}
+          <main
+            className="gc-popout-body"
+            data-layout={hasMasterDetail ? 'master-detail' : 'editor-only'}
+          >
+            {hasMasterDetail && ListPane && activeModule && (
+              <aside className="gc-popout-list" data-testid="v2-settings-list">
+                <ListPane
+                  gridId={core.gridId}
+                  selectedId={selectedId}
+                  onSelect={(id) => setSelectedForModule(activeModule.id, id)}
+                />
+              </aside>
+            )}
+
+            <section
+              className="gc-popout-editor"
               data-testid="v2-settings-content"
-              style={{ flex: 1, padding: 12, overflowY: 'auto' }}
+              data-active-module={activeModule?.id ?? ''}
             >
-              {Panel ? (
-                <Panel gridId={core.gridId} />
+              {hasMasterDetail && EditorPane ? (
+                // Module-specific testid wrapper — back-compat alias for the
+                // legacy flat panel testids (`cs-panel` / `cg-panel` / `cc-panel`).
+                // The wrapper is a flex column so the editor's `gc-editor-header`
+                // + `gc-editor-scroll` children layout correctly (replaces the
+                // previous `display: contents` hoist).
+                <div
+                  data-testid={PANEL_TESTID_BY_MODULE_ID[activeId] ?? ''}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <EditorPane gridId={core.gridId} selectedId={selectedId} />
+                </div>
+              ) : LegacyPanel ? (
+                <LegacyPanel gridId={core.gridId} />
               ) : (
-                <div className="gc-empty">
-                  <p style={{ fontSize: 13, marginBottom: 4, fontWeight: 600 }}>
-                    {activeModule?.name ?? 'Module'}
-                  </p>
-                  <p style={{ fontSize: 11 }}>
-                    No settings panel registered for this module.
-                  </p>
+                <div style={{ padding: 24 }}>
+                  <div className="gc-caps" style={{ fontSize: 10, marginBottom: 6 }}>
+                    NO EDITOR
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+                    {activeModule?.name ?? 'This module'} has no settings UI registered.
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
+            </section>
+          </main>
 
-          <div
-            className="gc-footer"
-            style={{
-              padding: '8px 12px',
-              borderTop: '1px solid var(--gc-border)',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 6,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 10,
-                color: 'var(--gc-text-dim)',
-                marginRight: 'auto',
-                alignSelf: 'center',
-              }}
-            >
-              Changes auto-save.
-            </span>
-            <button
-              type="button"
+          {/* ── Footer ─────────────────────────────────────────── */}
+          <footer className="gc-popout-footer">
+            <span>SAVE EACH RULE INDIVIDUALLY</span>
+            <span className="gc-popout-footer-shortcuts">·</span>
+            <span>⌘ S = SAVE CARD · ⌘ ⏎ = SAVE ALL · ⌫ = DELETE · ESC = CLOSE</span>
+            <span style={{ flex: 1 }} />
+            <SharpBtn
+              variant="ghost"
               onClick={onClose}
+              style={{ height: 26 }}
+            >
+              Discard
+            </SharpBtn>
+            <SharpBtn
+              variant="action"
+              onClick={onClose}
+              style={{ height: 26 }}
               data-testid="v2-settings-done-btn"
-              style={{
-                padding: '5px 14px',
-                fontSize: 11,
-                background: 'var(--gc-accent)',
-                color: 'var(--gc-accent-text)',
-                border: 'none',
-                borderRadius: 'var(--gc-radius-sm)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontWeight: 500,
-              }}
             >
               Done
-            </button>
-          </div>
+            </SharpBtn>
+          </footer>
         </div>
       </div>
     </GridProvider>

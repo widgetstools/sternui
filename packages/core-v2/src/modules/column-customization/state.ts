@@ -83,18 +83,25 @@ export interface CellStyleOverrides {
 
 // ─── Value-formatter template ───────────────────────────────────────────────
 //
-// Hybrid discriminated union: `kind: 'preset'` covers the FormattingToolbar's
-// menu (CSP-safe, validates at edit time); `kind: 'expression'` is the v1
-// escape hatch for users who need full Intl.NumberFormat / arbitrary fns.
-//
-// `kind: 'expression'` compiles via `new Function(...)` — CSP-unsafe by design.
-// Under strict CSP it falls back to identity formatter (see adapter for details).
+// Discriminated union covering three formatter sources:
+//   - `kind: 'preset'`      — FormattingToolbar's menu of CSP-safe presets
+//                             (currency / percent / number / date / duration),
+//                             backed by `Intl.NumberFormat` and friends.
+//   - `kind: 'expression'`  — v1 escape hatch compiling user expressions via
+//                             `new Function(...)`. CSP-unsafe by design; under
+//                             strict CSP it falls back to identity (see adapter).
+//   - `kind: 'excelFormat'` — Excel format-string syntax like `#,##0.00`,
+//                             `$#,##0;(#,##0)`, `[Red]#,##0`, `yyyy-mm-dd`.
+//                             Parsed by `ssf` (SheetJS format). Full Excel
+//                             parity including conditional sections, colors,
+//                             date codes, parens-for-negative. CSP-safe.
 
 export type PresetId = 'currency' | 'percent' | 'number' | 'date' | 'duration';
 
 export type ValueFormatterTemplate =
   | { kind: 'preset'; preset: PresetId; options?: Record<string, unknown> }
-  | { kind: 'expression'; expression: string };
+  | { kind: 'expression'; expression: string }
+  | { kind: 'excelFormat'; format: string };
 
 // ─── Migration from v1 ──────────────────────────────────────────────────────
 //

@@ -12,9 +12,11 @@ export { topoSortModules } from './core/topoSort';
 export type {
   AnyColDef,
   AnyModule,
+  EditorPaneProps,
   EventBusInstance,
   EventMap,
   GridContext,
+  ListPaneProps,
   Module,
   ModuleContext,
   SerializedState,
@@ -25,6 +27,11 @@ export type {
 export { createGridStore } from './store/createGridStore';
 export type { CreateGridStoreOptions, GridStore } from './store/createGridStore';
 export { useModuleState } from './store/useModuleState';
+export { useDraftModuleItem } from './store/useDraftModuleItem';
+export type {
+  UseDraftModuleItemOptions,
+  UseDraftModuleItemResult,
+} from './store/useDraftModuleItem';
 export { startAutoSave } from './store/autosave';
 export type { AutoSaveHandle, AutoSaveOptions } from './store/autosave';
 
@@ -40,6 +47,85 @@ export { migrateLegacyLocalStorage } from './persistence/migrations';
 
 // UI context (v2 SettingsPanel host integration)
 export { GridProvider, useGridStore, useGridCore } from './ui/GridContext';
+export { v2SheetCSS, V2_SHEET_STYLE_ID } from './ui/v2-sheet-styles';
+
+// Cockpit Terminal SettingsPanel primitives (shared across v2 panels)
+export {
+  DirtyDot,
+  LedBar,
+  GhostIcon,
+  SubLabel,
+  IconInput,
+  PillToggleGroup,
+  PillToggleBtn,
+  PairRow,
+  FigmaPanelSection,
+  ItemCard,
+  ObjectTitleRow,
+  TitleInput,
+  PanelChrome,
+  TabStrip,
+  Caps,
+  Mono,
+  SharpBtn,
+  TGroup,
+  TBtn,
+  TDivider,
+  Band,
+  MetaCell,
+  Stepper,
+  type DirtyDotProps,
+  type LedBarProps,
+  type GhostIconProps,
+  type SubLabelProps,
+  type IconInputProps,
+  type PillToggleGroupProps,
+  type PillToggleBtnProps,
+  type PairRowProps,
+  type FigmaPanelSectionProps,
+  type ItemCardProps,
+  type ObjectTitleRowProps,
+  type TitleInputProps,
+  type PanelChromeProps,
+  type TabStripProps,
+  type TabItem,
+  type CapsProps,
+  type MonoProps,
+  type SharpBtnProps,
+  type SharpBtnVariant,
+  type TGroupProps,
+  type TBtnProps,
+  type BandProps,
+  type MetaCellProps,
+  type StepperProps,
+} from './ui/SettingsPanel';
+
+// Compact color picker kit (inline 30px field + Figma-style popover)
+export {
+  CompactColorField,
+  ColorPickerPopover,
+  type CompactColorFieldProps,
+  type ColorPickerPopoverProps,
+} from './ui/ColorPicker';
+
+// Shared StyleEditor (text + color + border + format) for every v2 panel
+export {
+  StyleEditor,
+  TextSection,
+  ColorSection,
+  BorderSection,
+  FormatSection,
+  BorderStyleEditor,
+  type StyleEditorProps,
+  type StyleEditorValue,
+  type StyleEditorSection,
+  type StyleEditorVariant,
+  type StyleEditorDataType,
+  type TextAlign,
+  type FontWeight,
+  type BorderStyleEditorProps,
+  type BordersValue,
+} from './ui/StyleEditor';
 
 // Profile manager
 export { useProfileManager } from './profiles/useProfileManager';
@@ -55,6 +141,8 @@ export type { GeneralSettingsState } from './modules/general-settings';
 export { columnTemplatesModule, INITIAL_COLUMN_TEMPLATES } from './modules/column-templates';
 export type { ColumnTemplate, ColumnDataType, ColumnTemplatesState } from './modules/column-templates';
 export { resolveTemplates } from './modules/column-templates/resolveTemplates';
+export { isValidExcelFormat } from './modules/column-customization/adapters/excelFormatter';
+export { presetToExcelFormat } from './modules/column-customization/adapters/presetToExcelFormat';
 export { columnCustomizationModule, INITIAL_COLUMN_CUSTOMIZATION } from './modules/column-customization';
 export type { ColumnAssignment, ColumnCustomizationState } from './modules/column-customization';
 // Type-only re-exports for the structured style/formatter shapes — consumers
@@ -74,6 +162,17 @@ export type {
   RuleScope,
   ThemeAwareStyle,
 } from './modules/conditional-styling';
+export { calculatedColumnsModule, INITIAL_CALCULATED_COLUMNS } from './modules/calculated-columns';
+export type {
+  CalculatedColumnsState,
+  VirtualColumnDef,
+} from './modules/calculated-columns';
+export { columnGroupsModule, INITIAL_COLUMN_GROUPS } from './modules/column-groups';
+export type {
+  ColumnGroupsState,
+  ColumnGroupNode,
+  ColumnGroupChild,
+} from './modules/column-groups';
 export { savedFiltersModule, INITIAL_SAVED_FILTERS } from './modules/saved-filters';
 export type { SavedFiltersState } from './modules/saved-filters';
 export { toolbarVisibilityModule, INITIAL_TOOLBAR_VISIBILITY } from './modules/toolbar-visibility';

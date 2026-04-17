@@ -29,6 +29,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
+  Popover as RadixPopover,
+  PopoverTrigger as RadixPopoverTrigger,
+  PopoverContent as RadixPopoverContent,
   PopoverCompat as Popover,
   Tooltip,
   ToggleGroup,
@@ -37,6 +40,7 @@ import {
   cn,
 } from '@grid-customizer/core';
 import {
+  BorderStyleEditor,
   type GridCore,
   type GridStore,
   type ColumnAssignment,
@@ -48,6 +52,8 @@ import {
   type ValueFormatterTemplate,
   resolveTemplates,
   useModuleState,
+  isValidExcelFormat,
+  presetToExcelFormat,
 } from '@grid-customizer/core-v2';
 import {
   Undo2, Redo2, Bold, Italic, Underline,
@@ -56,7 +62,7 @@ import {
   Trash2, Grid3X3, Check,
   ChevronDown, ArrowLeft, ArrowRight,
   DollarSign, Percent, Hash,
-  X, Plus,
+  Plus,
 } from 'lucide-react';
 
 // ─── Formatter presets ───────────────────────────────────────────────────────
@@ -679,65 +685,89 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     doFormat(numberTemplate(getCurrentDecimals() + 1));
   }, [doFormat, getCurrentDecimals]);
 
-  // ─── Borders popover state (derived from `fmt.borders`) ─────────────────
-  const hasT = !!fmt.borders.top;
-  const hasR = !!fmt.borders.right;
-  const hasB = !!fmt.borders.bottom;
-  const hasL = !!fmt.borders.left;
-  const hasAny = hasT || hasR || hasB || hasL;
-  const activeSpec: BorderSpec =
-    fmt.borders.top ?? fmt.borders.right ?? fmt.borders.bottom ?? fmt.borders.left
-    ?? { width: 1, style: 'solid', color: '#a0a8b4' };
-  const activeColor = activeSpec.color;
-  const activeWidth = activeSpec.width;
-  const activeStyle = activeSpec.style;
+  // ─── Excel-format text input state ──────────────────────────────────────
+  //
+  // Local draft + commit-on-blur/Enter so typing doesn't spam the store.
+  // Seeded from the active column's current formatter every time the
+  // selection changes — if the user is in the middle of editing (`focused`),
+  // we skip the sync so we don't clobber their in-progress typing.
+  const excelInputRef = useRef<HTMLInputElement | null>(null);
+  const [excelDraft, setExcelDraft] = useState('');
+  const [excelFocused, setExcelFocused] = useState(false);
+  // Seed from current template when the active column or its formatter changes.
+  const currentExcelEquivalent = useMemo(
+    () => presetToExcelFormat(fmt.valueFormatterTemplate),
+    [fmt.valueFormatterTemplate],
+  );
+  useEffect(() => {
+    if (excelFocused) return;   // don't clobber in-flight edits
+    setExcelDraft(currentExcelEquivalent);
+  }, [currentExcelEquivalent, excelFocused]);
 
-  const toggleSide = (side: 'top' | 'right' | 'bottom' | 'left') => {
-    const current = fmt.borders[side];
-    if (current) {
-      applyBorders(store, colIdsRef.current, targetRef.current, [side], undefined);
-    } else {
-      applyBorders(store, colIdsRef.current, targetRef.current, [side], { ...activeSpec });
+  const commitExcel = useCallback(() => {
+    const v = excelDraft.trim();
+    if (v === '') {
+      // Empty input → clear the formatter entirely.
+      doFormat(undefined);
+      return;
     }
-  };
-  const setAllBorders = () => {
-    applyBorders(store, colIdsRef.current, targetRef.current, ['top', 'right', 'bottom', 'left'], { ...activeSpec });
-  };
-  const clearAll = () => clearAllBorders(store, colIdsRef.current, targetRef.current);
-  const updateColor = (c: string) => {
-    const sides: Array<'top' | 'right' | 'bottom' | 'left'> = [];
-    if (hasT) sides.push('top');
-    if (hasR) sides.push('right');
-    if (hasB) sides.push('bottom');
-    if (hasL) sides.push('left');
-    if (sides.length) applyBorders(store, colIdsRef.current, targetRef.current, sides, { ...activeSpec, color: c });
-  };
-  const updateWidth = (w: number) => {
-    const sides: Array<'top' | 'right' | 'bottom' | 'left'> = [];
-    if (hasT) sides.push('top');
-    if (hasR) sides.push('right');
-    if (hasB) sides.push('bottom');
-    if (hasL) sides.push('left');
-    if (sides.length) applyBorders(store, colIdsRef.current, targetRef.current, sides, { ...activeSpec, width: w });
-  };
-  const updateStyle = (s: 'solid' | 'dashed' | 'dotted') => {
-    const sides: Array<'top' | 'right' | 'bottom' | 'left'> = [];
-    if (hasT) sides.push('top');
-    if (hasR) sides.push('right');
-    if (hasB) sides.push('bottom');
-    if (hasL) sides.push('left');
-    if (sides.length) applyBorders(store, colIdsRef.current, targetRef.current, sides, { ...activeSpec, style: s });
-  };
+    if (!isValidExcelFormat(v)) {
+      // Keep the draft on screen so the user can fix it; aria-invalid is
+      // handled on the input directly.
+      return;
+    }
+    doFormat({ kind: 'excelFormat', format: v });
+  }, [excelDraft, doFormat]);
 
-  // Border mini-icon
-  const BorderIcon = ({ top, right, bottom, left, active }: { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean; active?: boolean }) => (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <rect x="3" y="3" width="12" height="12" rx="1" stroke="var(--muted-foreground)" strokeWidth="1" strokeDasharray="2 2" opacity={0.3} />
-      {top && <line x1="3" y1="3" x2="15" y2="3" stroke={active ? 'var(--primary)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" />}
-      {right && <line x1="15" y1="3" x2="15" y2="15" stroke={active ? 'var(--primary)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" />}
-      {bottom && <line x1="3" y1="15" x2="15" y2="15" stroke={active ? 'var(--primary)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" />}
-      {left && <line x1="3" y1="3" x2="3" y2="15" stroke={active ? 'var(--primary)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" />}
-    </svg>
+  const excelDraftValid = excelDraft.length === 0 || isValidExcelFormat(excelDraft);
+
+  // ─── Borders — delegated to the shared <BorderStyleEditor /> ───────────
+  // The editor emits the full borders map on every change; we diff against
+  // the current `fmt.borders` and issue exactly the writes needed so the
+  // store sees minimal patches. `applyBorders` with `undefined` clears a
+  // side; with a spec sets it.
+  const applyBordersMap = useCallback(
+    (next: { top?: BorderSpec; right?: BorderSpec; bottom?: BorderSpec; left?: BorderSpec }) => {
+      const sides: Array<'top' | 'right' | 'bottom' | 'left'> = ['top', 'right', 'bottom', 'left'];
+      const current = fmt.borders;
+      const toSet: Partial<Record<'top' | 'right' | 'bottom' | 'left', BorderSpec>> = {};
+      const toClear: Array<'top' | 'right' | 'bottom' | 'left'> = [];
+      for (const s of sides) {
+        const cur = current[s];
+        const nxt = next[s];
+        if (!cur && !nxt) continue;
+        if (!nxt) {
+          toClear.push(s);
+        } else if (
+          !cur ||
+          cur.width !== nxt.width ||
+          cur.color !== nxt.color ||
+          cur.style !== nxt.style
+        ) {
+          toSet[s] = nxt;
+        }
+      }
+      if (toClear.length) {
+        applyBorders(store, colIdsRef.current, targetRef.current, toClear, undefined);
+      }
+      // Group by spec so sides with identical specs land in one write.
+      const bySpec = new Map<string, Array<'top' | 'right' | 'bottom' | 'left'>>();
+      for (const [side, spec] of Object.entries(toSet) as Array<[
+        'top' | 'right' | 'bottom' | 'left',
+        BorderSpec,
+      ]>) {
+        const key = `${spec.width}|${spec.style}|${spec.color}`;
+        const list = bySpec.get(key) ?? [];
+        list.push(side);
+        bySpec.set(key, list);
+      }
+      for (const [, list] of bySpec) {
+        if (list.length) {
+          applyBorders(store, colIdsRef.current, targetRef.current, list, toSet[list[0]]!);
+        }
+      }
+    },
+    [fmt.borders, store],
   );
 
   // ─── Render ────────────────────────────────────────────────────────────
@@ -955,98 +985,112 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
         <TBtn disabled={disabled || isHeader} tooltip="More decimals" onClick={increaseDecimals}>
           <span className="flex items-center gap-px text-[9px] font-mono">.0<ArrowRight size={9} strokeWidth={2} /></span>
         </TBtn>
+        <div className="gc-toolbar-sep h-4 opacity-50" />
+        {/* Excel format-string input — power-user escape hatch. Commits on
+             blur or Enter; invalid format strings keep the draft on screen
+             but don't mutate state (red border via aria-invalid). */}
+        <Tooltip content={'Excel format string — e.g. #,##0.00 · $#,##0;(#,##0) · 0.00% · yyyy-mm-dd · [Red]#,##0'}>
+          <input
+            ref={excelInputRef}
+            type="text"
+            data-testid="fmt-excel-input"
+            disabled={disabled || isHeader}
+            value={excelDraft}
+            placeholder={currentExcelEquivalent || '#,##0.00'}
+            onChange={(e) => setExcelDraft(e.target.value)}
+            onFocus={() => setExcelFocused(true)}
+            onBlur={() => { setExcelFocused(false); commitExcel(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitExcel(); excelInputRef.current?.blur(); }
+              else if (e.key === 'Escape') { e.preventDefault(); setExcelDraft(currentExcelEquivalent); excelInputRef.current?.blur(); }
+            }}
+            aria-invalid={!excelDraftValid}
+            style={{
+              width: 140,
+              height: 24,
+              padding: '0 6px',
+              fontSize: 10,
+              fontFamily: 'var(--fi-mono, "JetBrains Mono", Menlo, monospace)',
+              background: 'var(--bn-bg, #0b0e11)',
+              color: 'var(--bn-t0, #eaecef)',
+              border: `1px solid ${excelDraftValid ? 'var(--bn-border, #313944)' : 'var(--bn-red, #f87171)'}`,
+              borderRadius: 3,
+              outline: 'none',
+            }}
+          />
+        </Tooltip>
       </TGroup>
 
       <div className="gc-toolbar-sep h-5" />
 
-      {/* ── Borders ── */}
-      <Popover
-        trigger={
-          <Button variant="ghost" size="icon-sm" disabled={disabled}
-            className={cn('shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150', disabled && 'opacity-25 pointer-events-none')}
-            onMouseDown={(e) => { e.preventDefault(); }}>
+      {/* ── Borders ── Cockpit-native popover shell.
+            Uses Radix directly so the content wrapper (`PopoverContent`) is
+            our box — no `PopoverCompat` legacy chrome underneath. That lets
+            the shell itself be cockpit-coloured (card surface, hairline rim,
+            cockpit shadow) instead of inheriting the --gc-* values from the
+            compat wrapper. */}
+      <RadixPopover>
+        <RadixPopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            disabled={disabled}
+            className={cn(
+              'shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
+              disabled && 'opacity-25 pointer-events-none',
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+          >
             <Grid3X3 size={14} strokeWidth={1.75} />
           </Button>
-        }
-      >
-        <div style={{ padding: 12, width: 240 }}
-          onMouseDown={(e) => { const tag = (e.target as HTMLElement).tagName; if (tag !== 'SELECT' && tag !== 'INPUT') e.preventDefault(); }}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Borders</span>
+        </RadixPopoverTrigger>
+        <RadixPopoverContent
+          align="start"
+          sideOffset={6}
+          className="gc-sheet-v2"
+          style={{
+            padding: 8,
+            width: 460,
+            maxWidth: '90vw',
+            background: 'var(--ck-bg, #111417)',
+            color: 'var(--ck-t0, #eaecef)',
+            border: '1px solid var(--ck-border-hi, #3e4754)',
+            borderRadius: 2,
+            boxShadow: 'var(--ck-popout-shadow, 0 20px 40px rgba(0,0,0,0.5))',
+            fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", "Inter", sans-serif)',
+          }}
+          onMouseDown={(e) => {
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag !== 'SELECT' && tag !== 'INPUT') e.preventDefault();
+          }}
+        >
+          {/* Header */}
+          <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--ck-t2, var(--muted-foreground))',
+                fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+              }}
+            >
+              Borders · {target === 'header' ? 'Header' : 'Cell'}
+            </span>
           </div>
 
-          {/* Preview */}
-          <div style={{
-            position: 'relative', width: '100%', height: 48, borderRadius: 4, marginBottom: 12,
-            background: 'var(--background)', border: '1px dashed var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <div style={{
-              width: '55%', height: '65%', borderRadius: 3,
-              borderTop: hasT ? `${activeWidth}px ${activeStyle} ${activeColor}` : '1px dashed var(--border)',
-              borderRight: hasR ? `${activeWidth}px ${activeStyle} ${activeColor}` : '1px dashed var(--border)',
-              borderBottom: hasB ? `${activeWidth}px ${activeStyle} ${activeColor}` : '1px dashed var(--border)',
-              borderLeft: hasL ? `${activeWidth}px ${activeStyle} ${activeColor}` : '1px dashed var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{ fontSize: 9, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
-                {target === 'header' ? 'Header' : 'Cell'}
-              </span>
-            </div>
-          </div>
-
-          {/* Preset buttons */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4, marginBottom: 12 }}>
-            <button onClick={setAllBorders} onMouseDown={(e) => e.preventDefault()}
-              style={presetBtnStyle(hasAny && hasT && hasR && hasB && hasL)}>
-              <BorderIcon top right bottom left active={hasT && hasR && hasB && hasL} />All
-            </button>
-            <button onClick={() => toggleSide('top')} onMouseDown={(e) => e.preventDefault()} style={presetBtnStyle(hasT)}>
-              <BorderIcon top active={hasT} />Top
-            </button>
-            <button onClick={() => toggleSide('right')} onMouseDown={(e) => e.preventDefault()} style={presetBtnStyle(hasR)}>
-              <BorderIcon right active={hasR} />Right
-            </button>
-            <button onClick={() => toggleSide('bottom')} onMouseDown={(e) => e.preventDefault()} style={presetBtnStyle(hasB)}>
-              <BorderIcon bottom active={hasB} />Btm
-            </button>
-            <button onClick={() => toggleSide('left')} onMouseDown={(e) => e.preventDefault()} style={presetBtnStyle(hasL)}>
-              <BorderIcon left active={hasL} />Left
-            </button>
-            <button onClick={clearAll} onMouseDown={(e) => e.preventDefault()}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--destructive)', fontSize: 9, fontWeight: 500 }}>
-              <X size={16} strokeWidth={1.5} />None
-            </button>
-          </div>
-
-          {/* Color + style + width */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={{
-              width: 28, height: 28, borderRadius: 4, flexShrink: 0,
-              cursor: 'pointer', position: 'relative', overflow: 'hidden',
-              background: activeColor, border: '1px solid var(--border)',
-            }}>
-              <input type="color" value={activeColor} onChange={(e) => updateColor(e.target.value)}
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-            </label>
-            <select
-              style={{ flex: 1, height: 28, fontSize: 9, borderRadius: 3, padding: '0 10px', cursor: 'pointer', background: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)', fontFamily: "'JetBrains Mono', monospace" }}
-              value={activeStyle}
-              onChange={(e) => updateStyle(e.target.value as 'solid' | 'dashed' | 'dotted')}>
-              <option value="solid">Solid</option>
-              <option value="dashed">Dashed</option>
-              <option value="dotted">Dotted</option>
-            </select>
-            <select
-              style={{ width: 40, height: 28, fontSize: 9, borderRadius: 3, padding: '0 4px', cursor: 'pointer', background: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace" }}
-              value={String(activeWidth)} onChange={(e) => updateWidth(parseInt(e.target.value, 10) || 1)}>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-            </select>
-          </div>
-        </div>
-      </Popover>
+          {/* Shared editor — same component used by the Styling Rules
+              BORDER band. Flex-wraps at narrow widths automatically. */}
+          <BorderStyleEditor
+            value={fmt.borders}
+            onChange={applyBordersMap}
+            previewLabel={target === 'header' ? 'Header' : 'Cell'}
+          />
+        </RadixPopoverContent>
+      </RadixPopover>
 
       <div className="gc-toolbar-sep h-5" />
 
@@ -1107,13 +1151,3 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   );
 }
 
-// Shared style for border preset buttons.
-function presetBtnStyle(active: boolean): React.CSSProperties {
-  return {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 0',
-    borderRadius: 4, cursor: 'pointer',
-    border: active ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-    background: active ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'var(--background)',
-    color: 'var(--foreground)', fontSize: 9, fontWeight: 500,
-  };
-}

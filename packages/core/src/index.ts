@@ -23,6 +23,11 @@ export type { GridCustomizerStore, GridStore } from './stores/createGridStore';
 // ─── Expression Engine ───────────────────────────────────────────────────────
 export { ExpressionEngine, tokenize, parse, Evaluator, tryCompileToAgString } from './expression';
 export type { ExpressionNode, EvaluationContext, ValidationResult, FunctionDefinition } from './expression';
+export { migrateExpressionSyntax, migrateExpressionsInObject } from './expression/migrate';
+
+// ─── Expression Editor (Monaco-based, reusable across all panels) ───────────
+export { ExpressionEditor } from './ui/ExpressionEditor';
+export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/ExpressionEditor';
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
 export type { StorageAdapter } from './persistence/StorageAdapter';
@@ -86,6 +91,7 @@ export { settingsCSS, STYLE_ID } from './ui/styles';
 export { Button, buttonVariants } from './ui/shadcn/button';
 export type { ButtonProps } from './ui/shadcn/button';
 export { Input } from './ui/shadcn/input';
+export { Textarea, type TextareaProps } from './ui/shadcn/textarea';
 export type { InputProps } from './ui/shadcn/input';
 export { Select } from './ui/shadcn/select';
 export { Switch } from './ui/shadcn/switch';

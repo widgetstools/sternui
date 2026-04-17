@@ -11,6 +11,7 @@ import {
   type LegacyColumnCustomizationState,
 } from './state';
 import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplate';
+import { excelFormatColorResolver } from './adapters/excelFormatter';
 import { resolveTemplates } from '../column-templates/resolveTemplates';
 import type { ColumnTemplatesState, ColumnDataType } from '../column-templates/state';
 
@@ -57,30 +58,47 @@ function styleOverridesToCSS(o: CellStyleOverrides): string {
 }
 
 /**
- * Build CSS for a ::after pseudo-element that renders per-side borders using
- * inset box-shadow. See memory/styling_architecture.md for full rationale.
+ * Build CSS for a ::after pseudo-element that renders per-side borders
+ * using **real CSS borders** on the pseudo-element (one per side).
  *
  * Returns empty string if no borders are set.
+ *
+ * Previous implementation used `inset box-shadow` — correct for solid
+ * edges but CSS box-shadow silently drops the `style` value (dashed /
+ * dotted never render). Moving to real borders on the `::after` with
+ * `box-sizing: border-box` draws the lines at the cell edges exactly
+ * like the inset shadow did, while honouring every CSS border-style.
+ *
+ * IMPORTANT: do NOT emit `position: relative` on the target. AG-Grid cells
+ * are already `position: relative` by default and rows are `position:
+ * absolute` via `.ag-row-position-absolute` (virtual-scroll transform).
+ * Either makes a valid positioned ancestor for the `::after`.
+ *
+ * Emitting `position: relative` here — especially against a column-header
+ * cell via `.gc-hdr-c-{colId}` — overrode AG-Grid's own `position: absolute`
+ * on header cells (which is how AG-Grid pins columns at their computed
+ * left/width inside the virtual header row). Result: the column's header
+ * lost its layout, the column disappeared from the displayed set, and group
+ * headers spanning that column rendered with a gap.
  */
 function borderOverlayFromOverrides(selector: string, o: CellStyleOverrides): string {
   const b = o.borders;
   if (!b) return '';
-  const shadows: string[] = [];
-  const sideMap: Record<string, (spec: BorderSpec) => string> = {
-    top:    (s) => `inset 0 ${s.width}px 0 0 ${s.color}`,
-    right:  (s) => `inset -${s.width}px 0 0 0 ${s.color}`,
-    bottom: (s) => `inset 0 -${s.width}px 0 0 ${s.color}`,
-    left:   (s) => `inset ${s.width}px 0 0 0 ${s.color}`,
+  const parts: string[] = [];
+  const sideMap: Record<'top' | 'right' | 'bottom' | 'left', (spec: BorderSpec) => string> = {
+    top:    (s) => `border-top: ${s.width}px ${s.style} ${s.color}`,
+    right:  (s) => `border-right: ${s.width}px ${s.style} ${s.color}`,
+    bottom: (s) => `border-bottom: ${s.width}px ${s.style} ${s.color}`,
+    left:   (s) => `border-left: ${s.width}px ${s.style} ${s.color}`,
   };
   for (const side of ['top', 'right', 'bottom', 'left'] as const) {
     const spec = b[side];
-    if (spec && spec.width > 0) shadows.push(sideMap[side](spec));
+    if (spec && spec.width > 0) parts.push(sideMap[side](spec));
   }
-  if (shadows.length === 0) return '';
-  return [
-    `${selector} { position: relative; }`,
-    `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: ${shadows.join(', ')}; z-index: 1; }`,
-  ].join('\n');
+  if (parts.length === 0) return '';
+  // box-sizing: border-box anchors each border INSIDE the pseudo-element's
+  // inset:0 rect, matching the previous box-shadow overlay footprint.
+  return `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-sizing: border-box; z-index: 1; ${parts.join('; ')}; }`;
 }
 
 /**
@@ -210,6 +228,26 @@ function applyAssignments(
     if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
     if (resolved.valueFormatterTemplate !== undefined) {
       merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
+
+      // Excel color tags — `[Red]`, `[Green]`, etc. in the format string —
+      // are parsed by SSF but only affect the returned text's semantics,
+      // not its color (SSF returns plain strings; AG-Grid renders cells as
+      // plain text). Emit a `cellStyle` function that applies the color
+      // based on the value's sign / section, so conditional colors like
+      // `[Green]$#,##0.00;[Red]-$#,##0.00` actually paint.
+      //
+      // Only engages when the template is `kind: 'excelFormat'` and the
+      // format contains at least one color tag — otherwise we don't touch
+      // cellStyle at all (leaves the existing CSS-class path untouched).
+      if (resolved.valueFormatterTemplate.kind === 'excelFormat') {
+        const colorResolver = excelFormatColorResolver(resolved.valueFormatterTemplate.format);
+        if (colorResolver) {
+          merged.cellStyle = (params) => {
+            const color = colorResolver(params.value);
+            return color ? { color } : null;
+          };
+        }
+      }
     }
     if (resolved.cellEditorName !== undefined) merged.cellEditor = resolved.cellEditorName;
     if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;

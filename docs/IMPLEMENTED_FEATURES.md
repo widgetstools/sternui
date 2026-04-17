@@ -33,6 +33,43 @@ AG-Grid Customization Platform — an open-source AdapTable alternative for the 
 - Safe `REPLACE` with regex metacharacter escaping
 - `SUBSTRING` uses modern `String.prototype.substring()` (not deprecated `substr`)
 - Compiler with `tryCompileToAgString()` for fast AG-Grid string expression path
+- **Column reference syntax** — `[columnId]` is the canonical form. Parser disambiguates at parse time: `[identifier]` is a column ref, `[1]` / `[1,2]` / `[x>0]` stay as array literals (used by `IN [...]`). Legacy `{columnId}` syntax remains parseable indefinitely via `migrateExpressionSyntax()` in `packages/core/src/expression/migrate.ts` — modules that persist expression strings call this helper on `deserialize` to rewrite stored profiles.
+
+### Monaco-based Expression Editor (v2, `packages/core/src/ui/ExpressionEditor/`)
+A reusable `<ExpressionEditor>` component that every v2 module's expression-input site uses in place of the plain `<Input>`. Lives in core so both v2 modules and future callers (formula bar, calculated-columns-v2, etc.) import it from one place.
+
+**Shell:**
+- `<ExpressionEditor>` — public, lazy-loads Monaco via `React.lazy`. While Monaco downloads (or if it fails to load), renders the `<FallbackInput>` which preserves the commit-on-blur/Enter UX the settings panels expect. No expression field is ever unresponsive — critical for a trading terminal.
+- `<FallbackInput>` — plain input/textarea with the same commit model.
+
+**Language (`language.ts`):**
+- Monarch tokens for our DSL — `[col]` (sky), `{col}` (amber italic, deprecated), function calls (purple), keywords `AND OR NOT IN BETWEEN true false null` (yellow), operators, numbers, strings.
+- Dark (`gcExpressionDark`) and light (`gcExpressionLight`) themes that follow `<html data-theme>` via a MutationObserver — no prop plumbing needed.
+
+**Autocomplete (`completions.ts`):**
+- Single global completion provider (registered once, not per-editor — avoids duplicate suggestions) that reads from a `Set` of active columns/functions providers. Each editor mount pushes its providers; provider merges and dedupes by id before returning suggestions.
+- Triggers on `[`, `{`, `(`, `.`, `,`, `space`, and via `Ctrl+Space`.
+- Context-sensitive: after an open `[` or `{` with no closer yet, shows **columns only** (the user is authoring a column ref). Otherwise returns a merged, priority-sorted list:
+  1. Columns (as `[colId]` with headerName detail)
+  2. Keywords (`AND`, `OR`, `NOT`, `IN` → `IN [$0]` snippet, `BETWEEN` → `BETWEEN $1 AND $0` snippet, `true`, `false`, `null`)
+  3. Operators (`==`, `!=`, `<>`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `%`)
+  4. Functions (name label, signature detail, description+category in hover docs, inserts as `NAME($0)` snippet)
+
+**Diagnostics (`diagnostics.ts`):**
+- Debounced 150 ms `ExpressionEngine.validate()` run on every content change; single `Error` marker at the first parse-error position with the error message on hover.
+- `Info` markers for each `{col}` deprecation occurrence when `warnDeprecated` is on (default true).
+
+**Hotkeys (wired via `editor.addCommand` — edit-scope, not global):**
+- `Ctrl/⌘+Space` — Monaco's native suggest widget.
+- `Ctrl/⌘+Shift+C` — opens the **Column palette**: keyboard-nav modal with filter input, grouped by nothing (flat list), shows `[colId]` + headerName + description. Enter inserts `[colId]` at the cursor.
+- `Ctrl/⌘+Shift+F` — opens the **Function palette**: same shell, grouped by category (Aggregation, Date, Logical, Math, Stats, String). Enter inserts `FUNC()` with cursor between the parens.
+- `F1` — opens the **Help overlay**: dense cheat sheet of column refs, comparison, logical/set, arithmetic, common functions, and hotkeys. Esc / click-outside dismisses.
+
+**Palettes (`Palette.tsx`, `HelpOverlay.tsx`):**
+- React-portal modals rendered into `document.body` so they escape the settings-sheet overflow clipping.
+- Shared `<Palette>` component handles filter input + arrow navigation + Enter-to-pick. Column and function palettes pass different `items[]` into the same shell.
+
+**Where it's wired today:** v2 Conditional Styling only — [packages/core-v2/src/modules/conditional-styling/ConditionalStylingPanel.tsx](packages/core-v2/src/modules/conditional-styling/ConditionalStylingPanel.tsx). Future v2 modules (cell-flashing, entitlements, named-queries, calculated-columns) wire it the same way when they land.
 
 ### Multi-Grid Support
 - Each grid instance has fully isolated state:
@@ -382,25 +419,58 @@ interface SavedFilter {
 - Per-column assignments: header name/tooltip, width, hidden, pinned, cell/header style overrides, cell editor/renderer, value formatter, sortable/filterable/resizable
 - Template composition via `templateIds` array
 - CSS injection with `.gc-col-c-{colId}` classes
+- **Value formatter — three variants via `ValueFormatterTemplate` discriminated union:**
+  - `kind: 'preset'` — CSP-safe Intl-based: currency (USD/EUR/GBP/JPY with decimals), percent, number, date, duration. Rendered via the toolbar's icon buttons.
+  - `kind: 'expression'` — legacy JS expression compiled with `new Function()` (CSP-unsafe; kept for v1 profile compatibility).
+  - `kind: 'excelFormat'` — Excel format strings like `#,##0.00`, `$#,##0;(#,##0)`, `[Red]#,##0`, `0.00%`, `yyyy-mm-dd`, `[hh]:mm:ss`. Parsed via `ssf` (SheetJS format, ~15 KB gzipped) — full Excel parity including conditional sections, color tags, negatives-in-parens, fractions, scientific, elapsed time.
+- **Inline Excel-format editor on the FormattingToolbar** ([packages/markets-grid-v2/src/FormattingToolbar.tsx](packages/markets-grid-v2/src/FormattingToolbar.tsx)): text input next to the number-format icon buttons. Select a cell, type any Excel format string, press Enter or blur — the column reformats. Invalid formats show `aria-invalid` (red border) and don't commit. Empty string clears the formatter. When a preset is currently applied, the input shows its Excel equivalent (via `presetToExcelFormat`) so the user can click in and immediately tweak. Seed/commit model matches the other toolbar inputs: local draft state, commit-on-blur/Enter, Escape reverts.
+- SSF adapter ([packages/core-v2/src/modules/column-customization/adapters/excelFormatter.ts](packages/core-v2/src/modules/column-customization/adapters/excelFormatter.ts)) caches compiled formatters by format string so per-cell renders pay only one SSF call; malformed formats fall back to identity + single console warn.
 
 ### Column Templates (Priority: 1)
 - Reusable style templates with name, description, timestamps
 - Type defaults: auto-apply by detected data type (numeric, date, string, boolean)
 
-### Column Groups (Priority: 15)
+### Column Groups (Priority: 15, v1)
 - Group ID, header name, child column IDs
 - Open by default toggle, marry children toggle
+
+### Column Groups v2 (Priority: 18, `packages/core-v2/src/modules/column-groups/`)
+v2 implementation — nestable column groups authored in a settings-sheet panel, persisted per profile, with runtime expand/collapse memory.
+
+- **State shape**: `{ groups: ColumnGroupNode[], openGroupIds: Record<groupId, boolean> }`. Each `ColumnGroupNode` has `groupId` (stable, reused as AG-Grid `ColGroupDef.groupId` — required for expand/collapse retention across columnDefs updates per AG-Grid v35 docs), `headerName`, `openByDefault?`, `marryChildren?`, and a `children[]` whose entries are either `{ kind: 'col', colId }` or `{ kind: 'group', group: ColumnGroupNode }` — **arbitrary nesting depth**.
+- **Transform**: `composeGroups` at [composeGroups.ts](packages/core-v2/src/modules/column-groups/composeGroups.ts) flattens the incoming column defs into a `Map<colId, ColDef>`, recursively builds `ColGroupDef`s from the authored tree, and appends any ungrouped columns at the end in their original order. Tolerates missing colIds (skip the child), duplicate colIds across groups (first occurrence wins), empty groups (omit — AG-Grid warns on them).
+- **Priority 18** — after column-customization (10) and calculated-columns (15) so groups see finalized per-col customizations AND can include virtual columns, before conditional-styling (20) so styling rules can still target grouped columns.
+- **Runtime open/closed persistence**: subscribes to AG-Grid's `columnGroupOpened` event in `onGridReady`; each user chevron-click writes `openGroupIds[groupId] = isExpanded` via `setModuleState` (closure captured from `onRegister`'s `ModuleContext`). `composeGroups` applies the stored value as `ColGroupDef.openByDefault`, so reloading the app restores the exact layout the user left. No-op write guard prevents feedback loops.
+- **Stale-id pruning on deserialize**: `openGroupIds` entries whose `groupId` no longer exists in the tree are stripped when a profile loads — prevents orphaned entries from accumulating across rename/delete cycles.
+- **Settings panel** ([ColumnGroupsPanel.tsx](packages/core-v2/src/modules/column-groups/ColumnGroupsPanel.tsx)): recursive `GroupCard` component renders the tree with indentation by depth. Each card has inline header-name edit, up/down arrow reorder (within parent's subgroup list), delete, and a settings expando (`openByDefault` + `marryChildren` switches). Column chips are removable; a filtered `<select>` adds from unassigned columns only. Subgroups nest arbitrarily; a warning chip surfaces at depth ≥ 3.
+- **Per-column `columnGroupShow`** (AG-Grid native, v35): each column chip in the panel carries a cycle button that toggles the child's visibility mode — `always` (eye icon, neutral color) → `open` (EyeOff, teal — visible only when parent group is expanded) → `closed` (Lock, amber — visible only when parent group is collapsed, typical for a stand-in aggregate column like "Total"). Stored on the state as `{ kind: 'col', colId, show?: 'always' | 'open' | 'closed' }`. `composeGroups` maps `'always'` to AG-Grid's default (no `columnGroupShow`) and `'open'` / `'closed'` to the corresponding native value on the emitted `ColDef`.
+- **Group header formatting**: each group carries an optional `headerStyle` object with `bold`, `italic`, `underline`, `fontSize`, `color`, `background`, `align`. Rendered via a per-grid `CssInjector` that emits `.gc-hdr-grp-{groupId} { … }` rules; the class is attached to the ColGroupDef's `headerClass` only when at least one facet is set, so unstyled groups render at the theme default. Settings panel surfaces the controls in the existing settings expando (B/I/U toggles, align select, font-size number, text/background `PropColor` pickers with Clear).
+- **Correct composition order**: `composeGroups` emits each top-level group at the position of its FIRST child's leaf in the base defs (not at the end). AG-Grid v35 preserves each column's prior position across `columnDefs` updates; emitting groups separately from ungrouped columns would cause AG-Grid to yank ungrouped columns back to their original slots, splitting our groups apart. First-leaf placement keeps the diff happy. [Regression test: "Two groups each with one child do not get split apart by ungrouped columns"]
+- **Border-overlay fix**: column-customization's `borderOverlayFromOverrides` previously emitted `position: relative` on the target selector to anchor its `::after` box-shadow overlay. That selector also matches AG-Grid's absolute-positioned header cells (`.gc-hdr-c-{colId}`), which clobbered the column's computed `left`/`width` positioning — leading to "grouped column disappears + group header gap" when any per-column border was configured. Fix: drop the `position: relative` emission; AG-Grid's native cell/row positioning already provides a positioned ancestor for the `::after`. Same fix pattern was applied to conditional-styling earlier in the session. [Regression test: "Applying a 1px bottom border to columns inside a group does not break layout"]
+- **Interop verified**: virtual columns from `calculated-columns` are included in the unassigned list and can be dropped into groups; conditional-styling rules keep targeting columns correctly when they're inside groups.
 
 ### Conditional Styling (Priority: 20)
 - Rules with: ID, name, enabled flag, priority, scope (cell/row)
 - Expression evaluated against row/cell data (context: `x`, `value`, `data`, `columns`)
 - Theme-aware styling (separate light/dark CellStyleProperties)
 - CSS injection with `.gc-rule-{ruleId}` classes and `cellClassRules`/`rowClassRules`
+- Per-side borders rendered via `::after` + inset `box-shadow` overlay (avoids clipping under `overflow: hidden` and column separator conflicts). Does NOT emit `position: relative` on the target — relies on AG-Grid's built-in positioned cells/rows, so row-scope rules don't override `.ag-row-position-absolute` and break virtual-scroll layout
 
-### Calculated Columns (Priority: 30)
+### Calculated Columns (Priority: 30, v1)
 - Virtual columns appended to columnDefs
 - Expression-based valueGetter (pre-parsed, evaluated per-cell)
 - Lazy evaluation: returns null on expression errors
+
+### Calculated Columns v2 (Priority: 15, `packages/core-v2/src/modules/calculated-columns/`)
+New in v2 and the canonical implementation going forward. Virtual derived columns only — cell-level `=FORMULA` entry and custom `formulaFuncs` are intentionally out of scope (AG-Grid's `FormulaModule` caches its function resolver at init and doesn't reliably refresh after, making runtime custom functions unreliable without a grid remount — revisit when AG-Grid exposes the internal `IFormulaService.refreshFormulas` on the public API).
+
+- **State**: `{ virtualColumns: VirtualColumnDef[] }` — each def has `colId`, `headerName`, `expression` (our DSL), optional `valueFormatterTemplate`, optional `position`/`initialWidth`/`initialHide`/`initialPinned`.
+- **Transform**: appends virtual columns to the column defs after column-customization (priority 10) so renames/resizes flow through, before conditional-styling (priority 20) so rules can target the new colIds. Sorts by `position` for predictable ordering.
+- **Expression compilation**: AST parsed ONCE per transform via the shared per-grid `ExpressionEngine`, closure-captured by the generated `valueGetter`. Bad expressions fall back to `null` — never crash the grid. Same safety pattern applies to `valueFormatterTemplate`.
+- **Read-only**: virtual columns are `editable: false` — derived values would be immediately overwritten by the next render.
+- **Reactivity**: edits to any source column automatically flow through to the computed value via AG-Grid's valueGetter pipeline (no explicit recompute subscription needed).
+- **Settings panel**: one section with per-column cards — `<ExpressionEditor>` (Monaco) for the expression and formatter, column id + header name text inputs, delete button. Uses the same column-autocomplete provider pattern as conditional-styling.
+- **Demo seed**: `Gross P&L = [price] * [quantity] / 1000` appears by default at position 20 so the feature is visible on first load; users can delete it via the panel.
 
 ### Cell Flashing (Priority: 25)
 - Flash rules: target columns, conditional expression, duration/fade timing

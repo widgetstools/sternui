@@ -1,4 +1,5 @@
 import type { PresetId, ValueFormatterTemplate } from '../state';
+import { excelFormatter } from './excelFormatter';
 
 export type FormatterParams = { value: unknown; data?: unknown };
 export type Formatter = (params: FormatterParams) => string;
@@ -137,6 +138,10 @@ function compileExpression(expression: string): Formatter {
 export function valueFormatterFromTemplate(t: ValueFormatterTemplate): Formatter {
   if (t.kind === 'preset') {
     return presetRegistry[t.preset](t.options);
+  }
+  if (t.kind === 'excelFormat') {
+    // SSF-backed; caches by format string internally.
+    return excelFormatter(t.format);
   }
   // kind: 'expression' — cache by expression string.
   let fn = expressionCache.get(t.expression);

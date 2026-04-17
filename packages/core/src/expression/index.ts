@@ -73,3 +73,4 @@ export { parse } from './parser';
 export { Evaluator } from './evaluator';
 export { tryCompileToAgString } from './compiler';
 export { createFunctionRegistry, getAllFunctions } from './functions';
+export { migrateExpressionSyntax, migrateExpressionsInObject } from './migrate';

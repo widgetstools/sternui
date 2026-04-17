@@ -70,18 +70,40 @@ test.describe('v2 — conditional styling settings panel', () => {
     const editor = page.locator('[data-testid="cs-rule-editor"]');
     await expect(editor).toBeVisible();
 
-    // 2. Pick a column (Qty → quantity colId) via the column picker select
+    // 2. Switch scope to Cell so the column picker renders, then pick Qty
+    //    (colId `quantity`).
+    await page
+      .locator('[data-testid="cs-panel"] select:not(.gc-cs-col-add)')
+      .first()
+      .selectOption('cell');
     const colSelect = page.locator('select.gc-cs-col-add');
     await colSelect.selectOption('quantity');
     await expect(page.locator('.gc-cs-col-chip')).toContainText('Qty');
 
-    // 3. Set expression `x > 0` (default already, but explicit-set covers the
-    //    blur-commit path as well).
-    const exprInput = page.locator('[data-testid="cs-rule-expression-input"]');
-    await exprInput.fill('x > 0');
-    await exprInput.blur();
+    // 3. Set expression `x > 0` through the Monaco editor. setValue pushes
+    //    the text into the model; Tab blurs so ExpressionEditor's
+    //    onDidBlurEditorWidget handler commits via onCommit.
+    await page.waitForFunction(
+      () => !!(window as any).monaco?.editor?.getEditors?.().length,
+      { timeout: 10_000 },
+    );
+    await page.evaluate(() => {
+      const ed = (window as any).monaco.editor.getEditors()[0];
+      ed?.setValue('x > 0');
+      ed?.focus();
+    });
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(100);
 
-    // 4. Close the sheet so cells aren't obscured by the overlay
+    // 4. Per-card Save — edits no longer auto-commit on keystroke. Click the
+    //    rule's SAVE pill to push the draft into module state.
+    const cardId = await editor.evaluate(
+      (el) => el.getAttribute('data-rule-testid')!.replace('cs-rule-editor-', ''),
+    );
+    await page.locator(`[data-testid="cs-rule-save-${cardId}"]`).click();
+
+    // 5. Close the sheet so cells aren't obscured by the overlay
     await page.locator('[data-testid="v2-settings-done-btn"]').click();
 
     // 5. Verify at least one cell got the rule class. The class is
@@ -105,26 +127,39 @@ test.describe('v2 — conditional styling settings panel', () => {
   });
 
   test('Disabling a rule removes the cell styling without deleting it', async ({ page }) => {
-    // Add a rule + target column
+    // Add a rule, switch to Cell scope + target Qty.
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
     await page.locator('[data-testid="cs-add-rule-btn"]').click();
+    await page
+      .locator('[data-testid="cs-panel"] select:not(.gc-cs-col-add)')
+      .first()
+      .selectOption('cell');
     await page.locator('select.gc-cs-col-add').selectOption('quantity');
+
+    // Commit the draft (per-card Save) so the rule ships to module state.
+    const editor = page.locator('[data-testid="cs-rule-editor"]');
+    const ruleId = await editor.evaluate(
+      (el) => el.getAttribute('data-rule-testid')!.replace('cs-rule-editor-', ''),
+    );
+    await page.locator(`[data-testid="cs-rule-save-${ruleId}"]`).click();
     await page.locator('[data-testid="v2-settings-done-btn"]').click();
 
     expect(await page.locator('[class*="gc-rule-"]').count()).toBeGreaterThan(0);
 
-    // Open sheet, toggle the rule's switch off. The shadcn Switch keeps the
-    // real <input> as `sr-only` (positioned off-viewport for accessibility),
-    // so neither a normal click nor `force: true` can hit it. Dispatch the
-    // click programmatically on the underlying input — that's what an
-    // assistive-tech click would do, and it routes through React's onChange.
+    // Open sheet, toggle the rule's Status switch off. The shadcn Switch
+    // keeps the real <input> as `sr-only` (positioned off-viewport for
+    // accessibility), so dispatch the click programmatically on the
+    // underlying input.
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
     await page.evaluate(() => {
       const cb = document.querySelector(
-        '[data-testid^="cs-rule-card-"] input[type="checkbox"]',
+        '[data-testid="cs-rule-editor"] input[type="checkbox"]',
       ) as HTMLInputElement | null;
       cb?.click();
     });
+
+    // Save the toggle change and close.
+    await page.locator(`[data-testid="cs-rule-save-${ruleId}"]`).click();
     await page.locator('[data-testid="v2-settings-done-btn"]').click();
 
     // Cells should no longer carry any gc-rule-* class.
@@ -134,10 +169,18 @@ test.describe('v2 — conditional styling settings panel', () => {
   test('Deleting a rule removes it from the panel and the grid', async ({ page }) => {
     await page.locator('[data-testid="v2-settings-open-btn"]').click();
     await page.locator('[data-testid="cs-add-rule-btn"]').click();
+    await page
+      .locator('[data-testid="cs-panel"] select:not(.gc-cs-col-add)')
+      .first()
+      .selectOption('cell');
     await page.locator('select.gc-cs-col-add').selectOption('quantity');
 
     const card = page.locator('[data-testid^="cs-rule-card-"]').first();
     const ruleId = await card.evaluate((el) => el.getAttribute('data-testid')!.replace('cs-rule-card-', ''));
+
+    // Commit once so the rule exists in module state before deletion.
+    await page.locator(`[data-testid="cs-rule-save-${ruleId}"]`).click();
+
     await page.locator(`[data-testid="cs-rule-delete-${ruleId}"]`).click();
 
     await expect(page.locator('[data-testid^="cs-rule-card-"]')).toHaveCount(0);

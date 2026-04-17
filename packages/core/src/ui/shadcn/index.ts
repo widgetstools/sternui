@@ -1,6 +1,7 @@
 export { cn } from './utils';
 export { Button, buttonVariants, type ButtonProps } from './button';
 export { Input, type InputProps } from './input';
+export { Textarea, type TextareaProps } from './textarea';
 export { Select } from './select';
 export { Switch } from './switch';
 export { Popover } from './popover';

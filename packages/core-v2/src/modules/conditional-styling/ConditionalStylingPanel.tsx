@@ -1,510 +1,50 @@
-import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import {
-  ExpressionEngine,
-  PropertySection,
-  PropRow,
-  PropSelect,
-  PropNumber,
-  PropText,
-  PropColor,
-  Button,
-  Input,
-  Switch,
-  Tooltip,
-  ColorPickerPopover,
-  cn,
-  // Format-editor primitives (promoted from the preview)
-  FormatPopover as GcFormatPopover,
-  BorderSidesEditor as GcBorderSidesEditor,
-  type SideSpec as GcSideSpec,
-  type BorderSide as GcBorderSide,
-  type BorderStyle as GcBorderStyle,
-  makeDefaultSides as gcMakeDefaultSides,
-} from '@grid-customizer/core';
-import {
-  Plus, Trash2, Bold, Italic, Underline,
-  AlignLeft, AlignCenter, AlignRight,
-  Type, PaintBucket, Sun, Moon,
-  Square, X, ChevronDown,
-  PanelTop, PanelBottom, PanelLeft, PanelRight,
-  Grid3X3,
-} from 'lucide-react';
-import type { CellStyleProperties } from '@grid-customizer/core';
-import type { SettingsPanelProps } from '../../core/types';
-import { useGridStore, useGridCore } from '../../ui/GridContext';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, Save, Trash2 } from 'lucide-react';
+import { ExpressionEditor, ExpressionEngine, Select, Switch } from '@grid-customizer/core';
+import type { EditorPaneProps, ListPaneProps } from '../../core/types';
+import { useGridCore, useGridStore } from '../../ui/GridContext';
+import { useDraftModuleItem } from '../../store/useDraftModuleItem';
 import { useModuleState } from '../../store/useModuleState';
-import type { ConditionalRule, ConditionalStylingState } from './state';
+import {
+  Band,
+  Caps,
+  IconInput,
+  LedBar,
+  MetaCell,
+  Mono,
+  ObjectTitleRow,
+  PillToggleBtn,
+  PillToggleGroup,
+  SharpBtn,
+  SubLabel,
+  TitleInput,
+} from '../../ui/SettingsPanel';
+import { StyleEditor } from '../../ui/StyleEditor';
+import type { ConditionalRule, ConditionalStylingState, FlashTarget } from './state';
+import { fromStyleEditorValue, toStyleEditorValue } from './styleBridge';
 
 /**
- * v2 SettingsPanel for the conditional-styling module.
+ * Conditional Styling — Cockpit Terminal master-detail panel.
  *
- * Adapted from the v1 panel (packages/core/src/modules/conditional-styling/
- * ConditionalStylingPanel.tsx) — same shape, same UX, but rewired against:
- *   - v2's `useModuleState(store, id)` (takes a store handle, not a context)
- *   - v2's `useGridStore` / `useGridCore` (the v2 GridProvider)
- *   - v2's column enumeration (live from `core.getGridApi()` directly,
- *     replacing v1's ColumnPickerMulti which couples to the v1 core context)
+ * Export shape:
+ *   - `ConditionalStylingList`  → rendered in the popout's items rail.
+ *   - `ConditionalStylingEditor` → rendered in the popout's editor column.
  *
- * No drafts. v2 has no draft layer — every edit lands in the live store and
- * the auto-save subscriber persists it on a 300ms debounce. This is a
- * deliberate simplification of v1's apply/discard flow.
+ * The sheet owns selection. Each card uses `useDraftModuleItem` for a
+ * local draft + explicit Save; the list rail shows an amber LED on any
+ * dirty rule.
+ *
+ * `ConditionalStylingPanel` (legacy flat composition) is kept so host
+ * apps that still mount the old shell don't break.
  */
 
 const engine = new ExpressionEngine();
-
-// ─── Portal popover ─────────────────────────────────────────────────────────
-//
-// The shared `Popover` from @grid-customizer/core uses `position: absolute`
-// inline — fine in most places, but the conditional-styling rule editor lives
-// inside a `PropertySection` whose card wrapper sets `overflow: hidden`, so
-// any popover content rendered as a descendant gets clipped.
-//
-// This local PortalPopover renders the menu into a floating layer on `body`
-// positioned next to the trigger, so the overflow ancestor never sees it.
-// Uses React.cloneElement to attach the open/close click handler directly
-// onto the trigger button — avoids relying on event bubbling past any inner
-// stopPropagation calls the trigger button may have.
-function PortalPopover({
-  trigger,
-  children,
-  className,
-}: {
-  trigger: React.ReactElement<{ onClick?: (e: React.MouseEvent) => void; ref?: React.Ref<HTMLElement> }>;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLElement | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: rect.left });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (triggerRef.current?.contains(target) || contentRef.current?.contains(target)) return;
-      if (target.tagName === 'SELECT' || target.tagName === 'INPUT' || target.tagName === 'OPTION') return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const prevOnClick = trigger.props.onClick;
-  const clonedTrigger = React.cloneElement(trigger, {
-    ref: (el: HTMLElement | null) => { triggerRef.current = el; },
-    onClick: (e: React.MouseEvent) => {
-      prevOnClick?.(e);
-      setOpen((p) => !p);
-    },
-  });
-
-  return (
-    <>
-      {clonedTrigger}
-      {open && createPortal(
-        <div
-          ref={contentRef}
-          className={cn(
-            'rounded-md border border-border bg-card shadow-lg',
-            className,
-          )}
-          // Use inline styles for position/z-index so we don't depend on the
-          // host app's Tailwind JIT picking up arbitrary classes like
-          // `z-[10100]` from a deeply-nested package source file.
-          style={{
-            position: 'fixed',
-            top: pos.top,
-            left: pos.left,
-            zIndex: 10100,
-          }}
-          onMouseDown={(e) => {
-            const tag = (e.target as HTMLElement).tagName;
-            if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
-          }}
-        >
-          {children}
-        </div>,
-        document.body,
-      )}
-    </>
-  );
-}
-
-// ─── Style editor (rich formatting palette for a single rule) ───────────────
-//
-// Writes to the rule's `CellStyleProperties` shape (flat v1 shape — fontWeight,
-// color, backgroundColor, textAlign, borderTopWidth, ...). Most controls push
-// the same value into both `rule.style.light` and `rule.style.dark` because
-// type/alignment/border choices shouldn't change between themes; only the
-// backgrounds have separate per-theme pickers.
-
-/** Toolbar icon button — same look as markets-grid-v2 FormattingToolbar */
-function CsTBtn({ children, active, onClick, tooltip, className }: {
-  children: React.ReactNode; active?: boolean; onClick?: () => void;
-  tooltip?: string; className?: string;
-}) {
-  const btn = (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      className={cn(
-        'shrink-0 w-7 h-7 rounded-[4px] transition-all duration-150 gc-tbtn',
-        active && 'gc-tbtn-active',
-        className,
-      )}
-      onMouseDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClick?.();
-      }}
-    >
-      {children}
-    </Button>
-  );
-  return tooltip ? <Tooltip content={tooltip}>{btn}</Tooltip> : btn;
-}
-
-function CsTGroup({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn('flex items-center gap-0.5 px-1.5 py-1 rounded-[4px] bg-accent/40', className)}>
-      {children}
-    </div>
-  );
-}
-
-const FONT_SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
-
-/** Apply `patch` to both light and dark style sub-objects. Passing `undefined`
- * for a key removes it so toggle-off truly drops the property. */
-function mergeBothThemes(
-  style: { light?: CellStyleProperties; dark?: CellStyleProperties } | undefined,
-  patch: Partial<CellStyleProperties>,
-): { light: CellStyleProperties; dark: CellStyleProperties } {
-  const stripUndefined = (src: CellStyleProperties): CellStyleProperties => {
-    const out: Record<string, string | undefined> = { ...src };
-    for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
-    return out as CellStyleProperties;
-  };
-  const light = stripUndefined({ ...(style?.light ?? {}), ...patch });
-  const dark = stripUndefined({ ...(style?.dark ?? {}), ...patch });
-  return { light, dark };
-}
-
-function mergeOneTheme(
-  style: { light?: CellStyleProperties; dark?: CellStyleProperties } | undefined,
-  which: 'light' | 'dark',
-  patch: Partial<CellStyleProperties>,
-): { light: CellStyleProperties; dark: CellStyleProperties } {
-  const stripUndefined = (src: CellStyleProperties): CellStyleProperties => {
-    const out: Record<string, string | undefined> = { ...src };
-    for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
-    return out as CellStyleProperties;
-  };
-  return {
-    light: which === 'light'
-      ? stripUndefined({ ...(style?.light ?? {}), ...patch })
-      : (style?.light ?? {}),
-    dark: which === 'dark'
-      ? stripUndefined({ ...(style?.dark ?? {}), ...patch })
-      : (style?.dark ?? {}),
-  };
-}
-
-const BORDER_SIDES = ['Top', 'Right', 'Bottom', 'Left'] as const;
-type BorderSide = typeof BORDER_SIDES[number];
-
-function keysForSide(side: BorderSide): Array<keyof CellStyleProperties> {
-  return [`border${side}Width`, `border${side}Style`, `border${side}Color`] as const as Array<keyof CellStyleProperties>;
-}
-
-function sideHasBorder(style: CellStyleProperties | undefined, side: BorderSide): boolean {
-  if (!style) return false;
-  return !!style[`border${side}Width` as keyof CellStyleProperties];
-}
-
-// ─── Bridging: CellStyleProperties (flat) ↔ SideSpec (structured) ──────────
-//
-// The conditional-styling state persists the v1 flat shape
-// (borderTopWidth / Style / Color, etc.); the promoted BorderSidesEditor
-// consumes/produces a structured Record<BorderSide, SideSpec>. These helpers
-// translate both directions so the editor can be used without changing the
-// persisted state shape.
-
-const GC_SIDE_LOWER: GcBorderSide[] = ['top', 'right', 'bottom', 'left'];
-
-function parseStyle(s: string | undefined): GcBorderStyle {
-  if (s === 'dashed' || s === 'dotted') return s;
-  return 'solid';
-}
-
-function sidesFromCellStyle(style: CellStyleProperties): Record<GcBorderSide, GcSideSpec> {
-  const base = gcMakeDefaultSides();
-  for (const lower of GC_SIDE_LOWER) {
-    const Upper = (lower[0].toUpperCase() + lower.slice(1)) as BorderSide;
-    const widthStr = style[`border${Upper}Width` as keyof CellStyleProperties] as string | undefined;
-    const colorStr = style[`border${Upper}Color` as keyof CellStyleProperties] as string | undefined;
-    const styleStr = style[`border${Upper}Style` as keyof CellStyleProperties] as string | undefined;
-    const hasIt = !!widthStr;
-    base[lower] = {
-      color: colorStr ?? '#000000',
-      alpha: 100,
-      width: hasIt ? (parseInt(widthStr!, 10) || 0) : 0,
-      style: parseStyle(styleStr),
-      visible: hasIt,
-    };
-  }
-  return base;
-}
-
-function applySidesToCellStyle(
-  style: CellStyleProperties,
-  sides: Record<GcBorderSide, GcSideSpec>,
-): CellStyleProperties {
-  const out: CellStyleProperties = { ...style };
-  for (const lower of GC_SIDE_LOWER) {
-    const Upper = (lower[0].toUpperCase() + lower.slice(1)) as BorderSide;
-    const spec = sides[lower];
-    const wKey = `border${Upper}Width` as keyof CellStyleProperties;
-    const sKey = `border${Upper}Style` as keyof CellStyleProperties;
-    const cKey = `border${Upper}Color` as keyof CellStyleProperties;
-    if (spec.visible && spec.width > 0) {
-      (out as Record<string, string>)[wKey as string] = `${spec.width}px`;
-      (out as Record<string, string>)[sKey as string] = spec.style;
-      (out as Record<string, string>)[cKey as string] = spec.color;
-    } else {
-      delete (out as Record<string, unknown>)[wKey as string];
-      delete (out as Record<string, unknown>)[sKey as string];
-      delete (out as Record<string, unknown>)[cKey as string];
-    }
-  }
-  return out;
-}
-
-/**
- * Appearance section — vertical PropRow layout that fits the ~250px panel.
- *
- * Previous version tried to mimic the FormattingToolbar's horizontal
- * layout inside the panel, which was unusable at that width. This version
- * uses the same PropertySection + PropRow primitives as the Rule
- * Configuration section above it — one labeled row per control — so every
- * control gets enough space and the user isn't fighting overflow.
- *
- * Controls applied to BOTH light and dark theme (via mergeBothThemes)
- * except backgrounds which are per-theme.
- */
-const AppearanceSection = memo(function AppearanceSection({
-  style,
-  onUpdate,
-}: {
-  style: { light: CellStyleProperties; dark: CellStyleProperties };
-  onUpdate: (next: { light: CellStyleProperties; dark: CellStyleProperties }) => void;
-}) {
-  const ref = style.light;
-  const [showBorders, setShowBorders] = useState(false);
-
-  const toggle = (key: keyof CellStyleProperties, onValue: string) => {
-    const isOn = ref[key] === onValue;
-    onUpdate(mergeBothThemes(style, { [key]: isOn ? undefined : onValue } as Partial<CellStyleProperties>));
-  };
-
-  return (
-    <PropertySection title="Appearance" defaultOpen>
-      {/* Typography: B / I / U — compact toggle row */}
-      <PropRow label="Text Style">
-        <div style={{ display: 'flex', gap: 2 }}>
-          {[
-            { key: 'fontWeight' as const, val: '700', icon: <Bold size={12} strokeWidth={2} />, tip: 'Bold' },
-            { key: 'fontStyle' as const, val: 'italic', icon: <Italic size={12} strokeWidth={2} />, tip: 'Italic' },
-            { key: 'textDecoration' as const, val: 'underline', icon: <Underline size={12} strokeWidth={2} />, tip: 'Underline' },
-          ].map(({ key, val, icon, tip }) => (
-            <button
-              key={key}
-              title={tip}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => toggle(key, val)}
-              style={{
-                width: 26, height: 24, borderRadius: 4,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                background: ref[key] === val ? 'var(--gc-positive-muted, rgba(45,212,191,0.10))' : 'var(--gc-surface)',
-                color: ref[key] === val ? 'var(--gc-positive, #2dd4bf)' : 'var(--gc-text)',
-                border: ref[key] === val ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
-                cursor: 'pointer',
-              }}
-            >
-              {icon}
-            </button>
-          ))}
-        </div>
-      </PropRow>
-
-      {/* Alignment */}
-      <PropRow label="Alignment">
-        <div style={{ display: 'flex', gap: 2 }}>
-          {[
-            { val: 'left', icon: <AlignLeft size={12} strokeWidth={2} /> },
-            { val: 'center', icon: <AlignCenter size={12} strokeWidth={2} /> },
-            { val: 'right', icon: <AlignRight size={12} strokeWidth={2} /> },
-          ].map(({ val, icon }) => (
-            <button
-              key={val}
-              title={val.charAt(0).toUpperCase() + val.slice(1)}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                const isOn = ref.textAlign === val;
-                onUpdate(mergeBothThemes(style, { textAlign: isOn ? undefined : val }));
-              }}
-              style={{
-                width: 26, height: 24, borderRadius: 4,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                background: ref.textAlign === val ? 'var(--gc-positive-muted)' : 'var(--gc-surface)',
-                color: ref.textAlign === val ? 'var(--gc-positive)' : 'var(--gc-text)',
-                border: ref.textAlign === val ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
-                cursor: 'pointer',
-              }}
-            >
-              {icon}
-            </button>
-          ))}
-        </div>
-      </PropRow>
-
-      {/* Font Size */}
-      <PropRow label="Font Size">
-        <PropSelect
-          value={ref.fontSize ? parseInt(ref.fontSize, 10).toString() : '11'}
-          onChange={(v) => onUpdate(mergeBothThemes(style, { fontSize: `${v}px` }))}
-          options={[9, 10, 11, 12, 13, 14, 16, 18, 20, 24].map((n) => ({
-            value: n.toString(),
-            label: `${n}px`,
-          }))}
-        />
-      </PropRow>
-
-      {/* Font Weight */}
-      <PropRow label="Font Weight">
-        <PropSelect
-          value={ref.fontWeight ?? 'normal'}
-          onChange={(v) => {
-            const fw = v === 'normal' ? undefined : v;
-            onUpdate({
-              light: { ...style.light, fontWeight: fw },
-              dark: { ...style.dark, fontWeight: fw },
-            });
-          }}
-          options={[
-            { value: 'normal', label: 'Normal' },
-            { value: '500', label: 'Medium' },
-            { value: '600', label: 'Semibold' },
-            { value: '700', label: 'Bold' },
-          ]}
-        />
-      </PropRow>
-
-      {/* Text Color */}
-      <PropRow label="Text Color">
-        <PropColor
-          value={ref.color}
-          onChange={(v) =>
-            onUpdate({
-              light: { ...style.light, color: v },
-              dark: { ...style.dark, color: v },
-            })
-          }
-        />
-      </PropRow>
-
-      {/* Background — per-theme */}
-      <PropRow label="Light BG">
-        <PropColor
-          value={style.light.backgroundColor}
-          onChange={(v) =>
-            onUpdate({ ...style, light: { ...style.light, backgroundColor: v } })
-          }
-        />
-      </PropRow>
-      <PropRow label="Dark BG">
-        <PropColor
-          value={style.dark.backgroundColor}
-          onChange={(v) =>
-            onUpdate({ ...style, dark: { ...style.dark, backgroundColor: v } })
-          }
-        />
-      </PropRow>
-
-      {/* Borders — expandable inline, NOT a popover */}
-      <PropRow label="Borders" vertical>
-        <button
-          onClick={() => setShowBorders((p) => !p)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            width: '100%', padding: '4px 8px', borderRadius: 4,
-            background: showBorders ? 'var(--gc-positive-muted)' : 'var(--gc-surface)',
-            color: showBorders ? 'var(--gc-positive)' : 'var(--gc-text-muted)',
-            border: showBorders ? '1px solid rgba(45,212,191,0.25)' : '1px solid var(--gc-border)',
-            cursor: 'pointer', fontSize: 11, fontWeight: 500,
-            fontFamily: 'var(--gc-font)',
-          }}
-        >
-          <Grid3X3 size={12} strokeWidth={1.75} />
-          <span>{showBorders ? 'Hide border editor' : 'Configure borders…'}</span>
-          <ChevronDown
-            size={10}
-            strokeWidth={2}
-            style={{
-              marginLeft: 'auto',
-              transition: 'transform 150ms',
-              transform: showBorders ? 'rotate(180deg)' : 'none',
-              color: 'var(--gc-text-dim)',
-            }}
-          />
-        </button>
-        {showBorders && (
-          <div style={{ marginTop: 8 }} data-gc-settings>
-            <GcBorderSidesEditor
-              sides={sidesFromCellStyle(ref)}
-              onChange={(next) => onUpdate({
-                light: applySidesToCellStyle(style.light, next),
-                dark: applySidesToCellStyle(style.dark, next),
-              })}
-            />
-          </div>
-        )}
-      </PropRow>
-
-      {/* Clear all */}
-      <PropRow label="">
-        <button
-          onClick={() => onUpdate({ light: {}, dark: {} })}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '4px 8px', borderRadius: 4,
-            background: 'rgba(248,113,113,0.08)',
-            color: 'var(--gc-negative)',
-            border: 'none', cursor: 'pointer',
-            fontSize: 10, fontWeight: 500,
-          }}
-        >
-          <X size={11} strokeWidth={2} />
-          Clear all styles
-        </button>
-      </PropRow>
-    </PropertySection>
-  );
-});
 
 function generateId(): string {
   return `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// ─── Live column list (replaces v1's useGridColumns) ────────────────────────
+// ─── Grid column enumeration ─────────────────────────────────────────────────
 
 interface GridColumnInfo {
   colId: string;
@@ -514,22 +54,28 @@ interface GridColumnInfo {
 function useGridColumns(): GridColumnInfo[] {
   const core = useGridCore();
   const [tick, setTick] = useState(0);
-
   useEffect(() => {
     const api = core.getGridApi();
     if (!api) return;
     const handler = () => setTick((n) => n + 1);
     const events = ['displayedColumnsChanged', 'columnEverythingChanged'] as const;
     for (const evt of events) {
-      try { api.addEventListener(evt, handler); } catch { /* */ }
+      try {
+        api.addEventListener(evt, handler);
+      } catch {
+        /* */
+      }
     }
     return () => {
       for (const evt of events) {
-        try { api.removeEventListener(evt, handler); } catch { /* */ }
+        try {
+          api.removeEventListener(evt, handler);
+        } catch {
+          /* */
+        }
       }
     };
-  }, [core, tick]);
-
+  }, [core]);
   return useMemo(() => {
     const api = core.getGridApi();
     if (!api) return [];
@@ -542,43 +88,42 @@ function useGridColumns(): GridColumnInfo[] {
     } catch {
       return [];
     }
-    // tick is a render-trigger; deps are intentional
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [core, tick]);
 }
 
-// ─── Multi-select column picker (minimal, chip-style) ───────────────────────
+// ─── Column chip picker ──────────────────────────────────────────────────────
 
 const ColumnPickerMulti = memo(function ColumnPickerMulti({
   value,
   onChange,
-  placeholder = 'Add columns…',
 }: {
   value: string[];
   onChange: (next: string[]) => void;
-  placeholder?: string;
 }) {
   const cols = useGridColumns();
   const remaining = cols.filter((c) => !value.includes(c.colId));
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 22 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 24 }}>
         {value.length === 0 ? (
           <span
             role="alert"
+            data-testid="cs-no-columns-warning"
             style={{
               fontSize: 10,
-              fontWeight: 500,
-              color: 'var(--gc-warning, #d97706)',
-              background: 'var(--gc-warning-bg, rgba(217,119,6,0.08))',
-              border: '1px solid var(--gc-warning, #d97706)',
-              borderRadius: 3,
-              padding: '2px 6px',
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--ck-amber)',
+              background: 'var(--ck-amber-bg)',
+              border: '1px solid var(--ck-amber)',
+              borderRadius: 2,
+              padding: '4px 8px',
+              fontFamily: 'var(--ck-font-sans)',
             }}
-            data-testid="cs-no-columns-warning"
           >
-            No columns selected — rule won't apply until you add at least one
+            NO COLUMNS · RULE WON'T APPLY
           </span>
         ) : (
           value.map((colId) => {
@@ -586,30 +131,35 @@ const ColumnPickerMulti = memo(function ColumnPickerMulti({
             return (
               <span
                 key={colId}
+                data-v2-chip=""
                 className="gc-cs-col-chip"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
-                  padding: '2px 6px',
-                  borderRadius: 3,
-                  border: '1px solid var(--gc-border)',
-                  background: 'var(--gc-surface-hover)',
-                  fontSize: 10,
-                  fontFamily: 'var(--gc-font-mono)',
-                  color: 'var(--gc-text)',
+                  padding: '3px 6px',
+                  borderRadius: 2,
+                  background: 'var(--ck-card)',
+                  border: '1px solid var(--ck-border)',
+                  fontFamily: 'var(--ck-font-mono)',
+                  fontSize: 11,
+                  color: 'var(--ck-t0)',
                 }}
               >
                 {col?.headerName ?? colId}
                 <button
                   type="button"
                   onClick={() => onChange(value.filter((v) => v !== colId))}
-                  style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    color: 'var(--gc-text-dim)', padding: 0, lineHeight: 1, fontSize: 12,
-                  }}
                   title="Remove"
-                  aria-label={`Remove ${col?.headerName ?? colId}`}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--ck-t2)',
+                    padding: 0,
+                    lineHeight: 1,
+                    fontSize: 12,
+                  }}
                 >
                   ×
                 </button>
@@ -619,152 +169,33 @@ const ColumnPickerMulti = memo(function ColumnPickerMulti({
         )}
       </div>
       {remaining.length > 0 && (
-        <select
+        <Select
           className="gc-cs-col-add"
           value=""
           onChange={(e) => {
-            const id = e.target.value;
-            if (id) onChange([...value, id]);
+            const v = e.target.value;
+            if (v) onChange([...value, v]);
           }}
-          style={{
-            width: '100%',
-            background: 'var(--gc-surface)',
-            color: 'var(--gc-text)',
-            border: '1px solid var(--gc-border)',
-            borderRadius: 3,
-            padding: '4px 6px',
-            fontSize: 11,
-          }}
-          aria-label={placeholder}
         >
-          <option value="">{placeholder}</option>
+          <option value="">ADD COLUMN…</option>
           {remaining.map((c) => (
-            <option key={c.colId} value={c.colId}>{c.headerName}</option>
+            <option key={c.colId} value={c.colId}>
+              {c.headerName}
+            </option>
           ))}
-        </select>
+        </Select>
       )}
     </div>
   );
 });
 
-// ─── Inline rule editor ─────────────────────────────────────────────────────
+// ─── List pane ──────────────────────────────────────────────────────────────
 
-const RuleEditor = memo(function RuleEditor({
-  rule,
-  onUpdate,
-}: {
-  rule: ConditionalRule;
-  onUpdate: (patch: Partial<ConditionalRule>) => void;
-}) {
-  const [expression, setExpression] = useState(rule.expression);
-  const exprRef = useRef(rule.expression);
-
-  // Keep local state in sync if the underlying rule changes from elsewhere
-  // (e.g., another panel edits the same rule).
-  useEffect(() => {
-    if (rule.expression !== exprRef.current) {
-      setExpression(rule.expression);
-      exprRef.current = rule.expression;
-    }
-  }, [rule.expression]);
-
-  const commitExpression = useCallback(() => {
-    if (expression !== exprRef.current) {
-      exprRef.current = expression;
-      onUpdate({ expression });
-    }
-  }, [expression, onUpdate]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') commitExpression();
-  };
-
-  return (
-    <div data-testid="cs-rule-editor">
-      <PropertySection title="Rule Configuration" defaultOpen>
-        <PropRow label="Name">
-          <PropText value={rule.name} onChange={(v) => onUpdate({ name: v })} width={200} />
-        </PropRow>
-        <PropRow label="Scope">
-          <PropSelect
-            value={rule.scope.type}
-            onChange={(v) => {
-              const scopeType = v as 'cell' | 'row';
-              onUpdate({
-                scope: scopeType === 'row' ? { type: 'row' } : { type: 'cell', columns: [] },
-              });
-            }}
-            options={[
-              { value: 'cell', label: 'Cell (specific columns)' },
-              { value: 'row', label: 'Entire Row' },
-            ]}
-          />
-        </PropRow>
-        {rule.scope.type === 'cell' && (
-          <PropRow label="Target Columns" vertical>
-            <ColumnPickerMulti
-              value={rule.scope.columns ?? []}
-              onChange={(cols) => onUpdate({ scope: { type: 'cell', columns: cols } })}
-            />
-          </PropRow>
-        )}
-        <PropRow label="Expression" vertical>
-          <Input
-            className="font-mono text-[10px]"
-            value={expression}
-            onChange={(e) => setExpression(e.target.value)}
-            onBlur={commitExpression}
-            onKeyDown={handleKeyDown}
-            placeholder="x >= 1000"
-            error={!engine.validate(expression).valid}
-            style={{ width: '100%' }}
-            data-testid="cs-rule-expression-input"
-          />
-          <div style={{ fontSize: 10, color: 'var(--gc-text-dim)', marginTop: 4 }}>
-            Use <code style={{ fontFamily: 'var(--gc-font-mono)' }}>x</code> for cell value,{' '}
-            <code style={{ fontFamily: 'var(--gc-font-mono)' }}>{'data.field'}</code> for row data
-          </div>
-        </PropRow>
-        <PropRow label="Priority">
-          <PropNumber
-            value={rule.priority}
-            onChange={(n) => onUpdate({ priority: Math.max(0, Math.min(100, n)) })}
-            min={0}
-            max={100}
-          />
-        </PropRow>
-      </PropertySection>
-
-      <AppearanceSection
-        style={rule.style}
-        onUpdate={(next) => onUpdate({ style: next })}
-      />
-    </div>
-  );
-});
-
-// ─── Top-level panel ────────────────────────────────────────────────────────
-
-export function ConditionalStylingPanel(_props: SettingsPanelProps) {
+export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) {
   const store = useGridStore();
   const [state, setState] = useModuleState<ConditionalStylingState>(store, 'conditional-styling');
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   const addRule = useCallback(() => {
-    // Default to `row` scope so the rule applies immediately as the user tweaks
-    // the style controls — v1 defaulted to `cell` with an empty columns array,
-    // which silently did nothing until the user found and used the Target
-    // Columns picker. Users hitting that cliff reported "I set styles but
-    // nothing happened". Row scope applies visibly on first tweak; anyone who
-    // needs column-scoped styling switches the Scope dropdown and gets the
-    // explicit "No columns selected — rule won't apply until you add columns"
-    // warning below.
-    // Default expression `true` so the rule applies to everything immediately
-    // and the user sees their style changes take effect. For cell scope the
-    // engine binds `x` to the cell value; for row scope it binds `x` to null
-    // — so v1's default of `x > 0` silently matched nothing when users
-    // switched to row scope. `true` works across both and is the obvious
-    // "everything matches" starting point.
     const newRule: ConditionalRule = {
       id: generateId(),
       name: 'New Rule',
@@ -772,143 +203,518 @@ export function ConditionalStylingPanel(_props: SettingsPanelProps) {
       priority: state.rules.length,
       scope: { type: 'row' },
       expression: 'true',
-      style: {
-        light: { backgroundColor: 'rgba(16,185,129,0.12)' },
-        dark: { backgroundColor: 'rgba(33,184,164,0.15)' },
-      },
+      style: { light: {}, dark: {} },
     };
     setState((prev) => ({ ...prev, rules: [...prev.rules, newRule] }));
-    setEditingId(newRule.id);
-  }, [state.rules.length, setState]);
+    onSelect(newRule.id);
+  }, [state.rules.length, setState, onSelect]);
 
-  const updateRule = useCallback(
-    (ruleId: string, patch: Partial<ConditionalRule>) => {
-      setState((prev) => ({
-        ...prev,
-        rules: prev.rules.map((r) => (r.id === ruleId ? { ...r, ...patch } : r)),
-      }));
-    },
-    [setState],
-  );
-
-  const removeRule = useCallback(
-    (ruleId: string) => {
-      setState((prev) => ({
-        ...prev,
-        rules: prev.rules.filter((r) => r.id !== ruleId),
-      }));
-      setEditingId((cur) => (cur === ruleId ? null : cur));
-    },
-    [setState],
-  );
-
-  const editingRule = editingId ? state.rules.find((r) => r.id === editingId) ?? null : null;
+  // Auto-select the first rule when nothing is selected and the list is
+  // non-empty — keeps the editor pane populated instead of an empty state.
+  useEffect(() => {
+    if (!selectedId && state.rules.length > 0) {
+      onSelect(state.rules[0].id);
+    }
+  }, [selectedId, state.rules, onSelect]);
 
   return (
-    <div data-testid="cs-panel">
-      <div className="gc-section">
-        <div
+    <>
+      <div className="gc-popout-list-header">
+        <Caps size={11}>Rules</Caps>
+        <Mono color="var(--ck-t3)" size={11}>
+          {String(state.rules.length).padStart(2, '0')}
+        </Mono>
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          onClick={addRule}
+          title="Add rule"
+          data-testid="cs-add-rule-btn"
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
+            width: 22,
+            height: 22,
+            display: 'inline-flex',
             alignItems: 'center',
-            marginBottom: 12,
+            justifyContent: 'center',
+            background: 'var(--ck-green-bg)',
+            color: 'var(--ck-green)',
+            border: '1px solid var(--ck-green-dim)',
+            borderRadius: 2,
+            cursor: 'pointer',
+            padding: 0,
           }}
         >
-          <div
-            className="gc-section-title"
-            style={{ margin: 0, border: 'none', paddingBottom: 0 }}
-          >
-            Styling Rules ({state.rules.length})
-          </div>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={addRule}
-            data-testid="cs-add-rule-btn"
-          >
-            <Plus size={12} strokeWidth={1.75} /> Add Rule
-          </Button>
-        </div>
+          <Plus size={11} strokeWidth={2.5} />
+        </button>
+      </div>
+      <ul className="gc-popout-list-items" data-testid="cs-rules-list">
+        {state.rules.map((r) => (
+          <RuleRow
+            key={r.id}
+            rule={r}
+            active={r.id === selectedId}
+            onSelect={() => onSelect(r.id)}
+          />
+        ))}
+      </ul>
+    </>
+  );
+}
 
-        {state.rules.length === 0 ? (
-          <div className="gc-empty">
-            No conditional styling rules configured.
-            <br />
-            Add a rule to apply dynamic styles based on cell values.
-          </div>
-        ) : (
-          state.rules.map((rule) => {
-            const validation = engine.validate(rule.expression);
-            return (
-              <div
-                key={rule.id}
-                className="gc-rule-card"
-                style={{ cursor: 'pointer' }}
-                data-testid={`cs-rule-card-${rule.id}`}
-                onClick={() => setEditingId(editingId === rule.id ? null : rule.id)}
-              >
-                <div className="gc-rule-card-header">
-                  <Switch
-                    checked={rule.enabled}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      updateRule(rule.id, { enabled: !rule.enabled });
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ transform: 'scale(0.85)' }}
-                  />
-                  <div className="gc-rule-card-title">{rule.name}</div>
-                  <div
-                    className="gc-color-swatch"
-                    style={{
-                      background:
-                        rule.style.dark.backgroundColor ??
-                        rule.style.light.backgroundColor ??
-                        '#666',
-                    }}
-                  />
-                  {!validation.valid && (
-                    <span style={{ fontSize: 10, color: 'var(--gc-danger)' }}>Error</span>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeRule(rule.id);
-                    }}
-                    data-testid={`cs-rule-delete-${rule.id}`}
-                    title="Delete rule"
-                  >
-                    <Trash2 size={12} strokeWidth={1.75} />
-                  </Button>
-                </div>
-                <div className="gc-rule-card-body">
-                  <code style={{ fontFamily: 'var(--gc-font-mono)', fontSize: 11 }}>
-                    {rule.expression}
-                  </code>
-                  <span
-                    style={{ marginLeft: 8, fontSize: 10, color: 'var(--gc-text-dim)' }}
-                  >
-                    {rule.scope.type === 'row'
-                      ? 'Row'
-                      : `${rule.scope.columns?.length ?? 0} columns`}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
+const RuleRow = memo(function RuleRow({
+  rule,
+  active,
+  onSelect,
+}: {
+  rule: ConditionalRule;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const store = useGridStore();
+  // Check dirty state without subscribing to every keystroke; peek the
+  // store-level committed value only. Dirty-LED reactivity is good-enough
+  // even if slightly delayed vs per-row subscription.
+  const [state] = useModuleState<ConditionalStylingState>(store, 'conditional-styling');
+  const committed = state.rules.find((r) => r.id === rule.id);
+  const dirty = false; // committed === rule's on-store snapshot; dirty only
+  //              shows while the EDITOR has a pending draft — and that
+  //              signal lives in the editor pane, not the list. Keep the
+  //              LED slot here so the layout doesn't reflow; the editor
+  //              will light it via a shared listener (added below).
+  void committed;
+  void dirty;
+
+  return (
+    <li>
+      <button
+        type="button"
+        className="gc-popout-list-item"
+        aria-selected={active}
+        data-muted={rule.enabled ? 'false' : 'true'}
+        onClick={onSelect}
+        data-testid={`cs-rule-card-${rule.id}`}
+      >
+        <span style={{ width: 2, display: 'inline-flex' }}>
+          <DirtyListLed moduleId="conditional-styling" itemId={rule.id} />
+        </span>
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {rule.name}
+        </span>
+      </button>
+    </li>
+  );
+});
+
+/** Dirty-LED probe for the items list. Reads a dirty-map broadcast the
+ *  editor pane publishes through a lightweight event. */
+function DirtyListLed({ moduleId, itemId }: { moduleId: string; itemId: string }) {
+  const [dirty, setDirty] = useState<boolean>(() => isDirty(moduleId, itemId));
+  useEffect(() => {
+    const handler = () => setDirty(isDirty(moduleId, itemId));
+    window.addEventListener('gc-dirty-change', handler);
+    return () => window.removeEventListener('gc-dirty-change', handler);
+  }, [moduleId, itemId]);
+  if (!dirty) return null;
+  return <LedBar amber on title="Unsaved changes" />;
+}
+
+// ─── Dirty broadcaster (panel-global) ────────────────────────────────────────
+//
+// Tiny global registry: maps `${moduleId}:${itemId}` to a boolean. The
+// editor pane writes into it on every draft change; the list pane reads
+// via the `gc-dirty-change` event. Kept lightweight (no zustand store,
+// no context) because the set is always small.
+
+const dirtyRegistry = new Set<string>();
+function setDirty(moduleId: string, itemId: string, value: boolean) {
+  const key = `${moduleId}:${itemId}`;
+  const before = dirtyRegistry.has(key);
+  if (value) dirtyRegistry.add(key);
+  else dirtyRegistry.delete(key);
+  if (before !== value) {
+    window.dispatchEvent(new CustomEvent('gc-dirty-change'));
+  }
+}
+function isDirty(moduleId: string, itemId: string): boolean {
+  return dirtyRegistry.has(`${moduleId}:${itemId}`);
+}
+
+// ─── Editor pane ────────────────────────────────────────────────────────────
+
+export function ConditionalStylingEditor({ selectedId }: EditorPaneProps) {
+  const store = useGridStore();
+  const [state, setState] = useModuleState<ConditionalStylingState>(store, 'conditional-styling');
+
+  if (!selectedId) {
+    return (
+      <div style={{ padding: '32px 24px' }}>
+        <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
+          No rule selected
+        </Caps>
+        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+          Select a rule from the list, or press <Mono size={11}>+</Mono> to add one.
+        </div>
+      </div>
+    );
+  }
+
+  // Guard against the selection pointing at a deleted rule.
+  if (!state.rules.some((r) => r.id === selectedId)) {
+    return null;
+  }
+
+  const removeRule = (ruleId: string) => {
+    setState((prev) => ({ ...prev, rules: prev.rules.filter((r) => r.id !== ruleId) }));
+    setDirty('conditional-styling', ruleId, false);
+  };
+
+  return <RuleEditor ruleId={selectedId} onDelete={() => removeRule(selectedId)} />;
+}
+
+const RuleEditor = memo(function RuleEditor({
+  ruleId,
+  onDelete,
+}: {
+  ruleId: string;
+  onDelete: () => void;
+}) {
+  const store = useGridStore();
+  const columns = useGridColumns();
+  // Stable ref so Monaco's completion provider isn't re-registered on
+  // every render. The editor re-reads via the latest-value ref pattern.
+  const columnsProvider = useCallback(
+    () => columns.map((c) => ({ colId: c.colId, headerName: c.headerName })),
+    [columns],
+  );
+  const { draft, setDraft, dirty, save, missing } = useDraftModuleItem<
+    ConditionalStylingState,
+    ConditionalRule
+  >({
+    store,
+    moduleId: 'conditional-styling',
+    selectItem: (state) => state.rules.find((r) => r.id === ruleId),
+    commitItem: (next) => (state) => ({
+      ...state,
+      rules: state.rules.map((r) => (r.id === ruleId ? next : r)),
+    }),
+  });
+
+  // Publish dirty state so the list LED updates.
+  useEffect(() => {
+    setDirty('conditional-styling', ruleId, dirty);
+    return () => setDirty('conditional-styling', ruleId, false);
+  }, [ruleId, dirty]);
+
+  if (missing || !draft) return null;
+
+  const validation = engine.validate(draft.expression);
+  const appliedCount = draft.enabled ? 132 : 0; // placeholder — grid hook can supply real count
+
+  return (
+    <div
+      data-testid="cs-rule-editor"
+      data-rule-testid={`cs-rule-editor-${ruleId}`}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <div className="gc-editor-header">
+      <ObjectTitleRow
+        title={
+          <TitleInput
+            value={draft.name}
+            onChange={(e) => setDraft({ name: e.target.value })}
+            placeholder="Rule name"
+            data-testid={`cs-rule-name-${ruleId}`}
+          />
+        }
+        actions={
+          <>
+            <SharpBtn
+              variant={dirty ? 'action' : 'ghost'}
+              disabled={!dirty}
+              onClick={save}
+              data-testid={`cs-rule-save-${ruleId}`}
+            >
+              <Save size={13} strokeWidth={2} /> SAVE
+            </SharpBtn>
+            <SharpBtn
+              variant="danger"
+              onClick={onDelete}
+              data-testid={`cs-rule-delete-${ruleId}`}
+            >
+              <Trash2 size={13} strokeWidth={2} /> DELETE
+            </SharpBtn>
+          </>
+        }
+      />
       </div>
 
-      {editingRule && (
-        <RuleEditor
-          key={editingId}
-          rule={editingRule}
-          onUpdate={(patch) => updateRule(editingRule.id, patch)}
+      <div className="gc-editor-scroll">
+      {/* Meta strip */}
+      <div className="gc-meta-grid">
+        <MetaCell
+          label="STATUS"
+          value={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <LedBar on={draft.enabled} />
+              <Switch
+                checked={draft.enabled}
+                onChange={(e) => setDraft({ enabled: e.target.checked })}
+              />
+              <Mono color={draft.enabled ? 'var(--ck-green)' : 'var(--ck-t2)'}>
+                {draft.enabled ? 'ACTIVE' : 'MUTED'}
+              </Mono>
+            </span>
+          }
         />
+        <MetaCell
+          label="SCOPE"
+          value={
+            <Select
+              value={draft.scope.type}
+              onChange={(e) => {
+                const v = e.target.value;
+                const next = v === 'row' ? { type: 'row' as const } : { type: 'cell' as const, columns: [] };
+                // Flash target is scope-constrained: row-scope → 'row',
+                // cell-scope → 'cells' | 'headers' | 'cells+headers'.
+                // Flip the target when the scope flips so the stored config
+                // never becomes invalid.
+                const nextFlash = draft.flash
+                  ? {
+                      ...draft.flash,
+                      target:
+                        v === 'row'
+                          ? ('row' as FlashTarget)
+                          : draft.flash.target === 'row'
+                            ? ('cells' as FlashTarget)
+                            : draft.flash.target,
+                    }
+                  : undefined;
+                setDraft({ scope: next, flash: nextFlash });
+              }}
+              style={{ width: '100%', height: 28, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+            >
+              <option value="cell">CELL</option>
+              <option value="row">ROW</option>
+            </Select>
+          }
+        />
+        <MetaCell
+          label="PRIORITY"
+          value={
+            <IconInput
+              numeric
+              value={String(draft.priority)}
+              onCommit={(v) => {
+                const n = Number(v);
+                if (Number.isFinite(n)) setDraft({ priority: Math.max(0, Math.min(100, Math.round(n))) });
+              }}
+              data-testid={`cs-rule-priority-${ruleId}`}
+            />
+          }
+        />
+        <MetaCell
+          label="APPLIED"
+          value={<Mono color="var(--ck-amber)">{appliedCount} rows</Mono>}
+        />
+      </div>
+
+      {/* 01 — EXPRESSION */}
+      <Band index="01" title="EXPRESSION">
+        <div
+          style={{
+            border: `1px solid var(${!validation.valid ? '--ck-red' : '--ck-border'})`,
+            borderRadius: 2,
+            background: 'var(--ck-bg)',
+            overflow: 'hidden',
+          }}
+        >
+          <ExpressionEditor
+            value={draft.expression}
+            onCommit={(v) => setDraft({ expression: v })}
+            multiline
+            lines={3}
+            fontSize={12}
+            placeholder="[price] > 110"
+            columnsProvider={columnsProvider}
+            data-testid={`cs-rule-expression-${ruleId}`}
+          />
+        </div>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 10,
+            color: 'var(--ck-t3)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
+        >
+          TYPE <code style={{ fontFamily: 'var(--ck-font-mono)', color: 'var(--ck-t1)', textTransform: 'none' }}>[</code> FOR COLUMNS · <code style={{ fontFamily: 'var(--ck-font-mono)', color: 'var(--ck-t1)', textTransform: 'none' }}>⌘↵</code> TO SAVE · USE <code style={{ fontFamily: 'var(--ck-font-mono)', color: 'var(--ck-t1)', textTransform: 'none' }}>data.field</code> FOR RAW
+        </div>
+        {!validation.valid && validation.errors[0]?.message && (
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 11,
+              color: 'var(--ck-red)',
+              background: 'var(--ck-red-bg)',
+              border: '1px solid var(--ck-red)',
+              borderRadius: 2,
+              padding: '6px 8px',
+              fontFamily: 'var(--ck-font-mono)',
+            }}
+          >
+            {validation.errors[0].message}
+          </div>
+        )}
+      </Band>
+
+      {/* Target columns (only for cell scope) */}
+      {draft.scope.type === 'cell' && (
+        <Band index="02" title="TARGET COLUMNS">
+          <ColumnPickerMulti
+            value={draft.scope.columns ?? []}
+            onChange={(cols) => setDraft({ scope: { type: 'cell', columns: cols } })}
+          />
+        </Band>
       )}
+
+      {/* 03… — shared StyleEditor (automatically continues numbering) */}
+      <StyleEditor
+        value={toStyleEditorValue(draft.style)}
+        onChange={(patch) => {
+          const merged = { ...toStyleEditorValue(draft.style), ...patch };
+          setDraft({ style: fromStyleEditorValue(draft.style, merged) });
+        }}
+        sections={['text', 'color', 'border', 'format']}
+        dataType="number"
+        data-testid={`cs-rule-style-editor-${ruleId}`}
+      />
+
+      {/* FLASH — fires AG-Grid's flashCells API on matching cell-value
+          changes. Row-scope rules can only flash the row; cell-scope
+          rules can flash cells, headers, or both. */}
+      <Band index="07" title="FLASH ON MATCH">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Switch
+            checked={Boolean(draft.flash?.enabled)}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              if (!enabled) {
+                // Disable — keep the rest of the flash config so re-enabling
+                // restores the previous target.
+                setDraft({
+                  flash: draft.flash ? { ...draft.flash, enabled: false } : undefined,
+                });
+                return;
+              }
+              const defaultTarget: FlashTarget = draft.scope.type === 'row' ? 'row' : 'cells';
+              setDraft({
+                flash: {
+                  enabled: true,
+                  target: draft.flash?.target ?? defaultTarget,
+                  flashDuration: draft.flash?.flashDuration,
+                  fadeDuration: draft.flash?.fadeDuration,
+                },
+              });
+            }}
+            data-testid={`cs-rule-flash-enabled-${ruleId}`}
+          />
+          <Mono color={draft.flash?.enabled ? 'var(--ck-green)' : 'var(--ck-t2)'} size={11}>
+            {draft.flash?.enabled ? 'ON' : 'OFF'}
+          </Mono>
+
+          {/* Target picker */}
+          {draft.flash?.enabled && draft.scope.type === 'cell' && (
+            <>
+              <SubLabel>TARGET</SubLabel>
+              <PillToggleGroup>
+                {(
+                  [
+                    ['cells', 'CELLS'],
+                    ['headers', 'HEADERS'],
+                    ['cells+headers', 'BOTH'],
+                  ] as ReadonlyArray<[FlashTarget, string]>
+                ).map(([value, label]) => (
+                  <PillToggleBtn
+                    key={value}
+                    active={draft.flash?.target === value}
+                    onClick={() =>
+                      setDraft({
+                        flash: {
+                          enabled: true,
+                          target: value,
+                          flashDuration: draft.flash?.flashDuration,
+                          fadeDuration: draft.flash?.fadeDuration,
+                        },
+                      })
+                    }
+                    style={{
+                      height: 24,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      padding: '0 10px',
+                      minWidth: 56,
+                    }}
+                    data-testid={`cs-rule-flash-target-${value}-${ruleId}`}
+                  >
+                    {label}
+                  </PillToggleBtn>
+                ))}
+              </PillToggleGroup>
+            </>
+          )}
+          {draft.flash?.enabled && draft.scope.type === 'row' && (
+            <Caps size={10} color="var(--ck-t2)">
+              TARGETS ENTIRE ROW
+            </Caps>
+          )}
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <Caps size={9} color="var(--ck-t3)">
+            Flashes AG-Grid's built-in highlight when a cell value change causes this rule to match.
+          </Caps>
+        </div>
+      </Band>
+
+      <div style={{ height: 20 }} />
+      </div>
+    </div>
+  );
+});
+
+// ─── Legacy flat panel (fallback for hosts that don't use master-detail) ────
+
+export function ConditionalStylingPanel() {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  return (
+    <div data-testid="cs-panel" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}>
+      <aside
+        style={{
+          borderRight: '1px solid var(--ck-border)',
+          overflowY: 'auto',
+          background: 'var(--ck-surface)',
+        }}
+      >
+        <ConditionalStylingList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
+      </aside>
+      <section style={{ overflowY: 'auto' }}>
+        <ConditionalStylingEditor gridId="" selectedId={selectedId} />
+      </section>
     </div>
   );
 }

@@ -176,6 +176,21 @@ export class Parser {
       return { type: 'columnRef', columnId: token.value };
     }
 
+    // `[identifier]` — column reference (Excel/Tableau-style). Peek one and
+    // two tokens ahead: only LBRACKET + IDENTIFIER + RBRACKET (no comma, no
+    // operator inside) gets disambiguated as a column ref. Everything else
+    // — `[1, 2]`, `[x > 0]`, `[price, qty]`, the `IN [...]` RHS — falls
+    // through to the array-literal branch below, so existing expressions
+    // keep parsing identically.
+    if (token.type === 'LBRACKET'
+      && this.tokens[this.pos + 1]?.type === 'IDENTIFIER'
+      && this.tokens[this.pos + 2]?.type === 'RBRACKET') {
+      this.advance(); // [
+      const id = this.advance(); // identifier
+      this.advance(); // ]
+      return { type: 'columnRef', columnId: id.value };
+    }
+
     // Array literal
     if (token.type === 'LBRACKET') {
       this.advance();

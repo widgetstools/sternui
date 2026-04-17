@@ -51,6 +51,42 @@ async function clearV2Storage(page: Page) {
  * class AG-Grid emits — no broad `[class*="gc-rule-"]` matches that could be
  * fooled by a leftover rule from another test.
  */
+async function setExpressionViaMonaco(page: Page, expression: string) {
+  // Monaco is lazy-loaded; wait until it's mounted.
+  await page.waitForFunction(
+    () => !!(window as any).monaco?.editor?.getEditors?.().length,
+    { timeout: 10_000 },
+  );
+  // Use Monaco's API to replace the model value (this fires the content-change
+  // event the ExpressionEditor listens to for the live stream), then focus
+  // the editor and dispatch a blur via Playwright's keyboard so the
+  // onDidBlurEditorWidget handler runs — that's the event that triggers the
+  // ExpressionEditor's onCommit path.
+  await page.evaluate((value: string) => {
+    const editor = (window as any).monaco.editor.getEditors()[0];
+    if (!editor) return;
+    editor.setValue(value);
+    editor.focus();
+  }, expression);
+  // Tab out of the Monaco editor to fire its blur handler. Autocomplete is
+  // suppressed by pressing Escape first so the Tab doesn't insert a
+  // completion suggestion.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  // Small settle for React state → Save button enabled.
+  await page.waitForTimeout(100);
+}
+
+/** Click the per-card SAVE pill for the currently-open rule editor. */
+async function saveActiveRule(page: Page): Promise<string> {
+  const editor = page.locator('[data-testid="cs-rule-editor"]');
+  const ruleId = await editor.evaluate(
+    (el) => el.getAttribute('data-rule-testid')!.replace('cs-rule-editor-', ''),
+  );
+  await page.locator(`[data-testid="cs-rule-save-${ruleId}"]`).click();
+  return ruleId;
+}
+
 async function addCellRule(
   page: Page,
   opts: { colId: string; expression: string },
@@ -58,25 +94,20 @@ async function addCellRule(
   await page.locator('[data-testid="v2-settings-open-btn"]').click();
   await expect(page.locator('[data-testid="cs-panel"]')).toBeVisible();
 
-  const beforeIds = await page
-    .locator('[data-testid^="cs-rule-card-"]')
-    .evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')!.replace('cs-rule-card-', '')));
-
   await page.locator('[data-testid="cs-add-rule-btn"]').click();
   await expect(page.locator('[data-testid="cs-rule-editor"]')).toBeVisible();
 
+  // New rules default to row scope; flip to cell to expose the column picker.
+  const scopeSelect = page
+    .locator('[data-testid="cs-rule-editor"] select:not(.gc-cs-col-add)')
+    .first();
+  await scopeSelect.selectOption('cell');
+  await expect(page.locator('select.gc-cs-col-add')).toHaveCount(1);
+
   await page.locator('select.gc-cs-col-add').selectOption(opts.colId);
+  await setExpressionViaMonaco(page, opts.expression);
 
-  const exprInput = page.locator('[data-testid="cs-rule-expression-input"]');
-  await exprInput.fill(opts.expression);
-  await exprInput.blur();
-
-  // Find the new card by diffing against the pre-add snapshot.
-  const afterIds = await page
-    .locator('[data-testid^="cs-rule-card-"]')
-    .evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')!.replace('cs-rule-card-', '')));
-  const newId = afterIds.find((id) => !beforeIds.includes(id));
-  if (!newId) throw new Error('Could not identify newly-added rule id');
+  const newId = await saveActiveRule(page);
 
   await page.locator('[data-testid="v2-settings-done-btn"]').click();
   return newId;
@@ -86,32 +117,15 @@ async function addRowRule(page: Page, expression: string): Promise<string> {
   await page.locator('[data-testid="v2-settings-open-btn"]').click();
   await expect(page.locator('[data-testid="cs-panel"]')).toBeVisible();
 
-  const beforeIds = await page
-    .locator('[data-testid^="cs-rule-card-"]')
-    .evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')!.replace('cs-rule-card-', '')));
-
   await page.locator('[data-testid="cs-add-rule-btn"]').click();
   await expect(page.locator('[data-testid="cs-rule-editor"]')).toBeVisible();
 
-  // Switch the new rule's scope from cell → row. The editor renders three
-  // <select> elements; in DOM order the first non-column-picker select is
-  // Scope (the column picker carries `.gc-cs-col-add`).
-  const scopeSelect = page
-    .locator('[data-testid="cs-rule-editor"] select:not(.gc-cs-col-add)')
-    .first();
-  await scopeSelect.selectOption('row');
-  // The column picker unmounts when scope flips to row.
+  // New rules already default to row scope; the column picker should not
+  // render.
   await expect(page.locator('select.gc-cs-col-add')).toHaveCount(0);
 
-  const exprInput = page.locator('[data-testid="cs-rule-expression-input"]');
-  await exprInput.fill(expression);
-  await exprInput.blur();
-
-  const afterIds = await page
-    .locator('[data-testid^="cs-rule-card-"]')
-    .evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')!.replace('cs-rule-card-', '')));
-  const newId = afterIds.find((id) => !beforeIds.includes(id));
-  if (!newId) throw new Error('Could not identify newly-added rule id');
+  await setExpressionViaMonaco(page, expression);
+  const newId = await saveActiveRule(page);
 
   await page.locator('[data-testid="v2-settings-done-btn"]').click();
   return newId;
