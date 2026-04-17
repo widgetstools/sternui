@@ -296,6 +296,13 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
           theme={theme}
           rowData={rowData}
           columnDefs={columnDefs as never}
+          // `maintainColumnOrder: true` preserves the user's drag-reordered
+          // column positions when `columnDefs` re-derives (which happens
+          // on every module-state change — applying a toolbar format
+          // otherwise reset the ordering to the base columnDefs order
+          // because AG-Grid's default behaviour is to match the current
+          // columnDefs order on every update).
+          maintainColumnOrder
           rowHeight={rowHeight}
           headerHeight={headerHeight}
           animateRows={animateRows}
