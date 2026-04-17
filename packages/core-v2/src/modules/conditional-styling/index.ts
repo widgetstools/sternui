@@ -18,7 +18,9 @@ import {
   type ConditionalRule,
   type ConditionalStylingState,
   type FlashTarget,
+  type RuleIndicator,
 } from './state';
+import { findIndicatorIcon, iconAsDataUrl } from './indicatorIcons';
 
 // ─── Per-grid singletons ────────────────────────────────────────────────────
 //
@@ -184,12 +186,69 @@ function borderOverlayCSS(selector: string, style: CellStyleProperties): string 
  * their `.gc-rule-<id>` class applied to rows but the matching CSS never
  * took effect because the selector didn't match the demo's theme signal.
  */
+/**
+ * Build the CSS declaration(s) for the indicator badge.
+ *
+ * The badge is a `::before` pseudo-element on `.gc-rule-{id}`. It
+ * rides on the same class the predicate attaches, so the badge
+ * appears and disappears in lockstep with the match — no runtime
+ * listener needed.
+ *
+ * Target scoping:
+ *   - `cells`           → selector is narrowed to `.ag-cell.gc-rule-{id}`
+ *                          so the header watcher painting the class on
+ *                          a header cell doesn't produce a badge.
+ *   - `headers`         → narrowed to `.ag-header-cell.gc-rule-{id}` so
+ *                          the cellClassRules painting the class on
+ *                          cells doesn't produce a badge.
+ *   - `cells+headers`   → unscoped `.gc-rule-{id}` — both surfaces.
+ *
+ * Position: top-right is default. top-left flips the anchor.
+ */
+function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefined): string {
+  if (!indicator) return '';
+  const def = findIndicatorIcon(indicator.icon);
+  if (!def) return '';
+  const color = indicator.color || 'currentColor';
+  const url = iconAsDataUrl(def, color);
+
+  const target = indicator.target ?? 'cells+headers';
+  const selector =
+    target === 'cells'
+      ? `.ag-cell${ruleCls}`
+      : target === 'headers'
+        ? `.ag-header-cell${ruleCls}`
+        : ruleCls;
+
+  const pos = indicator.position ?? 'top-right';
+  const anchor = pos === 'top-left' ? 'left: 2px' : 'right: 2px';
+
+  // The badge uses `::before` so the existing `::after` border overlay
+  // stays untouched. 12×12 sits comfortably above short numeric cells
+  // without crowding the value.
+  return `${selector}::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    ${anchor};
+    width: 12px;
+    height: 12px;
+    background-image: url("${url}");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+    z-index: 2;
+  }`;
+}
+
 function buildCssText(
   ruleId: string,
   scopeType: 'cell' | 'row',
   light: CellStyleProperties,
   dark: CellStyleProperties,
   pulse: { enabled: boolean; scope: 'cell' | 'row'; target: FlashTarget } | null = null,
+  indicator: RuleIndicator | undefined = undefined,
 ): string {
   const cls = `.gc-rule-${ruleId}`;
   const lightProps = styleToCSS(light);
@@ -220,6 +279,10 @@ function buildCssText(
   ) {
     lines.push(`${cls} { animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out; }`);
   }
+
+  // ── Indicator badge (top-right ::before) ──
+  const indicatorCss = indicatorOverlayCSS(cls, indicator);
+  if (indicatorCss) lines.push(indicatorCss);
 
   // ── Row-scope separator kill ──
   // When the class lands on `.ag-row`, AG-Grid's own `border-bottom`
@@ -262,7 +325,14 @@ function reinjectAllRules(injector: CssInjector, rules: ConditionalRule[]): void
       : null;
     injector.addRule(
       `conditional-${rule.id}`,
-      buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, pulse),
+      buildCssText(
+        rule.id,
+        rule.scope.type,
+        rule.style.light,
+        rule.style.dark,
+        pulse,
+        rule.indicator,
+      ),
     );
   }
 }
@@ -414,57 +484,98 @@ function attachHeaderFlashWatcher(
     const state = ctx.getModuleState<ConditionalStylingState>('conditional-styling');
     const { engine } = resources;
 
-    // Collect all (ruleId, colId) pairs we need to check. Headers are
-    // cell-scope only — row-scope rules don't have a column to paint.
-    const headerRules = state.rules.filter(
+    // A rule is eligible to paint a header when:
+    //   - its scope is `cell` (row-scope rules have no column home);
+    //   - its flash target includes `headers`, OR
+    //   - its indicator is set (the indicator rides the same "any row
+    //     in this column matches" semantics the pulse uses).
+    const headerFlashRules = state.rules.filter(
       (r) =>
         r.enabled &&
         r.flash?.enabled &&
         r.scope.type === 'cell' &&
         (r.flash.target === 'headers' || r.flash.target === 'cells+headers'),
     );
+    const headerIndicatorRules = state.rules.filter((r) => {
+      if (!r.enabled || r.scope.type !== 'cell' || !r.indicator?.icon) return false;
+      // Only rules whose indicator target explicitly covers headers
+      // should paint the rule class on the header DOM. Default is
+      // 'cells+headers' for backward-compat with the first indicator
+      // release.
+      const target = r.indicator.target ?? 'cells+headers';
+      return target === 'headers' || target === 'cells+headers';
+    });
 
-    // STEP 1: clear every currently-pulsing header. This handles the
-    // case where the user disables a rule (or flips its target off
-    // "headers") — those columns are no longer in `headerRules`, so
-    // iterating only the current rule set would never touch them and
-    // the stale `.gc-flash-hdr-pulse` class would stick forever.
+    // STEP 1: wipe every currently-painted header state. Two class
+    // families: pulse + per-rule indicator. Clearing both on every
+    // evaluate is how disabling a rule (or changing its target) cleans
+    // up stale paint that data events alone wouldn't touch.
     document.querySelectorAll('.ag-header-cell.gc-flash-hdr-pulse').forEach((el) => {
       el.classList.remove('gc-flash-hdr-pulse');
     });
+    document
+      .querySelectorAll('.ag-header-cell[class*=" gc-rule-"], .ag-header-cell[class^="gc-rule-"]')
+      .forEach((el) => {
+        [...el.classList].forEach((c) => {
+          if (c.startsWith('gc-rule-')) el.classList.remove(c);
+        });
+      });
 
-    // STEP 2: compute which columns should be pulsing now.
-    const columnsOn = new Set<string>();
-    for (const rule of headerRules) {
-      if (rule.scope.type !== 'cell') continue;
+    // STEP 2: compute which columns should be painted now.
+    const iter = api.forEachNodeAfterFilter ?? api.forEachNode;
+    if (!iter) return;
+
+    const pulseColumnsOn = new Set<string>();
+    // Per-rule: columns where ANY row matches → indicator shows.
+    const indicatorColumnsOn = new Map<string, Set<string>>(); // ruleId → Set<colId>
+
+    const evalAnyRowMatches = (rule: ConditionalRule): boolean => {
       let anyMatch = false;
-      const iter = api.forEachNodeAfterFilter ?? api.forEachNode;
-      if (!iter) continue;
       iter.call(api, (node) => {
         if (anyMatch) return;
         const data = node.data ?? {};
         try {
-          const ok = Boolean(
+          if (
             engine.parseAndEvaluate(rule.expression, {
               x: null,
               value: null,
               data,
               columns: data,
-            }),
-          );
-          if (ok) anyMatch = true;
+            })
+          ) {
+            anyMatch = true;
+          }
         } catch {
           /* swallow per-row errors */
         }
       });
-      if (anyMatch) {
-        for (const colId of rule.scope.columns) columnsOn.add(colId);
+      return anyMatch;
+    };
+
+    for (const rule of headerFlashRules) {
+      if (rule.scope.type !== 'cell') continue;
+      if (evalAnyRowMatches(rule)) {
+        for (const colId of rule.scope.columns) pulseColumnsOn.add(colId);
+      }
+    }
+    for (const rule of headerIndicatorRules) {
+      if (rule.scope.type !== 'cell') continue;
+      if (evalAnyRowMatches(rule)) {
+        indicatorColumnsOn.set(rule.id, new Set(rule.scope.columns));
       }
     }
 
     // STEP 3: paint the qualifying columns.
-    for (const colId of columnsOn) {
+    for (const colId of pulseColumnsOn) {
       togglePulseHeader(colId, true);
+    }
+    for (const [ruleId, cols] of indicatorColumnsOn) {
+      for (const colId of cols) {
+        const nodes = document.querySelectorAll(
+          `.ag-header-cell[col-id="${CSS.escape(colId)}"]`,
+        );
+        nodes.forEach((el) => el.classList.add(`gc-rule-${ruleId}`));
+      }
     }
   };
 
@@ -603,23 +714,52 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     // so the runtime never sees a partially-valid state.
     return {
       rules: rules.map((r) => {
-        if (!r.flash) return r;
-        const { enabled, target, flashDuration, fadeDuration } = r.flash;
-        const scope = r.scope?.type ?? 'cell';
-        const allowed: Record<string, true> =
-          scope === 'row'
-            ? { row: true }
-            : { cells: true, headers: true, 'cells+headers': true };
-        const normalizedTarget = allowed[target as string] ? target : scope === 'row' ? 'row' : 'cells';
-        return {
-          ...r,
-          flash: {
-            enabled: Boolean(enabled),
-            target: normalizedTarget,
-            ...(typeof flashDuration === 'number' ? { flashDuration } : {}),
-            ...(typeof fadeDuration === 'number' ? { fadeDuration } : {}),
-          },
-        };
+        let next = r;
+        if (r.flash) {
+          const { enabled, target, flashDuration, fadeDuration } = r.flash;
+          const scope = r.scope?.type ?? 'cell';
+          const allowed: Record<string, true> =
+            scope === 'row'
+              ? { row: true }
+              : { cells: true, headers: true, 'cells+headers': true };
+          const normalizedTarget = allowed[target as string] ? target : scope === 'row' ? 'row' : 'cells';
+          next = {
+            ...next,
+            flash: {
+              enabled: Boolean(enabled),
+              target: normalizedTarget,
+              ...(typeof flashDuration === 'number' ? { flashDuration } : {}),
+              ...(typeof fadeDuration === 'number' ? { fadeDuration } : {}),
+            },
+          };
+        }
+        // Indicator: accept only the two known keys so legacy / malformed
+        // payloads don't pollute the state. Drop the block entirely when
+        // the icon key is missing — the UI treats absence as "no badge".
+        if (r.indicator && typeof r.indicator === 'object') {
+          const { icon, color, target, position } = r.indicator;
+          if (typeof icon === 'string' && icon.length > 0) {
+            const normalizedTarget: 'cells' | 'headers' | 'cells+headers' =
+              target === 'cells' || target === 'headers' || target === 'cells+headers'
+                ? target
+                : 'cells+headers';
+            const normalizedPosition: 'top-left' | 'top-right' =
+              position === 'top-left' ? 'top-left' : 'top-right';
+            next = {
+              ...next,
+              indicator: {
+                icon,
+                target: normalizedTarget,
+                position: normalizedPosition,
+                ...(typeof color === 'string' && color.length > 0 ? { color } : {}),
+              },
+            };
+          } else {
+            const { indicator: _drop, ...rest } = next;
+            next = rest;
+          }
+        }
+        return next;
       }),
     };
   },
@@ -644,7 +784,12 @@ export type {
   ConditionalStylingState,
   FlashConfig,
   FlashTarget,
+  IndicatorPosition,
+  IndicatorTarget,
+  RuleIndicator,
   RuleScope,
   ThemeAwareStyle,
 } from './state';
+export { INDICATOR_ICONS, findIndicatorIcon } from './indicatorIcons';
+export type { IndicatorIconDef } from './indicatorIcons';
 export { INITIAL_CONDITIONAL_STYLING } from './state';

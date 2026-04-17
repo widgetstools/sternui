@@ -48,6 +48,38 @@ export interface FlashConfig {
   fadeDuration?: number;
 }
 
+/**
+ * Which surface(s) the indicator badge paints on when the rule
+ * matches. Cells = the matching data cells; headers = the column
+ * header(s) owning those cells.
+ */
+export type IndicatorTarget = 'cells' | 'headers' | 'cells+headers';
+
+/** Corner of the cell / header to anchor the badge at. */
+export type IndicatorPosition = 'top-left' | 'top-right';
+
+/**
+ * Optional badge drawn on every cell and/or header that currently
+ * matches the rule. Rendered via a CSS `::before` pseudo-element so
+ * there's no per-cell React work and no conflict with AG-Grid's
+ * default cell renderer recycling.
+ */
+export interface RuleIndicator {
+  /** Key from `INDICATOR_ICONS` (see `./indicatorIcons.ts`). When the
+   *  key is unknown (legacy data, renamed icon), the runtime silently
+   *  renders no badge — it does NOT fall back to a default so the UX
+   *  stays predictable. */
+  icon: string;
+  /** CSS colour string. Defaults to `currentColor` (inherits from the
+   *  cell's text colour) when omitted. */
+  color?: string;
+  /** Where to paint. Default `cells+headers` — matches the zero-config
+   *  behaviour that shipped first. */
+  target?: IndicatorTarget;
+  /** Corner anchor. Default `top-right`. */
+  position?: IndicatorPosition;
+}
+
 export interface ConditionalRule {
   id: string;
   name: string;
@@ -62,6 +94,8 @@ export interface ConditionalRule {
    *  evaluate truthy. Uses AG-Grid's `flashCells()` for row/cell targets
    *  and a CSS keyframes animation for header targets. */
   flash?: FlashConfig;
+  /** Optional top-right badge drawn on every matching cell + header. */
+  indicator?: RuleIndicator;
 }
 
 export interface ConditionalStylingState {

@@ -1,6 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2 } from 'lucide-react';
-import { ExpressionEditor, ExpressionEngine, Select, Switch } from '@grid-customizer/core';
+import {
+  ExpressionEditor,
+  ExpressionEngine,
+  FormatColorPicker,
+  FormatPopover,
+  Select,
+  Switch,
+} from '@grid-customizer/core';
 import type { EditorPaneProps, ListPaneProps } from '../../core/types';
 import { useGridCore, useGridStore } from '../../ui/GridContext';
 import { useDraftModuleItem } from '../../store/useDraftModuleItem';
@@ -20,7 +27,15 @@ import {
   TitleInput,
 } from '../../ui/SettingsPanel';
 import { StyleEditor } from '../../ui/StyleEditor';
-import type { ConditionalRule, ConditionalStylingState, FlashTarget } from './state';
+import type {
+  ConditionalRule,
+  ConditionalStylingState,
+  FlashTarget,
+  IndicatorPosition,
+  IndicatorTarget,
+  RuleIndicator,
+} from './state';
+import { INDICATOR_ICONS, findIndicatorIcon } from './indicatorIcons';
 import { fromStyleEditorValue, toStyleEditorValue } from './styleBridge';
 
 /**
@@ -691,11 +706,332 @@ const RuleEditor = memo(function RuleEditor({
         </div>
       </Band>
 
+      {/* INDICATOR — small top-right badge drawn on every matching cell
+          (and matching headers) as a `::before` SVG. Opt-in per rule:
+          an off selection clears `indicator` entirely so the persisted
+          state stays lean. */}
+      <Band index="08" title="INDICATOR">
+        <IndicatorPicker
+          value={draft.indicator}
+          onChange={(next) => setDraft({ indicator: next })}
+          ruleId={ruleId}
+        />
+      </Band>
+
       <div style={{ height: 20 }} />
       </div>
     </div>
   );
 });
+
+// ─── IndicatorPicker ───────────────────────────────────────────────────────
+//
+// Curated icon grid (clickable preview swatches) + a colour-picker
+// trigger + a "no indicator" clear pill. Renders the live lucide icon
+// at button size so the user can see exactly what's about to paint on
+// every matching cell.
+
+const INDICATOR_GROUP_LABELS: Record<string, string> = {
+  direction: 'Direction',
+  alert: 'Alert',
+  status: 'Status',
+  lifecycle: 'Lifecycle',
+  favorite: 'Favorite',
+  classification: 'Classification',
+};
+
+/**
+ * Render the inline SVG for an indicator icon def directly. Avoids
+ * pulling every possible lucide-react component into the bundle just
+ * to preview the curated list — we already own the icon bodies.
+ */
+function IndicatorIconPreview({
+  iconKey,
+  color = 'currentColor',
+  size = 14,
+}: {
+  iconKey: string;
+  color?: string;
+  size?: number;
+}) {
+  const def = findIndicatorIcon(iconKey);
+  if (!def) return null;
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke={color}
+      strokeWidth={2.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      dangerouslySetInnerHTML={{ __html: def.body.replaceAll('currentColor', color) }}
+    />
+  );
+}
+
+function IndicatorPicker({
+  value,
+  onChange,
+  ruleId,
+}: {
+  value: RuleIndicator | undefined;
+  onChange: (next: RuleIndicator | undefined) => void;
+  ruleId: string;
+}) {
+  const groups = useMemo(() => {
+    const grouped: Record<string, Array<(typeof INDICATOR_ICONS)[number]>> = {};
+    for (const i of INDICATOR_ICONS) {
+      (grouped[i.group] ??= []).push(i);
+    }
+    return grouped;
+  }, []);
+
+  const color = value?.color || '#f59e0b';
+  const currentTarget: IndicatorTarget = value?.target ?? 'cells+headers';
+  const currentPosition: IndicatorPosition = value?.position ?? 'top-right';
+
+  /** Tiny helper so every pill updates the indicator without nuking the
+   *  other fields — we only ever patch one dimension at a time. */
+  const patch = (next: Partial<RuleIndicator>) => {
+    if (!value?.icon) return;
+    onChange({ ...value, ...next });
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Top bar: current selection + clear */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span
+          aria-label="Current indicator"
+          style={{
+            width: 28,
+            height: 28,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid var(--ck-border-hi)',
+            borderRadius: 2,
+            background: 'var(--ck-bg)',
+          }}
+        >
+          {value?.icon ? (
+            <IndicatorIconPreview iconKey={value.icon} color={color} size={14} />
+          ) : (
+            <Caps size={9} color="var(--ck-t3)">
+              NONE
+            </Caps>
+          )}
+        </span>
+        <Caps size={10} color="var(--ck-t2)">
+          {value?.icon ? findIndicatorIcon(value.icon)?.label ?? value.icon : 'No indicator'}
+        </Caps>
+
+        <span style={{ flex: 1 }} />
+
+        {/* Colour swatch — shared FormatColorPicker via popover. Same
+            trigger pattern as the BorderStyleEditor so the app stays
+            on a single colour-picking surface everywhere. */}
+        {value?.icon && (
+          <FormatPopover
+            width={240}
+            trigger={
+              <button
+                type="button"
+                title="Indicator colour"
+                data-testid={`cs-rule-indicator-color-${ruleId}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '2px 8px 2px 2px',
+                  background: 'var(--ck-bg, var(--background))',
+                  border: '1px solid var(--ck-border-hi, var(--border))',
+                  borderRadius: 2,
+                  height: 28,
+                  cursor: 'pointer',
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 18,
+                    height: 18,
+                    background: color,
+                    border: '1px solid var(--ck-border-hi, var(--border))',
+                    borderRadius: 2,
+                    display: 'inline-block',
+                  }}
+                />
+                <Caps size={9} color="var(--ck-t2)">
+                  {color.startsWith('#') ? color.toUpperCase() : 'COLOR'}
+                </Caps>
+              </button>
+            }
+          >
+            <FormatColorPicker
+              value={color}
+              onChange={(c) => {
+                if (c) onChange({ ...(value as RuleIndicator), color: c });
+              }}
+              allowClear={false}
+            />
+          </FormatPopover>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onChange(undefined)}
+          disabled={!value?.icon}
+          style={{
+            height: 28,
+            padding: '0 10px',
+            background: 'transparent',
+            border: '1px solid var(--ck-border-hi)',
+            borderRadius: 2,
+            color: value?.icon ? 'var(--ck-red, var(--destructive))' : 'var(--ck-t3)',
+            cursor: value?.icon ? 'pointer' : 'default',
+            fontFamily: 'var(--ck-font-sans)',
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            opacity: value?.icon ? 1 : 0.5,
+          }}
+          data-testid={`cs-rule-indicator-clear-${ruleId}`}
+        >
+          CLEAR
+        </button>
+      </div>
+
+      {/* Target + Position — only meaningful when an icon is picked */}
+      {value?.icon && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SubLabel>TARGET</SubLabel>
+            <PillToggleGroup>
+              {(
+                [
+                  ['cells', 'CELLS'],
+                  ['headers', 'HEADERS'],
+                  ['cells+headers', 'BOTH'],
+                ] as ReadonlyArray<[IndicatorTarget, string]>
+              ).map(([v, label]) => (
+                <PillToggleBtn
+                  key={v}
+                  active={currentTarget === v}
+                  onClick={() => patch({ target: v })}
+                  style={{
+                    height: 24,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    padding: '0 10px',
+                    minWidth: 56,
+                  }}
+                  data-testid={`cs-rule-indicator-target-${v}-${ruleId}`}
+                >
+                  {label}
+                </PillToggleBtn>
+              ))}
+            </PillToggleGroup>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SubLabel>POSITION</SubLabel>
+            <PillToggleGroup>
+              {(
+                [
+                  ['top-left', 'TL'],
+                  ['top-right', 'TR'],
+                ] as ReadonlyArray<[IndicatorPosition, string]>
+              ).map(([v, label]) => (
+                <PillToggleBtn
+                  key={v}
+                  active={currentPosition === v}
+                  onClick={() => patch({ position: v })}
+                  title={v === 'top-left' ? 'Top left' : 'Top right'}
+                  style={{
+                    height: 24,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    padding: '0 10px',
+                    minWidth: 36,
+                  }}
+                  data-testid={`cs-rule-indicator-position-${v}-${ruleId}`}
+                >
+                  {label}
+                </PillToggleBtn>
+              ))}
+            </PillToggleGroup>
+          </div>
+        </div>
+      )}
+
+      {/* Grouped icon grid */}
+      {Object.entries(groups).map(([group, icons]) => (
+        <div key={group}>
+          <SubLabel>{INDICATOR_GROUP_LABELS[group] ?? group}</SubLabel>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(28px, 1fr))',
+              gap: 4,
+              marginTop: 4,
+            }}
+          >
+            {icons.map((i) => {
+              const active = value?.icon === i.key;
+              return (
+                <button
+                  key={i.key}
+                  type="button"
+                  title={i.label}
+                  aria-label={i.label}
+                  onClick={() =>
+                    onChange({
+                      icon: i.key,
+                      target: value?.target ?? 'cells+headers',
+                      position: value?.position ?? 'top-right',
+                      ...(value?.color ? { color: value.color } : {}),
+                    })
+                  }
+                  style={{
+                    width: '100%',
+                    height: 28,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: active ? 'var(--ck-green-bg)' : 'var(--ck-bg)',
+                    border: `1px solid ${active ? 'var(--ck-green)' : 'var(--ck-border-hi)'}`,
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    color: active ? 'var(--ck-green)' : 'var(--ck-t1)',
+                    padding: 0,
+                    transition: 'background 120ms, border-color 120ms',
+                  }}
+                  data-testid={`cs-rule-indicator-icon-${i.key}-${ruleId}`}
+                >
+                  <IndicatorIconPreview
+                    iconKey={i.key}
+                    color={active ? color : 'currentColor'}
+                    size={14}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <Caps size={9} color="var(--ck-t3)">
+        Shown as a 12×12 badge on the top-right of every cell (and column header) currently matching this rule.
+      </Caps>
+    </div>
+  );
+}
 
 // ─── Legacy flat panel (fallback for hosts that don't use master-detail) ────
 
