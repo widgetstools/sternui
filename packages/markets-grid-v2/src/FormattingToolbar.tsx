@@ -54,8 +54,6 @@ import {
   type ValueFormatterTemplate,
   resolveTemplates,
   useModuleState,
-  isValidExcelFormat,
-  presetToExcelFormat,
 } from '@grid-customizer/core-v2';
 import {
   Undo2, Redo2, Bold, Italic, Underline,
@@ -717,39 +715,6 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   // ─── Excel-format text input state ──────────────────────────────────────
   //
   // Local draft + commit-on-blur/Enter so typing doesn't spam the store.
-  // Seeded from the active column's current formatter every time the
-  // selection changes — if the user is in the middle of editing (`focused`),
-  // we skip the sync so we don't clobber their in-progress typing.
-  const excelInputRef = useRef<HTMLInputElement | null>(null);
-  const [excelDraft, setExcelDraft] = useState('');
-  const [excelFocused, setExcelFocused] = useState(false);
-  // Seed from current template when the active column or its formatter changes.
-  const currentExcelEquivalent = useMemo(
-    () => presetToExcelFormat(fmt.valueFormatterTemplate),
-    [fmt.valueFormatterTemplate],
-  );
-  useEffect(() => {
-    if (excelFocused) return;   // don't clobber in-flight edits
-    setExcelDraft(currentExcelEquivalent);
-  }, [currentExcelEquivalent, excelFocused]);
-
-  const commitExcel = useCallback(() => {
-    const v = excelDraft.trim();
-    if (v === '') {
-      // Empty input → clear the formatter entirely.
-      doFormat(undefined);
-      return;
-    }
-    if (!isValidExcelFormat(v)) {
-      // Keep the draft on screen so the user can fix it; aria-invalid is
-      // handled on the input directly.
-      return;
-    }
-    doFormat({ kind: 'excelFormat', format: v });
-  }, [excelDraft, doFormat]);
-
-  const excelDraftValid = excelDraft.length === 0 || isValidExcelFormat(excelDraft);
-
   // ─── Borders — delegated to the shared <BorderStyleEditor /> ───────────
   // The editor emits the full borders map on every change; we diff against
   // the current `fmt.borders` and issue exactly the writes needed so the
@@ -1094,48 +1059,16 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
           <span className="flex items-center gap-px text-[9px] font-mono">.0<ArrowRight size={9} strokeWidth={2} /></span>
         </TBtn>
         <div className="gc-toolbar-sep h-4 opacity-50" />
-        {/* Excel format-string input — power-user escape hatch. Commits on
-             blur or Enter; invalid format strings keep the draft on screen
-             but don't mutate state (red border via aria-invalid). */}
-        <Tooltip content={'Excel format string — e.g. #,##0.00 · $#,##0;(#,##0) · 0.00% · yyyy-mm-dd · [Red]#,##0'}>
-          <input
-            ref={excelInputRef}
-            type="text"
-            data-testid="fmt-excel-input"
-            disabled={disabled || isHeader}
-            value={excelDraft}
-            placeholder={currentExcelEquivalent || '#,##0.00'}
-            onChange={(e) => setExcelDraft(e.target.value)}
-            onFocus={() => setExcelFocused(true)}
-            onBlur={() => { setExcelFocused(false); commitExcel(); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); commitExcel(); excelInputRef.current?.blur(); }
-              else if (e.key === 'Escape') { e.preventDefault(); setExcelDraft(currentExcelEquivalent); excelInputRef.current?.blur(); }
-            }}
-            aria-invalid={!excelDraftValid}
-            style={{
-              width: 140,
-              height: 24,
-              padding: '0 6px',
-              fontSize: 10,
-              fontFamily: 'var(--fi-mono, "JetBrains Mono", Menlo, monospace)',
-              background: 'var(--bn-bg, #0b0e11)',
-              color: 'var(--bn-t0, #eaecef)',
-              border: `1px solid ${excelDraftValid ? 'var(--bn-border, #313944)' : 'var(--bn-red, #f87171)'}`,
-              borderRadius: 3,
-              outline: 'none',
-            }}
-          />
-        </Tooltip>
-        {/* ── Shared FormatterPicker — additive, collapsed by default so
-              it sits as a single chip next to the raw Excel input. The
-              existing numeric quick-buttons above still drive the same
-              column assignment; the picker surfaces structured presets
-              (including tick formats), a categorised Excel reference,
-              and a live preview chip for power users. Operates on the
-              same `ColumnAssignment.valueFormatterTemplate` field so
-              persistence rides column-customization's existing profile
-              pipeline. */}
+        {/* ── Shared FormatterPicker — collapsed by default so it sits
+              as a single chip. Surfaces structured presets (including
+              tick formats), a categorised Excel reference, validated
+              Excel input, and a live preview chip. Replaces the legacy
+              raw <input> Excel field — the picker's built-in input has
+              the same validation + placeholder semantics plus preset
+              round-trip. Writes to the same
+              `ColumnAssignment.valueFormatterTemplate` field that the
+              quick-buttons above drive, so persistence rides
+              column-customization's existing profile pipeline. */}
         <FormatterPicker
           dataType="number"
           value={vft}
