@@ -165,14 +165,39 @@ export function excelFormatter(format: string): Formatter {
 
   const { resolver, hasColors } = valid ? buildColorResolver(format) : { resolver: undefined, hasColors: false };
 
+  // Detect whether the format string uses date codes — `yyyy`, `mm`, `dd`,
+  // `hh`, `h`, `ss`, `yy`, `mmm`, `mmmm`. When it does, the formatter
+  // needs a real Date (or Excel serial) as input; string values like
+  // `"2026-04-17T05:37:16.092Z"` otherwise get fed directly to SSF which
+  // treats them as text and renders the raw ISO string.
+  const isDateFormat = /\b(yyyy|yy|mmmm|mmm|mm|m|dd|d|hh|h|ss|s|AM\/PM|am\/pm)\b/.test(format);
+
+  /**
+   * Coerce an incoming cell value into something SSF can format:
+   *   - Date objects pass through.
+   *   - ISO-8601-ish strings (starts with yyyy-mm-dd) → parsed into a Date.
+   *   - Numeric strings / numbers → numeric.
+   *   - Everything else → raw value (SSF's `@` text placeholder handles it).
+   */
+  const coerceValue = (value: unknown): unknown => {
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+      if (isDateFormat && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime())) return d;
+      }
+      const n = Number(value);
+      if (Number.isFinite(n)) return n;
+      return value;
+    }
+    if (typeof value === 'number') return value;
+    return value;
+  };
+
   const fn: Formatter = valid
     ? ({ value }) => {
         if (value == null || value === '') return '';
-        const n = typeof value === 'number' ? value : Number(value);
-        // SSF's format() accepts numbers for numeric codes and date serials
-        // for date codes; if the value isn't numeric, pass it through so the
-        // `@` text placeholder works for string values.
-        const target: unknown = Number.isFinite(n) ? n : value;
+        const target = coerceValue(value);
         try {
           return SSF.format(format, target as number);
         } catch {
