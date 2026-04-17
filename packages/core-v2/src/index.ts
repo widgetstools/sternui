@@ -8,6 +8,12 @@ export { GridCore } from './core/GridCore';
 export type { GridCoreOptions } from './core/GridCore';
 export { EventBus } from './core/EventBus';
 export { topoSortModules } from './core/topoSort';
+export {
+  inferCellDataType,
+  sampleColumn,
+  inferCellDataTypeFromRows,
+} from './core/inferCellDataType';
+export type { InferredCellDataType } from './core/inferCellDataType';
 
 export type {
   AnyColDef,

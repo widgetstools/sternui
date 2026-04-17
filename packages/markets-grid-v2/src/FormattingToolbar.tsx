@@ -640,6 +640,60 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     return `${colIds.length} columns`;
   }, [colIds, core]);
 
+  // First selected column's `cellDataType` — used to drive the
+  // FormatterPicker's preset filtering. When no column is selected or
+  // the column has no dataType set, fall back to 'number' (the most
+  // common case in this tool).
+  //
+  // We use an AG-Grid event subscription (rather than a pure useMemo
+  // over `colIds`) because the auto-detected types land on the colDefs
+  // AFTER the first `firstDataRendered` event, which triggers a
+  // `columnEverythingChanged` on the api — that's the signal we hook
+  // so the picker re-evaluates once the types are in.
+  const [colEventTick, setColEventTick] = useState(0);
+  useEffect(() => {
+    const api = core.getGridApi() as unknown as {
+      addEventListener?: (evt: string, fn: () => void) => void;
+      removeEventListener?: (evt: string, fn: () => void) => void;
+    } | null;
+    if (!api || typeof api.addEventListener !== 'function') return;
+    const bump = () => setColEventTick((n) => n + 1);
+    const events = ['columnEverythingChanged', 'displayedColumnsChanged', 'firstDataRendered'] as const;
+    for (const e of events) {
+      try { api.addEventListener!(e, bump); } catch { /* */ }
+    }
+    return () => {
+      for (const e of events) {
+        try { api.removeEventListener?.(e, bump); } catch { /* */ }
+      }
+    };
+  }, [core]);
+
+  const pickerDataType = useMemo<
+    'number' | 'date' | 'datetime' | 'boolean' | 'string'
+  >(() => {
+    if (colIds.length === 0) return 'number';
+    try {
+      const api = core.getGridApi() as unknown as {
+        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } } | null;
+      } | null;
+      const raw = api?.getColumn?.(colIds[0])?.getColDef?.()?.cellDataType;
+      // AG-Grid emits 'dateString' for pure dates and 'dateTimeString' for
+      // date+time; our picker's enum splits those into 'date' vs 'datetime'
+      // so the preset list shows the right sub-menu (ISO vs ISO-with-time,
+      // EU short vs US with AM/PM, etc.).
+      if (raw === 'dateTimeString' || raw === 'datetime') return 'datetime';
+      if (raw === 'date' || raw === 'dateString') return 'date';
+      if (raw === 'boolean') return 'boolean';
+      if (raw === 'text' || raw === 'string') return 'string';
+      if (raw === 'number' || raw === 'numeric') return 'number';
+    } catch {
+      /* ignore */
+    }
+    return 'number';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colIds, core, colEventTick]);
+
   // Typography toggles — the writers pass `undefined` to clear the key.
   const toggleBold = useCallback(() => {
     applyTypography(store, colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true });
@@ -1070,7 +1124,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
               quick-buttons above drive, so persistence rides
               column-customization's existing profile pipeline. */}
         <FormatterPicker
-          dataType="number"
+          dataType={pickerDataType}
           value={vft}
           onChange={(next) => doFormat(next)}
           defaultCollapsed
