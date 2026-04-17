@@ -62,6 +62,11 @@ export const EXCEL_EXAMPLES: ReadonlyArray<ExcelExampleCategory> = [
         format: '[Green]#,##0.00;[Red]#,##0.00',
         sample: '[Green]1,234.57 · [Red]1,234.57',
       },
+      {
+        label: 'Green / Red $ (no sign)',
+        format: '[Green]$#,##0.00;[Red]$#,##0.00',
+        sample: '[Green]$1,234.57 · [Red]$1,234.57',
+      },
     ],
   },
   {

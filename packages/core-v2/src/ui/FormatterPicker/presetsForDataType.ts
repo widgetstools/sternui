@@ -84,6 +84,20 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     sampleValue: -1234.5678,
   },
   {
+    // Same semantics as num-green-red-nosign but prepends a USD sign.
+    // Canonical for USD P&L / gain-loss / fee columns where traders
+    // want the dollar symbol glued to the magnitude. Negative still
+    // drops the minus — colour alone carries sign.
+    id: 'num-green-red-usd',
+    label: 'Green / Red $ (no sign)',
+    hint: '[Green]$1,234.57 · [Red]$1,234.57',
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]$#,##0.00;[Red]$#,##0.00',
+    },
+    sampleValue: -1234.5678,
+  },
+  {
     id: 'num-scientific',
     label: 'Scientific',
     hint: '1.23E+03',
@@ -154,6 +168,16 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
     label: 'USD parens neg',
     hint: '($1,234.56)',
     template: { kind: 'excelFormat', format: '$#,##0.00;($#,##0.00)' },
+  },
+  {
+    id: 'cur-usd-green-red-nosign',
+    label: 'USD Green / Red (no sign)',
+    hint: '[Green]$1,234.57 · [Red]$1,234.57',
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]$#,##0.00;[Red]$#,##0.00',
+    },
+    sampleValue: -1234.5678,
   },
   {
     id: 'cur-eur',
