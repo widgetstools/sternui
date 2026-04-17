@@ -197,6 +197,44 @@ const CURRENCY_PRESETS: ReadonlyArray<FormatterPreset> = [
     hint: '¥1,235',
     template: { kind: 'excelFormat', format: '¥#,##0' },
   },
+  // Per-currency Green/Red (no sign) variants. Same Bloomberg-style
+  // P&L cue as the number-preset `num-green-red-usd` but with the
+  // matching symbol glued to the magnitude. Each preset is a pure
+  // format-string override — picking any of these replaces whatever
+  // currency format was previously applied, so switching from plain
+  // "EUR" to "EUR Green / Red" cleanly swaps the template with no
+  // residual "currency choice" state to reconcile.
+  {
+    id: 'cur-eur-green-red-nosign',
+    label: 'EUR Green / Red (no sign)',
+    hint: '[Green]€1,234.57 · [Red]€1,234.57',
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]€#,##0.00;[Red]€#,##0.00',
+    },
+    sampleValue: -1234.5678,
+  },
+  {
+    id: 'cur-gbp-green-red-nosign',
+    label: 'GBP Green / Red (no sign)',
+    hint: '[Green]£1,234.57 · [Red]£1,234.57',
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]£#,##0.00;[Red]£#,##0.00',
+    },
+    sampleValue: -1234.5678,
+  },
+  {
+    id: 'cur-jpy-green-red-nosign',
+    label: 'JPY Green / Red (no sign)',
+    hint: '[Green]¥1,235 · [Red]¥1,235',
+    // JPY: no decimal by convention.
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]¥#,##0;[Red]¥#,##0',
+    },
+    sampleValue: -1234.5678,
+  },
 ];
 
 // ─── Percent presets ────────────────────────────────────────────────────────
