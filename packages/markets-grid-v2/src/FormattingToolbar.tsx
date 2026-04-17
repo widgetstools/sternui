@@ -824,7 +824,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
 
   return (
     <div
-      className={cn('gc-formatting-toolbar flex items-center gap-2 h-11 shrink-0 border-b border-border bg-card text-xs relative z-[10000]', !disabled && 'gc-toolbar-enabled')}
+      className={cn('gc-formatting-toolbar flex items-center gap-2 h-11 shrink-0 border-b border-border bg-card text-xs relative z-[10000] min-w-0 overflow-x-auto overflow-y-visible', !disabled && 'gc-toolbar-enabled')}
       style={{ paddingLeft: 16, paddingRight: 16 }}
       data-testid="formatting-toolbar"
       onMouseDown={(e) => {

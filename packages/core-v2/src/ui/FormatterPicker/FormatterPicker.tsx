@@ -282,7 +282,8 @@ export function FormatterPicker({
               alignItems: 'center',
               gap: 6,
               height: rowHeight,
-              minWidth: 120,
+              minWidth: compact ? 88 : 120,
+              maxWidth: compact ? 140 : 240,
               padding: '0 6px 0 10px',
               background: 'var(--ck-bg, var(--background))',
               border: '1px solid var(--ck-border-hi, var(--border))',
@@ -311,7 +312,7 @@ export function FormatterPicker({
       />
 
       {/* Custom Excel input */}
-      <div style={{ width: compact ? 150 : 180 }}>
+      <div style={{ width: compact ? 120 : 180 }}>
         <IconInput
           icon={<Hash size={12} strokeWidth={2} />}
           value={draftExcel}
@@ -349,8 +350,12 @@ export function FormatterPicker({
         data-testid={testId ? `${testId}-info` : undefined}
       />
 
-      {/* Live preview chip */}
-      {preview ? (
+      {/* Live preview chip — hidden in compact toolbar mode because the
+          Excel input placeholder already shows the format string; keeping
+          the chip there pushed the toolbar past the viewport and
+          triggered a page-level scrollbar. Editor hosts (non-compact)
+          still render it. */}
+      {preview && !compact ? (
         <span
           style={{
             display: 'inline-flex',
