@@ -16,6 +16,7 @@ import {
   SharpBtn,
   TitleInput,
 } from '../../ui/SettingsPanel';
+import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
 import type { CalculatedColumnsState, VirtualColumnDef } from './state';
 
 /**
@@ -353,27 +354,14 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
       </Band>
 
       <Band index="02" title="VALUE FORMATTER">
-        <div
-          style={{
-            border: '1px solid var(--ck-border)',
-            borderRadius: 2,
-            background: 'var(--ck-bg)',
-            overflow: 'hidden',
-          }}
-        >
-          <ExpressionEditor
-            value={draft.valueFormatterTemplate ?? ''}
-            onCommit={(v) => setDraft({ valueFormatterTemplate: v || undefined })}
-            multiline
-            lines={2}
-            fontSize={12}
-            placeholder="CONCAT('$', ROUND(x, 2))"
-            columnsProvider={columnsProvider}
-            data-testid={`cc-virtual-fmt-${colId}`}
-          />
-        </div>
+        <FormatterPicker
+          dataType={(draft.cellDataType ?? 'number') as FormatterPickerDataType}
+          value={draft.valueFormatterTemplate}
+          onChange={(next) => setDraft({ valueFormatterTemplate: next })}
+          data-testid={`cc-virtual-fmt-${colId}`}
+        />
         <div style={{ marginTop: 8, fontSize: 10, color: 'var(--ck-t3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          OPTIONAL · RECEIVES COMPUTED VALUE AS <code style={{ fontFamily: 'var(--ck-font-mono)', color: 'var(--ck-t1)', textTransform: 'none' }}>x</code>
+          OPTIONAL · APPLIED TO THE COMPUTED VALUE BEFORE DISPLAY
         </div>
       </Band>
 

@@ -108,6 +108,24 @@ export {
   type ColorPickerPopoverProps,
 } from './ui/ColorPicker';
 
+// Shared FormatterPicker — the horizontally-collapsible value-formatter
+// selector embedded in FormattingToolbar, Style Rule editor, and
+// Calculated Column editor. Value shape is ValueFormatterTemplate so
+// persistence and rendering stay on one code path.
+export {
+  FormatterPicker,
+  inferPickerDataType,
+  defaultSampleValue,
+  findMatchingPreset,
+  presetsForDataType,
+  EXCEL_EXAMPLES,
+  type FormatterPickerProps,
+  type FormatterPickerDataType,
+  type FormatterPreset,
+  type ExcelExample,
+  type ExcelExampleCategory,
+} from './ui/FormatterPicker';
+
 // Shared StyleEditor (text + color + border + format) for every v2 panel
 export {
   StyleEditor,

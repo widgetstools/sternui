@@ -3,10 +3,12 @@ import type {
   ColGroupDef,
   CellClassParams,
   RowClassParams,
+  ValueFormatterParams,
 } from 'ag-grid-community';
 import { ExpressionEngine } from '@grid-customizer/core';
 import type { AnyColDef, Module } from '../../core/types';
 import { CssInjector } from '../../core/CssInjector';
+import { valueFormatterFromTemplate } from '../column-customization/adapters/valueFormatterFromTemplate';
 import {
   ConditionalStylingEditor,
   ConditionalStylingList,
@@ -423,6 +425,81 @@ function applyCellRulesToDefs(
       (cellClassRules as Record<string, unknown>)[`gc-rule-${rule.id}`] = buildCellClassPredicate(engine, rule);
     }
 
+    // ── Per-rule value formatter ──────────────────────────────────────────
+    //
+    // Any applicable cell-scope rule that carries a `valueFormatter` wraps
+    // the column's existing `valueFormatter`. At render time each rule is
+    // checked in priority order (lowest priority first → highest priority
+    // last wins the format, mirroring how cellClassRules merge CSS); the
+    // first matching rule's formatter is applied. Cells that don't match
+    // any formatter-carrying rule fall back to the column's upstream
+    // formatter (or the raw value).
+    const formatterRules = applicable.filter((r) => !!r.valueFormatter);
+    if (formatterRules.length > 0) {
+      // Pre-compile each rule's formatter + predicate once per
+      // transformColumnDefs cycle.
+      const compiled = formatterRules.map((rule) => ({
+        predicate: buildCellClassPredicate(engine, rule),
+        formatter: valueFormatterFromTemplate(rule.valueFormatter!),
+        ruleId: rule.id,
+      }));
+      const existing = colDef.valueFormatter;
+      const existingFormatter =
+        typeof existing === 'function' ? existing : undefined;
+
+      // Highest-priority-last ordering: a later rule in the sorted
+      // `cellRules` list has higher priority (transformColumnDefs sorts
+      // ascending by `priority`, lowest first). Reverse-iterate so the
+      // highest-priority match wins.
+      (colDef as ColDef).valueFormatter = (params: ValueFormatterParams) => {
+        for (let i = compiled.length - 1; i >= 0; i--) {
+          const c = compiled[i];
+          let matched: boolean;
+          if (typeof c.predicate === 'string') {
+            // AG-string form — convert to a predicate call by evaluating
+            // against the same parseAndEvaluate path used for the
+            // function form (the string form is an optimisation for
+            // class attachment; for formatter dispatch we need a bool
+            // answer in JS). Fall back silently if anything throws.
+            try {
+              matched = Boolean(
+                engine.parseAndEvaluate(
+                  // Retrieve the expression via ruleId lookup — cheap;
+                  // formatterRules list is tiny.
+                  formatterRules.find((r) => r.id === c.ruleId)?.expression ?? '',
+                  {
+                    x: params.value,
+                    value: params.value,
+                    data: params.data ?? {},
+                    columns: params.data ?? {},
+                  },
+                ),
+              );
+            } catch {
+              matched = false;
+            }
+          } else {
+            try {
+              matched = Boolean(c.predicate(params as CellClassParams));
+            } catch {
+              matched = false;
+            }
+          }
+          if (matched) {
+            try {
+              return c.formatter({ value: params.value, data: params.data });
+            } catch {
+              /* fall through to next rule */
+            }
+          }
+        }
+        // No rule matched with a formatter — delegate to the upstream
+        // formatter (column-customization's formatter, for example).
+        if (existingFormatter) return existingFormatter(params as never);
+        return params.value == null ? '' : String(params.value);
+      };
+    }
+
     return { ...colDef, cellClassRules };
   });
 }
@@ -756,6 +833,21 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
             };
           } else {
             const { indicator: _drop, ...rest } = next;
+            next = rest;
+          }
+        }
+        // valueFormatter: accept the four known kinds. Anything else
+        // gets dropped so stale / malformed payloads don't reach the
+        // resolver (which would throw).
+        if (r.valueFormatter && typeof r.valueFormatter === 'object') {
+          const v = r.valueFormatter as { kind?: string };
+          const ok =
+            v.kind === 'preset' ||
+            v.kind === 'excelFormat' ||
+            v.kind === 'expression' ||
+            v.kind === 'tick';
+          if (!ok) {
+            const { valueFormatter: _drop, ...rest } = next;
             next = rest;
           }
         }

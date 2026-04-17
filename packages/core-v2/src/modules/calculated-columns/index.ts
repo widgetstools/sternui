@@ -78,9 +78,23 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       return { virtualColumns: [...INITIAL_CALCULATED_COLUMNS.virtualColumns] };
     }
     const d = raw as Partial<CalculatedColumnsState>;
-    return {
-      virtualColumns: Array.isArray(d.virtualColumns) ? d.virtualColumns : [],
-    };
+    const rawCols = Array.isArray(d.virtualColumns) ? d.virtualColumns : [];
+    // Back-compat: v1 / early-v2 profiles stored `valueFormatterTemplate`
+    // as a bare expression string. The field has since widened to the
+    // full `ValueFormatterTemplate` discriminated union — migrate the
+    // old shape into `{kind:'expression'}` so downstream code only ever
+    // sees the union.
+    const virtualColumns = rawCols.map((v) => {
+      const t = (v as unknown as { valueFormatterTemplate?: unknown }).valueFormatterTemplate;
+      if (typeof t === 'string') {
+        return {
+          ...v,
+          valueFormatterTemplate: t.length > 0 ? { kind: 'expression' as const, expression: t } : undefined,
+        };
+      }
+      return v;
+    });
+    return { virtualColumns };
   },
 
   SettingsPanel: CalculatedColumnsPanel,

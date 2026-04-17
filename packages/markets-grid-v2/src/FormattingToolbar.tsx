@@ -127,11 +127,14 @@ function templateDecimals(t: ValueFormatterTemplate | undefined): number | null 
     const n = (t.options as { decimals?: unknown } | undefined)?.decimals;
     return typeof n === 'number' ? n : null;
   }
-  // Expression fallback: try a couple of known patterns so v1 snapshots keep working.
-  const m = t.expression.match(/maximumFractionDigits:(\d+)/);
-  if (m) return parseInt(m[1], 10);
-  const tx = t.expression.match(/toFixed\((\d+)\)/);
-  if (tx) return parseInt(tx[1], 10);
+  if (t.kind === 'expression') {
+    // Expression fallback: try a couple of known patterns so v1 snapshots keep working.
+    const m = t.expression.match(/maximumFractionDigits:(\d+)/);
+    if (m) return parseInt(m[1], 10);
+    const tx = t.expression.match(/toFixed\((\d+)\)/);
+    if (tx) return parseInt(tx[1], 10);
+  }
+  // excelFormat / tick — no structured decimals concept.
   return null;
 }
 
