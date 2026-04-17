@@ -68,6 +68,22 @@ const NUMBER_PRESETS: ReadonlyArray<FormatterPreset> = [
     template: { kind: 'excelFormat', format: '#,##0.00;[Red](#,##0.00)' },
   },
   {
+    // US desk convention — P&L columns display gains green, losses red,
+    // and crucially the negative section has NO leading minus (Excel
+    // honours the literal format in section 2; since `#,##0.00` has no
+    // sign, -1,234.57 renders as `1,234.57` in red, not `-1,234.57`).
+    // Green on positive + red on negative is the Bloomberg-style cue
+    // traders read at a glance.
+    id: 'num-green-red-nosign',
+    label: 'Green / Red (no sign)',
+    hint: '[Green]1,234.57 · [Red]1,234.57',
+    template: {
+      kind: 'excelFormat',
+      format: '[Green]#,##0.00;[Red]#,##0.00',
+    },
+    sampleValue: -1234.5678,
+  },
+  {
     id: 'num-scientific',
     label: 'Scientific',
     hint: '1.23E+03',

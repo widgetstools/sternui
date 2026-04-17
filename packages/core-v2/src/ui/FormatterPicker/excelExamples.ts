@@ -54,6 +54,14 @@ export const EXCEL_EXAMPLES: ReadonlyArray<ExcelExampleCategory> = [
       { label: 'Parens negative', format: '#,##0.00;(#,##0.00)', sample: '(1,234.57)' },
       { label: 'Red parens', format: '#,##0.00;[Red](#,##0.00)', sample: '[Red](1,234.57)' },
       { label: 'Red only', format: '#,##0.00;[Red]#,##0.00', sample: '[Red]1,234.57' },
+      {
+        // Bloomberg-style P&L cue: positives green, negatives red, no
+        // minus sign on the negative (the format section literal
+        // controls rendering; no leading `-` means no minus).
+        label: 'Green / Red (no sign)',
+        format: '[Green]#,##0.00;[Red]#,##0.00',
+        sample: '[Green]1,234.57 · [Red]1,234.57',
+      },
     ],
   },
   {
