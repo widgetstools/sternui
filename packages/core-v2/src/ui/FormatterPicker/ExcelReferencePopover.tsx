@@ -56,11 +56,21 @@ export function ExcelReferencePopover({
       }
     >
       <div
+        className="gc-excel-ref-scroll"
         style={{
           padding: 8,
           maxHeight: 420,
           overflowY: 'auto',
           fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+          // Theme-aware scrollbar. `scrollbar-color` / `scrollbar-width`
+          // are native CSS properties honoured by Firefox and modern
+          // Chromium/Safari — the thumb picks up our `--gc-border`
+          // token which already swaps between light / dark with the
+          // host app's theme (via `--bn-border*` underneath). No
+          // `color-scheme` override — pinning it to one scheme would
+          // fight the host when the user toggles between modes.
+          scrollbarColor: 'var(--gc-border, #313944) transparent',
+          scrollbarWidth: 'thin',
         }}
       >
         {EXCEL_EXAMPLES.map((cat) => (
