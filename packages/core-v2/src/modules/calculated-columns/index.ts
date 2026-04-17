@@ -68,34 +68,75 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       .slice()
       .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
 
-    // Cross-module read: column-customization may carry a
-    // `valueFormatterTemplate` for a virtual column — that happens when
-    // the user applies a format via the FormattingToolbar while a
-    // virtual column is selected. The toolbar writes into
-    // `ColumnCustomizationState.assignments[colId].valueFormatterTemplate`
+    // Cross-module read: column-customization may carry a full
+    // `ColumnAssignment` for a virtual column — that happens when the
+    // user applies ANY toolbar style (typography, alignment, colors,
+    // borders, value formatter) while a calculated column is selected.
+    // The toolbar writes into `ColumnCustomizationState.assignments[colId]`
     // (the single source of truth the toolbar knows about); calculated-
-    // columns state carries its OWN `valueFormatterTemplate` for the
-    // virtual column (written by the Calculated Column editor). The
-    // toolbar takes precedence so a format the user just picked in the
-    // toolbar wins over a stale editor-time choice — matching the
-    // "last write wins" feel every other style the toolbar emits has.
-    let overrides: Record<string, { valueFormatterTemplate?: unknown }> = {};
+    // columns carries its OWN per-column state for the virtual column
+    // (written by the Calculated Column editor). Toolbar-applied
+    // picks take precedence — matches the "last write wins" feel every
+    // other toolbar control has.
+    let assignments: Record<string, {
+      valueFormatterTemplate?: unknown;
+      cellStyleOverrides?: unknown;
+      headerStyleOverrides?: unknown;
+      headerName?: string;
+      headerTooltip?: string;
+      initialWidth?: number;
+      initialHide?: boolean;
+      initialPinned?: 'left' | 'right' | boolean;
+    }> = {};
     try {
       const cust = gridCtx.getModuleState<{
-        assignments?: Record<string, { valueFormatterTemplate?: unknown }>;
+        assignments?: Record<string, Record<string, unknown>>;
       }>('column-customization');
-      overrides = cust?.assignments ?? {};
+      assignments = (cust?.assignments ?? {}) as typeof assignments;
     } catch {
       /* column-customization not mounted — fall back to virtual-col defaults */
     }
 
     const virtualDefs = sorted.map((v) => {
-      const override = overrides[v.colId];
+      const assignment = assignments[v.colId];
       const merged =
-        override?.valueFormatterTemplate !== undefined
-          ? { ...v, valueFormatterTemplate: override.valueFormatterTemplate as typeof v.valueFormatterTemplate }
+        assignment?.valueFormatterTemplate !== undefined
+          ? {
+              ...v,
+              valueFormatterTemplate: assignment.valueFormatterTemplate as typeof v.valueFormatterTemplate,
+            }
           : v;
-      return buildVirtualColDef(merged, engine);
+      const baseColDef = buildVirtualColDef(merged, engine);
+
+      if (!assignment) return baseColDef;
+
+      // Layer in the cellClass / headerClass hooks so CSS injected by
+      // column-customization's reinjectCSS reaches virtual cells too.
+      // We don't need to compute the CSS body here — that's already
+      // happening inside column-customization because it now iterates
+      // its assignments keyed by colId, not by walking the base defs.
+      const layered: typeof baseColDef = { ...baseColDef };
+      if (assignment.headerName !== undefined) layered.headerName = assignment.headerName as string;
+      if (assignment.headerTooltip !== undefined) layered.headerTooltip = assignment.headerTooltip as string;
+      if (assignment.initialWidth !== undefined) layered.initialWidth = assignment.initialWidth as number;
+      if (assignment.initialHide !== undefined) layered.initialHide = assignment.initialHide as boolean;
+      if (assignment.initialPinned !== undefined) layered.initialPinned = assignment.initialPinned as 'left' | 'right' | boolean;
+
+      if (assignment.cellStyleOverrides !== undefined) {
+        const cls = `gc-col-c-${v.colId}`;
+        const existing = baseColDef.cellClass;
+        if (Array.isArray(existing)) layered.cellClass = [...existing, cls];
+        else if (typeof existing === 'string') layered.cellClass = [existing, cls];
+        else layered.cellClass = cls;
+      }
+      if (assignment.headerStyleOverrides !== undefined) {
+        const cls = `gc-hdr-c-${v.colId}`;
+        const existing = baseColDef.headerClass;
+        if (Array.isArray(existing)) layered.headerClass = [...existing, cls];
+        else if (typeof existing === 'string') layered.headerClass = [existing, cls];
+        else layered.headerClass = cls;
+      }
+      return layered;
     });
     return [...defs, ...virtualDefs];
   },
