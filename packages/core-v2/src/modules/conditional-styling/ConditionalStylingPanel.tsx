@@ -27,6 +27,7 @@ import {
   TitleInput,
 } from '../../ui/SettingsPanel';
 import { StyleEditor } from '../../ui/StyleEditor';
+import { FormatterPicker, inferPickerDataType, type FormatterPickerDataType } from '../../ui/FormatterPicker';
 import type {
   ConditionalRule,
   ConditionalStylingState,
@@ -64,6 +65,9 @@ function generateId(): string {
 interface GridColumnInfo {
   colId: string;
   headerName: string;
+  /** AG-Grid cellDataType when known — used by FormatterPicker to pick
+   *  the right preset bucket for single-cell rules. */
+  cellDataType?: string;
 }
 
 function useGridColumns(): GridColumnInfo[] {
@@ -96,10 +100,15 @@ function useGridColumns(): GridColumnInfo[] {
     if (!api) return [];
     try {
       const cols = api.getColumns?.() ?? [];
-      return cols.map((c) => ({
-        colId: c.getColId(),
-        headerName: c.getColDef().headerName ?? c.getColId(),
-      }));
+      return cols.map((c) => {
+        const def = c.getColDef();
+        const rawType = (def as { cellDataType?: unknown }).cellDataType;
+        return {
+          colId: c.getColId(),
+          headerName: def.headerName ?? c.getColId(),
+          cellDataType: typeof rawType === 'string' ? rawType : undefined,
+        };
+      });
     } catch {
       return [];
     }
@@ -607,14 +616,20 @@ const RuleEditor = memo(function RuleEditor({
         </Band>
       )}
 
-      {/* 03… — shared StyleEditor (automatically continues numbering) */}
+      {/* 03… — shared StyleEditor (automatically continues numbering).
+          `format` dropped: the value-formatter for a rule now lives in
+          its own Band below (`draft.valueFormatter`) which the
+          resolver wires through `transformColumnDefs`. The StyleEditor's
+          legacy FormatSection never persisted a formatter into
+          conditional-styling's state shape (styleBridge ignored it),
+          so removing it is a strict behaviour fix, not a regression. */}
       <StyleEditor
         value={toStyleEditorValue(draft.style)}
         onChange={(patch) => {
           const merged = { ...toStyleEditorValue(draft.style), ...patch };
           setDraft({ style: fromStyleEditorValue(draft.style, merged) });
         }}
-        sections={['text', 'color', 'border', 'format']}
+        sections={['text', 'color', 'border']}
         dataType="number"
         data-testid={`cs-rule-style-editor-${ruleId}`}
       />
@@ -717,6 +732,37 @@ const RuleEditor = memo(function RuleEditor({
           ruleId={ruleId}
         />
       </Band>
+
+      {/* VALUE FORMATTER — available ONLY when the rule targets exactly
+          one cell (single cell-scope column). The picker's dataType is
+          inferred from the target column's cellDataType so preset
+          filtering makes sense for number / currency / date columns. */}
+      {draft.scope.type === 'cell' && draft.scope.columns.length === 1 ? (
+        <Band index="09" title="VALUE FORMATTER">
+          <FormatterPicker
+            dataType={inferPickerDataType(
+              columns.find(
+                (c) =>
+                  c.colId === (draft.scope.type === 'cell' ? draft.scope.columns[0] : ''),
+              )?.cellDataType,
+            ) as FormatterPickerDataType}
+            value={draft.valueFormatter}
+            onChange={(next) => setDraft({ valueFormatter: next })}
+            data-testid={`cs-rule-value-formatter-${ruleId}`}
+          />
+          <div style={{ marginTop: 8 }}>
+            <Caps size={9} color="var(--ck-t3)">
+              Applied to cells where this rule matches — overrides the column's own formatter.
+            </Caps>
+          </div>
+        </Band>
+      ) : draft.scope.type === 'cell' ? (
+        <Band index="09" title="VALUE FORMATTER">
+          <Caps size={10} color="var(--ck-t2)">
+            Select exactly ONE target column above to set a per-rule value formatter.
+          </Caps>
+        </Band>
+      ) : null}
 
       <div style={{ height: 20 }} />
       </div>

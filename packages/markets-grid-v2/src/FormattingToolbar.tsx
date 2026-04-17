@@ -41,6 +41,7 @@ import {
 } from '@grid-customizer/core';
 import {
   BorderStyleEditor,
+  FormatterPicker,
   type GridCore,
   type GridStore,
   type ColumnAssignment,
@@ -49,6 +50,7 @@ import {
   type ColumnTemplate,
   type BorderSpec,
   type CellStyleOverrides,
+  type TickToken,
   type ValueFormatterTemplate,
   resolveTemplates,
   useModuleState,
@@ -142,6 +144,28 @@ function isPercentTemplate(t: ValueFormatterTemplate | undefined): boolean {
   return !!t && t.kind === 'preset' && t.preset === 'percent';
 }
 
+/** `true` when the template is any fixed-income tick format. */
+function isTickTemplate(t: ValueFormatterTemplate | undefined): boolean {
+  return !!t && t.kind === 'tick';
+}
+
+/** Extract the tick token from a template (or null if not a tick). */
+function currentTickToken(t: ValueFormatterTemplate | undefined): TickToken | null {
+  return t && t.kind === 'tick' ? t.tick : null;
+}
+
+/** Sample-output string per tick token, used inside the dropdown so
+ *  traders see exactly what each precision produces. Values come from
+ *  TICK_SAMPLES in core-v2; inlined here to keep the dropdown self-
+ *  contained without importing yet another barrel symbol. */
+const TICK_MENU: ReadonlyArray<{ token: TickToken; label: string; sample: string }> = [
+  { token: 'TICK32',      label: '32nds',           sample: '101-16' },
+  { token: 'TICK32_PLUS', label: '32nds + halves',  sample: '101-16+' },
+  { token: 'TICK64',      label: '64ths',           sample: '101-161' },
+  { token: 'TICK128',     label: '128ths',          sample: '101-162' },
+  { token: 'TICK256',     label: '256ths',          sample: '101-161' },
+];
+
 function isCommaTemplate(t: ValueFormatterTemplate | undefined): boolean {
   return !!t && t.kind === 'preset' && t.preset === 'number'
     && (t.options as { decimals?: unknown } | undefined)?.decimals === 0;
@@ -150,15 +174,17 @@ function isCommaTemplate(t: ValueFormatterTemplate | undefined): boolean {
 // ─── Sub-components (copied from v1, untouched) ──────────────────────────────
 
 /** Toolbar icon button — theme-aware via CSS variables */
-function TBtn({ children, active, disabled, tooltip, onClick, className }: {
+function TBtn({ children, active, disabled, tooltip, onClick, className, ...rest }: {
   children: React.ReactNode; active?: boolean; disabled?: boolean;
   tooltip?: string; onClick?: () => void; className?: string;
+  'data-testid'?: string;
 }) {
   const btn = (
     <Button
       variant="ghost"
       size="icon-sm"
       disabled={disabled}
+      data-testid={rest['data-testid']}
       className={cn(
         'shrink-0 w-7 h-7 rounded-[4px] transition-all duration-150 gc-tbtn',
         active && 'gc-tbtn-active',
@@ -982,6 +1008,85 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
           <Hash size={14} strokeWidth={1.75} />
         </TBtn>
         <div className="gc-toolbar-sep h-4 opacity-50" />
+        {/* ── Tick format (fixed-income bond price) — split button ────
+             Main button toggles TICK32 (most common). Chevron opens a
+             precision menu (32 / 32+ / 64 / 128 / 256). When a tick
+             format is already applied, the main button shows the
+             active token's label inside the tooltip. */}
+        <TBtn
+          disabled={disabled || isHeader}
+          active={!isHeader && isTickTemplate(vft)}
+          tooltip={
+            currentTickToken(vft)
+              ? `Tick: ${TICK_MENU.find((m) => m.token === currentTickToken(vft))?.label ?? '32nds'}`
+              : 'Tick format (32nds)'
+          }
+          onClick={() =>
+            doFormat(
+              isTickTemplate(vft)
+                ? undefined
+                : { kind: 'tick', tick: currentTickToken(vft) ?? 'TICK32' },
+            )
+          }
+          data-testid="fmt-tick-btn"
+        >
+          <span style={{
+            fontFamily: 'var(--ck-font-mono, monospace)',
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            lineHeight: 1,
+          }}>
+            {currentTickToken(vft)
+              ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.sample.split('-').pop() ?? '32')
+              : '32'}
+          </span>
+        </TBtn>
+        <Popover
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={disabled || isHeader}
+              className={cn(
+                'shrink-0 w-4 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
+                (disabled || isHeader) && 'opacity-25 pointer-events-none',
+              )}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              data-testid="fmt-tick-menu-trigger"
+              title="Tick precision"
+            >
+              <ChevronDown size={10} strokeWidth={1.75} />
+            </Button>
+          }
+        >
+          <div className="p-1 min-w-[180px]">
+            {TICK_MENU.map((m) => {
+              const active = currentTickToken(vft) === m.token;
+              return (
+                <button
+                  key={m.token}
+                  type="button"
+                  onClick={() => doFormat({ kind: 'tick', tick: m.token })}
+                  onMouseDown={(e) => e.preventDefault()}
+                  className={cn(
+                    'flex items-center gap-3 w-full px-2 py-1.5 rounded-md text-[11px]',
+                    'text-foreground hover:bg-accent cursor-pointer transition-colors',
+                    active && 'bg-accent',
+                  )}
+                  data-testid={`fmt-tick-menu-${m.token}`}
+                >
+                  <span className="font-mono text-muted-foreground w-4">
+                    {active ? <Check size={10} strokeWidth={2.5} /> : ''}
+                  </span>
+                  <span className="flex-1 text-left">{m.label}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{m.sample}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Popover>
+        <div className="gc-toolbar-sep h-4 opacity-50" />
         <TBtn disabled={disabled || isHeader} tooltip="Fewer decimals" onClick={decreaseDecimals}>
           <span className="flex items-center gap-px text-[9px] font-mono"><ArrowLeft size={9} strokeWidth={2} />.0</span>
         </TBtn>
@@ -1022,6 +1127,23 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
             }}
           />
         </Tooltip>
+        {/* ── Shared FormatterPicker — additive, collapsed by default so
+              it sits as a single chip next to the raw Excel input. The
+              existing numeric quick-buttons above still drive the same
+              column assignment; the picker surfaces structured presets
+              (including tick formats), a categorised Excel reference,
+              and a live preview chip for power users. Operates on the
+              same `ColumnAssignment.valueFormatterTemplate` field so
+              persistence rides column-customization's existing profile
+              pipeline. */}
+        <FormatterPicker
+          dataType="number"
+          value={vft}
+          onChange={(next) => doFormat(next)}
+          defaultCollapsed
+          compact
+          data-testid="fmt-picker-toolbar"
+        />
       </TGroup>
 
       <div className="gc-toolbar-sep h-5" />
