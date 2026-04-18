@@ -231,6 +231,9 @@ export const v2SheetCSS = `
 .gc-popout-body[data-layout='editor-only'] {
   grid-template-columns: 1fr;
 }
+.gc-popout-body[data-layout='help'] {
+  grid-template-columns: 1fr;
+}
 
 /* ── Module dropdown (header) ───────────────────────────────── */
 .gc-popout-module-btn {

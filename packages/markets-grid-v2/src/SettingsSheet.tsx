@@ -15,7 +15,8 @@ import {
   settingsCSS,
   STYLE_ID,
 } from '@grid-customizer/core';
-import { ChevronDown, GripHorizontal, Maximize2, Minimize2, X } from 'lucide-react';
+import { ChevronDown, GripHorizontal, HelpCircle, Maximize2, Minimize2, X } from 'lucide-react';
+import { HelpPanel } from './HelpPanel';
 
 /**
  * Cockpit Terminal popout — the v2 settings sheet.
@@ -83,6 +84,10 @@ export function SettingsSheet({
   );
   const [maximized, setMaximized] = useState(false);
   const [moduleMenuOpen, setModuleMenuOpen] = useState(false);
+  // When true, the body area renders the Help cheatsheet instead of the
+  // active module's ListPane / EditorPane. Toggled by the ? icon in the
+  // header — a temporary view, not persisted.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
 
@@ -203,6 +208,17 @@ export function SettingsSheet({
               <button
                 type="button"
                 className="gc-popout-title-btn"
+                onClick={() => setHelpOpen((v) => !v)}
+                title={helpOpen ? 'Back to settings' : 'Formats & expressions help'}
+                aria-pressed={helpOpen}
+                data-testid="v2-settings-help-btn"
+                style={helpOpen ? { color: 'var(--ck-green)' } : undefined}
+              >
+                <HelpCircle size={12} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                className="gc-popout-title-btn"
                 onClick={() => setMaximized((v) => !v)}
                 title={maximized ? 'Restore' : 'Maximize'}
               >
@@ -269,8 +285,12 @@ export function SettingsSheet({
           {/* ── Body ───────────────────────────────────────────── */}
           <main
             className="gc-popout-body"
-            data-layout={hasMasterDetail ? 'master-detail' : 'editor-only'}
+            data-layout={helpOpen ? 'help' : hasMasterDetail ? 'master-detail' : 'editor-only'}
           >
+            {helpOpen ? (
+              <HelpPanel />
+            ) : (
+              <>
             {hasMasterDetail && ListPane && activeModule && (
               <aside className="gc-popout-list" data-testid="v2-settings-list">
                 <ListPane
@@ -317,6 +337,8 @@ export function SettingsSheet({
                 </div>
               )}
             </section>
+              </>
+            )}
           </main>
 
           {/* ── Footer ─────────────────────────────────────────── */}
