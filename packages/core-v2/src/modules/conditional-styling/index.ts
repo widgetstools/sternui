@@ -525,8 +525,19 @@ type HeaderFlashApi = {
   forEachNodeAfterFilter?: (cb: (n: { data?: Record<string, unknown> }) => void) => void;
 };
 
+// AG-Grid renders the floating filter row inside the header stack with the
+// same `.ag-header-cell` class + `col-id` as the real column header — only
+// the extra `.ag-floating-filter` marker tells them apart. Selectors
+// touching header cells for indicator / pulse paint must exclude floating
+// filter cells, otherwise the indicator badge renders twice and the pulse
+// class animates the filter row too. User report with screenshot showed
+// the red indicator triangle floating above the filter input.
+const HEADER_CELL_NOT_FILTER = ':not(.ag-floating-filter)';
+
 function togglePulseHeader(colId: string, on: boolean): void {
-  const nodes = document.querySelectorAll(`.ag-header-cell[col-id="${CSS.escape(colId)}"]`);
+  const nodes = document.querySelectorAll(
+    `.ag-header-cell${HEADER_CELL_NOT_FILTER}[col-id="${CSS.escape(colId)}"]`,
+  );
   nodes.forEach((el) => {
     const node = el as HTMLElement;
     if (on) node.classList.add('gc-flash-hdr-pulse');
@@ -586,7 +597,11 @@ function attachHeaderFlashWatcher(
     // STEP 1: wipe every currently-painted header state. Two class
     // families: pulse + per-rule indicator. Clearing both on every
     // evaluate is how disabling a rule (or changing its target) cleans
-    // up stale paint that data events alone wouldn't touch.
+    // up stale paint that data events alone wouldn't touch. The wipe
+    // selectors deliberately match BOTH real headers and floating
+    // filter cells — we want to clean up any stale paint that might
+    // have ended up on the floating filter row from an earlier
+    // pre-fix build / profile snapshot.
     document.querySelectorAll('.ag-header-cell.gc-flash-hdr-pulse').forEach((el) => {
       el.classList.remove('gc-flash-hdr-pulse');
     });
@@ -648,8 +663,11 @@ function attachHeaderFlashWatcher(
     }
     for (const [ruleId, cols] of indicatorColumnsOn) {
       for (const colId of cols) {
+        // Narrowed to the real column header — `:not(.ag-floating-filter)`
+        // keeps the indicator badge off the floating-filter row, which
+        // otherwise shares the same `.ag-header-cell` + `col-id`.
         const nodes = document.querySelectorAll(
-          `.ag-header-cell[col-id="${CSS.escape(colId)}"]`,
+          `.ag-header-cell${HEADER_CELL_NOT_FILTER}[col-id="${CSS.escape(colId)}"]`,
         );
         nodes.forEach((el) => el.classList.add(`gc-rule-${ruleId}`));
       }
