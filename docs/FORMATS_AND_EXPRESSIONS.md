@@ -529,3 +529,130 @@ SWITCH([status],
 - **Aggregation returns null** — `IFS` with an even arg count has no
   default. Add a trailing default (make it odd) or append `true, X` as
   the last pair.
+
+---
+
+## Part 5 — Emoji Gallery
+
+Copy-paste-friendly emoji reference for Excel format strings and
+expression outputs. Every emoji here is a single Unicode string — use
+it raw in formats (`[=1]"🟢";…`) or in expression string literals
+(`IF([side] = "BUY", "🟢", "🔴")`).
+
+> **Note**: when returning emojis from an expression that later needs
+> to aggregate at group-row level, prefer the numeric-classification
+> pattern from Part 4 — lexicographic MIN/MAX over emoji codepoints
+> isn't semantically meaningful. Emojis work beautifully for pure
+> per-row rendering.
+
+### Traffic lights / status circles
+
+| 🟢 | 🟡 | 🟠 | 🔴 | 🟣 | 🔵 | 🟤 | ⚫ | ⚪ |
+|---|---|---|---|---|---|---|---|---|
+| green | yellow | orange | red | purple | blue | brown | black | white |
+
+### Directional arrows
+
+| ▲ | ▼ | ◀ | ▶ | ⬆ | ⬇ | ⬅ | ➡ | ↗ | ↘ | ↙ | ↖ | ↔ | ↕ | 🔼 | 🔽 | ⤴ | ⤵ | 🔀 | 🔃 | 🔄 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| up | down | left | right | up | down | left | right | NE | SE | SW | NW | h-flip | v-flip | up-blk | down-blk | up-right | down-right | shuffle | down-arrow-cycle | recycle |
+
+### Check / cross / warning
+
+| ✅ | ❌ | ⚠️ | 🛑 | ⛔ | 🚫 | ✔ | ✖ | ❎ | ❗ | ❕ | ❓ | ❔ | ✴️ | ✳️ | ℹ️ | ⁉️ | ‼️ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| check | cross | warning | stop-sign | no-entry | prohibited | check-mk | x-mk | neg-check | red-!  | white-!  | red-?  | white-?  | 8-star | 8-spoked | info | exclaim-? | double-! |
+
+### Finance & markets
+
+| 📈 | 📉 | 📊 | 💹 | 💰 | 💵 | 💴 | 💶 | 💷 | 💸 | 💳 | 🪙 | 💎 | 🏦 | 🏛 | 💲 | 🧾 | 🗂 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| up-chart | down-chart | bar-chart | stock-up | moneybag | USD | JPY | EUR | GBP | flying-money | card | coin | diamond | bank | classical | $-sign | receipt | tab-file |
+
+### Signals & alerts
+
+| 🚀 | 🔥 | ❄️ | ⚡ | 💥 | 🎯 | 🔔 | 🔕 | 🚨 | 🎉 | 🏁 | ⏳ | ⏰ | ⏱ | ⏲ | 🕰 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rocket | fire | cold | bolt | boom | target | bell-on | bell-off | siren | party | checker-flag | hourglass | alarm | stopwatch | timer | mantel-clock |
+
+### Shapes
+
+| 🔺 | 🔻 | 🔶 | 🔷 | 🔸 | 🔹 | 🟥 | 🟧 | 🟨 | 🟩 | 🟦 | 🟪 | 🟫 | ⬛ | ⬜ | ◼ | ◻ | ▪ | ▫ | ● | ○ | ◉ | ⚫ | ⚪ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| up-tri | down-tri | big-dia | big-dia-blue | sm-dia-orng | sm-dia-blue | red-sq | orng-sq | yel-sq | grn-sq | blu-sq | prpl-sq | brn-sq | blk-sq | wht-sq | med-blk | med-wht | sm-blk | sm-wht | dot-blk | dot-wht | bullseye | blk-cir | wht-cir |
+
+### Enclosed letters & numbers
+
+| Ⓐ | Ⓑ | Ⓒ | Ⓓ | Ⓔ | 🅰 | 🅱 | 🅾 | 🅿 | 🆎 | 🆑 | 🆒 | 🆓 | 🆔 | 🆕 | 🆖 | 🆗 | 🆘 | 🆙 | 🆚 | Ⓜ | ㊗ | ㊙ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| (A) | (B) | (C) | (D) | (E) | A-red | B-red | O-red | P-red | AB | CL | COOL | FREE | ID | NEW | NG | OK | SOS | UP! | VS | M | congr | secret |
+
+| 0️⃣ | 1️⃣ | 2️⃣ | 3️⃣ | 4️⃣ | 5️⃣ | 6️⃣ | 7️⃣ | 8️⃣ | 9️⃣ | 🔟 | #️⃣ | *️⃣ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | hash | star |
+
+### Currency symbols (raw unicode)
+
+| ₿ | $ | € | £ | ¥ | ₹ | ₩ | ₪ | ₱ | ₴ | ฿ | ₽ | 💲 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| BTC | USD | EUR | GBP | JPY/CNY | INR | KRW | ILS | PHP | UAH | THB | RUB | $-emoji |
+
+### Flags (common trading jurisdictions)
+
+| 🇺🇸 | 🇬🇧 | 🇪🇺 | 🇯🇵 | 🇨🇳 | 🇭🇰 | 🇹🇼 | 🇰🇷 | 🇸🇬 | 🇮🇳 | 🇦🇺 | 🇳🇿 | 🇨🇦 | 🇨🇭 | 🇩🇪 | 🇫🇷 | 🇮🇹 | 🇪🇸 | 🇳🇱 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| USD | GBP | EUR | JPY | CNY | HKD | TWD | KRW | SGD | INR | AUD | NZD | CAD | CHF | EUR | EUR | EUR | EUR | EUR |
+
+| 🇲🇽 | 🇧🇷 | 🇦🇷 | 🇨🇱 | 🇨🇴 | 🇵🇪 | 🇿🇦 | 🇹🇷 | 🇸🇦 | 🇦🇪 | 🇶🇦 | 🇰🇼 | 🇧🇭 | 🇮🇱 | 🇹🇭 | 🇮🇩 | 🇲🇾 | 🇵🇭 | 🇻🇳 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MXN | BRL | ARS | CLP | COP | PEN | ZAR | TRY | SAR | AED | QAR | KWD | BHD | ILS | THB | IDR | MYR | PHP | VND |
+
+### Weather (volatility / risk indicators)
+
+| ☀️ | 🌤 | ⛅ | 🌥 | ☁️ | 🌦 | 🌧 | ⛈ | 🌩 | 🌨 | ❄️ | ☔ | 🌪 | 🌫 | 🌈 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| calm | mostly | partly | mostly-cloud | cloudy | sun-shower | rain | thunderstorm | lightning | snow | cold | umbrella | tornado | foggy | rainbow |
+
+### Desk tools / workstation
+
+| 🖥 | 💻 | 📱 | ⌨️ | 🖱 | 🖨 | 📇 | 📋 | 📁 | 📂 | 🗂 | 🗃 | 🗄 | 📎 | 🖇 | 📐 | 📏 | 📑 | 📒 | 📓 | 📕 | 📗 | 📘 | 📙 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| desktop | laptop | phone | kbd | mouse | printer | rolodex | clipboard | folder | open-folder | divider | box-files | cabinet | paperclip | chain-clip | triangle-ruler | ruler | tabs | ledger | notebook | red-book | green-book | blue-book | orange-book |
+
+### Security & permissions
+
+| 🔒 | 🔓 | 🔐 | 🔑 | 🗝 | 🛡 | 🛠 | ⚙️ | 🔧 | 🔨 | ⚒ | 🛑 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| locked | unlocked | lock+key | key | old-key | shield | tools | gear | wrench | hammer | hammer-pick | stop |
+
+### People / roles
+
+| 👤 | 👥 | 🧑‍💼 | 👨‍💼 | 👩‍💼 | 🧑‍💻 | 👨‍💻 | 👩‍💻 | 🧑‍⚖️ | ⚖️ | 🤝 | 👔 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| bust | busts | office-worker | m-office | w-office | tech-worker | m-tech | w-tech | judge | scale | handshake | tie |
+
+### Misc (common in dashboards)
+
+| 🔍 | 🔎 | 🔖 | 📌 | 📍 | 🚩 | 🏷 | 🎫 | 🏆 | 🥇 | 🥈 | 🥉 | 🏅 | 🎖 | 🎗 | 🎁 | 🎈 | 💡 | 🧠 | 🧭 | 🗺 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| magnify-L | magnify-R | bookmark | push-pin | location | red-flag | tag | ticket | trophy | gold | silver | bronze | medal | military | ribbon | gift | balloon | idea | brain | compass | map |
+
+### How to copy
+
+- **Raw emoji** — just copy the character (`🟢`) out of any table cell.
+- **In Excel format** — wrap in double-quotes: `[=1]"🟢"`.
+- **In expressions** — single OR double quotes work: `IF(..., "🟢", "🔴")` or `IF(..., '🟢', '🔴')`.
+- **Concatenation** — `CONCAT("📈 ", [security], " ", [side])` → `"📈 AAPL BUY"`.
+
+### Caveats
+
+- **Set-filter floating-filter display** — AG-Grid renders the selected
+  values as comma-joined strings in the compact floating-filter cell; a
+  set filter over an emoji column works but reads the emoji glyphs
+  themselves.
+- **Export to CSV / Excel** — AG-Grid's export uses the formatted string,
+  so emoji cells survive as actual emoji characters in `.csv`. Opens
+  correctly in Excel when the receiving file is UTF-8.
+- **Width** — a single emoji often renders wider than the same-numbered
+  character. Give emoji columns an `initialWidth` ≥ 50 and center-align
+  the cell.
