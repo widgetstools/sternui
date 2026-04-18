@@ -32,6 +32,7 @@ import type {
   ValueFormatterTemplate,
 } from './state';
 import type { ColumnTemplate, ColumnTemplatesState } from '../column-templates';
+import type { GeneralSettingsState } from '../general-settings/state';
 
 /**
  * Column Settings — master-detail editor for per-column overrides.
@@ -1210,6 +1211,9 @@ function RowGroupingEditor({
   value: RowGroupingConfig | undefined;
   onChange: (next: RowGroupingConfig | undefined) => void;
 }) {
+  const store = useGridStore();
+  const [gridOpts, setGridOpts] = useModuleState<GeneralSettingsState>(store, 'general-settings');
+
   const cfg = value ?? {};
   const update = (patch: Partial<RowGroupingConfig>) => {
     const next: RowGroupingConfig = { ...cfg, ...patch };
@@ -1220,6 +1224,10 @@ function RowGroupingEditor({
       if (Array.isArray(v) && v.length === 0) delete next[k];
     });
     onChange(Object.keys(next).length === 0 ? undefined : next);
+  };
+
+  const patchGrid = (patch: Partial<GeneralSettingsState>) => {
+    setGridOpts((prev) => ({ ...(prev ?? ({} as GeneralSettingsState)), ...patch }) as GeneralSettingsState);
   };
 
   return (
@@ -1369,6 +1377,97 @@ function RowGroupingEditor({
           }
         />
       )}
+
+      {/* ── Grid-level controls ─────────────────────────────────────────
+         These settings apply globally to the whole grid (not just this
+         column) but are surfaced here because they directly affect how
+         the per-column aggFunc values show up. They read / write the
+         general-settings module state — same source as the Grid Options
+         panel. */}
+      <div
+        style={{
+          marginTop: 12,
+          paddingTop: 8,
+          borderTop: '1px dashed var(--ck-border)',
+        }}
+      >
+        <Caps size={9} color="var(--ck-t2, var(--muted-foreground))">
+          Grid-level · applies to every column
+        </Caps>
+      </div>
+
+      <Row
+        label="GROUP DISPLAY"
+        hint='"groupRows" shows aggs inline on the value columns of each group row'
+        control={
+          <Select
+            value={gridOpts?.groupDisplayType ?? ''}
+            onChange={(e) => {
+              const v = e.target.value as GeneralSettingsState['groupDisplayType'] | '';
+              patchGrid({ groupDisplayType: v === '' ? undefined : v });
+            }}
+            data-testid={`cols-${colId}-rg-grid-groupdisplay`}
+            style={{ maxWidth: 220 }}
+          >
+            <option value="">AG-Grid default</option>
+            <option value="singleColumn">singleColumn</option>
+            <option value="multipleColumns">multipleColumns</option>
+            <option value="groupRows">groupRows</option>
+            <option value="custom">custom</option>
+          </Select>
+        }
+      />
+      <Row
+        label="GROUP SUBTOTAL ROW"
+        hint="Insert an aggregate row per group (subtotal)"
+        control={
+          <Select
+            value={gridOpts?.groupTotalRow ?? ''}
+            onChange={(e) => {
+              const v = e.target.value as GeneralSettingsState['groupTotalRow'] | '';
+              patchGrid({ groupTotalRow: v === '' ? undefined : v });
+            }}
+            data-testid={`cols-${colId}-rg-grid-grouptotal`}
+            style={{ maxWidth: 180 }}
+          >
+            <option value="">Off</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+          </Select>
+        }
+      />
+      <Row
+        label="GRAND TOTAL ROW"
+        hint="Insert an aggregate row for the whole dataset"
+        control={
+          <Select
+            value={gridOpts?.grandTotalRow ?? ''}
+            onChange={(e) => {
+              const v = e.target.value as GeneralSettingsState['grandTotalRow'] | '';
+              patchGrid({ grandTotalRow: v === '' ? undefined : v });
+            }}
+            data-testid={`cols-${colId}-rg-grid-grandtotal`}
+            style={{ maxWidth: 200 }}
+          >
+            <option value="">Off</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="pinnedTop">Pinned top</option>
+            <option value="pinnedBottom">Pinned bottom</option>
+          </Select>
+        }
+      />
+      <Row
+        label="HIDE AGG IN HEADER"
+        hint='Hides the "Sum(Price)" / "Avg(Yield)" prefix — header shows the column name only'
+        control={
+          <Switch
+            checked={gridOpts?.suppressAggFuncInHeader ?? false}
+            onChange={(e) => patchGrid({ suppressAggFuncInHeader: e.target.checked })}
+            data-testid={`cols-${colId}-rg-grid-suppressaggheader`}
+          />
+        }
+      />
     </>
   );
 }
