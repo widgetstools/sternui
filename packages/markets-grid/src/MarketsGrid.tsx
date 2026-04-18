@@ -5,6 +5,8 @@ import {
   GridProvider,
   MemoryAdapter,
   useProfileManager,
+  cockpitCSS,
+  COCKPIT_STYLE_ID,
   type AnyModule,
   type StorageAdapter,
 } from '@grid-customizer/core';
@@ -17,6 +19,20 @@ function ensureAgGridRegistered() {
   if (_agRegistered) return;
   ModuleRegistry.registerModules([AllEnterpriseModule]);
   _agRegistered = true;
+}
+
+/**
+ * Inject the cockpit design-system stylesheet once per document. Idempotent —
+ * subsequent grids reuse the single `<style id="gc-cockpit-styles">` node.
+ * Safe on SSR (no-ops when `document` is undefined).
+ */
+function ensureCockpitStyles() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(COCKPIT_STYLE_ID)) return;
+  const el = document.createElement('style');
+  el.id = COCKPIT_STYLE_ID;
+  el.textContent = cockpitCSS;
+  document.head.appendChild(el);
 }
 
 export const DEFAULT_MODULES: AnyModule[] = [];
@@ -45,6 +61,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
   } = props;
 
   ensureAgGridRegistered();
+  ensureCockpitStyles();
 
   const gridRef = useRef<AgGridReact<TData>>(null);
 

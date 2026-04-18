@@ -108,6 +108,31 @@ export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 
 // ─── Shared CSS / cockpit tokens ────────────────────────────────────────────
 export { settingsCSS, STYLE_ID } from './ui/styles';
+export { cockpitCSS, COCKPIT_STYLE_ID } from './css';
+
+// ─── Cockpit settings-panel primitives ──────────────────────────────────────
+export {
+  Caps,
+  Mono,
+  Band,
+  Row,
+  SharpBtn,
+  IconInput,
+  Stepper,
+  PillGroup,
+  PillBtn,
+  DirtyDot,
+  Led,
+  TBtn,
+  TGroup,
+  TDivider,
+  GhostIcon,
+  TitleInput,
+  MetaCell,
+  ItemCard,
+  TabStrip,
+} from './ui/settings';
+export type { BtnVariant, TabItem } from './ui/settings';
 
 // ─── shadcn primitives ──────────────────────────────────────────────────────
 export { Button, buttonVariants } from './ui/shadcn/button';
