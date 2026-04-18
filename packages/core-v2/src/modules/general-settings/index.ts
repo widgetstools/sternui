@@ -1,40 +1,125 @@
 import type { GridOptions } from 'ag-grid-community';
 import type { Module } from '../../core/types';
 import { INITIAL_GENERAL_SETTINGS, type GeneralSettingsState } from './state';
+import { GridOptionsPanel } from './GridOptionsPanel';
 
 /**
- * General Settings — pure transformGridOptions module. Carries no UI in
- * v2.0; the SettingsPanel comes back when MarketsGrid v2 lands and we've
- * defined the v2 panel registration surface.
+ * Grid Options — the "vitals" module. Carries the Top-40 curated AG-Grid
+ * options (see `/ag-grid-customizer-input-controls.md`). Runs first in the
+ * transform pipeline so other modules see the canonical defaultColDef /
+ * row sizing / selection config.
+ *
+ * `schemaVersion` bumped 1 → 2 when the state shape widened from the
+ * original "general settings" subset. `migrate()` backfills every new
+ * field from `INITIAL_GENERAL_SETTINGS` — additive only, no renames.
  */
+
 export const generalSettingsModule: Module<GeneralSettingsState> = {
   id: 'general-settings',
-  name: 'General Settings',
-  schemaVersion: 1,
+  name: 'Grid Options',
+  code: '00',
+  schemaVersion: 2,
   // Runs first so other modules see the canonical defaultColDef / row sizing.
   priority: 0,
 
   getInitialState: () => ({ ...INITIAL_GENERAL_SETTINGS }),
 
+  /**
+   * v1 snapshots predate the Top-40 widening. Spread the current initial
+   * state under the stored fields so every new key (`cellFlashDuration`,
+   * `multiSortMode`, `enterNavigation`, performance flags, …) is
+   * populated from defaults without losing anything the user had saved.
+   */
+  migrate(raw) {
+    if (!raw || typeof raw !== 'object') return { ...INITIAL_GENERAL_SETTINGS };
+    return {
+      ...INITIAL_GENERAL_SETTINGS,
+      ...(raw as Partial<GeneralSettingsState>),
+    };
+  },
+
   transformGridOptions(opts: Partial<GridOptions>, state: GeneralSettingsState): Partial<GridOptions> {
+    // ── Tier 3: compound multi-sort → three AG-Grid flags ─────────────────
+    // Keep the UI model's single enum and expand it here so AG-Grid sees
+    // the exact shape it expects.
+    const multiSort = {
+      replace: { suppressMultiSort: true, alwaysMultiSort: false, multiSortKey: undefined as 'ctrl' | undefined },
+      shift:   { suppressMultiSort: false, alwaysMultiSort: false, multiSortKey: undefined as 'ctrl' | undefined },
+      ctrl:    { suppressMultiSort: false, alwaysMultiSort: false, multiSortKey: 'ctrl' as const },
+      always:  { suppressMultiSort: false, alwaysMultiSort: true, multiSortKey: undefined as 'ctrl' | undefined },
+    }[state.multiSortMode];
+
+    // ── Tier 4: compound enter-navigation → two AG-Grid flags ─────────────
+    const enterNav = {
+      default:   { enterNavigatesVertically: false, enterNavigatesVerticallyAfterEdit: false },
+      always:    { enterNavigatesVertically: true,  enterNavigatesVerticallyAfterEdit: false },
+      afterEdit: { enterNavigatesVertically: false, enterNavigatesVerticallyAfterEdit: true  },
+      both:      { enterNavigatesVertically: true,  enterNavigatesVerticallyAfterEdit: true  },
+    }[state.enterNavigation];
+
     return {
       ...opts,
+
+      // Tier 1
       rowHeight: state.rowHeight,
       headerHeight: state.headerHeight,
-      // AG-Grid 35 expects the object form; undefined disables row selection.
-      rowSelection: state.rowSelection ? { mode: state.rowSelection } : undefined,
+      pagination: state.pagination,
+      paginationPageSize: state.pagination ? state.paginationPageSize : undefined,
+      paginationAutoPageSize: state.pagination ? state.paginationAutoPageSize : undefined,
+      suppressPaginationPanel: state.pagination ? state.suppressPaginationPanel : undefined,
+      rowSelection: state.rowSelection
+        ? {
+            mode: state.rowSelection,
+            // Expose a minimal, predictable default for the object form.
+            checkboxes: state.checkboxSelection,
+          }
+        : undefined,
       rowDragManaged: state.rowDragging,
       animateRows: state.animateRows,
+      cellFlashDuration: state.cellFlashDuration,
+      cellFadeDuration: state.cellFadeDuration,
+      quickFilterText: state.quickFilterText || undefined,
+
+      // Tier 2
+      groupDisplayType: state.groupDisplayType,
+      groupDefaultExpanded: state.groupDefaultExpanded,
+      rowGroupPanelShow: state.rowGroupPanelShow,
+      pivotMode: state.pivotMode,
+      pivotPanelShow: state.pivotPanelShow,
+      grandTotalRow: state.grandTotalRow,
+      groupTotalRow: state.groupTotalRow,
+      groupHideOpenParents: state.groupHideOpenParents,
+      suppressAggFuncInHeader: state.suppressAggFuncInHeader,
+
+      // Tier 3
+      enableAdvancedFilter: state.enableAdvancedFilter,
+      includeHiddenColumnsInQuickFilter: state.includeHiddenColumnsInQuickFilter,
+      ...multiSort,
+      accentedSort: state.accentedSort,
+      copyHeadersToClipboard: state.copyHeadersToClipboard,
+      clipboardDelimiter: state.clipboardDelimiter,
+
+      // Tier 4
+      singleClickEdit: state.singleClickEdit,
+      stopEditingWhenCellsLoseFocus: state.stopEditingWhenCellsLoseFocus,
+      ...enterNav,
+      undoRedoCellEditing: state.undoRedoCellEditing,
+      undoRedoCellEditingLimit: state.undoRedoCellEditing
+        ? state.undoRedoCellEditingLimit
+        : undefined,
+      tooltipShowDelay: state.tooltipShowDelay,
+      tooltipShowMode: state.tooltipShowMode,
+
+      // Tier 5
       suppressRowHoverHighlight: state.suppressRowHoverHighlight,
+      columnHoverHighlight: state.columnHoverHighlight,
+
+      // Legacy / shared flags
       enableCellTextSelection: state.enableCellTextSelection,
       suppressDragLeaveHidesColumns: state.suppressDragLeaveHidesColumns,
       suppressColumnMoveAnimation: state.suppressColumnMoveAnimation,
-      pagination: state.paginationEnabled,
-      // Send these only when pagination is on — passing them with pagination
-      // disabled triggers AG-Grid console warnings.
-      paginationPageSize: state.paginationEnabled ? state.paginationPageSize : undefined,
-      paginationAutoPageSize: state.paginationEnabled ? state.paginationAutoPageSize : undefined,
-      suppressPaginationPanel: state.paginationEnabled ? state.suppressPaginationPanel : undefined,
+
+      // Default ColDef
       defaultColDef: {
         ...opts.defaultColDef,
         resizable: state.defaultResizable,
@@ -46,18 +131,28 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
         wrapHeaderText: state.wrapHeaderText,
         suppressMovable: state.suppressMovable,
       },
-    };
+
+      // Performance
+      rowBuffer: state.rowBuffer,
+      suppressScrollOnNewData: state.suppressScrollOnNewData,
+      suppressColumnVirtualisation: state.suppressColumnVirtualisation,
+      // `suppressRowVirtualisation` is NOT a GridOption in AG-Grid — it's
+      // the row model's behaviour. AG-Grid exposes it via individual row
+      // model flags. Kept in state for completeness; emitted only when
+      // the host reads it directly.
+      suppressMaxRenderedRowRestriction: state.suppressMaxRenderedRowRestriction,
+      suppressAnimationFrame: state.suppressAnimationFrame,
+      debounceVerticalScrollbar: state.debounceVerticalScrollbar,
+    } as Partial<GridOptions>;
   },
 
   serialize: (state) => state,
-  // Tolerant deserialize: spread initial defaults under the saved partial so
-  // a v1 snapshot missing a v2 field gets the new field's initial value
-  // automatically. The `Module.migrate` hook is reserved for shape changes;
-  // this is just additive backfill.
   deserialize: (data) => ({
     ...INITIAL_GENERAL_SETTINGS,
     ...((data as Partial<GeneralSettingsState> | null) ?? {}),
   }),
+
+  SettingsPanel: GridOptionsPanel,
 };
 
 export type { GeneralSettingsState };
