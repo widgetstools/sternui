@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@grid-customizer/core": ["../core/src"]
+    }
+  },
+  "include": ["src", "../core/src"]
+}

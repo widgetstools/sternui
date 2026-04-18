@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid } from '@grid-customizer/markets-grid-v2';
-import { DexieAdapter } from '@grid-customizer/core-v2';
+import { MarketsGrid } from '@grid-customizer/markets-grid';
 import { Sun, Moon } from 'lucide-react';
 
 import { generateOrders, type Order } from './data';
@@ -114,9 +113,6 @@ function AppInner() {
 
   const theme = isDark ? darkTheme : lightTheme;
 
-  // Persistent profile storage (IndexedDB) — enables the Profiles settings panel.
-  const storageAdapter = useMemo(() => new DexieAdapter(), []);
-
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
       <header style={{
@@ -146,15 +142,12 @@ function AppInner() {
 
       <div style={{ flex: 1 }}>
         <MarketsGrid
-          gridId="demo-blotter-v2"
+          gridId="demo-blotter"
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           theme={theme}
           rowIdField="id"
-          showFiltersToolbar={true}
-          showFormattingToolbar={true}
-          storageAdapter={storageAdapter}
           sideBar={{ toolPanels: ['columns', 'filters'] }}
           statusBar={{
             statusPanels: [

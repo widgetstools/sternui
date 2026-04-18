@@ -1,19 +1,58 @@
 /**
- * @grid-customizer/core — shared primitives used by core-v2 and the
- * markets-grid-v2 host.
+ * @grid-customizer/core — v3.
  *
- * v2-only since the v1 code was removed. Exposes:
- *   - The CSP-safe ExpressionEngine + Monaco-based ExpressionEditor
- *   - shadcn UI primitives (Button, Popover, AlertDialog, Switch, Select,
- *     Tooltip, ToggleGroup, ColorPicker, Separator, Label, cn, …)
- *   - Format-editor primitives (FormatPopover, FormatDropdown,
- *     FormatColorPicker, FormatSwatch, BorderSidesEditor, …)
- *   - Shared style / cockpit CSS
- *   - The minimal type surface v2 modules need (CellStyleProperties,
- *     ThemeAwareStyle, ExpressionNode)
+ * One package, no `-v2` suffix, no React-vs-vanilla split yet (that's a
+ * future packaging decision). Keeps the layering clean internally:
+ *
+ *   platform/      framework-agnostic runtime (GridPlatform, store, events, api hub)
+ *   expression/    CSP-safe expression engine (unchanged from v2)
+ *   hooks/         thin React bindings for the platform
+ *   ui/            React UI primitives (shadcn, format-editor, ExpressionEditor, …)
+ *   modules/       individual modules (each exports a Module<S> + a React panel)
+ *   …              shared helpers that don't need a React boundary
+ *
+ * Public surface kept narrow — consumers import modules by name from
+ * `./modules/<moduleId>`.
  */
 
-// ─── Expression Engine ───────────────────────────────────────────────────────
+// ─── Platform runtime (framework-agnostic) ──────────────────────────────────
+export {
+  GridPlatform,
+  EventBus,
+  topoSortModules,
+  ApiHub,
+  ResourceScope,
+  CssInjector,
+  PipelineRunner,
+} from './platform';
+export type {
+  GridPlatformOptions,
+  AnyColDef,
+  AnyModule,
+  ApiEventName,
+  CssHandle,
+  EditorPaneProps,
+  ExpressionEngineLike,
+  GridApi,
+  GridOptions,
+  GetRowIdFunc,
+  GetRowIdParams,
+  ListPaneProps,
+  Module,
+  PlatformEventMap,
+  PlatformHandle,
+  SerializedState,
+  SettingsPanelProps,
+  Store,
+  TransformContext,
+} from './platform';
+
+// ─── Store + React bindings ─────────────────────────────────────────────────
+export { createGridStore } from './store/createGridStore';
+export type { CreateStoreOptions } from './store/createGridStore';
+export { GridProvider, useGridPlatform, useModuleState, useGridApi, useGridEvent } from './hooks';
+
+// ─── Expression Engine (unchanged, re-exported) ─────────────────────────────
 export {
   ExpressionEngine,
   tokenize,
@@ -29,17 +68,17 @@ export type {
 } from './expression';
 export { migrateExpressionSyntax, migrateExpressionsInObject } from './expression/migrate';
 
-// ─── Expression Editor (Monaco-based, reusable across all panels) ───────────
+// ─── Monaco ExpressionEditor (unchanged, re-exported) ───────────────────────
 export { ExpressionEditor } from './ui/ExpressionEditor';
 export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/ExpressionEditor';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 
 // ─── Shared CSS / cockpit tokens ────────────────────────────────────────────
 export { settingsCSS, STYLE_ID } from './ui/styles';
 
-// ─── Shadcn UI primitives ────────────────────────────────────────────────────
+// ─── shadcn primitives ──────────────────────────────────────────────────────
 export { Button, buttonVariants } from './ui/shadcn/button';
 export type { ButtonProps } from './ui/shadcn/button';
 export { Input } from './ui/shadcn/input';
@@ -75,7 +114,7 @@ export { cn } from './ui/shadcn/utils';
 export { ToggleGroup, ToggleGroupItem } from './ui/shadcn/toggle-group';
 export { ColorPicker, ColorPickerPopover } from './ui/shadcn/color-picker';
 
-// ─── Format Editor primitives (Figma-inspired, portal-based) ────────────────
+// ─── Format editor primitives (unchanged) ───────────────────────────────────
 export {
   FormatPopover,
   FormatDropdown,

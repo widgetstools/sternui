@@ -4,15 +4,13 @@
     "noEmit": true,
     "paths": {
       "@grid-customizer/core": ["../../packages/core/src"],
-      "@grid-customizer/core-v2": ["../../packages/core-v2/src"],
-      "@grid-customizer/markets-grid-v2": ["../../packages/markets-grid-v2/src"]
+      "@grid-customizer/markets-grid": ["../../packages/markets-grid/src"]
     }
   },
   "include": [
     "src",
     "../../packages/core/src",
-    "../../packages/core-v2/src",
-    "../../packages/markets-grid-v2/src"
+    "../../packages/markets-grid/src"
   ],
   "exclude": ["node_modules", "dist"]
 }

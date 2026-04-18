@@ -9,11 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@grid-customizer/core': resolve(__dirname, '../../packages/core/src'),
-      '@grid-customizer/core-v2': resolve(__dirname, '../../packages/core-v2/src'),
-      '@grid-customizer/markets-grid-v2': resolve(
-        __dirname,
-        '../../packages/markets-grid-v2/src',
-      ),
+      '@grid-customizer/markets-grid': resolve(__dirname, '../../packages/markets-grid/src'),
     },
   },
 });
