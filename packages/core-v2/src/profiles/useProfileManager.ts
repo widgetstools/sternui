@@ -38,8 +38,9 @@ export interface UseProfileManagerResult {
   isLoading: boolean;
   /** Load a profile, applying its snapshot via `core.deserializeAll`. Pending
    *  auto-save flushes first so we don't lose un-persisted edits to the
-   *  outgoing profile. */
-  loadProfile: (id: string) => Promise<void>;
+   *  outgoing profile — pass `{ skipFlush: true }` to opt out (used by the
+   *  delete path where flushing would resurrect the just-deleted profile). */
+  loadProfile: (id: string, options?: { skipFlush?: boolean }) => Promise<void>;
   /** Persist the current store snapshot into the active profile. Called by
    *  the auto-save engine; also exposed for explicit Save All buttons. */
   saveActiveProfile: () => Promise<void>;
@@ -209,12 +210,20 @@ export function useProfileManager(opts: UseProfileManagerOptions): UseProfileMan
   }, [persistSnapshot]);
 
   const loadProfile = useCallback(
-    async (id: string) => {
+    async (id: string, options?: { skipFlush?: boolean }) => {
       // Drain any pending auto-save for the *outgoing* profile before we
       // overwrite the in-memory store. Otherwise the next debounce fire would
       // write the new profile's snapshot into the old one's slot.
+      //
+      // `skipFlush` is used by the delete path — the outgoing profile has
+      // just been erased from storage, so flushing would silently re-create
+      // it by writing a fresh snapshot under the deleted id.
       if (autoSaveRef.current) {
-        await autoSaveRef.current.flushNow();
+        if (options?.skipFlush) {
+          autoSaveRef.current.cancelScheduled();
+        } else {
+          await autoSaveRef.current.flushNow();
+        }
       }
 
       const target = await adapter.loadProfile(gridId, id);
@@ -286,11 +295,22 @@ export function useProfileManager(opts: UseProfileManagerOptions): UseProfileMan
   const deleteProfile = useCallback(
     async (id: string) => {
       if (id === RESERVED_DEFAULT_PROFILE_ID) return; // can't delete Default
+
+      // Cancel any pending debounced auto-save BEFORE we erase the record.
+      // Without this, a debounce that was scheduled moments ago will fire
+      // after the delete lands — `persistSnapshot` reads the still-active
+      // outgoing-profile id and writes a fresh snapshot under it, silently
+      // recreating the profile the user just deleted.
+      autoSaveRef.current?.cancelScheduled();
+
       await adapter.deleteProfile(gridId, id);
       core.eventBus.emit('profile:deleted', { gridId, profileId: id });
-      // If the deleted profile was active, fall back to Default.
+
+      // If the deleted profile was active, fall back to Default. Pass
+      // `skipFlush` so `loadProfile` doesn't flush the auto-save buffer
+      // (which would also recreate the profile — same race as above).
       if (activeIdRef.current === id) {
-        await loadProfile(RESERVED_DEFAULT_PROFILE_ID);
+        await loadProfile(RESERVED_DEFAULT_PROFILE_ID, { skipFlush: true });
       } else {
         await refreshProfiles();
       }

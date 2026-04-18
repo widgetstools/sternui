@@ -32,6 +32,11 @@ export interface AutoSaveHandle {
    *  resulting persist (if any) settles. Safe to call from the explicit
    *  Save All button or from `beforeunload`. */
   flushNow(): Promise<void>;
+  /** Cancel any scheduled (debounced) persist WITHOUT flushing. Used by
+   *  profile deletion — the outgoing profile is being erased, so a flush
+   *  would silently recreate it by writing a fresh snapshot under the
+   *  just-deleted id. */
+  cancelScheduled(): void;
 }
 
 /**
@@ -127,6 +132,12 @@ export function startAutoSave(opts: AutoSaveOptions): AutoSaveHandle {
         timer = null;
       }
       await drain();
+    },
+    cancelScheduled() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
     },
   };
 }
