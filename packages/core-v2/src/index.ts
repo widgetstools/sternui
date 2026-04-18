@@ -157,6 +157,7 @@ export type {
   ProfileMeta,
   UseProfileManagerOptions,
   UseProfileManagerResult,
+  ExportedProfilePayload,
 } from './profiles/useProfileManager';
 
 // Built-in modules

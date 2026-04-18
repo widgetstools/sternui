@@ -1367,6 +1367,28 @@ doesn't re-render until the user clicks SAVE.
   `AlertDialogFooter` / `AlertDialogTitle` / `AlertDialogDescription`
   / `AlertDialogAction` (primary / destructive variants) /
   `AlertDialogCancel` to the shadcn primitive set.
+- **Export / Import profiles as JSON** — every profile in the selector
+  popover has a per-row `Download` button on hover; a footer row offers
+  `Export` (active profile) and `Import` (file picker). Payload shape:
+  ```json
+  {
+    "schemaVersion": 1,
+    "kind": "gc-profile",
+    "exportedAt": "2026-04-18T…",
+    "profile": { "name": "T2", "gridId": "demo-blotter-v2", "state": { <9 modules> } }
+  }
+  ```
+  The state is the same module → versioned envelope shape the store
+  produces via `core.serializeAll()`, so round-tripping through
+  export → import goes through each module's regular deserialize /
+  migrate path. Import is always additive (generates a unique id +
+  name on collision), flushes auto-save before exporting, and
+  activates the imported profile. Test IDs: `profile-export-{id}`
+  per-row, `profile-export-active-btn`, `profile-import-btn`,
+  `profile-import-file`. New hook API:
+  `useProfileManager().exportProfile(id?)` →
+  `Promise<ExportedProfilePayload>`, and `.importProfile(payload,
+  options)` → `Promise<ProfileMeta>`.
 
 ### 17.16 SettingsSheet chrome cleanup
 

@@ -201,6 +201,41 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
                 onCreate={(name) => profiles.createProfile(name)}
                 onLoad={(id) => profiles.loadProfile(id)}
                 onDelete={(id) => profiles.deleteProfile(id)}
+                onExport={async (id) => {
+                  try {
+                    const payload = await profiles.exportProfile(id);
+                    const fileStem = (payload.profile.name || id)
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]+/g, '-')
+                      .replace(/^-+|-+$/g, '')
+                      .slice(0, 60) || 'profile';
+                    const json = JSON.stringify(payload, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `gc-profile-${fileStem}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    // Release the object-url on the next tick so the browser
+                    // has a frame to initiate the download before we revoke.
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  } catch (err) {
+                    console.warn('[markets-grid-v2] profile export failed:', err);
+                    window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+                onImport={async (file) => {
+                  try {
+                    const text = await file.text();
+                    const payload = JSON.parse(text);
+                    await profiles.importProfile(payload);
+                  } catch (err) {
+                    console.warn('[markets-grid-v2] profile import failed:', err);
+                    window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
               />
             </div>
           )}

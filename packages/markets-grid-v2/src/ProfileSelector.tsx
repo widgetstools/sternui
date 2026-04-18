@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronDown, Check, Plus, Trash2, Lock, User } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@grid-customizer/core-v2';
 import {
   Popover,
@@ -22,6 +22,18 @@ export interface ProfileSelectorProps {
   onCreate: (name: string) => void | Promise<unknown>;
   onLoad: (id: string) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
+  /**
+   * Optional: called per-profile from the row's download button AND from the
+   * footer "Export active" action. Implementations should download a JSON
+   * file. Omit to hide the export affordances.
+   */
+  onExport?: (id: string) => void | Promise<unknown>;
+  /**
+   * Optional: called from the footer "Import…" action with a File the user
+   * picked. Implementations should parse the JSON and call the profile
+   * manager's importProfile. Omit to hide the import affordance.
+   */
+  onImport?: (file: File) => void | Promise<unknown>;
 }
 
 /**
@@ -36,11 +48,14 @@ export function ProfileSelector({
   onCreate,
   onLoad,
   onDelete,
+  onExport,
+  onImport,
 }: ProfileSelectorProps) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Pending-delete drives the shadcn AlertDialog. We track the FULL row
   // (not just the id) so the dialog can render the profile's display name
   // without having to re-lookup from `profiles` after the delete has
@@ -239,6 +254,41 @@ export function ProfileSelector({
                     />
                   )}
 
+                  {/* Per-row export button — revealed on hover next to delete */}
+                  {onExport && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onExport(p.id);
+                      }}
+                      title={`Export "${p.name}" as JSON`}
+                      aria-label={`Export profile ${p.name}`}
+                      data-testid={`profile-export-${p.id}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 22, height: 22,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--muted-foreground, #8b93a1)',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        opacity: isHovered ? 1 : 0,
+                        transition: 'opacity 120ms, background 120ms, color 120ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--primary, #14b8a6) 14%, transparent)';
+                        e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--muted-foreground, #8b93a1)';
+                      }}
+                    >
+                      <Download size={11} strokeWidth={1.75} />
+                    </button>
+                  )}
+
                   {/* Trailing affordance */}
                   {isReserved ? (
                     <span
@@ -371,6 +421,101 @@ export function ProfileSelector({
               </button>
             </div>
           </div>
+
+          {/* Import / Export row — rendered only when the host wired the
+              callbacks. Keeps the popover compact for consumers that don't
+              need the feature. */}
+          {(onExport || onImport) && (
+            <>
+              <div style={{
+                height: 1,
+                background: 'color-mix(in srgb, var(--border, #313944) 60%, transparent)',
+              }} />
+              <div style={{
+                display: 'flex', gap: 6,
+                padding: '8px 10px 10px',
+              }}>
+                {onExport && (
+                  <button
+                    type="button"
+                    onClick={() => { onExport(activeProfileId); }}
+                    title="Export the active profile to a JSON file"
+                    data-testid="profile-export-active-btn"
+                    style={{
+                      flex: 1,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                      height: 28,
+                      background: 'transparent',
+                      border: '1px solid var(--border, #313944)',
+                      borderRadius: 6,
+                      color: 'var(--foreground, #eaecef)',
+                      fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
+                      cursor: 'pointer',
+                      transition: 'border-color 120ms, background 120ms, color 120ms',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary, #14b8a6) 55%, var(--border, #313944))';
+                      e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border, #313944)';
+                      e.currentTarget.style.color = 'var(--foreground, #eaecef)';
+                    }}
+                  >
+                    <Download size={12} strokeWidth={1.75} />
+                    Export
+                  </button>
+                )}
+                {onImport && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/json,.json"
+                      data-testid="profile-import-file"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void onImport(file);
+                        // Clear so re-picking the same file still fires change.
+                        e.target.value = '';
+                        setOpen(false);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Import a profile from a JSON file"
+                      data-testid="profile-import-btn"
+                      style={{
+                        flex: 1,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        height: 28,
+                        background: 'transparent',
+                        border: '1px solid var(--border, #313944)',
+                        borderRadius: 6,
+                        color: 'var(--foreground, #eaecef)',
+                        fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
+                        cursor: 'pointer',
+                        transition: 'border-color 120ms, background 120ms, color 120ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary, #14b8a6) 55%, var(--border, #313944))';
+                        e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border, #313944)';
+                        e.currentTarget.style.color = 'var(--foreground, #eaecef)';
+                      }}
+                    >
+                      <Upload size={12} strokeWidth={1.75} />
+                      Import
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </PopoverContent>
       </Popover>
 

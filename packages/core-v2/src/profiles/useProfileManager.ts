@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GridCore } from '../core/GridCore';
 import type { GridStore } from '../store/createGridStore';
+import type { SerializedState } from '../core/types';
 import { startAutoSave, type AutoSaveHandle } from '../store/autosave';
 import {
   RESERVED_DEFAULT_PROFILE_ID,
@@ -53,6 +54,19 @@ export interface UseProfileManagerResult {
   deleteProfile: (id: string) => Promise<void>;
   /** Rename. Cannot rename Default. */
   renameProfile: (id: string, name: string) => Promise<void>;
+  /** Snapshot a profile as a JSON-serialisable payload. Omit `id` to export
+   *  the active profile. Flushes any pending auto-save first so the payload
+   *  reflects the latest edits, even if the user mashed Export right after
+   *  a keystroke. */
+  exportProfile: (id?: string) => Promise<ExportedProfilePayload>;
+  /** Create a new profile from an imported payload. Always additive —
+   *  generates a unique id + name on collision so importing never
+   *  overwrites an existing profile. Activates the new profile unless
+   *  `activate: false` is passed. */
+  importProfile: (
+    payload: unknown,
+    options?: { name?: string; activate?: boolean },
+  ) => Promise<ProfileMeta>;
 }
 
 /**
@@ -331,6 +345,101 @@ export function useProfileManager(opts: UseProfileManagerOptions): UseProfileMan
     [adapter, gridId, refreshProfiles],
   );
 
+  /**
+   * Snapshot a profile (or the active one) as a portable JSON payload. The
+   * payload is versioned (`schemaVersion: 1`) so future consumers can migrate
+   * older exports if the shape ever changes. The payload includes the module
+   * state verbatim — each module's own `schemaVersion` + `data` envelope
+   * travels along, so importing into a future build runs the same migration
+   * path a live snapshot would.
+   */
+  const exportProfile = useCallback(
+    async (id?: string): Promise<ExportedProfilePayload> => {
+      const targetId = id ?? activeIdRef.current;
+      // Pending debounce first — otherwise we could export a stale snapshot.
+      await autoSaveRef.current?.flushNow?.();
+      const snap = await adapter.loadProfile(gridId, targetId);
+      if (!snap) throw new Error(`[core-v2] No profile with id "${targetId}" to export`);
+      return {
+        schemaVersion: 1,
+        kind: 'gc-profile',
+        exportedAt: new Date().toISOString(),
+        profile: {
+          name: snap.name,
+          gridId: snap.gridId,
+          state: snap.state,
+        },
+      };
+    },
+    [adapter, gridId],
+  );
+
+  /**
+   * Import a previously-exported profile payload. Creates a new profile row
+   * (never overwrites — uses the provided `name` or falls back to the
+   * payload's own name with a "(imported)" suffix on collision). Activates
+   * the new profile after writing.
+   *
+   * Strict shape validation: any missing or wrong-typed field throws so the
+   * user sees a clear error message instead of silently writing a broken
+   * profile the grid then fails to render.
+   */
+  const importProfile = useCallback(
+    async (
+      payload: unknown,
+      options?: { name?: string; activate?: boolean },
+    ): Promise<ProfileMeta> => {
+      const parsed = validateExportedPayload(payload);
+      // Resolve a unique id/name so imports are always additive.
+      const existing = await adapter.listProfiles(gridId);
+      const existingIds = new Set(existing.map((p) => p.id));
+      const existingNames = new Set(existing.map((p) => p.name.toLowerCase()));
+
+      let name = options?.name?.trim() || parsed.profile.name || 'Imported profile';
+      if (existingNames.has(name.toLowerCase())) {
+        let suffix = 2;
+        while (existingNames.has(`${name} (imported ${suffix})`.toLowerCase())) suffix++;
+        name = `${name} (imported ${suffix})`;
+      }
+
+      const baseId = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || `imported-${Date.now().toString(36)}`;
+      let id = baseId;
+      let counter = 2;
+      while (existingIds.has(id) || id === RESERVED_DEFAULT_PROFILE_ID) {
+        id = `${baseId}-${counter++}`;
+      }
+
+      const now = Date.now();
+      const snap: ProfileSnapshot = {
+        id,
+        gridId,
+        name,
+        state: parsed.profile.state,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await adapter.saveProfile(snap);
+      core.eventBus.emit('profile:saved', { gridId, profileId: id });
+      await refreshProfiles();
+
+      if (options?.activate !== false) {
+        // Deserialize and mark active so the grid reflects the new profile.
+        core.deserializeAll(snap.state);
+        activeIdRef.current = id;
+        setActiveProfileId(id);
+        writeActiveId(gridId, id);
+        core.eventBus.emit('profile:loaded', { gridId, profileId: id });
+      }
+
+      return toMeta(snap);
+    },
+    [adapter, core, gridId, refreshProfiles],
+  );
+
   return {
     activeProfileId,
     profiles,
@@ -340,6 +449,69 @@ export function useProfileManager(opts: UseProfileManagerOptions): UseProfileMan
     createProfile,
     deleteProfile,
     renameProfile,
+    exportProfile,
+    importProfile,
+  };
+}
+
+// ─── Export payload schema ──────────────────────────────────────────────────
+
+export interface ExportedProfilePayload {
+  /** Payload schema version. Bump on breaking shape changes. */
+  schemaVersion: 1;
+  /** Discriminator — enables quick "is this a gc-profile export?" checks
+   *  before attempting to parse the rest. */
+  kind: 'gc-profile';
+  /** ISO-8601 timestamp. Informational — not used for sorting / conflict
+   *  resolution on import. */
+  exportedAt: string;
+  /** The actual profile body. */
+  profile: {
+    name: string;
+    gridId: string;
+    state: Record<string, SerializedState>;
+  };
+}
+
+/**
+ * Runtime validation of an imported payload. Throws with a human-readable
+ * message when the shape doesn't match. Called by `importProfile` before
+ * writing anything to storage so a malformed file can't corrupt an existing
+ * profile list.
+ */
+function validateExportedPayload(raw: unknown): ExportedProfilePayload {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('[core-v2] Import payload is not an object');
+  }
+  const obj = raw as Record<string, unknown>;
+  if (obj.kind !== 'gc-profile') {
+    throw new Error('[core-v2] Import payload is not a gc-profile export (kind mismatch)');
+  }
+  if (typeof obj.schemaVersion !== 'number' || obj.schemaVersion < 1) {
+    throw new Error('[core-v2] Import payload has an unsupported schemaVersion');
+  }
+  const profile = obj.profile as Record<string, unknown> | undefined;
+  if (!profile || typeof profile !== 'object') {
+    throw new Error('[core-v2] Import payload is missing `profile`');
+  }
+  if (typeof profile.name !== 'string' || !profile.name.trim()) {
+    throw new Error('[core-v2] Import payload is missing `profile.name`');
+  }
+  if (typeof profile.gridId !== 'string') {
+    throw new Error('[core-v2] Import payload is missing `profile.gridId`');
+  }
+  if (!profile.state || typeof profile.state !== 'object') {
+    throw new Error('[core-v2] Import payload is missing `profile.state`');
+  }
+  return {
+    schemaVersion: 1,
+    kind: 'gc-profile',
+    exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : new Date().toISOString(),
+    profile: {
+      name: profile.name.trim(),
+      gridId: profile.gridId,
+      state: profile.state as Record<string, SerializedState>,
+    },
   };
 }
 
