@@ -92,6 +92,12 @@ function applyTemplateLikeOver(
   if (source.cellEditorName !== undefined) target.cellEditorName = source.cellEditorName;
   if (source.cellEditorParams !== undefined) target.cellEditorParams = source.cellEditorParams;
   if (source.cellRendererName !== undefined) target.cellRendererName = source.cellRendererName;
+  // Rich filter config — treated as opaque (wholesale replace), same as
+  // `cellEditorParams`. Templates rarely define filter config but the slot
+  // exists for consistency.
+  if ('filter' in source && (source as { filter?: unknown }).filter !== undefined) {
+    (target as unknown as { filter?: unknown }).filter = (source as { filter: unknown }).filter;
+  }
   // Assignment-only fields — only present when source is the assignment itself.
   if ('headerName' in source && source.headerName !== undefined) target.headerName = source.headerName;
   if ('headerTooltip' in source && source.headerTooltip !== undefined) target.headerTooltip = source.headerTooltip;

@@ -1081,17 +1081,18 @@ is addressable from one screen.
   event) and a green `•` marker when the column has any stored
   overrides.
 
-- **EditorPane** — six bands, all driven by `useDraftModuleItem`
+- **EditorPane** — seven bands, all driven by `useDraftModuleItem`
   scoped to `state.assignments[colId]`:
 
   | Band | Controls |
   |---|---|
   | 01 HEADER | header name override, tooltip |
-  | 02 LAYOUT | initial width, pinned (OFF/LEFT/RIGHT pills), initial hide, sortable/filterable/resizable as tri-state pills (DEFAULT/ON/OFF) |
+  | 02 LAYOUT | initial width, pinned (OFF/LEFT/RIGHT), initial hide, sortable/resizable as tri-state Selects (DEFAULT/ON/OFF) |
   | 03 TEMPLATES | **chip list of applied `column-templates`** with per-chip × to remove + shadcn-Select picker to add any unapplied template. Caption clarifies "APPLICATION ORDER — LATER TEMPLATES LAYER OVER EARLIER" since resolution is order-dependent. |
   | 04 CELL STYLE | embedded `<StyleEditor sections={['text','color','border']}>` wired through a local `CellStyleOverrides ↔ StyleEditorValue` bridge (typography / colors / alignment / per-side borders) |
   | 05 HEADER STYLE | same editor, scoped to `headerStyleOverrides`. Caption: "Blank alignment = follow the cell. Explicit value overrides." — matches the header-follows-cell fallback in reinjectCSS. |
   | 06 VALUE FORMAT | shared `FormatterPicker` in compact popover mode — same Figma-style preset grid the Formatting Toolbar + Style Rule editor + Calculated Column editor all use. |
+  | 07 FILTER | rich per-column filter config (schemaVersion 4): master enable tri-state, kind picker (`agTextColumnFilter` / `agNumberColumnFilter` / `agDateColumnFilter` / `agSetColumnFilter` / `agMultiColumnFilter`), floating-filter Switch, button multi-select (apply/clear/reset/cancel), debounce, closeOnApply. When kind = `agSetColumnFilter`: mini-filter, select-all, alphabetical sort, Excel-mode Windows/Mac, default-to-nothing-selected. When kind = `agMultiColumnFilter`: ordered sub-filter list with per-row display-mode (inline / subMenu / accordion) + remove. The transform composes AG-Grid `filter` / `filterParams` / `floatingFilter` ColDef fields. |
 
 - **Save semantics** — explicit SAVE pill (draft / dirty pattern). A
   commit that clears every override deletes the assignment entry
@@ -1115,7 +1116,12 @@ Test IDs: `cols-item-{colId}`, `cols-editor-{colId}`, `cols-save-{colId}`,
 `cols-{colId}-hide`, `cols-{colId}-sortable-default|on|off`,
 `cols-{colId}-templates`, `cols-{colId}-template-{tplId}`,
 `cols-{colId}-template-remove-{tplId}`, `cols-{colId}-template-picker`,
-`cols-{colId}-cell-style`, `cols-{colId}-header-style`, `cols-{colId}-fmt`.
+`cols-{colId}-cell-style`, `cols-{colId}-header-style`, `cols-{colId}-fmt`,
+`cols-{colId}-filter-enabled`, `cols-{colId}-filter-kind`,
+`cols-{colId}-filter-floating`, `cols-{colId}-filter-debounce`,
+`cols-{colId}-filter-closeonapply`, `cols-{colId}-filter-btn-{apply|clear|reset|cancel}`,
+`cols-{colId}-setfilter-minifilter` / `-selectall` / `-sorting` / `-excel` / `-dtn`,
+`cols-{colId}-multi-add`, `cols-{colId}-multi-{idx}-kind` / `-display` / `-remove`.
 
 Verified end-to-end in preview: 21 columns listed for the demo
 blotter, selecting a column opens the full 6-band editor, applied

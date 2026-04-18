@@ -35,6 +35,66 @@ export interface ColumnAssignment {
   cellEditorName?: string;
   cellEditorParams?: Record<string, unknown>;
   cellRendererName?: string;
+
+  // ─── New in schemaVersion 4 ──────────────────────────────────────────────
+  // Rich per-column filter config. When present, takes precedence over the
+  // legacy `filterable` boolean. The transform in `./index.ts` composes the
+  // AG-Grid `filter` / `filterParams` / `floatingFilter` from this object.
+  // All fields optional; absent = inherit defaults.
+  filter?: ColumnFilterConfig;
+}
+
+// ─── Filter config ──────────────────────────────────────────────────────────
+//
+// We allow the user to pick any AG-Grid filter by its registered name. Common
+// values: agTextColumnFilter / agNumberColumnFilter / agDateColumnFilter
+// (Community); agSetColumnFilter / agMultiColumnFilter (Enterprise). `false`
+// explicitly disables filtering on the column (overrides `filterable`).
+
+export type FilterKind =
+  | 'agTextColumnFilter'
+  | 'agNumberColumnFilter'
+  | 'agDateColumnFilter'
+  | 'agSetColumnFilter'
+  | 'agMultiColumnFilter';
+
+/** AG-Grid set-filter params we expose in the UI. */
+export interface SetFilterOptions {
+  suppressMiniFilter?: boolean;
+  suppressSelectAll?: boolean;
+  suppressSorting?: boolean;
+  excelMode?: 'windows' | 'mac';
+  defaultToNothingSelected?: boolean;
+}
+
+/** One entry in an `agMultiColumnFilter.filterParams.filters[]` list. */
+export interface MultiFilterEntry {
+  filter: FilterKind;                               // sub-filter kind
+  display?: 'inline' | 'subMenu' | 'accordion';     // AG-Grid display mode
+  title?: string;                                   // label in the multi-filter menu
+}
+
+export interface ColumnFilterConfig {
+  /**
+   * Master toggle. When `false`, filtering is disabled on this column
+   * regardless of `kind` / `floatingFilter`. Takes precedence over the
+   * top-level `filterable` boolean.
+   */
+  enabled?: boolean;
+  /** Filter registration name. Required when `enabled` is true. */
+  kind?: FilterKind;
+  /** Whether to render the floating-filter row cell for this column. */
+  floatingFilter?: boolean;
+  /** Debounce (ms) before the filter fires, for text/number/date filters. */
+  debounceMs?: number;
+  /** Apply button closes the popup when true. */
+  closeOnApply?: boolean;
+  /** Subset of AG-Grid filter buttons to render in the popup. */
+  buttons?: Array<'apply' | 'clear' | 'reset' | 'cancel'>;
+  /** Extra options when `kind === 'agSetColumnFilter'`. */
+  setFilterOptions?: SetFilterOptions;
+  /** Ordered list of sub-filters when `kind === 'agMultiColumnFilter'`. */
+  multiFilters?: MultiFilterEntry[];
 }
 
 export interface ColumnCustomizationState {

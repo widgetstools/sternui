@@ -229,6 +229,71 @@ function reinjectCSS(
   }
 }
 
+// ─── Filter config → AG-Grid filter/filterParams/floatingFilter ────────────
+
+/**
+ * Compose AG-Grid's `filter`, `filterParams`, and `floatingFilter` fields on
+ * `merged` from our `ColumnFilterConfig`. Mutates `merged` in place.
+ *
+ * Precedence rules:
+ *   - `enabled === false` → filter disabled (false)
+ *   - otherwise, `kind` wins; if not set, inherit the existing `filter`
+ *   - `floatingFilter` is applied unconditionally when defined
+ *   - Filter-specific params (setFilterOptions, multiFilters, buttons,
+ *     debounceMs, closeOnApply) are composed into a plain `filterParams`.
+ */
+function applyFilterConfigToColDef(
+  merged: ColDef,
+  cfg: NonNullable<ColumnAssignment['filter']>,
+): void {
+  if (cfg.enabled === false) {
+    merged.filter = false;
+    merged.filterParams = undefined;
+    if (cfg.floatingFilter !== undefined) {
+      merged.floatingFilter = cfg.floatingFilter;
+    }
+    return;
+  }
+
+  if (cfg.kind) {
+    merged.filter = cfg.kind;
+  }
+
+  if (cfg.floatingFilter !== undefined) {
+    merged.floatingFilter = cfg.floatingFilter;
+  }
+
+  // Build filterParams only if the user specified any — leaving it undefined
+  // lets AG-Grid apply its per-filter defaults.
+  const params: Record<string, unknown> = {};
+
+  if (cfg.buttons && cfg.buttons.length > 0) params.buttons = cfg.buttons;
+  if (cfg.closeOnApply !== undefined) params.closeOnApply = cfg.closeOnApply;
+  if (cfg.debounceMs !== undefined) params.debounceMs = cfg.debounceMs;
+
+  if (cfg.kind === 'agSetColumnFilter' && cfg.setFilterOptions) {
+    const s = cfg.setFilterOptions;
+    if (s.suppressMiniFilter !== undefined) params.suppressMiniFilter = s.suppressMiniFilter;
+    if (s.suppressSelectAll !== undefined) params.suppressSelectAll = s.suppressSelectAll;
+    if (s.suppressSorting !== undefined) params.suppressSorting = s.suppressSorting;
+    if (s.excelMode !== undefined) params.excelMode = s.excelMode;
+    if (s.defaultToNothingSelected !== undefined) params.defaultToNothingSelected = s.defaultToNothingSelected;
+  }
+
+  if (cfg.kind === 'agMultiColumnFilter' && cfg.multiFilters && cfg.multiFilters.length > 0) {
+    params.filters = cfg.multiFilters.map((mf) => {
+      const entry: Record<string, unknown> = { filter: mf.filter };
+      if (mf.display) entry.display = mf.display;
+      if (mf.title) entry.title = mf.title;
+      return entry;
+    });
+  }
+
+  if (Object.keys(params).length > 0) {
+    merged.filterParams = { ...(merged.filterParams as Record<string, unknown> | undefined), ...params };
+  }
+}
+
 // ─── Walker: emit cellClass/headerClass instead of cellStyle/headerStyle ────
 
 function applyAssignments(
@@ -264,6 +329,12 @@ function applyAssignments(
     if (resolved.sortable !== undefined) merged.sortable = resolved.sortable;
     if (resolved.filterable !== undefined) merged.filter = resolved.filterable;
     if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
+
+    // Rich filter config — takes precedence over the simple `filterable`
+    // boolean whenever `filter.kind` or `filter.enabled === false` is set.
+    if (resolved.filter !== undefined) {
+      applyFilterConfigToColDef(merged, resolved.filter);
+    }
     if (resolved.valueFormatterTemplate !== undefined) {
       merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
 
@@ -340,14 +411,16 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   // for back-compat with persisted profiles.
   name: 'Column Settings',
   code: '04',
-  schemaVersion: 3,
+  schemaVersion: 4,
   dependencies: ['column-templates'],
   priority: 10,
 
   getInitialState: () => ({ ...INITIAL_COLUMN_CUSTOMIZATION }),
 
   migrate(raw, fromVersion) {
-    if (fromVersion === 1 || fromVersion === 2) {
+    // v4 introduces optional `filter` per-assignment — additive, roundtrips
+    // v1/v2/v3 snapshots unchanged; no field rename needed.
+    if (fromVersion === 1 || fromVersion === 2 || fromVersion === 3) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           `[core-v2] column-customization`,
