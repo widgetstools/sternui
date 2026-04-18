@@ -156,12 +156,23 @@ function currentTickToken(t: ValueFormatterTemplate | undefined): TickToken | nu
  *  traders see exactly what each precision produces. Values come from
  *  TICK_SAMPLES in core-v2; inlined here to keep the dropdown self-
  *  contained without importing yet another barrel symbol. */
-const TICK_MENU: ReadonlyArray<{ token: TickToken; label: string; sample: string }> = [
-  { token: 'TICK32',      label: '32nds',           sample: '101-16' },
-  { token: 'TICK32_PLUS', label: '32nds + halves',  sample: '101-16+' },
-  { token: 'TICK64',      label: '64ths',           sample: '101-161' },
-  { token: 'TICK128',     label: '128ths',          sample: '101-162' },
-  { token: 'TICK256',     label: '256ths',          sample: '101-161' },
+const TICK_MENU: ReadonlyArray<{
+  token: TickToken;
+  label: string;
+  sample: string;
+  /** Short denominator label displayed on the toolbar button — reflects
+   *  the active tick base (32 / 32+ / 64 / 128 / 256) so the user can see
+   *  at a glance which tick system is applied. Derived separately from
+   *  `sample` because `sample.split('-').pop()` would incorrectly return
+   *  the fractional numerator ('16' from '101-16') instead of the
+   *  denominator the user actually cares about. */
+  denominator: string;
+}> = [
+  { token: 'TICK32',      label: '32nds',           sample: '101-16',  denominator: '32'  },
+  { token: 'TICK32_PLUS', label: '32nds + halves',  sample: '101-16+', denominator: '32+' },
+  { token: 'TICK64',      label: '64ths',           sample: '101-161', denominator: '64'  },
+  { token: 'TICK128',     label: '128ths',          sample: '101-162', denominator: '128' },
+  { token: 'TICK256',     label: '256ths',          sample: '101-161', denominator: '256' },
 ];
 
 function isCommaTemplate(t: ValueFormatterTemplate | undefined): boolean {
@@ -1057,7 +1068,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
             lineHeight: 1,
           }}>
             {currentTickToken(vft)
-              ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.sample.split('-').pop() ?? '32')
+              ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
               : '32'}
           </span>
         </TBtn>
