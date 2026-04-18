@@ -244,7 +244,7 @@ function reinjectCSS(
  *   - Filter-specific params (setFilterOptions, multiFilters, buttons,
  *     debounceMs, closeOnApply) are composed into a plain `filterParams`.
  */
-function applyFilterConfigToColDef(
+export function applyFilterConfigToColDef(
   merged: ColDef,
   cfg: NonNullable<ColumnAssignment['filter']>,
 ): void {
@@ -366,8 +366,11 @@ function buildCustomAggFn(expression: string): ((params: IAggFuncParams) => unkn
  * the base ColDef's own settings. The `'custom'` aggFunc compiles the paired
  * `customAggExpression` through the expression engine and hands AG-Grid the
  * resulting function.
+ *
+ * Exported so the calculated-columns module can layer the same config onto
+ * virtual ColDefs — keeps regular and virtual columns in sync.
  */
-function applyRowGroupingConfigToColDef(
+export function applyRowGroupingConfigToColDef(
   merged: ColDef,
   cfg: RowGroupingConfig,
 ): void {

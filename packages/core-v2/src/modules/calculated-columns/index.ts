@@ -6,6 +6,11 @@ import {
 } from './state';
 import { buildVirtualColDef } from './virtualColumn';
 import {
+  applyFilterConfigToColDef,
+  applyRowGroupingConfigToColDef,
+} from '../column-customization';
+import type { ColumnFilterConfig, RowGroupingConfig } from '../column-customization/state';
+import {
   CalculatedColumnsEditor,
   CalculatedColumnsList,
   CalculatedColumnsPanel,
@@ -156,6 +161,8 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       initialWidth?: number;
       initialHide?: boolean;
       initialPinned?: 'left' | 'right' | boolean;
+      filter?: unknown;
+      rowGrouping?: unknown;
     }> = {};
     try {
       const cust = gridCtx.getModuleState<{
@@ -217,6 +224,22 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
         else if (typeof existing === 'string') layered.headerClass = [existing, cls];
         else layered.headerClass = cls;
       }
+
+      // Filter config — keep virtual columns in sync with regular ones so
+      // the FILTER band in Column Settings applies to calc cols too.
+      if (assignment.filter !== undefined) {
+        applyFilterConfigToColDef(layered, assignment.filter as ColumnFilterConfig);
+      }
+
+      // Row-grouping / aggregation / pivot config — same reasoning. This
+      // enables sum/avg/etc and custom expressions like `SUM([value]) * 1.1`
+      // on calculated columns, and ensures the aggregated value shows up
+      // on the group row (paired with the group-row branch in
+      // buildVirtualColDef's valueGetter).
+      if (assignment.rowGrouping !== undefined) {
+        applyRowGroupingConfigToColDef(layered, assignment.rowGrouping as RowGroupingConfig);
+      }
+
       return layered;
     });
     return [...defs, ...virtualDefs];

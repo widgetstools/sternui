@@ -110,7 +110,23 @@ export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine
     sortable: true,
     filter: true,
     valueGetter: (params: ValueGetterParams) => {
-      if (!ast || !params.data) return null;
+      // Group-row rendering: when a group row is drawn and this column has
+      // an `aggFunc` set, AG-Grid stores the aggregated result on
+      // `params.node.aggData[colId]`. Return that here so the group row
+      // shows the aggregate instead of falling through to null.
+      //
+      // Without this branch AG-Grid would display an empty cell at the
+      // group row for every virtual column (calculated columns only read
+      // `params.data`, which is undefined on group nodes).
+      if (!params.data) {
+        const group = params.node?.group === true;
+        const colId = v.colId;
+        const agg = (params.node as { aggData?: Record<string, unknown> } | null | undefined)
+          ?.aggData?.[colId];
+        if (group && agg !== undefined) return agg;
+        return null;
+      }
+      if (!ast) return null;
       try {
         return engine.evaluate(ast, {
           x: null,
