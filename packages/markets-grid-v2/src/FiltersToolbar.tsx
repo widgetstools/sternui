@@ -330,10 +330,11 @@ export function FiltersToolbar({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
+              justifyContent: 'center',
+              width: 24,
               height: 24,
-              padding: '0 10px',
               marginLeft: 4,
+              padding: 0,
               borderRadius: 12,
               border: '1px solid',
               borderColor: styleToolbarOpen
@@ -346,16 +347,11 @@ export function FiltersToolbar({
                 ? 'var(--bn-green, #2dd4bf)'
                 : 'var(--muted-foreground, #a0a8b4)',
               cursor: 'pointer',
-              fontSize: 10,
-              fontWeight: styleToolbarOpen ? 600 : 500,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
               transition: 'all 150ms',
               flexShrink: 0,
             }}
           >
-            <Brush size={11} strokeWidth={2} />
-            <span>Style</span>
+            <Brush size={12} strokeWidth={2} />
           </button>
         )}
       </div>
