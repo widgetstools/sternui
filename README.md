@@ -21,7 +21,7 @@ panel, and transform pipeline.
 | `packages/core` | Shared shadcn primitives, the CSP-safe ExpressionEngine, SSF Excel formatter adapter |
 | `packages/core-v2` | Module system + 9 built-in modules, profile manager, drag/drop primitives, Cockpit settings-panel kit |
 | `packages/markets-grid-v2` | MarketsGrid host component, FormattingToolbar, FiltersToolbar, ProfileSelector, SettingsSheet, HelpPanel |
-| `apps/demo` | Vite demo app at `/?v=2` |
+| `apps/demo` | Vite demo app |
 | `e2e/` | Playwright specs (`v2-*.spec.ts`) |
 
 ## Modules (9 shipped)
@@ -81,7 +81,7 @@ inside the app.
 ```bash
 pnpm install
 pnpm --filter demo dev
-# http://localhost:5190/?v=2
+# http://localhost:5190/
 ```
 
 ## Documentation

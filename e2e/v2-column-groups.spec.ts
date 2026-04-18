@@ -19,11 +19,11 @@ import { test, expect, type Page } from '@playwright/test';
  *      calculated-columns virtual columns can be grouped.
  *
  * Style matches e2e/v2-conditional-styling.spec.ts: clear IndexedDB +
- * active-profile pointers before each test, navigate to `?v=2`, reach
+ * active-profile pointers before each test, navigate to the demo (/), reach
  * the AG-Grid api by walking React fibers (same pattern as v2-autosave.spec).
  */
 
-const V2_PATH = '/?v=2';
+const V2_PATH = '/';
 
 async function waitForV2Grid(page: Page) {
   await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });

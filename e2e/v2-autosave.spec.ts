@@ -4,7 +4,7 @@ import { test, expect, type Page } from '@playwright/test';
  * E2E for @grid-customizer/markets-grid-v2 — proves the auto-save contract
  * that makes the manual `Save all settings` click obsolete.
  *
- * These tests target the v2 demo mount (`?v=2`) which uses:
+ * These tests target the v2 demo mount (the demo (/)) which uses:
  *  - `@grid-customizer/core-v2`'s `useProfileManager` with a 300ms debounced
  *    auto-save subscriber on the Zustand store.
  *  - IndexedDB database `gc-customizer-v2` (distinct from v1's
@@ -23,7 +23,7 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 const GRID_ID_V2 = 'demo-blotter-v2';
-const V2_PATH = '/?v=2';
+const V2_PATH = '/';
 
 async function waitForV2Grid(page: Page) {
   await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });

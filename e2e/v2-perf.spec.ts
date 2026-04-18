@@ -49,7 +49,7 @@ test.describe('v1 vs v2 perf parity', () => {
     for (let i = 0; i < runs; i++) {
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
-      v2Times.push(await measureMountMs(page, '/?v=2'));
+      v2Times.push(await measureMountMs(page, '/'));
       await ctx.close();
     }
 
@@ -72,7 +72,7 @@ test.describe('v1 vs v2 perf parity', () => {
   });
 
   test('v2 auto-save latency: profile creation observed in IndexedDB within 1s', async ({ page }) => {
-    await page.goto('/?v=2');
+    await page.goto('/');
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
 
@@ -85,7 +85,7 @@ test.describe('v1 vs v2 perf parity', () => {
         req.onblocked = () => resolve();
       });
     });
-    await page.goto('/?v=2');
+    await page.goto('/');
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
     await page.waitForTimeout(400); // initial Default-profile auto-seed

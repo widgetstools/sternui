@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid, type ToolbarSlotConfig } from '@grid-customizer/markets-grid';
-import { MarketsGrid as MarketsGridV2 } from '@grid-customizer/markets-grid-v2';
-import { DexieAdapter } from '@grid-customizer/core';
-import { DexieAdapter as DexieAdapterV2 } from '@grid-customizer/core-v2';
-import { Sun, Moon, Database } from 'lucide-react';
+import { MarketsGrid } from '@grid-customizer/markets-grid-v2';
+import { DexieAdapter } from '@grid-customizer/core-v2';
+import { Sun, Moon } from 'lucide-react';
 
 import { generateOrders, type Order } from './data';
 
@@ -96,14 +94,6 @@ const defaultColDef: ColDef<Order> = {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-// Read `?v=2` once at module load — switching versions requires a full reload
-// because each version owns its own AG-Grid module registration + storage.
-const useV2 = (() => {
-  try {
-    return new URLSearchParams(window.location.search).get('v') === '2';
-  } catch { return false; }
-})();
-
 // Separate standalone preview of the proposed Figma-inspired Format Editor.
 // Reachable at ?fmt=preview — does not mount the grid; used to evaluate the
 // component library before integrating into the real toolbars / panels.
@@ -180,27 +170,7 @@ function AppInner() {
   const theme = isDark ? darkTheme : lightTheme;
 
   // Persistent profile storage (IndexedDB) — enables the Profiles settings panel.
-  // v2 gets its own adapter instance (different Dexie database name under the hood).
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
-  const storageAdapterV2 = useMemo(() => new DexieAdapterV2(), []);
-
-  // Demo extra toolbars — placeholder content to showcase the switcher
-  const extraToolbars: ToolbarSlotConfig[] = [
-    {
-      id: 'data',
-      label: 'Data',
-      color: 'var(--bn-blue, #3da0ff)',
-      icon: <Database size={12} strokeWidth={1.75} />,
-      content: (
-        <div className="flex items-center gap-3 h-11 shrink-0 border-b border-border bg-card text-xs px-4">
-          <Database size={14} strokeWidth={1.75} style={{ color: 'var(--bn-blue)' }} />
-          <span style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>
-            Data connections, live subscriptions, and field mappings — coming soon
-          </span>
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
@@ -210,7 +180,7 @@ function AppInner() {
         gap: 12,
       }}>
         <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-          {rowData.length} orders{useV2 ? ' • v2' : ''}
+          {rowData.length} orders
         </span>
         <button
           onClick={() => setIsDark(!isDark)}
@@ -230,44 +200,24 @@ function AppInner() {
       </header>
 
       <div style={{ flex: 1 }}>
-        {useV2 ? (
-          <MarketsGridV2
-            gridId="demo-blotter-v2"
-            rowData={rowData}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            theme={theme}
-            rowIdField="id"
-            showFiltersToolbar={true}
-            showFormattingToolbar={true}
-            storageAdapter={storageAdapterV2}
-            sideBar={{ toolPanels: ['columns', 'filters'] }}
-            statusBar={{
-              statusPanels: [
-                { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
-                { statusPanel: 'agSelectedRowCountComponent', align: 'left' },
-              ],
-            }}
-          />
-        ) : (
-          <MarketsGrid
-            gridId="demo-blotter"
-            rowData={rowData}
-            columnDefs={columnDefs}
-            theme={theme}
-            rowIdField="id"
-            showFiltersToolbar={true}
-            storageAdapter={storageAdapter}
-            extraToolbars={extraToolbars}
-            sideBar={{ toolPanels: ['columns', 'filters'] }}
-            statusBar={{
-              statusPanels: [
-                { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
-                { statusPanel: 'agSelectedRowCountComponent', align: 'left' },
-              ],
-            }}
-          />
-        )}
+        <MarketsGrid
+          gridId="demo-blotter-v2"
+          rowData={rowData}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          theme={theme}
+          rowIdField="id"
+          showFiltersToolbar={true}
+          showFormattingToolbar={true}
+          storageAdapter={storageAdapter}
+          sideBar={{ toolPanels: ['columns', 'filters'] }}
+          statusBar={{
+            statusPanels: [
+              { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
+              { statusPanel: 'agSelectedRowCountComponent', align: 'left' },
+            ],
+          }}
+        />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
 /**
- * E2E tests for the v2 FiltersToolbar (?v=2 demo mount).
+ * E2E tests for the v2 FiltersToolbar (/ demo mount).
  *
  * Mirrors the v1 `filters-toolbar.spec.ts` test surface for the features that
  * were intentionally preserved across the port:
@@ -121,9 +121,9 @@ async function setFilterViaApi(page: Page, filterModel: Record<string, unknown>)
 
 test.describe('v2 FiltersToolbar', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/?v=2');
+    await page.goto('/');
     await clearV2Persistence(page);
-    await page.goto('/?v=2');
+    await page.goto('/');
     await waitForGrid(page);
     // Sanity: the filters toolbar is visible inline (no switcher in v2).
     await expect(page.locator('[data-testid="filters-toolbar"]')).toBeVisible();

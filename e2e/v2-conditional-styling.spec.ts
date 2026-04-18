@@ -11,11 +11,11 @@ import { test, expect, type Page } from '@playwright/test';
  *   4. Auto-save persists the rule across reload — no Save All click needed.
  *
  * Mirrors the v2-autosave.spec.ts approach: clear gc-customizer-v2 IndexedDB
- * + active-profile pointers before each test, navigate to `?v=2`, exercise
+ * + active-profile pointers before each test, navigate to the demo (/), exercise
  * via data-testid selectors.
  */
 
-const V2_PATH = '/?v=2';
+const V2_PATH = '/';
 
 async function waitForV2Grid(page: Page) {
   await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });

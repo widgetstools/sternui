@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
 /**
- * E2E smoke coverage for v2's inline FormattingToolbar (?v=2).
+ * E2E smoke coverage for v2's inline FormattingToolbar (/).
  *
  * Covers the direct-click features whose buttons carry a tooltip wrapper:
  * bold / italic / underline, alignment L/C/R, clear-all-styles, and the
@@ -101,9 +101,9 @@ async function isToolbarBtnDisabled(page: Page, tooltipText: string): Promise<bo
 
 test.describe('v2 FormattingToolbar', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/?v=2');
+    await page.goto('/');
     await clearV2(page);
-    await page.goto('/?v=2');
+    await page.goto('/');
     await waitForGrid(page);
     await expect(page.locator('.gc-formatting-toolbar')).toBeVisible();
   });

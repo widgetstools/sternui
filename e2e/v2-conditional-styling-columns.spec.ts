@@ -20,7 +20,7 @@ import { test, expect, type Page } from '@playwright/test';
  * the contract is verified at both the DOM and the storage layer.
  */
 
-const V2_PATH = '/?v=2';
+const V2_PATH = '/';
 const GRID_ID = 'demo-blotter-v2';
 const DB_NAME = 'gc-customizer-v2';
 const DEFAULT_PROFILE_ID = '__default__';
