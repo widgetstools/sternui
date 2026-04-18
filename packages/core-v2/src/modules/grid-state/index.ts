@@ -30,15 +30,31 @@ export const gridStateModule: Module<GridStateState> = {
   getInitialState: () => ({ ...INITIAL_GRID_STATE }),
 
   onRegister(ctx) {
-    // Replay saved state whenever a profile finishes loading — covers the
-    // common case where the user switches profiles on a live grid. The grid:ready
-    // lifecycle already handles the initial mount path below.
+    // Replay state whenever a profile finishes loading.
+    //  - saved present → push it through `api.setState()`.
+    //  - saved absent  → the freshly-loaded (or newly-created) profile has
+    //    no stored grid state, so reset the live grid to defaults.
+    //    Otherwise switching from a heavily-customised profile to a blank
+    //    one would leave the previous profile's column order / sort /
+    //    filters visible because AG-Grid owns that state natively, not
+    //    through module transforms.
     ctx.eventBus.on('profile:loaded', () => {
       const state = ctx.getModuleState<GridStateState>('grid-state');
-      if (!state.saved) return;
       const gridCtx = ctx.getGridContext();
       if (!gridCtx) return;
-      applyGridState(gridCtx.gridApi, state.saved);
+      if (state.saved) {
+        applyGridState(gridCtx.gridApi, state.saved);
+        return;
+      }
+      try {
+        // Empty-object setState resets every native-state slice AG-Grid
+        // tracks; clearing quickFilterText separately covers the one thing
+        // `GridState` doesn't encompass.
+        gridCtx.gridApi.setState({});
+        gridCtx.gridApi.setGridOption('quickFilterText', '');
+      } catch (err) {
+        console.warn('[grid-state] failed to reset live grid:', err);
+      }
     });
   },
 

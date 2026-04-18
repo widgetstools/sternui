@@ -240,6 +240,28 @@ export function useProfileManager(opts: UseProfileManagerOptions): UseProfileMan
           `[core-v2] Cannot use reserved id "${RESERVED_DEFAULT_PROFILE_ID}" for a new profile`,
         );
       }
+
+      // Flush any pending auto-save for the OUTGOING profile first so we
+      // don't lose un-persisted edits to it when we reset the in-memory
+      // store below. (Same drain pattern loadProfile uses.)
+      if (autoSaveRef.current) {
+        await autoSaveRef.current.flushNow();
+      }
+
+      // New profiles start from a true blank slate — reset every module to
+      // its `getInitialState()` BEFORE snapshotting so the saved state for
+      // the new profile does NOT inherit filters / rules / column layout /
+      // conditional-styling / column-groups / etc. from whatever profile
+      // was previously active. Only the row data (owned by the host app,
+      // not any module) carries over.
+      //
+      // Emitting `profile:loaded` after the reset lets modules with
+      // side-effectful restore logic — grid-state in particular — push
+      // the reset through to the live grid (clearing sort/filter/column
+      // order that AG-Grid owns natively, which a module-state reset
+      // alone can't touch).
+      core.resetAll();
+
       const now = Date.now();
       const snap: ProfileSnapshot = {
         id,
