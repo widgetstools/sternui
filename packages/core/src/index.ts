@@ -47,10 +47,41 @@ export type {
   TransformContext,
 } from './platform';
 
-// ─── Store + React bindings ─────────────────────────────────────────────────
+// ─── Store + auto-save ──────────────────────────────────────────────────────
 export { createGridStore } from './store/createGridStore';
 export type { CreateStoreOptions } from './store/createGridStore';
-export { GridProvider, useGridPlatform, useModuleState, useGridApi, useGridEvent } from './hooks';
+export { startAutoSave } from './store/autosave';
+export type { AutoSaveHandle, AutoSaveOptions } from './store/autosave';
+
+// ─── Persistence adapters ───────────────────────────────────────────────────
+export {
+  MemoryAdapter,
+  DexieAdapter,
+  RESERVED_DEFAULT_PROFILE_ID,
+  activeProfileKey,
+  type ProfileSnapshot,
+  type StorageAdapter,
+} from './persistence';
+
+// ─── Profile manager ────────────────────────────────────────────────────────
+export { ProfileManager } from './profiles';
+export type {
+  ProfileManagerOptions,
+  ProfileManagerState,
+  ProfileMeta,
+  ExportedProfilePayload,
+} from './profiles';
+
+// ─── React bindings ─────────────────────────────────────────────────────────
+export {
+  GridProvider,
+  useGridPlatform,
+  useModuleState,
+  useGridApi,
+  useGridEvent,
+  useProfileManager,
+} from './hooks';
+export type { UseProfileManagerResult } from './hooks';
 
 // ─── Expression Engine (unchanged, re-exported) ─────────────────────────────
 export {

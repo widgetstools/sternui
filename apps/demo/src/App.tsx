@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid } from '@grid-customizer/markets-grid';
+import { DexieAdapter } from '@grid-customizer/core';
 import { Sun, Moon } from 'lucide-react';
 
 import { generateOrders, type Order } from './data';
@@ -113,6 +114,8 @@ function AppInner() {
 
   const theme = isDark ? darkTheme : lightTheme;
 
+  const storageAdapter = useMemo(() => new DexieAdapter(), []);
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
       <header style={{
@@ -148,6 +151,7 @@ function AppInner() {
           defaultColDef={defaultColDef}
           theme={theme}
           rowIdField="id"
+          storageAdapter={storageAdapter}
           sideBar={{ toolPanels: ['columns', 'filters'] }}
           statusBar={{
             statusPanels: [
