@@ -1,7 +1,8 @@
-import type { ColDef, ValueGetterParams, ValueFormatterParams } from 'ag-grid-community';
+import type { ColDef, ValueGetterParams, ValueFormatterParams, CellClassParams } from 'ag-grid-community';
 import type { ExpressionNode } from '@grid-customizer/core';
 import { ExpressionEngine } from '@grid-customizer/core';
 import { valueFormatterFromTemplate } from '../column-customization/adapters/valueFormatterFromTemplate';
+import { excelFormatColorResolver } from '../column-customization/adapters/excelFormatter';
 import type { VirtualColumnDef } from './state';
 
 /**
@@ -36,6 +37,18 @@ export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine
     ? valueFormatterFromTemplate(v.valueFormatterTemplate)
     : null;
 
+  // Excel color tags — `[Red]`, `[Green]`, etc. — are parsed by SSF but only
+  // affect the returned text, not its color (SSF returns plain strings).
+  // Mirror what `column-customization` does for regular columns: when the
+  // template is `kind: 'excelFormat'` and contains a color tag, attach a
+  // `cellStyle` function that paints the per-value color so formats like
+  // `[Green]$#,##0.00;[Red]-$#,##0.00` actually render with colour on the
+  // calculated column (e.g. Gross P&L).
+  const colorResolver =
+    v.valueFormatterTemplate?.kind === 'excelFormat'
+      ? excelFormatColorResolver(v.valueFormatterTemplate.format)
+      : undefined;
+
   return {
     colId: v.colId,
     headerName: v.headerName,
@@ -60,6 +73,12 @@ export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine
     },
     valueFormatter: formatFn
       ? (params: ValueFormatterParams) => formatFn({ value: params.value, data: params.data })
+      : undefined,
+    cellStyle: colorResolver
+      ? (params: CellClassParams) => {
+          const color = colorResolver(params.value);
+          return color ? { color } : null;
+        }
       : undefined,
   };
 }
