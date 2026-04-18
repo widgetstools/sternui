@@ -200,12 +200,26 @@ function reinjectCSS(
     if (resolved.headerStyleOverrides) {
       const css = styleOverridesToCSS(resolved.headerStyleOverrides);
       if (css) res.headerInjector.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
-      // Header alignment via justify-content
-      const align = resolved.headerStyleOverrides.alignment?.horizontal;
-      if (align) res.headerInjector.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, align));
       // Border overlay for headers
       const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
       if (border) res.headerInjector.addRule(`hdr-bo-${colId}`, border);
+    }
+
+    // Header alignment — follows the cell's alignment by default so the
+    // user gets the expected "I centered the cell, the header centered
+    // too" UX. Explicit header override always wins (user can still
+    // pick Header target in the toolbar and left-align just the
+    // header). Handled separately from the rest of headerStyleOverrides
+    // so it fires even when the header has no other overrides (e.g.
+    // only the cell was styled).
+    const effectiveHeaderAlign =
+      resolved.headerStyleOverrides?.alignment?.horizontal ??
+      resolved.cellStyleOverrides?.alignment?.horizontal;
+    if (effectiveHeaderAlign) {
+      res.headerInjector.addRule(
+        `hdr-align-${colId}`,
+        headerAlignCSS(`.${hdrCls}`, effectiveHeaderAlign),
+      );
     }
   }
 }
@@ -286,7 +300,16 @@ function applyAssignments(
         merged.cellClass = cls;
       }
     }
-    if (resolved.headerStyleOverrides !== undefined) {
+    // Attach the header class whenever we'll be emitting a header rule —
+    // either the header has its own overrides OR the cell has alignment
+    // that the header should inherit by default (see reinjectCSS's
+    // `effectiveHeaderAlign` fallback). Without this, aligning just the
+    // cell would inject a header-align rule against a class that's
+    // never attached to the header DOM, so the align wouldn't paint.
+    const needsHeaderClass =
+      resolved.headerStyleOverrides !== undefined ||
+      resolved.cellStyleOverrides?.alignment?.horizontal !== undefined;
+    if (needsHeaderClass) {
       const cls = `gc-hdr-c-${colId}`;
       const existing = colDef.headerClass;
       if (Array.isArray(existing)) {
