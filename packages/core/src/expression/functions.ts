@@ -14,6 +14,13 @@ function toArr(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
 
+/** Falsy: null, undefined, false, 0, ''. Anything else truthy. Matches the
+ *  evaluator's own `isTruthy` used for ternary / AND / OR short-circuits —
+ *  kept local to this module to avoid cross-file coupling. */
+function isTruthy(v: unknown): boolean {
+  return !(v === null || v === undefined || v === false || v === 0 || v === '');
+}
+
 const builtins: FunctionDefinition[] = [
   // ─── Mathematical ────────────────────────────────────────────────────────
   { name: 'ABS', category: 'Math', description: 'Absolute value', signature: 'ABS(n)', minArgs: 1, maxArgs: 1,
@@ -157,6 +164,63 @@ const builtins: FunctionDefinition[] = [
   // ─── Logical ─────────────────────────────────────────────────────────────
   { name: 'IF', category: 'Logical', description: 'Conditional', signature: 'IF(cond, then, else)', minArgs: 3, maxArgs: 3,
     evaluate: ([cond, t, f]) => (cond ? t : f) },
+  /**
+   * Excel-style multi-branch conditional. Evaluates each (cond, val) pair
+   * left-to-right and returns the `val` for the first truthy `cond`.
+   *
+   *   IFS([price] > 110, "HIGH",
+   *       [price] > 100, "MID",
+   *       [price] > 90,  "LOW",
+   *                      "VERY LOW")   ← trailing value = default
+   *
+   * Works with an even arg count (no default, returns null on no match)
+   * or odd arg count (last arg = default). Same keyword semantics as
+   * Excel / Google Sheets IFS, but the trailing default is optional
+   * instead of requiring `TRUE` as a sentinel.
+   */
+  { name: 'IFS', category: 'Logical', description: 'Multi-branch conditional — first truthy match wins', signature: 'IFS(cond1, val1, cond2, val2, …, default?)', minArgs: 2, maxArgs: 100,
+    evaluate: (args) => {
+      const hasDefault = args.length % 2 === 1;
+      const pairCount = Math.floor(args.length / 2);
+      for (let i = 0; i < pairCount; i++) {
+        if (isTruthy(args[i * 2])) return args[i * 2 + 1];
+      }
+      return hasDefault ? args[args.length - 1] : null;
+    } },
+  /**
+   * Value-based multi-branch. Compares `expr` against each `caseN` via
+   * strict equality (`===`) and returns the matching `valN`. Optional
+   * trailing default when args length is even (expr + N × pair + default).
+   *
+   *   SWITCH([side],
+   *          "BUY",  1,
+   *          "SELL", -1,
+   *                  0)   ← default
+   */
+  { name: 'SWITCH', category: 'Logical', description: 'Multi-branch on value equality', signature: 'SWITCH(expr, case1, val1, case2, val2, …, default?)', minArgs: 3, maxArgs: 100,
+    evaluate: (args) => {
+      const target = args[0];
+      const rest = args.slice(1);
+      const hasDefault = rest.length % 2 === 1;
+      const pairCount = Math.floor(rest.length / 2);
+      for (let i = 0; i < pairCount; i++) {
+        if (target === rest[i * 2]) return rest[i * 2 + 1];
+      }
+      return hasDefault ? rest[rest.length - 1] : null;
+    } },
+  /** Alias — "CASE" reads more naturally than SWITCH in spreadsheet /
+   *  reporting contexts, and some users type it by muscle memory. */
+  { name: 'CASE', category: 'Logical', description: 'Alias of SWITCH — multi-branch on value equality', signature: 'CASE(expr, case1, val1, case2, val2, …, default?)', minArgs: 3, maxArgs: 100,
+    evaluate: (args) => {
+      const target = args[0];
+      const rest = args.slice(1);
+      const hasDefault = rest.length % 2 === 1;
+      const pairCount = Math.floor(rest.length / 2);
+      for (let i = 0; i < pairCount; i++) {
+        if (target === rest[i * 2]) return rest[i * 2 + 1];
+      }
+      return hasDefault ? rest[rest.length - 1] : null;
+    } },
   { name: 'ISNULL', category: 'Logical', description: 'Null check with default', signature: 'ISNULL(v, default)', minArgs: 2, maxArgs: 2,
     evaluate: ([v, def]) => (v == null ? def : v) },
   { name: 'ISNOTNULL', category: 'Logical', description: 'Not null check', signature: 'ISNOTNULL(v)', minArgs: 1, maxArgs: 1,
