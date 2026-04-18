@@ -34,8 +34,6 @@ import {
   PopoverContent as RadixPopoverContent,
   PopoverCompat as Popover,
   Tooltip,
-  ToggleGroup,
-  ToggleGroupItem,
   ColorPickerPopover,
   cn,
 } from '@grid-customizer/core';
@@ -60,7 +58,7 @@ import {
   AlignLeft, AlignCenter, AlignRight,
   Type, PaintBucket,
   Trash2, Grid3X3, Check,
-  ChevronDown, ArrowLeft, ArrowRight,
+  ChevronDown, ArrowLeft, ArrowRight, ArrowLeftRight,
   DollarSign, Percent, Hash,
   Plus,
 } from 'lucide-react';
@@ -1260,15 +1258,29 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
         )} title={colIds.join(', ')} data-testid="formatting-col-label">
           {colLabel}
         </span>
-        <ToggleGroup
-          value={target}
-          onValueChange={(v) => setTarget(v as TargetKind)}
-          size="sm"
-          className="min-w-[75px]"
-        >
-          <ToggleGroupItem value="cell" className="flex-1">Cell</ToggleGroupItem>
-          <ToggleGroupItem value="header" className="flex-1">Header</ToggleGroupItem>
-        </ToggleGroup>
+        <Tooltip content={`Currently editing: ${isHeader ? 'Header' : 'Cell'} — click to switch`}>
+          <button
+            type="button"
+            data-testid="formatting-target-toggle"
+            data-target={target}
+            onClick={() => setTarget(isHeader ? 'cell' : 'header')}
+            className={cn(
+              'gc-target-toggle shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[4px]',
+              'text-[11px] font-medium transition-all duration-150 select-none cursor-pointer',
+              'border border-border bg-card hover:bg-accent',
+              isHeader ? 'gc-target-header' : 'gc-target-cell',
+            )}
+            style={{
+              color: isHeader ? 'var(--bn-green, #2dd4bf)' : 'var(--foreground)',
+              borderColor: isHeader ? 'var(--bn-green, #2dd4bf)' : 'var(--border, #313944)',
+              background: isHeader ? 'rgba(45, 212, 191, 0.10)' : 'var(--card, #161a1e)',
+              minWidth: 78,
+            }}
+          >
+            <ArrowLeftRight size={11} strokeWidth={2} style={{ opacity: 0.7 }} />
+            <span style={{ flex: 1, textAlign: 'left' }}>{isHeader ? 'Header' : 'Cell'}</span>
+          </button>
+        </Tooltip>
       </div>
     </div>
   );
