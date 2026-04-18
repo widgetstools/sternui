@@ -14,6 +14,11 @@ import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplat
 import { excelFormatColorResolver } from './adapters/excelFormatter';
 import { resolveTemplates } from '../column-templates/resolveTemplates';
 import type { ColumnTemplatesState, ColumnDataType } from '../column-templates/state';
+import {
+  ColumnSettingsEditor,
+  ColumnSettingsList,
+  ColumnSettingsPanel,
+} from './ColumnSettingsPanel';
 
 /**
  * Narrow AG-Grid's `cellDataType` (boolean | string) to our `ColumnDataType`
@@ -329,7 +334,12 @@ function applyAssignments(
 
 export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: 'column-customization',
-  name: 'Columns',
+  // Display label shown in the settings-sheet header dropdown — the
+  // panel itself is a per-column master-detail editor (see
+  // `ColumnSettingsPanel.tsx`). Internal id stays `column-customization`
+  // for back-compat with persisted profiles.
+  name: 'Column Settings',
+  code: '04',
   schemaVersion: 3,
   dependencies: ['column-templates'],
   priority: 10,
@@ -397,6 +407,16 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
       ...(rest as Partial<ColumnCustomizationState>),
     };
   },
+
+  // Master-detail Cockpit panel — ListPane on the left lists every grid
+  // column (including virtual / calculated cols), EditorPane on the right
+  // edits the selected column's assignment with bands for HEADER / LAYOUT
+  // / TEMPLATES / CELL STYLE / HEADER STYLE / VALUE FORMAT. The legacy
+  // flat `SettingsPanel` is kept as a fallback for hosts that only
+  // support the flat shape.
+  ListPane: ColumnSettingsList,
+  EditorPane: ColumnSettingsEditor,
+  SettingsPanel: ColumnSettingsPanel,
 };
 
 export type { ColumnAssignment, ColumnCustomizationState };

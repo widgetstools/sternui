@@ -1062,6 +1062,66 @@ Full rewrite of the Style Rules panel on the Cockpit primitives:
   module uses.
 - Per-card Save + Dirty LED pattern via `useDraftModuleItem`.
 
+### 17.7b Column Settings — per-column master-detail editor
+
+New entry in the settings-sheet header dropdown: **Column Settings**
+(module id `column-customization`, renamed from the earlier internal
+"Columns" label). Replaces the hidden per-column editing surface that
+previously only lived inside the Formatting Toolbar. Now every column
+is addressable from one screen.
+
+- **ListPane** — reads the live column set from
+  `api.getColumns()` (re-subscribed on `columnEverythingChanged /
+  displayedColumnsChanged / columnVisible / columnPinned / columnResized`)
+  so the left rail always lists every column the grid currently has,
+  including virtual / calculated cols. Internal columns with ids
+  starting `ag-Grid-` (e.g. the auto-selection column) are filtered
+  out — they're configured globally via Grid Options. Each row
+  carries a dirty-state LED (via the shared `gc-dirty-change` custom
+  event) and a green `•` marker when the column has any stored
+  overrides.
+
+- **EditorPane** — six bands, all driven by `useDraftModuleItem`
+  scoped to `state.assignments[colId]`:
+
+  | Band | Controls |
+  |---|---|
+  | 01 HEADER | header name override, tooltip |
+  | 02 LAYOUT | initial width, pinned (OFF/LEFT/RIGHT pills), initial hide, sortable/filterable/resizable as tri-state pills (DEFAULT/ON/OFF) |
+  | 03 TEMPLATES | **chip list of applied `column-templates`** with per-chip × to remove + shadcn-Select picker to add any unapplied template. Caption clarifies "APPLICATION ORDER — LATER TEMPLATES LAYER OVER EARLIER" since resolution is order-dependent. |
+  | 04 CELL STYLE | embedded `<StyleEditor sections={['text','color','border']}>` wired through a local `CellStyleOverrides ↔ StyleEditorValue` bridge (typography / colors / alignment / per-side borders) |
+  | 05 HEADER STYLE | same editor, scoped to `headerStyleOverrides`. Caption: "Blank alignment = follow the cell. Explicit value overrides." — matches the header-follows-cell fallback in reinjectCSS. |
+  | 06 VALUE FORMAT | shared `FormatterPicker` in compact popover mode — same Figma-style preset grid the Formatting Toolbar + Style Rule editor + Calculated Column editor all use. |
+
+- **Save semantics** — explicit SAVE pill (draft / dirty pattern). A
+  commit that clears every override deletes the assignment entry
+  outright rather than leaving a `{ colId }`-only stub. Auto-save
+  picks the commit up on the usual 300ms debounce.
+
+- **Works for virtual columns** — calculated columns land in
+  `api.getColumns()` once `calculated-columns.transformColumnDefs`
+  has run at priority 15, so they show in the list automatically.
+  Header-follows-cell alignment + the Excel-colour cellStyle
+  resolver already cover the styling pipeline end-to-end for
+  virtual cols (see 17.8).
+
+- **Back-compat** — module id / schemaVersion / serialise contract
+  unchanged. Existing profile snapshots round-trip without a
+  migration bump; the rename is display-only.
+
+Test IDs: `cols-item-{colId}`, `cols-editor-{colId}`, `cols-save-{colId}`,
+`cols-discard-{colId}`, `cols-{colId}-header-name`,
+`cols-{colId}-header-tooltip`, `cols-{colId}-width`,
+`cols-{colId}-hide`, `cols-{colId}-sortable-default|on|off`,
+`cols-{colId}-templates`, `cols-{colId}-template-{tplId}`,
+`cols-{colId}-template-remove-{tplId}`, `cols-{colId}-template-picker`,
+`cols-{colId}-cell-style`, `cols-{colId}-header-style`, `cols-{colId}-fmt`.
+
+Verified end-to-end in preview: 21 columns listed for the demo
+blotter, selecting a column opens the full 6-band editor, applied
+templates show as removable chips, × on a chip drops the template
+from the draft and lights the SAVE pill.
+
 ### 17.8 Calculated Columns — full port + first-class citizenship
 
 - Native v2 module with per-grid `ExpressionEngine`, schema v1, module
@@ -1304,7 +1364,7 @@ doesn't re-render until the user clicks SAVE.
 | Category | Count |
 |----------|-------|
 | **v2 Shipped Modules** | **9** — general-settings (Grid Options), column-templates, column-customization, calculated-columns, column-groups, conditional-styling, saved-filters, toolbar-visibility, grid-state |
-| **v2 Settings Panels** | **6 full editors** — Grid Options, Calculated Columns, Column Groups, Style Rules, Column Customization (via toolbar), Profile Selector |
+| **v2 Settings Panels** | **7 full editors** — Grid Options, Column Settings, Calculated Columns, Column Groups, Style Rules, Column Customization (via toolbar), Profile Selector |
 | Built-in Expression Functions | **65+** across Math / Stats / Aggregation / String / Date / Logic / Type / Lookup / Coercion |
 | → column-aware aggregation functions | 9 (SUM, COUNT, DISTINCT_COUNT, AVG, MEDIAN, STDEV, VARIANCE, MIN, MAX) |
 | → multi-branch conditional functions | 4 (IF, IFS, SWITCH, CASE) |
