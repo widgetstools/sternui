@@ -146,7 +146,10 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
     // other toolbar control has.
     let assignments: Record<string, {
       valueFormatterTemplate?: unknown;
-      cellStyleOverrides?: unknown;
+      cellStyleOverrides?: {
+        alignment?: { horizontal?: 'left' | 'center' | 'right' };
+        [k: string]: unknown;
+      };
       headerStyleOverrides?: unknown;
       headerName?: string;
       headerTooltip?: string;
@@ -195,7 +198,19 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
         else if (typeof existing === 'string') layered.cellClass = [existing, cls];
         else layered.cellClass = cls;
       }
-      if (assignment.headerStyleOverrides !== undefined) {
+      // Attach the header class whenever column-customization would emit
+      // a header rule for this virtual column — EITHER the user set
+      // header overrides explicitly OR just set cell alignment (which
+      // the header follows by default via reinjectCSS's
+      // `effectiveHeaderAlign` fallback). Without this second branch a
+      // virtual column aligned from the Formatting Toolbar left only
+      // the cell aligned; the header didn't follow like regular
+      // columns do. Makes calc columns first-class in the toolbar
+      // alignment pipeline.
+      const needsHeaderClass =
+        assignment.headerStyleOverrides !== undefined ||
+        assignment.cellStyleOverrides?.alignment?.horizontal !== undefined;
+      if (needsHeaderClass) {
         const cls = `gc-hdr-c-${v.colId}`;
         const existing = baseColDef.headerClass;
         if (Array.isArray(existing)) layered.headerClass = [...existing, cls];
