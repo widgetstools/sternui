@@ -271,7 +271,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
             display: 'flex',
             alignItems: 'stretch',
             width: 'min(1180px, calc(100vw - 32px))',
-            borderRadius: 8,
+            borderRadius: 6,
             overflow: 'hidden',
           }}
         >
@@ -280,7 +280,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
             style={{
               width: 22,
               borderRight: '1px solid var(--border, #313944)',
-              background: 'rgba(45, 212, 191, 0.06)',
+              background: 'var(--card, #161a1e)',
             }}
           />
           <div style={{ flex: '1 1 0px', minWidth: 0 }}>
@@ -288,12 +288,14 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
           </div>
           <DraggableFloat.CloseButton
             data-testid="formatting-toolbar-float-close"
+            size={14}
             style={{
-              width: 34,
+              width: 36,
               height: 'auto',
-              alignSelf: 'stretch',
               borderRadius: 0,
               borderLeft: '1px solid var(--border, #313944)',
+              background: 'var(--card, #161a1e)',
+              flexShrink: 0,
             }}
           />
         </div>

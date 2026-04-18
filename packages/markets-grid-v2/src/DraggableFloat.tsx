@@ -170,12 +170,10 @@ export function DraggableFloat({
           left: pos.x,
           zIndex,
           background: 'var(--card, #161a1e)',
-          // Prominent 2-tone border for a floating surface: crisp outer line
-          // + subtle inset highlight to distinguish from the page chrome.
-          border: '1.5px solid var(--bn-green, #2dd4bf)',
-          borderRadius: 8,
+          border: '1px solid var(--border, #313944)',
+          borderRadius: 6,
           boxShadow:
-            '0 18px 42px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(45, 212, 191, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.03) inset',
+            '0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) inset',
           maxWidth: 'calc(100vw - 16px)',
         }}
       >
@@ -276,7 +274,7 @@ function DragHandle({
  * same `onClose` the DraggableFloat was given.
  */
 function CloseButton({
-  size = 13,
+  size = 14,
   className,
   style,
   title = 'Close',
@@ -299,29 +297,27 @@ function CloseButton({
       onPointerDown={(e) => e.stopPropagation()}
       title={title}
       style={{
-        width: 22,
-        height: 22,
-        borderRadius: 4,
-        display: 'inline-flex',
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        minWidth: 22,
+        minHeight: 22,
+        borderRadius: 4,
         background: 'transparent',
         border: 'none',
-        color: 'var(--muted-foreground, #a0a8b4)',
+        color: 'var(--foreground, #eaecef)',
         cursor: 'pointer',
-        opacity: 0.75,
-        transition: 'opacity 150ms, background 150ms, color 150ms',
+        transition: 'background 150ms, color 150ms',
+        padding: 0,
         ...style,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.opacity = '1';
         e.currentTarget.style.background = 'rgba(239, 68, 68, 0.14)';
         e.currentTarget.style.color = '#ef4444';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.opacity = '0.75';
-        e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.color = 'var(--muted-foreground, #a0a8b4)';
+        e.currentTarget.style.background = (style?.background as string) ?? 'transparent';
+        e.currentTarget.style.color = 'var(--foreground, #eaecef)';
       }}
     >
       <XIcon size={size} strokeWidth={2.25} />
