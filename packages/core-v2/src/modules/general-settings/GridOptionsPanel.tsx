@@ -1,30 +1,38 @@
-import { memo, useCallback, type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
+import { RotateCcw, Save } from 'lucide-react';
 import { Switch } from '@grid-customizer/core';
 import { useGridStore } from '../../ui/GridContext';
-import { useModuleState } from '../../store/useModuleState';
+import { useDraftModuleItem } from '../../store/useDraftModuleItem';
 import {
   Band,
   Caps,
   IconInput,
   MetaCell,
   Mono,
+  ObjectTitleRow,
   PillToggleBtn,
   PillToggleGroup,
+  SharpBtn,
   SubLabel,
 } from '../../ui/SettingsPanel';
 import { INITIAL_GENERAL_SETTINGS, type GeneralSettingsState } from './state';
 
 /**
- * Grid Options editor — one flat panel that owns the Top-40 curated
- * AG-Grid options (see `ag-grid-customizer-input-controls.md`).
+ * Grid Options editor — the single-card counterpart to the per-item
+ * editors (calculated-columns, conditional-styling, column-groups). The
+ * "item" here is the whole `GeneralSettingsState` object; the header
+ * gives the user an explicit SAVE affordance with a dirty indicator,
+ * matching the card header used across the other v2 editors.
  *
- * Layout follows the spec's tiering: one `Band` per tier, plus a
- * collapsed Performance band for advanced flags. No master-detail —
- * grid options are a single config object, not a list of items.
- *
- * Persistence: direct-to-store on every change; the existing auto-save
- * pipeline flushes into the active profile after the standard debounce
- * window, identical to every other module.
+ * Flow mirrors `CalculatedColumnsEditor`:
+ *   - `useDraftModuleItem` holds a local draft of every grid option.
+ *   - Every input edits the draft, NOT module state — the grid doesn't
+ *     re-render and auto-save doesn't fire on keystrokes.
+ *   - `dirty` lights up the header LED; `save()` commits the draft into
+ *     module state, which triggers `transformGridOptions` + the
+ *     standard auto-save debounce that writes into the active profile.
+ *   - `discard()` reverts the draft back to the committed snapshot —
+ *     rendered as a secondary RESET affordance alongside SAVE.
  */
 
 // ─── Row primitives ─────────────────────────────────────────────────────────
@@ -185,18 +193,37 @@ function EnumControl<T extends string | undefined>({
 
 export const GridOptionsPanel = memo(function GridOptionsPanel() {
   const store = useGridStore();
-  const [state, setState] = useModuleState<GeneralSettingsState>(store, 'general-settings');
-  // Fall back to initial state the first render if the store hasn't seeded
-  // yet — avoids an undefined-deref on fresh mounts before onRegister runs.
-  const s: GeneralSettingsState = state ?? INITIAL_GENERAL_SETTINGS;
 
-  const update = useCallback(
-    <K extends keyof GeneralSettingsState>(key: K, value: GeneralSettingsState[K]) => {
-      setState((prev) => ({ ...(prev ?? INITIAL_GENERAL_SETTINGS), [key]: value }));
-    },
-    [setState],
-  );
+  // Treat the entire state as the "item" — grid options is a singleton,
+  // not a list. selectItem is identity; commitItem replaces state wholesale.
+  // Draft-mode means typing into any field just updates the draft; the
+  // user commits via the SAVE button in the header.
+  const { draft, setDraft, dirty, save, discard, missing } = useDraftModuleItem<
+    GeneralSettingsState,
+    GeneralSettingsState
+  >({
+    store,
+    moduleId: 'general-settings',
+    selectItem: (state) => state ?? INITIAL_GENERAL_SETTINGS,
+    commitItem: (next) => () => next,
+  });
 
+  // Shortcut: patch one key on the draft. Typed so IDEs narrow the value
+  // based on the key, identical ergonomics to the original `update()`.
+  const update = <K extends keyof GeneralSettingsState>(
+    key: K,
+    value: GeneralSettingsState[K],
+  ): void => {
+    setDraft({ [key]: value } as Partial<GeneralSettingsState>);
+  };
+
+  // Empty-state guard — matches the pattern in CalculatedColumnsEditor
+  // when a selected item disappears. In practice `missing` is never true
+  // here (the module always has a state slice), but keep the guard so a
+  // misconfigured store doesn't crash the settings sheet.
+  if (missing) return null;
+
+  const s = draft;
   const defaultsSet = countNonDefault(s);
 
   return (
@@ -204,14 +231,42 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
       data-testid="go-panel"
       style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
     >
+      <div className="gc-editor-header">
+        <ObjectTitleRow
+          title={<span style={{ fontWeight: 600, fontSize: 13 }}>Grid Options</span>}
+          actions={
+            <>
+              <SharpBtn
+                variant={dirty ? 'ghost' : 'ghost'}
+                disabled={!dirty}
+                onClick={discard}
+                data-testid="go-discard-btn"
+                title="Revert unsaved changes"
+              >
+                <RotateCcw size={13} strokeWidth={2} /> RESET
+              </SharpBtn>
+              <SharpBtn
+                variant={dirty ? 'action' : 'ghost'}
+                disabled={!dirty}
+                onClick={save}
+                data-testid="go-save-btn"
+                title="Save grid options"
+              >
+                <Save size={13} strokeWidth={2} /> SAVE
+              </SharpBtn>
+            </>
+          }
+        />
+      </div>
+
       <div className="gc-editor-scroll">
         {/* Meta strip — matches calculated-columns / conditional-styling */}
         <div className="gc-meta-grid">
           <MetaCell label="SCHEMA" value={<Mono color="var(--ck-t0)">v2</Mono>} />
           <MetaCell label="OVERRIDES" value={<Mono color="var(--ck-t0)">{defaultsSet}</Mono>} />
           <MetaCell
-            label="THEME"
-            value={<Mono color="var(--ck-t3)">host-prop</Mono>}
+            label="DIRTY"
+            value={<Mono color={dirty ? 'var(--ck-amber)' : 'var(--ck-t3)'}>{dirty ? 'YES' : '—'}</Mono>}
           />
           <MetaCell
             label="QUICK FILTER"
