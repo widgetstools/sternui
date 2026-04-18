@@ -65,7 +65,20 @@ export function FormatPopover({
             'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
             'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
           )}
-          style={{ width, padding: 10 }}
+          // Keep the popover inside the viewport. Radix exposes
+          // `--radix-popover-content-available-height` = the max height
+          // that fits before it would hit the viewport edge (given the
+          // `collisionPadding` below). Cap there and scroll internally
+          // so tall content (FormatterPicker's preset grid + currency
+          // row + custom Excel input) stays reachable on short
+          // viewports instead of clipping off the top or bottom.
+          style={{
+            width,
+            maxWidth: 'calc(100vw - 16px)',
+            maxHeight: 'var(--radix-popover-content-available-height, 80vh)',
+            overflowY: 'auto',
+            padding: 10,
+          }}
           onMouseDown={(e) => {
             e.stopPropagation();
             const tag = (e.target as HTMLElement).tagName;
