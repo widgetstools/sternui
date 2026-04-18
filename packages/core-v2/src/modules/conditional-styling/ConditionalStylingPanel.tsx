@@ -568,6 +568,13 @@ const RuleEditor = memo(function RuleEditor({
         >
           <ExpressionEditor
             value={draft.expression}
+            // Live: mirror every keystroke into the draft so the card's
+            // SAVE pill lights up as soon as the text diverges from the
+            // committed value. Previously only blur / Ctrl+Enter fed
+            // the draft — typing a new predicate in the multiline
+            // editor left SAVE looking dead until the user explicitly
+            // committed. Wiring `onChange` closes the gap.
+            onChange={(v) => setDraft({ expression: v })}
             onCommit={(v) => setDraft({ expression: v })}
             multiline
             lines={3}

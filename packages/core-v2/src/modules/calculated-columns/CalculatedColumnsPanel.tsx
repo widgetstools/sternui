@@ -342,6 +342,17 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
         >
           <ExpressionEditor
             value={draft.expression}
+            // Live: mirror every keystroke into the draft so the header's
+            // SAVE pill lights up the moment the text diverges from the
+            // committed value. Previously only `onCommit` (blur /
+            // Ctrl+Enter) fed the draft, so typing e.g. `SUM([price],
+            // [yield])` into a multiline editor left SAVE looking dead
+            // because hitting Enter just added a newline instead of
+            // committing. Wiring `onChange` closes that gap.
+            onChange={(v) => setDraft({ expression: v })}
+            // Keep `onCommit` wired too so blur still finalises the
+            // exact string (parses / trims trailing whitespace via the
+            // editor's own diagnostics layer).
             onCommit={(v) => setDraft({ expression: v })}
             multiline
             lines={3}
