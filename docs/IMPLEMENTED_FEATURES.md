@@ -929,24 +929,403 @@ directly through `setModuleState`.
 
 ---
 
-## 17. Summary Statistics
+## 17. v2 Post-2.5 Feature Pipeline
+
+The work below landed after the v2.5 Settings Sheet shipped. It builds the full
+Cockpit editor surface — shared primitives, a new settings shell, every module's
+panel, and a pile of correctness + UX fixes that made v2 production-ready for
+the FI blotter use case. Organised by area rather than chronologically.
+
+### 17.1 Figma-inspired Format Editor primitives
+
+A shared set of primitives used by every v2 editor that authors cell / header
+styling. All live in `packages/core/src/ui/format-editor/` and are promoted
+through the package barrel so both v1 and v2 can import them.
+
+- **`FormatPopover`** — Radix-Popover wrapper. Portal-based (escapes
+  `overflow: hidden`), collision-detected (flip + shift), registered with
+  a shared popover stack so nested popovers (border-editor → color-picker →
+  thickness dropdown) don't close each other on outside-click.
+- **`FormatColorPicker`** — saturation-value square + hue slider + alpha
+  slider + hex input + recent-swatch strip. One component replaces every
+  earlier colour picker in v1.
+- **`FormatSwatch`** / **`FormatDropdown`** — compact colour swatch with
+  drill-in picker, dropdown primitive that portals its menu.
+- **`BorderSidesEditor`** — 5-row table (All / Top / Bottom / Left / Right)
+  with colour + thickness (1-5px) + style (solid/dashed/dotted) per side.
+  Emits `BorderSpec` shapes consumed by both column-customization and
+  conditional-styling.
+- **`ExcelReferencePopover`** — dark-mode-aware scrollable panel listing the
+  8 categories of Excel format string tokens, accessible from every format
+  input via an info icon. Theme-aware scrollbar colours (fixed a white-bar
+  bug when portaled out of the gc-sheet scope).
+- **Responsive popover height** — every `FormatPopover` caps content at
+  `--radix-popover-content-available-height` with `overflowY: auto`, so a
+  tall popover (e.g. the FormatterPicker's preset grid) scrolls internally
+  instead of clipping off the viewport edge on short windows.
+
+### 17.2 Cockpit SettingsPanel primitive kit
+
+New in `packages/core-v2/src/ui/SettingsPanel/` — every v2 editor composes
+from these instead of rolling its own chrome.
+
+| Primitive | Purpose |
+|---|---|
+| `PanelChrome` | Panel-frame shell with grip, title, status, close |
+| `Band` | Numbered section header (`01 EXPRESSION`…) + hairline rule |
+| `FigmaPanelSection` | Collapsible grouping of Rows with header + actions |
+| `SubLabel` | 11px uppercase subsection label |
+| `ObjectTitleRow` | 18px object-title row with action pills |
+| `TitleInput` | Inline rename input sized for object titles |
+| `ItemCard` | Single-item shell: title + dirty-dot + Save pill + delete |
+| `PairRow` | 2-column paired field (Size/Weight, Top/Right border) |
+| `IconInput` | 30px input pill with left icon + right suffix, commit-on-blur |
+| `PillToggleGroup` + `PillToggleBtn` | Butt-joined sharp-corner toggles |
+| `SharpBtn` | 26px rectangular action button (4 variants: default/action/ghost/danger) |
+| `Stepper` | Narrow numeric field for up/down |
+| `TGroup` / `TBtn` / `TDivider` | Flat-tray toolbar buttons used by toolbars + editors |
+| `MetaCell` | Cell for the 4-column meta strip (SCHEMA / OVERRIDES / DIRTY / …) |
+| `GhostIcon` | Transparent icon button for row-end actions |
+| `DirtyDot` / `LedBar` | Pulsed indicators for unsaved state |
+| `Caps` / `Mono` | Typography primitives |
+| `TabStrip` | Sub-tabs under chrome (Rule / Preview) |
+| `Band` index scaffold | Consistent `01 ESSENTIALS` band-numbering style |
+
+All primitives consume the `--ck-*` token system scoped to `.gc-sheet-v2`:
+`--ck-bg / --ck-card / --ck-border / --ck-green / --ck-t0..t3 / --ck-font-sans /
+--ck-font-mono`. Dark is the default; a `[data-theme='light']` variant remaps
+everything.
+
+### 17.3 Unified `<StyleEditor>` (shared across every panel)
+
+One component edits the style of any AG-Grid element (cell, header, group
+header). Lives at `packages/core-v2/src/ui/StyleEditor/`. Composes:
+- **TextSection** — PillToggleGroup for B / I / U / S + alignment, Size +
+  Weight pair via shadcn Select.
+- **ColorSection** — two `CompactColorField`s (Text / Background).
+- **BorderSection** — reuses `BorderSidesEditor` unchanged.
+- **FormatSection** — `FormatterPicker` driven by `dataType`.
+
+Value shape is `StyleEditorValue` with `bold / italic / underline /
+strikethrough / align / fontSize / fontWeight / color / backgroundColor /
+backgroundAlpha / borders / valueFormatter`. Consumers pass `sections={[…]}`
+to opt into subsets (e.g. column-groups uses `['text', 'color']` only).
+
+### 17.4 Compact `<ColorPicker>` (`CompactColorField` + `ColorPickerPopover`)
+
+Replaces every swatch + custom hex input scattered through v1 / early v2
+editors. `CompactColorField` is the 30px inline field (swatch + hex +
+alpha + eye / clear). `ColorPickerPopover` is the full Figma popover:
+Custom / Libraries tabs, fill-type strip, saturation square, hue + alpha
+sliders, eyedropper, hex + mode dropdown, recent swatches.
+
+### 17.5 Radix Popover migration
+
+Every popover in the app (ColorPicker, FormatPopover, shadcn `<Popover>`,
+`<Select>`, `<AlertDialog>`, AG-Grid menus adjacencies) now routes through
+Radix primitives. Handles portal rendering, collision detection, focus
+management, Escape dismiss, and accessibility out of the box.
+
+### 17.6 ExpressionEditor hardening (Monaco-based)
+
+- **Suggest widget body-mount** — the settings sheet uses `transform:
+  translate(-50%, -50%)` which creates a containing block for `position:
+  fixed`. Monaco's suggest widget was drifting hundreds of px below the
+  cursor. Fix: body-mounted `data-gc-monaco-overflow` container with
+  `overflowWidgetsDomNode` pointing to it; sheet-scoped `--ck-*` tokens
+  rebound on the host so the widget paints with a solid background.
+- **Live draft propagation** — both the calc-column editor and the
+  conditional-styling rule editor now wire `<ExpressionEditor onChange>`
+  into `useDraftModuleItem.setDraft`. Previously only `onCommit`
+  (blur / Ctrl+Enter) fed the draft, so typing a new expression left the
+  SAVE pill greyed out until the user explicitly blurred. Users filed
+  this as "SUM doesn't work" because they never saw the button light up.
+
+### 17.7 Conditional Styling — rich rule editor
+
+Full rewrite of the Style Rules panel on the Cockpit primitives:
+- Expression field (Monaco `<ExpressionEditor>`) with live column / function
+  autocomplete and `[col]` hints.
+- Scope pill (cell vs row) + target-columns chip picker + priority +
+  APPLIED-rows live counter.
+- `<StyleEditor>` embedded with all four sections enabled.
+- Flash config band — target (row / cells / headers / cells+headers),
+  duration, fade, continuous-pulse toggle.
+- **Rule indicator badges** — per-rule icon (20+ Lucide glyphs) + color +
+  position (top-left / top-right) + target (cells / headers / both).
+  Renders via CSS `::before` on the `gc-rule-{id}` class so paint stays
+  cheap; no per-cell React work. Indicators now explicitly exclude
+  `.ag-floating-filter` so they don't double-paint on the filter row.
+- **Per-rule value formatter** — a rule can carry a `valueFormatter` that
+  wraps the column's existing formatter; the highest-priority matching
+  rule wins. Same `ValueFormatterTemplate` shape every other format-aware
+  module uses.
+- Per-card Save + Dirty LED pattern via `useDraftModuleItem`.
+
+### 17.8 Calculated Columns — full port + first-class citizenship
+
+- Native v2 module with per-grid `ExpressionEngine`, schema v1, module
+  dependencies enforced by the core.
+- Master-detail panel (`CalculatedColumnsList` + `CalculatedColumnsEditor`)
+  using the Cockpit primitives.
+- Expression field with live column / function palette + diagnostics.
+- **Value formatter** via the shared compact `FormatterPicker` (same
+  popover the Formatting Toolbar uses; one picker everywhere).
+- **First-class styling pipeline** — virtual columns honour every toolbar /
+  style-rule / column-group write:
+  - Typography, alignment, colours, borders from `column-customization`
+    flow into `.gc-col-c-{colId}` and `.gc-hdr-c-{colId}` classes on the
+    virtual colDef (parity with base columns).
+  - Excel colour tags (`[Red]` / `[Green]`) inside formatters produce a
+    `cellStyle` function via `excelFormatColorResolver`, mirroring the
+    base-column path.
+  - Header alignment follows cell alignment automatically — the
+    `effectiveHeaderAlign` fallback chain (`headerStyleOverrides →
+    cellStyleOverrides`) applies to virtual cols too.
+  - Column groups composer (`composeGroups`) walks the full column tree by
+    colId and picks virtual columns up naturally.
+- **Column-wide aggregations** — `SUM([price])` now sums every row's
+  `price`, not the current row's scalar. Implementation:
+  - `EvaluationContext.allRows?: ReadonlyArray<Record<string, unknown>>`
+    populated from a per-GridApi WeakMap cache that invalidates on
+    `rowDataUpdated / modelUpdated / cellValueChanged`.
+  - `FunctionDefinition.aggregateColumnRefs?: boolean` opts each function
+    in. SUM, COUNT, DISTINCT_COUNT, AVG, MEDIAN, STDEV, VARIANCE, MIN,
+    MAX are all flagged; a direct `[col]` arg is replaced with the full
+    column array before the function runs. Falls back to scalar
+    resolution when `allRows` isn't supplied (tests, server-side).
+- **Aggregate-refresh on edits** — `cellValueChanged` / `rowValueChanged`
+  / `rowDataUpdated` trigger `api.refreshCells({ columns: virtualColIds,
+  force: true })` so column-wide aggregates re-evaluate across every
+  visible row, not just the edited one.
+
+### 17.9 Expression Engine extensions
+
+- **Multi-branch conditionals** — `IFS(cond1, val1, cond2, val2, …,
+  default?)`, `SWITCH(expr, case1, val1, …, default?)`, and a `CASE`
+  alias. Trailing default is optional (odd arg count); no-match returns
+  `null` when absent.
+- Column-aggregation semantics (see 17.8).
+- Existing `IF` / chained ternary unchanged for back-compat.
+
+### 17.10 Grid State Persistence (new `grid-state` module)
+
+Captures the native AG-Grid state (column order / widths / pinning /
+sort / filters / column-group open-closed / pagination / sidebar / focus
+/ selection / row-group expansion) plus a viewport anchor + quick filter
+**on explicit Save only** — every other module keeps its auto-save
+cadence, but native grid state is explicit-save-only to match the user's
+expectation that Save is a commit, not a keystroke write.
+
+- Replayed on `onGridReady` (cold mount) and `profile:loaded` events
+  (profile switch).
+- Wire format matches the standalone `agGridStateManager.ts` reference
+  (SavedGridState envelope, schema v3) so snapshots from either side
+  are interchangeable.
+
+Correctness fixes layered on top:
+- **Blank-slate new profile** — `createProfile` now calls `core.resetAll()`
+  before serializing, and the grid-state module resets the live grid
+  (`api.setState({})` + clear quickFilterText) when the loaded profile
+  has no saved state. Creating a new profile no longer inherits the
+  previous profile's layout / rules / calc-cols / filters.
+- **Delete doesn't resurrect** — `deleteProfile` cancels the pending
+  auto-save debounce before erasing the record and passes `skipFlush:
+  true` when falling back to Default, so the outgoing profile can't be
+  rewritten by a post-delete flush.
+- **Selection column position + pinning** — `api.setState` silently
+  drops the auto-generated `ag-Grid-SelectionColumn`'s position AND
+  pinning on reload. Fix: emit `selectionColumnDef: { suppressMovable:
+  false, lockPosition: false, initialPinned: 'left' }` from
+  `general-settings` so the column is a first-class participant, then
+  re-apply order + pinning post-setState via `applyColumnState({ state:
+  mergedOrder, applyOrder: true })` deferred to `queueMicrotask` +
+  `firstDataRendered`. Each entry carries its `pinned` value derived
+  from the saved `columnPinning` sets, so pinning round-trips.
+- **Stale saved order doesn't hide new columns** — when a calc column
+  is added after the last save, the reorder merges the live column set
+  into the saved order: saved IDs first, then live IDs not in the
+  snapshot appended at the end. Without this, adding a new virtual
+  column made it disappear on reload because the stale `orderedColIds`
+  list didn't reference it.
+- **Save doesn't jolt the selection column** — stable-reference memo on
+  `gridOptions` + diff-then-push in the setGridOption effect ensure
+  the `rowSelection` + `selectionColumnDef` props aren't re-issued on
+  every store tick. Previously every Save click fired setGridOption
+  for both, which made AG-Grid regenerate the auto-injected selection
+  column and lose its pinned / reordered position.
+
+### 17.11 Grid Options Settings Panel (module renamed `general-settings`)
+
+New dedicated editor at `Settings → Grid Options`. Dropdown label
+`"Grid Options"` (renamed from `"General Settings"`); schema bumped v1 →
+v2 with additive migrate.
+
+**State coverage** — every user-actionable scalar / toggle / enum from the
+curated Top-40 AG-Grid v35 options spec (`ag-grid-customizer-input-controls.md`)
+plus the full Row Grouping surface:
+
+| Band | Controls |
+|---|---|
+| **01 ESSENTIALS** | rowHeight, headerHeight, animate, rowSelection, checkbox + cellSelection, flash / fade duration, pagination (+auto-page + hide-panel), quickFilterText |
+| **02 ROW GROUPING** | groupDisplay, defaultExpanded, rowGroupPanel (+ no-sort), hideOpenParents, hideColumnsUntilExpanded, showOpenedGroup, single-child flatten (bool \| leafGroupsOnly), allowUnbalanced, maintainOrder, stickyGroups, lockGroupColumns, dragLeaveHides, suppressGroupChangesColumnVisibility (4-way enum), refreshAfterGroupEdit, ssrmExpandAllAffectsAllRows |
+| **03 PIVOT · TOTALS · AGGREGATION** | pivotMode, pivotPanel, grandTotalRow, groupTotalRow, suppressAggFuncInHeader |
+| **04 FILTER · SORT · CLIPBOARD** | enableAdvancedFilter, includeHiddenColumnsInQuickFilter, multiSortMode (compound → suppressMultiSort + alwaysMultiSort + multiSortKey), accentedSort, copyHeadersToClipboard, clipboardDelimiter |
+| **05 EDITING · INTERACTION** | singleClickEdit, stopEditingWhenCellsLoseFocus, enterNavigation (compound → enterNavigatesVertically + …AfterEdit), undoRedoCellEditing + limit, tooltipShowDelay, tooltipShowMode |
+| **06 STYLING** | suppressRowHoverHighlight, columnHoverHighlight |
+| **07 DEFAULT COLDEF** | 7 subsections: SIZING (resizable, min/max/width/flex, suppressSizeToFit, suppressAutoSize), SORT & FILTER (sortable, filter, unSortIcon, floatingFilter), EDITING (editable, suppressPaste, suppressNavigable), HEADER (wrapHeaderText, autoHeaderHeight, suppressHeaderMenuButton), MOVEMENT & LOCKING (suppressMovable, lockPosition enum, lockVisible, lockPinned), CELL CONTENT (wrapText, autoHeight, enableCellChangeFlash), GROUPING · PIVOT · VALUES (enableRowGroup, enablePivot, enableValue) |
+| **08 PERFORMANCE (ADVANCED)** | rowBuffer (live), suppressScrollOnNewData (live), + 5 initial-only flags (suppressColumnVirtualisation, suppressRowVirtualisation, suppressMaxRenderedRowRestriction, suppressAnimationFrame, debounceVerticalScrollbar) |
+
+**UI pattern** — every multi-option enum is a shadcn `<Select>` dropdown
+(replaced earlier overlapping pill groups). Readable Title Case labels
+(e.g. "Only when grouping" instead of "WHEN GROUPING"). `boolean |
+'literal'` unions encode/decode through string sentinels at the
+SelectControl boundary so TypeScript keeps the union typed while the
+native select stays in string-value land.
+
+**Header with explicit SAVE** — the panel has its own `<ObjectTitleRow>`
+header with a teal SAVE pill (action when dirty, ghost when clean) and
+a RESET pill. Runs through `useDraftModuleItem` treating the whole
+state as the "item"; every control edits a local draft and the grid
+doesn't re-render until the user clicks SAVE.
+
+60 total controls on one panel.
+
+### 17.12 Formatter Toolbar + FormatterPicker
+
+- **Shared FormatterPicker** — one component (`packages/core-v2/src/ui/
+  FormatterPicker/`) used by the Formatting Toolbar, the Style Rule
+  editor, AND the Calculated Column editor. `compact` variant renders
+  the Figma-style popover with preset tile grid grouped by DECIMALS /
+  NEGATIVES / SCIENTIFIC / BASIS POINTS + CUSTOM EXCEL FORMAT row with
+  currency quick-insert.
+- **Value formatter presets** — Integer, 2 decimals, 4 decimals, parens-neg,
+  red-parens-neg, Green / Red (no sign) with $ / € / £ / ¥ / ₹ / CHF
+  variants, Scientific, Basis points, 5 tick formats (TICK32, TICK32_PLUS,
+  TICK64, TICK128, TICK256) for fixed-income bond prices.
+- **Tick button denominator** — the toolbar tick button shows the
+  denominator (`32` / `32+` / `64` / `128` / `256`), not the ticks
+  numerator portion of the sample string. Previously applying TICK32
+  flipped the button label from `32` → `16` which was the numerator.
+- **Currency quick-insert row** — $, €, £, ¥, ₹, CHF buttons smart-
+  replace the currency symbol in the current custom format while
+  leaving the rest of the pattern intact.
+- **SSF-safe symbol handling** — £ / ¥ / ₹ / CHF wrapped in quoted
+  literals (`"£"` etc.) because SSF rejects bare non-dollar/euro
+  currency glyphs. Fixed a round-trip bug where INR failed
+  `isValidExcelFormat` on the second click.
+- **ISO date coercion** — Date objects + ISO-8601 strings (starts with
+  `yyyy-mm-dd`) get parsed to Date before being handed to SSF so date
+  formats like `dd-mm-yyyy` render, not raw ISO text.
+- **Excel color resolver** — `[Red]` / `[Green]` tags in format
+  strings produce a per-value `cellStyle` resolver that paints the
+  cell colour. Now applies to virtual columns too.
+- **Cell-datatype auto-detection** — on first data render, sample the
+  first 20 rows of each column to infer `cellDataType` so the
+  FormatterPicker filters its preset list by column type (number /
+  date / string / boolean). Host-provided `cellDataType` wins.
+- **Header alignment follows cell** — aligning cells via "Cell" target
+  applies the same alignment to the column header by default; the user
+  can override by explicitly selecting the "Header" target in the
+  toolbar. Implementation: a fallback chain in `reinjectCSS`
+  (`headerStyleOverrides → cellStyleOverrides`) + header-class
+  attachment whenever either is set.
+
+### 17.13 Column Reorder + Horizontal Scroll Chrome
+
+- `maintainColumnOrder: true` on the AgGridReact props preserves the
+  user's drag-reordered column positions when `columnDefs` re-derive
+  (happens on every module-state change). Without this, applying a
+  toolbar format would reset the column order to the base `columnDefs`
+  sequence.
+- Toolbar slot horizontal overflow contained (`min-w-0 overflow-x-auto
+  overflow-y-visible`) so applying a formatter doesn't push the page
+  into horizontal scroll.
+- AG-Grid `theme` adjustments: `iconSize: 10` on shared params (both
+  light + dark). Vertical column borders re-enabled in the demo theme.
+
+### 17.14 Header / floating-filter icon hover chrome
+
+- Menu button + filter funnel + floating-filter button render with
+  `opacity: 0` + `pointer-events: none` in the idle state instead of
+  collapsing `width` to zero. Hover / `:focus-within` /
+  `[aria-expanded='true']` restore `opacity: 1` + `pointer-events:
+  auto`. No layout thrash — previously every cursor pass reflowed the
+  column header by ~32px.
+
+### 17.15 Profile UX
+
+- **Per-profile auto-save** — debounced 300ms. Explicit Save button
+  flushes the debounce immediately.
+- **New profile starts blank** — `resetAll()` runs before snapshotting
+  in `createProfile`; the grid-state module handles `saved: null` by
+  calling `api.setState({})` to clear AG-Grid-native state that lives
+  outside module transforms.
+- **Delete safety** — cancels pending auto-save before erasing the
+  record, uses `skipFlush: true` when falling back to Default.
+- **Shadcn AlertDialog** — replaced native `window.confirm` for delete
+  confirmation with a proper modal (`@radix-ui/react-alert-dialog`).
+  Adds `AlertDialog` / `AlertDialogContent` / `AlertDialogHeader` /
+  `AlertDialogFooter` / `AlertDialogTitle` / `AlertDialogDescription`
+  / `AlertDialogAction` (primary / destructive variants) /
+  `AlertDialogCancel` to the shadcn primitive set.
+
+### 17.16 SettingsSheet chrome cleanup
+
+- Removed the `PROFILE=<gridId>` status pill from the header — duplicated
+  what the main toolbar's profile selector already shows.
+- DIRTY counter stays.
+
+### 17.17 Demo app
+
+- **Price column is editable** (`editable: true` + `agNumberCellEditor`
+  with 4-digit precision) — drives the cell-edit → aggregate-refresh
+  flow in the Calculated Columns module.
+- **Grid API debug hook** (opt-in, not committed by default) for
+  preview-based E2E / manual testing of column-state APIs.
+
+---
+
+## 18. Summary Statistics
+
+### v1 (legacy / reference)
 
 | Category | Count |
 |----------|-------|
-| Feature Modules | 18 |
-| Module Settings Panels | 18 |
-| Built-in Expression Functions | 60+ |
-| Persistence Adapters | 3 |
-| Cell Renderers | 6 |
-| Shadcn UI Components | 11 |
-| CSS Variables | 50+ |
-| E2E Test Suites | 10 (6 v1 + v2-autosave + v2-perf + v2-conditional-styling + v2-conditional-styling-columns) |
-| E2E Tests | 130 (114 v1 + 4 v2-autosave + 2 v2-perf + 4 v2-conditional-styling + 6 v2-conditional-styling-columns) |
-| v2 Modules Shipped | 5 engines + 1 SettingsPanel UI (conditional-styling) of 20 |
-| v2 Total LOC | ~5,400 (core-v2 4,300 + markets-grid-v2 1,100) |
-| Expression Token Types | 21 |
-| Named Query Operators | 15 |
-| Entitlement Types | 3 |
-| Row Model Types | 4 |
-| Theme Presets | 4 |
-| Value Formatter Presets | 7 |
+| v1 Feature Modules | 18 |
+| v1 Module Settings Panels | 18 |
+| v1 Persistence Adapters | 3 |
+| v1 Cell Renderers | 6 |
+| v1 Theme Presets | 4 |
+| v1 Total LOC | ~14,100 |
+
+### v2 (current — post-2.5 feature pipeline)
+
+| Category | Count |
+|----------|-------|
+| **v2 Shipped Modules** | **9** — general-settings (Grid Options), column-templates, column-customization, calculated-columns, column-groups, conditional-styling, saved-filters, toolbar-visibility, grid-state |
+| **v2 Settings Panels** | **6 full editors** — Grid Options, Calculated Columns, Column Groups, Style Rules, Column Customization (via toolbar), Profile Selector |
+| Built-in Expression Functions | **65+** across Math / Stats / Aggregation / String / Date / Logic / Type / Lookup / Coercion |
+| → column-aware aggregation functions | 9 (SUM, COUNT, DISTINCT_COUNT, AVG, MEDIAN, STDEV, VARIANCE, MIN, MAX) |
+| → multi-branch conditional functions | 4 (IF, IFS, SWITCH, CASE) |
+| **Grid Options controls** | **60** across 8 bands (+ 7 subsections in DEFAULT COLDEF) |
+| Value Formatter Presets | **14** (Integer / 2dp / 4dp / parens-neg / red-parens-neg / green-red-nosign / green-red-$, + 5 tick formats + Scientific + BPS) |
+| Currency quick-insert symbols | 6 ($, €, £, ¥, ₹, CHF) |
+| Cockpit SettingsPanel Primitives | 20+ |
+| Shared `StyleEditor` sections | 4 (text / color / border / format) |
+| Format Editor popover primitives | 6 (FormatPopover, FormatColorPicker, FormatSwatch, FormatDropdown, BorderSidesEditor, ExcelReferencePopover) |
+| Shadcn UI Components (incl. AlertDialog) | 12 |
+| Rule Indicator Icons (Lucide) | 20+ |
+| Tick-format denominations | 5 (32, 32+, 64, 128, 256) |
+| Profile Auto-save debounce | 300ms |
+| v2 E2E Test Suites | 10+ |
+| v2 Approximate LOC | ~9,000 (core-v2 ~7,200 + markets-grid-v2 ~1,800) |
+
+### Architecture invariants held across the v2 work
+
+- Single source of truth: IndexedDB profile snapshots (`gc-customizer-v2` db).
+- Per-module `schemaVersion` with optional `migrate(raw, fromVersion)`.
+- Auto-save path: store → 300ms debounce → serializeAll → persist → `profile:saved` event.
+- `grid-state` module is the one deliberate exception — captures on explicit Save only so AG-Grid native state isn't touched on every keystroke.
+- Module ordering (priority): `general-settings (0)` → `column-templates (1)` → `column-customization (10)` → `calculated-columns (15)` → `column-groups (18)` → `conditional-styling (20)` → `grid-state (200)`.
+- Every cross-module read goes through `ctx.getModuleState<T>(moduleId)` — no direct imports between modules.
