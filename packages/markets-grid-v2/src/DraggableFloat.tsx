@@ -58,9 +58,14 @@ export function DraggableFloat({
 }: DraggableFloatProps) {
   const [internalPos, setInternalPos] = useState<{ x: number; y: number }>(() => {
     if (defaultPosition) return defaultPosition;
-    // Default: roughly centered horizontally, 88px from the top (below the toolbar)
+    // Default: anchored at the top edge of the viewport, centered
+    // horizontally. `y: 0` puts the panel flush with the top of the page
+    // on first open — matches the expectation that a floating toolbar
+    // "drops down from the top." Users who want a different resting
+    // position can drag it once; subsequent opens resume from wherever
+    // they last left it.
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
-    return { x: Math.max(16, Math.floor(vw / 2) - 450), y: 88 };
+    return { x: Math.max(16, Math.floor(vw / 2) - 450), y: 0 };
   });
 
   const pos = controlledPosition ?? internalPos;

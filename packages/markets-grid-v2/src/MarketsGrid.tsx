@@ -105,9 +105,12 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Formatting toolbar visibility — toggled via the Style pill on the
-  // filter bar. v1 used a ToolbarSwitcher for this; v2 uses a simple
-  // pill + X-button on the toolbar itself.
-  const [styleToolbarOpen, setStyleToolbarOpen] = useState(showFormattingToolbar);
+  // filter bar. Always starts hidden on page load; the
+  // `showFormattingToolbar` prop only controls whether the feature is
+  // available (i.e. whether the Style pill + floating panel exist at
+  // all), not whether the panel is pre-opened. A pre-opened toolbar on
+  // every page load clutters the grid before the user has asked for it.
+  const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
 
   const handleSaveAll = useCallback(async () => {
     try {
