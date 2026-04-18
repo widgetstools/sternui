@@ -4,6 +4,8 @@ import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import {
   GridProvider,
   MemoryAdapter,
+  columnCustomizationModule,
+  columnTemplatesModule,
   generalSettingsModule,
   useProfileManager,
   cockpitCSS,
@@ -41,7 +43,11 @@ function ensureCockpitStyles() {
  * to override — the list is a pure value, not a singleton, so tests can
  * construct a minimal subset without import-order surprises.
  */
-export const DEFAULT_MODULES: AnyModule[] = [generalSettingsModule];
+export const DEFAULT_MODULES: AnyModule[] = [
+  generalSettingsModule,
+  columnTemplatesModule,
+  columnCustomizationModule,
+];
 
 export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
   const {

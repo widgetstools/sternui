@@ -196,6 +196,20 @@ export {
   type ColumnTemplate,
   type ColumnTemplatesState,
 } from './modules/column-templates';
+export {
+  columnCustomizationModule,
+  COLUMN_CUSTOMIZATION_MODULE_ID,
+  INITIAL_COLUMN_CUSTOMIZATION,
+  applyFilterConfigToColDef,
+  applyRowGroupingConfigToColDef,
+  type ColumnCustomizationState,
+  type ColumnFilterConfig,
+  type RowGroupingConfig,
+  type FilterKind,
+  type AggFuncName,
+  type SetFilterOptions,
+  type MultiFilterEntry,
+} from './modules/column-customization';
 
 // ─── Format editor primitives (unchanged) ───────────────────────────────────
 export {

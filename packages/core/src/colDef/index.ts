@@ -23,6 +23,10 @@ export {
   type Formatter,
   type FormatterParams,
 } from './adapters/valueFormatterFromTemplate';
-export { excelFormatter } from './adapters/excelFormatter';
+export {
+  excelFormatter,
+  excelFormatColorResolver,
+  isValidExcelFormat,
+} from './adapters/excelFormatter';
 export { tickFormatter } from './adapters/tickFormatter';
 export { presetToExcelFormat } from './adapters/presetToExcelFormat';

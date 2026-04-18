@@ -1,0 +1,388 @@
+/**
+ * Column-customization transforms — isolated from the module entry so the
+ * same helpers can be consumed by conditional-styling, calculated-columns,
+ * and column-groups when they need to layer the same filter / rowGrouping
+ * config onto virtual ColDefs.
+ */
+import type { ColDef, IAggFuncParams } from 'ag-grid-community';
+import type {
+  BorderSpec,
+  CellStyleOverrides,
+} from '../../colDef';
+import type { AnyColDef } from '../../platform/types';
+import type {
+  ColumnAssignment,
+  ColumnFilterConfig,
+  RowGroupingConfig,
+} from './state';
+import { resolveTemplates } from '../column-templates/resolveTemplates';
+import type { ColumnDataType, ColumnTemplatesState } from '../column-templates';
+import {
+  valueFormatterFromTemplate,
+  excelFormatColorResolver,
+} from '../../colDef';
+import type { CssHandle, ExpressionEngineLike } from '../../platform/types';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+export function cellDataTypeToDomain(value: unknown): ColumnDataType | undefined {
+  if (value === 'numeric' || value === 'date' || value === 'string' || value === 'boolean') {
+    return value;
+  }
+  return undefined;
+}
+
+// ─── CSS generation ────────────────────────────────────────────────────────
+
+/** Structured CellStyleOverrides → CSS declaration text (no borders). */
+function styleOverridesToCSS(o: CellStyleOverrides): string {
+  const parts: string[] = [];
+  const t = o.typography;
+  if (t) {
+    if (t.bold) parts.push('font-weight: bold');
+    if (t.italic) parts.push('font-style: italic');
+    if (t.underline) parts.push('text-decoration: underline');
+    if (t.fontSize != null) parts.push(`font-size: ${t.fontSize}px`);
+  }
+  const c = o.colors;
+  if (c) {
+    if (c.text !== undefined) parts.push(`color: ${c.text}`);
+    if (c.background !== undefined) parts.push(`background-color: ${c.background}`);
+  }
+  const a = o.alignment;
+  if (a) {
+    if (a.horizontal !== undefined) parts.push(`text-align: ${a.horizontal}`);
+    if (a.vertical !== undefined) parts.push(`vertical-align: ${a.vertical}`);
+  }
+  return parts.join('; ');
+}
+
+/**
+ * Build CSS for a `::after` pseudo-element that draws per-side borders
+ * using real CSS border properties (honours dashed / dotted — box-shadow
+ * silently drops `style`, CSS borders do not).
+ *
+ * DO NOT emit `position: relative` on the target. AG-Grid cells are
+ * already relative and header cells are absolute; emitting relative
+ * clobbers the header layout.
+ */
+function borderOverlayFromOverrides(selector: string, o: CellStyleOverrides): string {
+  const b = o.borders;
+  if (!b) return '';
+  const parts: string[] = [];
+  const sideMap: Record<'top' | 'right' | 'bottom' | 'left', (spec: BorderSpec) => string> = {
+    top:    (s) => `border-top: ${s.width}px ${s.style} ${s.color}`,
+    right:  (s) => `border-right: ${s.width}px ${s.style} ${s.color}`,
+    bottom: (s) => `border-bottom: ${s.width}px ${s.style} ${s.color}`,
+    left:   (s) => `border-left: ${s.width}px ${s.style} ${s.color}`,
+  };
+  for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+    const spec = b[side];
+    if (spec && spec.width > 0) parts.push(sideMap[side](spec));
+  }
+  if (parts.length === 0) return '';
+  return `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-sizing: border-box; z-index: 1; ${parts.join('; ')}; }`;
+}
+
+/**
+ * Header alignment maps to `justify-content` on the label container —
+ * AG-Grid header cells use flexbox, so `text-align` doesn't work.
+ */
+function headerAlignCSS(selector: string, horizontal: string): string {
+  const map: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' };
+  const jc = map[horizontal] ?? horizontal;
+  return `${selector} .ag-header-cell-label { justify-content: ${jc}; }`;
+}
+
+/**
+ * Re-inject all CSS rules for every assigned column. Called on every
+ * transform pass — the handle is keyed by colId, so re-applying just
+ * replaces the old text.
+ */
+export function reinjectCSS(
+  cells: CssHandle,
+  headers: CssHandle,
+  assignments: Record<string, ColumnAssignment>,
+  templatesState: ColumnTemplatesState,
+  defs: AnyColDef[],
+): void {
+  cells.clear();
+  headers.clear();
+
+  // colId → cellDataType so `resolveTemplates` can pick the right
+  // typeDefault. Virtual columns (appended later in the pipeline) are
+  // missing from `defs` and get `undefined` — resolveTemplates handles
+  // that by skipping the type-default fallback.
+  const dataTypeByColId = new Map<string, unknown>();
+  const collectDataTypes = (list: AnyColDef[]) => {
+    for (const def of list) {
+      if ('children' in def && Array.isArray(def.children)) {
+        collectDataTypes(def.children);
+        continue;
+      }
+      const colDef = def as ColDef;
+      const colId = colDef.colId ?? colDef.field;
+      if (colId) dataTypeByColId.set(colId, colDef.cellDataType);
+    }
+  };
+  collectDataTypes(defs);
+
+  // Iterate assignments keyed by colId — not `defs` — so virtual columns
+  // still get their cellStyleOverrides injected.
+  for (const colId of Object.keys(assignments)) {
+    const a = assignments[colId];
+    if (!a) continue;
+    const resolved = resolveTemplates(
+      a,
+      templatesState,
+      cellDataTypeToDomain(dataTypeByColId.get(colId)),
+    );
+    const cellCls = `gc-col-c-${colId}`;
+    const hdrCls = `gc-hdr-c-${colId}`;
+
+    if (resolved.cellStyleOverrides) {
+      const css = styleOverridesToCSS(resolved.cellStyleOverrides);
+      if (css) cells.addRule(`cell-${colId}`, `.${cellCls} { ${css} }`);
+      const border = borderOverlayFromOverrides(`.${cellCls}`, resolved.cellStyleOverrides);
+      if (border) cells.addRule(`cell-bo-${colId}`, border);
+    }
+
+    if (resolved.headerStyleOverrides) {
+      const css = styleOverridesToCSS(resolved.headerStyleOverrides);
+      if (css) headers.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
+      const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
+      if (border) headers.addRule(`hdr-bo-${colId}`, border);
+    }
+
+    // Header alignment inherits the cell's unless overridden. Without
+    // this the header-align class has nothing to target when the user
+    // only aligned the cell.
+    const effectiveHeaderAlign =
+      resolved.headerStyleOverrides?.alignment?.horizontal ??
+      resolved.cellStyleOverrides?.alignment?.horizontal;
+    if (effectiveHeaderAlign) {
+      headers.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, effectiveHeaderAlign));
+    }
+  }
+}
+
+// ─── Filter config → AG-Grid filter/filterParams/floatingFilter ────────────
+
+/**
+ * Compose AG-Grid's `filter`, `filterParams`, `floatingFilter` on `merged`
+ * from our `ColumnFilterConfig`. Mutates `merged` in place.
+ *
+ * Exported — consumed by calculated-columns / column-groups when they
+ * need to layer filter config onto their own ColDefs.
+ */
+export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfig): void {
+  if (cfg.enabled === false) {
+    merged.filter = false;
+    merged.filterParams = undefined;
+    if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
+    return;
+  }
+
+  if (cfg.kind) merged.filter = cfg.kind;
+  if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
+
+  const params: Record<string, unknown> = {};
+  if (cfg.buttons && cfg.buttons.length > 0) params.buttons = cfg.buttons;
+  if (cfg.closeOnApply !== undefined) params.closeOnApply = cfg.closeOnApply;
+  if (cfg.debounceMs !== undefined) params.debounceMs = cfg.debounceMs;
+
+  if (cfg.kind === 'agSetColumnFilter' && cfg.setFilterOptions) {
+    const s = cfg.setFilterOptions;
+    if (s.suppressMiniFilter !== undefined) params.suppressMiniFilter = s.suppressMiniFilter;
+    if (s.suppressSelectAll !== undefined) params.suppressSelectAll = s.suppressSelectAll;
+    if (s.suppressSorting !== undefined) params.suppressSorting = s.suppressSorting;
+    if (s.excelMode !== undefined) params.excelMode = s.excelMode;
+    if (s.defaultToNothingSelected !== undefined) params.defaultToNothingSelected = s.defaultToNothingSelected;
+  }
+
+  if (cfg.kind === 'agMultiColumnFilter' && cfg.multiFilters && cfg.multiFilters.length > 0) {
+    params.filters = cfg.multiFilters.map((mf) => {
+      const entry: Record<string, unknown> = { filter: mf.filter };
+      if (mf.display) entry.display = mf.display;
+      if (mf.title) entry.title = mf.title;
+      return entry;
+    });
+  }
+
+  if (Object.keys(params).length > 0) {
+    merged.filterParams = {
+      ...(merged.filterParams as Record<string, unknown> | undefined),
+      ...params,
+    };
+  }
+}
+
+// ─── Row-grouping / aggregation / pivot ────────────────────────────────────
+
+/**
+ * Compose AG-Grid's row-grouping / aggregation / pivot ColDef fields from
+ * our `RowGroupingConfig`. Mutates `merged` in place.
+ *
+ * Exported — consumed by calculated-columns so virtual columns carry the
+ * same rowGrouping semantics.
+ */
+export function applyRowGroupingConfigToColDef(
+  merged: ColDef,
+  cfg: RowGroupingConfig,
+  engine?: ExpressionEngineLike,
+): void {
+  if (cfg.enableRowGroup !== undefined) merged.enableRowGroup = cfg.enableRowGroup;
+  if (cfg.enableValue !== undefined) merged.enableValue = cfg.enableValue;
+  if (cfg.enablePivot !== undefined) merged.enablePivot = cfg.enablePivot;
+  if (cfg.rowGroup !== undefined) merged.rowGroup = cfg.rowGroup;
+  if (cfg.rowGroupIndex !== undefined) merged.rowGroupIndex = cfg.rowGroupIndex;
+  if (cfg.pivot !== undefined) merged.pivot = cfg.pivot;
+  if (cfg.pivotIndex !== undefined) merged.pivotIndex = cfg.pivotIndex;
+  if (cfg.allowedAggFuncs !== undefined) merged.allowedAggFuncs = cfg.allowedAggFuncs;
+
+  if (cfg.aggFunc === 'custom') {
+    if (cfg.customAggExpression && cfg.customAggExpression.trim() && engine) {
+      const fn = buildCustomAggFn(engine, cfg.customAggExpression);
+      if (fn) merged.aggFunc = fn;
+    }
+    // Empty expression or no engine: leave aggFunc untouched so the grid
+    // doesn't silently drop aggregation while the user is still typing.
+  } else if (cfg.aggFunc !== undefined) {
+    merged.aggFunc = cfg.aggFunc;
+  }
+}
+
+/**
+ * Compile a custom aggregation formula to an AG-Grid aggFn. Returns `null`
+ * on parse failure — the column falls back to no aggregation (safer than
+ * crashing the grid).
+ */
+function buildCustomAggFn(
+  engine: ExpressionEngineLike,
+  expression: string,
+): ((params: IAggFuncParams) => unknown) | null {
+  let compiled: unknown;
+  try {
+    compiled = engine.parse(expression);
+  } catch (err) {
+    console.warn('[column-customization] custom aggregation parse error:', expression, err);
+    return null;
+  }
+  return (params: IAggFuncParams) => {
+    const values = params.values ?? [];
+    const allRows = values.map((v: unknown) => ({ value: v }));
+    try {
+      return engine.evaluate(compiled, {
+        x: undefined,
+        value: undefined,
+        data: {},
+        columns: {},
+        allRows,
+      });
+    } catch (err) {
+      console.warn('[column-customization] custom aggregation runtime error:', expression, err);
+      return null;
+    }
+  };
+}
+
+// ─── Walker: merge assignments into ColDefs ────────────────────────────────
+
+export function applyAssignments(
+  defs: AnyColDef[],
+  assignments: Record<string, ColumnAssignment>,
+  templatesState: ColumnTemplatesState,
+  engine: ExpressionEngineLike,
+): AnyColDef[] {
+  return defs.map((def) => {
+    if ('children' in def && Array.isArray(def.children)) {
+      const next = applyAssignments(def.children, assignments, templatesState, engine);
+      const unchanged =
+        next.length === def.children.length && next.every((c, i) => c === def.children[i]);
+      return unchanged ? def : { ...def, children: next };
+    }
+
+    const colDef = def as ColDef;
+    const colId = colDef.colId ?? colDef.field;
+    if (!colId) return def;
+    const a = assignments[colId];
+    if (!a) return def;
+
+    const resolved = resolveTemplates(
+      a,
+      templatesState,
+      cellDataTypeToDomain(colDef.cellDataType),
+    );
+
+    const merged: ColDef = { ...colDef };
+
+    // Structural overrides (non-styling — kept on the ColDef).
+    if (resolved.headerName !== undefined) merged.headerName = resolved.headerName;
+    if (resolved.headerTooltip !== undefined) merged.headerTooltip = resolved.headerTooltip;
+    if (resolved.initialWidth !== undefined) merged.initialWidth = resolved.initialWidth;
+    if (resolved.initialHide !== undefined) merged.initialHide = resolved.initialHide;
+    if (resolved.initialPinned !== undefined) merged.initialPinned = resolved.initialPinned;
+    if (resolved.sortable !== undefined) merged.sortable = resolved.sortable;
+    if (resolved.filterable !== undefined) merged.filter = resolved.filterable;
+    if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
+
+    // Rich filter config — takes precedence over `filterable`.
+    if (resolved.filter !== undefined) {
+      applyFilterConfigToColDef(merged, resolved.filter as ColumnFilterConfig);
+    }
+
+    // Row-grouping / aggregation / pivot.
+    if (resolved.rowGrouping !== undefined) {
+      applyRowGroupingConfigToColDef(merged, resolved.rowGrouping as RowGroupingConfig, engine);
+    }
+
+    // Value formatter.
+    if (resolved.valueFormatterTemplate !== undefined) {
+      merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
+
+      // Excel color tags — `[Red]`, `[Green]` etc. in the format string —
+      // only affect text semantics in SSF. Emit a `cellStyle` fn that
+      // paints the computed color for the matched section.
+      if (resolved.valueFormatterTemplate.kind === 'excelFormat') {
+        const colorResolver = excelFormatColorResolver(resolved.valueFormatterTemplate.format);
+        if (colorResolver) {
+          merged.cellStyle = (params) => {
+            const color = colorResolver(params.value);
+            return color ? { color } : null;
+          };
+        }
+      }
+    }
+
+    if (resolved.cellEditorName !== undefined) merged.cellEditor = resolved.cellEditorName;
+    if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;
+    if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
+
+    // Styling via CSS class injection (NOT cellStyle/headerStyle — we save
+    // those for color-resolver above, which is a per-row compute).
+    if (resolved.cellStyleOverrides !== undefined) {
+      const cls = `gc-col-c-${colId}`;
+      const existing = colDef.cellClass;
+      merged.cellClass = Array.isArray(existing)
+        ? [...existing, cls]
+        : typeof existing === 'string' ? [existing, cls] : cls;
+    }
+
+    // Header class: emit whenever we'll inject a header rule — either the
+    // header has overrides, OR the cell has alignment (which the header
+    // inherits by default). Without this the header-align rule has no
+    // target on the DOM.
+    const needsHeaderClass =
+      resolved.headerStyleOverrides !== undefined ||
+      resolved.cellStyleOverrides?.alignment?.horizontal !== undefined;
+    if (needsHeaderClass) {
+      const cls = `gc-hdr-c-${colId}`;
+      const existing = colDef.headerClass;
+      merged.headerClass = Array.isArray(existing)
+        ? [...existing, cls]
+        : typeof existing === 'string' ? [existing, cls] : cls;
+    }
+
+    return merged;
+  });
+}
