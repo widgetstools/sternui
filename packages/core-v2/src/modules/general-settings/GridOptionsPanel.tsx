@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from 'react';
 import { RotateCcw, Save } from 'lucide-react';
-import { Switch } from '@grid-customizer/core';
+import { Select, Switch } from '@grid-customizer/core';
 import { useGridStore } from '../../ui/GridContext';
 import { useDraftModuleItem } from '../../store/useDraftModuleItem';
 import {
@@ -10,8 +10,6 @@ import {
   MetaCell,
   Mono,
   ObjectTitleRow,
-  PillToggleBtn,
-  PillToggleGroup,
   SharpBtn,
   SubLabel,
 } from '../../ui/SettingsPanel';
@@ -158,11 +156,41 @@ function TextControl({
 }
 
 /**
- * Pill-based enum control. For ≤4 options shows horizontally; more wraps.
- * Uses the shared `PillToggleGroup` + `PillToggleBtn` — same rendering the
- * FormattingToolbar uses for B/I/U and alignment.
+ * Shadcn-Select dropdown enum control.
+ *
+ * The HTML `<select>` value space is strings, but we want callers to keep
+ * working with the strongly-typed union (including `undefined` for "none"
+ * / "default"). Internally we round-trip through a sentinel key so the
+ * type safety stays intact:
+ *   - external `undefined` → internal `"__none__"`
+ *   - external `""`        → internal `"__empty__"` (e.g. TAB delimiter `'\t'`
+ *     would render blank otherwise)
+ *
+ * Replaces the earlier `PillToggleGroup` implementation — pills worked for
+ * 2-3 short-label options but collapsed badly at >3 options or with
+ * multi-word labels ("WHEN GROUPING", "PIN TOP"). The settings sheet
+ * already styles `select` to the cockpit chrome (see v2-sheet-styles.ts)
+ * so no extra CSS is needed here.
  */
-function EnumControl<T extends string | undefined>({
+const SEL_NONE = '__none__';
+const SEL_EMPTY = '__empty__';
+
+function encodeValue(v: unknown): string {
+  if (v === undefined) return SEL_NONE;
+  if (v === '') return SEL_EMPTY;
+  return String(v);
+}
+function decodeValue<T>(encoded: string, options: ReadonlyArray<{ value: T }>): T {
+  if (encoded === SEL_NONE) return undefined as unknown as T;
+  if (encoded === SEL_EMPTY) return '' as unknown as T;
+  // Walk options so the decoded value carries the exact reference from the
+  // allowed set — critical for non-string unions (though we only use strings
+  // + undefined today).
+  const hit = options.find((o) => encodeValue(o.value) === encoded);
+  return hit ? hit.value : (encoded as unknown as T);
+}
+
+function SelectControl<T extends string | undefined>({
   value,
   onChange,
   options,
@@ -170,22 +198,22 @@ function EnumControl<T extends string | undefined>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: ReadonlyArray<{ value: T; label: string; title?: string }>;
+  options: ReadonlyArray<{ value: T; label: string }>;
   testId?: string;
 }) {
   return (
-    <PillToggleGroup data-testid={testId}>
+    <Select
+      value={encodeValue(value)}
+      onChange={(e) => onChange(decodeValue<T>(e.target.value, options))}
+      data-testid={testId}
+      style={{ maxWidth: 240, flex: '1 1 auto' }}
+    >
       {options.map((opt) => (
-        <PillToggleBtn
-          key={String(opt.value ?? '_none_')}
-          active={value === opt.value}
-          onClick={() => onChange(opt.value)}
-          title={opt.title ?? opt.label}
-        >
+        <option key={encodeValue(opt.value)} value={encodeValue(opt.value)}>
           {opt.label}
-        </PillToggleBtn>
+        </option>
       ))}
-    </PillToggleGroup>
+    </Select>
   );
 }
 
@@ -318,13 +346,13 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="ROW SELECTION"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.rowSelection}
                 onChange={(v) => update('rowSelection', v)}
                 options={[
-                  { value: undefined, label: 'OFF' },
-                  { value: 'singleRow', label: 'SINGLE' },
-                  { value: 'multiRow', label: 'MULTI' },
+                  { value: undefined, label: 'Off' },
+                  { value: 'singleRow', label: 'Single row' },
+                  { value: 'multiRow', label: 'Multiple rows' },
                 ]}
                 testId="go-row-selection"
               />
@@ -332,11 +360,23 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           />
           <Row
             label="CHECKBOX SELECT"
+            hint="Show a checkbox column when selection is enabled"
             control={
               <BooleanControl
                 checked={s.checkboxSelection}
                 onChange={(v) => update('checkboxSelection', v)}
                 testId="go-checkbox-select"
+              />
+            }
+          />
+          <Row
+            label="CELL SELECTION"
+            hint="Enterprise · range selection for copy / fill"
+            control={
+              <BooleanControl
+                checked={s.cellSelection}
+                onChange={(v) => update('cellSelection', v)}
+                testId="go-cell-selection"
               />
             }
           />
@@ -432,15 +472,15 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="GROUP DISPLAY"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.groupDisplayType}
                 onChange={(v) => update('groupDisplayType', v)}
                 options={[
-                  { value: undefined, label: 'DEFAULT' },
-                  { value: 'singleColumn', label: 'SINGLE' },
-                  { value: 'multipleColumns', label: 'MULTI' },
-                  { value: 'groupRows', label: 'ROWS' },
-                  { value: 'custom', label: 'CUSTOM' },
+                  { value: undefined, label: 'Default' },
+                  { value: 'singleColumn', label: 'Single column' },
+                  { value: 'multipleColumns', label: 'Multiple columns' },
+                  { value: 'groupRows', label: 'Group rows' },
+                  { value: 'custom', label: 'Custom' },
                 ]}
                 testId="go-group-display"
               />
@@ -461,13 +501,13 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="ROW GROUP PANEL"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.rowGroupPanelShow}
                 onChange={(v) => update('rowGroupPanelShow', v)}
                 options={[
-                  { value: 'never', label: 'NEVER' },
-                  { value: 'onlyWhenGrouping', label: 'WHEN GROUPING' },
-                  { value: 'always', label: 'ALWAYS' },
+                  { value: 'never', label: 'Never' },
+                  { value: 'onlyWhenGrouping', label: 'Only when grouping' },
+                  { value: 'always', label: 'Always' },
                 ]}
                 testId="go-row-group-panel"
               />
@@ -486,13 +526,13 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="PIVOT PANEL"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.pivotPanelShow}
                 onChange={(v) => update('pivotPanelShow', v)}
                 options={[
-                  { value: 'never', label: 'NEVER' },
-                  { value: 'onlyWhenPivoting', label: 'WHEN PIVOTING' },
-                  { value: 'always', label: 'ALWAYS' },
+                  { value: 'never', label: 'Never' },
+                  { value: 'onlyWhenPivoting', label: 'Only when pivoting' },
+                  { value: 'always', label: 'Always' },
                 ]}
                 testId="go-pivot-panel"
               />
@@ -501,15 +541,15 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="GRAND TOTAL"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.grandTotalRow}
                 onChange={(v) => update('grandTotalRow', v)}
                 options={[
-                  { value: undefined, label: 'NONE' },
-                  { value: 'top', label: 'TOP' },
-                  { value: 'bottom', label: 'BOTTOM' },
-                  { value: 'pinnedTop', label: 'PIN TOP' },
-                  { value: 'pinnedBottom', label: 'PIN BOTTOM' },
+                  { value: undefined, label: 'None' },
+                  { value: 'top', label: 'Top' },
+                  { value: 'bottom', label: 'Bottom' },
+                  { value: 'pinnedTop', label: 'Pinned top' },
+                  { value: 'pinnedBottom', label: 'Pinned bottom' },
                 ]}
                 testId="go-grand-total"
               />
@@ -518,13 +558,13 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="GROUP TOTAL"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.groupTotalRow}
                 onChange={(v) => update('groupTotalRow', v)}
                 options={[
-                  { value: undefined, label: 'NONE' },
-                  { value: 'top', label: 'TOP' },
-                  { value: 'bottom', label: 'BOTTOM' },
+                  { value: undefined, label: 'None' },
+                  { value: 'top', label: 'Top' },
+                  { value: 'bottom', label: 'Bottom' },
                 ]}
                 testId="go-group-total"
               />
@@ -580,14 +620,14 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
             label="MULTI SORT"
             hint="How clicking a header extends the sort set"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.multiSortMode}
                 onChange={(v) => update('multiSortMode', v)}
                 options={[
-                  { value: 'replace', label: 'REPLACE', title: 'Click replaces sort' },
-                  { value: 'shift', label: 'SHIFT', title: 'Shift-click adds' },
-                  { value: 'ctrl', label: 'CTRL', title: 'Ctrl-click adds' },
-                  { value: 'always', label: 'ALWAYS', title: 'Click always adds' },
+                  { value: 'replace', label: 'Click replaces sort' },
+                  { value: 'shift', label: 'Shift-click to add' },
+                  { value: 'ctrl', label: 'Ctrl-click to add' },
+                  { value: 'always', label: 'Click always adds' },
                 ]}
                 testId="go-multi-sort"
               />
@@ -617,14 +657,14 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="CLIP DELIMITER"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.clipboardDelimiter}
                 onChange={(v) => update('clipboardDelimiter', v)}
                 options={[
-                  { value: '\t', label: 'TAB' },
-                  { value: ',', label: 'COMMA' },
-                  { value: ';', label: 'SEMI' },
-                  { value: '|', label: 'PIPE' },
+                  { value: '\t', label: 'Tab' },
+                  { value: ',', label: 'Comma' },
+                  { value: ';', label: 'Semicolon' },
+                  { value: '|', label: 'Pipe' },
                 ]}
                 testId="go-clipboard-delimiter"
               />
@@ -657,16 +697,16 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           />
           <Row
             label="ENTER NAVIGATES"
-            hint="What ↵ does in / after an edit"
+            hint="What Enter does in / after an edit"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.enterNavigation}
                 onChange={(v) => update('enterNavigation', v)}
                 options={[
-                  { value: 'default', label: 'DEFAULT' },
-                  { value: 'always', label: 'ALWAYS ↓' },
-                  { value: 'afterEdit', label: 'AFTER EDIT' },
-                  { value: 'both', label: 'BOTH' },
+                  { value: 'default', label: 'Default (commit only)' },
+                  { value: 'always', label: 'Always move down' },
+                  { value: 'afterEdit', label: 'Move down after edit' },
+                  { value: 'both', label: 'Move down always + after edit' },
                 ]}
                 testId="go-enter-navigation"
               />
@@ -712,12 +752,12 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           <Row
             label="TOOLTIP MODE"
             control={
-              <EnumControl
+              <SelectControl
                 value={s.tooltipShowMode}
                 onChange={(v) => update('tooltipShowMode', v)}
                 options={[
-                  { value: 'standard', label: 'STANDARD' },
-                  { value: 'whenTruncated', label: 'TRUNCATED ONLY' },
+                  { value: 'standard', label: 'Always show' },
+                  { value: 'whenTruncated', label: 'Only when truncated' },
                 ]}
                 testId="go-tooltip-mode"
               />

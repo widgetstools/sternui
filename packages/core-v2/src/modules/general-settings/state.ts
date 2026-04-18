@@ -20,6 +20,8 @@ export interface GeneralSettingsState {
    *  on disk and materialise the object at transform time. */
   rowSelection: 'singleRow' | 'multiRow' | undefined;
   checkboxSelection: boolean;
+  /** Enterprise · boolean shortcut for the AG-Grid cell-range selection. */
+  cellSelection: boolean;
   rowDragging: boolean;
   animateRows: boolean;
   cellFlashDuration: number;
@@ -113,6 +115,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressPaginationPanel: false,
   rowSelection: undefined,
   checkboxSelection: false,
+  cellSelection: true,
   rowDragging: false,
   animateRows: true,
   cellFlashDuration: 500,

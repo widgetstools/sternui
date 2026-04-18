@@ -74,6 +74,10 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
             checkboxes: state.checkboxSelection,
           }
         : undefined,
+      // Boolean shortcut — AG-Grid accepts `true` for a default cell-range
+      // selection config. The sub-panel form (handle, suppressMultiRanges,
+      // …) is out of scope for this pass.
+      cellSelection: state.cellSelection,
       rowDragManaged: state.rowDragging,
       animateRows: state.animateRows,
       cellFlashDuration: state.cellFlashDuration,
