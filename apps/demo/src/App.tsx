@@ -15,6 +15,10 @@ const sharedParams = {
   fontFamily: "'JetBrains Mono', monospace",
   fontSize: 11,       // primitives.typography.fontSize.sm (11px)
   headerFontSize: 10,  // primitives.typography.fontSize.xs + 1 (9+1=10)
+  // Scale AG-Grid's built-in glyphs (sort arrow, filter funnel, menu
+  // hamburger, sidebar chevrons, etc.) down to match the dense FI
+  // blotter type stack. Applies to both light and dark variants.
+  iconSize: 10,
   cellHorizontalPaddingScale: 0.6,
   wrapperBorder: false,
   columnBorder: true,
