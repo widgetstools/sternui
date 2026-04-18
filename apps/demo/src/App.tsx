@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
-import { themeQuartz, iconSetMaterial } from 'ag-grid-community';
+import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid, type ToolbarSlotConfig } from '@grid-customizer/markets-grid';
 import { MarketsGrid as MarketsGridV2 } from '@grid-customizer/markets-grid-v2';
 import { DexieAdapter } from '@grid-customizer/core';
@@ -10,239 +10,44 @@ import { Sun, Moon, Database } from 'lucide-react';
 import { generateOrders, type Order } from './data';
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
-//
-// MarketsUI — Bloomberg Charcoal (dark) + Warm Parchment (light). Both
-// tuned for 10-hour FI trading sessions: warm neutral charcoal and a
-// low-strain parchment. Icon set swapped to Material for a denser,
-// more telemetry-ready glyph shelf.
 
-const darkTheme = themeQuartz
-  .withPart(iconSetMaterial)
-  .withParams({
-    // Base canvas
-    backgroundColor: '#1a1d21',
-    foregroundColor: '#e8e8e8',
-    browserColorScheme: 'dark',
+const sharedParams = {
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: 11,       // primitives.typography.fontSize.sm (11px)
+  headerFontSize: 10,  // primitives.typography.fontSize.xs + 1 (9+1=10)
+  cellHorizontalPaddingScale: 0.6,
+  wrapperBorder: false,
+  columnBorder: true,
+  spacing: 6,
+  borderRadius: 0,
+  wrapperBorderRadius: 0,
+};
 
-    // Chrome — derived from foreground for consistency across surfaces
-    chromeBackgroundColor: {
-      ref: 'foregroundColor',
-      mix: 0.06,
-      onto: 'backgroundColor',
-    },
+const darkTheme = themeQuartz.withParams({
+  ...sharedParams,
+  backgroundColor: '#161a1e',
+  foregroundColor: '#eaecef',
+  headerBackgroundColor: '#1e2329',
+  headerForegroundColor: '#a0a8b4',
+  oddRowBackgroundColor: '#161a1e',
+  rowHoverColor: '#1e2329',
+  selectedRowBackgroundColor: '#14b8a614',
+  borderColor: '#313944',
+  rowBorderColor: '#31394499',
+});
 
-    // Typography
-    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    fontSize: 12,
-
-    // Density — FI blotter
-    spacing: 4,
-    rowHeight: 28,
-    headerHeight: 32,
-
-    // Shapes
-    borderRadius: 2,
-    wrapperBorderRadius: 4,
-    cellHorizontalPadding: 10,
-
-    // Header
-    headerBackgroundColor: '#23272d',
-    headerTextColor: '#9aa0a8',
-    headerFontWeight: 600,
-    headerColumnBorder: { color: '#363b44' },
-    headerColumnResizeHandleColor: '#5c6472',
-
-    // Rows
-    rowBorder: { color: '#2a2e35', style: 'solid', width: 1 },
-    oddRowBackgroundColor: {
-      ref: 'foregroundColor',
-      mix: 0.03,
-      onto: 'backgroundColor',
-    },
-    rowHoverColor: {
-      ref: 'foregroundColor',
-      mix: 0.08,
-      onto: 'backgroundColor',
-    },
-    selectedRowBackgroundColor: 'rgba(240, 185, 11, 0.10)',
-
-    // Cells
-    cellTextColor: '#e8e8e8',
-    // (Horizontal cell borders are controlled via `rowBorder` in v35 Quartz;
-    // vertical separators are enabled below.)
-    columnBorder: true,
-
-    // Borders
-    borderColor: '#363b44',
-    wrapperBorder: { color: '#363b44' },
-
-    // Accent — Binance amber
-    accentColor: '#f0b90b',
-    rangeSelectionBackgroundColor: 'rgba(240, 185, 11, 0.12)',
-    rangeSelectionBorderStyle: 'solid',
-    rangeSelectionBorderColor: '#f0b90b',
-    rangeSelectionChartBackgroundColor: 'rgba(240, 185, 11, 0.08)',
-    rangeSelectionChartCategoryBackgroundColor: 'rgba(240, 185, 11, 0.05)',
-
-    // Inputs
-    inputBackgroundColor: '#181c21',
-    inputBorder: { color: '#363b44' },
-    inputTextColor: '#e8e8e8',
-    inputFocusBorder: { color: '#f0b90b' },
-    inputPlaceholderTextColor: '#5c6472',
-    inputDisabledBackgroundColor: '#1a1d21',
-    inputDisabledTextColor: '#5c6472',
-
-    // Menus & popups
-    menuBackgroundColor: '#23272d',
-    menuTextColor: '#e8e8e8',
-    menuBorder: { color: '#363b44' },
-    menuShadow: '0 4px 16px rgba(0,0,0,0.5)',
-    tooltipBackgroundColor: '#2c3139',
-    tooltipTextColor: '#e8e8e8',
-
-    // Icons
-    iconSize: 14,
-    iconButtonHoverColor: '#363b44',
-
-    // Drag & drop
-    columnDropCellBackgroundColor: '#23272d',
-    columnDropCellBorder: { color: '#363b44' },
-    dragAndDropImageBackgroundColor: '#23272d',
-    dragAndDropImageBorder: { color: '#f0b90b' },
-
-    // Pinned
-    pinnedColumnBorder: { color: '#454a54', style: 'solid', width: 1 },
-    pinnedRowBackgroundColor: '#262a31',
-    pinnedRowBorder: { color: '#454a54' },
-
-    // Checkbox
-    checkboxCheckedBackgroundColor: '#f0b90b',
-    checkboxCheckedBorderColor: '#f0b90b',
-    checkboxCheckedShapeColor: '#1a1d21',
-    checkboxUncheckedBackgroundColor: '#181c21',
-    checkboxUncheckedBorderColor: '#5c6472',
-
-    // Validation
-    invalidColor: '#f87171',
-
-    // Focus
-    focusShadow: '0 0 0 2px rgba(240, 185, 11, 0.35)',
-  });
-
-const lightTheme = themeQuartz
-  .withPart(iconSetMaterial)
-  .withParams({
-    // Base canvas
-    backgroundColor: '#E8E4DC',
-    foregroundColor: '#2a2620',
-    browserColorScheme: 'light',
-
-    // Chrome — panel surface sits lighter than the canvas
-    chromeBackgroundColor: {
-      ref: 'backgroundColor',
-      mix: 0.5,
-      onto: '#FFFFFF',
-    },
-
-    // Typography
-    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    fontSize: 12,
-
-    // Density
-    spacing: 4,
-    rowHeight: 28,
-    headerHeight: 32,
-
-    // Shapes
-    borderRadius: 2,
-    wrapperBorderRadius: 4,
-    cellHorizontalPadding: 10,
-
-    // Header
-    headerBackgroundColor: '#E0DBD0',
-    headerTextColor: '#6b6459',
-    headerFontWeight: 600,
-    headerColumnBorder: { color: '#d4cfc3' },
-    headerColumnResizeHandleColor: '#8a8275',
-
-    // Rows
-    rowBorder: { color: '#dcd7cb', style: 'solid', width: 1 },
-    oddRowBackgroundColor: {
-      ref: 'foregroundColor',
-      mix: 0.03,
-      onto: 'backgroundColor',
-    },
-    rowHoverColor: {
-      ref: 'foregroundColor',
-      mix: 0.08,
-      onto: 'backgroundColor',
-    },
-    selectedRowBackgroundColor: 'rgba(184, 115, 51, 0.10)',
-
-    // Cells
-    cellTextColor: '#2a2620',
-    // (Horizontal cell borders are controlled via `rowBorder` in v35 Quartz;
-    // vertical separators are enabled below.)
-    columnBorder: true,
-
-    // Borders
-    borderColor: '#d4cfc3',
-    wrapperBorder: { color: '#d4cfc3' },
-
-    // Accent — copper complements parchment
-    accentColor: '#b87333',
-    rangeSelectionBackgroundColor: 'rgba(184, 115, 51, 0.12)',
-    rangeSelectionBorderStyle: 'solid',
-    rangeSelectionBorderColor: '#b87333',
-    rangeSelectionChartBackgroundColor: 'rgba(184, 115, 51, 0.08)',
-    rangeSelectionChartCategoryBackgroundColor: 'rgba(184, 115, 51, 0.05)',
-
-    // Inputs
-    inputBackgroundColor: '#FAF6EE',
-    inputBorder: { color: '#d4cfc3' },
-    inputTextColor: '#2a2620',
-    inputFocusBorder: { color: '#b87333' },
-    inputPlaceholderTextColor: '#8a8275',
-    inputDisabledBackgroundColor: '#E8E4DC',
-    inputDisabledTextColor: '#8a8275',
-
-    // Menus & popups
-    menuBackgroundColor: '#F2EEE6',
-    menuTextColor: '#2a2620',
-    menuBorder: { color: '#d4cfc3' },
-    menuShadow: '0 4px 16px rgba(0,0,0,0.10)',
-    tooltipBackgroundColor: '#2a2620',
-    tooltipTextColor: '#F2EEE6',
-
-    // Icons
-    iconSize: 14,
-    iconButtonHoverColor: '#DDD8CC',
-
-    // Drag & drop
-    columnDropCellBackgroundColor: '#EDE9E0',
-    columnDropCellBorder: { color: '#d4cfc3' },
-    dragAndDropImageBackgroundColor: '#F2EEE6',
-    dragAndDropImageBorder: { color: '#b87333' },
-
-    // Pinned
-    pinnedColumnBorder: { color: '#bfb8a8', style: 'solid', width: 1 },
-    pinnedRowBackgroundColor: '#E0DBD0',
-    pinnedRowBorder: { color: '#bfb8a8' },
-
-    // Checkbox
-    checkboxCheckedBackgroundColor: '#b87333',
-    checkboxCheckedBorderColor: '#b87333',
-    checkboxCheckedShapeColor: '#F2EEE6',
-    checkboxUncheckedBackgroundColor: '#FAF6EE',
-    checkboxUncheckedBorderColor: '#8a8275',
-
-    // Validation
-    invalidColor: '#a32d2d',
-
-    // Focus
-    focusShadow: '0 0 0 2px rgba(184, 115, 51, 0.35)',
-  });
+const lightTheme = themeQuartz.withParams({
+  ...sharedParams,
+  backgroundColor: '#ffffff',
+  foregroundColor: '#3b3b3b',
+  headerBackgroundColor: '#f3f3f3',
+  headerForegroundColor: '#616161',
+  oddRowBackgroundColor: '#fafafa',
+  rowHoverColor: '#f3f3f3',
+  selectedRowBackgroundColor: '#0d948814',
+  borderColor: '#e5e5e5',
+  rowBorderColor: '#e5e5e599',
+});
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────
 
