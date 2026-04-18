@@ -142,7 +142,24 @@ export class Evaluator {
     const fn = this.functions.get(name.toUpperCase());
     if (!fn) throw new Error(`Unknown function: ${name}`);
 
-    const args = argNodes.map((arg) => this.evaluate(arg, ctx));
+    // Column-wide aggregation semantics — when the function is flagged
+    // `aggregateColumnRefs` AND the caller supplied `ctx.allRows`, any
+    // direct `[colId]` argument evaluates to the FULL column (every
+    // row's value) rather than the current row's scalar. That makes
+    // `SUM([price])` behave like Excel's `SUM(price_column)` instead
+    // of the degenerate `SUM(currentRowPrice)` = currentRowPrice.
+    //
+    // Falls back to per-row evaluation when either the flag is off or
+    // `allRows` isn't available — keeps non-grid contexts unchanged.
+    const args: unknown[] =
+      fn.aggregateColumnRefs && ctx.allRows
+        ? argNodes.map((arg) => {
+            if (arg.type === 'columnRef') {
+              return ctx.allRows!.map((row) => row[arg.columnId] ?? null);
+            }
+            return this.evaluate(arg, ctx);
+          })
+        : argNodes.map((arg) => this.evaluate(arg, ctx));
 
     if (args.length < fn.minArgs || args.length > fn.maxArgs) {
       throw new Error(

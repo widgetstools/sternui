@@ -1,9 +1,60 @@
-import type { ColDef, ValueGetterParams, ValueFormatterParams, CellClassParams } from 'ag-grid-community';
+import type { ColDef, GridApi, ValueGetterParams, ValueFormatterParams, CellClassParams } from 'ag-grid-community';
 import type { ExpressionNode } from '@grid-customizer/core';
 import { ExpressionEngine } from '@grid-customizer/core';
 import { valueFormatterFromTemplate } from '../column-customization/adapters/valueFormatterFromTemplate';
 import { excelFormatColorResolver } from '../column-customization/adapters/excelFormatter';
 import type { VirtualColumnDef } from './state';
+
+// ─── `allRows` cache — one snapshot per GridApi, invalidated on rowData change ─
+//
+// Column-wide aggregations (`SUM([price])`, `AVG([yield])`, …) need the full
+// set of rowData, but a naive `api.forEachNode(...)` inside every valueGetter
+// call turns the compute into O(rows × cols). Cache one flat snapshot per
+// GridApi and flush it when AG-Grid signals rowData mutation. A WeakMap
+// means grids we've torn down (hot-reload, strict-mode double-mount) get GC'd
+// without us leaking listeners.
+const _allRowsCache = new WeakMap<
+  GridApi,
+  { rows: Record<string, unknown>[]; wired: boolean }
+>();
+
+function getAllRowsSnapshot(api: GridApi | null | undefined): Record<string, unknown>[] {
+  if (!api) return [];
+  let entry = _allRowsCache.get(api);
+  if (entry && entry.rows.length) return entry.rows;
+  if (!entry) {
+    entry = { rows: [], wired: false };
+    _allRowsCache.set(api, entry);
+  }
+  // Lazy subscription — only the first aggregation expression triggers
+  // this. Idempotent: we check `wired` before re-subscribing.
+  if (!entry.wired) {
+    const invalidate = () => {
+      const e = _allRowsCache.get(api);
+      if (e) e.rows = [];
+    };
+    const events = ['rowDataUpdated', 'modelUpdated', 'cellValueChanged'] as const;
+    for (const evt of events) {
+      try {
+        api.addEventListener(evt, invalidate);
+      } catch {
+        /* api may be mid-teardown */
+      }
+    }
+    entry.wired = true;
+  }
+  // Populate the snapshot.
+  try {
+    const rows: Record<string, unknown>[] = [];
+    api.forEachNode((node) => {
+      if (node.data) rows.push(node.data as Record<string, unknown>);
+    });
+    entry.rows = rows;
+  } catch {
+    entry.rows = [];
+  }
+  return entry.rows;
+}
 
 /**
  * Translate a `VirtualColumnDef` into a ready-to-register AG-Grid `ColDef`.
@@ -66,6 +117,13 @@ export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine
           value: null,
           data: params.data,
           columns: params.data,
+          // Column-wide aggregation support: every call gets a lazy
+          // getter onto the cached `allRows` snapshot. Expressions that
+          // don't use `aggregateColumnRefs` functions never touch this
+          // field, so the cache is only built on first aggregate access.
+          get allRows() {
+            return getAllRowsSnapshot(params.api as GridApi);
+          },
         });
       } catch {
         return null;

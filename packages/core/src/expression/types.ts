@@ -100,6 +100,14 @@ export interface EvaluationContext {
   columns: Record<string, unknown>;
   oldValue?: unknown;
   newValue?: unknown;
+  /**
+   * Optional: every row currently loaded into the grid. Populated by the
+   * calculated-columns `valueGetter` (via `api.forEachNode`). Enables
+   * column-wide aggregation semantics — e.g. `SUM([price])` reads this
+   * array and returns the total across the whole dataset instead of just
+   * the current row's price scalar. Falls back to scalar when omitted.
+   */
+  allRows?: ReadonlyArray<Record<string, unknown>>;
 }
 
 // ─── Function Registry ───────────────────────────────────────────────────────
@@ -111,6 +119,18 @@ export interface FunctionDefinition {
   signature: string;
   minArgs: number;
   maxArgs: number;
+  /**
+   * When true, any direct `[columnRef]` argument is resolved to the entire
+   * column — an array of every row's value pulled from `ctx.allRows` —
+   * rather than the current row's scalar. Used by aggregation + stats
+   * functions so `SUM([price])` / `AVG([yield])` / `MIN([spread])` act
+   * as cross-row reducers, matching the Excel-style intuition.
+   *
+   * When `ctx.allRows` is undefined the flag is ignored — the function
+   * behaves like a vararg reducer on the current row. That keeps
+   * non-grid contexts (tests, server-side evaluation) working unchanged.
+   */
+  aggregateColumnRefs?: boolean;
   evaluate: (args: unknown[], ctx: EvaluationContext) => unknown;
 }
 

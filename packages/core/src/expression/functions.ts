@@ -34,25 +34,37 @@ const builtins: FunctionDefinition[] = [
     evaluate: ([n]) => Math.log(toNum(n)) },
   { name: 'EXP', category: 'Math', description: 'e^n', signature: 'EXP(n)', minArgs: 1, maxArgs: 1,
     evaluate: ([n]) => Math.exp(toNum(n)) },
-  { name: 'MIN', category: 'Math', description: 'Minimum of values', signature: 'MIN(a, b, ...)', minArgs: 2, maxArgs: 100,
-    evaluate: (args) => Math.min(...args.map(toNum)) },
-  { name: 'MAX', category: 'Math', description: 'Maximum of values', signature: 'MAX(a, b, ...)', minArgs: 2, maxArgs: 100,
-    evaluate: (args) => Math.max(...args.map(toNum)) },
+  // MIN / MAX double as varargs AND column aggregators:
+  //   - `MIN(1, 2, 3)`       → classic vararg reducer (scalar result).
+  //   - `MIN([price])`       → per-column aggregate (smallest price in grid).
+  // `aggregateColumnRefs: true` tells the evaluator to expand a direct
+  // `[col]` arg to the full column array via `ctx.allRows`. `.flat()`
+  // handles mixed scalar + array inputs uniformly.
+  { name: 'MIN', category: 'Math', description: 'Minimum of values', signature: 'MIN(a, b, ...) | MIN([col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
+    evaluate: (args) => {
+      const nums = args.flat().map(toNum);
+      return nums.length === 0 ? 0 : Math.min(...nums);
+    } },
+  { name: 'MAX', category: 'Math', description: 'Maximum of values', signature: 'MAX(a, b, ...) | MAX([col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
+    evaluate: (args) => {
+      const nums = args.flat().map(toNum);
+      return nums.length === 0 ? 0 : Math.max(...nums);
+    } },
 
-  // ─── Statistical ─────────────────────────────────────────────────────────
-  { name: 'AVG', category: 'Stats', description: 'Average', signature: 'AVG(values...)', minArgs: 1, maxArgs: 100,
+  // ─── Statistical (column-wide when given a [col] arg) ────────────────────
+  { name: 'AVG', category: 'Stats', description: 'Average', signature: 'AVG(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => {
       const nums = args.flat().map(toNum);
       return nums.length === 0 ? 0 : nums.reduce((a, b) => a + b, 0) / nums.length;
     } },
-  { name: 'MEDIAN', category: 'Stats', description: 'Median value', signature: 'MEDIAN(values...)', minArgs: 1, maxArgs: 100,
+  { name: 'MEDIAN', category: 'Stats', description: 'Median value', signature: 'MEDIAN(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => {
       const sorted = args.flat().map(toNum).sort((a, b) => a - b);
       if (sorted.length === 0) return 0;
       const mid = Math.floor(sorted.length / 2);
       return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
     } },
-  { name: 'STDEV', category: 'Stats', description: 'Standard deviation', signature: 'STDEV(values...)', minArgs: 1, maxArgs: 100,
+  { name: 'STDEV', category: 'Stats', description: 'Standard deviation', signature: 'STDEV(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => {
       const nums = args.flat().map(toNum);
       if (nums.length <= 1) return 0;
@@ -60,7 +72,7 @@ const builtins: FunctionDefinition[] = [
       const variance = nums.reduce((sum, n) => sum + (n - mean) ** 2, 0) / (nums.length - 1);
       return Math.sqrt(variance);
     } },
-  { name: 'VARIANCE', category: 'Stats', description: 'Variance', signature: 'VARIANCE(values...)', minArgs: 1, maxArgs: 100,
+  { name: 'VARIANCE', category: 'Stats', description: 'Variance', signature: 'VARIANCE(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => {
       const nums = args.flat().map(toNum);
       if (nums.length <= 1) return 0;
@@ -68,12 +80,12 @@ const builtins: FunctionDefinition[] = [
       return nums.reduce((sum, n) => sum + (n - mean) ** 2, 0) / (nums.length - 1);
     } },
 
-  // ─── Aggregation ─────────────────────────────────────────────────────────
-  { name: 'SUM', category: 'Aggregation', description: 'Sum of values', signature: 'SUM(values...)', minArgs: 1, maxArgs: 100,
+  // ─── Aggregation (column-wide when given a [col] arg) ────────────────────
+  { name: 'SUM', category: 'Aggregation', description: 'Sum of values', signature: 'SUM(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => args.flat().map(toNum).reduce((a, b) => a + b, 0) },
-  { name: 'COUNT', category: 'Aggregation', description: 'Count of values', signature: 'COUNT(values...)', minArgs: 1, maxArgs: 100,
+  { name: 'COUNT', category: 'Aggregation', description: 'Count of values', signature: 'COUNT(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => args.flat().filter((v) => v != null).length },
-  { name: 'DISTINCT_COUNT', category: 'Aggregation', description: 'Count of distinct values', signature: 'DISTINCT_COUNT(values...)', minArgs: 1, maxArgs: 100,
+  { name: 'DISTINCT_COUNT', category: 'Aggregation', description: 'Count of distinct values', signature: 'DISTINCT_COUNT(values... | [col])', minArgs: 1, maxArgs: 100, aggregateColumnRefs: true,
     evaluate: (args) => new Set(args.flat().filter((v) => v != null)).size },
 
   // ─── String ──────────────────────────────────────────────────────────────
