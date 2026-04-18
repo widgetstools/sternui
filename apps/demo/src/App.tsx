@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid } from '@grid-customizer/markets-grid-v2';
@@ -94,62 +94,7 @@ const defaultColDef: ColDef<Order> = {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-// Separate standalone preview of the proposed Figma-inspired Format Editor.
-// Reachable at ?fmt=preview — does not mount the grid; used to evaluate the
-// component library before integrating into the real toolbars / panels.
-const useFormatPreview = (() => {
-  try {
-    return new URLSearchParams(window.location.search).get('fmt') === 'preview';
-  } catch { return false; }
-})();
-
-// Standalone A/B/C preview for the settings-panel visual style decision.
-// Reachable at ?panel=preview. Delete once a pattern is chosen.
-const usePanelPreview = (() => {
-  try {
-    return new URLSearchParams(window.location.search).get('panel') === 'preview';
-  } catch { return false; }
-})();
-
-// Cockpit Terminal aesthetic proposal — sample before wholesale redesign.
-// Reachable at ?panel=cockpit.
-const useCockpitPreview = (() => {
-  try {
-    return new URLSearchParams(window.location.search).get('panel') === 'cockpit';
-  } catch { return false; }
-})();
-
 export function App() {
-  if (useFormatPreview) {
-    const LazyPreview = React.lazy(() =>
-      import('./FormatEditorPreview').then((m) => ({ default: m.FormatEditorPreview })),
-    );
-    return (
-      <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading format preview…</div>}>
-        <LazyPreview />
-      </React.Suspense>
-    );
-  }
-  if (usePanelPreview) {
-    const LazyPreview = React.lazy(() =>
-      import('./PanelStylePreview').then((m) => ({ default: m.PanelStylePreview })),
-    );
-    return (
-      <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading panel preview…</div>}>
-        <LazyPreview />
-      </React.Suspense>
-    );
-  }
-  if (useCockpitPreview) {
-    const LazyPreview = React.lazy(() =>
-      import('./CockpitPreview').then((m) => ({ default: m.CockpitPreview })),
-    );
-    return (
-      <React.Suspense fallback={<div style={{ padding: 24, color: '#888' }}>Loading cockpit preview…</div>}>
-        <LazyPreview />
-      </React.Suspense>
-    );
-  }
   return <AppInner />;
 }
 
