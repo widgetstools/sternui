@@ -5,7 +5,7 @@ import {
   type SavedFiltersState,
   useModuleState,
 } from '@grid-customizer/core-v2';
-import { Plus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight, Brush } from 'lucide-react';
 import type { SavedFilter } from './types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -98,9 +98,22 @@ function mergeFilterModels(models: Record<string, unknown>[]): Record<string, un
 export interface FiltersToolbarProps {
   core: GridCore;
   store: GridStore;
+  /**
+   * Optional Style-toolbar toggle rendered inline on the right of the filter
+   * pill row. When `onToggleStyleToolbar` is supplied, a `Brush` pill button
+   * appears and reflects `styleToolbarOpen` in its active state. This is the
+   * entry point for the floating FormattingToolbar.
+   */
+  styleToolbarOpen?: boolean;
+  onToggleStyleToolbar?: () => void;
 }
 
-export function FiltersToolbar({ core, store }: FiltersToolbarProps) {
+export function FiltersToolbar({
+  core,
+  store,
+  styleToolbarOpen,
+  onToggleStyleToolbar,
+}: FiltersToolbarProps) {
   // Filters live in the per-profile saved-filters module. Reading and writing
   // through `useModuleState` is the ONLY channel — no refs, no events. The
   // auto-save engine picks up changes and persists them on a debounce.
@@ -306,6 +319,45 @@ export function FiltersToolbar({ core, store }: FiltersToolbarProps) {
         >
           <Plus size={16} strokeWidth={2.75} />
         </button>
+
+        {onToggleStyleToolbar && (
+          <button
+            type="button"
+            onClick={onToggleStyleToolbar}
+            title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
+            data-testid="style-toolbar-toggle"
+            data-active={styleToolbarOpen ? 'true' : 'false'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              height: 24,
+              padding: '0 10px',
+              marginLeft: 4,
+              borderRadius: 12,
+              border: '1px solid',
+              borderColor: styleToolbarOpen
+                ? 'var(--bn-green, #2dd4bf)'
+                : 'var(--border, #313944)',
+              background: styleToolbarOpen
+                ? 'rgba(45, 212, 191, 0.12)'
+                : 'transparent',
+              color: styleToolbarOpen
+                ? 'var(--bn-green, #2dd4bf)'
+                : 'var(--muted-foreground, #a0a8b4)',
+              cursor: 'pointer',
+              fontSize: 10,
+              fontWeight: styleToolbarOpen ? 600 : 500,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              transition: 'all 150ms',
+              flexShrink: 0,
+            }}
+          >
+            <Brush size={11} strokeWidth={2} />
+            <span>Style</span>
+          </button>
+        )}
       </div>
       {canScrollRight && (
         <button

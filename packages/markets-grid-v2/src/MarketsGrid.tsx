@@ -15,13 +15,14 @@ import {
   captureGridStateInto,
   type AnyModule,
 } from '@grid-customizer/core-v2';
-import { Save, Check, Settings as SettingsIcon, Brush, X as XIcon } from 'lucide-react';
+import { Save, Check, Settings as SettingsIcon } from 'lucide-react';
 import type { MarketsGridV2Props } from './types';
 import { useMarketsGridV2 } from './useMarketsGridV2';
 import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar } from './FormattingToolbar';
 import { ProfileSelector } from './ProfileSelector';
 import { SettingsSheet } from './SettingsSheet';
+import { DraggableFloat } from './DraggableFloat';
 
 // AG-Grid Enterprise registration is global and idempotent — calling it on
 // every mount is fine, but we guard with a one-shot flag to keep the console
@@ -165,7 +166,16 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
         >
           <div style={{ flex: '1 1 0px', minWidth: 0, overflowX: 'clip' }}>
             {showFiltersToolbar ? (
-              <FiltersToolbar core={core} store={store} />
+              <FiltersToolbar
+                core={core}
+                store={store}
+                styleToolbarOpen={showFormattingToolbar !== undefined ? styleToolbarOpen : undefined}
+                onToggleStyleToolbar={
+                  showFormattingToolbar !== undefined
+                    ? () => setStyleToolbarOpen((p) => !p)
+                    : undefined
+                }
+              />
             ) : (
               <div style={{ height: 44, borderBottom: '1px solid var(--border, #313944)', background: 'var(--card, #161a1e)' }} />
             )}
@@ -193,33 +203,6 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
                 onDelete={(id) => profiles.deleteProfile(id)}
               />
             </div>
-          )}
-
-          {/* Style pill — toggles the formatting toolbar */}
-          {showFormattingToolbar !== undefined && (
-            <button
-              type="button"
-              onClick={() => setStyleToolbarOpen((p) => !p)}
-              title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
-              style={{
-                height: 44, padding: '0 10px',
-                background: styleToolbarOpen
-                  ? 'rgba(45, 212, 191, 0.08)'
-                  : 'var(--card, #161a1e)',
-                borderBottom: '1px solid var(--border, #313944)',
-                border: 'none', borderLeft: '1px solid var(--border, #313944)',
-                color: styleToolbarOpen
-                  ? 'var(--bn-green, #2dd4bf)'
-                  : 'var(--muted-foreground, #a0a8b4)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 5,
-                fontSize: 11, fontWeight: styleToolbarOpen ? 600 : 500,
-                transition: 'all 150ms',
-              }}
-            >
-              <Brush size={13} strokeWidth={1.75} />
-              <span>Style</span>
-            </button>
           )}
 
           {showSaveButton && (
@@ -274,34 +257,16 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
         </div>
       )}
 
-      {styleToolbarOpen && (
-        <div style={{ position: 'relative' }}>
+      <DraggableFloat
+        open={styleToolbarOpen}
+        onClose={() => setStyleToolbarOpen(false)}
+        title="Formatting"
+        data-testid="formatting-toolbar-float"
+      >
+        <div style={{ width: 'min(1180px, calc(100vw - 32px))' }}>
           <FormattingToolbar core={core} store={store} />
-          {/* X button to hide the toolbar — mirrors v1's close behavior */}
-          <button
-            type="button"
-            onClick={() => setStyleToolbarOpen(false)}
-            title="Hide formatting toolbar"
-            style={{
-              position: 'absolute',
-              top: 4, right: 6,
-              width: 22, height: 22,
-              borderRadius: 4,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--muted-foreground, #a0a8b4)',
-              cursor: 'pointer',
-              opacity: 0.6,
-              transition: 'opacity 150ms',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
-          >
-            <XIcon size={14} strokeWidth={2} />
-          </button>
         </div>
-      )}
+      </DraggableFloat>
 
       <div style={{ flex: 1 }}>
         <AgGridReact

@@ -1291,6 +1291,33 @@ doesn't re-render until the user clicks SAVE.
   (`headerStyleOverrides → cellStyleOverrides`) + header-class
   attachment whenever either is set.
 
+### 17.12b Floating / draggable Formatting Toolbar
+
+- **Floating panel** — the Formatting Toolbar is no longer pinned
+  inline below the main toolbar. It renders inside a position-fixed
+  `DraggableFloat` wrapper (`packages/markets-grid-v2/src/DraggableFloat.tsx`)
+  at `z-index: 9999` so it floats above the grid but below its own
+  Radix popovers (`z-[2147483647]`).
+- **Drag handle** — a 22px-tall bar at the top of the panel with the
+  `GripVertical` icon, "FORMATTING" label, and a close (X) button. A
+  single `pointerdown` on the handle starts a drag tracked on the
+  window via `pointermove`/`pointerup`; position is clamped to the
+  viewport so the handle can never be stranded offscreen.
+- **Close any time** — the X button in the handle dismisses the panel
+  instantly. Re-open via the `STYLE` pill (see below) — the panel
+  returns at its last-dragged position (local state).
+- **Style pill on the FiltersToolbar** — the toggle button was moved
+  from the primary `gc-toolbar-primary` bar (where it lived alongside
+  Save/Settings) to the inline filter pill row (`FiltersToolbar`).
+  Styled as a teal pill with a `Brush` icon and "STYLE" label,
+  matching the filter pill vocabulary. Test id `style-toolbar-toggle`.
+- **Width** — the panel clamps to `min(1180px, 100vw - 32px)` so the
+  toolbar's horizontal-scroll chrome inside keeps working on narrow
+  viewports.
+- **Window-resize clamp** — on `window.resize` the panel re-clamps
+  its (x, y) back into the new viewport so a shrunk browser window
+  can't leave the handle unreachable.
+
 ### 17.13 Column Reorder + Horizontal Scroll Chrome
 
 - `maintainColumnOrder: true` on the AgGridReact props preserves the
