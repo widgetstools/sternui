@@ -108,15 +108,81 @@ export interface GeneralSettingsState {
   columnHoverHighlight: boolean;
 
   // ─── Default ColDef ──────────────────────────────────────────────────────
-  // (pre-existing; keeps behaviour consistent with v1 snapshots)
+  //
+  // User-configurable subset of AG-Grid's ColDef applied to every column
+  // via `GridOptions.defaultColDef`. Individual ColDef entries still win
+  // on conflict (AG-Grid merges `columnDefs[i]` over `defaultColDef`).
+  // Refer to AG-Grid v35 Column Properties for the full surface; this
+  // list covers the user-actionable toggles and scalars.
+
+  // Sizing
   defaultResizable: boolean;
+  /** Minimum pixel width for every column. */
+  defaultMinWidth: number;
+  /** Maximum pixel width. `undefined` = no cap. */
+  defaultMaxWidth: number | undefined;
+  /** Explicit pixel width — `undefined` leaves columns at AG-Grid's
+   *  auto-sized default (the larger of the column's own `width` setting
+   *  and `defaultMinWidth`). */
+  defaultWidth: number | undefined;
+  /** Flex factor. When set, the column takes a share of remaining space
+   *  proportional to this number. Use with other columns' flex values. */
+  defaultFlex: number | undefined;
+  /** Prevent `api.sizeColumnsToFit()` from considering this column. */
+  suppressSizeToFit: boolean;
+  /** Disable header double-click to auto-size. */
+  suppressAutoSize: boolean;
+
+  // Sorting & filtering
   defaultSortable: boolean;
   defaultFilterable: boolean;
+  /** Show the un-sorted icon even when the column isn't sorted. */
+  unSortIcon: boolean;
+  /** Render a floating filter row under each column header. */
+  floatingFilter: boolean;
+
+  // Editing
   defaultEditable: boolean;
-  defaultMinWidth: number;
-  defaultMaxWidth: number | undefined;
+  /** Block paste into cells. */
+  suppressPaste: boolean;
+  /** Skip this column in keyboard navigation. */
+  suppressNavigable: boolean;
+
+  // Header
   wrapHeaderText: boolean;
+  /** Grow the header row to show the full wrapped text. */
+  autoHeaderHeight: boolean;
+  /** Hide the hamburger menu button on every column header. */
+  suppressHeaderMenuButton: boolean;
+
+  // Movement & locking
   suppressMovable: boolean;
+  /** Lock every column's position — `false` (default), `true`/`'left'`,
+   *  or `'right'`. */
+  lockPosition: boolean | 'left' | 'right';
+  /** Block hide/show via the UI. */
+  lockVisible: boolean;
+  /** Block pin/unpin via the UI. */
+  lockPinned: boolean;
+
+  // Cell content
+  /** Wrap long cell text into multiple lines. */
+  wrapText: boolean;
+  /** Auto-size row height to fit the wrapped content. */
+  autoHeight: boolean;
+  /** Flash the cell background on value change (ticker UX). */
+  enableCellChangeFlash: boolean;
+
+  // Row grouping / pivoting (Enterprise — inert in community build)
+  /** Allow dragging this column into the row-group panel. */
+  enableRowGroup: boolean;
+  /** Allow dragging this column into the pivot panel. */
+  enablePivot: boolean;
+  /** Allow dragging this column into the values / aggregations panel. */
+  enableValue: boolean;
+
+  // Legacy / shared flags (kept on the state so existing profiles
+  // migrate additively)
   enableCellTextSelection: boolean;
   suppressDragLeaveHidesColumns: boolean;
   suppressColumnMoveAnimation: boolean;
@@ -199,15 +265,41 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   suppressRowHoverHighlight: false,
   columnHoverHighlight: false,
 
-  // Default ColDef
+  // Default ColDef — sizing
   defaultResizable: true,
-  defaultSortable: true,
-  defaultFilterable: true,
-  defaultEditable: false,
   defaultMinWidth: 80,
   defaultMaxWidth: undefined,
+  defaultWidth: undefined,
+  defaultFlex: undefined,
+  suppressSizeToFit: false,
+  suppressAutoSize: false,
+  // Sorting & filtering
+  defaultSortable: true,
+  defaultFilterable: true,
+  unSortIcon: false,
+  floatingFilter: false,
+  // Editing
+  defaultEditable: false,
+  suppressPaste: false,
+  suppressNavigable: false,
+  // Header
   wrapHeaderText: false,
+  autoHeaderHeight: false,
+  suppressHeaderMenuButton: false,
+  // Movement & locking
   suppressMovable: false,
+  lockPosition: false,
+  lockVisible: false,
+  lockPinned: false,
+  // Cell content
+  wrapText: false,
+  autoHeight: false,
+  enableCellChangeFlash: false,
+  // Row grouping / pivoting
+  enableRowGroup: false,
+  enablePivot: false,
+  enableValue: false,
+  // Legacy / shared flags
   enableCellTextSelection: false,
   suppressDragLeaveHidesColumns: true,
   suppressColumnMoveAnimation: false,

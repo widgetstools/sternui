@@ -158,17 +158,46 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       suppressDragLeaveHidesColumns: state.suppressDragLeaveHidesColumns,
       suppressColumnMoveAnimation: state.suppressColumnMoveAnimation,
 
-      // Default ColDef
+      // Default ColDef — spread host `opts.defaultColDef` last so a host
+      // prop keeps winning over our module-wide defaults, matching the
+      // pattern every other v2 transformer follows.
       defaultColDef: {
-        ...opts.defaultColDef,
+        // Sizing
         resizable: state.defaultResizable,
-        sortable: state.defaultSortable,
-        filter: state.defaultFilterable,
-        editable: state.defaultEditable,
         minWidth: state.defaultMinWidth,
         maxWidth: state.defaultMaxWidth,
+        width: state.defaultWidth,
+        flex: state.defaultFlex,
+        suppressSizeToFit: state.suppressSizeToFit,
+        suppressAutoSize: state.suppressAutoSize,
+        // Sorting & filtering
+        sortable: state.defaultSortable,
+        filter: state.defaultFilterable,
+        unSortIcon: state.unSortIcon,
+        floatingFilter: state.floatingFilter,
+        // Editing
+        editable: state.defaultEditable,
+        suppressPaste: state.suppressPaste,
+        suppressNavigable: state.suppressNavigable,
+        // Header
         wrapHeaderText: state.wrapHeaderText,
+        autoHeaderHeight: state.autoHeaderHeight,
+        suppressHeaderMenuButton: state.suppressHeaderMenuButton,
+        // Movement & locking
         suppressMovable: state.suppressMovable,
+        lockPosition: state.lockPosition,
+        lockVisible: state.lockVisible,
+        lockPinned: state.lockPinned,
+        // Cell content
+        wrapText: state.wrapText,
+        autoHeight: state.autoHeight,
+        enableCellChangeFlash: state.enableCellChangeFlash,
+        // Row grouping / pivoting (Enterprise — inert in community)
+        enableRowGroup: state.enableRowGroup,
+        enablePivot: state.enablePivot,
+        enableValue: state.enableValue,
+        // Host wins on conflict
+        ...opts.defaultColDef,
       },
 
       // Performance

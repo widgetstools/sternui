@@ -936,8 +936,8 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           />
         </Band>
 
-        {/* ── TIER 5 — STYLING & DEFAULT COLDEF ───────────────────────────── */}
-        <Band index="06" title="STYLING · DEFAULT COLDEF">
+        {/* ── TIER 5 — STYLING ────────────────────────────────────────────── */}
+        <Band index="06" title="STYLING">
           <Row
             label="ROW HOVER"
             hint="Suppress the hover highlight on rows"
@@ -960,65 +960,27 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
               />
             }
           />
+        </Band>
+
+        {/* ── TIER 5b — DEFAULT COLDEF ───────────────────────────────────── */}
+        {/*
+            Applied via `GridOptions.defaultColDef` — flags set here seed
+            every column unless that column's own ColDef overrides the
+            property explicitly. Mirrors the user-actionable subset of
+            AG-Grid v35 ColDef. Grouped into SIZING / SORT & FILTER /
+            EDITING / HEADER / MOVEMENT · LOCKING / CELL CONTENT /
+            GROUPING (the last being Enterprise-only; inert in community).
+        */}
+        <Band index="07" title="DEFAULT COLDEF">
+          <SubLabel>SIZING</SubLabel>
           <Row
             label="RESIZABLE"
-            hint="Default ColDef — every column"
+            hint="Allow drag-resizing on every column"
             control={
               <BooleanControl
                 checked={s.defaultResizable}
                 onChange={(v) => update('defaultResizable', v)}
                 testId="go-default-resizable"
-              />
-            }
-          />
-          <Row
-            label="SORTABLE"
-            control={
-              <BooleanControl
-                checked={s.defaultSortable}
-                onChange={(v) => update('defaultSortable', v)}
-                testId="go-default-sortable"
-              />
-            }
-          />
-          <Row
-            label="FILTERABLE"
-            control={
-              <BooleanControl
-                checked={s.defaultFilterable}
-                onChange={(v) => update('defaultFilterable', v)}
-                testId="go-default-filterable"
-              />
-            }
-          />
-          <Row
-            label="EDITABLE"
-            control={
-              <BooleanControl
-                checked={s.defaultEditable}
-                onChange={(v) => update('defaultEditable', v)}
-                testId="go-default-editable"
-              />
-            }
-          />
-          <Row
-            label="WRAP HEADER"
-            control={
-              <BooleanControl
-                checked={s.wrapHeaderText}
-                onChange={(v) => update('wrapHeaderText', v)}
-                testId="go-wrap-header"
-              />
-            }
-          />
-          <Row
-            label="SUPPRESS MOVE"
-            hint="Lock columns against drag-to-reorder"
-            control={
-              <BooleanControl
-                checked={s.suppressMovable}
-                onChange={(v) => update('suppressMovable', v)}
-                testId="go-suppress-movable"
               />
             }
           />
@@ -1052,10 +1014,314 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
               />
             }
           />
+          <Row
+            label="WIDTH"
+            hint="Default pixel width · blank = use AG-Grid's auto-calc"
+            control={
+              <IconInput
+                value={s.defaultWidth != null ? String(s.defaultWidth) : ''}
+                numeric
+                suffix="PX"
+                onCommit={(raw) => {
+                  if (!raw.trim()) return update('defaultWidth', undefined);
+                  const n = Number(raw);
+                  if (Number.isFinite(n) && n > 0) update('defaultWidth', n);
+                }}
+                data-testid="go-default-width"
+                style={{ maxWidth: 180 }}
+              />
+            }
+          />
+          <Row
+            label="FLEX"
+            hint="Share of remaining space (higher = wider) · blank = off"
+            control={
+              <IconInput
+                value={s.defaultFlex != null ? String(s.defaultFlex) : ''}
+                numeric
+                onCommit={(raw) => {
+                  if (!raw.trim()) return update('defaultFlex', undefined);
+                  const n = Number(raw);
+                  if (Number.isFinite(n) && n >= 0) update('defaultFlex', n);
+                }}
+                data-testid="go-default-flex"
+                style={{ maxWidth: 100 }}
+              />
+            }
+          />
+          <Row
+            label="NO SIZE-TO-FIT"
+            hint="Exclude from api.sizeColumnsToFit()"
+            control={
+              <BooleanControl
+                checked={s.suppressSizeToFit}
+                onChange={(v) => update('suppressSizeToFit', v)}
+                testId="go-suppress-size-to-fit"
+              />
+            }
+          />
+          <Row
+            label="NO AUTO-SIZE"
+            hint="Block header double-click to auto-size"
+            control={
+              <BooleanControl
+                checked={s.suppressAutoSize}
+                onChange={(v) => update('suppressAutoSize', v)}
+                testId="go-suppress-auto-size"
+              />
+            }
+          />
+
+          <SubLabel>SORT &amp; FILTER</SubLabel>
+          <Row
+            label="SORTABLE"
+            control={
+              <BooleanControl
+                checked={s.defaultSortable}
+                onChange={(v) => update('defaultSortable', v)}
+                testId="go-default-sortable"
+              />
+            }
+          />
+          <Row
+            label="FILTERABLE"
+            control={
+              <BooleanControl
+                checked={s.defaultFilterable}
+                onChange={(v) => update('defaultFilterable', v)}
+                testId="go-default-filterable"
+              />
+            }
+          />
+          <Row
+            label="UNSORT ICON"
+            hint="Show an un-sort indicator on hoverable header"
+            control={
+              <BooleanControl
+                checked={s.unSortIcon}
+                onChange={(v) => update('unSortIcon', v)}
+                testId="go-unsort-icon"
+              />
+            }
+          />
+          <Row
+            label="FLOATING FILTER"
+            hint="Render a live filter row below each column header"
+            control={
+              <BooleanControl
+                checked={s.floatingFilter}
+                onChange={(v) => update('floatingFilter', v)}
+                testId="go-floating-filter"
+              />
+            }
+          />
+
+          <SubLabel>EDITING</SubLabel>
+          <Row
+            label="EDITABLE"
+            control={
+              <BooleanControl
+                checked={s.defaultEditable}
+                onChange={(v) => update('defaultEditable', v)}
+                testId="go-default-editable"
+              />
+            }
+          />
+          <Row
+            label="SUPPRESS PASTE"
+            hint="Block paste into cells"
+            control={
+              <BooleanControl
+                checked={s.suppressPaste}
+                onChange={(v) => update('suppressPaste', v)}
+                testId="go-suppress-paste"
+              />
+            }
+          />
+          <Row
+            label="NOT NAVIGABLE"
+            hint="Skip cells in keyboard navigation"
+            control={
+              <BooleanControl
+                checked={s.suppressNavigable}
+                onChange={(v) => update('suppressNavigable', v)}
+                testId="go-suppress-navigable"
+              />
+            }
+          />
+
+          <SubLabel>HEADER</SubLabel>
+          <Row
+            label="WRAP HEADER"
+            control={
+              <BooleanControl
+                checked={s.wrapHeaderText}
+                onChange={(v) => update('wrapHeaderText', v)}
+                testId="go-wrap-header"
+              />
+            }
+          />
+          <Row
+            label="AUTO HEADER H"
+            hint="Grow the header row to fit wrapped text"
+            control={
+              <BooleanControl
+                checked={s.autoHeaderHeight}
+                onChange={(v) => update('autoHeaderHeight', v)}
+                testId="go-auto-header-height"
+              />
+            }
+          />
+          <Row
+            label="HIDE MENU BTN"
+            hint="Remove the hamburger menu from every column header"
+            control={
+              <BooleanControl
+                checked={s.suppressHeaderMenuButton}
+                onChange={(v) => update('suppressHeaderMenuButton', v)}
+                testId="go-suppress-header-menu-btn"
+              />
+            }
+          />
+
+          <SubLabel>MOVEMENT &amp; LOCKING</SubLabel>
+          <Row
+            label="SUPPRESS MOVE"
+            hint="Lock every column against drag-to-reorder"
+            control={
+              <BooleanControl
+                checked={s.suppressMovable}
+                onChange={(v) => update('suppressMovable', v)}
+                testId="go-suppress-movable"
+              />
+            }
+          />
+          <Row
+            label="LOCK POSITION"
+            hint="Pin every column to a side in the column model"
+            control={
+              <SelectControl
+                value={
+                  s.lockPosition === true
+                    ? 'true'
+                    : s.lockPosition === 'left'
+                      ? 'left'
+                      : s.lockPosition === 'right'
+                        ? 'right'
+                        : 'false'
+                }
+                onChange={(raw) => {
+                  if (raw === 'true') return update('lockPosition', true);
+                  if (raw === 'left') return update('lockPosition', 'left');
+                  if (raw === 'right') return update('lockPosition', 'right');
+                  return update('lockPosition', false);
+                }}
+                options={[
+                  { value: 'false', label: 'Off' },
+                  { value: 'true', label: 'Locked (default side)' },
+                  { value: 'left', label: 'Locked left' },
+                  { value: 'right', label: 'Locked right' },
+                ]}
+                testId="go-lock-position"
+              />
+            }
+          />
+          <Row
+            label="LOCK VISIBLE"
+            hint="Prevent hide/show from the UI"
+            control={
+              <BooleanControl
+                checked={s.lockVisible}
+                onChange={(v) => update('lockVisible', v)}
+                testId="go-lock-visible"
+              />
+            }
+          />
+          <Row
+            label="LOCK PINNED"
+            hint="Prevent pin/unpin from the UI"
+            control={
+              <BooleanControl
+                checked={s.lockPinned}
+                onChange={(v) => update('lockPinned', v)}
+                testId="go-lock-pinned"
+              />
+            }
+          />
+
+          <SubLabel>CELL CONTENT</SubLabel>
+          <Row
+            label="WRAP TEXT"
+            hint="Wrap long cell text across multiple lines"
+            control={
+              <BooleanControl
+                checked={s.wrapText}
+                onChange={(v) => update('wrapText', v)}
+                testId="go-wrap-text"
+              />
+            }
+          />
+          <Row
+            label="AUTO HEIGHT"
+            hint="Auto-size row height to fit wrapped content"
+            control={
+              <BooleanControl
+                checked={s.autoHeight}
+                onChange={(v) => update('autoHeight', v)}
+                testId="go-auto-height"
+              />
+            }
+          />
+          <Row
+            label="FLASH ON CHANGE"
+            hint="Flash the cell background when its value changes"
+            control={
+              <BooleanControl
+                checked={s.enableCellChangeFlash}
+                onChange={(v) => update('enableCellChangeFlash', v)}
+                testId="go-enable-cell-change-flash"
+              />
+            }
+          />
+
+          <SubLabel>GROUPING · PIVOT · VALUES (Enterprise)</SubLabel>
+          <Row
+            label="ROW GROUP"
+            hint="Allow dragging columns into the row-group panel"
+            control={
+              <BooleanControl
+                checked={s.enableRowGroup}
+                onChange={(v) => update('enableRowGroup', v)}
+                testId="go-enable-row-group"
+              />
+            }
+          />
+          <Row
+            label="PIVOT"
+            hint="Allow dragging columns into the pivot panel"
+            control={
+              <BooleanControl
+                checked={s.enablePivot}
+                onChange={(v) => update('enablePivot', v)}
+                testId="go-enable-pivot"
+              />
+            }
+          />
+          <Row
+            label="VALUES"
+            hint="Allow dragging columns into the values / aggregations panel"
+            control={
+              <BooleanControl
+                checked={s.enableValue}
+                onChange={(v) => update('enableValue', v)}
+                testId="go-enable-value"
+              />
+            }
+          />
         </Band>
 
         {/* ── TIER 6 — PERFORMANCE OVERRIDES ──────────────────────────────── */}
-        <Band index="07" title="PERFORMANCE (ADVANCED)">
+        <Band index="08" title="PERFORMANCE (ADVANCED)">
           <Row
             label="ROW BUFFER"
             hint="Rows rendered outside viewport · 5-50 practical"
