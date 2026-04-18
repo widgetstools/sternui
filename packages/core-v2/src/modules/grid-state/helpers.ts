@@ -86,6 +86,57 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
     console.warn('[grid-state] api.setState failed:', err);
   }
 
+  // Explicit column-order restore — AG-Grid's `setState` silently drops
+  // the auto-generated selection column's position (colId
+  // `ag-Grid-SelectionColumn`). It lands at its default index 0 slot in
+  // the internal column model even when the saved `columnOrder` puts it
+  // somewhere else, and `setState` makes no follow-up move call.
+  //
+  // Re-applying the order via `applyColumnState` with `applyOrder: true`
+  // is the escape hatch that actually moves the column — this is the
+  // same API the docs recommend for programmatic column-state updates.
+  //
+  // IMPORTANT — must run AFTER the grid's initial layout settles. Calling
+  // `applyColumnState` inside `onGridReady` (synchronously with setState)
+  // is a no-op for the selection column because AG-Grid hasn't finished
+  // injecting + positioning auto-generated columns yet. Defer to the
+  // next microtask AND bind a one-shot `firstDataRendered` listener as
+  // a fallback for the "rows arrive later" case.
+  const orderedColIds = (saved.gridState as { columnOrder?: { orderedColIds?: string[] } })
+    .columnOrder?.orderedColIds;
+  if (Array.isArray(orderedColIds) && orderedColIds.length > 0) {
+    const reorder = () => {
+      try {
+        api.applyColumnState({
+          state: orderedColIds.map((colId) => ({ colId })),
+          applyOrder: true,
+        });
+      } catch (err) {
+        console.warn('[grid-state] applyColumnState order restore failed:', err);
+      }
+    };
+    // First attempt on the next microtask — enough for the common case
+    // where the grid's first render has already settled by the time
+    // `applyGridState` is called (profile:loaded after grid:ready).
+    queueMicrotask(reorder);
+    // Second attempt on `firstDataRendered` — covers cold-mount where
+    // row data arrives after applyGridState. The handler is one-shot so
+    // we don't reorder every time new data is paged in.
+    try {
+      const onFDR = () => {
+        reorder();
+        try {
+          api.removeEventListener('firstDataRendered', onFDR);
+        } catch {
+          /* ignore */
+        }
+      };
+      api.addEventListener('firstDataRendered', onFDR);
+    } catch {
+      /* ignore — non-blocking */
+    }
+  }
+
   if (saved.quickFilter !== undefined) {
     try {
       api.setGridOption('quickFilterText', saved.quickFilter);

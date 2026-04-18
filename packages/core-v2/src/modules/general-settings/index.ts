@@ -74,6 +74,29 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
             checkboxes: state.checkboxSelection,
           }
         : undefined,
+      // Override the auto-generated `ag-Grid-SelectionColumn` defaults so
+      // its position round-trips through grid-state saves.
+      //
+      // Out of the box AG-Grid ships the selection column with
+      // `suppressMovable: true` + `lockPosition: 'left'` — that means the
+      // user literally cannot drag it AND `api.setState().columnOrder`
+      // cannot reorder it. Result: users saw the checkbox column locked
+      // wherever it first landed (usually after the last data column,
+      // because `maintainColumnOrder: true` appends newly-added columns),
+      // and grid-state restore appeared to silently drop its position.
+      //
+      // Re-emit both flags as permissive so the column is a first-class
+      // participant in column reorder + state-save. `initialPinned: 'left'`
+      // gives it a sensible default location on first mount — user can
+      // unpin / drag freely after that, and the move is captured by
+      // `api.getState()` like any other column.
+      selectionColumnDef: state.rowSelection && state.checkboxSelection
+        ? {
+            suppressMovable: false,
+            lockPosition: false,
+            initialPinned: 'left',
+          }
+        : undefined,
       // Boolean shortcut — AG-Grid accepts `true` for a default cell-range
       // selection config. The sub-panel form (handle, suppressMultiRanges,
       // …) is out of scope for this pass.
