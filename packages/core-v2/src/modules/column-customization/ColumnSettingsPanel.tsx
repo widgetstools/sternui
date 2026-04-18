@@ -12,8 +12,6 @@ import {
   MetaCell,
   Mono,
   ObjectTitleRow,
-  PillToggleBtn,
-  PillToggleGroup,
   SharpBtn,
   SubLabel,
   TitleInput,
@@ -466,26 +464,27 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
           <Row
             label="PINNED"
             control={
-              <PillToggleGroup>
-                <PillToggleBtn
-                  active={draft.initialPinned === undefined || draft.initialPinned === false}
-                  onClick={() => setDraft({ initialPinned: undefined })}
-                >
-                  OFF
-                </PillToggleBtn>
-                <PillToggleBtn
-                  active={draft.initialPinned === 'left'}
-                  onClick={() => setDraft({ initialPinned: 'left' })}
-                >
-                  LEFT
-                </PillToggleBtn>
-                <PillToggleBtn
-                  active={draft.initialPinned === 'right'}
-                  onClick={() => setDraft({ initialPinned: 'right' })}
-                >
-                  RIGHT
-                </PillToggleBtn>
-              </PillToggleGroup>
+              <Select
+                value={
+                  draft.initialPinned === 'left'
+                    ? 'left'
+                    : draft.initialPinned === 'right'
+                      ? 'right'
+                      : 'off'
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'left') return setDraft({ initialPinned: 'left' });
+                  if (v === 'right') return setDraft({ initialPinned: 'right' });
+                  setDraft({ initialPinned: undefined });
+                }}
+                data-testid={`cols-${col.colId}-pinned`}
+                style={{ maxWidth: 180 }}
+              >
+                <option value="off">Off</option>
+                <option value="left">Pinned left</option>
+                <option value="right">Pinned right</option>
+              </Select>
             }
           />
           <Row
@@ -655,13 +654,14 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
   );
 });
 
-// ─── Tri-state toggle (default / on / off) ──────────────────────────────────
+// ─── Tri-state dropdown (default / on / off) ────────────────────────────────
 //
 // `sortable` / `filterable` / `resizable` are `boolean | undefined` on the
 // assignment — undefined means "inherit host default", true / false are
-// explicit overrides. Renders three pills so the user can choose any state
-// without ambiguity.
-
+// explicit overrides. Previously rendered as a PillToggleGroup, but the 28px
+// fixed pill width truncated / overlapped labels like "DEFAULT". Switched
+// to a shadcn Select for consistency with the Grid Options panel and to
+// keep the three states readable.
 function TriStateToggle({
   value,
   onChange,
@@ -672,29 +672,21 @@ function TriStateToggle({
   testId?: string;
 }) {
   return (
-    <PillToggleGroup>
-      <PillToggleBtn
-        active={value === undefined}
-        onClick={() => onChange(undefined)}
-        data-testid={testId ? `${testId}-default` : undefined}
-      >
-        DEFAULT
-      </PillToggleBtn>
-      <PillToggleBtn
-        active={value === true}
-        onClick={() => onChange(true)}
-        data-testid={testId ? `${testId}-on` : undefined}
-      >
-        ON
-      </PillToggleBtn>
-      <PillToggleBtn
-        active={value === false}
-        onClick={() => onChange(false)}
-        data-testid={testId ? `${testId}-off` : undefined}
-      >
-        OFF
-      </PillToggleBtn>
-    </PillToggleGroup>
+    <Select
+      value={value === true ? 'on' : value === false ? 'off' : 'default'}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === 'on') return onChange(true);
+        if (v === 'off') return onChange(false);
+        onChange(undefined);
+      }}
+      data-testid={testId}
+      style={{ maxWidth: 180 }}
+    >
+      <option value="default">Host default</option>
+      <option value="on">On</option>
+      <option value="off">Off</option>
+    </Select>
   );
 }
 
