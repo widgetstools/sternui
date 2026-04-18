@@ -260,11 +260,42 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
       <DraggableFloat
         open={styleToolbarOpen}
         onClose={() => setStyleToolbarOpen(false)}
-        title="Formatting"
+        headless
         data-testid="formatting-toolbar-float"
       >
-        <div style={{ width: 'min(1180px, calc(100vw - 32px))' }}>
-          <FormattingToolbar core={core} store={store} />
+        {/* Inline row: drag handle | formatter toolbar | close button. The
+            handle + close stay visible while the toolbar content horizontally
+            scrolls inside its own flex region. */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'stretch',
+            width: 'min(1180px, calc(100vw - 32px))',
+            borderRadius: 8,
+            overflow: 'hidden',
+          }}
+        >
+          <DraggableFloat.DragHandle
+            data-testid="formatting-toolbar-float-handle"
+            style={{
+              width: 22,
+              borderRight: '1px solid var(--border, #313944)',
+              background: 'rgba(45, 212, 191, 0.06)',
+            }}
+          />
+          <div style={{ flex: '1 1 0px', minWidth: 0 }}>
+            <FormattingToolbar core={core} store={store} />
+          </div>
+          <DraggableFloat.CloseButton
+            data-testid="formatting-toolbar-float-close"
+            style={{
+              width: 34,
+              height: 'auto',
+              alignSelf: 'stretch',
+              borderRadius: 0,
+              borderLeft: '1px solid var(--border, #313944)',
+            }}
+          />
         </div>
       </DraggableFloat>
 
