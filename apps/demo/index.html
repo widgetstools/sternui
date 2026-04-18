@@ -12,8 +12,10 @@
     html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; }
     body {
       font-family: 'Geist', 'Inter', -apple-system, sans-serif;
-      background: #0b0e11;
-      color: #eaecef;
+      /* Theme-aware: defer to --background / --foreground defined in
+         globals.css so light/dark mode toggling works. */
+      background: var(--background, #0b0e11);
+      color: var(--foreground, #eaecef);
       -webkit-font-smoothing: antialiased;
     }
 

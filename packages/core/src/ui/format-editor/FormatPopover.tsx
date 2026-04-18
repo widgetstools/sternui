@@ -56,9 +56,13 @@ export function FormatPopover({
           data-gc-settings=""
           className={cn(
             'z-[2147483647] rounded-md',
-            'bg-[var(--gc-surface,#161a1e)] text-[var(--gc-text,#eaecef)]',
-            'border border-[var(--gc-border,#313944)]',
-            'shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
+            // Theme-aware: prefer the theme tokens (--popover / --popover-foreground
+            // / --border from the host app). The `--gc-*` vars remain as an
+            // intermediate override for consumers that explicitly want to pin
+            // the popover chrome (e.g. inside the cockpit-dark preview).
+            'bg-[var(--gc-surface,var(--popover,#161a1e))] text-[var(--gc-text,var(--popover-foreground,#eaecef))]',
+            'border border-[var(--gc-border,var(--border,#313944))]',
+            'shadow-[0_16px_40px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.04)_inset]',
             'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)] text-[11px]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
