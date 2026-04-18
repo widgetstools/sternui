@@ -7,8 +7,22 @@ export type {
   BorderSpec,
   CellStyleOverrides,
   ColumnAssignment,
+  ColumnDataType,
   PresetId,
   TickToken,
   ValueFormatterTemplate,
-  ColumnDataType,
 } from './types';
+
+// ─── Writers / adapters ─────────────────────────────────────────────────────
+export {
+  cellStyleToAgStyle,
+  type AgGridStyle,
+} from './adapters/cellStyleToAgStyle';
+export {
+  valueFormatterFromTemplate,
+  type Formatter,
+  type FormatterParams,
+} from './adapters/valueFormatterFromTemplate';
+export { excelFormatter } from './adapters/excelFormatter';
+export { tickFormatter } from './adapters/tickFormatter';
+export { presetToExcelFormat } from './adapters/presetToExcelFormat';
