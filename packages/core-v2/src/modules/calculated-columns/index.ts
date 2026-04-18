@@ -29,6 +29,17 @@ function getEngine(gridId: string): ExpressionEngine {
   return engine;
 }
 
+// ─── Per-grid cellValueChanged disposer ─────────────────────────────────────
+//
+// When the user edits a source column (e.g. `price`), AG-Grid only re-runs
+// the valueGetter for that one cell's row. Virtual columns that compute
+// cross-row aggregates (`SUM([price])`, `AVG([yield])`, …) would still show
+// their stale totals on every OTHER row. We fix that by subscribing to
+// `cellValueChanged` once per grid and forcing a refresh of every virtual
+// column's cells, which re-runs each valueGetter and picks up the new
+// aggregate total.
+const _editListeners = new Map<string, () => void>();
+
 // ─── Module ─────────────────────────────────────────────────────────────────
 
 export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
@@ -54,8 +65,63 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
     }],
   }),
 
+  onGridReady(ctx) {
+    // Force virtual columns to re-evaluate after any row-data mutation so
+    // column-wide aggregates (SUM/AVG/MIN/…) update across EVERY row, not
+    // just the edited one. AG-Grid's default behaviour only re-runs the
+    // changed cell's row-column intersection; aggregates touching the full
+    // dataset need a grid-wide refresh.
+    //
+    // Listens to multiple lifecycle events because different mutation APIs
+    // fire different signals:
+    //   - `cellValueChanged`: in-place edits via the cell editor UI.
+    //   - `rowDataUpdated`:   full-dataset replacement (host `rowData` prop change).
+    //   - `rowValueChanged`:  `applyTransaction` update of a whole row.
+    //
+    // `getModuleState` is read at event time (not snapshot) so adding /
+    // removing calc columns via the Settings panel stays in sync without
+    // a remount.
+    const prev = _editListeners.get(ctx.gridId);
+    if (prev) prev();
+
+    const listener = () => {
+      const state = ctx.getModuleState<CalculatedColumnsState>('calculated-columns');
+      const virtualIds = state?.virtualColumns?.map((v) => v.colId) ?? [];
+      if (virtualIds.length === 0) return;
+      try {
+        ctx.gridApi.refreshCells({ columns: virtualIds, force: true });
+      } catch {
+        /* api teardown window — ignore */
+      }
+    };
+
+    const events = ['cellValueChanged', 'rowValueChanged', 'rowDataUpdated'] as const;
+    for (const evt of events) {
+      try {
+        ctx.gridApi.addEventListener(evt, listener);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    _editListeners.set(ctx.gridId, () => {
+      for (const evt of events) {
+        try {
+          ctx.gridApi.removeEventListener(evt, listener);
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  },
+
   onGridDestroy(ctx) {
     _engines.delete(ctx.gridId);
+    const dispose = _editListeners.get(ctx.gridId);
+    if (dispose) {
+      dispose();
+      _editListeners.delete(ctx.gridId);
+    }
   },
 
   transformColumnDefs(defs, state, gridCtx) {
