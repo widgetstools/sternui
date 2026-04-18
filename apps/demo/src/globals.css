@@ -665,47 +665,44 @@
   --scrollbar-thumb-hover: #a0a0a0;
 }
 
-/* ─── AG-Grid: collapse header buttons until hover ───────────────────────── */
-/* Must be outside @layer to override AG-Grid's own styles */
+/* ─── AG-Grid: hide header buttons until hover (space reserved) ──────────── */
+/* Must be outside @layer to override AG-Grid's own styles.                   */
+/*                                                                            */
+/* Previous behaviour collapsed width/min-width/padding/margin to zero, which */
+/* made hover reflow the adjacent header-cell label — the text would jump     */
+/* sideways every time the user passed their mouse across a column. Now the   */
+/* buttons only toggle `opacity` (+ `pointer-events`) so they stay invisible  */
+/* in the default state but KEEP their natural width and reserved slot. Hover */
+/* simply paints them in without shifting anything else.                      */
 
 .ag-header-cell-menu-button,
-.ag-header-cell-filter-button {
-  width: 0 !important;
-  min-width: 0 !important;
-  overflow: hidden;
+.ag-header-cell-filter-button,
+.ag-floating-filter-button {
   opacity: 0;
-  padding: 0 !important;
-  margin: 0 !important;
-  transition: width 150ms ease, opacity 150ms ease, padding 150ms ease, margin 150ms ease;
+  /* Prevent clicks on the invisible slot and stop it from capturing focus
+     via keyboard navigation when the user isn't deliberately hovering. */
+  pointer-events: none;
+  transition: opacity 150ms ease;
 }
 
 .ag-header-cell:hover .ag-header-cell-menu-button,
-.ag-header-cell:hover .ag-header-cell-filter-button {
-  width: auto !important;
-  min-width: revert !important;
-  overflow: visible;
-  opacity: 1;
-  padding: revert !important;
-  margin: revert !important;
-}
-
-.ag-floating-filter-button {
-  width: 0 !important;
-  min-width: 0 !important;
-  overflow: hidden;
-  opacity: 0;
-  padding: 0 !important;
-  margin: 0 !important;
-  transition: width 150ms ease, opacity 150ms ease, padding 150ms ease, margin 150ms ease;
-}
-
+.ag-header-cell:hover .ag-header-cell-filter-button,
 .ag-floating-filter:hover .ag-floating-filter-button {
-  width: auto !important;
-  min-width: revert !important;
-  overflow: visible;
   opacity: 1;
-  padding: revert !important;
-  margin: revert !important;
+  pointer-events: auto;
+}
+
+/* Keep the menu / filter buttons reachable when the menu they control is
+   open — otherwise clicking into a popover would un-hover the header and
+   the button would vanish while still logically "active". */
+.ag-header-cell-menu-button[aria-expanded='true'],
+.ag-header-cell-filter-button[aria-expanded='true'],
+.ag-floating-filter-button[aria-expanded='true'],
+.ag-header-cell:focus-within .ag-header-cell-menu-button,
+.ag-header-cell:focus-within .ag-header-cell-filter-button,
+.ag-floating-filter:focus-within .ag-floating-filter-button {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ─── Stacked toolbar slide-in animation ────────────────────────────────── */
