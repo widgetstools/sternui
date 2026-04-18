@@ -117,6 +117,18 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       groupTotalRow: state.groupTotalRow,
       groupHideOpenParents: state.groupHideOpenParents,
       suppressAggFuncInHeader: state.suppressAggFuncInHeader,
+      // Row grouping — extended
+      showOpenedGroup: state.showOpenedGroup,
+      groupHideColumnsUntilExpanded: state.groupHideColumnsUntilExpanded,
+      groupHideParentOfSingleChild: state.groupHideParentOfSingleChild,
+      groupAllowUnbalanced: state.groupAllowUnbalanced,
+      groupMaintainOrder: state.groupMaintainOrder,
+      suppressGroupRowsSticky: state.suppressGroupRowsSticky,
+      rowGroupPanelSuppressSort: state.rowGroupPanelSuppressSort,
+      groupLockGroupColumns: state.groupLockGroupColumns,
+      suppressGroupChangesColumnVisibility: state.suppressGroupChangesColumnVisibility,
+      ssrmExpandAllAffectsAllRows: state.ssrmExpandAllAffectsAllRows,
+      refreshAfterGroupEdit: state.refreshAfterGroupEdit,
 
       // Tier 3
       enableAdvancedFilter: state.enableAdvancedFilter,

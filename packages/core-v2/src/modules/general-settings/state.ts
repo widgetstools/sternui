@@ -40,6 +40,39 @@ export interface GeneralSettingsState {
   groupHideOpenParents: boolean;
   suppressAggFuncInHeader: boolean;
 
+  // ─── Row grouping — extended options (per AG-Grid v35 reference) ─────────
+  /** Show the open group in the group column for non-group rows. */
+  showOpenedGroup: boolean;
+  /** Hide group columns for levels that have not yet been expanded (CSRM only).
+   *  Only meaningful with `groupDisplayType='multipleColumns'` or
+   *  `groupHideOpenParents=true`. */
+  groupHideColumnsUntilExpanded: boolean;
+  /** Display the child row in place of the group row when the group has a
+   *  single child. `'leafGroupsOnly'` restricts the behaviour to leaf groups. */
+  groupHideParentOfSingleChild: boolean | 'leafGroupsOnly';
+  /** Don't create a "(Blanks)" group for nodes missing a grouping value —
+   *  display them alongside regular group nodes instead. */
+  groupAllowUnbalanced: boolean;
+  /** Preserve the current group order when sorting on non-group columns. */
+  groupMaintainOrder: boolean;
+  /** Prevent group rows from sticking to the top of the viewport (Initial). */
+  suppressGroupRowsSticky: boolean;
+  /** Suppress sort indicators + actions on the row-group-panel chips. */
+  rowGroupPanelSuppressSort: boolean;
+  /** Lock the first N group columns. `-1` locks all group columns. */
+  groupLockGroupColumns: number;
+  /** Prevent column visibility changes when grouped columns are changed.
+   *  Enum form lets you suppress only the hide-on-group OR show-on-ungroup
+   *  half of the default behaviour. */
+  suppressGroupChangesColumnVisibility: boolean | 'suppressHideOnGroup' | 'suppressShowOnUngroup';
+  /** SSRM only — expandAll / collapseAll apply to all rows (not just loaded
+   *  ones), and group interactions override the `isServerSideGroupOpenByDefault`
+   *  default. Must also supply `getRowId` when enabled. */
+  ssrmExpandAllAffectsAllRows: boolean;
+  /** Re-evaluate the grouping hierarchy after editing a grouped column value —
+   *  moves the row to the correct group immediately. */
+  refreshAfterGroupEdit: boolean;
+
   // ─── Tier 3 — Filtering, Sorting, Clipboard ──────────────────────────────
   enableAdvancedFilter: boolean;
   includeHiddenColumnsInQuickFilter: boolean;
@@ -132,6 +165,18 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   groupTotalRow: undefined,
   groupHideOpenParents: false,
   suppressAggFuncInHeader: false,
+  // Row grouping — extended options
+  showOpenedGroup: false,
+  groupHideColumnsUntilExpanded: false,
+  groupHideParentOfSingleChild: false,
+  groupAllowUnbalanced: false,
+  groupMaintainOrder: false,
+  suppressGroupRowsSticky: false,
+  rowGroupPanelSuppressSort: false,
+  groupLockGroupColumns: 0,
+  suppressGroupChangesColumnVisibility: false,
+  ssrmExpandAllAffectsAllRows: false,
+  refreshAfterGroupEdit: false,
 
   // Tier 3
   enableAdvancedFilter: false,

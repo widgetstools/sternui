@@ -467,8 +467,8 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           />
         </Band>
 
-        {/* ── TIER 2 — GROUPING / PIVOT / AGGREGATION ─────────────────────── */}
-        <Band index="02" title="GROUPING · PIVOT · AGGREGATION">
+        {/* ── TIER 2 — ROW GROUPING ───────────────────────────────────────── */}
+        <Band index="02" title="ROW GROUPING">
           <Row
             label="GROUP DISPLAY"
             control={
@@ -513,6 +513,187 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
               />
             }
           />
+          <Row
+            label="PANEL NO-SORT"
+            hint="Suppress sort indicators + actions on row-group-panel chips"
+            control={
+              <BooleanControl
+                checked={s.rowGroupPanelSuppressSort}
+                onChange={(v) => update('rowGroupPanelSuppressSort', v)}
+                testId="go-row-group-panel-suppress-sort"
+              />
+            }
+          />
+          <Row
+            label="HIDE OPEN PARENTS"
+            control={
+              <BooleanControl
+                checked={s.groupHideOpenParents}
+                onChange={(v) => update('groupHideOpenParents', v)}
+                testId="go-group-hide-open-parents"
+              />
+            }
+          />
+          <Row
+            label="HIDE UNTIL EXPAND"
+            hint="Hide deeper group columns until a parent is expanded (CSRM only)"
+            control={
+              <BooleanControl
+                checked={s.groupHideColumnsUntilExpanded}
+                onChange={(v) => update('groupHideColumnsUntilExpanded', v)}
+                testId="go-group-hide-until-expanded"
+              />
+            }
+          />
+          <Row
+            label="SHOW OPENED"
+            hint="Display the open group in the group column for non-group rows"
+            control={
+              <BooleanControl
+                checked={s.showOpenedGroup}
+                onChange={(v) => update('showOpenedGroup', v)}
+                testId="go-show-opened-group"
+              />
+            }
+          />
+          <Row
+            label="SINGLE-CHILD FLATTEN"
+            hint="Show the child row in place of the group row when the group has one child"
+            control={
+              <SelectControl
+                // SelectControl accepts string values only — encode the
+                // `boolean | 'leafGroupsOnly'` union as a string enum at
+                // the control boundary, decode back on commit.
+                value={
+                  s.groupHideParentOfSingleChild === true
+                    ? 'true'
+                    : s.groupHideParentOfSingleChild === 'leafGroupsOnly'
+                      ? 'leafGroupsOnly'
+                      : 'false'
+                }
+                onChange={(raw) => {
+                  if (raw === 'true') return update('groupHideParentOfSingleChild', true);
+                  if (raw === 'leafGroupsOnly')
+                    return update('groupHideParentOfSingleChild', 'leafGroupsOnly');
+                  return update('groupHideParentOfSingleChild', false);
+                }}
+                options={[
+                  { value: 'false', label: 'Off' },
+                  { value: 'true', label: 'All groups' },
+                  { value: 'leafGroupsOnly', label: 'Leaf groups only' },
+                ]}
+                testId="go-group-hide-single-child"
+              />
+            }
+          />
+          <Row
+            label="UNBALANCED OK"
+            hint="Don't create a (Blanks) bucket for rows missing a grouping value"
+            control={
+              <BooleanControl
+                checked={s.groupAllowUnbalanced}
+                onChange={(v) => update('groupAllowUnbalanced', v)}
+                testId="go-group-allow-unbalanced"
+              />
+            }
+          />
+          <Row
+            label="MAINTAIN ORDER"
+            hint="Preserve group order when sorting on non-group columns"
+            control={
+              <BooleanControl
+                checked={s.groupMaintainOrder}
+                onChange={(v) => update('groupMaintainOrder', v)}
+                testId="go-group-maintain-order"
+              />
+            }
+          />
+          <Row
+            label="STICKY GROUPS"
+            hint="When off, group rows scroll away with their children (Initial)"
+            control={
+              <BooleanControl
+                checked={!s.suppressGroupRowsSticky}
+                onChange={(v) => update('suppressGroupRowsSticky', !v)}
+                testId="go-sticky-groups"
+              />
+            }
+          />
+          <Row
+            label="LOCK GROUP COLS"
+            hint="Lock the first N group columns. 0 = none · -1 = all"
+            control={
+              <NumberControl
+                value={s.groupLockGroupColumns}
+                onChange={(v) => update('groupLockGroupColumns', v)}
+                testId="go-group-lock-group-cols"
+                style={{ maxWidth: 100 }}
+              />
+            }
+          />
+          <Row
+            label="DRAG LEAVE HIDES"
+            hint="Dragging a column to the row-group panel hides it in the grid"
+            control={
+              <BooleanControl
+                checked={!s.suppressDragLeaveHidesColumns}
+                onChange={(v) => update('suppressDragLeaveHidesColumns', !v)}
+                testId="go-drag-leave-hides"
+              />
+            }
+          />
+          <Row
+            label="VIS ON GROUP CHG"
+            hint="Keep column visibility stable when grouping changes"
+            control={
+              <SelectControl
+                value={
+                  typeof s.suppressGroupChangesColumnVisibility === 'string'
+                    ? s.suppressGroupChangesColumnVisibility
+                    : (s.suppressGroupChangesColumnVisibility ? 'true' : 'false')
+                }
+                onChange={(raw) => {
+                  if (raw === 'true') return update('suppressGroupChangesColumnVisibility', true);
+                  if (raw === 'false') return update('suppressGroupChangesColumnVisibility', false);
+                  if (raw === 'suppressHideOnGroup') return update('suppressGroupChangesColumnVisibility', 'suppressHideOnGroup');
+                  if (raw === 'suppressShowOnUngroup') return update('suppressGroupChangesColumnVisibility', 'suppressShowOnUngroup');
+                }}
+                options={[
+                  { value: 'false', label: 'Default — show/hide on group change' },
+                  { value: 'true', label: 'Always keep visibility fixed' },
+                  { value: 'suppressHideOnGroup', label: 'Only suppress auto-hide on group' },
+                  { value: 'suppressShowOnUngroup', label: 'Only suppress auto-show on ungroup' },
+                ]}
+                testId="go-suppress-group-changes-visibility"
+              />
+            }
+          />
+          <Row
+            label="REFRESH AFTER EDIT"
+            hint="Re-evaluate hierarchy after editing a grouped column value"
+            control={
+              <BooleanControl
+                checked={s.refreshAfterGroupEdit}
+                onChange={(v) => update('refreshAfterGroupEdit', v)}
+                testId="go-refresh-after-group-edit"
+              />
+            }
+          />
+          <Row
+            label="SSRM EXPAND-ALL"
+            hint="Server-side row model · expandAll applies to all rows (requires getRowId)"
+            control={
+              <BooleanControl
+                checked={s.ssrmExpandAllAffectsAllRows}
+                onChange={(v) => update('ssrmExpandAllAffectsAllRows', v)}
+                testId="go-ssrm-expand-all"
+              />
+            }
+          />
+        </Band>
+
+        {/* ── TIER 2b — PIVOT · TOTALS · AGGREGATION ──────────────────────── */}
+        <Band index="03" title="PIVOT · TOTALS · AGGREGATION">
           <Row
             label="PIVOT MODE"
             control={
@@ -571,16 +752,6 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
             }
           />
           <Row
-            label="HIDE OPEN PARENTS"
-            control={
-              <BooleanControl
-                checked={s.groupHideOpenParents}
-                onChange={(v) => update('groupHideOpenParents', v)}
-                testId="go-group-hide-open-parents"
-              />
-            }
-          />
-          <Row
             label="SUPPRESS AGG"
             hint="Strip aggregation function names from group headers"
             control={
@@ -594,7 +765,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
         </Band>
 
         {/* ── TIER 3 — FILTER, SORT, CLIPBOARD ────────────────────────────── */}
-        <Band index="03" title="FILTER · SORT · CLIPBOARD">
+        <Band index="04" title="FILTER · SORT · CLIPBOARD">
           <Row
             label="ADVANCED FILTER"
             control={
@@ -673,7 +844,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
         </Band>
 
         {/* ── TIER 4 — EDITING & INTERACTION ──────────────────────────────── */}
-        <Band index="04" title="EDITING · INTERACTION">
+        <Band index="05" title="EDITING · INTERACTION">
           <Row
             label="SINGLE CLICK EDIT"
             control={
@@ -766,7 +937,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
         </Band>
 
         {/* ── TIER 5 — STYLING & DEFAULT COLDEF ───────────────────────────── */}
-        <Band index="05" title="STYLING · DEFAULT COLDEF">
+        <Band index="06" title="STYLING · DEFAULT COLDEF">
           <Row
             label="ROW HOVER"
             hint="Suppress the hover highlight on rows"
@@ -884,7 +1055,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
         </Band>
 
         {/* ── TIER 6 — PERFORMANCE OVERRIDES ──────────────────────────────── */}
-        <Band index="06" title="PERFORMANCE (ADVANCED)">
+        <Band index="07" title="PERFORMANCE (ADVANCED)">
           <Row
             label="ROW BUFFER"
             hint="Rows rendered outside viewport · 5-50 practical"
