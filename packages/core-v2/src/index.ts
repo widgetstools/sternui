@@ -8,6 +8,12 @@ export { GridCore } from './core/GridCore';
 export type { GridCoreOptions } from './core/GridCore';
 export { EventBus } from './core/EventBus';
 export { topoSortModules } from './core/topoSort';
+export {
+  inferCellDataType,
+  sampleColumn,
+  inferCellDataTypeFromRows,
+} from './core/inferCellDataType';
+export type { InferredCellDataType } from './core/inferCellDataType';
 
 export type {
   AnyColDef,
@@ -108,6 +114,24 @@ export {
   type ColorPickerPopoverProps,
 } from './ui/ColorPicker';
 
+// Shared FormatterPicker — the horizontally-collapsible value-formatter
+// selector embedded in FormattingToolbar, Style Rule editor, and
+// Calculated Column editor. Value shape is ValueFormatterTemplate so
+// persistence and rendering stay on one code path.
+export {
+  FormatterPicker,
+  inferPickerDataType,
+  defaultSampleValue,
+  findMatchingPreset,
+  presetsForDataType,
+  EXCEL_EXAMPLES,
+  type FormatterPickerProps,
+  type FormatterPickerDataType,
+  type FormatterPreset,
+  type ExcelExample,
+  type ExcelExampleCategory,
+} from './ui/FormatterPicker';
+
 // Shared StyleEditor (text + color + border + format) for every v2 panel
 export {
   StyleEditor,
@@ -143,6 +167,12 @@ export type { ColumnTemplate, ColumnDataType, ColumnTemplatesState } from './mod
 export { resolveTemplates } from './modules/column-templates/resolveTemplates';
 export { isValidExcelFormat } from './modules/column-customization/adapters/excelFormatter';
 export { presetToExcelFormat } from './modules/column-customization/adapters/presetToExcelFormat';
+export {
+  tickFormatter,
+  TICK_LABELS,
+  TICK_SAMPLES,
+} from './modules/column-customization/adapters/tickFormatter';
+export { valueFormatterFromTemplate } from './modules/column-customization/adapters/valueFormatterFromTemplate';
 export { columnCustomizationModule, INITIAL_COLUMN_CUSTOMIZATION } from './modules/column-customization';
 export type { ColumnAssignment, ColumnCustomizationState } from './modules/column-customization';
 // Type-only re-exports for the structured style/formatter shapes — consumers
@@ -153,6 +183,7 @@ export type {
   CellStyleOverrides,
   ValueFormatterTemplate,
   PresetId,
+  TickToken,
 } from './modules/column-customization/state';
 export { conditionalStylingModule, INITIAL_CONDITIONAL_STYLING } from './modules/conditional-styling';
 export type {

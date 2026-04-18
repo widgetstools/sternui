@@ -150,45 +150,64 @@ function reinjectCSS(
   res.cellInjector.clear();
   res.headerInjector.clear();
 
-  const walk = (defList: AnyColDef[]) => {
-    for (const def of defList) {
+  // Build a colId → cellDataType map from the base defs so we can pass
+  // the right dataType to `resolveTemplates` for type-default merging.
+  // Columns not found in defs (virtual columns live in a separate
+  // module's transform pass and haven't been appended yet when this
+  // runs) get `undefined` — resolveTemplates gracefully handles that
+  // by skipping type-default fallback.
+  const dataTypeByColId = new Map<string, unknown>();
+  const collectDataTypes = (list: AnyColDef[]) => {
+    for (const def of list) {
       if ('children' in def && Array.isArray(def.children)) {
-        walk(def.children);
+        collectDataTypes(def.children);
         continue;
       }
       const colDef = def as ColDef;
       const colId = colDef.colId ?? colDef.field;
-      if (!colId) continue;
-      const a = assignments[colId];
-      if (!a) continue;
-
-      const resolved = resolveTemplates(a, templatesState, cellDataTypeToDomain(colDef.cellDataType));
-      const cellCls = `gc-col-c-${colId}`;
-      const hdrCls = `gc-hdr-c-${colId}`;
-
-      // Cell styles
-      if (resolved.cellStyleOverrides) {
-        const css = styleOverridesToCSS(resolved.cellStyleOverrides);
-        if (css) res.cellInjector.addRule(`cell-${colId}`, `.${cellCls} { ${css} }`);
-        // Border overlay
-        const border = borderOverlayFromOverrides(`.${cellCls}`, resolved.cellStyleOverrides);
-        if (border) res.cellInjector.addRule(`cell-bo-${colId}`, border);
-      }
-
-      // Header styles
-      if (resolved.headerStyleOverrides) {
-        const css = styleOverridesToCSS(resolved.headerStyleOverrides);
-        if (css) res.headerInjector.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
-        // Header alignment via justify-content
-        const align = resolved.headerStyleOverrides.alignment?.horizontal;
-        if (align) res.headerInjector.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, align));
-        // Border overlay for headers
-        const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
-        if (border) res.headerInjector.addRule(`hdr-bo-${colId}`, border);
-      }
+      if (colId) dataTypeByColId.set(colId, colDef.cellDataType);
     }
   };
-  walk(defs);
+  collectDataTypes(defs);
+
+  // Walk every assignment directly — the old walker iterated `defs`
+  // which means virtual / calculated columns (appended by a separate
+  // module at a later pipeline step) never got their cellStyleOverrides
+  // injected. Iterating assignments keyed by colId gives every row in
+  // the customization state a CSS pass, regardless of whether its
+  // colId belongs to a base column or a virtual one.
+  for (const colId of Object.keys(assignments)) {
+    const a = assignments[colId];
+    if (!a) continue;
+    const resolved = resolveTemplates(
+      a,
+      templatesState,
+      cellDataTypeToDomain(dataTypeByColId.get(colId)),
+    );
+    const cellCls = `gc-col-c-${colId}`;
+    const hdrCls = `gc-hdr-c-${colId}`;
+
+    // Cell styles
+    if (resolved.cellStyleOverrides) {
+      const css = styleOverridesToCSS(resolved.cellStyleOverrides);
+      if (css) res.cellInjector.addRule(`cell-${colId}`, `.${cellCls} { ${css} }`);
+      // Border overlay
+      const border = borderOverlayFromOverrides(`.${cellCls}`, resolved.cellStyleOverrides);
+      if (border) res.cellInjector.addRule(`cell-bo-${colId}`, border);
+    }
+
+    // Header styles
+    if (resolved.headerStyleOverrides) {
+      const css = styleOverridesToCSS(resolved.headerStyleOverrides);
+      if (css) res.headerInjector.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
+      // Header alignment via justify-content
+      const align = resolved.headerStyleOverrides.alignment?.horizontal;
+      if (align) res.headerInjector.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, align));
+      // Border overlay for headers
+      const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
+      if (border) res.headerInjector.addRule(`hdr-bo-${colId}`, border);
+    }
+  }
 }
 
 // ─── Walker: emit cellClass/headerClass instead of cellStyle/headerStyle ────

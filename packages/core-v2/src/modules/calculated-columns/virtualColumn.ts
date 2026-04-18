@@ -1,6 +1,7 @@
 import type { ColDef, ValueGetterParams, ValueFormatterParams } from 'ag-grid-community';
 import type { ExpressionNode } from '@grid-customizer/core';
 import { ExpressionEngine } from '@grid-customizer/core';
+import { valueFormatterFromTemplate } from '../column-customization/adapters/valueFormatterFromTemplate';
 import type { VirtualColumnDef } from './state';
 
 /**
@@ -15,6 +16,13 @@ import type { VirtualColumnDef } from './state';
  *
  * Virtual columns are always `editable: false` — the cell's value is derived,
  * so direct edits would be immediately overwritten by the next render.
+ *
+ * Value formatting dispatches through the shared
+ * `valueFormatterFromTemplate` resolver, so every `ValueFormatterTemplate`
+ * kind (preset / excelFormat / expression / tick) works uniformly with
+ * virtual columns. That's also what the regular
+ * column-customization pipeline uses, so a virtual column can carry the
+ * same formats a data column can.
  */
 export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine): ColDef {
   let ast: ExpressionNode | null;
@@ -24,11 +32,9 @@ export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine
     ast = null;
   }
 
-  let formatAst: ExpressionNode | null = null;
-  if (v.valueFormatterTemplate) {
-    try { formatAst = engine.parse(v.valueFormatterTemplate); }
-    catch { formatAst = null; }
-  }
+  const formatFn = v.valueFormatterTemplate
+    ? valueFormatterFromTemplate(v.valueFormatterTemplate)
+    : null;
 
   return {
     colId: v.colId,
@@ -52,20 +58,8 @@ export function buildVirtualColDef(v: VirtualColumnDef, engine: ExpressionEngine
         return null;
       }
     },
-    valueFormatter: formatAst
-      ? (params: ValueFormatterParams) => {
-          try {
-            const out = engine.evaluate(formatAst!, {
-              x: params.value,
-              value: params.value,
-              data: params.data ?? {},
-              columns: params.data ?? {},
-            });
-            return out == null ? '' : String(out);
-          } catch {
-            return params.value == null ? '' : String(params.value);
-          }
-        }
+    valueFormatter: formatFn
+      ? (params: ValueFormatterParams) => formatFn({ value: params.value, data: params.data })
       : undefined,
   };
 }

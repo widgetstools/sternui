@@ -16,6 +16,7 @@ export type {
 } from '@grid-customizer/core';
 
 import type { ThemeAwareStyle } from '@grid-customizer/core';
+import type { ValueFormatterTemplate } from '../column-customization/state';
 
 /** A cell-scoped rule applies to specific column ids. A row-scoped rule
  *  paints the whole row when the expression is truthy. */
@@ -96,6 +97,18 @@ export interface ConditionalRule {
   flash?: FlashConfig;
   /** Optional top-right badge drawn on every matching cell + header. */
   indicator?: RuleIndicator;
+  /**
+   * Optional per-rule value formatter. Applies to cells matching the
+   * rule in the rule's target column(s). Only meaningful when the rule
+   * is cell-scope (row-scope rules don't have a column to carry a
+   * formatter). When a cell matches multiple rules with formatters,
+   * the highest-priority rule's formatter wins.
+   *
+   * Same `ValueFormatterTemplate` shape that `column-customization`
+   * uses — every format the toolbar / calculated-column editor can
+   * author is valid here too (presets, excelFormat, expression, tick).
+   */
+  valueFormatter?: ValueFormatterTemplate;
 }
 
 export interface ConditionalStylingState {

@@ -14,6 +14,11 @@
  * grid-remount-on-state-change policy.
  */
 
+// Re-export ValueFormatterTemplate here so virtual-column consumers
+// don't need to cross-import from column-customization internals.
+export type { ValueFormatterTemplate } from '../column-customization/state';
+import type { ValueFormatterTemplate } from '../column-customization/state';
+
 export interface VirtualColumnDef {
   /** Unique column id. Must not collide with an existing data field. */
   colId: string;
@@ -22,9 +27,17 @@ export interface VirtualColumnDef {
   /** Expression in our DSL — e.g. `[price] * [quantity] / 1000`. Parsed at
    *  transform time, not per-cell; errors fall back to `null`. */
   expression: string;
-  /** Optional formatter expression — receives the computed value as `x` /
-   *  `value` and should return a string. E.g. `CONCAT('$', ROUND(x, 2))`. */
-  valueFormatterTemplate?: string;
+  /** Optional structured value formatter. Accepts the full
+   *  `ValueFormatterTemplate` union: `{kind:'preset'|'excelFormat'|
+   *  'expression'|'tick'}`. Legacy snapshots may carry a bare string
+   *  here (v1 / early v2); the module's `deserialize` coerces those
+   *  into `{kind:'expression', expression: string}` so the runtime
+   *  only sees the union shape. */
+  valueFormatterTemplate?: ValueFormatterTemplate;
+  /** Optional cell-dataType hint. Drives the FormatterPicker's preset
+   *  filtering — lets the user author the virtual column as currency /
+   *  percent / date without inferring from the expression body. */
+  cellDataType?: 'number' | 'currency' | 'percent' | 'date' | 'datetime' | 'string' | 'boolean';
   /** Insertion hint — virtual columns are appended in declaration order.
    *  Actual column positioning across the grid stays driven by AG-Grid's
    *  column-state APIs; `position` is persisted for UI sorting. */

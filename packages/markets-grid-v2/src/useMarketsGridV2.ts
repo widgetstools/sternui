@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GridCore,
   createGridStore,
+  inferCellDataType,
   useProfileManager,
   type AnyModule,
   type GridStore,
+  type InferredCellDataType,
   type StorageAdapter,
   type UseProfileManagerResult,
 } from '@grid-customizer/core-v2';
@@ -94,10 +96,52 @@ export function useMarketsGridV2(opts: UseMarketsGridV2Options): UseMarketsGridV
     return store.subscribe(() => setTick((n) => n + 1));
   }, [store]);
 
+  // ─── Auto-detected cellDataTypes ─────────────────────────────────────────
+  //
+  // On first data render we sample the top N rows of each column and write
+  // the inferred cellDataType into a local map. That map is then merged
+  // into the transformed columnDefs below so the FormatterPicker (toolbar
+  // + Style Rule + Calc Col hosts) can filter its preset list by the
+  // column's actual datatype without the host app having to pre-annotate
+  // every column. We only infer once per mount — subsequent data updates
+  // don't re-run detection because a ticker feed shouldn't flip a price
+  // column away from 'number' when an intermittent null shows up.
+  //
+  // Columns whose baseColumnDef already specifies `cellDataType` are
+  // skipped: an explicit host hint wins over inference. Columns for
+  // which inference returns `undefined` (all-null sample) also fall
+  // through to whatever the host supplied.
+  const [inferredTypes, setInferredTypes] = useState<Record<string, InferredCellDataType>>({});
+  const inferredRef = useRef<boolean>(false);
+
   const columnDefs = useMemo(
-    () => core.transformColumnDefs(baseColumnDefs as never),
+    () => {
+      const transformed = core.transformColumnDefs(baseColumnDefs as never) as ReadonlyArray<{
+        colId?: string;
+        field?: string;
+        cellDataType?: unknown;
+        children?: unknown[];
+      }>;
+      if (Object.keys(inferredTypes).length === 0) return transformed as unknown[];
+      // Depth-walk so cellDataType also gets assigned inside column groups.
+      const walk = (defs: ReadonlyArray<unknown>): unknown[] => {
+        return defs.map((def) => {
+          const d = def as { colId?: string; field?: string; cellDataType?: unknown; children?: unknown[] };
+          if (d && Array.isArray(d.children)) {
+            return { ...d, children: walk(d.children) };
+          }
+          const key = d?.colId ?? d?.field;
+          if (typeof key !== 'string') return def;
+          if (d.cellDataType !== undefined) return def;
+          const inferred = inferredTypes[key];
+          if (!inferred) return def;
+          return { ...d, cellDataType: inferred };
+        });
+      };
+      return walk(transformed);
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [core, baseColumnDefs, tick],
+    [core, baseColumnDefs, tick, inferredTypes],
   );
 
   // Re-run the grid-options pipeline alongside the column-defs pipeline so
@@ -145,6 +189,63 @@ export function useMarketsGridV2(opts: UseMarketsGridV2Options): UseMarketsGridV
     // Bump tick so columnDefs re-runs through any transformer that needs the
     // GridContext (which was null before onGridReady).
     setTick((n) => n + 1);
+
+    // ── One-shot column datatype inference ─────────────────────────────
+    //
+    // AG-Grid fires `firstDataRendered` the first time the grid has laid
+    // out rowData. Sample the first ~20 rows per column, infer a
+    // cellDataType, and write the result into `inferredTypes` — the
+    // columnDefs useMemo picks that up on its next run.
+    //
+    // Guarded by `inferredRef` so hot-reloads, manual rowData swaps, or
+    // a data-source that fires firstDataRendered twice don't keep
+    // overwriting user-confirmed types. Modules that want per-grid
+    // type annotations can still write their own via
+    // transformColumnDefs.
+    const api = event.api as unknown as {
+      forEachNode?: (cb: (n: { data?: Record<string, unknown> }) => void) => void;
+      addEventListener: (evt: string, fn: () => void) => void;
+      removeEventListener: (evt: string, fn: () => void) => void;
+    };
+    if (inferredRef.current) return;
+    const handler = () => {
+      if (inferredRef.current) return;
+      inferredRef.current = true;
+      try {
+        const iter = api.forEachNode;
+        if (!iter) return;
+        // Collect the first N rows.
+        const sampleRows: Record<string, unknown>[] = [];
+        const MAX = 20;
+        iter.call(api, (node) => {
+          if (sampleRows.length >= MAX) return;
+          if (node.data) sampleRows.push(node.data);
+        });
+        if (sampleRows.length === 0) return;
+
+        // Infer per key present in the sample. Walking the current
+        // `columnDefs` ref would miss any `field` that only exists on
+        // the raw row shape (e.g. a ColDef using `field: 'price'`).
+        const keys = new Set<string>();
+        for (const row of sampleRows) {
+          for (const k of Object.keys(row)) keys.add(k);
+        }
+        const next: Record<string, InferredCellDataType> = {};
+        for (const key of keys) {
+          const samples = sampleRows.map((r) => r[key]);
+          const t = inferCellDataType(samples);
+          if (t) next[key] = t;
+        }
+        if (Object.keys(next).length > 0) setInferredTypes(next);
+      } catch {
+        /* ignore — non-blocking UX nicety */
+      }
+    };
+    try {
+      api.addEventListener('firstDataRendered', handler);
+    } catch {
+      /* AG-Grid api shape drift — leave a console breadcrumb via no-op */
+    }
   };
 
   const onGridPreDestroyed = () => {

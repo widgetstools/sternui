@@ -95,13 +95,27 @@ export interface CellStyleOverrides {
 //                             Parsed by `ssf` (SheetJS format). Full Excel
 //                             parity including conditional sections, colors,
 //                             date codes, parens-for-negative. CSP-safe.
+//   - `kind: 'tick'`        — Fixed-income bond price convention where a
+//                             decimal number is split into an integer "handle"
+//                             plus a fractional "tick" in 32nds (or 64ths /
+//                             128ths / 256ths). Common for US Treasuries
+//                             and Treasury futures. See `tickFormatter.ts`
+//                             for the exact rounding rules per token.
 
 export type PresetId = 'currency' | 'percent' | 'number' | 'date' | 'duration';
+
+/**
+ * Fixed-income tick-format token. Bond prices like 101.50 display as
+ * "101-16" (101 + 16/32). Sub-tick precision tokens split each 32nd
+ * further; see `tickFormatter.ts` for the render rules per token.
+ */
+export type TickToken = 'TICK32' | 'TICK32_PLUS' | 'TICK64' | 'TICK128' | 'TICK256';
 
 export type ValueFormatterTemplate =
   | { kind: 'preset'; preset: PresetId; options?: Record<string, unknown> }
   | { kind: 'expression'; expression: string }
-  | { kind: 'excelFormat'; format: string };
+  | { kind: 'excelFormat'; format: string }
+  | { kind: 'tick'; tick: TickToken };
 
 // ─── Migration from v1 ──────────────────────────────────────────────────────
 //

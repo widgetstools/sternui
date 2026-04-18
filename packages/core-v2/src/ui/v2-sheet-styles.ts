@@ -766,4 +766,22 @@ export const v2SheetCSS = `
 .gc-sheet-v2 ::-webkit-scrollbar-thumb:hover {
   background: var(--ck-t3);
 }
+
+/* ── Scrollbar (portaled popovers) ──────────────────────────
+   The Excel-format reference popover portals out of the sheet
+   scope to document.body, so the .gc-sheet-v2 scrollbar rules
+   above can't reach it. Repeat the theme-aware thumb styling
+   on the unscoped .gc-excel-ref-scroll class so the popover's
+   overflow-y rail matches the host app's dark / light mode
+   instead of the browser's default white track. --gc-border
+   falls back through --bn-border which swaps with the theme. */
+.gc-excel-ref-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.gc-excel-ref-scroll::-webkit-scrollbar-track { background: transparent; }
+.gc-excel-ref-scroll::-webkit-scrollbar-thumb {
+  background: var(--gc-border, #313944);
+  border-radius: 0;
+}
+.gc-excel-ref-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--gc-text-muted, #64748b);
+}
 `;
