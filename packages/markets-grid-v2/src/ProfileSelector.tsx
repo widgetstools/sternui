@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@grid-customizer/core-v2';
-import { Popover, PopoverTrigger, PopoverContent } from '@grid-customizer/core';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@grid-customizer/core';
 
 export interface ProfileSelectorProps {
   profiles: ProfileMeta[];
@@ -29,6 +41,11 @@ export function ProfileSelector({
   const [newName, setNewName] = useState('');
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+  // Pending-delete drives the shadcn AlertDialog. We track the FULL row
+  // (not just the id) so the dialog can render the profile's display name
+  // without having to re-lookup from `profiles` after the delete has
+  // already removed it from the list.
+  const [pendingDelete, setPendingDelete] = useState<ProfileMeta | null>(null);
 
   const active = profiles.find((p) => p.id === activeProfileId);
   const triggerLabel = active?.name ?? 'No profile';
@@ -39,6 +56,15 @@ export function ProfileSelector({
     await onCreate(newName.trim());
     setNewName('');
     setOpen(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    // Close the dialog before awaiting the delete so focus returns to the
+    // trigger cleanly and Radix doesn't fight us over focus restoration.
+    setPendingDelete(null);
+    await onDelete(target.id);
   };
 
   return (
@@ -231,7 +257,12 @@ export function ProfileSelector({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (window.confirm(`Delete profile "${p.name}"?`)) onDelete(p.id);
+                        // Close the profile popover as we open the confirm
+                        // dialog — otherwise clicks inside the dialog would
+                        // fall through to the popover's dismiss layer and
+                        // race with the AlertDialog's focus trap.
+                        setOpen(false);
+                        setPendingDelete(p);
                       }}
                       title="Delete profile"
                       aria-label={`Delete profile ${p.name}`}
@@ -342,6 +373,38 @@ export function ProfileSelector({
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Delete-profile confirmation — shadcn AlertDialog replaces the
+          native window.confirm so the flow matches the rest of the app's
+          design system AND doesn't block the renderer while the prompt
+          is open (window.confirm freezes everything including pending
+          React effects and IndexedDB reads). */}
+      <AlertDialog
+        open={pendingDelete != null}
+        onOpenChange={(nextOpen: boolean) => { if (!nextOpen) setPendingDelete(null); }}
+      >
+        <AlertDialogContent data-testid="profile-delete-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete profile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{pendingDelete?.name ?? ''}&quot; will be permanently removed.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="profile-delete-cancel">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              data-testid="profile-delete-confirm-btn"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

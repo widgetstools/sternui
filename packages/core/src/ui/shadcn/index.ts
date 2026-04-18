@@ -5,6 +5,19 @@ export { Textarea, type TextareaProps } from './textarea';
 export { Select } from './select';
 export { Switch } from './switch';
 export { Popover } from './popover';
+export {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './alert-dialog';
 export { Tooltip } from './tooltip';
 export { Separator } from './separator';
 export { Label } from './label';

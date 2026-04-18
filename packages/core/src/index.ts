@@ -98,6 +98,19 @@ export { Switch } from './ui/shadcn/switch';
 export {
   Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverClose, PopoverCompat,
 } from './ui/shadcn/popover';
+export {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './ui/shadcn/alert-dialog';
 export { Tooltip } from './ui/shadcn/tooltip';
 export { Separator } from './ui/shadcn/separator';
 export { Label } from './ui/shadcn/label';
