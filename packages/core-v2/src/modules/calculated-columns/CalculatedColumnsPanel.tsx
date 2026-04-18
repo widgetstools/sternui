@@ -365,7 +365,14 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
       </Band>
 
       <Band index="02" title="VALUE FORMATTER">
+        {/* `compact` renders the same Figma-style popover picker the
+            Formatting Toolbar uses (trigger chip → tile grid grouped
+            by DECIMALS / NEGATIVES / SCIENTIFIC / BASIS POINTS +
+            custom Excel input with currency quick-insert). Keeps the
+            settings-editor formatter surface identical to the toolbar
+            so there's one picker to learn. */}
         <FormatterPicker
+          compact
           dataType={(draft.cellDataType ?? 'number') as FormatterPickerDataType}
           value={draft.valueFormatterTemplate}
           onChange={(next) => setDraft({ valueFormatterTemplate: next })}

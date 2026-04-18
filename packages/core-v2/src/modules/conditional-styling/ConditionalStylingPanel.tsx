@@ -746,7 +746,13 @@ const RuleEditor = memo(function RuleEditor({
           filtering makes sense for number / currency / date columns. */}
       {draft.scope.type === 'cell' && draft.scope.columns.length === 1 ? (
         <Band index="09" title="VALUE FORMATTER">
+          {/* Same Figma-style popover picker used by the Formatting
+              Toolbar and the Calculated Column editor — one picker,
+              one learning curve. `compact` selects the tile-grid
+              presentation (DECIMALS / NEGATIVES / SCIENTIFIC / BASIS
+              POINTS + custom Excel). */}
           <FormatterPicker
+            compact
             dataType={inferPickerDataType(
               columns.find(
                 (c) =>
