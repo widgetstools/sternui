@@ -208,3 +208,12 @@ export { savedFiltersModule, INITIAL_SAVED_FILTERS } from './modules/saved-filte
 export type { SavedFiltersState } from './modules/saved-filters';
 export { toolbarVisibilityModule, INITIAL_TOOLBAR_VISIBILITY } from './modules/toolbar-visibility';
 export type { ToolbarVisibilityState } from './modules/toolbar-visibility';
+export {
+  gridStateModule,
+  INITIAL_GRID_STATE,
+  GRID_STATE_SCHEMA_VERSION,
+  captureGridState,
+  applyGridState,
+  captureGridStateInto,
+} from './modules/grid-state';
+export type { GridStateState, SavedGridState } from './modules/grid-state';

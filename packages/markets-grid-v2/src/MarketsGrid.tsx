@@ -11,6 +11,8 @@ import {
   columnGroupsModule,
   savedFiltersModule,
   toolbarVisibilityModule,
+  gridStateModule,
+  captureGridStateInto,
   type AnyModule,
 } from '@grid-customizer/core-v2';
 import { Save, Check, Settings as SettingsIcon, Brush, X as XIcon } from 'lucide-react';
@@ -44,6 +46,10 @@ export const DEFAULT_V2_MODULES: AnyModule[] = [
   conditionalStylingModule,
   savedFiltersModule,
   toolbarVisibilityModule,
+  // grid-state runs last — captures the native AG-Grid state (column order,
+  // sort, filters, widths, pagination, selection, …) only on explicit Save,
+  // and replays it on profile load.
+  gridStateModule,
 ];
 
 export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
@@ -104,6 +110,20 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
 
   const handleSaveAll = useCallback(async () => {
     try {
+      // Capture native AG-Grid state (column order/widths/sort/filters/etc.)
+      // into the grid-state module BEFORE we persist. The subsequent
+      // `saveActiveProfile` flushes through `core.serializeAll`, which then
+      // reads the freshly-captured slice out of the store alongside every
+      // other module's state. Auto-save intentionally never runs this path —
+      // grid state is explicit-save-only.
+      const api = gridRef.current?.api;
+      if (api) {
+        try {
+          captureGridStateInto(store, api);
+        } catch (err) {
+          console.warn('[markets-grid-v2] captureGridStateInto failed:', err);
+        }
+      }
       await profiles.saveActiveProfile();
     } catch (err) {
       console.warn('[markets-grid-v2] saveActiveProfile failed:', err);
@@ -112,7 +132,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
     setSaveFlash(true);
     if (saveFlashTimer.current) clearTimeout(saveFlashTimer.current);
     saveFlashTimer.current = setTimeout(() => setSaveFlash(false), 600);
-  }, [profiles]);
+  }, [profiles, store]);
 
   // ─── onGridReady chain — caller's hook fires after ours ────────────────
 
