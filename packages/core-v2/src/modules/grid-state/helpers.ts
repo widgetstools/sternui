@@ -113,16 +113,35 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
   if (Array.isArray(orderedColIds) && orderedColIds.length > 0) {
     const leftPinned = new Set(pinning?.leftColIds ?? []);
     const rightPinned = new Set(pinning?.rightColIds ?? []);
-    const nextState = orderedColIds.map((colId) => ({
-      colId,
-      pinned: leftPinned.has(colId)
-        ? ('left' as const)
-        : rightPinned.has(colId)
-          ? ('right' as const)
-          : (null as null),
-    }));
     const reorder = () => {
       try {
+        // Merge the saved column order with the grid's current column set
+        // so columns that exist at reload time but weren't present when
+        // the snapshot was captured (e.g. a newly-added calculated
+        // column) still render. Without this, `applyColumnState` with
+        // only the saved IDs effectively hides those new columns — the
+        // user sees an empty column slot or no column at all.
+        //
+        // Resolution rule: preserve the saved order first, then append
+        // any live column id not in the saved list in the order AG-Grid
+        // currently has them.
+        const saved = new Set(orderedColIds);
+        const liveIds = api
+          .getColumns?.()
+          ?.map((c) => c.getColId())
+          ?? [];
+        const merged: string[] = [...orderedColIds];
+        for (const id of liveIds) {
+          if (!saved.has(id)) merged.push(id);
+        }
+        const nextState = merged.map((colId) => ({
+          colId,
+          pinned: leftPinned.has(colId)
+            ? ('left' as const)
+            : rightPinned.has(colId)
+              ? ('right' as const)
+              : (null as null),
+        }));
         api.applyColumnState({ state: nextState, applyOrder: true });
       } catch (err) {
         console.warn('[grid-state] applyColumnState restore failed:', err);
