@@ -148,11 +148,25 @@ export function useMarketsGridV2(opts: UseMarketsGridV2Options): UseMarketsGridV
   // module outputs that live on GridOptions (rowClassRules, pagination toggles,
   // rowSelection, etc.) flow into AG-Grid the same way structural column
   // changes do.
-  const gridOptions = useMemo(
-    () => core.transformGridOptions({}),
+  //
+  // Stable-reference guard: `transformGridOptions` builds a fresh object on
+  // every run, so every `tick` bump (any module-state change) would hand
+  // `<AgGridReact {...gridOptions}>` new prop references. React's reconciler
+  // then re-pushes every spread prop into AG-Grid, which regenerates
+  // auto-injected artefacts like the selection column — losing its pinning
+  // and reorder. Guard by shallow-JSON compare: when the produced shape is
+  // content-equal to the last returned value, return the SAME reference so
+  // nothing downstream sees a change.
+  const gridOptionsRef = useRef<{ snapshot: string; value: Partial<GridOptions> } | null>(null);
+  const gridOptions = useMemo(() => {
+    const next = core.transformGridOptions({});
+    const snapshot = JSON.stringify(next) ?? '';
+    const prev = gridOptionsRef.current;
+    if (prev && prev.snapshot === snapshot) return prev.value;
+    gridOptionsRef.current = { snapshot, value: next };
+    return next;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [core, tick],
-  );
+  }, [core, tick]);
 
   // AG-Grid's React adapter does NOT reactively forward grid-options-shaped
   // props (rowClassRules, pagination, etc.) to the live grid instance — those
@@ -160,23 +174,45 @@ export function useMarketsGridV2(opts: UseMarketsGridV2Options): UseMarketsGridV
   // conditional rule lives in the rendered prop but never actually paints
   // because AG-Grid's internal state never sees it.
   //
-  // We then force a row redraw so already-rendered rows in the viewport pick
-  // up the freshly-applied predicate (AG-Grid only EVALUATES rules at row
-  // render time, so existing rows keep stale classes otherwise).
+  // Diff-then-push: keep the last successfully-synced value per key in a
+  // ref and only re-issue `setGridOption` when a value actually changed
+  // (structural JSON compare — cheap for the tiny objects modules emit).
+  // Without this guard, every module-state change triggered a full
+  // re-push of EVERY gridOption, including `rowSelection` and
+  // `selectionColumnDef`. AG-Grid regenerates the auto-injected
+  // selection column on those setGridOption calls, which resets its
+  // pinning + order. Symptom: clicking Save kicked the checkbox column
+  // out of its pinned-left slot back to the center zone (user report).
   //
-  // Cheap when called post-mount; a no-op while the api isn't alive yet.
+  // We still call `redrawRows()` at the end — some effects (rowClassRules)
+  // need the existing rendered rows to re-evaluate their predicates
+  // even when nothing else changed.
+  const lastSyncedGridOptionsRef = useRef<Record<string, string>>({});
   useEffect(() => {
     const api = core.getGridApi();
     if (!api) return;
     try {
-      // Push every key the module pipeline emits — keeps rowClassRules,
-      // pagination toggles, rowSelection etc. in sync without us having to
-      // enumerate which ones are reactive in the React adapter.
+      let anyPushed = false;
+      const prev = lastSyncedGridOptionsRef.current;
+      const next: Record<string, string> = {};
       for (const [key, value] of Object.entries(gridOptions)) {
+        // JSON.stringify handles `undefined` → "undefined" consistently and
+        // tolerates module outputs (nested objects with primitives). The
+        // modules all emit plain JSON shapes — no Dates, no Maps, no
+        // class instances — so this compare is cheap + correct.
+        const serialized = JSON.stringify(value) ?? 'undefined';
+        next[key] = serialized;
+        if (prev[key] === serialized) continue;
+        anyPushed = true;
         // Cast: `setGridOption` is keyof GridOptions but Object.entries widens.
         (api.setGridOption as (k: string, v: unknown) => void)(key, value);
       }
-      api.redrawRows();
+      // Preserve prior keys that didn't appear in this gridOptions snapshot
+      // — transformGridOptions may conditionally omit a key (e.g. pagination
+      // page-size drops when pagination is off). Not re-pushing that stale
+      // value keeps AG-Grid's last-known-good state intact.
+      lastSyncedGridOptionsRef.current = { ...prev, ...next };
+      if (anyPushed) api.redrawRows();
     } catch {
       /* ignore — happens during teardown / hot-reload windows */
     }
