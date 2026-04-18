@@ -170,6 +170,17 @@ export { cn } from './ui/shadcn/utils';
 export { ToggleGroup, ToggleGroupItem } from './ui/shadcn/toggle-group';
 export { ColorPicker, ColorPickerPopover } from './ui/shadcn/color-picker';
 
+// ─── Shared colDef types ────────────────────────────────────────────────────
+export type {
+  BorderSpec,
+  CellStyleOverrides,
+  ColumnAssignment,
+  ColumnDataType,
+  PresetId,
+  TickToken,
+  ValueFormatterTemplate,
+} from './colDef';
+
 // ─── Modules ────────────────────────────────────────────────────────────────
 export {
   generalSettingsModule,
@@ -177,6 +188,14 @@ export {
   INITIAL_GENERAL_SETTINGS,
   type GeneralSettingsState,
 } from './modules/general-settings';
+export {
+  columnTemplatesModule,
+  COLUMN_TEMPLATES_MODULE_ID,
+  INITIAL_COLUMN_TEMPLATES,
+  resolveTemplates,
+  type ColumnTemplate,
+  type ColumnTemplatesState,
+} from './modules/column-templates';
 
 // ─── Format editor primitives (unchanged) ───────────────────────────────────
 export {
