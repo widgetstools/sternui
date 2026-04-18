@@ -195,9 +195,6 @@ export function SettingsSheet({
 
             <span style={{ flex: 1 }} />
             <span className="gc-popout-title-status">
-              PROFILE=<strong>{core.gridId}</strong>
-            </span>
-            <span className="gc-popout-title-status">
               DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ck-amber)' : 'var(--ck-t1)' }}>
                 {String(dirtyCount).padStart(2, '0')}
               </strong>
