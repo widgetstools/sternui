@@ -170,6 +170,14 @@ export { cn } from './ui/shadcn/utils';
 export { ToggleGroup, ToggleGroupItem } from './ui/shadcn/toggle-group';
 export { ColorPicker, ColorPickerPopover } from './ui/shadcn/color-picker';
 
+// ─── Modules ────────────────────────────────────────────────────────────────
+export {
+  generalSettingsModule,
+  GENERAL_SETTINGS_MODULE_ID,
+  INITIAL_GENERAL_SETTINGS,
+  type GeneralSettingsState,
+} from './modules/general-settings';
+
 // ─── Format editor primitives (unchanged) ───────────────────────────────────
 export {
   FormatPopover,

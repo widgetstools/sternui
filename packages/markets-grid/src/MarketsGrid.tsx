@@ -4,6 +4,7 @@ import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import {
   GridProvider,
   MemoryAdapter,
+  generalSettingsModule,
   useProfileManager,
   cockpitCSS,
   COCKPIT_STYLE_ID,
@@ -35,7 +36,12 @@ function ensureCockpitStyles() {
   document.head.appendChild(el);
 }
 
-export const DEFAULT_MODULES: AnyModule[] = [];
+/**
+ * Modules the grid ships with by default. Consumers can pass `modules={...}`
+ * to override — the list is a pure value, not a singleton, so tests can
+ * construct a minimal subset without import-order surprises.
+ */
+export const DEFAULT_MODULES: AnyModule[] = [generalSettingsModule];
 
 export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
   const {
