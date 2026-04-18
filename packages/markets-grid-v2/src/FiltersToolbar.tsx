@@ -32,6 +32,60 @@ function generateLabel(filterModel: Record<string, unknown>, existingCount: numb
 }
 
 /**
+ * Deep-equal check for AG-Grid filter models. Order of keys doesn't matter
+ * (filter models are unordered maps of colId → condition), but nested
+ * arrays like `set` values DO depend on order for strict equality. We
+ * ignore array ordering for `values` specifically since that's a set.
+ *
+ * Returns true only when every column filter matches exactly. Used to
+ * decide whether the live filter model is "just what the saved pills
+ * produced" (echo) or "the user has added something new" (enable +).
+ */
+function filterModelsEqual(
+  a: Record<string, unknown> | null | undefined,
+  b: Record<string, unknown> | null | undefined,
+): boolean {
+  const aEmpty = !a || Object.keys(a).length === 0;
+  const bEmpty = !b || Object.keys(b).length === 0;
+  if (aEmpty && bEmpty) return true;
+  if (aEmpty !== bEmpty) return false;
+  const aKeys = Object.keys(a!).sort();
+  const bKeys = Object.keys(b!).sort();
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i++) {
+    if (aKeys[i] !== bKeys[i]) return false;
+    if (!deepEqualFilter(a![aKeys[i]], b![aKeys[i]])) return false;
+  }
+  return true;
+}
+
+function deepEqualFilter(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  // `values` is a set — order-insensitive.
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    // Sort copies so equality ignores order (set semantics).
+    const aSorted = [...a].map((v) => JSON.stringify(v)).sort();
+    const bSorted = [...b].map((v) => JSON.stringify(v)).sort();
+    for (let i = 0; i < aSorted.length; i++) if (aSorted[i] !== bSorted[i]) return false;
+    return true;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ao = a as Record<string, unknown>;
+  const bo = b as Record<string, unknown>;
+  const aKeys = Object.keys(ao).sort();
+  const bKeys = Object.keys(bo).sort();
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i++) {
+    if (aKeys[i] !== bKeys[i]) return false;
+    if (!deepEqualFilter(ao[aKeys[i]], bo[aKeys[i]])) return false;
+  }
+  return true;
+}
+
+/**
  * Combine N filter models with column-level OR and cross-column AND. Same
  * algorithm as v1 — preserved verbatim because the E2E "saved filters per
  * profile" suite checks that two active "set" filters union their values
@@ -134,6 +188,13 @@ export function FiltersToolbar({
   );
 
   const [renameId, setRenameId] = useState<string | null>(null);
+  // `hasNewFilter` — tracks whether the live AG-Grid filter model contains
+  // something the active saved-filter pills haven't already captured. The
+  // "+" button is enabled ONLY when this is true. Without this guard, the
+  // button stays enabled as long as any filter is applied (including
+  // already-saved ones), and clicking it duplicates the active saved
+  // filter(s) into a new pill.
+  const [hasNewFilter, setHasNewFilter] = useState(false);
 
   // ─── Push the merged filter into AG-Grid whenever the active set changes ─
   //
@@ -152,6 +213,44 @@ export function FiltersToolbar({
     } else {
       api.setFilterModel(mergeFilterModels(active.map((f) => f.filterModel)));
     }
+    // Whenever we push the active saved-filters' model INTO AG-Grid, by
+    // definition the live model now matches — clear the "new filter" flag
+    // so the + button drops back to disabled until the user touches a
+    // column filter themselves.
+    setHasNewFilter(false);
+  }, [core, filters]);
+
+  // ─── Watch AG-Grid for user-initiated filter edits ──────────────────────
+  //
+  // The `filterChanged` event fires any time the filter model mutates —
+  // including when we push the saved-filters model in programmatically. We
+  // filter those "echo" events out by comparing the live model against the
+  // merged active-saved-filters model. They match → echo, ignore. They
+  // differ → user has typed / selected something new → enable +.
+  useEffect(() => {
+    const api = core.getGridApi();
+    if (!api) return;
+    const check = () => {
+      const active = filters.filter((f) => f.active);
+      const expected = active.length === 0
+        ? null
+        : active.length === 1
+          ? active[0].filterModel
+          : mergeFilterModels(active.map((f) => f.filterModel));
+      const live = api.getFilterModel();
+      setHasNewFilter(!filterModelsEqual(live, expected));
+    };
+    try {
+      api.addEventListener('filterChanged', check);
+      // Run once up front so the flag reflects any model the grid already
+      // carries at mount (e.g. after profile load restored it).
+      check();
+    } catch {
+      /* api may be mid-teardown */
+    }
+    return () => {
+      try { api.removeEventListener('filterChanged', check); } catch { /* */ }
+    };
   }, [core, filters]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -315,7 +414,18 @@ export function FiltersToolbar({
           type="button"
           className="gc-filters-add-btn"
           onClick={handleAdd}
-          title="Capture current filter"
+          disabled={!hasNewFilter}
+          data-testid="filters-add-btn"
+          data-enabled={hasNewFilter ? 'true' : 'false'}
+          title={
+            hasNewFilter
+              ? 'Capture current filter as a new pill'
+              : 'Add a column filter (that isn\u2019t already saved) to enable'
+          }
+          style={{
+            opacity: hasNewFilter ? 1 : 0.35,
+            cursor: hasNewFilter ? 'pointer' : 'not-allowed',
+          }}
         >
           <Plus size={16} strokeWidth={2.75} />
         </button>
