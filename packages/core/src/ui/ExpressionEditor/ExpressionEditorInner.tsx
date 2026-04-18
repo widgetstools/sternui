@@ -56,9 +56,27 @@ w.monaco = monaco;
 let _monacoOverflowHost: HTMLDivElement | null = null;
 function getMonacoOverflowHost(): HTMLElement | undefined {
   if (typeof document === 'undefined') return undefined;
-  if (_monacoOverflowHost && _monacoOverflowHost.isConnected) return _monacoOverflowHost;
+  // Match the editor's own theme-pick exactly so the overflow host uses the
+  // same base theme Monaco is painting with. The v2 shell ships dark-first;
+  // it sets `data-theme="dark"` on <html>. Anything else falls back to the
+  // `vs` light theme, matching what `monaco.editor.create({ theme: ... })`
+  // does for these editors.
+  const themeClass =
+    document.documentElement.getAttribute('data-theme') === 'dark' ? 'vs-dark' : 'vs';
+
+  if (_monacoOverflowHost && _monacoOverflowHost.isConnected) {
+    // Keep the theme class in sync — the host outlives every editor instance.
+    _monacoOverflowHost.classList.remove('vs-dark', 'vs');
+    _monacoOverflowHost.classList.add(themeClass);
+    return _monacoOverflowHost;
+  }
+
   const host = document.createElement('div');
-  host.className = 'monaco-editor monaco-editor-overflow-widgets-host';
+  // `monaco-editor` is mandatory — every Monaco widget CSS rule is scoped
+  // under `.monaco-editor`. `vs-dark` / `vs` carries the theme tokens Monaco
+  // uses to paint the suggest-widget background, borders, and text colours;
+  // without this, the widget renders as a transparent box over the sheet.
+  host.className = `monaco-editor ${themeClass} monaco-editor-overflow-widgets-host`;
   host.setAttribute('data-gc-monaco-overflow', '');
   // Keep it out of the way until Monaco fills it with positioned children.
   host.style.position = 'absolute';

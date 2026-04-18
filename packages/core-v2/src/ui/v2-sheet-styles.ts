@@ -717,6 +717,48 @@ export const v2SheetCSS = `
 .gc-sheet-v2 .monaco-editor .view-line {
   color: var(--ck-t0);
 }
+/* Monaco overflow-widgets host (mounted on document.body by
+   ExpressionEditor to escape the sheet's transform/clip ancestors — see
+   ExpressionEditorInner.tsx). The cockpit tokens are scoped to
+   '.gc-sheet-v2', but widgets rendered inside the body-mounted host sit
+   OUTSIDE that scope, so --ck-* vars would resolve to undefined and the
+   theme-aware rules below would paint transparent. Re-bind the tokens
+   here so body-mounted widgets still look right. */
+[data-gc-monaco-overflow] {
+  --ck-bg:           #111417;
+  --ck-surface:      #1a1d21;
+  --ck-card:         #22262b;
+  --ck-card-hi:      #2a2e34;
+  --ck-border:       #2d3339;
+  --ck-border-hi:    #3a4149;
+  --ck-t0:           #eaecef;
+  --ck-t1:           #b7bdc6;
+  --ck-t2:           #848e9c;
+  --ck-t3:           #5e6673;
+  --ck-green:        #6ee7b7;
+  --ck-green-bg:     rgba(110,231,183,0.10);
+  --ck-amber:        #ffb020;
+  --ck-red:          #f87171;
+  --ck-popout-shadow: 0 40px 80px rgba(0,0,0,0.6);
+  --ck-font-sans:    "IBM Plex Sans", "Inter", -apple-system, sans-serif;
+  --ck-font-mono:    "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+[data-theme='light'] [data-gc-monaco-overflow] {
+  --ck-bg:           #ffffff;
+  --ck-surface:      #f5f6f8;
+  --ck-card:         #edeff2;
+  --ck-card-hi:      #e3e6ea;
+  --ck-border:       #dbdfe4;
+  --ck-border-hi:    #c0c6cd;
+  --ck-t0:           #1a1d21;
+  --ck-t1:           #4a5360;
+  --ck-t2:           #6b7480;
+  --ck-t3:           #9ba3ad;
+  --ck-green:        #0d9488;
+  --ck-green-bg:     rgba(13,148,136,0.08);
+  --ck-popout-shadow: 0 24px 48px rgba(15,23,42,0.18);
+}
+
 .monaco-editor .suggest-widget,
 .monaco-editor .parameter-hints-widget,
 .monaco-editor .monaco-hover {
