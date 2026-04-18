@@ -98,6 +98,11 @@ function applyTemplateLikeOver(
   if ('filter' in source && (source as { filter?: unknown }).filter !== undefined) {
     (target as unknown as { filter?: unknown }).filter = (source as { filter: unknown }).filter;
   }
+  // Row-grouping config — same wholesale-replace semantics.
+  if ('rowGrouping' in source && (source as { rowGrouping?: unknown }).rowGrouping !== undefined) {
+    (target as unknown as { rowGrouping?: unknown }).rowGrouping =
+      (source as { rowGrouping: unknown }).rowGrouping;
+  }
   // Assignment-only fields — only present when source is the assignment itself.
   if ('headerName' in source && source.headerName !== undefined) target.headerName = source.headerName;
   if ('headerTooltip' in source && source.headerTooltip !== undefined) target.headerTooltip = source.headerTooltip;

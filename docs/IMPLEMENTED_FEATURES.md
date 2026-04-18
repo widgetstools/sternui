@@ -1093,6 +1093,7 @@ is addressable from one screen.
   | 05 HEADER STYLE | same editor, scoped to `headerStyleOverrides`. Caption: "Blank alignment = follow the cell. Explicit value overrides." — matches the header-follows-cell fallback in reinjectCSS. |
   | 06 VALUE FORMAT | shared `FormatterPicker` in compact popover mode — same Figma-style preset grid the Formatting Toolbar + Style Rule editor + Calculated Column editor all use. |
   | 07 FILTER | rich per-column filter config (schemaVersion 4): master enable tri-state, kind picker (`agTextColumnFilter` / `agNumberColumnFilter` / `agDateColumnFilter` / `agSetColumnFilter` / `agMultiColumnFilter`), floating-filter Switch, button multi-select (apply/clear/reset/cancel), debounce, closeOnApply. When kind = `agSetColumnFilter`: mini-filter, select-all, alphabetical sort, Excel-mode Windows/Mac, default-to-nothing-selected. When kind = `agMultiColumnFilter`: ordered sub-filter list with per-row display-mode (inline / subMenu / accordion) + remove. The transform composes AG-Grid `filter` / `filterParams` / `floatingFilter` ColDef fields. |
+  | 08 ROW GROUPING | per-column grouping / aggregation / pivot (schemaVersion 5). Switches for `enableRowGroup` / `enableValue` / `enablePivot` (tool-panel interactivity), `rowGroup` / `pivot` with their index stepper (initial state), agg-function Select (sum / min / max / count / avg / first / last / **custom expression**). Custom mode reveals a monospace textarea compiled by the shared `ExpressionEngine` — aggregate values array is exposed as `[value]`, so formulas like `SUM([value]) * 1.1` or `MAX([value]) - MIN([value])` work end-to-end. Compile errors are warned + the column falls back to no agg. |
 
 - **Save semantics** — explicit SAVE pill (draft / dirty pattern). A
   commit that clears every override deletes the assignment entry
@@ -1121,7 +1122,11 @@ Test IDs: `cols-item-{colId}`, `cols-editor-{colId}`, `cols-save-{colId}`,
 `cols-{colId}-filter-floating`, `cols-{colId}-filter-debounce`,
 `cols-{colId}-filter-closeonapply`, `cols-{colId}-filter-btn-{apply|clear|reset|cancel}`,
 `cols-{colId}-setfilter-minifilter` / `-selectall` / `-sorting` / `-excel` / `-dtn`,
-`cols-{colId}-multi-add`, `cols-{colId}-multi-{idx}-kind` / `-display` / `-remove`.
+`cols-{colId}-multi-add`, `cols-{colId}-multi-{idx}-kind` / `-display` / `-remove`,
+`cols-{colId}-rg-enable-rowgroup`, `cols-{colId}-rg-rowgroup`,
+`cols-{colId}-rg-rowgroup-index`, `cols-{colId}-rg-enable-value`,
+`cols-{colId}-rg-aggfunc`, `cols-{colId}-rg-custom-expr`,
+`cols-{colId}-rg-enable-pivot`, `cols-{colId}-rg-pivot`, `cols-{colId}-rg-pivot-index`.
 
 Verified end-to-end in preview: 21 columns listed for the demo
 blotter, selecting a column opens the full 6-band editor, applied

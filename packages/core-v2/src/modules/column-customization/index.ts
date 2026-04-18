@@ -1,6 +1,7 @@
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, IAggFuncParams } from 'ag-grid-community';
 import type { AnyColDef, GridContext, Module } from '../../core/types';
 import { CssInjector } from '../../core/CssInjector';
+import { ExpressionEngine } from '@grid-customizer/core';
 import {
   INITIAL_COLUMN_CUSTOMIZATION,
   migrateFromLegacy,
@@ -9,6 +10,7 @@ import {
   type ColumnAssignment,
   type ColumnCustomizationState,
   type LegacyColumnCustomizationState,
+  type RowGroupingConfig,
 } from './state';
 import { valueFormatterFromTemplate } from './adapters/valueFormatterFromTemplate';
 import { excelFormatColorResolver } from './adapters/excelFormatter';
@@ -294,6 +296,102 @@ function applyFilterConfigToColDef(
   }
 }
 
+// ─── Row-grouping / aggregation / pivot ─────────────────────────────────────
+
+/**
+ * Shared ExpressionEngine for compiling custom aggregation formulas.
+ *
+ * A single engine instance is fine even across grids — it only holds the
+ * function registry, not any per-grid state. Created lazily so tests that
+ * don't touch custom agg functions don't pay the construction cost.
+ */
+let _sharedAggEngine: ExpressionEngine | null = null;
+function getAggEngine(): ExpressionEngine {
+  if (_sharedAggEngine == null) _sharedAggEngine = new ExpressionEngine();
+  return _sharedAggEngine;
+}
+
+/**
+ * Build a custom aggregation function from a formula string. The aggregate
+ * values array is exposed as the column reference `[value]`; formulas like
+ * `SUM([value])`, `AVG([value])`, `SUM([value]) * 1.1`, `MAX([value]) -
+ * MIN([value])`, etc. work out of the box because the underlying functions
+ * mark themselves as column-aggregating and pull the array from `ctx.allRows`.
+ *
+ * Returns `null` when the expression fails to parse — the column falls back
+ * to no aggregation in that case (safer than crashing the entire grid).
+ */
+function buildCustomAggFn(expression: string): ((params: IAggFuncParams) => unknown) | null {
+  const engine = getAggEngine();
+  let compiled;
+  try {
+    compiled = engine.parse(expression);
+  } catch (err) {
+    console.warn(
+      '[core-v2] column-customization',
+      `custom aggregation expression failed to parse: ${expression}`,
+      err,
+    );
+    return null;
+  }
+  return (params: IAggFuncParams) => {
+    const values = params.values ?? [];
+    // Expose each aggregate value as { value } so `[value]` reads back the
+    // full column array via the engine's aggregateColumnRefs path.
+    const allRows = values.map((v: unknown) => ({ value: v }));
+    try {
+      return engine.evaluate(compiled, {
+        x: undefined,
+        value: undefined,
+        data: {},
+        columns: {},
+        allRows,
+      });
+    } catch (err) {
+      console.warn(
+        '[core-v2] column-customization',
+        `custom aggregation runtime error: ${expression}`,
+        err,
+      );
+      return null;
+    }
+  };
+}
+
+/**
+ * Compose AG-Grid's row-grouping / aggregation / pivot ColDef fields from
+ * our `RowGroupingConfig`. Mutates `merged` in place.
+ *
+ * Only defined fields overwrite — the config is strictly additive on top of
+ * the base ColDef's own settings. The `'custom'` aggFunc compiles the paired
+ * `customAggExpression` through the expression engine and hands AG-Grid the
+ * resulting function.
+ */
+function applyRowGroupingConfigToColDef(
+  merged: ColDef,
+  cfg: RowGroupingConfig,
+): void {
+  if (cfg.enableRowGroup !== undefined) merged.enableRowGroup = cfg.enableRowGroup;
+  if (cfg.enableValue !== undefined) merged.enableValue = cfg.enableValue;
+  if (cfg.enablePivot !== undefined) merged.enablePivot = cfg.enablePivot;
+  if (cfg.rowGroup !== undefined) merged.rowGroup = cfg.rowGroup;
+  if (cfg.rowGroupIndex !== undefined) merged.rowGroupIndex = cfg.rowGroupIndex;
+  if (cfg.pivot !== undefined) merged.pivot = cfg.pivot;
+  if (cfg.pivotIndex !== undefined) merged.pivotIndex = cfg.pivotIndex;
+  if (cfg.allowedAggFuncs !== undefined) merged.allowedAggFuncs = cfg.allowedAggFuncs;
+
+  if (cfg.aggFunc === 'custom') {
+    if (cfg.customAggExpression && cfg.customAggExpression.trim()) {
+      const fn = buildCustomAggFn(cfg.customAggExpression);
+      if (fn) merged.aggFunc = fn;
+    }
+    // If the expression is empty or fails, leave aggFunc as-is so the grid
+    // doesn't silently drop aggregation when the user is still typing.
+  } else if (cfg.aggFunc !== undefined) {
+    merged.aggFunc = cfg.aggFunc;
+  }
+}
+
 // ─── Walker: emit cellClass/headerClass instead of cellStyle/headerStyle ────
 
 function applyAssignments(
@@ -334,6 +432,11 @@ function applyAssignments(
     // boolean whenever `filter.kind` or `filter.enabled === false` is set.
     if (resolved.filter !== undefined) {
       applyFilterConfigToColDef(merged, resolved.filter);
+    }
+
+    // Row-grouping / aggregation / pivot overrides.
+    if (resolved.rowGrouping !== undefined) {
+      applyRowGroupingConfigToColDef(merged, resolved.rowGrouping);
     }
     if (resolved.valueFormatterTemplate !== undefined) {
       merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
@@ -411,16 +514,17 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   // for back-compat with persisted profiles.
   name: 'Column Settings',
   code: '04',
-  schemaVersion: 4,
+  schemaVersion: 5,
   dependencies: ['column-templates'],
   priority: 10,
 
   getInitialState: () => ({ ...INITIAL_COLUMN_CUSTOMIZATION }),
 
   migrate(raw, fromVersion) {
-    // v4 introduces optional `filter` per-assignment — additive, roundtrips
-    // v1/v2/v3 snapshots unchanged; no field rename needed.
-    if (fromVersion === 1 || fromVersion === 2 || fromVersion === 3) {
+    // v4 introduces optional `filter` per-assignment.
+    // v5 introduces optional `rowGrouping` per-assignment.
+    // Both are additive, so v1/v2/v3/v4 snapshots roundtrip unchanged.
+    if (fromVersion === 1 || fromVersion === 2 || fromVersion === 3 || fromVersion === 4) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           `[core-v2] column-customization`,

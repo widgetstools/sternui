@@ -42,6 +42,14 @@ export interface ColumnAssignment {
   // AG-Grid `filter` / `filterParams` / `floatingFilter` from this object.
   // All fields optional; absent = inherit defaults.
   filter?: ColumnFilterConfig;
+
+  // ─── New in schemaVersion 5 ──────────────────────────────────────────────
+  // Row-grouping + aggregation + pivot knobs. All optional. Applied to the
+  // ColDef in `./index.ts` via `applyRowGroupingConfigToColDef`. Custom
+  // aggregations compile an expression through the core ExpressionEngine,
+  // same engine that powers Calculated Columns + Conditional Styling, so
+  // `SUM([value]) * 1.1` is a legal aggregation formula.
+  rowGrouping?: RowGroupingConfig;
 }
 
 // ─── Filter config ──────────────────────────────────────────────────────────
@@ -72,6 +80,62 @@ export interface MultiFilterEntry {
   filter: FilterKind;                               // sub-filter kind
   display?: 'inline' | 'subMenu' | 'accordion';     // AG-Grid display mode
   title?: string;                                   // label in the multi-filter menu
+}
+
+// ─── Row-grouping / aggregation config ─────────────────────────────────────
+
+/**
+ * Built-in AG-Grid aggFunc names. Add `'custom'` to engage the expression-
+ * driven path (see `RowGroupingConfig.customAggExpression`).
+ */
+export type AggFuncName =
+  | 'sum'
+  | 'min'
+  | 'max'
+  | 'count'
+  | 'avg'
+  | 'first'
+  | 'last'
+  | 'custom';
+
+export interface RowGroupingConfig {
+  // ─── Tool-panel interactivity ─────────────────────────────
+  /** Show this column as a drop target in the Row Groups panel. */
+  enableRowGroup?: boolean;
+  /** Show this column as a drop target in the Values panel (for aggregations). */
+  enableValue?: boolean;
+  /** Show this column as a drop target in the Pivots panel. */
+  enablePivot?: boolean;
+
+  // ─── Initial state ─────────────────────────────────────────
+  /** Start the grid with this column actively row-grouped. */
+  rowGroup?: boolean;
+  /** 0-based ordering when multiple columns are grouped. */
+  rowGroupIndex?: number;
+  /** Start the grid with this column pivoted. */
+  pivot?: boolean;
+  pivotIndex?: number;
+
+  // ─── Aggregation ─────────────────────────────────────────
+  /**
+   * AG-Grid aggFunc. Built-in strings ('sum' etc.) map directly to AG-Grid's
+   * aggregation registry. `'custom'` engages the expression path.
+   */
+  aggFunc?: AggFuncName;
+
+  /**
+   * User-defined aggregation formula — compiled by the core expression
+   * engine. The aggregate values array is exposed as the column reference
+   * `[value]`, so a formula like `SUM([value]) * 1.1` sums the aggregate
+   * values then applies a 10% multiplier. Only read when `aggFunc === 'custom'`.
+   */
+  customAggExpression?: string;
+
+  /**
+   * Subset of aggFunc names the user is allowed to pick from the tool panel.
+   * When unset, AG-Grid uses its internal default.
+   */
+  allowedAggFuncs?: string[];
 }
 
 export interface ColumnFilterConfig {

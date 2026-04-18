@@ -19,6 +19,7 @@ import { Select, Switch } from '@grid-customizer/core';
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
 import { StyleEditor, type StyleEditorValue } from '../../ui/StyleEditor';
 import type {
+  AggFuncName,
   BorderSpec,
   CellStyleOverrides,
   ColumnAssignment,
@@ -26,6 +27,7 @@ import type {
   ColumnFilterConfig,
   FilterKind,
   MultiFilterEntry,
+  RowGroupingConfig,
   SetFilterOptions,
   ValueFormatterTemplate,
 } from './state';
@@ -48,6 +50,10 @@ import type { ColumnTemplate, ColumnTemplatesState } from '../column-templates';
  *   07 FILTER        — filter kind picker (text/number/date/set/multi),
  *                      floating-filter toggle, set-filter + multi-filter
  *                      sub-options, common filter buttons / debounce
+ *   08 ROW GROUPING  — enableRowGroup / enableValue / enablePivot, initial
+ *                      rowGroup + rowGroupIndex, pivot + pivotIndex, aggFunc
+ *                      (sum/min/max/count/avg/first/last) + CUSTOM via the
+ *                      core ExpressionEngine (`SUM([value]) * 1.1`)
  *
  * Uses the draft/save pattern every v2 editor uses — every control writes
  * into a local draft; the cockpit SAVE pill commits the draft into
@@ -669,6 +675,15 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
           />
         </Band>
 
+        {/* ── 08 ROW GROUPING ────────────────────────────────────────────── */}
+        <Band index="08" title="ROW GROUPING">
+          <RowGroupingEditor
+            colId={col.colId}
+            value={draft.rowGrouping}
+            onChange={(next) => setDraft({ rowGrouping: next })}
+          />
+        </Band>
+
         <div style={{ height: 20 }} />
       </div>
     </div>
@@ -1168,6 +1183,192 @@ function MultiFilterEditor({
           </div>
         }
       />
+    </>
+  );
+}
+
+// ─── Row-grouping / aggregation editor ─────────────────────────────────────
+
+const AGG_FUNC_OPTIONS: Array<{ value: AggFuncName | ''; label: string }> = [
+  { value: '', label: '— none —' },
+  { value: 'sum', label: 'Sum' },
+  { value: 'min', label: 'Min' },
+  { value: 'max', label: 'Max' },
+  { value: 'count', label: 'Count' },
+  { value: 'avg', label: 'Average' },
+  { value: 'first', label: 'First' },
+  { value: 'last', label: 'Last' },
+  { value: 'custom', label: 'Custom expression…' },
+];
+
+function RowGroupingEditor({
+  colId,
+  value,
+  onChange,
+}: {
+  colId: string;
+  value: RowGroupingConfig | undefined;
+  onChange: (next: RowGroupingConfig | undefined) => void;
+}) {
+  const cfg = value ?? {};
+  const update = (patch: Partial<RowGroupingConfig>) => {
+    const next: RowGroupingConfig = { ...cfg, ...patch };
+    // Drop empty keys so the assignment can still collapse to undefined.
+    (Object.keys(next) as Array<keyof RowGroupingConfig>).forEach((k) => {
+      const v = next[k];
+      if (v === undefined) delete next[k];
+      if (Array.isArray(v) && v.length === 0) delete next[k];
+    });
+    onChange(Object.keys(next).length === 0 ? undefined : next);
+  };
+
+  return (
+    <>
+      <Row
+        label="ENABLE ROW GROUP"
+        hint="Show this column as a drop target in the Row Groups tool panel"
+        control={
+          <Switch
+            checked={cfg.enableRowGroup ?? false}
+            onChange={(e) => update({ enableRowGroup: e.target.checked || undefined })}
+            data-testid={`cols-${colId}-rg-enable-rowgroup`}
+          />
+        }
+      />
+      <Row
+        label="GROUP ON LOAD"
+        hint="Start the grid with this column actively row-grouped"
+        control={
+          <Switch
+            checked={cfg.rowGroup ?? false}
+            onChange={(e) => update({ rowGroup: e.target.checked || undefined })}
+            data-testid={`cols-${colId}-rg-rowgroup`}
+          />
+        }
+      />
+      {(cfg.rowGroup ?? false) && (
+        <Row
+          label="GROUP ORDER"
+          hint="0-based ordering when multiple columns are grouped"
+          control={
+            <IconInput
+              value={cfg.rowGroupIndex != null ? String(cfg.rowGroupIndex) : ''}
+              numeric
+              onCommit={(raw) => {
+                if (!raw.trim()) return update({ rowGroupIndex: undefined });
+                const n = Number(raw);
+                if (Number.isFinite(n) && n >= 0) update({ rowGroupIndex: Math.floor(n) });
+              }}
+              data-testid={`cols-${colId}-rg-rowgroup-index`}
+              style={{ maxWidth: 120 }}
+            />
+          }
+        />
+      )}
+
+      <Row
+        label="ENABLE VALUE"
+        hint="Allow this column to be used as an aggregation value in the tool panel"
+        control={
+          <Switch
+            checked={cfg.enableValue ?? false}
+            onChange={(e) => update({ enableValue: e.target.checked || undefined })}
+            data-testid={`cols-${colId}-rg-enable-value`}
+          />
+        }
+      />
+      <Row
+        label="AGG FUNCTION"
+        hint="Built-in aggregation or a custom expression"
+        control={
+          <Select
+            value={cfg.aggFunc ?? ''}
+            onChange={(e) => {
+              const v = e.target.value as AggFuncName | '';
+              update({ aggFunc: v === '' ? undefined : v });
+            }}
+            data-testid={`cols-${colId}-rg-aggfunc`}
+            style={{ maxWidth: 220 }}
+          >
+            {AGG_FUNC_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        }
+      />
+      {cfg.aggFunc === 'custom' && (
+        <Row
+          label="CUSTOM EXPRESSION"
+          hint={`Aggregate values array = [value] · try "SUM([value]) * 1.1"`}
+          control={
+            <textarea
+              value={cfg.customAggExpression ?? ''}
+              onChange={(e) => update({ customAggExpression: e.target.value || undefined })}
+              data-testid={`cols-${colId}-rg-custom-expr`}
+              placeholder="SUM([value])"
+              spellCheck={false}
+              style={{
+                width: '100%',
+                minHeight: 56,
+                padding: '6px 8px',
+                fontFamily: 'var(--ck-font-mono, ui-monospace, monospace)',
+                fontSize: 11,
+                lineHeight: 1.5,
+                borderRadius: 3,
+                border: '1px solid var(--ck-border)',
+                background: 'var(--ck-bg, var(--background))',
+                color: 'var(--ck-t0, var(--foreground))',
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          }
+        />
+      )}
+
+      <Row
+        label="ENABLE PIVOT"
+        hint="Allow this column to be used as a pivot in the tool panel"
+        control={
+          <Switch
+            checked={cfg.enablePivot ?? false}
+            onChange={(e) => update({ enablePivot: e.target.checked || undefined })}
+            data-testid={`cols-${colId}-rg-enable-pivot`}
+          />
+        }
+      />
+      <Row
+        label="PIVOT ON LOAD"
+        hint="Start the grid with this column actively pivoted"
+        control={
+          <Switch
+            checked={cfg.pivot ?? false}
+            onChange={(e) => update({ pivot: e.target.checked || undefined })}
+            data-testid={`cols-${colId}-rg-pivot`}
+          />
+        }
+      />
+      {(cfg.pivot ?? false) && (
+        <Row
+          label="PIVOT ORDER"
+          hint="0-based ordering when multiple columns are pivoted"
+          control={
+            <IconInput
+              value={cfg.pivotIndex != null ? String(cfg.pivotIndex) : ''}
+              numeric
+              onCommit={(raw) => {
+                if (!raw.trim()) return update({ pivotIndex: undefined });
+                const n = Number(raw);
+                if (Number.isFinite(n) && n >= 0) update({ pivotIndex: Math.floor(n) });
+              }}
+              data-testid={`cols-${colId}-rg-pivot-index`}
+              style={{ maxWidth: 120 }}
+            />
+          }
+        />
+      )}
     </>
   );
 }
