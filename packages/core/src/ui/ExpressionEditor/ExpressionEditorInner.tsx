@@ -40,6 +40,39 @@ if (!w.MonacoEnvironment) {
 // Expose for in-browser inspection / testing.
 w.monaco = monaco;
 
+// ─── Body-mounted overflow-widgets container ─────────────────────────────
+// Monaco's suggestion / hover / parameter-hints widgets render inside the
+// editor's DOM tree by default, so they get clipped by the settings sheet's
+// `overflow: hidden` AND — the real bug — get captured by the sheet's
+// `transform: translate(...)` centering transform, which creates a new
+// containing block for `position: fixed`. Under that ancestor, Monaco's
+// supposed-to-be-viewport-fixed suggestion widget drifts hundreds of
+// pixels below the cursor.
+//
+// Setting `fixedOverflowWidgets: true` alone isn't enough — Monaco still
+// attaches the container inside the editor unless we hand it an explicit
+// DOM node. Mount one lazily on document.body so the widget escapes every
+// transformed / clipped ancestor and renders in viewport coordinates.
+let _monacoOverflowHost: HTMLDivElement | null = null;
+function getMonacoOverflowHost(): HTMLElement | undefined {
+  if (typeof document === 'undefined') return undefined;
+  if (_monacoOverflowHost && _monacoOverflowHost.isConnected) return _monacoOverflowHost;
+  const host = document.createElement('div');
+  host.className = 'monaco-editor monaco-editor-overflow-widgets-host';
+  host.setAttribute('data-gc-monaco-overflow', '');
+  // Keep it out of the way until Monaco fills it with positioned children.
+  host.style.position = 'absolute';
+  host.style.top = '0';
+  host.style.left = '0';
+  host.style.width = '0';
+  host.style.height = '0';
+  // Use a high stacking context so the widget always paints above the sheet.
+  host.style.zIndex = '2147483646';
+  document.body.appendChild(host);
+  _monacoOverflowHost = host;
+  return host;
+}
+
 export default function ExpressionEditorInner(
   props: ExpressionEditorProps & { handleRef?: React.Ref<ExpressionEditorHandle> },
 ) {
@@ -102,6 +135,10 @@ export default function ExpressionEditorInner(
       contextmenu: false,
       automaticLayout: true,
       fixedOverflowWidgets: true,
+      // Escape the settings-sheet's transformed / clipped containers by
+      // rendering overflow widgets (suggestions, hovers, parameter hints)
+      // into a body-level host — see `getMonacoOverflowHost` above.
+      overflowWidgetsDomNode: getMonacoOverflowHost(),
       suggest: { showStatusBar: false, preview: false, insertMode: 'replace' },
       quickSuggestions: { other: true, comments: false, strings: false },
     });
