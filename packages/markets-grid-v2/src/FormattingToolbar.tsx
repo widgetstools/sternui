@@ -833,8 +833,11 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
 
   return (
     <div
-      className={cn('gc-formatting-toolbar flex items-center gap-2 h-11 shrink-0 border-b border-border bg-card text-xs relative z-[10000] min-w-0 overflow-x-auto overflow-y-visible', !disabled && 'gc-toolbar-enabled')}
-      style={{ paddingLeft: 16, paddingRight: 16 }}
+      className={cn('gc-formatting-toolbar flex items-center gap-2 h-11 border-b border-border bg-card text-xs relative z-[10000] min-w-0 overflow-x-auto overflow-y-visible', !disabled && 'gc-toolbar-enabled')}
+      // `flex: 0 1 auto` = natural content width, shrink when the flex row
+      // runs out of room. Combined with min-width: 0 + overflow-x-auto this
+      // gives the floating panel the responsive grow/shrink behaviour.
+      style={{ paddingLeft: 16, paddingRight: 16, flex: '0 1 auto' }}
       data-testid="formatting-toolbar"
       onMouseDown={(e) => {
         const tag = (e.target as HTMLElement).tagName;
@@ -1248,7 +1251,10 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
         </TBtn>
       </TGroup>
 
-      <div className="flex-1" />
+      {/* Fixed 16px breathing room before the target pill — replaces the
+          old `flex-1` spacer which would claim infinite space and prevent
+          the floating panel from sizing to its natural content width. */}
+      <div style={{ width: 16, flexShrink: 0 }} />
 
       {/* Column context + Cell/Header toggle */}
       <div className="flex items-center gap-4 shrink-0">

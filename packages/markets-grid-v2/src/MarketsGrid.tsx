@@ -263,14 +263,15 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
         headless
         data-testid="formatting-toolbar-float"
       >
-        {/* Inline row: drag handle | formatter toolbar | close button. The
-            handle + close stay visible while the toolbar content horizontally
-            scrolls inside its own flex region. */}
+        {/* Inline row: drag handle | formatter toolbar | close button.
+            Panel sizes to the toolbar's natural content width; when that
+            exceeds the viewport, the toolbar's own `overflow-x-auto`
+            kicks in while the handle + close remain pinned. */}
         <div
           style={{
             display: 'flex',
             alignItems: 'stretch',
-            width: 'min(1180px, calc(100vw - 32px))',
+            maxWidth: 'calc(100vw - 32px)',
             borderRadius: 6,
             overflow: 'hidden',
           }}
@@ -279,13 +280,16 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridV2Props<TData>) {
             data-testid="formatting-toolbar-float-handle"
             style={{
               width: 22,
+              flexShrink: 0,
               borderRight: '1px solid var(--border, #313944)',
               background: 'var(--card, #161a1e)',
             }}
           />
-          <div style={{ flex: '1 1 0px', minWidth: 0 }}>
-            <FormattingToolbar core={core} store={store} />
-          </div>
+          {/* FormattingToolbar's own className already wires
+              `flex-1 min-w-0 overflow-x-auto` — it's a direct flex child of
+              this row, so it grows to fill available space and scrolls
+              horizontally when content exceeds the viewport cap. */}
+          <FormattingToolbar core={core} store={store} />
           <DraggableFloat.CloseButton
             data-testid="formatting-toolbar-float-close"
             size={14}
