@@ -31,6 +31,85 @@ function generateLabel(filterModel: Record<string, unknown>, existingCount: numb
   return `${keys[0]} + ${keys.length - 1} more`;
 }
 
+// ─── Row-match helpers for per-pill counts ─────────────────────────────────
+//
+// Ported verbatim from v1 — mirrors AG-Grid's filter semantics for set /
+// text / number filters so we can compute per-pill row counts WITHOUT
+// having to activate each filter in turn. Used by the count badge inside
+// each pill, which v1 had and v2 had dropped.
+
+function doesValueMatchFilter(value: unknown, filter: Record<string, unknown>): boolean {
+  if (!filter || typeof filter !== 'object' || !filter.filterType) return true;
+  const filterType = filter.filterType as string;
+
+  if (filterType === 'set') {
+    const vals = (filter.values as unknown[] | undefined) ?? [];
+    if (vals.length === 0) return true;
+    const strVal = value == null ? null : String(value);
+    return vals.some((v) => (v == null ? strVal == null : String(v) === strVal));
+  }
+
+  if (filterType === 'text') {
+    const strVal = value == null ? '' : String(value).toLowerCase();
+    const filterVal = filter.filter == null ? '' : String(filter.filter).toLowerCase();
+    if (filter.operator && Array.isArray(filter.conditions)) {
+      const results = (filter.conditions as Record<string, unknown>[]).map((c) =>
+        doesValueMatchFilter(value, { ...c, filterType: 'text' }),
+      );
+      return filter.operator === 'AND' ? results.every(Boolean) : results.some(Boolean);
+    }
+    switch (filter.type) {
+      case 'contains': return strVal.includes(filterVal);
+      case 'notContains': return !strVal.includes(filterVal);
+      case 'equals': return strVal === filterVal;
+      case 'notEqual': return strVal !== filterVal;
+      case 'startsWith': return strVal.startsWith(filterVal);
+      case 'endsWith': return strVal.endsWith(filterVal);
+      case 'blank': return value == null || String(value).trim() === '';
+      case 'notBlank': return value != null && String(value).trim() !== '';
+      default: return true;
+    }
+  }
+
+  if (filterType === 'number') {
+    const numVal = value == null ? NaN : Number(value);
+    const filterNum = filter.filter == null ? NaN : Number(filter.filter);
+    const filterTo = filter.filterTo == null ? NaN : Number(filter.filterTo);
+    if (filter.operator && Array.isArray(filter.conditions)) {
+      const results = (filter.conditions as Record<string, unknown>[]).map((c) =>
+        doesValueMatchFilter(value, { ...c, filterType: 'number' }),
+      );
+      return filter.operator === 'AND' ? results.every(Boolean) : results.some(Boolean);
+    }
+    switch (filter.type) {
+      case 'equals': return numVal === filterNum;
+      case 'notEqual': return numVal !== filterNum;
+      case 'greaterThan': return numVal > filterNum;
+      case 'greaterThanOrEqual': return numVal >= filterNum;
+      case 'lessThan': return numVal < filterNum;
+      case 'lessThanOrEqual': return numVal <= filterNum;
+      case 'inRange': return numVal >= filterNum && numVal <= filterTo;
+      case 'blank': return value == null || isNaN(numVal);
+      case 'notBlank': return value != null && !isNaN(numVal);
+      default: return true;
+    }
+  }
+
+  // Date / unknown filterType — fall through to match-all. Keeps the count
+  // optimistic for unsupported shapes rather than reporting zero.
+  return true;
+}
+
+function doesRowMatchFilterModel(
+  rowData: Record<string, unknown>,
+  filterModel: Record<string, unknown>,
+): boolean {
+  for (const [col, filter] of Object.entries(filterModel)) {
+    if (!doesValueMatchFilter(rowData[col], filter as Record<string, unknown>)) return false;
+  }
+  return true;
+}
+
 /**
  * Deep-equal check for AG-Grid filter models. Order of keys doesn't matter
  * (filter models are unordered maps of colId → condition), but nested
@@ -188,6 +267,60 @@ export function FiltersToolbar({
   );
 
   const [renameId, setRenameId] = useState<string | null>(null);
+
+  // ─── Per-pill row counts ──────────────────────────────────────────────
+  //
+  // v1 parity — each pill renders a small count badge showing how many
+  // rows this filter would match if applied. Computed against the live
+  // rowData by walking `api.forEachNode(...)` and running the saved
+  // filter model against each row (same `doesRowMatchFilterModel`
+  // predicate as v1). Recomputes on:
+  //  - the filters list changing (new pill, renamed pill — label stays;
+  //    count stays too unless the filter model changed, which it does
+  //    here because pills are immutable once captured)
+  //  - AG-Grid's `rowDataUpdated` / `modelUpdated` events (data refresh)
+  //  - `firstDataRendered` (cold-mount: data arrives after the
+  //    toolbar renders once with empty counts)
+  const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const api = core.getGridApi();
+    if (!api) return;
+    const recompute = () => {
+      if (filters.length === 0) {
+        setFilterCounts({});
+        return;
+      }
+      const rows: Record<string, unknown>[] = [];
+      try {
+        api.forEachNode((n) => {
+          if (n.data) rows.push(n.data as Record<string, unknown>);
+        });
+      } catch {
+        /* api mid-teardown */
+      }
+      const next: Record<string, number> = {};
+      for (const f of filters) {
+        let count = 0;
+        for (const row of rows) {
+          if (doesRowMatchFilterModel(row, f.filterModel)) count++;
+        }
+        next[f.id] = count;
+      }
+      setFilterCounts(next);
+    };
+    recompute();
+    const events = ['rowDataUpdated', 'modelUpdated', 'firstDataRendered'] as const;
+    for (const e of events) {
+      try { api.addEventListener(e, recompute); } catch { /* */ }
+    }
+    return () => {
+      for (const e of events) {
+        try { api.removeEventListener(e, recompute); } catch { /* */ }
+      }
+    };
+  }, [core, filters]);
+
   // `hasNewFilter` — tracks whether the live AG-Grid filter model contains
   // something the active saved-filter pills haven't already captured. The
   // "+" button is enabled ONLY when this is true. Without this guard, the
@@ -373,9 +506,21 @@ export function FiltersToolbar({
                 type="button"
                 className="gc-filter-pill-btn"
                 onClick={() => handleToggle(f.id)}
-                title={f.label}
+                title={
+                  filterCounts[f.id] != null
+                    ? `${f.label} — matches ${filterCounts[f.id]} row${filterCounts[f.id] === 1 ? '' : 's'}`
+                    : f.label
+                }
               >
                 <span className="truncate">{f.label}</span>
+                {filterCounts[f.id] != null && (
+                  <span
+                    className="gc-filter-pill-count"
+                    data-testid={`filter-pill-count-${f.id}`}
+                  >
+                    {filterCounts[f.id]}
+                  </span>
+                )}
               </button>
               <span className="gc-filter-pill-actions">
                 <button
