@@ -110,6 +110,28 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
   const pinning = (saved.gridState as {
     columnPinning?: { leftColIds?: string[]; rightColIds?: string[] };
   }).columnPinning;
+  // Build a colId → width map from the saved columnSizingModel. When we
+  // re-issue applyColumnState for order + pinning, we pass the saved width
+  // along with each entry. Without it, downstream columnDefs re-derivations
+  // (driven by `maintainColumnOrder` → React re-render → AG-Grid reconciling
+  // new prop references) can reset virtual columns back to their
+  // `initialWidth`, silently clobbering the user's resize. Passing width
+  // explicitly makes the restore idempotent.
+  const sizingModel = (saved.gridState as {
+    columnSizing?: { columnSizingModel?: Array<{ colId: string; width: number; flex?: number }> };
+  }).columnSizing?.columnSizingModel;
+  const savedWidth = new Map<string, number>();
+  const savedFlex = new Map<string, number>();
+  if (Array.isArray(sizingModel)) {
+    for (const entry of sizingModel) {
+      if (typeof entry.colId === 'string' && typeof entry.width === 'number') {
+        savedWidth.set(entry.colId, entry.width);
+      }
+      if (typeof entry.colId === 'string' && typeof entry.flex === 'number') {
+        savedFlex.set(entry.colId, entry.flex);
+      }
+    }
+  }
   if (Array.isArray(orderedColIds) && orderedColIds.length > 0) {
     const leftPinned = new Set(pinning?.leftColIds ?? []);
     const rightPinned = new Set(pinning?.rightColIds ?? []);
@@ -134,14 +156,31 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
         for (const id of liveIds) {
           if (!saved.has(id)) merged.push(id);
         }
-        const nextState = merged.map((colId) => ({
-          colId,
-          pinned: leftPinned.has(colId)
-            ? ('left' as const)
-            : rightPinned.has(colId)
-              ? ('right' as const)
-              : (null as null),
-        }));
+        const nextState = merged.map((colId) => {
+          const entry: {
+            colId: string;
+            pinned: 'left' | 'right' | null;
+            width?: number;
+            flex?: number;
+          } = {
+            colId,
+            pinned: leftPinned.has(colId)
+              ? 'left'
+              : rightPinned.has(colId)
+                ? 'right'
+                : null,
+          };
+          // Re-assert the saved width/flex alongside order+pinning. AG-Grid's
+          // `applyColumnState` treats unspecified properties as unchanged,
+          // but a subsequent React-driven columnDefs re-derivation CAN
+          // still reset them back to `initialWidth` for virtual columns —
+          // passing width here keeps the saved value pinned down.
+          const w = savedWidth.get(colId);
+          if (typeof w === 'number') entry.width = w;
+          const f = savedFlex.get(colId);
+          if (typeof f === 'number') entry.flex = f;
+          return entry;
+        });
         api.applyColumnState({ state: nextState, applyOrder: true });
       } catch (err) {
         console.warn('[grid-state] applyColumnState restore failed:', err);
