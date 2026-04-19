@@ -236,6 +236,12 @@ export {
   type VirtualColumnDef,
 } from './modules/calculated-columns';
 export {
+  savedFiltersModule,
+  SAVED_FILTERS_MODULE_ID,
+  INITIAL_SAVED_FILTERS,
+  type SavedFiltersState,
+} from './modules/saved-filters';
+export {
   columnGroupsModule,
   COLUMN_GROUPS_MODULE_ID,
   INITIAL_COLUMN_GROUPS,

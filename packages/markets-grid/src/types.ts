@@ -2,6 +2,17 @@ import type { ColDef, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-communit
 import type { AnyModule } from '@grid-customizer/core';
 
 /**
+ * One saved filter pinned to the toolbar. Same shape v1/v2 used so
+ * existing profile snapshots load cleanly.
+ */
+export interface SavedFilter {
+  id: string;
+  label: string;
+  filterModel: Record<string, unknown>;
+  active: boolean;
+}
+
+/**
  * Public host-component props. Narrow contract — the ONE place a consumer
  * app configures the grid.
  */

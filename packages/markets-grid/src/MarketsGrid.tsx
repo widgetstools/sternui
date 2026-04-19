@@ -10,6 +10,7 @@ import {
   columnTemplatesModule,
   conditionalStylingModule,
   generalSettingsModule,
+  savedFiltersModule,
   useProfileManager,
   cockpitCSS,
   COCKPIT_STYLE_ID,
@@ -53,6 +54,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   calculatedColumnsModule,
   columnGroupsModule,
   conditionalStylingModule,
+  savedFiltersModule,
 ];
 
 export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
