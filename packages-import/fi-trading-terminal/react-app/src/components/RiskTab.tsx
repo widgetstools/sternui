@@ -6,7 +6,7 @@ const BD = '1px solid var(--bn-border)';
 
 // Gradient low→high: soft blue → cyan → copper → deeper copper → coral → brick.
 // Hex literals (not CSS vars) because usage concatenates alpha: `color + '1a'`.
-const HEAT_COLORS = ['#6ba4e8','#7db4e3','#c97b3f','#a85f26','#e56464','#d04f4f'];
+const HEAT_COLORS = ['#3b82f6','#22d3ee','#ff8c42','#e86a1c','#ff4d6d','#e8304e'];
 const heatLevel = (oas:number) => oas<20?0:oas<50?1:oas<100?2:oas<150?3:oas<250?4:5;
 const DV01_DATA = RISK_POSITIONS.map(p=>({name:p.book,dv01:p.dv01,pnl:p.pnl}));
 const SCENARIO_DATA = [
@@ -106,7 +106,7 @@ export function RiskTab() {
                     <YAxis tick={{fill:'var(--bn-t2)',fontSize:9,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
                     <Tooltip content={<TT/>}/>
                     <Bar dataKey="dv01" name="DV01" radius={[2,2,0,0]}>
-                      {DV01_DATA.map((_,i)=><Cell key={i} fill={['#6ba4e8','#e56464','#6ba4e8','#7db4e3','#a48ad4'][i%5]}/>)}
+                      {DV01_DATA.map((_,i)=><Cell key={i} fill={['#3b82f6','#ff4d6d','#3b82f6','#22d3ee','#a855f7'][i%5]}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -123,7 +123,7 @@ export function RiskTab() {
                     <YAxis tick={{fill:'var(--bn-t2)',fontSize:9,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<TT/>}/>
                     <Bar dataKey="total" name="Total P&L" radius={[2,2,0,0]}>
-                      {SCENARIO_DATA.map((d,i)=><Cell key={i} fill={d.total>=0?'#6ba4e8':'#e56464'}/>)}
+                      {SCENARIO_DATA.map((d,i)=><Cell key={i} fill={d.total>=0?'#3b82f6':'#ff4d6d'}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -140,7 +140,7 @@ export function RiskTab() {
                   <XAxis dataKey="day" tick={false} axisLine={false}/>
                   <YAxis tick={{fill:'var(--bn-t2)',fontSize:8,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} tickFormatter={v=>`$${Math.abs(v)}K`}/>
                   <Tooltip content={<TT/>}/>
-                  <Line type="monotone" dataKey="var" name="VaR 95%" stroke="#c97b3f" strokeWidth={1.5} dot={false}/>
+                  <Line type="monotone" dataKey="var" name="VaR 95%" stroke="#ff8c42" strokeWidth={1.5} dot={false}/>
                 </LineChart>
               </ResponsiveContainer>
             </div>

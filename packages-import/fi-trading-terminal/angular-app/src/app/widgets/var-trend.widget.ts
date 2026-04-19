@@ -67,7 +67,7 @@ export class VarTrendWidget implements AfterViewInit, OnDestroy {
 
     // Line
     ctx.beginPath();
-    ctx.strokeStyle = '#c97b3f';
+    ctx.strokeStyle = '#ff8c42';
     ctx.lineWidth = 1.5;
     VAR_DATA.forEach((d, i) => {
       i === 0 ? ctx.moveTo(xOf(i), yOf(d.var)) : ctx.lineTo(xOf(i), yOf(d.var));

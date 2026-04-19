@@ -341,16 +341,16 @@ import { CommonModule } from '@angular/common';
         <div style="margin-bottom:20px">
           <div class="ds-sub-heading">Status Badges</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <span class="ds-badge" style="background:rgba(61,191,160,0.15);color:var(--bn-green)"
+            <span class="ds-badge" style="background:rgba(20,217,160,0.15);color:var(--bn-green)"
               >Filled</span
             >
-            <span class="ds-badge" style="background:rgba(107,164,232,0.15);color:var(--bn-blue)"
+            <span class="ds-badge" style="background:rgba(59,130,246,0.15);color:var(--bn-blue)"
               >Partial</span
             >
-            <span class="ds-badge" style="background:rgba(201,123,63,0.15);color:var(--bn-amber)"
+            <span class="ds-badge" style="background:rgba(255,140,66,0.15);color:var(--bn-amber)"
               >Pending</span
             >
-            <span class="ds-badge" style="background:rgba(229,100,100,0.15);color:var(--bn-red)"
+            <span class="ds-badge" style="background:rgba(255,77,109,0.15);color:var(--bn-red)"
               >Cancelled</span
             >
             <span class="ds-badge" style="background:rgba(0,188,212,0.15);color:var(--bn-cyan)"
@@ -502,7 +502,7 @@ import { CommonModule } from '@angular/common';
                 >
                 <span class="font-mono-fi" style="font-size:9px"
                   ><span style="color:var(--bn-t2)">DUR </span
-                  ><span style="color:#6ba4e8;font-weight:600">1.85</span></span
+                  ><span style="color:#3b82f6;font-weight:600">1.85</span></span
                 >
               </div>
             </div>
@@ -550,7 +550,7 @@ import { CommonModule } from '@angular/common';
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:#6ba4e8;text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:#3b82f6;text-align:right;position:relative;z-index:1"
                 >{{ r.dv01 }}</span
               >
               <span style="text-align:center;position:relative;z-index:1">
@@ -565,7 +565,7 @@ import { CommonModule } from '@angular/common';
             </div>
             <!-- Spread bar -->
             <div
-              style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);background:linear-gradient(90deg, rgba(61,191,160,0.08), var(--bn-bg2), rgba(229,100,100,0.08))"
+              style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--bn-bg2), rgba(255,77,109,0.08))"
             >
               <span
                 class="font-mono-fi"
@@ -582,11 +582,11 @@ import { CommonModule } from '@angular/common';
                 >
                 <span class="font-mono-fi" style="font-size:9px"
                   ><span style="color:var(--bn-t2)">Mid Yld </span
-                  ><span style="color:#7db4e3;font-weight:600">4.520</span></span
+                  ><span style="color:#22d3ee;font-weight:600">4.520</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
                   ><span style="color:var(--bn-t2)">Z-Spd </span
-                  ><span style="color:#a48ad4;font-weight:600">8</span></span
+                  ><span style="color:#a855f7;font-weight:600">8</span></span
                 >
               </div>
             </div>
@@ -625,7 +625,7 @@ import { CommonModule } from '@angular/common';
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:#6ba4e8;text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:#3b82f6;text-align:right;position:relative;z-index:1"
                 >{{ r.dv01 }}</span
               >
               <span style="text-align:center;position:relative;z-index:1">
@@ -695,7 +695,7 @@ import { CommonModule } from '@angular/common';
               >
               <span class="font-mono-fi" style="font-size:9px"
                 ><span style="color:var(--bn-t2)">DUR </span
-                ><span style="color:#6ba4e8;font-weight:600">2.68</span></span
+                ><span style="color:#3b82f6;font-weight:600">2.68</span></span
               >
             </div>
           </div>
@@ -1013,26 +1013,26 @@ export class DesignSystemWidget {
   // ── 1. Color Palette data ──
   // Hex values show Dark / Light (VS Code Light Modern) pairs
   surfaceColors = [
-    { name: '--bn-bg', hex: 'D:#0a0e14 L:#f5f3ed', var: 'var(--bn-bg)' },
-    { name: '--bn-bg1', hex: 'D:#121820 L:#fbfaf6', var: 'var(--bn-bg1)' },
-    { name: '--bn-bg2', hex: 'D:#1a212b L:#edeae1', var: 'var(--bn-bg2)' },
-    { name: '--bn-bg3', hex: 'D:#242c38 L:#e1ddd1', var: 'var(--bn-bg3)' },
+    { name: '--bn-bg', hex: 'D:#0a0e14 L:#f3f5f9', var: 'var(--bn-bg)' },
+    { name: '--bn-bg1', hex: 'D:#121820 L:#fbfcfd', var: 'var(--bn-bg1)' },
+    { name: '--bn-bg2', hex: 'D:#1a212b L:#ebeef3', var: 'var(--bn-bg2)' },
+    { name: '--bn-bg3', hex: 'D:#242c38 L:#dde2ea', var: 'var(--bn-bg3)' },
   ];
 
   textColors = [
-    { name: '--bn-t0', hex: 'D:#e6e9ef L:#2a2d31', var: 'var(--bn-t0)' },
-    { name: '--bn-t1', hex: 'D:#a7b0bd L:#575b62', var: 'var(--bn-t1)' },
-    { name: '--bn-t2', hex: 'D:#757982 L:#757982', var: 'var(--bn-t2)' },
-    { name: '--bn-t3', hex: 'D:#4d586a L:#a8abb0', var: 'var(--bn-t3)' },
+    { name: '--bn-t0', hex: 'D:#e6e9ef L:#1a1f2e', var: 'var(--bn-t0)' },
+    { name: '--bn-t1', hex: 'D:#a7b0bd L:#4f5665', var: 'var(--bn-t1)' },
+    { name: '--bn-t2', hex: 'D:#6b7280 L:#6b7280', var: 'var(--bn-t2)' },
+    { name: '--bn-t3', hex: 'D:#4d586a L:#9ca3af', var: 'var(--bn-t3)' },
   ];
 
   semanticColors = [
-    { name: 'Green (Buy)', hex: 'D:#3dbfa0 L:#1f8c6e', var: 'var(--bn-green)' },
-    { name: 'Red (Sell)', hex: 'D:#e56464 L:#b8463f', var: 'var(--bn-red)' },
-    { name: 'Copper (Warn)', hex: 'D:#c97b3f L:#8a4e1d', var: 'var(--bn-amber)' },
-    { name: 'Blue (Brand)', hex: 'D:#6ba4e8 L:#2f6fb3', var: 'var(--bn-blue)' },
-    { name: 'Cyan (HL)', hex: 'D:#7db4e3 L:#4a8cc4', var: 'var(--bn-cyan)' },
-    { name: 'Purple', hex: 'D:#a48ad4 L:#7b5ba8', var: 'var(--fi-purple)' },
+    { name: 'Green (Buy)', hex: 'D:#14d9a0 L:#0ea870', var: 'var(--bn-green)' },
+    { name: 'Red (Sell)', hex: 'D:#ff4d6d L:#e02e47', var: 'var(--bn-red)' },
+    { name: 'Orange (Warn)', hex: 'D:#ff8c42 L:#e86a1c', var: 'var(--bn-amber)' },
+    { name: 'Blue (Brand)', hex: 'D:#3b82f6 L:#2563eb', var: 'var(--bn-blue)' },
+    { name: 'Cyan (HL)', hex: 'D:#22d3ee L:#06b6d4', var: 'var(--bn-cyan)' },
+    { name: 'Purple', hex: 'D:#a855f7 L:#7c3aed', var: 'var(--fi-purple)' },
   ];
 
   // ── 2. Typography data ──
@@ -1127,19 +1127,19 @@ export class DesignSystemWidget {
   quoteTypeBadges = [
     {
       label: 'STREAM',
-      bg: 'rgba(61,191,160,0.12)',
+      bg: 'rgba(20,217,160,0.12)',
       color: 'var(--bn-green)',
       desc: 'Firm / executable',
     },
     {
       label: 'RFQ',
-      bg: 'rgba(107,164,232,0.12)',
+      bg: 'rgba(59,130,246,0.12)',
       color: 'var(--bn-blue)',
       desc: 'Request for quote',
     },
     {
       label: 'IND',
-      bg: 'rgba(201,123,63,0.12)',
+      bg: 'rgba(255,140,66,0.12)',
       color: 'var(--bn-amber)',
       desc: 'Indicative only',
     },
@@ -1147,10 +1147,10 @@ export class DesignSystemWidget {
 
   qtBadgeBg(type: string) {
     return type === 'STREAM'
-      ? 'rgba(61,191,160,0.12)'
+      ? 'rgba(20,217,160,0.12)'
       : type === 'RFQ'
-        ? 'rgba(107,164,232,0.12)'
-        : 'rgba(201,123,63,0.12)';
+        ? 'rgba(59,130,246,0.12)'
+        : 'rgba(255,140,66,0.12)';
   }
   qtBadgeColor(type: string) {
     return type === 'STREAM'
@@ -1223,7 +1223,7 @@ export class DesignSystemWidget {
   // Countdown ring examples
   countdownRings = [
     { secs: 25, color: '#3da0ff', dash: '69 75.4', label: '25s — blue (safe)' },
-    { secs: 8, color: '#c97b3f', dash: '20 75.4', label: '8s — amber (warning)' },
+    { secs: 8, color: '#ff8c42', dash: '20 75.4', label: '8s — amber (warning)' },
     { secs: 3, color: 'var(--bn-red)', dash: '7.5 75.4', label: '3s — red (expiring)' },
   ];
 

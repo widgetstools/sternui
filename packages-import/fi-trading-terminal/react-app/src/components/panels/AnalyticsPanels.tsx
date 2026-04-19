@@ -26,7 +26,7 @@ const AXIS_TICK = { fill: 'var(--bn-t2)', fontSize: 9, fontFamily: 'JetBrains Mo
 /* ── Data ── */
 const SCATTER_DATA = BONDS.map(b => ({ name: b.ticker, x: b.dur, y: b.oas, dv01: b.dv01, rtg: b.rtgClass }));
 // Rating gradient: aaa/aa blue → a green → bbb copper → hy red. Hex for recharts SVG.
-const RTG_COLOR: Record<string, string> = { aaa: '#6ba4e8', aa: '#7db4e3', a: '#3dbfa0', bbb: '#c97b3f', hy: '#e56464' };
+const RTG_COLOR: Record<string, string> = { aaa: '#3b82f6', aa: '#22d3ee', a: '#14d9a0', bbb: '#ff8c42', hy: '#ff4d6d' };
 
 const BUCKET_RANGES: [number, number][] = [[0, 1], [1, 3], [3, 5], [5, 7], [7, 10], [10, 50]];
 const BUCKET_LABELS = ['0-1Y', '1-3Y', '3-5Y', '5-7Y', '7-10Y', '10Y+'];
@@ -50,7 +50,7 @@ const HIST_OAS = Array.from({ length: 60 }, (_, i) => {
 const SECTOR_MAP: Record<string, string> = {};
 BONDS.forEach(b => { SECTOR_MAP[b.sector] = b.sector; });
 const SECTORS = Object.keys(SECTOR_MAP);
-const SECTOR_COLORS = ['#6ba4e8', '#7db4e3', '#a48ad4', '#3dbfa0', '#c97b3f', '#a85f26'];
+const SECTOR_COLORS = ['#3b82f6', '#22d3ee', '#a855f7', '#14d9a0', '#ff8c42', '#e86a1c'];
 const SECTOR_PIE = SECTORS.map((s, i) => {
   const bonds = BONDS.filter(b => b.sector === s);
   const mv = bonds.reduce((a, b) => a + parseFloat(b.face), 0);
@@ -112,18 +112,18 @@ export function DurationBuckets() {
             <YAxis yAxisId="oas" orientation="right" tick={AXIS_TICK} axisLine={false} tickLine={false} width={36}
               tickFormatter={v => `${v}bp`} />
             <Tooltip content={<TT />} />
-            <Bar yAxisId="dv01" dataKey="dv01" name="DV01" fill="#6ba4e8" radius={[3, 3, 0, 0]} barSize={18} fillOpacity={0.8} />
-            <Bar yAxisId="oas" dataKey="avgOas" name="Avg OAS" fill="#c97b3f" radius={[3, 3, 0, 0]} barSize={14} fillOpacity={0.7} />
+            <Bar yAxisId="dv01" dataKey="dv01" name="DV01" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={18} fillOpacity={0.8} />
+            <Bar yAxisId="oas" dataKey="avgOas" name="Avg OAS" fill="#ff8c42" radius={[3, 3, 0, 0]} barSize={14} fillOpacity={0.7} />
           </BarChart>
         </ResponsiveContainer>
       </div>
       {/* Summary footer */}
       <div style={{ display: 'flex', gap: 14, padding: '6px 14px', borderTop: BD, flexShrink: 0 }}>
         {[
-          { l: 'Total DV01', v: `$${(totalDv01All / 1000).toFixed(1)}K`, c: '#6ba4e8' },
-          { l: 'Avg Dur', v: '4.82yr', c: '#7db4e3' },
+          { l: 'Total DV01', v: `$${(totalDv01All / 1000).toFixed(1)}K`, c: '#3b82f6' },
+          { l: 'Avg Dur', v: '4.82yr', c: '#22d3ee' },
           { l: 'Bonds', v: String(BUCKET_DATA.reduce((a, d) => a + d.bonds, 0)), c: 'var(--bn-t0)' },
-          { l: 'Wt Avg OAS', v: `+${Math.round(BUCKET_DATA.reduce((a, d) => a + d.avgOas * d.bonds, 0) / BUCKET_DATA.reduce((a, d) => a + d.bonds, 0))}bp`, c: '#c97b3f' },
+          { l: 'Wt Avg OAS', v: `+${Math.round(BUCKET_DATA.reduce((a, d) => a + d.avgOas * d.bonds, 0) / BUCKET_DATA.reduce((a, d) => a + d.bonds, 0))}bp`, c: '#ff8c42' },
         ].map(s => (
           <div key={s.l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ fontSize: 9, color: 'var(--bn-t2)' }}>{s.l}</span>
@@ -198,7 +198,7 @@ export function HistoricalOas() {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={HIST_OAS} margin={{ top: 4, right: 16, bottom: 8, left: 8 }}>
             <defs>
-              <linearGradient id="igGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6ba4e8" stopOpacity={0.15} /><stop offset="95%" stopColor="#6ba4e8" stopOpacity={0} /></linearGradient>
+              <linearGradient id="igGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
               <linearGradient id="hyGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--bn-red)" stopOpacity={0.1} /><stop offset="95%" stopColor="var(--bn-red)" stopOpacity={0} /></linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--bn-bg2)" vertical={false} />
@@ -206,7 +206,7 @@ export function HistoricalOas() {
             <YAxis yAxisId="ig" tick={AXIS_TICK} axisLine={false} tickLine={false} domain={['auto', 'auto']} width={32} />
             <YAxis yAxisId="hy" orientation="right" tick={AXIS_TICK} axisLine={false} tickLine={false} domain={['auto', 'auto']} width={38} />
             <Tooltip content={<TT />} />
-            <Area yAxisId="ig" type="monotone" dataKey="ig" name="CDX IG" stroke="#6ba4e8" strokeWidth={1.5} fill="url(#igGrad)" dot={false} />
+            <Area yAxisId="ig" type="monotone" dataKey="ig" name="CDX IG" stroke="#3b82f6" strokeWidth={1.5} fill="url(#igGrad)" dot={false} />
             <Area yAxisId="hy" type="monotone" dataKey="hy" name="CDX HY" stroke="var(--bn-red)" strokeWidth={1.5} fill="url(#hyGrad)" dot={false} />
           </AreaChart>
         </ResponsiveContainer>
@@ -233,7 +233,7 @@ export function OasDistribution() {
               return (
                 <div style={{ background: 'var(--bn-bg2)', border: BD, borderRadius: 3, padding: '6px 10px', fontFamily: 'JetBrains Mono,monospace', fontSize: 11 }}>
                   <div style={{ color: 'var(--bn-t1)' }}>{d.payload.name}</div>
-                  <div style={{ color: d.payload.color || '#6ba4e8' }}>OAS: +{d.value}bp</div>
+                  <div style={{ color: d.payload.color || '#3b82f6' }}>OAS: +{d.value}bp</div>
                 </div>
               );
             }} />
@@ -250,7 +250,7 @@ export function OasDistribution() {
 // ── 6. P&L Attribution — Vertical bar chart with total ──
 export function PnlAttribution() {
   const chartData = [
-    ...PNL_DATA.map(d => ({ ...d, fill: d.pnl >= 0 ? '#6ba4e8' : 'var(--bn-red)' })),
+    ...PNL_DATA.map(d => ({ ...d, fill: d.pnl >= 0 ? '#3b82f6' : 'var(--bn-red)' })),
     { attr: 'Total', pnl: pnlTotal, fill: pnlTotal >= 0 ? '#0ecb81' : 'var(--bn-red)' },
   ];
 
@@ -270,7 +270,7 @@ export function PnlAttribution() {
               return (
                 <div style={{ background: 'var(--bn-bg2)', border: BD, borderRadius: 3, padding: '6px 10px', fontFamily: 'JetBrains Mono,monospace', fontSize: 11 }}>
                   <div style={{ color: 'var(--bn-t1)' }}>{d.payload.attr}</div>
-                  <div style={{ color: isPos ? '#6ba4e8' : 'var(--bn-red)', fontWeight: 600 }}>{isPos ? '+' : ''}${d.value}K</div>
+                  <div style={{ color: isPos ? '#3b82f6' : 'var(--bn-red)', fontWeight: 600 }}>{isPos ? '+' : ''}${d.value}K</div>
                 </div>
               );
             }} />

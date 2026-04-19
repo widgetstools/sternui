@@ -2,11 +2,8 @@
  * FI Design System — Dark Theme
  * Generated from design-system/tokens/semantic.ts
  *
- * Binance-inspired chrome, softened for long trading sessions:
- *   - Deep charcoal backgrounds (slightly warm, never pure black)
- *   - Desaturated trading accents — no neon greens or fire-engine reds
- *   - Brand is soft azure blue, not yellow
- *   - Text is warm off-white, never pure #ffffff
+ * Cool charcoal chrome, punchy saturated accents. Warning is pure
+ * orange (no brown / copper). Brand is saturated blue (no yellow).
  */
 
 :root, [data-theme="dark"] {
@@ -17,19 +14,19 @@
   --card-foreground: 220 16% 92%;
   --popover: 214 26% 10%;
   --popover-foreground: 220 16% 92%;
-  --primary: 213 72% 67%;            /* #6ba4e8 — soft azure (brand) */
+  --primary: 217 91% 60%;            /* #3b82f6 — punchy blue brand */
   --primary-foreground: 0 0% 100%;
   --secondary: 215 22% 18%;          /* #242c38 */
   --secondary-foreground: 216 15% 70%;
   --muted: 215 24% 14%;              /* #1a212b */
-  --muted-foreground: 219 6% 49%;    /* #757982 */
+  --muted-foreground: 220 9% 46%;    /* #6b7280 */
   --accent: 215 22% 18%;
   --accent-foreground: 220 16% 92%;
-  --destructive: 0 70% 64%;          /* #e56464 */
+  --destructive: 351 100% 65%;       /* #ff4d6d */
   --destructive-foreground: 0 0% 100%;
   --border: 216 22% 22%;             /* #323b49 */
   --input: 216 22% 22%;
-  --ring: 213 72% 67%;               /* brand ring */
+  --ring: 217 91% 60%;
   --radius: 4px;
 
   /* ── Surface ── */
@@ -41,48 +38,48 @@
   /* ── Text ── */
   --bn-t0:      #e6e9ef;
   --bn-t1:      #a7b0bd;
-  --bn-t2:      #757982;
+  --bn-t2:      #6b7280;
   --bn-t3:      #4d586a;
 
   /* ── Border ── */
   --bn-border:  #2e3744;
   --bn-border2: #323b49;
 
-  /* ── Accent (muted, not neon) ── */
-  --bn-green:   #3dbfa0;
-  --bn-green2:  #2fa88a;
-  --bn-red:     #e56464;
-  --bn-red2:    #d04f4f;
-  --bn-amber:   #c97b3f;    /* burnt copper — warning semantic only */
-  --bn-blue:    #6ba4e8;    /* BRAND */
-  --bn-blue2:   #4e8bd1;
-  --bn-cyan:    #7db4e3;
-  --bn-purple:  #a48ad4;
+  /* ── Accent (punchy, saturated) ── */
+  --bn-green:   #14d9a0;
+  --bn-green2:  #0fb88a;
+  --bn-red:     #ff4d6d;
+  --bn-red2:    #e8304e;
+  --bn-amber:   #ff8c42;    /* pure orange — warning semantic only */
+  --bn-blue:    #3b82f6;    /* BRAND */
+  --bn-blue2:   #2563eb;
+  --bn-cyan:    #22d3ee;
+  --bn-purple:  #a855f7;
 
   /* ── Actions ── */
-  --bn-buy-bg:   #2fa88a;
-  --bn-sell-bg:  #d04f4f;
+  --bn-buy-bg:   #0fb88a;
+  --bn-sell-bg:  #e8304e;
   --bn-cta-text: #ffffff;
   --bn-logo-bg:  #0a0e14;
 
   /* ── Interactive states ── */
-  --bn-focus-ring:    #6ba4e8;
-  --bn-focus-ring-bg: rgba(107,164,232,0.25);
+  --bn-focus-ring:    #3b82f6;
+  --bn-focus-ring-bg: rgba(59,130,246,0.30);
   --bn-disabled-bg:   #242c38;
   --bn-disabled-fg:   #4d586a;
-  --bn-hover-overlay: rgba(255,255,255,0.04);
+  --bn-hover-overlay: rgba(255,255,255,0.05);
 
-  /* ── Overlay tints (single source for badges, fills, chips) ── */
-  --bn-positive-soft: rgba(61,191,160,0.12);
-  --bn-positive-ring: rgba(61,191,160,0.30);
-  --bn-negative-soft: rgba(229,100,100,0.12);
-  --bn-negative-ring: rgba(229,100,100,0.30);
-  --bn-warning-soft:  rgba(201,123,63,0.14);
-  --bn-warning-ring:  rgba(201,123,63,0.32);
-  --bn-info-soft:     rgba(107,164,232,0.12);
-  --bn-info-ring:     rgba(107,164,232,0.30);
-  --bn-neutral-soft:  rgba(117,121,130,0.18);
-  --bn-neutral-ring:  rgba(117,121,130,0.25);
+  /* ── Overlay tints (badge / fill / chip) ── */
+  --bn-positive-soft: rgba(20,217,160,0.15);
+  --bn-positive-ring: rgba(20,217,160,0.35);
+  --bn-negative-soft: rgba(255,77,109,0.15);
+  --bn-negative-ring: rgba(255,77,109,0.35);
+  --bn-warning-soft:  rgba(255,140,66,0.15);
+  --bn-warning-ring:  rgba(255,140,66,0.38);
+  --bn-info-soft:     rgba(59,130,246,0.15);
+  --bn-info-ring:     rgba(59,130,246,0.35);
+  --bn-neutral-soft:  rgba(107,114,128,0.20);
+  --bn-neutral-ring:  rgba(107,114,128,0.30);
 
   /* ── Typography ── */
   --fi-mono: 'JetBrains Mono', monospace;
@@ -93,12 +90,10 @@
   --fi-font-lg: 18px;
 
   /* ── Order Book / Trade Ticket fills ── */
-  /* Tints pulled from the same blue/teal/coral family so stacks of
-     rows don't vibrate against the charcoal ground. */
-  --ob-bid-fill:   rgba(61,191,160,0.16);
-  --ob-ask-fill:   rgba(229,100,100,0.16);
-  --tt-bid-strip:  rgba(107,164,232,0.10);
-  --tt-ask-strip:  rgba(229,100,100,0.12);
+  --ob-bid-fill:   rgba(20,217,160,0.18);
+  --ob-ask-fill:   rgba(255,77,109,0.18);
+  --tt-bid-strip:  rgba(59,130,246,0.12);
+  --tt-ask-strip:  rgba(255,77,109,0.14);
 
   /* ── Misc ── */
   --scrollbar-thumb: #323b49;
@@ -120,8 +115,8 @@
   --fi-red: var(--bn-red);
   --fi-blue: var(--bn-blue);
   --fi-amber: var(--bn-amber);
-  --fi-yellow: var(--bn-amber);   /* old --bn-yellow removed; kept alias */
-  --bn-yellow: var(--bn-amber);   /* transitional alias for existing components */
+  --fi-yellow: var(--bn-amber);
+  --bn-yellow: var(--bn-amber);
   --fi-cyan: var(--bn-cyan);
   --fi-purple: var(--bn-purple);
   --fi-title: var(--bn-t0);

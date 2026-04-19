@@ -2,7 +2,7 @@ import { Component, Input, AfterViewInit, ElementRef, ViewChild, OnDestroy } fro
 import { RISK_POSITIONS } from '../services/trading-data.service';
 
 const DV01_DATA = RISK_POSITIONS.map((p) => ({ name: p.book, dv01: p.dv01, pnl: p.pnl }));
-const BAR_COLORS = ['#6ba4e8', 'var(--bn-red)', '#6ba4e8', '#7db4e3', '#a48ad4'];
+const BAR_COLORS = ['#3b82f6', 'var(--bn-red)', '#3b82f6', '#22d3ee', '#a855f7'];
 
 @Component({
   selector: 'dv01-chart-widget',

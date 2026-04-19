@@ -70,7 +70,7 @@ export class OrderBlotterWidget {
       field: 'bond',
       headerName: 'BOND',
       flex: 1,
-      cellStyle: { color: '#7db4e3' },
+      cellStyle: { color: '#22d3ee' },
     },
     {
       field: 'side',

@@ -67,9 +67,9 @@ function genLevels(
 }
 
 const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
-  STREAM: { bg: 'rgba(61,191,160,0.12)', color: 'var(--bn-green)' },
-  RFQ: { bg: 'rgba(107,164,232,0.12)', color: 'var(--bn-blue)' },
-  IND: { bg: 'rgba(201,123,63,0.12)', color: 'var(--bn-amber)' },
+  STREAM: { bg: 'rgba(20,217,160,0.12)', color: 'var(--bn-green)' },
+  RFQ: { bg: 'rgba(59,130,246,0.12)', color: 'var(--bn-blue)' },
+  IND: { bg: 'rgba(255,140,66,0.12)', color: 'var(--bn-amber)' },
 };
 
 @Component({
@@ -100,7 +100,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
           </span>
           <span class="font-mono-fi" style="font-size:9px">
             <span style="color:var(--bn-t2)">DUR </span>
-            <span style="color:#6ba4e8;font-weight:600">{{ bond.dur }}</span>
+            <span style="color:#3b82f6;font-weight:600">{{ bond.dur }}</span>
           </span>
         </div>
       </div>
@@ -186,7 +186,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
               <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
                 {{ a.face.toFixed(1) }}
               </div>
-              <div class="font-mono-fi" style="font-size:11px;color:#6ba4e8;text-align:right">
+              <div class="font-mono-fi" style="font-size:11px;color:#3b82f6;text-align:right">
                 {{ a.dv01.toFixed(1) }}
               </div>
               <div style="text-align:center">
@@ -206,7 +206,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
         <!-- Spread bar -->
         <div
           *ngIf="view === 'both'"
-          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);flex-shrink:0;background:linear-gradient(90deg, rgba(61,191,160,0.08), var(--bn-bg2), rgba(229,100,100,0.08))"
+          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);flex-shrink:0;background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--bn-bg2), rgba(255,77,109,0.08))"
         >
           <span class="font-mono-fi font-bold" style="font-size:11px" [style.color]="spreadColor()">
             {{ mid().toFixed(3) }}
@@ -222,11 +222,11 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             </span>
             <span class="font-mono-fi" style="font-size:9px">
               <span style="color:var(--bn-t2)">Mid Yld </span>
-              <span style="color:#7db4e3;font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
+              <span style="color:#22d3ee;font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
             </span>
             <span class="font-mono-fi" style="font-size:9px">
               <span style="color:var(--bn-t2)">Z-Spd </span>
-              <span style="color:#a48ad4;font-weight:600">{{ bond.gSpd }}</span>
+              <span style="color:#a855f7;font-weight:600">{{ bond.gSpd }}</span>
             </span>
             <span [style.color]="spreadColor()" style="font-size:9px;font-weight:700">
               {{ spread() < 0 ? '↓' : '↑' }}
@@ -259,7 +259,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
               {{ b.face.toFixed(1) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:#6ba4e8;text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:#3b82f6;text-align:right">
               {{ b.dv01.toFixed(1) }}
             </div>
             <div style="text-align:center">

@@ -63,7 +63,7 @@ import { SharedStateService } from '../services/shared-state.service';
           <div
             *ngIf="pending > 0"
             [style.width.%]="(pending / total) * 100"
-            style="background:#c97b3f;transition:width 0.5s ease"
+            style="background:#ff8c42;transition:width 0.5s ease"
           ></div>
           <div
             *ngIf="cancelled > 0"
@@ -146,7 +146,7 @@ export class OrderKpiWidget {
   get statusItems() {
     return [
       { label: 'Filled', val: this.filled, color: 'var(--bn-green)' },
-      { label: 'Pending', val: this.pending, color: '#c97b3f' },
+      { label: 'Pending', val: this.pending, color: '#ff8c42' },
       { label: 'Cancelled', val: this.cancelled, color: 'var(--bn-red)' },
     ];
   }

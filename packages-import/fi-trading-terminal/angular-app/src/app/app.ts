@@ -423,7 +423,7 @@ const NAV_TABS = [
             (click)="saveLayout()"
             title="Save layout"
             style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:none;cursor:pointer;transition:all 0.15s ease"
-            [style.background]="saveFlash() ? 'rgba(61,191,160,0.25)' : 'var(--bn-bg3)'"
+            [style.background]="saveFlash() ? 'rgba(20,217,160,0.25)' : 'var(--bn-bg3)'"
             [style.color]="saveFlash() ? 'var(--bn-green)' : 'var(--bn-t1)'"
             [style.transform]="saveFlash() ? 'scale(0.9)' : 'scale(1)'"
           >

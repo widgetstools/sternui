@@ -4,96 +4,94 @@
 //  No semantic meaning — just values.
 //
 //  Palette direction:
-//    - Binance-inspired dark chrome, but softened for long sessions.
-//    - No yellow brand accent — soft azure blue replaces it.
-//    - All accents desaturated: reduces glare and fatigue for
-//      traders looking at the UI for 8+ hours.
+//    - Punchy, saturated accents. Nothing washed out.
+//    - No earthy tones, no browns. Warning is pure orange, not copper.
+//    - Cool-neutral charcoal for dark chrome and cool off-white
+//      for light chrome. No warm cream anywhere.
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
-  // Cool-leaning charcoals. Slightly warmer than pure neutral so
-  // the dark theme doesn't feel clinical. Used for backgrounds,
-  // borders, muted text.
+  // Cool-neutral grayscale. No warm shift — surfaces read as clean
+  // cool chrome, letting the saturated accents carry all the color.
   charcoal: {
     0:   '#ffffff',
-    50:  '#f5f3ed',  // warm cream (light theme ground)
-    100: '#edeae1',  // light hover
-    200: '#dfdbd1',  // light border primary
-    300: '#cbc6ba',  // light border secondary
-    400: '#a8abb0',  // light faint text
-    500: '#757982',  // muted text (both themes)
-    600: '#575b62',  // light secondary text
+    50:  '#f3f5f9',  // light theme ground (cool off-white)
+    100: '#ebeef3',  // light hover
+    150: '#dde2ea',  // light pressed
+    200: '#d9dee8',  // light border primary
+    300: '#c3cad7',  // light border secondary
+    400: '#9ca3af',  // light faint text
+    500: '#6b7280',  // muted text (both themes)
+    600: '#4f5665',  // light secondary text
     700: '#4d586a',  // dark faint text
     800: '#323b49',  // dark border secondary
-    850: '#2e3744',  // dark border subtle
-    900: '#242c38',  // dark surface tertiary
-    925: '#1a212b',  // dark surface secondary
-    950: '#121820',  // dark surface primary (card)
-    975: '#0a0e14',  // dark ground (deepest)
+    850: '#2e3744',  // dark border primary
+    900: '#242c38',  // dark tertiary surface
+    925: '#1a212b',  // dark secondary surface
+    950: '#121820',  // dark primary surface (card)
+    975: '#0a0e14',  // dark ground
   },
-  // Muted forest/teal — reads positive without being neon.
+  // Vibrant teal-green — reads clearly positive, no neon haze.
   teal: {
-    50:  '#ecf6f2',
-    100: '#cfe9df',
-    200: '#a7d4c3',
-    300: '#7abfa6',
-    400: '#3dbfa0',  // dark theme positive
-    500: '#2fa88a',  // dark theme positive hover / buy bg
-    600: '#1f8c6e',  // light theme positive
-    700: '#156b53',  // light theme positive hover
-    800: '#0f513f',
-    900: '#0a3a2d',
+    50:  '#e6fbf3',
+    100: '#c1f5de',
+    200: '#8cecc3',
+    300: '#4ee1a5',
+    400: '#14d9a0',  // dark theme positive (punchy)
+    500: '#0fb88a',  // dark hover / buy bg
+    600: '#0ea870',  // light theme positive
+    700: '#0b8959',  // light hover
+    800: '#086b47',
+    900: '#065234',
   },
-  // Soft coral → brick. Never fire-engine saturation.
+  // Vivid coral-pink-red. Saturated but not fire-engine.
   red: {
-    50:  '#fbeeee',
-    100: '#f7d6d4',
-    200: '#efb0ac',
-    300: '#e58984',
-    400: '#e56464',  // dark theme negative
-    500: '#d04f4f',  // dark theme negative hover / sell bg
-    600: '#b8463f',  // light theme negative
-    700: '#963028',  // light theme negative hover
-    800: '#7a241e',
-    900: '#5e1915',
+    50:  '#ffe8ed',
+    100: '#ffc5d0',
+    200: '#ff94a7',
+    300: '#ff6c86',
+    400: '#ff4d6d',  // dark negative (punchy)
+    500: '#e8304e',  // dark hover / sell bg
+    600: '#e02e47',  // light negative
+    700: '#b81e37',  // light hover
+    800: '#91162b',
+    900: '#6e1020',
   },
-  // Burnt copper — RESERVED for warning semantic only.
-  // Deliberately shifted from yellow-amber toward orange so it
-  // cannot be mistaken for a brand accent. Distinct from red
-  // (hue ≈27°) and from blue brand (hue ≈213°).
-  amber: {
-    300: '#e2ab7e',
-    400: '#d6945c',
-    500: '#c97b3f',  // dark theme warning (burnt copper)
-    600: '#a85f26',
-    700: '#8a4e1d',  // light theme warning (deep copper)
+  // PURE ORANGE — warning semantic. Deliberately NOT copper, NOT
+  // brown. Clearly distinct from red (hue ≈22°) and unmistakably
+  // orange (no yellow character).
+  orange: {
+    300: '#ffc195',
+    400: '#ffa872',
+    500: '#ff8c42',  // dark warning (vivid)
+    600: '#e86a1c',  // dark hover / light warning
+    700: '#c75b18',  // light hover
   },
-  // Soft azure — the new brand accent (replaces yellow).
-  // Calm, professional, easy to look at over long sessions.
+  // Punchy saturated blue — brand accent. Replaces Binance yellow.
   blue: {
-    50:  '#eef4fb',
-    100: '#d4e3f4',
-    200: '#a8c6e8',
-    300: '#7dacdc',
-    400: '#6ba4e8',  // dark theme info / brand
-    500: '#4e8bd1',  // dark theme info hover
-    600: '#2f6fb3',  // light theme info / brand
-    700: '#245a95',  // light theme info hover
+    50:  '#eaf3ff',
+    100: '#d0e2ff',
+    200: '#a1c4ff',
+    300: '#6fa5fc',
+    400: '#60a5fa',
+    500: '#3b82f6',  // dark brand (punchy)
+    600: '#2563eb',  // light brand / dark hover
+    700: '#1d4ed8',  // light hover
   },
-  // Soft sky — used for highlight / selected states.
+  // Bright cyan for highlights and selected states.
   cyan: {
-    300: '#9dcce3',
-    400: '#7db4e3',  // dark theme highlight
-    500: '#4a8cc4',  // light theme highlight
-    600: '#2f6d9e',
-    700: '#1e5478',
+    300: '#67e8f9',
+    400: '#22d3ee',  // dark highlight
+    500: '#06b6d4',  // light highlight
+    600: '#0891b2',
+    700: '#0e7490',
   },
-  // Muted lavender — tertiary accent (rare use).
+  // Saturated purple — tertiary accent.
   purple: {
-    300: '#c4b0de',
-    400: '#a48ad4',  // dark theme purple
-    500: '#8b6bc4',
-    600: '#7b5ba8',  // light theme purple
+    300: '#c4b5fd',
+    400: '#a855f7',  // dark
+    500: '#9333ea',
+    600: '#7c3aed',  // light
   },
 } as const;
 
@@ -102,8 +100,6 @@ export const typography = {
     mono: "'JetBrains Mono', monospace",
     sans: "'Geist', sans-serif",
   },
-  // Min size bumped 9→10px for better legibility.
-  // sm stays at 11px to avoid horizontal reflow of dense tables.
   fontSize: {
     xs: '10px',  // column headers, badges, timestamps, captions
     sm: '11px',  // body text, table cells, data values (DEFAULT)
