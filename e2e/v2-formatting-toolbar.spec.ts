@@ -1,19 +1,32 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 /**
- * E2E smoke coverage for v2's inline FormattingToolbar (/).
+ * E2E coverage for the FormattingToolbar.
  *
- * Covers the direct-click features whose buttons carry a tooltip wrapper:
- * bold / italic / underline, alignment L/C/R, clear-all-styles, and the
- * disabled state of the deferred undo/redo buttons.
+ * Flow per test:
+ *   1. Fresh load of the demo (`/`) with IndexedDB cleared.
+ *   2. Open the floating toolbar via the FiltersToolbar's Brush toggle
+ *      (the toolbar isn't rendered on initial load — by design, it lives
+ *      in a `<DraggableFloat>` panel the user toggles on).
+ *   3. Click a cell so the toolbar sees an "active column".
+ *   4. Click a toolbar button via its accessible name (aria-label =
+ *      tooltip string — added in the refactor's step 4). No more
+ *      DOM-walking helper.
+ *   5. Assert the cell's computed style AND/OR the module state
+ *      persisted across reload.
  *
- * Popover-triggered features (currency / borders / fontSize / save-as) and
- * the color pickers are covered by the manual smoke pass documented in
- * IMPLEMENTED_FEATURES.md sub-project #4 — adding stable E2E selectors for
- * those will land alongside data-testid additions in a follow-up.
+ * Toolbar button coverage:
+ *   - Typography (bold / italic / underline)
+ *   - Alignment (left / center / right)
+ *   - Clear all styles
+ *   - Save as template (enabled-state smoke)
+ *
+ * Popover-gated features (color picker, borders, font size, formatter
+ * presets) are covered by markets-grid's component integration tests.
  */
 
 async function waitForGrid(page: Page) {
+  await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
   await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
   await page.waitForTimeout(500);
 }
@@ -21,8 +34,8 @@ async function waitForGrid(page: Page) {
 async function clearV2(page: Page) {
   await page.evaluate(async () => {
     Object.keys(localStorage)
-      .filter(k => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('gc-grid:'))
-      .forEach(k => localStorage.removeItem(k));
+      .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('gc-grid:'))
+      .forEach((k) => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('gc-customizer-v2');
       req.onsuccess = () => resolve();
@@ -32,71 +45,60 @@ async function clearV2(page: Page) {
   });
 }
 
+/** Open the floating FormattingToolbar. It's gated behind a Brush toggle
+ *  in the FiltersToolbar — click it once, wait for the toolbar panel. */
+async function openFormattingToolbar(page: Page) {
+  await page.locator('[data-testid="style-toolbar-toggle"]').click();
+  await expect(page.locator('[data-testid="formatting-toolbar"]')).toBeVisible();
+}
+
 async function getFirstDataColId(page: Page): Promise<string> {
-  return page.evaluate(() => {
+  const colId = await page.evaluate(() => {
     const cell = document.querySelector('.ag-center-cols-container .ag-cell');
     return cell?.getAttribute('col-id') ?? '';
   });
+  expect(colId).toBeTruthy();
+  return colId;
 }
 
 async function selectCell(page: Page, colId: string, rowIndex = 0) {
   const cell = page.locator(`.ag-row[row-index="${rowIndex}"] .ag-cell[col-id="${colId}"]`);
   await cell.click();
-  // Allow the active-column polling (300ms tick) plus React batching to land.
-  await page.waitForTimeout(700);
+  // The toolbar's `useActiveColumns` hook subscribes to cellSelectionChanged
+  // / cellClicked / cellFocused through the ApiHub. Give React a moment to
+  // batch the state update.
+  await page.waitForTimeout(250);
 }
 
-async function getCellStyle(page: Page, colId: string, prop: string, rowIndex = 0): Promise<string> {
-  return page.evaluate(({ id, row, p }) => {
-    const cell = document.querySelector(`.ag-row[row-index="${row}"] .ag-cell[col-id="${id}"]`);
-    return cell ? getComputedStyle(cell).getPropertyValue(p) : '';
-  }, { id: colId, row: rowIndex, p: prop });
+async function getCellStyle(
+  page: Page,
+  colId: string,
+  prop: string,
+  rowIndex = 0,
+): Promise<string> {
+  return page.evaluate(
+    ({ id, row, p }) => {
+      const cell = document.querySelector(
+        `.ag-row[row-index="${row}"] .ag-cell[col-id="${id}"]`,
+      );
+      return cell ? getComputedStyle(cell).getPropertyValue(p) : '';
+    },
+    { id: colId, row: rowIndex, p: prop },
+  );
 }
 
 /**
- * Click a toolbar button by its tooltip text. The shadcn `Tooltip` wrapper
- * renders the text as a sibling div inside the same `.group` container as the
- * button, so we walk the DOM to find a matching group and click its button.
- * Same pattern as the v1 `clickToolbarBtn` helper.
+ * Click a toolbar button by its accessible name (= tooltip text).
+ *
+ * Every TBtn in the toolbar forwards `tooltip` → `aria-label` so screen
+ * readers + `getByRole` queries can find it. Buttons listen on
+ * `onMouseDown` (not `onClick`) to avoid focus thrash; we dispatch a
+ * real mousedown event from the browser side.
  */
 async function clickToolbarBtn(page: Page, tooltipText: string) {
-  await page.evaluate((tip) => {
-    const toolbar = document.querySelector('.gc-formatting-toolbar');
-    if (!toolbar) throw new Error('FormattingToolbar not found');
-    const groups = toolbar.querySelectorAll('.group');
-    for (const group of groups) {
-      const texts = group.querySelectorAll('div');
-      for (const t of texts) {
-        if (t.textContent?.trim() === tip) {
-          const btn = group.querySelector('button');
-          if (btn) {
-            btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-            return;
-          }
-        }
-      }
-    }
-    throw new Error(`Toolbar button with tooltip "${tip}" not found`);
-  }, tooltipText);
-  await page.waitForTimeout(300);
-}
-
-async function isToolbarBtnDisabled(page: Page, tooltipText: string): Promise<boolean> {
-  return page.evaluate((tip) => {
-    const toolbar = document.querySelector('.gc-formatting-toolbar');
-    if (!toolbar) return false;
-    const groups = toolbar.querySelectorAll('.group');
-    for (const group of groups) {
-      const texts = group.querySelectorAll('div');
-      for (const t of texts) {
-        if (t.textContent?.trim() === tip) {
-          const btn = group.querySelector('button');
-          return !!btn && (btn as HTMLButtonElement).disabled;
-        }
-      }
-    }
-    return false;
-  }, tooltipText);
+  const btn = page.getByRole('button', { name: tooltipText });
+  await btn.dispatchEvent('mousedown');
+  await page.waitForTimeout(150);
 }
 
 test.describe('v2 FormattingToolbar', () => {
@@ -105,18 +107,17 @@ test.describe('v2 FormattingToolbar', () => {
     await clearV2(page);
     await page.goto('/');
     await waitForGrid(page);
-    await expect(page.locator('.gc-formatting-toolbar')).toBeVisible();
+    await openFormattingToolbar(page);
   });
 
   test('toolbar moves into enabled state once a cell is selected', async ({ page }) => {
     const colId = await getFirstDataColId(page);
-    expect(colId).toBeTruthy();
     await selectCell(page, colId);
-    const enabledClass = await page.evaluate(() => {
-      const tb = document.querySelector('.gc-formatting-toolbar');
+    const enabled = await page.evaluate(() => {
+      const tb = document.querySelector('[data-testid="formatting-toolbar"]');
       return tb?.className?.includes('gc-toolbar-enabled') ?? false;
     });
-    expect(enabledClass).toBe(true);
+    expect(enabled).toBe(true);
   });
 
   test('Bold writes typography.bold and emits font-weight 700', async ({ page }) => {
@@ -173,8 +174,7 @@ test.describe('v2 FormattingToolbar', () => {
     await clickToolbarBtn(page, 'Clear all styles');
     await page.waitForTimeout(400);
 
-    const fw = await getCellStyle(page, colId, 'font-weight');
-    expect(['400', 'normal']).toContain(fw);
+    expect(['400', 'normal']).toContain(await getCellStyle(page, colId, 'font-weight'));
     expect(await getCellStyle(page, colId, 'font-style')).toBe('normal');
   });
 
@@ -182,12 +182,12 @@ test.describe('v2 FormattingToolbar', () => {
     const colId = await getFirstDataColId(page);
     await selectCell(page, colId);
     await clickToolbarBtn(page, 'Bold');
-    // Wait past the 300ms auto-save debounce.
+    // Wait past the auto-save debounce (default 300ms).
     await page.waitForTimeout(800);
 
     await page.reload();
     await waitForGrid(page);
-    await expect(page.locator('.gc-formatting-toolbar')).toBeVisible();
+    await openFormattingToolbar(page);
     const fontWeight = await getCellStyle(page, colId, 'font-weight');
     expect(['700', 'bold']).toContain(fontWeight);
   });
@@ -196,6 +196,7 @@ test.describe('v2 FormattingToolbar', () => {
     const colId = await getFirstDataColId(page);
     await selectCell(page, colId);
     await clickToolbarBtn(page, 'Bold');
-    expect(await isToolbarBtnDisabled(page, 'Save as template')).toBe(false);
+    const saveBtn = page.getByRole('button', { name: 'Save as template' });
+    await expect(saveBtn).toBeEnabled();
   });
 });
