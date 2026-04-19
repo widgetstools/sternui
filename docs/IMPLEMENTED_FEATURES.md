@@ -755,11 +755,19 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 
 ## 3. Editor coverage matrix — unit + e2e status
 
+**As of 2026-04-19, every user-facing editor in the grid customizer has
+meaningful behavioural e2e coverage.** The §3 backlog closed across
+five sessions: column-customization → column-groups → conditional-
+styling → calculated-columns → column-templates → general-settings.
+Remaining non-UI surfaces (`toolbar-visibility` has no UI; `grid-state`
+is auto-capture runtime state exercised indirectly by the autosave
+spec).
+
 **Legend:** ✅ solid · ◐ partial (smoke only / pure logic only) · ❌ none
 
 | Module / Editor | Feature catalog (§) | Pure-logic unit tests | Panel unit tests | E2E |
 |---|---|---|---|---|
-| `general-settings` — Grid Options | §1.11 | — | ✅ `GridOptionsPanel.test.tsx` (10) | ◐ smoke (mount) |
+| `general-settings` — Grid Options | §1.11 | — | ✅ `GridOptionsPanel.test.tsx` (10) | ✅ `v2-general-settings.spec.ts` (9 — row-height/animate/selection/quick-filter/pagination/discard/persist) |
 | `column-customization` — Column Settings | §1.7b | ✅ `formattingActions.test.ts` (43) | ✅ `ColumnSettingsPanel.test.tsx` (7) | ✅ `v2-column-customization.spec.ts` (18 — all 8 bands + meta / discard / list marker) |
 | `calculated-columns` — Virtual columns | §1.8 | — | ✅ `CalculatedColumnsPanel.test.tsx` (8) | ✅ `v2-calculated-columns.spec.ts` (11 — seed/add/rename/colId/delete/formatter/persist; grid-render flow deferred) |
 | `column-groups` — Nestable group editor | §1.8b | ✅ `treeOps.test.ts` (11) | ✅ `ColumnGroupsPanel.test.tsx` (8) | ✅ `v2-column-groups.spec.ts` (14 — add/rename/columns/chip-cycle/subgroup/reorder/delete/style/persist/expand) |
@@ -770,7 +778,7 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 | `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
 | Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
 
-**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 7 with meaningful behavioural e2e (formatting toolbar, filters toolbar, column-customization, column-groups, conditional-styling, calculated-columns, column-templates) + 1 smoke (general-settings).
+**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · **8 with meaningful behavioural e2e** (formatting toolbar, filters toolbar, column-customization, column-groups, conditional-styling, calculated-columns, column-templates, general-settings) + 2 non-UI surfaces (toolbar-visibility no-op, grid-state indirectly via autosave spec).
 
 **Smoke coverage** lives in `e2e/v2-settings-panels.spec.ts` (8 tests) + the shared helper `e2e/helpers/settingsSheet.ts`. Every settings panel has at least a "mounts via dropdown nav" guard plus DOM-level assertions for the visible + hidden nav paths. The helper exports `bootCleanDemo` / `openPanel` / `forceNavigateToPanel` / `closeSettingsSheet` for reuse in future behavioural specs.
 
@@ -783,7 +791,7 @@ Ordered by risk × churn, highest first. Strike-throughs mark completed.
 3. ~~**`conditional-styling` (non-smoke)** — rule create / enable-disable / delete cycle against a real blotter column.~~ ✅ Done (`v2-conditional-styling.spec.ts`, 13 tests: empty state, add/rename, row-scope paint + cell-scope paint (via `gc-rule-<id>` on AG-Grid cells/rows), no-cols warning, disable strips injected CSS, priority persistence, delete, flash band scope-gating, indicator band, profile round-trip, multi-rule cards).
 4. ~~**`calculated-columns`** — virtual column create / edit expression / delete.~~ ✅ Done (`v2-calculated-columns.spec.ts`, 11 tests). **Known deferral:** virtual columns appear correctly in AG-Grid's filter tool panel but not in the main grid header in this demo's config. Tracked as a separate bug to investigate (spawned as a follow-up task); 4 previously-drafted grid-render tests will come back once resolved.
 5. ~~**`column-templates` indirect flow** — save-from-toolbar → apply-to-another-column → remove-via-settings chip.~~ ✅ Done (`v2-column-templates.spec.ts`, 9 tests covering the three authoring surfaces: save-from-toolbar, apply-from-toolbar, Column-Settings picker + chip remove, plus a behaviour-telling test that documents toolbar apply = REPLACE semantics while picker = APPEND).
-6. **`general-settings`** — toggle representative options (animate rows, pivotMode, groupDisplayType) and verify grid behaviour.
+6. ~~**`general-settings`** — toggle representative options.~~ ✅ Done (`v2-general-settings.spec.ts`, 9 tests: panel mount / SAVE gating / row-height reflects in `.ag-row` inline height / animate-rows toggle + OVERRIDES counter / row-selection Select round-trip / quick-filter narrows grid to zero rows on no-match / pagination toggle reveals `.ag-paging-panel` / discard reverts / persist across reload).
 
 Each item follows the `e2e/README.md` write-alongside policy: don't backfill in one pass; add tests as the surfaces get touched. The list above is the priority order when they do.
 
