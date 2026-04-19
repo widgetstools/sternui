@@ -6,3 +6,5 @@ playwright-report/
 *.tsbuildinfo
 .DS_Store
 .claude/
+/cell-format-toolbar*.html
+/toolbar-teal*.html

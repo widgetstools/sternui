@@ -1,0 +1,533 @@
+/* ───────────────────────────────────────────────────────────────────
+ * FormattingToolbar — MarketsUI FI terminal design system.
+ *
+ * Visual inspiration: `cell-format-toolbar.html` +
+ * `cell-format-toolbar-light.html`. Zero functional changes — this
+ * stylesheet purely defines tokens + component-scoped classes the
+ * existing JSX consumes.
+ *
+ * Everything here is scoped to `.gc-formatting-toolbar` so the
+ * cyan-primary terminal palette doesn't leak into the rest of the
+ * app (panels keep their cockpit-teal identity).
+ *
+ * Light mode overrides ride on `[data-theme="light"]` at the document
+ * root — the project already sets that attribute in App.tsx.
+ *
+ * Classes are prefixed `.gc-tb-*` for the new component primitives
+ * introduced in the restyle. Existing `.gc-formatting-toolbar` +
+ * `.gc-toolbar-enabled` + `.gc-tbtn` class names are preserved so
+ * testids / the `useActiveColumns` disabled-state detection keep
+ * working unchanged.
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* ─── Dark mode tokens (default) ─────────────────────────────────── */
+.gc-formatting-toolbar {
+  /* Surfaces — cool near-black with blue tint */
+  --tb-bg-app: #0B0F14;
+  --tb-bg-panel: #0F1419;
+  --tb-bg-bar: #11161C;
+  --tb-bg-sunken: #080B10;
+  --tb-bg-hover: rgba(0, 191, 255, 0.06);
+  --tb-bg-active: rgba(0, 191, 255, 0.12);
+
+  /* Hairline borders — cool, low-contrast */
+  --tb-line: rgba(140, 170, 200, 0.08);
+  --tb-line-strong: rgba(140, 170, 200, 0.16);
+
+  /* Ink hierarchy */
+  --tb-ink-0: #E4E9F0;
+  --tb-ink-1: #9AA5B4;
+  --tb-ink-2: #6B7685;
+  --tb-ink-3: #434C58;
+
+  /* Semantic palette — saturated for dark backgrounds */
+  --tb-cyan: #4FB8FF;
+  --tb-cyan-dim: #2E8FD6;
+  --tb-cyan-ghost: rgba(79, 184, 255, 0.08);
+  --tb-cyan-line: rgba(79, 184, 255, 0.35);
+  --tb-cyan-fill: rgba(79, 184, 255, 0.12);
+
+  --tb-red: #FF5A5E;
+  --tb-red-ghost: rgba(255, 90, 94, 0.08);
+  --tb-red-line: rgba(255, 90, 94, 0.35);
+
+  --tb-amber: #FFB84D;
+  --tb-amber-ghost: rgba(255, 184, 77, 0.08);
+  --tb-amber-line: rgba(255, 184, 77, 0.35);
+
+  --tb-green: #35D6A4;
+  --tb-green-ghost: rgba(53, 214, 164, 0.08);
+  --tb-green-line: rgba(53, 214, 164, 0.35);
+
+  /* Geometry — tight terminal grid */
+  --tb-r: 2px;
+  --tb-r-md: 3px;
+  --tb-h-bar: 34px;
+  --tb-h-ctrl: 22px;
+  --tb-icon: 11px;
+  --tb-icon-sm: 9px;
+  --tb-icon-chip: 10px;
+
+  /* Typography */
+  --tb-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --tb-font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+
+  /* Shell */
+  background: var(--tb-bg-bar);
+  border: 1px solid var(--tb-line-strong);
+  border-radius: var(--tb-r-md);
+  color: var(--tb-ink-0);
+  font-family: var(--tb-font-mono);
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+}
+
+/* ─── Light mode — desaturated, cool gray, slightly larger ──────── */
+[data-theme='light'] .gc-formatting-toolbar {
+  --tb-bg-app: #E8ECF0;
+  --tb-bg-panel: #EDF0F4;
+  --tb-bg-bar: #F2F4F7;
+  --tb-bg-sunken: #DCE1E8;
+  --tb-bg-hover: rgba(47, 95, 147, 0.08);
+  --tb-bg-active: rgba(47, 95, 147, 0.14);
+
+  --tb-line: rgba(59, 75, 96, 0.14);
+  --tb-line-strong: rgba(59, 75, 96, 0.24);
+
+  --tb-ink-0: #1D2733;
+  --tb-ink-1: #4A5768;
+  --tb-ink-2: #6B7888;
+  --tb-ink-3: #95A0AE;
+
+  /* Desaturated cyan, darker so it stays readable on light bg */
+  --tb-cyan: #2F5F93;
+  --tb-cyan-dim: #1F4A7A;
+  --tb-cyan-ghost: rgba(47, 95, 147, 0.09);
+  --tb-cyan-line: rgba(47, 95, 147, 0.42);
+  --tb-cyan-fill: rgba(47, 95, 147, 0.12);
+
+  --tb-red: #A23E45;
+  --tb-red-ghost: rgba(162, 62, 69, 0.08);
+  --tb-red-line: rgba(162, 62, 69, 0.38);
+
+  --tb-amber: #946832;
+  --tb-amber-ghost: rgba(148, 104, 50, 0.09);
+  --tb-amber-line: rgba(148, 104, 50, 0.4);
+
+  --tb-green: #3B7A5E;
+  --tb-green-ghost: rgba(59, 122, 94, 0.08);
+  --tb-green-line: rgba(59, 122, 94, 0.4);
+
+  /* Larger for legibility on light bg (per the sample's notes) */
+  --tb-h-bar: 38px;
+  --tb-h-ctrl: 26px;
+  --tb-icon: 13px;
+  --tb-icon-sm: 10px;
+  --tb-icon-chip: 11px;
+
+  /* Subtle inner highlight + soft shadow — gives the toolbar
+     definition against the cool gray canvas without a hard border. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba(30, 40, 55, 0.04),
+    0 2px 6px -2px rgba(30, 40, 55, 0.06);
+}
+
+/* ─── Tokens exposed via the component's existing classes ───────── */
+/* These selectors restyle the existing v3 chrome without requiring
+   markup changes. The more granular `.gc-tb-*` primitives below are
+   what 9b migrates individual controls to. */
+
+.gc-formatting-toolbar {
+  height: var(--tb-h-bar);
+}
+.gc-formatting-toolbar.gc-toolbar-enabled {
+  /* Enabled state mirrors disabled at the token level; no chrome
+     difference. Kept as a hook for future accent-edge treatments. */
+}
+
+/* ─── Group + divider — shared across every control group ───────── */
+.gc-formatting-toolbar .gc-tb-g {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.gc-formatting-toolbar .gc-tb-div {
+  width: 1px;
+  height: 14px;
+  background: var(--tb-line-strong);
+  margin: 0 5px;
+  flex-shrink: 0;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-div {
+  height: 18px;
+  margin: 0 6px;
+}
+
+/* ─── Icon button (Bold / Italic / Underline / align / etc.) ───── */
+.gc-formatting-toolbar .gc-tb-btn {
+  height: var(--tb-h-ctrl);
+  width: var(--tb-h-ctrl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--tb-r);
+  background: transparent;
+  color: var(--tb-ink-1);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-btn:hover:not(:disabled) {
+  background: var(--tb-bg-hover);
+  color: var(--tb-ink-0);
+}
+.gc-formatting-toolbar .gc-tb-btn[data-on='true'],
+.gc-formatting-toolbar .gc-tb-btn[aria-pressed='true'] {
+  background: var(--tb-cyan-ghost);
+  color: var(--tb-cyan);
+  border-color: var(--tb-cyan-line);
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-btn[data-on='true'],
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-btn[aria-pressed='true'] {
+  background: var(--tb-cyan-fill);
+  color: var(--tb-cyan-dim);
+  border-color: var(--tb-cyan-line);
+}
+.gc-formatting-toolbar .gc-tb-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.gc-formatting-toolbar .gc-tb-btn > svg {
+  width: var(--tb-icon);
+  height: var(--tb-icon);
+  display: block;
+}
+
+/* ─── Button with trailing caret (menu triggers) ────────────────── */
+.gc-formatting-toolbar .gc-tb-btn-menu {
+  height: var(--tb-h-ctrl);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--tb-r);
+  background: transparent;
+  color: var(--tb-ink-1);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-btn-menu:hover:not(:disabled) {
+  background: var(--tb-bg-hover);
+  color: var(--tb-ink-0);
+  border-color: var(--tb-line-strong);
+}
+.gc-formatting-toolbar .gc-tb-btn-menu > svg {
+  width: var(--tb-icon);
+  height: var(--tb-icon);
+}
+.gc-formatting-toolbar .gc-tb-btn-menu .gc-tb-caret {
+  width: 7px;
+  height: 7px;
+  color: var(--tb-ink-2);
+}
+
+/* ─── Chip (value + unit + caret, e.g. "11 PX ▾") ──────────────── */
+.gc-formatting-toolbar .gc-tb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--tb-h-ctrl);
+  padding: 0 6px 0 8px;
+  background: transparent;
+  border: 1px solid var(--tb-line-strong);
+  border-radius: var(--tb-r);
+  color: var(--tb-ink-0);
+  font-family: var(--tb-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-chip:hover:not(:disabled) {
+  background: var(--tb-bg-hover);
+  border-color: var(--tb-cyan-line);
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-chip {
+  background: var(--tb-bg-panel);
+  border-color: var(--tb-line);
+  font-size: 11px;
+  font-weight: 600;
+}
+.gc-formatting-toolbar .gc-tb-chip .gc-tb-caret {
+  width: 7px;
+  height: 7px;
+  color: var(--tb-ink-2);
+}
+.gc-formatting-toolbar .gc-tb-chip .gc-tb-chip-ic {
+  width: var(--tb-icon-chip);
+  height: var(--tb-icon-chip);
+  color: var(--tb-ink-1);
+}
+.gc-formatting-toolbar .gc-tb-chip .gc-tb-unit {
+  color: var(--tb-ink-2);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  margin-left: -1px;
+}
+
+/* ─── Segmented selector ($ % #) ───────────────────────────────── */
+.gc-formatting-toolbar .gc-tb-seg {
+  display: inline-flex;
+  align-items: center;
+  height: var(--tb-h-ctrl);
+  background: var(--tb-bg-sunken);
+  border: 1px solid var(--tb-line-strong);
+  border-radius: var(--tb-r);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.gc-formatting-toolbar .gc-tb-seg > button {
+  height: calc(var(--tb-h-ctrl) - 2px);
+  padding: 0 8px;
+  min-width: 22px;
+  border: none;
+  border-right: 1px solid var(--tb-line-strong);
+  background: transparent;
+  color: var(--tb-ink-1);
+  font-family: var(--tb-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 100ms ease, color 100ms ease;
+}
+.gc-formatting-toolbar .gc-tb-seg > button:last-child {
+  border-right: none;
+}
+.gc-formatting-toolbar .gc-tb-seg > button:hover:not(:disabled) {
+  background: var(--tb-bg-hover);
+  color: var(--tb-ink-0);
+}
+.gc-formatting-toolbar .gc-tb-seg > button[aria-selected='true'],
+.gc-formatting-toolbar .gc-tb-seg > button[data-on='true'] {
+  background: var(--tb-cyan-ghost);
+  color: var(--tb-cyan);
+  font-weight: 600;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-seg > button[aria-selected='true'],
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-seg > button[data-on='true'] {
+  background: var(--tb-cyan-fill);
+  color: var(--tb-cyan-dim);
+  font-weight: 700;
+}
+
+/* ─── Scope toggle (Cell ⇄ Header) ─────────────────────────────── */
+.gc-formatting-toolbar .gc-tb-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--tb-h-ctrl);
+  padding: 0 7px 0 6px;
+  background: var(--tb-bg-sunken);
+  border: 1px solid var(--tb-line-strong);
+  border-radius: var(--tb-r);
+  color: var(--tb-ink-0);
+  cursor: pointer;
+  font-family: var(--tb-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-scope:hover {
+  border-color: var(--tb-cyan-line);
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-scope {
+  font-size: 11px;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-scope:hover {
+  background: #D4DAE2;
+}
+.gc-formatting-toolbar .gc-tb-scope .gc-tb-scope-val {
+  color: var(--tb-cyan);
+  font-weight: 600;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-scope .gc-tb-scope-val {
+  color: var(--tb-cyan-dim);
+  font-weight: 700;
+}
+
+/* ─── Color button (icon + current-color swatch stack) ─────────── */
+.gc-formatting-toolbar .gc-tb-color-btn {
+  height: var(--tb-h-ctrl);
+  width: var(--tb-h-ctrl);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--tb-r);
+  color: var(--tb-ink-1);
+  cursor: pointer;
+  padding: 2px 0;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-color-btn:hover:not(:disabled) {
+  background: var(--tb-bg-hover);
+  color: var(--tb-ink-0);
+}
+.gc-formatting-toolbar .gc-tb-color-btn > svg {
+  width: var(--tb-icon-chip);
+  height: var(--tb-icon-chip);
+}
+.gc-formatting-toolbar .gc-tb-color-btn .gc-tb-swatch {
+  width: 12px;
+  height: 2px;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-color-btn .gc-tb-swatch {
+  width: 14px;
+  height: 3px;
+}
+
+/* ─── Preview strip ("PREVIEW   1,234.5678") ───────────────────── */
+.gc-formatting-toolbar .gc-tb-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--tb-h-ctrl);
+  padding: 0 9px 0 8px;
+  background: var(--tb-bg-sunken);
+  border: 1px solid var(--tb-line-strong);
+  border-radius: var(--tb-r);
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-preview {
+  background: var(--tb-bg-panel);
+}
+.gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-lbl {
+  font-family: var(--tb-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--tb-ink-2);
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-lbl {
+  font-size: 10px;
+  font-weight: 600;
+}
+.gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-val {
+  font-family: var(--tb-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tb-cyan);
+  font-variant-numeric: tabular-nums;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tb-cyan-dim);
+  letter-spacing: 0.01em;
+}
+
+/* ─── Micro section label (9px uppercase) ─────────────────────── */
+.gc-formatting-toolbar .gc-tb-micro {
+  font-family: var(--tb-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--tb-ink-2);
+  padding: 0 5px 0 2px;
+  height: var(--tb-h-ctrl);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-micro {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ─── Focus rings — cyan outline for every interactive primitive ── */
+.gc-formatting-toolbar .gc-tb-btn:focus-visible,
+.gc-formatting-toolbar .gc-tb-btn-menu:focus-visible,
+.gc-formatting-toolbar .gc-tb-chip:focus-visible,
+.gc-formatting-toolbar .gc-tb-seg > button:focus-visible,
+.gc-formatting-toolbar .gc-tb-scope:focus-visible,
+.gc-formatting-toolbar .gc-tb-color-btn:focus-visible {
+  outline: 1px solid var(--tb-cyan);
+  outline-offset: 1px;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-btn:focus-visible,
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-btn-menu:focus-visible,
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-chip:focus-visible,
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-seg > button:focus-visible,
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-scope:focus-visible,
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-color-btn:focus-visible {
+  outline-width: 2px;
+}
+
+/* ─── Drag rail chrome (rendered by MarketsGrid's DraggableFloat) ─ */
+/* These rules target the drag-handle element when it appears next to
+   the toolbar inside the DraggableFloat wrapper. Keyed by the
+   existing `data-testid="formatting-toolbar-float-handle"` so nothing
+   in the component tree has to change. */
+[data-testid='formatting-toolbar-float-handle'] {
+  background: var(--tb-bg-bar, #11161C);
+  color: var(--tb-ink-3, #434C58);
+  border-right: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
+  transition: color 150ms ease;
+}
+[data-testid='formatting-toolbar-float-handle']:hover {
+  color: var(--tb-ink-1, #9AA5B4);
+}
+[data-theme='light'] [data-testid='formatting-toolbar-float-handle'] {
+  background: var(--tb-bg-bar, #F2F4F7);
+  color: var(--tb-ink-3, #95A0AE);
+  border-right: 1px solid var(--tb-line, rgba(59, 75, 96, 0.14));
+}
+
+/* Close button — hover flips to red per the sample ─────────────── */
+[data-testid='formatting-toolbar-float-close'] {
+  color: var(--tb-ink-2, #6B7685);
+  border-left: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
+  transition: background 120ms ease, color 120ms ease;
+}
+[data-testid='formatting-toolbar-float-close']:hover {
+  background: var(--tb-red-ghost, rgba(255, 90, 94, 0.08));
+  color: var(--tb-red, #FF5A5E);
+}
+[data-theme='light'] [data-testid='formatting-toolbar-float-close'] {
+  color: var(--tb-ink-2, #6B7888);
+  border-left: 1px solid var(--tb-line, rgba(59, 75, 96, 0.14));
+}
+[data-theme='light'] [data-testid='formatting-toolbar-float-close']:hover {
+  background: var(--tb-red-ghost, rgba(162, 62, 69, 0.08));
+  color: var(--tb-red, #A23E45);
+}

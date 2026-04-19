@@ -27,6 +27,10 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// Design-system stylesheet — terminal palette + component-scoped
+// primitives. Token overrides switch on `[data-theme="light"]`. Zero
+// functional coupling; pure CSS.
+import './FormattingToolbar.css';
 import {
   Button,
   Popover as RadixPopover,
