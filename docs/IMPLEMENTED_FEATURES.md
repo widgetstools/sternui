@@ -345,6 +345,132 @@ from the draft and lights the SAVE pill.
     sheet renders master-detail natively instead of falling back to the
     flat `SettingsPanel` composition. 8 integration tests added.
 
+### 1.8b Column Groups — nestable group editor
+
+Module `column-groups` (priority 18 — runs after column-customization + calculated-columns so group children include renamed + virtual cols; before conditional-styling so rules can target grouped columns). Authored settings panel under the `Column Groups` nav entry.
+
+- **ListPane** (`cg-panel` root, `cg-add-group-btn` for creating a new top-level group) — flattens the tree with `flattenGroups()` so nested subgroups appear indented under their parent. Each row (`cg-group-{groupId}`) carries a dirty LED via `useDirty('column-groups:<groupId>')`. Groups inherit a stable `groupId` emitted as `ColGroupDef.groupId` so AG-Grid's expand/collapse state survives every `columnDefs` update.
+
+- **EditorPane** (`cg-group-editor-{groupId}`):
+
+  | Control | Testid | Effect |
+  |---|---|---|
+  | Header name (TitleInput) | `cg-name-{groupId}` | `ColumnGroupNode.headerName` |
+  | Move up / Move down | `cg-up-{groupId}` / `cg-down-{groupId}` | Reorder sibling groups via `moveGroupAtPath` — disabled at list ends |
+  | Save | `cg-save-{groupId}` | Commit draft into state (dirty LED clears) |
+  | Delete | `cg-delete-{groupId}` | Remove via `deleteGroupAtPath` — drops the corresponding `openGroupIds[groupId]` in the same action |
+  | OPEN BY DEFAULT Switch | (no testid) | `ColGroupDef.openByDefault` — overridden at runtime by `openGroupIds[groupId]` once the user expands/collapses manually |
+  | MARRY CHILDREN Switch | (no testid) | AG-Grid `marryChildren` — prevents users dragging cols out of the group header |
+  | DEPTH / CHILDREN readouts | — | Live count, updates as the user composes |
+
+  **01 COLUMNS band** — chip list of `ColumnGroupChild` entries with add + subgroup affordances:
+  - Column chips: `cg-chip-{groupId}-{colId}` — shows header name + a tri-state visibility toggle (`cg-chip-show-{groupId}-{colId}`) cycling through `always` / `open` / `closed` (Eye / EyeOff / Lock icons). Maps 1:1 to AG-Grid's native `ColDef.columnGroupShow`.
+  - Add column: `cg-add-col-{groupId}` — Select that lists every unassigned column (`eligibleToAdd` = columns not yet assigned to any group via `collectAssignedColIds`).
+  - Add subgroup: `cg-add-sub-{groupId}` — inserts a nested `ColumnGroupNode`. Disabled when depth ≥ 3 (nesting cap).
+  - Remove column: per-chip × button.
+
+  **Header-style band** — embedded `<StyleEditor sections={['text','color','border']} dataType="text">` with testid `cg-hdr-style-{groupId}`. Writes into `ColumnGroupNode.headerStyle`: `{ bold, italic, underline, fontSize, color, background, align, borders }`. Styles are applied via runtime CSS injection (`gc-hdr-grp-{groupId}` class targeting the header cell + its inner label span), with a `::after` overlay for per-side borders so dashed / dotted strokes render correctly (box-shadow can't).
+
+- **Runtime expand/collapse memory** — `platform.api.on('columnGroupOpened')` (subscribed in `module.activate(...)` via a single `onReady` hook, not a polled reconnect) writes `{ [groupId]: isExpanded }` into `openGroupIds`. The next `transformColumnDefs` applies that to `ColGroupDef.openByDefault`, so reloading the profile restores the exact layout the user left. Stale entries pruned on deserialize via `collectGroupIds(state.groups)`.
+
+- **State shape** (`ColumnGroupsState`):
+  ```ts
+  {
+    groups: ColumnGroupNode[],
+    openGroupIds: Record<string, boolean>,   // pruned on deserialize
+  }
+  ```
+  Each `ColumnGroupNode.children` is a mixed array of `{ kind: 'col', colId, show? }` or `{ kind: 'group', group }`, so nesting is arbitrary-depth (capped at 3 by the panel UI, not the state).
+
+- **Save semantics** — same draft/dirty pattern as every other editor (`useModuleDraft` scoped to `<groupId>`), explicit SAVE pill commits into module state, auto-save picks it up on the usual 300ms debounce.
+
+- **Pure tree ops** — `treeOps.ts` hosts `updateGroupAtPath` / `deleteGroupAtPath` / `moveGroupAtPath` / `flattenGroups` as pure helpers with their own 11-test `treeOps.test.ts`. No rendering needed to regress group mutation logic.
+
+Testids: `cg-panel`, `cg-add-group-btn`, `cg-group-{groupId}`, `cg-group-editor-{groupId}`, `cg-name-{groupId}`, `cg-up-{groupId}`, `cg-down-{groupId}`, `cg-save-{groupId}`, `cg-delete-{groupId}`, `cg-add-sub-{groupId}`, `cg-chip-{groupId}-{colId}`, `cg-chip-show-{groupId}-{colId}`, `cg-add-col-{groupId}`, `cg-hdr-style-{groupId}`.
+
+### 1.8c Column Templates — reusable override bundles
+
+Module `column-templates` (priority 5 — runs BEFORE column-customization so its state is settled when the customization walker reads it). Unlike the other editor modules, this one has NO dedicated settings panel — templates are authored from two existing surfaces:
+
+- **Save-as-template (in Formatting Toolbar)** — `save-tpl-input` + `save-tpl-btn` inside the Templates popover (`templates-menu-trigger`). Reads the currently-selected column's `ColumnAssignment` via `snapshotTemplate(custState, tplState, colId, name, dataType)`, strips fields that match the column's `typeDefault` template (so the snapshot captures only user-authored overrides), and dispatches `addTemplateReducer(tpl)` into `column-templates` state.
+- **Apply-template (in Formatting Toolbar)** — Templates popover lists every existing template; clicking `templates-menu-item-{tplId}` dispatches `applyTemplateToColumnsReducer` which writes the templateId into every selected column's `ColumnAssignment.templateIds[]`.
+- **Remove-template (in Column Settings)** — the TEMPLATES band (`03`) on `ColumnSettingsPanel` renders each applied template as a chip with per-chip × (`cols-{colId}-template-remove-{tplId}`); the `cols-{colId}-template-picker` Select adds any unapplied template.
+
+- **State shape** (`ColumnTemplatesState`):
+  ```ts
+  {
+    templates: Record<string, ColumnTemplate>,
+    typeDefaults: Partial<Record<ColumnDataType, string>>,   // numeric/date/string/boolean → templateId
+  }
+  ```
+  Each `ColumnTemplate`:
+  - `id` (stable), `name`, optional `description`
+  - `cellStyleOverrides`, `headerStyleOverrides` (same shape as column-customization)
+  - `valueFormatterTemplate` (discriminated union: `preset` / `expression` / `excelFormat` / `tick`)
+  - Behaviour flags: `sortable`, `filterable`, `resizable`
+  - Cell editor / renderer registry keys: `cellEditorName`, `cellEditorParams`, `cellRendererName`
+  - `createdAt` / `updatedAt` audit timestamps
+
+- **Resolution** (`resolveTemplates(assignment, state, dataType)`):
+  1. `cellStyleOverrides` / `headerStyleOverrides` — merge per-field across the chain (later templates win individual facets).
+  2. Every other field — last-writer-wins.
+  3. `cellEditorParams` — opaque, no deep merge; last template's params object replaces earlier.
+  4. If `assignment.templateIds` is undefined AND the column has a `dataType`, the `typeDefaults[dataType]` template folds in at the bottom of the chain. An explicit empty `templateIds: []` opts out of the typeDefault.
+
+- **20-test `snapshotTemplate.test.ts`** covers: extracting bold / italic / color / borders from a styled column; stripping fields that equal the typeDefault; round-trip through add/remove reducers; null-safe empty-assignment paths.
+
+- **No `SettingsPanel` / no `transformColumnDefs`** — column-templates is a passive state holder. `column-customization.transformColumnDefs` reads it via `ctx.getModuleState<ColumnTemplatesState>('column-templates')` and folds the chain through `resolveTemplates` before emitting the final per-column AG-Grid ColDef.
+
+Testids (interaction surfaces, not direct state): `templates-menu-trigger`, `templates-menu`, `templates-menu-item-{tplId}`, `save-tpl-input`, `save-tpl-btn`, `cols-{colId}-templates`, `cols-{colId}-template-{tplId}`, `cols-{colId}-template-remove-{tplId}`, `cols-{colId}-template-picker`.
+
+### 1.8d Saved Filters — opaque state holder
+
+Module `saved-filters` (priority 1001 — effectively last in the module chain; no transforms, no ordering constraint). Core does NOT interpret the filter records. The host (`markets-grid`'s `FiltersToolbar`) defines the concrete `SavedFilter` shape and casts through `useModuleState<SavedFiltersState>('saved-filters')`. The module exists so the host's filter pills ride along inside the active profile snapshot via `serializeAll()` / `deserializeAll()`.
+
+- **State shape**:
+  ```ts
+  interface SavedFiltersState {
+    filters: unknown[];   // opaque — host defines SavedFilter
+  }
+  ```
+
+- **Host-defined shape** (`markets-grid/src/types.ts:SavedFilter`):
+  ```ts
+  interface SavedFilter {
+    id: string;                                  // `sf_<timestamp>_<random4>` (makeId)
+    label: string;                               // user-editable, auto-generated from model
+    filterModel: Record<string, unknown>;        // AG-Grid filter-model snapshot
+    active: boolean;                             // whether this pill's model is currently applied
+  }
+  ```
+
+- **Interaction surface** lives in `FiltersToolbar` (documented in §1.x). Pure logic extracted to `filtersToolbarLogic.ts` with 26 unit tests covering `generateLabel`, `doesRowMatchFilterModel`, `filterModelsEqual`, `mergeFilterModels` (per-pill count predicates, echo detection for `+` button enabling, multi-filter OR merge with `set`-value union).
+
+- **Auto-save path** — every add / toggle / rename / remove writes through `useModuleState(...)` setState, which the profile-auto-save debounce picks up on the usual 300ms cycle. Reload restores every pill (including active/inactive state) before the grid's first `modelUpdated`.
+
+- **No settings panel** — the toolbar IS the editor. Nav entry intentionally omitted from the settings sheet.
+
+Testids (all in FiltersToolbar): `filters-toolbar`, `filters-add-btn`, `filter-pill-{id}`, `filter-pill-count-{id}`, `filters-caret-left`, `filters-caret-right`, `style-toolbar-toggle`.
+
+### 1.8e Toolbar Visibility — hidden per-profile toolbar layout
+
+Module `toolbar-visibility` (priority 1000). Tracks which optional toolbars (Filters, Formatting, etc.) the user has shown in the host app so the layout round-trips across profile load / save.
+
+- **State shape**:
+  ```ts
+  interface ToolbarVisibilityState {
+    visible: Record<string, boolean>;   // toolbar id → visible. Missing key = host default.
+  }
+  ```
+
+- **Never appears in the settings nav** — no `SettingsPanel` field on the module. Consumed via `useModuleState<ToolbarVisibilityState>('toolbar-visibility')` from host chrome (the `FiltersToolbar`'s Brush toggle currently lives in `MarketsGrid` local state; a future wiring pass would move it through this module).
+
+- **Forgiving deserialize** — missing keys mean "host default" (deliberately NOT seeded `false` so a host that adds a new toolbar id later doesn't have to migrate every old profile). Non-boolean values are dropped on deserialize so a stray `null` / string can't poison render.
+
+- **Usage today** — registered in `MarketsGrid.DEFAULT_MODULES` so its state ships in every profile snapshot, but the concrete toolbar-toggle bindings (Brush pill, filters toolbar show/hide) are not yet routed through it. Documented here as a scaffold module — the missing wiring is one of the known follow-up items for host-chrome layout polish.
+
+- **No testids** — purely state.
+
 ### 1.9 Expression Engine extensions
 
 - **Multi-branch conditionals** — `IFS(cond1, val1, cond2, val2, …,
@@ -599,7 +725,7 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 | Category | Count |
 |----------|-------|
 | **v2 Shipped Modules** | **9** — general-settings (Grid Options), column-templates, column-customization, calculated-columns, column-groups, conditional-styling, saved-filters, toolbar-visibility, grid-state |
-| **v2 Settings Panels** | **7 full editors** — Grid Options, Column Settings, Calculated Columns, Column Groups, Style Rules, Column Customization (via toolbar), Profile Selector |
+| **v2 Settings Panels** | **5 dedicated editors** (Grid Options, Column Settings, Calculated Columns, Column Groups, Style Rules) + **3 indirect editors** (Column Templates via Formatter Toolbar + Column Settings, Saved Filters via FiltersToolbar, Toolbar Visibility auto-tracked) + Profile Selector |
 | Built-in Expression Functions | **65+** across Math / Stats / Aggregation / String / Date / Logic / Type / Lookup / Coercion |
 | → column-aware aggregation functions | 9 (SUM, COUNT, DISTINCT_COUNT, AVG, MEDIAN, STDEV, VARIANCE, MIN, MAX) |
 | → multi-branch conditional functions | 4 (IF, IFS, SWITCH, CASE) |
@@ -624,3 +750,42 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 - `grid-state` module is the one deliberate exception — captures on explicit Save only so AG-Grid native state isn't touched on every keystroke.
 - Module ordering (priority): `general-settings (0)` → `column-templates (1)` → `column-customization (10)` → `calculated-columns (15)` → `column-groups (18)` → `conditional-styling (20)` → `grid-state (200)`.
 - Every cross-module read goes through `ctx.getModuleState<T>(moduleId)` — no direct imports between modules.
+
+---
+
+## 3. Editor coverage matrix — unit + e2e status
+
+**Legend:** ✅ solid · ◐ partial (smoke only / pure logic only) · ❌ none
+
+| Module / Editor | Feature catalog (§) | Pure-logic unit tests | Panel unit tests | E2E |
+|---|---|---|---|---|
+| `general-settings` — Grid Options | §1.11 | — | ✅ `GridOptionsPanel.test.tsx` (10) | ❌ |
+| `column-customization` — Column Settings | §1.7b | ✅ `formattingActions.test.ts` (43) | ✅ `ColumnSettingsPanel.test.tsx` (7) | ❌ |
+| `calculated-columns` — Virtual columns | §1.8 | — | ✅ `CalculatedColumnsPanel.test.tsx` (8) | ❌ |
+| `column-groups` — Nestable group editor | §1.8b | ✅ `treeOps.test.ts` (11) | ✅ `ColumnGroupsPanel.test.tsx` (8) | ❌ *(retired in audit cleanup)* |
+| `column-templates` — Reusable bundles | §1.8c | ✅ `snapshotTemplate.test.ts` (20) | — | ❌ |
+| `conditional-styling` — Rule editor | §1.7 | — | ✅ `ConditionalStylingPanel.test.tsx` (9) | ◐ smoke only (1 test) |
+| `saved-filters` — Filter pills | §1.8d | ✅ `filtersToolbarLogic.test.ts` (26) | — | ✅ 7 tests in `v2-filters-toolbar.spec.ts` |
+| `toolbar-visibility` — Layout memory | §1.8e | — | — | ❌ |
+| `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
+| Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
+
+**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 2 with meaningful e2e + 2 smoke.
+
+### Priority backlog for e2e coverage
+
+Ordered by risk × churn, highest first:
+
+1. **`column-customization`** — largest surface area (8 bands, 4 sub-editors). Highest regression risk after the M3 split. Target: 1 test per band — open panel, flip the control, verify the grid reflects.
+2. **`column-groups`** — just refactored, currently zero e2e after the retirement. Target: create group → add columns → verify header renders → reload → verify persistence.
+3. **`conditional-styling` (non-smoke)** — rule create / enable-disable / delete cycle against a real blotter column. Current smoke test only verifies the drawer opens.
+4. **`calculated-columns`** — virtual column create / edit expression / delete. Target: expression evaluates against live rowData + survives reload.
+5. **`column-templates` indirect flow** — save-from-toolbar → apply-to-another-column → remove-via-settings chip.
+6. **`general-settings`** — toggle representative options (animate rows, pivotMode, groupDisplayType) and verify grid behaviour.
+
+Each item follows the `e2e/README.md` write-alongside policy: don't backfill in one pass; add tests as the surfaces get touched. The list above is the priority order when they do.
+
+### Known gaps documented but not blocking
+
+- **Toolbar Visibility wiring** (§1.8e) — module state ships in every profile but concrete toolbar-toggle bindings aren't routed through it yet. Non-blocking; current host chrome uses local React state. Wiring pass is a known follow-up.
+- **Column Templates standalone panel** — today templates are authored indirectly (save-from-toolbar, remove-via-Column-Settings-chip). A dedicated Templates panel with rename / description / duplicate affordances would be additive, not required.
