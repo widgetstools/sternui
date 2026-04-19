@@ -9,7 +9,7 @@
  * Keep the two in lockstep when editing.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 
 type SectionId =
@@ -680,11 +680,24 @@ function ExpressionsSection() {
  */
 function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }) {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  // Keep the flash timer in a ref so the unmount effect can clear it — avoids
+  // the StrictMode "setState on unmounted component" warning when the help
+  // panel is dismissed while the 900ms flash is still running.
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
   const copy = async (emoji: string, idx: number) => {
     try {
       await navigator.clipboard.writeText(emoji);
       setCopiedIdx(idx);
-      setTimeout(() => setCopiedIdx((cur) => (cur === idx ? null : cur)), 900);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(
+        () => setCopiedIdx((cur) => (cur === idx ? null : cur)),
+        900,
+      );
     } catch {
       /* clipboard unavailable — no-op */
     }

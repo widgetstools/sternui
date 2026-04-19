@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
@@ -232,6 +232,14 @@ function Host<TData>({
 
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Clear the save-flash timer on unmount so we don't setState on a gone
+  // component if the grid is torn down mid-flash (e.g. navigating away just
+  // after clicking Save).
+  useEffect(() => {
+    return () => {
+      if (saveFlashTimer.current) clearTimeout(saveFlashTimer.current);
+    };
+  }, []);
 
   // Settings sheet — the Cockpit popout drawer.
   const [settingsOpen, setSettingsOpen] = useState(false);

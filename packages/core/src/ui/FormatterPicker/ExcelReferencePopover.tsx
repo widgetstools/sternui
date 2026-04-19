@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, Info } from 'lucide-react';
 import { FormatPopover } from '../format-editor';
 import { EXCEL_EXAMPLES } from './excelExamples';
@@ -20,13 +20,25 @@ export function ExcelReferencePopover({
   'data-testid'?: string;
 }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Clear the 1200ms "copied" flash timer on unmount so we don't setState on
+  // a gone component when the popover closes mid-flash.
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const handleCopy = (format: string, id: string) => {
     // Swallow rejections — clipboard can fail on http:// origins, etc.
     void navigator.clipboard?.writeText(format).catch(() => {});
     onPick(format);
     setCopiedId(id);
-    window.setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 1200);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(
+      () => setCopiedId((prev) => (prev === id ? null : prev)),
+      1200,
+    );
   };
 
   return (
