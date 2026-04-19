@@ -1047,10 +1047,16 @@ export function FormattingToolbar() {
               sideOffset={6}
               className="gc-sheet-v2"
               style={{
-                padding: 8, width: 460, maxWidth: '90vw',
-                background: 'var(--ck-bg, #111417)',
-                color: 'var(--ck-t0, #eaecef)',
-                border: '1px solid var(--ck-border-hi, #3e4754)',
+                // Zero-padding wrapper — the BorderStyleEditor owns its
+                // own chrome (background, border, rounded corners). A
+                // wrapper padding would double the visual frame and
+                // showing a caption inside would add noise the user
+                // explicitly asked to drop.
+                padding: 0,
+                width: 460,
+                maxWidth: '90vw',
+                background: 'transparent',
+                border: 'none',
                 borderRadius: 2,
                 boxShadow: 'var(--ck-popout-shadow, 0 20px 40px rgba(0,0,0,0.5))',
                 fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", "Inter", sans-serif)',
@@ -1060,22 +1066,9 @@ export function FormattingToolbar() {
                 if (tag !== 'SELECT' && tag !== 'INPUT') e.preventDefault();
               }}
             >
-              <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span
-                  style={{
-                    fontSize: 9, fontWeight: 600, letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ck-t2, var(--muted-foreground))',
-                    fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-                  }}
-                >
-                  Borders · {target === 'header' ? 'Header' : 'Cell'}
-                </span>
-              </div>
               <BorderStyleEditor
                 value={fmt.borders}
                 onChange={applyBordersMap}
-                previewLabel={target === 'header' ? 'Header' : 'Cell'}
               />
             </RadixPopoverContent>
           </RadixPopover>

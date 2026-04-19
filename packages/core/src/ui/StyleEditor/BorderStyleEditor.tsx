@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, RemoveFormatting } from 'lucide-react';
 import { FormatColorPicker, FormatDropdown, FormatPopover } from '../format-editor';
 import type { BorderSpec } from '../../colDef';
 // Terminal-styled stylesheet — tokens + component-scoped classes.
@@ -386,10 +386,12 @@ export function BorderStyleEditor({
         }
       />
 
-      {/* ── Close / clear-all (far right, `margin-left: auto`) ─── */}
+      {/* ── Clear-all-borders action (far right, `margin-left: auto`) ─
+          RemoveFormatting glyph + destructive color — reads as
+          "clear styles" rather than the ambiguous generic X. */}
       <button
         type="button"
-        className="gc-be-close"
+        className="gc-be-clear"
         onClick={clearAll}
         onMouseDown={(e) => e.preventDefault()}
         disabled={!hasAny}
@@ -397,7 +399,7 @@ export function BorderStyleEditor({
         title="Clear all borders"
         data-testid="gc-be-clear"
       >
-        <X size={14} strokeWidth={2} />
+        <RemoveFormatting size={14} strokeWidth={1.75} />
       </button>
     </div>
   );

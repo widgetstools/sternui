@@ -278,29 +278,34 @@
   height: 0;
 }
 
-/* ─── Close / clear-all button ─────────────────────────────────── */
-.gc-be-editor .gc-be-close {
-  width: 24px;
+/* ─── Clear-all-borders button ─────────────────────────────────── */
+/* Destructive-color icon at rest (makes the destructive nature
+ * discoverable without requiring a hover). Hover darkens the
+ * background with a red-ghost fill so the action's gravity reads
+ * clearly; disabled drops opacity. */
+.gc-be-editor .gc-be-clear {
+  width: 26px;
   height: var(--be-h-ctrl);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: none;
-  color: var(--be-ink-2);
+  border: 1px solid transparent;
+  color: var(--be-red);
   cursor: pointer;
   padding: 0;
   margin-left: auto;
   flex-shrink: 0;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
   border-radius: var(--be-r);
 }
-.gc-be-editor .gc-be-close:hover:not(:disabled) {
+.gc-be-editor .gc-be-clear:hover:not(:disabled) {
   background: var(--be-red-ghost);
-  color: var(--be-red);
+  border-color: color-mix(in srgb, var(--be-red) 35%, transparent);
 }
-.gc-be-editor .gc-be-close:disabled {
-  opacity: 0.35;
+.gc-be-editor .gc-be-clear:disabled {
+  color: var(--be-ink-3);
+  opacity: 0.45;
   cursor: default;
 }
 
