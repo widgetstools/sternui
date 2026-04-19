@@ -52,9 +52,11 @@ import {
   type ValueFormatterTemplate,
   resolveTemplates,
   useModuleState,
-  // Pure reducers extracted in step 1. The v2 helper bodies below
-  // delegate to these; behaviour is unchanged, covered by 43 unit
-  // tests in core/modules/column-customization/formattingActions.test.ts.
+  // Pure reducers from `@grid-customizer/core`. Every button handler
+  // below dispatches one directly through `setCustState` /
+  // `setTplState` — no store closures. Covered by 63 unit tests in
+  // core (formattingActions.test.ts + snapshotTemplate.test.ts) and
+  // 15 integration tests in FormattingToolbar.test.tsx.
   addTemplateReducer,
   applyAlignmentReducer,
   applyBordersReducer,
@@ -62,10 +64,8 @@ import {
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
   applyTypographyReducer,
-  clearAllBordersReducer,
   clearAllStylesReducer,
   snapshotTemplate,
-  writeOverridesReducer,
 } from '@grid-customizer/core';
 import {
   Undo2, Redo2, Bold, Italic, Underline,
@@ -381,12 +381,15 @@ interface ResolvedFormatting {
 
 function useColumnFormatting(
   core: GridCore,
-  store: GridStore,
   colIds: string[],
   target: TargetKind,
 ): ResolvedFormatting {
-  const [cust] = useModuleState<ColumnCustomizationState>(store, 'column-customization');
-  const [tpls] = useModuleState<ColumnTemplatesState>(store, 'column-templates');
+  // 1-arg `useModuleState(id)` reads the store from the platform context.
+  // Previously threaded `store` in for back-compat; dropped in step 6 of
+  // the refactor series as we prepare to remove the toolbar's `store`
+  // prop entirely in step 7.
+  const [cust] = useModuleState<ColumnCustomizationState>('column-customization');
+  const [tpls] = useModuleState<ColumnTemplatesState>('column-templates');
 
   return useMemo(() => {
     const empty: ResolvedFormatting = { bold: false, italic: false, underline: false, borders: {} };
@@ -427,139 +430,12 @@ function useColumnFormatting(
   }, [cust, tpls, colIds, target, core]);
 }
 
-// ─── State-writer helpers ────────────────────────────────────────────
-//
-// THIN delegates to the pure reducers in
-// `@grid-customizer/core/modules/column-customization/formattingActions`.
-// Every helper here preserves its v2 signature (so the ~40 callsites
-// in this file stay untouched across the refactor) while the body
-// dispatches a reducer through `setModuleState`. Behaviour is pinned
-// by the 43 reducer unit tests + 20 snapshotTemplate tests in core.
-//
-// Step 6 of the toolbar refactor will inline these delegates at the
-// callsite + drop the `store` parameter entirely. Keeping them as
-// one-liners now is the step that swaps implementations without
-// touching the component body.
-
-function writeOverrides(
-  store: GridStore,
-  colIds: string[],
-  target: TargetKind,
-  patch: Partial<CellStyleOverrides>,
-) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    writeOverridesReducer(colIds, target, patch),
-  );
-}
-
-function applyTypography(
-  store: GridStore, colIds: string[], target: TargetKind,
-  patch: { bold?: boolean | undefined; italic?: boolean | undefined; underline?: boolean | undefined; fontSize?: number | undefined },
-) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    applyTypographyReducer(colIds, target, patch),
-  );
-}
-
-function applyColors(
-  store: GridStore, colIds: string[], target: TargetKind,
-  patch: { text?: string | undefined; background?: string | undefined },
-) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    applyColorsReducer(colIds, target, patch),
-  );
-}
-
-function applyAlignment(
-  store: GridStore, colIds: string[], target: TargetKind,
-  patch: { horizontal?: 'left' | 'center' | 'right' | undefined },
-) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    applyAlignmentReducer(colIds, target, patch),
-  );
-}
-
-/** Write a BorderSpec (or undefined to clear) to one or more sides. */
-function applyBorders(
-  store: GridStore, colIds: string[], target: TargetKind,
-  sides: Array<'top' | 'right' | 'bottom' | 'left'>,
-  spec: BorderSpec | undefined,
-) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    applyBordersReducer(colIds, target, sides, spec),
-  );
-}
-
-/** Clear every border side (top/right/bottom/left). */
-function clearAllBorders(store: GridStore, colIds: string[], target: TargetKind) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    clearAllBordersReducer(colIds, target),
-  );
-}
-
-/** Set valueFormatterTemplate on each column (undefined removes it). */
-function applyFormatter(
-  store: GridStore, colIds: string[],
-  template: ValueFormatterTemplate | undefined,
-) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    applyFormatterReducer(colIds, template),
-  );
-}
-
-/** Replace the templateIds chain with the single picked template.
- *  v2's resolver composes templateIds in array order; for toolbar UX we
- *  intentionally keep it single so picking a template swaps cleanly. */
-function applyTemplateToColumns(store: GridStore, colIds: string[], templateId: string) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    applyTemplateToColumnsReducer(colIds, templateId),
-  );
-}
-
-/** Snapshot the first column's resolved overrides + formatter as a named template.
- *  Splits into two pure calls (snapshotTemplate → addTemplateReducer) + a
- *  grid-api read for the column's cellDataType. */
-function saveCurrentAsTemplate(
-  core: GridCore, store: GridStore, colIds: string[], name: string,
-): string | undefined {
-  if (!colIds.length) return undefined;
-  const colId = colIds[0];
-
-  // Ask the grid api for cellDataType so resolveTemplates can fold the
-  // right typeDefault. Try/catch because v2's api shape drift is real.
-  let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
-  try {
-    const api = core.getGridApi() as unknown as {
-      getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
-    } | null;
-    const t = api?.getColumn?.(colId)?.getColDef?.()?.cellDataType;
-    if (t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean') dataType = t;
-  } catch { /* ignore */ }
-
-  const cust = store.getModuleState<ColumnCustomizationState>('column-customization');
-  const tpls = store.getModuleState<ColumnTemplatesState>('column-templates');
-  const tpl = snapshotTemplate(cust, tpls, colId, name, dataType);
-  if (!tpl) return undefined;
-
-  store.setModuleState<ColumnTemplatesState>('column-templates', addTemplateReducer(tpl));
-  return tpl.id;
-}
-
-/** Drop every override (and template ref) on the selected columns. */
-function clearAllStyles(store: GridStore, colIds: string[]) {
-  store.setModuleState<ColumnCustomizationState>(
-    'column-customization',
-    clearAllStylesReducer(colIds),
-  );
-}
+// NOTE: step 6 of the toolbar refactor deleted the `applyX(store, …)`
+// wrapper helpers that used to live here. Every handler now dispatches
+// the matching pure reducer from `@grid-customizer/core` directly via
+// `setCustState` / `setTplState`, obtained from `useModuleState` inside
+// the component body. See `formattingActions.ts` + `snapshotTemplate.ts`
+// in core for the reducers + their unit tests.
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -577,7 +453,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   const targetRef = useRef(target);
   targetRef.current = target;
 
-  const fmt = useColumnFormatting(core, store, colIds, target);
+  const fmt = useColumnFormatting(core, colIds, target);
   const disabled = colIds.length === 0;
   const isHeader = target === 'header';
 
@@ -585,8 +461,11 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   const [saveAsTplConfirmed, flashSaveAsTpl] = useFlashConfirm();
   const [saveAsTplName, setSaveAsTplName] = useState('');
 
-  // Reactive templates list for the dropdown.
-  const [tplState] = useModuleState<ColumnTemplatesState>(store, 'column-templates');
+  // State setters + reactive reads for dispatch-side plumbing. Every
+  // button handler below pipes a pure reducer through one of these
+  // setters — the store reference from props is no longer threaded.
+  const [custState, setCustState] = useModuleState<ColumnCustomizationState>('column-customization');
+  const [tplState, setTplState] = useModuleState<ColumnTemplatesState>('column-templates');
   const templateList = useMemo(() => {
     const templates = tplState?.templates ?? {};
     return Object.values(templates).sort((a, b) => a.name.localeCompare(b.name));
@@ -660,52 +539,87 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colIds, core, colEventTick]);
 
-  // Typography toggles — the writers pass `undefined` to clear the key.
+  // Typography toggles — the reducers pass `undefined` to clear a leaf.
   const toggleBold = useCallback(() => {
-    applyTypography(store, colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true });
-  }, [store, fmt.bold]);
+    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true }));
+  }, [setCustState, fmt.bold]);
 
   const toggleItalic = useCallback(() => {
-    applyTypography(store, colIdsRef.current, targetRef.current, { italic: fmt.italic ? undefined : true });
-  }, [store, fmt.italic]);
+    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { italic: fmt.italic ? undefined : true }));
+  }, [setCustState, fmt.italic]);
 
   const toggleUnderline = useCallback(() => {
-    applyTypography(store, colIdsRef.current, targetRef.current, { underline: fmt.underline ? undefined : true });
-  }, [store, fmt.underline]);
+    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { underline: fmt.underline ? undefined : true }));
+  }, [setCustState, fmt.underline]);
 
   const setFontSizePx = useCallback((px: number) => {
-    applyTypography(store, colIdsRef.current, targetRef.current, { fontSize: px });
-  }, [store]);
+    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { fontSize: px }));
+  }, [setCustState]);
 
   const toggleAlign = useCallback((h: 'left' | 'center' | 'right') => {
     const next = fmt.horizontal === h ? undefined : h;
-    applyAlignment(store, colIdsRef.current, targetRef.current, { horizontal: next });
-  }, [store, fmt.horizontal]);
+    setCustState(applyAlignmentReducer(colIdsRef.current, targetRef.current, { horizontal: next }));
+  }, [setCustState, fmt.horizontal]);
 
   const setTextColor = useCallback((c: string | undefined) => {
-    applyColors(store, colIdsRef.current, targetRef.current, { text: c || undefined });
-  }, [store]);
+    setCustState(applyColorsReducer(colIdsRef.current, targetRef.current, { text: c || undefined }));
+  }, [setCustState]);
 
   const setBgColor = useCallback((c: string | undefined) => {
-    applyColors(store, colIdsRef.current, targetRef.current, { background: c || undefined });
-  }, [store]);
+    setCustState(applyColorsReducer(colIdsRef.current, targetRef.current, { background: c || undefined }));
+  }, [setCustState]);
 
   // Formatter — always cell-target (headers have no formatter).
   const doFormat = useCallback((t: ValueFormatterTemplate | undefined) => {
-    applyFormatter(store, colIdsRef.current, t);
-  }, [store]);
+    setCustState(applyFormatterReducer(colIdsRef.current, t));
+  }, [setCustState]);
 
-  // Decimals ± — read the fresh template out of the store so consecutive clicks
-  // compound. Fall back to sampling the first cell's precision if no formatter
+  // Template picker — replace templateIds chain on active columns.
+  const doApplyTemplate = useCallback((tplId: string) => {
+    setCustState(applyTemplateToColumnsReducer(colIdsRef.current, tplId));
+  }, [setCustState]);
+
+  // Save-as-template — snapshot the effective style of the first active
+  // column (resolving its templateIds + typeDefault + own overrides) and
+  // persist it into column-templates under `name`. Returns undefined when
+  // there's nothing worth saving (empty name, no overrides, no column).
+  const doSaveAsTemplate = useCallback((name: string): string | undefined => {
+    const ids = colIdsRef.current;
+    if (!ids.length) return undefined;
+    const colId = ids[0];
+    // Read the column's cellDataType from the grid api — feeds into
+    // resolveTemplates so the saved template captures any typeDefault
+    // the column inherits.
+    let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
+    try {
+      const api = core.getGridApi() as unknown as {
+        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
+      } | null;
+      const t = api?.getColumn?.(colId)?.getColDef?.()?.cellDataType;
+      if (t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean') dataType = t;
+    } catch { /* ignore */ }
+    const tpl = snapshotTemplate(custState, tplState, colId, name, dataType);
+    if (!tpl) return undefined;
+    setTplState(addTemplateReducer(tpl));
+    return tpl.id;
+  }, [core, custState, tplState, setTplState]);
+
+  // Reset all overrides on active columns — collapses each assignment
+  // to a bare `{ colId }`.
+  const doClearAllStyles = useCallback(() => {
+    setCustState(clearAllStylesReducer(colIdsRef.current));
+  }, [setCustState]);
+
+  // Decimals ± — read the CURRENT reactive `custState`/`tplState` so
+  // consecutive clicks compound on the latest committed formatter.
+  // Fall back to sampling the first cell's precision if no formatter
   // has been applied yet, mirroring v1's UX.
   const getCurrentDecimals = useCallback((): number => {
     const ids = colIdsRef.current;
     if (!ids.length) return 2;
-    const cust = store.getModuleState<ColumnCustomizationState>('column-customization');
-    const tpls = store.getModuleState<ColumnTemplatesState>('column-templates');
-    const a = cust?.assignments?.[ids[0]];
+    const a = custState?.assignments?.[ids[0]];
     if (a) {
-      const resolved = resolveTemplates(a, tpls ?? { templates: {}, typeDefaults: {} }, undefined);
+      const resolved = resolveTemplates(a, tplState ?? { templates: {}, typeDefaults: {} }, undefined);
       const d = templateDecimals(resolved.valueFormatterTemplate);
       if (d !== null) return d;
     }
@@ -720,7 +634,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
       }
     } catch { /* ignore */ }
     return 2;
-  }, [store, core]);
+  }, [custState, tplState, core]);
 
   const decreaseDecimals = useCallback(() => {
     if (!colIdsRef.current.length) return;
@@ -762,7 +676,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
         }
       }
       if (toClear.length) {
-        applyBorders(store, colIdsRef.current, targetRef.current, toClear, undefined);
+        setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, toClear, undefined));
       }
       // Group by spec so sides with identical specs land in one write.
       const bySpec = new Map<string, Array<'top' | 'right' | 'bottom' | 'left'>>();
@@ -777,11 +691,11 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
       }
       for (const [, list] of bySpec) {
         if (list.length) {
-          applyBorders(store, colIdsRef.current, targetRef.current, list, toSet[list[0]]!);
+          setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, list, toSet[list[0]]!));
         }
       }
     },
-    [fmt.borders, store],
+    [fmt.borders, setCustState],
   );
 
   // ─── Render ────────────────────────────────────────────────────────────
@@ -913,7 +827,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
               onChange={(e) => {
                 const tplId = e.target.value;
                 if (tplId) {
-                  applyTemplateToColumns(store, colIdsRef.current, tplId);
+                  doApplyTemplate(tplId);
                   e.target.value = '';
                 }
               }}
@@ -945,7 +859,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
                   onChange={(e) => setSaveAsTplName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && saveAsTplName.trim()) {
-                      saveCurrentAsTemplate(core, store, colIdsRef.current, saveAsTplName);
+                      doSaveAsTemplate(saveAsTplName);
                       setSaveAsTplName('');
                       flashSaveAsTpl();
                     }
@@ -962,7 +876,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     const name = saveAsTplName.trim() || `${colLabel} Style`;
-                    saveCurrentAsTemplate(core, store, colIdsRef.current, name);
+                    doSaveAsTemplate(name);
                     setSaveAsTplName('');
                     flashSaveAsTpl();
                   }}
@@ -1138,7 +1052,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
             tooltip="Clear all styles"
             disabled={disabled}
             onClick={() => {
-              clearAllStyles(store, colIdsRef.current);
+              doClearAllStyles();
               flashClear();
             }}
             className={clearConfirmed ? 'gc-tbtn-confirm' : undefined}
