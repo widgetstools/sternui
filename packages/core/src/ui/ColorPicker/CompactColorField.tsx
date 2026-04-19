@@ -1,12 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Minus, Pipette } from 'lucide-react';
-import { ColorPickerPopover } from './ColorPickerPopover';
+import { FormatColorPicker } from '../format-editor';
+import { Popover, PopoverContent, PopoverTrigger } from '../shadcn/popover';
 
 /**
  * Cockpit compact colour field — 28px tall pill with checkerboard preview
  * when empty, monospace hex readout, alpha percentage, and optional
  * visibility toggle + clear. Matches IconInput's height so fields in a
  * PairRow align.
+ *
+ * Previously this component imported a separate `ColorPickerPopover`
+ * file that carried the Figma-style alpha+recents shell. That component
+ * had no other consumers, so the shell is inlined here (see
+ * `CompactColorFieldPopover` below) and the parallel public export was
+ * retired as part of AUDIT M1.
  */
 
 export interface CompactColorFieldProps {
@@ -100,7 +107,7 @@ export function CompactColorField({
         setOpen(true);
       }}
     >
-      <ColorPickerPopover
+      <CompactColorFieldPopover
         open={open && !disabled}
         onOpenChange={setOpen}
         value={value}
@@ -245,5 +252,145 @@ export function CompactColorField({
         </button>
       )}
     </div>
+  );
+}
+
+// ─── Internal popover shell ───────────────────────────────────────────────
+// Was `ui/ColorPicker/ColorPickerPopover.tsx` with a public export. The
+// alpha slider + recents strip live here now; no other file consumes this
+// shell so it's intentionally not exported from the package barrel.
+
+interface CompactColorFieldPopoverProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: React.ReactNode;
+  value?: string;
+  alpha?: number;
+  onChange: (value: string, alpha?: number) => void;
+  onClear?: () => void;
+  recents?: string[];
+}
+
+function CompactColorFieldPopover({
+  open,
+  onOpenChange,
+  trigger,
+  value,
+  alpha = 100,
+  onChange,
+  onClear,
+  recents,
+}: CompactColorFieldPopoverProps) {
+  const [localAlpha, setLocalAlpha] = useState(alpha);
+
+  useEffect(() => {
+    setLocalAlpha(alpha);
+  }, [alpha]);
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent align="end" sideOffset={6} className="w-[228px] p-3">
+        <FormatColorPicker
+          value={value || '#000000'}
+          onChange={(hex) => {
+            if (!hex) onClear?.();
+            else onChange(hex, localAlpha);
+          }}
+          allowClear={Boolean(onClear)}
+          svHeight={100}
+        />
+
+        {/* Alpha slider */}
+        <div style={{ marginTop: 10 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 4,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--bn-t2, #7a8494)',
+              }}
+            >
+              Alpha
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: 'var(--gc-font-mono, ui-monospace, SFMono-Regular, monospace)',
+                color: 'var(--bn-t1, #9a9a9a)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {localAlpha}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={localAlpha}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setLocalAlpha(next);
+              if (value) onChange(value, next);
+            }}
+            style={{
+              width: '100%',
+              accentColor: 'var(--bn-green, #2dd4bf)',
+              cursor: 'pointer',
+            }}
+          />
+        </div>
+
+        {/* Optional recents strip */}
+        {recents && recents.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--bn-t2, #7a8494)',
+                marginBottom: 4,
+              }}
+            >
+              From this panel
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {recents.slice(0, 10).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => onChange(c, localAlpha)}
+                  title={c}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 4,
+                    padding: 0,
+                    cursor: 'pointer',
+                    border:
+                      value?.toLowerCase() === c.toLowerCase()
+                        ? '2px solid var(--bn-green, #2dd4bf)'
+                        : '1px solid var(--bn-border-soft, rgba(255,255,255,0.08))',
+                    background: c,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

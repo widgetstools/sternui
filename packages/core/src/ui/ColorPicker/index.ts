@@ -1,13 +1,14 @@
 /**
- * v2 ColorPicker kit — one compact inline field + one Figma-style popover
- * shared by every settings panel.
+ * Cockpit ColorPicker kit — a single compact inline field that opens a
+ * Figma-style popover shell (alpha slider + panel-local recents strip).
  *
  *   import { CompactColorField } from '@grid-customizer/core';
  *
- * The popover stays exported for cases where a panel wants to drive its
- * own trigger (e.g. a swatch inside a big StyleEditor header) without
- * the standard 30px inline row.
+ * The popover shell is an implementation detail of CompactColorField;
+ * it's NOT exported. FormattingToolbar and other toolbar-style
+ * consumers should use the `ColorPickerPopover` re-exported from
+ * `@grid-customizer/core` which wraps FormatColorPicker in a toolbar
+ * icon-button trigger. AUDIT M1 collapsed the previous dual export.
  */
 
 export { CompactColorField, type CompactColorFieldProps } from './CompactColorField';
-export { ColorPickerPopover, type ColorPickerPopoverProps } from './ColorPickerPopover';

@@ -388,8 +388,12 @@ export type {
   BorderStyleEditorProps,
   BordersValue,
 } from './ui/StyleEditor';
-export { CompactColorField, ColorPickerPopover as CockpitColorPickerPopover } from './ui/ColorPicker';
-export type { CompactColorFieldProps, ColorPickerPopoverProps as CockpitColorPickerPopoverProps } from './ui/ColorPicker';
+// CompactColorField is the public cockpit color-field surface. The
+// Figma-style popover shell it opens is an internal detail. Toolbars
+// that need a picker without the full field chrome use
+// `ColorPickerPopover` from the shadcn barrel above. (AUDIT M1)
+export { CompactColorField } from './ui/ColorPicker';
+export type { CompactColorFieldProps } from './ui/ColorPicker';
 export {
   FormatterPicker,
   inferPickerDataType,
