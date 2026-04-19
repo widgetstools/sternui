@@ -556,41 +556,120 @@
   outline-width: 2px;
 }
 
-/* ─── Drag rail chrome (rendered by MarketsGrid's DraggableFloat) ─ */
-/* These rules target the drag-handle element when it appears next to
-   the toolbar inside the DraggableFloat wrapper. Keyed by the
-   existing `data-testid="formatting-toolbar-float-handle"` so nothing
-   in the component tree has to change. */
-[data-testid='formatting-toolbar-float-handle'] {
+/* ─── Floating panel outer chrome ──────────────────────────────── */
+/* The `.gc-tb-float` div is the flex row that holds: drag rail →
+   toolbar body → close button. It's rendered by MarketsGrid, not by
+   FormattingToolbar, but its tokens live here so the design is
+   token-sourced from one file. */
+.gc-tb-float {
+  display: flex;
+  align-items: stretch;
+  max-width: calc(100vw - 32px);
+  border-radius: var(--tb-r-md, 3px);
+  overflow: hidden;
   background: var(--tb-bg-bar, #11161C);
-  color: var(--tb-ink-3, #434C58);
-  border-right: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
-  transition: color 150ms ease;
+  border: 1px solid var(--tb-line-strong, rgba(140, 170, 200, 0.16));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  /* Make child tokens available for the drag/close sub-components. */
+  --tb-drag-w: 18px;
+  --tb-close-w: 32px;
 }
-[data-testid='formatting-toolbar-float-handle']:hover {
-  color: var(--tb-ink-1, #9AA5B4);
-}
-[data-theme='light'] [data-testid='formatting-toolbar-float-handle'] {
+[data-theme='light'] .gc-tb-float {
   background: var(--tb-bg-bar, #F2F4F7);
-  color: var(--tb-ink-3, #95A0AE);
-  border-right: 1px solid var(--tb-line, rgba(59, 75, 96, 0.14));
+  border-color: var(--tb-line-strong, rgba(59, 75, 96, 0.24));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 2px 6px rgba(30, 40, 55, 0.06),
+    0 8px 18px -4px rgba(30, 40, 55, 0.12);
+  --tb-drag-w: 20px;
+  --tb-close-w: 36px;
 }
 
-/* Close button — hover flips to red per the sample ─────────────── */
-[data-testid='formatting-toolbar-float-close'] {
-  color: var(--tb-ink-2, #6B7685);
+/* ─── Drag rail — 6-dot terminal grip pattern ──────────────────── */
+/* Rendered by DraggableFloat.DragHandle. The `.gc-tb-drag` class
+   overrides the default chrome + injects a 2×3 dot grid drawn via
+   inline SVG background-image. GripVertical icon from lucide is
+   suppressed because the bg-image replaces it. */
+.gc-tb-drag {
+  background-color: var(--tb-bg-bar, #11161C);
+  color: transparent; /* hide the default GripVertical glyph */
+  border-right: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
+  transition: background-color 150ms ease;
+  /* Dot grid: 2 cols × 3 rows of tiny circles, evenly spaced. */
+  background-image: radial-gradient(
+    circle at center,
+    var(--tb-ink-3, #434C58) 0.9px,
+    transparent 1.1px
+  );
+  background-size: 6px 6px;
+  background-position: center center;
+  background-repeat: repeat;
+  /* Clip to a neat 6×10 swatch so dots only show in the middle. */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(50% - 10px),
+    black calc(50% - 10px),
+    black calc(50% + 10px),
+    transparent calc(50% + 10px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(50% - 10px),
+    black calc(50% - 10px),
+    black calc(50% + 10px),
+    transparent calc(50% + 10px),
+    transparent 100%
+  );
+}
+.gc-tb-drag:hover {
+  background-image: radial-gradient(
+    circle at center,
+    var(--tb-ink-1, #9AA5B4) 0.9px,
+    transparent 1.1px
+  );
+}
+.gc-tb-drag > svg {
+  display: none;
+}
+[data-theme='light'] .gc-tb-drag {
+  background-color: var(--tb-bg-bar, #F2F4F7);
+  border-right-color: var(--tb-line, rgba(59, 75, 96, 0.14));
+  background-image: radial-gradient(
+    circle at center,
+    var(--tb-ink-3, #95A0AE) 1px,
+    transparent 1.2px
+  );
+}
+[data-theme='light'] .gc-tb-drag:hover {
+  background-image: radial-gradient(
+    circle at center,
+    var(--tb-ink-1, #4A5768) 1px,
+    transparent 1.2px
+  );
+}
+
+/* ─── Close button — left-bordered, red hover ──────────────────── */
+/* The `.gc-tb-close` class is applied to DraggableFloat.CloseButton.
+   `.gc-tb-close` is ALSO used independently inside the toolbar
+   body for any dismissable children — both contexts pick up the
+   red-hover treatment. */
+.gc-tb-close {
+  background: var(--tb-bg-bar, #11161C);
   border-left: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
   transition: background 120ms ease, color 120ms ease;
 }
-[data-testid='formatting-toolbar-float-close']:hover {
+.gc-tb-close:hover {
   background: var(--tb-red-ghost, rgba(255, 90, 94, 0.08));
   color: var(--tb-red, #FF5A5E);
 }
-[data-theme='light'] [data-testid='formatting-toolbar-float-close'] {
-  color: var(--tb-ink-2, #6B7888);
-  border-left: 1px solid var(--tb-line, rgba(59, 75, 96, 0.14));
+[data-theme='light'] .gc-tb-close {
+  background: var(--tb-bg-bar, #F2F4F7);
+  border-left-color: var(--tb-line, rgba(59, 75, 96, 0.14));
 }
-[data-theme='light'] [data-testid='formatting-toolbar-float-close']:hover {
+[data-theme='light'] .gc-tb-close:hover {
   background: var(--tb-red-ghost, rgba(162, 62, 69, 0.08));
   color: var(--tb-red, #A23E45);
 }

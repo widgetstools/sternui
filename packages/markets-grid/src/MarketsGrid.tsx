@@ -434,40 +434,34 @@ function Host<TData>({
           {/* Inline row: drag handle | formatter toolbar | close button.
               Panel sizes to the toolbar's natural content width; when that
               exceeds the viewport, the toolbar's own flex-wrap kicks in
-              and the floating panel grows vertically (2 rows → 3 rows on
-              narrow viewports) — no horizontal scroll. */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'stretch',
-              maxWidth: 'calc(100vw - 32px)',
-              borderRadius: 6,
-              overflow: 'hidden',
-              background: 'var(--card, #161a1e)',
-              border: '1px solid var(--border, #313944)',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-            }}
-          >
+              and the floating panel grows vertically — no horizontal
+              scroll.
+
+              The outer chrome uses `.gc-tb-float` from FormattingToolbar.css
+              for tokenised border / background / shadow, light/dark
+              aware. The style prop carries only the values
+              DraggableFloat applies inline (those override CSS) and the
+              flex geometry. */}
+          <div className="gc-tb-float">
             <DraggableFloat.DragHandle
               data-testid="formatting-toolbar-float-handle"
-              style={{
-                width: 22,
-                flexShrink: 0,
-                borderRight: '1px solid var(--border, #313944)',
-                background: 'var(--card, #161a1e)',
-              }}
+              className="gc-tb-drag"
+              style={{ width: 'var(--tb-drag-w, 22px)', flexShrink: 0 }}
             />
             <FormattingToolbar />
             <DraggableFloat.CloseButton
               data-testid="formatting-toolbar-float-close"
               size={14}
+              className="gc-tb-close"
               style={{
-                width: 36,
+                width: 'var(--tb-close-w, 36px)',
                 height: 'auto',
                 borderRadius: 0,
-                borderLeft: '1px solid var(--border, #313944)',
-                background: 'var(--card, #161a1e)',
                 flexShrink: 0,
+                // Let the CSS class paint hover + background via tokens
+                // without the inline transparent default fighting it.
+                background: 'transparent',
+                color: 'var(--tb-ink-2)',
               }}
             />
           </div>
