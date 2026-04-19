@@ -84,6 +84,13 @@ export {
   useProfileManager,
 } from './hooks';
 export type { GridCoreLike } from './hooks';
+
+// Back-compat aliases for ported v2 UI code. `GridCore` is the minimal
+// surface panels actually consume (gridId + getGridApi); `GridStore` is
+// the same `Store` v3 exposes. New code should prefer `Store` +
+// `useGridPlatform()` directly.
+export type { GridCoreLike as GridCore } from './hooks';
+export type { Store as GridStore } from './platform/types';
 export type { UseProfileManagerResult } from './hooks';
 
 // ─── Expression Engine (unchanged, re-exported) ─────────────────────────────
@@ -112,6 +119,10 @@ export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 // ─── Shared CSS / cockpit tokens ────────────────────────────────────────────
 export { settingsCSS, STYLE_ID } from './ui/styles';
 export { cockpitCSS, COCKPIT_STYLE_ID } from './css';
+
+// v2 name aliases for ported host chrome (SettingsSheet ensures the <style>
+// tag directly rather than relying on the grid's ensureCockpitStyles()).
+export { cockpitCSS as v2SheetCSS, COCKPIT_STYLE_ID as V2_SHEET_STYLE_ID } from './css';
 
 // ─── Cockpit settings-panel primitives (v2 surface, verbatim) ──────────────
 export {
@@ -203,10 +214,16 @@ export { ToggleGroup, ToggleGroupItem } from './ui/shadcn/toggle-group';
 export { ColorPicker, ColorPickerPopover } from './ui/shadcn/color-picker';
 
 // ─── Shared colDef types ────────────────────────────────────────────────────
+//
+// `ColumnAssignment` exported from this barrel is the NARROWED
+// column-customization shape (with concrete `filter: ColumnFilterConfig`
+// + `rowGrouping: RowGroupingConfig`). The base shape (with those slots
+// as `unknown`) is exported as `BaseColumnAssignment` — only needed by
+// colDef internals that shouldn't pre-commit to the narrowed types.
 export type {
   BorderSpec,
   CellStyleOverrides,
-  ColumnAssignment,
+  ColumnAssignment as BaseColumnAssignment,
   ColumnDataType,
   PresetId,
   TickToken,
@@ -234,6 +251,10 @@ export {
   INITIAL_COLUMN_CUSTOMIZATION,
   applyFilterConfigToColDef,
   applyRowGroupingConfigToColDef,
+  // Narrowed ColumnAssignment (with concrete filter + rowGrouping shapes).
+  // This is what every consumer wants — the base shape with `unknown`
+  // slots ships as `BaseColumnAssignment` from colDef.
+  type ColumnAssignment,
   type ColumnCustomizationAssignment,
   type ColumnCustomizationState,
   type ColumnFilterConfig,

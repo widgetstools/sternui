@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
+import type { GridReadyEvent } from 'ag-grid-community';
 import {
   GridProvider,
   MemoryAdapter,
@@ -22,11 +23,13 @@ import {
   type AnyModule,
   type StorageAdapter,
 } from '@grid-customizer/core';
-import { Save, Check, Settings, HelpCircle } from 'lucide-react';
+import { Save, Check, Settings as SettingsIcon } from 'lucide-react';
 import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
+import { FiltersToolbar } from './FiltersToolbar';
+import { FormattingToolbar } from './FormattingToolbar';
+import { DraggableFloat } from './DraggableFloat';
 import { SettingsSheet } from './SettingsSheet';
-import { HelpPanel } from './HelpPanel';
 import { ProfileSelector } from './ProfileSelector';
 
 let _agRegistered = false;
@@ -37,43 +40,9 @@ function ensureAgGridRegistered() {
 }
 
 /**
- * Compact icon button used by the primary toolbar (Help / Settings).
- */
-function ToolbarIconButton({
-  children, onClick, title, testId, active,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  title: string;
-  testId?: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      data-testid={testId}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 26,
-        height: 26,
-        background: active ? 'var(--ck-surface, #1a1d21)' : 'transparent',
-        color: active ? 'var(--ck-green, #22c55e)' : 'var(--ck-t1, #c4c9d0)',
-        border: '1px solid var(--ck-border, #2d3339)',
-        borderRadius: 2,
-        cursor: 'pointer',
-      }}
-    >{children}</button>
-  );
-}
-
-/**
  * Inject the cockpit design-system stylesheet once per document. Idempotent —
  * subsequent grids reuse the single `<style id="gc-cockpit-styles">` node.
- * Safe on SSR (no-ops when `document` is undefined).
+ * SSR-safe: no-ops when `document` is undefined.
  */
 function ensureCockpitStyles() {
   if (typeof document === 'undefined') return;
@@ -85,9 +54,11 @@ function ensureCockpitStyles() {
 }
 
 /**
- * Modules the grid ships with by default. Consumers can pass `modules={...}`
- * to override — the list is a pure value, not a singleton, so tests can
- * construct a minimal subset without import-order surprises.
+ * Default module list — every shipped module, ordered the way the user's
+ * profile round-trips expect. Hosts can pass `modules` to override.
+ *
+ * grid-state MUST run last (priority 200) so replay sees the finalized
+ * column set from every structure module.
  */
 export const DEFAULT_MODULES: AnyModule[] = [
   generalSettingsModule,
@@ -116,7 +87,11 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
     statusBar,
     defaultColDef,
     showToolbar = true,
+    showFiltersToolbar = false,
+    showFormattingToolbar = false,
     showSaveButton = true,
+    showSettingsButton = true,
+    showProfileSelector = true,
     storageAdapter,
     autoSaveDebounceMs,
     onGridReady: onGridReadyProp,
@@ -137,7 +112,7 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
   });
 
   const handleGridReady = useCallback(
-    (event: Parameters<NonNullable<typeof onGridReadyProp>>[0]) => {
+    (event: GridReadyEvent) => {
       onGridReady(event);
       event.api.sizeColumnsToFit();
       onGridReadyProp?.(event);
@@ -167,7 +142,12 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
         statusBar={statusBar}
         defaultColDef={defaultColDef}
         showToolbar={showToolbar}
+        showFiltersToolbar={showFiltersToolbar}
+        showFormattingToolbar={showFormattingToolbar}
         showSaveButton={showSaveButton}
+        showSettingsButton={showSettingsButton}
+        showProfileSelector={showProfileSelector}
+        modules={modules}
         className={className}
         rootStyle={rootStyle}
         gridRef={gridRef}
@@ -179,9 +159,9 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
 }
 
 /**
- * Inner shell — runs INSIDE the GridProvider so it can call
- * `useProfileManager`. Split from the outer `MarketsGrid` for the same
- * reason panels are (hooks need the provider).
+ * Inner shell — runs INSIDE the GridProvider so it can call hooks
+ * (`useProfileManager`, `useGridApi`, `useGridPlatform`). Split from the
+ * outer MarketsGrid because those hooks need the provider context.
  */
 function Host<TData>({
   rowData,
@@ -198,7 +178,12 @@ function Host<TData>({
   statusBar,
   defaultColDef,
   showToolbar,
+  showFiltersToolbar,
+  showFormattingToolbar,
   showSaveButton,
+  showSettingsButton,
+  showProfileSelector,
+  modules,
   className,
   rootStyle,
   gridRef,
@@ -208,7 +193,7 @@ function Host<TData>({
   rowData: TData[];
   columnDefs: unknown[];
   gridOptions: Record<string, unknown>;
-  handleGridReady: (event: Parameters<NonNullable<MarketsGridProps<TData>['onGridReady']>>[0]) => void;
+  handleGridReady: (event: GridReadyEvent) => void;
   onGridPreDestroyed: () => void;
   theme: MarketsGridProps<TData>['theme'];
   gridId: string;
@@ -219,7 +204,12 @@ function Host<TData>({
   statusBar: MarketsGridProps<TData>['statusBar'];
   defaultColDef: MarketsGridProps<TData>['defaultColDef'];
   showToolbar: boolean;
+  showFiltersToolbar: boolean;
+  showFormattingToolbar: boolean;
   showSaveButton: boolean;
+  showSettingsButton: boolean;
+  showProfileSelector: boolean;
+  modules: AnyModule[];
   className: string | undefined;
   rootStyle: React.CSSProperties;
   gridRef: React.RefObject<AgGridReact<TData> | null>;
@@ -238,20 +228,27 @@ function Host<TData>({
     autoSaveDebounceMs,
   });
 
-  const [saveFlash, setSaveFlash] = useState(false);
-  const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const platform = useGridPlatform();
   const api = useGridApi();
 
-  // Settings sheet + help drawer.
+  const [saveFlash, setSaveFlash] = useState(false);
+  const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Settings sheet — the Cockpit popout drawer.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+
+  // Formatting toolbar — always starts hidden. The Brush button on the
+  // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
+  // controls whether the feature is available (i.e. whether the Brush
+  // pill + floating panel exist); it doesn't pre-open the toolbar.
+  const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
 
   const handleSaveAll = useCallback(async () => {
-    // Capture the live grid state (columns / sort / filter / viewport) into
-    // the grid-state module slice BEFORE persisting — saveActiveProfile
-    // then serializes every module, so the fresh capture lands in the
-    // profile snapshot on the same save.
+    // Capture native AG-Grid state (column order / widths / sort / filters /
+    // pagination / selection / viewport) into the grid-state module slice
+    // BEFORE persisting — the subsequent saveActiveProfile flush then picks
+    // up this fresh capture alongside every other module's state. Auto-save
+    // deliberately never runs this path; grid state is explicit-save-only.
     if (api) {
       try { captureGridStateInto(platform.store, api); }
       catch (err) { console.warn('[markets-grid] captureGridStateInto failed:', err); }
@@ -267,92 +264,231 @@ function Host<TData>({
     saveFlashTimer.current = setTimeout(() => setSaveFlash(false), 600);
   }, [profiles, api, platform]);
 
+  // Active profile dirty hint — not wired yet (auto-save makes it subtle).
+  // Exposed as a constant false so the save button's colour is stable.
+  const isDirty = false;
+
+  // v2 compat core shim — ProfileSelector / SettingsSheet accept it.
+  const coreShim = useMemo(
+    () => ({
+      gridId: platform.gridId,
+      getGridApi: () => platform.api.api,
+    }),
+    [platform],
+  );
+
   return (
-    <div className={className} style={rootStyle} data-grid-id={gridId}>
+    <div
+      className={className}
+      style={rootStyle}
+      data-grid-id={gridId}
+    >
       {showToolbar && (
         <div
           className="gc-toolbar-primary"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            borderBottom: '1px solid var(--border, #313944)',
-            background: 'var(--card, #161a1e)',
-            flexShrink: 0,
-          }}
+          style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
         >
-          <ProfileSelector profiles={profiles} />
-          <div style={{ flex: 1 }} />
-          <ToolbarIconButton
-            title="Help"
-            testId="help-btn"
-            onClick={() => setHelpOpen((v) => !v)}
-            active={helpOpen}
-          >
-            <HelpCircle size={13} strokeWidth={1.75} />
-          </ToolbarIconButton>
-          <ToolbarIconButton
-            title="Settings"
-            testId="settings-btn"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings size={13} strokeWidth={1.75} />
-          </ToolbarIconButton>
+          <div style={{ flex: '1 1 0px', minWidth: 0, overflowX: 'clip' }}>
+            {showFiltersToolbar ? (
+              <FiltersToolbar
+                styleToolbarOpen={showFormattingToolbar ? styleToolbarOpen : undefined}
+                onToggleStyleToolbar={
+                  showFormattingToolbar ? () => setStyleToolbarOpen((p) => !p) : undefined
+                }
+              />
+            ) : (
+              <div
+                style={{
+                  height: 44,
+                  borderBottom: '1px solid var(--border, #313944)',
+                  background: 'var(--card, #161a1e)',
+                }}
+              />
+            )}
+          </div>
+
+          {showProfileSelector && (
+            <div
+              className="gc-profile-badge"
+              style={{
+                height: 44,
+                padding: '0 10px',
+                background: 'var(--card, #161a1e)',
+                borderBottom: '1px solid var(--border, #313944)',
+                borderLeft: '1px solid var(--border, #313944)',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <ProfileSelector
+                profiles={profiles.profiles}
+                activeProfileId={profiles.activeProfileId ?? ''}
+                isDirty={isDirty}
+                onCreate={(name) => profiles.createProfile(name)}
+                onLoad={(id) => profiles.loadProfile(id)}
+                onDelete={(id) => profiles.deleteProfile(id)}
+                onExport={async (id) => {
+                  try {
+                    const payload = await profiles.exportProfile(id);
+                    const fileStem = (payload.profile.name || id)
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]+/g, '-')
+                      .replace(/^-+|-+$/g, '')
+                      .slice(0, 60) || 'profile';
+                    const json = JSON.stringify(payload, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `gc-profile-${fileStem}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    // Release the object-url on the next tick so the
+                    // browser has a frame to initiate the download.
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  } catch (err) {
+                    console.warn('[markets-grid] profile export failed:', err);
+                    window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+                onImport={async (file) => {
+                  try {
+                    const text = await file.text();
+                    const payload = JSON.parse(text);
+                    await profiles.importProfile(payload);
+                  } catch (err) {
+                    console.warn('[markets-grid] profile import failed:', err);
+                    window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+              />
+            </div>
+          )}
+
           {showSaveButton && (
             <button
               type="button"
               onClick={handleSaveAll}
-              title="Save profile"
+              title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
               data-testid="save-all-btn"
               style={{
-                height: 26,
+                height: 44,
                 padding: '0 10px',
-                background: 'var(--ck-green, #22c55e)',
-                color: '#0b0e11',
+                background: 'var(--card, #161a1e)',
+                borderBottom: '1px solid var(--border, #313944)',
                 border: 'none',
-                borderRadius: 2,
+                borderLeft: '1px solid var(--border, #313944)',
+                color: saveFlash
+                  ? 'var(--bn-green, #2dd4bf)'
+                  : isDirty
+                    ? 'var(--bn-yellow, #f0b90b)'
+                    : 'var(--muted-foreground, #a0a8b4)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 5,
                 fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: 0.08,
-                textTransform: 'uppercase',
-                transition: 'background 150ms',
+                fontWeight: 500,
+                transition: 'color 150ms',
               }}
             >
-              {saveFlash ? <Check size={12} strokeWidth={2.5} /> : <Save size={12} strokeWidth={2.25} />}
+              {saveFlash ? <Check size={13} strokeWidth={2.5} /> : <Save size={13} strokeWidth={1.75} />}
               <span>Save</span>
+            </button>
+          )}
+
+          {showSettingsButton && (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              title="Open settings"
+              data-testid="v2-settings-open-btn"
+              style={{
+                height: 44,
+                padding: '0 10px',
+                background: 'var(--card, #161a1e)',
+                borderBottom: '1px solid var(--border, #313944)',
+                border: 'none',
+                borderLeft: '1px solid var(--border, #313944)',
+                color: 'var(--muted-foreground, #a0a8b4)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 11,
+                fontWeight: 500,
+                transition: 'color 150ms',
+              }}
+            >
+              <SettingsIcon size={13} strokeWidth={1.75} />
+              <span>Settings</span>
             </button>
           )}
         </div>
       )}
 
-      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      {helpOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0, right: 0, bottom: 0,
-            width: 'min(520px, 85vw)',
-            background: 'var(--ck-bg)',
-            borderLeft: '1px solid var(--ck-border)',
-            zIndex: 60,
-          }}
+      {showFormattingToolbar && (
+        <DraggableFloat
+          open={styleToolbarOpen}
+          onClose={() => setStyleToolbarOpen(false)}
+          headless
+          data-testid="formatting-toolbar-float"
         >
-          <HelpPanel onClose={() => setHelpOpen(false)} />
-        </div>
+          {/* Inline row: drag handle | formatter toolbar | close button.
+              Panel sizes to the toolbar's natural content width; when that
+              exceeds the viewport, the toolbar's own `overflow-x-auto`
+              kicks in while the handle + close remain pinned. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'stretch',
+              maxWidth: 'calc(100vw - 32px)',
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}
+          >
+            <DraggableFloat.DragHandle
+              data-testid="formatting-toolbar-float-handle"
+              style={{
+                width: 22,
+                flexShrink: 0,
+                borderRight: '1px solid var(--border, #313944)',
+                background: 'var(--card, #161a1e)',
+              }}
+            />
+            <FormattingToolbar core={coreShim} store={platform.store} />
+            <DraggableFloat.CloseButton
+              data-testid="formatting-toolbar-float-close"
+              size={14}
+              style={{
+                width: 36,
+                height: 'auto',
+                borderRadius: 0,
+                borderLeft: '1px solid var(--border, #313944)',
+                background: 'var(--card, #161a1e)',
+                flexShrink: 0,
+              }}
+            />
+          </div>
+        </DraggableFloat>
       )}
 
       <div style={{ flex: 1 }}>
         <AgGridReact
           ref={gridRef}
+          // Spread the module-pipeline options FIRST so explicit host props
+          // (rowHeight / headerHeight / animateRows / etc.) win on conflict —
+          // preserves v1 ergonomics where the consumer's prop is authoritative
+          // unless a module deliberately wants to override it.
           {...(gridOptions as Record<string, unknown>)}
           theme={theme}
           rowData={rowData}
           columnDefs={columnDefs as never}
+          // `maintainColumnOrder: true` preserves the user's drag-reordered
+          // column positions when `columnDefs` re-derives (every module-state
+          // change). AG-Grid's default would match the current columnDefs
+          // order on every update, resetting the user's drag reorders.
           maintainColumnOrder
           rowHeight={rowHeight}
           headerHeight={headerHeight}
@@ -365,6 +501,15 @@ function Host<TData>({
           onGridPreDestroyed={onGridPreDestroyed}
         />
       </div>
+
+      <SettingsSheet
+        core={coreShim}
+        store={platform.store}
+        modules={modules}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialModuleId="conditional-styling"
+      />
     </div>
   );
 }

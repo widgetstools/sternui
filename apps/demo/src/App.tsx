@@ -152,6 +152,8 @@ function AppInner() {
           theme={theme}
           rowIdField="id"
           storageAdapter={storageAdapter}
+          showFiltersToolbar
+          showFormattingToolbar
           sideBar={{ toolPanels: ['columns', 'filters'] }}
           statusBar={{
             statusPanels: [
