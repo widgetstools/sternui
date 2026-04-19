@@ -211,6 +211,30 @@ export {
   type MultiFilterEntry,
 } from './modules/column-customization';
 
+// ─── StyleEditor + ColorPicker + FormatterPicker ────────────────────────────
+export { StyleEditor } from './ui/StyleEditor';
+export type {
+  StyleEditorProps,
+  StyleEditorValue,
+  StyleEditorSection,
+  StyleEditorDataType,
+  TextAlign,
+  FontWeight,
+} from './ui/StyleEditor';
+export { CompactColorField } from './ui/ColorPicker';
+export type { CompactColorFieldProps } from './ui/ColorPicker';
+export {
+  FormatterPicker,
+  presetsForDataType,
+  findMatchingPreset,
+  defaultSampleValue,
+} from './ui/FormatterPicker';
+export type {
+  FormatterPickerProps,
+  FormatterPreset,
+  FormatterPickerDataType,
+} from './ui/FormatterPicker';
+
 // ─── Format editor primitives (unchanged) ───────────────────────────────────
 export {
   FormatPopover,
