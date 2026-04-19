@@ -5,7 +5,19 @@
  * and re-exported with the rich `filter` / `rowGrouping` shapes narrowed
  * from `unknown` to the concrete configs below.
  */
-import type { ColumnAssignment as BaseAssignment } from '../../colDef';
+import type {
+  BorderSpec,
+  CellStyleOverrides,
+  ColumnAssignment as BaseAssignment,
+  PresetId,
+  TickToken,
+  ValueFormatterTemplate,
+} from '../../colDef';
+
+// Re-export shared colDef types from this module's state.ts so v2 panels
+// that import from `./state` (and can't easily be rewritten to reach into
+// colDef directly) keep working.
+export type { BorderSpec, CellStyleOverrides, PresetId, TickToken, ValueFormatterTemplate };
 
 // ─── Filter config ──────────────────────────────────────────────────────────
 

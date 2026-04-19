@@ -79,8 +79,11 @@ export {
   useModuleState,
   useGridApi,
   useGridEvent,
+  useGridStore,
+  useGridCore,
   useProfileManager,
 } from './hooks';
+export type { GridCoreLike } from './hooks';
 export type { UseProfileManagerResult } from './hooks';
 
 // ─── Expression Engine (unchanged, re-exported) ─────────────────────────────
@@ -110,29 +113,58 @@ export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 export { settingsCSS, STYLE_ID } from './ui/styles';
 export { cockpitCSS, COCKPIT_STYLE_ID } from './css';
 
-// ─── Cockpit settings-panel primitives ──────────────────────────────────────
+// ─── Cockpit settings-panel primitives (v2 surface, verbatim) ──────────────
 export {
+  DirtyDot,
+  LedBar,
+  GhostIcon,
+  SubLabel,
+  IconInput,
+  PillToggleGroup,
+  PillToggleBtn,
+  PairRow,
+  FigmaPanelSection,
+  ItemCard,
+  ObjectTitleRow,
+  TitleInput,
+  PanelChrome,
+  TabStrip,
   Caps,
   Mono,
-  Band,
-  Row,
   SharpBtn,
-  IconInput,
-  Stepper,
-  PillGroup,
-  PillBtn,
-  DirtyDot,
-  Led,
-  TBtn,
   TGroup,
+  TBtn,
   TDivider,
-  GhostIcon,
-  TitleInput,
+  Band,
   MetaCell,
-  ItemCard,
-  TabStrip,
-} from './ui/settings';
-export type { BtnVariant, TabItem } from './ui/settings';
+  Stepper,
+} from './ui/SettingsPanel';
+export type {
+  DirtyDotProps,
+  LedBarProps,
+  GhostIconProps,
+  SubLabelProps,
+  IconInputProps,
+  PillToggleGroupProps,
+  PillToggleBtnProps,
+  PairRowProps,
+  FigmaPanelSectionProps,
+  ItemCardProps,
+  ObjectTitleRowProps,
+  TitleInputProps,
+  PanelChromeProps,
+  TabStripProps,
+  TabItem,
+  CapsProps,
+  MonoProps,
+  SharpBtnProps,
+  SharpBtnVariant,
+  TGroupProps,
+  TBtnProps,
+  BandProps,
+  MetaCellProps,
+  StepperProps,
+} from './ui/SettingsPanel';
 
 // ─── shadcn primitives ──────────────────────────────────────────────────────
 export { Button, buttonVariants } from './ui/shadcn/button';
@@ -275,27 +307,41 @@ export {
 } from './modules/column-groups';
 
 // ─── StyleEditor + ColorPicker + FormatterPicker ────────────────────────────
-export { StyleEditor } from './ui/StyleEditor';
+export {
+  StyleEditor,
+  TextSection,
+  ColorSection,
+  BorderSection,
+  FormatSection,
+  BorderStyleEditor,
+} from './ui/StyleEditor';
 export type {
   StyleEditorProps,
   StyleEditorValue,
   StyleEditorSection,
+  StyleEditorVariant,
   StyleEditorDataType,
   TextAlign,
   FontWeight,
+  BorderStyleEditorProps,
+  BordersValue,
 } from './ui/StyleEditor';
-export { CompactColorField } from './ui/ColorPicker';
-export type { CompactColorFieldProps } from './ui/ColorPicker';
+export { CompactColorField, ColorPickerPopover as CockpitColorPickerPopover } from './ui/ColorPicker';
+export type { CompactColorFieldProps, ColorPickerPopoverProps as CockpitColorPickerPopoverProps } from './ui/ColorPicker';
 export {
   FormatterPicker,
+  inferPickerDataType,
   presetsForDataType,
   findMatchingPreset,
   defaultSampleValue,
+  EXCEL_EXAMPLES,
 } from './ui/FormatterPicker';
 export type {
   FormatterPickerProps,
   FormatterPreset,
   FormatterPickerDataType,
+  ExcelExample,
+  ExcelExampleCategory,
 } from './ui/FormatterPicker';
 
 // ─── Format editor primitives (unchanged) ───────────────────────────────────

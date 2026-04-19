@@ -1,258 +1,405 @@
-/**
- * Calculated Columns panel — master-detail editor for virtual columns.
- *
- * Left pane lists every virtual column with a + button. Right pane edits
- * colId / headerName / expression / valueFormatterTemplate / dataType /
- * initialWidth / initialHide / initialPinned. Expression editor is a
- * CSP-safe Textarea (Monaco upgrade can land later behind an "Advanced…"
- * affordance).
- */
-import { useCallback, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus, Save, Trash2 } from 'lucide-react';
+import { ExpressionEditor } from '@grid-customizer/core';
+import type { EditorPaneProps, ListPaneProps } from '../../platform/types';
+import { useGridCore, useGridStore } from '../../hooks/GridContext';
+import { useDraftModuleItem } from '../../store/useDraftModuleItem';
 import { useModuleState } from '../../hooks/useModuleState';
 import {
   Band,
   Caps,
   IconInput,
-  ItemCard,
-  Row,
+  LedBar,
+  MetaCell,
+  Mono,
+  ObjectTitleRow,
   SharpBtn,
-} from '../../ui/settings';
+  TitleInput,
+} from '../../ui/SettingsPanel';
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
-import { Switch } from '../../ui/shadcn/switch';
-import { Textarea } from '../../ui/shadcn/textarea';
-import type { SettingsPanelProps } from '../../platform/types';
 import type { CalculatedColumnsState, VirtualColumnDef } from './state';
 
-const MODULE_ID = 'calculated-columns';
+/**
+ * Calculated Columns — Cockpit master-detail panel.
+ *
+ * Splits into:
+ *   - `CalculatedColumnsList`  (items rail of virtual columns)
+ *   - `CalculatedColumnsEditor` (selected column editor)
+ *
+ * Legacy `CalculatedColumnsPanel` remains as a fallback composition.
+ */
 
-export function CalculatedColumnsPanel(_props: SettingsPanelProps) {
-  const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => state.virtualColumns[0]?.colId ?? null,
-  );
+function generateId(): string {
+  return `vcol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
 
-  const selected = state.virtualColumns.find((v) => v.colId === selectedId) ?? null;
+interface BaseGridColumnInfo {
+  colId: string;
+  headerName: string;
+}
 
-  const update = useCallback(
-    (colId: string, patch: Partial<VirtualColumnDef>) => {
-      setState((prev) => ({
-        virtualColumns: prev.virtualColumns.map((v) =>
-          v.colId === colId ? { ...v, ...patch, colId: patch.colId ?? v.colId } : v,
-        ),
-      }));
-      if (patch.colId && patch.colId !== colId) setSelectedId(patch.colId);
-    },
-    [setState],
-  );
-
-  const add = useCallback(() => {
-    const colId = `calc-${Date.now().toString(36)}`;
-    const next: VirtualColumnDef = {
-      colId,
-      headerName: 'New calc column',
-      expression: '[value] * 1',
-      initialWidth: 120,
+function useBaseGridColumns(): BaseGridColumnInfo[] {
+  const core = useGridCore();
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const api = core.getGridApi();
+    if (!api) return;
+    const handler = () => setTick((n) => n + 1);
+    const events = ['displayedColumnsChanged', 'columnEverythingChanged'] as const;
+    for (const evt of events) {
+      try {
+        api.addEventListener(evt, handler);
+      } catch {
+        /* */
+      }
+    }
+    return () => {
+      for (const evt of events) {
+        try {
+          api.removeEventListener(evt, handler);
+        } catch {
+          /* */
+        }
+      }
     };
-    setState((prev) => ({ virtualColumns: [...prev.virtualColumns, next] }));
-    setSelectedId(colId);
-  }, [setState]);
+  }, [core]);
+  return useMemo(() => {
+    const api = core.getGridApi();
+    if (!api) return [];
+    try {
+      const cols = api.getColumns?.() ?? [];
+      return cols.map((c) => ({
+        colId: c.getColId(),
+        headerName: c.getColDef().headerName ?? c.getColId(),
+      }));
+    } catch {
+      return [];
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [core, tick]);
+}
 
-  const remove = useCallback((colId: string) => {
+// ─── Dirty broadcast (module-local) ──────────────────────────────────────────
+
+const dirtyRegistry = new Set<string>();
+function setDirty(moduleId: string, itemId: string, value: boolean) {
+  const key = `${moduleId}:${itemId}`;
+  const before = dirtyRegistry.has(key);
+  if (value) dirtyRegistry.add(key);
+  else dirtyRegistry.delete(key);
+  if (before !== value) window.dispatchEvent(new CustomEvent('gc-dirty-change'));
+}
+function isDirty(moduleId: string, itemId: string): boolean {
+  return dirtyRegistry.has(`${moduleId}:${itemId}`);
+}
+
+function DirtyListLed({ itemId }: { itemId: string }) {
+  const [dirty, setDirtyState] = useState<boolean>(() => isDirty('calculated-columns', itemId));
+  useEffect(() => {
+    const handler = () => setDirtyState(isDirty('calculated-columns', itemId));
+    window.addEventListener('gc-dirty-change', handler);
+    return () => window.removeEventListener('gc-dirty-change', handler);
+  }, [itemId]);
+  if (!dirty) return null;
+  return <LedBar amber on title="Unsaved changes" />;
+}
+
+// ─── List pane ───────────────────────────────────────────────────────────────
+
+export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
+  const store = useGridStore();
+  const [state, setState] = useModuleState<CalculatedColumnsState>(store, 'calculated-columns');
+
+  const addVirtualColumn = useCallback(() => {
+    const id = generateId();
     setState((prev) => ({
-      virtualColumns: prev.virtualColumns.filter((v) => v.colId !== colId),
+      ...prev,
+      virtualColumns: [
+        ...prev.virtualColumns,
+        {
+          colId: id,
+          headerName: 'New Column',
+          expression: '',
+          position: prev.virtualColumns.length,
+        },
+      ],
     }));
-    setSelectedId((cur) => (cur === colId ? null : cur));
-  }, [setState]);
+    onSelect(id);
+  }, [setState, onSelect]);
+
+  useEffect(() => {
+    if (!selectedId && state.virtualColumns.length > 0) {
+      onSelect(state.virtualColumns[0].colId);
+    }
+  }, [selectedId, state.virtualColumns, onSelect]);
 
   return (
-    <div className="gc-sheet gc-panel-calculated-columns" style={{ display: 'flex', height: '100%' }}>
-      <aside style={{
-        width: 240,
-        borderRight: '1px solid var(--ck-border)',
-        overflowY: 'auto',
-        display: 'flex', flexDirection: 'column',
-      }}>
-        <header style={{ display: 'flex', alignItems: 'center', padding: '10px 12px' }}>
-          <Caps size={11} style={{ flex: 1 }}>Calc columns ({state.virtualColumns.length})</Caps>
-          <SharpBtn variant="action" onClick={add} title="Add calculated column" testId="cc-new-calc">
-            <Plus size={12} strokeWidth={2.25} />
-          </SharpBtn>
-        </header>
+    <>
+      <div className="gc-popout-list-header">
+        <Caps size={11}>Columns</Caps>
+        <Mono color="var(--ck-t3)" size={11}>
+          {String(state.virtualColumns.length).padStart(2, '0')}
+        </Mono>
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          onClick={addVirtualColumn}
+          title="Add virtual column"
+          data-testid="cc-add-virtual-btn"
+          style={{
+            width: 22,
+            height: 22,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--ck-green-bg)',
+            color: 'var(--ck-green)',
+            border: '1px solid var(--ck-green-dim)',
+            borderRadius: 2,
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <Plus size={11} strokeWidth={2.5} />
+        </button>
+      </div>
+      <ul className="gc-popout-list-items">
         {state.virtualColumns.map((v) => {
           const active = v.colId === selectedId;
           return (
-            <button
-              key={v.colId}
-              type="button"
-              onClick={() => setSelectedId(v.colId)}
-              data-testid={`cc-list-${v.colId}`}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '6px 12px',
-                background: active ? 'var(--ck-card)' : 'transparent',
-                color: active ? 'var(--ck-t0)' : 'var(--ck-t1)',
-                border: 'none',
-                borderLeft: active ? '2px solid var(--ck-green)' : '2px solid transparent',
-                cursor: 'pointer',
-                fontSize: 11,
-                fontFamily: 'var(--ck-font-sans)',
-              }}
-            >
-              <div>{v.headerName}</div>
-              <div style={{ fontSize: 9, color: 'var(--ck-t3)', fontFamily: 'var(--ck-font-mono)' }}>
-                {v.colId}
-              </div>
-            </button>
+            <li key={v.colId}>
+              <button
+                type="button"
+                className="gc-popout-list-item"
+                aria-selected={active}
+                onClick={() => onSelect(v.colId)}
+                data-testid={`cc-virtual-${v.colId}`}
+              >
+                <span style={{ width: 2, display: 'inline-flex' }}>
+                  <DirtyListLed itemId={v.colId} />
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {v.headerName || '(unnamed)'}
+                </span>
+              </button>
+            </li>
           );
         })}
-      </aside>
-
-      <section style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-        {selected ? (
-          <Editor
-            column={selected}
-            onChange={(patch) => update(selected.colId, patch)}
-            onDelete={() => remove(selected.colId)}
-          />
-        ) : (
-          <div style={{ padding: 24, color: 'var(--ck-t3)' }}>
-            Select a calculated column on the left, or press <strong>+</strong> to create one.
-          </div>
-        )}
-      </section>
-    </div>
+      </ul>
+    </>
   );
 }
 
-function Editor({
-  column,
-  onChange,
+// ─── Editor pane ─────────────────────────────────────────────────────────────
+
+export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
+  const store = useGridStore();
+  const [state, setState] = useModuleState<CalculatedColumnsState>(store, 'calculated-columns');
+
+  if (!selectedId) {
+    return (
+      <div style={{ padding: '32px 24px' }}>
+        <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
+          No column selected
+        </Caps>
+        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+          Select a virtual column from the list, or press <Mono size={11}>+</Mono> to add one.
+        </div>
+      </div>
+    );
+  }
+
+  if (!state.virtualColumns.some((v) => v.colId === selectedId)) return null;
+
+  const removeVirtualColumn = (colId: string) => {
+    setState((prev) => ({
+      ...prev,
+      virtualColumns: prev.virtualColumns.filter((c) => c.colId !== colId),
+    }));
+    setDirty('calculated-columns', colId, false);
+  };
+
+  return <VirtualColumnEditor colId={selectedId} onDelete={() => removeVirtualColumn(selectedId)} />;
+}
+
+const VirtualColumnEditor = memo(function VirtualColumnEditor({
+  colId,
   onDelete,
 }: {
-  column: VirtualColumnDef;
-  onChange: (patch: Partial<VirtualColumnDef>) => void;
+  colId: string;
   onDelete: () => void;
 }) {
+  const store = useGridStore();
+  const baseCols = useBaseGridColumns();
+  const columnsProvider = useCallback(
+    () => baseCols.map((c) => ({ colId: c.colId, headerName: c.headerName })),
+    [baseCols],
+  );
+
+  const { draft, setDraft, dirty, save, missing } = useDraftModuleItem<
+    CalculatedColumnsState,
+    VirtualColumnDef
+  >({
+    store,
+    moduleId: 'calculated-columns',
+    selectItem: (state) => state.virtualColumns.find((c) => c.colId === colId),
+    commitItem: (next) => (state) => ({
+      ...state,
+      virtualColumns: state.virtualColumns.map((c) => (c.colId === colId ? next : c)),
+    }),
+  });
+
+  useEffect(() => {
+    setDirty('calculated-columns', colId, dirty);
+    return () => setDirty('calculated-columns', colId, false);
+  }, [colId, dirty]);
+
+  if (missing || !draft) return null;
+
   return (
-    <ItemCard
-      title={<span>{column.headerName} <span style={{ fontSize: 10, color: 'var(--ck-t3)', fontWeight: 400 }}>· {column.colId}</span></span>}
-      onDelete={onDelete}
-      testId={`cc-card-${column.colId}`}
+    <div
+      data-testid={`cc-virtual-editor-${colId}`}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
     >
-      <Band index="01" title="Identity">
-        <Row
-          label="colId"
-          hint="Unique. Must not collide with a data field."
-          control={<IconInput value={column.colId} onCommit={(v) => onChange({ colId: v || column.colId })} />}
-        />
-        <Row
-          label="Header name"
-          control={<IconInput value={column.headerName} onCommit={(v) => onChange({ headerName: v || column.headerName })} />}
-        />
-      </Band>
+      <div className="gc-editor-header">
+      <ObjectTitleRow
+        title={
+          <TitleInput
+            value={draft.headerName}
+            onChange={(e) => setDraft({ headerName: e.target.value })}
+            placeholder="Column header"
+            data-testid={`cc-virtual-header-${colId}`}
+          />
+        }
+        actions={
+          <>
+            <SharpBtn
+              variant={dirty ? 'action' : 'ghost'}
+              disabled={!dirty}
+              onClick={save}
+              data-testid={`cc-virtual-save-${colId}`}
+            >
+              <Save size={13} strokeWidth={2} /> SAVE
+            </SharpBtn>
+            <SharpBtn variant="danger" onClick={onDelete}>
+              <Trash2 size={13} strokeWidth={2} /> DELETE
+            </SharpBtn>
+          </>
+        }
+      />
+      </div>
 
-      <Band index="02" title="Expression">
-        <Textarea
-          value={column.expression}
-          onChange={(e) => onChange({ expression: e.target.value })}
-          rows={4}
-          style={{
-            width: '100%',
-            fontFamily: 'var(--ck-font-mono)',
-            fontSize: 11,
-            background: 'var(--ck-bg)',
-            color: 'var(--ck-t0)',
-            border: '1px solid var(--ck-border-hi)',
-            borderRadius: 3,
-            padding: 8,
-          }}
-          placeholder="[price] * [quantity]"
-        />
-      </Band>
-
-      <Band index="03" title="Layout">
-        <Row
-          label="Initial width"
-          control={
+      <div className="gc-editor-scroll">
+      <div className="gc-meta-grid">
+        <MetaCell
+          label="COLUMN ID"
+          value={
             <IconInput
-              value={column.initialWidth === undefined ? '' : String(column.initialWidth)}
-              numeric
-              suffix="px"
-              onCommit={(raw) => {
-                if (!raw.trim()) { onChange({ initialWidth: undefined }); return; }
-                const n = Number(raw);
-                if (Number.isFinite(n) && n > 0) onChange({ initialWidth: n });
-              }}
+              value={draft.colId}
+              onCommit={(v) => setDraft({ colId: v })}
+              monospace
+              data-testid={`cc-virtual-colid-${colId}`}
             />
           }
         />
-        <Row
-          label="Initial pinned"
-          control={
-            <select
-              value={column.initialPinned ?? ''}
-              onChange={(e) => onChange({ initialPinned: (e.target.value || undefined) as 'left' | 'right' | undefined })}
-              style={{
-                height: 26, padding: '0 8px', fontSize: 11,
-                background: 'var(--ck-bg)', color: 'var(--ck-t0)',
-                border: '1px solid var(--ck-border-hi)', borderRadius: 2,
-              }}
-            >
-              <option value="">—</option>
-              <option value="left">Left</option>
-              <option value="right">Right</option>
-            </select>
+        <MetaCell label="REFS" value={<Mono color="var(--ck-t0)">{baseCols.length} cols</Mono>} />
+        <MetaCell
+          label="FORMATTER"
+          value={
+            <Mono color={draft.valueFormatterTemplate ? 'var(--ck-amber)' : 'var(--ck-t3)'}>
+              {draft.valueFormatterTemplate ? 'SET' : '—'}
+            </Mono>
           }
         />
-        <Row
-          label="Initial hide"
-          control={
-            <Switch
-              checked={!!column.initialHide}
-              onChange={(e) => onChange({ initialHide: (e.target as HTMLInputElement).checked || undefined })}
-            />
-          }
+        <MetaCell
+          label="WIDTH"
+          value={<Mono>{draft.initialWidth ? `${draft.initialWidth}px` : 'AUTO'}</Mono>}
         />
-      </Band>
+      </div>
 
-      <Band index="04" title="Format">
-        <Row
-          label="Data type"
-          control={
-            <select
-              value={column.cellDataType ?? 'number'}
-              onChange={(e) => onChange({ cellDataType: e.target.value as VirtualColumnDef['cellDataType'] })}
-              style={{
-                height: 26, padding: '0 8px', fontSize: 11,
-                background: 'var(--ck-bg)', color: 'var(--ck-t0)',
-                border: '1px solid var(--ck-border-hi)', borderRadius: 2,
-              }}
-            >
-              <option value="number">Number</option>
-              <option value="currency">Currency</option>
-              <option value="percent">Percent</option>
-              <option value="date">Date</option>
-              <option value="datetime">Datetime</option>
-              <option value="string">String</option>
-              <option value="boolean">Boolean</option>
-            </select>
-          }
-        />
-        <div style={{ padding: '8px 0' }}>
-          <FormatterPicker
-            value={column.valueFormatterTemplate}
-            onChange={(next) => onChange({ valueFormatterTemplate: next })}
-            dataType={(column.cellDataType ?? 'number') as FormatterPickerDataType}
+      <Band index="01" title="EXPRESSION">
+        <div
+          style={{
+            border: '1px solid var(--ck-border)',
+            borderRadius: 2,
+            background: 'var(--ck-bg)',
+            overflow: 'hidden',
+          }}
+        >
+          <ExpressionEditor
+            value={draft.expression}
+            // Live: mirror every keystroke into the draft so the header's
+            // SAVE pill lights up the moment the text diverges from the
+            // committed value. Previously only `onCommit` (blur /
+            // Ctrl+Enter) fed the draft, so typing e.g. `SUM([price],
+            // [yield])` into a multiline editor left SAVE looking dead
+            // because hitting Enter just added a newline instead of
+            // committing. Wiring `onChange` closes that gap.
+            onChange={(v) => setDraft({ expression: v })}
+            // Keep `onCommit` wired too so blur still finalises the
+            // exact string (parses / trims trailing whitespace via the
+            // editor's own diagnostics layer).
+            onCommit={(v) => setDraft({ expression: v })}
+            multiline
+            lines={3}
+            fontSize={12}
+            placeholder="[price] * [quantity]"
+            columnsProvider={columnsProvider}
+            data-testid={`cc-virtual-expr-${colId}`}
           />
         </div>
       </Band>
 
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-        <SharpBtn variant="danger" onClick={onDelete} testId="cc-delete">
-          <Trash2 size={12} strokeWidth={2.25} /> Delete column
-        </SharpBtn>
+      <Band index="02" title="VALUE FORMATTER">
+        {/* `compact` renders the same Figma-style popover picker the
+            Formatting Toolbar uses (trigger chip → tile grid grouped
+            by DECIMALS / NEGATIVES / SCIENTIFIC / BASIS POINTS +
+            custom Excel input with currency quick-insert). Keeps the
+            settings-editor formatter surface identical to the toolbar
+            so there's one picker to learn. */}
+        <FormatterPicker
+          compact
+          dataType={(draft.cellDataType ?? 'number') as FormatterPickerDataType}
+          value={draft.valueFormatterTemplate}
+          onChange={(next) => setDraft({ valueFormatterTemplate: next })}
+          data-testid={`cc-virtual-fmt-${colId}`}
+        />
+        <div style={{ marginTop: 8, fontSize: 10, color: 'var(--ck-t3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          OPTIONAL · APPLIED TO THE COMPUTED VALUE BEFORE DISPLAY
+        </div>
+      </Band>
+
+      <div style={{ height: 20 }} />
       </div>
-    </ItemCard>
+    </div>
+  );
+});
+
+// Legacy flat panel fallback
+export function CalculatedColumnsPanel() {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  return (
+    <div data-testid="cc-panel" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}>
+      <aside style={{ borderRight: '1px solid var(--ck-border)', overflowY: 'auto', background: 'var(--ck-surface)' }}>
+        <CalculatedColumnsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
+      </aside>
+      <section style={{ overflowY: 'auto' }}>
+        <CalculatedColumnsEditor gridId="" selectedId={selectedId} />
+      </section>
+    </div>
   );
 }
