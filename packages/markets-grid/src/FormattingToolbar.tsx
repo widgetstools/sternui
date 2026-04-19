@@ -73,7 +73,7 @@ import {
   Undo2, Redo2, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
   Type, PaintBucket,
-  Trash2, Grid3X3, Check,
+  Grid3X3, Check, RemoveFormatting,
   ChevronDown, ArrowLeft, ArrowRight, ArrowLeftRight,
   DollarSign, Percent, Hash,
   Plus,
@@ -1115,7 +1115,7 @@ export function FormattingToolbar() {
           >
             {clearConfirmed
               ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
-              : <Trash2 size={14} strokeWidth={1.75} />}
+              : <RemoveFormatting size={14} strokeWidth={1.75} />}
           </TBtn>
         </TGroup>
 
