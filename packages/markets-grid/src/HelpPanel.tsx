@@ -11,6 +11,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+// Static-layout styles — AUDIT i5 partial migration. Button/hover state
+// styles stay inline (see HelpPanel.css for rationale).
+import './HelpPanel.css';
 
 type SectionId =
   | 'overview'
@@ -32,25 +35,9 @@ const SECTIONS: Array<{ id: SectionId; title: string }> = [
 export function HelpPanel() {
   const [active, setActive] = useState<SectionId>('overview');
   return (
-    <div
-      data-testid="v2-settings-help"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '220px 1fr',
-        height: '100%',
-        overflow: 'hidden',
-        fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-      }}
-    >
+    <div data-testid="v2-settings-help" className="gc-help-shell">
       {/* Section rail */}
-      <nav
-        style={{
-          borderRight: '1px solid var(--ck-border)',
-          padding: '12px 6px',
-          overflowY: 'auto',
-          background: 'var(--ck-surface)',
-        }}
-      >
+      <nav className="gc-help-nav">
         {SECTIONS.map((s) => {
           const on = s.id === active;
           return (
@@ -92,23 +79,18 @@ export function HelpPanel() {
             </button>
           );
         })}
-        <div style={{ marginTop: 18, padding: '0 10px', fontSize: 10, color: 'var(--ck-t3)' }}>
+        <div className="gc-help-nav-footer">
           Full reference:
           <br />
-          <code style={{ fontFamily: 'var(--ck-font-mono)' }}>docs/FORMATS_AND_EXPRESSIONS.md</code>
+          <code>docs/FORMATS_AND_EXPRESSIONS.md</code>
         </div>
       </nav>
 
       {/* Content pane */}
       <section
         data-testid="help-content"
-        style={{
-          overflowY: 'auto',
-          padding: '20px 28px 32px',
-          color: 'var(--ck-t0)',
-          fontSize: 12.5,
-          lineHeight: 1.6,
-        }}
+        className="gc-help-content"
+        style={{ padding: '20px 28px 32px', fontSize: 12.5, lineHeight: 1.6 }}
       >
         {active === 'overview' && <Overview onNav={setActive} />}
         {active === 'excel' && <ExcelSection />}
@@ -175,7 +157,7 @@ function H3({ children }: { children: React.ReactNode }) {
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p style={{ margin: '6px 0', color: 'var(--ck-t1)' }}>{children}</p>;
+  return <p className="gc-help-p">{children}</p>;
 }
 
 function Code({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@grid-customizer/core';
+// Static-layout styles — AUDIT i5 partial migration. State-dependent
+// styles stay inline (see ProfileSelector.css for rationale).
+import './ProfileSelector.css';
 import {
   Popover,
   PopoverTrigger,
@@ -83,7 +86,7 @@ export function ProfileSelector({
   };
 
   return (
-    <div className="gc-profile-selector" style={{ display: 'inline-flex' }}>
+    <div className="gc-profile-selector">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -148,32 +151,15 @@ export function ProfileSelector({
           }}
         >
           {/* Header */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 12px 8px',
-          }}>
-            <span style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              color: 'var(--muted-foreground, #8b93a1)',
-            }}>
-              Profiles
-            </span>
-            <span style={{
-              fontSize: 10, fontVariantNumeric: 'tabular-nums',
-              color: 'var(--muted-foreground, #6b7280)',
-            }}>
-              {profiles.length}
-            </span>
+          <div className="gc-ps-header">
+            <span className="gc-ps-header-label">Profiles</span>
+            <span className="gc-ps-header-count">{profiles.length}</span>
           </div>
 
           {/* List */}
-          <div style={{ maxHeight: 288, overflowY: 'auto', padding: '0 6px 6px' }}>
+          <div className="gc-ps-list">
             {profiles.length === 0 ? (
-              <div style={{
-                padding: '18px 12px', fontSize: 11, textAlign: 'center',
-                color: 'var(--muted-foreground, #8b93a1)',
-              }}>
+              <div className="gc-ps-empty">
                 No profiles yet — create one below
               </div>
             ) : profiles.map((p) => {
@@ -217,17 +203,11 @@ export function ProfileSelector({
                   />
 
                   {/* Leading indicator */}
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 14, height: 14,
-                  }}>
+                  <span className="gc-ps-row-indicator">
                     {isActive ? (
                       <Check size={12} strokeWidth={2.5} style={{ color: 'var(--primary, #14b8a6)' }} />
                     ) : (
-                      <span style={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        background: 'color-mix(in srgb, var(--muted-foreground, #6b7280) 45%, transparent)',
-                      }} />
+                      <span className="gc-ps-row-dot" />
                     )}
                   </span>
 

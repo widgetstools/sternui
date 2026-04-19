@@ -1,0 +1,72 @@
+/* ───────────────────────────────────────────────────────────────────
+ * ProfileSelector — profile picker popover chrome.
+ *
+ * AUDIT i5 partial migration: this stylesheet hosts the STATIC layout
+ * and chrome that the component used to author inline. State-dependent
+ * styles (active-row highlight, hover background, dirty-dot color)
+ * remain inline in ProfileSelector.tsx because they branch on React
+ * state and would require additional data-* attributes to hand off
+ * cleanly to CSS. Migrating those is a cosmetic-only change best done
+ * with a visual-regression verification pass.
+ *
+ * Tokens come from the cockpit CSS vars (`--ck-*`) when the selector
+ * is mounted inside `.gc-sheet`, and from the market-grid surface
+ * defaults otherwise.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.gc-profile-selector {
+  display: inline-flex;
+}
+
+/* Popover header row — "Profiles" caps + count on the right. */
+.gc-ps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+}
+
+.gc-ps-header-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted-foreground, #8b93a1);
+}
+
+.gc-ps-header-count {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground, #6b7280);
+}
+
+/* Scrollable body wrapping the profile rows. */
+.gc-ps-list {
+  max-height: 288px;
+  overflow-y: auto;
+  padding: 0 6px 6px;
+}
+
+.gc-ps-empty {
+  padding: 18px 12px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--muted-foreground, #8b93a1);
+}
+
+/* Leading 14×14 slot that holds either a check (active) or a dot
+   (inactive) before the profile name. */
+.gc-ps-row-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.gc-ps-row-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--muted-foreground, #6b7280) 45%, transparent);
+}
