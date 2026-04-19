@@ -263,8 +263,11 @@ export {
   COLUMN_TEMPLATES_MODULE_ID,
   INITIAL_COLUMN_TEMPLATES,
   resolveTemplates,
+  snapshotTemplate,
+  addTemplateReducer,
   type ColumnTemplate,
   type ColumnTemplatesState,
+  type SnapshotTemplateDeps,
 } from './modules/column-templates';
 export {
   columnCustomizationModule,
@@ -272,6 +275,23 @@ export {
   INITIAL_COLUMN_CUSTOMIZATION,
   applyFilterConfigToColDef,
   applyRowGroupingConfigToColDef,
+  // Pure reducers over ColumnCustomizationState. The
+  // FormattingToolbar (and any future toolbar / preset service)
+  // dispatches these through `setModuleState` — no store closure
+  // required.
+  overrideKey,
+  stripUndefined,
+  mergeOverrides,
+  writeOverridesReducer,
+  applyTypographyReducer,
+  applyColorsReducer,
+  applyAlignmentReducer,
+  applyBordersReducer,
+  clearAllBordersReducer,
+  applyFormatterReducer,
+  applyTemplateToColumnsReducer,
+  clearAllStylesReducer,
+  type TargetKind,
   // Narrowed ColumnAssignment (with concrete filter + rowGrouping shapes).
   // This is what every consumer wants — the base shape with `unknown`
   // slots ships as `BaseColumnAssignment` from colDef.

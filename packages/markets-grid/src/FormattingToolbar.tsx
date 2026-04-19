@@ -44,16 +44,28 @@ import {
   valueFormatterFromTemplate,
   type GridCore,
   type GridStore,
-  type ColumnAssignment,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
-  type ColumnTemplate,
   type BorderSpec,
   type CellStyleOverrides,
   type TickToken,
   type ValueFormatterTemplate,
   resolveTemplates,
   useModuleState,
+  // Pure reducers extracted in step 1. The v2 helper bodies below
+  // delegate to these; behaviour is unchanged, covered by 43 unit
+  // tests in core/modules/column-customization/formattingActions.test.ts.
+  addTemplateReducer,
+  applyAlignmentReducer,
+  applyBordersReducer,
+  applyColorsReducer,
+  applyFormatterReducer,
+  applyTemplateToColumnsReducer,
+  applyTypographyReducer,
+  clearAllBordersReducer,
+  clearAllStylesReducer,
+  snapshotTemplate,
+  writeOverridesReducer,
 } from '@grid-customizer/core';
 import {
   Undo2, Redo2, Bold, Italic, Underline,
@@ -410,52 +422,19 @@ function useColumnFormatting(
   }, [cust, tpls, colIds, target, core]);
 }
 
-// ─── State-writer helpers ────────────────────────────────────────────────────
+// ─── State-writer helpers ────────────────────────────────────────────
 //
-// All writers use `setModuleState` so subscribers re-render. They all ensure
-// each target column has an assignment first (the customization walker only
-// applies overrides to columns that have one).
-
-function overrideKey(target: TargetKind): 'cellStyleOverrides' | 'headerStyleOverrides' {
-  return target === 'header' ? 'headerStyleOverrides' : 'cellStyleOverrides';
-}
-
-/** Drop keys whose value is `undefined` so a "clear" patch actually removes the
- *  key rather than leaving an `undefined` that flatteners treat as present. */
-function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
-  const out = { ...obj };
-  for (const k of Object.keys(out)) {
-    if (out[k] === undefined) delete out[k];
-  }
-  return out;
-}
-
-function mergeOverrides(
-  base: CellStyleOverrides | undefined,
-  patch: Partial<CellStyleOverrides>,
-): CellStyleOverrides | undefined {
-  const next: CellStyleOverrides = { ...(base ?? {}) };
-
-  if (patch.typography !== undefined) {
-    const merged = stripUndefined({ ...(next.typography ?? {}), ...patch.typography });
-    next.typography = Object.keys(merged).length > 0 ? merged : undefined;
-  }
-  if (patch.colors !== undefined) {
-    const merged = stripUndefined({ ...(next.colors ?? {}), ...patch.colors });
-    next.colors = Object.keys(merged).length > 0 ? merged : undefined;
-  }
-  if (patch.alignment !== undefined) {
-    const merged = stripUndefined({ ...(next.alignment ?? {}), ...patch.alignment });
-    next.alignment = Object.keys(merged).length > 0 ? merged : undefined;
-  }
-  if (patch.borders !== undefined) {
-    const merged = stripUndefined({ ...(next.borders ?? {}), ...patch.borders });
-    next.borders = Object.keys(merged).length > 0 ? merged : undefined;
-  }
-
-  const clean = stripUndefined(next as unknown as Record<string, unknown>) as CellStyleOverrides;
-  return Object.keys(clean).length > 0 ? clean : undefined;
-}
+// THIN delegates to the pure reducers in
+// `@grid-customizer/core/modules/column-customization/formattingActions`.
+// Every helper here preserves its v2 signature (so the ~40 callsites
+// in this file stay untouched across the refactor) while the body
+// dispatches a reducer through `setModuleState`. Behaviour is pinned
+// by the 43 reducer unit tests + 20 snapshotTemplate tests in core.
+//
+// Step 6 of the toolbar refactor will inline these delegates at the
+// callsite + drop the `store` parameter entirely. Keeping them as
+// one-liners now is the step that swaps implementations without
+// touching the component body.
 
 function writeOverrides(
   store: GridStore,
@@ -463,44 +442,40 @@ function writeOverrides(
   target: TargetKind,
   patch: Partial<CellStyleOverrides>,
 ) {
-  if (!colIds.length) return;
-  const key = overrideKey(target);
-  store.setModuleState<ColumnCustomizationState>('column-customization', (prev) => {
-    const assignments = { ...(prev?.assignments ?? {}) };
-    for (const colId of colIds) {
-      const a: ColumnAssignment = assignments[colId] ?? { colId };
-      const merged = mergeOverrides(a[key], patch);
-      const next: ColumnAssignment = { ...a };
-      if (merged === undefined) {
-        delete next[key];
-      } else {
-        next[key] = merged;
-      }
-      assignments[colId] = next;
-    }
-    return { ...prev, assignments };
-  });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    writeOverridesReducer(colIds, target, patch),
+  );
 }
 
 function applyTypography(
   store: GridStore, colIds: string[], target: TargetKind,
   patch: { bold?: boolean | undefined; italic?: boolean | undefined; underline?: boolean | undefined; fontSize?: number | undefined },
 ) {
-  writeOverrides(store, colIds, target, { typography: patch });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    applyTypographyReducer(colIds, target, patch),
+  );
 }
 
 function applyColors(
   store: GridStore, colIds: string[], target: TargetKind,
   patch: { text?: string | undefined; background?: string | undefined },
 ) {
-  writeOverrides(store, colIds, target, { colors: patch });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    applyColorsReducer(colIds, target, patch),
+  );
 }
 
 function applyAlignment(
   store: GridStore, colIds: string[], target: TargetKind,
   patch: { horizontal?: 'left' | 'center' | 'right' | undefined },
 ) {
-  writeOverrides(store, colIds, target, { alignment: patch });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    applyAlignmentReducer(colIds, target, patch),
+  );
 }
 
 /** Write a BorderSpec (or undefined to clear) to one or more sides. */
@@ -509,15 +484,18 @@ function applyBorders(
   sides: Array<'top' | 'right' | 'bottom' | 'left'>,
   spec: BorderSpec | undefined,
 ) {
-  if (!colIds.length) return;
-  const patch: NonNullable<CellStyleOverrides['borders']> = {};
-  for (const side of sides) patch[side] = spec;
-  writeOverrides(store, colIds, target, { borders: patch });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    applyBordersReducer(colIds, target, sides, spec),
+  );
 }
 
 /** Clear every border side (top/right/bottom/left). */
 function clearAllBorders(store: GridStore, colIds: string[], target: TargetKind) {
-  applyBorders(store, colIds, target, ['top', 'right', 'bottom', 'left'], undefined);
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    clearAllBordersReducer(colIds, target),
+  );
 }
 
 /** Set valueFormatterTemplate on each column (undefined removes it). */
@@ -525,93 +503,57 @@ function applyFormatter(
   store: GridStore, colIds: string[],
   template: ValueFormatterTemplate | undefined,
 ) {
-  if (!colIds.length) return;
-  store.setModuleState<ColumnCustomizationState>('column-customization', (prev) => {
-    const assignments = { ...(prev?.assignments ?? {}) };
-    for (const colId of colIds) {
-      const a: ColumnAssignment = assignments[colId] ?? { colId };
-      const next: ColumnAssignment = { ...a };
-      if (template === undefined) delete next.valueFormatterTemplate;
-      else next.valueFormatterTemplate = template;
-      assignments[colId] = next;
-    }
-    return { ...prev, assignments };
-  });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    applyFormatterReducer(colIds, template),
+  );
 }
 
 /** Replace the templateIds chain with the single picked template.
  *  v2's resolver composes templateIds in array order; for toolbar UX we
  *  intentionally keep it single so picking a template swaps cleanly. */
 function applyTemplateToColumns(store: GridStore, colIds: string[], templateId: string) {
-  if (!colIds.length || !templateId) return;
-  store.setModuleState<ColumnCustomizationState>('column-customization', (prev) => {
-    const assignments = { ...(prev?.assignments ?? {}) };
-    for (const colId of colIds) {
-      const a: ColumnAssignment = assignments[colId] ?? { colId };
-      assignments[colId] = { ...a, templateIds: [templateId] };
-    }
-    return { ...prev, assignments };
-  });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    applyTemplateToColumnsReducer(colIds, templateId),
+  );
 }
 
-/** Snapshot the first column's resolved overrides + formatter as a named template. */
+/** Snapshot the first column's resolved overrides + formatter as a named template.
+ *  Splits into two pure calls (snapshotTemplate → addTemplateReducer) + a
+ *  grid-api read for the column's cellDataType. */
 function saveCurrentAsTemplate(
   core: GridCore, store: GridStore, colIds: string[], name: string,
 ): string | undefined {
-  if (!colIds.length || !name.trim()) return undefined;
+  if (!colIds.length) return undefined;
+  const colId = colIds[0];
 
-  const cust = store.getModuleState<ColumnCustomizationState>('column-customization');
-  const tpls = store.getModuleState<ColumnTemplatesState>('column-templates');
-  const a = cust?.assignments?.[colIds[0]];
-  if (!a) return undefined;
-
-  // Resolve (templates + typeDefault + overrides) so the saved template
-  // captures the *effective* appearance, matching v1's behavior.
+  // Ask the grid api for cellDataType so resolveTemplates can fold the
+  // right typeDefault. Try/catch because v2's api shape drift is real.
   let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
   try {
-    const api = core.getGridApi() as unknown as { getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } } } | null;
-    const colDef = api?.getColumn?.(colIds[0])?.getColDef?.();
-    const t = colDef?.cellDataType;
+    const api = core.getGridApi() as unknown as {
+      getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
+    } | null;
+    const t = api?.getColumn?.(colId)?.getColDef?.()?.cellDataType;
     if (t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean') dataType = t;
   } catch { /* ignore */ }
 
-  const resolved = resolveTemplates(a, tpls ?? { templates: {}, typeDefaults: {} }, dataType);
+  const cust = store.getModuleState<ColumnCustomizationState>('column-customization');
+  const tpls = store.getModuleState<ColumnTemplatesState>('column-templates');
+  const tpl = snapshotTemplate(cust, tpls, colId, name, dataType);
+  if (!tpl) return undefined;
 
-  const hasCell = !!resolved.cellStyleOverrides && Object.keys(resolved.cellStyleOverrides).length > 0;
-  const hasHeader = !!resolved.headerStyleOverrides && Object.keys(resolved.headerStyleOverrides).length > 0;
-  const vft = resolved.valueFormatterTemplate;
-  if (!hasCell && !hasHeader && !vft) return undefined;
-
-  const now = Date.now();
-  const newId = `tpl_${now}_${Math.random().toString(36).slice(2, 6)}`;
-  const tpl: ColumnTemplate = {
-    id: newId,
-    name: name.trim(),
-    description: `Saved from ${colIds[0]}`,
-    createdAt: now,
-    updatedAt: now,
-    ...(hasCell ? { cellStyleOverrides: resolved.cellStyleOverrides } : {}),
-    ...(hasHeader ? { headerStyleOverrides: resolved.headerStyleOverrides } : {}),
-    ...(vft ? { valueFormatterTemplate: vft } : {}),
-  };
-
-  store.setModuleState<ColumnTemplatesState>('column-templates', (prev) => ({
-    ...prev,
-    templates: { ...(prev?.templates ?? {}), [newId]: tpl },
-  }));
-  return newId;
+  store.setModuleState<ColumnTemplatesState>('column-templates', addTemplateReducer(tpl));
+  return tpl.id;
 }
 
 /** Drop every override (and template ref) on the selected columns. */
 function clearAllStyles(store: GridStore, colIds: string[]) {
-  if (!colIds.length) return;
-  store.setModuleState<ColumnCustomizationState>('column-customization', (prev) => {
-    const assignments = { ...(prev?.assignments ?? {}) };
-    for (const colId of colIds) {
-      assignments[colId] = { colId };
-    }
-    return { ...prev, assignments };
-  });
+  store.setModuleState<ColumnCustomizationState>(
+    'column-customization',
+    clearAllStylesReducer(colIds),
+  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

@@ -48,4 +48,9 @@ export const columnTemplatesModule: Module<ColumnTemplatesState> = {
 
 export { INITIAL_COLUMN_TEMPLATES };
 export { resolveTemplates } from './resolveTemplates';
+export {
+  snapshotTemplate,
+  addTemplateReducer,
+  type SnapshotTemplateDeps,
+} from './snapshotTemplate';
 export type { ColumnTemplate, ColumnTemplatesState, ColumnDataType };
