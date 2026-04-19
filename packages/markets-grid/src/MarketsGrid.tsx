@@ -437,8 +437,9 @@ function Host<TData>({
         >
           {/* Inline row: drag handle | formatter toolbar | close button.
               Panel sizes to the toolbar's natural content width; when that
-              exceeds the viewport, the toolbar's own `overflow-x-auto`
-              kicks in while the handle + close remain pinned. */}
+              exceeds the viewport, the toolbar's own flex-wrap kicks in
+              and the floating panel grows vertically (2 rows → 3 rows on
+              narrow viewports) — no horizontal scroll. */}
           <div
             style={{
               display: 'flex',
@@ -446,6 +447,9 @@ function Host<TData>({
               maxWidth: 'calc(100vw - 32px)',
               borderRadius: 6,
               overflow: 'hidden',
+              background: 'var(--card, #161a1e)',
+              border: '1px solid var(--border, #313944)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
             }}
           >
             <DraggableFloat.DragHandle

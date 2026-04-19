@@ -40,6 +40,7 @@ import {
 import {
   BorderStyleEditor,
   FormatterPicker,
+  valueFormatterFromTemplate,
   type GridCore,
   type GridStore,
   type ColumnAssignment,
@@ -216,6 +217,25 @@ function TGroup({ children, className }: { children: React.ReactNode; className?
     <div className={cn('flex items-center gap-0.5 px-1.5 py-1 rounded-[4px] bg-accent/40', className)}>
       {children}
     </div>
+  );
+}
+
+/**
+ * Vertical hairline separator between toolbar groups. Sized + coloured
+ * against the cockpit border var so it's consistent across themes.
+ */
+function ToolbarSep() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 20,
+        background: 'var(--border, #2d3339)',
+        opacity: 0.6,
+        flexShrink: 0,
+      }}
+    />
   );
 }
 
@@ -831,13 +851,34 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   const fontSizeLabel = fmt.fontSize != null ? `${fmt.fontSize}px` : '11px';
   const vft = fmt.valueFormatterTemplate;
 
+  // Live-preview sample values per datatype — the chip at the end of Row 2
+  // runs the current `vft` through `valueFormatterFromTemplate` and renders
+  // the result. Gives traders an at-a-glance answer to "what does the current
+  // format look like against a real value?" without touching the grid.
+  const previewSample: unknown = pickerDataType === 'number'   ? 1234.5678
+                             : pickerDataType === 'date'     ? new Date('2026-04-17T00:00:00Z')
+                             : pickerDataType === 'datetime' ? new Date('2026-04-17T09:30:00Z')
+                             : pickerDataType === 'boolean'  ? true
+                             :                                 'sample';
+  const previewText = useMemo(() => {
+    if (!vft) return String(previewSample instanceof Date ? previewSample.toISOString().slice(0, 10) : previewSample);
+    try { return valueFormatterFromTemplate(vft)({ value: previewSample }); }
+    catch { return '—'; }
+  }, [vft, previewSample]);
+
   return (
     <div
-      className={cn('gc-formatting-toolbar flex items-center gap-2 h-11 border-b border-border bg-card text-xs relative z-[10000] min-w-0 overflow-x-auto overflow-y-visible', !disabled && 'gc-toolbar-enabled')}
-      // `flex: 0 1 auto` = natural content width, shrink when the flex row
-      // runs out of room. Combined with min-width: 0 + overflow-x-auto this
-      // gives the floating panel the responsive grow/shrink behaviour.
-      style={{ paddingLeft: 16, paddingRight: 16, flex: '0 1 auto' }}
+      className={cn(
+        'gc-formatting-toolbar flex flex-col gap-0 bg-card text-xs relative z-[10000]',
+        !disabled && 'gc-toolbar-enabled',
+        disabled && 'gc-toolbar-disabled',
+      )}
+      style={{
+        // Natural content width, capped at viewport. Rows flex-wrap inside.
+        width: 'max-content',
+        maxWidth: 'calc(100vw - 96px)',
+        flex: '0 1 auto',
+      }}
       data-testid="formatting-toolbar"
       onMouseDown={(e) => {
         const tag = (e.target as HTMLElement).tagName;
@@ -845,296 +886,494 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
       }}
     >
 
-      {/* ── Templates ── */}
-      {!disabled && (
-        <TGroup>
-          <select
-            className="h-7 text-[9px] font-mono rounded-[4px] px-2.5 cursor-pointer transition-all gc-tbtn bg-card border border-border text-foreground max-w-[110px]"
-            value=""
-            data-testid="templates-select"
-            onChange={(e) => {
-              const tplId = e.target.value;
-              if (tplId) {
-                applyTemplateToColumns(store, colIdsRef.current, tplId);
-                e.target.value = '';
-              }
+      {/* ───────────────────────────── ROW 1 — CHROME ───────────────────
+          Target + column context anchor the row. Typography, alignment,
+          colours, borders, and actions flow left-to-right. Flex-wraps
+          atomically at the group level so pill-groups never break. */}
+      <div
+        className="gc-toolbar-row flex flex-wrap items-center gap-2"
+        style={{ padding: '6px 12px', borderBottom: '1px solid var(--border, #2d3339)' }}
+      >
+        {/* Context: which column(s) + target toggle. Most important
+             semantic anchor — placed at row start. */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Tooltip content={colIds.length > 0 ? colIds.join(', ') : 'Click a cell or header to pick a column'}>
+            <span
+              data-testid="formatting-col-label"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                height: 26, padding: '0 10px',
+                borderRadius: 13,
+                background: disabled
+                  ? 'transparent'
+                  : 'color-mix(in srgb, var(--bn-green, #2dd4bf) 10%, transparent)',
+                border: `1px solid ${disabled ? 'var(--border, #2d3339)' : 'var(--bn-green, #2dd4bf)'}`,
+                color: disabled ? 'var(--muted-foreground, #8b93a1)' : 'var(--bn-green, #2dd4bf)',
+                fontSize: 11, fontWeight: 600, letterSpacing: 0.08,
+                whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+            >
+              <span style={{
+                display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                background: disabled ? 'var(--muted-foreground, #8b93a1)' : 'var(--bn-green, #2dd4bf)',
+                boxShadow: disabled ? 'none' : '0 0 6px var(--bn-green, #2dd4bf)',
+                flexShrink: 0,
+              }} />
+              {colLabel}
+            </span>
+          </Tooltip>
+          {/* Cell / Header segmented toggle — clearer than a single pill
+              that flips label. Shows two chips with the active one highlighted. */}
+          <div
+            role="group"
+            aria-label="Edit target"
+            className="gc-target-segmented"
+            data-testid="formatting-target-toggle"
+            data-target={target}
+            style={{
+              display: 'inline-flex',
+              height: 26,
+              borderRadius: 4,
+              border: '1px solid var(--border, #2d3339)',
+              overflow: 'hidden',
+              background: 'var(--card, #161a1e)',
             }}
           >
-            <option value="" disabled>Templates</option>
-            {templateList.map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
-            ))}
-            {templateList.length === 0 && <option disabled>No templates yet</option>}
-          </select>
-          <Popover
-            trigger={
-              <TBtn tooltip="Save as template" className={saveAsTplConfirmed ? 'gc-tbtn-confirm' : undefined}>
-                {saveAsTplConfirmed
-                  ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
-                  : <Plus size={14} strokeWidth={1.75} />}
-              </TBtn>
-            }
-          >
-            <div className="p-3 w-[230px]" onMouseDown={(e) => {
-              if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
-            }}>
-              <div className="text-[9px] uppercase tracking-[0.05em] mb-1.5 text-muted-foreground font-semibold">
-                Save as template
-              </div>
-              <input
-                type="text"
-                value={saveAsTplName}
-                onChange={(e) => setSaveAsTplName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && saveAsTplName.trim()) {
-                    saveCurrentAsTemplate(core, store, colIdsRef.current, saveAsTplName);
-                    setSaveAsTplName('');
-                    flashSaveAsTpl();
-                  }
-                }}
-                placeholder={`${colLabel} Style`}
-                className="w-full h-7 px-2.5 rounded-[3px] text-[11px] font-mono mb-2 bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-ring"
-                autoFocus
-                data-testid="save-tpl-input"
-              />
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  const name = saveAsTplName.trim() || `${colLabel} Style`;
-                  saveCurrentAsTemplate(core, store, colIdsRef.current, name);
-                  setSaveAsTplName('');
-                  flashSaveAsTpl();
-                }}
-                data-testid="save-tpl-btn"
-              >
-                Save Template
-              </Button>
-            </div>
-          </Popover>
-        </TGroup>
-      )}
-
-      <div className="gc-toolbar-sep h-5" />
-
-      {/* ── Typography ── */}
-      <TGroup>
-        <TBtn disabled={disabled} tooltip="Bold" active={fmt.bold} onClick={toggleBold}>
-          <Bold size={14} strokeWidth={2.25} />
-        </TBtn>
-        <TBtn disabled={disabled} tooltip="Italic" active={fmt.italic} onClick={toggleItalic}>
-          <Italic size={14} strokeWidth={1.75} />
-        </TBtn>
-        <TBtn disabled={disabled} tooltip="Underline" active={fmt.underline} onClick={toggleUnderline}>
-          <Underline size={14} strokeWidth={1.75} />
-        </TBtn>
-        <div className="gc-toolbar-sep h-4 opacity-50" />
-        {/* Font size dropdown */}
-        <Popover
-          trigger={
-            <button disabled={disabled}
-              className={cn(
-                'flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-[9px] font-mono transition-all duration-150 cursor-pointer gc-tbtn',
-                disabled && 'opacity-20 pointer-events-none',
-              )}
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-              <span className="tracking-wider">{fontSizeLabel}</span>
-              <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
-            </button>
-          }
-        >
-          <div className="p-1.5 min-w-[68px]">
-            {[9, 10, 11, 12, 13, 14, 16, 18, 20, 24].map((sz) => (
-              <button
-                key={sz}
-                className={cn(
-                  'flex items-center w-full px-2.5 py-1 rounded-md text-[11px] font-mono hover:bg-accent cursor-pointer transition-colors',
-                  fmt.fontSize === sz ? 'text-primary' : 'text-foreground',
-                )}
-                onClick={() => setFontSizePx(sz)}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                {sz}px
-              </button>
-            ))}
-          </div>
-        </Popover>
-        <ColorPickerPopover
-          disabled={disabled}
-          value={fmt.color}
-          icon={<Type size={11} strokeWidth={2} />}
-          onChange={(c) => setTextColor(c)}
-          compact
-        />
-        <ColorPickerPopover
-          disabled={disabled}
-          value={fmt.background}
-          icon={<PaintBucket size={11} strokeWidth={1.5} />}
-          onChange={(c) => setBgColor(c)}
-          compact
-        />
-      </TGroup>
-
-      <div className="gc-toolbar-sep h-5" />
-
-      {/* ── Alignment ── */}
-      <TGroup>
-        <TBtn disabled={disabled} tooltip="Left" active={fmt.horizontal === 'left'} onClick={() => toggleAlign('left')}>
-          <AlignLeft size={14} strokeWidth={1.75} />
-        </TBtn>
-        <TBtn disabled={disabled} tooltip="Center" active={fmt.horizontal === 'center'} onClick={() => toggleAlign('center')}>
-          <AlignCenter size={14} strokeWidth={1.75} />
-        </TBtn>
-        <TBtn disabled={disabled} tooltip="Right" active={fmt.horizontal === 'right'} onClick={() => toggleAlign('right')}>
-          <AlignRight size={14} strokeWidth={1.75} />
-        </TBtn>
-      </TGroup>
-
-      <div className="gc-toolbar-sep h-5" />
-
-      {/* ── Number Format (cell-only) ── */}
-      <TGroup className={isHeader ? 'opacity-30 pointer-events-none' : undefined}>
-        <Popover
-          trigger={
-            <Button variant="ghost" size="icon-sm" disabled={disabled || isHeader}
-              className={cn('shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150', (disabled || isHeader) && 'opacity-25 pointer-events-none')}
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-              <DollarSign size={14} strokeWidth={1.75} />
-            </Button>
-          }
-        >
-          <div className="p-1.5 min-w-[120px]">
-            {Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => (
-              <button
-                key={key}
-                className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[11px] text-foreground hover:bg-accent cursor-pointer transition-colors"
-                onClick={() => doFormat(f.template)}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                <span className="font-mono font-semibold w-4 text-muted-foreground">{f.label}</span>
-                <span>{key}</span>
-              </button>
-            ))}
-            <div className="h-px bg-border my-1" />
-            <button
-              className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[11px] text-foreground hover:bg-accent cursor-pointer transition-colors"
-              onClick={() => doFormat(BPS_TEMPLATE)}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <span className="font-mono font-semibold w-4 text-muted-foreground">bp</span>
-              <span>BPS</span>
-            </button>
-          </div>
-        </Popover>
-        <TBtn disabled={disabled || isHeader} tooltip="Percentage"
-          active={!isHeader && isPercentTemplate(vft)}
-          onClick={() => doFormat(isPercentTemplate(vft) ? undefined : PERCENT_TEMPLATE)}>
-          <Percent size={14} strokeWidth={1.75} />
-        </TBtn>
-        <TBtn disabled={disabled || isHeader} tooltip="Thousands"
-          active={!isHeader && isCommaTemplate(vft)}
-          onClick={() => doFormat(isCommaTemplate(vft) ? undefined : COMMA_TEMPLATE)}>
-          <Hash size={14} strokeWidth={1.75} />
-        </TBtn>
-        <div className="gc-toolbar-sep h-4 opacity-50" />
-        {/* ── Tick format (fixed-income bond price) — split button ────
-             Main button toggles TICK32 (most common). Chevron opens a
-             precision menu (32 / 32+ / 64 / 128 / 256). When a tick
-             format is already applied, the main button shows the
-             active token's label inside the tooltip. */}
-        <TBtn
-          disabled={disabled || isHeader}
-          active={!isHeader && isTickTemplate(vft)}
-          tooltip={
-            currentTickToken(vft)
-              ? `Tick: ${TICK_MENU.find((m) => m.token === currentTickToken(vft))?.label ?? '32nds'}`
-              : 'Tick format (32nds)'
-          }
-          onClick={() =>
-            doFormat(
-              isTickTemplate(vft)
-                ? undefined
-                : { kind: 'tick', tick: currentTickToken(vft) ?? 'TICK32' },
-            )
-          }
-          data-testid="fmt-tick-btn"
-        >
-          <span style={{
-            fontFamily: 'var(--ck-font-mono, monospace)',
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: '0.04em',
-            lineHeight: 1,
-          }}>
-            {currentTickToken(vft)
-              ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
-              : '32'}
-          </span>
-        </TBtn>
-        <Popover
-          trigger={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              disabled={disabled || isHeader}
-              className={cn(
-                'shrink-0 w-4 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
-                (disabled || isHeader) && 'opacity-25 pointer-events-none',
-              )}
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              data-testid="fmt-tick-menu-trigger"
-              title="Tick precision"
-            >
-              <ChevronDown size={10} strokeWidth={1.75} />
-            </Button>
-          }
-        >
-          <div className="p-1 min-w-[180px]">
-            {TICK_MENU.map((m) => {
-              const active = currentTickToken(vft) === m.token;
+            {(['cell', 'header'] as const).map((k) => {
+              const on = target === k;
               return (
                 <button
-                  key={m.token}
+                  key={k}
                   type="button"
-                  onClick={() => doFormat({ kind: 'tick', tick: m.token })}
+                  data-testid={`formatting-target-${k}`}
+                  onClick={() => setTarget(k)}
                   onMouseDown={(e) => e.preventDefault()}
-                  className={cn(
-                    'flex items-center gap-3 w-full px-2 py-1.5 rounded-md text-[11px]',
-                    'text-foreground hover:bg-accent cursor-pointer transition-colors',
-                    active && 'bg-accent',
-                  )}
-                  data-testid={`fmt-tick-menu-${m.token}`}
-                >
-                  <span className="font-mono text-muted-foreground w-4">
-                    {active ? <Check size={10} strokeWidth={2.5} /> : ''}
-                  </span>
-                  <span className="flex-1 text-left">{m.label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{m.sample}</span>
-                </button>
+                  style={{
+                    padding: '0 10px',
+                    background: on ? 'var(--bn-green, #2dd4bf)' : 'transparent',
+                    color: on ? '#0b0e11' : 'var(--muted-foreground, #a0a8b4)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 10, fontWeight: 700, letterSpacing: 0.08,
+                    textTransform: 'uppercase',
+                  }}
+                  title={`Edit the ${k}`}
+                >{k}</button>
               );
             })}
           </div>
-        </Popover>
-        <div className="gc-toolbar-sep h-4 opacity-50" />
-        <TBtn disabled={disabled || isHeader} tooltip="Fewer decimals" onClick={decreaseDecimals}>
-          <span className="flex items-center gap-px text-[9px] font-mono"><ArrowLeft size={9} strokeWidth={2} />.0</span>
-        </TBtn>
-        <TBtn disabled={disabled || isHeader} tooltip="More decimals" onClick={increaseDecimals}>
-          <span className="flex items-center gap-px text-[9px] font-mono">.0<ArrowRight size={9} strokeWidth={2} /></span>
-        </TBtn>
-        <div className="gc-toolbar-sep h-4 opacity-50" />
-        {/* ── Shared FormatterPicker — collapsed by default so it sits
-              as a single chip. Surfaces structured presets (including
-              tick formats), a categorised Excel reference, validated
-              Excel input, and a live preview chip. Replaces the legacy
-              raw <input> Excel field — the picker's built-in input has
-              the same validation + placeholder semantics plus preset
-              round-trip. Writes to the same
-              `ColumnAssignment.valueFormatterTemplate` field that the
-              quick-buttons above drive, so persistence rides
-              column-customization's existing profile pipeline. */}
+        </div>
+
+        <ToolbarSep />
+
+        {/* Templates dropdown + save-as — compact. */}
+        {!disabled && (
+          <TGroup>
+            <select
+              className="h-7 text-[9px] font-mono rounded-[4px] px-2.5 cursor-pointer transition-all gc-tbtn bg-card border border-border text-foreground max-w-[110px]"
+              value=""
+              data-testid="templates-select"
+              onChange={(e) => {
+                const tplId = e.target.value;
+                if (tplId) {
+                  applyTemplateToColumns(store, colIdsRef.current, tplId);
+                  e.target.value = '';
+                }
+              }}
+            >
+              <option value="" disabled>Templates</option>
+              {templateList.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+              ))}
+              {templateList.length === 0 && <option disabled>No templates yet</option>}
+            </select>
+            <Popover
+              trigger={
+                <TBtn tooltip="Save as template" className={saveAsTplConfirmed ? 'gc-tbtn-confirm' : undefined}>
+                  {saveAsTplConfirmed
+                    ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
+                    : <Plus size={14} strokeWidth={1.75} />}
+                </TBtn>
+              }
+            >
+              <div className="p-3 w-[230px]" onMouseDown={(e) => {
+                if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
+              }}>
+                <div className="text-[9px] uppercase tracking-[0.05em] mb-1.5 text-muted-foreground font-semibold">
+                  Save as template
+                </div>
+                <input
+                  type="text"
+                  value={saveAsTplName}
+                  onChange={(e) => setSaveAsTplName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && saveAsTplName.trim()) {
+                      saveCurrentAsTemplate(core, store, colIdsRef.current, saveAsTplName);
+                      setSaveAsTplName('');
+                      flashSaveAsTpl();
+                    }
+                  }}
+                  placeholder={`${colLabel} Style`}
+                  className="w-full h-7 px-2.5 rounded-[3px] text-[11px] font-mono mb-2 bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-ring"
+                  autoFocus
+                  data-testid="save-tpl-input"
+                />
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const name = saveAsTplName.trim() || `${colLabel} Style`;
+                    saveCurrentAsTemplate(core, store, colIdsRef.current, name);
+                    setSaveAsTplName('');
+                    flashSaveAsTpl();
+                  }}
+                  data-testid="save-tpl-btn"
+                >
+                  Save Template
+                </Button>
+              </div>
+            </Popover>
+          </TGroup>
+        )}
+
+        {!disabled && <ToolbarSep />}
+
+        {/* Typography — B/I/U. */}
+        <TGroup>
+          <TBtn disabled={disabled} tooltip="Bold" active={fmt.bold} onClick={toggleBold}>
+            <Bold size={14} strokeWidth={2.25} />
+          </TBtn>
+          <TBtn disabled={disabled} tooltip="Italic" active={fmt.italic} onClick={toggleItalic}>
+            <Italic size={14} strokeWidth={1.75} />
+          </TBtn>
+          <TBtn disabled={disabled} tooltip="Underline" active={fmt.underline} onClick={toggleUnderline}>
+            <Underline size={14} strokeWidth={1.75} />
+          </TBtn>
+          <div className="gc-toolbar-sep h-4 opacity-50" />
+          {/* Font size stepper — dropdown menu */}
+          <Popover
+            trigger={
+              <button disabled={disabled}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-[9px] font-mono transition-all duration-150 cursor-pointer gc-tbtn',
+                  disabled && 'opacity-20 pointer-events-none',
+                )}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                <span className="tracking-wider">{fontSizeLabel}</span>
+                <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
+              </button>
+            }
+          >
+            <div className="p-1.5 min-w-[68px]">
+              {[9, 10, 11, 12, 13, 14, 16, 18, 20, 24].map((sz) => (
+                <button
+                  key={sz}
+                  className={cn(
+                    'flex items-center w-full px-2.5 py-1 rounded-md text-[11px] font-mono hover:bg-accent cursor-pointer transition-colors',
+                    fmt.fontSize === sz ? 'text-primary' : 'text-foreground',
+                  )}
+                  onClick={() => setFontSizePx(sz)}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {sz}px
+                </button>
+              ))}
+            </div>
+          </Popover>
+        </TGroup>
+
+        <ToolbarSep />
+
+        {/* Alignment */}
+        <TGroup>
+          <TBtn disabled={disabled} tooltip="Left" active={fmt.horizontal === 'left'} onClick={() => toggleAlign('left')}>
+            <AlignLeft size={14} strokeWidth={1.75} />
+          </TBtn>
+          <TBtn disabled={disabled} tooltip="Center" active={fmt.horizontal === 'center'} onClick={() => toggleAlign('center')}>
+            <AlignCenter size={14} strokeWidth={1.75} />
+          </TBtn>
+          <TBtn disabled={disabled} tooltip="Right" active={fmt.horizontal === 'right'} onClick={() => toggleAlign('right')}>
+            <AlignRight size={14} strokeWidth={1.75} />
+          </TBtn>
+        </TGroup>
+
+        <ToolbarSep />
+
+        {/* Colours — text + background */}
+        <TGroup>
+          <ColorPickerPopover
+            disabled={disabled}
+            value={fmt.color}
+            icon={<Type size={11} strokeWidth={2} />}
+            onChange={(c) => setTextColor(c)}
+            compact
+          />
+          <ColorPickerPopover
+            disabled={disabled}
+            value={fmt.background}
+            icon={<PaintBucket size={11} strokeWidth={1.5} />}
+            onChange={(c) => setBgColor(c)}
+            compact
+          />
+        </TGroup>
+
+        <ToolbarSep />
+
+        {/* Borders — popover editor. */}
+        <TGroup>
+          <RadixPopover>
+            <RadixPopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={disabled}
+                className={cn(
+                  'shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
+                  disabled && 'opacity-25 pointer-events-none',
+                )}
+                onMouseDown={(e) => { e.preventDefault(); }}
+              >
+                <Grid3X3 size={14} strokeWidth={1.75} />
+              </Button>
+            </RadixPopoverTrigger>
+            <RadixPopoverContent
+              align="start"
+              sideOffset={6}
+              className="gc-sheet-v2"
+              style={{
+                padding: 8, width: 460, maxWidth: '90vw',
+                background: 'var(--ck-bg, #111417)',
+                color: 'var(--ck-t0, #eaecef)',
+                border: '1px solid var(--ck-border-hi, #3e4754)',
+                borderRadius: 2,
+                boxShadow: 'var(--ck-popout-shadow, 0 20px 40px rgba(0,0,0,0.5))',
+                fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", "Inter", sans-serif)',
+              }}
+              onMouseDown={(e) => {
+                const tag = (e.target as HTMLElement).tagName;
+                if (tag !== 'SELECT' && tag !== 'INPUT') e.preventDefault();
+              }}
+            >
+              <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 9, fontWeight: 600, letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: 'var(--ck-t2, var(--muted-foreground))',
+                    fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+                  }}
+                >
+                  Borders · {target === 'header' ? 'Header' : 'Cell'}
+                </span>
+              </div>
+              <BorderStyleEditor
+                value={fmt.borders}
+                onChange={applyBordersMap}
+                previewLabel={target === 'header' ? 'Header' : 'Cell'}
+              />
+            </RadixPopoverContent>
+          </RadixPopover>
+        </TGroup>
+
+        {/* History + Clear — right-anchored actions. `margin-left: auto`
+             glues the group to the right edge of its wrap-line when space
+             is available; at narrow widths the group stays adjacent to the
+             previous group instead of getting pushed to a new row. */}
+        <TGroup className="ml-auto">
+          <Tooltip content="Undo/redo deferred to v2.2">
+            <span>
+              <TBtn disabled tooltip={undefined}>
+                <Undo2 size={14} strokeWidth={1.75} />
+              </TBtn>
+            </span>
+          </Tooltip>
+          <Tooltip content="Undo/redo deferred to v2.2">
+            <span>
+              <TBtn disabled tooltip={undefined}>
+                <Redo2 size={14} strokeWidth={1.75} />
+              </TBtn>
+            </span>
+          </Tooltip>
+          <div className="gc-toolbar-sep h-4 opacity-50" />
+          <TBtn
+            tooltip="Clear all styles"
+            disabled={disabled}
+            onClick={() => {
+              clearAllStyles(store, colIdsRef.current);
+              flashClear();
+            }}
+            className={clearConfirmed ? 'gc-tbtn-confirm' : undefined}
+          >
+            {clearConfirmed
+              ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
+              : <Trash2 size={14} strokeWidth={1.75} />}
+          </TBtn>
+        </TGroup>
+      </div>
+
+      {/* ───────────────────────────── ROW 2 — DATA FORMAT ──────────────
+          Number format presets, decimals, tick, Excel template + live
+          preview. Dims when target=header (headers have no values). */}
+      <div
+        className={cn(
+          'gc-toolbar-row flex flex-wrap items-center gap-2',
+          isHeader && 'opacity-40 pointer-events-none',
+        )}
+        style={{ padding: '6px 12px' }}
+      >
+        {/* Row-lead chip: labels the row + reinforces semantics. */}
+        <span
+          style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'var(--muted-foreground, #8b93a1)',
+            paddingRight: 4,
+            borderRight: '1px solid var(--border, #2d3339)',
+            marginRight: 4,
+          }}
+        >
+          Value Format
+        </span>
+
+        {/* Currency menu — split button with instant USD trigger and
+             chevron dropdown for EUR/GBP/JPY + BPS. */}
+        <TGroup>
+          <Popover
+            trigger={
+              <Button variant="ghost" size="icon-sm" disabled={disabled || isHeader}
+                className={cn('shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150', (disabled || isHeader) && 'opacity-25 pointer-events-none')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                data-testid="fmt-currency-menu">
+                <DollarSign size={14} strokeWidth={1.75} />
+              </Button>
+            }
+          >
+            <div className="p-1.5 min-w-[140px]">
+              {Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => (
+                <button
+                  key={key}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[11px] text-foreground hover:bg-accent cursor-pointer transition-colors"
+                  onClick={() => doFormat(f.template)}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <span className="font-mono font-semibold w-4 text-muted-foreground">{f.label}</span>
+                  <span>{key}</span>
+                </button>
+              ))}
+              <div className="h-px bg-border my-1" />
+              <button
+                className="flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-md text-[11px] text-foreground hover:bg-accent cursor-pointer transition-colors"
+                onClick={() => doFormat(BPS_TEMPLATE)}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <span className="font-mono font-semibold w-4 text-muted-foreground">bp</span>
+                <span>Basis points</span>
+              </button>
+            </div>
+          </Popover>
+          <TBtn disabled={disabled || isHeader} tooltip="Percentage"
+            active={!isHeader && isPercentTemplate(vft)}
+            onClick={() => doFormat(isPercentTemplate(vft) ? undefined : PERCENT_TEMPLATE)}>
+            <Percent size={14} strokeWidth={1.75} />
+          </TBtn>
+          <TBtn disabled={disabled || isHeader} tooltip="Thousands (1,234)"
+            active={!isHeader && isCommaTemplate(vft)}
+            onClick={() => doFormat(isCommaTemplate(vft) ? undefined : COMMA_TEMPLATE)}>
+            <Hash size={14} strokeWidth={1.75} />
+          </TBtn>
+        </TGroup>
+
+        <ToolbarSep />
+
+        {/* Decimals ± */}
+        <TGroup>
+          <TBtn disabled={disabled || isHeader} tooltip="Fewer decimals" onClick={decreaseDecimals}>
+            <span className="flex items-center gap-px text-[9px] font-mono"><ArrowLeft size={9} strokeWidth={2} />.0</span>
+          </TBtn>
+          <TBtn disabled={disabled || isHeader} tooltip="More decimals" onClick={increaseDecimals}>
+            <span className="flex items-center gap-px text-[9px] font-mono">.0<ArrowRight size={9} strokeWidth={2} /></span>
+          </TBtn>
+        </TGroup>
+
+        <ToolbarSep />
+
+        {/* Tick — bond-price format. Split: main button + chevron menu. */}
+        <TGroup>
+          <TBtn
+            disabled={disabled || isHeader}
+            active={!isHeader && isTickTemplate(vft)}
+            tooltip={
+              currentTickToken(vft)
+                ? `Tick: ${TICK_MENU.find((m) => m.token === currentTickToken(vft))?.label ?? '32nds'}`
+                : 'Tick format (32nds)'
+            }
+            onClick={() =>
+              doFormat(
+                isTickTemplate(vft)
+                  ? undefined
+                  : { kind: 'tick', tick: currentTickToken(vft) ?? 'TICK32' },
+              )
+            }
+            data-testid="fmt-tick-btn"
+          >
+            <span style={{
+              fontFamily: 'var(--ck-font-mono, monospace)',
+              fontSize: 9, fontWeight: 600, letterSpacing: '0.04em', lineHeight: 1,
+            }}>
+              {currentTickToken(vft)
+                ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
+                : '32'}
+            </span>
+          </TBtn>
+          <Popover
+            trigger={
+              <Button
+                variant="ghost" size="icon-sm" disabled={disabled || isHeader}
+                className={cn(
+                  'shrink-0 w-4 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
+                  (disabled || isHeader) && 'opacity-25 pointer-events-none',
+                )}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                data-testid="fmt-tick-menu-trigger"
+                title="Tick precision"
+              >
+                <ChevronDown size={10} strokeWidth={1.75} />
+              </Button>
+            }
+          >
+            <div className="p-1 min-w-[180px]">
+              {TICK_MENU.map((m) => {
+                const active = currentTickToken(vft) === m.token;
+                return (
+                  <button
+                    key={m.token}
+                    type="button"
+                    onClick={() => doFormat({ kind: 'tick', tick: m.token })}
+                    onMouseDown={(e) => e.preventDefault()}
+                    className={cn(
+                      'flex items-center gap-3 w-full px-2 py-1.5 rounded-md text-[11px]',
+                      'text-foreground hover:bg-accent cursor-pointer transition-colors',
+                      active && 'bg-accent',
+                    )}
+                    data-testid={`fmt-tick-menu-${m.token}`}
+                  >
+                    <span className="font-mono text-muted-foreground w-4">
+                      {active ? <Check size={10} strokeWidth={2.5} /> : ''}
+                    </span>
+                    <span className="flex-1 text-left">{m.label}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">{m.sample}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Popover>
+        </TGroup>
+
+        <ToolbarSep />
+
+        {/* Excel / expression format picker — full editor in a chip popover. */}
         <FormatterPicker
           dataType={pickerDataType}
           value={vft}
@@ -1143,151 +1382,37 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
           compact
           data-testid="fmt-picker-toolbar"
         />
-      </TGroup>
 
-      <div className="gc-toolbar-sep h-5" />
-
-      {/* ── Borders ── Cockpit-native popover shell.
-            Uses Radix directly so the content wrapper (`PopoverContent`) is
-            our box — no `PopoverCompat` legacy chrome underneath. That lets
-            the shell itself be cockpit-coloured (card surface, hairline rim,
-            cockpit shadow) instead of inheriting the --gc-* values from the
-            compat wrapper. */}
-      <RadixPopover>
-        <RadixPopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            disabled={disabled}
-            className={cn(
-              'shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
-              disabled && 'opacity-25 pointer-events-none',
-            )}
-            onMouseDown={(e) => {
-              e.preventDefault();
-            }}
-          >
-            <Grid3X3 size={14} strokeWidth={1.75} />
-          </Button>
-        </RadixPopoverTrigger>
-        <RadixPopoverContent
-          align="start"
-          sideOffset={6}
-          className="gc-sheet-v2"
-          style={{
-            padding: 8,
-            width: 460,
-            maxWidth: '90vw',
-            background: 'var(--ck-bg, #111417)',
-            color: 'var(--ck-t0, #eaecef)',
-            border: '1px solid var(--ck-border-hi, #3e4754)',
-            borderRadius: 2,
-            boxShadow: 'var(--ck-popout-shadow, 0 20px 40px rgba(0,0,0,0.5))',
-            fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", "Inter", sans-serif)',
-          }}
-          onMouseDown={(e) => {
-            const tag = (e.target as HTMLElement).tagName;
-            if (tag !== 'SELECT' && tag !== 'INPUT') e.preventDefault();
-          }}
-        >
-          {/* Header */}
-          <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 600,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'var(--ck-t2, var(--muted-foreground))',
-                fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-              }}
-            >
-              Borders · {target === 'header' ? 'Header' : 'Cell'}
-            </span>
-          </div>
-
-          {/* Shared editor — same component used by the Styling Rules
-              BORDER band. Flex-wraps at narrow widths automatically. */}
-          <BorderStyleEditor
-            value={fmt.borders}
-            onChange={applyBordersMap}
-            previewLabel={target === 'header' ? 'Header' : 'Cell'}
-          />
-        </RadixPopoverContent>
-      </RadixPopover>
-
-      <div className="gc-toolbar-sep h-5" />
-
-      {/* ── History + Actions ── */}
-      <TGroup>
-        {/* v2 has no undo-redo module yet — render disabled for layout parity.  */}
-        <Tooltip content="Undo/redo deferred to v2.2">
-          <span>
-            <TBtn disabled tooltip={undefined}>
-              <Undo2 size={14} strokeWidth={1.75} />
-            </TBtn>
-          </span>
-        </Tooltip>
-        <Tooltip content="Undo/redo deferred to v2.2">
-          <span>
-            <TBtn disabled tooltip={undefined}>
-              <Redo2 size={14} strokeWidth={1.75} />
-            </TBtn>
-          </span>
-        </Tooltip>
-        <div className="gc-toolbar-sep h-4 opacity-50" />
-        <TBtn
-          tooltip="Clear all styles"
-          disabled={disabled}
-          onClick={() => {
-            clearAllStyles(store, colIdsRef.current);
-            flashClear();
-          }}
-          className={clearConfirmed ? 'gc-tbtn-confirm' : undefined}
-        >
-          {clearConfirmed
-            ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
-            : <Trash2 size={14} strokeWidth={1.75} />}
-        </TBtn>
-      </TGroup>
-
-      {/* Fixed 16px breathing room before the target pill — replaces the
-          old `flex-1` spacer which would claim infinite space and prevent
-          the floating panel from sizing to its natural content width. */}
-      <div style={{ width: 16, flexShrink: 0 }} />
-
-      {/* Column context + Cell/Header toggle */}
-      <div className="flex items-center gap-4 shrink-0">
-        <span className={cn(
-          'text-[11px] max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap select-none',
-          colIds.length > 0 ? 'text-foreground' : 'text-muted-foreground',
-        )} title={colIds.join(', ')} data-testid="formatting-col-label">
-          {colLabel}
-        </span>
-        <Tooltip content={`Currently editing: ${isHeader ? 'Header' : 'Cell'} — click to switch`}>
-          <button
-            type="button"
-            data-testid="formatting-target-toggle"
-            data-target={target}
-            onClick={() => setTarget(isHeader ? 'cell' : 'header')}
-            className={cn(
-              'gc-target-toggle shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[4px]',
-              'text-[11px] font-medium transition-all duration-150 select-none cursor-pointer',
-              'border border-border bg-card hover:bg-accent',
-              isHeader ? 'gc-target-header' : 'gc-target-cell',
-            )}
+        {/* Live preview chip — right-anchored. `margin-left: auto` glues
+             to the right edge when the row has spare width; at narrow
+             widths the chip wraps to its own line rather than stealing
+             space from a split-button it sits next to. */}
+        <Tooltip content="Live preview — current format against a sample value">
+          <div
+            data-testid="fmt-preview-chip"
+            className="ml-auto"
             style={{
-              color: isHeader ? 'var(--bn-green, #2dd4bf)' : 'var(--foreground)',
-              borderColor: isHeader ? 'var(--bn-green, #2dd4bf)' : 'var(--border, #313944)',
-              background: isHeader ? 'rgba(45, 212, 191, 0.10)' : 'var(--card, #161a1e)',
-              minWidth: 78,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              height: 26, padding: '0 10px',
+              borderRadius: 4,
+              border: '1px dashed var(--border, #2d3339)',
+              background: 'var(--background, #0f1115)',
+              fontSize: 11,
+              fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
+              color: 'var(--foreground, #eaecef)',
+              maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}
           >
-            <ArrowLeftRight size={11} strokeWidth={2} style={{ opacity: 0.7 }} />
-            <span style={{ flex: 1, textAlign: 'left' }}>{isHeader ? 'Header' : 'Cell'}</span>
-          </button>
+            <span style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: 'var(--muted-foreground, #8b93a1)',
+              fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+            }}>Preview</span>
+            <span>{previewText || '—'}</span>
+          </div>
         </Tooltip>
       </div>
+
     </div>
   );
 }

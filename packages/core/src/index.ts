@@ -229,6 +229,15 @@ export type {
   TickToken,
   ValueFormatterTemplate,
 } from './colDef';
+export {
+  valueFormatterFromTemplate,
+  excelFormatter,
+  excelFormatColorResolver,
+  isValidExcelFormat,
+  tickFormatter,
+  presetToExcelFormat,
+  cellStyleToAgStyle,
+} from './colDef';
 
 // ─── Modules ────────────────────────────────────────────────────────────────
 export {
