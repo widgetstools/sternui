@@ -5,6 +5,7 @@ export { topoSortModules } from './topoSort';
 export { ApiHub } from './ApiHub';
 export { ResourceScope } from './ResourceScope';
 export { CssInjector } from './CssInjector';
+export { DirtyBus } from './DirtyBus';
 export { PipelineRunner } from './PipelineRunner';
 
 export type {
@@ -13,6 +14,7 @@ export type {
   ApiEventName,
   ApiHub as IApiHub,
   CssHandle,
+  DirtyBus as IDirtyBus,
   EditorPaneProps,
   EventBus as IEventBus,
   ExpressionEngineLike,

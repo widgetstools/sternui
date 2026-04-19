@@ -1,6 +1,12 @@
 import { ExpressionEngine } from '../expression';
 import { CssInjector } from './CssInjector';
-import type { CssHandle, ExpressionEngineLike, ResourceScope as IResourceScope } from './types';
+import { DirtyBus } from './DirtyBus';
+import type {
+  CssHandle,
+  DirtyBus as IDirtyBus,
+  ExpressionEngineLike,
+  ResourceScope as IResourceScope,
+} from './types';
 
 /**
  * Per-platform resource registry. Replaces the file-level
@@ -13,6 +19,7 @@ export class ResourceScope implements IResourceScope {
   private cssByModule = new Map<string, CssInjector>();
   private engine: ExpressionEngine | null = null;
   private caches = new Map<string, WeakMap<object, unknown>>();
+  private dirtyBus: DirtyBus | null = null;
   private disposed = false;
 
   constructor(private readonly gridId: string) {}
@@ -43,12 +50,20 @@ export class ResourceScope implements IResourceScope {
     return map as WeakMap<K, V>;
   }
 
+  dirty(): IDirtyBus {
+    this.assertLive();
+    if (!this.dirtyBus) this.dirtyBus = new DirtyBus();
+    return this.dirtyBus;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     for (const injector of this.cssByModule.values()) injector.destroy();
     this.cssByModule.clear();
     this.caches.clear();
+    this.dirtyBus?.reset();
+    this.dirtyBus = null;
     this.engine = null;
   }
 

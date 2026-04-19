@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GridPlatform } from '../platform/GridPlatform';
 import { MemoryAdapter } from '../persistence/MemoryAdapter';
 import type { Module } from '../platform/types';
@@ -216,6 +216,64 @@ describe('ProfileManager — delete cycles', () => {
     expect(manager.getState().profiles.some((p) => p.id === RESERVED_DEFAULT_PROFILE_ID)).toBe(true);
 
     manager.dispose();
+  });
+});
+
+describe('ProfileManager — disposed-guards', () => {
+  it('boot() is idempotent — calling twice does NOT double-apply state', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+
+    // First boot wins; second is a no-op.
+    await manager.boot();
+    const firstActive = manager.getState().activeId;
+
+    // Seed a different state under a different profile to verify the
+    // second boot doesn't overwrite what the first applied.
+    await manager.create('Rogue');
+    expect(manager.getState().activeId).toBe('rogue');
+
+    // Call boot() again — must short-circuit. State stays on 'rogue'.
+    await manager.boot();
+    expect(manager.getState().activeId).toBe('rogue');
+    // Default is still what boot #1 applied initially.
+    expect(firstActive).toBe(RESERVED_DEFAULT_PROFILE_ID);
+
+    manager.dispose();
+  });
+
+  it('boot() exits cleanly if disposed mid-flight', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+
+    const bootPromise = manager.boot();
+    manager.dispose();  // race: dispose BEFORE boot's first await resolves.
+    await bootPromise;  // must not throw, must not hang.
+
+    // Disposed manager has empty listener set + booted flag set.
+    // Calling public methods is still allowed (they're idempotent no-ops).
+    expect(() => manager.getState()).not.toThrow();
+  });
+
+  it('disposed manager does NOT install a rogue auto-save subscription', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, autoSaveDebounceMs: 1 });
+
+    // Dispose immediately — boot will start + attempt to startAutoSave.
+    const bootPromise = manager.boot();
+    manager.dispose();
+    await bootPromise;
+
+    // Editing the store now should NOT result in a persist call (no
+    // auto-save wired). Easiest way to test: count listProfiles calls
+    // against the adapter via a wrapping spy.
+    const listSpy = vi.spyOn(adapter, 'saveProfile');
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['post-dispose-edit'] }));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(listSpy).not.toHaveBeenCalled();
   });
 });
 

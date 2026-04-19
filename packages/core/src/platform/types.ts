@@ -118,6 +118,34 @@ export interface ResourceScope {
   expression(): ExpressionEngineLike;
   /** A typed per-key WeakMap cache. Useful for api-keyed row snapshots etc. */
   cache<K extends object, V>(name: string): WeakMap<K, V>;
+  /** Per-platform dirty registry. Panels mark items as dirty/clean via the
+   *  `set` method; the `subscribe` method is consumed by `useDirty` / the
+   *  `useSyncExternalStore` binding in React. Scoped by arbitrary string key
+   *  (typically the item id or `${moduleId}:${itemId}`). Replaces v2's
+   *  file-level `dirtyRegistry = new Set()` + `window.dispatchEvent` pattern
+   *  so dirty state NEVER bleeds between grids on the same page. */
+  dirty(): DirtyBus;
+}
+
+/**
+ * A minimal event-notifier for dirty state. Intentionally not typed on the
+ * key so callers can pick their own scoping (module id, item id, composite).
+ */
+export interface DirtyBus {
+  /** Mark a key dirty or clean. Coalesces — setting the same state twice
+   *  is a no-op and does NOT notify subscribers. */
+  set(key: string, dirty: boolean): void;
+  /** Is the key currently dirty? */
+  isDirty(key: string): boolean;
+  /** How many keys are currently dirty. Cheap — maintained incrementally. */
+  count(): number;
+  /** Every key currently dirty. Snapshot; safe to iterate. */
+  keys(): string[];
+  /** Subscribe to any change. `fn()` is invoked on every set that actually
+   *  flips a key's dirty state. Returns a disposer. */
+  subscribe(fn: () => void): () => void;
+  /** Clear every key + notify once. Called on platform teardown. */
+  reset(): void;
 }
 
 // ─── Platform handle passed to modules ────────────────────────────────────

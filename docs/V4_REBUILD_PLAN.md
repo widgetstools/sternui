@@ -290,3 +290,25 @@ Once I have these I'll start Phase 1. Won't write a line of panel code
 until Phase 1 + Phase 2 are landed and verified — the whole point is to
 build on a clean foundation, and the phases exist to enforce that
 ordering.
+
+---
+
+## Ambiguity answers (signed-off)
+
+| # | Answer |
+|---|---|
+| A1 | `priority: 1` is LOWER than `priority: 5`. Higher number wins on conflict. |
+| A2 | Sample **1/3 of rows in random order**. If column is non-deterministic (mixed types) → `string`. Host-provided `cellDataType` always wins. |
+| A3 | Only a **native JS `Date` object** is the Date dataType. Every other input — including ISO-8601 strings — is `string`. |
+| A4 | Currency buttons: **Case 1 (existing symbol) → replace ALL occurrences. Case 2 (no symbol) → prepend.** |
+| A5 | **One combined band**: `07 FLASH & INDICATOR`. |
+| A6 | DraggableFloat position persisted in **`localStorage`** (per grid id). |
+| A7 | Indicator icon catalog is **open** — curate a clean Lucide set during the rebuild. |
+| A8 | Cleared header alignment → **AG-Grid default** (do NOT inherit from cell). |
+| A9 | `templateIds === undefined` → fall back to `typeDefaults[dataType]`. `templateIds: []` → clean slate, no templates AND no typeDefault. |
+| A10 | Top Save = v2 behavior: **flush auto-save + captureGridState**. Per-card drafts are committed by the card's own SAVE pill. |
+| A11 | Canonical AG-Grid `cellDataType` → FormatterPicker `dataType` mapping: `number` \| `numeric` → `number`; `date` \| `dateString` → `date`; `dateTimeString` → `datetime`; `text` \| `string` → `string`; `boolean` → `boolean`; everything else (including `object`) → `string`. |
+
+Branch strategy: **stay on `v3-clean`** — commits are reversible so a
+roll-back is one `git reset`. Every phase lands as a series of commits
+so you can check out any intermediate state.

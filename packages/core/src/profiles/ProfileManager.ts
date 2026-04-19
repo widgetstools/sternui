@@ -48,6 +48,7 @@ export class ProfileManager {
   private readonly autoSaveDebounceMs: number;
   private readonly disableAutoSave: boolean;
   private disposed = false;
+  private booted = false;
 
   constructor(opts: ProfileManagerOptions) {
     this.platform = opts.platform;
@@ -68,13 +69,26 @@ export class ProfileManager {
   }
 
   /** Boot: ensure Default exists, resolve active id from localStorage,
-   *  load the snapshot, wire auto-save. Call once per mount. */
+   *  load the snapshot, wire auto-save. Call once per mount.
+   *
+   *  Idempotency + disposed-guards:
+   *    - If `boot()` is called twice (e.g. race in a host that doesn't
+   *      check before calling), the second run short-circuits.
+   *    - After every `await` we re-check `this.disposed` and abort if a
+   *      caller has torn us down in the meantime. Without this, a stale
+   *      manager can keep mutating the shared platform store after
+   *      `dispose()` has been called — the exact bug family that caused
+   *      the StrictMode profile-list regression. */
   async boot(): Promise<void> {
+    if (this.disposed || this.booted) return;
+    this.booted = true;
+
     try {
       const { gridId } = this.platform;
 
       // Ensure the Default profile row exists.
       let def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+      if (this.disposed) return;
       if (!def) {
         const now = Date.now();
         def = {
@@ -86,6 +100,7 @@ export class ProfileManager {
           updatedAt: now,
         };
         await this.adapter.saveProfile(def);
+        if (this.disposed) return;
       }
 
       // Resolve the id to load.
@@ -94,6 +109,7 @@ export class ProfileManager {
       let snapshot: ProfileSnapshot = def;
       if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID) {
         const candidate = await this.adapter.loadProfile(gridId, lsId);
+        if (this.disposed) return;
         if (candidate) {
           resolvedId = lsId;
           snapshot = candidate;
@@ -111,10 +127,13 @@ export class ProfileManager {
 
       // Refresh profile list.
       await this.refresh();
+      if (this.disposed) return;
       this.updateState({ isLoading: false });
 
-      // Wire auto-save now that boot completed.
-      if (!this.disableAutoSave) {
+      // Wire auto-save now that boot completed. Double-check disposed
+      // once more so a late teardown can't leak a running auto-save
+      // subscription on `platform.store`.
+      if (!this.disableAutoSave && !this.disposed) {
         this.autoSave = startAutoSave({
           platform: this.platform,
           store: this.platform.store,
@@ -123,6 +142,7 @@ export class ProfileManager {
         });
       }
     } catch (err) {
+      if (this.disposed) return;
       console.warn('[profiles] boot failed:', err);
       this.updateState({ isLoading: false });
     }
