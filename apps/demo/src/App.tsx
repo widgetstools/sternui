@@ -145,7 +145,7 @@ function AppInner() {
 
       <div style={{ flex: 1 }}>
         <MarketsGrid
-          gridId="demo-blotter"
+          gridId="demo-blotter-v2"
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}

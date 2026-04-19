@@ -74,6 +74,14 @@ export function SettingsSheet({
   const platform = useGridPlatform();
   const gridId = platform.gridId;
 
+  // Live DIRTY=NN counter — reads the per-platform DirtyBus directly.
+  // Every module panel registers `${moduleId}:${itemId}` through
+  // `useModuleDraft` (phase 3), so the count reflects the real number
+  // of unsaved card drafts across all panels. Declared UP HERE (before
+  // the `if (!open)` bailout) so the Rules of Hooks hold across the
+  // closed→open transition.
+  const dirtyCount = useDirtyCount();
+
   const panelModules = useMemo(
     () => modules.filter((m) => m.SettingsPanel || (m.ListPane && m.EditorPane)),
     [modules],
@@ -126,11 +134,6 @@ export function SettingsSheet({
   const LegacyPanel = activeModule?.SettingsPanel;
   const selectedId = activeModule ? selectedByModule[activeModule.id] ?? null : null;
 
-  // Live DIRTY=NN counter — reads the per-platform DirtyBus directly.
-  // Every module panel registers `${moduleId}:${itemId}` through
-  // `useModuleDraft` (phase 3), so the count reflects the real number
-  // of unsaved card drafts across all panels.
-  const dirtyCount = useDirtyCount();
   return (
     <>
       <div data-gc-settings="" data-testid="v2-settings-sheet">
