@@ -14,11 +14,12 @@ e2e/
 ├── v2-formatting-toolbar.spec.ts    B/I/U + align + color + borders + templates
 ├── v2-perf.spec.ts                  render-timing smoke
 ├── v2-column-customization.spec.ts  full behavioural coverage — all 8 bands of ColumnSettingsPanel
+├── v2-column-groups.spec.ts         full behavioural coverage — tree mutation + openGroupIds persistence
 ├── v2-settings-panels.spec.ts       panel-mount smoke + nav helper guards (all 5 editors)
 └── v2-two-grid-isolation.spec.ts    per-grid state isolation under DockManager
 ```
 
-As of 2026-04-19 the suite is **54/54 green**. Two spec files were retired
+As of 2026-04-19 the suite is **68/68 green**. Two spec files were retired
 in that cleanup because they had diverged from the app's actual behaviour:
 
 - `v2-column-groups.spec.ts` — 18/21 tests failing due to settings-sheet
