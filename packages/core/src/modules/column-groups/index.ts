@@ -92,7 +92,7 @@ export const columnGroupsModule: Module<ColumnGroupsState> = {
     }
 
     // ApiHub.on currently dispatches with no payload — we need to read the
-    // event via the raw api. Subscribe directly.
+    // event via the raw api. Subscribe directly via the typed GridApi.
     let detach: (() => void) | null = null;
     type LiveApi = NonNullable<typeof platform.api.api>;
     const attach = (api: LiveApi) => {
@@ -109,12 +109,10 @@ export const columnGroupsModule: Module<ColumnGroupsState> = {
           return { ...prev, openGroupIds: { ...prev.openGroupIds, [id]: isOpen } };
         });
       };
-      (api as unknown as { addEventListener: (name: string, fn: (e: unknown) => void) => void })
-        .addEventListener('columnGroupOpened', handler);
+      api.addEventListener('columnGroupOpened', handler);
       detach = () => {
         try {
-          (api as unknown as { removeEventListener: (name: string, fn: (e: unknown) => void) => void })
-            .removeEventListener('columnGroupOpened', handler);
+          api.removeEventListener('columnGroupOpened', handler);
         } catch { /* api teardown race */ }
       };
     };

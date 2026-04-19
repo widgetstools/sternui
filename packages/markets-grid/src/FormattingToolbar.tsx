@@ -27,6 +27,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { GridApi } from 'ag-grid-community';
 // Design-system stylesheet — terminal palette + component-scoped
 // primitives. Token overrides switch on `[data-theme="light"]`. Zero
 // functional coupling; pure CSS.
@@ -78,6 +79,44 @@ import {
   DollarSign, Percent, Hash,
   Plus,
 } from 'lucide-react';
+
+// ─── GridApi micro-helpers ───────────────────────────────────────────────────
+//
+// Narrow typed accessors for the three colDef reads the toolbar repeatedly
+// does. Previously written inline as `as unknown as { getColumn?: ... }`
+// shape casts (AUDIT m3); here they're expressed against the real
+// `GridApi` type so adds/removes stay type-checked. Each swallows api
+// teardown / missing-column exceptions.
+
+type RawCellDataType = 'numeric' | 'number' | 'date' | 'dateString' | 'dateTimeString' | 'datetime' | 'string' | 'text' | 'boolean' | undefined;
+
+function readCellDataType(api: GridApi | null, colId: string): RawCellDataType {
+  if (!api) return undefined;
+  try {
+    return api.getColumn(colId)?.getColDef()?.cellDataType as RawCellDataType;
+  } catch {
+    return undefined;
+  }
+}
+
+function readHeaderName(api: GridApi | null, colId: string): string | undefined {
+  if (!api) return undefined;
+  try {
+    return api.getColumn(colId)?.getColDef()?.headerName ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readFirstRowValue(api: GridApi | null, colId: string): unknown {
+  if (!api) return undefined;
+  try {
+    const row = api.getDisplayedRowAtIndex(0);
+    return row?.data ? (row.data as Record<string, unknown>)[colId] : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // ─── Formatter presets ───────────────────────────────────────────────────────
 //
@@ -283,12 +322,12 @@ function useActiveColumns(): string[] {
 
   useEffect(() => {
     const getColIds = (): string[] => {
-      const api = platform.api.api as unknown as {
-        getCellRanges?: () => Array<{ columns?: unknown[] }>;
-        getFocusedCell?: () => { column?: unknown } | null;
-      } | null;
+      const api: GridApi | null = platform.api.api;
       if (!api) return lastColIds.current;
 
+      // `CellRange.columns` is typed `Column[]`; `FocusedCell.column` is
+      // `Column`. Both carry `getColId()`. We keep the `unknown`-guarded
+      // extractor so the helper handles mock apis in tests gracefully.
       const extractId = (col: unknown): string | null => {
         const c = col as { getColId?: () => string } | null;
         return c && typeof c.getColId === 'function' ? c.getColId() || null : null;
@@ -296,7 +335,7 @@ function useActiveColumns(): string[] {
 
       const ids: string[] = [];
       try {
-        for (const range of api.getCellRanges?.() ?? []) {
+        for (const range of api.getCellRanges() ?? []) {
           for (const col of range.columns ?? []) {
             const id = extractId(col);
             if (id && !ids.includes(id)) ids.push(id);
@@ -306,7 +345,7 @@ function useActiveColumns(): string[] {
 
       if (ids.length === 0) {
         try {
-          const id = extractId(api.getFocusedCell?.()?.column);
+          const id = extractId(api.getFocusedCell()?.column);
           if (id) ids.push(id);
         } catch { /* focused-cell api unavailable */ }
       }
@@ -385,14 +424,9 @@ function useColumnFormatting(colIds: string[], target: TargetKind): ResolvedForm
     // Look up the colDef's cellDataType so resolveTemplates can apply a
     // matching typeDefault (e.g. numeric columns inherit a right-align
     // style).
-    let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
-    try {
-      const api = platform.api.api as unknown as {
-        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
-      } | null;
-      const t = api?.getColumn?.(colIds[0])?.getColDef?.()?.cellDataType;
-      if (t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean') dataType = t;
-    } catch { /* ignore */ }
+    const t = readCellDataType(platform.api.api, colIds[0]);
+    const dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined =
+      t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean' ? t : undefined;
 
     const resolved = resolveTemplates(a, tpls ?? { templates: {}, typeDefaults: {} }, dataType);
     const style: CellStyleOverrides | undefined =
@@ -469,14 +503,7 @@ export function FormattingToolbar() {
   const colLabel = useMemo(() => {
     if (colIds.length === 0) return 'Select a cell';
     if (colIds.length === 1) {
-      try {
-        const api = platform.api.api as unknown as {
-          getColumn?: (id: string) => { getColDef?: () => { headerName?: string } };
-        } | null;
-        const col = api?.getColumn?.(colIds[0]);
-        return col?.getColDef?.()?.headerName ?? colIds[0];
-      } catch { /* ignore */ }
-      return colIds[0];
+      return readHeaderName(platform.api.api, colIds[0]) ?? colIds[0];
     }
     return `${colIds.length} columns`;
   }, [colIds, platform]);
@@ -509,23 +536,16 @@ export function FormattingToolbar() {
     'number' | 'date' | 'datetime' | 'boolean' | 'string'
   >(() => {
     if (colIds.length === 0) return 'number';
-    try {
-      const api = platform.api.api as unknown as {
-        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
-      } | null;
-      const raw = api?.getColumn?.(colIds[0])?.getColDef?.()?.cellDataType;
-      // AG-Grid emits 'dateString' for pure dates and 'dateTimeString' for
-      // date+time; our picker's enum splits those into 'date' vs 'datetime'
-      // so the preset list shows the right sub-menu (ISO vs ISO-with-time,
-      // EU short vs US with AM/PM, etc.).
-      if (raw === 'dateTimeString' || raw === 'datetime') return 'datetime';
-      if (raw === 'date' || raw === 'dateString') return 'date';
-      if (raw === 'boolean') return 'boolean';
-      if (raw === 'text' || raw === 'string') return 'string';
-      if (raw === 'number' || raw === 'numeric') return 'number';
-    } catch {
-      /* ignore */
-    }
+    const raw = readCellDataType(platform.api.api, colIds[0]);
+    // AG-Grid emits 'dateString' for pure dates and 'dateTimeString' for
+    // date+time; our picker's enum splits those into 'date' vs 'datetime'
+    // so the preset list shows the right sub-menu (ISO vs ISO-with-time,
+    // EU short vs US with AM/PM, etc.).
+    if (raw === 'dateTimeString' || raw === 'datetime') return 'datetime';
+    if (raw === 'date' || raw === 'dateString') return 'date';
+    if (raw === 'boolean') return 'boolean';
+    if (raw === 'text' || raw === 'string') return 'string';
+    if (raw === 'number' || raw === 'numeric') return 'number';
     return 'number';
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colIds, platform, colEventTick]);
@@ -581,14 +601,9 @@ export function FormattingToolbar() {
     // Read the column's cellDataType from the live grid api — feeds
     // into resolveTemplates so the saved template captures any
     // typeDefault the column inherits.
-    let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
-    try {
-      const api = platform.api.api as unknown as {
-        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
-      } | null;
-      const t = api?.getColumn?.(colId)?.getColDef?.()?.cellDataType;
-      if (t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean') dataType = t;
-    } catch { /* ignore */ }
+    const t = readCellDataType(platform.api.api, colId);
+    const dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined =
+      t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean' ? t : undefined;
     const tpl = snapshotTemplate(custState, tplState, colId, name, dataType);
     if (!tpl) return undefined;
     setTplState(addTemplateReducer(tpl));
@@ -614,18 +629,12 @@ export function FormattingToolbar() {
       const d = templateDecimals(resolved.valueFormatterTemplate);
       if (d !== null) return d;
     }
-    try {
-      const api = platform.api.api as unknown as {
-        getDisplayedRowAtIndex?: (i: number) => { data?: Record<string, unknown> } | null;
-      } | null;
-      const firstRow = api?.getDisplayedRowAtIndex?.(0);
-      const val = firstRow?.data?.[ids[0]];
-      if (typeof val === 'number') {
-        const s = String(val);
-        const dot = s.indexOf('.');
-        return dot >= 0 ? s.length - dot - 1 : 0;
-      }
-    } catch { /* ignore */ }
+    const val = readFirstRowValue(platform.api.api, ids[0]);
+    if (typeof val === 'number') {
+      const s = String(val);
+      const dot = s.indexOf('.');
+      return dot >= 0 ? s.length - dot - 1 : 0;
+    }
     return 2;
   }, [custState, tplState, platform]);
 
