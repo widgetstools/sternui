@@ -12,7 +12,16 @@ export const COCKPIT_STYLE_ID = 'gc-cockpit-styles';
 
 export const cockpitCSS = `
 /* ── Tokens ──────────────────────────────────────────────────── */
-.gc-sheet {
+/*
+ * Tokens are bound to BOTH .gc-sheet and .gc-sheet-v2 so portaled
+ * popovers / dropdowns tagged with either class get the correct
+ * cockpit surface colours. Without .gc-sheet-v2 here, Radix-portaled
+ * menus rendered outside the sheet DOM subtree inherit transparent
+ * backgrounds (the var(--ck-card) reference fails to resolve and
+ * the fallback unset shows the page through).
+ */
+.gc-sheet,
+.gc-sheet-v2 {
   /* Surfaces — cockpit grey tiers */
   --ck-bg:           #111417;
   --ck-surface:      #1a1d21;
@@ -88,10 +97,14 @@ export const cockpitCSS = `
   font-size: inherit;
 }
 
-/* Light-mode repaint. */
+/* Light-mode repaint. Applied to every token host — .gc-sheet (in-DOM
+ * panels) AND .gc-sheet-v2 (portaled popovers / dropdowns rendered at
+ * document.body). */
 [data-theme='light'] .gc-sheet,
+[data-theme='light'] .gc-sheet-v2,
 [data-theme='light'] .gc-popout-backdrop,
-.gc-sheet[data-theme='light'] {
+.gc-sheet[data-theme='light'],
+.gc-sheet-v2[data-theme='light'] {
   --ck-bg:           #ffffff;
   --ck-surface:      #f5f6f8;
   --ck-card:         #edeff2;
