@@ -1,0 +1,428 @@
+/**
+ * Unit tests for the pure formatting-action reducers.
+ *
+ * These pin down the exact behaviour shipped by the v2/v3
+ * `FormattingToolbar` helpers — before the toolbar gets refactored to
+ * use them. Every assertion here should ALSO be true for the toolbar's
+ * current inline helpers, so the refactor can compare commit-by-commit.
+ */
+import { describe, expect, it } from 'vitest';
+import type {
+  BorderSpec,
+  CellStyleOverrides,
+  ColumnCustomizationState,
+  ValueFormatterTemplate,
+} from './state';
+import {
+  applyAlignmentReducer,
+  applyBordersReducer,
+  applyColorsReducer,
+  applyFormatterReducer,
+  applyTemplateToColumnsReducer,
+  applyTypographyReducer,
+  clearAllBordersReducer,
+  clearAllStylesReducer,
+  mergeOverrides,
+  overrideKey,
+  stripUndefined,
+  writeOverridesReducer,
+} from './formattingActions';
+
+const EMPTY: ColumnCustomizationState = { assignments: {} };
+
+// ─── Tiny helpers ──────────────────────────────────────────────────────
+
+describe('overrideKey', () => {
+  it('maps "cell" → cellStyleOverrides', () => {
+    expect(overrideKey('cell')).toBe('cellStyleOverrides');
+  });
+
+  it('maps "header" → headerStyleOverrides', () => {
+    expect(overrideKey('header')).toBe('headerStyleOverrides');
+  });
+});
+
+describe('stripUndefined', () => {
+  it('drops undefined-valued keys; keeps nulls, zeros, empty strings', () => {
+    const out = stripUndefined({ a: 1, b: undefined, c: null, d: 0, e: '' });
+    expect(out).toEqual({ a: 1, c: null, d: 0, e: '' });
+  });
+
+  it('does not mutate the input', () => {
+    const input = { a: 1, b: undefined };
+    stripUndefined(input);
+    expect(Object.keys(input)).toEqual(['a', 'b']);
+  });
+});
+
+describe('mergeOverrides', () => {
+  it('returns undefined when base and patch are both empty', () => {
+    expect(mergeOverrides(undefined, {})).toBeUndefined();
+  });
+
+  it('merges typography deeply; an undefined leaf clears the leaf', () => {
+    const base: CellStyleOverrides = { typography: { bold: true, italic: true } };
+    const out = mergeOverrides(base, { typography: { italic: undefined, underline: true } });
+    expect(out).toEqual({ typography: { bold: true, underline: true } });
+  });
+
+  it('merges colors deeply', () => {
+    const base: CellStyleOverrides = { colors: { text: '#000' } };
+    const out = mergeOverrides(base, { colors: { background: '#fff' } });
+    expect(out).toEqual({ colors: { text: '#000', background: '#fff' } });
+  });
+
+  it('merges alignment; clearing horizontal drops the whole alignment section', () => {
+    const base: CellStyleOverrides = { alignment: { horizontal: 'center' } };
+    const out = mergeOverrides(base, { alignment: { horizontal: undefined } });
+    expect(out).toBeUndefined();
+  });
+
+  it('merges per-side borders', () => {
+    const spec: BorderSpec = { width: 1, color: '#000', style: 'solid' };
+    const base: CellStyleOverrides = { borders: { top: spec } };
+    const out = mergeOverrides(base, { borders: { right: spec } });
+    expect(out).toEqual({ borders: { top: spec, right: spec } });
+  });
+
+  it('clearing all borders drops the whole borders section', () => {
+    const spec: BorderSpec = { width: 1, color: '#000', style: 'solid' };
+    const base: CellStyleOverrides = { borders: { top: spec } };
+    const out = mergeOverrides(base, { borders: { top: undefined } });
+    expect(out).toBeUndefined();
+  });
+
+  it('does not mutate its inputs', () => {
+    const base: CellStyleOverrides = { typography: { bold: true } };
+    const patch = { typography: { italic: true } };
+    mergeOverrides(base, patch);
+    expect(base).toEqual({ typography: { bold: true } });
+    expect(patch).toEqual({ typography: { italic: true } });
+  });
+});
+
+// ─── writeOverridesReducer ─────────────────────────────────────────────
+
+describe('writeOverridesReducer', () => {
+  it('is a no-op for empty colIds (same state reference)', () => {
+    const reducer = writeOverridesReducer([], 'cell', { typography: { bold: true } });
+    expect(reducer(EMPTY)).toBe(EMPTY);
+  });
+
+  it('seeds a fresh assignment when the column has none', () => {
+    const reducer = writeOverridesReducer(['price'], 'cell', {
+      typography: { bold: true },
+    });
+    const next = reducer(EMPTY);
+    expect(next.assignments).toEqual({
+      price: { colId: 'price', cellStyleOverrides: { typography: { bold: true } } },
+    });
+  });
+
+  it('writes to cellStyleOverrides vs headerStyleOverrides based on target', () => {
+    const cellReducer = writeOverridesReducer(['price'], 'cell', {
+      colors: { text: '#ff0000' },
+    });
+    const headerReducer = writeOverridesReducer(['price'], 'header', {
+      colors: { text: '#00ff00' },
+    });
+    const afterCell = cellReducer(EMPTY);
+    const afterHeader = headerReducer(afterCell);
+
+    expect(afterHeader.assignments['price']).toEqual({
+      colId: 'price',
+      cellStyleOverrides: { colors: { text: '#ff0000' } },
+      headerStyleOverrides: { colors: { text: '#00ff00' } },
+    });
+  });
+
+  it('merges into existing overrides without clobbering other sections', () => {
+    const seed: ColumnCustomizationState = {
+      assignments: {
+        price: {
+          colId: 'price',
+          cellStyleOverrides: {
+            typography: { bold: true },
+            colors: { text: '#000' },
+          },
+        },
+      },
+    };
+    const next = writeOverridesReducer(['price'], 'cell', {
+      colors: { background: '#fff' },
+    })(seed);
+
+    expect(next.assignments['price'].cellStyleOverrides).toEqual({
+      typography: { bold: true },
+      colors: { text: '#000', background: '#fff' },
+    });
+  });
+
+  it('clearing the last leaf of a section drops the section entirely', () => {
+    const seed: ColumnCustomizationState = {
+      assignments: {
+        price: {
+          colId: 'price',
+          cellStyleOverrides: { typography: { bold: true } },
+        },
+      },
+    };
+    const next = writeOverridesReducer(['price'], 'cell', {
+      typography: { bold: undefined },
+    })(seed);
+
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+  });
+
+  it('applies the same patch to every listed column', () => {
+    const next = writeOverridesReducer(['price', 'quantity'], 'cell', {
+      typography: { bold: true },
+    })(EMPTY);
+
+    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['quantity'].cellStyleOverrides?.typography).toEqual({ bold: true });
+  });
+
+  it('leaves OTHER columns in the assignments map untouched', () => {
+    const seed: ColumnCustomizationState = {
+      assignments: {
+        untouched: { colId: 'untouched', headerName: 'Untouched' },
+        price: { colId: 'price' },
+      },
+    };
+    const next = writeOverridesReducer(['price'], 'cell', {
+      typography: { bold: true },
+    })(seed);
+
+    expect(next.assignments['untouched']).toBe(seed.assignments['untouched']);
+  });
+
+  it('handles undefined prev (fresh-module first write)', () => {
+    const next = writeOverridesReducer(['price'], 'cell', {
+      typography: { bold: true },
+    })(undefined);
+    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+  });
+
+  it('preserves unrelated state keys on the root (filter / rowGrouping ambient)', () => {
+    const seed = {
+      assignments: {},
+      // Shape includes arbitrary extra data; the reducer must not drop it.
+      someFutureField: { hello: 'world' },
+    } as unknown as ColumnCustomizationState;
+    const next = writeOverridesReducer(['price'], 'cell', {
+      typography: { bold: true },
+    })(seed);
+    expect((next as unknown as { someFutureField: unknown }).someFutureField).toEqual({
+      hello: 'world',
+    });
+  });
+});
+
+// ─── Shortcut reducers ─────────────────────────────────────────────────
+
+describe('applyTypographyReducer', () => {
+  it('writes typography into the targeted section', () => {
+    const next = applyTypographyReducer(['price'], 'cell', { bold: true, fontSize: 14 })(
+      EMPTY,
+    );
+    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({
+      bold: true,
+      fontSize: 14,
+    });
+  });
+
+  it('undefined flags clear the flag rather than storing undefined', () => {
+    const seed = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    const next = applyTypographyReducer(['price'], 'cell', { bold: undefined })(seed);
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+  });
+
+  it('writes to header when target is "header"', () => {
+    const next = applyTypographyReducer(['price'], 'header', { italic: true })(EMPTY);
+    expect(next.assignments['price'].headerStyleOverrides?.typography).toEqual({ italic: true });
+    expect(next.assignments['price'].cellStyleOverrides).toBeUndefined();
+  });
+});
+
+describe('applyColorsReducer', () => {
+  it('merges text + background independently', () => {
+    const seed = applyColorsReducer(['price'], 'cell', { text: '#ff0000' })(EMPTY);
+    const next = applyColorsReducer(['price'], 'cell', { background: '#eeeeee' })(seed);
+    expect(next.assignments['price'].cellStyleOverrides?.colors).toEqual({
+      text: '#ff0000',
+      background: '#eeeeee',
+    });
+  });
+
+  it('undefined clears a color leaf', () => {
+    const seed = applyColorsReducer(['price'], 'cell', {
+      text: '#ff0000',
+      background: '#eeeeee',
+    })(EMPTY);
+    const next = applyColorsReducer(['price'], 'cell', { text: undefined })(seed);
+    expect(next.assignments['price'].cellStyleOverrides?.colors).toEqual({
+      background: '#eeeeee',
+    });
+  });
+});
+
+describe('applyAlignmentReducer', () => {
+  it('sets horizontal alignment', () => {
+    const next = applyAlignmentReducer(['price'], 'cell', { horizontal: 'right' })(EMPTY);
+    expect(next.assignments['price'].cellStyleOverrides?.alignment?.horizontal).toBe('right');
+  });
+
+  it('undefined clears the alignment entirely', () => {
+    const seed = applyAlignmentReducer(['price'], 'cell', { horizontal: 'right' })(EMPTY);
+    const next = applyAlignmentReducer(['price'], 'cell', { horizontal: undefined })(seed);
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+  });
+});
+
+// ─── Border reducers ────────────────────────────────────────────────────
+
+describe('applyBordersReducer', () => {
+  const spec: BorderSpec = { width: 2, color: '#333', style: 'solid' };
+
+  it('sets one side', () => {
+    const next = applyBordersReducer(['price'], 'cell', ['top'], spec)(EMPTY);
+    expect(next.assignments['price'].cellStyleOverrides?.borders?.top).toEqual(spec);
+    expect(next.assignments['price'].cellStyleOverrides?.borders?.right).toBeUndefined();
+  });
+
+  it('sets multiple sides in one call', () => {
+    const next = applyBordersReducer(['price'], 'cell', ['top', 'bottom'], spec)(EMPTY);
+    expect(next.assignments['price'].cellStyleOverrides?.borders?.top).toEqual(spec);
+    expect(next.assignments['price'].cellStyleOverrides?.borders?.bottom).toEqual(spec);
+  });
+
+  it('clears a single side when spec is undefined', () => {
+    const seed = applyBordersReducer(['price'], 'cell', ['top', 'bottom'], spec)(EMPTY);
+    const next = applyBordersReducer(['price'], 'cell', ['top'], undefined)(seed);
+    expect(next.assignments['price'].cellStyleOverrides?.borders).toEqual({ bottom: spec });
+  });
+});
+
+describe('clearAllBordersReducer', () => {
+  const spec: BorderSpec = { width: 1, color: '#000', style: 'dashed' };
+
+  it('drops every border side', () => {
+    const seed = applyBordersReducer(
+      ['price'],
+      'cell',
+      ['top', 'right', 'bottom', 'left'],
+      spec,
+    )(EMPTY);
+    const next = clearAllBordersReducer(['price'], 'cell')(seed);
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+  });
+
+  it('leaves non-border sections intact', () => {
+    const spec2: BorderSpec = { width: 1, color: '#000', style: 'solid' };
+    let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    state = applyBordersReducer(['price'], 'cell', ['top'], spec2)(state);
+    const next = clearAllBordersReducer(['price'], 'cell')(state);
+    expect(next.assignments['price'].cellStyleOverrides).toEqual({
+      typography: { bold: true },
+    });
+  });
+});
+
+// ─── Formatter reducer ─────────────────────────────────────────────────
+
+describe('applyFormatterReducer', () => {
+  const tpl: ValueFormatterTemplate = {
+    kind: 'preset',
+    preset: 'currency',
+    options: { currency: 'USD', decimals: 2 },
+  };
+
+  it('writes valueFormatterTemplate on every listed column', () => {
+    const next = applyFormatterReducer(['price', 'quantity'], tpl)(EMPTY);
+    expect(next.assignments['price'].valueFormatterTemplate).toEqual(tpl);
+    expect(next.assignments['quantity'].valueFormatterTemplate).toEqual(tpl);
+  });
+
+  it('undefined removes the template from each column', () => {
+    const seed = applyFormatterReducer(['price'], tpl)(EMPTY);
+    const next = applyFormatterReducer(['price'], undefined)(seed);
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+  });
+
+  it('does not affect overrides / templateIds', () => {
+    let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    state = applyTemplateToColumnsReducer(['price'], 'tpl-abc')(state);
+    const next = applyFormatterReducer(['price'], tpl)(state);
+    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['price'].templateIds).toEqual(['tpl-abc']);
+    expect(next.assignments['price'].valueFormatterTemplate).toEqual(tpl);
+  });
+
+  it('is a no-op for empty colIds', () => {
+    const reducer = applyFormatterReducer([], tpl);
+    expect(reducer(EMPTY)).toBe(EMPTY);
+  });
+});
+
+// ─── Template-chain reducer ────────────────────────────────────────────
+
+describe('applyTemplateToColumnsReducer', () => {
+  it('sets templateIds to exactly [templateId]', () => {
+    const next = applyTemplateToColumnsReducer(['price'], 'tpl-red')(EMPTY);
+    expect(next.assignments['price'].templateIds).toEqual(['tpl-red']);
+  });
+
+  it('replaces any existing templateIds chain (not layered)', () => {
+    const seed = applyTemplateToColumnsReducer(['price'], 'tpl-old')(EMPTY);
+    const next = applyTemplateToColumnsReducer(['price'], 'tpl-new')(seed);
+    expect(next.assignments['price'].templateIds).toEqual(['tpl-new']);
+  });
+
+  it('is a no-op for empty colIds OR empty templateId', () => {
+    const r1 = applyTemplateToColumnsReducer([], 'tpl-x');
+    const r2 = applyTemplateToColumnsReducer(['price'], '');
+    expect(r1(EMPTY)).toBe(EMPTY);
+    expect(r2(EMPTY)).toBe(EMPTY);
+  });
+
+  it('preserves overrides when setting a template', () => {
+    const seed = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    const next = applyTemplateToColumnsReducer(['price'], 'tpl-x')(seed);
+    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['price'].templateIds).toEqual(['tpl-x']);
+  });
+});
+
+// ─── Clear-all reducer ─────────────────────────────────────────────────
+
+describe('clearAllStylesReducer', () => {
+  it('resets each listed column to { colId } only', () => {
+    let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    state = applyColorsReducer(['price'], 'cell', { text: '#f00' })(state);
+    state = applyFormatterReducer(['price'], {
+      kind: 'preset',
+      preset: 'number',
+      options: { decimals: 2, thousands: true },
+    })(state);
+    state = applyTemplateToColumnsReducer(['price'], 'tpl-x')(state);
+
+    const next = clearAllStylesReducer(['price'])(state);
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+  });
+
+  it('leaves other columns untouched', () => {
+    let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    state = applyTypographyReducer(['quantity'], 'cell', { italic: true })(state);
+
+    const next = clearAllStylesReducer(['price'])(state);
+    expect(next.assignments['price']).toEqual({ colId: 'price' });
+    expect(next.assignments['quantity'].cellStyleOverrides?.typography).toEqual({
+      italic: true,
+    });
+  });
+
+  it('is a no-op for empty colIds', () => {
+    expect(clearAllStylesReducer([])(EMPTY)).toBe(EMPTY);
+  });
+});
