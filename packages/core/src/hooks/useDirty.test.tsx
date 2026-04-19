@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GridPlatform } from '../platform/GridPlatform';
 import type { Module } from '../platform/types';
 import { GridProvider } from './GridProvider';
-import { useDirty } from './useDirty';
+import { useDirty, useDirtyCount } from './useDirty';
 
 const NOOP_MODULE: Module<{ v: number }> = {
   id: 'noop',
@@ -68,6 +68,27 @@ describe('useDirty', () => {
     // bus) but the snapshot value for `watched` is unchanged, so React's
     // useSyncExternalStore short-circuits the re-render.
     expect(result.current).toBe(renderCountBefore);
+  });
+
+  it('useDirtyCount returns the live count of dirty keys', () => {
+    const { result } = renderHook(() => useDirtyCount(), { wrapper: wrapWith(platform) });
+    expect(result.current).toBe(0);
+
+    act(() => platform.resources.dirty().set('k1', true));
+    expect(result.current).toBe(1);
+
+    act(() => platform.resources.dirty().set('k2', true));
+    expect(result.current).toBe(2);
+
+    act(() => platform.resources.dirty().set('k1', false));
+    expect(result.current).toBe(1);
+
+    // No-op set (same value) does NOT bump; the DirtyBus coalesces.
+    act(() => platform.resources.dirty().set('k2', true));
+    expect(result.current).toBe(1);
+
+    act(() => platform.resources.dirty().reset());
+    expect(result.current).toBe(0);
   });
 
   it('dirty state does not bleed between two platforms (two grids on one page)', () => {

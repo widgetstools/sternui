@@ -268,7 +268,10 @@ function Host<TData>({
   // Exposed as a constant false so the save button's colour is stable.
   const isDirty = false;
 
-  // v2 compat core shim — ProfileSelector / SettingsSheet accept it.
+  // Minimal `{ gridId, getGridApi }` handle threaded through
+  // FormattingToolbar — its ~40 pure helpers still accept `core` + `store`
+  // as plain args rather than reading from context per call. SettingsSheet
+  // and ProfileSelector no longer need it (phase 4).
   const coreShim = useMemo(
     () => ({
       gridId: platform.gridId,
@@ -507,8 +510,6 @@ function Host<TData>({
       </div>
 
       <SettingsSheet
-        core={coreShim}
-        store={platform.store}
         modules={modules}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

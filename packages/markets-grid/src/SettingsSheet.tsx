@@ -3,10 +3,10 @@ import {
   SharpBtn,
   V2_SHEET_STYLE_ID,
   v2SheetCSS,
+  useDirtyCount,
+  useGridPlatform,
   type AnyModule,
-  type GridStore,
 } from '@grid-customizer/core';
-import type { GridCore } from '@grid-customizer/core';
 import {
   Popover,
   PopoverContent,
@@ -39,8 +39,6 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
 };
 
 export interface SettingsSheetProps {
-  core: GridCore;
-  store: GridStore;
   modules: AnyModule[];
   open: boolean;
   onClose: () => void;
@@ -64,13 +62,18 @@ function ensureStyles() {
 }
 
 export function SettingsSheet({
-  core,
-  store,
   modules,
   open,
   onClose,
   initialModuleId,
 }: SettingsSheetProps) {
+  // Every module panel is already mounted inside MarketsGrid's
+  // <GridProvider>, so `useGridPlatform()` is always valid here. Pull
+  // `gridId` from the platform instead of threading a redundant `core`
+  // prop (phase 4 removed the dead core/store props).
+  const platform = useGridPlatform();
+  const gridId = platform.gridId;
+
   const panelModules = useMemo(
     () => modules.filter((m) => m.SettingsPanel || (m.ListPane && m.EditorPane)),
     [modules],
@@ -123,15 +126,11 @@ export function SettingsSheet({
   const LegacyPanel = activeModule?.SettingsPanel;
   const selectedId = activeModule ? selectedByModule[activeModule.id] ?? null : null;
 
-  const dirtyCount = 0; // optional: wire to a global dirty counter if exposed by store
-
-  // NOTE: v2 re-wrapped the sheet in its own GridProvider so panels rendered
-  // inside could reach `store` + `core`. In v3 the host (MarketsGrid) already
-  // wraps everything in <GridProvider platform={…}> at the top level, so the
-  // sheet is always inside an active provider. No inner re-wrap needed; the
-  // compat `core` + `store` props are accepted for API continuity (they must
-  // match the active platform).
-  void core; void store;
+  // Live DIRTY=NN counter — reads the per-platform DirtyBus directly.
+  // Every module panel registers `${moduleId}:${itemId}` through
+  // `useModuleDraft` (phase 3), so the count reflects the real number
+  // of unsaved card drafts across all panels.
+  const dirtyCount = useDirtyCount();
   return (
     <>
       <div data-gc-settings="" data-testid="v2-settings-sheet">
@@ -298,7 +297,7 @@ export function SettingsSheet({
             {hasMasterDetail && ListPane && activeModule && (
               <aside className="gc-popout-list" data-testid="v2-settings-list">
                 <ListPane
-                  gridId={core.gridId}
+                  gridId={gridId}
                   selectedId={selectedId}
                   onSelect={(id) => setSelectedForModule(activeModule.id, id)}
                 />
@@ -326,10 +325,10 @@ export function SettingsSheet({
                     overflow: 'hidden',
                   }}
                 >
-                  <EditorPane gridId={core.gridId} selectedId={selectedId} />
+                  <EditorPane gridId={gridId} selectedId={selectedId} />
                 </div>
               ) : LegacyPanel ? (
-                <LegacyPanel gridId={core.gridId} />
+                <LegacyPanel gridId={gridId} />
               ) : (
                 <div style={{ padding: 24 }}>
                   <div className="gc-caps" style={{ fontSize: 10, marginBottom: 6 }}>

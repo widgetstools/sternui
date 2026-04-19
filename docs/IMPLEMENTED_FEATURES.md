@@ -251,6 +251,39 @@ from the draft and lights the SAVE pill.
   / `rowDataUpdated` trigger `api.refreshCells({ columns: virtualColIds,
   force: true })` so column-wide aggregates re-evaluate across every
   visible row, not just the edited one.
+- **Phase 4 — compat-shim cleanup, host chrome, and FormattingToolbar
+  ApiHub migration**:
+  - **Deleted** `packages/core/src/store/useDraftModuleItem.ts` (the v3
+    draft hook replaced by `useModuleDraft` in phase 3, zero callers).
+  - **Deleted** runtime `useGridCore()` / `useGridStore()` hooks from
+    `hooks/GridContext.ts` — every module panel migrated to
+    `useModuleState(id)` + `useModuleDraft` + platform context in
+    phase 3, so the shims had zero runtime callers. The `GridCoreLike`
+    TYPE stays exported; `GridCore` / `GridStore` type aliases stay too
+    so FormattingToolbar's pure helpers can keep their prop-threading
+    pattern.
+  - **Dropped unused `core` + `store` props from `SettingsSheet`** — the
+    props were explicitly `void`-ed out. Sheet now reads `gridId` from
+    `useGridPlatform()` directly and wires DIRTY=NN via a new
+    `useDirtyCount()` hook against the per-platform DirtyBus instead
+    of a hardcoded `0` placeholder.
+  - **New `useDirtyCount()` hook** (`hooks/useDirty.ts`) — subscribes
+    via `useSyncExternalStore` and returns the live number of dirty
+    keys. Used by the settings-sheet header so the `DIRTY=NN` counter
+    actually reflects reality across all panel drafts. Tear-free under
+    concurrent rendering. 1 regression test added.
+  - **FormattingToolbar `useActiveColumns` rewrite** — the 300ms
+    `setInterval` polling loop for the grid api (last remaining
+    instance of that antipattern) replaced with
+    `platform.api.onReady()` + three typed `platform.api.on(…)`
+    subscriptions (`cellFocused`, `cellClicked`,
+    `cellSelectionChanged`). All listeners auto-dispose with the
+    platform, no leaked timers across StrictMode mount cycles.
+  - **Stale doc polish** — `IconInput.tsx`'s comment now references
+    `useModuleDraft` instead of the deleted `useDraftModuleItem`; the
+    `useModuleDraft` file-level header drops its "vs the v3 shim"
+    framing now that the shim is gone.
+
 - **Column Settings v4 panel rewrite (phase 3e)** — the last of the five
   settings panels. Same three shared antipatterns removed:
   `dirtyRegistry + window.dispatchEvent('gc-dirty-change')` →

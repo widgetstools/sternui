@@ -4,14 +4,13 @@ import { useModuleState } from './useModuleState';
 import { useDirty } from './useDirty';
 
 /**
- * Per-card draft hook — the clean v4 replacement for v3's
- * `useDraftModuleItem`.
+ * Per-card draft hook.
  *
- * Differences vs the v3 shim:
+ * Shape:
  *   - No `store` arg — reads the platform via `useGridPlatform` context.
  *   - Integrates with the per-platform `DirtyBus`, so the settings-sheet
  *     DIRTY=NN counter and per-card LEDs stay in sync automatically. No
- *     separate `window.dispatchEvent` bus.
+ *     `window.dispatchEvent` bus.
  *   - The dirty-bus key is derived from `moduleId + itemId` so drafts
  *     across panels never collide.
  *

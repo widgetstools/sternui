@@ -4,9 +4,9 @@ import { forwardRef, useEffect, useRef, useState, type CSSProperties, type React
  * Cockpit input pill — sharp 2px corners, `--ck-bg` inset, phosphor focus
  * ring, Plex Sans body / Plex Mono monospace option.
  *
- * Commit model: local draft + commit on blur / Enter. Consumers hook the
- * commit to their useDraftModuleItem `setDraft` so keystroke thrash is
- * bounded to this field.
+ * Commit model: local draft + commit on blur / Enter. Consumers hook
+ * the commit to their `useModuleDraft().setDraft` so keystroke thrash
+ * is bounded to this field.
  *
  * Not wrapping the shadcn `<Input>` any more — the extra forwardRef layer
  * didn't buy anything once the sheet's scoped CSS unified input sizing,

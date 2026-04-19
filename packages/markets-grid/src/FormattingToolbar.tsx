@@ -40,6 +40,7 @@ import {
 import {
   BorderStyleEditor,
   FormatterPicker,
+  useGridPlatform,
   valueFormatterFromTemplate,
   type GridCore,
   type GridStore,
@@ -252,55 +253,52 @@ function useFlashConfirm(): [boolean, () => void] {
   return [confirmed, flash];
 }
 
-// ─── Active-column tracking ──────────────────────────────────────────────────
+// ─── Active-column tracking ────────────────────────────────────────────
 //
-// Polls for the grid API (same pattern v1 uses), subscribes to focus/click/
-// selection events, and remembers the last non-empty list so toolbar clicks
-// don't clear it when focus leaves the grid.
+// Tracks the grid's currently-selected columns (range selection /
+// focused cell) so the toolbar knows which columns to write to. Used
+// to poll for the grid api every 300ms through `setInterval`; v4 switches
+// to `platform.api.onReady()` + typed ApiHub subscriptions. The ApiHub
+// hangs off the per-grid platform so listeners are auto-disposed on
+// platform teardown — no manual `removeEventListener` bookkeeping, no
+// polling, no leaked timers across StrictMode mount/unmount cycles.
+//
+// The "last non-empty" memory is preserved — toolbar clicks that shift
+// focus away from the grid shouldn't clear the remembered selection.
 
 function useActiveColumns(core: GridCore): string[] {
+  const platform = useGridPlatform();
   const [colIds, setColIds] = useState<string[]>([]);
-  const apiRef = useRef<unknown>(null);
   const lastColIds = useRef<string[]>([]);
-  const cleanupRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
-    let mounted = true;
-
     const getColIds = (): string[] => {
-      const api = (apiRef.current ?? core.getGridApi()) as unknown as {
+      const api = platform.api.api as unknown as {
         getCellRanges?: () => Array<{ columns?: unknown[] }>;
         getFocusedCell?: () => { column?: unknown } | null;
       } | null;
       if (!api) return lastColIds.current;
-      apiRef.current = api;
 
-      const ids: string[] = [];
       const extractId = (col: unknown): string | null => {
-        if (!col) return null;
-        const c = col as { getColId?: () => string };
-        const colId = typeof c.getColId === 'function' ? c.getColId() : null;
-        return colId || null;
+        const c = col as { getColId?: () => string } | null;
+        return c && typeof c.getColId === 'function' ? c.getColId() || null : null;
       };
 
+      const ids: string[] = [];
       try {
-        const ranges = api.getCellRanges?.();
-        if (ranges?.length) {
-          for (const range of ranges) {
-            for (const col of (range.columns ?? [])) {
-              const id = extractId(col);
-              if (id && !ids.includes(id)) ids.push(id);
-            }
+        for (const range of api.getCellRanges?.() ?? []) {
+          for (const col of range.columns ?? []) {
+            const id = extractId(col);
+            if (id && !ids.includes(id)) ids.push(id);
           }
         }
-      } catch { /* ignore */ }
+      } catch { /* range api unavailable */ }
 
       if (ids.length === 0) {
         try {
-          const focused = api.getFocusedCell?.();
-          const id = extractId(focused?.column);
+          const id = extractId(api.getFocusedCell?.()?.column);
           if (id) ids.push(id);
-        } catch { /* ignore */ }
+        } catch { /* focused-cell api unavailable */ }
       }
 
       if (ids.length > 0) {
@@ -310,40 +308,32 @@ function useActiveColumns(core: GridCore): string[] {
       return lastColIds.current;
     };
 
-    const update = () => {
-      if (!mounted) return;
-      setColIds(getColIds());
-    };
+    const update = () => setColIds(getColIds());
 
-    const poll = setInterval(() => {
-      const api = core.getGridApi() as unknown as {
-        addEventListener?: (type: string, fn: () => void) => void;
-        removeEventListener?: (type: string, fn: () => void) => void;
-      } | null;
-      if (!api || !mounted) return;
-      apiRef.current = api;
-      clearInterval(poll);
-
-      const bind = (type: string) => {
-        try {
-          api.addEventListener?.(type, update);
-          cleanupRef.current.push(() => { try { api.removeEventListener?.(type, update); } catch { /* */ } });
-        } catch { /* */ }
-      };
-      bind('cellFocused');
-      bind('cellClicked');
-      bind('cellSelectionChanged');
-      update();
-    }, 300);
+    // Install all three listeners as soon as the api is ready; `onReady`
+    // returns a disposer that also unsubscribes any listeners we
+    // registered while the api was live.
+    const disposers: Array<() => void> = [];
+    disposers.push(
+      platform.api.onReady(() => {
+        disposers.push(platform.api.on('cellFocused', update));
+        disposers.push(platform.api.on('cellClicked', update));
+        disposers.push(platform.api.on('cellSelectionChanged', update));
+        update();
+      }),
+    );
 
     return () => {
-      mounted = false;
-      clearInterval(poll);
-      for (const fn of cleanupRef.current) fn();
-      cleanupRef.current = [];
+      for (const d of disposers) {
+        try { d(); } catch { /* teardown race */ }
+      }
     };
-  }, [core]);
+  }, [platform]);
 
+  // `core` is still accepted as a prop for parity with the rest of the
+  // toolbar (helpers that need `getGridApi` as a plain callable), but the
+  // hook itself now reads through the platform context.
+  void core;
   return colIds;
 }
 

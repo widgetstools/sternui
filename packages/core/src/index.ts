@@ -79,16 +79,29 @@ export {
   useModuleState,
   useGridApi,
   useGridEvent,
-  useGridStore,
-  useGridCore,
   useProfileManager,
 } from './hooks';
 export type { GridCoreLike } from './hooks';
 
-// Back-compat aliases for ported v2 UI code. `GridCore` is the minimal
-// surface panels actually consume (gridId + getGridApi); `GridStore` is
-// the same `Store` v3 exposes. New code should prefer `Store` +
-// `useGridPlatform()` directly.
+// v4 clean hooks — panels + host consumers use these directly.
+export {
+  useDirty,
+  useDirtyCount,
+  useGridColumns,
+  useModuleDraft,
+  type DirtyHandle,
+  type GridColumnInfo,
+  type UseModuleDraftOptions,
+  type UseModuleDraftResult,
+} from './hooks';
+
+// Back-compat type aliases. `GridCore` is the minimal surface the
+// markets-grid `FormattingToolbar` threads through its helpers;
+// `GridStore` is the same `Store` shape the platform exposes. The
+// runtime `useGridCore()` / `useGridStore()` hooks were deleted in
+// phase 4 — every module panel migrated to `useModuleState(id)` +
+// `useModuleDraft` + `useGridPlatform()` directly, so the shims had
+// zero callers.
 export type { GridCoreLike as GridCore } from './hooks';
 export type { Store as GridStore } from './platform/types';
 export type { UseProfileManagerResult } from './hooks';

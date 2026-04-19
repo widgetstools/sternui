@@ -56,3 +56,17 @@ export interface DirtyHandle {
   isDirty: boolean;
   set: (dirty: boolean) => void;
 }
+
+/**
+ * Count-flavoured companion — reads the number of currently-dirty keys
+ * on the per-platform DirtyBus. Subscribes via `useSyncExternalStore`
+ * so the reading stays tear-free under concurrent rendering. Used by
+ * the settings-sheet header to render `DIRTY=NN`.
+ */
+export function useDirtyCount(): number {
+  const platform = useGridPlatform();
+  const bus: IDirtyBus = platform.resources.dirty();
+  const subscribe = useCallback((fn: () => void) => bus.subscribe(fn), [bus]);
+  const getSnapshot = useCallback(() => bus.count(), [bus]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}

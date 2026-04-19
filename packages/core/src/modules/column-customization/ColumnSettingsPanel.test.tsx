@@ -30,7 +30,10 @@ import type { ColumnCustomizationState } from './state';
 interface FakeCol { id: string; headerName?: string; cellDataType?: string; }
 
 function makeFakeApi(cols: FakeCol[]): GridApi {
-  const listeners = new Map<string, Set<() => void>>();
+  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  // AG-Grid's GridApi.addEventListener is overloaded with a narrow
+  // typed-event signature; cast through `unknown` so the harness doesn't
+  // have to model every AgPublicEventType.
   const api: Partial<GridApi> = {
     getColumns: () =>
       cols.map((c) =>
@@ -39,13 +42,13 @@ function makeFakeApi(cols: FakeCol[]): GridApi {
           getColDef: () => ({ headerName: c.headerName, cellDataType: c.cellDataType }),
         }) as Column,
       ),
-    addEventListener: (evt: string, fn: () => void) => {
+    addEventListener: ((evt: string, fn: (...a: unknown[]) => void) => {
       if (!listeners.has(evt)) listeners.set(evt, new Set());
       listeners.get(evt)!.add(fn);
-    },
-    removeEventListener: (evt: string, fn: () => void) => {
+    }) as unknown as GridApi['addEventListener'],
+    removeEventListener: ((evt: string, fn: (...a: unknown[]) => void) => {
       listeners.get(evt)?.delete(fn);
-    },
+    }) as unknown as GridApi['removeEventListener'],
   };
   return api as GridApi;
 }
