@@ -251,6 +251,24 @@ from the draft and lights the SAVE pill.
   / `rowDataUpdated` trigger `api.refreshCells({ columns: virtualColIds,
   force: true })` so column-wide aggregates re-evaluate across every
   visible row, not just the edited one.
+- **Conditional Styling v4 panel rewrite (phase 3d)** — same three
+  antipatterns cleaned plus two extra that only this panel carried:
+  - `new ExpressionEngine()` allocated at module load → switched to
+    `useGridPlatform().resources.expression()`. Validation now runs
+    through the same engine that evaluates rules at transform time.
+  - `<RuleRow>` subscribed to the entire `conditional-styling` slice
+    just to read a committed snapshot it `void`-ed out and never used —
+    re-rendered every row on every keystroke. Dropped; `RuleRow` now
+    re-renders only when its own `rule`/`active` props change, with the
+    dirty LED subscribing independently via `useDirty`.
+  - Plus the shared fixes: `dirtyRegistry + window.dispatchEvent('gc-
+    dirty-change')` → `useDirty('conditional-styling:<ruleId>')`; local
+    `useGridColumns()` with tick polling → platform `useGridColumns()`;
+    compat shims `useDraftModuleItem` / `useModuleState(store, id)`
+    replaced.
+  All `cs-*` testIds preserved. `module.ListPane` + `module.EditorPane`
+  wired. Panel 1115 → 1036 LOC; 9 integration tests added.
+
 - **Column Groups v4 panel rewrite (phase 3c)** — same v2 antipatterns
   removed (file-level `dirtyRegistry` + `window.dispatchEvent('gc-dirty-
   change')`, a second local `useGridColumns()` with its own `tick`

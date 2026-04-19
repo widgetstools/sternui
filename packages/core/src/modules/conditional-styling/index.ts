@@ -22,7 +22,11 @@ import {
   buildRowClassPredicate,
   reinjectAllRules,
 } from './transforms';
-import { ConditionalStylingPanel } from './ConditionalStylingPanel';
+import {
+  ConditionalStylingEditor,
+  ConditionalStylingList,
+  ConditionalStylingPanel,
+} from './ConditionalStylingPanel';
 
 export const CONDITIONAL_STYLING_MODULE_ID = 'conditional-styling';
 
@@ -235,6 +239,10 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     };
   },
 
+  // v4: native master-detail slots — the settings sheet renders these
+  // directly instead of the flat `SettingsPanel` fallback.
+  ListPane: ConditionalStylingList,
+  EditorPane: ConditionalStylingEditor,
   SettingsPanel: ConditionalStylingPanel,
 };
 
