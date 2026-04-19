@@ -4,14 +4,24 @@ import { GridPlatform, type AnyColDef, type AnyModule } from '@grid-customizer/c
 
 /**
  * Binds a `GridPlatform` instance to the React lifecycle:
- *   - Constructs once per (gridId, modules) tuple. Same references across renders.
+ *   - Constructs once per MarketsGrid instance. Shared across renders.
  *   - Subscribes to the store and bumps a tick so `columnDefs` / `gridOptions`
  *     re-run the transform pipeline on state changes.
- *   - Fires `platform.destroy()` on unmount.
+ *   - Fires `platform.destroy()` on REAL unmount only (via grid-pre-destroyed
+ *     + a ref-counted effect teardown that ignores StrictMode double-unmounts).
  *
  * Module-level state lives INSIDE the platform instance, so StrictMode
- * double-mounts can't corrupt anything — each mount produces a fresh
- * platform with its own `resources` / `eventBus`.
+ * double-mounts can't corrupt anything — each platform has its own
+ * `resources` / `eventBus`.
+ *
+ * WHY we don't destroy on useEffect cleanup: React 19 StrictMode fires a
+ * synthetic unmount + remount on every mount. If the cleanup destroyed the
+ * platform, the second mount would create a fresh platform whose ApiHub
+ * never receives the api (AG-Grid's onGridReady was captured by the first
+ * handleGridReady closure, which targets the DESTROYED platform). Keeping
+ * the same platform across simulated mounts preserves the api attachment.
+ * The real teardown happens in `onGridPreDestroyed` below — that fires
+ * exactly once on the true grid destroy.
  */
 export function useGridHost(opts: {
   gridId: string;
@@ -28,14 +38,6 @@ export function useGridHost(opts: {
     });
   }
   const platform = platformRef.current;
-
-  useEffect(() => {
-    return () => {
-      platformRef.current?.destroy();
-      platformRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // A single "state changed" tick drives pipeline re-runs. Cheap because
   // the PipelineRunner caches per-module outputs on reference identity —
@@ -84,6 +86,7 @@ export function useGridHost(opts: {
 
   const onGridPreDestroyed = () => {
     platform.destroy();
+    platformRef.current = null;
   };
 
   return { platform, columnDefs, gridOptions, onGridReady, onGridPreDestroyed };
