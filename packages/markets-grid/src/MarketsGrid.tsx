@@ -28,7 +28,6 @@ import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar } from './FormattingToolbar';
-import { DraggableFloat } from './DraggableFloat';
 import { SettingsSheet } from './SettingsSheet';
 import { ProfileSelector } from './ProfileSelector';
 
@@ -424,48 +423,24 @@ function Host<TData>({
         </div>
       )}
 
-      {showFormattingToolbar && (
-        <DraggableFloat
-          open={styleToolbarOpen}
-          onClose={() => setStyleToolbarOpen(false)}
-          headless
-          data-testid="formatting-toolbar-float"
-        >
-          {/* Inline row: drag handle | formatter toolbar | close button.
-              Panel sizes to the toolbar's natural content width; when that
-              exceeds the viewport, the toolbar's own flex-wrap kicks in
-              and the floating panel grows vertically — no horizontal
-              scroll.
+      {/* FormattingToolbar — pinned as a second toolbar row directly
+           beneath the FiltersToolbar. Visibility is bound to the
+           existing Brush toggle in the FiltersToolbar
+           (`styleToolbarOpen`). When the viewport is narrow the
+           toolbar's flex-wrap kicks in and the row grows vertically
+           (1 row → 2 rows) so no content is clipped.
 
-              The outer chrome uses `.gc-tb-float` from FormattingToolbar.css
-              for tokenised border / background / shadow, light/dark
-              aware. The style prop carries only the values
-              DraggableFloat applies inline (those override CSS) and the
-              flex geometry. */}
-          <div className="gc-tb-float">
-            <DraggableFloat.DragHandle
-              data-testid="formatting-toolbar-float-handle"
-              className="gc-tb-drag"
-              style={{ width: 'var(--tb-drag-w, 22px)', flexShrink: 0 }}
-            />
-            <FormattingToolbar />
-            <DraggableFloat.CloseButton
-              data-testid="formatting-toolbar-float-close"
-              size={14}
-              className="gc-tb-close"
-              style={{
-                width: 'var(--tb-close-w, 36px)',
-                height: 'auto',
-                borderRadius: 0,
-                flexShrink: 0,
-                // Let the CSS class paint hover + background via tokens
-                // without the inline transparent default fighting it.
-                background: 'transparent',
-                color: 'var(--tb-ink-2)',
-              }}
-            />
-          </div>
-        </DraggableFloat>
+           DraggableFloat was replaced in favour of this pinned row —
+           the float-style drag-to-reposition UX made the toolbar
+           overlap narrow grid columns in multi-grid dashboards. */}
+      {showFormattingToolbar && styleToolbarOpen && (
+        <div
+          className="gc-tb-pinned"
+          data-testid="formatting-toolbar-pinned"
+          style={{ flexShrink: 0 }}
+        >
+          <FormattingToolbar />
+        </div>
       )}
 
       <div style={{ flex: 1 }}>

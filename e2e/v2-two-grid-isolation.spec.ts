@@ -62,29 +62,18 @@ async function waitForBothGrids(page: Page) {
  * toggle is scoped by the grid's root `[data-grid-id]` attribute so
  * each grid's toolbar opens independently.
  *
- * The formatting toolbar renders as a DraggableFloat that can overlap
- * the OTHER grid's toggle button, so this helper also handles the
- * case where one of them is already open and in the way: it closes
- * any existing float first.
+ * The toolbar is now a pinned row beneath the grid's FiltersToolbar
+ * (not a floating overlay), so there's no cross-grid pointer
+ * interception — opening one grid's toolbar can't block the other's
+ * toggle.
  */
 async function openFormattingToolbar(page: Page, gridId: string) {
-  // If any float is already open, close it — avoids pointer-event
-  // interception when the open float hovers over the other grid's
-  // toggle button. Only one float is open at a time in this demo, but
-  // whichever grid owns it needs to release before the next one opens.
-  const closes = page.locator('[data-testid="formatting-toolbar-float-close"]');
-  const n = await closes.count();
-  for (let i = 0; i < n; i++) {
-    await closes.nth(i).click();
-  }
-  if (n > 0) {
-    await expect(page.locator('[data-testid="formatting-toolbar"]')).toHaveCount(0, {
-      timeout: 5_000,
-    });
-  }
   const grid = page.locator(`[data-grid-id="${gridId}"]`);
-  await grid.locator('[data-testid="style-toolbar-toggle"]').click();
-  await expect(page.locator('[data-testid="formatting-toolbar"]')).toBeVisible();
+  const pinned = grid.locator('[data-testid="formatting-toolbar-pinned"]');
+  if (!(await pinned.isVisible().catch(() => false))) {
+    await grid.locator('[data-testid="style-toolbar-toggle"]').click();
+  }
+  await expect(pinned).toBeVisible();
 }
 
 async function selectCellInGrid(page: Page, gridId: string, colId: string, rowIndex = 0) {
@@ -95,8 +84,16 @@ async function selectCellInGrid(page: Page, gridId: string, colId: string, rowIn
   await page.waitForTimeout(250);
 }
 
-async function clickToolbarBtn(page: Page, tooltipText: string) {
-  const btn = page.getByRole('button', { name: tooltipText });
+/**
+ * Click a toolbar button scoped to ONE grid. Pinned toolbars mean
+ * both grids' toolbars can be visible simultaneously, so
+ * `getByRole('button', { name })` returns two matches — we scope
+ * by the grid's `[data-grid-id]` root so the query is unambiguous.
+ */
+async function clickToolbarBtn(page: Page, gridId: string, tooltipText: string) {
+  const btn = page
+    .locator(`[data-grid-id="${gridId}"]`)
+    .getByRole('button', { name: tooltipText });
   await btn.dispatchEvent('mousedown');
   await page.waitForTimeout(150);
 }
@@ -139,7 +136,7 @@ test.describe('Two-grid dashboard — cross-grid isolation', () => {
     // Open grid A's toolbar, select a cell, apply bold.
     await openFormattingToolbar(page, 'dashboard-rates-v2');
     await selectCellInGrid(page, 'dashboard-rates-v2', 'price');
-    await clickToolbarBtn(page, 'Bold');
+    await clickToolbarBtn(page, 'dashboard-rates-v2', 'Bold');
 
     // Grid A's price cell is bold.
     const ratesWeight = await getCellFontWeight(page, 'dashboard-rates-v2', 'price');
@@ -154,12 +151,12 @@ test.describe('Two-grid dashboard — cross-grid isolation', () => {
     // Bold on grid A (rates, price column).
     await openFormattingToolbar(page, 'dashboard-rates-v2');
     await selectCellInGrid(page, 'dashboard-rates-v2', 'price');
-    await clickToolbarBtn(page, 'Bold');
+    await clickToolbarBtn(page, 'dashboard-rates-v2', 'Bold');
 
     // Italic on grid B (equities, quantity column).
     await openFormattingToolbar(page, 'dashboard-equities-v2');
     await selectCellInGrid(page, 'dashboard-equities-v2', 'quantity');
-    await clickToolbarBtn(page, 'Italic');
+    await clickToolbarBtn(page, 'dashboard-equities-v2', 'Italic');
 
     // Wait past the auto-save debounce (300ms default) so both grids
     // commit their own profile snapshots to IndexedDB.

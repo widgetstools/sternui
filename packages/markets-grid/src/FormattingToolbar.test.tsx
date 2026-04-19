@@ -312,10 +312,13 @@ describe('FormattingToolbar — templates', () => {
       expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
     );
 
-    const select = screen.getByTestId('templates-select') as HTMLSelectElement;
-    act(() => {
-      fireEvent.change(select, { target: { value: 'tpl-red' } });
-    });
+    // Click the templates icon-button to open the popover, then click
+    // the row for the seeded `tpl-red` template. Replaces the old
+    // `<select>` change-event flow; functional contract (dispatching
+    // `applyTemplateToColumnsReducer`) is identical.
+    act(() => fireEvent.click(screen.getByTestId('templates-menu-trigger')));
+    const item = await screen.findByTestId('templates-menu-item-tpl-red');
+    act(() => fireEvent.click(item));
 
     expect(getAssignment(platform, 'price')?.templateIds).toEqual(['tpl-red']);
   });

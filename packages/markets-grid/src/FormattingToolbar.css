@@ -493,6 +493,25 @@
   width: 16px;
 }
 
+/* Text button — accommodates numeric or short-string content (e.g.
+   the tick-format's "32" label, decimals "←.0" / ".0→"). Widens past
+   the square 22px with tokenised inline padding so the content has
+   breathing room. */
+.gc-formatting-toolbar .gc-tb-btn.gc-tb-btn--text {
+  width: auto;
+  min-width: var(--tb-h-ctrl);
+  padding: 0 6px;
+  font-family: var(--tb-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+[data-theme='light'] .gc-formatting-toolbar .gc-tb-btn.gc-tb-btn--text {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 7px;
+}
+
 /* Confirm flash — briefly tints the button cyan after a successful
    action (save-as-template, clear-all-styles). Legacy testids
    (`gc-tbtn-confirm`) reused so the existing flash logic continues. */
@@ -556,7 +575,49 @@
   outline-width: 2px;
 }
 
-/* ─── Floating panel outer chrome ──────────────────────────────── */
+/* ─── Pinned toolbar wrapper (sits beneath FiltersToolbar) ─────── */
+/* The host mounts the toolbar as a second row via
+   `<div class="gc-tb-pinned"><FormattingToolbar/></div>`. The
+   wrapper clamps the full-width chrome + adds the 1px bottom border
+   that separates the toolbar stack from the grid body. The inner
+   `.gc-formatting-toolbar` lets its `.gc-tb-body` flex-wrap so the
+   toolbar grows to a second visual row when the viewport is too
+   narrow to hold everything on one line. */
+.gc-tb-pinned {
+  width: 100%;
+  background: var(--tb-bg-bar, #11161C);
+  border-bottom: 1px solid var(--tb-line-strong, rgba(140, 170, 200, 0.16));
+}
+[data-theme='light'] .gc-tb-pinned {
+  background: var(--tb-bg-bar, #F2F4F7);
+  border-bottom-color: var(--tb-line-strong, rgba(59, 75, 96, 0.24));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+/* When pinned, the toolbar root drops its own border / radius — the
+   wrapper provides the separator chrome and the toolbar fills the
+   host row edge-to-edge. `.gc-tb-pinned > .gc-formatting-toolbar`
+   targets the pinned variant specifically; floating (legacy) usage
+   keeps its own framed look. */
+.gc-tb-pinned > .gc-formatting-toolbar {
+  height: auto;
+  min-height: var(--tb-h-bar);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Row allowed to wrap when content exceeds viewport width. The inner
+   `.gc-tb-body` already has `flex-wrap` from its legacy
+   `.gc-toolbar-row` layout classes, so when a group can't fit, it
+   wraps to the next line — no horizontal scroll, no clipped
+   buttons. */
+.gc-tb-pinned .gc-tb-body {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+/* ─── Floating panel outer chrome (legacy — keep for back-compat) ── */
 /* The `.gc-tb-float` div is the flex row that holds: drag rail →
    toolbar body → close button. It's rendered by MarketsGrid, not by
    FormattingToolbar, but its tokens live here so the design is

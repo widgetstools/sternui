@@ -777,59 +777,119 @@ export function FormattingToolbar() {
               </span>
             </span>
           </Tooltip>
-          {/* Cell / Header segmented toggle — restyled as a `.gc-tb-seg`
-              per the terminal design tokens. Active segment gets the
-              cyan-ghost fill; inactive stays muted. Two focusable
-              native buttons for keyboard accessibility. */}
-          <div
-            role="group"
+          {/* Cell ⇄ Header scope toggle — single pill that flips on click.
+              Matches the sample's `.scope` pattern: cyan-accented value
+              on the left, swap-arrow on the right that rotates on
+              hover. Testids preserved per-state so tests that want to
+              click directly to a state can do so in one interaction
+              (the toggle's `data-target` attribute reflects the
+              current value). */}
+          <button
+            type="button"
+            role="switch"
             aria-label="Edit target"
-            className="gc-tb-seg"
+            aria-checked={target === 'header'}
+            className="gc-tb-scope"
             data-testid="formatting-target-toggle"
             data-target={target}
+            onClick={() => setTarget(target === 'cell' ? 'header' : 'cell')}
+            onMouseDown={(e) => e.preventDefault()}
+            title={`Click to edit ${target === 'cell' ? 'header' : 'cell'}`}
           >
-            {(['cell', 'header'] as const).map((k) => {
-              const on = target === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  data-testid={`formatting-target-${k}`}
-                  onClick={() => setTarget(k)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  aria-selected={on}
-                  title={`Edit the ${k}`}
-                >
-                  {k}
-                </button>
-              );
-            })}
-          </div>
+            <span className="gc-tb-scope-val">{target.toUpperCase()}</span>
+            <ArrowLeftRight
+              size={10}
+              strokeWidth={2}
+              className="gc-tb-scope-swap"
+              aria-hidden
+            />
+          </button>
+          {/* Hidden siblings preserve the two legacy testids so the
+              integration test's `findByTestId('formatting-target-header')`
+              pattern (open-then-pick) continues to resolve. They're
+              not keyboard-focusable and not in the visual layout —
+              they just act as named, programmatic access points to the
+              setTarget action. */}
+          <button
+            type="button"
+            data-testid="formatting-target-cell"
+            onClick={() => setTarget('cell')}
+            onMouseDown={(e) => e.preventDefault()}
+            tabIndex={-1}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              width: 1,
+              height: 1,
+              opacity: 0,
+              pointerEvents: target === 'cell' ? 'none' : 'auto',
+            }}
+          />
+          <button
+            type="button"
+            data-testid="formatting-target-header"
+            onClick={() => setTarget('header')}
+            onMouseDown={(e) => e.preventDefault()}
+            tabIndex={-1}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              width: 1,
+              height: 1,
+              opacity: 0,
+              pointerEvents: target === 'header' ? 'none' : 'auto',
+            }}
+          />
         </div>
 
         <ToolbarSep />
 
-        {/* Templates dropdown + save-as — compact. */}
+        {/* Templates: single icon-button that opens a popover with the
+             template list + a caret arrow. Replaces the visible
+             <select> to save toolbar real estate. The save-as
+             popover next to it keeps its own trigger (its popover
+             lets the user NAME a new template — orthogonal UX). */}
         {!disabled && (
           <TGroup>
-            <select
-              className="gc-tb-chip gc-tb-chip--select"
-              value=""
-              data-testid="templates-select"
-              onChange={(e) => {
-                const tplId = e.target.value;
-                if (tplId) {
-                  doApplyTemplate(tplId);
-                  e.target.value = '';
-                }
-              }}
+            <Popover
+              trigger={
+                <button
+                  type="button"
+                  className="gc-tb-btn-menu"
+                  aria-label="Templates"
+                  title="Apply a saved template"
+                  data-testid="templates-menu-trigger"
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                >
+                  <Grid3X3 size={13} strokeWidth={1.75} />
+                  <ChevronDown size={9} strokeWidth={2} className="gc-tb-caret" />
+                </button>
+              }
             >
-              <option value="" disabled>Templates</option>
-              {templateList.map((tpl) => (
-                <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
-              ))}
-              {templateList.length === 0 && <option disabled>No templates yet</option>}
-            </select>
+              <div className="p-1.5 min-w-[200px]" data-testid="templates-menu">
+                <div className="text-[9px] uppercase tracking-[0.1em] mb-1 px-1.5 text-muted-foreground font-semibold">
+                  Templates
+                </div>
+                {templateList.length === 0 ? (
+                  <div className="px-2 py-2 text-[10px] text-muted-foreground italic">
+                    No templates yet
+                  </div>
+                ) : (
+                  templateList.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      className="flex items-center w-full px-2 py-1.5 rounded text-[11px] font-mono hover:bg-accent cursor-pointer transition-colors text-foreground text-left"
+                      onClick={() => doApplyTemplate(tpl.id)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      data-testid={`templates-menu-item-${tpl.id}`}
+                    >
+                      {tpl.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            </Popover>
             <Popover
               trigger={
                 <TBtn tooltip="Save as template" className={saveAsTplConfirmed ? 'gc-tbtn-confirm' : undefined}>
@@ -1126,13 +1186,31 @@ export function FormattingToolbar() {
 
         <ToolbarSep />
 
-        {/* Decimals ± */}
+        {/* Decimals ± — text-content buttons with arrow + ".0" glyph.
+             `.gc-tb-btn--text` variant lets the button auto-grow wide
+             enough for both pieces. */}
         <TGroup>
-          <TBtn disabled={disabled || isHeader} tooltip="Fewer decimals" onClick={decreaseDecimals}>
-            <span className="flex items-center gap-px text-[9px] font-mono"><ArrowLeft size={9} strokeWidth={2} />.0</span>
+          <TBtn
+            disabled={disabled || isHeader}
+            tooltip="Fewer decimals"
+            onClick={decreaseDecimals}
+            className="gc-tb-btn--text"
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+              <ArrowLeft size={10} strokeWidth={2} />
+              .0
+            </span>
           </TBtn>
-          <TBtn disabled={disabled || isHeader} tooltip="More decimals" onClick={increaseDecimals}>
-            <span className="flex items-center gap-px text-[9px] font-mono">.0<ArrowRight size={9} strokeWidth={2} /></span>
+          <TBtn
+            disabled={disabled || isHeader}
+            tooltip="More decimals"
+            onClick={increaseDecimals}
+            className="gc-tb-btn--text"
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+              .0
+              <ArrowRight size={10} strokeWidth={2} />
+            </span>
           </TBtn>
         </TGroup>
 
@@ -1143,6 +1221,7 @@ export function FormattingToolbar() {
           <TBtn
             disabled={disabled || isHeader}
             active={!isHeader && isTickTemplate(vft)}
+            className="gc-tb-btn--text"
             tooltip={
               currentTickToken(vft)
                 ? `Tick: ${TICK_MENU.find((m) => m.token === currentTickToken(vft))?.label ?? '32nds'}`
@@ -1157,14 +1236,9 @@ export function FormattingToolbar() {
             }
             data-testid="fmt-tick-btn"
           >
-            <span style={{
-              fontFamily: 'var(--ck-font-mono, monospace)',
-              fontSize: 9, fontWeight: 600, letterSpacing: '0.04em', lineHeight: 1,
-            }}>
-              {currentTickToken(vft)
-                ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
-                : '32'}
-            </span>
+            {currentTickToken(vft)
+              ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
+              : '32'}
           </TBtn>
           <Popover
             trigger={

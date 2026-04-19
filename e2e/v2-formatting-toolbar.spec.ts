@@ -45,10 +45,14 @@ async function clearV2(page: Page) {
   });
 }
 
-/** Open the floating FormattingToolbar. It's gated behind a Brush toggle
- *  in the FiltersToolbar — click it once, wait for the toolbar panel. */
+/** Open the pinned FormattingToolbar. It sits beneath the FiltersToolbar,
+ *  gated behind the same Brush toggle — click to show, click again to
+ *  hide. Idempotent: no-op when already open. */
 async function openFormattingToolbar(page: Page) {
-  await page.locator('[data-testid="style-toolbar-toggle"]').click();
+  const pinned = page.locator('[data-testid="formatting-toolbar-pinned"]');
+  if (!(await pinned.isVisible().catch(() => false))) {
+    await page.locator('[data-testid="style-toolbar-toggle"]').click();
+  }
   await expect(page.locator('[data-testid="formatting-toolbar"]')).toBeVisible();
 }
 
