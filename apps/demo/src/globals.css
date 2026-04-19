@@ -234,10 +234,6 @@
   .gc-toolbar-group-bg {
     background: color-mix(in srgb, var(--card) 60%, transparent);
   }
-  .gc-tbtn-confirm {
-    color: var(--bn-green, #2dd4bf) !important;
-  }
-
   /* ── Toolbar Switcher — dropdown ── */
 
   .gc-switcher-trigger {

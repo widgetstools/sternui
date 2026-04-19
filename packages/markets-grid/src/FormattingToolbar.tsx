@@ -895,7 +895,7 @@ export function FormattingToolbar() {
             </Popover>
             <Popover
               trigger={
-                <TBtn tooltip="Save as template" className={saveAsTplConfirmed ? 'gc-tbtn-confirm' : undefined}>
+                <TBtn tooltip="Save as template" className={saveAsTplConfirmed ? 'gc-tb-confirm' : undefined}>
                   {saveAsTplConfirmed
                     ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
                     : <Plus size={14} strokeWidth={1.75} />}
@@ -1112,7 +1112,7 @@ export function FormattingToolbar() {
               doClearAllStyles();
               flashClear();
             }}
-            className={clearConfirmed ? 'gc-tbtn-confirm' : undefined}
+            className={clearConfirmed ? 'gc-tb-confirm' : undefined}
           >
             {clearConfirmed
               ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />

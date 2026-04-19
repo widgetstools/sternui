@@ -513,10 +513,8 @@
 }
 
 /* Confirm flash — briefly tints the button cyan after a successful
-   action (save-as-template, clear-all-styles). Legacy testids
-   (`gc-tbtn-confirm`) reused so the existing flash logic continues. */
-.gc-formatting-toolbar .gc-tb-btn.gc-tbtn-confirm,
-.gc-formatting-toolbar .gc-tbtn-confirm {
+   action (save-as-template, clear-all-styles). */
+.gc-formatting-toolbar .gc-tb-btn.gc-tb-confirm {
   background: var(--tb-green-ghost);
   color: var(--tb-green);
   border-color: var(--tb-green-line);
