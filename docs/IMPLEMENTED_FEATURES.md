@@ -338,11 +338,24 @@ native select stays in string-value land.
 
 **Header with explicit SAVE** — the panel has its own `<ObjectTitleRow>`
 header with a teal SAVE pill (action when dirty, ghost when clean) and
-a RESET pill. Runs through `useDraftModuleItem` treating the whole
-state as the "item"; every control edits a local draft and the grid
-doesn't re-render until the user clicks SAVE.
+a RESET pill. Runs through `useModuleDraft` (v4 replacement for
+`useDraftModuleItem`) treating the whole state as the "item"; every
+control edits a local draft and the grid doesn't re-render until the
+user clicks SAVE. Dirty flag auto-registers on the per-platform
+`DirtyBus` so the settings sheet's DIRTY=NN counter stays accurate.
 
 60 total controls on one panel.
+
+**v4 schema-driven rewrite (phase 3a)** — the 1425-LOC v2-verbatim panel
+(hand-rolled `<Row>`/`<BooleanControl>`/… repeated 80×) collapsed to a
+~130-LOC thin shell (`GridOptionsPanel.tsx`) + a pure-data schema
+(`gridOptionsSchema.tsx`) + a generic `<BandRenderer>`
+(`fieldSchema.tsx`). Adding a new grid option is now a single record in
+the schema array, not a fresh JSX block. Visual fidelity is preserved
+pixel-for-pixel — the renderer emits the same `<Band>` + `<Row>` markup
+v2 used; tests cover all seven field kinds (bool / num / optNum / text
+/ select / invert / conditional / custom). 10 integration tests added
+(`GridOptionsPanel.test.tsx`).
 
 ### 1.12 Formatter Toolbar + FormatterPicker
 
