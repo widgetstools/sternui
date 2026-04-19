@@ -16,11 +16,12 @@ e2e/
 ├── v2-calculated-columns.spec.ts    full behavioural coverage — virtual column CRUD + seed + persist
 ├── v2-column-customization.spec.ts  full behavioural coverage — all 8 bands of ColumnSettingsPanel
 ├── v2-column-groups.spec.ts         full behavioural coverage — tree mutation + openGroupIds persistence
+├── v2-column-templates.spec.ts      indirect editor — save from toolbar / apply / picker / remove
 ├── v2-settings-panels.spec.ts       panel-mount smoke + nav helper guards (all 5 editors)
 └── v2-two-grid-isolation.spec.ts    per-grid state isolation under DockManager
 ```
 
-As of 2026-04-19 the suite is **91/91 green**. Two spec files were retired
+As of 2026-04-19 the suite is **100/100 green**. Two spec files were retired
 in that cleanup because they had diverged from the app's actual behaviour:
 
 - `v2-column-groups.spec.ts` — 18/21 tests failing due to settings-sheet
