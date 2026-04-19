@@ -9,7 +9,7 @@ e2e/
 ├── helpers/
 │   └── settingsSheet.ts             bootCleanDemo, openPanel, forceNavigateToPanel, closeSettingsSheet
 ├── v2-autosave.spec.ts              auto-save debounce + profile round-trip
-├── v2-conditional-styling.spec.ts   settings sheet reachability
+├── v2-conditional-styling.spec.ts   full behavioural coverage — rule authoring, paint pipeline, persist
 ├── v2-filters-toolbar.spec.ts       pill create / toggle / rename / multi-filter
 ├── v2-formatting-toolbar.spec.ts    B/I/U + align + color + borders + templates
 ├── v2-perf.spec.ts                  render-timing smoke
@@ -19,7 +19,7 @@ e2e/
 └── v2-two-grid-isolation.spec.ts    per-grid state isolation under DockManager
 ```
 
-As of 2026-04-19 the suite is **68/68 green**. Two spec files were retired
+As of 2026-04-19 the suite is **80/80 green**. Two spec files were retired
 in that cleanup because they had diverged from the app's actual behaviour:
 
 - `v2-column-groups.spec.ts` — 18/21 tests failing due to settings-sheet

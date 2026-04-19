@@ -764,13 +764,13 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 | `calculated-columns` — Virtual columns | §1.8 | — | ✅ `CalculatedColumnsPanel.test.tsx` (8) | ◐ smoke (mount) |
 | `column-groups` — Nestable group editor | §1.8b | ✅ `treeOps.test.ts` (11) | ✅ `ColumnGroupsPanel.test.tsx` (8) | ✅ `v2-column-groups.spec.ts` (14 — add/rename/columns/chip-cycle/subgroup/reorder/delete/style/persist/expand) |
 | `column-templates` — Reusable bundles | §1.8c | ✅ `snapshotTemplate.test.ts` (20) | — | ❌ |
-| `conditional-styling` — Rule editor | §1.7 | — | ✅ `ConditionalStylingPanel.test.tsx` (9) | ◐ smoke (mount + legacy drawer-open) |
+| `conditional-styling` — Rule editor | §1.7 | — | ✅ `ConditionalStylingPanel.test.tsx` (9) | ✅ `v2-conditional-styling.spec.ts` (13 — empty/add/rename/row-paint/cell-paint/no-cols-warn/disable/priority/delete/flash/indicator/persist/multi-rule) |
 | `saved-filters` — Filter pills | §1.8d | ✅ `filtersToolbarLogic.test.ts` (26) | — | ✅ 7 tests in `v2-filters-toolbar.spec.ts` |
 | `toolbar-visibility` — Layout memory | §1.8e | — | — | ❌ |
 | `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
 | Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
 
-**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 4 with meaningful behavioural e2e (formatting toolbar, filters toolbar, column-customization, column-groups) + 4 smoke (3 panel mounts + conditional-styling drawer open).
+**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 5 with meaningful behavioural e2e (formatting toolbar, filters toolbar, column-customization, column-groups, conditional-styling) + 3 smoke (calculated-columns, column-customization duplicate-mount, general-settings).
 
 **Smoke coverage** lives in `e2e/v2-settings-panels.spec.ts` (8 tests) + the shared helper `e2e/helpers/settingsSheet.ts`. Every settings panel has at least a "mounts via dropdown nav" guard plus DOM-level assertions for the visible + hidden nav paths. The helper exports `bootCleanDemo` / `openPanel` / `forceNavigateToPanel` / `closeSettingsSheet` for reuse in future behavioural specs.
 
@@ -780,7 +780,7 @@ Ordered by risk × churn, highest first. Strike-throughs mark completed.
 
 1. ~~**`column-customization`** — largest surface area (8 bands, 4 sub-editors). Highest regression risk after the M3 split.~~ ✅ Done (`v2-column-customization.spec.ts`, 18 tests covering all 8 bands + meta count + discard + list marker).
 2. ~~**`column-groups`** — just refactored, currently zero behavioural e2e after the retirement.~~ ✅ Done (`v2-column-groups.spec.ts`, 14 tests: add/rename/save, columns add+remove, show-tri-state cycle, subgroup creation, reorder up/down, delete, header-style band, SAVE-dirty gating, profile persistence, runtime expand/collapse via openGroupIds).
-3. **`conditional-styling` (non-smoke)** — rule create / enable-disable / delete cycle against a real blotter column. Current smoke test only verifies the drawer opens.
+3. ~~**`conditional-styling` (non-smoke)** — rule create / enable-disable / delete cycle against a real blotter column.~~ ✅ Done (`v2-conditional-styling.spec.ts`, 13 tests: empty state, add/rename, row-scope paint + cell-scope paint (via `gc-rule-<id>` on AG-Grid cells/rows), no-cols warning, disable strips injected CSS, priority persistence, delete, flash band scope-gating, indicator band, profile round-trip, multi-rule cards).
 4. **`calculated-columns`** — virtual column create / edit expression / delete. Target: expression evaluates against live rowData + survives reload.
 5. **`column-templates` indirect flow** — save-from-toolbar → apply-to-another-column → remove-via-settings chip.
 6. **`general-settings`** — toggle representative options (animate rows, pivotMode, groupDisplayType) and verify grid behaviour.
