@@ -453,6 +453,69 @@
   letter-spacing: 0.01em;
 }
 
+/* ─── Chip variant: native <select> ───────────────────────────── */
+/* Native selects have OS chrome that we need to override. These
+   rules keep the chip appearance — the caret is drawn by the
+   browser, so we hide our own and let the OS arrow do its thing. */
+.gc-formatting-toolbar select.gc-tb-chip--select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(
+    45deg,
+    transparent 50%,
+    var(--tb-ink-2) 50%
+  ),
+  linear-gradient(
+    -45deg,
+    transparent 50%,
+    var(--tb-ink-2) 50%
+  );
+  background-position:
+    calc(100% - 10px) 50%,
+    calc(100% - 6px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 18px;
+  color: var(--tb-ink-0);
+  font-size: 10px;
+  font-weight: 500;
+  max-width: 130px;
+  outline: none;
+}
+[data-theme='light'] .gc-formatting-toolbar select.gc-tb-chip--select {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ─── Icon button variants ─────────────────────────────────────── */
+/* Narrow button — split-menu caret trigger (half-width icon button). */
+.gc-formatting-toolbar .gc-tb-btn.gc-tb-btn--narrow {
+  width: 16px;
+}
+
+/* Confirm flash — briefly tints the button cyan after a successful
+   action (save-as-template, clear-all-styles). Legacy testids
+   (`gc-tbtn-confirm`) reused so the existing flash logic continues. */
+.gc-formatting-toolbar .gc-tb-btn.gc-tbtn-confirm,
+.gc-formatting-toolbar .gc-tbtn-confirm {
+  background: var(--tb-green-ghost);
+  color: var(--tb-green);
+  border-color: var(--tb-green-line);
+}
+
+/* ─── Toolbar body row ─────────────────────────────────────────── */
+/* The component's existing `.gc-toolbar-row` sits inside
+   `.gc-formatting-toolbar`. The `.gc-tb-body` class adds the tokenised
+   padding + alignment — the layout classes (flex-wrap) from the v3
+   component are kept via compound class. */
+.gc-formatting-toolbar .gc-tb-body {
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  background: var(--tb-bg-bar);
+  color: var(--tb-ink-0);
+}
+
 /* ─── Micro section label (9px uppercase) ─────────────────────── */
 .gc-formatting-toolbar .gc-tb-micro {
   font-family: var(--tb-font-mono);

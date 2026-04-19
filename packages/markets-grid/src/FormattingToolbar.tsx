@@ -196,29 +196,33 @@ function isCommaTemplate(t: ValueFormatterTemplate | undefined): boolean {
 
 // ─── Sub-components (copied from v1, untouched) ──────────────────────────────
 
-/** Toolbar icon button — theme-aware via CSS variables */
+/**
+ * Toolbar icon button. Chrome comes from `.gc-tb-btn` in
+ * FormattingToolbar.css — square, sharp 2px corners, flat outlined
+ * active state. The stylesheet's `[data-on]` + `[aria-pressed]`
+ * selectors both light up, so existing tests that read
+ * `aria-pressed` keep working.
+ *
+ * We use a native <button> instead of the shadcn `Button` wrapper —
+ * the tokenised class owns all sizing + chrome and adding shadcn's
+ * own Tailwind noise on top would fight specificity. Native gives
+ * us the same focus / disabled / accessible-name surface with
+ * zero style overhead.
+ */
 function TBtn({ children, active, disabled, tooltip, onClick, className, ...rest }: {
   children: React.ReactNode; active?: boolean; disabled?: boolean;
   tooltip?: string; onClick?: () => void; className?: string;
   'data-testid'?: string;
 }) {
   const btn = (
-    <Button
-      variant="ghost"
-      size="icon-sm"
+    <button
+      type="button"
       disabled={disabled}
       data-testid={rest['data-testid']}
-      // Forward the tooltip string as the button's accessible name.
-      // Screen readers announce it, `getByRole('button', { name })` finds
-      // it, and the visible tooltip keeps its existing hover presentation.
       aria-label={tooltip}
       aria-pressed={typeof active === 'boolean' ? active : undefined}
-      className={cn(
-        'shrink-0 w-7 h-7 rounded-[4px] transition-all duration-150 gc-tbtn',
-        active && 'gc-tbtn-active',
-        disabled && 'opacity-25 pointer-events-none',
-        className,
-      )}
+      data-on={active ? 'true' : undefined}
+      className={cn('gc-tb-btn', className)}
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -226,37 +230,24 @@ function TBtn({ children, active, disabled, tooltip, onClick, className, ...rest
       }}
     >
       {children}
-    </Button>
+    </button>
   );
   if (tooltip) return <Tooltip content={tooltip}>{btn}</Tooltip>;
   return btn;
 }
 
+/**
+ * Group wrapper — a flex row that shrinks to content. No background /
+ * padding; the terminal design lets the toolbar body's padding breathe
+ * around groups. Matches the sample's `.tb-g`.
+ */
 function TGroup({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn('flex items-center gap-0.5 px-1.5 py-1 rounded-[4px] bg-accent/40', className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn('gc-tb-g', className)}>{children}</div>;
 }
 
-/**
- * Vertical hairline separator between toolbar groups. Sized + coloured
- * against the cockpit border var so it's consistent across themes.
- */
+/** Vertical 1px hairline between groups — `.gc-tb-div` from the stylesheet. */
 function ToolbarSep() {
-  return (
-    <span
-      aria-hidden
-      style={{
-        width: 1,
-        height: 20,
-        background: 'var(--border, #2d3339)',
-        opacity: 0.6,
-        flexShrink: 0,
-      }}
-    />
-  );
+  return <span aria-hidden className="gc-tb-div" />;
 }
 
 /** Flash a checkmark icon for 400ms after an action */
@@ -744,53 +735,58 @@ export function FormattingToolbar() {
           colours, borders, and actions flow left-to-right. Flex-wraps
           atomically at the group level so pill-groups never break. */}
       <div
-        className="gc-toolbar-row flex flex-wrap items-center gap-2"
-        style={{ padding: '6px 12px', borderBottom: '1px solid var(--border, #2d3339)' }}
+        className="gc-toolbar-row gc-tb-body flex flex-wrap items-center gap-2"
+        style={{ padding: '6px 12px', borderBottom: '1px solid var(--tb-line-strong, #2d3339)' }}
       >
         {/* Context: which column(s) + target toggle. Most important
-             semantic anchor — placed at row start. */}
+             semantic anchor — placed at row start.
+
+             Column-label chrome: `.gc-tb-preview` tokens (sunken
+             surface + cyan value). Live-dot on the left mirrors the
+             sample's LIVE badge treatment, but scoped via a data
+             attr so disabled state drops the glow. */}
         <div className="flex items-center gap-1.5 shrink-0">
           <Tooltip content={colIds.length > 0 ? colIds.join(', ') : 'Click a cell or header to pick a column'}>
             <span
               data-testid="formatting-col-label"
+              className="gc-tb-preview"
+              data-disabled={disabled ? 'true' : undefined}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                height: 26, padding: '0 10px',
-                borderRadius: 13,
-                background: disabled
-                  ? 'transparent'
-                  : 'color-mix(in srgb, var(--bn-green, #2dd4bf) 10%, transparent)',
-                border: `1px solid ${disabled ? 'var(--border, #2d3339)' : 'var(--bn-green, #2dd4bf)'}`,
-                color: disabled ? 'var(--muted-foreground, #8b93a1)' : 'var(--bn-green, #2dd4bf)',
-                fontSize: 11, fontWeight: 600, letterSpacing: 0.08,
-                whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis',
+                maxWidth: 200,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                // Cyan value + dot when active; muted when no column
+                // is selected (disabled state).
+                color: disabled ? 'var(--tb-ink-2)' : 'var(--tb-cyan)',
               }}
             >
-              <span style={{
-                display: 'inline-block', width: 6, height: 6, borderRadius: 3,
-                background: disabled ? 'var(--muted-foreground, #8b93a1)' : 'var(--bn-green, #2dd4bf)',
-                boxShadow: disabled ? 'none' : '0 0 6px var(--bn-green, #2dd4bf)',
-                flexShrink: 0,
-              }} />
-              {colLabel}
+              <span
+                className="gc-tb-live-dot"
+                aria-hidden
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  flexShrink: 0,
+                  background: disabled ? 'var(--tb-ink-3)' : 'var(--tb-green)',
+                  boxShadow: disabled ? 'none' : '0 0 6px var(--tb-green)',
+                }}
+              />
+              <span className="gc-tb-preview-val" style={{ color: 'inherit' }}>
+                {colLabel}
+              </span>
             </span>
           </Tooltip>
-          {/* Cell / Header segmented toggle — clearer than a single pill
-              that flips label. Shows two chips with the active one highlighted. */}
+          {/* Cell / Header segmented toggle — restyled as a `.gc-tb-seg`
+              per the terminal design tokens. Active segment gets the
+              cyan-ghost fill; inactive stays muted. Two focusable
+              native buttons for keyboard accessibility. */}
           <div
             role="group"
             aria-label="Edit target"
-            className="gc-target-segmented"
+            className="gc-tb-seg"
             data-testid="formatting-target-toggle"
             data-target={target}
-            style={{
-              display: 'inline-flex',
-              height: 26,
-              borderRadius: 4,
-              border: '1px solid var(--border, #2d3339)',
-              overflow: 'hidden',
-              background: 'var(--card, #161a1e)',
-            }}
           >
             {(['cell', 'header'] as const).map((k) => {
               const on = target === k;
@@ -801,17 +797,11 @@ export function FormattingToolbar() {
                   data-testid={`formatting-target-${k}`}
                   onClick={() => setTarget(k)}
                   onMouseDown={(e) => e.preventDefault()}
-                  style={{
-                    padding: '0 10px',
-                    background: on ? 'var(--bn-green, #2dd4bf)' : 'transparent',
-                    color: on ? '#0b0e11' : 'var(--muted-foreground, #a0a8b4)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 10, fontWeight: 700, letterSpacing: 0.08,
-                    textTransform: 'uppercase',
-                  }}
+                  aria-selected={on}
                   title={`Edit the ${k}`}
-                >{k}</button>
+                >
+                  {k}
+                </button>
               );
             })}
           </div>
@@ -823,7 +813,7 @@ export function FormattingToolbar() {
         {!disabled && (
           <TGroup>
             <select
-              className="h-7 text-[9px] font-mono rounded-[4px] px-2.5 cursor-pointer transition-all gc-tbtn bg-card border border-border text-foreground max-w-[110px]"
+              className="gc-tb-chip gc-tb-chip--select"
               value=""
               data-testid="templates-select"
               onChange={(e) => {
@@ -904,18 +894,22 @@ export function FormattingToolbar() {
           <TBtn disabled={disabled} tooltip="Underline" active={fmt.underline} onClick={toggleUnderline}>
             <Underline size={14} strokeWidth={1.75} />
           </TBtn>
-          <div className="gc-toolbar-sep h-4 opacity-50" />
-          {/* Font size stepper — dropdown menu */}
+          <span aria-hidden className="gc-tb-div" />
+          {/* Font size stepper — trigger is a `.gc-tb-chip` with
+              "12 PX ▾" format. Dropdown is a Radix popover (not a
+              native select) so hover states match the rest of the
+              toolbar. */}
           <Popover
             trigger={
-              <button disabled={disabled}
-                className={cn(
-                  'flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-[9px] font-mono transition-all duration-150 cursor-pointer gc-tbtn',
-                  disabled && 'opacity-20 pointer-events-none',
-                )}
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                <span className="tracking-wider">{fontSizeLabel}</span>
-                <ChevronDown size={9} strokeWidth={2} className="opacity-50" />
+              <button
+                disabled={disabled}
+                type="button"
+                className="gc-tb-chip"
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                <span>{fontSizeLabel}</span>
+                <span className="gc-tb-unit">PX</span>
+                <ChevronDown size={9} strokeWidth={2} className="gc-tb-caret" />
               </button>
             }
           >
@@ -978,18 +972,15 @@ export function FormattingToolbar() {
         <TGroup>
           <RadixPopover>
             <RadixPopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
+              <button
+                type="button"
                 disabled={disabled}
-                className={cn(
-                  'shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
-                  disabled && 'opacity-25 pointer-events-none',
-                )}
+                aria-label="Borders"
+                className="gc-tb-btn"
                 onMouseDown={(e) => { e.preventDefault(); }}
               >
                 <Grid3X3 size={14} strokeWidth={1.75} />
-              </Button>
+              </button>
             </RadixPopoverTrigger>
             <RadixPopoverContent
               align="start"
@@ -1076,17 +1067,8 @@ export function FormattingToolbar() {
         )}
         style={{ padding: '6px 12px' }}
       >
-        {/* Row-lead chip: labels the row + reinforces semantics. */}
-        <span
-          style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'var(--muted-foreground, #8b93a1)',
-            paddingRight: 4,
-            borderRight: '1px solid var(--border, #2d3339)',
-            marginRight: 4,
-          }}
-        >
+        {/* Row-lead micro-label — `.gc-tb-micro` per the terminal tokens. */}
+        <span className="gc-tb-micro" style={{ borderRight: '1px solid var(--tb-line-strong)', marginRight: 4 }}>
           Value Format
         </span>
 
@@ -1095,12 +1077,16 @@ export function FormattingToolbar() {
         <TGroup>
           <Popover
             trigger={
-              <Button variant="ghost" size="icon-sm" disabled={disabled || isHeader}
-                className={cn('shrink-0 w-7 h-7 rounded-[4px] gc-tbtn transition-all duration-150', (disabled || isHeader) && 'opacity-25 pointer-events-none')}
+              <button
+                type="button"
+                disabled={disabled || isHeader}
+                aria-label="Currency"
+                className="gc-tb-btn"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                data-testid="fmt-currency-menu">
+                data-testid="fmt-currency-menu"
+              >
                 <DollarSign size={14} strokeWidth={1.75} />
-              </Button>
+              </button>
             }
           >
             <div className="p-1.5 min-w-[140px]">
@@ -1182,18 +1168,17 @@ export function FormattingToolbar() {
           </TBtn>
           <Popover
             trigger={
-              <Button
-                variant="ghost" size="icon-sm" disabled={disabled || isHeader}
-                className={cn(
-                  'shrink-0 w-4 h-7 rounded-[4px] gc-tbtn transition-all duration-150',
-                  (disabled || isHeader) && 'opacity-25 pointer-events-none',
-                )}
+              <button
+                type="button"
+                disabled={disabled || isHeader}
+                aria-label="Tick precision"
+                className="gc-tb-btn gc-tb-btn--narrow"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 data-testid="fmt-tick-menu-trigger"
                 title="Tick precision"
               >
                 <ChevronDown size={10} strokeWidth={1.75} />
-              </Button>
+              </button>
             }
           >
             <div className="p-1 min-w-[180px]">
@@ -1243,25 +1228,11 @@ export function FormattingToolbar() {
         <Tooltip content="Live preview — current format against a sample value">
           <div
             data-testid="fmt-preview-chip"
-            className="ml-auto"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              height: 26, padding: '0 10px',
-              borderRadius: 4,
-              border: '1px dashed var(--border, #2d3339)',
-              background: 'var(--background, #0f1115)',
-              fontSize: 11,
-              fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
-              color: 'var(--foreground, #eaecef)',
-              maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}
+            className="gc-tb-preview ml-auto"
+            style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
-            <span style={{
-              fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-              textTransform: 'uppercase', color: 'var(--muted-foreground, #8b93a1)',
-              fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-            }}>Preview</span>
-            <span>{previewText || '—'}</span>
+            <span className="gc-tb-preview-lbl">Preview</span>
+            <span className="gc-tb-preview-val">{previewText || '—'}</span>
           </div>
         </Tooltip>
       </div>
