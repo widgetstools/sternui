@@ -125,8 +125,7 @@ function compileExpression(expression: string): Formatter {
     };
   } catch (err) {
     console.warn(
-      '[core-v2] column-customization',
-      'invalid valueFormatter expression; falling back to identity formatter:',
+      '[value-formatter] invalid valueFormatter expression; falling back to identity formatter:',
       expression,
       err,
     );

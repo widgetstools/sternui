@@ -9,7 +9,7 @@
  *     ItemCard, IconInput, PillToggleGroup, PillToggleBtn,
  *     GhostIcon, DirtyDot, LedBar,
  *     Caps, Mono, SharpBtn, TGroup, TBtn, TDivider, Band, MetaCell, Stepper,
- *   } from '@grid-customizer/core-v2';
+ *   } from '@grid-customizer/core';
  *
  * Every primitive consumes the `--ck-*` tokens scoped to the Cockpit
  * popout shell (`v2-sheet-styles.ts`).

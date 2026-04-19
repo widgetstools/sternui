@@ -411,7 +411,9 @@ export {
   FormatPopover,
   FormatDropdown,
   FormatColorPicker,
-  FormatSwatch,
+  // FormatSwatch is intentionally NOT re-exported — it's an internal
+  // format-editor primitive with no external consumers. Kept in the
+  // format-editor module for use by FormatColorPicker. (AUDIT m5)
   registerPopoverRoot,
   clickIsInsideAnyOpenPopover,
   EDGE_ORDER,

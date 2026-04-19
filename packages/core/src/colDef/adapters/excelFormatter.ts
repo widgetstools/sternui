@@ -160,7 +160,7 @@ export function excelFormatter(format: string): Formatter {
     valid = false;
     // Warn once per bad format — repeated identical warnings get deduped by
     // the Map lookup above.
-    console.warn('[core-v2] column-customization: invalid Excel format string:', format);
+    console.warn('[excel-format] invalid Excel format string:', format);
   }
 
   const { resolver, hasColors } = valid ? buildColorResolver(format) : { resolver: undefined, hasColors: false };
