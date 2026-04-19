@@ -1,0 +1,196 @@
+/**
+ * Calculated Columns module — appends virtual derived columns after the
+ * host's base columnDefs. Priority 15 — runs AFTER column-templates (5)
+ * and column-customization (10) so virtual columns see the finalized
+ * base defs (renames, resizes), and BEFORE conditional-styling (20) so
+ * its rules can reference the new virtual colIds.
+ */
+import type { GridApi } from 'ag-grid-community';
+import type { Module, PlatformHandle } from '../../platform/types';
+import {
+  INITIAL_CALCULATED_COLUMNS,
+  type CalculatedColumnsState,
+  type VirtualColumnDef,
+} from './state';
+import {
+  buildVirtualColDef,
+  invalidateAllRowsCache,
+  type AllRowsEntry,
+} from './virtualColumn';
+import {
+  applyFilterConfigToColDef,
+  applyRowGroupingConfigToColDef,
+} from '../column-customization';
+import type {
+  ColumnCustomizationState,
+  ColumnFilterConfig,
+  RowGroupingConfig,
+} from '../column-customization';
+import { CalculatedColumnsPanel } from './CalculatedColumnsPanel';
+
+export const CALCULATED_COLUMNS_MODULE_ID = 'calculated-columns';
+const COLUMN_CUSTOMIZATION_MODULE_ID = 'column-customization';
+
+const ALL_ROWS_CACHE_KEY = 'calculated-columns:allRows';
+
+export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
+  id: CALCULATED_COLUMNS_MODULE_ID,
+  name: 'Calculated Columns',
+  code: '03',
+  schemaVersion: 1,
+  priority: 15,
+
+  getInitialState: () => ({
+    // Demo seed — one virtual column so the feature is visible on first
+    // load. Users can delete it via the settings panel.
+    virtualColumns: [{
+      colId: 'grossPnl',
+      headerName: 'Gross P&L',
+      expression: '[price] * [quantity] / 1000',
+      position: 20,
+      initialWidth: 120,
+    }],
+  }),
+
+  /**
+   * Wires the cross-row invalidation — when a source column's value
+   * changes, every OTHER row's virtual columns may need re-evaluation
+   * (column-wide aggregates like `SUM([price])` depend on the full row
+   * snapshot). AG-Grid only re-runs the edited cell's row by default.
+   *
+   * `refreshCells({ columns: virtualIds, force: true })` re-runs every
+   * virtual valueGetter, which reads from the invalidated snapshot.
+   */
+  activate(platform: PlatformHandle<CalculatedColumnsState>): () => void {
+    const cache = platform.resources.cache<GridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
+
+    const onDataEvent = () => {
+      const api = platform.api.api;
+      if (!api) return;
+      invalidateAllRowsCache(api, cache);
+      const ids = platform.getState().virtualColumns.map((v) => v.colId);
+      if (ids.length === 0) return;
+      try { api.refreshCells({ columns: ids, force: true }); }
+      catch { /* teardown window */ }
+    };
+
+    const disposers = [
+      platform.api.on('cellValueChanged', onDataEvent),
+      platform.api.on('rowValueChanged', onDataEvent),
+      platform.api.on('rowDataUpdated', onDataEvent),
+    ];
+    return () => disposers.forEach((d) => { try { d(); } catch { /* */ } });
+  },
+
+  transformColumnDefs(defs, state, ctx) {
+    if (state.virtualColumns.length === 0) return defs;
+    const engine = ctx.resources.expression();
+    const cache = ctx.resources.cache<GridApi, AllRowsEntry>(ALL_ROWS_CACHE_KEY);
+
+    // Sort by `position` so users can control relative ordering
+    // without fighting AG-Grid's column-state machinery.
+    const sorted = state.virtualColumns
+      .slice()
+      .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
+
+    // Cross-module read: column-customization may carry a
+    // `ColumnAssignment` for a virtual column if the user applied any
+    // toolbar style / formatter while a calculated column was selected.
+    // Toolbar-applied picks win (last write wins — matches every other
+    // toolbar control).
+    let assignments: ColumnCustomizationState['assignments'] = {};
+    try {
+      const cust = ctx.getModuleState<ColumnCustomizationState>(COLUMN_CUSTOMIZATION_MODULE_ID);
+      assignments = cust?.assignments ?? {};
+    } catch {
+      /* column-customization not mounted — fall back to virtual defaults */
+    }
+
+    const virtualDefs = sorted.map((v) => {
+      const assignment = assignments[v.colId];
+      // Merge valueFormatterTemplate FIRST so the format is baked into
+      // the base colDef (needed for the color resolver + SSF formatter).
+      const merged: VirtualColumnDef =
+        assignment?.valueFormatterTemplate !== undefined
+          ? { ...v, valueFormatterTemplate: assignment.valueFormatterTemplate }
+          : v;
+      const base = buildVirtualColDef(merged, engine, cache);
+
+      if (!assignment) return base;
+
+      const layered = { ...base };
+      if (assignment.headerName !== undefined) layered.headerName = assignment.headerName;
+      if (assignment.headerTooltip !== undefined) layered.headerTooltip = assignment.headerTooltip;
+      if (assignment.initialWidth !== undefined) layered.initialWidth = assignment.initialWidth;
+      if (assignment.initialHide !== undefined) layered.initialHide = assignment.initialHide;
+      if (assignment.initialPinned !== undefined) layered.initialPinned = assignment.initialPinned;
+
+      // Attach cellClass / headerClass so column-customization's injected
+      // CSS reaches virtual cells too.
+      if (assignment.cellStyleOverrides !== undefined) {
+        const cls = `gc-col-c-${v.colId}`;
+        const existing = base.cellClass;
+        layered.cellClass = Array.isArray(existing) ? [...existing, cls]
+          : typeof existing === 'string' ? [existing, cls] : cls;
+      }
+
+      // Header class when the user either set header styling OR set cell
+      // alignment (headers inherit the cell's alignment by default).
+      const needsHeaderClass =
+        assignment.headerStyleOverrides !== undefined ||
+        assignment.cellStyleOverrides?.alignment?.horizontal !== undefined;
+      if (needsHeaderClass) {
+        const cls = `gc-hdr-c-${v.colId}`;
+        const existing = base.headerClass;
+        layered.headerClass = Array.isArray(existing) ? [...existing, cls]
+          : typeof existing === 'string' ? [existing, cls] : cls;
+      }
+
+      if (assignment.filter !== undefined) {
+        applyFilterConfigToColDef(layered, assignment.filter as ColumnFilterConfig);
+      }
+      if (assignment.rowGrouping !== undefined) {
+        applyRowGroupingConfigToColDef(
+          layered,
+          assignment.rowGrouping as RowGroupingConfig,
+          ctx.resources.expression(),
+        );
+      }
+
+      return layered;
+    });
+
+    return [...defs, ...virtualDefs];
+  },
+
+  serialize: (state) => state,
+
+  deserialize: (raw) => {
+    if (!raw || typeof raw !== 'object') {
+      return { virtualColumns: [...INITIAL_CALCULATED_COLUMNS.virtualColumns] };
+    }
+    const d = raw as Partial<CalculatedColumnsState>;
+    const rawCols = Array.isArray(d.virtualColumns) ? d.virtualColumns : [];
+    // Back-compat: v1 / early-v2 stored `valueFormatterTemplate` as a
+    // bare expression string. Coerce into `{kind:'expression'}` so
+    // downstream code only ever sees the union.
+    const virtualColumns = rawCols.map((v) => {
+      const t = (v as unknown as { valueFormatterTemplate?: unknown }).valueFormatterTemplate;
+      if (typeof t === 'string') {
+        return {
+          ...v,
+          valueFormatterTemplate: t.length > 0
+            ? { kind: 'expression' as const, expression: t }
+            : undefined,
+        };
+      }
+      return v;
+    });
+    return { virtualColumns };
+  },
+
+  SettingsPanel: CalculatedColumnsPanel,
+};
+
+export { INITIAL_CALCULATED_COLUMNS };
+export type { CalculatedColumnsState, VirtualColumnDef };

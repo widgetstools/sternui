@@ -228,6 +228,13 @@ export {
   type RuleScope,
   type IndicatorIconDef,
 } from './modules/conditional-styling';
+export {
+  calculatedColumnsModule,
+  CALCULATED_COLUMNS_MODULE_ID,
+  INITIAL_CALCULATED_COLUMNS,
+  type CalculatedColumnsState,
+  type VirtualColumnDef,
+} from './modules/calculated-columns';
 
 // ─── StyleEditor + ColorPicker + FormatterPicker ────────────────────────────
 export { StyleEditor } from './ui/StyleEditor';

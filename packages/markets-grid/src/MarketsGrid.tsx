@@ -4,6 +4,7 @@ import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import {
   GridProvider,
   MemoryAdapter,
+  calculatedColumnsModule,
   columnCustomizationModule,
   columnTemplatesModule,
   conditionalStylingModule,
@@ -48,6 +49,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   generalSettingsModule,
   columnTemplatesModule,
   columnCustomizationModule,
+  calculatedColumnsModule,
   conditionalStylingModule,
 ];
 
