@@ -1,5 +1,28 @@
 # v4 — UI Rebuild Plan (visual locked, code rewritten)
 
+> **Status: complete.** All five phases landed. See
+> `git log --grep='v4/phase'` for the commit series:
+> - `982c02d` — phase 1 (platform primitives: DirtyBus, useDirty,
+>   useGridColumns, useModuleDraft, disposed-guards in ProfileManager)
+> - `c1c2fa1` — phase 2 (orphan cleanup, `v2-baseline` tag planted)
+> - `04a3e65` — phase 3a: GridOptionsPanel (schema-driven, 1425 → 132 LOC
+>   thin shell + schema + reusable BandRenderer)
+> - `ecbaa93` — phase 3b: CalculatedColumnsPanel
+> - `7db5719` — phase 3c: ColumnGroupsPanel (+ extracted `treeOps.ts`)
+> - `bf9cf03` — phase 3d: ConditionalStylingPanel
+> - `de73b42` — phase 3e: ColumnSettingsPanel
+> - `e9e4560` — phase 4: compat-shim deletion + host-chrome cleanup +
+>   FormattingToolbar ApiHub migration
+> - `2d9942a` — hooks-order fix in SettingsSheet + demo gridId
+>
+> Outcome: 95/95 core tests green; typecheck green across core +
+> markets-grid; no `window.dispatchEvent('gc-dirty-change')` bus
+> anywhere; no file-level per-grid state; no `setInterval` polling for
+> the grid api; no native form inputs in settings panels; native
+> `ListPane` + `EditorPane` slots on all five panels; live DIRTY=NN
+> counter in the sheet via the per-platform `DirtyBus`. The plan body
+> below is retained as the historical record of what was done.
+
 Goal: replace v3's UI layer (panels, toolbars, chrome, hooks) with a clean
 rewrite. Preserve v2 look + feel pixel-for-pixel. Preserve every behavior
 in `docs/IMPLEMENTED_FEATURES.md`. No compat shims. No carried-over
