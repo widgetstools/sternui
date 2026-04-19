@@ -1081,11 +1081,14 @@ export function FormattingToolbar() {
           </RadixPopover>
         </TGroup>
 
-        {/* History + Clear — right-anchored actions. `margin-left: auto`
-             glues the group to the right edge of its wrap-line when space
-             is available; at narrow widths the group stays adjacent to the
-             previous group instead of getting pushed to a new row. */}
-        <TGroup className="ml-auto">
+        {/* History + Clear — flow naturally after Borders.
+             Previously `ml-auto` right-anchored this group when the
+             toolbar had two explicit rows (it sat at the end of ROW 1);
+             in the single-row flex-wrap layout that margin created a
+             large gap between Borders and Clear — everything after it
+             got shoved right. Only the Preview chip keeps `ml-auto` so
+             it stays right-anchored as the toolbar's final element. */}
+        <TGroup>
           <Tooltip content="Undo/redo deferred to v2.2">
             <span>
               <TBtn disabled tooltip={undefined}>
