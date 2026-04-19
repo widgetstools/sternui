@@ -317,8 +317,8 @@ function CloseButton({
         ...style,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.14)';
-        e.currentTarget.style.color = '#ef4444';
+        e.currentTarget.style.background = 'color-mix(in srgb, var(--destructive, #ef4444) 14%, transparent)';
+        e.currentTarget.style.color = 'var(--destructive, #ef4444)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = (style?.background as string) ?? 'transparent';

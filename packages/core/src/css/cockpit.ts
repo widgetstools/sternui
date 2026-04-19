@@ -133,6 +133,53 @@ export const cockpitCSS = `
   --ck-header-lift:    0 8px 12px -10px rgba(15, 23, 42, 0.15);
 }
 
+/* ── Legacy --gc-* token aliases for format-editor + shadcn popover ──
+ * The shadcn PopoverContent, format-editor (FormatDropdown,
+ * FormatColorPicker, BorderSidesEditor), and other v1 UI components
+ * read --gc-surface / --gc-text / --gc-border / --gc-font etc. v2
+ * shipped these via a separate settingsCSS stylesheet, but that file
+ * also carried a conflicting .gc-sheet { top: 0 } layout rule so we
+ * stopped injecting it. Bind the --gc-* token set to the same hosts
+ * as --ck-* (sheet, sheet-v2, popout backdrop, [data-gc-settings]
+ * portaled content) so every consumer resolves the tokens AND they
+ * follow theme flips via the light-mode override below.
+ */
+.gc-sheet,
+.gc-sheet-v2,
+[data-gc-settings] {
+  --gc-bg:             var(--background,        #0b0e11);
+  --gc-surface:        var(--card,              #161a1e);
+  --gc-surface-hover:  var(--secondary,         #1e2329);
+  --gc-surface-active: var(--muted,             #2b3139);
+  --gc-text:           var(--foreground,        #eaecef);
+  --gc-text-muted:     var(--muted-foreground,  #a0a8b4);
+  --gc-text-dim:       var(--muted-foreground,  #7a8494);
+  --gc-text-faint:     var(--muted-foreground,  #4a5568);
+  --gc-border:         var(--border,            #313944);
+  --gc-border2:        var(--input,             #3e4754);
+  --gc-accent:         var(--primary,           #14b8a6);
+  --gc-accent-hover:   var(--primary,           #0d9488);
+  --gc-accent-muted:   rgba(45, 212, 191, 0.10);
+  --gc-accent-text:    var(--primary-foreground, #ffffff);
+  --gc-positive:       var(--bn-green,          #2dd4bf);
+  --gc-positive-muted: rgba(45, 212, 191, 0.10);
+  --gc-negative:       var(--bn-red,            #f87171);
+  --gc-warning:        var(--bn-yellow,         #f0b90b);
+  --gc-info:           var(--bn-blue,           #3da0ff);
+  --gc-danger:         var(--bn-red,            #f87171);
+  --gc-font:           var(--fi-sans,           'Geist', 'Inter', -apple-system, sans-serif);
+  --gc-font-mono:      var(--fi-mono,           'JetBrains Mono', Menlo, monospace);
+  --gc-font-xs:        var(--fi-font-xs,        9px);
+  --gc-font-sm:        var(--fi-font-sm,        11px);
+  --gc-font-md:        var(--fi-font-md,        13px);
+  --gc-font-lg:        var(--fi-font-lg,        18px);
+  --gc-radius:         var(--radius,            4px);
+  --gc-radius-sm:      3px;
+  --gc-radius-xs:      2px;
+  --gc-radius-xl:      6px;
+  --gc-scrollbar:      #4a5568;
+}
+
 /* ── Themed scrollbars ──────────────────────────────────────────
  * Dark mode ships a thin scrollbar with track=surface + thumb=border-hi.
  * Light mode flips via [data-theme='light'] below.
