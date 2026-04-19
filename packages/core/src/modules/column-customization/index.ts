@@ -93,6 +93,11 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   SettingsPanel: ColumnSettingsPanel,
 };
 
+// Re-export the narrowed `ColumnAssignment` (with concrete `filter` +
+// `rowGrouping` shapes) under a distinct name so consumers can opt into
+// the richer type without colliding with the base `ColumnAssignment`
+// exported from colDef.
+export type { ColumnAssignment as ColumnCustomizationAssignment } from './state';
 export type {
   ColumnAssignment,
   ColumnCustomizationState,

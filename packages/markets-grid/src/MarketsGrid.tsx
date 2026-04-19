@@ -13,6 +13,7 @@ import {
   generalSettingsModule,
   gridStateModule,
   savedFiltersModule,
+  toolbarVisibilityModule,
   useGridApi,
   useGridPlatform,
   useProfileManager,
@@ -59,6 +60,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   columnGroupsModule,
   conditionalStylingModule,
   savedFiltersModule,
+  toolbarVisibilityModule,
   gridStateModule,
 ];
 

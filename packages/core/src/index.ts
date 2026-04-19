@@ -202,6 +202,7 @@ export {
   INITIAL_COLUMN_CUSTOMIZATION,
   applyFilterConfigToColDef,
   applyRowGroupingConfigToColDef,
+  type ColumnCustomizationAssignment,
   type ColumnCustomizationState,
   type ColumnFilterConfig,
   type RowGroupingConfig,
@@ -241,6 +242,12 @@ export {
   INITIAL_SAVED_FILTERS,
   type SavedFiltersState,
 } from './modules/saved-filters';
+export {
+  toolbarVisibilityModule,
+  TOOLBAR_VISIBILITY_MODULE_ID,
+  INITIAL_TOOLBAR_VISIBILITY,
+  type ToolbarVisibilityState,
+} from './modules/toolbar-visibility';
 export {
   gridStateModule,
   GRID_STATE_MODULE_ID,
