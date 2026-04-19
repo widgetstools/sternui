@@ -6,6 +6,7 @@ import {
   MemoryAdapter,
   calculatedColumnsModule,
   columnCustomizationModule,
+  columnGroupsModule,
   columnTemplatesModule,
   conditionalStylingModule,
   generalSettingsModule,
@@ -50,6 +51,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   columnTemplatesModule,
   columnCustomizationModule,
   calculatedColumnsModule,
+  columnGroupsModule,
   conditionalStylingModule,
 ];
 

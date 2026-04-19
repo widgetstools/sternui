@@ -235,6 +235,20 @@ export {
   type CalculatedColumnsState,
   type VirtualColumnDef,
 } from './modules/calculated-columns';
+export {
+  columnGroupsModule,
+  COLUMN_GROUPS_MODULE_ID,
+  INITIAL_COLUMN_GROUPS,
+  composeGroups,
+  collectGroupIds,
+  collectAssignedColIds,
+  type ColumnGroupsState,
+  type ColumnGroupNode,
+  type ColumnGroupChild,
+  type GroupChildShow,
+  type GroupHeaderStyle,
+  type GroupHeaderBorderSpec,
+} from './modules/column-groups';
 
 // ─── StyleEditor + ColorPicker + FormatterPicker ────────────────────────────
 export { StyleEditor } from './ui/StyleEditor';
