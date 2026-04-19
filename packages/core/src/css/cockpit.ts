@@ -752,25 +752,30 @@ export const cockpitCSS = `
   color: var(--ck-t3);
 }
 
-/* IconInput pill — 32px, bordered. */
+/* IconInput pill — 32px, bordered. The '.gc-sheet .gc-icon-pill' selector
+   has specificity (0,2,0) which already beats shadcn Input's Tailwind
+   class-based styles (specificity 0,1,0), so no !important needed.
+   Previously these used !important defensively — removed as part of the
+   AUDIT m2 cleanup. If a future shadcn bump starts using data-attrs or
+   nested selectors that push specificity higher, reintroduce here. */
 .gc-sheet .gc-icon-pill {
-  background: var(--ck-bg) !important;
-  border: 1px solid var(--ck-border-hi) !important;
-  height: 32px !important;
-  border-radius: 2px !important;
-  padding: 0 10px !important;
+  background: var(--ck-bg);
+  border: 1px solid var(--ck-border-hi);
+  height: 32px;
+  border-radius: 2px;
+  padding: 0 10px;
 }
 .gc-sheet .gc-icon-pill:focus-within {
-  border-color: var(--ck-green) !important;
+  border-color: var(--ck-green);
 }
 .gc-sheet .gc-icon-pill input {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
-  height: auto !important;
-  font-size: 12px !important;
-  color: var(--ck-t0) !important;
-  font-family: var(--ck-font-sans) !important;
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+  color: var(--ck-t0);
+  font-family: var(--ck-font-sans);
 }
 
 /* Title input (identity row). */
@@ -834,14 +839,21 @@ export const cockpitCSS = `
   align-items: center;
 }
 
-/* Legacy BorderSidesEditor host normalisation. */
+/* Legacy BorderSidesEditor host normalisation. Attribute-selector already
+   gives (0,1,1) specificity which beats the child-component defaults —
+   !important dropped as part of AUDIT m2. */
 .gc-sheet [data-v2-border-host] span,
 .gc-sheet [data-v2-border-host] button {
-  font-size: 11px !important;
-  line-height: 1.4 !important;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
-/* ── Monaco ExpressionEditor repaint ──────────────────────── */
+/* ── Monaco ExpressionEditor repaint ──────────────────────────────────
+   The !important declarations below are DELIBERATE and REQUIRED: Monaco
+   sets inline style="..." attributes on its widgets at portal time, and
+   inline styles beat all non-important selectors regardless of specificity
+   or @layer. We can only win with !important. Do NOT remove without
+   replacing Monaco's theme wiring. (AUDIT m2) */
 .gc-sheet .monaco-editor,
 .gc-sheet .monaco-editor-background,
 .gc-sheet .monaco-editor .margin {
