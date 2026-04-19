@@ -117,11 +117,10 @@ export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/Express
 export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 
 // ─── Shared CSS / cockpit tokens ────────────────────────────────────────────
-export { settingsCSS, STYLE_ID } from './ui/styles';
 export { cockpitCSS, COCKPIT_STYLE_ID } from './css';
 
-// v2 name aliases for ported host chrome (SettingsSheet ensures the <style>
-// tag directly rather than relying on the grid's ensureCockpitStyles()).
+// v2 name aliases for ported host chrome — SettingsSheet injects under
+// these names. Delete alongside the SettingsSheet rewrite in Phase 4.
 export { cockpitCSS as v2SheetCSS, COCKPIT_STYLE_ID as V2_SHEET_STYLE_ID } from './css';
 
 // ─── Cockpit settings-panel primitives (v2 surface, verbatim) ──────────────
@@ -374,13 +373,12 @@ export type {
   ExcelExampleCategory,
 } from './ui/FormatterPicker';
 
-// ─── Format editor primitives (unchanged) ───────────────────────────────────
+// ─── Format editor primitives ──────────────────────────────────────────────
 export {
   FormatPopover,
   FormatDropdown,
   FormatColorPicker,
   FormatSwatch,
-  BorderSidesEditor,
   registerPopoverRoot,
   clickIsInsideAnyOpenPopover,
   EDGE_ORDER,

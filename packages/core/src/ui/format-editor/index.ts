@@ -14,7 +14,6 @@ export { FormatPopover } from './FormatPopover';
 export { FormatDropdown } from './FormatDropdown';
 export { FormatColorPicker } from './FormatColorPicker';
 export { FormatSwatch } from './FormatSwatch';
-export { BorderSidesEditor } from './BorderSidesEditor';
 
 export { registerPopoverRoot, clickIsInsideAnyOpenPopover } from './popoverStack';
 
