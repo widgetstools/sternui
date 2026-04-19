@@ -760,7 +760,7 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 | Module / Editor | Feature catalog (§) | Pure-logic unit tests | Panel unit tests | E2E |
 |---|---|---|---|---|
 | `general-settings` — Grid Options | §1.11 | — | ✅ `GridOptionsPanel.test.tsx` (10) | ◐ smoke (mount) |
-| `column-customization` — Column Settings | §1.7b | ✅ `formattingActions.test.ts` (43) | ✅ `ColumnSettingsPanel.test.tsx` (7) | ◐ smoke (mount) |
+| `column-customization` — Column Settings | §1.7b | ✅ `formattingActions.test.ts` (43) | ✅ `ColumnSettingsPanel.test.tsx` (7) | ✅ `v2-column-customization.spec.ts` (18 — all 8 bands + meta / discard / list marker) |
 | `calculated-columns` — Virtual columns | §1.8 | — | ✅ `CalculatedColumnsPanel.test.tsx` (8) | ◐ smoke (mount) |
 | `column-groups` — Nestable group editor | §1.8b | ✅ `treeOps.test.ts` (11) | ✅ `ColumnGroupsPanel.test.tsx` (8) | ◐ smoke (mount) |
 | `column-templates` — Reusable bundles | §1.8c | ✅ `snapshotTemplate.test.ts` (20) | — | ❌ |
@@ -770,16 +770,16 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 | `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
 | Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
 
-**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 2 with meaningful behavioural e2e + 6 smoke (5 panel mounts + conditional-styling drawer open).
+**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 3 with meaningful behavioural e2e (formatting toolbar, filters toolbar, column-customization) + 5 smoke (4 panel mounts + conditional-styling drawer open).
 
 **Smoke coverage** lives in `e2e/v2-settings-panels.spec.ts` (8 tests) + the shared helper `e2e/helpers/settingsSheet.ts`. Every settings panel has at least a "mounts via dropdown nav" guard plus DOM-level assertions for the visible + hidden nav paths. The helper exports `bootCleanDemo` / `openPanel` / `forceNavigateToPanel` / `closeSettingsSheet` for reuse in future behavioural specs.
 
 ### Priority backlog for e2e coverage
 
-Ordered by risk × churn, highest first:
+Ordered by risk × churn, highest first. Strike-throughs mark completed.
 
-1. **`column-customization`** — largest surface area (8 bands, 4 sub-editors). Highest regression risk after the M3 split. Target: 1 test per band — open panel, flip the control, verify the grid reflects.
-2. **`column-groups`** — just refactored, currently zero e2e after the retirement. Target: create group → add columns → verify header renders → reload → verify persistence.
+1. ~~**`column-customization`** — largest surface area (8 bands, 4 sub-editors). Highest regression risk after the M3 split.~~ ✅ Done (`v2-column-customization.spec.ts`, 18 tests covering all 8 bands + meta count + discard + list marker).
+2. **`column-groups`** — just refactored, currently zero behavioural e2e after the retirement. Target: create group → add columns → verify header renders → reload → verify persistence.
 3. **`conditional-styling` (non-smoke)** — rule create / enable-disable / delete cycle against a real blotter column. Current smoke test only verifies the drawer opens.
 4. **`calculated-columns`** — virtual column create / edit expression / delete. Target: expression evaluates against live rowData + survives reload.
 5. **`column-templates` indirect flow** — save-from-toolbar → apply-to-another-column → remove-via-settings chip.
