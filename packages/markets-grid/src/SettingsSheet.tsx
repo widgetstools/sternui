@@ -51,18 +51,20 @@ export interface SettingsSheetProps {
 
 function ensureStyles() {
   if (typeof document === 'undefined') return;
-  if (!document.getElementById(STYLE_ID)) {
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = settingsCSS;
-    document.head.appendChild(style);
-  }
+  // Only inject the cockpit popout stylesheet. The v1-era `settingsCSS`
+  // (which set `.gc-sheet { position: fixed; top: 0; ... }` for a slide-in
+  // drawer) is explicitly NOT injected here — our element carries both
+  // `gc-sheet` and `gc-popout` classes, and the v1 rule's `top: 0` would
+  // fight the centered `.gc-popout` positioning.
   if (!document.getElementById(V2_SHEET_STYLE_ID)) {
     const v2style = document.createElement('style');
     v2style.id = V2_SHEET_STYLE_ID;
     v2style.textContent = v2SheetCSS;
     document.head.appendChild(v2style);
   }
+  // Keep the import referenced so tree-shaking doesn't complain; the
+  // constants are intentionally unused here.
+  void STYLE_ID; void settingsCSS;
 }
 
 export function SettingsSheet({
