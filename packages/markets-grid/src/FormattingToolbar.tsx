@@ -73,7 +73,7 @@ import {
   Undo2, Redo2, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
   Type, PaintBucket,
-  Grid3X3, Check, RemoveFormatting,
+  LayoutTemplate, SquareDashed, Check, RemoveFormatting,
   ChevronDown, ArrowLeft, ArrowRight, ArrowLeftRight,
   DollarSign, Percent, Hash,
   Plus,
@@ -856,12 +856,15 @@ export function FormattingToolbar() {
                 <button
                   type="button"
                   className="gc-tb-btn-menu"
-                  aria-label="Templates"
+                  aria-label="Apply a saved template"
                   title="Apply a saved template"
                   data-testid="templates-menu-trigger"
                   onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
-                  <Grid3X3 size={13} strokeWidth={1.75} />
+                  {/* LayoutTemplate — the canonical "saved layout / template"
+                      glyph in lucide. Distinct from the Borders button's
+                      SquareDashed so the two aren't confusable. */}
+                  <LayoutTemplate size={13} strokeWidth={1.75} />
                   <ChevronDown size={9} strokeWidth={2} className="gc-tb-caret" />
                 </button>
               }
@@ -1035,11 +1038,16 @@ export function FormattingToolbar() {
               <button
                 type="button"
                 disabled={disabled}
-                aria-label="Borders"
+                aria-label="Cell borders"
+                title="Cell borders"
                 className="gc-tb-btn"
                 onMouseDown={(e) => { e.preventDefault(); }}
               >
-                <Grid3X3 size={14} strokeWidth={1.75} />
+                {/* SquareDashed — a rectangle with dashed edges, reads
+                    directly as "border configuration". Different from
+                    the templates button's LayoutTemplate so they're
+                    never confused at a glance. */}
+                <SquareDashed size={14} strokeWidth={1.75} />
               </button>
             </RadixPopoverTrigger>
             <RadixPopoverContent
