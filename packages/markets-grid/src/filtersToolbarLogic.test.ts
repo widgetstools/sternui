@@ -1,0 +1,216 @@
+import { describe, it, expect } from 'vitest';
+import {
+  doesRowMatchFilterModel,
+  doesValueMatchFilter,
+  filterModelsEqual,
+  generateLabel,
+  mergeFilterModels,
+} from './filtersToolbarLogic';
+
+describe('generateLabel', () => {
+  it('returns "Filter N+1" for empty models', () => {
+    expect(generateLabel({}, 0)).toBe('Filter 1');
+    expect(generateLabel({}, 3)).toBe('Filter 4');
+  });
+
+  it('formats single-column models with the filter value', () => {
+    expect(
+      generateLabel(
+        { price: { filterType: 'number', type: 'greaterThan', filter: 100 } },
+        0,
+      ),
+    ).toBe('price: 100');
+  });
+
+  it('falls back to column name when no filter value is present', () => {
+    expect(generateLabel({ symbol: { filterType: 'text' } }, 0)).toBe('symbol');
+  });
+
+  it('prefers `value` / `values[0]` over `filter` for set filters', () => {
+    expect(
+      generateLabel({ side: { filterType: 'set', values: ['BUY', 'SELL'] } }, 0),
+    ).toBe('side: BUY');
+  });
+
+  it('collapses two-column labels with " + "', () => {
+    expect(generateLabel({ a: {}, b: {} }, 0)).toBe('a + b');
+  });
+
+  it('summarises 3+ column labels as "<first> + N more"', () => {
+    expect(generateLabel({ a: {}, b: {}, c: {} }, 0)).toBe('a + 2 more');
+    expect(generateLabel({ a: {}, b: {}, c: {}, d: {} }, 0)).toBe('a + 3 more');
+  });
+});
+
+describe('doesValueMatchFilter', () => {
+  it('match-all when filter is not a recognised shape', () => {
+    expect(doesValueMatchFilter(1, {})).toBe(true);
+    expect(doesValueMatchFilter(1, { filterType: 'date' })).toBe(true);
+  });
+
+  it('set filter — membership', () => {
+    expect(
+      doesValueMatchFilter('BUY', { filterType: 'set', values: ['BUY', 'SELL'] }),
+    ).toBe(true);
+    expect(
+      doesValueMatchFilter('HOLD', { filterType: 'set', values: ['BUY', 'SELL'] }),
+    ).toBe(false);
+  });
+
+  it('set filter with empty values matches everything (no filter)', () => {
+    expect(doesValueMatchFilter('anything', { filterType: 'set', values: [] })).toBe(true);
+  });
+
+  it('text filter — contains / equals / startsWith / endsWith', () => {
+    const base = { filterType: 'text' };
+    expect(doesValueMatchFilter('Hello', { ...base, type: 'contains', filter: 'ell' })).toBe(true);
+    expect(doesValueMatchFilter('Hello', { ...base, type: 'contains', filter: 'xyz' })).toBe(false);
+    expect(doesValueMatchFilter('hello', { ...base, type: 'equals', filter: 'Hello' })).toBe(true);
+    expect(doesValueMatchFilter('Hello', { ...base, type: 'startsWith', filter: 'he' })).toBe(true);
+    expect(doesValueMatchFilter('Hello', { ...base, type: 'endsWith', filter: 'lo' })).toBe(true);
+  });
+
+  it('text filter blank / notBlank', () => {
+    const base = { filterType: 'text' };
+    expect(doesValueMatchFilter('', { ...base, type: 'blank' })).toBe(true);
+    expect(doesValueMatchFilter('x', { ...base, type: 'blank' })).toBe(false);
+    expect(doesValueMatchFilter('x', { ...base, type: 'notBlank' })).toBe(true);
+    expect(doesValueMatchFilter(null, { ...base, type: 'notBlank' })).toBe(false);
+  });
+
+  it('number filter — comparators + inRange', () => {
+    const base = { filterType: 'number' };
+    expect(doesValueMatchFilter(5, { ...base, type: 'greaterThan', filter: 3 })).toBe(true);
+    expect(doesValueMatchFilter(3, { ...base, type: 'greaterThan', filter: 3 })).toBe(false);
+    expect(doesValueMatchFilter(3, { ...base, type: 'greaterThanOrEqual', filter: 3 })).toBe(true);
+    expect(doesValueMatchFilter(5, { ...base, type: 'inRange', filter: 3, filterTo: 7 })).toBe(true);
+    expect(doesValueMatchFilter(9, { ...base, type: 'inRange', filter: 3, filterTo: 7 })).toBe(false);
+  });
+
+  it('text filter with AND/OR conditions', () => {
+    const andFilter = {
+      filterType: 'text',
+      operator: 'AND',
+      conditions: [
+        { type: 'startsWith', filter: 'He' },
+        { type: 'endsWith', filter: 'lo' },
+      ],
+    };
+    expect(doesValueMatchFilter('Hello', andFilter)).toBe(true);
+    expect(doesValueMatchFilter('Help', andFilter)).toBe(false);
+
+    const orFilter = {
+      filterType: 'text',
+      operator: 'OR',
+      conditions: [
+        { type: 'equals', filter: 'A' },
+        { type: 'equals', filter: 'B' },
+      ],
+    };
+    expect(doesValueMatchFilter('A', orFilter)).toBe(true);
+    expect(doesValueMatchFilter('C', orFilter)).toBe(false);
+  });
+});
+
+describe('doesRowMatchFilterModel', () => {
+  it('AND across columns', () => {
+    const model = {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    };
+    expect(doesRowMatchFilterModel({ side: 'BUY', price: 120 }, model)).toBe(true);
+    expect(doesRowMatchFilterModel({ side: 'BUY', price: 90 }, model)).toBe(false);
+    expect(doesRowMatchFilterModel({ side: 'SELL', price: 120 }, model)).toBe(false);
+  });
+
+  it('empty model matches everything', () => {
+    expect(doesRowMatchFilterModel({ a: 1 }, {})).toBe(true);
+  });
+});
+
+describe('filterModelsEqual', () => {
+  it('both empty / null — equal', () => {
+    expect(filterModelsEqual(null, null)).toBe(true);
+    expect(filterModelsEqual({}, null)).toBe(true);
+    expect(filterModelsEqual(null, {})).toBe(true);
+  });
+
+  it('one empty, one populated — not equal', () => {
+    expect(filterModelsEqual(null, { a: { filterType: 'text' } })).toBe(false);
+  });
+
+  it('key-order-insensitive on top-level', () => {
+    const a = { price: { filterType: 'number' }, side: { filterType: 'set' } };
+    const b = { side: { filterType: 'set' }, price: { filterType: 'number' } };
+    expect(filterModelsEqual(a, b)).toBe(true);
+  });
+
+  it('treats set-filter values as order-insensitive (set semantics)', () => {
+    const a = { side: { filterType: 'set', values: ['BUY', 'SELL'] } };
+    const b = { side: { filterType: 'set', values: ['SELL', 'BUY'] } };
+    expect(filterModelsEqual(a, b)).toBe(true);
+  });
+
+  it('different values — not equal', () => {
+    const a = { side: { filterType: 'set', values: ['BUY'] } };
+    const b = { side: { filterType: 'set', values: ['SELL'] } };
+    expect(filterModelsEqual(a, b)).toBe(false);
+  });
+});
+
+describe('mergeFilterModels', () => {
+  it('merges distinct columns without conflict', () => {
+    const a = { price: { filterType: 'number', type: 'greaterThan', filter: 100 } };
+    const b = { side: { filterType: 'set', values: ['BUY'] } };
+    expect(mergeFilterModels([a, b])).toEqual({ ...a, ...b });
+  });
+
+  it('unions `set` values for the same column', () => {
+    const a = { side: { filterType: 'set', values: ['BUY'] } };
+    const b = { side: { filterType: 'set', values: ['SELL'] } };
+    const out = mergeFilterModels([a, b]);
+    expect(out.side).toMatchObject({ filterType: 'set' });
+    const values = (out.side as { values: string[] }).values.sort();
+    expect(values).toEqual(['BUY', 'SELL']);
+  });
+
+  it('combines simple number filters on the same column into an OR', () => {
+    const a = { price: { filterType: 'number', type: 'equals', filter: 100 } };
+    const b = { price: { filterType: 'number', type: 'equals', filter: 200 } };
+    const out = mergeFilterModels([a, b]);
+    expect(out.price).toMatchObject({
+      filterType: 'number',
+      operator: 'OR',
+    });
+    const conds = (out.price as { conditions: unknown[] }).conditions;
+    expect(conds).toHaveLength(2);
+  });
+
+  it('appends to an existing OR fan-out', () => {
+    const a = {
+      price: {
+        filterType: 'number',
+        operator: 'OR',
+        conditions: [
+          { type: 'equals', filter: 100 },
+          { type: 'equals', filter: 200 },
+        ],
+      },
+    };
+    const b = { price: { filterType: 'number', type: 'equals', filter: 300 } };
+    const out = mergeFilterModels([a, b]);
+    const conds = (out.price as { conditions: unknown[] }).conditions;
+    expect(conds).toHaveLength(3);
+  });
+
+  it('last-write-wins for incompatible shapes', () => {
+    const a = { price: { filterType: 'number', type: 'equals', filter: 100 } };
+    const b = { price: { filterType: 'text', type: 'equals', filter: 'abc' } };
+    const out = mergeFilterModels([a, b]);
+    expect(out.price).toEqual(b.price);
+  });
+
+  it('empty input returns empty model', () => {
+    expect(mergeFilterModels([])).toEqual({});
+  });
+});
