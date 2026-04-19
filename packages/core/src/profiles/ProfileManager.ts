@@ -139,7 +139,24 @@ export class ProfileManager {
 
   /** Load a profile by id. Replaces the in-memory store + flips the
    *  active pointer. `skipFlush` skips the auto-save drain (used by
-   *  `remove()` so we don't resurrect the just-deleted profile). */
+   *  `remove()` so we don't resurrect the just-deleted profile).
+   *
+   *  Ordering contract (critical for state isolation):
+   *    1. Flush (or cancel) any pending auto-save targeting the CURRENT
+   *       profile — otherwise we'd persist the about-to-be-overwritten
+   *       state back to the active id AFTER the pointer flip.
+   *    2. Flip the active-id pointer BEFORE mutating the platform store.
+   *       resetAll() + deserializeAll() trigger subscriptions, which
+   *       schedule a new auto-save tick; if the pointer is still on the
+   *       old id the next persist will write the NEW state into the
+   *       OLD profile's snapshot — exactly the "style bleed" the user
+   *       reported.
+   *    3. cancelScheduled() AGAIN after the mutations because the
+   *       subscription bumps race the id flip: even with the order above
+   *       we want a clean slate on the newly-active profile — the user
+   *       explicitly loaded it, they don't expect a spurious save to
+   *       overwrite it on the next tick.
+   */
   async load(id: string, opts?: { skipFlush?: boolean }): Promise<void> {
     if (this.autoSave) {
       if (opts?.skipFlush) this.autoSave.cancelScheduled();
@@ -148,16 +165,27 @@ export class ProfileManager {
     const { gridId } = this.platform;
     const snap = await this.adapter.loadProfile(gridId, id);
     if (!snap) throw new Error(`[profiles] No profile "${id}" for grid "${gridId}"`);
-    this.platform.resetAll();
-    this.platform.deserializeAll(snap.state);
+    // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
+    this.platform.resetAll();
+    this.platform.deserializeAll(snap.state);
+    // Kill the debounce scheduled by resetAll + deserializeAll. The state
+    // we just loaded is already on disk — no reason to re-write it.
+    this.autoSave?.cancelScheduled();
     this.platform.events.emit('profile:loaded', { gridId, profileId: id });
     await this.refresh();
   }
 
   /** Create a new profile, seeded from the module's `getInitialState()` for
-   *  every module (so it's a true blank slate, not a clone of the current). */
+   *  every module (so it's a true blank slate, not a clone of the current).
+   *
+   *  Same ordering contract as `load()`: flush pending auto-save against
+   *  the OLD profile first, then flip the active-id pointer, then mutate.
+   *  Without flushing first, a debounced save from the previous profile
+   *  would land on the NEW profile's snapshot between the reset and the
+   *  adapter write — rare but real state bleed.
+   */
   async create(name: string, options?: { id?: string }): Promise<ProfileMeta> {
     const id = options?.id ?? slugId(name);
     if (id === RESERVED_DEFAULT_PROFILE_ID) {
@@ -165,8 +193,17 @@ export class ProfileManager {
     }
     const { gridId } = this.platform;
 
-    // Fresh state for every module.
+    // Flush the old profile's pending debounce before flipping the pointer.
+    // Any edits the user made under the OLD profile are persisted there,
+    // not leaked into the newly-created one.
+    if (this.autoSave) await this.autoSave.flushNow();
+
+    // Flip BEFORE mutating (see load()'s rationale).
+    this.updateState({ activeId: id });
+    writeActiveId(gridId, id);
+
     this.platform.resetAll();
+
     const now = Date.now();
     const snap: ProfileSnapshot = {
       id,
@@ -177,8 +214,10 @@ export class ProfileManager {
       updatedAt: now,
     };
     await this.adapter.saveProfile(snap);
-    this.updateState({ activeId: id });
-    writeActiveId(gridId, id);
+    // Cancel the debounce scheduled by resetAll(); the snapshot is already
+    // on disk.
+    this.autoSave?.cancelScheduled();
+
     this.platform.events.emit('profile:saved', { gridId, profileId: id });
     this.platform.events.emit('profile:loaded', { gridId, profileId: id });
     await this.refresh();
@@ -272,9 +311,13 @@ export class ProfileManager {
     await this.refresh();
 
     if (options?.activate !== false) {
-      this.platform.deserializeAll(snap.state);
+      // Same ordering as load(): flush → flip → mutate → cancel-scheduled.
+      if (this.autoSave) await this.autoSave.flushNow();
       this.updateState({ activeId: id });
       writeActiveId(gridId, id);
+      this.platform.resetAll();
+      this.platform.deserializeAll(snap.state);
+      this.autoSave?.cancelScheduled();
       this.platform.events.emit('profile:loaded', { gridId, profileId: id });
     }
     return toMeta(snap);

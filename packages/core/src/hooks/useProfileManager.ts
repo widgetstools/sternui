@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { StorageAdapter } from '../persistence/StorageAdapter';
 import {
   ProfileManager,
@@ -7,6 +7,7 @@ import {
 } from '../profiles/ProfileManager';
 import type { ExportedProfilePayload, ProfileMeta } from '../profiles/types';
 import { useGridPlatform } from './GridProvider';
+import type { GridPlatform } from '../platform/GridPlatform';
 
 export interface UseProfileManagerResult {
   activeProfileId: string;
@@ -25,8 +26,41 @@ export interface UseProfileManagerResult {
 }
 
 /**
+ * Per-platform singleton map — one `ProfileManager` lives for the platform
+ * instance's lifetime. React 19 StrictMode fires a synthetic unmount+remount
+ * on the initial mount; naïve `managerRef.current = null` + `dispose()` in
+ * the useEffect cleanup would build a fresh manager on every simulated
+ * remount, leaving zombie auto-save subscriptions on the shared store and
+ * orphaning the listener binding React holds.
+ *
+ * Keying off the platform (which already survives StrictMode via
+ * useGridHost's fix) ensures a single manager per grid, initialised lazily
+ * on first hook call and disposed when the platform is destroyed — not
+ * when React decides to run a second mount pass.
+ */
+const MANAGERS_BY_PLATFORM = new WeakMap<GridPlatform, ProfileManager>();
+
+function getOrCreateManager(opts: ProfileManagerOptions): ProfileManager {
+  const existing = MANAGERS_BY_PLATFORM.get(opts.platform);
+  if (existing) return existing;
+  const manager = new ProfileManager(opts);
+  MANAGERS_BY_PLATFORM.set(opts.platform, manager);
+  // Dispose when the platform tears down — the real teardown, not the
+  // StrictMode simulated one.
+  opts.platform.events.on('grid:destroyed', () => {
+    manager.dispose();
+    MANAGERS_BY_PLATFORM.delete(opts.platform);
+  });
+  // Boot once. Subsequent hook callers return the same (already-booted)
+  // manager.
+  void manager.boot();
+  return manager;
+}
+
+/**
  * Thin React binding over `ProfileManager`. The class is the source of
- * truth; this hook exposes a React-shaped state + a stable callbacks
+ * truth; this hook exposes a React-shaped state via `useSyncExternalStore`
+ * (prevents tearing under concurrent rendering) + a stable callbacks
  * surface. Angular ships its own binding.
  */
 export function useProfileManager(opts: {
@@ -36,30 +70,30 @@ export function useProfileManager(opts: {
 }): UseProfileManagerResult {
   const platform = useGridPlatform();
 
-  const managerRef = useRef<ProfileManager | null>(null);
-  if (!managerRef.current) {
-    const managerOpts: ProfileManagerOptions = {
-      platform,
-      adapter: opts.adapter,
-      autoSaveDebounceMs: opts.autoSaveDebounceMs,
-      disableAutoSave: opts.disableAutoSave,
-    };
-    managerRef.current = new ProfileManager(managerOpts);
-  }
-  const manager = managerRef.current;
+  // Keep the FIRST options seen — the manager is a per-platform singleton;
+  // passing different options on re-renders can't rebuild the manager
+  // without a grid remount, so we snapshot the initial values.
+  const optsRef = useRef(opts);
+  const manager = getOrCreateManager({
+    platform,
+    adapter: optsRef.current.adapter,
+    autoSaveDebounceMs: optsRef.current.autoSaveDebounceMs,
+    disableAutoSave: optsRef.current.disableAutoSave,
+  });
 
-  const [state, setState] = useState<ProfileManagerState>(manager.getState());
-
-  useEffect(() => {
-    const unsubscribe = manager.subscribe((s) => setState(s));
-    void manager.boot();
-    return () => {
-      unsubscribe();
-      manager.dispose();
-      managerRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Subscribe via useSyncExternalStore for tear-free concurrent reads. The
+  // subscribe fn adds a listener to the manager; React uses getSnapshot to
+  // read the current state. No useEffect cleanup race: when the component
+  // unmounts for real, React removes the subscription cleanly.
+  const subscribe = useCallback(
+    (onChange: () => void) => manager.subscribe(() => onChange()),
+    [manager],
+  );
+  const getSnapshot = useCallback(
+    (): ProfileManagerState => manager.getState(),
+    [manager],
+  );
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const loadProfile = useCallback((id: string) => manager.load(id), [manager]);
   const saveActiveProfile = useCallback(() => manager.save(), [manager]);
