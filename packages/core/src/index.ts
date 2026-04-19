@@ -210,6 +210,24 @@ export {
   type SetFilterOptions,
   type MultiFilterEntry,
 } from './modules/column-customization';
+export {
+  conditionalStylingModule,
+  CONDITIONAL_STYLING_MODULE_ID,
+  INITIAL_CONDITIONAL_STYLING,
+  INDICATOR_ICONS,
+  findIndicatorIcon,
+  toStyleEditorValue,
+  fromStyleEditorValue,
+  type ConditionalRule,
+  type ConditionalStylingState,
+  type FlashConfig,
+  type FlashTarget,
+  type IndicatorPosition,
+  type IndicatorTarget,
+  type RuleIndicator,
+  type RuleScope,
+  type IndicatorIconDef,
+} from './modules/conditional-styling';
 
 // ─── StyleEditor + ColorPicker + FormatterPicker ────────────────────────────
 export { StyleEditor } from './ui/StyleEditor';

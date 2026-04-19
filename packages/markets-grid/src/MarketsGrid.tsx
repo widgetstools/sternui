@@ -6,6 +6,7 @@ import {
   MemoryAdapter,
   columnCustomizationModule,
   columnTemplatesModule,
+  conditionalStylingModule,
   generalSettingsModule,
   useProfileManager,
   cockpitCSS,
@@ -47,6 +48,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   generalSettingsModule,
   columnTemplatesModule,
   columnCustomizationModule,
+  conditionalStylingModule,
 ];
 
 export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
