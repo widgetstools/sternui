@@ -1,83 +1,107 @@
 /*
  * FI Design System — Dark Theme
  * Generated from design-system/tokens/semantic.ts
- * Drop this into any project's globals.css for the dark palette.
+ *
+ * Binance-inspired chrome, softened for long trading sessions:
+ *   - Deep charcoal backgrounds (slightly warm, never pure black)
+ *   - Desaturated trading accents — no neon greens or fire-engine reds
+ *   - Brand is soft azure blue, not yellow
+ *   - Text is warm off-white, never pure #ffffff
  */
 
 :root, [data-theme="dark"] {
   /* ── shadcn/ui overrides ── */
-  --background: 210 14% 4%;
-  --foreground: 210 7% 93%;
-  --card: 210 14% 9%;
-  --card-foreground: 210 7% 93%;
-  --popover: 210 14% 9%;
-  --popover-foreground: 210 7% 93%;
-  --primary: 45 95% 55%;
-  --primary-foreground: 0 0% 5%;
-  --secondary: 210 14% 17%;
-  --secondary-foreground: 213 8% 67%;
-  --muted: 210 14% 13%;
-  --muted-foreground: 215 9% 53%;
-  --accent: 210 14% 17%;
-  --accent-foreground: 210 7% 93%;
-  --destructive: 0 82% 72%;
-  --destructive-foreground: 0 0% 95%;
-  --border: 210 14% 23%;
-  --input: 210 14% 23%;
-  --ring: 45 95% 55%;
+  --background: 213 30% 6%;          /* #0a0e14 */
+  --foreground: 220 16% 92%;         /* #e6e9ef */
+  --card: 214 26% 10%;               /* #121820 */
+  --card-foreground: 220 16% 92%;
+  --popover: 214 26% 10%;
+  --popover-foreground: 220 16% 92%;
+  --primary: 213 72% 67%;            /* #6ba4e8 — soft azure (brand) */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 22% 18%;          /* #242c38 */
+  --secondary-foreground: 216 15% 70%;
+  --muted: 215 24% 14%;              /* #1a212b */
+  --muted-foreground: 219 6% 49%;    /* #757982 */
+  --accent: 215 22% 18%;
+  --accent-foreground: 220 16% 92%;
+  --destructive: 0 70% 64%;          /* #e56464 */
+  --destructive-foreground: 0 0% 100%;
+  --border: 216 22% 22%;             /* #323b49 */
+  --input: 216 22% 22%;
+  --ring: 213 72% 67%;               /* brand ring */
   --radius: 4px;
 
   /* ── Surface ── */
-  --bn-bg:      #0b0e11;
-  --bn-bg1:     #161a1e;
-  --bn-bg2:     #1e2329;
-  --bn-bg3:     #2b3139;
+  --bn-bg:      #0a0e14;
+  --bn-bg1:     #121820;
+  --bn-bg2:     #1a212b;
+  --bn-bg3:     #242c38;
 
   /* ── Text ── */
-  --bn-t0:      #eaecef;
-  --bn-t1:      #a0a8b4;
-  --bn-t2:      #7a8494;
-  --bn-t3:      #4a5568;
+  --bn-t0:      #e6e9ef;
+  --bn-t1:      #a7b0bd;
+  --bn-t2:      #757982;
+  --bn-t3:      #4d586a;
 
   /* ── Border ── */
-  --bn-border:  #313944;
-  --bn-border2: #3e4754;
+  --bn-border:  #2e3744;
+  --bn-border2: #323b49;
 
-  /* ── Accent ── */
-  --bn-green:   #2dd4bf;
-  --bn-green2:  #14b8a6;
-  --bn-red:     #f87171;
-  --bn-red2:    #ef4444;
-  --bn-yellow:  #f0b90b;
-  --bn-blue:    #3da0ff;
-  --bn-cyan:    #22d3ee;
+  /* ── Accent (muted, not neon) ── */
+  --bn-green:   #3dbfa0;
+  --bn-green2:  #2fa88a;
+  --bn-red:     #e56464;
+  --bn-red2:    #d04f4f;
+  --bn-amber:   #d4a84a;    /* warning semantic only */
+  --bn-blue:    #6ba4e8;    /* BRAND */
+  --bn-blue2:   #4e8bd1;
+  --bn-cyan:    #7db4e3;
+  --bn-purple:  #a48ad4;
 
   /* ── Actions ── */
-  --bn-buy-bg:  #0d9488;
-  --bn-sell-bg: #dc2626;
+  --bn-buy-bg:   #2fa88a;
+  --bn-sell-bg:  #d04f4f;
   --bn-cta-text: #ffffff;
-  --bn-logo-bg: #0b0e11;
+  --bn-logo-bg:  #0a0e14;
+
+  /* ── Interactive states ── */
+  --bn-focus-ring:    #6ba4e8;
+  --bn-focus-ring-bg: rgba(107,164,232,0.25);
+  --bn-disabled-bg:   #242c38;
+  --bn-disabled-fg:   #4d586a;
+  --bn-hover-overlay: rgba(255,255,255,0.04);
+
+  /* ── Overlay tints (single source for badges, fills, chips) ── */
+  --bn-positive-soft: rgba(61,191,160,0.12);
+  --bn-positive-ring: rgba(61,191,160,0.30);
+  --bn-negative-soft: rgba(229,100,100,0.12);
+  --bn-negative-ring: rgba(229,100,100,0.30);
+  --bn-warning-soft:  rgba(212,168,74,0.12);
+  --bn-warning-ring:  rgba(212,168,74,0.30);
+  --bn-info-soft:     rgba(107,164,232,0.12);
+  --bn-info-ring:     rgba(107,164,232,0.30);
+  --bn-neutral-soft:  rgba(117,121,130,0.18);
+  --bn-neutral-ring:  rgba(117,121,130,0.25);
 
   /* ── Typography ── */
   --fi-mono: 'JetBrains Mono', monospace;
   --fi-sans: 'Geist', sans-serif;
-  --fi-font-xs: 9px;
+  --fi-font-xs: 10px;
   --fi-font-sm: 11px;
   --fi-font-md: 13px;
   --fi-font-lg: 18px;
 
   /* ── Order Book / Trade Ticket fills ── */
-  /* Cleaner, more vibrant tints — avoids the muddy brown look from
-     low-opacity warm hues sitting on the dark navy background. */
-  /* Use rose-500 (cooler red) instead of red-500 — warm red at low alpha
-     mixes with the dark navy bg into a muddy brown. Rose stays pink. */
-  --ob-bid-fill:   rgba(20, 184, 166, 0.18);   /* teal-500 @ 18% */
-  --ob-ask-fill:   rgba(244, 63, 94, 0.18);    /* rose-500 @ 18% */
-  --tt-bid-strip:  rgba(61, 158, 255, 0.10);   /* blue     @ 10% */
-  --tt-ask-strip:  rgba(244, 63, 94, 0.12);    /* rose-500 @ 12% */
+  /* Tints pulled from the same blue/teal/coral family so stacks of
+     rows don't vibrate against the charcoal ground. */
+  --ob-bid-fill:   rgba(61,191,160,0.16);
+  --ob-ask-fill:   rgba(229,100,100,0.16);
+  --tt-bid-strip:  rgba(107,164,232,0.10);
+  --tt-ask-strip:  rgba(229,100,100,0.12);
 
   /* ── Misc ── */
-  --scrollbar-thumb: #4a5568;
+  --scrollbar-thumb: #323b49;
 
   /* ── Legacy aliases ── */
   --fi-bg0: var(--bn-bg);
@@ -95,9 +119,11 @@
   --fi-green: var(--bn-green);
   --fi-red: var(--bn-red);
   --fi-blue: var(--bn-blue);
-  --fi-amber: var(--bn-yellow);
+  --fi-amber: var(--bn-amber);
+  --fi-yellow: var(--bn-amber);   /* old --bn-yellow removed; kept alias */
+  --bn-yellow: var(--bn-amber);   /* transitional alias for existing components */
   --fi-cyan: var(--bn-cyan);
-  --fi-purple: #c084fc;
+  --fi-purple: var(--bn-purple);
   --fi-title: var(--bn-t0);
   --fi-col-header: var(--bn-t1);
   --divider: 1px solid var(--bn-border);

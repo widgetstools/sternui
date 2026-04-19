@@ -1,73 +1,130 @@
 /*
  * FI Design System — Light Theme
- * Neutral gray palette modeled after VS Code Light Modern.
- * Pure white card surfaces on a warm-neutral gray ground.
- * No blue/warm tint in chrome — trading accents provide all color.
- * High text contrast for readability (WCAG AA on all tiers).
+ * Generated from design-system/tokens/semantic.ts
+ *
+ * Designed to avoid the harsh-white-page glare that fatigues
+ * traders over long sessions:
+ *   - Warm cream page background (#f5f3ed) — never pure white
+ *   - Soft paper-tone cards (#fbfaf6)
+ *   - Dark charcoal text (#2a2d31) — never pure black
+ *   - Desaturated trading accents (forest teal, brick red, steel blue)
+ *   - WCAG AA contrast on all text tiers
  */
 
 [data-theme="light"] {
   /* ── shadcn/ui overrides ── */
-  --background: 0 0% 97%;
-  --foreground: 0 0% 23%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 23%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 23%;
-  --primary: 38 92% 50%;
+  --background: 43 26% 94%;          /* #f5f3ed */
+  --foreground: 216 7% 18%;          /* #2a2d31 */
+  --card: 45 33% 98%;                /* #fbfaf6 */
+  --card-foreground: 216 7% 18%;
+  --popover: 45 33% 98%;
+  --popover-foreground: 216 7% 18%;
+  --primary: 211 58% 44%;            /* #2f6fb3 — steel blue brand */
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 95%;
-  --secondary-foreground: 0 0% 35%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 38%;
-  --accent: 0 0% 95%;
-  --accent-foreground: 0 0% 23%;
-  --destructive: 0 72% 51%;
+  --secondary: 42 22% 91%;           /* #edeae1 */
+  --secondary-foreground: 220 5% 36%;
+  --muted: 42 22% 91%;
+  --muted-foreground: 219 6% 49%;    /* #757982 */
+  --accent: 42 22% 91%;
+  --accent-foreground: 216 7% 18%;
+  --destructive: 4 49% 48%;          /* #b8463f */
   --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 38 92% 50%;
+  --border: 41 22% 85%;              /* #dfdbd1 */
+  --input: 41 22% 85%;
+  --ring: 211 58% 44%;               /* brand ring */
+  --radius: 4px;
 
-  /* ── Surface (neutral grays, VS Code Light Modern style) ── */
-  --bn-bg:      #f8f8f8;
-  --bn-bg1:     #ffffff;
-  --bn-bg2:     #f3f3f3;
-  --bn-bg3:     #e8e8e8;
+  /* ── Surface (warm paper tones — never pure white) ── */
+  --bn-bg:      #f5f3ed;
+  --bn-bg1:     #fbfaf6;
+  --bn-bg2:     #edeae1;
+  --bn-bg3:     #e1ddd1;
 
-  /* ── Text (neutral, high contrast) ── */
-  --bn-t0:      #3b3b3b;
-  --bn-t1:      #616161;
-  --bn-t2:      #767676;
-  --bn-t3:      #a0a0a0;
+  /* ── Text (charcoal — never pure black) ── */
+  --bn-t0:      #2a2d31;
+  --bn-t1:      #575b62;
+  --bn-t2:      #757982;
+  --bn-t3:      #a8abb0;
 
-  /* ── Border (pure neutral) ── */
-  --bn-border:  #e5e5e5;
-  --bn-border2: #d4d4d4;
+  /* ── Border (soft warm gray) ── */
+  --bn-border:  #dfdbd1;
+  --bn-border2: #cbc6ba;
 
-  /* ── Accent (vibrant trading colors — WCAG AA compliant on white) ── */
-  --bn-green:   #0d9488;
-  --bn-green2:  #0f766e;
-  --bn-red:     #dc2626;
-  --bn-red2:    #b91c1c;
-  --bn-yellow:  #d97706;
-  --bn-blue:    #2563eb;
-  --bn-cyan:    #0891b2;
+  /* ── Accent (muted trading palette, WCAG AA on paper) ── */
+  --bn-green:   #1f8c6e;
+  --bn-green2:  #156b53;
+  --bn-red:     #b8463f;
+  --bn-red2:    #963028;
+  --bn-amber:   #b27a1f;    /* warning semantic only */
+  --bn-blue:    #2f6fb3;    /* BRAND */
+  --bn-blue2:   #245a95;
+  --bn-cyan:    #4a8cc4;
+  --bn-purple:  #7b5ba8;
 
   /* ── Actions ── */
-  --bn-buy-bg:  #0d9488;
-  --bn-sell-bg: #dc2626;
+  --bn-buy-bg:   #1f8c6e;
+  --bn-sell-bg:  #b8463f;
   --bn-cta-text: #ffffff;
-  --bn-logo-bg: #ffffff;
+  --bn-logo-bg:  #fbfaf6;
+
+  /* ── Interactive states ── */
+  --bn-focus-ring:    #2f6fb3;
+  --bn-focus-ring-bg: rgba(47,111,179,0.18);
+  --bn-disabled-bg:   #edeae1;
+  --bn-disabled-fg:   #a8abb0;
+  --bn-hover-overlay: rgba(0,0,0,0.035);
+
+  /* ── Overlay tints ── */
+  --bn-positive-soft: rgba(31,140,110,0.10);
+  --bn-positive-ring: rgba(31,140,110,0.28);
+  --bn-negative-soft: rgba(184,70,63,0.08);
+  --bn-negative-ring: rgba(184,70,63,0.28);
+  --bn-warning-soft:  rgba(178,122,31,0.10);
+  --bn-warning-ring:  rgba(178,122,31,0.30);
+  --bn-info-soft:     rgba(47,111,179,0.08);
+  --bn-info-ring:     rgba(47,111,179,0.28);
+  --bn-neutral-soft:  rgba(87,91,98,0.08);
+  --bn-neutral-ring:  rgba(87,91,98,0.20);
+
+  /* ── Typography (parity with dark theme) ── */
+  --fi-mono: 'JetBrains Mono', monospace;
+  --fi-sans: 'Geist', sans-serif;
+  --fi-font-xs: 10px;
+  --fi-font-sm: 11px;
+  --fi-font-md: 13px;
+  --fi-font-lg: 18px;
 
   /* ── Order Book / Trade Ticket fills ── */
-  --ob-bid-fill:   rgba(20, 184, 166, 0.18);
-  --ob-ask-fill:   rgba(239, 68, 68, 0.14);
-  --tt-bid-strip:  rgba(37, 99, 235, 0.10);
-  --tt-ask-strip:  rgba(220, 38, 38, 0.10);
+  --ob-bid-fill:   rgba(31,140,110,0.12);
+  --ob-ask-fill:   rgba(184,70,63,0.10);
+  --tt-bid-strip:  rgba(47,111,179,0.08);
+  --tt-ask-strip:  rgba(184,70,63,0.08);
 
   /* ── Misc ── */
-  --scrollbar-thumb: #c4c4c4;
+  --scrollbar-thumb: #c6c2b7;
 
-  /* ── Accessibility: bump minimum font size ── */
-  --fi-font-xs: 10px;
+  /* ── Legacy aliases (parity with dark theme) ── */
+  --fi-bg0: var(--bn-bg);
+  --fi-bg1: var(--bn-bg1);
+  --fi-bg2: var(--bn-bg2);
+  --fi-bg3: var(--bn-bg3);
+  --fi-bg4: var(--bn-bg3);
+  --fi-border: var(--bn-border);
+  --fi-border2: var(--bn-border2);
+  --fi-border3: var(--bn-border2);
+  --fi-t0: var(--bn-t0);
+  --fi-t1: var(--bn-t1);
+  --fi-t2: var(--bn-t2);
+  --fi-t3: var(--bn-t3);
+  --fi-green: var(--bn-green);
+  --fi-red: var(--bn-red);
+  --fi-blue: var(--bn-blue);
+  --fi-amber: var(--bn-amber);
+  --fi-yellow: var(--bn-amber);
+  --bn-yellow: var(--bn-amber);
+  --fi-cyan: var(--bn-cyan);
+  --fi-purple: var(--bn-purple);
+  --fi-title: var(--bn-t0);
+  --fi-col-header: var(--bn-t1);
+  --divider: 1px solid var(--bn-border);
 }

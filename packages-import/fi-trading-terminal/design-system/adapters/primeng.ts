@@ -30,7 +30,6 @@ import { componentTokens } from '../tokens/components';
  */
 export function generatePrimeNGPreset() {
   const darkComp = componentTokens(dark);
-  const lightComp = componentTokens(light);
 
   return {
     // ── Primitive overrides ──
@@ -47,18 +46,20 @@ export function generatePrimeNGPreset() {
 
     // ── Semantic overrides ──
     semantic: {
-      // Map teal scale → primary (buy/positive is the brand action color)
+      // Map blue scale → primary. Brand accent is soft azure/steel blue,
+      // NOT yellow. Trading greens still indicate positive/buy actions
+      // at the component level (button.buy, not primary).
       primary: {
-        50:  colors.teal[50],
-        100: colors.teal[100],
-        200: colors.teal[200],
-        300: colors.teal[300],
-        400: colors.teal[400],
-        500: colors.teal[500],
-        600: colors.teal[600],
-        700: colors.teal[700],
-        800: colors.teal[800],
-        900: colors.teal[900],
+        50:  colors.blue[50],
+        100: colors.blue[100],
+        200: colors.blue[200],
+        300: colors.blue[300],
+        400: colors.blue[400],
+        500: colors.blue[500],
+        600: colors.blue[600],
+        700: colors.blue[700],
+        800: colors.charcoal[800],
+        900: colors.charcoal[900],
       },
       // Status colors
       success: { 500: colors.teal[500] },
@@ -77,20 +78,20 @@ export function generatePrimeNGPreset() {
             50:  light.surface.ground,
             100: light.surface.secondary,
             200: light.surface.tertiary,
-            300: colors.neutral[300],
-            400: colors.neutral[400],
-            500: colors.neutral[500],
-            600: colors.neutral[600],
-            700: colors.neutral[700],
-            800: colors.neutral[800],
-            900: colors.neutral[900],
-            950: colors.neutral[950],
+            300: colors.charcoal[300],
+            400: colors.charcoal[400],
+            500: colors.charcoal[500],
+            600: colors.charcoal[600],
+            700: colors.charcoal[700],
+            800: colors.charcoal[800],
+            900: colors.charcoal[900],
+            950: colors.charcoal[950],
           },
           primary: {
-            color:         light.accent.positive,
-            contrastColor: light.action.buyText,
-            hoverColor:    light.accent.positiveHover,
-            activeColor:   colors.teal[800],
+            color:         light.accent.info,
+            contrastColor: '#ffffff',
+            hoverColor:    light.accent.infoHover,
+            activeColor:   colors.blue[700],
           },
           text: {
             color:          light.text.primary,
@@ -106,14 +107,14 @@ export function generatePrimeNGPreset() {
             hoverColor:  light.text.primary,
           },
           formField: {
-            background:     light.surface.primary,
-            disabledBackground: light.surface.secondary,
+            background:       light.surface.primary,
+            disabledBackground: light.state.disabledBg,
             filledBackground:   light.surface.secondary,
-            borderColor:    light.border.secondary,
+            borderColor:      light.border.secondary,
             hoverBorderColor: light.accent.info,
-            focusBorderColor: light.accent.warning,
-            color:          light.text.primary,
-            disabledColor:  light.text.faint,
+            focusBorderColor: light.accent.info,   // brand focus, not warning
+            color:            light.text.primary,
+            disabledColor:    light.state.disabledFg,
             placeholderColor: light.text.muted,
           },
         },
@@ -123,20 +124,20 @@ export function generatePrimeNGPreset() {
             50:  dark.surface.primary,
             100: dark.surface.secondary,
             200: dark.surface.tertiary,
-            300: colors.neutral[800],
-            400: colors.neutral[700],
-            500: colors.neutral[600],
-            600: colors.neutral[500],
-            700: colors.neutral[400],
-            800: colors.neutral[300],
-            900: colors.neutral[200],
-            950: colors.neutral[100],
+            300: colors.charcoal[800],
+            400: colors.charcoal[700],
+            500: colors.charcoal[600],
+            600: colors.charcoal[500],
+            700: colors.charcoal[400],
+            800: colors.charcoal[300],
+            900: colors.charcoal[200],
+            950: colors.charcoal[100],
           },
           primary: {
-            color:         dark.accent.positive,
-            contrastColor: dark.action.buyText,
-            hoverColor:    dark.accent.positiveHover,
-            activeColor:   colors.teal[300],
+            color:         dark.accent.info,
+            contrastColor: '#ffffff',
+            hoverColor:    dark.accent.infoHover,
+            activeColor:   colors.blue[300],
           },
           text: {
             color:          dark.text.primary,
@@ -152,14 +153,14 @@ export function generatePrimeNGPreset() {
             hoverColor:  dark.text.primary,
           },
           formField: {
-            background:     'transparent',
-            disabledBackground: dark.surface.secondary,
+            background:       dark.surface.primary,
+            disabledBackground: dark.state.disabledBg,
             filledBackground:   dark.surface.tertiary,
-            borderColor:    dark.border.secondary,
+            borderColor:      dark.border.secondary,
             hoverBorderColor: dark.accent.info,
-            focusBorderColor: dark.accent.warning,
-            color:          dark.text.primary,
-            disabledColor:  dark.text.faint,
+            focusBorderColor: dark.accent.info,   // brand focus, not warning
+            color:            dark.text.primary,
+            disabledColor:    dark.state.disabledFg,
             placeholderColor: dark.text.muted,
           },
         },
@@ -169,22 +170,22 @@ export function generatePrimeNGPreset() {
     // ── Component overrides ──
     components: {
       button: {
-        borderRadius:  darkComp.button.borderRadius,
-        paddingX:      darkComp.button.paddingX,
-        paddingY:      darkComp.button.paddingY,
-        fontWeight:    String(darkComp.button.fontWeight),
+        borderRadius: darkComp.button.borderRadius,
+        paddingX:     darkComp.button.paddingX,
+        paddingY:     darkComp.button.paddingY,
+        fontWeight:   String(darkComp.button.fontWeight),
       },
       inputtext: {
-        borderRadius:  darkComp.input.borderRadius,
-        paddingX:      darkComp.input.paddingX,
-        paddingY:      darkComp.input.paddingY,
+        borderRadius: darkComp.input.borderRadius,
+        paddingX:     darkComp.input.paddingX,
+        paddingY:     darkComp.input.paddingY,
       },
       datatable: {
         headerCellPadding: `${darkComp.table.cellPaddingY} ${darkComp.table.cellPaddingX}`,
         bodyCellPadding:   `${darkComp.table.cellPaddingY} ${darkComp.table.cellPaddingX}`,
       },
       tab: {
-        activeBorderColor: dark.accent.warning,
+        activeBorderColor: dark.accent.info,     // brand, not warning/yellow
       },
     },
   };

@@ -7,7 +7,6 @@
 
 import { dark, light, shared } from '../tokens/semantic';
 import type { ColorScheme } from '../tokens/semantic';
-import { colors } from '../tokens/primitives';
 
 // Convert hex to HSL string (e.g. "210 14% 23%") for shadcn CSS vars
 function hexToHsl(hex: string): string {
@@ -26,8 +25,7 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%`;
 }
 
-function schemeVars(scheme: ColorScheme, mode: 'dark'|'light') {
-  const isDark = mode === 'dark';
+function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
   return `
     /* ── shadcn/ui overrides ── */
     --background: ${hexToHsl(scheme.surface.ground)};
@@ -36,8 +34,8 @@ function schemeVars(scheme: ColorScheme, mode: 'dark'|'light') {
     --card-foreground: ${hexToHsl(scheme.text.primary)};
     --popover: ${hexToHsl(scheme.surface.primary)};
     --popover-foreground: ${hexToHsl(scheme.text.primary)};
-    --primary: ${hexToHsl(scheme.accent.warning)};
-    --primary-foreground: ${isDark ? '0 0% 5%' : '0 0% 100%'};
+    --primary: ${hexToHsl(scheme.accent.info)};
+    --primary-foreground: 0 0% 100%;
     --secondary: ${hexToHsl(scheme.surface.tertiary)};
     --secondary-foreground: ${hexToHsl(scheme.text.secondary)};
     --muted: ${hexToHsl(scheme.surface.secondary)};
@@ -45,10 +43,10 @@ function schemeVars(scheme: ColorScheme, mode: 'dark'|'light') {
     --accent: ${hexToHsl(scheme.surface.tertiary)};
     --accent-foreground: ${hexToHsl(scheme.text.primary)};
     --destructive: ${hexToHsl(scheme.accent.negative)};
-    --destructive-foreground: 0 0% ${isDark ? '95' : '100'}%;
+    --destructive-foreground: 0 0% 100%;
     --border: ${hexToHsl(scheme.border.primary)};
     --input: ${hexToHsl(scheme.border.primary)};
-    --ring: ${hexToHsl(scheme.accent.warning)};
+    --ring: ${hexToHsl(scheme.accent.info)};
     --radius: ${shared.radius.lg};
 
     /* ── FI Design System tokens ── */
@@ -66,14 +64,35 @@ function schemeVars(scheme: ColorScheme, mode: 'dark'|'light') {
     --bn-green2:  ${scheme.accent.positiveHover};
     --bn-red:     ${scheme.accent.negative};
     --bn-red2:    ${scheme.accent.negativeHover};
-    --bn-yellow:  ${scheme.accent.warning};
+    --bn-amber:   ${scheme.accent.warning};
     --bn-blue:    ${scheme.accent.info};
+    --bn-blue2:   ${scheme.accent.infoHover};
     --bn-cyan:    ${scheme.accent.highlight};
+    --bn-purple:  ${scheme.accent.purple};
     --bn-buy-bg:  ${scheme.action.buyBg};
     --bn-sell-bg: ${scheme.action.sellBg};
     --bn-cta-text: #ffffff;
     --bn-logo-bg: ${scheme.surface.ground};
     --scrollbar-thumb: ${scheme.scrollbar};
+
+    /* ── Interactive states ── */
+    --bn-focus-ring:    ${scheme.state.focusRing};
+    --bn-focus-ring-bg: ${scheme.state.focusRingBg};
+    --bn-disabled-bg:   ${scheme.state.disabledBg};
+    --bn-disabled-fg:   ${scheme.state.disabledFg};
+    --bn-hover-overlay: ${scheme.state.hoverOverlay};
+
+    /* ── Overlay tints ── */
+    --bn-positive-soft: ${scheme.overlay.positiveSoft};
+    --bn-positive-ring: ${scheme.overlay.positiveRing};
+    --bn-negative-soft: ${scheme.overlay.negativeSoft};
+    --bn-negative-ring: ${scheme.overlay.negativeRing};
+    --bn-warning-soft:  ${scheme.overlay.warningSoft};
+    --bn-warning-ring:  ${scheme.overlay.warningRing};
+    --bn-info-soft:     ${scheme.overlay.infoSoft};
+    --bn-info-ring:     ${scheme.overlay.infoRing};
+    --bn-neutral-soft:  ${scheme.overlay.neutralSoft};
+    --bn-neutral-ring:  ${scheme.overlay.neutralRing};
 
     /* ── Typography ── */
     --fi-mono: ${shared.typography.fontFamily.mono};
@@ -99,9 +118,11 @@ function schemeVars(scheme: ColorScheme, mode: 'dark'|'light') {
     --fi-green: var(--bn-green);
     --fi-red: var(--bn-red);
     --fi-blue: var(--bn-blue);
-    --fi-amber: var(--bn-yellow);
+    --fi-amber: var(--bn-amber);
+    --fi-yellow: var(--bn-amber);
+    --bn-yellow: var(--bn-amber);
     --fi-cyan: var(--bn-cyan);
-    --fi-purple: ${scheme.accent.purple};
+    --fi-purple: var(--bn-purple);
     --fi-title: var(--bn-t0);
     --fi-col-header: var(--bn-t1);
     --divider: 1px solid var(--bn-border);`;

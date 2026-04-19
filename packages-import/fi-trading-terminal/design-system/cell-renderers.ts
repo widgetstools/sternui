@@ -2,6 +2,10 @@
 //  FI Design System — Vanilla TS AG Grid Cell Renderers
 //  Framework-agnostic, works in both React and Angular.
 //  Uses ICellRendererComp interface (init + getGui).
+//
+//  All badge tints reference CSS variables defined in the theme
+//  (fi-dark.css / fi-light.css) so renderers automatically adapt
+//  when the user switches themes. No hardcoded rgba values.
 // ─────────────────────────────────────────────────────────────
 
 import type { ICellRendererComp, ICellRendererParams } from 'ag-grid-community';
@@ -22,7 +26,7 @@ export class SideCellRenderer implements ICellRendererComp {
   init(params: ICellRendererParams) {
     const isBuy = params.value === 'Buy' || params.value === 'B';
     this.eGui = el('span', {
-      fontSize: '9px', fontWeight: '700', letterSpacing: '0.05em',
+      fontSize: '10px', fontWeight: '700', letterSpacing: '0.05em',
       fontFamily: MONO,
       color: isBuy ? 'var(--bn-green)' : 'var(--bn-red)',
     }, isBuy ? 'BUY' : 'SELL');
@@ -32,12 +36,13 @@ export class SideCellRenderer implements ICellRendererComp {
 }
 
 // ── Status Badge (Filled / Partial / Pending / Cancelled) ──
+// Backgrounds/borders reference overlay tokens so both themes work.
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  Filled:    { bg: 'rgba(45,212,191,0.12)',  color: 'var(--bn-green)',  border: 'rgba(45,212,191,0.3)' },
-  Partial:   { bg: 'rgba(240,185,11,0.12)',  color: 'var(--bn-yellow)', border: 'rgba(240,185,11,0.3)' },
-  Pending:   { bg: 'rgba(61,158,255,0.12)',  color: 'var(--bn-blue)',   border: 'rgba(61,158,255,0.3)' },
-  Cancelled: { bg: 'rgba(248,113,113,0.10)', color: 'var(--bn-red)',    border: 'rgba(248,113,113,0.3)' },
-  Working:   { bg: 'rgba(61,158,255,0.12)',  color: 'var(--bn-blue)',   border: 'rgba(61,158,255,0.3)' },
+  Filled:    { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)', border: 'var(--bn-positive-ring)' },
+  Partial:   { bg: 'var(--bn-warning-soft)',  color: 'var(--bn-amber)', border: 'var(--bn-warning-ring)'  },
+  Pending:   { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',  border: 'var(--bn-info-ring)'     },
+  Cancelled: { bg: 'var(--bn-negative-soft)', color: 'var(--bn-red)',   border: 'var(--bn-negative-ring)' },
+  Working:   { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',  border: 'var(--bn-info-ring)'     },
 };
 
 export class StatusBadgeRenderer implements ICellRendererComp {
@@ -45,7 +50,7 @@ export class StatusBadgeRenderer implements ICellRendererComp {
   init(params: ICellRendererParams) {
     const s = STATUS_STYLES[params.value] || STATUS_STYLES['Pending'];
     this.eGui = el('span', {
-      fontFamily: MONO, fontSize: '9px', padding: '1px 6px', borderRadius: '2px',
+      fontFamily: MONO, fontSize: '10px', padding: '1px 6px', borderRadius: '2px',
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
     }, params.value);
   }
@@ -71,7 +76,7 @@ export class OasValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const v = Number(params.value);
-    const color = v > 80 ? 'var(--bn-yellow)' : 'var(--bn-green)';
+    const color = v > 80 ? 'var(--bn-amber)' : 'var(--bn-green)';
     this.eGui = el('span', { fontFamily: MONO, color }, v > 0 ? `+${v}` : String(v));
   }
   getGui() { return this.eGui; }
@@ -104,12 +109,13 @@ export class TickerCellRenderer implements ICellRendererComp {
 }
 
 // ── Rating Badge (Aaa, Aa1, A2, Baa1, Ba2 etc.) ──
+// aaa/aa → positive, a → positive (slightly softer), bbb → warning, hy → negative.
 const RTG_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  aaa: { bg: 'rgba(45,212,191,0.1)',   color: 'var(--bn-green)',  border: 'rgba(45,212,191,0.25)' },
-  aa:  { bg: 'rgba(45,212,191,0.06)',  color: 'var(--bn-green)',  border: 'rgba(45,212,191,0.2)' },
-  a:   { bg: 'rgba(190,242,100,0.08)', color: '#86cc16',          border: 'rgba(132,204,22,0.25)' },
-  bbb: { bg: 'rgba(245,166,35,0.08)',  color: 'var(--bn-yellow)', border: 'rgba(245,166,35,0.25)' },
-  hy:  { bg: 'rgba(248,113,113,0.08)', color: 'var(--bn-red)',    border: 'rgba(248,113,113,0.25)' },
+  aaa: { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)',  border: 'var(--bn-positive-ring)' },
+  aa:  { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)',  border: 'var(--bn-positive-ring)' },
+  a:   { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',   border: 'var(--bn-info-ring)'     },
+  bbb: { bg: 'var(--bn-warning-soft)',  color: 'var(--bn-amber)',  border: 'var(--bn-warning-ring)'  },
+  hy:  { bg: 'var(--bn-negative-soft)', color: 'var(--bn-red)',    border: 'var(--bn-negative-ring)' },
 };
 
 export class RatingBadgeRenderer implements ICellRendererComp {
@@ -118,7 +124,7 @@ export class RatingBadgeRenderer implements ICellRendererComp {
     const rtgClass = params.data?.rtgClass || 'bbb';
     const s = RTG_STYLES[rtgClass] || RTG_STYLES['bbb'];
     this.eGui = el('span', {
-      fontFamily: MONO, fontSize: '9px', fontWeight: '700', letterSpacing: '0.04em',
+      fontFamily: MONO, fontSize: '10px', fontWeight: '700', letterSpacing: '0.04em',
       padding: '1px 6px', borderRadius: '2px',
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
     }, params.value);
@@ -139,13 +145,13 @@ export class PnlValueRenderer implements ICellRendererComp {
   refresh() { return false; }
 }
 
-// ── Filled Amount (green if fully filled, yellow if partial) ──
+// ── Filled Amount (green if fully filled, amber if partial) ──
 export class FilledAmountRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const filled = params.value;
     const qty = params.data?.qty;
-    const color = filled === qty ? 'var(--bn-green)' : 'var(--bn-yellow)';
+    const color = filled === qty ? 'var(--bn-green)' : 'var(--bn-amber)';
     this.eGui = el('span', { fontFamily: MONO, color }, String(filled));
   }
   getGui() { return this.eGui; }
@@ -189,9 +195,9 @@ export class YtdValueRenderer implements ICellRendererComp {
 
 // ── RFQ Status (LIVE / DONE / STALE) ──
 const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  live:  { bg: 'rgba(61,158,255,0.1)',  color: 'var(--bn-blue)',  border: 'rgba(61,158,255,0.25)' },
-  done:  { bg: 'rgba(45,212,191,0.12)', color: 'var(--bn-green)', border: 'rgba(45,212,191,0.25)' },
-  stale: { bg: 'rgba(74,82,117,0.2)',   color: 'var(--bn-t2)',    border: 'rgba(74,82,117,0.25)' },
+  live:  { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',  border: 'var(--bn-info-ring)'     },
+  done:  { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)', border: 'var(--bn-positive-ring)' },
+  stale: { bg: 'var(--bn-neutral-soft)',  color: 'var(--bn-t2)',    border: 'var(--bn-neutral-ring)'  },
 };
 
 export class RfqStatusRenderer implements ICellRendererComp {
@@ -200,7 +206,7 @@ export class RfqStatusRenderer implements ICellRendererComp {
     const status = params.value || 'live';
     const s = RFQ_STATUS_STYLES[status] || RFQ_STATUS_STYLES['live'];
     this.eGui = el('span', {
-      fontFamily: MONO, fontSize: '9px', padding: '1px 6px', borderRadius: '2px',
+      fontFamily: MONO, fontSize: '10px', padding: '1px 6px', borderRadius: '2px',
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
     }, status.toUpperCase());
   }
