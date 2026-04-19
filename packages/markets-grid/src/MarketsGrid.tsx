@@ -5,12 +5,16 @@ import {
   GridProvider,
   MemoryAdapter,
   calculatedColumnsModule,
+  captureGridStateInto,
   columnCustomizationModule,
   columnGroupsModule,
   columnTemplatesModule,
   conditionalStylingModule,
   generalSettingsModule,
+  gridStateModule,
   savedFiltersModule,
+  useGridApi,
+  useGridPlatform,
   useProfileManager,
   cockpitCSS,
   COCKPIT_STYLE_ID,
@@ -55,6 +59,7 @@ export const DEFAULT_MODULES: AnyModule[] = [
   columnGroupsModule,
   conditionalStylingModule,
   savedFiltersModule,
+  gridStateModule,
 ];
 
 export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
@@ -196,8 +201,18 @@ function Host<TData>({
 
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const platform = useGridPlatform();
+  const api = useGridApi();
 
   const handleSaveAll = useCallback(async () => {
+    // Capture the live grid state (columns / sort / filter / viewport) into
+    // the grid-state module slice BEFORE persisting — saveActiveProfile
+    // then serializes every module, so the fresh capture lands in the
+    // profile snapshot on the same save.
+    if (api) {
+      try { captureGridStateInto(platform.store, api); }
+      catch (err) { console.warn('[markets-grid] captureGridStateInto failed:', err); }
+    }
     try {
       await profiles.saveActiveProfile();
     } catch (err) {
@@ -207,7 +222,7 @@ function Host<TData>({
     setSaveFlash(true);
     if (saveFlashTimer.current) clearTimeout(saveFlashTimer.current);
     saveFlashTimer.current = setTimeout(() => setSaveFlash(false), 600);
-  }, [profiles]);
+  }, [profiles, api, platform]);
 
   return (
     <div className={className} style={rootStyle} data-grid-id={gridId}>

@@ -242,6 +242,17 @@ export {
   type SavedFiltersState,
 } from './modules/saved-filters';
 export {
+  gridStateModule,
+  GRID_STATE_MODULE_ID,
+  GRID_STATE_SCHEMA_VERSION,
+  INITIAL_GRID_STATE,
+  captureGridState,
+  applyGridState,
+  captureGridStateInto,
+  type GridStateState,
+  type SavedGridState,
+} from './modules/grid-state';
+export {
   columnGroupsModule,
   COLUMN_GROUPS_MODULE_ID,
   INITIAL_COLUMN_GROUPS,
