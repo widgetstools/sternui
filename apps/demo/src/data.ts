@@ -74,3 +74,53 @@ function generateOrder(index: number): Order {
 export function generateOrders(count: number = 200): Order[] {
   return Array.from({ length: count }, (_, i) => generateOrder(i));
 }
+
+// ─── Second dataset for the two-grid dashboard ─────────────────────────
+//
+// Uses the same `Order` shape so we can share columnDefs, but skews the
+// security list towards equities + names the ids / accounts / desks
+// differently so users can see at a glance that the two grids render
+// independent data.
+
+const EQUITY_SECURITIES = [
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'AMD',
+  'JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BK', 'SCHW',
+  'XOM', 'CVX', 'COP', 'SLB',
+  'JNJ', 'PFE', 'MRK', 'LLY',
+  'WMT', 'COST', 'TGT', 'HD', 'LOW',
+];
+
+const EQUITY_VENUES = ['NYSE', 'NASDAQ', 'ARCA', 'BATS', 'IEX'];
+const EQUITY_DESKS = ['Cash Equities', 'Program Trading', 'ETF Desk', 'Prime Brokerage'];
+
+function generateEquityOrder(index: number): Order {
+  const quantity = Math.round(rand(50, 25000) / 50) * 50;
+  const filledStatus = pick(STATUSES);
+  const filled =
+    filledStatus === 'FILLED' ? quantity : Math.round(Math.random() * quantity / 50) * 50;
+  const price = rand(10, 500);
+  return {
+    id: `EQ-${String(index + 1).padStart(5, '0')}`,
+    time: new Date(Date.now() - Math.random() * 86400000 * 3).toISOString(),
+    security: pick(EQUITY_SECURITIES),
+    side: Math.random() > 0.5 ? 'BUY' : 'SELL',
+    quantity,
+    price,
+    yield: rand(0.1, 4.5), // dividend yield proxy
+    spread: rand(-5, 20), // bid-ask cents
+    filled,
+    status: filled >= quantity ? 'FILLED' : filled > 0 ? 'PARTIAL' : pick(['OPEN', 'CANCELLED']),
+    venue: pick(EQUITY_VENUES),
+    counterparty: pick(COUNTERPARTIES),
+    account: pick(ACCOUNTS),
+    desk: pick(EQUITY_DESKS),
+    trader: pick(TRADERS),
+    settlementDate: new Date(Date.now() + rand(1, 2) * 86400000).toISOString().slice(0, 10),
+    currency: 'USD',
+    notional: Math.round(quantity * price * 10) / 10,
+  };
+}
+
+export function generateEquityOrders(count: number = 300): Order[] {
+  return Array.from({ length: count }, (_, i) => generateEquityOrder(i));
+}

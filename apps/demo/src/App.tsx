@@ -6,6 +6,21 @@ import { DexieAdapter } from '@grid-customizer/core';
 import { Sun, Moon } from 'lucide-react';
 
 import { generateOrders, type Order } from './data';
+import { Dashboard } from './Dashboard';
+
+type View = 'single' | 'dashboard';
+
+/**
+ * Initial view comes from `?view=dashboard` (falls back to single).
+ * Captured ONCE on mount so a runtime toggle doesn't round-trip the
+ * URL — the header button updates both state AND the URL in place via
+ * `history.replaceState`.
+ */
+function initialView(): View {
+  if (typeof window === 'undefined') return 'single';
+  const q = new URLSearchParams(window.location.search);
+  return q.get('view') === 'dashboard' ? 'dashboard' : 'single';
+}
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
 
@@ -104,6 +119,7 @@ function AppInner() {
     try { return localStorage.getItem('gc-theme') !== 'light'; }
     catch { return true; }
   });
+  const [view, setView] = useState<View>(initialView);
 
   // Apply data-theme attribute to root and persist preference
   useEffect(() => {
@@ -112,6 +128,18 @@ function AppInner() {
     catch { /* */ }
   }, [isDark]);
 
+  // Reflect the view in the URL so reloads / shared links land in the
+  // same mode. `replaceState` to avoid polluting browser history on
+  // every toggle.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    if (view === 'dashboard') q.set('view', 'dashboard');
+    else q.delete('view');
+    const next = `${window.location.pathname}${q.toString() ? `?${q}` : ''}`;
+    window.history.replaceState(null, '', next);
+  }, [view]);
+
   const theme = isDark ? darkTheme : lightTheme;
 
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
@@ -119,50 +147,107 @@ function AppInner() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
       <header style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '6px 12px', borderBottom: '1px solid var(--border)', background: 'var(--card)',
         gap: 12,
       }}>
-        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-          {rowData.length} orders
-        </span>
-        <button
-          onClick={() => setIsDark(!isDark)}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 26, height: 26, borderRadius: 5,
-            border: '1px solid var(--border)',
-            background: 'var(--secondary)',
-            color: 'var(--foreground)',
-            cursor: 'pointer',
-            transition: 'all 150ms',
-          }}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {isDark ? <Sun size={13} strokeWidth={1.75} /> : <Moon size={13} strokeWidth={1.75} />}
-        </button>
+        {/* View switcher — Single Grid vs Dashboard. Pins the demo to
+            one of the two reference layouts that the e2e suites cover. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} data-testid="view-switcher">
+          <ViewTab active={view === 'single'} onClick={() => setView('single')} testId="view-tab-single">
+            Single grid
+          </ViewTab>
+          <ViewTab active={view === 'dashboard'} onClick={() => setView('dashboard')} testId="view-tab-dashboard">
+            Two-grid dashboard
+          </ViewTab>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {view === 'single' && (
+            <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
+              {rowData.length} orders
+            </span>
+          )}
+          <button
+            onClick={() => setIsDark(!isDark)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, borderRadius: 5,
+              border: '1px solid var(--border)',
+              background: 'var(--secondary)',
+              color: 'var(--foreground)',
+              cursor: 'pointer',
+              transition: 'all 150ms',
+            }}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? <Sun size={13} strokeWidth={1.75} /> : <Moon size={13} strokeWidth={1.75} />}
+          </button>
+        </div>
       </header>
 
-      <div style={{ flex: 1 }}>
-        <MarketsGrid
-          gridId="demo-blotter-v2"
-          rowData={rowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          theme={theme}
-          rowIdField="id"
-          storageAdapter={storageAdapter}
-          showFiltersToolbar
-          showFormattingToolbar
-          sideBar={{ toolPanels: ['columns', 'filters'] }}
-          statusBar={{
-            statusPanels: [
-              { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
-              { statusPanel: 'agSelectedRowCountComponent', align: 'left' },
-            ],
-          }}
-        />
-      </div>
+      {view === 'single' ? (
+        <div style={{ flex: 1 }}>
+          <MarketsGrid
+            gridId="demo-blotter-v2"
+            rowData={rowData}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            theme={theme}
+            rowIdField="id"
+            storageAdapter={storageAdapter}
+            showFiltersToolbar
+            showFormattingToolbar
+            sideBar={{ toolPanels: ['columns', 'filters'] }}
+            statusBar={{
+              statusPanels: [
+                { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
+                { statusPanel: 'agSelectedRowCountComponent', align: 'left' },
+              ],
+            }}
+          />
+        </div>
+      ) : (
+        <Dashboard theme={theme} columnDefs={columnDefs} defaultColDef={defaultColDef} />
+      )}
     </div>
+  );
+}
+
+function ViewTab({
+  children,
+  active,
+  onClick,
+  testId,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      data-active={active ? 'true' : 'false'}
+      style={{
+        padding: '4px 10px',
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        borderRadius: 4,
+        border: '1px solid',
+        borderColor: active ? 'var(--bn-green, #2dd4bf)' : 'var(--border)',
+        color: active ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
+        background: active ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)' : 'transparent',
+        cursor: 'pointer',
+        transition: 'all 120ms',
+      }}
+    >
+      {children}
+    </button>
   );
 }
