@@ -120,6 +120,82 @@ export const cockpitCSS = `
   --ck-header-lift:    0 8px 12px -10px rgba(15, 23, 42, 0.15);
 }
 
+/* ── Themed scrollbars ──────────────────────────────────────────
+ * Dark mode ships a thin scrollbar with track=surface + thumb=border-hi.
+ * Light mode flips via [data-theme='light'] below.
+ *
+ * Applies to every host-chrome surface that scrolls horizontally or
+ * vertically (formatting toolbar, filter pill carousel, popout body,
+ * list pane). Browser-default scrollbars otherwise render bright white
+ * on top of the dark toolbar — the user's first-look bug report.
+ */
+.gc-formatting-toolbar,
+.gc-filter-scroll,
+.gc-popout-list-items,
+.gc-popout-body,
+.gc-popout-body main {
+  scrollbar-width: thin;
+  scrollbar-color: #2d3339 #161a1e;
+}
+
+/* WebKit (Safari / older Chromium fallback) — scrollbar-color is
+ * honoured on modern Chromium, but ::webkit-scrollbar gives finer
+ * control over the track background so the thumb doesn't bleed
+ * through a stray lighter area. */
+.gc-formatting-toolbar::-webkit-scrollbar,
+.gc-filter-scroll::-webkit-scrollbar,
+.gc-popout-list-items::-webkit-scrollbar,
+.gc-popout-body::-webkit-scrollbar,
+.gc-popout-body main::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.gc-formatting-toolbar::-webkit-scrollbar-track,
+.gc-filter-scroll::-webkit-scrollbar-track,
+.gc-popout-list-items::-webkit-scrollbar-track,
+.gc-popout-body::-webkit-scrollbar-track,
+.gc-popout-body main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.gc-formatting-toolbar::-webkit-scrollbar-thumb,
+.gc-filter-scroll::-webkit-scrollbar-thumb,
+.gc-popout-list-items::-webkit-scrollbar-thumb,
+.gc-popout-body::-webkit-scrollbar-thumb,
+.gc-popout-body main::-webkit-scrollbar-thumb {
+  background: #2d3339;
+  border-radius: 4px;
+}
+.gc-formatting-toolbar::-webkit-scrollbar-thumb:hover,
+.gc-filter-scroll::-webkit-scrollbar-thumb:hover,
+.gc-popout-list-items::-webkit-scrollbar-thumb:hover,
+.gc-popout-body::-webkit-scrollbar-thumb:hover,
+.gc-popout-body main::-webkit-scrollbar-thumb:hover {
+  background: #3a4149;
+}
+
+/* Light-mode scrollbar palette. */
+[data-theme='light'] .gc-formatting-toolbar,
+[data-theme='light'] .gc-filter-scroll,
+[data-theme='light'] .gc-popout-list-items,
+[data-theme='light'] .gc-popout-body,
+[data-theme='light'] .gc-popout-body main {
+  scrollbar-color: #c0c6cd #f5f6f8;
+}
+[data-theme='light'] .gc-formatting-toolbar::-webkit-scrollbar-thumb,
+[data-theme='light'] .gc-filter-scroll::-webkit-scrollbar-thumb,
+[data-theme='light'] .gc-popout-list-items::-webkit-scrollbar-thumb,
+[data-theme='light'] .gc-popout-body::-webkit-scrollbar-thumb,
+[data-theme='light'] .gc-popout-body main::-webkit-scrollbar-thumb {
+  background: #c0c6cd;
+}
+[data-theme='light'] .gc-formatting-toolbar::-webkit-scrollbar-thumb:hover,
+[data-theme='light'] .gc-filter-scroll::-webkit-scrollbar-thumb:hover,
+[data-theme='light'] .gc-popout-list-items::-webkit-scrollbar-thumb:hover,
+[data-theme='light'] .gc-popout-body::-webkit-scrollbar-thumb:hover,
+[data-theme='light'] .gc-popout-body main::-webkit-scrollbar-thumb:hover {
+  background: #9ba3ad;
+}
+
 /* ── Backdrop + popout chrome ────────────────────────────────── */
 .gc-popout-backdrop {
   position: fixed;
