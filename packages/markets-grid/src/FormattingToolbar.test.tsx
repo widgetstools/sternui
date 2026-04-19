@@ -104,17 +104,13 @@ function mountToolbar({
   platform: GridPlatform;
   api: GridApi;
 }) {
-  // The v2 toolbar still takes `core` + `store` as props (step 7 drops
-  // them). Build a minimal core shim matching what MarketsGrid passes
-  // today.
-  const core = {
-    gridId: platform.gridId,
-    getGridApi: () => api,
-  };
+  // FormattingToolbar is fully context-driven as of step 7 — it takes
+  // NO props. Every dependency (live GridApi, module stores, ApiHub)
+  // flows through `useGridPlatform()`.
   platform.onGridReady(api);
   return render(
     <GridProvider platform={platform}>
-      <FormattingToolbar core={core} store={platform.store} />
+      <FormattingToolbar />
     </GridProvider>,
   );
 }

@@ -268,17 +268,10 @@ function Host<TData>({
   // Exposed as a constant false so the save button's colour is stable.
   const isDirty = false;
 
-  // Minimal `{ gridId, getGridApi }` handle threaded through
-  // FormattingToolbar — its ~40 pure helpers still accept `core` + `store`
-  // as plain args rather than reading from context per call. SettingsSheet
-  // and ProfileSelector no longer need it (phase 4).
-  const coreShim = useMemo(
-    () => ({
-      gridId: platform.gridId,
-      getGridApi: () => platform.api.api,
-    }),
-    [platform],
-  );
+  // NOTE: the `coreShim` (minimal `{ gridId, getGridApi }` handle) is
+  // gone as of the toolbar refactor's step 7. FormattingToolbar + its
+  // hooks now read everything they need directly from the platform
+  // context, so there's nothing for this host to thread through.
 
   return (
     <div
@@ -464,7 +457,7 @@ function Host<TData>({
                 background: 'var(--card, #161a1e)',
               }}
             />
-            <FormattingToolbar core={coreShim} store={platform.store} />
+            <FormattingToolbar />
             <DraggableFloat.CloseButton
               data-testid="formatting-toolbar-float-close"
               size={14}

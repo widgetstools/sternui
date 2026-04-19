@@ -42,8 +42,6 @@ import {
   FormatterPicker,
   useGridPlatform,
   valueFormatterFromTemplate,
-  type GridCore,
-  type GridStore,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type BorderSpec,
@@ -283,7 +281,7 @@ function useFlashConfirm(): [boolean, () => void] {
 // The "last non-empty" memory is preserved — toolbar clicks that shift
 // focus away from the grid shouldn't clear the remembered selection.
 
-function useActiveColumns(core: GridCore): string[] {
+function useActiveColumns(): string[] {
   const platform = useGridPlatform();
   const [colIds, setColIds] = useState<string[]>([]);
   const lastColIds = useRef<string[]>([]);
@@ -347,10 +345,6 @@ function useActiveColumns(core: GridCore): string[] {
     };
   }, [platform]);
 
-  // `core` is still accepted as a prop for parity with the rest of the
-  // toolbar (helpers that need `getGridApi` as a plain callable), but the
-  // hook itself now reads through the platform context.
-  void core;
   return colIds;
 }
 
@@ -379,15 +373,11 @@ interface ResolvedFormatting {
   };
 }
 
-function useColumnFormatting(
-  core: GridCore,
-  colIds: string[],
-  target: TargetKind,
-): ResolvedFormatting {
-  // 1-arg `useModuleState(id)` reads the store from the platform context.
-  // Previously threaded `store` in for back-compat; dropped in step 6 of
-  // the refactor series as we prepare to remove the toolbar's `store`
-  // prop entirely in step 7.
+function useColumnFormatting(colIds: string[], target: TargetKind): ResolvedFormatting {
+  // Everything the hook needs comes from the platform context: module
+  // state for the resolved assignment + live GridApi for the column's
+  // cellDataType. The component no longer threads a `core` prop.
+  const platform = useGridPlatform();
   const [cust] = useModuleState<ColumnCustomizationState>('column-customization');
   const [tpls] = useModuleState<ColumnTemplatesState>('column-templates');
 
@@ -398,12 +388,14 @@ function useColumnFormatting(
     if (!a) return empty;
 
     // Look up the colDef's cellDataType so resolveTemplates can apply a
-    // matching typeDefault (e.g. numeric columns inherit a right-align style).
+    // matching typeDefault (e.g. numeric columns inherit a right-align
+    // style).
     let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
     try {
-      const api = core.getGridApi() as unknown as { getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } } } | null;
-      const colDef = api?.getColumn?.(colIds[0])?.getColDef?.();
-      const t = colDef?.cellDataType;
+      const api = platform.api.api as unknown as {
+        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
+      } | null;
+      const t = api?.getColumn?.(colIds[0])?.getColDef?.()?.cellDataType;
       if (t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean') dataType = t;
     } catch { /* ignore */ }
 
@@ -427,7 +419,7 @@ function useColumnFormatting(
         left: style?.borders?.left,
       },
     };
-  }, [cust, tpls, colIds, target, core]);
+  }, [cust, tpls, colIds, target, platform]);
 }
 
 // NOTE: step 6 of the toolbar refactor deleted the `applyX(store, …)`
@@ -439,13 +431,20 @@ function useColumnFormatting(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export interface FormattingToolbarProps {
-  core: GridCore;
-  store: GridStore;
-}
+/**
+ * FormattingToolbar is fully context-driven as of step 7 — every
+ * dependency (the live GridApi, the module stores, the platform event
+ * hub) flows in through `useGridPlatform()`. The toolbar accepts NO
+ * props. Each `<MarketsGrid>` instance already wraps its own
+ * `<GridProvider>`, so a DockManager / OpenFin workspace layout with N
+ * independent grids gets N independent toolbars automatically — no
+ * prop-threading, no accidental cross-grid writes.
+ */
+export type FormattingToolbarProps = Record<string, never>;
 
-export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
-  const colIds = useActiveColumns(core);
+export function FormattingToolbar() {
+  const platform = useGridPlatform();
+  const colIds = useActiveColumns();
   const colIdsRef = useRef(colIds);
   colIdsRef.current = colIds;
 
@@ -453,7 +452,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
   const targetRef = useRef(target);
   targetRef.current = target;
 
-  const fmt = useColumnFormatting(core, colIds, target);
+  const fmt = useColumnFormatting(colIds, target);
   const disabled = colIds.length === 0;
   const isHeader = target === 'header';
 
@@ -463,7 +462,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
 
   // State setters + reactive reads for dispatch-side plumbing. Every
   // button handler below pipes a pure reducer through one of these
-  // setters — the store reference from props is no longer threaded.
+  // setters.
   const [custState, setCustState] = useModuleState<ColumnCustomizationState>('column-customization');
   const [tplState, setTplState] = useModuleState<ColumnTemplatesState>('column-templates');
   const templateList = useMemo(() => {
@@ -476,51 +475,48 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     if (colIds.length === 0) return 'Select a cell';
     if (colIds.length === 1) {
       try {
-        const api = core.getGridApi() as unknown as { getColumn?: (id: string) => { getColDef?: () => { headerName?: string } } } | null;
+        const api = platform.api.api as unknown as {
+          getColumn?: (id: string) => { getColDef?: () => { headerName?: string } };
+        } | null;
         const col = api?.getColumn?.(colIds[0]);
         return col?.getColDef?.()?.headerName ?? colIds[0];
       } catch { /* ignore */ }
       return colIds[0];
     }
     return `${colIds.length} columns`;
-  }, [colIds, core]);
+  }, [colIds, platform]);
 
   // First selected column's `cellDataType` — used to drive the
   // FormatterPicker's preset filtering. When no column is selected or
   // the column has no dataType set, fall back to 'number' (the most
   // common case in this tool).
   //
-  // We use an AG-Grid event subscription (rather than a pure useMemo
-  // over `colIds`) because the auto-detected types land on the colDefs
-  // AFTER the first `firstDataRendered` event, which triggers a
-  // `columnEverythingChanged` on the api — that's the signal we hook
-  // so the picker re-evaluates once the types are in.
+  // We subscribe through the platform's ApiHub (rather than reading
+  // once) because auto-detected types land on the colDefs AFTER
+  // `firstDataRendered`, which fires `columnEverythingChanged` — that's
+  // the signal we hook so the picker re-evaluates once the types are in.
   const [colEventTick, setColEventTick] = useState(0);
   useEffect(() => {
-    const api = core.getGridApi() as unknown as {
-      addEventListener?: (evt: string, fn: () => void) => void;
-      removeEventListener?: (evt: string, fn: () => void) => void;
-    } | null;
-    if (!api || typeof api.addEventListener !== 'function') return;
     const bump = () => setColEventTick((n) => n + 1);
-    const events = ['columnEverythingChanged', 'displayedColumnsChanged', 'firstDataRendered'] as const;
-    for (const e of events) {
-      try { api.addEventListener!(e, bump); } catch { /* */ }
-    }
+    const disposers: Array<() => void> = [
+      platform.api.on('columnEverythingChanged', bump),
+      platform.api.on('displayedColumnsChanged', bump),
+      platform.api.on('firstDataRendered', bump),
+    ];
     return () => {
-      for (const e of events) {
-        try { api.removeEventListener?.(e, bump); } catch { /* */ }
+      for (const d of disposers) {
+        try { d(); } catch { /* teardown race */ }
       }
     };
-  }, [core]);
+  }, [platform]);
 
   const pickerDataType = useMemo<
     'number' | 'date' | 'datetime' | 'boolean' | 'string'
   >(() => {
     if (colIds.length === 0) return 'number';
     try {
-      const api = core.getGridApi() as unknown as {
-        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } } | null;
+      const api = platform.api.api as unknown as {
+        getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
       } | null;
       const raw = api?.getColumn?.(colIds[0])?.getColDef?.()?.cellDataType;
       // AG-Grid emits 'dateString' for pure dates and 'dateTimeString' for
@@ -537,7 +533,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     }
     return 'number';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colIds, core, colEventTick]);
+  }, [colIds, platform, colEventTick]);
 
   // Typography toggles — the reducers pass `undefined` to clear a leaf.
   const toggleBold = useCallback(() => {
@@ -587,12 +583,12 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     const ids = colIdsRef.current;
     if (!ids.length) return undefined;
     const colId = ids[0];
-    // Read the column's cellDataType from the grid api — feeds into
-    // resolveTemplates so the saved template captures any typeDefault
-    // the column inherits.
+    // Read the column's cellDataType from the live grid api — feeds
+    // into resolveTemplates so the saved template captures any
+    // typeDefault the column inherits.
     let dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined;
     try {
-      const api = core.getGridApi() as unknown as {
+      const api = platform.api.api as unknown as {
         getColumn?: (id: string) => { getColDef?: () => { cellDataType?: unknown } };
       } | null;
       const t = api?.getColumn?.(colId)?.getColDef?.()?.cellDataType;
@@ -602,7 +598,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
     if (!tpl) return undefined;
     setTplState(addTemplateReducer(tpl));
     return tpl.id;
-  }, [core, custState, tplState, setTplState]);
+  }, [platform, custState, tplState, setTplState]);
 
   // Reset all overrides on active columns — collapses each assignment
   // to a bare `{ colId }`.
@@ -624,7 +620,9 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
       if (d !== null) return d;
     }
     try {
-      const api = core.getGridApi() as unknown as { getDisplayedRowAtIndex?: (i: number) => { data?: Record<string, unknown> } | null } | null;
+      const api = platform.api.api as unknown as {
+        getDisplayedRowAtIndex?: (i: number) => { data?: Record<string, unknown> } | null;
+      } | null;
       const firstRow = api?.getDisplayedRowAtIndex?.(0);
       const val = firstRow?.data?.[ids[0]];
       if (typeof val === 'number') {
@@ -634,7 +632,7 @@ export function FormattingToolbar({ core, store }: FormattingToolbarProps) {
       }
     } catch { /* ignore */ }
     return 2;
-  }, [custState, tplState, core]);
+  }, [custState, tplState, platform]);
 
   const decreaseDecimals = useCallback(() => {
     if (!colIdsRef.current.length) return;
