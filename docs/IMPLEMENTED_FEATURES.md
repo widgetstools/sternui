@@ -759,18 +759,20 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 
 | Module / Editor | Feature catalog (§) | Pure-logic unit tests | Panel unit tests | E2E |
 |---|---|---|---|---|
-| `general-settings` — Grid Options | §1.11 | — | ✅ `GridOptionsPanel.test.tsx` (10) | ❌ |
-| `column-customization` — Column Settings | §1.7b | ✅ `formattingActions.test.ts` (43) | ✅ `ColumnSettingsPanel.test.tsx` (7) | ❌ |
-| `calculated-columns` — Virtual columns | §1.8 | — | ✅ `CalculatedColumnsPanel.test.tsx` (8) | ❌ |
-| `column-groups` — Nestable group editor | §1.8b | ✅ `treeOps.test.ts` (11) | ✅ `ColumnGroupsPanel.test.tsx` (8) | ❌ *(retired in audit cleanup)* |
+| `general-settings` — Grid Options | §1.11 | — | ✅ `GridOptionsPanel.test.tsx` (10) | ◐ smoke (mount) |
+| `column-customization` — Column Settings | §1.7b | ✅ `formattingActions.test.ts` (43) | ✅ `ColumnSettingsPanel.test.tsx` (7) | ◐ smoke (mount) |
+| `calculated-columns` — Virtual columns | §1.8 | — | ✅ `CalculatedColumnsPanel.test.tsx` (8) | ◐ smoke (mount) |
+| `column-groups` — Nestable group editor | §1.8b | ✅ `treeOps.test.ts` (11) | ✅ `ColumnGroupsPanel.test.tsx` (8) | ◐ smoke (mount) |
 | `column-templates` — Reusable bundles | §1.8c | ✅ `snapshotTemplate.test.ts` (20) | — | ❌ |
-| `conditional-styling` — Rule editor | §1.7 | — | ✅ `ConditionalStylingPanel.test.tsx` (9) | ◐ smoke only (1 test) |
+| `conditional-styling` — Rule editor | §1.7 | — | ✅ `ConditionalStylingPanel.test.tsx` (9) | ◐ smoke (mount + legacy drawer-open) |
 | `saved-filters` — Filter pills | §1.8d | ✅ `filtersToolbarLogic.test.ts` (26) | — | ✅ 7 tests in `v2-filters-toolbar.spec.ts` |
 | `toolbar-visibility` — Layout memory | §1.8e | — | — | ❌ |
 | `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
 | Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
 
-**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 2 with meaningful e2e + 2 smoke.
+**Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · 2 with meaningful behavioural e2e + 6 smoke (5 panel mounts + conditional-styling drawer open).
+
+**Smoke coverage** lives in `e2e/v2-settings-panels.spec.ts` (8 tests) + the shared helper `e2e/helpers/settingsSheet.ts`. Every settings panel has at least a "mounts via dropdown nav" guard plus DOM-level assertions for the visible + hidden nav paths. The helper exports `bootCleanDemo` / `openPanel` / `forceNavigateToPanel` / `closeSettingsSheet` for reuse in future behavioural specs.
 
 ### Priority backlog for e2e coverage
 

@@ -13,7 +13,13 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { '@': resolve(__dirname, 'src') },
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      // Self-reference so tests that import from the package entry
+      // resolve against src/ rather than the published dist/. Keeps
+      // vitest insulated from the `tsc && vite build` pipeline.
+      '@grid-customizer/core': resolve(__dirname, 'src/index.ts'),
+    },
   },
   test: {
     environment: 'jsdom',

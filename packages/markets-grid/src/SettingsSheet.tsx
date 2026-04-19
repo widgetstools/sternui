@@ -36,6 +36,10 @@ const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   'conditional-styling': 'cs-panel',
   'column-groups': 'cg-panel',
   'calculated-columns': 'cc-panel',
+  // column-customization renders master-detail via ListPane/EditorPane
+  // (no legacy flat panel), so the wrapper here carries the back-compat
+  // `cols-panel` testid the e2e helpers + docs consistently target.
+  'column-customization': 'cols-panel',
 };
 
 export interface SettingsSheetProps {
