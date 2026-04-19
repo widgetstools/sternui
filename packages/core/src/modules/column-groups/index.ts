@@ -28,7 +28,11 @@ import {
   hasHeaderStyle,
 } from './composeGroups';
 import type { CssHandle } from '../../platform/types';
-import { ColumnGroupsPanel } from './ColumnGroupsPanel';
+import {
+  ColumnGroupsEditor,
+  ColumnGroupsList,
+  ColumnGroupsPanel,
+} from './ColumnGroupsPanel';
 
 export const COLUMN_GROUPS_MODULE_ID = 'column-groups';
 
@@ -148,6 +152,10 @@ export const columnGroupsModule: Module<ColumnGroupsState> = {
     return { groups: raw.groups, openGroupIds };
   },
 
+  // v4: native master-detail slots — the settings sheet renders these
+  // directly instead of falling back to the flat `SettingsPanel` wrapper.
+  ListPane: ColumnGroupsList,
+  EditorPane: ColumnGroupsEditor,
   SettingsPanel: ColumnGroupsPanel,
 };
 

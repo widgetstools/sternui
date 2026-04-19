@@ -251,6 +251,18 @@ from the draft and lights the SAVE pill.
   / `rowDataUpdated` trigger `api.refreshCells({ columns: virtualColIds,
   force: true })` so column-wide aggregates re-evaluate across every
   visible row, not just the edited one.
+- **Column Groups v4 panel rewrite (phase 3c)** — same v2 antipatterns
+  removed (file-level `dirtyRegistry` + `window.dispatchEvent('gc-dirty-
+  change')`, a second local `useGridColumns()` with its own `tick`
+  polling, compat shims `useDraftModuleItem` / `useModuleState(store,
+  id)`). Tree-mutation helpers (`flattenGroups`, `updateGroupAtPath`,
+  `deleteGroupAtPath`, `moveGroupAtPath`, `findGroupByPath`) extracted
+  into a dedicated `treeOps.ts` module with 11 unit tests — they're pure
+  data transforms and now individually exercised instead of only being
+  hit through the panel. `module.ListPane` + `module.EditorPane` wired
+  so the settings sheet renders master-detail natively. All `cg-*`
+  testIds preserved; panel file 868 → 669 LOC; 8 integration tests added.
+
 - **v4 panel rewrite (phase 3b)** — three v2 antipatterns stripped while
   preserving every `cc-*` testId:
   - File-level `dirtyRegistry = new Set<string>()` +
