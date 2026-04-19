@@ -22,15 +22,52 @@ import {
   type AnyModule,
   type StorageAdapter,
 } from '@grid-customizer/core';
-import { Save, Check } from 'lucide-react';
+import { Save, Check, Settings, HelpCircle } from 'lucide-react';
 import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
+import { SettingsSheet } from './SettingsSheet';
+import { HelpPanel } from './HelpPanel';
+import { ProfileSelector } from './ProfileSelector';
 
 let _agRegistered = false;
 function ensureAgGridRegistered() {
   if (_agRegistered) return;
   ModuleRegistry.registerModules([AllEnterpriseModule]);
   _agRegistered = true;
+}
+
+/**
+ * Compact icon button used by the primary toolbar (Help / Settings).
+ */
+function ToolbarIconButton({
+  children, onClick, title, testId, active,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+  testId?: string;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      data-testid={testId}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 26,
+        height: 26,
+        background: active ? 'var(--ck-surface, #1a1d21)' : 'transparent',
+        color: active ? 'var(--ck-green, #22c55e)' : 'var(--ck-t1, #c4c9d0)',
+        border: '1px solid var(--ck-border, #2d3339)',
+        borderRadius: 2,
+        cursor: 'pointer',
+      }}
+    >{children}</button>
+  );
 }
 
 /**
@@ -206,6 +243,10 @@ function Host<TData>({
   const platform = useGridPlatform();
   const api = useGridApi();
 
+  // Settings sheet + help drawer.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
   const handleSaveAll = useCallback(async () => {
     // Capture the live grid state (columns / sort / filter / viewport) into
     // the grid-state module slice BEFORE persisting — saveActiveProfile
@@ -231,36 +272,77 @@ function Host<TData>({
       {showToolbar && (
         <div
           className="gc-toolbar-primary"
-          style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 12px',
+            borderBottom: '1px solid var(--border, #313944)',
+            background: 'var(--card, #161a1e)',
+            flexShrink: 0,
+          }}
         >
-          <div style={{ flex: '1 1 0px', minWidth: 0 }} />
+          <ProfileSelector profiles={profiles} />
+          <div style={{ flex: 1 }} />
+          <ToolbarIconButton
+            title="Help"
+            testId="help-btn"
+            onClick={() => setHelpOpen((v) => !v)}
+            active={helpOpen}
+          >
+            <HelpCircle size={13} strokeWidth={1.75} />
+          </ToolbarIconButton>
+          <ToolbarIconButton
+            title="Settings"
+            testId="settings-btn"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings size={13} strokeWidth={1.75} />
+          </ToolbarIconButton>
           {showSaveButton && (
             <button
               type="button"
               onClick={handleSaveAll}
-              title="Save all settings"
+              title="Save profile"
               data-testid="save-all-btn"
               style={{
-                height: 44,
+                height: 26,
                 padding: '0 10px',
-                background: 'var(--card, #161a1e)',
-                borderBottom: '1px solid var(--border, #313944)',
+                background: 'var(--ck-green, #22c55e)',
+                color: '#0b0e11',
                 border: 'none',
-                borderLeft: '1px solid var(--border, #313944)',
-                color: saveFlash ? 'var(--primary, #14b8a6)' : 'var(--muted-foreground, #a0a8b4)',
+                borderRadius: 2,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 5,
                 fontSize: 11,
-                fontWeight: 500,
-                transition: 'color 150ms',
+                fontWeight: 600,
+                letterSpacing: 0.08,
+                textTransform: 'uppercase',
+                transition: 'background 150ms',
               }}
             >
-              {saveFlash ? <Check size={13} strokeWidth={2.5} /> : <Save size={13} strokeWidth={1.75} />}
+              {saveFlash ? <Check size={12} strokeWidth={2.5} /> : <Save size={12} strokeWidth={2.25} />}
               <span>Save</span>
             </button>
           )}
+        </div>
+      )}
+
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {helpOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, right: 0, bottom: 0,
+            width: 'min(520px, 85vw)',
+            background: 'var(--ck-bg)',
+            borderLeft: '1px solid var(--ck-border)',
+            zIndex: 60,
+          }}
+        >
+          <HelpPanel onClose={() => setHelpOpen(false)} />
         </div>
       )}
 
