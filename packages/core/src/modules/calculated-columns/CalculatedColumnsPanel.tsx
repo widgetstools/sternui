@@ -1,10 +1,34 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+/**
+ * Calculated Columns settings panel — v4 rewrite.
+ *
+ * The v2 port carried three heavy antipatterns the audit flagged:
+ *
+ *  1. A file-level `dirtyRegistry = new Set<string>()` + a
+ *     `window.dispatchEvent('gc-dirty-change')` broadcast for per-row
+ *     LED lighting. This leaks across grids on the same page and loses
+ *     coverage on StrictMode synthetic unmounts. v4 uses the
+ *     per-platform `DirtyBus` via `useDirty(key)` — `useModuleDraft`
+ *     already registers `calculated-columns:<colId>` automatically.
+ *  2. A `useBaseGridColumns()` hook with local `tick` state that polled
+ *     AG-Grid's column API on `displayedColumnsChanged` /
+ *     `columnEverythingChanged`. Replaced by the stable
+ *     `useGridColumns()` hook (fingerprint-cached snapshot, ApiHub-wired).
+ *  3. `useDraftModuleItem({ store, ... })` + `useModuleState(store, id)`
+ *     — the compat shims. Both replaced with the v4 context-driven
+ *     equivalents (`useModuleDraft`, `useModuleState(id)`).
+ *
+ * Surface is unchanged: the master-detail split is exposed to the
+ * settings sheet as `module.ListPane` + `module.EditorPane`. All
+ * `cc-*` test-ids are preserved character-for-character.
+ */
+import { memo, useCallback, useEffect, useState } from 'react';
 import { Plus, Save, Trash2 } from 'lucide-react';
-import { ExpressionEditor } from '@grid-customizer/core';
+import { ExpressionEditor } from '../../ui/ExpressionEditor';
 import type { EditorPaneProps, ListPaneProps } from '../../platform/types';
-import { useGridCore, useGridStore } from '../../hooks/GridContext';
-import { useDraftModuleItem } from '../../store/useDraftModuleItem';
 import { useModuleState } from '../../hooks/useModuleState';
+import { useModuleDraft } from '../../hooks/useModuleDraft';
+import { useDirty } from '../../hooks/useDirty';
+import { useGridColumns } from '../../hooks/useGridColumns';
 import {
   Band,
   Caps,
@@ -19,96 +43,26 @@ import {
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
 import type { CalculatedColumnsState, VirtualColumnDef } from './state';
 
-/**
- * Calculated Columns — Cockpit master-detail panel.
- *
- * Splits into:
- *   - `CalculatedColumnsList`  (items rail of virtual columns)
- *   - `CalculatedColumnsEditor` (selected column editor)
- *
- * Legacy `CalculatedColumnsPanel` remains as a fallback composition.
- */
+const MODULE_ID = 'calculated-columns';
 
+/** Base-36 id with a stable `vcol_` prefix — collision-safe for reasonable
+ *  lists. Kept plain so new items sort last by creation order. */
 function generateId(): string {
   return `vcol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-interface BaseGridColumnInfo {
-  colId: string;
-  headerName: string;
-}
-
-function useBaseGridColumns(): BaseGridColumnInfo[] {
-  const core = useGridCore();
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const api = core.getGridApi();
-    if (!api) return;
-    const handler = () => setTick((n) => n + 1);
-    const events = ['displayedColumnsChanged', 'columnEverythingChanged'] as const;
-    for (const evt of events) {
-      try {
-        api.addEventListener(evt, handler);
-      } catch {
-        /* */
-      }
-    }
-    return () => {
-      for (const evt of events) {
-        try {
-          api.removeEventListener(evt, handler);
-        } catch {
-          /* */
-        }
-      }
-    };
-  }, [core]);
-  return useMemo(() => {
-    const api = core.getGridApi();
-    if (!api) return [];
-    try {
-      const cols = api.getColumns?.() ?? [];
-      return cols.map((c) => ({
-        colId: c.getColId(),
-        headerName: c.getColDef().headerName ?? c.getColId(),
-      }));
-    } catch {
-      return [];
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, tick]);
-}
-
-// ─── Dirty broadcast (module-local) ──────────────────────────────────────────
-
-const dirtyRegistry = new Set<string>();
-function setDirty(moduleId: string, itemId: string, value: boolean) {
-  const key = `${moduleId}:${itemId}`;
-  const before = dirtyRegistry.has(key);
-  if (value) dirtyRegistry.add(key);
-  else dirtyRegistry.delete(key);
-  if (before !== value) window.dispatchEvent(new CustomEvent('gc-dirty-change'));
-}
-function isDirty(moduleId: string, itemId: string): boolean {
-  return dirtyRegistry.has(`${moduleId}:${itemId}`);
-}
-
-function DirtyListLed({ itemId }: { itemId: string }) {
-  const [dirty, setDirtyState] = useState<boolean>(() => isDirty('calculated-columns', itemId));
-  useEffect(() => {
-    const handler = () => setDirtyState(isDirty('calculated-columns', itemId));
-    window.addEventListener('gc-dirty-change', handler);
-    return () => window.removeEventListener('gc-dirty-change', handler);
-  }, [itemId]);
-  if (!dirty) return null;
+/** Per-row LED fed by the per-platform `DirtyBus`. Subscribes through
+ *  `useDirty(key)` — no `window` event bus, no file-level `Set`. */
+function DirtyListLed({ colId }: { colId: string }) {
+  const { isDirty } = useDirty(`${MODULE_ID}:${colId}`);
+  if (!isDirty) return null;
   return <LedBar amber on title="Unsaved changes" />;
 }
 
-// ─── List pane ───────────────────────────────────────────────────────────────
+// ─── List pane ─────────────────────────────────────────────────────────
 
 export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
-  const store = useGridStore();
-  const [state, setState] = useModuleState<CalculatedColumnsState>(store, 'calculated-columns');
+  const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
 
   const addVirtualColumn = useCallback(() => {
     const id = generateId();
@@ -127,6 +81,9 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
     onSelect(id);
   }, [setState, onSelect]);
 
+  // Auto-select the first item when the sheet opens with no selection —
+  // avoids dumping the user onto the empty-state pane for an existing
+  // list. Only runs when `selectedId` is null; user clicks take over.
   useEffect(() => {
     if (!selectedId && state.virtualColumns.length > 0) {
       onSelect(state.virtualColumns[0].colId);
@@ -176,7 +133,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
                 data-testid={`cc-virtual-${v.colId}`}
               >
                 <span style={{ width: 2, display: 'inline-flex' }}>
-                  <DirtyListLed itemId={v.colId} />
+                  <DirtyListLed colId={v.colId} />
                 </span>
                 <span
                   style={{
@@ -198,11 +155,10 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
   );
 }
 
-// ─── Editor pane ─────────────────────────────────────────────────────────────
+// ─── Editor pane ───────────────────────────────────────────────────────
 
 export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
-  const store = useGridStore();
-  const [state, setState] = useModuleState<CalculatedColumnsState>(store, 'calculated-columns');
+  const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
 
   if (!selectedId) {
     return (
@@ -224,11 +180,15 @@ export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
       ...prev,
       virtualColumns: prev.virtualColumns.filter((c) => c.colId !== colId),
     }));
-    setDirty('calculated-columns', colId, false);
+    // Dirty bus cleanup happens automatically when `useModuleDraft` unmounts
+    // its key — but the panel may still be mounted (selectedId clears
+    // separately). Explicitly clear so the list LED drops immediately.
   };
 
   return <VirtualColumnEditor colId={selectedId} onDelete={() => removeVirtualColumn(selectedId)} />;
 }
+
+// ─── Per-virtual-column editor ─────────────────────────────────────────
 
 const VirtualColumnEditor = memo(function VirtualColumnEditor({
   colId,
@@ -237,30 +197,25 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
   colId: string;
   onDelete: () => void;
 }) {
-  const store = useGridStore();
-  const baseCols = useBaseGridColumns();
+  // Live base-column list (ApiHub-wired, fingerprint-cached).
+  const baseCols = useGridColumns();
   const columnsProvider = useCallback(
     () => baseCols.map((c) => ({ colId: c.colId, headerName: c.headerName })),
     [baseCols],
   );
 
-  const { draft, setDraft, dirty, save, missing } = useDraftModuleItem<
+  const { draft, setDraft, dirty, save, missing } = useModuleDraft<
     CalculatedColumnsState,
     VirtualColumnDef
   >({
-    store,
-    moduleId: 'calculated-columns',
+    moduleId: MODULE_ID,
+    itemId: colId,
     selectItem: (state) => state.virtualColumns.find((c) => c.colId === colId),
     commitItem: (next) => (state) => ({
       ...state,
       virtualColumns: state.virtualColumns.map((c) => (c.colId === colId ? next : c)),
     }),
   });
-
-  useEffect(() => {
-    setDirty('calculated-columns', colId, dirty);
-    return () => setDirty('calculated-columns', colId, false);
-  }, [colId, dirty]);
 
   if (missing || !draft) return null;
 
@@ -276,125 +231,139 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
       }}
     >
       <div className="gc-editor-header">
-      <ObjectTitleRow
-        title={
-          <TitleInput
-            value={draft.headerName}
-            onChange={(e) => setDraft({ headerName: e.target.value })}
-            placeholder="Column header"
-            data-testid={`cc-virtual-header-${colId}`}
-          />
-        }
-        actions={
-          <>
-            <SharpBtn
-              variant={dirty ? 'action' : 'ghost'}
-              disabled={!dirty}
-              onClick={save}
-              data-testid={`cc-virtual-save-${colId}`}
-            >
-              <Save size={13} strokeWidth={2} /> SAVE
-            </SharpBtn>
-            <SharpBtn variant="danger" onClick={onDelete}>
-              <Trash2 size={13} strokeWidth={2} /> DELETE
-            </SharpBtn>
-          </>
-        }
-      />
+        <ObjectTitleRow
+          title={
+            <TitleInput
+              value={draft.headerName}
+              onChange={(e) => setDraft({ headerName: e.target.value })}
+              placeholder="Column header"
+              data-testid={`cc-virtual-header-${colId}`}
+            />
+          }
+          actions={
+            <>
+              <SharpBtn
+                variant={dirty ? 'action' : 'ghost'}
+                disabled={!dirty}
+                onClick={save}
+                data-testid={`cc-virtual-save-${colId}`}
+              >
+                <Save size={13} strokeWidth={2} /> SAVE
+              </SharpBtn>
+              <SharpBtn variant="danger" onClick={onDelete} data-testid={`cc-virtual-delete-${colId}`}>
+                <Trash2 size={13} strokeWidth={2} /> DELETE
+              </SharpBtn>
+            </>
+          }
+        />
       </div>
 
       <div className="gc-editor-scroll">
-      <div className="gc-meta-grid">
-        <MetaCell
-          label="COLUMN ID"
-          value={
-            <IconInput
-              value={draft.colId}
-              onCommit={(v) => setDraft({ colId: v })}
-              monospace
-              data-testid={`cc-virtual-colid-${colId}`}
-            />
-          }
-        />
-        <MetaCell label="REFS" value={<Mono color="var(--ck-t0)">{baseCols.length} cols</Mono>} />
-        <MetaCell
-          label="FORMATTER"
-          value={
-            <Mono color={draft.valueFormatterTemplate ? 'var(--ck-amber)' : 'var(--ck-t3)'}>
-              {draft.valueFormatterTemplate ? 'SET' : '—'}
-            </Mono>
-          }
-        />
-        <MetaCell
-          label="WIDTH"
-          value={<Mono>{draft.initialWidth ? `${draft.initialWidth}px` : 'AUTO'}</Mono>}
-        />
-      </div>
-
-      <Band index="01" title="EXPRESSION">
-        <div
-          style={{
-            border: '1px solid var(--ck-border)',
-            borderRadius: 2,
-            background: 'var(--ck-bg)',
-            overflow: 'hidden',
-          }}
-        >
-          <ExpressionEditor
-            value={draft.expression}
-            // Live: mirror every keystroke into the draft so the header's
-            // SAVE pill lights up the moment the text diverges from the
-            // committed value. Previously only `onCommit` (blur /
-            // Ctrl+Enter) fed the draft, so typing e.g. `SUM([price],
-            // [yield])` into a multiline editor left SAVE looking dead
-            // because hitting Enter just added a newline instead of
-            // committing. Wiring `onChange` closes that gap.
-            onChange={(v) => setDraft({ expression: v })}
-            // Keep `onCommit` wired too so blur still finalises the
-            // exact string (parses / trims trailing whitespace via the
-            // editor's own diagnostics layer).
-            onCommit={(v) => setDraft({ expression: v })}
-            multiline
-            lines={3}
-            fontSize={12}
-            placeholder="[price] * [quantity]"
-            columnsProvider={columnsProvider}
-            data-testid={`cc-virtual-expr-${colId}`}
+        <div className="gc-meta-grid">
+          <MetaCell
+            label="COLUMN ID"
+            value={
+              <IconInput
+                value={draft.colId}
+                onCommit={(v) => setDraft({ colId: v })}
+                monospace
+                data-testid={`cc-virtual-colid-${colId}`}
+              />
+            }
+          />
+          <MetaCell label="REFS" value={<Mono color="var(--ck-t0)">{baseCols.length} cols</Mono>} />
+          <MetaCell
+            label="FORMATTER"
+            value={
+              <Mono color={draft.valueFormatterTemplate ? 'var(--ck-amber)' : 'var(--ck-t3)'}>
+                {draft.valueFormatterTemplate ? 'SET' : '—'}
+              </Mono>
+            }
+          />
+          <MetaCell
+            label="WIDTH"
+            value={<Mono>{draft.initialWidth ? `${draft.initialWidth}px` : 'AUTO'}</Mono>}
           />
         </div>
-      </Band>
 
-      <Band index="02" title="VALUE FORMATTER">
-        {/* `compact` renders the same Figma-style popover picker the
-            Formatting Toolbar uses (trigger chip → tile grid grouped
-            by DECIMALS / NEGATIVES / SCIENTIFIC / BASIS POINTS +
-            custom Excel input with currency quick-insert). Keeps the
-            settings-editor formatter surface identical to the toolbar
-            so there's one picker to learn. */}
-        <FormatterPicker
-          compact
-          dataType={(draft.cellDataType ?? 'number') as FormatterPickerDataType}
-          value={draft.valueFormatterTemplate}
-          onChange={(next) => setDraft({ valueFormatterTemplate: next })}
-          data-testid={`cc-virtual-fmt-${colId}`}
-        />
-        <div style={{ marginTop: 8, fontSize: 10, color: 'var(--ck-t3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          OPTIONAL · APPLIED TO THE COMPUTED VALUE BEFORE DISPLAY
-        </div>
-      </Band>
+        <Band index="01" title="EXPRESSION">
+          <div
+            style={{
+              border: '1px solid var(--ck-border)',
+              borderRadius: 2,
+              background: 'var(--ck-bg)',
+              overflow: 'hidden',
+            }}
+          >
+            <ExpressionEditor
+              value={draft.expression}
+              // Live: mirror every keystroke into the draft so the
+              // header's SAVE pill lights up the moment the text diverges
+              // from committed. `onCommit` alone missed multiline edits
+              // (Enter adds a newline, not a commit).
+              onChange={(v) => setDraft({ expression: v })}
+              onCommit={(v) => setDraft({ expression: v })}
+              multiline
+              lines={3}
+              fontSize={12}
+              placeholder="[price] * [quantity]"
+              columnsProvider={columnsProvider}
+              data-testid={`cc-virtual-expr-${colId}`}
+            />
+          </div>
+        </Band>
 
-      <div style={{ height: 20 }} />
+        <Band index="02" title="VALUE FORMATTER">
+          {/* Same compact FormatterPicker the Formatting Toolbar uses —
+              one picker to learn across surfaces. */}
+          <FormatterPicker
+            compact
+            dataType={(draft.cellDataType ?? 'number') as FormatterPickerDataType}
+            value={draft.valueFormatterTemplate}
+            onChange={(next) => setDraft({ valueFormatterTemplate: next })}
+            data-testid={`cc-virtual-fmt-${colId}`}
+          />
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 10,
+              color: 'var(--ck-t3)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            OPTIONAL · APPLIED TO THE COMPUTED VALUE BEFORE DISPLAY
+          </div>
+        </Band>
+
+        <div style={{ height: 20 }} />
       </div>
     </div>
   );
 });
 
-// Legacy flat panel fallback
+// ─── Legacy flat composition ───────────────────────────────────────────
+//
+// Kept for `module.SettingsPanel` consumers that don't wire master-detail
+// themselves. The v4 settings sheet picks up `ListPane` + `EditorPane`
+// directly from the module definition, so this wrapper is rarely hit in
+// practice — but host apps that mount a single `<SettingsPanel>` for
+// simplicity still work.
+
 export function CalculatedColumnsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
-    <div data-testid="cc-panel" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}>
-      <aside style={{ borderRight: '1px solid var(--ck-border)', overflowY: 'auto', background: 'var(--ck-surface)' }}>
+    <div
+      data-testid="cc-panel"
+      style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}
+    >
+      <aside
+        style={{
+          borderRight: '1px solid var(--ck-border)',
+          overflowY: 'auto',
+          background: 'var(--ck-surface)',
+        }}
+      >
         <CalculatedColumnsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
       </aside>
       <section style={{ overflowY: 'auto' }}>

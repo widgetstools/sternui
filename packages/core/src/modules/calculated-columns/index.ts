@@ -26,7 +26,11 @@ import type {
   ColumnFilterConfig,
   RowGroupingConfig,
 } from '../column-customization';
-import { CalculatedColumnsPanel } from './CalculatedColumnsPanel';
+import {
+  CalculatedColumnsEditor,
+  CalculatedColumnsList,
+  CalculatedColumnsPanel,
+} from './CalculatedColumnsPanel';
 
 export const CALCULATED_COLUMNS_MODULE_ID = 'calculated-columns';
 const COLUMN_CUSTOMIZATION_MODULE_ID = 'column-customization';
@@ -189,6 +193,12 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
     return { virtualColumns };
   },
 
+  // v4: expose master-detail panes natively so the settings sheet
+  // renders the proper two-column layout instead of the legacy flat
+  // fallback. `SettingsPanel` is still wired for host apps that mount
+  // a single panel (simple embeds, tests).
+  ListPane: CalculatedColumnsList,
+  EditorPane: CalculatedColumnsEditor,
   SettingsPanel: CalculatedColumnsPanel,
 };
 

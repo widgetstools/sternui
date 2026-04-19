@@ -251,6 +251,21 @@ from the draft and lights the SAVE pill.
   / `rowDataUpdated` trigger `api.refreshCells({ columns: virtualColIds,
   force: true })` so column-wide aggregates re-evaluate across every
   visible row, not just the edited one.
+- **v4 panel rewrite (phase 3b)** — three v2 antipatterns stripped while
+  preserving every `cc-*` testId:
+  - File-level `dirtyRegistry = new Set<string>()` +
+    `window.dispatchEvent('gc-dirty-change')` broadcast → replaced by
+    `useDirty(key)` against the per-platform `DirtyBus`. Fixes the
+    cross-grid dirty-bleed v2 had on multi-grid pages.
+  - `useBaseGridColumns()` with local `tick` state + raw
+    `api.addEventListener` → replaced by the stable fingerprint-cached
+    `useGridColumns()` hook (ApiHub-wired, auto-disposed).
+  - `useDraftModuleItem({ store, … })` + `useModuleState(store, id)` v3
+    compat shims → `useModuleDraft` (no store arg, auto-registers on
+    dirty bus) + `useModuleState(id)` 1-arg form.
+  - `module.ListPane` + `module.EditorPane` now set so the settings
+    sheet renders master-detail natively instead of falling back to the
+    flat `SettingsPanel` composition. 8 integration tests added.
 
 ### 1.9 Expression Engine extensions
 

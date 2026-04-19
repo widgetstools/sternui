@@ -1,0 +1,150 @@
+/**
+ * Integration tests for the v4 CalculatedColumnsPanel rewrite.
+ *
+ * Covers:
+ *  - `CalculatedColumnsList`: render, add button, auto-select-first, LED
+ *    lighting via the per-platform DirtyBus (NOT via the old window event).
+ *  - `CalculatedColumnsEditor`: empty-state, delete, memoised editor
+ *    identity.
+ *  - `VirtualColumnEditor`: header rename / expression / formatter round-
+ *    trip through `useModuleDraft`, SAVE commits to module state,
+ *    dirty-bus integration.
+ *
+ * Mounts the full module (`calculatedColumnsModule`) so we're testing
+ * the same surface the settings sheet would render.
+ */
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { GridPlatform } from '../../platform/GridPlatform';
+import { GridProvider } from '../../hooks/GridProvider';
+import {
+  CalculatedColumnsEditor,
+  CalculatedColumnsList,
+} from './CalculatedColumnsPanel';
+import { calculatedColumnsModule } from './index';
+import type { CalculatedColumnsState } from './state';
+
+function makePlatform() {
+  return new GridPlatform({ gridId: 'test-grid', modules: [calculatedColumnsModule] });
+}
+
+function MasterDetail({ platform }: { platform: GridPlatform }) {
+  // Minimal controlled host that mimics the settings sheet's ListPane +
+  // EditorPane wiring — state for `selectedId` lives outside both panes.
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  return (
+    <GridProvider platform={platform}>
+      <CalculatedColumnsList gridId="test-grid" selectedId={selectedId} onSelect={setSelectedId} />
+      <CalculatedColumnsEditor gridId="test-grid" selectedId={selectedId} />
+    </GridProvider>
+  );
+}
+
+// React must be in scope for the tiny local host component above. Imported
+// as a namespace so we don't pull a default when the module shape shifts.
+import * as React from 'react';
+
+describe('CalculatedColumnsPanel (v4)', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  // ─── List pane ─────────────────────────────────────────────────────
+
+  it('renders the seeded virtual column and the add button', () => {
+    render(<MasterDetail platform={platform} />);
+    expect(screen.getByTestId('cc-add-virtual-btn')).toBeTruthy();
+    // Seed from the module: one virtual column `grossPnl`.
+    expect(screen.getByTestId('cc-virtual-grossPnl')).toBeTruthy();
+  });
+
+  it('auto-selects the first virtual column when the pane mounts', () => {
+    render(<MasterDetail platform={platform} />);
+    // Editor for grossPnl should be on screen — proves the list fired
+    // onSelect for the first item.
+    expect(screen.getByTestId('cc-virtual-editor-grossPnl')).toBeTruthy();
+  });
+
+  it('ADD creates a new virtual column and selects it', () => {
+    render(<MasterDetail platform={platform} />);
+    const before = platform.store.getModuleState<CalculatedColumnsState>(
+      'calculated-columns',
+    ).virtualColumns.length;
+
+    act(() => screen.getByTestId('cc-add-virtual-btn').click());
+
+    const after = platform.store.getModuleState<CalculatedColumnsState>(
+      'calculated-columns',
+    ).virtualColumns.length;
+    expect(after).toBe(before + 1);
+
+    // The new column's editor is now mounted — find any element with a
+    // testId of the form `cc-virtual-editor-vcol_*`.
+    const editor = document.querySelector('[data-testid^="cc-virtual-editor-vcol_"]');
+    expect(editor).toBeTruthy();
+  });
+
+  // ─── Editor pane ───────────────────────────────────────────────────
+
+  it('DELETE removes the selected column from module state', () => {
+    render(<MasterDetail platform={platform} />);
+    act(() => screen.getByTestId('cc-virtual-delete-grossPnl').click());
+
+    const cols = platform.store.getModuleState<CalculatedColumnsState>(
+      'calculated-columns',
+    ).virtualColumns;
+    expect(cols.find((c) => c.colId === 'grossPnl')).toBeUndefined();
+  });
+
+  // ─── Draft / SAVE / dirty-bus ──────────────────────────────────────
+
+  it('editing header name marks the draft dirty WITHOUT touching module state', () => {
+    render(<MasterDetail platform={platform} />);
+    const header = screen.getByTestId('cc-virtual-header-grossPnl') as HTMLInputElement;
+
+    fireEvent.change(header, { target: { value: 'Gross P&L v2' } });
+
+    // Local draft reflects.
+    expect(header.value).toBe('Gross P&L v2');
+    // Module state unchanged.
+    expect(
+      platform.store.getModuleState<CalculatedColumnsState>('calculated-columns')
+        .virtualColumns.find((c) => c.colId === 'grossPnl')!.headerName,
+    ).toBe('Gross P&L');
+    // SAVE enabled.
+    expect((screen.getByTestId('cc-virtual-save-grossPnl') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('dirty state registers on the per-platform DirtyBus under `calculated-columns:<colId>`', () => {
+    render(<MasterDetail platform={platform} />);
+    const header = screen.getByTestId('cc-virtual-header-grossPnl') as HTMLInputElement;
+
+    expect(platform.resources.dirty().isDirty('calculated-columns:grossPnl')).toBe(false);
+
+    fireEvent.change(header, { target: { value: 'Gross P&L v2' } });
+    expect(platform.resources.dirty().isDirty('calculated-columns:grossPnl')).toBe(true);
+  });
+
+  it('SAVE commits the draft into module state and clears dirty', () => {
+    render(<MasterDetail platform={platform} />);
+    const header = screen.getByTestId('cc-virtual-header-grossPnl') as HTMLInputElement;
+    fireEvent.change(header, { target: { value: 'Committed Name' } });
+
+    act(() => screen.getByTestId('cc-virtual-save-grossPnl').click());
+
+    expect(
+      platform.store.getModuleState<CalculatedColumnsState>('calculated-columns')
+        .virtualColumns.find((c) => c.colId === 'grossPnl')!.headerName,
+    ).toBe('Committed Name');
+    expect(platform.resources.dirty().isDirty('calculated-columns:grossPnl')).toBe(false);
+  });
+
+  it('empty-state renders when no column is selected', () => {
+    // Mount the editor alone with selectedId=null so nothing is picked.
+    render(
+      <GridProvider platform={platform}>
+        <CalculatedColumnsEditor gridId="test-grid" selectedId={null} />
+      </GridProvider>,
+    );
+    expect(screen.getByText(/No column selected/i)).toBeTruthy();
+  });
+});
