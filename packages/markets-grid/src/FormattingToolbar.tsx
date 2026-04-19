@@ -206,6 +206,11 @@ function TBtn({ children, active, disabled, tooltip, onClick, className, ...rest
       size="icon-sm"
       disabled={disabled}
       data-testid={rest['data-testid']}
+      // Forward the tooltip string as the button's accessible name.
+      // Screen readers announce it, `getByRole('button', { name })` finds
+      // it, and the visible tooltip keeps its existing hover presentation.
+      aria-label={tooltip}
+      aria-pressed={typeof active === 'boolean' ? active : undefined}
       className={cn(
         'shrink-0 w-7 h-7 rounded-[4px] transition-all duration-150 gc-tbtn',
         active && 'gc-tbtn-active',

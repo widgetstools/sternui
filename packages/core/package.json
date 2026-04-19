@@ -37,6 +37,7 @@
     "@radix-ui/react-popover": "^1.1.15",
     "dexie": "^4.0.0",
     "monaco-editor": "^0.55.1",
+    "ssf": "^0.11.2",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
