@@ -50,7 +50,7 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
             <polygon points="41,33 49,33 49,52 41,52" fill="#4ba5c3"/>
             <rect x="11" y="52" width="38" height="2" fill="#2d4b69"/>
           </svg>
-          <span className="font-bold text-sm tracking-wide" style={{color:'var(--bn-t0)'}}>MarketsUI <span style={{color:'var(--bn-yellow)'}}>FI</span></span>
+          <span className="font-bold text-sm tracking-wide" style={{color:'var(--bn-t0)'}}>MarketsUI <span style={{color:'var(--bn-blue)'}}>FI</span></span>
         </div>
 
         {/* Nav tabs */}
@@ -134,7 +134,7 @@ export function TopBar({ activeTab, onTabChange, selectedBond, onNewOrder, onOpe
             {label:'High',      val:(mid+1.2).toFixed(3), color:'var(--bn-t0)', w:72},
             {label:'Low',       val:(mid-2.1).toFixed(3), color:'var(--bn-t0)', w:72},
             {label:'Vol',       val:`$${(Math.random()*2+3).toFixed(2)}B`, color:'var(--bn-t0)', w:62},
-            {label:'OAS',       val:bond.oas>0?`+${bond.oas}bp`:'—', color:bond.oas>80?'var(--bn-yellow)':'var(--bn-green)', w:52},
+            {label:'OAS',       val:bond.oas>0?`+${bond.oas}bp`:'—', color:bond.oas>80?'var(--bn-amber)':'var(--bn-green)', w:52},
             {label:'Dur',       val:`${bond.dur?.toFixed(2)??'—'}yr`, color:'var(--bn-t0)', w:56},
             {label:'DV01',      val:`$${bond.dv01?.toLocaleString()??'—'}`, color:'var(--bn-t0)', w:52},
           ].map((s,i,arr) => (

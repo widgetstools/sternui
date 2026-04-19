@@ -7,7 +7,7 @@ export function WatchlistPanel() {
       <div className="flex border-b flex-shrink-0" style={{borderColor:'var(--fi-border)'}}>
         {['Watchlist','Axes','Alerts'].map((t,i)=>(
           <button key={t} className="inner-tab tab-label flex items-center gap-1" style={{color:i===0?'var(--fi-blue)':'var(--fi-t2)',borderBottomColor:i===0?'var(--fi-blue)':'transparent'}}>
-            {t}{t==='Alerts'&&<span className="px-1 rounded-sm" style={{fontSize:9,background:'rgba(245,166,35,0.1)',color:'var(--fi-amber)',border:'1px solid rgba(245,166,35,0.3)'}}>3</span>}
+            {t}{t==='Alerts'&&<span className="px-1 rounded-sm" style={{fontSize:9,background:'var(--bn-warning-soft)',color:'var(--fi-amber)',border:'1px solid var(--bn-warning-ring)'}}>3</span>}
           </button>
         ))}
       </div>

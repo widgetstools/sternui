@@ -3,7 +3,7 @@ import { RESEARCH_NOTES } from '@/data/tradingData';
 
 const BD = '1px solid var(--bn-border)';
 type Note = typeof RESEARCH_NOTES[0];
-const ratingColor=(r:string)=>r==='Overweight'?{bg:'rgba(45,212,191,0.1)',color:'var(--bn-green)',border:'rgba(45,212,191,0.3)'}:r==='Underweight'?{bg:'rgba(248,113,113,0.1)',color:'var(--bn-red)',border:'rgba(248,113,113,0.3)'}:{bg:'rgba(240,185,11,0.1)',color:'#f0b90b',border:'rgba(240,185,11,0.3)'};
+const ratingColor=(r:string)=>r==='Overweight'?{bg:'var(--bn-positive-soft)',color:'var(--bn-green)',border:'var(--bn-positive-ring)'}:r==='Underweight'?{bg:'var(--bn-negative-soft)',color:'var(--bn-red)',border:'var(--bn-negative-ring)'}:{bg:'var(--bn-warning-soft)',color:'var(--bn-amber)',border:'var(--bn-warning-ring)'};
 
 interface ResearchCtx { selected: Note; setSelected: (n:Note)=>void; filter: string; setFilter: (f:string)=>void; }
 const ResearchContext = createContext<ResearchCtx>({ selected:RESEARCH_NOTES[0], setSelected:()=>{}, filter:'All', setFilter:()=>{} });
@@ -33,10 +33,10 @@ export function ResearchList() {
         {filtered.map(note=>{
           const rc=ratingColor(note.rating);
           return (
-            <div key={note.id} onClick={()=>setSelected(note)} style={{margin:'6px 8px',padding:12,borderRadius:3,cursor:'pointer',background:selected.id===note.id?'var(--bn-bg2)':'var(--bn-bg1)',border:`1px solid ${selected.id===note.id?'#f0b90b':'var(--bn-border)'}`,transition:'border-color .15s'}}>
+            <div key={note.id} onClick={()=>setSelected(note)} style={{margin:'6px 8px',padding:12,borderRadius:3,cursor:'pointer',background:selected.id===note.id?'var(--bn-bg2)':'var(--bn-bg1)',border:`1px solid ${selected.id===note.id?'var(--bn-blue)':'var(--bn-border)'}`,transition:'border-color .15s'}}>
               <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:5}}>
                 <div>
-                  <span style={{fontSize:11,fontWeight:700,color:'#00bcd4',fontFamily:'JetBrains Mono,monospace'}}>{note.ticker}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:'var(--bn-cyan)',fontFamily:'JetBrains Mono,monospace'}}>{note.ticker}</span>
                   <span style={{fontSize:9,color:'var(--bn-t2)',fontFamily:'JetBrains Mono,monospace',marginLeft:8}}>{note.date}</span>
                 </div>
                 <span style={{fontSize:9,padding:'1px 5px',borderRadius:2,background:rc.bg,color:rc.color,border:`1px solid ${rc.border}`,flexShrink:0,fontFamily:'JetBrains Mono,monospace'}}>{note.rating}</span>
@@ -67,7 +67,7 @@ export function NoteDetail() {
       </div>
       <div style={{flex:1,overflowY:'auto',padding:24}}>
         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:6}}>
-          <span style={{fontSize:18,fontWeight:700,color:'#00bcd4',fontFamily:'JetBrains Mono,monospace'}}>{selected.ticker}</span>
+          <span style={{fontSize:18,fontWeight:700,color:'var(--bn-cyan)',fontFamily:'JetBrains Mono,monospace'}}>{selected.ticker}</span>
           <span style={{fontSize:11,padding:'3px 8px',borderRadius:2,background:rc.bg,color:rc.color,border:`1px solid ${rc.border}`,fontFamily:'JetBrains Mono,monospace'}}>{selected.rating}</span>
         </div>
         <div style={{fontSize:13,color:'var(--bn-t0)',lineHeight:1.5,maxWidth:600,fontFamily:'JetBrains Mono,monospace',marginBottom:16}}>{selected.title}</div>
@@ -87,7 +87,7 @@ export function NoteDetail() {
             </div>
             <div style={{padding:12,borderRadius:3,border:BD,background:'var(--bn-bg2)'}}>
               <div style={{fontSize:9,color:'var(--bn-t1)',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>Current OAS</div>
-              <div style={{fontSize:18,fontWeight:700,color:'#f0b90b',fontFamily:'JetBrains Mono,monospace'}}>+{selected.prev}bp</div>
+              <div style={{fontSize:18,fontWeight:700,color:'var(--bn-amber)',fontFamily:'JetBrains Mono,monospace'}}>+{selected.prev}bp</div>
             </div>
           </div>
         )}

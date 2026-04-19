@@ -41,14 +41,14 @@
 
 /* ── Tabs ── */
 .bn-tab { font-size: var(--fi-font-sm); font-weight: 500; padding: 8px 12px; border-bottom: 2px solid transparent; cursor: pointer; color: var(--bn-t1); white-space: nowrap; }
-.bn-tab.active { color: var(--bn-t0); border-bottom-color: var(--bn-yellow); }
+.bn-tab.active { color: var(--bn-t0); border-bottom-color: var(--bn-blue); }
 .bn-tab:hover:not(.active) { color: var(--bn-t0); }
 
 .bn-sub-tab { font-size: var(--fi-font-sm); padding: 4px 10px; border-radius: 2px; cursor: pointer; color: var(--bn-t1); }
 .bn-sub-tab.active { background: var(--bn-bg3); color: var(--bn-t0); }
 
 .order-type-tab { font-size: var(--fi-font-sm); font-weight: 500; padding: 6px 0; border-bottom: 2px solid transparent; cursor: pointer; color: var(--bn-t1); }
-.order-type-tab.active { color: var(--bn-yellow); border-bottom-color: var(--bn-yellow); }
+.order-type-tab.active { color: var(--bn-blue); border-bottom-color: var(--bn-blue); }
 
 
 /* ── Animations ── */
@@ -69,7 +69,7 @@
   border-radius: 3px; padding: 6px 40px 6px 10px; color: var(--bn-t0);
   font-family: var(--fi-mono); font-size: var(--fi-font-sm); outline: none;
 }
-.price-input:focus { border-color: var(--bn-yellow); }
+.price-input:focus { border-color: var(--bn-focus-ring); }
 .price-input::placeholder { color: var(--bn-t2); }
 
 /* ── Buy/Sell CTA ── */
@@ -94,7 +94,7 @@
 .badge-cancel  { background:var(--bn-negative-soft); color:var(--bn-red);   border:1px solid var(--bn-negative-ring); }
 
 .research-card { background:var(--bn-bg2); border:1px solid var(--bn-border); border-radius:4px; padding:12px; cursor:pointer; transition:border-color .15s; }
-.research-card:hover { border-color: var(--bn-yellow); }
+.research-card:hover { border-color: var(--bn-blue); }
 
 /* ── Tailwind border overrides ── */
 .border   { border-color: var(--bn-border) !important; }
@@ -107,7 +107,7 @@
 
 .badge-outline, [data-slot="badge"] { border-color: var(--bn-border) !important; }
 input, textarea, select { border-color: var(--bn-border) !important; }
-input:focus, textarea:focus, select:focus { border-color: var(--bn-yellow) !important; box-shadow: none !important; }
+input:focus, textarea:focus, select:focus { border-color: var(--bn-focus-ring) !important; box-shadow: none !important; }
 [data-slot="separator"], [role="separator"] { background-color: var(--bn-border) !important; }
 .border-border { border-color: var(--bn-border) !important; }
 

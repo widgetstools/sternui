@@ -125,8 +125,8 @@ export const dark: ColorScheme = {
     positiveRing:  'rgba(61,191,160,0.30)',
     negativeSoft:  'rgba(229,100,100,0.12)', // red-400 @ 12%
     negativeRing:  'rgba(229,100,100,0.30)',
-    warningSoft:   'rgba(212,168,74,0.12)',  // amber-500 @ 12%
-    warningRing:   'rgba(212,168,74,0.30)',
+    warningSoft:   'rgba(201,123,63,0.14)',  // amber-500 @ 14%
+    warningRing:   'rgba(201,123,63,0.32)',
     infoSoft:      'rgba(107,164,232,0.12)', // blue-400 @ 12%
     infoRing:      'rgba(107,164,232,0.30)',
     neutralSoft:   'rgba(117,121,130,0.18)', // charcoal-500 @ 18%
@@ -185,8 +185,8 @@ export const light: ColorScheme = {
     positiveRing:  'rgba(31,140,110,0.28)',
     negativeSoft:  'rgba(184,70,63,0.08)',   // red-600 @ 8%
     negativeRing:  'rgba(184,70,63,0.28)',
-    warningSoft:   'rgba(178,122,31,0.10)',  // amber-700 @ 10%
-    warningRing:   'rgba(178,122,31,0.30)',
+    warningSoft:   'rgba(138,78,29,0.10)',   // amber-700 @ 10%
+    warningRing:   'rgba(138,78,29,0.30)',
     infoSoft:      'rgba(47,111,179,0.08)',  // blue-600 @ 8%
     infoRing:      'rgba(47,111,179,0.28)',
     neutralSoft:   'rgba(87,91,98,0.08)',    // charcoal-600 @ 8%

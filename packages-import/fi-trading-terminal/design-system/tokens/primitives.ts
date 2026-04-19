@@ -57,14 +57,16 @@ export const colors = {
     800: '#7a241e',
     900: '#5e1915',
   },
-  // Muted amber — RESERVED for warning semantic only.
-  // No longer a brand accent. Never used for primary/focus/tab indicator.
+  // Burnt copper — RESERVED for warning semantic only.
+  // Deliberately shifted from yellow-amber toward orange so it
+  // cannot be mistaken for a brand accent. Distinct from red
+  // (hue ≈27°) and from blue brand (hue ≈213°).
   amber: {
-    300: '#e3c178',
-    400: '#d9b458',
-    500: '#d4a84a',  // dark theme warning
-    600: '#b8902f',
-    700: '#b27a1f',  // light theme warning
+    300: '#e2ab7e',
+    400: '#d6945c',
+    500: '#c97b3f',  // dark theme warning (burnt copper)
+    600: '#a85f26',
+    700: '#8a4e1d',  // light theme warning (deep copper)
   },
   // Soft azure — the new brand accent (replaces yellow).
   // Calm, professional, easy to look at over long sessions.

@@ -13,10 +13,12 @@ const TT=(props:any)=>{
 
 const DURATION_BUCKETS=[{label:'0-1Y',count:3,dv01:305},{label:'1-3Y',count:4,dv01:1010},{label:'3-5Y',count:5,dv01:2180},{label:'5-7Y',count:3,dv01:1890},{label:'7-10Y',count:2,dv01:2040},{label:'10Y+',count:3,dv01:2995}];
 const SCATTER_DATA=BONDS.map(b=>({name:b.ticker,x:b.dur,y:b.oas,dv01:b.dv01,rtg:b.rtgClass}));
-const RTG_COLOR:Record<string,string>={aaa:'#1e90ff',aa:'#00bcd4',a:'var(--bn-green)',bbb:'#f0b90b',hy:'var(--bn-red)'};
+// Rating gradient: aaa/aa blue → a green → bbb copper → hy red.
+// Hex literals so recharts SVG fills render reliably.
+const RTG_COLOR:Record<string,string>={aaa:'#6ba4e8',aa:'#7db4e3',a:'#3dbfa0',bbb:'#c97b3f',hy:'#e56464'};
 const HIST_OAS=Array.from({length:60},(_,i)=>{const d=new Date(2026,3,4);d.setDate(d.getDate()-59+i);return{date:`${d.getMonth()+1}/${d.getDate()}`,ig:+(52+Math.sin(i/8)*8+(Math.random()-.5)*3).toFixed(1),hy:+(340+Math.sin(i/6)*25+(Math.random()-.5)*8).toFixed(1)};});
 const SECTOR_ALLOC=[{sector:'Government',pct:27.3,mv:14.8},{sector:'Technology',pct:22.1,mv:12.0},{sector:'Financials',pct:21.7,mv:11.8},{sector:'Healthcare',pct:10.3,mv:5.6},{sector:'Consumer',pct:9.8,mv:5.3},{sector:'Telecom',pct:8.8,mv:4.7}];
-const SECTOR_COLORS=['#1e90ff','#00bcd4','#c084fc','var(--bn-green)','#f0b90b','#f59e0b'];
+const SECTOR_COLORS=['#6ba4e8','#7db4e3','#a48ad4','#3dbfa0','#c97b3f','#a85f26'];
 
 const panel=(extra?:React.CSSProperties):React.CSSProperties=>({background:'var(--bn-bg1)',display:'flex',flexDirection:'column',overflow:'hidden',...extra});
 
@@ -64,8 +66,8 @@ export function AnalyticsTab() {
                 <YAxis yAxisId="l" tick={{fill:'var(--bn-t2)',fontSize:9,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false}/>
                 <YAxis yAxisId="r" orientation="right" tick={{fill:'var(--bn-t2)',fontSize:9,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
                 <Tooltip content={<TT/>}/>
-                <Bar yAxisId="l" dataKey="count" name="# Bonds" fill="#1e90ff" fillOpacity={0.7} radius={[2,2,0,0]}/>
-                <Bar yAxisId="r" dataKey="dv01" name="DV01" fill="#00bcd4" fillOpacity={0.5} radius={[2,2,0,0]}/>
+                <Bar yAxisId="l" dataKey="count" name="# Bonds" fill="#6ba4e8" fillOpacity={0.7} radius={[2,2,0,0]}/>
+                <Bar yAxisId="r" dataKey="dv01" name="DV01" fill="#7db4e3" fillOpacity={0.5} radius={[2,2,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -88,7 +90,7 @@ export function AnalyticsTab() {
             ))}
           </div>
           <div style={{borderTop:BD,padding:10,display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,flexShrink:0}}>
-            {[{l:'IG %',v:'85.2%',c:'var(--bn-green)'},{l:'HY %',v:'14.8%',c:'#f0b90b'},{l:'Avg Dur',v:'4.82yr',c:'#1e90ff'},{l:'Avg YTM',v:'4.38%',c:'#00bcd4'}].map(s=>(
+            {[{l:'IG %',v:'85.2%',c:'var(--bn-green)'},{l:'HY %',v:'14.8%',c:'var(--bn-amber)'},{l:'Avg Dur',v:'4.82yr',c:'var(--bn-blue)'},{l:'Avg YTM',v:'4.38%',c:'var(--bn-cyan)'}].map(s=>(
               <div key={s.l} style={{padding:'6px 8px',borderRadius:3,background:'var(--bn-bg2)'}}>
                 <div style={{fontSize:9,color:'var(--bn-t1)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{s.l}</div>
                 <div style={{fontSize:13,fontWeight:600,color:s.c,fontFamily:'JetBrains Mono,monospace'}}>{s.v}</div>
@@ -115,7 +117,7 @@ export function AnalyticsTab() {
                 <YAxis yAxisId="ig" tick={{fill:'var(--bn-t2)',fontSize:8,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} domain={['auto','auto']} width={32}/>
                 <YAxis yAxisId="hy" orientation="right" tick={{fill:'var(--bn-t2)',fontSize:8,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} domain={['auto','auto']} width={38}/>
                 <Tooltip content={<TT/>}/>
-                <Line yAxisId="ig" type="monotone" dataKey="ig" name="CDX IG" stroke="#1e90ff" strokeWidth={1.5} dot={false}/>
+                <Line yAxisId="ig" type="monotone" dataKey="ig" name="CDX IG" stroke="#6ba4e8" strokeWidth={1.5} dot={false}/>
                 <Line yAxisId="hy" type="monotone" dataKey="hy" name="CDX HY" stroke="#f6465d" strokeWidth={1.5} dot={false}/>
               </LineChart>
             </ResponsiveContainer>
@@ -152,7 +154,7 @@ export function AnalyticsTab() {
                 <Tooltip content={<TT/>} formatter={(v:any)=>[`$${v}K`,'P&L']}/>
                 <ReferenceLine y={0} stroke="var(--bn-border)" strokeWidth={1}/>
                 <Bar dataKey="pnl" name="P&L ($K)" radius={[2,2,0,0]}>
-                  {[+188,+142,+88,-22,-34,+362].map((v,i)=><Cell key={i} fill={v>=0?'#1e90ff':'var(--bn-red)'} fillOpacity={i===5?1:0.75}/>)}
+                  {[+188,+142,+88,-22,-34,+362].map((v,i)=><Cell key={i} fill={v>=0?'#6ba4e8':'var(--bn-red)'} fillOpacity={i===5?1:0.75}/>)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

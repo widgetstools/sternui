@@ -53,7 +53,7 @@
   --bn-green2:  #2fa88a;
   --bn-red:     #e56464;
   --bn-red2:    #d04f4f;
-  --bn-amber:   #d4a84a;    /* warning semantic only */
+  --bn-amber:   #c97b3f;    /* burnt copper — warning semantic only */
   --bn-blue:    #6ba4e8;    /* BRAND */
   --bn-blue2:   #4e8bd1;
   --bn-cyan:    #7db4e3;
@@ -77,8 +77,8 @@
   --bn-positive-ring: rgba(61,191,160,0.30);
   --bn-negative-soft: rgba(229,100,100,0.12);
   --bn-negative-ring: rgba(229,100,100,0.30);
-  --bn-warning-soft:  rgba(212,168,74,0.12);
-  --bn-warning-ring:  rgba(212,168,74,0.30);
+  --bn-warning-soft:  rgba(201,123,63,0.14);
+  --bn-warning-ring:  rgba(201,123,63,0.32);
   --bn-info-soft:     rgba(107,164,232,0.12);
   --bn-info-ring:     rgba(107,164,232,0.30);
   --bn-neutral-soft:  rgba(117,121,130,0.18);

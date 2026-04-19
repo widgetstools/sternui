@@ -91,7 +91,7 @@ export function TradeTicket({ bond, clickedPrice }: TradeTicketProps) {
           {(['Limit','Market','Stop-Limit'] as const).map(t => (
             <button key={t} onClick={() => setOrderType(t)}
               className="order-type-tab"
-              style={{fontSize:11,color: orderType===t ? 'var(--bn-yellow)':'var(--bn-t2)', borderBottomColor: orderType===t ? 'var(--bn-yellow)':'transparent'}}>
+              style={{fontSize:11,color: orderType===t ? 'var(--bn-blue)':'var(--bn-t2)', borderBottomColor: orderType===t ? 'var(--bn-blue)':'transparent'}}>
               {t}
             </button>
           ))}

@@ -61,9 +61,9 @@ function genLevels(mid: number, bondYtm: number, bondDv01: number, side: 'ask' |
 
 /* ── Quote type badge ── */
 const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
-  STREAM: { bg: 'rgba(14,203,129,0.12)', color: 'var(--bn-green)' },
-  RFQ: { bg: 'rgba(30,144,255,0.12)', color: 'var(--bn-blue)' },
-  IND: { bg: 'rgba(240,185,11,0.12)', color: 'var(--bn-yellow)' },
+  STREAM: { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)' },
+  RFQ:    { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)'  },
+  IND:    { bg: 'var(--bn-warning-soft)',  color: 'var(--bn-amber)' },
 };
 
 function QuoteBadge({ type }: { type: QuoteType }) {
@@ -159,7 +159,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
           </span>
           <span className="font-mono-fi" style={{ fontSize: 9 }}>
             <span style={{ color: 'var(--bn-t2)' }}>DUR </span>
-            <span style={{ color: '#1e90ff', fontWeight: 600 }}>{bond.dur}</span>
+            <span style={{ color: 'var(--bn-blue)', fontWeight: 600 }}>{bond.dur}</span>
           </span>
         </div>
       </div>
@@ -244,7 +244,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
                   <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-red)', textAlign: 'right' }}>{a.price.toFixed(3)}</div>
                   <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{a.yield.toFixed(3)}</div>
                   <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{a.face.toFixed(1)}</div>
-                  <div className="font-mono-fi" style={{ fontSize: 11, color: '#1e90ff', textAlign: 'right' }}>{a.dv01.toFixed(1)}</div>
+                  <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-blue)', textAlign: 'right' }}>{a.dv01.toFixed(1)}</div>
                   <div style={{ textAlign: 'center' }}><QuoteBadge type={a.quoteType} /></div>
                 </div>
               ))}
@@ -276,7 +276,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
               </span>
               <span className="font-mono-fi" style={{ fontSize: 9 }}>
                 <span style={{ color: 'var(--bn-t2)' }}>Mid Yld </span>
-                <span style={{ color: '#00bcd4', fontWeight: 600 }}>{midYield.toFixed(3)}</span>
+                <span style={{ color: 'var(--bn-cyan)', fontWeight: 600 }}>{midYield.toFixed(3)}</span>
               </span>
               <span className="font-mono-fi" style={{ fontSize: 9 }}>
                 <span style={{ color: 'var(--bn-t2)' }}>Z-Spd </span>
@@ -307,7 +307,7 @@ export function OrderBook({ bond, onClickPrice }: OrderBookProps) {
                 <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-green)', textAlign: 'right' }}>{b.price.toFixed(3)}</div>
                 <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{b.yield.toFixed(3)}</div>
                 <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-t0)', textAlign: 'right' }}>{b.face.toFixed(1)}</div>
-                <div className="font-mono-fi" style={{ fontSize: 11, color: '#1e90ff', textAlign: 'right' }}>{b.dv01.toFixed(1)}</div>
+                <div className="font-mono-fi" style={{ fontSize: 11, color: 'var(--bn-blue)', textAlign: 'right' }}>{b.dv01.toFixed(1)}</div>
                 <div style={{ textAlign: 'center' }}><QuoteBadge type={b.quoteType} /></div>
               </div>
             ))}

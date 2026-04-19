@@ -52,7 +52,7 @@ function drawChart(canvas: HTMLCanvasElement, candles: Candle[], ma7: number[], 
   const labelColor = getCssVar('--bn-t2');
   const greenColor = getCssVar('--bn-green');
   const redColor = getCssVar('--bn-red');
-  const yellowColor = getCssVar('--bn-yellow');
+  const blueColor = getCssVar('--bn-blue');
   const cyanColor = getCssVar('--bn-cyan');
 
   // Background
@@ -90,7 +90,7 @@ function drawChart(canvas: HTMLCanvasElement, candles: Candle[], ma7: number[], 
     data.forEach((v,i) => { if (!v) return; i===0||!data[i-1] ? ctx.moveTo(xOf(i), yOf(v)) : ctx.lineTo(xOf(i), yOf(v)); });
     ctx.stroke();
   };
-  drawMA(ma7,  yellowColor);
+  drawMA(ma7,  blueColor);
   drawMA(ma25, '#d84aff');
   drawMA(ma99, cyanColor);
 
@@ -127,7 +127,7 @@ function drawChart(canvas: HTMLCanvasElement, candles: Candle[], ma7: number[], 
 
   // MA legend
   ctx.textAlign='left';
-  [['MA(7)', yellowColor, ma7],['MA(25)', '#d84aff', ma25],['MA(99)', cyanColor, ma99]].forEach(([label,color,data]:any[], idx) => {
+  [['MA(7)', blueColor, ma7],['MA(25)', '#d84aff', ma25],['MA(99)', cyanColor, ma99]].forEach(([label,color,data]:any[], idx) => {
     const v = data[data.length-1];
     ctx.fillStyle = color as string;
     ctx.font = '9px JetBrains Mono,monospace';
@@ -215,7 +215,7 @@ export function CandlestickChart({ bond }: CandlestickChartProps) {
         {INTERVALS.map(iv => (
           <button key={iv} onClick={() => setIntervalState(iv)}
             className="font-mono-fi rounded"
-            style={{padding:'2px 6px',fontSize:11,lineHeight:'16px',background: interval===iv ? 'var(--bn-bg3)':'transparent', color: interval===iv ? 'var(--bn-yellow)':'var(--bn-t1)'}}>
+            style={{padding:'2px 6px',fontSize:11,lineHeight:'16px',background: interval===iv ? 'var(--bn-bg3)':'transparent', color: interval===iv ? 'var(--bn-blue)':'var(--bn-t1)'}}>
             {iv}
           </button>
         ))}

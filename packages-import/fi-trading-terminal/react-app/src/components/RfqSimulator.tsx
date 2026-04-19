@@ -465,7 +465,7 @@ export function RfqPanel({ selectedBond, requests, setRequests, onClose }: RfqPa
                     <span className="font-mono-fi" style={{ fontSize: 9, color: r.side === 'Buy' ? 'var(--fi-green)' : 'var(--fi-red)', fontWeight: 600 }}>{r.side.toUpperCase()}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono-fi px-1.5 py-0 rounded-sm" style={{ fontSize:9, background: r.status === 'pending' ? 'rgba(61,158,255,0.1)' : r.status === 'quoted' ? 'rgba(245,166,35,0.1)' : r.status === 'done' ? 'rgba(0,229,160,0.1)' : 'rgba(255,61,94,0.1)', color: r.status === 'pending' ? 'var(--fi-blue)' : r.status === 'quoted' ? 'var(--fi-amber)' : r.status === 'done' ? 'var(--fi-green)' : 'var(--fi-red)', border: `1px solid ${r.status === 'pending' ? 'rgba(61,158,255,0.25)' : r.status === 'quoted' ? 'rgba(245,166,35,0.25)' : r.status === 'done' ? 'rgba(0,229,160,0.25)' : 'rgba(255,61,94,0.25)'}` }}>
+                    <span className="font-mono-fi px-1.5 py-0 rounded-sm" style={{ fontSize:9, background: r.status === 'pending' ? 'var(--bn-info-soft)' : r.status === 'quoted' ? 'var(--bn-warning-soft)' : r.status === 'done' ? 'var(--bn-positive-soft)' : 'var(--bn-negative-soft)', color: r.status === 'pending' ? 'var(--fi-blue)' : r.status === 'quoted' ? 'var(--fi-amber)' : r.status === 'done' ? 'var(--fi-green)' : 'var(--fi-red)', border: `1px solid ${r.status === 'pending' ? 'var(--bn-info-ring)' : r.status === 'quoted' ? 'var(--bn-warning-ring)' : r.status === 'done' ? 'var(--bn-positive-ring)' : 'var(--bn-negative-ring)'}` }}>
                       {r.status.toUpperCase()}
                     </span>
                     {(r.status === 'done' || r.status === 'cancelled') && (

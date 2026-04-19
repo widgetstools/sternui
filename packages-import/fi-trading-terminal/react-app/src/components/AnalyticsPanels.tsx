@@ -9,14 +9,14 @@ export function PositionSummary() {
   const cards = [
     { label:'Market Value',   value:'$47.2M',  sub:'+$1.4M today',   color:'var(--fi-blue)'  },
     { label:'Unrealized P&L', value:'+$284K',  sub:'+0.61% MTD',     color:'var(--fi-green)' },
-    { label:'Total DV01',     value:'$18,420', sub:'per basis point', color:'var(--fi-amber)' },
+    { label:'Total DV01',     value:'$18,420', sub:'per basis point', color:'var(--fi-cyan)' },
     { label:'Mod Duration',   value:'4.82',    sub:'yrs weighted',    color:'var(--fi-blue)'  },
   ];
   const details = [
     { label:'Wt Avg YTM', value:'5.14%', color:'var(--fi-t0)' },
     { label:'Wt Avg OAS', value:'+58 bp', color:'var(--fi-green)' },
     { label:'Convexity',  value:'0.84',  color:'var(--fi-t0)' },
-    { label:'Ann. Income',value:'$243.8K', color:'var(--fi-amber)' },
+    { label:'Ann. Income',value:'$243.8K', color:'var(--fi-cyan)' },
   ];
   return (
     <div className="flex flex-col h-full">

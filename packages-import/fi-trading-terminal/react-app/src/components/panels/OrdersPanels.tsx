@@ -15,10 +15,10 @@ type Order = typeof INITIAL_ORDERS[0];
 // React helper for OrderDetail panel (not an AG Grid renderer)
 const statusBadge=(s:string)=>{
   const m:Record<string,{bg:string,color:string,border:string}>={
-    Filled:{bg:'rgba(45,212,191,0.1)',color:'var(--bn-green)',border:'rgba(45,212,191,0.3)'},
-    Partial:{bg:'rgba(240,185,11,0.1)',color:'#f0b90b',border:'rgba(240,185,11,0.3)'},
-    Pending:{bg:'rgba(30,144,255,0.1)',color:'#1e90ff',border:'rgba(30,144,255,0.3)'},
-    Cancelled:{bg:'rgba(248,113,113,0.1)',color:'var(--bn-red)',border:'rgba(248,113,113,0.3)'},
+    Filled:   {bg:'var(--bn-positive-soft)',color:'var(--bn-green)',border:'var(--bn-positive-ring)'},
+    Partial:  {bg:'var(--bn-warning-soft)', color:'var(--bn-amber)',border:'var(--bn-warning-ring)'},
+    Pending:  {bg:'var(--bn-info-soft)',    color:'var(--bn-blue)', border:'var(--bn-info-ring)'},
+    Cancelled:{bg:'var(--bn-negative-soft)',color:'var(--bn-red)',  border:'var(--bn-negative-ring)'},
   };
   const st=m[s]||m.Pending;
   return <span style={{fontSize:9,padding:'1px 6px',borderRadius:2,background:st.bg,color:st.color,border:`1px solid ${st.border}`,fontFamily:'JetBrains Mono,monospace'}}>{s}</span>;
@@ -75,14 +75,14 @@ export function OrderKpis() {
         {/* Stacked bar */}
         <div style={{display:'flex',height:6,borderRadius:3,overflow:'hidden',background:'var(--bn-bg3)'}}>
           {filled > 0 && <div style={{width:`${(filled/total)*100}%`,background:'var(--bn-green)',transition:'width 0.5s ease'}}/>}
-          {pending > 0 && <div style={{width:`${(pending/total)*100}%`,background:'#f0b90b',transition:'width 0.5s ease'}}/>}
+          {pending > 0 && <div style={{width:`${(pending/total)*100}%`,background:'var(--bn-amber)',transition:'width 0.5s ease'}}/>}
           {cancelled > 0 && <div style={{width:`${(cancelled/total)*100}%`,background:'var(--bn-red)',transition:'width 0.5s ease'}}/>}
         </div>
         {/* Legend row */}
         <div style={{display:'flex',gap:16}}>
           {[
             {label:'Filled',val:filled,color:'var(--bn-green)'},
-            {label:'Pending',val:pending,color:'#f0b90b'},
+            {label:'Pending',val:pending,color:'var(--bn-amber)'},
             {label:'Cancelled',val:cancelled,color:'var(--bn-red)'},
           ].map(s=>(
             <div key={s.label} style={{display:'flex',alignItems:'center',gap:5}}>
@@ -131,7 +131,7 @@ export function OrderBlotter() {
 
   const colDefs = useMemo(()=>[
     {field:'time', headerName:'TIME',   width:60, cellStyle:{fontSize:9,color:'var(--bn-t2)'}},
-    {field:'bond', headerName:'BOND',   flex:1,   cellStyle:{color:'#00bcd4'}},
+    {field:'bond', headerName:'BOND',   flex:1,   cellStyle:{color:'var(--bn-cyan)'}},
     {field:'side', headerName:'SIDE',   width:55, cellRenderer:SideCellRenderer},
     {field:'type',   headerName:'TYPE',   width:55, cellStyle:{fontSize:9,color:'var(--bn-t1)'}},
     {field:'qty',    headerName:'QTY',    width:65, type:'numericColumn'},
@@ -180,7 +180,7 @@ export function OrderDetail() {
       {selected?(
         <div style={{flex:1,overflowY:'auto',padding:12,display:'flex',flexDirection:'column',gap:10}}>
           <div style={{padding:12,borderRadius:3,border:BD,background:'var(--bn-bg2)'}}>
-            <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:700,fontSize:11,color:'#00bcd4',marginBottom:5}}>{selected.bond}</div>
+            <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:700,fontSize:11,color:'var(--bn-cyan)',marginBottom:5}}>{selected.bond}</div>
             {statusBadge(selected.status)}
           </div>
           {[['Order Type',selected.type],['Side',selected.side],['Quantity',selected.qty],['Filled',selected.filled],['Price',selected.px>0?selected.px.toFixed(3):'—'],['YTM',selected.ytm>0?selected.ytm.toFixed(2)+'%':'—'],['Time',selected.time],['Settlement','T+2']].map(([l,v])=>(
