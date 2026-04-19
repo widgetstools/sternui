@@ -95,7 +95,7 @@ const sp = (id: string, dir: 'horizontal' | 'vertical', sizes: number[], childre
 });
 const base = (layout: any, panels: Record<string, any>, active: string): DockManagerState => ({
   layout,
-  panels,
+  panels: new Map(Object.entries(panels)),
   floatingPanels: [],
   popoutPanels: [],
   unpinnedPanels: [],
