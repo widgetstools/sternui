@@ -47,13 +47,13 @@ export class DurationBucketsWidget {
   @Input() panel: any;
 
   summary = [
-    { l: 'Total DV01', v: `$${(totalDv01All / 1000).toFixed(1)}K`, c: '#1e90ff' },
-    { l: 'Avg Dur', v: '4.82yr', c: '#00bcd4' },
+    { l: 'Total DV01', v: `$${(totalDv01All / 1000).toFixed(1)}K`, c: '#6ba4e8' },
+    { l: 'Avg Dur', v: '4.82yr', c: '#7db4e3' },
     { l: 'Bonds', v: String(BUCKET_DETAIL.reduce((a, d) => a + d.bonds, 0)), c: 'var(--bn-t0)' },
     {
       l: 'Wt Avg OAS',
       v: `+${Math.round(BUCKET_DETAIL.reduce((a, d) => a + d.avgOas * d.bonds, 0) / BUCKET_DETAIL.reduce((a, d) => a + d.bonds, 0))}bp`,
-      c: '#f0b90b',
+      c: '#c97b3f',
     },
   ];
 
@@ -63,7 +63,7 @@ export class DurationBucketsWidget {
       {
         label: 'DV01',
         data: BUCKET_DETAIL.map((d) => d.dv01),
-        backgroundColor: 'rgba(30,144,255,0.8)',
+        backgroundColor: 'rgba(107,164,232,0.8)',
         borderRadius: 3,
         barPercentage: 0.6,
         yAxisID: 'dv01',
@@ -71,7 +71,7 @@ export class DurationBucketsWidget {
       {
         label: 'Avg OAS',
         data: BUCKET_DETAIL.map((d) => d.avgOas),
-        backgroundColor: 'rgba(240,185,11,0.7)',
+        backgroundColor: 'rgba(201,123,63,0.7)',
         borderRadius: 3,
         barPercentage: 0.5,
         yAxisID: 'oas',

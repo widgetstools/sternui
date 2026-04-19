@@ -37,11 +37,11 @@ export class RiskKpiWidget {
   @Input() api: any;
   @Input() panel: any;
   kpis = [
-    { label: 'Portfolio DV01', val: '$18,420', sub: 'per bp', color: '#1e90ff' },
-    { label: 'Total MV', val: '$54.2M', sub: 'MTD +$1.4M', color: '#1e90ff' },
-    { label: 'VaR 95% 1D', val: '-$248K', sub: 'within limit', color: '#f0b90b' },
-    { label: 'OAS Duration', val: '4.82 yrs', sub: 'mod duration', color: '#00bcd4' },
+    { label: 'Portfolio DV01', val: '$18,420', sub: 'per bp', color: '#6ba4e8' },
+    { label: 'Total MV', val: '$54.2M', sub: 'MTD +$1.4M', color: '#6ba4e8' },
+    { label: 'VaR 95% 1D', val: '-$248K', sub: 'within limit', color: '#c97b3f' },
+    { label: 'OAS Duration', val: '4.82 yrs', sub: 'mod duration', color: '#7db4e3' },
     { label: 'Spread PnL MTD', val: '+$142K', sub: 'vs bench +38K', color: 'var(--bn-green)' },
-    { label: 'Credit Delta', val: '$8,240', sub: 'IG/HY blended', color: '#c084fc' },
+    { label: 'Credit Delta', val: '$8,240', sub: 'IG/HY blended', color: '#a48ad4' },
   ];
 }

@@ -31,7 +31,7 @@ const chartItems = [
         style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--bn-border);flex-shrink:0"
       >
         <span style="font-size:9px;color:var(--bn-t1)">NET P&L MTD</span>
-        <span class="font-mono-fi font-bold" style="font-size:18px;color:#1e90ff">{{
+        <span class="font-mono-fi font-bold" style="font-size:18px;color:#6ba4e8">{{
           netPnlLabel
         }}</span>
       </div>
@@ -48,8 +48,8 @@ export class PnlAttributionWidget implements OnInit {
 
   ngOnInit() {
     const colors = chartItems.map((d) => {
-      if (d.attr === 'Total') return d.pnl >= 0 ? '#0ecb81' : '#f6465d';
-      return d.pnl >= 0 ? 'rgba(30,144,255,0.75)' : 'rgba(246,70,93,0.75)';
+      if (d.attr === 'Total') return d.pnl >= 0 ? '#3dbfa0' : '#e56464';
+      return d.pnl >= 0 ? 'rgba(107,164,232,0.75)' : 'rgba(229,100,100,0.75)';
     });
 
     this.chartData = {

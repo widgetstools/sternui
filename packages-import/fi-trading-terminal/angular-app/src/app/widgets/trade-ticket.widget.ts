@@ -48,7 +48,7 @@ import { SharedStateService } from '../services/shared-state.service';
           (click)="side = 'BUY'"
           style="padding:8px;font-size:11px;font-weight:700;letter-spacing:0.06em;border:none;cursor:pointer;transition:all 150ms"
           [style.color]="side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-t2)'"
-          [style.background]="side === 'BUY' ? 'rgba(14,203,129,0.08)' : 'transparent'"
+          [style.background]="side === 'BUY' ? 'rgba(61,191,160,0.08)' : 'transparent'"
           [style.borderBottom]="
             side === 'BUY' ? '2px solid var(--bn-green)' : '2px solid transparent'
           "
@@ -59,7 +59,7 @@ import { SharedStateService } from '../services/shared-state.service';
           (click)="side = 'SELL'"
           style="padding:8px;font-size:11px;font-weight:700;letter-spacing:0.06em;border:none;cursor:pointer;transition:all 150ms"
           [style.color]="side === 'SELL' ? 'var(--bn-red)' : 'var(--bn-t2)'"
-          [style.background]="side === 'SELL' ? 'rgba(246,70,93,0.08)' : 'transparent'"
+          [style.background]="side === 'SELL' ? 'rgba(229,100,100,0.08)' : 'transparent'"
           [style.borderBottom]="
             side === 'SELL' ? '2px solid var(--bn-red)' : '2px solid transparent'
           "
@@ -77,8 +77,8 @@ import { SharedStateService } from '../services/shared-state.service';
             (click)="orderType = t"
             class="order-type-tab"
             [style.fontSize.px]="11"
-            [style.color]="orderType === t ? 'var(--bn-yellow)' : 'var(--bn-t2)'"
-            [style.borderBottomColor]="orderType === t ? 'var(--bn-yellow)' : 'transparent'"
+            [style.color]="orderType === t ? 'var(--bn-blue)' : 'var(--bn-t2)'"
+            [style.borderBottomColor]="orderType === t ? 'var(--bn-blue)' : 'transparent'"
           >
             {{ t }}
           </button>
