@@ -21,7 +21,11 @@ import {
 import type { ColumnTemplatesState } from '../column-templates';
 import { COLUMN_TEMPLATES_MODULE_ID } from '../column-templates';
 import { applyAssignments, reinjectCSS } from './transforms';
-import { ColumnSettingsPanel } from './ColumnSettingsPanel';
+import {
+  ColumnSettingsEditor,
+  ColumnSettingsList,
+  ColumnSettingsPanel,
+} from './ColumnSettingsPanel';
 
 export const COLUMN_CUSTOMIZATION_MODULE_ID = 'column-customization';
 
@@ -90,6 +94,10 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     };
   },
 
+  // v4: native master-detail — the settings sheet picks these up
+  // directly instead of rendering the flat `SettingsPanel` fallback.
+  ListPane: ColumnSettingsList,
+  EditorPane: ColumnSettingsEditor,
   SettingsPanel: ColumnSettingsPanel,
 };
 

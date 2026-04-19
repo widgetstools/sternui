@@ -251,6 +251,21 @@ from the draft and lights the SAVE pill.
   / `rowDataUpdated` trigger `api.refreshCells({ columns: virtualColIds,
   force: true })` so column-wide aggregates re-evaluate across every
   visible row, not just the edited one.
+- **Column Settings v4 panel rewrite (phase 3e)** — the last of the five
+  settings panels. Same three shared antipatterns removed:
+  `dirtyRegistry + window.dispatchEvent('gc-dirty-change')` →
+  `useDirty('column-customization:<colId>')`; `useAllColumns()` with
+  local `tick` polling 5 AG-Grid events → platform `useGridColumns()`;
+  `useDraftModuleItem({ store, … })` + `useModuleState(store, id)`
+  compat shims → `useModuleDraft` + 1-arg `useModuleState(id)`. Plus
+  one panel-specific cleanup: the CUSTOM AGGREGATION expression row
+  was a native `<textarea>` (the last native form element on any
+  settings panel) → swapped to shadcn `Textarea` per the v4
+  UI-primitives rule. `module.ListPane` + `module.EditorPane` wired
+  natively. All `cols-*` testIds preserved; panel 1614 → 1521 LOC; 7
+  integration tests added against a fake GridApi harness. Every module
+  panel in the project is now on the clean v4 pattern.
+
 - **Conditional Styling v4 panel rewrite (phase 3d)** — same three
   antipatterns cleaned plus two extra that only this panel carried:
   - `new ExpressionEngine()` allocated at module load → switched to

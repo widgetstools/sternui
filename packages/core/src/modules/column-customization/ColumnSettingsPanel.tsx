@@ -1,9 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { RotateCcw, Save, X } from 'lucide-react';
 import type { EditorPaneProps, ListPaneProps } from '../../platform/types';
-import { useGridCore, useGridStore } from '../../hooks/GridContext';
-import { useDraftModuleItem } from '../../store/useDraftModuleItem';
 import { useModuleState } from '../../hooks/useModuleState';
+import { useModuleDraft } from '../../hooks/useModuleDraft';
+import { useDirty } from '../../hooks/useDirty';
+import { useGridColumns, type GridColumnInfo } from '../../hooks/useGridColumns';
 import {
   Band,
   Caps,
@@ -15,7 +16,7 @@ import {
   SharpBtn,
   TitleInput,
 } from '../../ui/SettingsPanel';
-import { Select, Switch } from '@grid-customizer/core';
+import { Select, Switch, Textarea } from '../../ui/shadcn';
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
 import { StyleEditor, type StyleEditorValue } from '../../ui/StyleEditor';
 import type {
@@ -61,124 +62,37 @@ import type { GeneralSettingsState } from '../general-settings/state';
  * `state.assignments[colId]` on click.
  */
 
-// ─── Grid column index ──────────────────────────────────────────────────────
+// ─── Grid column index ─────────────────────────────────────────────────
 //
-// Reads the live list of columns from the grid api AND the module state's
-// `assignments` keys. Returns a merged unique-by-colId ordered list so the
-// left rail always has a row for every column the grid knows about, even
-// before the user has touched it. Re-renders on AG-Grid's column-structure
-// events so adding / removing a calculated column (or hiding one via the
-// sidebar) updates the list immediately.
+// The panel needs the live list of user-editable columns (data + virtual/
+// calculated, not AG-Grid internal columns like `ag-Grid-*`). v4 pulls
+// this from the platform `useGridColumns()` hook — fingerprint-cached,
+// ApiHub-wired, auto-disposed with the platform, and it already filters
+// `ag-Grid-*` internals by default. We alias the shape locally so the
+// rest of the panel reads against a stable `ColumnInfo` name.
 
-interface ColumnInfo {
-  colId: string;
-  headerName: string;
-  cellDataType: string | undefined;
-  pinned: 'left' | 'right' | null;
-  width: number | undefined;
-  hide: boolean;
-}
+type ColumnInfo = GridColumnInfo;
 
-function useAllColumns(): ColumnInfo[] {
-  const core = useGridCore();
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const api = core.getGridApi();
-    if (!api) return;
-    const bump = () => setTick((n) => n + 1);
-    const events = ['columnEverythingChanged', 'displayedColumnsChanged', 'columnVisible', 'columnPinned', 'columnResized'] as const;
-    for (const evt of events) {
-      try {
-        api.addEventListener(evt, bump);
-      } catch {
-        /* noop */
-      }
-    }
-    return () => {
-      for (const evt of events) {
-        try {
-          api.removeEventListener(evt, bump);
-        } catch {
-          /* noop */
-        }
-      }
-    };
-  }, [core]);
-
-  return useMemo(() => {
-    const api = core.getGridApi() as unknown as {
-      getColumns?: () => Array<{
-        getColId: () => string;
-        getColDef: () => { headerName?: string; cellDataType?: string };
-        getPinned: () => 'left' | 'right' | null;
-        getActualWidth: () => number;
-        isVisible: () => boolean;
-      }>;
-    } | null;
-    if (!api?.getColumns) return [];
-    const out: ColumnInfo[] = [];
-    try {
-      for (const c of api.getColumns() ?? []) {
-        const colId = c.getColId();
-        // Skip AG-Grid internal columns — they have non-user-facing ids
-        // like `ag-Grid-SelectionColumn`. The Column Settings editor is
-        // about USER columns (data + calculated). The selection column
-        // is configured globally via Grid Options, not per-column.
-        if (colId.startsWith('ag-Grid-')) continue;
-        const def = c.getColDef();
-        out.push({
-          colId,
-          headerName: def.headerName ?? colId,
-          cellDataType: typeof def.cellDataType === 'string' ? def.cellDataType : undefined,
-          pinned: c.getPinned() ?? null,
-          width: c.getActualWidth() ?? undefined,
-          hide: !c.isVisible(),
-        });
-      }
-    } catch {
-      /* api shape drift — return what we have */
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, tick]);
-}
-
-// ─── Dirty broadcast (module-local) ──────────────────────────────────────────
+// ─── Dirty LED for the list rail ───────────────────────────────────────
 //
-// Each editor instance subscribes to the shared `gc-dirty-change` custom
-// event so the LED beside every list row reflects its card's dirty state
-// without re-subscribing to the store per row.
+// Reads against the per-platform `DirtyBus` via `useDirty(key)`.
+// `useModuleDraft` auto-registers `column-customization:<colId>` for the
+// active editor card, so the LED lights / clears without any manual
+// `window.dispatchEvent` bookkeeping.
 
-const dirtyRegistry = new Set<string>();
-function setDirty(itemId: string, value: boolean) {
-  const key = `column-customization:${itemId}`;
-  const before = dirtyRegistry.has(key);
-  if (value) dirtyRegistry.add(key);
-  else dirtyRegistry.delete(key);
-  if (before !== value) window.dispatchEvent(new CustomEvent('gc-dirty-change'));
-}
-function isDirty(itemId: string): boolean {
-  return dirtyRegistry.has(`column-customization:${itemId}`);
-}
+const MODULE_ID = 'column-customization';
 
-function DirtyListLed({ itemId }: { itemId: string }) {
-  const [dirty, setDirtyState] = useState<boolean>(() => isDirty(itemId));
-  useEffect(() => {
-    const handler = () => setDirtyState(isDirty(itemId));
-    window.addEventListener('gc-dirty-change', handler);
-    return () => window.removeEventListener('gc-dirty-change', handler);
-  }, [itemId]);
-  if (!dirty) return null;
+function DirtyListLed({ colId }: { colId: string }) {
+  const { isDirty } = useDirty(`${MODULE_ID}:${colId}`);
+  if (!isDirty) return null;
   return <LedBar amber on title="Unsaved changes" />;
 }
 
 // ─── List pane ───────────────────────────────────────────────────────────────
 
 export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
-  const columns = useAllColumns();
-  const store = useGridStore();
-  const [state] = useModuleState<ColumnCustomizationState>(store, 'column-customization');
+  const columns = useGridColumns();
+  const [state] = useModuleState<ColumnCustomizationState>(MODULE_ID);
 
   // Auto-select the first column when the panel opens and nothing is
   // selected yet.
@@ -219,7 +133,7 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
                 data-testid={`cols-item-${c.colId}`}
               >
                 <span style={{ width: 2, display: 'inline-flex' }}>
-                  <DirtyListLed itemId={c.colId} />
+                  <DirtyListLed colId={c.colId} />
                 </span>
                 <span
                   style={{
@@ -262,7 +176,7 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
 // ─── Editor pane ─────────────────────────────────────────────────────────────
 
 export function ColumnSettingsEditor({ selectedId }: EditorPaneProps) {
-  const columns = useAllColumns();
+  const columns = useGridColumns();
 
   if (!selectedId) {
     return (
@@ -290,23 +204,23 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
 }: {
   col: ColumnInfo;
 }) {
-  const store = useGridStore();
-  const [templatesState] = useModuleState<ColumnTemplatesState>(store, 'column-templates');
+  const [templatesState] = useModuleState<ColumnTemplatesState>('column-templates');
 
-  const { draft, setDraft, dirty, save, discard } = useDraftModuleItem<
+  const { draft, setDraft, dirty, save, discard } = useModuleDraft<
     ColumnCustomizationState,
     ColumnAssignment
   >({
-    store,
-    moduleId: 'column-customization',
-    // Auto-seed a fresh `{ colId }` item when the user opens a column that
-    // has never been customised yet. The commit path below strips empty
-    // fields so saving an untouched assignment doesn't pollute state.
+    moduleId: MODULE_ID,
+    itemId: col.colId,
+    // Auto-seed a fresh `{ colId }` item when the user opens a column
+    // that has never been customised yet. The commit path below strips
+    // empty fields so saving an untouched assignment doesn't pollute
+    // state.
     selectItem: (state) => state.assignments[col.colId] ?? { colId: col.colId },
     commitItem: (next) => (state) => {
       const assignments = { ...state.assignments };
-      // Drop the assignment entirely when the user has cleared every
-      // override — avoids stale `{ colId }`-only entries accumulating.
+      // Drop the assignment entirely when every override has been
+      // cleared — avoids stale `{ colId }`-only entries accumulating.
       if (isEmptyAssignment(next)) {
         delete assignments[col.colId];
       } else {
@@ -315,11 +229,9 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
       return { ...state, assignments };
     },
   });
-
-  useEffect(() => {
-    setDirty(col.colId, dirty);
-    return () => setDirty(col.colId, false);
-  }, [col.colId, dirty]);
+  // DirtyBus registration is handled inside useModuleDraft — the key is
+  // `column-customization:<colId>`, which the list rail's LED reads via
+  // `useDirty(key)`. No manual publish is required.
 
   const templates = useMemo(() => {
     return (draft.templateIds ?? [])
@@ -1211,8 +1123,7 @@ function RowGroupingEditor({
   value: RowGroupingConfig | undefined;
   onChange: (next: RowGroupingConfig | undefined) => void;
 }) {
-  const store = useGridStore();
-  const [gridOpts, setGridOpts] = useModuleState<GeneralSettingsState>(store, 'general-settings');
+  const [gridOpts, setGridOpts] = useModuleState<GeneralSettingsState>('general-settings');
 
   const cfg = value ?? {};
   const update = (patch: Partial<RowGroupingConfig>) => {
@@ -1311,7 +1222,9 @@ function RowGroupingEditor({
           label="CUSTOM EXPRESSION"
           hint={`Aggregate values array = [value] · try "SUM([value]) * 1.1"`}
           control={
-            <textarea
+            // shadcn Textarea — no native `<textarea>` anywhere in
+            // settings-panel surfaces (per the v4 UI-primitives rule).
+            <Textarea
               value={cfg.customAggExpression ?? ''}
               onChange={(e) => update({ customAggExpression: e.target.value || undefined })}
               data-testid={`cols-${colId}-rg-custom-expr`}
@@ -1320,16 +1233,10 @@ function RowGroupingEditor({
               style={{
                 width: '100%',
                 minHeight: 56,
-                padding: '6px 8px',
                 fontFamily: 'var(--ck-font-mono, ui-monospace, monospace)',
                 fontSize: 11,
                 lineHeight: 1.5,
-                borderRadius: 3,
-                border: '1px solid var(--ck-border)',
-                background: 'var(--ck-bg, var(--background))',
-                color: 'var(--ck-t0, var(--foreground))',
                 resize: 'vertical',
-                outline: 'none',
               }}
             />
           }
