@@ -1115,18 +1115,16 @@ export function FormattingToolbar() {
               : <Trash2 size={14} strokeWidth={1.75} />}
           </TBtn>
         </TGroup>
-      </div>
 
-      {/* ───────────────────────────── ROW 2 — DATA FORMAT ──────────────
-          Number format presets, decimals, tick, Excel template + live
-          preview. Dims when target=header (headers have no values). */}
-      <div
-        className={cn(
-          'gc-toolbar-row flex flex-wrap items-center gap-2',
-          isHeader && 'opacity-40 pointer-events-none',
-        )}
-        style={{ padding: '6px 12px' }}
-      >
+        {/* Divider separating chrome (typography / color / borders)
+            from data-format groups. Merging the previous two rows into
+            this single flex-wrap row means the toolbar is single-line
+            when there's container width for it, and wraps gracefully
+            to a second visual row when the container shrinks.
+            Data-format buttons already carry `disabled={isHeader}` so
+            they dim individually when the scope targets a header —
+            no need for a wrapper-level opacity. */}
+        <span aria-hidden className="gc-tb-div" />
         {/* Row-lead micro-label — `.gc-tb-micro` per the terminal tokens. */}
         <span className="gc-tb-micro" style={{ borderRight: '1px solid var(--tb-line-strong)', marginRight: 4 }}>
           Value Format

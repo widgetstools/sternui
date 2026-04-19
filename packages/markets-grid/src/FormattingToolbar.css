@@ -594,12 +594,19 @@
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
-/* When pinned, the toolbar root drops its own border / radius — the
-   wrapper provides the separator chrome and the toolbar fills the
-   host row edge-to-edge. `.gc-tb-pinned > .gc-formatting-toolbar`
-   targets the pinned variant specifically; floating (legacy) usage
-   keeps its own framed look. */
+/* When pinned, the toolbar root:
+   - fills the wrapper edge-to-edge (overrides the component's own
+     inline `width: max-content` which was designed for floating-panel
+     sizing)
+   - drops its own border / radius — the wrapper provides the
+     separator chrome
+   The `!important` on width / max-width is unfortunate but necessary
+   because the inline style wins specificity over our class rule.
+   Alternatively we'd need a prop threaded through the component;
+   this is the smaller change. */
 .gc-tb-pinned > .gc-formatting-toolbar {
+  width: 100% !important;
+  max-width: 100% !important;
   height: auto;
   min-height: var(--tb-h-bar);
   border: none;
@@ -607,11 +614,10 @@
   background: transparent;
 }
 
-/* Row allowed to wrap when content exceeds viewport width. The inner
-   `.gc-tb-body` already has `flex-wrap` from its legacy
-   `.gc-toolbar-row` layout classes, so when a group can't fit, it
-   wraps to the next line — no horizontal scroll, no clipped
-   buttons. */
+/* Row wraps when content exceeds the container width. All groups
+   live in one `.gc-tb-body` row — single line when there's space,
+   two rows when constrained. The `row-gap: 4px` adds breathing room
+   on the second row so pills don't clash vertically. */
 .gc-tb-pinned .gc-tb-body {
   flex-wrap: wrap;
   row-gap: 4px;
