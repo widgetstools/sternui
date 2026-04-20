@@ -11,7 +11,9 @@
     "build:lib": "npm run build -w packages/core",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w apps/demo -- --open=false\" \"wait-on http://localhost:5190 && node openfin/launch.mjs http://localhost:5190/openfin/manifest.json\"",
+    "start:openfin": "concurrently -k -n serve,openfin -c cyan,magenta \"npx -y serve -p 4173 -s apps/demo/dist\" \"wait-on http://localhost:4173 && node openfin/launch.mjs http://localhost:4173/openfin/manifest.prod.json\""
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -22,6 +24,8 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "^4.2.2",
-    "tailwindcss": "^4.2.2"
+    "concurrently": "^9.0.0",
+    "tailwindcss": "^4.2.2",
+    "wait-on": "^8.0.0"
   }
 }
