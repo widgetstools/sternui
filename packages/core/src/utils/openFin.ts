@@ -88,6 +88,32 @@ export function isOpenFin(): boolean {
 }
 
 /**
+ * Diagnostic: dumps what we see of `window.fin`. Exposed for
+ * console-debugging popout issues under OpenFin — run
+ * `debugOpenFin()` in the main window's devtools to confirm the
+ * runtime has populated the fin namespace and our type structure
+ * matches reality.
+ */
+export function debugOpenFin(): Record<string, unknown> {
+  if (typeof window === 'undefined') return { reason: 'no window (SSR)' };
+  const fin = (window as WithFin).fin;
+  return {
+    hasFin: !!fin,
+    hasWindow: !!fin?.Window,
+    hasWindowCreate: typeof fin?.Window?.create,
+    hasWindowWrap: typeof fin?.Window?.wrap,
+    hasWindowWrapSync: typeof fin?.Window?.wrapSync,
+    hasMe: !!fin?.me,
+    meIdentityUuid: fin?.me?.identity?.uuid,
+    locationHref: window.location?.href,
+    locationOrigin: window.location?.origin,
+  };
+}
+if (typeof window !== 'undefined') {
+  (window as unknown as { __debugOpenFin?: typeof debugOpenFin }).__debugOpenFin = debugOpenFin;
+}
+
+/**
  * Returns a `PopoutPortal`-compatible `openWindow` callback that
  * creates OpenFin windows instead of plain browser windows. Returns
  * undefined when not running inside OpenFin — the caller should pass
@@ -113,9 +139,21 @@ export function isOpenFin(): boolean {
 export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
   | ((opts: { name: string; width: number; height: number; alwaysOnTop?: boolean }) => Promise<Window | null>)
   | undefined {
-  if (!isOpenFin()) return undefined;
+  if (!isOpenFin()) {
+    // Diagnostic: tell the dev WHY the OpenFin path isn't taken
+    // even though the user expects it. Common causes: running in a
+    // plain browser (expected), running in OpenFin but `window.fin`
+    // hasn't been injected yet at the call site (unexpected — the
+    // caller should invoke this at pop-out time, not at module
+    // import time).
+    if (typeof window !== 'undefined') {
+      console.info('[openFin] not running inside OpenFin — window.open fallback will be used', debugOpenFin());
+    }
+    return undefined;
+  }
   const fin = (window as WithFin).fin!;
   const callerAlwaysOnTop = opts?.alwaysOnTop ?? false;
+  console.info('[openFin] opener built — appUuid:', fin.me?.identity?.uuid);
 
   /**
    * Best-effort close of any pre-existing window registered under

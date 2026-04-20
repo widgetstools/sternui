@@ -208,7 +208,10 @@ export function PopoutPortal({
       let createPromise = pendingCreates.get(name);
       if (!createPromise) {
         createPromise = (async (): Promise<Window | null> => {
-          console.info(`[PopoutPortal] creating window "${name}"`);
+          const usingOpenFin = !!openWindow;
+          console.info(
+            `[PopoutPortal] creating window "${name}" via ${usingOpenFin ? 'openFin (fin.Window.create)' : 'window.open'}`,
+          );
           let w: Window | null;
           if (openWindow) {
             w = await openWindow({ name, width, height, alwaysOnTop });
@@ -217,6 +220,16 @@ export function PopoutPortal({
             // platform deliberately forbids it. `alwaysOnTop` is
             // silently discarded here; only OpenFin honors it via
             // `openFinWindowOpener()`.
+            //
+            // Diagnostic note: if you see this log line while
+            // running INSIDE OpenFin, it means `openFinWindowOpener()`
+            // returned undefined — i.e. `isOpenFin()` is false.
+            // That happens when `window.fin` isn't populated yet
+            // at the time the caller imported / invoked the
+            // opener. The caller (Poppable / SettingsSheet) must
+            // invoke `openFinWindowOpener()` at CALL time (each
+            // pop-out), not at module import time, so the lookup
+            // happens after OpenFin has injected `fin`.
             const features = `width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes`;
             w = window.open('', name, features);
           }
