@@ -1,76 +1,85 @@
 /* ───────────────────────────────────────────────────────────────────
- * FormattingToolbar — MarketsUI FI terminal design system.
+ * FormattingToolbar — design-system aligned chrome.
  *
- * Visual inspiration: `cell-format-toolbar.html` +
- * `cell-format-toolbar-light.html`. Zero functional changes — this
- * stylesheet purely defines tokens + component-scoped classes the
- * existing JSX consumes.
+ * Originally shipped with a bespoke cyan terminal palette. Refactored
+ * to consume the FI design system tokens (--bn-*, --primary, --card,
+ * --border, --foreground, --muted-foreground) so the toolbar inherits
+ * the demo's teal-branded identity instead of fighting it.
  *
- * Everything here is scoped to `.gc-formatting-toolbar` so the
- * cyan-primary terminal palette doesn't leak into the rest of the
- * app (panels keep their cockpit-teal identity).
+ * What the old version did we keep:
+ *   - `.gc-tb-*` class names (no markup changes)
+ *   - testids + aria-pressed + data-on hooks
+ *   - floating vs pinned wrapper split (.gc-tb-float / .gc-tb-pinned)
+ *   - light / dark responsiveness
  *
- * Light mode overrides ride on `[data-theme="light"]` at the document
- * root — the project already sets that attribute in App.tsx.
- *
- * Classes are prefixed `.gc-tb-*` for the new component primitives
- * introduced in the restyle. Existing `.gc-formatting-toolbar` +
- * `.gc-toolbar-enabled` + `.gc-tbtn` class names are preserved so
- * testids / the `useActiveColumns` disabled-state detection keep
- * working unchanged.
+ * What changed:
+ *   - Cyan accent → teal `--primary` (design-system brand)
+ *   - All surfaces / borders / ink now source from root tokens
+ *   - Active / pressed states gained a subtle inner shadow + stronger
+ *     fill so buttons "pop" out of the row without looking bloated
+ *   - Focus ring uses `--ring` (teal) for consistency across the app
+ *   - Added `.gc-tb-live-dot` which the tsx was referencing but had
+ *     no definition before
  * ─────────────────────────────────────────────────────────────────── */
 
-/* ─── Dark mode tokens (default) ─────────────────────────────────── */
+/* ─── Token shim — map local --tb-* names to design-system tokens ── */
 .gc-formatting-toolbar {
-  /* Surfaces — cool near-black with blue tint */
-  --tb-bg-app: #0B0F14;
-  --tb-bg-panel: #0F1419;
-  --tb-bg-bar: #11161C;
-  --tb-bg-sunken: #080B10;
-  --tb-bg-hover: rgba(0, 191, 255, 0.06);
-  --tb-bg-active: rgba(0, 191, 255, 0.12);
+  /* Surfaces ride the card / surface stack from the design system */
+  --tb-bg-app:    var(--bn-bg,  var(--background));
+  --tb-bg-panel:  var(--bn-bg1, var(--card));
+  --tb-bg-bar:    var(--bn-bg1, var(--card));
+  --tb-bg-sunken: var(--bn-bg,  color-mix(in srgb, var(--background) 92%, #000));
 
-  /* Hairline borders — cool, low-contrast */
-  --tb-line: rgba(140, 170, 200, 0.08);
-  --tb-line-strong: rgba(140, 170, 200, 0.16);
+  /* Hover / active tints — derived from the brand so they adapt to
+     the active theme automatically. */
+  --tb-bg-hover:  color-mix(in srgb, var(--primary) 8%,  transparent);
+  --tb-bg-active: color-mix(in srgb, var(--primary) 18%, transparent);
 
-  /* Ink hierarchy */
-  --tb-ink-0: #E4E9F0;
-  --tb-ink-1: #9AA5B4;
-  --tb-ink-2: #6B7685;
-  --tb-ink-3: #434C58;
+  /* Hairlines */
+  --tb-line:        var(--border);
+  --tb-line-strong: color-mix(in srgb, var(--border) 80%, var(--foreground));
 
-  /* Semantic palette — saturated for dark backgrounds */
-  --tb-cyan: #4FB8FF;
-  --tb-cyan-dim: #2E8FD6;
-  --tb-cyan-ghost: rgba(79, 184, 255, 0.08);
-  --tb-cyan-line: rgba(79, 184, 255, 0.35);
-  --tb-cyan-fill: rgba(79, 184, 255, 0.12);
+  /* Ink hierarchy — falls back to foreground stack tokens first, then
+     the semantic muted scale. */
+  --tb-ink-0: var(--bn-t0, var(--foreground));
+  --tb-ink-1: var(--bn-t1, var(--muted-foreground));
+  --tb-ink-2: var(--bn-t2, color-mix(in srgb, var(--muted-foreground) 75%, transparent));
+  --tb-ink-3: var(--bn-t3, color-mix(in srgb, var(--muted-foreground) 45%, transparent));
 
-  --tb-red: #FF5A5E;
-  --tb-red-ghost: rgba(255, 90, 94, 0.08);
-  --tb-red-line: rgba(255, 90, 94, 0.35);
+  /* Brand accent — teal via --primary. Split into dim / ghost / line /
+     fill so the various control variants can pick their own intensity. */
+  --tb-accent:       var(--primary);
+  --tb-accent-dim:   color-mix(in srgb, var(--primary) 78%, #000);
+  --tb-accent-ghost: color-mix(in srgb, var(--primary) 14%, transparent);
+  --tb-accent-line:  color-mix(in srgb, var(--primary) 40%, transparent);
+  --tb-accent-fill:  color-mix(in srgb, var(--primary) 22%, transparent);
+  --tb-accent-glow:  color-mix(in srgb, var(--primary) 55%, transparent);
 
-  --tb-amber: #FFB84D;
-  --tb-amber-ghost: rgba(255, 184, 77, 0.08);
-  --tb-amber-line: rgba(255, 184, 77, 0.35);
+  /* Semantic status colors — source from design system */
+  --tb-red:        var(--destructive, var(--bn-red, #f87171));
+  --tb-red-ghost:  color-mix(in srgb, var(--tb-red) 10%, transparent);
+  --tb-red-line:   color-mix(in srgb, var(--tb-red) 40%, transparent);
 
-  --tb-green: #35D6A4;
-  --tb-green-ghost: rgba(53, 214, 164, 0.08);
-  --tb-green-line: rgba(53, 214, 164, 0.35);
+  --tb-amber:       var(--bn-yellow, var(--bn-amber, #f0b90b));
+  --tb-amber-ghost: color-mix(in srgb, var(--tb-amber) 10%, transparent);
+  --tb-amber-line:  color-mix(in srgb, var(--tb-amber) 40%, transparent);
 
-  /* Geometry — tight terminal grid */
-  --tb-r: 2px;
-  --tb-r-md: 3px;
+  --tb-green:       var(--bn-green, #2dd4bf);
+  --tb-green-ghost: color-mix(in srgb, var(--tb-green) 12%, transparent);
+  --tb-green-line:  color-mix(in srgb, var(--tb-green) 42%, transparent);
+
+  /* Geometry — tight terminal grid. Bumped control height 1px for pop. */
+  --tb-r:     3px;
+  --tb-r-md:  4px;
   --tb-h-bar: 34px;
-  --tb-h-ctrl: 22px;
-  --tb-icon: 11px;
-  --tb-icon-sm: 9px;
-  --tb-icon-chip: 10px;
+  --tb-h-ctrl: 23px;
+  --tb-icon:    12px;
+  --tb-icon-sm: 10px;
+  --tb-icon-chip: 11px;
 
   /* Typography */
-  --tb-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
-  --tb-font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  --tb-font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --tb-font-sans: 'Geist', 'IBM Plex Sans', -apple-system, sans-serif;
 
   /* Shell */
   background: var(--tb-bg-bar);
@@ -81,71 +90,28 @@
   font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
 
-/* ─── Light mode — desaturated, cool gray, slightly larger ──────── */
+/* ─── Light mode — sizes bumped a notch for legibility ──────────── */
 [data-theme='light'] .gc-formatting-toolbar {
-  --tb-bg-app: #E8ECF0;
-  --tb-bg-panel: #EDF0F4;
-  --tb-bg-bar: #F2F4F7;
-  --tb-bg-sunken: #DCE1E8;
-  --tb-bg-hover: rgba(47, 95, 147, 0.08);
-  --tb-bg-active: rgba(47, 95, 147, 0.14);
+  /* Slightly larger hit areas in light mode so the icons don't look
+     anemic against the brighter canvas. */
+  --tb-h-bar:     38px;
+  --tb-h-ctrl:    26px;
+  --tb-icon:      13px;
+  --tb-icon-sm:   11px;
+  --tb-icon-chip: 12px;
 
-  --tb-line: rgba(59, 75, 96, 0.14);
-  --tb-line-strong: rgba(59, 75, 96, 0.24);
-
-  --tb-ink-0: #1D2733;
-  --tb-ink-1: #4A5768;
-  --tb-ink-2: #6B7888;
-  --tb-ink-3: #95A0AE;
-
-  /* Desaturated cyan, darker so it stays readable on light bg */
-  --tb-cyan: #2F5F93;
-  --tb-cyan-dim: #1F4A7A;
-  --tb-cyan-ghost: rgba(47, 95, 147, 0.09);
-  --tb-cyan-line: rgba(47, 95, 147, 0.42);
-  --tb-cyan-fill: rgba(47, 95, 147, 0.12);
-
-  --tb-red: #A23E45;
-  --tb-red-ghost: rgba(162, 62, 69, 0.08);
-  --tb-red-line: rgba(162, 62, 69, 0.38);
-
-  --tb-amber: #946832;
-  --tb-amber-ghost: rgba(148, 104, 50, 0.09);
-  --tb-amber-line: rgba(148, 104, 50, 0.4);
-
-  --tb-green: #3B7A5E;
-  --tb-green-ghost: rgba(59, 122, 94, 0.08);
-  --tb-green-line: rgba(59, 122, 94, 0.4);
-
-  /* Larger for legibility on light bg (per the sample's notes) */
-  --tb-h-bar: 38px;
-  --tb-h-ctrl: 26px;
-  --tb-icon: 13px;
-  --tb-icon-sm: 10px;
-  --tb-icon-chip: 11px;
-
-  /* Subtle inner highlight + soft shadow — gives the toolbar
-     definition against the cool gray canvas without a hard border. */
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
     0 1px 2px rgba(30, 40, 55, 0.04),
     0 2px 6px -2px rgba(30, 40, 55, 0.06);
 }
 
-/* ─── Tokens exposed via the component's existing classes ───────── */
-/* These selectors restyle the existing v3 chrome without requiring
-   markup changes. The more granular `.gc-tb-*` primitives below are
-   what 9b migrates individual controls to. */
-
+/* ─── Shell sizing ─────────────────────────────────────────────── */
 .gc-formatting-toolbar {
   height: var(--tb-h-bar);
 }
-.gc-formatting-toolbar.gc-toolbar-enabled {
-  /* Enabled state mirrors disabled at the token level; no chrome
-     difference. Kept as a hook for future accent-edge treatments. */
-}
 
-/* ─── Group + divider — shared across every control group ───────── */
+/* ─── Group + divider ──────────────────────────────────────────── */
 .gc-formatting-toolbar .gc-tb-g {
   display: flex;
   align-items: center;
@@ -158,10 +124,12 @@
   background: var(--tb-line-strong);
   margin: 0 5px;
   flex-shrink: 0;
+  opacity: 0.7;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-div {
   height: 18px;
   margin: 0 6px;
+  opacity: 0.65;
 }
 
 /* ─── Icon button (Bold / Italic / Underline / align / etc.) ───── */
@@ -179,32 +147,52 @@
   padding: 0;
   flex-shrink: 0;
   font-family: inherit;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 80ms ease;
 }
 .gc-formatting-toolbar .gc-tb-btn:hover:not(:disabled) {
   background: var(--tb-bg-hover);
   color: var(--tb-ink-0);
 }
+.gc-formatting-toolbar .gc-tb-btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
 .gc-formatting-toolbar .gc-tb-btn[data-on='true'],
 .gc-formatting-toolbar .gc-tb-btn[aria-pressed='true'] {
-  background: var(--tb-cyan-ghost);
-  color: var(--tb-cyan);
-  border-color: var(--tb-cyan-line);
+  background: var(--tb-accent-fill);
+  color: var(--tb-accent);
+  border-color: var(--tb-accent-line);
+  /* Subtle inner highlight + soft outer glow → the "pop" */
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-btn[data-on='true'],
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-btn[aria-pressed='true'] {
-  background: var(--tb-cyan-fill);
-  color: var(--tb-cyan-dim);
-  border-color: var(--tb-cyan-line);
+  background: var(--tb-accent-fill);
+  color: var(--tb-accent-dim);
+  border-color: var(--tb-accent-line);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
+    0 1px 2px rgba(13, 148, 136, 0.12);
 }
 .gc-formatting-toolbar .gc-tb-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.32;
   cursor: default;
 }
 .gc-formatting-toolbar .gc-tb-btn > svg {
   width: var(--tb-icon);
   height: var(--tb-icon);
   display: block;
+  stroke-width: 2;
+}
+.gc-formatting-toolbar .gc-tb-btn[data-on='true'] > svg,
+.gc-formatting-toolbar .gc-tb-btn[aria-pressed='true'] > svg {
+  stroke-width: 2.5;
 }
 
 /* ─── Button with trailing caret (menu triggers) ────────────────── */
@@ -221,20 +209,21 @@
   cursor: pointer;
   flex-shrink: 0;
   font-family: inherit;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 .gc-formatting-toolbar .gc-tb-btn-menu:hover:not(:disabled) {
   background: var(--tb-bg-hover);
   color: var(--tb-ink-0);
-  border-color: var(--tb-line-strong);
+  border-color: var(--tb-accent-line);
 }
 .gc-formatting-toolbar .gc-tb-btn-menu > svg {
   width: var(--tb-icon);
   height: var(--tb-icon);
+  stroke-width: 2;
 }
 .gc-formatting-toolbar .gc-tb-btn-menu .gc-tb-caret {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   color: var(--tb-ink-2);
 }
 
@@ -245,22 +234,23 @@
   gap: 5px;
   height: var(--tb-h-ctrl);
   padding: 0 6px 0 8px;
-  background: transparent;
-  border: 1px solid var(--tb-line-strong);
+  background: var(--tb-bg-sunken);
+  border: 1px solid var(--tb-line);
   border-radius: var(--tb-r);
   color: var(--tb-ink-0);
   font-family: var(--tb-font-mono);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 .gc-formatting-toolbar .gc-tb-chip:hover:not(:disabled) {
   background: var(--tb-bg-hover);
-  border-color: var(--tb-cyan-line);
+  border-color: var(--tb-accent-line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-chip {
   background: var(--tb-bg-panel);
@@ -269,8 +259,8 @@
   font-weight: 600;
 }
 .gc-formatting-toolbar .gc-tb-chip .gc-tb-caret {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   color: var(--tb-ink-2);
 }
 .gc-formatting-toolbar .gc-tb-chip .gc-tb-chip-ic {
@@ -281,7 +271,7 @@
 .gc-formatting-toolbar .gc-tb-chip .gc-tb-unit {
   color: var(--tb-ink-2);
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.08em;
   margin-left: -1px;
 }
@@ -307,13 +297,13 @@
   color: var(--tb-ink-1);
   font-family: var(--tb-font-mono);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 100ms ease, color 100ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 .gc-formatting-toolbar .gc-tb-seg > button:last-child {
   border-right: none;
@@ -324,15 +314,17 @@
 }
 .gc-formatting-toolbar .gc-tb-seg > button[aria-selected='true'],
 .gc-formatting-toolbar .gc-tb-seg > button[data-on='true'] {
-  background: var(--tb-cyan-ghost);
-  color: var(--tb-cyan);
-  font-weight: 600;
+  background: var(--tb-accent-fill);
+  color: var(--tb-accent);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--tb-accent);
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-seg > button[aria-selected='true'],
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-seg > button[data-on='true'] {
-  background: var(--tb-cyan-fill);
-  color: var(--tb-cyan-dim);
+  background: var(--tb-accent-fill);
+  color: var(--tb-accent-dim);
   font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--tb-accent-dim);
 }
 
 /* ─── Scope toggle (Cell ⇄ Header) ─────────────────────────────── */
@@ -341,7 +333,7 @@
   align-items: center;
   gap: 6px;
   height: var(--tb-h-ctrl);
-  padding: 0 7px 0 6px;
+  padding: 0 8px 0 7px;
   background: var(--tb-bg-sunken);
   border: 1px solid var(--tb-line-strong);
   border-radius: var(--tb-r);
@@ -349,29 +341,30 @@
   cursor: pointer;
   font-family: var(--tb-font-mono);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
 .gc-formatting-toolbar .gc-tb-scope:hover {
-  border-color: var(--tb-cyan-line);
+  border-color: var(--tb-accent-line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-scope {
   font-size: 11px;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-scope:hover {
-  background: #D4DAE2;
+  background: color-mix(in srgb, var(--primary) 6%, var(--tb-bg-sunken));
 }
 .gc-formatting-toolbar .gc-tb-scope .gc-tb-scope-val {
-  color: var(--tb-cyan);
-  font-weight: 600;
+  color: var(--tb-accent);
+  font-weight: 700;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-scope .gc-tb-scope-val {
-  color: var(--tb-cyan-dim);
+  color: var(--tb-accent-dim);
   font-weight: 700;
 }
 
@@ -391,19 +384,22 @@
   cursor: pointer;
   padding: 2px 0;
   flex-shrink: 0;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 .gc-formatting-toolbar .gc-tb-color-btn:hover:not(:disabled) {
   background: var(--tb-bg-hover);
   color: var(--tb-ink-0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 .gc-formatting-toolbar .gc-tb-color-btn > svg {
   width: var(--tb-icon-chip);
   height: var(--tb-icon-chip);
+  stroke-width: 2;
 }
 .gc-formatting-toolbar .gc-tb-color-btn .gc-tb-swatch {
   width: 12px;
-  height: 2px;
+  height: 3px;
+  border-radius: 1px;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-color-btn .gc-tb-swatch {
   width: 14px;
@@ -416,7 +412,7 @@
   align-items: center;
   gap: 8px;
   height: var(--tb-h-ctrl);
-  padding: 0 9px 0 8px;
+  padding: 0 10px 0 9px;
   background: var(--tb-bg-sunken);
   border: 1px solid var(--tb-line-strong);
   border-radius: var(--tb-r);
@@ -430,33 +426,47 @@
 .gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-lbl {
   font-family: var(--tb-font-mono);
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--tb-ink-2);
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-lbl {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-val {
   font-family: var(--tb-font-mono);
   font-size: 11px;
-  font-weight: 500;
-  color: var(--tb-cyan);
+  font-weight: 700;
+  color: var(--tb-accent);
   font-variant-numeric: tabular-nums;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-preview .gc-tb-preview-val {
   font-size: 12px;
   font-weight: 700;
-  color: var(--tb-cyan-dim);
+  color: var(--tb-accent-dim);
   letter-spacing: 0.01em;
 }
 
+/* Live dot — pulsed teal indicator that some panels sit alongside
+   the column label when live styling is active. */
+.gc-formatting-toolbar .gc-tb-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tb-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent);
+  animation: gc-tb-pulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes gc-tb-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+
 /* ─── Chip variant: native <select> ───────────────────────────── */
-/* Native selects have OS chrome that we need to override. These
-   rules keep the chip appearance — the caret is drawn by the
-   browser, so we hide our own and let the OS arrow do its thing. */
+/* Native selects have OS chrome that we need to override. */
 .gc-formatting-toolbar select.gc-tb-chip--select {
   appearance: none;
   -webkit-appearance: none;
@@ -478,32 +488,27 @@
   padding-right: 18px;
   color: var(--tb-ink-0);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   max-width: 130px;
   outline: none;
 }
 [data-theme='light'] .gc-formatting-toolbar select.gc-tb-chip--select {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ─── Icon button variants ─────────────────────────────────────── */
-/* Narrow button — split-menu caret trigger (half-width icon button). */
 .gc-formatting-toolbar .gc-tb-btn.gc-tb-btn--narrow {
   width: 16px;
 }
 
-/* Text button — accommodates numeric or short-string content (e.g.
-   the tick-format's "32" label, decimals "←.0" / ".0→"). Widens past
-   the square 22px with tokenised inline padding so the content has
-   breathing room. */
 .gc-formatting-toolbar .gc-tb-btn.gc-tb-btn--text {
   width: auto;
   min-width: var(--tb-h-ctrl);
   padding: 0 6px;
   font-family: var(--tb-font-mono);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.04em;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-btn.gc-tb-btn--text {
@@ -512,19 +517,16 @@
   padding: 0 7px;
 }
 
-/* Confirm flash — briefly tints the button cyan after a successful
-   action (save-as-template, clear-all-styles). */
+/* Confirm flash — green tint after a successful save-as-template /
+   clear-all-styles action. */
 .gc-formatting-toolbar .gc-tb-btn.gc-tb-confirm {
   background: var(--tb-green-ghost);
   color: var(--tb-green);
   border-color: var(--tb-green-line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tb-green) 18%, transparent);
 }
 
 /* ─── Toolbar body row ─────────────────────────────────────────── */
-/* The component's existing `.gc-toolbar-row` sits inside
-   `.gc-formatting-toolbar`. The `.gc-tb-body` class adds the tokenised
-   padding + alignment — the layout classes (flex-wrap) from the v3
-   component are kept via compound class. */
 .gc-formatting-toolbar .gc-tb-body {
   align-items: center;
   gap: 2px;
@@ -537,7 +539,7 @@
 .gc-formatting-toolbar .gc-tb-micro {
   font-family: var(--tb-font-mono);
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--tb-ink-2);
@@ -551,17 +553,17 @@
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-micro {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* ─── Focus rings — cyan outline for every interactive primitive ── */
+/* ─── Focus rings — teal outline for every interactive primitive ── */
 .gc-formatting-toolbar .gc-tb-btn:focus-visible,
 .gc-formatting-toolbar .gc-tb-btn-menu:focus-visible,
 .gc-formatting-toolbar .gc-tb-chip:focus-visible,
 .gc-formatting-toolbar .gc-tb-seg > button:focus-visible,
 .gc-formatting-toolbar .gc-tb-scope:focus-visible,
 .gc-formatting-toolbar .gc-tb-color-btn:focus-visible {
-  outline: 1px solid var(--tb-cyan);
+  outline: 2px solid var(--ring, var(--primary));
   outline-offset: 1px;
 }
 [data-theme='light'] .gc-formatting-toolbar .gc-tb-btn:focus-visible,
@@ -574,34 +576,20 @@
 }
 
 /* ─── Pinned toolbar wrapper (sits beneath FiltersToolbar) ─────── */
-/* The host mounts the toolbar as a second row via
-   `<div class="gc-tb-pinned"><FormattingToolbar/></div>`. The
-   wrapper clamps the full-width chrome + adds the 1px bottom border
-   that separates the toolbar stack from the grid body. The inner
-   `.gc-formatting-toolbar` lets its `.gc-tb-body` flex-wrap so the
-   toolbar grows to a second visual row when the viewport is too
-   narrow to hold everything on one line. */
 .gc-tb-pinned {
   width: 100%;
-  background: var(--tb-bg-bar, #11161C);
-  border-bottom: 1px solid var(--tb-line-strong, rgba(140, 170, 200, 0.16));
+  background: var(--bn-bg1, var(--card));
+  border-bottom: 1px solid var(--border);
 }
 [data-theme='light'] .gc-tb-pinned {
-  background: var(--tb-bg-bar, #F2F4F7);
-  border-bottom-color: var(--tb-line-strong, rgba(59, 75, 96, 0.24));
+  background: var(--bn-bg1, var(--card));
+  border-bottom-color: var(--border);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
-/* When pinned, the toolbar root:
-   - fills the wrapper edge-to-edge (overrides the component's own
-     inline `width: max-content` which was designed for floating-panel
-     sizing)
-   - drops its own border / radius — the wrapper provides the
-     separator chrome
-   The `!important` on width / max-width is unfortunate but necessary
-   because the inline style wins specificity over our class rule.
-   Alternatively we'd need a prop threaded through the component;
-   this is the smaller change. */
+/* When pinned, the toolbar root fills the wrapper edge-to-edge and
+   drops its own border/radius — the wrapper provides the separator
+   chrome. `!important` wins over the component's inline width. */
 .gc-tb-pinned > .gc-formatting-toolbar {
   width: 100% !important;
   max-width: 100% !important;
@@ -612,36 +600,29 @@
   background: transparent;
 }
 
-/* Row wraps when content exceeds the container width. All groups
-   live in one `.gc-tb-body` row — single line when there's space,
-   two rows when constrained. The `row-gap: 4px` adds breathing room
-   on the second row so pills don't clash vertically. */
 .gc-tb-pinned .gc-tb-body {
   flex-wrap: wrap;
   row-gap: 4px;
 }
 
 /* ─── Floating panel outer chrome (legacy — keep for back-compat) ── */
-/* The `.gc-tb-float` div is the flex row that holds: drag rail →
-   toolbar body → close button. It's rendered by MarketsGrid, not by
-   FormattingToolbar, but its tokens live here so the design is
-   token-sourced from one file. */
 .gc-tb-float {
   display: flex;
   align-items: stretch;
   max-width: calc(100vw - 32px);
-  border-radius: var(--tb-r-md, 3px);
+  border-radius: var(--tb-r-md, 4px);
   overflow: hidden;
-  background: var(--tb-bg-bar, #11161C);
-  border: 1px solid var(--tb-line-strong, rgba(140, 170, 200, 0.16));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  /* Make child tokens available for the drag/close sub-components. */
+  background: var(--bn-bg1, var(--card));
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent) inset,
+    0 8px 24px rgba(0, 0, 0, 0.35);
   --tb-drag-w: 18px;
   --tb-close-w: 32px;
 }
 [data-theme='light'] .gc-tb-float {
-  background: var(--tb-bg-bar, #F2F4F7);
-  border-color: var(--tb-line-strong, rgba(59, 75, 96, 0.24));
+  background: var(--bn-bg1, var(--card));
+  border-color: var(--border);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
     0 2px 6px rgba(30, 40, 55, 0.06),
@@ -651,25 +632,19 @@
 }
 
 /* ─── Drag rail — 6-dot terminal grip pattern ──────────────────── */
-/* Rendered by DraggableFloat.DragHandle. The `.gc-tb-drag` class
-   overrides the default chrome + injects a 2×3 dot grid drawn via
-   inline SVG background-image. GripVertical icon from lucide is
-   suppressed because the bg-image replaces it. */
 .gc-tb-drag {
-  background-color: var(--tb-bg-bar, #11161C);
-  color: transparent; /* hide the default GripVertical glyph */
-  border-right: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
+  background-color: var(--bn-bg1, var(--card));
+  color: transparent;
+  border-right: 1px solid var(--border);
   transition: background-color 150ms ease;
-  /* Dot grid: 2 cols × 3 rows of tiny circles, evenly spaced. */
   background-image: radial-gradient(
     circle at center,
-    var(--tb-ink-3, #434C58) 0.9px,
+    var(--tb-ink-3) 0.9px,
     transparent 1.1px
   );
   background-size: 6px 6px;
   background-position: center center;
   background-repeat: repeat;
-  /* Clip to a neat 6×10 swatch so dots only show in the middle. */
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
@@ -692,49 +667,45 @@
 .gc-tb-drag:hover {
   background-image: radial-gradient(
     circle at center,
-    var(--tb-ink-1, #9AA5B4) 0.9px,
-    transparent 1.1px
+    var(--tb-ink-1) 1px,
+    transparent 1.2px
   );
 }
 .gc-tb-drag > svg {
   display: none;
 }
 [data-theme='light'] .gc-tb-drag {
-  background-color: var(--tb-bg-bar, #F2F4F7);
-  border-right-color: var(--tb-line, rgba(59, 75, 96, 0.14));
+  background-color: var(--bn-bg1, var(--card));
+  border-right-color: var(--border);
   background-image: radial-gradient(
     circle at center,
-    var(--tb-ink-3, #95A0AE) 1px,
+    var(--tb-ink-3) 1px,
     transparent 1.2px
   );
 }
 [data-theme='light'] .gc-tb-drag:hover {
   background-image: radial-gradient(
     circle at center,
-    var(--tb-ink-1, #4A5768) 1px,
+    var(--tb-ink-1) 1px,
     transparent 1.2px
   );
 }
 
 /* ─── Close button — left-bordered, red hover ──────────────────── */
-/* The `.gc-tb-close` class is applied to DraggableFloat.CloseButton.
-   `.gc-tb-close` is ALSO used independently inside the toolbar
-   body for any dismissable children — both contexts pick up the
-   red-hover treatment. */
 .gc-tb-close {
-  background: var(--tb-bg-bar, #11161C);
-  border-left: 1px solid var(--tb-line, rgba(140, 170, 200, 0.08));
-  transition: background 120ms ease, color 120ms ease;
+  background: var(--bn-bg1, var(--card));
+  border-left: 1px solid var(--border);
+  transition: background 140ms ease, color 140ms ease;
 }
 .gc-tb-close:hover {
-  background: var(--tb-red-ghost, rgba(255, 90, 94, 0.08));
-  color: var(--tb-red, #FF5A5E);
+  background: var(--tb-red-ghost);
+  color: var(--tb-red);
 }
 [data-theme='light'] .gc-tb-close {
-  background: var(--tb-bg-bar, #F2F4F7);
-  border-left-color: var(--tb-line, rgba(59, 75, 96, 0.14));
+  background: var(--bn-bg1, var(--card));
+  border-left-color: var(--border);
 }
 [data-theme='light'] .gc-tb-close:hover {
-  background: var(--tb-red-ghost, rgba(162, 62, 69, 0.08));
-  color: var(--tb-red, #A23E45);
+  background: var(--tb-red-ghost);
+  color: var(--tb-red);
 }
