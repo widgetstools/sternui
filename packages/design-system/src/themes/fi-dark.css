@@ -1,0 +1,125 @@
+/*
+ * FI Design System — Dark Theme
+ * Generated from design-system/tokens/semantic.ts
+ *
+ * Cool charcoal chrome, punchy saturated accents. Warning is pure
+ * orange (no brown / copper). Brand is saturated blue (no yellow).
+ */
+
+:root, [data-theme="dark"] {
+  /* ── shadcn/ui overrides ── */
+  --background: 213 30% 6%;          /* #0a0e14 */
+  --foreground: 220 16% 92%;         /* #e6e9ef */
+  --card: 214 26% 10%;               /* #121820 */
+  --card-foreground: 220 16% 92%;
+  --popover: 214 26% 10%;
+  --popover-foreground: 220 16% 92%;
+  --primary: 217 91% 60%;            /* #3b82f6 — punchy blue brand */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 22% 18%;          /* #242c38 */
+  --secondary-foreground: 216 15% 70%;
+  --muted: 215 24% 14%;              /* #1a212b */
+  --muted-foreground: 220 9% 46%;    /* #6b7280 */
+  --accent: 215 22% 18%;
+  --accent-foreground: 220 16% 92%;
+  --destructive: 351 100% 65%;       /* #ff4d6d */
+  --destructive-foreground: 0 0% 100%;
+  --border: 216 22% 22%;             /* #323b49 */
+  --input: 216 22% 22%;
+  --ring: 217 91% 60%;
+  --radius: 4px;
+
+  /* ── Surface ── */
+  --bn-bg:      #0a0e14;
+  --bn-bg1:     #121820;
+  --bn-bg2:     #1a212b;
+  --bn-bg3:     #242c38;
+
+  /* ── Text ── */
+  --bn-t0:      #e6e9ef;
+  --bn-t1:      #a7b0bd;
+  --bn-t2:      #6b7280;
+  --bn-t3:      #4d586a;
+
+  /* ── Border ── */
+  --bn-border:  #2e3744;
+  --bn-border2: #323b49;
+
+  /* ── Accent (punchy, saturated) ── */
+  --bn-green:   #14d9a0;
+  --bn-green2:  #0fb88a;
+  --bn-red:     #ff4d6d;
+  --bn-red2:    #e8304e;
+  --bn-amber:   #ff8c42;    /* pure orange — warning semantic only */
+  --bn-blue:    #3b82f6;    /* BRAND */
+  --bn-blue2:   #2563eb;
+  --bn-cyan:    #22d3ee;
+  --bn-purple:  #a855f7;
+
+  /* ── Actions ── */
+  --bn-buy-bg:   #0fb88a;
+  --bn-sell-bg:  #e8304e;
+  --bn-cta-text: #ffffff;
+  --bn-logo-bg:  #0a0e14;
+
+  /* ── Interactive states ── */
+  --bn-focus-ring:    #3b82f6;
+  --bn-focus-ring-bg: rgba(59,130,246,0.30);
+  --bn-disabled-bg:   #242c38;
+  --bn-disabled-fg:   #4d586a;
+  --bn-hover-overlay: rgba(255,255,255,0.05);
+
+  /* ── Overlay tints (badge / fill / chip) ── */
+  --bn-positive-soft: rgba(20,217,160,0.15);
+  --bn-positive-ring: rgba(20,217,160,0.35);
+  --bn-negative-soft: rgba(255,77,109,0.15);
+  --bn-negative-ring: rgba(255,77,109,0.35);
+  --bn-warning-soft:  rgba(255,140,66,0.15);
+  --bn-warning-ring:  rgba(255,140,66,0.38);
+  --bn-info-soft:     rgba(59,130,246,0.15);
+  --bn-info-ring:     rgba(59,130,246,0.35);
+  --bn-neutral-soft:  rgba(107,114,128,0.20);
+  --bn-neutral-ring:  rgba(107,114,128,0.30);
+
+  /* ── Typography ── */
+  --fi-mono: 'JetBrains Mono', monospace;
+  --fi-sans: 'Geist', sans-serif;
+  --fi-font-xs: 10px;
+  --fi-font-sm: 11px;
+  --fi-font-md: 13px;
+  --fi-font-lg: 18px;
+
+  /* ── Order Book / Trade Ticket fills ── */
+  --ob-bid-fill:   rgba(20,217,160,0.18);
+  --ob-ask-fill:   rgba(255,77,109,0.18);
+  --tt-bid-strip:  rgba(59,130,246,0.12);
+  --tt-ask-strip:  rgba(255,77,109,0.14);
+
+  /* ── Misc ── */
+  --scrollbar-thumb: #323b49;
+
+  /* ── Legacy aliases ── */
+  --fi-bg0: var(--bn-bg);
+  --fi-bg1: var(--bn-bg1);
+  --fi-bg2: var(--bn-bg2);
+  --fi-bg3: var(--bn-bg3);
+  --fi-bg4: var(--bn-bg3);
+  --fi-border: var(--bn-border);
+  --fi-border2: var(--bn-border2);
+  --fi-border3: var(--bn-border2);
+  --fi-t0: var(--bn-t0);
+  --fi-t1: var(--bn-t1);
+  --fi-t2: var(--bn-t2);
+  --fi-t3: var(--bn-t3);
+  --fi-green: var(--bn-green);
+  --fi-red: var(--bn-red);
+  --fi-blue: var(--bn-blue);
+  --fi-amber: var(--bn-amber);
+  --fi-yellow: var(--bn-amber);
+  --bn-yellow: var(--bn-amber);
+  --fi-cyan: var(--bn-cyan);
+  --fi-purple: var(--bn-purple);
+  --fi-title: var(--bn-t0);
+  --fi-col-header: var(--bn-t1);
+  --divider: 1px solid var(--bn-border);
+}

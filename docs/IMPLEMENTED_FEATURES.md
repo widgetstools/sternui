@@ -737,6 +737,43 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 - **Grid API debug hook** (opt-in, not committed by default) for
   preview-based E2E / manual testing of column-state APIs.
 
+### 1.18 `@grid-customizer/design-system` package
+
+New workspace at `packages/design-system` lifted from the FI Trading
+Terminal design-system reference. Gives the monorepo a single, typed
+home for brand tokens and framework adapters so the demo (and future
+Angular / PrimeNG apps) can consume one canonical palette.
+
+- **Primitive tokens** (`tokens/primitives.ts`) — charcoal, teal, red,
+  orange, blue, purple scales plus typography / spacing / radius /
+  opacity / transition scales.
+- **Semantic tokens** (`tokens/semantic.ts`) — `dark` / `light` / `shared`
+  maps covering surface, text, border, accent, state, overlay.
+- **Component tokens** (`tokens/components.ts`) — button / input / table
+  sizing lifted from the semantic layer.
+- **Themes** — pre-generated CSS files exposing `--bn-*`, legacy
+  `--fi-*` aliases, order-book fill tokens (`--ob-bid-fill`,
+  `--ob-ask-fill`) and trade-ticket strip tokens (`--tt-bid-strip`,
+  `--tt-ask-strip`). Imported into `apps/demo/src/main.tsx` BEFORE
+  `globals.css` so the demo's teal-brand hex block in globals.css still
+  takes precedence — only the design-system's additive tokens flow
+  through. Migration to the design-system's full HSL-triplet shadcn
+  palette is a follow-up pass.
+- **Framework adapters** — `agGridDarkParams` / `agGridLightParams`
+  (fixed to use v35-valid `headerTextColor`, no `rowBorderColor`),
+  `generateShadcnCSS()` with hex→HSL conversion, and
+  `generatePrimeNGPreset()` for future Angular consumers.
+- **Framework-agnostic cell renderers** (`cell-renderers.ts`) —
+  vanilla-TS implementations of SideCellRenderer, StatusBadgeRenderer,
+  ColoredValueRenderer, OasValueRenderer, SignedValueRenderer,
+  TickerCellRenderer, RatingBadgeRenderer, PnlValueRenderer,
+  FilledAmountRenderer, BookNameRenderer, ChangeValueRenderer,
+  YtdValueRenderer, RfqStatusRenderer. Available to any grid host
+  without pulling React into the renderer path.
+- **Typecheck wired** — the new package participates in the monorepo
+  `npm run typecheck` flow and the full build (`npm run build`) stays
+  green.
+
 ---
 
 ## 2. Summary Statistics
