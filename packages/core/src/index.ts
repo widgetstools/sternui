@@ -126,6 +126,11 @@ export { migrateExpressionSyntax, migrateExpressionsInObject } from './expressio
 export { ExpressionEditor } from './ui/ExpressionEditor';
 export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/ExpressionEditor';
 
+// ─── Popout window (React portal into a detached OS window) ────────────────
+export { PopoutPortal } from './ui/PopoutPortal';
+export type { PopoutPortalProps } from './ui/PopoutPortal';
+export { openFinWindowOpener, isOpenFin } from './utils/openFin';
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 

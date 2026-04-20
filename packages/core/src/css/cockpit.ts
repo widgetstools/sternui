@@ -312,6 +312,26 @@ export const cockpitCSS = `
 }
 .gc-popout.is-maximized { width: 94vw; height: 90vh; }
 
+/* Popped mode — the sheet lives inside a detached OS window via
+   PopoutPortal. Strip the fixed-overlay centering chrome: the popout
+   window IS the overlay, so we let the sheet fill its window edge-
+   to-edge instead of floating 960×640 in the middle of a viewport. */
+.gc-popout.is-popped {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+  flex: 1;
+}
+
 @keyframes gc-popout-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes gc-popout-rise {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }

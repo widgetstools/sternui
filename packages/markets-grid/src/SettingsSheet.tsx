@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  PopoutPortal,
   SharpBtn,
   V2_SHEET_STYLE_ID,
+  openFinWindowOpener,
   v2SheetCSS,
   useDirtyCount,
   useGridPlatform,
@@ -12,7 +14,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@grid-customizer/core';
-import { ChevronDown, GripHorizontal, HelpCircle, Maximize2, Minimize2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ExternalLink,
+  GripHorizontal,
+  HelpCircle,
+  Maximize2,
+  Minimize2,
+  X,
+} from 'lucide-react';
 import { HelpPanel } from './HelpPanel';
 
 /**
@@ -100,6 +110,12 @@ export function SettingsSheet({
   // active module's ListPane / EditorPane. Toggled by the ? icon in the
   // header — a temporary view, not persisted.
   const [helpOpen, setHelpOpen] = useState(false);
+  // When true, the sheet is hosted in a detached OS window via
+  // PopoutPortal. The React subtree is the SAME — we just relocate
+  // its DOM to another window's body, so state/context/store all
+  // flow without any sync layer. Closing the OS window flips this
+  // back to false and the sheet re-mounts inline.
+  const [popped, setPopped] = useState(false);
 
   const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
 
@@ -138,20 +154,27 @@ export function SettingsSheet({
   const LegacyPanel = activeModule?.SettingsPanel;
   const selectedId = activeModule ? selectedByModule[activeModule.id] ?? null : null;
 
-  return (
-    <>
-      <div data-gc-settings="" data-testid="v2-settings-sheet">
-        <div
-          className="gc-popout-backdrop"
-          onClick={onClose}
-          data-testid="v2-settings-overlay"
-        />
+  // Sheet classes branch on popped: inside a detached window the
+  // `position: fixed` overlay chrome is wrong (no centering, no
+  // backdrop, 100% viewport fill instead). `is-popped` strips the
+  // centering transform + gives the panel fluid sizing for its new
+  // OS window.
+  const sheetClasses = [
+    'gc-sheet',
+    'gc-sheet-v2',
+    'gc-popout',
+    maximized && !popped ? 'is-maximized' : '',
+    popped ? 'is-popped' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
-        <div
-          className={`gc-sheet gc-sheet-v2 gc-popout${maximized ? ' is-maximized' : ''}`}
-          role="dialog"
-          aria-label="Grid settings"
-        >
+  const sheet = (
+    <div
+      className={sheetClasses}
+      role="dialog"
+      aria-label="Grid settings"
+    >
           {/* ── Title bar (terminal chrome) ─────────────────────── */}
           <header className="gc-popout-title">
             <GripHorizontal size={14} color="var(--ck-t3)" />
@@ -226,14 +249,33 @@ export function SettingsSheet({
               >
                 <HelpCircle size={12} strokeWidth={2} />
               </button>
-              <button
-                type="button"
-                className="gc-popout-title-btn"
-                onClick={() => setMaximized((v) => !v)}
-                title={maximized ? 'Restore' : 'Maximize'}
-              >
-                {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
-              </button>
+              {/* Maximize collapses into a no-op when popped — the
+                  OS window chrome owns maximize in that mode. */}
+              {!popped && (
+                <button
+                  type="button"
+                  className="gc-popout-title-btn"
+                  onClick={() => setMaximized((v) => !v)}
+                  title={maximized ? 'Restore' : 'Maximize'}
+                >
+                  {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
+                </button>
+              )}
+              {/* Pop the sheet out into a detached OS window. Keeps
+                  the same React tree (same store, same context) via
+                  PopoutPortal — no sync layer needed. The button
+                  hides while popped (close the OS window to return). */}
+              {!popped && (
+                <button
+                  type="button"
+                  className="gc-popout-title-btn"
+                  onClick={() => setPopped(true)}
+                  title="Open in a separate window"
+                  data-testid="v2-settings-popout-btn"
+                >
+                  <ExternalLink size={12} strokeWidth={2} />
+                </button>
+              )}
               <button
                 type="button"
                 className="gc-popout-title-btn"
@@ -378,8 +420,41 @@ export function SettingsSheet({
               Done
             </SharpBtn>
           </footer>
-        </div>
+    </div>
+  );
+
+  // ── Final render: popped vs inline ───────────────────────────────
+  // Popped — hand the sheet subtree to PopoutPortal, which mounts it
+  // inside a detached OS window. The subtree stays in THIS React
+  // tree (same store, same GridProvider, same ProfileManager) — only
+  // its DOM host changes. No sync layer, no URL routing.
+  if (popped) {
+    return (
+      <div data-gc-settings="" data-testid="v2-settings-sheet" data-popped="true">
+        <PopoutPortal
+          name={`gc-popout-${gridId}`}
+          title="Grid Customizer"
+          width={960}
+          height={700}
+          onClose={() => setPopped(false)}
+          openWindow={openFinWindowOpener()}
+        >
+          {sheet}
+        </PopoutPortal>
       </div>
-    </>
+    );
+  }
+
+  // Inline — the original fixed-overlay chrome: backdrop + centered
+  // sheet. Click-outside closes via the backdrop's onClick.
+  return (
+    <div data-gc-settings="" data-testid="v2-settings-sheet">
+      <div
+        className="gc-popout-backdrop"
+        onClick={onClose}
+        data-testid="v2-settings-overlay"
+      />
+      {sheet}
+    </div>
   );
 }
