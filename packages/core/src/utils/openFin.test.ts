@@ -175,16 +175,30 @@ describe('openFinWindowOpener', () => {
     warnSpy.mockRestore();
   });
 
-  it('passes alwaysOnTop + processAffinity through to Window.create', async () => {
+  it('passes alwaysOnTop through to Window.create', async () => {
     const fin = setupFin();
     const opener = openFinWindowOpener({ alwaysOnTop: true });
     await opener!({ name: 'p', width: 900, height: 120, alwaysOnTop: true });
 
     expect(fin.Window.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        alwaysOnTop: true,
-        processAffinity: expect.stringMatching(/^gc-popout/),
-      }),
+      expect.objectContaining({ alwaysOnTop: true }),
+    );
+  });
+
+  it('does NOT set processAffinity — would move popout into a different process from main', async () => {
+    // Regression: an earlier version set `processAffinity: "gc-popout:<uuid>"`
+    // thinking it'd "share" the renderer with main, but it actually
+    // did the opposite — main has no affinity, so setting one on the
+    // popout moved it to a different process group and broke
+    // same-origin cross-window DOM access (which is what makes the
+    // React-portal pattern work). Per OpenFin docs, windows in the
+    // same app share a process by default; leave affinity unset.
+    const fin = setupFin();
+    const opener = openFinWindowOpener();
+    await opener!({ name: 'p', width: 900, height: 120 });
+
+    expect(fin.Window.create).toHaveBeenCalledWith(
+      expect.not.objectContaining({ processAffinity: expect.anything() }),
     );
   });
 });
