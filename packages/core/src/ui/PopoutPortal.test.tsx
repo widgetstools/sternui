@@ -10,7 +10,7 @@ import { PopoutPortal } from './PopoutPortal';
  */
 
 interface FakePopout {
-  win: Window;
+  win: Window & { __fireUnload: () => void; __fireLoad: () => void };
   close: ReturnType<typeof vi.fn>;
   closed: boolean;
   document: Document;
@@ -18,26 +18,43 @@ interface FakePopout {
 
 function createFakePopout(): FakePopout {
   // A fresh document keyed off the current window's implementation.
+  // Force readyState='complete' via defineProperty so PopoutPortal's
+  // `waitForReady` resolves immediately without depending on a
+  // `load` event our fake never fires.
   const doc = document.implementation.createHTMLDocument('popout');
+  try {
+    Object.defineProperty(doc, 'readyState', { value: 'complete', configurable: true });
+  } catch { /* jsdom locks readyState on some builds — harmless */ }
   const close = vi.fn();
-  const listeners = new Set<EventListener>();
+  const beforeunload = new Set<EventListener>();
+  const loadListeners = new Set<EventListener>();
   const state = { closed: false };
-  const win: Window & { __fireUnload: () => void } = {
+  const win: Window & { __fireUnload: () => void; __fireLoad: () => void } = {
     document: doc,
     get closed() { return state.closed; },
     close: () => { state.closed = true; close(); },
     addEventListener: (event: string, fn: EventListener) => {
-      if (event === 'beforeunload') listeners.add(fn);
+      if (event === 'beforeunload') beforeunload.add(fn);
+      else if (event === 'load') loadListeners.add(fn);
     },
     removeEventListener: (event: string, fn: EventListener) => {
-      if (event === 'beforeunload') listeners.delete(fn);
+      if (event === 'beforeunload') beforeunload.delete(fn);
+      else if (event === 'load') loadListeners.delete(fn);
     },
-    // Helper exposed for tests: fire beforeunload so the polling path
-    // doesn't have to be exercised.
+    // Helpers exposed for tests:
+    //   - __fireUnload: drives the beforeunload → onClose path
+    //   - __fireLoad: resolves all pending waitForReady + attachUnload
+    //     chains the portal has queued (prepareDocument waits for it,
+    //     and so does the close-detection effect when readyState !=
+    //     'complete')
     __fireUnload: () => {
-      for (const fn of listeners) fn(new Event('beforeunload'));
+      for (const fn of beforeunload) fn(new Event('beforeunload'));
     },
-  } as unknown as Window & { __fireUnload: () => void };
+    __fireLoad: () => {
+      // Snapshot before invoking — handlers may re-subscribe.
+      for (const fn of [...loadListeners]) fn(new Event('load'));
+    },
+  } as unknown as Window & { __fireUnload: () => void; __fireLoad: () => void };
   return { win, close, closed: state.closed, document: doc };
 }
 
@@ -250,6 +267,40 @@ describe('PopoutPortal', () => {
       await Promise.resolve();
     });
     expect(resizeTo).toHaveBeenCalledWith(900, 120);
+  });
+
+  it('ignores early beforeunload before the popout document is ready (OpenFin about:blank race)', async () => {
+    // Regression for "opens and immediately closes" under OpenFin:
+    // the initial about:blank navigation could fire a synthetic
+    // beforeunload, which we'd misinterpret as "user closed" and
+    // tear the window down. Fix: only attach the beforeunload
+    // listener once `document.readyState === 'complete'` OR the
+    // `load` event has fired.
+    //
+    // This test verifies the NEGATIVE path: with readyState !=
+    // 'complete', an early beforeunload is a no-op. The positive
+    // "beforeunload works once ready" path is covered by the
+    // existing `fires onClose when the popout emits beforeunload`
+    // test (which runs against a ready doc).
+    const fake = createFakePopout();
+    Object.defineProperty(fake.document, 'readyState', { value: 'loading', configurable: true });
+
+    vi.spyOn(window, 'open').mockImplementation(() => fake.win);
+    const onClose = vi.fn();
+
+    render(
+      <PopoutPortal name="early-unload" onClose={onClose}>
+        <div />
+      </PopoutPortal>,
+    );
+    await act(async () => {});
+
+    // Fire beforeunload BEFORE the load event has fired. The close-
+    // detection effect has only registered a `load` listener at
+    // this point, not a `beforeunload` listener — so __fireUnload
+    // is a no-op and onClose isn't invoked.
+    fake.win.__fireUnload();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('passes alwaysOnTop=true through to the openWindow callback when set', async () => {

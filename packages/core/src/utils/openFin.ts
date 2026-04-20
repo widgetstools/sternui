@@ -34,14 +34,37 @@ interface OpenFinWindow {
        * `window.open` has no web-platform equivalent.
        */
       alwaysOnTop?: boolean;
+      /**
+       * Groups windows into the same renderer process. Critical for
+       * our React-portal pattern: `createPortal(children,
+       * popoutWindow.document.body)` only works when main + popout
+       * share a process + are same-origin. Default (undefined) puts
+       * each new window in its own process → main's React VM can't
+       * manipulate the popout's DOM and the portal silently no-ops.
+       */
+      processAffinity?: string;
     }) => Promise<{
       getWebWindow: () => Window;
     }>;
+  };
+  me?: {
+    identity?: { uuid?: string };
   };
 }
 
 interface WithFin {
   fin?: OpenFinWindow;
+}
+
+/**
+ * Stable process-affinity string for every popout this app creates.
+ * Derived from the app uuid when available (so multiple OpenFin apps
+ * on the same machine don't accidentally share a process); falls
+ * back to a constant when `fin.me.identity` isn't populated.
+ */
+function popoutProcessAffinity(fin: OpenFinWindow): string {
+  const appUuid = fin.me?.identity?.uuid;
+  return appUuid ? `gc-popout:${appUuid}` : 'gc-popout';
 }
 
 /** True when running inside an OpenFin container. Safe in SSR. */
@@ -90,6 +113,16 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
         frame: true,
         resizable: true,
         alwaysOnTop: alwaysOnTop ?? callerAlwaysOnTop,
+        // REQUIRED for the React-portal pattern: without a shared
+        // processAffinity, OpenFin puts each Window in its own
+        // renderer process, and our main-window React VM can't
+        // write into `popout.document.body`. Result: the window
+        // opens, the portal effectively no-ops, and our close-
+        // detection poll ends up tearing the window down. Pinning
+        // all popouts to the same affinity as the main app puts
+        // them in a shared renderer so same-origin DOM access
+        // works.
+        processAffinity: popoutProcessAffinity(fin),
       });
       return openFinWin.getWebWindow();
     } catch (err) {

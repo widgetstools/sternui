@@ -148,7 +148,15 @@ export function PopoutPortal({
         return;
       }
 
-      prepareDocument(w, title);
+      // `prepareDocument` is async now because OpenFin can take a
+      // few ms after Window.create resolves for the popout's
+      // document to be navigable. Re-check `cancelled` afterwards
+      // in case the parent unmounted us while we were waiting.
+      await prepareDocument(w, title);
+      if (cancelled) {
+        try { w.close(); } catch { /* */ }
+        return;
+      }
       setPopout(w);
       onWindowOpenedRef.current?.(w);
     };
@@ -167,19 +175,56 @@ export function PopoutPortal({
   //   2. Polling `popout.closed` — catches OS-level closes / crashes
   //      where beforeunload didn't fire. 500ms cadence is fine for a
   //      UI flip that only happens once per session.
+  //
+  // Timing subtleties (caught on OpenFin specifically):
+  //   - `about:blank` navigations in the freshly-created window can
+  //     fire a synthetic `beforeunload` on the first load tick, which
+  //     we'd otherwise read as "user closed the popout" and
+  //     immediately tear the window down. We gate the listener on
+  //     the popout's `readyState === 'complete'`.
+  //   - `popout.closed` can transiently report true during the
+  //     window's initial navigation in some OpenFin runtime
+  //     versions. A short grace period (1 second) before the first
+  //     poll tick avoids the false-positive close-detection that
+  //     otherwise makes the window "open and immediately close".
   useEffect(() => {
     if (!popout) return;
+
     const handleUnload = () => onCloseRef.current();
-    popout.addEventListener('beforeunload', handleUnload);
-    const pollId = window.setInterval(() => {
-      if (popout.closed) {
-        window.clearInterval(pollId);
-        onCloseRef.current();
-      }
-    }, 500);
+    const attachUnload = () => {
+      try { popout.addEventListener('beforeunload', handleUnload); } catch { /* cross-origin / closed */ }
+    };
+    // Only start listening once the popout's initial load is done —
+    // an early beforeunload from the about:blank → our DOM injection
+    // transition would misfire.
+    if (popout.document?.readyState === 'complete') {
+      attachUnload();
+    } else {
+      try { popout.addEventListener('load', attachUnload, { once: true }); } catch { /* */ }
+    }
+
+    let pollId: ReturnType<typeof setInterval> | null = null;
+    // Grace window suppresses `closed`-poll false positives during
+    // the OpenFin window's initial navigation lifecycle. 1s is more
+    // than enough in practice; tests that need tighter control can
+    // stub `setTimeout` or just wait.
+    const graceMs = 1000;
+    const graceTimer = setTimeout(() => {
+      pollId = setInterval(() => {
+        let isClosed = false;
+        try { isClosed = popout.closed; } catch { isClosed = true; }
+        if (isClosed) {
+          if (pollId !== null) clearInterval(pollId);
+          onCloseRef.current();
+        }
+      }, 500);
+    }, graceMs);
+
     return () => {
-      popout.removeEventListener('beforeunload', handleUnload);
-      window.clearInterval(pollId);
+      try { popout.removeEventListener('beforeunload', handleUnload); } catch { /* */ }
+      try { popout.removeEventListener('load', attachUnload); } catch { /* */ }
+      clearTimeout(graceTimer);
+      if (pollId !== null) clearInterval(pollId);
     };
   }, [popout]);
 
@@ -299,35 +344,71 @@ export function PopoutPortal({
  * Prime the popout document: title, viewport meta, base styles that
  * prevent the default body margin, and a clone of every stylesheet
  * currently present in the main document's head.
+ *
+ * Waits for the popout's initial navigation (about:blank load) to
+ * finish before injecting — otherwise under OpenFin a pending load
+ * can race our writes and swallow them.
+ *
+ * Every write is individually try/catch'd so a single failure (e.g.
+ * the popout already closed, cross-origin wall) can't leave the
+ * document half-initialised + also doesn't throw back up into the
+ * React effect where it would unmount the portal.
  */
-function prepareDocument(popout: Window, title: string): void {
-  const doc = popout.document;
-  doc.title = title;
+async function prepareDocument(popout: Window, title: string): Promise<void> {
+  const waitForReady = () => new Promise<void>((resolve) => {
+    try {
+      if (!popout.document || popout.document.readyState === 'complete') {
+        resolve();
+        return;
+      }
+    } catch {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; resolve(); } };
+    try { popout.addEventListener('load', done, { once: true }); } catch { /* */ }
+    // Safety net: some OpenFin runtimes don't fire `load` reliably
+    // for in-process about:blank — cap the wait at 500ms so we
+    // don't hang the portal forever.
+    setTimeout(done, 500);
+  });
 
-  // Clear any placeholder chrome `window.open` may have dropped in.
-  // Some browsers seed the document with an `about:blank` doctype +
-  // default `<head>`/`<body>` — we keep those and inject into them.
-  if (!doc.querySelector('meta[name="viewport"]')) {
-    const meta = doc.createElement('meta');
-    meta.name = 'viewport';
-    meta.content = 'width=device-width, initial-scale=1';
-    doc.head.appendChild(meta);
-  }
+  await waitForReady();
 
-  // Zero out the OS window's default body margin so our mount node
-  // fills the viewport edge-to-edge.
-  const reset = doc.createElement('style');
-  reset.textContent = `
-    html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
-    body { font-family: inherit; background: var(--background, #0b0e11); color: var(--foreground, #eaecef); }
-  `;
-  doc.head.appendChild(reset);
+  try {
+    const doc = popout.document;
+    if (!doc || !doc.head) return;
 
-  // Clone every stylesheet from the main document so our CSS-in-JS
-  // tokens (--bn-*, --ck-*, --primary) + cockpit runtime styles +
-  // Tailwind bundle all resolve. We clone, not move, so the main
-  // window keeps its styles too.
-  for (const el of Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))) {
-    doc.head.appendChild(el.cloneNode(true));
+    try { doc.title = title; } catch { /* */ }
+
+    try {
+      if (!doc.querySelector('meta[name="viewport"]')) {
+        const meta = doc.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, initial-scale=1';
+        doc.head.appendChild(meta);
+      }
+    } catch (err) { console.warn('[PopoutPortal] viewport meta inject failed:', err); }
+
+    try {
+      const reset = doc.createElement('style');
+      reset.textContent = `
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
+        body { font-family: inherit; background: var(--background, #0b0e11); color: var(--foreground, #eaecef); }
+      `;
+      doc.head.appendChild(reset);
+    } catch (err) { console.warn('[PopoutPortal] reset style inject failed:', err); }
+
+    // Clone every stylesheet from the main document so our CSS-in-
+    // JS tokens (--bn-*, --ck-*, --primary) + cockpit runtime styles
+    // + Tailwind bundle all resolve.
+    try {
+      for (const el of Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))) {
+        try { doc.head.appendChild(el.cloneNode(true)); } catch { /* single stylesheet fail shouldn't abort the rest */ }
+      }
+    } catch (err) { console.warn('[PopoutPortal] stylesheet clone failed:', err); }
+  } catch (err) {
+    console.warn('[PopoutPortal] prepareDocument failed:', err);
   }
 }
