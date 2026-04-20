@@ -444,7 +444,9 @@ Module `saved-filters` (priority 1001 — effectively last in the module chain; 
   }
   ```
 
-- **Interaction surface** lives in `FiltersToolbar` (documented in §1.x). Pure logic extracted to `filtersToolbarLogic.ts` with 26 unit tests covering `generateLabel`, `doesRowMatchFilterModel`, `filterModelsEqual`, `mergeFilterModels` (per-pill count predicates, echo detection for `+` button enabling, multi-filter OR merge with `set`-value union).
+- **Interaction surface** lives in `FiltersToolbar` (documented in §1.x). Pure logic extracted to `filtersToolbarLogic.ts` with 34 unit tests covering `generateLabel`, `doesRowMatchFilterModel`, `filterModelsEqual`, `mergeFilterModels`, and `isNewFilter` (per-pill count predicates, echo detection for `+` button enabling, multi-filter OR merge with `set`-value union, duplicate-vs-inactive-pill guard).
+
+- **+ button uniqueness spans active AND inactive pills** — the `+` button enables only when the live AG-Grid filter model doesn't match any existing pill's model (active OR inactive) AND doesn't match the merged-active echo. Prevents duplicates: if the user toggles a pill off and then re-enters the same filter into the grid, `+` stays disabled because the pill still exists (just muted). Before this fix, the check only compared against the merged-ACTIVE set, so that flow created a duplicate pill. The `isNewFilter(live, pills)` helper in `filtersToolbarLogic.ts` encapsulates the rule; `handleAdd` also runs the same guard defensively.
 
 - **Auto-save path** — every add / toggle / rename / remove writes through `useModuleState(...)` setState, which the profile-auto-save debounce picks up on the usual 300ms cycle. Reload restores every pill (including active/inactive state) before the grid's first `modelUpdated`.
 

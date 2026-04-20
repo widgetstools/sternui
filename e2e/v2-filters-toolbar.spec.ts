@@ -40,7 +40,10 @@ async function clearV2Persistence(page: Page) {
 }
 
 function filterPills(page: Page) {
-  return page.locator('[data-testid^="filter-pill-"]');
+  // The count-badge inside each pill carries a `filter-pill-count-<id>`
+  // testid that shares the `filter-pill-` prefix, so a bare prefix
+  // locator double-counts. Scope to the outer pill's stable class.
+  return page.locator('.gc-filter-pill[data-testid^="filter-pill-"]');
 }
 
 function filterToggleBtn(page: Page, index: number) {
@@ -227,6 +230,39 @@ test.describe('v2 FiltersToolbar', () => {
 
     const text = await filterPills(page).first().textContent();
     expect(text).toContain('My BUY Filter');
+  });
+
+  test('+ button stays DISABLED when live filter matches an INACTIVE pill (no duplicates)', async ({ page }) => {
+    // Regression guard: earlier versions compared live only to the
+    // MERGED ACTIVE pills. If the user toggled a pill off and then
+    // re-entered the same filter into the grid, the + button
+    // re-enabled and clicking it created a duplicate pill. Now the
+    // uniqueness check spans every pill (active OR inactive).
+    const model = { side: { filterType: 'set', values: ['BUY'] } };
+
+    // Create pill A (active).
+    await setFilterViaApi(page, model);
+    await clickAddFilter(page);
+    expect(await getFilterPillCount(page)).toBe(1);
+
+    // Toggle pill A off → it goes inactive; live filter clears.
+    await filterToggleBtn(page, 0).click();
+    await page.waitForTimeout(300);
+
+    // Re-enter the SAME filter into AG-Grid.
+    await setFilterViaApi(page, model);
+    await page.waitForTimeout(300);
+
+    // + button stays disabled (not enabled) — pill A still exists in
+    // the toolbar state, just muted. Clicking + would duplicate.
+    const addBtn = page.locator('[data-testid="filters-add-btn"]');
+    await expect(addBtn).toBeDisabled();
+
+    // Defensive: even if the DOM disabled attribute were somehow lost,
+    // a click would no-op via `handleAdd`'s internal isNewFilter guard.
+    await addBtn.click({ force: true });
+    await page.waitForTimeout(200);
+    expect(await getFilterPillCount(page)).toBe(1);
   });
 
   test('pill-row scroll container hides the browser scrollbar', async ({ page }) => {

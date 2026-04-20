@@ -256,3 +256,53 @@ export function mergeFilterModels(
   }
   return merged;
 }
+
+// ─── "Has new filter" predicate ─────────────────────────────────────────
+
+/**
+ * Record shape the `+`-button uniqueness check consumes. Kept narrow on
+ * purpose — `isNewFilter` only needs the filter model + active flag.
+ */
+export interface SavedFilterShape {
+  filterModel: Record<string, unknown>;
+  active: boolean;
+}
+
+/**
+ * Returns true when the live AG-Grid filter model represents a GENUINELY
+ * new filter the user hasn't saved yet — i.e. the `+` button should
+ * enable to let them capture it as a new pill.
+ *
+ * Uniqueness covers BOTH active and inactive pills: an earlier version
+ * only compared `live` against the merged ACTIVE filters, which let
+ * users accidentally duplicate an inactive pill by re-entering the
+ * same filter into the grid after toggling its pill off.
+ *
+ * A live model is "new" when:
+ *   1. It's non-empty (empty filter = no filter, nothing to save)
+ *   2. It doesn't match any individual pill's model (active OR inactive)
+ *   3. It doesn't match the merged-active echo (the toolbar's own push
+ *      into AG-Grid after activating multiple pills)
+ */
+export function isNewFilter(
+  live: Record<string, unknown> | null | undefined,
+  pills: ReadonlyArray<SavedFilterShape>,
+): boolean {
+  if (!live || Object.keys(live).length === 0) return false;
+
+  // Rule 2: reject if any pill's model equals the live model.
+  for (const pill of pills) {
+    if (filterModelsEqual(live, pill.filterModel)) return false;
+  }
+
+  // Rule 3: reject the merged-active echo. For 0/1 active pills the
+  // merge equals null / that one pill — already caught above. Only the
+  // N≥2 case produces a shape distinct from every individual pill.
+  const active = pills.filter((p) => p.active);
+  if (active.length >= 2) {
+    const merged = mergeFilterModels(active.map((p) => p.filterModel));
+    if (filterModelsEqual(live, merged)) return false;
+  }
+
+  return true;
+}

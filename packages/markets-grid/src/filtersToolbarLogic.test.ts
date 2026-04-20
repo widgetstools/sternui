@@ -4,7 +4,9 @@ import {
   doesValueMatchFilter,
   filterModelsEqual,
   generateLabel,
+  isNewFilter,
   mergeFilterModels,
+  type SavedFilterShape,
 } from './filtersToolbarLogic';
 
 describe('generateLabel', () => {
@@ -212,5 +214,70 @@ describe('mergeFilterModels', () => {
 
   it('empty input returns empty model', () => {
     expect(mergeFilterModels([])).toEqual({});
+  });
+});
+
+describe('isNewFilter', () => {
+  const pillA: SavedFilterShape = {
+    filterModel: { price: { filterType: 'number', type: 'greaterThan', filter: 100 } },
+    active: true,
+  };
+  const pillB: SavedFilterShape = {
+    filterModel: { side: { filterType: 'set', values: ['BUY'] } },
+    active: true,
+  };
+
+  it('null / empty live model is never new', () => {
+    expect(isNewFilter(null, [])).toBe(false);
+    expect(isNewFilter(undefined, [])).toBe(false);
+    expect(isNewFilter({}, [])).toBe(false);
+    expect(isNewFilter(null, [pillA])).toBe(false);
+  });
+
+  it('empty pills + non-empty live is new', () => {
+    expect(isNewFilter(pillA.filterModel, [])).toBe(true);
+  });
+
+  it('live matches an ACTIVE pill → not new (echo case)', () => {
+    expect(isNewFilter(pillA.filterModel, [pillA])).toBe(false);
+  });
+
+  it('live matches an INACTIVE pill → not new (duplicate guard — bug fix)', () => {
+    // Previously the check only compared against active filters, so
+    // re-entering an inactive pill's filter enabled + and created a
+    // duplicate. This regression guard locks that fix in.
+    const inactiveA: SavedFilterShape = { ...pillA, active: false };
+    expect(isNewFilter(pillA.filterModel, [inactiveA])).toBe(false);
+  });
+
+  it('live matches the MERGED active model (N≥2 echo) → not new', () => {
+    const merged = mergeFilterModels([pillA.filterModel, pillB.filterModel]);
+    expect(isNewFilter(merged, [pillA, pillB])).toBe(false);
+  });
+
+  it('live is unique across every pill → new', () => {
+    const fresh = { quantity: { filterType: 'number', type: 'greaterThan', filter: 500 } };
+    expect(isNewFilter(fresh, [pillA, pillB])).toBe(true);
+  });
+
+  it('order-insensitive set-value equality still recognises matching pills', () => {
+    // Uses filterModelsEqual internally, which treats set `values` as
+    // order-insensitive. Live = {side: set[SELL, BUY]} should match
+    // pill whose model stored {side: set[BUY, SELL]}.
+    const live = { side: { filterType: 'set', values: ['SELL', 'BUY'] } };
+    const pill: SavedFilterShape = {
+      filterModel: { side: { filterType: 'set', values: ['BUY', 'SELL'] } },
+      active: false,
+    };
+    expect(isNewFilter(live, [pill])).toBe(false);
+  });
+
+  it('mixed active/inactive set: new filter with two actives + one inactive', () => {
+    const extraInactive: SavedFilterShape = {
+      filterModel: { quantity: { filterType: 'number', type: 'equals', filter: 7 } },
+      active: false,
+    };
+    const fresh = { venue: { filterType: 'set', values: ['NASDAQ'] } };
+    expect(isNewFilter(fresh, [pillA, pillB, extraInactive])).toBe(true);
   });
 });

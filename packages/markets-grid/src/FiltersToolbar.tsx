@@ -9,8 +9,8 @@ import { Plus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight, Brush } from 
 import type { SavedFilter } from './types';
 import {
   doesRowMatchFilterModel,
-  filterModelsEqual,
   generateLabel,
+  isNewFilter,
   makeId,
   mergeFilterModels,
 } from './filtersToolbarLogic';
@@ -143,22 +143,18 @@ export function FiltersToolbar({
   //
   // `filterChanged` fires any time the filter model mutates — including
   // when we push the saved-filters model in programmatically. We filter
-  // those "echo" events out by comparing the live model against the merged
-  // active-saved-filters model. They match → echo, ignore. They differ →
-  // user has typed / selected something new → enable +.
+  // out echoes AND duplicates-of-inactive-pills via `isNewFilter`, which
+  // compares the live model against EVERY saved pill (active + inactive)
+  // plus the merged-active echo. Only a genuinely-unseen filter enables
+  // the + button; re-entering a previously-saved (even deactivated)
+  // filter keeps + disabled so it can't be duplicated.
   useEffect(() => {
     const disposers: Array<() => void> = [];
     disposers.push(
       platform.api.onReady((liveApi) => {
         const check = () => {
-          const active = filters.filter((f) => f.active);
-          const expected = active.length === 0
-            ? null
-            : active.length === 1
-              ? active[0].filterModel
-              : mergeFilterModels(active.map((f) => f.filterModel));
           const live = liveApi.getFilterModel();
-          setHasNewFilter(!filterModelsEqual(live, expected));
+          setHasNewFilter(isNewFilter(live, filters));
         };
         disposers.push(platform.api.on('filterChanged', check));
         // Run once up front so the flag reflects any model the grid
@@ -175,6 +171,10 @@ export function FiltersToolbar({
     if (!api) return;
     const model = api.getFilterModel();
     if (!model || Object.keys(model).length === 0) return;
+    // Belt-and-braces: even if a race let the + button render enabled,
+    // drop the click when the live model would duplicate any existing
+    // pill (active OR inactive).
+    if (!isNewFilter(model as Record<string, unknown>, filters)) return;
     const next: SavedFilter = {
       id: makeId(),
       label: generateLabel(model as Record<string, unknown>, filters.length),
