@@ -19,6 +19,12 @@
  * APIs we touch; this structural type is enough to get type-safety
  * inside this module.
  */
+interface OpenFinWindowWrapper {
+  getInfo: () => Promise<unknown>;
+  close: (force?: boolean) => Promise<void>;
+  getWebWindow: () => Window;
+}
+
 interface OpenFinWindow {
   Window: {
     create: (opts: {
@@ -43,9 +49,8 @@ interface OpenFinWindow {
        * manipulate the popout's DOM and the portal silently no-ops.
        */
       processAffinity?: string;
-    }) => Promise<{
-      getWebWindow: () => Window;
-    }>;
+    }) => Promise<OpenFinWindowWrapper>;
+    wrap: (identity: { uuid: string; name: string }) => OpenFinWindowWrapper;
   };
   me?: {
     identity?: { uuid?: string };
@@ -102,32 +107,74 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
   if (!isOpenFin()) return undefined;
   const fin = (window as WithFin).fin!;
   const callerAlwaysOnTop = opts?.alwaysOnTop ?? false;
-  return async ({ name, width, height, alwaysOnTop }) => {
+
+  /**
+   * Best-effort close of any pre-existing window registered under
+   * `(uuid, name)`. OpenFin rejects `Window.create` with
+   * "name-uuid combination already in use" if one already lives
+   * under that key. Sources of a pre-existing registration:
+   *   - React StrictMode's double-invoke of the open effect in
+   *     dev leaves the first mount's window around while the
+   *     second tries to create.
+   *   - A previous popout that was programmatically closed but
+   *     whose registry entry hasn't fully cleared yet.
+   *   - User rapid-clicking the popout button.
+   *
+   * `getInfo()` throws if the window doesn't exist; we use that
+   * as the existence probe. If it resolves, the window IS
+   * registered — close + settle briefly so the registry unhooks
+   * the name before the subsequent create.
+   */
+  const closeExisting = async (uuid: string, name: string): Promise<void> => {
     try {
-      const openFinWin = await fin.Window.create({
-        name,
-        url: 'about:blank',
-        defaultWidth: width,
-        defaultHeight: height,
-        autoShow: true,
-        frame: true,
-        resizable: true,
-        alwaysOnTop: alwaysOnTop ?? callerAlwaysOnTop,
-        // REQUIRED for the React-portal pattern: without a shared
-        // processAffinity, OpenFin puts each Window in its own
-        // renderer process, and our main-window React VM can't
-        // write into `popout.document.body`. Result: the window
-        // opens, the portal effectively no-ops, and our close-
-        // detection poll ends up tearing the window down. Pinning
-        // all popouts to the same affinity as the main app puts
-        // them in a shared renderer so same-origin DOM access
-        // works.
-        processAffinity: popoutProcessAffinity(fin),
-      });
-      return openFinWin.getWebWindow();
-    } catch (err) {
-      console.warn('[openFin] Window.create failed — falling back to window.open', err);
-      return null;
+      const wrapped = fin.Window.wrap({ uuid, name });
+      await wrapped.getInfo();
+      try { await wrapped.close(true); } catch { /* already gone */ }
+      await new Promise((r) => setTimeout(r, 50));
+    } catch {
+      // Not registered — nothing to close, proceed.
     }
+  };
+
+  return async ({ name, width, height, alwaysOnTop }) => {
+    const appUuid = fin.me?.identity?.uuid ?? 'gc-popout-host';
+    const windowOpts = {
+      name,
+      url: 'about:blank',
+      defaultWidth: width,
+      defaultHeight: height,
+      autoShow: true,
+      frame: true,
+      resizable: true,
+      alwaysOnTop: alwaysOnTop ?? callerAlwaysOnTop,
+      // REQUIRED for the React-portal pattern: without a shared
+      // processAffinity, OpenFin puts each Window in its own
+      // renderer process, and our main-window React VM can't write
+      // into `popout.document.body`. Pinning all popouts to the
+      // same affinity as the main app puts them in a shared
+      // renderer so same-origin DOM access works.
+      processAffinity: popoutProcessAffinity(fin),
+    };
+
+    // Up to 2 attempts: the first clears any stale registration
+    // and creates; the second retries with a backoff if we hit a
+    // rare race (e.g. StrictMode double-invoke where mount A's
+    // `Window.create` is still pending when mount B tries).
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await closeExisting(appUuid, name);
+      try {
+        const win = await fin.Window.create(windowOpts);
+        return win.getWebWindow();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isNameCollision = msg.includes('already in use');
+        if (!isNameCollision || attempt === 1) {
+          console.warn('[openFin] Window.create failed — falling back to window.open', err);
+          return null;
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
+    return null;
   };
 }
