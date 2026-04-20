@@ -491,8 +491,12 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
         </div>
       </header>
 
-      {/* ── Body — scrollable, content column pinned to 360 ──────── */}
+      {/* ── Body — scrollable, content column pinned to 360 ────────
+           `.gc-themed-scrollbar` uses `color-mix(var(--foreground), ...)`
+           so the scrollbar thumb adapts to whichever theme is active
+           without per-mode overrides. */}
       <div
+        className="gc-themed-scrollbar"
         data-testid="fmt-panel-body"
         style={{
           flex: 1,
