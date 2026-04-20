@@ -45,12 +45,11 @@ const darkTheme = themeQuartz.withParams({
   backgroundColor: '#161a1e',
   foregroundColor: '#eaecef',
   headerBackgroundColor: '#1e2329',
-  headerForegroundColor: '#a0a8b4',
+  headerTextColor: '#a0a8b4',
   oddRowBackgroundColor: '#161a1e',
   rowHoverColor: '#1e2329',
   selectedRowBackgroundColor: '#14b8a614',
   borderColor: '#313944',
-  rowBorderColor: '#31394499',
 });
 
 const lightTheme = themeQuartz.withParams({
@@ -58,12 +57,11 @@ const lightTheme = themeQuartz.withParams({
   backgroundColor: '#ffffff',
   foregroundColor: '#3b3b3b',
   headerBackgroundColor: '#f3f3f3',
-  headerForegroundColor: '#616161',
+  headerTextColor: '#616161',
   oddRowBackgroundColor: '#fafafa',
   rowHoverColor: '#f3f3f3',
   selectedRowBackgroundColor: '#0d948814',
   borderColor: '#e5e5e5',
-  rowBorderColor: '#e5e5e599',
 });
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────

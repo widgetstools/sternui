@@ -988,4 +988,280 @@ export const cockpitCSS = `
 .gc-excel-ref-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--gc-text-muted, #64748b);
 }
+
+/* ─── BorderStyleEditor (scoped to .gc-be-editor) ───────────────
+ * Inlined here so consumers of the NPM package don't need a
+ * separate CSS import — cockpitCSS already injects once per page
+ * via ensureCockpitStyles in MarketsGrid. All rules are scoped
+ * to .gc-be-editor so they're inert until the component mounts.
+ * Previously shipped as a sibling .css file; the side-effect
+ * import from BorderStyleEditor.tsx broke the tsc+vite lib build
+ * because tsc does NOT copy CSS siblings into dist/.
+ */
+
+.gc-be-editor {
+  /* Surfaces — dark terminal by default */
+  --be-bg:         var(--ck-bg, #0f1115);
+  --be-bg-card:    var(--ck-card, #141820);
+  --be-bg-sunken:  var(--ck-bg-sunken, #0b0e14);
+  --be-bg-hover:   rgba(45, 212, 191, 0.08);
+
+  /* Borders */
+  --be-line:        var(--ck-border, rgba(255, 255, 255, 0.08));
+  --be-line-strong: var(--ck-border-hi, rgba(255, 255, 255, 0.16));
+
+  /* Ink */
+  --be-ink-0: var(--ck-t0, #eaecef);
+  --be-ink-1: var(--ck-t1, #9aa5b4);
+  --be-ink-2: var(--ck-t2, #6b7685);
+  --be-ink-3: var(--ck-t3, #434c58);
+
+  /* Primary accent — cockpit teal */
+  --be-accent:       var(--ck-green, var(--primary, #2dd4bf));
+  --be-accent-dim:   color-mix(in srgb, var(--be-accent) 70%, transparent);
+  --be-accent-ghost: color-mix(in srgb, var(--be-accent) 16%, transparent);
+  --be-accent-line:  color-mix(in srgb, var(--be-accent) 45%, transparent);
+  --be-accent-ring:  color-mix(in srgb, var(--be-accent) 60%, transparent);
+
+  /* Destructive */
+  --be-red:       var(--ck-red, var(--destructive, #f87171));
+  --be-red-ghost: color-mix(in srgb, var(--be-red) 12%, transparent);
+
+  /* Geometry */
+  --be-r:       2px;
+  --be-h-ctrl:  26px;
+  --be-h-preview: 26px;
+
+  /* Typography */
+  --be-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --be-font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+
+  /* Shell */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  row-gap: 6px;
+  padding: 6px 8px;
+  background: var(--be-bg-card);
+  border: 1px solid var(--be-line-strong);
+  border-radius: var(--be-r);
+  font-family: var(--be-font-mono);
+  font-feature-settings: 'tnum' 1;
+  color: var(--be-ink-0);
+}
+
+[data-theme='light'] .gc-be-editor {
+  --be-bg:         #f2f4f7;
+  --be-bg-card:    #edf0f4;
+  --be-bg-sunken:  #dce1e8;
+  --be-bg-hover:   rgba(47, 95, 147, 0.08);
+
+  --be-line:        rgba(59, 75, 96, 0.14);
+  --be-line-strong: rgba(59, 75, 96, 0.24);
+
+  --be-ink-0: #1d2733;
+  --be-ink-1: #4a5768;
+  --be-ink-2: #6b7888;
+  --be-ink-3: #95a0ae;
+
+  --be-accent:       var(--ck-green-dim, #3b7a5e);
+  --be-accent-dim:   color-mix(in srgb, var(--be-accent) 70%, transparent);
+  --be-accent-ghost: color-mix(in srgb, var(--be-accent) 12%, transparent);
+  --be-accent-line:  color-mix(in srgb, var(--be-accent) 50%, transparent);
+  --be-accent-ring:  color-mix(in srgb, var(--be-accent) 55%, transparent);
+
+  --be-red:       #a23e45;
+  --be-red-ghost: rgba(162, 62, 69, 0.1);
+}
+
+.gc-be-editor .gc-be-preview {
+  width: 56px;
+  height: var(--be-h-preview);
+  border: 1px solid var(--be-line-strong);
+  border-radius: var(--be-r);
+  background: var(--be-bg-sunken);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 4px;
+}
+.gc-be-editor .gc-be-preview-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gc-be-editor .gc-be-div {
+  width: 1px;
+  height: 18px;
+  background: var(--be-line-strong);
+  flex-shrink: 0;
+}
+
+.gc-be-editor .gc-be-sides {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 2px;
+  background: var(--be-bg-sunken);
+  border: 1px solid var(--be-line);
+  border-radius: var(--be-r);
+  height: var(--be-h-ctrl);
+}
+.gc-be-editor .gc-be-side {
+  width: 24px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  color: var(--be-ink-1);
+  font-family: var(--be-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  border: 1px dashed var(--be-line);
+  border-radius: 1px;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.gc-be-editor .gc-be-side:hover:not(:disabled) {
+  background: var(--be-bg-hover);
+  color: var(--be-ink-0);
+}
+.gc-be-editor .gc-be-side[data-on='true'] {
+  color: var(--be-accent);
+  border-color: transparent;
+}
+.gc-be-editor .gc-be-side[data-on='true'][data-side='A'] {
+  border: 2px solid var(--be-accent);
+}
+.gc-be-editor .gc-be-side[data-on='true'][data-side='T'] { border-top: 2px solid var(--be-accent); }
+.gc-be-editor .gc-be-side[data-on='true'][data-side='B'] { border-bottom: 2px solid var(--be-accent); }
+.gc-be-editor .gc-be-side[data-on='true'][data-side='L'] { border-left: 2px solid var(--be-accent); }
+.gc-be-editor .gc-be-side[data-on='true'][data-side='R'] { border-right: 2px solid var(--be-accent); }
+
+.gc-be-editor .gc-be-side[data-selected='true'] {
+  background: var(--be-accent-ghost);
+  box-shadow: 0 0 0 1px var(--be-accent-ring), 0 0 0 2px var(--be-bg-card);
+  color: var(--be-accent);
+}
+
+.gc-be-editor .gc-be-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--be-h-ctrl);
+  padding: 0 6px 0 4px;
+  background: var(--be-bg-sunken);
+  border: 1px solid var(--be-line);
+  border-radius: var(--be-r);
+  cursor: pointer;
+  color: var(--be-ink-0);
+  font-family: var(--be-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gc-be-editor .gc-be-color:hover:not(:disabled) {
+  border-color: var(--be-accent-line);
+}
+.gc-be-editor .gc-be-color .gc-be-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 1px;
+  border: 1px solid var(--be-line-strong);
+  flex-shrink: 0;
+}
+.gc-be-editor .gc-be-color .gc-be-caret,
+.gc-be-editor .gc-be-chip .gc-be-caret {
+  width: 9px;
+  height: 9px;
+  color: var(--be-ink-2);
+  flex-shrink: 0;
+}
+
+.gc-be-editor .gc-be-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--be-h-ctrl);
+  padding: 0 6px 0 8px;
+  background: var(--be-bg-sunken);
+  border: 1px solid var(--be-line);
+  border-radius: var(--be-r);
+  cursor: pointer;
+  color: var(--be-ink-0);
+  font-family: var(--be-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gc-be-editor .gc-be-chip:hover:not(:disabled) {
+  border-color: var(--be-accent-line);
+}
+
+.gc-be-editor .gc-be-stroke {
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  color: var(--be-ink-0);
+  flex-shrink: 0;
+  align-self: center;
+}
+.gc-be-editor .gc-be-stroke[data-style='dashed'] {
+  background: none;
+  border-top: 2px dashed var(--be-ink-0);
+  height: 0;
+}
+.gc-be-editor .gc-be-stroke[data-style='dotted'] {
+  background: none;
+  border-top: 2px dotted var(--be-ink-0);
+  height: 0;
+}
+
+.gc-be-editor .gc-be-clear {
+  width: 26px;
+  height: var(--be-h-ctrl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--be-red);
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  border-radius: var(--be-r);
+}
+.gc-be-editor .gc-be-clear:hover:not(:disabled) {
+  background: var(--be-red-ghost);
+  border-color: color-mix(in srgb, var(--be-red) 35%, transparent);
+}
+.gc-be-editor .gc-be-clear:disabled {
+  color: var(--be-ink-3);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.gc-be-editor button:focus-visible {
+  outline: 2px solid var(--be-accent);
+  outline-offset: 1px;
+}
 `;

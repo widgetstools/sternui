@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, RemoveFormatting } from 'lucide-react';
 import { FormatColorPicker, FormatDropdown, FormatPopover } from '../format-editor';
 import type { BorderSpec } from '../../colDef';
-// Terminal-styled stylesheet — tokens + component-scoped classes.
-// Defines the `.gc-be-*` chrome used below. Dark + light mode aware
+// Styles for `.gc-be-*` chrome live in `packages/core/src/css/cockpit.ts`
+// (appended to the `cockpitCSS` template literal). Host apps inject
+// `cockpitCSS` once via `ensureCockpitStyles()` — no separate CSS
+// import needed here, which keeps the tsc+vite lib build clean (tsc
+// doesn't copy sibling CSS files into dist/). Dark + light mode aware
 // via `[data-theme="light"]` overrides.
-import './BorderStyleEditor.css';
 
 /**
  * Shared border style editor — the single source of truth for every
