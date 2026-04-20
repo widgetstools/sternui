@@ -20,6 +20,7 @@ import { openFinWindowOpener } from './openFin';
 type FinMock = {
   Window: {
     wrap: ReturnType<typeof vi.fn>;
+    wrapSync?: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
   };
   me: { identity: { uuid: string } };
@@ -28,7 +29,11 @@ type FinMock = {
 function setupFin(custom: Partial<FinMock> = {}): FinMock {
   const fin: FinMock = {
     Window: {
-      wrap: vi.fn(() => ({
+      // `wrap` is ASYNC in @openfin/core v2+ — the factory always
+      // resolves to a wrapper, whose `getInfo` rejection indicates
+      // "no such window". Tests that want to simulate an existing
+      // window override getInfo to resolve instead.
+      wrap: vi.fn(async () => ({
         getInfo: vi.fn().mockRejectedValue(new Error('not found')),
         close: vi.fn().mockResolvedValue(undefined),
       })),
@@ -58,7 +63,7 @@ describe('openFinWindowOpener', () => {
     const existingClose = vi.fn().mockResolvedValue(undefined);
     const fin = setupFin({
       Window: {
-        wrap: vi.fn(() => ({
+        wrap: vi.fn(async () => ({
           getInfo: vi.fn().mockResolvedValue({ /* info */ }),
           close: existingClose,
         })),
@@ -76,11 +81,31 @@ describe('openFinWindowOpener', () => {
     expect(fin.Window.create).toHaveBeenCalled();
   });
 
+  it('prefers wrapSync when available (synchronous runtime path)', async () => {
+    const syncWrap = vi.fn(() => ({
+      getInfo: vi.fn().mockRejectedValue(new Error('not found')),
+      close: vi.fn(),
+    }));
+    const fin = setupFin({
+      Window: {
+        wrap: vi.fn(async () => { throw new Error('should not be called when wrapSync is present'); }),
+        wrapSync: syncWrap,
+        create: vi.fn().mockResolvedValue({ getWebWindow: () => ({} as Window) }),
+      },
+    });
+
+    const opener = openFinWindowOpener();
+    await opener!({ name: 'p', width: 100, height: 100 });
+
+    expect(syncWrap).toHaveBeenCalled();
+    expect(fin.Window.create).toHaveBeenCalled();
+  });
+
   it('retries once after a name-collision error, then succeeds', async () => {
     let callCount = 0;
     const fin = setupFin({
       Window: {
-        wrap: vi.fn(() => ({
+        wrap: vi.fn(async () => ({
           getInfo: vi.fn().mockRejectedValue(new Error('not found')),
           close: vi.fn(),
         })),
@@ -93,6 +118,8 @@ describe('openFinWindowOpener', () => {
         }),
       },
     });
+    // Silence the info log about backoff — not relevant to this assertion.
+    vi.spyOn(console, 'info').mockImplementation(() => {});
 
     const opener = openFinWindowOpener();
     const result = await opener!({ name: 'p', width: 100, height: 100 });
@@ -101,10 +128,10 @@ describe('openFinWindowOpener', () => {
     expect(fin.Window.create).toHaveBeenCalledTimes(2);
   });
 
-  it('returns null after 2 failed create attempts (gives up, caller falls back)', async () => {
+  it('returns null after 3 failed create attempts (gives up, caller falls back)', async () => {
     const fin = setupFin({
       Window: {
-        wrap: vi.fn(() => ({
+        wrap: vi.fn(async () => ({
           getInfo: vi.fn().mockRejectedValue(new Error('not found')),
           close: vi.fn(),
         })),
@@ -114,14 +141,15 @@ describe('openFinWindowOpener', () => {
       },
     });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'info').mockImplementation(() => {});
 
     const opener = openFinWindowOpener();
     const result = await opener!({ name: 'p', width: 100, height: 100 });
 
     expect(result).toBeNull();
-    expect(fin.Window.create).toHaveBeenCalledTimes(2);
+    expect(fin.Window.create).toHaveBeenCalledTimes(3);
     expect(warnSpy).toHaveBeenCalledWith(
-      '[openFin] Window.create failed — falling back to window.open',
+      expect.stringContaining('Window.create failed after 3 attempt(s)'),
       expect.any(Error),
     );
     warnSpy.mockRestore();
@@ -130,7 +158,7 @@ describe('openFinWindowOpener', () => {
   it('does NOT retry on non-collision errors (fails fast)', async () => {
     const fin = setupFin({
       Window: {
-        wrap: vi.fn(() => ({
+        wrap: vi.fn(async () => ({
           getInfo: vi.fn().mockRejectedValue(new Error('not found')),
           close: vi.fn(),
         })),

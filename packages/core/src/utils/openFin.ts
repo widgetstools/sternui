@@ -50,7 +50,16 @@ interface OpenFinWindow {
        */
       processAffinity?: string;
     }) => Promise<OpenFinWindowWrapper>;
-    wrap: (identity: { uuid: string; name: string }) => OpenFinWindowWrapper;
+    /**
+     * ASYNC in @openfin/core v2+ — returns a Promise<WindowWrapper>,
+     * NOT a synchronous wrapper. Callers MUST await the result before
+     * calling methods on it. See `wrapSync` for the synchronous
+     * variant available in the same API.
+     */
+    wrap: (identity: { uuid: string; name: string }) => Promise<OpenFinWindowWrapper>;
+    /** Synchronous wrapper factory — prefer this when you need the
+     *  wrapper in a synchronous code path. */
+    wrapSync?: (identity: { uuid: string; name: string }) => OpenFinWindowWrapper;
   };
   me?: {
     identity?: { uuid?: string };
@@ -120,19 +129,39 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
    *     whose registry entry hasn't fully cleared yet.
    *   - User rapid-clicking the popout button.
    *
-   * `getInfo()` throws if the window doesn't exist; we use that
-   * as the existence probe. If it resolves, the window IS
-   * registered — close + settle briefly so the registry unhooks
-   * the name before the subsequent create.
+   * Contract nuances that matter:
+   *   - `fin.Window.wrap` is ASYNC in @openfin/core v2+ — callers
+   *     MUST await it before using the wrapper. An earlier version
+   *     of this code treated it as synchronous, so `wrapped.getInfo`
+   *     was undefined, the "is not a function" error was silently
+   *     caught as "not registered", and we skipped the close — the
+   *     collision surfaced immediately at `Window.create`.
+   *   - `wrapSync` is guaranteed synchronous. We prefer it when
+   *     available (older runtimes may not expose it).
+   *   - `getInfo()` throws if the window doesn't exist; we use that
+   *     as the existence probe. If it resolves, the window IS
+   *     registered — close + settle briefly so the registry unhooks
+   *     the name before the subsequent create.
    */
   const closeExisting = async (uuid: string, name: string): Promise<void> => {
     try {
-      const wrapped = fin.Window.wrap({ uuid, name });
+      const wrapped = fin.Window.wrapSync
+        ? fin.Window.wrapSync({ uuid, name })
+        : await fin.Window.wrap({ uuid, name });
+      if (!wrapped || typeof wrapped.getInfo !== 'function') {
+        // Guard: if the runtime returns something non-conforming,
+        // don't pretend to probe — just bail and let create attempt.
+        console.warn('[openFin] closeExisting: wrapped window has no getInfo');
+        return;
+      }
       await wrapped.getInfo();
+      // Window exists — close it and wait for registry to release
+      // the name. 150ms empirically avoids the rare follow-up
+      // "still in use" on fast machines; tweak if needed.
       try { await wrapped.close(true); } catch { /* already gone */ }
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 150));
     } catch {
-      // Not registered — nothing to close, proceed.
+      // getInfo rejected → window isn't registered → proceed.
     }
   };
 
@@ -156,11 +185,13 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
       processAffinity: popoutProcessAffinity(fin),
     };
 
-    // Up to 2 attempts: the first clears any stale registration
-    // and creates; the second retries with a backoff if we hit a
-    // rare race (e.g. StrictMode double-invoke where mount A's
-    // `Window.create` is still pending when mount B tries).
-    for (let attempt = 0; attempt < 2; attempt++) {
+    // Up to 3 attempts: the first clears any stale registration
+    // and creates; subsequent attempts retry with a growing
+    // backoff if we hit a collision race (e.g. StrictMode double-
+    // invoke where mount A's `Window.create` is still pending when
+    // mount B tries, or close-and-reopen races where the OpenFin
+    // registry hasn't fully unhooked the previous name yet).
+    for (let attempt = 0; attempt < 3; attempt++) {
       await closeExisting(appUuid, name);
       try {
         const win = await fin.Window.create(windowOpts);
@@ -168,11 +199,19 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         const isNameCollision = msg.includes('already in use');
-        if (!isNameCollision || attempt === 1) {
-          console.warn('[openFin] Window.create failed — falling back to window.open', err);
+        if (!isNameCollision || attempt === 2) {
+          console.warn(
+            `[openFin] Window.create failed after ${attempt + 1} attempt(s) — falling back to window.open`,
+            err,
+          );
           return null;
         }
-        await new Promise((r) => setTimeout(r, 150));
+        // Grow the backoff on each retry. OpenFin's registry
+        // sometimes needs an extra tick after close() for the
+        // name to fully release.
+        const backoff = 200 * (attempt + 1);
+        console.info(`[openFin] name-collision on attempt ${attempt + 1}, retrying in ${backoff}ms`);
+        await new Promise((r) => setTimeout(r, backoff));
       }
     }
     return null;
