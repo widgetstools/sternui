@@ -265,6 +265,43 @@ test.describe('v2 FiltersToolbar', () => {
     expect(await getFilterPillCount(page)).toBe(1);
   });
 
+  test('clear + add buttons sit OUTSIDE the scroll container (always visible)', async ({ page }) => {
+    // Regression guard: the clear-all (FunnelX) and add-new (+) buttons
+    // are sticky action items that must remain visible even when the
+    // pill row overflows. They live in `.gc-filters-actions`, after
+    // the right scroll caret, NOT inside `.gc-filter-scroll`.
+    const addBtn = page.locator('[data-testid="filters-add-btn"]');
+    // The + button is always rendered (disabled when no new filter).
+    await expect(addBtn).toBeVisible();
+
+    // DOM placement: add button's closest `.gc-filter-scroll` ancestor
+    // should NOT exist — it's in the sticky action cluster instead.
+    const insideScroll = await addBtn.evaluate(
+      (el) => !!el.closest('.gc-filter-scroll'),
+    );
+    expect(insideScroll).toBe(false);
+
+    const insideActions = await addBtn.evaluate(
+      (el) => !!el.closest('.gc-filters-actions'),
+    );
+    expect(insideActions).toBe(true);
+
+    // Create a pill so the clear-all button mounts.
+    await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await clickAddFilter(page);
+    const clearBtn = page.locator('.gc-filters-clear-btn');
+    await expect(clearBtn).toBeVisible();
+    // Same sticky-group placement.
+    const clearInsideScroll = await clearBtn.evaluate(
+      (el) => !!el.closest('.gc-filter-scroll'),
+    );
+    expect(clearInsideScroll).toBe(false);
+    const clearInsideActions = await clearBtn.evaluate(
+      (el) => !!el.closest('.gc-filters-actions'),
+    );
+    expect(clearInsideActions).toBe(true);
+  });
+
   test('pill-row scroll container hides the browser scrollbar', async ({ page }) => {
     // The carousel has dedicated carets for overflow discovery
     // (`filters-caret-left` / `filters-caret-right`). The native

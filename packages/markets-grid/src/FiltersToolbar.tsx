@@ -325,7 +325,24 @@ export function FiltersToolbar({
             </div>
           );
         })}
+      </div>
+      {canScrollRight && (
+        <button
+          type="button"
+          className="gc-filters-caret"
+          onClick={() => scrollBy(1)}
+          title="Scroll right"
+          data-testid="filters-caret-right"
+        >
+          <ChevronRight size={12} strokeWidth={2.5} />
+        </button>
+      )}
 
+      {/* Sticky action cluster — always visible even when the pill row
+          scrolls. Sits AFTER the right caret so the carets still hug
+          the pill carousel they control. `.gc-filters-actions` is a
+          flex-shrink:0 group so nothing in this cluster ever overflows. */}
+      <div className="gc-filters-actions">
         {filters.length > 0 && (
           <button
             type="button"
@@ -392,17 +409,6 @@ export function FiltersToolbar({
           </button>
         )}
       </div>
-      {canScrollRight && (
-        <button
-          type="button"
-          className="gc-filters-caret"
-          onClick={() => scrollBy(1)}
-          title="Scroll right"
-          data-testid="filters-caret-right"
-        >
-          <ChevronRight size={12} strokeWidth={2.5} />
-        </button>
-      )}
     </div>
   );
 }

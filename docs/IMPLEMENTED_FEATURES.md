@@ -456,6 +456,8 @@ Testids (all in FiltersToolbar): `filters-toolbar`, `filters-add-btn`, `filter-p
 
 - **Pill-row scrollbar is hidden** — once pills overflow the toolbar width, the browser's horizontal scrollbar would otherwise render underneath the pill row, stealing vertical space and looking noisy. Since the left/right chevron carets (`filters-caret-left` / `filters-caret-right`) already auto-reveal on overflow and scroll by 150px per click, the scrollbar is redundant UI. Hidden in `cockpit.ts` via `scrollbar-width: none` (Firefox) + `::-webkit-scrollbar { display: none }` (Chromium/WebKit) + `-ms-overflow-style: none` (legacy). Wheel-scroll + programmatic scroll still work; only the scrollbar chrome disappears.
 
+- **Clear-all + add-new + style-toggle are sticky (always visible)** — clustered in `.gc-filters-actions` AFTER the right scroll caret, outside the scrollable `.gc-filter-scroll` container. When the pill row overflows and the user scrolls through pills, these action buttons never scroll off-screen. Previously they lived inside `.gc-filter-scroll` and scrolled with the pills, leaving the user unable to reach them without scrolling back. The layout order (left-caret → pills → right-caret → clear → add → brush) keeps the carets hugging the carousel they control.
+
 ### 1.8e Toolbar Visibility — hidden per-profile toolbar layout
 
 Module `toolbar-visibility` (priority 1000). Tracks which optional toolbars (Filters, Formatting, etc.) the user has shown in the host app so the layout round-trips across profile load / save.
