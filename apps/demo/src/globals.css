@@ -338,12 +338,176 @@
 .gc-filters-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 44px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
+  padding: 0 10px 0 6px;
+  /* No bottom border — the outer .gc-primary-row owns the hairline so
+     every row element sits on a single continuous line. */
+  background: transparent;
   overflow: hidden;
+}
+.gc-filters-bar[data-expanded='false'] {
+  /* Collapsed view renders a summary chip + sticky actions. Same row
+     height; content just takes less horizontal space. */
+}
+
+/* ─── Primary toolbar row (filters + right action cluster) ─────────────
+   Unifies the filters toolbar, formatter-toolbar toggle, profile
+   selector, save button, and settings icon into a single 44px strip.
+   Previous design had full-height vertical borders between every item
+   and hard-coded inline styles — replaced with one shared action-chip
+   class + a thin 1px divider between groups, all on top of a single
+   bottom hairline. */
+
+.gc-primary-row {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 44px;
+  background: var(--card, #161a1e);
+  border-bottom: 1px solid var(--border, #313944);
+}
+
+.gc-primary-filters {
+  flex: 1 1 0px;
+  min-width: 0;
+  overflow-x: clip;
+  display: flex;
+  align-items: center;
+}
+
+/* When filters aren't shown the empty slot still holds the row height
+   so the right cluster stays aligned with anything below. */
+.gc-primary-filters-empty {
+  flex: 1 1 0px;
+  height: 100%;
+}
+
+.gc-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+/* Shared icon button for Brush / Save / Settings. Neutral at rest,
+   subtle tint on hover, teal accent when aria-pressed OR
+   data-active='true', amber when save is dirty, green on save-flash. */
+.gc-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted-foreground, #a0a8b4);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.gc-primary-action:hover {
+  color: var(--foreground, #eaecef);
+  background: var(--accent, rgba(255, 255, 255, 0.04));
+  border-color: var(--border, #313944);
+}
+.gc-primary-action[aria-pressed='true'],
+.gc-primary-action[data-active='true'] {
+  color: var(--bn-green, #2dd4bf);
+  background: rgba(45, 212, 191, 0.12);
+  border-color: rgba(45, 212, 191, 0.35);
+}
+.gc-primary-action[data-state='dirty'] {
+  color: var(--bn-yellow, #f0b90b);
+}
+.gc-primary-action[data-state='saved'] {
+  color: var(--bn-green, #2dd4bf);
+}
+
+/* Vertical divider between action groups — thin, low-contrast,
+   centered vertically in the row. Replaces the prior treatment of
+   putting a 1px border-left on EVERY button, which made the row look
+   like a tabbed spreadsheet. */
+.gc-primary-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--border, #313944);
+  opacity: 0.6;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ── Filters toolbar collapse/expand toggle ──
+   Leads the toolbar row. Chevron flips based on `expanded` state
+   (ChevronUp expanded → ChevronDown collapsed). Small enough to feel
+   like part of the row rather than a separate control. */
+
+.gc-filters-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground, #a0a8b4);
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: color 100ms ease, background 100ms ease;
+}
+.gc-filters-collapse:hover {
+  color: var(--foreground, #eaecef);
+  background: var(--accent, rgba(255, 255, 255, 0.04));
+}
+
+/* ── Summary chip (collapsed state) ──
+   Compact pill showing `N filters · M active`. Click expands the
+   carousel back. Stays on the same row height as the expanded pill
+   row so the collapse doesn't jank layout. */
+
+.gc-filters-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  background: var(--secondary, #1e2329);
+  border: 1px solid var(--border, #313944);
+  border-radius: 13px;
+  color: var(--foreground, #eaecef);
+  font-family: var(--fi-sans, 'Geist', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 120ms ease;
+}
+.gc-filters-summary:hover {
+  border-color: var(--input, #3e4754);
+  background: var(--muted, #2b3139);
+}
+.gc-filters-summary-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--bn-cyan, #22d3ee);
+}
+.gc-filters-summary-label {
+  color: var(--muted-foreground, #a0a8b4);
+}
+.gc-filters-summary-active {
+  color: var(--bn-yellow, #f0b90b);
+  font-weight: 500;
+}
+.gc-filters-summary-empty {
+  color: var(--muted-foreground, #a0a8b4);
+  font-style: italic;
 }
 
 /* ── Clear-all / Add-new sticky actions ──

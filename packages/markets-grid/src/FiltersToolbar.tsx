@@ -5,8 +5,29 @@ import {
   useModuleState,
   type SavedFiltersState,
 } from '@grid-customizer/core';
-import { FunnelPlus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight, Brush } from 'lucide-react';
+import {
+  FunnelPlus,
+  Pencil,
+  Trash2,
+  FunnelX,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import type { SavedFilter } from './types';
+
+/**
+ * ToolbarVisibilityState is the per-profile key/value used to persist
+ * collapse/expand state for the filter pill row. Imported inline (the
+ * module's TS interface isn't on the public core barrel) so we don't
+ * take a hard dep on the module's shape — only the boolean slot we
+ * actually use.
+ */
+interface ToolbarVisibilityLike {
+  visible: Record<string, boolean>;
+}
+const FILTERS_EXPANDED_KEY = 'filters-toolbar-pills';
 import {
   doesRowMatchFilterModel,
   generateLabel,
@@ -26,23 +47,31 @@ import {
  * instead of raw `api.addEventListener`. Functional behaviour is identical.
  */
 
-export interface FiltersToolbarProps {
-  /**
-   * Optional Style-toolbar toggle rendered inline on the right of the filter
-   * pill row. When `onToggleStyleToolbar` is supplied, a `Brush` pill button
-   * appears and reflects `styleToolbarOpen` in its active state. This is the
-   * entry point for the floating FormattingToolbar.
-   */
-  styleToolbarOpen?: boolean;
-  onToggleStyleToolbar?: () => void;
-}
+/**
+ * FiltersToolbar accepts no props — formatter-toolbar visibility is
+ * handled by its own button in the primary row (MarketsGrid), decoupled
+ * from the filter pill carousel.
+ */
+export type FiltersToolbarProps = Record<string, never>;
 
-export function FiltersToolbar({
-  styleToolbarOpen,
-  onToggleStyleToolbar,
-}: FiltersToolbarProps) {
+export function FiltersToolbar() {
   const platform = useGridPlatform();
   const api = useGridApi();
+
+  // Persisted collapse/expand state — piggy-backs on the
+  // `toolbar-visibility` module that ships in every profile. Missing key
+  // defaults to EXPANDED so existing profiles get the familiar layout.
+  const [tbvState, setTbvState] = useModuleState<ToolbarVisibilityLike>('toolbar-visibility');
+  const expanded = tbvState?.visible?.[FILTERS_EXPANDED_KEY] !== false;
+  const toggleExpanded = useCallback(() => {
+    setTbvState((prev) => ({
+      ...prev,
+      visible: {
+        ...(prev?.visible ?? {}),
+        [FILTERS_EXPANDED_KEY]: !(prev?.visible?.[FILTERS_EXPANDED_KEY] !== false),
+      },
+    }));
+  }, [setTbvState]);
   // Filters live in the per-profile saved-filters module. Reading and writing
   // through `useModuleState` is the ONLY channel — no refs, no events. The
   // auto-save engine picks up changes and persists them on a debounce.
@@ -265,9 +294,64 @@ export function FiltersToolbar({
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
+  const activeCount = filters.filter((f) => f.active).length;
+
   return (
-    <div className="gc-toolbar-content gc-filters-bar" data-testid="filters-toolbar">
-      {canScrollLeft && (
+    <div
+      className="gc-toolbar-content gc-filters-bar"
+      data-testid="filters-toolbar"
+      data-expanded={expanded ? 'true' : 'false'}
+    >
+      {/* Collapse / expand toggle — leads the row so it's the first thing
+          the user sees. Flips between ChevronUp (expanded) and
+          ChevronDown (collapsed); persists through the
+          toolbar-visibility module. */}
+      <button
+        type="button"
+        className="gc-filters-collapse"
+        onClick={toggleExpanded}
+        title={expanded ? 'Collapse filter pills' : 'Expand filter pills'}
+        aria-expanded={expanded}
+        data-testid="filters-collapse-toggle"
+      >
+        {expanded ? (
+          <ChevronUp size={13} strokeWidth={2.25} />
+        ) : (
+          <ChevronDown size={13} strokeWidth={2.25} />
+        )}
+      </button>
+
+      {/* Collapsed view — compact summary chip replaces the pill row.
+          Click it to re-expand (in addition to the chevron). */}
+      {!expanded && (
+        <button
+          type="button"
+          className="gc-filters-summary"
+          onClick={toggleExpanded}
+          data-testid="filters-summary-chip"
+          title="Click to expand filter pills"
+        >
+          {filters.length === 0 ? (
+            <span className="gc-filters-summary-empty">No filters</span>
+          ) : (
+            <>
+              <span className="gc-filters-summary-count">
+                {filters.length}
+              </span>
+              <span className="gc-filters-summary-label">
+                filter{filters.length === 1 ? '' : 's'}
+              </span>
+              {activeCount > 0 && (
+                <span className="gc-filters-summary-active">
+                  · {activeCount} active
+                </span>
+              )}
+            </>
+          )}
+        </button>
+      )}
+
+      {expanded && canScrollLeft && (
         <button
           type="button"
           className="gc-filters-caret"
@@ -278,6 +362,7 @@ export function FiltersToolbar({
           <ChevronLeft size={12} strokeWidth={2.5} />
         </button>
       )}
+      {expanded && (
       <div ref={scrollRef} className="gc-filter-scroll">
         {filters.map((f) => {
           if (renameId === f.id) {
@@ -345,7 +430,8 @@ export function FiltersToolbar({
           );
         })}
       </div>
-      {canScrollRight && (
+      )}
+      {expanded && canScrollRight && (
         <button
           type="button"
           className="gc-filters-caret"
@@ -358,9 +444,12 @@ export function FiltersToolbar({
       )}
 
       {/* Sticky action cluster — always visible even when the pill row
-          scrolls. Sits AFTER the right caret so the carets still hug
-          the pill carousel they control. `.gc-filters-actions` is a
-          flex-shrink:0 group so nothing in this cluster ever overflows. */}
+          scrolls OR is collapsed. Clear + add remain reachable so the
+          user can manage pills from the compact view too.
+          `.gc-filters-actions` is a flex-shrink:0 group; the
+          Brush / formatter-toolbar toggle no longer lives here — it
+          sits in the primary row's right-side action cluster
+          (MarketsGrid) where it's decoupled from filter semantics. */}
       <div className="gc-filters-actions">
         {filters.length > 0 && (
           <button
@@ -392,41 +481,6 @@ export function FiltersToolbar({
         >
           <FunnelPlus size={16} strokeWidth={2.75} />
         </button>
-
-        {onToggleStyleToolbar && (
-          <button
-            type="button"
-            onClick={onToggleStyleToolbar}
-            title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
-            data-testid="style-toolbar-toggle"
-            data-active={styleToolbarOpen ? 'true' : 'false'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 24,
-              height: 24,
-              marginLeft: 4,
-              padding: 0,
-              borderRadius: 12,
-              border: '1px solid',
-              borderColor: styleToolbarOpen
-                ? 'var(--bn-green, #2dd4bf)'
-                : 'var(--border, #313944)',
-              background: styleToolbarOpen
-                ? 'rgba(45, 212, 191, 0.12)'
-                : 'transparent',
-              color: styleToolbarOpen
-                ? 'var(--bn-green, #2dd4bf)'
-                : 'var(--muted-foreground, #a0a8b4)',
-              cursor: 'pointer',
-              transition: 'all 150ms',
-              flexShrink: 0,
-            }}
-          >
-            <Brush size={12} strokeWidth={2} />
-          </button>
-        )}
       </div>
     </div>
   );

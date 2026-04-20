@@ -454,11 +454,20 @@ Module `saved-filters` (priority 1001 — effectively last in the module chain; 
 
 - **No settings panel** — the toolbar IS the editor. Nav entry intentionally omitted from the settings sheet.
 
-Testids (all in FiltersToolbar): `filters-toolbar`, `filters-add-btn`, `filter-pill-{id}`, `filter-pill-count-{id}`, `filters-caret-left`, `filters-caret-right`, `style-toolbar-toggle`.
+Testids (all in FiltersToolbar): `filters-toolbar`, `filters-add-btn`, `filter-pill-{id}`, `filter-pill-count-{id}`, `filters-caret-left`, `filters-caret-right`, `filters-collapse-toggle`, `filters-summary-chip`. (The `style-toolbar-toggle` now lives in the primary row's action cluster outside FiltersToolbar — see §1.12c.)
 
 - **Pill-row scrollbar is hidden** — once pills overflow the toolbar width, the browser's horizontal scrollbar would otherwise render underneath the pill row, stealing vertical space and looking noisy. Since the left/right chevron carets (`filters-caret-left` / `filters-caret-right`) already auto-reveal on overflow and scroll by 150px per click, the scrollbar is redundant UI. Hidden in `cockpit.ts` via `scrollbar-width: none` (Firefox) + `::-webkit-scrollbar { display: none }` (Chromium/WebKit) + `-ms-overflow-style: none` (legacy). Wheel-scroll + programmatic scroll still work; only the scrollbar chrome disappears.
 
-- **Clear-all + add-new + style-toggle are sticky (always visible)** — clustered in `.gc-filters-actions` AFTER the right scroll caret, outside the scrollable `.gc-filter-scroll` container. When the pill row overflows and the user scrolls through pills, these action buttons never scroll off-screen. Previously they lived inside `.gc-filter-scroll` and scrolled with the pills, leaving the user unable to reach them without scrolling back. The layout order (left-caret → pills → right-caret → clear → add → brush) keeps the carets hugging the carousel they control.
+- **Clear-all + add-new are sticky (always visible)** — clustered in `.gc-filters-actions` AFTER the right scroll caret, outside the scrollable `.gc-filter-scroll` container. When the pill row overflows and the user scrolls through pills, these action buttons never scroll off-screen. Previously they lived inside `.gc-filter-scroll` and scrolled with the pills, leaving the user unable to reach them without scrolling back. The layout order (collapse-toggle → summary-chip-OR-pills → right-caret → clear → add) keeps the carets hugging the carousel they control. **The formatter-toolbar toggle (Brush) has been hoisted out** — it now lives in the primary row's shared action cluster (MarketsGrid), decoupled from filter semantics.
+
+- **Collapse / expand the pill carousel** — the first thing in the filters row is a chevron toggle (`filters-collapse-toggle`). Clicking it swaps the carousel for a compact summary chip `N filters · M active` (`filters-summary-chip`). Either the chevron OR the chip toggles back to the expanded view. State persists via the `toolbar-visibility` module under `filters-toolbar-pills`. Clear + add buttons remain reachable in both states because they live outside the collapsible section.
+
+- **Primary-row redesign (MarketsGrid)** — the row hosting FiltersToolbar, the formatter-toolbar toggle (Brush), ProfileSelector, Save button, and Settings icon was refactored into a single `.gc-primary-row` flex strip. Previously every right-side action carried a full-height `border-left` and hard-coded inline-styled chrome, which read like a row of spreadsheet tabs. The new layout uses:
+  - One shared `.gc-primary-action` class (30 × 30 icon button, hover-tint, teal-accented on active, amber on dirty, green on save-flash)
+  - `.gc-primary-divider` 1 × 20 px hairlines between logical groups instead of per-button border-lefts
+  - A single bottom hairline on `.gc-primary-row` owned by the outer container (inner components render against transparent backgrounds)
+
+  Action order: filters (flex:1) → Brush → divider → ProfileSelector → divider → Save → divider → Settings.
 
 ### 1.8e Toolbar Visibility — hidden per-profile toolbar layout
 
@@ -471,7 +480,9 @@ Module `toolbar-visibility` (priority 1000). Tracks which optional toolbars (Fil
   }
   ```
 
-- **Never appears in the settings nav** — no `SettingsPanel` field on the module. Consumed via `useModuleState<ToolbarVisibilityState>('toolbar-visibility')` from host chrome (the `FiltersToolbar`'s Brush toggle currently lives in `MarketsGrid` local state; a future wiring pass would move it through this module).
+- **Never appears in the settings nav** — no `SettingsPanel` field on the module. Consumed via `useModuleState<ToolbarVisibilityState>('toolbar-visibility')` from host chrome.
+
+- **First wired consumer** — `FiltersToolbar` persists its collapse/expand state under the key `filters-toolbar-pills`. `visible[key] === false` collapses the pill carousel into a compact summary chip ("N filters · M active"). Missing key defaults to expanded. Reloading the profile restores the last state so users who prefer the compact view stay there.
 
 - **Forgiving deserialize** — missing keys mean "host default" (deliberately NOT seeded `false` so a host that adds a new toolbar id later doesn't have to migrate every old profile). Non-boolean values are dropped on deserialize so a stray `null` / string can't poison render.
 

@@ -363,6 +363,94 @@ test.describe('v2 FiltersToolbar', () => {
     expect(clearInsideActions).toBe(true);
   });
 
+  test('collapse toggle hides pills + reveals summary chip; persists across reload', async ({ page }) => {
+    // Create a couple of pills first.
+    await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await clickAddFilter(page);
+    // Second pill via a different column + delta capture.
+    await filterToggleBtn(page, 0).click();
+    await page.waitForTimeout(300);
+    await setFilterViaApi(page, { venue: { filterType: 'set', values: ['NYSE'] } });
+    await clickAddFilter(page);
+    expect(await getFilterPillCount(page)).toBe(2);
+
+    // Expanded by default — pills visible, no summary chip.
+    const toolbar = page.locator('[data-testid="filters-toolbar"]');
+    await expect(toolbar).toHaveAttribute('data-expanded', 'true');
+    await expect(page.locator('[data-testid="filters-summary-chip"]')).toHaveCount(0);
+
+    // Collapse. The chevron toggles from ChevronUp → ChevronDown (tested
+    // only via data-expanded; the glyph swap is visual).
+    await page.locator('[data-testid="filters-collapse-toggle"]').click();
+    await expect(toolbar).toHaveAttribute('data-expanded', 'false');
+
+    // Pill row is gone; summary chip shows `2 filters · 1 active`.
+    await expect(page.locator('.gc-filter-scroll')).toHaveCount(0);
+    const chip = page.locator('[data-testid="filters-summary-chip"]');
+    await expect(chip).toBeVisible();
+    await expect(chip).toContainText('2');
+    await expect(chip).toContainText('filters');
+    await expect(chip).toContainText('1 active');
+
+    // Persist: the toolbar-visibility module stores the state — reload
+    // and confirm the collapsed view sticks.
+    await page.waitForTimeout(500); // auto-save debounce
+    await page.reload();
+    await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
+    await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
+    await expect(
+      page.locator('[data-testid="filters-toolbar"]'),
+    ).toHaveAttribute('data-expanded', 'false');
+    await expect(
+      page.locator('[data-testid="filters-summary-chip"]'),
+    ).toBeVisible();
+  });
+
+  test('clicking the summary chip expands the pill carousel', async ({ page }) => {
+    await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await clickAddFilter(page);
+    await page.locator('[data-testid="filters-collapse-toggle"]').click();
+
+    // Now collapsed — click the chip itself (not the chevron) to expand.
+    const chip = page.locator('[data-testid="filters-summary-chip"]');
+    await expect(chip).toBeVisible();
+    await chip.click();
+    await expect(
+      page.locator('[data-testid="filters-toolbar"]'),
+    ).toHaveAttribute('data-expanded', 'true');
+    await expect(page.locator('.gc-filter-scroll')).toBeVisible();
+  });
+
+  test('collapsed toolbar keeps clear + add buttons reachable', async ({ page }) => {
+    await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await clickAddFilter(page);
+    await page.locator('[data-testid="filters-collapse-toggle"]').click();
+    await expect(
+      page.locator('[data-testid="filters-toolbar"]'),
+    ).toHaveAttribute('data-expanded', 'false');
+
+    // Clear-all and add buttons still in the DOM because
+    // `.gc-filters-actions` sits outside the collapsible pill section.
+    await expect(page.locator('.gc-filters-clear-btn')).toBeVisible();
+    await expect(page.locator('[data-testid="filters-add-btn"]')).toBeVisible();
+  });
+
+  test('formatter-toolbar toggle (brush) lives OUTSIDE the filters toolbar', async ({ page }) => {
+    // Brush was hoisted into the primary row's action cluster. Verify
+    // the testid still exists but sits in `.gc-primary-actions`, NOT
+    // inside `.gc-filters-actions`.
+    const toggle = page.locator('[data-testid="style-toolbar-toggle"]');
+    await expect(toggle).toBeVisible();
+    const insideFiltersActions = await toggle.evaluate(
+      (el) => !!el.closest('.gc-filters-actions'),
+    );
+    expect(insideFiltersActions).toBe(false);
+    const insidePrimaryActions = await toggle.evaluate(
+      (el) => !!el.closest('.gc-primary-actions'),
+    );
+    expect(insidePrimaryActions).toBe(true);
+  });
+
   test('pill-row scroll container hides the browser scrollbar', async ({ page }) => {
     // The carousel has dedicated carets for overflow discovery
     // (`filters-caret-left` / `filters-caret-right`). The native

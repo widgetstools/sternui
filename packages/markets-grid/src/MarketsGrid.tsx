@@ -23,7 +23,7 @@ import {
   type AnyModule,
   type StorageAdapter,
 } from '@grid-customizer/core';
-import { Save, Check, Settings as SettingsIcon } from 'lucide-react';
+import { Save, Check, Settings as SettingsIcon, Brush } from 'lucide-react';
 import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
@@ -287,147 +287,116 @@ function Host<TData>({
       data-grid-id={gridId}
     >
       {showToolbar && (
-        <div
-          className="gc-toolbar-primary"
-          style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
-        >
-          <div style={{ flex: '1 1 0px', minWidth: 0, overflowX: 'clip' }}>
+        <div className="gc-toolbar-primary gc-primary-row">
+          {/* LEFT — filters carousel (flex:1, collapses/expands via its
+               own chevron; formatter-toolbar toggle no longer lives
+               inside it). */}
+          <div className="gc-primary-filters">
             {showFiltersToolbar ? (
-              <FiltersToolbar
-                styleToolbarOpen={showFormattingToolbar ? styleToolbarOpen : undefined}
-                onToggleStyleToolbar={
-                  showFormattingToolbar ? () => setStyleToolbarOpen((p) => !p) : undefined
-                }
-              />
+              <FiltersToolbar />
             ) : (
-              <div
-                style={{
-                  height: 44,
-                  borderBottom: '1px solid var(--border, #313944)',
-                  background: 'var(--card, #161a1e)',
-                }}
-              />
+              <div className="gc-primary-filters-empty" />
             )}
           </div>
 
-          {showProfileSelector && (
-            <div
-              className="gc-profile-badge"
-              style={{
-                height: 44,
-                padding: '0 10px',
-                background: 'var(--card, #161a1e)',
-                borderBottom: '1px solid var(--border, #313944)',
-                borderLeft: '1px solid var(--border, #313944)',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <ProfileSelector
-                profiles={profiles.profiles}
-                activeProfileId={profiles.activeProfileId ?? ''}
-                isDirty={isDirty}
-                onCreate={(name) => profiles.createProfile(name)}
-                onLoad={(id) => profiles.loadProfile(id)}
-                onDelete={(id) => profiles.deleteProfile(id)}
-                onExport={async (id) => {
-                  try {
-                    const payload = await profiles.exportProfile(id);
-                    const fileStem = (payload.profile.name || id)
-                      .toLowerCase()
-                      .replace(/[^a-z0-9-]+/g, '-')
-                      .replace(/^-+|-+$/g, '')
-                      .slice(0, 60) || 'profile';
-                    const json = JSON.stringify(payload, null, 2);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `gc-profile-${fileStem}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    // Release the object-url on the next tick so the
-                    // browser has a frame to initiate the download.
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  } catch (err) {
-                    console.warn('[markets-grid] profile export failed:', err);
-                    window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
-                  }
-                }}
-                onImport={async (file) => {
-                  try {
-                    const text = await file.text();
-                    const payload = JSON.parse(text);
-                    await profiles.importProfile(payload);
-                  } catch (err) {
-                    console.warn('[markets-grid] profile import failed:', err);
-                    window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
-                  }
-                }}
-              />
-            </div>
-          )}
+          {/* RIGHT — action cluster. A single thin divider leads the
+               group (instead of a full-height border on every button),
+               then evenly-spaced icon buttons with matching chrome. */}
+          <div className="gc-primary-actions">
+            {showFormattingToolbar && (
+              <button
+                type="button"
+                className="gc-primary-action"
+                onClick={() => setStyleToolbarOpen((p) => !p)}
+                title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
+                data-testid="style-toolbar-toggle"
+                data-active={styleToolbarOpen ? 'true' : 'false'}
+                aria-pressed={styleToolbarOpen}
+              >
+                <Brush size={14} strokeWidth={2} />
+              </button>
+            )}
 
-          {showSaveButton && (
-            <button
-              type="button"
-              onClick={handleSaveAll}
-              title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
-              data-testid="save-all-btn"
-              style={{
-                height: 44,
-                padding: '0 10px',
-                background: 'var(--card, #161a1e)',
-                borderBottom: '1px solid var(--border, #313944)',
-                border: 'none',
-                borderLeft: '1px solid var(--border, #313944)',
-                color: saveFlash
-                  ? 'var(--bn-green, #2dd4bf)'
-                  : isDirty
-                    ? 'var(--bn-yellow, #f0b90b)'
-                    : 'var(--muted-foreground, #a0a8b4)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                fontSize: 11,
-                fontWeight: 500,
-                transition: 'color 150ms',
-              }}
-            >
-              {saveFlash ? <Check size={13} strokeWidth={2.5} /> : <Save size={13} strokeWidth={1.75} />}
-              <span>Save</span>
-            </button>
-          )}
+            {showProfileSelector && (
+              <>
+                {showFormattingToolbar && <span className="gc-primary-divider" aria-hidden />}
+                <ProfileSelector
+                  profiles={profiles.profiles}
+                  activeProfileId={profiles.activeProfileId ?? ''}
+                  isDirty={isDirty}
+                  onCreate={(name) => profiles.createProfile(name)}
+                  onLoad={(id) => profiles.loadProfile(id)}
+                  onDelete={(id) => profiles.deleteProfile(id)}
+                  onExport={async (id) => {
+                    try {
+                      const payload = await profiles.exportProfile(id);
+                      const fileStem = (payload.profile.name || id)
+                        .toLowerCase()
+                        .replace(/[^a-z0-9-]+/g, '-')
+                        .replace(/^-+|-+$/g, '')
+                        .slice(0, 60) || 'profile';
+                      const json = JSON.stringify(payload, null, 2);
+                      const blob = new Blob([json], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `gc-profile-${fileStem}.json`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      // Release the object-url on the next tick so the
+                      // browser has a frame to initiate the download.
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    } catch (err) {
+                      console.warn('[markets-grid] profile export failed:', err);
+                      window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                  }}
+                  onImport={async (file) => {
+                    try {
+                      const text = await file.text();
+                      const payload = JSON.parse(text);
+                      await profiles.importProfile(payload);
+                    } catch (err) {
+                      console.warn('[markets-grid] profile import failed:', err);
+                      window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                  }}
+                />
+              </>
+            )}
 
-          {showSettingsButton && (
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              title="Open settings"
-              data-testid="v2-settings-open-btn"
-              style={{
-                height: 44,
-                padding: '0 10px',
-                background: 'var(--card, #161a1e)',
-                borderBottom: '1px solid var(--border, #313944)',
-                border: 'none',
-                borderLeft: '1px solid var(--border, #313944)',
-                color: 'var(--muted-foreground, #a0a8b4)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                fontSize: 11,
-                fontWeight: 500,
-                transition: 'color 150ms',
-              }}
-            >
-              <SettingsIcon size={13} strokeWidth={1.75} />
-              <span>Settings</span>
-            </button>
-          )}
+            {showSaveButton && (
+              <>
+                <span className="gc-primary-divider" aria-hidden />
+                <button
+                  type="button"
+                  className="gc-primary-action"
+                  onClick={handleSaveAll}
+                  title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
+                  data-testid="save-all-btn"
+                  data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
+                >
+                  {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
+                </button>
+              </>
+            )}
+
+            {showSettingsButton && (
+              <>
+                <span className="gc-primary-divider" aria-hidden />
+                <button
+                  type="button"
+                  className="gc-primary-action"
+                  onClick={() => setSettingsOpen(true)}
+                  title="Open settings"
+                  data-testid="v2-settings-open-btn"
+                >
+                  <SettingsIcon size={14} strokeWidth={2} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
