@@ -1,102 +1,106 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Small cross-platform launcher for OpenFin RVM.
+ * Launch the demo inside the OpenFin runtime via the official
+ * `@openfin/node-adapter` API — which auto-provisions the RVM on
+ * first run (no separate user install step), exposes a WebSocket
+ * control port, and gives us a clean programmatic handle to the
+ * running platform for graceful shutdown.
  *
- * Why this exists instead of shelling out to an npm CLI package:
- *   - `openfin-cli` is unmaintained and crashes on Node >= 17 (its
- *     transitive `graceful-fs` uses the removed `primordials`).
- *   - `@openfin/cli` isn't published to the public npm registry.
- *   - The RVM is a native binary the user has already installed
- *     (from https://install.openfin.co). We only need to find it
- *     and invoke it with a `--config=<manifest-url>` flag.
- *
- * Checked install locations (installer defaults):
- *   macOS:   /Applications/OpenFin RVM.app  or  ~/Applications/...
- *   Windows: %LOCALAPPDATA%\OpenFin\OpenFinRVM.exe
- *            Program Files (x86)\OpenFin\OpenFinRVM.exe
- *            Program Files\OpenFin\OpenFinRVM.exe
+ * Pattern lifted from the markets-ui reference apps: Node
+ * launcher calls `launch({ manifestUrl })` to get a port, then
+ * `connect({ address: ws://127.0.0.1:<port> })` to get a `fin`
+ * object for out-of-process platform control (quit, fetchManifest,
+ * etc.).
  *
  * Usage:
  *   node openfin/launch.mjs <manifest-url>
  *     e.g. node openfin/launch.mjs http://localhost:5190/openfin/manifest.json
  *
- * Exits with a clear error message if the RVM isn't installed, so
- * the user can install it and retry without digging through logs.
+ * Contrast with a shell-out approach: no per-OS RVM path probing,
+ * no crashes when the RVM is missing (node-adapter downloads +
+ * caches it), and a real handle for clean teardown on Ctrl-C.
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { homedir, platform } from 'node:os';
-import { join } from 'node:path';
+import { connect, launch } from '@openfin/node-adapter';
 
 const [, , manifestUrlArg] = process.argv;
 const manifestUrl = manifestUrlArg ?? 'http://localhost:5190/openfin/manifest.json';
 
-function findMacRvm() {
-  const candidates = [
-    '/Applications/OpenFin RVM.app/Contents/MacOS/OpenFinRVM',
-    join(homedir(), 'Applications/OpenFin RVM.app/Contents/MacOS/OpenFinRVM'),
-  ];
-  return candidates.find(existsSync);
+async function main() {
+  console.log(`[openfin] launching ${manifestUrl}`);
+
+  // `launch` hands back a control-plane port once the RVM has
+  // booted the manifest. First run provisions the runtime from
+  // openfin.co; subsequent runs hit the cache in ~/.openfin-cache.
+  let port;
+  try {
+    port = await launch({ manifestUrl });
+  } catch (err) {
+    console.error('[openfin] failed to launch:');
+    console.error(err instanceof Error ? err.message : err);
+    if (err instanceof Error && err.message.includes('Could not locate')) {
+      console.error('[openfin] hint: is your web server running and the manifest URL reachable?');
+    }
+    process.exit(1);
+  }
+
+  const fin = await connect({
+    uuid: `aggrid-demo-launcher-${Date.now()}`,
+    address: `ws://127.0.0.1:${port}`,
+    nonPersistent: true,
+  });
+
+  console.log(`[openfin] connected on port ${port} — launcher uuid: aggrid-demo-launcher`);
+
+  // Read the manifest back from the running platform so we can
+  // look up the app's uuid and wrap it for lifecycle control —
+  // needed if the manifest uses the newer `platform` block instead
+  // of the legacy `startup_app` shape.
+  const manifest = await fin.System.fetchManifest(manifestUrl);
+  const platformUuid = manifest?.platform?.uuid;
+  const appUuid = manifest?.startup_app?.uuid;
+
+  const quit = async () => {
+    try {
+      if (platformUuid) {
+        const platform = fin.Platform.wrapSync({ uuid: platformUuid });
+        await platform.quit();
+      } else if (appUuid) {
+        const app = fin.Application.wrapSync({ uuid: appUuid });
+        await app.quit(true);
+      }
+    } catch (err) {
+      // "not connected" / "already terminated" are expected during
+      // normal close — anything else logs so we don't swallow
+      // genuine errors.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes('no longer connected') && !msg.includes('not connected')) {
+        console.warn('[openfin] quit error:', msg);
+      }
+    }
+  };
+
+  fin.once('disconnected', () => {
+    console.log('[openfin] platform disconnected');
+    process.exit(0);
+  });
+
+  // Forward Ctrl-C / kill so the RVM shuts down cleanly alongside
+  // Vite when the user stops the `dev:openfin` npm script.
+  const onSignal = async (sig) => {
+    console.log(`[openfin] ${sig} — shutting down`);
+    await quit();
+    // Give the disconnect a beat to land before we exit.
+    setTimeout(() => process.exit(0), 250);
+  };
+  process.on('SIGINT', () => onSignal('SIGINT'));
+  process.on('SIGTERM', () => onSignal('SIGTERM'));
+
+  console.log(`[openfin] launched — ${platformUuid ?? appUuid ?? '(unknown)'}`);
 }
 
-function findWinRvm() {
-  const localAppData = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local');
-  const candidates = [
-    join(localAppData, 'OpenFin', 'OpenFinRVM.exe'),
-    'C:\\Program Files (x86)\\OpenFin\\OpenFinRVM.exe',
-    'C:\\Program Files\\OpenFin\\OpenFinRVM.exe',
-  ];
-  return candidates.find(existsSync);
-}
-
-const plat = platform();
-let rvmPath;
-if (plat === 'darwin') rvmPath = findMacRvm();
-else if (plat === 'win32') rvmPath = findWinRvm();
-
-if (!rvmPath) {
-  const hint = plat === 'darwin'
-    ? '/Applications/OpenFin RVM.app'
-    : plat === 'win32'
-      ? '%LOCALAPPDATA%\\OpenFin\\OpenFinRVM.exe'
-      : '(OpenFin only supports macOS + Windows)';
-  console.error(`
-┌──────────────────────────────────────────────────────────────────┐
-│  OpenFin RVM not found                                           │
-│                                                                  │
-│  Install it from https://install.openfin.co then re-run this    │
-│  command. This launcher checks the standard install paths:      │
-│    ${hint.padEnd(60, ' ')}│
-│                                                                  │
-│  Once installed, you can also launch manually:                  │
-│    OpenFinRVM --config=${manifestUrl}
-└──────────────────────────────────────────────────────────────────┘
-`.trim());
-  process.exit(1);
-}
-
-console.log(`[openfin] RVM:      ${rvmPath}`);
-console.log(`[openfin] Manifest: ${manifestUrl}`);
-
-const rvm = spawn(rvmPath, [`--config=${manifestUrl}`], {
-  stdio: 'inherit',
-  detached: false,
-});
-
-// Propagate Ctrl-C so the whole vite+openfin pipeline shuts down
-// cleanly when the user hits it in the shell running dev:openfin.
-const forwardSignal = (sig) => () => {
-  try { rvm.kill(sig); } catch { /* already gone */ }
-};
-process.on('SIGINT', forwardSignal('SIGINT'));
-process.on('SIGTERM', forwardSignal('SIGTERM'));
-
-rvm.on('exit', (code) => {
-  process.exit(code ?? 0);
-});
-rvm.on('error', (err) => {
-  console.error('[openfin] failed to spawn RVM:', err.message);
+main().catch((err) => {
+  console.error('[openfin] unexpected error:', err);
   process.exit(1);
 });

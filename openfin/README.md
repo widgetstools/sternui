@@ -4,13 +4,12 @@ Host the AG-Grid Customization demo inside an OpenFin runtime
 window — giving it a real desktop presence, always-on-top popouts,
 and the rest of the OpenFin platform surface.
 
-## One-time setup
+## Setup
 
-1. **Install the OpenFin RVM** — download from
-   [install.openfin.co](https://install.openfin.co). The RVM (Runtime
-   Version Manager) is a tiny native binary that fetches and runs
-   specific OpenFin runtime versions on demand.
-2. Nothing else — no per-app license key needed for local dev.
+**Nothing.** `npm install` at the repo root pulls in
+`@openfin/node-adapter`, which auto-provisions the OpenFin RVM on
+first launch (cached under `~/.openfin-cache`). No separate user
+install step, no PATH wiring, no per-OS binary hunting.
 
 ## Run it
 
@@ -26,9 +25,15 @@ npm run build && npm run start:openfin
 
 Either command runs two processes side-by-side via `concurrently`:
 the web server, and `node openfin/launch.mjs <manifest-url>` which
-locates your installed RVM and invokes it with `--config=<url>`.
+uses `@openfin/node-adapter`'s `launch()` → `connect()` to boot
+the platform and wrap it with a programmatic `fin` handle. Ctrl-C
+forwards SIGINT to both; the launcher calls `platform.quit()` /
+`application.quit()` so the RVM exits cleanly instead of hanging
+around.
 
-Ctrl-C in the terminal shuts the whole pipeline down cleanly.
+First-run behavior: node-adapter downloads the requested OpenFin
+runtime version (see `manifest.runtime.version`) to
+`~/.openfin-cache`. Subsequent runs hit the cache and boot in ~1s.
 
 ## Files
 
@@ -36,7 +41,7 @@ Ctrl-C in the terminal shuts the whole pipeline down cleanly.
 |---|---|
 | [`../apps/demo/public/openfin/manifest.json`](../apps/demo/public/openfin/manifest.json) | Dev manifest — points to `http://localhost:5190/`, 1440×900, resizable, framed OS window. |
 | [`../apps/demo/public/openfin/manifest.prod.json`](../apps/demo/public/openfin/manifest.prod.json) | Production manifest — points to `http://localhost:4173/` (swap for your real deploy URL). |
-| [`launch.mjs`](launch.mjs) | Cross-platform RVM finder + invoker. Falls back to a helpful "install RVM from <url>" error when not found. |
+| [`launch.mjs`](launch.mjs) | Cross-platform launcher built on `@openfin/node-adapter`. `launch({manifestUrl})` boots the RVM (auto-downloading on first run), `connect(...)` hands back a `fin` handle, SIGINT/SIGTERM call `platform.quit()` for clean teardown. Pattern lifted from the markets-ui reference app. |
 
 Manifests live under `apps/demo/public/openfin/` so Vite serves them
 at `/openfin/manifest.json` — OpenFin RVM accepts either local
@@ -63,18 +68,15 @@ same profiles, same grid — because the only runtime split is inside
 
 ## Manual launch
 
-If you'd rather not use the npm script (e.g. running against a
+If you'd rather not use the npm scripts (e.g. running against a
 staging URL you don't want to add to `package.json`):
 
 ```bash
-# macOS
-/Applications/OpenFin\ RVM.app/Contents/MacOS/OpenFinRVM \
-  --config=https://your-deploy.example.com/openfin/manifest.json
-
-# Windows
-%LOCALAPPDATA%\OpenFin\OpenFinRVM.exe ^
-  --config=https://your-deploy.example.com/openfin/manifest.json
+# Launch the demo against any manifest URL
+node openfin/launch.mjs https://your-deploy.example.com/openfin/manifest.json
 ```
+
+The launcher is pure Node — same behavior in every environment.
 
 ## Customising for internal deployment
 

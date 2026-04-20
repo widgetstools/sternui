@@ -1,5 +1,5 @@
 {
-  "$comment": "OpenFin manifest for the AG-Grid Customization Platform demo. Run with `npm run dev:openfin` from the repo root — that boots the Vite dev server and launches OpenFin pointed at this manifest.",
+  "$comment": "OpenFin manifest for the AG-Grid Customization Platform demo. Run with `npm run dev:openfin` from the repo root — that boots Vite + hands this manifest URL to `@openfin/node-adapter`'s launch(), which auto-provisions the runtime on first run.",
 
   "licenseKey": "openfin-demo",
   "runtime": {
