@@ -287,7 +287,15 @@ export const cockpitCSS = `
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 960px;
+  /* Popout width reduced from 960px → 820px after audit: the
+     widest individually-capped control in any form row is 320px
+     (TOOLTIP input); with a 220px rail, 48px band padding and a
+     180px label column, 820px leaves the value-cell at ~352px
+     (320 cap + 32px breathing room) so rows feel tight rather
+     than floating in dead space. Everything else (rail, bands,
+     header chrome) still fits without reflow. Bump back up if a
+     new control legitimately needs >320px. */
+  width: 820px;
   height: 640px;
   max-width: 96vw;
   max-height: 94vh;

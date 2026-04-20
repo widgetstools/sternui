@@ -353,9 +353,14 @@ export function SettingsSheet({
 
           {/* ── Footer ─────────────────────────────────────────── */}
           <footer className="gc-popout-footer">
-            <span>SAVE EACH RULE INDIVIDUALLY</span>
-            <span className="gc-popout-footer-shortcuts">·</span>
-            <span>⌘ S = SAVE CARD · ⌘ ⏎ = SAVE ALL · ⌫ = DELETE · ESC = CLOSE</span>
+            {/* Keyboard shortcut hints — the per-card Save pills on
+                every editor already signal "save each rule
+                individually", so the redundant copy line was dropped
+                when the popout narrowed to 820px (it was pushing the
+                Done button off-screen). */}
+            <span style={{ whiteSpace: 'nowrap' }}>
+              ⌘ S = SAVE CARD · ⌘ ⏎ = SAVE ALL · ⌫ = DELETE · ESC = CLOSE
+            </span>
             <span style={{ flex: 1 }} />
             <SharpBtn
               variant="ghost"
