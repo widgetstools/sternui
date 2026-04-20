@@ -74,8 +74,11 @@ test.describe('v2 — settings sheet pop-out window', () => {
   test('sheet flips to data-popped=true and renders inside the popout window', async ({ page }) => {
     await page.locator('[data-testid="v2-settings-popout-btn"]').click();
 
-    // Main window's sheet wrapper carries data-popped="true".
-    await expect(page.locator('[data-testid="v2-settings-sheet"]')).toHaveAttribute('data-popped', 'true');
+    // With the Poppable refactor, the ENTIRE sheet subtree (including
+    // the `data-testid="v2-settings-sheet"` wrapper) lives inside the
+    // popout — main should contain NONE of it. The popout's copy is
+    // the one that carries `data-popped="true"`.
+    await expect(page.locator('[data-testid="v2-settings-sheet"]')).toHaveCount(0);
 
     // Poll the iframe stub for the portal-mounted subtree. React's
     // effect chain (open window → setPopout → mount node memo →
@@ -85,10 +88,12 @@ test.describe('v2 — settings sheet pop-out window', () => {
       return page.evaluate(() => {
         const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
         const doc = iframe?.contentDocument;
+        const sheetWrapper = doc?.querySelector('[data-testid="v2-settings-sheet"]');
         return {
           hasSheet: !!doc?.querySelector('.gc-sheet'),
           hasPoppedClass: !!doc?.querySelector('.gc-popout.is-popped'),
           hasMountNode: !!doc?.querySelector('[data-popout-root]'),
+          sheetPoppedAttr: sheetWrapper?.getAttribute('data-popped') ?? null,
           stylesCloned: doc?.head?.querySelectorAll('style, link[rel="stylesheet"]').length ?? 0,
         };
       });
@@ -96,6 +101,7 @@ test.describe('v2 — settings sheet pop-out window', () => {
       hasSheet: true,
       hasPoppedClass: true,
       hasMountNode: true,
+      sheetPoppedAttr: 'true',
       stylesCloned: expect.any(Number),
     });
 

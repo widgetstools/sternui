@@ -111,6 +111,57 @@
   height: var(--tb-h-bar);
 }
 
+/* ─── Pop-out trigger — small ExternalLink icon, top-right corner.
+   Absolutely positioned so the dense toolbar layout isn't disturbed.
+   Hidden when `.is-popped` since the OS window chrome replaces it. */
+.gc-formatting-toolbar .gc-tb-popout-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--tb-ink-2);
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.55;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-popout-btn:hover {
+  opacity: 1;
+  color: var(--tb-accent);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.gc-formatting-toolbar.is-popped .gc-tb-popout-btn {
+  display: none;
+}
+
+/* ─── Popped mode — the toolbar lives inside its own OS window via
+   PopoutPortal. The natural "max-content" width + toolbar chrome
+   don't apply in that context: the window IS the chrome, and the
+   toolbar should fill it edge-to-edge. */
+.gc-formatting-toolbar.is-popped {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto;
+  min-height: var(--tb-h-bar);
+  border: none;
+  border-radius: 0;
+  background: var(--tb-bg-bar);
+  box-shadow: none;
+  z-index: auto;
+}
+.gc-formatting-toolbar.is-popped .gc-toolbar-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
 /* ─── Group + divider ──────────────────────────────────────────── */
 .gc-formatting-toolbar .gc-tb-g {
   display: flex;

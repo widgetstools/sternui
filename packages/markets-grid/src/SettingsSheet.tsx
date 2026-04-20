@@ -1,13 +1,13 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  PopoutPortal,
+  Poppable,
   SharpBtn,
   V2_SHEET_STYLE_ID,
-  openFinWindowOpener,
   v2SheetCSS,
   useDirtyCount,
   useGridPlatform,
   type AnyModule,
+  type PoppableHandle,
 } from '@grid-customizer/core';
 import {
   Popover,
@@ -16,7 +16,6 @@ import {
 } from '@grid-customizer/core';
 import {
   ChevronDown,
-  ExternalLink,
   GripHorizontal,
   HelpCircle,
   Maximize2,
@@ -60,21 +59,11 @@ export interface SettingsSheetProps {
 }
 
 /**
- * Imperative handle exposed via `ref` on `<SettingsSheet>`. Lets the
- * hosting grid (MarketsGrid) check whether the sheet is currently
- * popped out and, if so, raise the OS window — used when the user
- * re-clicks the settings icon while the popout is buried behind
- * other windows.
+ * Imperative handle exposed via `ref` on `<SettingsSheet>`. Thin
+ * alias over `PoppableHandle` — lets MarketsGrid's settings icon
+ * raise a buried popout before falling back to inline toggle.
  */
-export interface SettingsSheetHandle {
-  /**
-   * Bring the popout OS window to the front if the sheet is popped
-   * out and the window is still alive. Returns `true` if focus was
-   * requested, `false` otherwise — callers should then fall back to
-   * their normal "toggle settings open" flow.
-   */
-  focusIfPopped(): boolean;
-}
+export type SettingsSheetHandle = PoppableHandle;
 
 function ensureStyles() {
   if (typeof document === 'undefined') return;
@@ -127,34 +116,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   // active module's ListPane / EditorPane. Toggled by the ? icon in the
   // header — a temporary view, not persisted.
   const [helpOpen, setHelpOpen] = useState(false);
-  // When true, the sheet is hosted in a detached OS window via
-  // PopoutPortal. The React subtree is the SAME — we just relocate
-  // its DOM to another window's body, so state/context/store all
-  // flow without any sync layer. Closing the OS window flips this
-  // back to false and the sheet re-mounts inline.
-  const [popped, setPopped] = useState(false);
-  // Live ref to the popout OS window once opened. Used by the
-  // `focusIfPopped` imperative handle so the hosting grid can raise
-  // a buried popout when the user re-clicks the settings icon.
-  // Cleared whenever we return to inline mode (the window closes
-  // alongside the portal unmount).
-  const popoutWindowRef = useRef<Window | null>(null);
-  useEffect(() => {
-    if (!popped) popoutWindowRef.current = null;
-  }, [popped]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      focusIfPopped() {
-        const win = popoutWindowRef.current;
-        if (!popped || !win || win.closed) return false;
-        try { win.focus(); } catch { /* cross-origin or closed */ }
-        return true;
-      },
-    }),
-    [popped],
-  );
 
   const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
 
@@ -193,22 +154,27 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   const LegacyPanel = activeModule?.SettingsPanel;
   const selectedId = activeModule ? selectedByModule[activeModule.id] ?? null : null;
 
-  // Sheet classes branch on popped: inside a detached window the
-  // `position: fixed` overlay chrome is wrong (no centering, no
-  // backdrop, 100% viewport fill instead). `is-popped` strips the
-  // centering transform + gives the panel fluid sizing for its new
-  // OS window.
-  const sheetClasses = [
-    'gc-sheet',
-    'gc-sheet-v2',
-    'gc-popout',
-    maximized && !popped ? 'is-maximized' : '',
-    popped ? 'is-popped' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const sheet = (
+  // Build the sheet JSX. Takes `popped` + `PopoutButton` from the
+  // enclosing <Poppable/> so it can:
+  //   - swap chrome (strip grip/title/close when popped — OS window
+  //     owns those)
+  //   - hide the maximize button when popped (OS window owns it)
+  //   - drop in the pop-out trigger button in the header icon cluster
+  // See Poppable's render-prop API for the contract.
+  const buildSheet = ({ popped, PopoutButton }: {
+    popped: boolean;
+    PopoutButton: React.ComponentType<{ className?: string; title?: string; 'data-testid'?: string }>;
+  }) => {
+    const sheetClasses = [
+      'gc-sheet',
+      'gc-sheet-v2',
+      'gc-popout',
+      maximized && !popped ? 'is-maximized' : '',
+      popped ? 'is-popped' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return (
     <div
       className={sheetClasses}
       role="dialog"
@@ -309,21 +275,14 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
                 </button>
               )}
-              {/* Pop the sheet out into a detached OS window. Keeps
-                  the same React tree (same store, same context) via
-                  PopoutPortal — no sync layer needed. The button
-                  hides while popped (close the OS window to return). */}
-              {!popped && (
-                <button
-                  type="button"
-                  className="gc-popout-title-btn"
-                  onClick={() => setPopped(true)}
-                  title="Open in a separate window"
-                  data-testid="v2-settings-popout-btn"
-                >
-                  <ExternalLink size={12} strokeWidth={2} />
-                </button>
-              )}
+              {/* Pop-out button from <Poppable> — rendered only when
+                  inline; hides itself when popped (the OS window
+                  chrome takes over). */}
+              <PopoutButton
+                className="gc-popout-title-btn"
+                title="Open in a separate window"
+                data-testid="v2-settings-popout-btn"
+              />
               {/* Close X is owned by the OS window chrome when
                   popped — closing the OS window already flips
                   popped=false and re-mounts the sheet inline. */}
@@ -474,49 +433,41 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             </SharpBtn>
           </footer>
     </div>
-  );
-
-  // ── Final render: popped vs inline ───────────────────────────────
-  // Popped — hand the sheet subtree to PopoutPortal, which mounts it
-  // inside a detached OS window. The subtree stays in THIS React
-  // tree (same store, same GridProvider, same ProfileManager) — only
-  // its DOM host changes. No sync layer, no URL routing.
-  if (popped) {
-    return (
-      <div data-gc-settings="" data-testid="v2-settings-sheet" data-popped="true">
-        <PopoutPortal
-          name={`gc-popout-${gridId}`}
-          // Suffix the OS window title with gridId so users with
-          // multiple grids (e.g. the two-grid dashboard) can tell
-          // popout windows apart in the OS taskbar / window menu.
-          // Em-dash separator matches the codebase's stylistic
-          // choices for labels.
-          title={`Grid Customizer — ${gridId}`}
-          width={960}
-          height={700}
-          onClose={() => setPopped(false)}
-          openWindow={openFinWindowOpener()}
-          // Stash the live window ref so `focusIfPopped()` can
-          // raise it to front when the user re-clicks the settings
-          // icon while the popout is buried.
-          onWindowOpened={(win) => { popoutWindowRef.current = win; }}
-        >
-          {sheet}
-        </PopoutPortal>
-      </div>
     );
-  }
+  };
 
-  // Inline — the original fixed-overlay chrome: backdrop + centered
-  // sheet. Click-outside closes via the backdrop's onClick.
+  // ── Final render: Poppable owns the inline-vs-OS-window branching
+  // plus the `focusIfPopped` imperative handle we forward to the
+  // hosting grid via our own `ref`.
   return (
-    <div data-gc-settings="" data-testid="v2-settings-sheet">
-      <div
-        className="gc-popout-backdrop"
-        onClick={onClose}
-        data-testid="v2-settings-overlay"
-      />
-      {sheet}
-    </div>
+    <Poppable
+      ref={ref}
+      name={`gc-popout-${gridId}`}
+      // Suffix the OS window title with gridId so users with
+      // multiple grids (two-grid dashboard) can tell popout windows
+      // apart in the OS taskbar / window menu.
+      title={`Grid Customizer — ${gridId}`}
+      width={960}
+      height={700}
+    >
+      {({ popped, PopoutButton }) => (
+        <div
+          data-gc-settings=""
+          data-testid="v2-settings-sheet"
+          data-popped={popped ? 'true' : undefined}
+        >
+          {/* Backdrop only in inline mode — the OS window IS the
+              overlay when popped. */}
+          {!popped && (
+            <div
+              className="gc-popout-backdrop"
+              onClick={onClose}
+              data-testid="v2-settings-overlay"
+            />
+          )}
+          {buildSheet({ popped, PopoutButton })}
+        </div>
+      )}
+    </Poppable>
   );
 });

@@ -36,7 +36,7 @@ import { Save, Check, Settings as SettingsIcon, Brush } from 'lucide-react';
 import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
-import { FormattingToolbar } from './FormattingToolbar';
+import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
 import { SettingsSheet, type SettingsSheetHandle } from './SettingsSheet';
 import { ProfileSelector } from './ProfileSelector';
 
@@ -279,6 +279,18 @@ function Host<TData>({
   // controls whether the feature is available (i.e. whether the Brush
   // pill + floating panel exist); it doesn't pre-open the toolbar.
   const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
+  // Imperative handle into the FormattingToolbar — same pattern as
+  // sheetRef. The brush button uses `focusIfPopped()` to raise a
+  // buried popout window before falling through to toggle.
+  const toolbarRef = useRef<FormattingToolbarHandle>(null);
+
+  const handleToggleStyleToolbar = useCallback(() => {
+    // If the toolbar is popped into an OS window, a buried popout
+    // should come to front on brush-click. Otherwise (or if focus
+    // fails because the popout is gone), fall through to toggle.
+    if (styleToolbarOpen && toolbarRef.current?.focusIfPopped()) return;
+    setStyleToolbarOpen((p) => !p);
+  }, [styleToolbarOpen]);
 
   const handleSaveAll = useCallback(async () => {
     // Capture native AG-Grid state (column order / widths / sort / filters /
@@ -403,7 +415,7 @@ function Host<TData>({
               <button
                 type="button"
                 className="gc-primary-action"
-                onClick={() => setStyleToolbarOpen((p) => !p)}
+                onClick={handleToggleStyleToolbar}
                 title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
                 data-testid="style-toolbar-toggle"
                 data-active={styleToolbarOpen ? 'true' : 'false'}
@@ -521,7 +533,7 @@ function Host<TData>({
           data-testid="formatting-toolbar-pinned"
           style={{ flexShrink: 0 }}
         >
-          <FormattingToolbar />
+          <FormattingToolbar ref={toolbarRef} />
         </div>
       )}
 

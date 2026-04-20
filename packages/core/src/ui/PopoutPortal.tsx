@@ -52,12 +52,20 @@ export interface PopoutPortalProps {
   /** Initial height in CSS pixels. Default 700. */
   height?: number;
   /**
+   * If true, asks the window manager to pin the popout on top of
+   * other windows. **OpenFin honors this; standards-compliant
+   * browsers ignore it** (the web platform has no always-on-top
+   * API by design). Only used when `openWindow` supports it; the
+   * default `window.open` path discards it silently.
+   */
+  alwaysOnTop?: boolean;
+  /**
    * Optional override for the window-creation mechanism. Return a
    * same-origin `Window` whose `document` can be mutated. Defaults to
    * `window.open(...)`. Pass a custom function when running under
    * OpenFin so `fin.Window.create(...)` is used instead.
    */
-  openWindow?: (opts: { name: string; width: number; height: number }) => Window | Promise<Window | null> | null;
+  openWindow?: (opts: { name: string; width: number; height: number; alwaysOnTop: boolean }) => Window | Promise<Window | null> | null;
   /**
    * Fires once the popout window has been created and its document
    * prepared. Callers that need to programmatically focus / inspect
@@ -75,6 +83,7 @@ export function PopoutPortal({
   title = 'Grid Customizer',
   width = 900,
   height = 700,
+  alwaysOnTop = false,
   openWindow,
   onWindowOpened,
 }: PopoutPortalProps) {
@@ -94,8 +103,12 @@ export function PopoutPortal({
     const open = async () => {
       let w: Window | null;
       if (openWindow) {
-        w = await openWindow({ name, width, height });
+        w = await openWindow({ name, width, height, alwaysOnTop });
       } else {
+        // `window.open` has no always-on-top feature — the web
+        // platform deliberately forbids it. `alwaysOnTop` is
+        // silently discarded here; only OpenFin honors it via
+        // `openFinWindowOpener()`.
         const features = `width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes`;
         w = window.open('', name, features);
       }

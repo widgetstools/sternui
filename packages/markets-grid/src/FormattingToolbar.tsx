@@ -26,7 +26,7 @@
  * disabled with a tooltip so the UI shape stays aligned with v1.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
 // Design-system stylesheet — terminal palette + component-scoped
 // primitives. Token overrides switch on `[data-theme="light"]`. Zero
@@ -34,6 +34,7 @@ import type { GridApi } from 'ag-grid-community';
 import './FormattingToolbar.css';
 import {
   Button,
+  Poppable,
   Popover as RadixPopover,
   PopoverTrigger as RadixPopoverTrigger,
   PopoverContent as RadixPopoverContent,
@@ -41,6 +42,7 @@ import {
   Tooltip,
   ColorPickerPopover,
   cn,
+  type PoppableHandle,
 } from '@grid-customizer/core';
 import {
   BorderStyleEditor,
@@ -126,9 +128,19 @@ import { TBtn, TGroup, ToolbarSep } from './formattingToolbarPrimitives';
  * independent grids gets N independent toolbars automatically — no
  * prop-threading, no accidental cross-grid writes.
  */
-export type FormattingToolbarProps = Record<string, never>;
+/** No props — everything flows through `useGridPlatform()` /
+ *  `useGridApi()` contexts. The empty object type is intentional
+ *  (vs `Record<string, never>` which conflicts with forwardRef's
+ *  own ref typing). */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface FormattingToolbarProps {}
 
-export function FormattingToolbar() {
+/** Imperative handle over FormattingToolbar — thin alias to PoppableHandle
+ *  so MarketsGrid's brush-icon handler can raise a buried popout window
+ *  before falling back to its normal "toggle toolbar" flow. */
+export type FormattingToolbarHandle = PoppableHandle;
+
+export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingToolbarProps>(function FormattingToolbar(_props, ref) {
   const platform = useGridPlatform();
   const colIds = useActiveColumns();
   const colIdsRef = useRef(colIds);
@@ -376,25 +388,58 @@ export function FormattingToolbar() {
     catch { return '—'; }
   }, [vft, previewSample]);
 
+  // Pop-out into a detached OS window. Most valuable for multi-grid
+  // dashboards where vertical space is at a premium — users pin the
+  // toolbar (alwaysOnTop under OpenFin) to a compact window and
+  // interact with grids underneath.
+  //
+  // `popped` + `PopoutButton` flow from Poppable's render-prop below;
+  // the toolbar hoists them up via closure for use inside the JSX.
   return (
+    <Poppable
+      ref={ref}
+      name={`gc-popout-toolbar-${platform.gridId}`}
+      title={`Formatting — ${platform.gridId}`}
+      width={900}
+      height={120}
+      // alwaysOnTop: honored by OpenFin (pins the popout above all
+      // other windows — what traders want for a styling tool they
+      // return to constantly). Browsers silently ignore it since the
+      // web platform has no equivalent API. See openFin.ts for the
+      // runtime split.
+      alwaysOnTop
+    >
+      {({ popped, PopoutButton }) => (
     <div
       className={cn(
         'gc-formatting-toolbar flex flex-col gap-0 bg-card text-xs relative z-[10000]',
         !disabled && 'gc-toolbar-enabled',
         disabled && 'gc-toolbar-disabled',
+        popped && 'is-popped',
       )}
-      style={{
-        // Natural content width, capped at viewport. Rows flex-wrap inside.
-        width: 'max-content',
-        maxWidth: 'calc(100vw - 96px)',
-        flex: '0 1 auto',
-      }}
+      style={popped
+        ? { width: '100%', maxWidth: 'none', height: '100%', flex: '1 1 auto' }
+        : {
+            // Natural content width, capped at viewport. Rows flex-wrap inside.
+            width: 'max-content',
+            maxWidth: 'calc(100vw - 96px)',
+            flex: '0 1 auto',
+          }}
       data-testid="formatting-toolbar"
+      data-popped={popped ? 'true' : undefined}
       onMouseDown={(e) => {
         const tag = (e.target as HTMLElement).tagName;
         if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
       }}
     >
+      {/* Pop-out trigger — placed absolutely in the top-right corner
+          so it doesn't disturb the dense toolbar layout. Hidden
+          automatically in popped mode by PopoutButton itself. */}
+      <PopoutButton
+        className="gc-tb-popout-btn"
+        title="Open toolbar in a separate window"
+        data-testid="formatting-popout-btn"
+      />
 
       {/* ───────────────────────────── ROW 1 — CHROME ───────────────────
           Target + column context anchor the row. Typography, alignment,
@@ -980,6 +1025,8 @@ export function FormattingToolbar() {
       </div>
 
     </div>
+      )}
+    </Poppable>
   );
-}
+});
 

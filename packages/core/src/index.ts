@@ -129,6 +129,13 @@ export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/Express
 // ─── Popout window (React portal into a detached OS window) ────────────────
 export { PopoutPortal } from './ui/PopoutPortal';
 export type { PopoutPortalProps } from './ui/PopoutPortal';
+export { Poppable } from './ui/Poppable';
+export type {
+  PoppableProps,
+  PoppableHandle,
+  PoppableRenderProps,
+  PopoutButtonProps,
+} from './ui/Poppable';
 export { openFinWindowOpener, isOpenFin } from './utils/openFin';
 export { PortalContainerProvider, usePortalContainer } from './ui/PortalContainer';
 export type { PortalContainerProviderProps } from './ui/PortalContainer';

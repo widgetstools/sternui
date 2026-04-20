@@ -29,6 +29,11 @@ interface OpenFinWindow {
       autoShow?: boolean;
       frame?: boolean;
       resizable?: boolean;
+      /**
+       * Pin the window above all other windows. OpenFin-specific —
+       * `window.open` has no web-platform equivalent.
+       */
+      alwaysOnTop?: boolean;
     }) => Promise<{
       getWebWindow: () => Window;
     }>;
@@ -52,23 +57,29 @@ export function isOpenFin(): boolean {
  * `undefined` straight through to `PopoutPortal`, which will then
  * use its default `window.open` path.
  *
+ * `alwaysOnTop`: optional hint to pin the popout above other
+ * windows. OpenFin-only; the browser fallback silently ignores
+ * it. Pass it via the caller-time options OR via the openWindow
+ * call-site arg — the latter wins if both are set.
+ *
  * Usage:
  * ```tsx
  * <PopoutPortal
  *   name="gc-popout-demo"
  *   onClose={() => setPopped(false)}
- *   openWindow={openFinWindowOpener()}
+ *   openWindow={openFinWindowOpener({ alwaysOnTop: true })}
  * >
- *   <SettingsSheet ... />
+ *   <FormattingToolbar ... />
  * </PopoutPortal>
  * ```
  */
-export function openFinWindowOpener():
-  | ((opts: { name: string; width: number; height: number }) => Promise<Window | null>)
+export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
+  | ((opts: { name: string; width: number; height: number; alwaysOnTop?: boolean }) => Promise<Window | null>)
   | undefined {
   if (!isOpenFin()) return undefined;
   const fin = (window as WithFin).fin!;
-  return async ({ name, width, height }) => {
+  const callerAlwaysOnTop = opts?.alwaysOnTop ?? false;
+  return async ({ name, width, height, alwaysOnTop }) => {
     try {
       const openFinWin = await fin.Window.create({
         name,
@@ -78,6 +89,7 @@ export function openFinWindowOpener():
         autoShow: true,
         frame: true,
         resizable: true,
+        alwaysOnTop: alwaysOnTop ?? callerAlwaysOnTop,
       });
       return openFinWin.getWebWindow();
     } catch (err) {

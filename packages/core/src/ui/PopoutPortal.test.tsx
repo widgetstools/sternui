@@ -213,8 +213,28 @@ describe('PopoutPortal', () => {
     );
     await act(async () => {});
 
-    expect(customOpen).toHaveBeenCalledWith({ name: 't6', width: 900, height: 700 });
+    expect(customOpen).toHaveBeenCalledWith({ name: 't6', width: 900, height: 700, alwaysOnTop: false });
     // Child still lands in the fake-OpenFin document.
     expect(fake.document.querySelector('[data-testid="openfin-child"]')).not.toBeNull();
+  });
+
+  it('passes alwaysOnTop=true through to the openWindow callback when set', async () => {
+    // The browser `window.open` path ignores `alwaysOnTop` (web
+    // platform has no always-on-top), but the custom openWindow
+    // path forwards it — this is how OpenFin's `fin.Window.create`
+    // receives the flag.
+    const fake = createFakePopout();
+    const customOpen = vi.fn(async () => fake.win);
+
+    render(
+      <PopoutPortal name="t7" onClose={() => {}} alwaysOnTop openWindow={customOpen}>
+        <div />
+      </PopoutPortal>,
+    );
+    await act(async () => {});
+
+    expect(customOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ alwaysOnTop: true }),
+    );
   });
 });
