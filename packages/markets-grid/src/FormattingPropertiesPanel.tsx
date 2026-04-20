@@ -2,32 +2,23 @@
  * FormattingPropertiesPanel — the popped-out variant of the
  * FormattingToolbar.
  *
- * Replaces the compact horizontal toolbar + Radix popovers with a
- * vertical stack of always-visible sections, Figma-inspector style.
- * Same design language as the settings sheet: numbered bands, sub-
- * labels, compact controls, consistent 400-420px-wide container.
+ * Aesthetic: dark-first financial-terminal inspector, fully
+ * theme-aware via the design-system tokens (`--card`, `--border`,
+ * `--foreground`, `--muted-foreground`, `--primary`, `--bn-*`)
+ * defined at `:root` and `[data-theme="light"]`. Typography mixes
+ * JetBrains Mono (section numbers, numeric values, preview) with
+ * Geist / IBM Plex Sans (labels, body text).
  *
- * Why a separate layout for the popout:
- *   - A popout window is DEDICATED real estate. Users pop it out to
- *     keep a styling workbench parked alongside their grids, not to
- *     replicate the toolbar strip. A vertical panel uses that space
- *     properly.
- *   - No more auto-resize dance: popovers opening inside a 900×120
- *     window either clipped off the bottom or forced the window to
- *     grow, flash, shrink. Everything here is inline — the window
- *     stays 400×620 always.
- *   - Traders can see every editor (color, border, format, templates)
- *     at a glance instead of hunting for triggers.
+ * Layout: content is pinned to a 360px column centered in the
+ * window. If the user resizes the OS window wider, the extra space
+ * shows as letter-boxed background — much like Figma's inspector
+ * when pulled out. Preferred default window dim: 400×620.
  *
- * The compact toolbar (FormattingToolbar's default render) is kept
- * for the inline case where horizontal strip is the right metaphor.
- *
- * Contract:
- *   - The panel takes the SAME action handlers + state snapshot the
- *     toolbar already computes. Both modes flow writes through the
- *     same reducers (applyTypographyReducer, applyColorsReducer, etc.)
- *     via the parent's dispatch functions, so switching between
- *     inline and popped mid-edit doesn't lose state.
+ * Prior iteration used local `--tb-*` vars that weren't defined in
+ * this scope (the toolbar defined them on `.gc-formatting-toolbar`,
+ * which the panel didn't carry), so theme switching silently broke
+ * and dark fallbacks baked in. Now every color / surface goes
+ * through the theme-variable system the rest of the app uses.
  */
 
 import type { CSSProperties } from 'react';
@@ -36,7 +27,6 @@ import {
   FormatterPicker,
   ColorPickerPopover,
   type BorderSpec,
-  type CellStyleOverrides,
   type ValueFormatterTemplate,
 } from '@grid-customizer/core';
 import {
@@ -48,22 +38,15 @@ import {
   AlignRight,
   PaintBucket,
   Plus,
-  RemoveFormatting,
+  Trash2,
   Type,
 } from 'lucide-react';
-import { TBtn, TGroup } from './formattingToolbarPrimitives';
 
 export interface FormattingPropertiesPanelProps {
-  // ── State snapshot ───────────────────────────────────────────────
-  /** No columns selected in the grid — every control disables. */
   disabled: boolean;
-  /** True when editing the header row (vs cells). Disables formatters. */
   isHeader: boolean;
-  /** Scope toggle value. */
   target: 'cell' | 'header';
-  /** Friendly label for the selected column(s) — "price" / "3 columns". */
   colLabel: string;
-  /** Live snapshot of the selected columns' effective style. */
   fmt: {
     bold?: boolean;
     italic?: boolean;
@@ -75,21 +58,13 @@ export interface FormattingPropertiesPanelProps {
     borders: { top?: BorderSpec; right?: BorderSpec; bottom?: BorderSpec; left?: BorderSpec };
     valueFormatterTemplate?: ValueFormatterTemplate;
   };
-  /** Detected data type of the first selected column — drives the
-   *  FormatterPicker's preset filter. */
   pickerDataType: 'number' | 'date' | 'datetime' | 'boolean' | 'string';
-  /** Pre-rendered preview string ("1,234.5678", "2026-04-17", ...). */
   previewText: string;
-  /** List of saved templates for the Templates section. */
   templateList: Array<{ id: string; name: string }>;
-  /** Identifier of the currently-applied template, if any. */
   activeTemplateId?: string;
-  /** Controlled "save as template" name input. */
   saveAsTplName: string;
-  /** Did the save-as-template button just flash confirm? */
   saveAsTplConfirmed: boolean;
 
-  // ── Action handlers ──────────────────────────────────────────────
   setTarget: (t: 'cell' | 'header') => void;
   toggleBold: () => void;
   toggleItalic: () => void;
@@ -111,69 +86,147 @@ export interface FormattingPropertiesPanelProps {
 
 // ─── Atoms ─────────────────────────────────────────────────────────
 
-const sectionStyle: CSSProperties = {
-  padding: '10px 14px',
-  borderBottom: '1px solid var(--tb-line, rgba(140, 170, 200, 0.16))',
-};
-
-const sectionLabelStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  fontFamily: 'var(--tb-font-mono, "IBM Plex Mono", ui-monospace, monospace)',
-  fontSize: 9,
-  fontWeight: 600,
-  letterSpacing: '0.18em',
-  textTransform: 'uppercase',
-  color: 'var(--tb-ink-2, #6B7685)',
-  marginBottom: 8,
-};
-
-const sectionIndexStyle: CSSProperties = {
-  opacity: 0.6,
-};
-
-const subLabelStyle: CSSProperties = {
-  fontFamily: 'var(--tb-font-mono, monospace)',
-  fontSize: 10,
-  fontWeight: 500,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--tb-ink-2, #6B7685)',
-  width: 56,
-  flexShrink: 0,
-};
-
-const rowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  minHeight: 26,
-  marginBottom: 6,
-};
-
-function Section({ index, title, children }: {
-  index: string; title: string; children: React.ReactNode;
+/** Section — numbered rail on the left, caps label, hairline below. */
+function Section({
+  index,
+  title,
+  children,
+  noBorder,
+}: {
+  index: string;
+  title: string;
+  children: React.ReactNode;
+  noBorder?: boolean;
 }) {
   return (
-    <div style={sectionStyle} data-section-index={index}>
-      <div style={sectionLabelStyle}>
-        <span style={sectionIndexStyle}>{index}</span>
-        <span>{title}</span>
+    <section
+      data-section-index={index}
+      style={{
+        padding: '18px 0 16px',
+        borderBottom: noBorder ? 'none' : '1px solid var(--border)',
+        display: 'grid',
+        gridTemplateColumns: '28px 1fr',
+        columnGap: 0,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace",
+          fontSize: 10,
+          fontWeight: 500,
+          color: 'var(--primary)',
+          letterSpacing: '0.05em',
+          lineHeight: '14px',
+          paddingTop: 2,
+        }}
+      >
+        {index}
+      </span>
+      <div>
+        <h3
+          style={{
+            margin: '0 0 12px',
+            fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: 'var(--muted-foreground)',
+            lineHeight: '14px',
+          }}
+        >
+          {title}
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</div>
       </div>
-      {children}
+    </section>
+  );
+}
+
+/** Labeled row inside a section. Label is a fixed-width caps-sans
+ *  span; control occupies the flex-1 right column. */
+function Row({ label, children, align = 'center' }: {
+  label?: string;
+  children: React.ReactNode;
+  align?: 'center' | 'start';
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: label ? '60px 1fr' : '1fr',
+        alignItems: align,
+        gap: 12,
+        minHeight: 24,
+      }}
+    >
+      {label && (
+        <span
+          style={{
+            fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+            fontSize: 10,
+            fontWeight: 500,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--muted-foreground)',
+            lineHeight: '24px',
+          }}
+        >
+          {label}
+        </span>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>{children}</div>
     </div>
   );
 }
 
-function SubRow({ label, children }: { label: string; children: React.ReactNode }) {
+/** Toggle — small square button for inline toggles (B/I/U, align).
+ *  Active state uses the design system's teal primary with a
+ *  subtle fill + border. */
+function Toggle({
+  active,
+  disabled,
+  onClick,
+  title,
+  children,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  const bg = active
+    ? 'color-mix(in srgb, var(--primary) 16%, transparent)'
+    : 'transparent';
+  const color = active ? 'var(--primary)' : 'var(--foreground)';
+  const border = active ? 'var(--primary)' : 'var(--border)';
   return (
-    <div style={rowStyle}>
-      <span style={subLabelStyle}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
-        {children}
-      </div>
-    </div>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      title={title}
+      aria-pressed={active ? 'true' : 'false'}
+      style={{
+        width: 26,
+        height: 24,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 0,
+        border: `1px solid ${active ? border : 'transparent'}`,
+        borderRadius: 3,
+        background: bg,
+        color,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.3 : 1,
+        transition: 'background 120ms, color 120ms, border-color 120ms',
+      }}
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClick?.(); }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -209,6 +262,8 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
     flashSaveAsTpl,
   } = props;
 
+  const columnMaxWidth: CSSProperties = { maxWidth: 360, margin: '0 auto' };
+
   return (
     <div
       className="gc-fmt-panel"
@@ -219,328 +274,496 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
         width: '100%',
         height: '100vh',
         overflow: 'hidden',
-        background: 'var(--tb-bg-bar, #11161C)',
-        color: 'var(--tb-ink-0, #E4E9F0)',
-        fontFamily: 'var(--tb-font-sans, "IBM Plex Sans", -apple-system, sans-serif)',
+        background: 'var(--bn-bg, var(--background))',
+        color: 'var(--foreground)',
+        fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
         fontSize: 11,
       }}
     >
-      {/* ── Header — context + preview ────────────────────────────── */}
+      {/* ── Header — sticky, compact, terminal-styled ───────────── */}
       <header
+        data-testid="fmt-panel-header"
         style={{
+          flexShrink: 0,
+          height: 40,
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          padding: '8px 14px',
-          borderBottom: '1px solid var(--tb-line-strong, rgba(140, 170, 200, 0.24))',
-          background: 'var(--tb-bg-sunken, #080B10)',
-          flexShrink: 0,
-          height: 36,
+          gap: 8,
+          padding: '0 16px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--bn-bg1, var(--card))',
         }}
-        data-testid="fmt-panel-header"
       >
-        {/* Scope — Cell / Header */}
-        <button
-          type="button"
-          className="gc-tb-scope"
-          onClick={() => setTarget(target === 'cell' ? 'header' : 'cell')}
-          data-testid="formatting-target-toggle"
-          style={{ height: 22 }}
-        >
-          <span className="gc-tb-scope-val">{target.toUpperCase()}</span>
-        </button>
+        <div style={{ ...columnMaxWidth, width: '100%', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Scope — clickable pill */}
+          <button
+            type="button"
+            onClick={() => setTarget(target === 'cell' ? 'header' : 'cell')}
+            data-testid="formatting-target-toggle"
+            style={{
+              padding: '4px 10px',
+              border: '1px solid var(--border)',
+              borderRadius: 2,
+              background: 'transparent',
+              color: 'var(--primary)',
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              lineHeight: 1,
+            }}
+            title="Toggle between cell and header styling"
+          >
+            {target}
+          </button>
 
-        {/* Column label + live-dot */}
-        <span
-          style={{
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            fontFamily: 'var(--tb-font-mono, monospace)',
-            fontSize: 11,
-            color: disabled ? 'var(--tb-ink-3, #434C58)' : 'var(--tb-ink-1, #9AA5B4)',
-          }}
-          data-testid="fmt-panel-col-label"
-        >
-          {!disabled && (
+          {/* Column label + live dot */}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontSize: 11,
+              color: disabled ? 'var(--muted-foreground)' : 'var(--foreground)',
+              overflow: 'hidden',
+            }}
+            data-testid="fmt-panel-col-label"
+          >
             <span
               style={{
-                display: 'inline-block',
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: 'var(--tb-accent, var(--primary))',
-                marginRight: 8,
-                verticalAlign: 'middle',
+                background: disabled ? 'var(--muted-foreground)' : 'var(--primary)',
+                flexShrink: 0,
+                opacity: disabled ? 0.35 : 1,
               }}
             />
-          )}
-          {colLabel}
-        </span>
+            <span
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {colLabel}
+            </span>
+          </div>
 
-        {/* Preview chip */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '2px 8px',
-            background: 'var(--tb-bg-panel, #0F1419)',
-            border: '1px solid var(--tb-line, rgba(140, 170, 200, 0.08))',
-            borderRadius: 2,
-            fontFamily: 'var(--tb-font-mono, monospace)',
-            fontSize: 10,
-            height: 22,
-          }}
-          data-testid="fmt-panel-preview"
-        >
-          <span style={{ color: 'var(--tb-ink-3, #434C58)', fontSize: 9, letterSpacing: '0.1em' }}>
-            PREVIEW
-          </span>
-          <span style={{ color: 'var(--tb-accent, var(--primary))', fontVariantNumeric: 'tabular-nums' }}>
-            {previewText || '—'}
-          </span>
-        </span>
+          {/* Preview chip */}
+          <div
+            data-testid="fmt-panel-preview"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 8,
+              padding: '4px 10px',
+              background: 'color-mix(in srgb, var(--primary) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
+              borderRadius: 2,
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontSize: 10,
+              lineHeight: 1,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 8,
+                fontWeight: 600,
+                letterSpacing: '0.18em',
+                color: 'var(--muted-foreground)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Preview
+            </span>
+            <span
+              style={{
+                color: 'var(--primary)',
+                fontWeight: 500,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {previewText || '—'}
+            </span>
+          </div>
+        </div>
       </header>
 
-      {/* ── Scrollable section stack ─────────────────────────────── */}
+      {/* ── Body — scrollable, content column pinned to 360 ──────── */}
       <div
+        data-testid="fmt-panel-body"
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
+          background: 'var(--bn-bg, var(--background))',
         }}
-        data-testid="fmt-panel-body"
       >
-        {/* 01 TYPOGRAPHY */}
-        <Section index="01" title="TYPOGRAPHY">
-          <SubRow label="Style">
-            <TGroup>
-              <TBtn disabled={disabled || isHeader} tooltip="Bold" active={fmt.bold} onClick={toggleBold}>
-                <Bold size={13} strokeWidth={2} />
-              </TBtn>
-              <TBtn disabled={disabled || isHeader} tooltip="Italic" active={fmt.italic} onClick={toggleItalic}>
-                <Italic size={13} strokeWidth={2} />
-              </TBtn>
-              <TBtn disabled={disabled || isHeader} tooltip="Underline" active={fmt.underline} onClick={toggleUnderline}>
-                <Underline size={13} strokeWidth={2} />
-              </TBtn>
-            </TGroup>
-          </SubRow>
-          <SubRow label="Align">
-            <TGroup>
-              <TBtn disabled={disabled} tooltip="Left" active={fmt.horizontal === 'left'} onClick={() => toggleAlign('left')}>
-                <AlignLeft size={13} strokeWidth={1.75} />
-              </TBtn>
-              <TBtn disabled={disabled} tooltip="Center" active={fmt.horizontal === 'center'} onClick={() => toggleAlign('center')}>
-                <AlignCenter size={13} strokeWidth={1.75} />
-              </TBtn>
-              <TBtn disabled={disabled} tooltip="Right" active={fmt.horizontal === 'right'} onClick={() => toggleAlign('right')}>
-                <AlignRight size={13} strokeWidth={1.75} />
-              </TBtn>
-            </TGroup>
-          </SubRow>
-          <SubRow label="Size">
-            <input
-              type="number"
-              min={7}
-              max={24}
-              value={fmt.fontSize ?? ''}
-              placeholder="11"
-              disabled={disabled || isHeader}
-              onChange={(e) => {
-                const n = parseInt(e.target.value, 10);
-                if (Number.isFinite(n) && n > 0) setFontSizePx(n);
-              }}
-              data-testid="fmt-panel-font-size"
-              className="gc-sheet-v2"
-              style={{
-                width: 60, height: 24, padding: '0 8px',
-                background: 'var(--tb-bg-sunken, #080B10)',
-                border: '1px solid var(--tb-line-strong)',
-                borderRadius: 2,
-                color: 'var(--tb-ink-0)',
-                fontFamily: 'var(--tb-font-mono)',
-                fontSize: 11,
-              }}
-            />
-            <span style={{ fontSize: 9, letterSpacing: '0.1em', color: 'var(--tb-ink-3)' }}>PX</span>
-          </SubRow>
-        </Section>
+        <div style={{ ...columnMaxWidth, padding: '0 16px' }}>
+          {/* 01 TYPOGRAPHY */}
+          <Section index="01" title="Typography">
+            <Row label="Style">
+              <div style={{ display: 'inline-flex', gap: 4 }}>
+                <Toggle
+                  active={fmt.bold}
+                  disabled={disabled || isHeader}
+                  onClick={toggleBold}
+                  title="Bold"
+                >
+                  <Bold size={12} strokeWidth={2} />
+                </Toggle>
+                <Toggle
+                  active={fmt.italic}
+                  disabled={disabled || isHeader}
+                  onClick={toggleItalic}
+                  title="Italic"
+                >
+                  <Italic size={12} strokeWidth={2} />
+                </Toggle>
+                <Toggle
+                  active={fmt.underline}
+                  disabled={disabled || isHeader}
+                  onClick={toggleUnderline}
+                  title="Underline"
+                >
+                  <Underline size={12} strokeWidth={2} />
+                </Toggle>
+              </div>
+            </Row>
+            <Row label="Align">
+              <div style={{ display: 'inline-flex', gap: 4 }}>
+                <Toggle
+                  active={fmt.horizontal === 'left'}
+                  disabled={disabled}
+                  onClick={() => toggleAlign('left')}
+                  title="Left"
+                >
+                  <AlignLeft size={12} strokeWidth={1.75} />
+                </Toggle>
+                <Toggle
+                  active={fmt.horizontal === 'center'}
+                  disabled={disabled}
+                  onClick={() => toggleAlign('center')}
+                  title="Center"
+                >
+                  <AlignCenter size={12} strokeWidth={1.75} />
+                </Toggle>
+                <Toggle
+                  active={fmt.horizontal === 'right'}
+                  disabled={disabled}
+                  onClick={() => toggleAlign('right')}
+                  title="Right"
+                >
+                  <AlignRight size={12} strokeWidth={1.75} />
+                </Toggle>
+              </div>
+            </Row>
+            <Row label="Size">
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'stretch',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  background: 'var(--bn-bg, var(--background))',
+                  overflow: 'hidden',
+                }}
+              >
+                <input
+                  type="number"
+                  min={7}
+                  max={24}
+                  value={fmt.fontSize ?? ''}
+                  placeholder="11"
+                  disabled={disabled || isHeader}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isFinite(n) && n > 0) setFontSizePx(n);
+                  }}
+                  data-testid="fmt-panel-font-size"
+                  style={{
+                    width: 52,
+                    height: 24,
+                    padding: '0 8px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--foreground)',
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 11,
+                    outline: 'none',
+                  }}
+                />
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    borderLeft: '1px solid var(--border)',
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    letterSpacing: '0.14em',
+                    color: 'var(--muted-foreground)',
+                    background: 'color-mix(in srgb, var(--foreground) 4%, transparent)',
+                  }}
+                >
+                  PX
+                </span>
+              </div>
+            </Row>
+          </Section>
 
-        {/* 02 COLOR */}
-        <Section index="02" title="COLOR">
-          <SubRow label="Text">
-            <ColorPickerPopover
-              disabled={disabled}
-              value={fmt.color}
-              icon={<Type size={11} strokeWidth={2} />}
-              onChange={(c) => setTextColor(c)}
-              compact
-            />
-          </SubRow>
-          <SubRow label="Fill">
-            <ColorPickerPopover
-              disabled={disabled}
-              value={fmt.background}
-              icon={<PaintBucket size={11} strokeWidth={1.5} />}
-              onChange={(c) => setBgColor(c)}
-              compact
-            />
-          </SubRow>
-        </Section>
+          {/* 02 COLOR */}
+          <Section index="02" title="Color">
+            <Row label="Text">
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                <ColorPickerPopover
+                  disabled={disabled}
+                  value={fmt.color}
+                  icon={<Type size={11} strokeWidth={2} />}
+                  onChange={(c) => setTextColor(c)}
+                  compact
+                />
+                <code
+                  style={{
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 10,
+                    color: fmt.color ? 'var(--foreground)' : 'var(--muted-foreground)',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {fmt.color ? fmt.color.toUpperCase() : '—'}
+                </code>
+              </div>
+            </Row>
+            <Row label="Fill">
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                <ColorPickerPopover
+                  disabled={disabled}
+                  value={fmt.background}
+                  icon={<PaintBucket size={11} strokeWidth={1.5} />}
+                  onChange={(c) => setBgColor(c)}
+                  compact
+                />
+                <code
+                  style={{
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 10,
+                    color: fmt.background ? 'var(--foreground)' : 'var(--muted-foreground)',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {fmt.background ? fmt.background.toUpperCase() : '—'}
+                </code>
+              </div>
+            </Row>
+          </Section>
 
-        {/* 03 BORDER — full-width, inline. The BorderStyleEditor
-            already renders a self-contained card with sides + color
-            + style + weight pickers. Drop it in verbatim. */}
-        <Section index="03" title="BORDER">
-          <div style={{ marginTop: -4 }}>
-            <BorderStyleEditor
-              value={fmt.borders}
-              onChange={applyBordersMap}
-            />
-          </div>
-        </Section>
+          {/* 03 BORDER */}
+          <Section index="03" title="Border">
+            <Row align="start">
+              <BorderStyleEditor
+                value={fmt.borders}
+                onChange={applyBordersMap}
+              />
+            </Row>
+          </Section>
 
-        {/* 04 VALUE FORMAT — inline expanded variant (compact={false}). */}
-        <Section index="04" title="VALUE FORMAT">
-          <div style={{ marginTop: -2 }}>
-            <FormatterPicker
-              value={fmt.valueFormatterTemplate}
-              onChange={(t) => doFormat(t)}
-              dataType={pickerDataType}
-              compact={false}
-            />
-          </div>
-        </Section>
+          {/* 04 VALUE FORMAT */}
+          <Section index="04" title="Value Format">
+            <Row align="start">
+              <FormatterPicker
+                value={fmt.valueFormatterTemplate}
+                onChange={(t) => doFormat(t)}
+                dataType={pickerDataType}
+                compact={false}
+              />
+            </Row>
+          </Section>
 
-        {/* 05 TEMPLATES */}
-        <Section index="05" title="TEMPLATES">
-          {templateList.length === 0 ? (
-            <div style={{
-              fontSize: 10,
-              color: 'var(--tb-ink-3)',
-              padding: '6px 0 10px',
-              fontStyle: 'italic',
-            }}>
-              No saved templates yet.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
-              {templateList.map((tpl) => {
-                const isActive = tpl.id === activeTemplateId;
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => doApplyTemplate(tpl.id)}
-                    disabled={disabled}
-                    data-testid={`fmt-panel-template-${tpl.id}`}
-                    className="gc-tb-btn"
-                    style={{
-                      width: '100%',
-                      height: 26,
-                      justifyContent: 'flex-start',
-                      padding: '0 10px',
-                      background: isActive ? 'var(--tb-accent-fill)' : 'transparent',
-                      color: isActive ? 'var(--tb-accent)' : 'var(--tb-ink-1)',
-                      border: isActive ? '1px solid var(--tb-accent-line)' : '1px solid transparent',
-                      fontSize: 11,
-                      fontFamily: 'var(--tb-font-sans)',
-                    }}
-                  >
-                    <span style={{
-                      display: 'inline-block',
-                      width: 6, height: 6,
-                      borderRadius: '50%',
-                      background: isActive ? 'var(--tb-accent)' : 'var(--tb-ink-3)',
-                      marginRight: 10,
-                    }} />
-                    {tpl.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* 05 TEMPLATES */}
+          <Section index="05" title="Templates" noBorder>
+            {templateList.length === 0 ? (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontStyle: 'italic',
+                  color: 'var(--muted-foreground)',
+                  padding: '0 0 10px',
+                }}
+              >
+                No saved templates yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 12 }}>
+                {templateList.map((tpl) => {
+                  const isActive = tpl.id === activeTemplateId;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => doApplyTemplate(tpl.id)}
+                      disabled={disabled}
+                      data-testid={`fmt-panel-template-${tpl.id}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        height: 28,
+                        padding: '0 10px',
+                        border: `1px solid ${isActive ? 'color-mix(in srgb, var(--primary) 40%, transparent)' : 'transparent'}`,
+                        borderRadius: 3,
+                        background: isActive
+                          ? 'color-mix(in srgb, var(--primary) 10%, transparent)'
+                          : 'transparent',
+                        color: isActive ? 'var(--primary)' : 'var(--foreground)',
+                        fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+                        fontSize: 11,
+                        fontWeight: isActive ? 500 : 400,
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        textAlign: 'left',
+                        opacity: disabled ? 0.4 : 1,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: isActive ? 'var(--primary)' : 'var(--muted-foreground)',
+                          opacity: isActive ? 1 : 0.4,
+                        }}
+                      />
+                      {tpl.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Save-as-template inline row */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              type="text"
-              value={saveAsTplName}
-              onChange={(e) => setSaveAsTplName(e.target.value)}
-              placeholder="Template name…"
-              disabled={disabled}
-              data-testid="fmt-panel-save-tpl-input"
-              className="gc-sheet-v2"
-              style={{
-                flex: 1, height: 26, padding: '0 8px',
-                background: 'var(--tb-bg-sunken)',
-                border: '1px solid var(--tb-line-strong)',
-                borderRadius: 2,
-                color: 'var(--tb-ink-0)',
-                fontFamily: 'var(--tb-font-mono)',
-                fontSize: 11,
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && saveAsTplName.trim()) {
+            {/* Save-as-template row */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="text"
+                value={saveAsTplName}
+                onChange={(e) => setSaveAsTplName(e.target.value)}
+                placeholder="Save current style as…"
+                disabled={disabled}
+                data-testid="fmt-panel-save-tpl-input"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && saveAsTplName.trim()) {
+                    const id = doSaveAsTemplate(saveAsTplName.trim());
+                    if (id) { setSaveAsTplName(''); flashSaveAsTpl(); }
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  height: 28,
+                  padding: '0 10px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  background: 'var(--bn-bg, var(--background))',
+                  color: 'var(--foreground)',
+                  fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+                  fontSize: 11,
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                disabled={disabled || !saveAsTplName.trim()}
+                onClick={() => {
                   const id = doSaveAsTemplate(saveAsTplName.trim());
                   if (id) { setSaveAsTplName(''); flashSaveAsTpl(); }
-                }
-              }}
-            />
-            <button
-              type="button"
-              disabled={disabled || !saveAsTplName.trim()}
-              onClick={() => {
-                const id = doSaveAsTemplate(saveAsTplName.trim());
-                if (id) { setSaveAsTplName(''); flashSaveAsTpl(); }
-              }}
-              data-testid="fmt-panel-save-tpl-btn"
-              className={`gc-tb-btn ${saveAsTplConfirmed ? 'gc-tb-confirm' : ''}`}
-              style={{ height: 26, padding: '0 10px', width: 'auto' }}
-              title="Save current style as template"
-            >
-              <Plus size={12} strokeWidth={2} />
-            </button>
-          </div>
-        </Section>
+                }}
+                data-testid="fmt-panel-save-tpl-btn"
+                title="Save current style as template"
+                style={{
+                  width: 28,
+                  height: 28,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${saveAsTplConfirmed
+                    ? 'color-mix(in srgb, var(--primary) 40%, transparent)'
+                    : 'var(--border)'}`,
+                  borderRadius: 3,
+                  background: saveAsTplConfirmed
+                    ? 'color-mix(in srgb, var(--primary) 14%, transparent)'
+                    : 'transparent',
+                  color: saveAsTplConfirmed ? 'var(--primary)' : 'var(--muted-foreground)',
+                  cursor: disabled || !saveAsTplName.trim() ? 'not-allowed' : 'pointer',
+                  opacity: disabled || !saveAsTplName.trim() ? 0.3 : 1,
+                  transition: 'all 120ms',
+                  padding: 0,
+                }}
+              >
+                <Plus size={14} strokeWidth={2} />
+              </button>
+            </div>
+          </Section>
+
+          {/* Bottom spacer so the body doesn't feel cramped when
+              the content is short. The letter-boxed background of
+              the panel shows through here. */}
+          <div style={{ height: 40 }} />
+        </div>
       </div>
 
-      {/* ── Footer — clear-all action ─────────────────────────────── */}
+      {/* ── Footer — proper destructive action, not a tiny link ──── */}
       <footer
         style={{
+          flexShrink: 0,
+          height: 44,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
-          padding: '8px 14px',
-          borderTop: '1px solid var(--tb-line-strong, rgba(140, 170, 200, 0.24))',
-          background: 'var(--tb-bg-sunken, #080B10)',
-          flexShrink: 0,
-          height: 36,
+          padding: '0 16px',
+          borderTop: '1px solid var(--border)',
+          background: 'var(--bn-bg1, var(--card))',
         }}
       >
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={doClearAllStyles}
-          data-testid="fmt-panel-clear-all"
-          className="gc-tb-btn"
-          style={{
-            height: 22,
-            padding: '0 10px',
-            width: 'auto',
-            fontSize: 10,
-            fontFamily: 'var(--tb-font-mono)',
-            letterSpacing: '0.06em',
-            color: 'var(--tb-red, #f87171)',
-          }}
-        >
-          <RemoveFormatting size={12} strokeWidth={1.75} style={{ marginRight: 6 }} />
-          Clear all styles
-        </button>
+        <div style={{ ...columnMaxWidth, width: '100%', display: 'flex', alignItems: 'center' }}>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={doClearAllStyles}
+            data-testid="fmt-panel-clear-all"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              height: 28,
+              padding: '0 12px',
+              border: '1px solid color-mix(in srgb, var(--destructive) 30%, transparent)',
+              borderRadius: 3,
+              background: 'transparent',
+              color: 'var(--destructive)',
+              fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+              fontSize: 10,
+              fontWeight: 500,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              opacity: disabled ? 0.3 : 1,
+              transition: 'background 120ms, border-color 120ms',
+            }}
+            onMouseEnter={(e) => {
+              if (!disabled) {
+                e.currentTarget.style.background = 'color-mix(in srgb, var(--destructive) 10%, transparent)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <Trash2 size={12} strokeWidth={1.75} />
+            Clear all styles
+          </button>
+        </div>
       </footer>
     </div>
   );
