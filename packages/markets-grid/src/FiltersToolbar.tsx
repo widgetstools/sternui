@@ -369,7 +369,7 @@ export function FiltersToolbar({
             onClick={handleDeactivateAll}
             title="Clear all filters"
           >
-            <FunnelX size={16} strokeWidth={2.25} />
+            <FunnelX size={20} strokeWidth={2.75} />
           </button>
         )}
 
@@ -390,7 +390,7 @@ export function FiltersToolbar({
             cursor: hasNewFilter ? 'pointer' : 'not-allowed',
           }}
         >
-          <Plus size={16} strokeWidth={2.75} />
+          <Plus size={20} strokeWidth={3} />
         </button>
 
         {onToggleStyleToolbar && (

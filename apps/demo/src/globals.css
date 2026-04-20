@@ -346,50 +346,59 @@
   overflow: hidden;
 }
 
-/* ── Clear all button — bright red FunnelX ── */
+/* ── Clear all button — bright red FunnelX ──
+   Prominent sticky action: larger target (34px), solid tinted ring at
+   rest, intensified hover. Icon is scaled up + given a heavier
+   strokeWidth in the JSX. */
 
 .gc-filters-clear-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   padding: 0;
-  background: none;
-  border: none;
-  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1.5px solid rgba(239, 68, 68, 0.45);
+  border-radius: 17px;
   color: #ef4444;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 120ms ease;
-  opacity: 0.9;
+  opacity: 1;
 }
 .gc-filters-clear-btn:hover {
-  opacity: 1;
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #ef4444;
+  color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
 }
 
-/* ── Prominent + button (inline after pills) ── */
+/* ── Prominent + button (inline after pills) ──
+   Same visual weight as Clear All. Solid teal ring at rest (was
+   1.5px dashed) so users see it as a primary action even when
+   inactive; disabled opacity is set inline from the React state. */
 
 .gc-filters-add-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   padding: 0;
-  background: none;
-  border: 1.5px dashed rgba(20, 184, 166, 0.5);
-  border-radius: 14px;
+  background: rgba(20, 184, 166, 0.08);
+  border: 1.5px solid rgba(20, 184, 166, 0.55);
+  border-radius: 17px;
   color: #14b8a6;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 120ms ease;
 }
-.gc-filters-add-btn:hover {
+.gc-filters-add-btn:hover:not(:disabled) {
+  background: rgba(20, 184, 166, 0.18);
   border-color: #14b8a6;
   color: #0d9488;
-  background: rgba(20, 184, 166, 0.12);
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.18);
 }
 
 .gc-filter-scroll {
@@ -540,7 +549,7 @@
 .gc-filters-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   flex-shrink: 0;
   margin-left: 4px;
 }
