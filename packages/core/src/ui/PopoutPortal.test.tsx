@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
-import { PopoutPortal } from './PopoutPortal';
+import { PopoutPortal, __resetPopoutPortalState } from './PopoutPortal';
 
 /**
  * Unit tests for PopoutPortal. `window.open` is stubbed per test so we
@@ -59,9 +59,20 @@ function createFakePopout(): FakePopout {
 }
 
 describe('PopoutPortal', () => {
+  // Silence the [PopoutPortal] diagnostic logs the portal emits on
+  // mount (added for OpenFin troubleshooting) — tests assert
+  // behavior, not console traffic.
+  let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    __resetPopoutPortalState();
+  });
+
   afterEach(() => {
     cleanup();
+    consoleInfoSpy.mockRestore();
     vi.restoreAllMocks();
+    __resetPopoutPortalState();
   });
 
   it('opens a window with the name + features passed via props', async () => {

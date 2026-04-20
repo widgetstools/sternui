@@ -2,6 +2,58 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PortalContainerProvider } from './PortalContainer';
 
+// ─── StrictMode-safe window registry (module-level) ───────────────────
+// React StrictMode double-invokes useEffect in dev: mount → cleanup →
+// remount. If our cleanup synchronously closed the popout window, the
+// remount would try to reopen — under OpenFin that races with the
+// still-closing window and hits the "name-uuid already in use" error.
+//
+// Instead, we keep a live-window cache keyed by window name. On
+// cleanup we *schedule* the close via setTimeout. If a remount
+// happens before the timer fires, it cancels the close and reuses
+// the still-alive window. Clean normal unmounts (popped=false)
+// close the window ~50ms later — imperceptible to the user.
+//
+// We also dedupe in-flight creates so two parallel openWindow calls
+// for the same name collapse onto one promise — otherwise the
+// second would race the first and collide.
+const liveWindows = new Map<string, Window>();
+const pendingCloses = new Map<string, ReturnType<typeof setTimeout>>();
+const pendingCreates = new Map<string, Promise<Window | null>>();
+const STRICTMODE_REMOUNT_GRACE_MS = 50;
+
+function cancelPendingClose(name: string): boolean {
+  const t = pendingCloses.get(name);
+  if (t === undefined) return false;
+  clearTimeout(t);
+  pendingCloses.delete(name);
+  return true;
+}
+
+function scheduleDeferredClose(name: string): void {
+  cancelPendingClose(name); // replace any existing timer
+  const t = setTimeout(() => {
+    pendingCloses.delete(name);
+    const w = liveWindows.get(name);
+    liveWindows.delete(name);
+    if (w && !w.closed) {
+      try { w.close(); } catch { /* already gone / cross-origin */ }
+    }
+  }, STRICTMODE_REMOUNT_GRACE_MS);
+  pendingCloses.set(name, t);
+}
+
+/** Test-only helper: clear the module-level window registries so
+ *  tests don't leak state between themselves. Not part of the
+ *  public API — only exported so unit tests can reset between
+ *  runs. */
+export function __resetPopoutPortalState(): void {
+  for (const t of pendingCloses.values()) clearTimeout(t);
+  pendingCloses.clear();
+  liveWindows.clear();
+  pendingCreates.clear();
+}
+
 /**
  * PopoutPortal — render React children into a detached OS window while
  * keeping them in the parent component's React tree.
@@ -121,40 +173,89 @@ export function PopoutPortal({
   onWindowOpenedRef.current = onWindowOpened;
 
   // ── Open the window on mount ──────────────────────────────────────
+  // StrictMode-safe: first cancel any pending close from a previous
+  // effect run, then either reuse the cached live window or create
+  // a fresh one (with in-flight-create dedup). On cleanup, we only
+  // *schedule* a close — if a remount happens within
+  // STRICTMODE_REMOUNT_GRACE_MS, it cancels the close and reuses the
+  // window.
   useEffect(() => {
+    // Cancel any pending close from a StrictMode unmount that
+    // preceded this remount — we want to reuse, not kill-and-reopen.
+    cancelPendingClose(name);
+
     let cancelled = false;
 
     const open = async () => {
-      let w: Window | null;
-      if (openWindow) {
-        w = await openWindow({ name, width, height, alwaysOnTop });
-      } else {
-        // `window.open` has no always-on-top feature — the web
-        // platform deliberately forbids it. `alwaysOnTop` is
-        // silently discarded here; only OpenFin honors it via
-        // `openFinWindowOpener()`.
-        const features = `width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes`;
-        w = window.open('', name, features);
-      }
-      if (cancelled) {
-        w?.close();
+      // Fast path: a live window already exists under this name
+      // (from an earlier mount's create). Reuse it — don't hit
+      // OpenFin's Window.create at all. Re-fire onWindowOpened so
+      // the caller's window-ref (e.g. Poppable's popoutWindowRef
+      // for focusIfPopped) picks up the reference even on a
+      // StrictMode remount that hit the cache path.
+      const cached = liveWindows.get(name);
+      if (cached && !cached.closed) {
+        if (!cancelled) {
+          setPopout(cached);
+          onWindowOpenedRef.current?.(cached);
+        }
         return;
       }
+
+      // Dedupe concurrent create requests for the same window name
+      // — the second StrictMode mount would otherwise race the
+      // first and trigger the "name-uuid already in use" collision.
+      let createPromise = pendingCreates.get(name);
+      if (!createPromise) {
+        createPromise = (async (): Promise<Window | null> => {
+          console.info(`[PopoutPortal] creating window "${name}"`);
+          let w: Window | null;
+          if (openWindow) {
+            w = await openWindow({ name, width, height, alwaysOnTop });
+          } else {
+            // `window.open` has no always-on-top feature — the web
+            // platform deliberately forbids it. `alwaysOnTop` is
+            // silently discarded here; only OpenFin honors it via
+            // `openFinWindowOpener()`.
+            const features = `width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes`;
+            w = window.open('', name, features);
+          }
+          console.info(`[PopoutPortal] openWindow returned:`, {
+            name,
+            gotWindow: !!w,
+            sameOrigin: (() => { try { return w?.location?.origin === window.location.origin; } catch { return 'cross-origin'; } })(),
+            readyState: w?.document?.readyState,
+          });
+          if (w) {
+            liveWindows.set(name, w);
+            await prepareDocument(w, title);
+            console.info(`[PopoutPortal] prepareDocument completed — body children:`, {
+              bodyChildCount: w.document?.body?.children.length,
+              headChildCount: w.document?.head?.children.length,
+              title: w.document?.title,
+            });
+          }
+          return w;
+        })();
+        pendingCreates.set(name, createPromise);
+        // Whether it succeeds or fails, clear the pending entry so
+        // future creates can run.
+        createPromise.finally(() => {
+          if (pendingCreates.get(name) === createPromise) {
+            pendingCreates.delete(name);
+          }
+        });
+      }
+
+      const w = await createPromise;
+      if (cancelled) return; // cleanup already fired; let its
+                             // scheduled close handle w (if we
+                             // created it).
       if (!w) {
         // Popup blocker or OpenFin rejection. Bail back to the main
         // window — the caller's onClose will re-mount the sheet there.
         console.warn('[PopoutPortal] unable to open window (popup blocker?)');
         onCloseRef.current();
-        return;
-      }
-
-      // `prepareDocument` is async now because OpenFin can take a
-      // few ms after Window.create resolves for the popout's
-      // document to be navigable. Re-check `cancelled` afterwards
-      // in case the parent unmounted us while we were waiting.
-      await prepareDocument(w, title);
-      if (cancelled) {
-        try { w.close(); } catch { /* */ }
         return;
       }
       setPopout(w);
@@ -164,6 +265,11 @@ export function PopoutPortal({
     void open();
     return () => {
       cancelled = true;
+      // Schedule the close instead of doing it synchronously. If
+      // StrictMode immediately re-runs this effect, the remount's
+      // `cancelPendingClose(name)` call at the top kills this timer
+      // before the window actually closes.
+      scheduleDeferredClose(name);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -330,18 +436,32 @@ export function PopoutPortal({
     if (!popout) return;
     let node: HTMLElement | null = null;
     try {
-      if (!popout.document?.body) {
-        // Body still pending — shouldn't happen since prepareDocument
-        // awaits readyState, but log clearly if it does. The portal
-        // will re-try on the next popout change (unlikely in practice
-        // since popout is set once).
+      // Diagnostic: log the state of the popout document at mount
+      // time. Under OpenFin this is the most common point of
+      // failure — if `body` is null or the document is in a weird
+      // state, the content never lands.
+      const doc = popout.document;
+      console.info('[PopoutPortal] mount-node effect — popout state:', {
+        hasDocument: !!doc,
+        readyState: doc?.readyState,
+        hasBody: !!doc?.body,
+        bodyTag: doc?.body?.tagName,
+        bodyChildCount: doc?.body?.children.length,
+        docLocation: doc?.location?.href,
+        documentElementOk: !!doc?.documentElement,
+      });
+      if (!doc?.body) {
         console.warn('[PopoutPortal] popout.document.body unavailable at mount — is the window fully loaded?');
         return;
       }
-      node = popout.document.createElement('div');
+      node = doc.createElement('div');
       node.setAttribute('data-popout-root', '');
       node.style.cssText = 'width:100%;height:100vh;display:flex;flex-direction:column;';
-      popout.document.body.appendChild(node);
+      doc.body.appendChild(node);
+      console.info('[PopoutPortal] mount node appended:', {
+        nodeInDoc: !!doc.querySelector('[data-popout-root]'),
+        nodeOwnerIsPopout: node.ownerDocument === doc,
+      });
     } catch (err) {
       console.warn('[PopoutPortal] failed to create mount node:', err);
       return;
