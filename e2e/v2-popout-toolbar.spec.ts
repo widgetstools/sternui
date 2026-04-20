@@ -154,6 +154,57 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     expect(where.wrappersInPopout).toBeGreaterThanOrEqual(1);
   });
 
+  test('popout auto-grows when a popover opens and shrinks back when it closes', async ({ page }) => {
+    // Instrument `resizeTo` on the iframe's contentWindow so we can
+    // assert the grow/shrink cycle. The stub's iframe is a passable
+    // proxy for a real OS window — `resizeTo` is a no-op here but
+    // the counter captures intent.
+    await page.evaluate(() => {
+      (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls = [];
+    });
+    await page.locator('[data-testid="formatting-popout-btn"]').click();
+    await page.waitForTimeout(300);
+
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const win = iframe?.contentWindow as unknown as { resizeTo: (w: number, h: number) => void } | null;
+      if (!win) return;
+      const orig = win.resizeTo?.bind(win) ?? (() => {});
+      win.resizeTo = (w: number, h: number) => {
+        (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls.push({ w, h });
+        orig(w, h);
+      };
+    });
+
+    // Open a popover inside the popped toolbar — value-format picker
+    // trigger is always rendered.
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-testid="fmt-picker-toolbar-trigger"]') as HTMLElement | null;
+      btn?.click();
+    });
+    await page.waitForTimeout(300);
+
+    const afterOpen = await page.evaluate(
+      () => (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls,
+    );
+    // The grow call should have the toolbar's expandedHeight (560).
+    expect(afterOpen.some((c) => c.h === 560 && c.w === 900)).toBe(true);
+
+    // Dismiss via Esc → popover closes → shrink back.
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      iframe?.contentDocument?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    await page.waitForTimeout(300);
+
+    const afterClose = await page.evaluate(
+      () => (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls,
+    );
+    // A shrink call back to the 120 base height must follow.
+    expect(afterClose.some((c) => c.h === 120 && c.w === 900)).toBe(true);
+  });
+
   test('re-clicking the brush button while popped focuses the popout instead of closing inline', async ({ page }) => {
     await page.evaluate(() => {
       (window as unknown as { __focusCalls: number }).__focusCalls = 0;

@@ -408,6 +408,13 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
       // web platform has no equivalent API. See openFin.ts for the
       // runtime split.
       alwaysOnTop
+      // Auto-grow to 560px while a popover is open inside the
+      // popout — the Format picker / Templates menu / Color
+      // picker can be 300-500px tall and would otherwise be
+      // clipped by the compact 120px base height. Shrinks back
+      // to 120px when the last popover closes, so the window
+      // stays out of the user's way.
+      expandedHeight={560}
     >
       {({ popped, PopoutButton }) => (
     <div

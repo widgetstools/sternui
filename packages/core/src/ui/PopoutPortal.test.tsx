@@ -218,6 +218,40 @@ describe('PopoutPortal', () => {
     expect(fake.document.querySelector('[data-testid="openfin-child"]')).not.toBeNull();
   });
 
+  it('auto-resizes the popout when a Radix popover mounts, and shrinks back when it unmounts', async () => {
+    const fake = createFakePopout();
+    const resizeTo = vi.fn();
+    (fake.win as unknown as { resizeTo: typeof resizeTo }).resizeTo = resizeTo;
+    vi.spyOn(window, 'open').mockImplementation(() => fake.win);
+
+    render(
+      <PopoutPortal name="auto-r" onClose={() => {}} width={900} height={120} expandedHeight={600}>
+        <div />
+      </PopoutPortal>,
+    );
+    await act(async () => {});
+
+    // Simulate a Radix popover mounting inside the popout body by
+    // inserting a node with the standard wrapper attribute. The
+    // MutationObserver should trigger a grow call.
+    await act(async () => {
+      const wrapper = fake.document.createElement('div');
+      wrapper.setAttribute('data-radix-popper-content-wrapper', '');
+      fake.document.body.appendChild(wrapper);
+      // MutationObserver fires microtask-queued; flush.
+      await Promise.resolve();
+    });
+    expect(resizeTo).toHaveBeenCalledWith(900, 600);
+
+    // Remove the popover — shrink back to the base height.
+    await act(async () => {
+      const wrapper = fake.document.querySelector('[data-radix-popper-content-wrapper]');
+      wrapper?.remove();
+      await Promise.resolve();
+    });
+    expect(resizeTo).toHaveBeenCalledWith(900, 120);
+  });
+
   it('passes alwaysOnTop=true through to the openWindow callback when set', async () => {
     // The browser `window.open` path ignores `alwaysOnTop` (web
     // platform has no always-on-top), but the custom openWindow

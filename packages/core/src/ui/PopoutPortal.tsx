@@ -60,6 +60,29 @@ export interface PopoutPortalProps {
    */
   alwaysOnTop?: boolean;
   /**
+   * When provided, the popout grows to `expandedHeight` while a
+   * Radix popover / dropdown / menu is open inside it, then shrinks
+   * back to the base `height` when the last one closes.
+   *
+   * Why: a small toolbar-height popout (e.g. 900×120) will clip
+   * popovers taller than the window. The user shouldn't have to
+   * manually resize the window to read a Templates menu or Format
+   * picker.
+   *
+   * Detection: MutationObserver on `popout.document.body` watching
+   * for `[data-radix-popper-content-wrapper]` nodes to appear /
+   * disappear. Covers every Radix Popover / AlertDialog /
+   * DropdownMenu / Tooltip through the standard wrapper attr.
+   * Native createPortal callers (HelpOverlay / Palette) don't use
+   * the wrapper, so they're not auto-expanded — but those aren't
+   * commonly used inside the tiny toolbar popout anyway.
+   *
+   * Browsers expose `window.resizeTo()` for popups they opened;
+   * most allow it for same-origin named windows. OpenFin picks it
+   * up too via the same API.
+   */
+  expandedHeight?: number;
+  /**
    * Optional override for the window-creation mechanism. Return a
    * same-origin `Window` whose `document` can be mutated. Defaults to
    * `window.open(...)`. Pass a custom function when running under
@@ -84,6 +107,7 @@ export function PopoutPortal({
   width = 900,
   height = 700,
   alwaysOnTop = false,
+  expandedHeight,
   openWindow,
   onWindowOpened,
 }: PopoutPortalProps) {
@@ -203,6 +227,45 @@ export function PopoutPortal({
     if (!popout) return;
     try { popout.document.title = title; } catch { /* cross-origin / closed */ }
   }, [popout, title]);
+
+  // ── Auto-resize on Radix-popover open/close ──────────────────────
+  // When `expandedHeight` is provided, grow the popout to that
+  // height while any Radix popover is visible, then shrink back to
+  // the base `height` when the last one closes. Implemented as a
+  // MutationObserver on the popout body watching for the standard
+  // `[data-radix-popper-content-wrapper]` nodes.
+  //
+  // The observer is the broad net — Radix Popover, AlertDialog,
+  // DropdownMenu, and Tooltip all render through the same wrapper,
+  // so this one check covers every menu the toolbar can open.
+  useEffect(() => {
+    if (!popout || !expandedHeight) return;
+    const doc = popout.document;
+    if (!doc) return;
+
+    let grown = false;
+    const resize = (h: number) => {
+      try { popout.resizeTo(width, h); } catch { /* cross-origin / closed / blocked */ }
+    };
+    const check = () => {
+      const openCount = doc.querySelectorAll('[data-radix-popper-content-wrapper]').length;
+      if (openCount > 0 && !grown) {
+        grown = true;
+        resize(expandedHeight);
+      } else if (openCount === 0 && grown) {
+        grown = false;
+        resize(height);
+      }
+    };
+
+    // Initial check in case a popover was open before this effect
+    // attached (unlikely but cheap).
+    check();
+
+    const obs = new MutationObserver(check);
+    obs.observe(doc.body, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, [popout, expandedHeight, width, height]);
 
   // ── The mount node inside the popout's body ───────────────────────
   const mountNode = useMemo(() => {

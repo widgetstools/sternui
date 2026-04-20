@@ -106,6 +106,15 @@ export interface PoppableProps {
    */
   alwaysOnTop?: boolean;
   /**
+   * Optional "dynamic height while a popover is open" behavior. A
+   * compact popout (e.g. 900×120 for a toolbar) will clip any
+   * popover or menu opened inside it. Set `expandedHeight` and the
+   * popout auto-grows while a Radix popover/menu is open, then
+   * shrinks back to `height` when the last one closes. See
+   * `PopoutPortal.expandedHeight` for detection mechanics.
+   */
+  expandedHeight?: number;
+  /**
    * Fires when the popout closes (OS close button, Cmd-W,
    * beforeunload, or main-window unmount). Optional — the Poppable
    * already re-mounts the subtree inline automatically.
@@ -120,7 +129,7 @@ export interface PoppableProps {
 }
 
 export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppable(
-  { name, title, width = 900, height = 700, alwaysOnTop, onClose, children },
+  { name, title, width = 900, height = 700, alwaysOnTop, expandedHeight, onClose, children },
   ref,
 ) {
   const [popped, setPopped] = useState(false);
@@ -183,6 +192,7 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
         width={width}
         height={height}
         alwaysOnTop={alwaysOnTop}
+        expandedHeight={expandedHeight}
         onClose={handlePopoutClose}
         openWindow={openFinWindowOpener({ alwaysOnTop })}
         onWindowOpened={(win) => { popoutWindowRef.current = win; }}
