@@ -5,6 +5,13 @@ import { DockManagerCoreComponent, type DockTheme } from '@widgetstools/angular-
 import {
   type DockManagerState,
   type DockviewApi,
+  type LayoutNode,
+  type PanelConfig,
+  type Placement,
+  collectAllPanelsOrdered,
+  deserialize,
+  findTabGroupForPanel,
+  serialize,
   slateDark,
   vsCodeLight,
 } from '@widgetstools/dock-manager-core';
@@ -93,15 +100,24 @@ const sp = (id: string, dir: 'horizontal' | 'vertical', sizes: number[], childre
   sizes,
   children,
 });
-const base = (layout: any, panels: Record<string, any>, active: string): DockManagerState => ({
-  layout,
-  panels: new Map(Object.entries(panels)),
-  floatingPanels: [],
-  popoutPanels: [],
-  unpinnedPanels: [],
-  nextZIndex: 100,
-  activePaneId: active,
-});
+const base = (
+  layout: LayoutNode,
+  panels: Record<string, PanelConfig>,
+  active: string,
+): DockManagerState => {
+  const placements = new Map<string, Placement>();
+  for (const panelId of collectAllPanelsOrdered(layout)) {
+    const groupId = findTabGroupForPanel(layout, panelId);
+    if (groupId) placements.set(panelId, { type: 'docked', groupId });
+  }
+  return {
+    layout,
+    panels: new Map(Object.entries(panels)),
+    placements,
+    nextZIndex: 100,
+    activePaneId: active,
+  };
+};
 
 // ── Per-tab layouts (identical to React) ──
 function tradeLayout(): DockManagerState {
@@ -314,13 +330,15 @@ const STORAGE_PREFIX = 'fi-dock-';
 function getSavedLayout(tab: string): DockManagerState | null {
   try {
     const saved = localStorage.getItem(STORAGE_PREFIX + tab);
-    if (saved) return JSON.parse(saved);
+    if (!saved) return null;
+    const { state } = deserialize(JSON.parse(saved));
+    return state;
   } catch {}
   return null;
 }
 function saveLayoutToStorage(tab: string, state: DockManagerState) {
   try {
-    localStorage.setItem(STORAGE_PREFIX + tab, JSON.stringify(state));
+    localStorage.setItem(STORAGE_PREFIX + tab, serialize(state));
   } catch {}
 }
 function clearSavedLayout(tab: string) {

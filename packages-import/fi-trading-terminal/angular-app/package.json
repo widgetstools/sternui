@@ -12,8 +12,8 @@
   "//dependencies-registry-notes": {
     "description": "Packages below may need version adjustments depending on corporate artifactory availability.",
     "bundled-locally": {
-      "@widgetstools/angular-dock-manager": "Not on corporate registry — packed from npm public v0.1.38",
-      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v0.1.38"
+      "@widgetstools/angular-dock-manager": "Not on corporate registry — packed from npm public v1.0.0",
+      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v1.0.0"
     },
     "pinning-strategy": "Use exact pins for Angular core and AG Grid; tilde (~) for PrimeNG/Chart.js. Prevents pulling bleeding-edge versions not yet mirrored to corporate artifactory.",
     "downgraded-for-registry": {
@@ -53,8 +53,8 @@
     "@angular/platform-browser": "21.1.0",
     "@angular/router": "21.1.0",
     "@primeng/themes": "file:libs/primeng-themes-20.3.0.tgz",
-    "@widgetstools/angular-dock-manager": "file:libs/widgetstools-angular-dock-manager-0.1.38.tgz",
-    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-0.1.38.tgz",
+    "@widgetstools/angular-dock-manager": "file:libs/widgetstools-angular-dock-manager-1.0.0.tgz",
+    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-1.0.0.tgz",
     "ag-grid-angular": "35.1.0",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
