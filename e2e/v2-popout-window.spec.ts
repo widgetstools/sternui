@@ -119,6 +119,22 @@ test.describe('v2 — settings sheet pop-out window', () => {
     expect(backdropCount).toBe(0);
   });
 
+  test('popout window title is suffixed with the grid\'s gridId', async ({ page }) => {
+    // Users with multiple grids (e.g. the two-grid dashboard) need to
+    // tell popout windows apart in the OS taskbar — the window title
+    // must include the originating grid's id. `demo-blotter-v2` is
+    // the single-grid demo's configured gridId.
+    await page.locator('[data-testid="v2-settings-popout-btn"]').click();
+    await page.waitForTimeout(400);
+
+    const title = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
+      return iframe?.contentDocument?.title ?? '';
+    });
+    expect(title).toContain('Grid Customizer');
+    expect(title).toContain('demo-blotter-v2');
+  });
+
   test('shadcn popovers from the popped sheet render INSIDE the popout window', async ({ page }) => {
     // Regression: Radix Portal defaults to `document.body`, which is
     // the MAIN window's body even when the Radix-using component lives

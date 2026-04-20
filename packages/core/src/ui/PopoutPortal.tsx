@@ -170,6 +170,15 @@ export function PopoutPortal({
     return () => obs.disconnect();
   }, [popout]);
 
+  // ── Keep the popout's document.title in sync with the `title` prop.
+  // prepareDocument seeds the initial title once on window creation;
+  // this effect picks up subsequent prop changes (e.g. the caller
+  // appends a gridId suffix, or the active profile's name changes).
+  useEffect(() => {
+    if (!popout) return;
+    try { popout.document.title = title; } catch { /* cross-origin / closed */ }
+  }, [popout, title]);
+
   // ── The mount node inside the popout's body ───────────────────────
   const mountNode = useMemo(() => {
     if (!popout) return null;

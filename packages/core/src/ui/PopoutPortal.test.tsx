@@ -163,6 +163,29 @@ describe('PopoutPortal', () => {
     warnSpy.mockRestore();
   });
 
+  it('sets the popout document.title and syncs it when the title prop changes', async () => {
+    const fake = createFakePopout();
+    vi.spyOn(window, 'open').mockImplementation(() => fake.win);
+
+    const { rerender } = render(
+      <PopoutPortal name="title-a" title="Grid Customizer — grid-A" onClose={() => {}}>
+        <div />
+      </PopoutPortal>,
+    );
+    await act(async () => {});
+    expect(fake.document.title).toBe('Grid Customizer — grid-A');
+
+    // Prop change should update the popout's doc title (e.g. caller
+    // swapped the active gridId or appended a profile name).
+    rerender(
+      <PopoutPortal name="title-a" title="Grid Customizer — grid-B" onClose={() => {}}>
+        <div />
+      </PopoutPortal>,
+    );
+    await act(async () => {});
+    expect(fake.document.title).toBe('Grid Customizer — grid-B');
+  });
+
   it('uses a custom openWindow callback when provided (OpenFin path)', async () => {
     const fake = createFakePopout();
     const customOpen = vi.fn(async () => fake.win);

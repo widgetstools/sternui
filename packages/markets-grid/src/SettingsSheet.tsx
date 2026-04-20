@@ -447,7 +447,12 @@ export function SettingsSheet({
       <div data-gc-settings="" data-testid="v2-settings-sheet" data-popped="true">
         <PopoutPortal
           name={`gc-popout-${gridId}`}
-          title="Grid Customizer"
+          // Suffix the OS window title with gridId so users with
+          // multiple grids (e.g. the two-grid dashboard) can tell
+          // popout windows apart in the OS taskbar / window menu.
+          // Em-dash separator matches the codebase's stylistic
+          // choices for labels.
+          title={`Grid Customizer — ${gridId}`}
           width={960}
           height={700}
           onClose={() => setPopped(false)}
