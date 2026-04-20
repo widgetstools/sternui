@@ -119,22 +119,88 @@ test.describe('v2 — settings sheet pop-out window', () => {
     expect(backdropCount).toBe(0);
   });
 
-  test('maximize + pop-out buttons hide while popped (OS chrome owns that)', async ({ page }) => {
-    const popoutBtn = page.locator('[data-testid="v2-settings-popout-btn"]');
-    await popoutBtn.click();
+  test('shadcn popovers from the popped sheet render INSIDE the popout window', async ({ page }) => {
+    // Regression: Radix Portal defaults to `document.body`, which is
+    // the MAIN window's body even when the Radix-using component lives
+    // in a React subtree portaled into another window. Without the
+    // PortalContainer context threading the popout's body down, every
+    // dropdown / popover / alert-dialog ends up on the wrong window.
+    await page.locator('[data-testid="v2-settings-popout-btn"]').click();
+    await page.waitForTimeout(400);
+
+    // Sanity: no popover wrappers in the main doc yet.
+    expect(await page.locator('[data-radix-popper-content-wrapper]').count()).toBe(0);
+
+    // Click the module dropdown trigger inside the popout iframe. The
+    // button is routed by testid so we pick it out of the iframe's doc.
+    const clickedInPopout = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-testid="v2-settings-module-dropdown"]') as HTMLElement | null;
+      if (!btn) return false;
+      btn.click();
+      return true;
+    });
+    expect(clickedInPopout).toBe(true);
     await page.waitForTimeout(300);
 
-    // Both buttons now render inside the popout, not the main window.
-    // In the main doc, they shouldn't be visible at all — there's
-    // no sheet chrome to host them.
-    const visibleInMain = await page.evaluate(() => {
-      const btn = document.querySelector('[data-testid="v2-settings-popout-btn"]');
-      if (!btn) return false;
-      const rect = btn.getBoundingClientRect();
-      // In an iframe, getBoundingClientRect returns the iframe-local
-      // coords — so checking ownerDocument === main is enough.
-      return btn.ownerDocument === document;
+    const where = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
+      const popoutDoc = iframe?.contentDocument;
+      return {
+        wrappersInMain: document.querySelectorAll('[data-radix-popper-content-wrapper]').length,
+        wrappersInPopout: popoutDoc?.querySelectorAll('[data-radix-popper-content-wrapper]').length ?? 0,
+        // The menu items are only mounted while the popover is open.
+        menuItemsInMain: document.querySelectorAll('[data-testid^="v2-settings-nav-menu-"]').length,
+        menuItemsInPopout: popoutDoc?.querySelectorAll('[data-testid^="v2-settings-nav-menu-"]').length ?? 0,
+      };
     });
-    expect(visibleInMain).toBe(false);
+
+    expect(where.wrappersInMain).toBe(0);
+    expect(where.wrappersInPopout).toBeGreaterThanOrEqual(1);
+    expect(where.menuItemsInMain).toBe(0);
+    expect(where.menuItemsInPopout).toBeGreaterThanOrEqual(1);
+  });
+
+  test('maximize + pop-out + close buttons AND the title caption hide while popped', async ({ page }) => {
+    await page.locator('[data-testid="v2-settings-popout-btn"]').click();
+    await page.waitForTimeout(300);
+
+    // Header cluster owned by the OS window chrome once popped: the
+    // "GRID CUSTOMIZER / v2.3.0" caption + drag grip + close X. The
+    // pop-out + maximize buttons are ALSO hidden (redundant inside
+    // an OS window). The MAIN doc shouldn't render any of them.
+    const mainDocHasChrome = await page.evaluate(() => {
+      return {
+        close: !!document.querySelector('[data-testid="v2-settings-close-btn"]'),
+        popoutBtn: !!document.querySelector('[data-testid="v2-settings-popout-btn"]'),
+        titleText: !!document.querySelector('.gc-popout-title-text'),
+        titleSub: !!document.querySelector('.gc-popout-title-sub'),
+      };
+    });
+    expect(mainDocHasChrome).toEqual({
+      close: false,
+      popoutBtn: false,
+      titleText: false,
+      titleSub: false,
+    });
+
+    // And INSIDE the popout window, those same header pieces are also
+    // hidden — the OS window's own title bar + close button own them.
+    const popoutDocHasChrome = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
+      const doc = iframe?.contentDocument;
+      return {
+        close: !!doc?.querySelector('[data-testid="v2-settings-close-btn"]'),
+        popoutBtn: !!doc?.querySelector('[data-testid="v2-settings-popout-btn"]'),
+        titleText: !!doc?.querySelector('.gc-popout-title-text'),
+        titleSub: !!doc?.querySelector('.gc-popout-title-sub'),
+      };
+    });
+    expect(popoutDocHasChrome).toEqual({
+      close: false,
+      popoutBtn: false,
+      titleText: false,
+      titleSub: false,
+    });
   });
 });

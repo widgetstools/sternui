@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { PortalContainerProvider } from './PortalContainer';
 
 /**
  * PopoutPortal — render React children into a detached OS window while
@@ -180,7 +181,19 @@ export function PopoutPortal({
   }, [popout]);
 
   if (!popout || !mountNode) return null;
-  return createPortal(children, mountNode);
+  // Wrap children in the PortalContainerProvider so every downstream
+  // Radix Popover / AlertDialog / Tooltip / Select primitive portals
+  // into the POPOUT's body instead of the main window's — otherwise
+  // dropdowns would render in the main window (invisible to the
+  // user sitting in front of the popout) and keyboard focus would
+  // bounce across windows. Native `createPortal` callers read the
+  // same context.
+  return createPortal(
+    <PortalContainerProvider container={popout.document.body}>
+      {children}
+    </PortalContainerProvider>,
+    mountNode,
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────

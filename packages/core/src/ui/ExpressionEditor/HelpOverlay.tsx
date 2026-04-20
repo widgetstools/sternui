@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalContainer } from '../PortalContainer';
 
 /**
  * F1 help overlay — DSL cheat sheet.
@@ -12,6 +13,10 @@ import { createPortal } from 'react-dom';
  */
 export function HelpOverlay({ onClose }: { onClose: () => void }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
+  // Use the PortalContainer context (popout body when popped out,
+  // document.body otherwise) so the overlay renders in the correct
+  // window.
+  const portalContainer = usePortalContainer();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -113,7 +118,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>,
-    document.body,
+    portalContainer ?? document.body,
   );
 }
 

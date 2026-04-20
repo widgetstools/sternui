@@ -130,6 +130,8 @@ export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/Express
 export { PopoutPortal } from './ui/PopoutPortal';
 export type { PopoutPortalProps } from './ui/PopoutPortal';
 export { openFinWindowOpener, isOpenFin } from './utils/openFin';
+export { PortalContainerProvider, usePortalContainer } from './ui/PortalContainer';
+export type { PortalContainerProviderProps } from './ui/PortalContainer';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type { CellStyleProperties, ThemeAwareStyle } from './types/common';

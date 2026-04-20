@@ -177,10 +177,19 @@ export function SettingsSheet({
     >
           {/* ── Title bar (terminal chrome) ─────────────────────── */}
           <header className="gc-popout-title">
-            <GripHorizontal size={14} color="var(--ck-t3)" />
-            <span style={{ color: 'var(--ck-green)', fontSize: 11 }}>●</span>
-            <span className="gc-popout-title-text">Grid Customizer</span>
-            <span className="gc-popout-title-sub">v2.3.0</span>
+            {/* Grip + green dot + "Grid Customizer v2.3.0" caption
+                are redundant when the sheet is popped: the OS
+                window's own title bar already identifies the window
+                and provides drag. Hide the whole lead cluster in
+                popped mode. */}
+            {!popped && (
+              <>
+                <GripHorizontal size={14} color="var(--ck-t3)" />
+                <span style={{ color: 'var(--ck-green)', fontSize: 11 }}>●</span>
+                <span className="gc-popout-title-text">Grid Customizer</span>
+                <span className="gc-popout-title-sub">v2.3.0</span>
+              </>
+            )}
 
             {/* Module dropdown — shadcn Popover */}
             {panelModules.length > 0 && activeModule && (
@@ -276,15 +285,20 @@ export function SettingsSheet({
                   <ExternalLink size={12} strokeWidth={2} />
                 </button>
               )}
-              <button
-                type="button"
-                className="gc-popout-title-btn"
-                onClick={onClose}
-                title="Close"
-                data-testid="v2-settings-close-btn"
-              >
-                <X size={14} strokeWidth={2} />
-              </button>
+              {/* Close X is owned by the OS window chrome when
+                  popped — closing the OS window already flips
+                  popped=false and re-mounts the sheet inline. */}
+              {!popped && (
+                <button
+                  type="button"
+                  className="gc-popout-title-btn"
+                  onClick={onClose}
+                  title="Close"
+                  data-testid="v2-settings-close-btn"
+                >
+                  <X size={14} strokeWidth={2} />
+                </button>
+              )}
             </div>
           </header>
 

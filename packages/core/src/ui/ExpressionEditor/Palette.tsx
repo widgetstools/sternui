@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalContainer } from '../PortalContainer';
 
 /**
  * Generic keyboard-navigable palette modal.
@@ -42,6 +43,7 @@ export interface PaletteProps {
 }
 
 export function Palette({ title, placeholder, items, onPick, onClose, subtitle }: PaletteProps) {
+  const portalContainer = usePortalContainer();
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -211,7 +213,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         </div>
       </div>
     </div>,
-    document.body,
+    portalContainer ?? document.body,
   );
 }
 
