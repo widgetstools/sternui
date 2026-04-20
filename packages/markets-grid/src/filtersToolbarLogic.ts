@@ -306,3 +306,48 @@ export function isNewFilter(
 
   return true;
 }
+
+// ─── New-filter extraction (live \ active) ──────────────────────────────
+
+/**
+ * Subtracts the `expected` filter model from `live`, returning ONLY the
+ * columns the user genuinely added or changed. Used at + time so the
+ * new pill captures just the net-new criterion — NOT the merged union
+ * of every active pill plus the new column filter.
+ *
+ * The bug this fixes: user has pill A active with `{side: BUY}`. They
+ * open the `price` column filter and type `> 100`. AG-Grid now reports
+ * `{side: BUY, price > 100}`. Clicking + previously captured that full
+ * merged model into a new pill, so both pills A and B contained the
+ * `side = BUY` criterion. Toggling A off left B still enforcing BUY.
+ *
+ * The rule: a column belongs in the delta when EITHER
+ *  - it's missing from `expected` (truly new column), OR
+ *  - its per-column filter differs from the expected one (value change
+ *    on a column an active pill already covers).
+ *
+ * We never emit a column whose live value equals the expected one —
+ * that's the "active pills already own this" case.
+ */
+export function subtractFilterModel(
+  live: Record<string, unknown> | null | undefined,
+  expected: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!live) return {};
+  if (!expected || Object.keys(expected).length === 0) {
+    // Nothing active → every column in live is new.
+    return { ...live };
+  }
+  const out: Record<string, unknown> = {};
+  for (const [col, liveFilter] of Object.entries(live)) {
+    const expectedFilter = expected[col];
+    // `filterModelsEqual` works on full-model shapes, so wrap each
+    // per-column filter in a single-key model for comparison.
+    const same = filterModelsEqual(
+      { [col]: liveFilter },
+      expectedFilter === undefined ? undefined : { [col]: expectedFilter },
+    );
+    if (!same) out[col] = liveFilter;
+  }
+  return out;
+}

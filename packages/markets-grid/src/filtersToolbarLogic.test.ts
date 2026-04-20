@@ -6,6 +6,7 @@ import {
   generateLabel,
   isNewFilter,
   mergeFilterModels,
+  subtractFilterModel,
   type SavedFilterShape,
 } from './filtersToolbarLogic';
 
@@ -279,5 +280,73 @@ describe('isNewFilter', () => {
     };
     const fresh = { venue: { filterType: 'set', values: ['NASDAQ'] } };
     expect(isNewFilter(fresh, [pillA, pillB, extraInactive])).toBe(true);
+  });
+});
+
+describe('subtractFilterModel', () => {
+  it('null / undefined live returns an empty object', () => {
+    expect(subtractFilterModel(null, { foo: {} })).toEqual({});
+    expect(subtractFilterModel(undefined, { foo: {} })).toEqual({});
+  });
+
+  it('empty expected → full live as delta (no active pills case)', () => {
+    const live = { side: { filterType: 'set', values: ['BUY'] } };
+    expect(subtractFilterModel(live, {})).toEqual(live);
+    expect(subtractFilterModel(live, null)).toEqual(live);
+  });
+
+  it('drops columns whose per-column filter equals expected', () => {
+    const live = {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    };
+    const expected = { side: { filterType: 'set', values: ['BUY'] } };
+    // side is already owned by the active pill; price is new.
+    expect(subtractFilterModel(live, expected)).toEqual({
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    });
+  });
+
+  it('emits a changed value as a delta even on a column expected already covers', () => {
+    const live = { side: { filterType: 'set', values: ['SELL'] } };
+    const expected = { side: { filterType: 'set', values: ['BUY'] } };
+    // Value differs → column is part of the delta.
+    expect(subtractFilterModel(live, expected)).toEqual({
+      side: { filterType: 'set', values: ['SELL'] },
+    });
+  });
+
+  it('empty delta when every live column matches expected', () => {
+    const live = {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    };
+    const expected = {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    };
+    expect(subtractFilterModel(live, expected)).toEqual({});
+  });
+
+  it('honours set-value order-insensitivity (same values, different order)', () => {
+    const live = { side: { filterType: 'set', values: ['SELL', 'BUY'] } };
+    const expected = { side: { filterType: 'set', values: ['BUY', 'SELL'] } };
+    // Same values → same filter → not in delta.
+    expect(subtractFilterModel(live, expected)).toEqual({});
+  });
+
+  it('three-column live + one-column expected → drops the matching column only', () => {
+    const live = {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+      venue: { filterType: 'set', values: ['NYSE'] },
+    };
+    const expected = {
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    };
+    expect(subtractFilterModel(live, expected)).toEqual({
+      side: { filterType: 'set', values: ['BUY'] },
+      venue: { filterType: 'set', values: ['NYSE'] },
+    });
   });
 });

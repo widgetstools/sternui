@@ -265,6 +265,67 @@ test.describe('v2 FiltersToolbar', () => {
     expect(await getFilterPillCount(page)).toBe(1);
   });
 
+  test('new pill captures ONLY the delta vs active pills (not the combined model)', async ({ page }) => {
+    // Regression guard: when pill A is active and the user adds a
+    // filter on a NEW column, the + button must capture ONLY the new
+    // column's criterion. Previously handleAdd stored the full live
+    // model (A's filter + new one), so the new pill contained both
+    // and toggling A off left the new pill still enforcing A's side.
+    const pillA = { side: { filterType: 'set', values: ['BUY'] } };
+    await setFilterViaApi(page, pillA);
+    await clickAddFilter(page);
+    expect(await getFilterPillCount(page)).toBe(1);
+
+    // Now the user layers a `price > 100` filter onto the active grid.
+    // Live model = { side: BUY, price > 100 }.
+    await setFilterViaApi(page, {
+      side: { filterType: 'set', values: ['BUY'] },
+      price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+    });
+    await page.waitForTimeout(400);
+
+    // Capture the new pill. It should carry ONLY `price > 100` —
+    // not the combined model.
+    await clickAddFilter(page);
+    expect(await getFilterPillCount(page)).toBe(2);
+
+    // Toggle pill A off. Live filter should now be just `price > 100`.
+    // Pre-fix: pill B also contained `side: BUY`, so toggling A off
+    // left the merged active = {side: BUY, price > 100}, and the
+    // `side: BUY` criterion would stick. Post-fix: pill B is just
+    // `price > 100`, so toggling A off yields live = {price > 100}.
+    await filterToggleBtn(page, 0).click();
+    await page.waitForTimeout(400);
+
+    const liveAfterToggle = await page.evaluate(() => {
+      const gridRoot = document.querySelector('.ag-root-wrapper');
+      if (!gridRoot) return null;
+      const fiberKey = Object.keys(gridRoot).find((k) => k.startsWith('__reactFiber'));
+      if (!fiberKey) return null;
+      let fiber = (gridRoot as never)[fiberKey];
+      for (let i = 0; i < 80 && fiber; i++) {
+        if (fiber.stateNode?.api?.getFilterModel) {
+          return fiber.stateNode.api.getFilterModel();
+        }
+        if (fiber.memoizedState) {
+          let state = fiber.memoizedState;
+          while (state) {
+            const ms = state.memoizedState;
+            if (ms?.api?.getFilterModel) return ms.api.getFilterModel();
+            if (ms?.current?.api?.getFilterModel) return ms.current.api.getFilterModel();
+            state = state.next;
+          }
+        }
+        fiber = fiber.return;
+      }
+      return null;
+    });
+    expect(liveAfterToggle).not.toBeNull();
+    const model = liveAfterToggle as Record<string, unknown>;
+    expect(Object.keys(model)).toEqual(['price']);
+    expect((model.price as { filter: number }).filter).toBe(100);
+  });
+
   test('clear + add buttons sit OUTSIDE the scroll container (always visible)', async ({ page }) => {
     // Regression guard: the clear-all (FunnelX) and add-new (+) buttons
     // are sticky action items that must remain visible even when the

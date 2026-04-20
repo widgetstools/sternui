@@ -13,6 +13,7 @@ import {
   isNewFilter,
   makeId,
   mergeFilterModels,
+  subtractFilterModel,
 } from './filtersToolbarLogic';
 
 /**
@@ -169,16 +170,34 @@ export function FiltersToolbar({
 
   const handleAdd = useCallback(() => {
     if (!api) return;
-    const model = api.getFilterModel();
-    if (!model || Object.keys(model).length === 0) return;
+    const liveModel = api.getFilterModel() as Record<string, unknown> | null;
+    if (!liveModel || Object.keys(liveModel).length === 0) return;
     // Belt-and-braces: even if a race let the + button render enabled,
     // drop the click when the live model would duplicate any existing
     // pill (active OR inactive).
-    if (!isNewFilter(model as Record<string, unknown>, filters)) return;
+    if (!isNewFilter(liveModel, filters)) return;
+
+    // Capture ONLY the net-new criterion — subtract the merged model of
+    // currently-active pills from `liveModel`. Otherwise the new pill
+    // would carry every active pill's filter in addition to the new
+    // one, which duplicates that criterion and breaks toggle semantics.
+    const active = filters.filter((f) => f.active);
+    const activeMerged = active.length === 0
+      ? {}
+      : active.length === 1
+        ? active[0].filterModel
+        : mergeFilterModels(active.map((f) => f.filterModel));
+    const delta = subtractFilterModel(liveModel, activeMerged);
+
+    // If the delta comes back empty, the live model is already fully
+    // represented by the active pills — nothing to capture. isNewFilter
+    // should have returned false in that case, but guard anyway.
+    if (Object.keys(delta).length === 0) return;
+
     const next: SavedFilter = {
       id: makeId(),
-      label: generateLabel(model as Record<string, unknown>, filters.length),
-      filterModel: model as Record<string, unknown>,
+      label: generateLabel(delta, filters.length),
+      filterModel: delta,
       active: true,
     };
     setFilters([...filters, next]);
