@@ -8,7 +8,7 @@ import { fiGridTheme } from '../services/ag-grid-theme';
 import { RISK_POSITIONS, BONDS } from '../services/trading-data.service';
 import { BookNameRenderer, OasValueRenderer, PnlValueRenderer } from '../services/cell-renderers';
 
-const HEAT_COLORS = ['#1e90ff', '#00bcd4', '#f0b90b', '#f59e0b', 'var(--bn-red)', '#dc2626'];
+const HEAT_COLORS = ['#3b82f6', '#22d3ee', '#ff8c42', '#e86a1c', 'var(--bn-red)', '#e8304e'];
 const heatLevel = (oas: number) =>
   oas < 20 ? 0 : oas < 50 ? 1 : oas < 100 ? 2 : oas < 150 ? 3 : oas < 250 ? 4 : 5;
 
@@ -85,7 +85,7 @@ export class BookRiskWidget {
       headerName: 'DV01',
       flex: 0.7,
       type: 'numericColumn',
-      cellStyle: { color: '#1e90ff' },
+      cellStyle: { color: '#3b82f6' },
       valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {

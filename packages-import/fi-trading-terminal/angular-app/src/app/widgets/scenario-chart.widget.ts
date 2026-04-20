@@ -59,7 +59,7 @@ export class ScenarioChartWidget implements AfterViewInit, OnDestroy {
     SCENARIO_DATA.forEach((d, i) => {
       const x = pad.l + i * gap + (gap - barW) / 2;
       const barH = (Math.abs(d.total) / maxAbs) * ((H - pad.t - pad.b) / 2);
-      const color = d.total >= 0 ? '#1e90ff' : g('--bn-red');
+      const color = d.total >= 0 ? '#3b82f6' : g('--bn-red');
       ctx.fillStyle = color;
       if (d.total >= 0) {
         ctx.beginPath();

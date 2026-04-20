@@ -42,7 +42,7 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
             shared.selectedNote().id === note.id ? 'var(--bn-bg2)' : 'var(--bn-bg1)'
           "
           [style.border]="
-            '1px solid ' + (shared.selectedNote().id === note.id ? '#f0b90b' : 'var(--bn-border)')
+            '1px solid ' + (shared.selectedNote().id === note.id ? '#ff8c42' : 'var(--bn-border)')
           "
         >
           <div
@@ -50,7 +50,7 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
           >
             <div>
               <span
-                style="font-size:11px;font-weight:700;color:#00bcd4;font-family:JetBrains Mono,monospace"
+                style="font-size:11px;font-weight:700;color:#22d3ee;font-family:JetBrains Mono,monospace"
                 >{{ note.ticker }}</span
               >
               <span
@@ -101,20 +101,20 @@ export class ResearchListWidget {
       ? 'var(--bn-green)'
       : r === 'Underweight'
         ? 'var(--bn-red)'
-        : '#f0b90b';
+        : '#ff8c42';
   }
   ratingBg(r: string) {
     return r === 'Overweight'
-      ? 'rgba(45,212,191,0.1)'
+      ? 'rgba(20,217,160,0.1)'
       : r === 'Underweight'
-        ? 'rgba(248,113,113,0.1)'
-        : 'rgba(240,185,11,0.1)';
+        ? 'rgba(255,77,109,0.1)'
+        : 'rgba(255,140,66,0.1)';
   }
   ratingBorder(r: string) {
     return r === 'Overweight'
-      ? 'rgba(45,212,191,0.3)'
+      ? 'rgba(20,217,160,0.3)'
       : r === 'Underweight'
-        ? 'rgba(248,113,113,0.3)'
-        : 'rgba(240,185,11,0.3)';
+        ? 'rgba(255,77,109,0.3)'
+        : 'rgba(255,140,66,0.3)';
   }
 }

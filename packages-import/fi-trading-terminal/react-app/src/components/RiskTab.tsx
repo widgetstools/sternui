@@ -4,7 +4,9 @@ import { RISK_POSITIONS, BONDS } from '@/data/tradingData';
 
 const BD = '1px solid var(--bn-border)';
 
-const HEAT_COLORS = ['#1e90ff','#00bcd4','#f0b90b','#f59e0b','var(--bn-red)','#dc2626'];
+// Gradient low→high: soft blue → cyan → copper → deeper copper → coral → brick.
+// Hex literals (not CSS vars) because usage concatenates alpha: `color + '1a'`.
+const HEAT_COLORS = ['#3b82f6','#22d3ee','#ff8c42','#e86a1c','#ff4d6d','#e8304e'];
 const heatLevel = (oas:number) => oas<20?0:oas<50?1:oas<100?2:oas<150?3:oas<250?4:5;
 const DV01_DATA = RISK_POSITIONS.map(p=>({name:p.book,dv01:p.dv01,pnl:p.pnl}));
 const SCENARIO_DATA = [
@@ -32,12 +34,12 @@ export function RiskTab() {
       {/* KPI strip */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',borderBottom:BD,flexShrink:0}}>
         {[
-          {label:'Portfolio DV01',val:'$18,420',sub:'per bp',         color:'#1e90ff'},
-          {label:'Total MV',      val:'$54.2M', sub:'MTD +$1.4M',    color:'#1e90ff'},
-          {label:'VaR 95% 1D',    val:'-$248K', sub:'within limit',  color:'#f0b90b'},
-          {label:'OAS Duration',  val:'4.82 yrs',sub:'mod duration', color:'#00bcd4'},
+          {label:'Portfolio DV01',val:'$18,420',sub:'per bp',         color:'var(--bn-blue)'},
+          {label:'Total MV',      val:'$54.2M', sub:'MTD +$1.4M',    color:'var(--bn-blue)'},
+          {label:'VaR 95% 1D',    val:'-$248K', sub:'within limit',  color:'var(--bn-amber)'},
+          {label:'OAS Duration',  val:'4.82 yrs',sub:'mod duration', color:'var(--bn-cyan)'},
           {label:'Spread PnL MTD',val:'+$142K', sub:'vs bench +38K', color:'var(--bn-green)'},
-          {label:'Credit Delta',  val:'$8,240', sub:'IG/HY blended', color:'#c084fc'},
+          {label:'Credit Delta',  val:'$8,240', sub:'IG/HY blended', color:'var(--bn-purple)'},
         ].map((k,i)=>(
           <div key={k.label} style={{background:'var(--bn-bg1)',padding:'10px 14px',borderRight:i<5?BD:'none'}}>
             <div style={{fontSize:11,color:'var(--bn-t1)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.05em'}}>{k.label}</div>
@@ -63,10 +65,10 @@ export function RiskTab() {
               <tbody>
                 {RISK_POSITIONS.map(p=>(
                   <tr key={p.book} style={{borderBottom:'1px solid rgba(43,49,57,0.5)',cursor:'pointer'}}>
-                    <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#00bcd4'}}>{p.book}</td>
+                    <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-cyan)'}}>{p.book}</td>
                     <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-t0)',textAlign:'right'}}>{p.mv}</td>
-                    <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#1e90ff',textAlign:'right'}}>{p.dv01.toLocaleString()}</td>
-                    <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:p.oas>100?'#f0b90b':'var(--bn-green)',textAlign:'right'}}>{p.oas>0?`+${p.oas}`:p.oas}</td>
+                    <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-blue)',textAlign:'right'}}>{p.dv01.toLocaleString()}</td>
+                    <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:p.oas>100?'var(--bn-amber)':'var(--bn-green)',textAlign:'right'}}>{p.oas>0?`+${p.oas}`:p.oas}</td>
                     <td style={{padding:'6px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:p.pnl>=0?'var(--bn-green)':'var(--bn-red)',textAlign:'right'}}>{p.pnl>=0?'+':''}{p.pnl}K</td>
                   </tr>
                 ))}
@@ -104,7 +106,7 @@ export function RiskTab() {
                     <YAxis tick={{fill:'var(--bn-t2)',fontSize:9,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}K`}/>
                     <Tooltip content={<TT/>}/>
                     <Bar dataKey="dv01" name="DV01" radius={[2,2,0,0]}>
-                      {DV01_DATA.map((_,i)=><Cell key={i} fill={['#1e90ff','var(--bn-red)','#1e90ff','#00bcd4','#c084fc'][i%5]}/>)}
+                      {DV01_DATA.map((_,i)=><Cell key={i} fill={['#3b82f6','#ff4d6d','#3b82f6','#22d3ee','#a855f7'][i%5]}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -121,7 +123,7 @@ export function RiskTab() {
                     <YAxis tick={{fill:'var(--bn-t2)',fontSize:9,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<TT/>}/>
                     <Bar dataKey="total" name="Total P&L" radius={[2,2,0,0]}>
-                      {SCENARIO_DATA.map((d,i)=><Cell key={i} fill={d.total>=0?'#1e90ff':'var(--bn-red)'}/>)}
+                      {SCENARIO_DATA.map((d,i)=><Cell key={i} fill={d.total>=0?'#3b82f6':'#ff4d6d'}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -138,7 +140,7 @@ export function RiskTab() {
                   <XAxis dataKey="day" tick={false} axisLine={false}/>
                   <YAxis tick={{fill:'var(--bn-t2)',fontSize:8,fontFamily:'JetBrains Mono'}} axisLine={false} tickLine={false} tickFormatter={v=>`$${Math.abs(v)}K`}/>
                   <Tooltip content={<TT/>}/>
-                  <Line type="monotone" dataKey="var" name="VaR 95%" stroke="#f0b90b" strokeWidth={1.5} dot={false}/>
+                  <Line type="monotone" dataKey="var" name="VaR 95%" stroke="#ff8c42" strokeWidth={1.5} dot={false}/>
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -157,7 +159,7 @@ export function RiskTab() {
               {label:'Single Issuer',used:10.2, limit:20.0, unit:'$M'},
             ].map(l=>{
               const pct=(l.used/l.limit)*100;
-              const color=pct>85?'var(--bn-red)':pct>65?'#f0b90b':'var(--bn-green)';
+              const color=pct>85?'var(--bn-red)':pct>65?'var(--bn-amber)':'var(--bn-green)';
               return (
                 <div key={l.label} style={{padding:'10px 14px',borderBottom:'1px solid rgba(43,49,57,0.5)'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>

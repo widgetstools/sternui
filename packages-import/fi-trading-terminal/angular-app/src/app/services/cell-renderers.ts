@@ -33,11 +33,11 @@ export class SideCellRenderer implements ICellRendererComp {
 
 // ── Status Badge (Filled / Partial / Pending / Cancelled) ──
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  Filled:    { bg: 'rgba(45,212,191,0.12)',  color: 'var(--bn-green)',  border: 'rgba(45,212,191,0.3)' },
-  Partial:   { bg: 'rgba(240,185,11,0.12)',  color: 'var(--bn-yellow)', border: 'rgba(240,185,11,0.3)' },
-  Pending:   { bg: 'rgba(61,158,255,0.12)',  color: 'var(--bn-blue)',   border: 'rgba(61,158,255,0.3)' },
-  Cancelled: { bg: 'rgba(248,113,113,0.10)', color: 'var(--bn-red)',    border: 'rgba(248,113,113,0.3)' },
-  Working:   { bg: 'rgba(61,158,255,0.12)',  color: 'var(--bn-blue)',   border: 'rgba(61,158,255,0.3)' },
+  Filled:    { bg: 'rgba(20,217,160,0.12)',  color: 'var(--bn-green)',  border: 'rgba(20,217,160,0.3)' },
+  Partial:   { bg: 'rgba(255,140,66,0.12)',  color: 'var(--bn-amber)', border: 'rgba(255,140,66,0.3)' },
+  Pending:   { bg: 'rgba(59,130,246,0.12)',  color: 'var(--bn-blue)',   border: 'rgba(59,130,246,0.3)' },
+  Cancelled: { bg: 'rgba(255,77,109,0.10)', color: 'var(--bn-red)',    border: 'rgba(255,77,109,0.3)' },
+  Working:   { bg: 'rgba(59,130,246,0.12)',  color: 'var(--bn-blue)',   border: 'rgba(59,130,246,0.3)' },
 };
 
 export class StatusBadgeRenderer implements ICellRendererComp {
@@ -71,7 +71,7 @@ export class OasValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const v = Number(params.value);
-    const color = v > 80 ? 'var(--bn-yellow)' : 'var(--bn-green)';
+    const color = v > 80 ? 'var(--bn-amber)' : 'var(--bn-green)';
     this.eGui = el('span', { fontFamily: MONO, color }, v > 0 ? `+${v}` : String(v));
   }
   getGui() { return this.eGui; }
@@ -105,11 +105,11 @@ export class TickerCellRenderer implements ICellRendererComp {
 
 // ── Rating Badge (Aaa, Aa1, A2, Baa1, Ba2 etc.) ──
 const RTG_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  aaa: { bg: 'rgba(45,212,191,0.1)',   color: 'var(--bn-green)',  border: 'rgba(45,212,191,0.25)' },
-  aa:  { bg: 'rgba(45,212,191,0.06)',  color: 'var(--bn-green)',  border: 'rgba(45,212,191,0.2)' },
-  a:   { bg: 'rgba(190,242,100,0.08)', color: '#86cc16',          border: 'rgba(132,204,22,0.25)' },
-  bbb: { bg: 'rgba(245,166,35,0.08)',  color: 'var(--bn-yellow)', border: 'rgba(245,166,35,0.25)' },
-  hy:  { bg: 'rgba(248,113,113,0.08)', color: 'var(--bn-red)',    border: 'rgba(248,113,113,0.25)' },
+  aaa: { bg: 'rgba(20,217,160,0.1)',   color: 'var(--bn-green)',  border: 'rgba(20,217,160,0.25)' },
+  aa:  { bg: 'rgba(20,217,160,0.06)',  color: 'var(--bn-green)',  border: 'rgba(20,217,160,0.2)' },
+  a:   { bg: 'rgba(190,242,100,0.08)', color: '#14d9a0',          border: 'rgba(132,204,22,0.25)' },
+  bbb: { bg: 'rgba(255,140,66,0.08)',  color: 'var(--bn-amber)', border: 'rgba(255,140,66,0.25)' },
+  hy:  { bg: 'rgba(255,77,109,0.08)', color: 'var(--bn-red)',    border: 'rgba(255,77,109,0.25)' },
 };
 
 export class RatingBadgeRenderer implements ICellRendererComp {
@@ -145,7 +145,7 @@ export class FilledAmountRenderer implements ICellRendererComp {
   init(params: ICellRendererParams) {
     const filled = params.value;
     const qty = params.data?.qty;
-    const color = filled === qty ? 'var(--bn-green)' : 'var(--bn-yellow)';
+    const color = filled === qty ? 'var(--bn-green)' : 'var(--bn-amber)';
     this.eGui = el('span', { fontFamily: MONO, color }, String(filled));
   }
   getGui() { return this.eGui; }
@@ -189,8 +189,8 @@ export class YtdValueRenderer implements ICellRendererComp {
 
 // ── RFQ Status (LIVE / DONE / STALE) ──
 const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  live:  { bg: 'rgba(61,158,255,0.1)',  color: 'var(--bn-blue)',  border: 'rgba(61,158,255,0.25)' },
-  done:  { bg: 'rgba(45,212,191,0.12)', color: 'var(--bn-green)', border: 'rgba(45,212,191,0.25)' },
+  live:  { bg: 'rgba(59,130,246,0.1)',  color: 'var(--bn-blue)',  border: 'rgba(59,130,246,0.25)' },
+  done:  { bg: 'rgba(20,217,160,0.12)', color: 'var(--bn-green)', border: 'rgba(20,217,160,0.25)' },
   stale: { bg: 'rgba(74,82,117,0.2)',   color: 'var(--bn-t2)',    border: 'rgba(74,82,117,0.25)' },
 };
 

@@ -7,8 +7,8 @@ type Order = typeof INITIAL_ORDERS[0];
 const statusBadge=(s:string)=>{
   const m:Record<string,{bg:string,color:string,border:string}>={
     Filled:   {bg:'rgba(45,212,191,0.1)', color:'var(--bn-green)',border:'rgba(45,212,191,0.3)'},
-    Partial:  {bg:'rgba(240,185,11,0.1)', color:'#f0b90b', border:'rgba(240,185,11,0.3)'},
-    Pending:  {bg:'rgba(30,144,255,0.1)', color:'#1e90ff', border:'rgba(30,144,255,0.3)'},
+    Partial:  {bg:'var(--bn-warning-soft)',color:'var(--bn-amber)',border:'var(--bn-warning-ring)'},
+    Pending:  {bg:'var(--bn-info-soft)',   color:'var(--bn-blue)', border:'var(--bn-info-ring)'},
     Cancelled:{bg:'rgba(248,113,113,0.1)',  color:'var(--bn-red)', border:'rgba(248,113,113,0.3)'},
   };
   const st=m[s]||m.Pending;
@@ -33,10 +33,10 @@ export function OrdersTab() {
       {/* KPI */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderBottom:BD,flexShrink:0}}>
         {[
-          {label:'Orders Today',    val:String(orders.length),color:'#1e90ff'},
+          {label:'Orders Today',    val:String(orders.length),color:'var(--bn-blue)'},
           {label:'Filled',          val:String(orders.filter(o=>o.status==='Filled').length),color:'var(--bn-green)'},
-          {label:'Pending/Partial', val:String(orders.filter(o=>o.status==='Pending'||o.status==='Partial').length),color:'#f0b90b'},
-          {label:'Total Notional',  val:'$67MM',color:'#00bcd4'},
+          {label:'Pending/Partial', val:String(orders.filter(o=>o.status==='Pending'||o.status==='Partial').length),color:'var(--bn-amber)'},
+          {label:'Total Notional',  val:'$67MM',color:'var(--bn-cyan)'},
         ].map((k,i)=>(
           <div key={k.label} style={{background:'var(--bn-bg1)',padding:'10px 14px',borderRight:i<3?BD:'none'}}>
             <div style={{fontSize:11,color:'var(--bn-t1)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.05em'}}>{k.label}</div>
@@ -69,11 +69,11 @@ export function OrdersTab() {
                 {filtered.map(o=>(
                   <tr key={o.id} onClick={()=>setSelected(o)} style={{borderBottom:'1px solid rgba(43,49,57,0.5)',cursor:'pointer',background:selected?.id===o.id?'var(--bn-bg2)':'transparent'}}>
                     <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:9,color:'var(--bn-t2)'}}>{o.time}</td>
-                    <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#00bcd4'}}>{o.bond}</td>
+                    <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-cyan)'}}>{o.bond}</td>
                     <td style={{padding:'5px 10px'}}><span style={{fontSize:9,fontWeight:700,color:o.side==='Buy'?'var(--bn-green)':'var(--bn-red)',fontFamily:'JetBrains Mono,monospace'}}>{o.side.toUpperCase()}</span></td>
                     <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:9,color:'var(--bn-t1)',textAlign:'right'}}>{o.type}</td>
                     <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-t0)',textAlign:'right'}}>{o.qty}</td>
-                    <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:o.filled===o.qty?'var(--bn-green)':'#f0b90b',textAlign:'right'}}>{o.filled}</td>
+                    <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:o.filled===o.qty?'var(--bn-green)':'var(--bn-amber)',textAlign:'right'}}>{o.filled}</td>
                     <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-t0)',textAlign:'right'}}>{o.px>0?o.px.toFixed(3):'—'}</td>
                     <td style={{padding:'5px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--bn-t1)',textAlign:'right'}}>{o.ytm>0?o.ytm.toFixed(2)+'%':'—'}</td>
                     <td style={{padding:'5px 10px',textAlign:'right'}}>{statusBadge(o.status)}</td>
@@ -90,7 +90,7 @@ export function OrdersTab() {
           {selected?(
             <div style={{flex:1,overflowY:'auto',padding:12,display:'flex',flexDirection:'column',gap:10}}>
               <div style={{padding:12,borderRadius:3,border:BD,background:'var(--bn-bg2)'}}>
-                <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:700,fontSize:11,color:'#00bcd4',marginBottom:5}}>{selected.bond}</div>
+                <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:700,fontSize:11,color:'var(--bn-cyan)',marginBottom:5}}>{selected.bond}</div>
                 {statusBadge(selected.status)}
               </div>
               {[['Order Type',selected.type],['Side',selected.side],['Quantity',selected.qty],['Filled',selected.filled],['Price',selected.px>0?selected.px.toFixed(3):'—'],['YTM',selected.ytm>0?selected.ytm.toFixed(2)+'%':'—'],['Time',selected.time],['Settlement','T+2']].map(([l,v])=>(

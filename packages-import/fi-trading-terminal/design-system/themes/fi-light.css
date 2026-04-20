@@ -1,73 +1,126 @@
 /*
  * FI Design System — Light Theme
- * Neutral gray palette modeled after VS Code Light Modern.
- * Pure white card surfaces on a warm-neutral gray ground.
- * No blue/warm tint in chrome — trading accents provide all color.
- * High text contrast for readability (WCAG AA on all tiers).
+ * Generated from design-system/tokens/semantic.ts
+ *
+ * Cool off-white chrome (NOT cream, NOT warm) + deep charcoal text
+ * + saturated vivid accents. No earthy tones, no brown, no yellow.
+ * WCAG AA across all text tiers.
  */
 
 [data-theme="light"] {
   /* ── shadcn/ui overrides ── */
-  --background: 0 0% 97%;
-  --foreground: 0 0% 23%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 23%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 23%;
-  --primary: 38 92% 50%;
+  --background: 219 27% 96%;         /* #f3f5f9 */
+  --foreground: 223 28% 14%;         /* #1a1f2e */
+  --card: 216 25% 99%;               /* #fbfcfd */
+  --card-foreground: 223 28% 14%;
+  --popover: 216 25% 99%;
+  --popover-foreground: 223 28% 14%;
+  --primary: 221 83% 53%;            /* #2563eb — punchy blue brand */
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 95%;
-  --secondary-foreground: 0 0% 35%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 38%;
-  --accent: 0 0% 95%;
-  --accent-foreground: 0 0% 23%;
-  --destructive: 0 72% 51%;
+  --secondary: 219 22% 93%;          /* #ebeef3 */
+  --secondary-foreground: 220 13% 35%;
+  --muted: 219 22% 93%;
+  --muted-foreground: 220 9% 46%;    /* #6b7280 */
+  --accent: 219 22% 93%;
+  --accent-foreground: 223 28% 14%;
+  --destructive: 350 75% 52%;        /* #e02e47 */
   --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 38 92% 50%;
+  --border: 218 22% 88%;             /* #d9dee8 */
+  --input: 218 22% 88%;
+  --ring: 221 83% 53%;
+  --radius: 4px;
 
-  /* ── Surface (neutral grays, VS Code Light Modern style) ── */
-  --bn-bg:      #f8f8f8;
-  --bn-bg1:     #ffffff;
-  --bn-bg2:     #f3f3f3;
-  --bn-bg3:     #e8e8e8;
+  /* ── Surface (cool off-white; never cream) ── */
+  --bn-bg:      #f3f5f9;
+  --bn-bg1:     #fbfcfd;
+  --bn-bg2:     #ebeef3;
+  --bn-bg3:     #dde2ea;
 
-  /* ── Text (neutral, high contrast) ── */
-  --bn-t0:      #3b3b3b;
-  --bn-t1:      #616161;
-  --bn-t2:      #767676;
-  --bn-t3:      #a0a0a0;
+  /* ── Text (deep charcoal; never pure black) ── */
+  --bn-t0:      #1a1f2e;
+  --bn-t1:      #4f5665;
+  --bn-t2:      #6b7280;
+  --bn-t3:      #9ca3af;
 
-  /* ── Border (pure neutral) ── */
-  --bn-border:  #e5e5e5;
-  --bn-border2: #d4d4d4;
+  /* ── Border (cool neutral) ── */
+  --bn-border:  #d9dee8;
+  --bn-border2: #c3cad7;
 
-  /* ── Accent (vibrant trading colors — WCAG AA compliant on white) ── */
-  --bn-green:   #0d9488;
-  --bn-green2:  #0f766e;
-  --bn-red:     #dc2626;
-  --bn-red2:    #b91c1c;
-  --bn-yellow:  #d97706;
-  --bn-blue:    #2563eb;
-  --bn-cyan:    #0891b2;
+  /* ── Accent (vivid; WCAG AA on off-white) ── */
+  --bn-green:   #0ea870;
+  --bn-green2:  #0b8959;
+  --bn-red:     #e02e47;
+  --bn-red2:    #b81e37;
+  --bn-amber:   #e86a1c;    /* pure orange — warning semantic only */
+  --bn-blue:    #2563eb;    /* BRAND */
+  --bn-blue2:   #1d4ed8;
+  --bn-cyan:    #06b6d4;
+  --bn-purple:  #7c3aed;
 
   /* ── Actions ── */
-  --bn-buy-bg:  #0d9488;
-  --bn-sell-bg: #dc2626;
+  --bn-buy-bg:   #0ea870;
+  --bn-sell-bg:  #e02e47;
   --bn-cta-text: #ffffff;
-  --bn-logo-bg: #ffffff;
+  --bn-logo-bg:  #fbfcfd;
+
+  /* ── Interactive states ── */
+  --bn-focus-ring:    #2563eb;
+  --bn-focus-ring-bg: rgba(37,99,235,0.22);
+  --bn-disabled-bg:   #ebeef3;
+  --bn-disabled-fg:   #9ca3af;
+  --bn-hover-overlay: rgba(0,0,0,0.045);
+
+  /* ── Overlay tints ── */
+  --bn-positive-soft: rgba(14,168,112,0.12);
+  --bn-positive-ring: rgba(14,168,112,0.32);
+  --bn-negative-soft: rgba(224,46,71,0.10);
+  --bn-negative-ring: rgba(224,46,71,0.32);
+  --bn-warning-soft:  rgba(232,106,28,0.12);
+  --bn-warning-ring:  rgba(232,106,28,0.35);
+  --bn-info-soft:     rgba(37,99,235,0.10);
+  --bn-info-ring:     rgba(37,99,235,0.32);
+  --bn-neutral-soft:  rgba(79,86,101,0.08);
+  --bn-neutral-ring:  rgba(79,86,101,0.22);
+
+  /* ── Typography (parity with dark theme) ── */
+  --fi-mono: 'JetBrains Mono', monospace;
+  --fi-sans: 'Geist', sans-serif;
+  --fi-font-xs: 10px;
+  --fi-font-sm: 11px;
+  --fi-font-md: 13px;
+  --fi-font-lg: 18px;
 
   /* ── Order Book / Trade Ticket fills ── */
-  --ob-bid-fill:   rgba(20, 184, 166, 0.18);
-  --ob-ask-fill:   rgba(239, 68, 68, 0.14);
-  --tt-bid-strip:  rgba(37, 99, 235, 0.10);
-  --tt-ask-strip:  rgba(220, 38, 38, 0.10);
+  --ob-bid-fill:   rgba(14,168,112,0.14);
+  --ob-ask-fill:   rgba(224,46,71,0.12);
+  --tt-bid-strip:  rgba(37,99,235,0.10);
+  --tt-ask-strip:  rgba(224,46,71,0.10);
 
   /* ── Misc ── */
-  --scrollbar-thumb: #c4c4c4;
+  --scrollbar-thumb: #c3cad7;
 
-  /* ── Accessibility: bump minimum font size ── */
-  --fi-font-xs: 10px;
+  /* ── Legacy aliases (parity with dark theme) ── */
+  --fi-bg0: var(--bn-bg);
+  --fi-bg1: var(--bn-bg1);
+  --fi-bg2: var(--bn-bg2);
+  --fi-bg3: var(--bn-bg3);
+  --fi-bg4: var(--bn-bg3);
+  --fi-border: var(--bn-border);
+  --fi-border2: var(--bn-border2);
+  --fi-border3: var(--bn-border2);
+  --fi-t0: var(--bn-t0);
+  --fi-t1: var(--bn-t1);
+  --fi-t2: var(--bn-t2);
+  --fi-t3: var(--bn-t3);
+  --fi-green: var(--bn-green);
+  --fi-red: var(--bn-red);
+  --fi-blue: var(--bn-blue);
+  --fi-amber: var(--bn-amber);
+  --fi-yellow: var(--bn-amber);
+  --bn-yellow: var(--bn-amber);
+  --fi-cyan: var(--bn-cyan);
+  --fi-purple: var(--bn-purple);
+  --fi-title: var(--bn-t0);
+  --fi-col-header: var(--bn-t1);
+  --divider: 1px solid var(--bn-border);
 }

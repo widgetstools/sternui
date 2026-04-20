@@ -23,7 +23,7 @@ import { SharedStateService } from '../services/shared-state.service';
       <div style="flex:1;overflow-y:auto;padding:24px">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
           <span
-            style="font-size:18px;font-weight:700;color:#00bcd4;font-family:JetBrains Mono,monospace"
+            style="font-size:18px;font-weight:700;color:#22d3ee;font-family:JetBrains Mono,monospace"
             >{{ note.ticker }}</span
           >
           <span
@@ -81,7 +81,7 @@ import { SharedStateService } from '../services/shared-state.service';
               Current OAS
             </div>
             <div
-              style="font-size:18px;font-weight:700;color:#f0b90b;font-family:JetBrains Mono,monospace"
+              style="font-size:18px;font-weight:700;color:#ff8c42;font-family:JetBrains Mono,monospace"
             >
               +{{ note.prev }}bp
             </div>
@@ -125,20 +125,20 @@ export class NoteDetailWidget {
       ? 'var(--bn-green)'
       : r === 'Underweight'
         ? 'var(--bn-red)'
-        : '#f0b90b';
+        : '#ff8c42';
   }
   ratingBg(r: string) {
     return r === 'Overweight'
-      ? 'rgba(45,212,191,0.1)'
+      ? 'rgba(20,217,160,0.1)'
       : r === 'Underweight'
-        ? 'rgba(248,113,113,0.1)'
-        : 'rgba(240,185,11,0.1)';
+        ? 'rgba(255,77,109,0.1)'
+        : 'rgba(255,140,66,0.1)';
   }
   ratingBorder(r: string) {
     return r === 'Overweight'
-      ? 'rgba(45,212,191,0.3)'
+      ? 'rgba(20,217,160,0.3)'
       : r === 'Underweight'
-        ? 'rgba(248,113,113,0.3)'
-        : 'rgba(240,185,11,0.3)';
+        ? 'rgba(255,77,109,0.3)'
+        : 'rgba(255,140,66,0.3)';
   }
 }

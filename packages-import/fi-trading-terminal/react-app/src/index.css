@@ -41,19 +41,15 @@
 
 /* ── Tabs ── */
 .bn-tab { font-size: var(--fi-font-sm); font-weight: 500; padding: 8px 12px; border-bottom: 2px solid transparent; cursor: pointer; color: var(--bn-t1); white-space: nowrap; }
-.bn-tab.active { color: var(--bn-t0); border-bottom-color: var(--bn-yellow); }
+.bn-tab.active { color: var(--bn-t0); border-bottom-color: var(--bn-blue); }
 .bn-tab:hover:not(.active) { color: var(--bn-t0); }
 
 .bn-sub-tab { font-size: var(--fi-font-sm); padding: 4px 10px; border-radius: 2px; cursor: pointer; color: var(--bn-t1); }
 .bn-sub-tab.active { background: var(--bn-bg3); color: var(--bn-t0); }
 
 .order-type-tab { font-size: var(--fi-font-sm); font-weight: 500; padding: 6px 0; border-bottom: 2px solid transparent; cursor: pointer; color: var(--bn-t1); }
-.order-type-tab.active { color: var(--bn-yellow); border-bottom-color: var(--bn-yellow); }
+.order-type-tab.active { color: var(--bn-blue); border-bottom-color: var(--bn-blue); }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Animations ── */
 @keyframes flash-green { 0% { background-color: rgba(45,212,191,0.25) !important; } 100% { background-color: transparent; } }
@@ -73,7 +69,7 @@
   border-radius: 3px; padding: 6px 40px 6px 10px; color: var(--bn-t0);
   font-family: var(--fi-mono); font-size: var(--fi-font-sm); outline: none;
 }
-.price-input:focus { border-color: var(--bn-yellow); }
+.price-input:focus { border-color: var(--bn-focus-ring); }
 .price-input::placeholder { color: var(--bn-t2); }
 
 /* ── Buy/Sell CTA ── */
@@ -92,13 +88,13 @@
 .pact { font-family:var(--fi-mono); font-size:var(--fi-font-xs); padding:3px 8px; border-radius:3px; border:1px solid var(--bn-border2); color:var(--bn-t1); cursor:pointer; background:transparent; }
 .pact.on, .pact:hover { background:var(--bn-bg3); color:var(--bn-t0); }
 
-.badge-filled  { background:rgba(45,212,191,0.12); color:var(--bn-green); border:1px solid rgba(45,212,191,0.3); }
-.badge-partial { background:rgba(240,185,11,0.12); color:var(--bn-yellow);border:1px solid rgba(240,185,11,0.3); }
-.badge-new     { background:rgba(30,144,255,0.12); color:var(--bn-blue);  border:1px solid rgba(30,144,255,0.3); }
-.badge-cancel  { background:rgba(248,113,113,0.10); color:var(--bn-red);  border:1px solid rgba(248,113,113,0.3); }
+.badge-filled  { background:var(--bn-positive-soft); color:var(--bn-green); border:1px solid var(--bn-positive-ring); }
+.badge-partial { background:var(--bn-warning-soft);  color:var(--bn-amber); border:1px solid var(--bn-warning-ring);  }
+.badge-new     { background:var(--bn-info-soft);     color:var(--bn-blue);  border:1px solid var(--bn-info-ring);     }
+.badge-cancel  { background:var(--bn-negative-soft); color:var(--bn-red);   border:1px solid var(--bn-negative-ring); }
 
 .research-card { background:var(--bn-bg2); border:1px solid var(--bn-border); border-radius:4px; padding:12px; cursor:pointer; transition:border-color .15s; }
-.research-card:hover { border-color: var(--bn-yellow); }
+.research-card:hover { border-color: var(--bn-blue); }
 
 /* ── Tailwind border overrides ── */
 .border   { border-color: var(--bn-border) !important; }
@@ -111,7 +107,7 @@
 
 .badge-outline, [data-slot="badge"] { border-color: var(--bn-border) !important; }
 input, textarea, select { border-color: var(--bn-border) !important; }
-input:focus, textarea:focus, select:focus { border-color: var(--bn-yellow) !important; box-shadow: none !important; }
+input:focus, textarea:focus, select:focus { border-color: var(--bn-focus-ring) !important; box-shadow: none !important; }
 [data-slot="separator"], [role="separator"] { background-color: var(--bn-border) !important; }
 .border-border { border-color: var(--bn-border) !important; }
 
@@ -126,12 +122,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--bn-yellow) !impo
 [data-theme="light"] .dock-manager-container [data-panel] {
   box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
 }
-
-/* Light-mode badge visibility (vibrant colors on white) */
-[data-theme="light"] .badge-filled  { background: rgba(13,148,136,0.10); color: #0d9488; border-color: rgba(13,148,136,0.30); }
-[data-theme="light"] .badge-partial { background: rgba(217,119,6,0.10);  color: #d97706; border-color: rgba(217,119,6,0.30); }
-[data-theme="light"] .badge-new     { background: rgba(37,99,235,0.10);  color: #2563eb; border-color: rgba(37,99,235,0.30); }
-[data-theme="light"] .badge-cancel  { background: rgba(220,38,38,0.10);  color: #dc2626; border-color: rgba(220,38,38,0.30); }
 
 /* Active filter pill emphasis */
 .pact.on { font-weight: 600; }

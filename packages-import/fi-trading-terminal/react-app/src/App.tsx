@@ -1,6 +1,17 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { DockManagerCore, type WidgetProps, type DockManagerCoreHandle } from '@widgetstools/react-dock-manager';
-import { type DockManagerState, slateDark, vsCodeLight } from '@widgetstools/dock-manager-core';
+import {
+  type DockManagerState,
+  type LayoutNode,
+  type PanelConfig,
+  type Placement,
+  collectAllPanelsOrdered,
+  deserialize,
+  findTabGroupForPanel,
+  serialize,
+  slateDark,
+  vsCodeLight,
+} from '@widgetstools/dock-manager-core';
 
 // ── Layout persistence helpers ──
 const STORAGE_PREFIX = 'fi-dock-';
@@ -8,14 +19,16 @@ const STORAGE_PREFIX = 'fi-dock-';
 function getSavedLayout(tab: string): DockManagerState | null {
   try {
     const saved = localStorage.getItem(STORAGE_PREFIX + tab);
-    if (saved) return JSON.parse(saved);
-  } catch { /* ignore malformed data */ }
+    if (!saved) return null;
+    const { state } = deserialize(JSON.parse(saved));
+    return state;
+  } catch { /* ignore malformed or pre-1.0 data */ }
   return null;
 }
 
 function saveLayout(tab: string, state: DockManagerState) {
   try {
-    localStorage.setItem(STORAGE_PREFIX + tab, JSON.stringify(state));
+    localStorage.setItem(STORAGE_PREFIX + tab, serialize(state));
   } catch { /* ignore quota errors */ }
 }
 import '@widgetstools/react-dock-manager/styles.css';
@@ -106,9 +119,14 @@ const WIDGETS: Record<string, React.ComponentType<WidgetProps>> = {
 const p = (id: string, title: string, wt: string, closable = false) => ({ id, title, widgetType: wt, closable });
 const tg = (id: string, panels: string[], active?: string) => ({ type: 'tabgroup' as const, id, panels, activePanel: active || panels[0] });
 const sp = (id: string, dir: 'horizontal' | 'vertical', sizes: number[], children: any[]) => ({ type: 'split' as const, id, direction: dir, sizes, children });
-const base = (layout: any, panels: Record<string, any>, active: string): DockManagerState => ({
-  layout, panels, floatingPanels: [], popoutPanels: [], unpinnedPanels: [], nextZIndex: 100, activePaneId: active,
-});
+const base = (layout: LayoutNode, panels: Record<string, PanelConfig>, active: string): DockManagerState => {
+  const placements = new Map<string, Placement>();
+  for (const panelId of collectAllPanelsOrdered(layout)) {
+    const groupId = findTabGroupForPanel(layout, panelId);
+    if (groupId) placements.set(panelId, { type: 'docked', groupId });
+  }
+  return { layout, panels: new Map(Object.entries(panels)), placements, nextZIndex: 100, activePaneId: active };
+};
 
 // ── Per-tab layouts ──
 

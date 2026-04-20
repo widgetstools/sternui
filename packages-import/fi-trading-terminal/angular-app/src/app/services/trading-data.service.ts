@@ -758,16 +758,16 @@ export const WATCHLIST: WatchItem[] = [
 ];
 
 export const OAS_DATA = [
-  { name: 'UST 4.625', oas: 0, color: '#1e90ff' },
-  { name: 'MSFT 2.40', oas: 22, color: '#1e90ff' },
-  { name: 'AAPL 2.05', oas: 18, color: '#1e90ff' },
-  { name: 'JNJ 3.40', oas: 48, color: '#00bcd4' },
-  { name: 'PG 3.00', oas: 52, color: '#00bcd4' },
-  { name: 'JPM 4.50', oas: 58, color: '#00bcd4' },
-  { name: 'MSFT 3.45', oas: 85, color: '#f0b90b' },
-  { name: 'AAPL 4.10', oas: 132, color: '#f0b90b' },
-  { name: 'JPM 5.04', oas: 98, color: '#f0b90b' },
-  { name: 'JPM 5.35', oas: 125, color: '#f6465d' },
+  { name: 'UST 4.625', oas: 0, color: '#3b82f6' },
+  { name: 'MSFT 2.40', oas: 22, color: '#3b82f6' },
+  { name: 'AAPL 2.05', oas: 18, color: '#3b82f6' },
+  { name: 'JNJ 3.40', oas: 48, color: '#22d3ee' },
+  { name: 'PG 3.00', oas: 52, color: '#22d3ee' },
+  { name: 'JPM 4.50', oas: 58, color: '#22d3ee' },
+  { name: 'MSFT 3.45', oas: 85, color: '#ff8c42' },
+  { name: 'AAPL 4.10', oas: 132, color: '#ff8c42' },
+  { name: 'JPM 5.04', oas: 98, color: '#ff8c42' },
+  { name: 'JPM 5.35', oas: 125, color: '#ff4d6d' },
 ];
 export const SPREADS = [
   { label: '2s5s', value: '-39 bp', change: '+4', up: true },
@@ -1061,12 +1061,12 @@ export const SECTOR_ALLOC = [
   { sector: 'Telecom', pct: 8.8, mv: 4.7, bonds: 1 },
 ];
 export const SECTOR_COLORS = [
-  '#1e90ff',
-  '#00bcd4',
-  '#c084fc',
+  '#3b82f6',
+  '#22d3ee',
+  '#a855f7',
   'var(--bn-green)',
-  '#f0b90b',
-  '#f59e0b',
+  '#ff8c42',
+  '#e86a1c',
 ];
 
 // ── Historical OAS ──

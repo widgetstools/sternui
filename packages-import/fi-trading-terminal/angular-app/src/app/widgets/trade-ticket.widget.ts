@@ -14,7 +14,7 @@ import { SharedStateService } from '../services/shared-state.service';
       <div
         style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
       >
-        <span class="font-mono-fi font-bold" style="font-size:12px;color:var(--bn-cyan)"
+        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--bn-cyan)"
           >{{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}</span
         >
         <span class="font-mono-fi font-semibold" style="font-size:11px;color:var(--bn-t0)">{{
@@ -27,16 +27,16 @@ import { SharedStateService } from '../services/shared-state.service';
       >
         <div
           class="font-mono-fi"
-          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--bn-blue)"
+          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--bn-blue)"
         >
-          <span style="font-size:8px;color:var(--bn-t2);display:block">BID</span>
+          <span style="font-size:9px;color:var(--bn-t2);display:block">BID</span>
           {{ bond.bid.toFixed(3) }}
         </div>
         <div
           class="font-mono-fi"
-          style="font-size:10px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--bn-red)"
+          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--bn-red)"
         >
-          <span style="font-size:8px;color:var(--bn-t2);display:block">ASK</span>
+          <span style="font-size:9px;color:var(--bn-t2);display:block">ASK</span>
           {{ bond.ask.toFixed(3) }}
         </div>
       </div>
@@ -48,7 +48,7 @@ import { SharedStateService } from '../services/shared-state.service';
           (click)="side = 'BUY'"
           style="padding:8px;font-size:11px;font-weight:700;letter-spacing:0.06em;border:none;cursor:pointer;transition:all 150ms"
           [style.color]="side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-t2)'"
-          [style.background]="side === 'BUY' ? 'rgba(14,203,129,0.08)' : 'transparent'"
+          [style.background]="side === 'BUY' ? 'rgba(20,217,160,0.08)' : 'transparent'"
           [style.borderBottom]="
             side === 'BUY' ? '2px solid var(--bn-green)' : '2px solid transparent'
           "
@@ -59,7 +59,7 @@ import { SharedStateService } from '../services/shared-state.service';
           (click)="side = 'SELL'"
           style="padding:8px;font-size:11px;font-weight:700;letter-spacing:0.06em;border:none;cursor:pointer;transition:all 150ms"
           [style.color]="side === 'SELL' ? 'var(--bn-red)' : 'var(--bn-t2)'"
-          [style.background]="side === 'SELL' ? 'rgba(246,70,93,0.08)' : 'transparent'"
+          [style.background]="side === 'SELL' ? 'rgba(255,77,109,0.08)' : 'transparent'"
           [style.borderBottom]="
             side === 'SELL' ? '2px solid var(--bn-red)' : '2px solid transparent'
           "
@@ -77,8 +77,8 @@ import { SharedStateService } from '../services/shared-state.service';
             (click)="orderType = t"
             class="order-type-tab"
             [style.fontSize.px]="11"
-            [style.color]="orderType === t ? 'var(--bn-yellow)' : 'var(--bn-t2)'"
-            [style.borderBottomColor]="orderType === t ? 'var(--bn-yellow)' : 'transparent'"
+            [style.color]="orderType === t ? 'var(--bn-blue)' : 'var(--bn-t2)'"
+            [style.borderBottomColor]="orderType === t ? 'var(--bn-blue)' : 'transparent'"
           >
             {{ t }}
           </button>

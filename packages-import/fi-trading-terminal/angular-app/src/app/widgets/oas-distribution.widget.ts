@@ -1,57 +1,90 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { UIChart } from 'primeng/chart';
 import { OAS_DATA } from '../services/trading-data.service';
+
+const sorted = [...OAS_DATA].sort((a, b) => b.oas - a.oas);
 
 @Component({
   selector: 'oas-distribution-widget',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, UIChart],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
       style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
     >
-      <div
-        style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;justify-content:center;gap:2px"
-      >
-        <div *ngFor="let d of data" style="display:flex;align-items:center;gap:6px;padding:3px 0">
-          <span
-            class="font-mono-fi"
-            style="font-size:9px;color:var(--bn-t1);width:72px;text-align:right;flex-shrink:0"
-            >{{ d.name }}</span
-          >
-          <div style="flex:1;position:relative;height:14px">
-            <div
-              style="position:absolute;top:6px;left:0;right:0;height:2px;background:var(--bn-bg3);border-radius:1px"
-            ></div>
-            <div
-              [style.width.%]="getPct(d)"
-              style="position:absolute;top:6px;left:0;height:2px;border-radius:1px;transition:width 0.3s ease"
-              [style.background]="d.color"
-            ></div>
-            <div
-              [style.left.%]="getPct(d)"
-              style="position:absolute;top:3px;width:8px;height:8px;border-radius:50%;border:2px solid var(--bn-bg1);transform:translateX(-4px);transition:left 0.3s ease"
-              [style.background]="d.color"
-            ></div>
-          </div>
-          <span
-            class="font-mono-fi font-semibold"
-            style="font-size:9px;width:40px;text-align:right;flex-shrink:0"
-            [style.color]="d.color"
-            >+{{ d.oas }}bp</span
-          >
-        </div>
+      <div style="flex:1;padding:8px 6px">
+        <p-chart
+          type="bar"
+          [data]="chartData"
+          [options]="chartOptions"
+          width="100%"
+          height="100%"
+        />
       </div>
     </div>
   `,
 })
-export class OasDistributionWidget {
+export class OasDistributionWidget implements OnInit {
   @Input() api: any;
   @Input() panel: any;
-  data = OAS_DATA;
-  maxOas = Math.max(...OAS_DATA.map((d) => d.oas));
-  getPct(d: any): number {
-    return this.maxOas > 0 ? (d.oas / this.maxOas) * 100 : 0;
+
+  chartData: any = {};
+  chartOptions: any = {};
+
+  ngOnInit() {
+    const colors = sorted.map((d) => {
+      if ((d as any).color && !(d as any).color.startsWith('var(')) return (d as any).color;
+      return '#3b82f6';
+    });
+
+    this.chartData = {
+      labels: sorted.map((d) => d.name),
+      datasets: [
+        {
+          label: 'OAS',
+          data: sorted.map((d) => d.oas),
+          backgroundColor: colors.map((c) => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 3,
+          barPercentage: 0.7,
+        },
+      ],
+    };
+
+    this.chartOptions = {
+      indexAxis: 'y' as const,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(30,35,45,0.95)',
+          titleFont: { size: 11, family: 'JetBrains Mono,monospace' },
+          bodyFont: { size: 11, family: 'JetBrains Mono,monospace' },
+          padding: 8,
+          cornerRadius: 3,
+          callbacks: {
+            label: (ctx: any) => ` OAS: +${ctx.raw}bp`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#8a8f98',
+            font: { size: 9, family: 'JetBrains Mono,monospace' },
+            callback: (v: number) => `+${v}bp`,
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+        },
+        y: {
+          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          grid: { display: false },
+        },
+      },
+    };
   }
 }

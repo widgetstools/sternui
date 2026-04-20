@@ -144,30 +144,30 @@ export function DesignSystemTab() {
         {/* Surface Colors */}
         <h3 style={S.subTitle}>Surface Colors</h3>
         <div style={S.row}>
-          <Swatch bg="var(--bn-bg)" label="--bn-bg" hex="D:#0b0e11 L:#f8f8f8" />
-          <Swatch bg="var(--bn-bg1)" label="--bn-bg1" hex="D:#161a1e L:#ffffff" />
-          <Swatch bg="var(--bn-bg2)" label="--bn-bg2" hex="D:#1e2329 L:#f3f3f3" />
-          <Swatch bg="var(--bn-bg3)" label="--bn-bg3" hex="D:#2b3139 L:#e8e8e8" />
+          <Swatch bg="var(--bn-bg)" label="--bn-bg" hex="D:#0a0e14 L:#f3f5f9" />
+          <Swatch bg="var(--bn-bg1)" label="--bn-bg1" hex="D:#121820 L:#fbfcfd" />
+          <Swatch bg="var(--bn-bg2)" label="--bn-bg2" hex="D:#1a212b L:#ebeef3" />
+          <Swatch bg="var(--bn-bg3)" label="--bn-bg3" hex="D:#242c38 L:#dde2ea" />
         </div>
 
         {/* Text Colors */}
         <h3 style={S.subTitle}>Text Colors</h3>
-        <TextSample cssVar="var(--bn-t0)" label="--bn-t0" hex="D:#eaecef L:#3b3b3b" />
-        <TextSample cssVar="var(--bn-t1)" label="--bn-t1" hex="D:#a0a8b4 L:#616161" />
-        <TextSample cssVar="var(--bn-t2)" label="--bn-t2" hex="D:#7a8494 L:#767676" />
-        <TextSample cssVar="var(--bn-t3)" label="--bn-t3" hex="D:#4a5568 L:#a0a0a0" />
+        <TextSample cssVar="var(--bn-t0)" label="--bn-t0" hex="D:#e6e9ef L:#1a1f2e" />
+        <TextSample cssVar="var(--bn-t1)" label="--bn-t1" hex="D:#a7b0bd L:#4f5665" />
+        <TextSample cssVar="var(--bn-t2)" label="--bn-t2" hex="D:#6b7280 L:#6b7280" />
+        <TextSample cssVar="var(--bn-t3)" label="--bn-t3" hex="D:#4d586a L:#9ca3af" />
 
         {/* Semantic Colors */}
         <h3 style={S.subTitle}>Semantic Colors</h3>
         <div style={S.row}>
-          <Swatch bg="var(--bn-green)" label="Green (Positive)" hex="D:#2dd4bf L:#0d9488" />
-          <Swatch bg="var(--bn-green2)" label="Green Hover" hex="D:#14b8a6 L:#0f766e" />
-          <Swatch bg="var(--bn-red)" label="Red (Negative)" hex="D:#f87171 L:#dc2626" />
-          <Swatch bg="var(--bn-red2)" label="Red Hover" hex="D:#ef4444 L:#b91c1c" />
-          <Swatch bg="var(--bn-yellow)" label="Yellow (Warning)" hex="D:#f0b90b L:#d97706" />
-          <Swatch bg="var(--bn-blue)" label="Blue (Info)" hex="D:#3da0ff L:#2563eb" />
-          <Swatch bg="var(--bn-cyan)" label="Cyan (Highlight)" hex="D:#22d3ee L:#0891b2" />
-          <Swatch bg="#c084fc" label="Purple (Accent)" hex="#c084fc" />
+          <Swatch bg="var(--bn-green)" label="Green (Positive)" hex="D:#14d9a0 L:#0ea870" />
+          <Swatch bg="var(--bn-green2)" label="Green Hover" hex="D:#2fa88a L:#0b8959" />
+          <Swatch bg="var(--bn-red)" label="Red (Negative)" hex="D:#ff4d6d L:#e02e47" />
+          <Swatch bg="var(--bn-red2)" label="Red Hover" hex="D:#e8304e L:#b81e37" />
+          <Swatch bg="var(--bn-amber)" label="Orange (Warning)" hex="D:#ff8c42 L:#e86a1c" />
+          <Swatch bg="var(--bn-blue)" label="Blue (Brand)" hex="D:#3b82f6 L:#2563eb" />
+          <Swatch bg="var(--bn-cyan)" label="Cyan (Highlight)" hex="D:#22d3ee L:#06b6d4" />
+          <Swatch bg="var(--bn-purple)" label="Purple (Accent)" hex="D:#a855f7 L:#7c3aed" />
         </div>
 
         {/* Trading Colors */}
@@ -338,8 +338,8 @@ export function DesignSystemTab() {
         <div style={{ ...S.row, gap: 8 }}>
           {[
             { label: 'Filled', bg: 'rgba(45,212,191,0.15)', color: 'var(--bn-green)' },
-            { label: 'Partial', bg: 'rgba(240,185,11,0.15)', color: 'var(--bn-yellow)' },
-            { label: 'Pending', bg: 'rgba(30,144,255,0.15)', color: 'var(--bn-blue)' },
+            { label: 'Partial', bg: 'var(--bn-warning-soft)', color: 'var(--bn-amber)' },
+            { label: 'Pending', bg: 'var(--bn-info-soft)', color: 'var(--bn-blue)' },
             { label: 'Cancelled', bg: 'rgba(248,113,113,0.15)', color: 'var(--bn-red)' },
             { label: 'Working', bg: 'rgba(0,188,212,0.15)', color: 'var(--bn-cyan)' },
           ].map(b => (
@@ -353,9 +353,9 @@ export function DesignSystemTab() {
         <h3 style={S.subTitle}>Quote Type Badges (Order Book)</h3>
         <div style={{ ...S.row, gap: 8, alignItems: 'center' }}>
           {[
-            { label: 'STREAM', bg: 'rgba(14,203,129,0.12)', color: 'var(--bn-green)', desc: 'Firm / executable' },
-            { label: 'RFQ', bg: 'rgba(30,144,255,0.12)', color: 'var(--bn-blue)', desc: 'Request for quote' },
-            { label: 'IND', bg: 'rgba(240,185,11,0.12)', color: 'var(--bn-yellow)', desc: 'Indicative only' },
+            { label: 'STREAM', bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)', desc: 'Firm / executable' },
+            { label: 'RFQ', bg: 'var(--bn-info-soft)', color: 'var(--bn-blue)', desc: 'Request for quote' },
+            { label: 'IND', bg: 'var(--bn-warning-soft)', color: 'var(--bn-amber)', desc: 'Indicative only' },
           ].map(b => (
             <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, background: b.bg, color: b.color, letterSpacing: '0.03em' }}>
@@ -454,7 +454,7 @@ export function DesignSystemTab() {
                 <span style={{ color: 'var(--bn-t2)' }}>OAS </span><span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>+8</span>
               </span>
               <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}>
-                <span style={{ color: 'var(--bn-t2)' }}>DUR </span><span style={{ color: '#1e90ff', fontWeight: 600 }}>1.85</span>
+                <span style={{ color: 'var(--bn-t2)' }}>DUR </span><span style={{ color: 'var(--bn-blue)', fontWeight: 600 }}>1.85</span>
               </span>
             </div>
           </div>
@@ -478,19 +478,19 @@ export function DesignSystemTab() {
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-red)', textAlign: 'right', position: 'relative' }}>{r.price}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.yld}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.face}</span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: '#1e90ff', textAlign: 'right', position: 'relative' }}>{r.dv01}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-blue)', textAlign: 'right', position: 'relative' }}>{r.dv01}</span>
               <span style={{ textAlign: 'center', position: 'relative' }}>
-                <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, letterSpacing: '0.03em', background: r.type === 'STREAM' ? 'rgba(14,203,129,0.12)' : r.type === 'RFQ' ? 'rgba(30,144,255,0.12)' : 'rgba(240,185,11,0.12)', color: r.type === 'STREAM' ? 'var(--bn-green)' : r.type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-yellow)' }}>{r.type}</span>
+                <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, letterSpacing: '0.03em', background: r.type === 'STREAM' ? 'var(--bn-positive-soft)' : r.type === 'RFQ' ? 'var(--bn-info-soft)' : 'var(--bn-warning-soft)', color: r.type === 'STREAM' ? 'var(--bn-green)' : r.type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-amber)' }}>{r.type}</span>
               </span>
             </div>
           ))}
           {/* Spread bar */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderTop: '1px solid var(--bn-border)', borderBottom: '1px solid var(--bn-border)', background: 'linear-gradient(90deg, rgba(14,203,129,0.08), var(--bn-bg2), rgba(246,70,93,0.08))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderTop: '1px solid var(--bn-border)', borderBottom: '1px solid var(--bn-border)', background: 'linear-gradient(90deg, rgba(20,217,160,0.08), var(--bn-bg2), rgba(255,77,109,0.08))' }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--bn-green)', fontFamily: 'var(--fi-mono)' }}>100.135</span>
             <span style={{ fontSize: 11, color: 'var(--bn-t2)', fontFamily: 'var(--fi-mono)', marginLeft: 12 }}>≈ $100.135</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
               <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Spread </span><span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>0.125</span></span>
-              <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Mid Yld </span><span style={{ color: '#00bcd4', fontWeight: 600 }}>4.520</span></span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Mid Yld </span><span style={{ color: 'var(--bn-cyan)', fontWeight: 600 }}>4.520</span></span>
               <span style={{ fontSize: 10, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>Z-Spd </span><span style={{ color: '#c084fc', fontWeight: 600 }}>8</span></span>
             </div>
           </div>
@@ -508,9 +508,9 @@ export function DesignSystemTab() {
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-green)', textAlign: 'right', position: 'relative' }}>{r.price}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.yld}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-t0)', textAlign: 'right', position: 'relative' }}>{r.face}</span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: '#1e90ff', textAlign: 'right', position: 'relative' }}>{r.dv01}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--fi-mono)', color: 'var(--bn-blue)', textAlign: 'right', position: 'relative' }}>{r.dv01}</span>
               <span style={{ textAlign: 'center', position: 'relative' }}>
-                <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, letterSpacing: '0.03em', background: r.type === 'STREAM' ? 'rgba(14,203,129,0.12)' : r.type === 'RFQ' ? 'rgba(30,144,255,0.12)' : 'rgba(240,185,11,0.12)', color: r.type === 'STREAM' ? 'var(--bn-green)' : r.type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-yellow)' }}>{r.type}</span>
+                <span style={{ fontSize: 8, fontWeight: 600, fontFamily: 'var(--fi-mono)', padding: '1px 4px', borderRadius: 2, letterSpacing: '0.03em', background: r.type === 'STREAM' ? 'var(--bn-positive-soft)' : r.type === 'RFQ' ? 'var(--bn-info-soft)' : 'var(--bn-warning-soft)', color: r.type === 'STREAM' ? 'var(--bn-green)' : r.type === 'RFQ' ? 'var(--bn-blue)' : 'var(--bn-amber)' }}>{r.type}</span>
               </span>
             </div>
           ))}
@@ -540,7 +540,7 @@ export function DesignSystemTab() {
           <span style={{ fontSize: 9, color: 'var(--bn-t1)', fontFamily: 'var(--fi-mono)' }}>Aa1</span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
             <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>OAS </span><span style={{ color: 'var(--bn-amber)', fontWeight: 600 }}>+65</span></span>
-            <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>DUR </span><span style={{ color: '#1e90ff', fontWeight: 600 }}>2.68</span></span>
+            <span style={{ fontSize: 9, fontFamily: 'var(--fi-mono)' }}><span style={{ color: 'var(--bn-t2)' }}>DUR </span><span style={{ color: 'var(--bn-blue)', fontWeight: 600 }}>2.68</span></span>
           </div>
         </div>
 
@@ -552,7 +552,7 @@ export function DesignSystemTab() {
         <div style={{ ...S.row, gap: 24, alignItems: 'center' }}>
           {[
             { secs: 25, color: '#3da0ff', dash: '69 75.4', label: '25s — blue (safe)' },
-            { secs: 8, color: '#f0b90b', dash: '20 75.4', label: '8s — amber (warning)' },
+            { secs: 8, color: 'var(--bn-amber)', dash: '20 75.4', label: '8s — copper (warning)' },
             { secs: 3, color: 'var(--bn-red)', dash: '7.5 75.4', label: '3s — red (expiring)' },
           ].map(r => (
             <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -590,7 +590,7 @@ export function DesignSystemTab() {
             { name: 'TickerCellRenderer', desc: 'Cyan bold ticker symbol', example: 'UST', color: 'var(--bn-cyan)' },
             { name: 'RatingBadgeRenderer', desc: 'Credit rating badge (Aaa-HY)', example: 'Aa2', color: 'var(--bn-green)' },
             { name: 'PnlValueRenderer', desc: 'P&L with K suffix', example: '+120K', color: 'var(--bn-green)' },
-            { name: 'FilledAmountRenderer', desc: 'Green if full, yellow if partial', example: '5000', color: 'var(--bn-yellow)' },
+            { name: 'FilledAmountRenderer', desc: 'Green if full, copper if partial', example: '5000', color: 'var(--bn-amber)' },
             { name: 'BookNameRenderer', desc: 'Cyan book/desk name', example: 'IG-NYC', color: 'var(--bn-cyan)' },
             { name: 'ChangeValueRenderer', desc: 'Market index change', example: '+0.45', color: 'var(--bn-green)' },
             { name: 'RfqStatusRenderer', desc: 'LIVE / DONE / STALE badge', example: 'LIVE', color: 'var(--bn-blue)' },
@@ -635,7 +635,7 @@ color: var(--bn-t3);   /* faint — disabled, placeholder */
 /* Semantic colors */
 color: var(--bn-green); /* positive / buy */
 color: var(--bn-red);   /* negative / sell */
-color: var(--bn-yellow);/* warning */
+color: var(--bn-amber);/* warning */
 color: var(--bn-blue);  /* info */
 color: var(--bn-cyan);  /* highlight / emphasis */
 

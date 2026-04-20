@@ -52,7 +52,7 @@ LicenseManager.setLicenseKey('');
         [style.fontSize.px]="9"
         [style.padding]="'2px 8px'"
         [style.borderRadius.px]="2"
-        [style.background]="sectorFilter === s ? 'rgba(61,158,255,0.1)' : 'transparent'"
+        [style.background]="sectorFilter === s ? 'rgba(59,130,246,0.1)' : 'transparent'"
         [style.borderColor]="sectorFilter === s ? 'var(--fi-blue)' : 'var(--fi-border2)'"
         [style.color]="sectorFilter === s ? 'var(--fi-blue)' : 'var(--bn-t2)'"
         style="border:1px solid;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer"

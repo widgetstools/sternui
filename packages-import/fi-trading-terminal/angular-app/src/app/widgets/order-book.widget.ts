@@ -67,9 +67,9 @@ function genLevels(
 }
 
 const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
-  STREAM: { bg: 'rgba(14,203,129,0.12)', color: 'var(--bn-green)' },
-  RFQ: { bg: 'rgba(30,144,255,0.12)', color: 'var(--bn-blue)' },
-  IND: { bg: 'rgba(240,185,11,0.12)', color: 'var(--bn-yellow)' },
+  STREAM: { bg: 'rgba(20,217,160,0.12)', color: 'var(--bn-green)' },
+  RFQ: { bg: 'rgba(59,130,246,0.12)', color: 'var(--bn-blue)' },
+  IND: { bg: 'rgba(255,140,66,0.12)', color: 'var(--bn-amber)' },
 };
 
 @Component({
@@ -83,7 +83,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
       <div
         style="display:flex;align-items:center;gap:12px;padding:6px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
       >
-        <span class="font-mono-fi font-bold" style="font-size:12px;color:var(--bn-cyan)">
+        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--bn-cyan)">
           {{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}
         </span>
         <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">{{ bond.issuer }}</span>
@@ -100,7 +100,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
           </span>
           <span class="font-mono-fi" style="font-size:9px">
             <span style="color:var(--bn-t2)">DUR </span>
-            <span style="color:#1e90ff;font-weight:600">{{ bond.dur }}</span>
+            <span style="color:#3b82f6;font-weight:600">{{ bond.dur }}</span>
           </span>
         </div>
       </div>
@@ -136,7 +136,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             class="live-dot"
             style="width:5px;height:5px;border-radius:50%;background:var(--bn-green);display:inline-block"
           ></span>
-          <span class="font-mono-fi" style="font-size:8px;color:var(--bn-green)">LIVE</span>
+          <span class="font-mono-fi" style="font-size:9px;color:var(--bn-green)">LIVE</span>
         </div>
       </div>
 
@@ -186,13 +186,13 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
               <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
                 {{ a.face.toFixed(1) }}
               </div>
-              <div class="font-mono-fi" style="font-size:11px;color:#1e90ff;text-align:right">
+              <div class="font-mono-fi" style="font-size:11px;color:#3b82f6;text-align:right">
                 {{ a.dv01.toFixed(1) }}
               </div>
               <div style="text-align:center">
                 <span
                   class="font-mono-fi"
-                  [style.fontSize.px]="8"
+                  [style.fontSize.px]="9"
                   style="font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
                   [style.background]="badgeStyle(a.quoteType).bg"
                   [style.color]="badgeStyle(a.quoteType).color"
@@ -206,29 +206,29 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
         <!-- Spread bar -->
         <div
           *ngIf="view === 'both'"
-          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);flex-shrink:0;background:linear-gradient(90deg, rgba(14,203,129,0.08), var(--bn-bg2), rgba(246,70,93,0.08))"
+          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);flex-shrink:0;background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--bn-bg2), rgba(255,77,109,0.08))"
         >
-          <span class="font-mono-fi font-bold" style="font-size:14px" [style.color]="spreadColor()">
+          <span class="font-mono-fi font-bold" style="font-size:11px" [style.color]="spreadColor()">
             {{ mid().toFixed(3) }}
           </span>
-          <span class="font-mono-fi" style="font-size:11px;color:var(--bn-t2);margin-left:12px">
+          <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2);margin-left:12px">
             ≈ {{ '$' + mid().toFixed(3) }}
           </span>
           <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
-            <span class="font-mono-fi" style="font-size:10px">
+            <span class="font-mono-fi" style="font-size:9px">
               <span style="color:var(--bn-t2)">Spread </span>
               <span style="color:var(--bn-amber);font-weight:600">{{ spread().toFixed(3) }}</span>
               <span style="color:var(--bn-t2)"> ({{ spreadPct() }}%)</span>
             </span>
-            <span class="font-mono-fi" style="font-size:10px">
+            <span class="font-mono-fi" style="font-size:9px">
               <span style="color:var(--bn-t2)">Mid Yld </span>
-              <span style="color:#00bcd4;font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
+              <span style="color:#22d3ee;font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
             </span>
-            <span class="font-mono-fi" style="font-size:10px">
+            <span class="font-mono-fi" style="font-size:9px">
               <span style="color:var(--bn-t2)">Z-Spd </span>
-              <span style="color:#c084fc;font-weight:600">{{ bond.gSpd }}</span>
+              <span style="color:#a855f7;font-weight:600">{{ bond.gSpd }}</span>
             </span>
-            <span [style.color]="spreadColor()" style="font-size:12px;font-weight:700">
+            <span [style.color]="spreadColor()" style="font-size:9px;font-weight:700">
               {{ spread() < 0 ? '↓' : '↑' }}
             </span>
           </div>
@@ -259,13 +259,13 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
               {{ b.face.toFixed(1) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:#1e90ff;text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:#3b82f6;text-align:right">
               {{ b.dv01.toFixed(1) }}
             </div>
             <div style="text-align:center">
               <span
                 class="font-mono-fi"
-                [style.fontSize.px]="8"
+                [style.fontSize.px]="9"
                 style="font-weight:600;padding:1px 4px;border-radius:2px;letter-spacing:0.03em"
                 [style.background]="badgeStyle(b.quoteType).bg"
                 [style.color]="badgeStyle(b.quoteType).color"
@@ -326,22 +326,22 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
           >
             <div
               class="font-mono-fi"
-              style="font-size:10px;font-weight:700"
+              style="font-size:11px;font-weight:700"
               [style.color]="t.side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)'"
             >
               {{ t.side }}
             </div>
-            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t1)">{{ t.dealer }}</div>
-            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">{{ t.dealer }}</div>
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
               {{ t.price.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
               {{ t.yield.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
               {{ t.face.toFixed(1) }}
             </div>
-            <div class="font-mono-fi" style="font-size:10px;color:var(--bn-t2);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t2);text-align:right">
               {{ t.time }}
             </div>
           </div>

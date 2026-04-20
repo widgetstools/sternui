@@ -2,6 +2,10 @@
 //  FI Design System — Component Tokens
 //  Per-component overrides that both shadcn and PrimeNG map to.
 //  Values reference semantic tokens or primitives directly.
+//
+//  Brand accent is `scheme.accent.info` (soft azure / steel blue).
+//  `scheme.accent.warning` is SEMANTIC ONLY — never used for
+//  primary buttons, focus rings, or tab indicators.
 // ─────────────────────────────────────────────────────────────
 
 import { typography, radius, spacing } from './primitives';
@@ -20,7 +24,8 @@ export function componentTokens(scheme: ColorScheme) {
       paddingY:       `${spacing[2.5]}px`,
       primary: {
         background:      scheme.accent.info,
-        backgroundHover: scheme.accent.highlight,
+        backgroundHover: scheme.accent.infoHover,
+        backgroundActive:scheme.accent.infoHover,
         color:           '#ffffff',
       },
       buy: {
@@ -35,24 +40,33 @@ export function componentTokens(scheme: ColorScheme) {
       },
       ghost: {
         background:      'transparent',
-        backgroundHover: scheme.surface.tertiary,
+        backgroundHover: scheme.state.hoverOverlay,
         color:           scheme.text.secondary,
         borderColor:     scheme.border.secondary,
+      },
+      disabled: {
+        background: scheme.state.disabledBg,
+        color:      scheme.state.disabledFg,
+        opacity:    0.6,
       },
     },
 
     // ── Input / Form Field ──
     input: {
-      fontFamily:      typography.fontFamily.mono,
-      fontSize:        typography.fontSize.sm,
-      background:      'transparent',
-      color:           scheme.text.primary,
-      borderColor:     scheme.border.secondary,
-      borderColorFocus:scheme.accent.warning,
-      borderRadius:    radius.md,
-      placeholderColor:scheme.text.muted,
-      paddingX:        `${spacing[2.5]}px`,
-      paddingY:        `${spacing[1.5]}px`,
+      fontFamily:       typography.fontFamily.mono,
+      fontSize:         typography.fontSize.sm,
+      background:       'transparent',
+      color:            scheme.text.primary,
+      borderColor:      scheme.border.secondary,
+      borderColorHover: scheme.accent.info,
+      borderColorFocus: scheme.accent.info,   // brand ring, not warning/yellow
+      focusRingBg:      scheme.state.focusRingBg,
+      borderRadius:     radius.md,
+      placeholderColor: scheme.text.muted,
+      paddingX:         `${spacing[2.5]}px`,
+      paddingY:         `${spacing[1.5]}px`,
+      disabledBg:       scheme.state.disabledBg,
+      disabledColor:    scheme.state.disabledFg,
     },
 
     // ── Tab Navigation ──
@@ -62,13 +76,14 @@ export function componentTokens(scheme: ColorScheme) {
       fontWeight:      typography.fontWeight.medium,
       color:           scheme.text.secondary,
       colorActive:     scheme.text.primary,
-      indicatorColor:  scheme.accent.warning,
+      indicatorColor:  scheme.accent.info,    // brand, not yellow
       indicatorWidth:  '2px',
       paddingX:        `${spacing[3]}px`,
       paddingY:        `${spacing[2]}px`,
     },
 
     // ── Badge / Status Chip ──
+    // All tints pulled from scheme.overlay — single source of truth.
     badge: {
       fontFamily:   typography.fontFamily.mono,
       fontSize:     typography.fontSize.xs,
@@ -76,38 +91,42 @@ export function componentTokens(scheme: ColorScheme) {
       borderRadius: radius.sm,
       paddingX:     `${spacing[1.5]}px`,
       paddingY:     '1px',
-      // Order status badges
       filled: {
-        background: `rgba(45,212,191,0.12)`,
+        background: scheme.overlay.positiveSoft,
         color:      scheme.accent.positive,
-        border:     `rgba(45,212,191,0.3)`,
+        border:     scheme.overlay.positiveRing,
       },
       partial: {
-        background: `rgba(240,185,11,0.12)`,
+        background: scheme.overlay.warningSoft,
         color:      scheme.accent.warning,
-        border:     `rgba(240,185,11,0.3)`,
+        border:     scheme.overlay.warningRing,
       },
       pending: {
-        background: `rgba(30,144,255,0.12)`,
+        background: scheme.overlay.infoSoft,
         color:      scheme.accent.info,
-        border:     `rgba(30,144,255,0.3)`,
+        border:     scheme.overlay.infoRing,
       },
       error: {
-        background: `rgba(248,113,113,0.10)`,
+        background: scheme.overlay.negativeSoft,
         color:      scheme.accent.negative,
-        border:     `rgba(248,113,113,0.3)`,
+        border:     scheme.overlay.negativeRing,
+      },
+      neutral: {
+        background: scheme.overlay.neutralSoft,
+        color:      scheme.text.muted,
+        border:     scheme.overlay.neutralRing,
       },
       // Quote type badges (order book)
       stream: {
-        background: `rgba(45,212,191,0.12)`,
+        background: scheme.overlay.positiveSoft,
         color:      scheme.accent.positive,
       },
       rfq: {
-        background: `rgba(30,144,255,0.12)`,
+        background: scheme.overlay.infoSoft,
         color:      scheme.accent.info,
       },
       indicative: {
-        background: `rgba(240,185,11,0.12)`,
+        background: scheme.overlay.warningSoft,
         color:      scheme.accent.warning,
       },
     },
@@ -115,7 +134,7 @@ export function componentTokens(scheme: ColorScheme) {
     // ── Instrument Context Bar ──
     instrumentBar: {
       fontFamily:   typography.fontFamily.mono,
-      background:   `rgba(0,188,212,0.04)`,
+      background:   scheme.overlay.infoSoft,
       borderColor:  scheme.border.primary,
       tickerColor:  scheme.accent.highlight,
       tickerSize:   typography.fontSize.sm,
@@ -147,6 +166,7 @@ export function componentTokens(scheme: ColorScheme) {
       rowBackground:       scheme.surface.primary,
       rowBackgroundHover:  scheme.surface.secondary,
       rowBorderColor:      `${scheme.border.primary}99`,
+      selectedRowBg:       scheme.overlay.infoSoft,
       cellPaddingX:        `${spacing[2.5]}px`,
       cellPaddingY:        `${spacing[1.5]}px`,
     },

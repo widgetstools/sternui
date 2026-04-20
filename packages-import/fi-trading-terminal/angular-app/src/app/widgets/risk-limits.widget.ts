@@ -33,10 +33,10 @@ import { CommonModule } from '@angular/common';
             ></div>
           </div>
           <div style="display:flex;justify-content:space-between;margin-top:4px">
-            <span style="font-size:10px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">{{
+            <span style="font-size:11px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">{{
               fmtVal(l.used, l.unit)
             }}</span>
-            <span style="font-size:10px;color:var(--bn-t3);font-family:JetBrains Mono,monospace"
+            <span style="font-size:11px;color:var(--bn-t3);font-family:JetBrains Mono,monospace"
               >/ {{ fmtVal(l.limit, l.unit) }}</span
             >
           </div>
@@ -60,7 +60,7 @@ export class RiskLimitsWidget {
   }
   getColor(l: any) {
     const pct = this.getPct(l);
-    return pct > 85 ? 'var(--bn-red)' : pct > 65 ? 'var(--bn-yellow)' : 'var(--bn-green)';
+    return pct > 85 ? 'var(--bn-red)' : pct > 65 ? 'var(--bn-amber)' : 'var(--bn-green)';
   }
   fmtVal(v: number, unit: string) {
     // "$" prefix only, "$K"/"$M" → prefix $ + suffix K/M, "yr" → suffix only

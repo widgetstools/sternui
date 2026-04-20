@@ -5,6 +5,13 @@ import { DockManagerCoreComponent, type DockTheme } from '@widgetstools/angular-
 import {
   type DockManagerState,
   type DockviewApi,
+  type LayoutNode,
+  type PanelConfig,
+  type Placement,
+  collectAllPanelsOrdered,
+  deserialize,
+  findTabGroupForPanel,
+  serialize,
   slateDark,
   vsCodeLight,
 } from '@widgetstools/dock-manager-core';
@@ -93,15 +100,24 @@ const sp = (id: string, dir: 'horizontal' | 'vertical', sizes: number[], childre
   sizes,
   children,
 });
-const base = (layout: any, panels: Record<string, any>, active: string): DockManagerState => ({
-  layout,
-  panels,
-  floatingPanels: [],
-  popoutPanels: [],
-  unpinnedPanels: [],
-  nextZIndex: 100,
-  activePaneId: active,
-});
+const base = (
+  layout: LayoutNode,
+  panels: Record<string, PanelConfig>,
+  active: string,
+): DockManagerState => {
+  const placements = new Map<string, Placement>();
+  for (const panelId of collectAllPanelsOrdered(layout)) {
+    const groupId = findTabGroupForPanel(layout, panelId);
+    if (groupId) placements.set(panelId, { type: 'docked', groupId });
+  }
+  return {
+    layout,
+    panels: new Map(Object.entries(panels)),
+    placements,
+    nextZIndex: 100,
+    activePaneId: active,
+  };
+};
 
 // ── Per-tab layouts (identical to React) ──
 function tradeLayout(): DockManagerState {
@@ -314,13 +330,15 @@ const STORAGE_PREFIX = 'fi-dock-';
 function getSavedLayout(tab: string): DockManagerState | null {
   try {
     const saved = localStorage.getItem(STORAGE_PREFIX + tab);
-    if (saved) return JSON.parse(saved);
+    if (!saved) return null;
+    const { state } = deserialize(JSON.parse(saved));
+    return state;
   } catch {}
   return null;
 }
 function saveLayoutToStorage(tab: string, state: DockManagerState) {
   try {
-    localStorage.setItem(STORAGE_PREFIX + tab, JSON.stringify(state));
+    localStorage.setItem(STORAGE_PREFIX + tab, serialize(state));
   } catch {}
 }
 function clearSavedLayout(tab: string) {
@@ -377,7 +395,7 @@ const NAV_TABS = [
             <rect x="11" y="52" width="38" height="2" fill="#2d4b69" />
           </svg>
           <span style="font-weight:700;font-size:13px;letter-spacing:0.04em;color:var(--bn-t0)"
-            >MarketsUI <span style="color:var(--bn-yellow)">FI</span></span
+            >MarketsUI <span style="color:var(--bn-blue)">FI</span></span
           >
         </div>
         <!-- Nav tabs -->
@@ -423,7 +441,7 @@ const NAV_TABS = [
             (click)="saveLayout()"
             title="Save layout"
             style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:none;cursor:pointer;transition:all 0.15s ease"
-            [style.background]="saveFlash() ? 'rgba(45,212,191,0.25)' : 'var(--bn-bg3)'"
+            [style.background]="saveFlash() ? 'rgba(20,217,160,0.25)' : 'var(--bn-bg3)'"
             [style.color]="saveFlash() ? 'var(--bn-green)' : 'var(--bn-t1)'"
             [style.transform]="saveFlash() ? 'scale(0.9)' : 'scale(1)'"
           >
@@ -640,7 +658,7 @@ export class App implements OnDestroy {
       {
         label: 'OAS',
         val: bond.oas > 0 ? `+${bond.oas}bp` : '---',
-        color: bond.oas > 80 ? 'var(--bn-yellow)' : 'var(--bn-green)',
+        color: bond.oas > 80 ? 'var(--bn-amber)' : 'var(--bn-green)',
         w: 52,
       },
       { label: 'Dur', val: `${bond.dur?.toFixed(2) ?? '---'}yr`, color: 'var(--bn-t0)', w: 56 },
