@@ -26,6 +26,7 @@ import {
   BorderStyleEditor,
   FormatterPicker,
   ColorPickerPopover,
+  isOpenFin,
   type BorderSpec,
   type ValueFormatterTemplate,
 } from '@grid-customizer/core';
@@ -40,9 +41,23 @@ import {
   Plus,
   Trash2,
   Type,
+  X,
 } from 'lucide-react';
 
 export interface FormattingPropertiesPanelProps {
+  /**
+   * When true, render a custom draggable title bar at the top of
+   * the panel (with `-webkit-app-region: drag` + a close "X"
+   * button). Only honored when running inside OpenFin — in a
+   * browser popout the OS always renders its own chrome and a
+   * custom title bar would duplicate it.
+   */
+  frameless?: boolean;
+  /** Fires when the user clicks the custom close "X" in the
+   *  titlebar. Flips popped=false in the parent Poppable. */
+  onClose?: () => void;
+  /** Text shown in the custom title bar (frameless mode only). */
+  titleText?: string;
   disabled: boolean;
   isHeader: boolean;
   target: 'cell' | 'header';
@@ -234,6 +249,9 @@ function Toggle({
 
 export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps) {
   const {
+    frameless,
+    onClose,
+    titleText = 'Formatting',
     disabled,
     isHeader,
     target,
@@ -264,6 +282,11 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
 
   const columnMaxWidth: CSSProperties = { maxWidth: 360, margin: '0 auto' };
 
+  // Only render the custom titlebar when we're in OpenFin AND
+  // the caller asked for frameless mode. Browsers always render
+  // their own OS title bar; ours would just be noise there.
+  const showCustomTitleBar = frameless === true && isOpenFin();
+
   return (
     <div
       className="gc-fmt-panel"
@@ -280,6 +303,83 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
         fontSize: 11,
       }}
     >
+      {/* ── Custom draggable titlebar — only when OpenFin dropped
+           the OS frame. The `.titlebar` class carries
+           `-webkit-app-region: drag` so the whole strip is a drag
+           handle; the close button opts out via `no-drag`. ────── */}
+      {showCustomTitleBar && (
+        <div
+          className="titlebar"
+          data-testid="fmt-panel-titlebar"
+          style={{
+            flexShrink: 0,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 8px 0 12px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--bn-bg1, var(--card))',
+            // OpenFin-specific: this CSS region tells the window
+            // manager the strip is a "drag handle". Clicking +
+            // dragging moves the OS window. Child elements that
+            // need to be clickable must set app-region: no-drag.
+            WebkitAppRegion: 'drag',
+            userSelect: 'none',
+          } as CSSProperties}
+        >
+          <span
+            style={{
+              flex: 1,
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontSize: 10,
+              fontWeight: 500,
+              letterSpacing: '0.08em',
+              color: 'var(--muted-foreground)',
+              textTransform: 'uppercase',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {titleText}
+          </span>
+          <button
+            type="button"
+            onClick={() => onClose?.()}
+            aria-label="Close"
+            title="Close"
+            data-testid="fmt-panel-close"
+            style={{
+              // The close button must not drag; opt out of the
+              // drag region so clicks register as clicks.
+              WebkitAppRegion: 'no-drag',
+              width: 22,
+              height: 22,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              border: 'none',
+              borderRadius: 3,
+              background: 'transparent',
+              color: 'var(--muted-foreground)',
+              cursor: 'pointer',
+              transition: 'background 120ms, color 120ms',
+            } as CSSProperties}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--destructive) 18%, transparent)';
+              e.currentTarget.style.color = 'var(--destructive)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--muted-foreground)';
+            }}
+          >
+            <X size={13} strokeWidth={2} />
+          </button>
+        </div>
+      )}
+
       {/* ── Header — sticky, compact, terminal-styled ───────────── */}
       <header
         data-testid="fmt-panel-header"

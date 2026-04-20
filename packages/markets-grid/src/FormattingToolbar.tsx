@@ -424,11 +424,28 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
       // web platform has no equivalent API. See openFin.ts for the
       // runtime split.
       alwaysOnTop
+      // Frameless: OpenFin drops its OS title bar + close button.
+      // Our properties panel renders its own compact title bar
+      // (`-webkit-app-region: drag`) with a close "X" that calls
+      // the `close` helper from Poppable's render-props. Browsers
+      // ignore this — they always render full chrome — so the
+      // panel's title bar is harmlessly hidden there (see the
+      // `frameless` branch in the panel). Inside OpenFin this
+      // gives us a sleek, integrated window look.
+      frame={false}
     >
-      {({ popped, PopoutButton }) => {
+      {({ popped, PopoutButton, close }) => {
         if (popped) {
           return (
             <FormattingPropertiesPanel
+              // Flagged `frameless` so the panel renders its own
+              // title bar with drag region + close X. Only true
+              // under OpenFin (which honors frame:false); browsers
+              // always keep OS chrome so we let the panel check
+              // via isOpenFin() internally — see panel code.
+              frameless
+              onClose={close}
+              titleText={`Formatting — ${platform.gridId}`}
               disabled={disabled}
               isHeader={isHeader}
               target={target}

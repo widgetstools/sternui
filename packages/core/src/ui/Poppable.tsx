@@ -71,6 +71,14 @@ export interface PoppableRenderProps {
    * Renders nothing when popped (the OS window chrome replaces it).
    */
   PopoutButton: React.ComponentType<PopoutButtonProps>;
+  /**
+   * Imperative close — flips `popped` back to false, tearing down
+   * the portal and closing the OS window. Useful when the caller
+   * renders its own title bar (`frame: false`) and needs to wire
+   * a custom close "X" button to something that actually closes
+   * the popout.
+   */
+  close: () => void;
 }
 
 export interface PopoutButtonProps {
@@ -106,6 +114,13 @@ export interface PoppableProps {
    */
   alwaysOnTop?: boolean;
   /**
+   * Render the popout with or without OS chrome. Default `true`
+   * (full native title bar + close + resize borders). Set `false`
+   * when the render-props subtree provides its own custom title
+   * bar. OpenFin honors this; browsers ignore it (always chromed).
+   */
+  frame?: boolean;
+  /**
    * Optional "dynamic height while a popover is open" behavior. A
    * compact popout (e.g. 900×120 for a toolbar) will clip any
    * popover or menu opened inside it. Set `expandedHeight` and the
@@ -129,7 +144,7 @@ export interface PoppableProps {
 }
 
 export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppable(
-  { name, title, width = 900, height = 700, alwaysOnTop, expandedHeight, onClose, children },
+  { name, title, width = 900, height = 700, alwaysOnTop, frame = true, expandedHeight, onClose, children },
   ref,
 ) {
   const [popped, setPopped] = useState(false);
@@ -182,7 +197,12 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
     [popped],
   );
 
-  const renderChildren = children({ popped, PopoutButton });
+  const close = useCallback(() => {
+    setPopped(false);
+    onClose?.();
+  }, [onClose]);
+
+  const renderChildren = children({ popped, PopoutButton, close });
 
   if (popped) {
     return (
@@ -192,6 +212,7 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
         width={width}
         height={height}
         alwaysOnTop={alwaysOnTop}
+        frame={frame}
         expandedHeight={expandedHeight}
         onClose={handlePopoutClose}
         openWindow={openFinWindowOpener({ alwaysOnTop })}

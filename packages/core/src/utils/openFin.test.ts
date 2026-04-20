@@ -185,6 +185,23 @@ describe('openFinWindowOpener', () => {
     );
   });
 
+  it('passes frame through to Window.create (default true, explicit false for frameless)', async () => {
+    const fin = setupFin();
+    const opener = openFinWindowOpener();
+
+    // Default — no frame passed → defaults to true.
+    await opener!({ name: 'p', width: 100, height: 100 });
+    expect(fin.Window.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ frame: true }),
+    );
+
+    // Explicit false for frameless (custom titlebar case).
+    await opener!({ name: 'q', width: 100, height: 100, frame: false });
+    expect(fin.Window.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ frame: false }),
+    );
+  });
+
   it('does NOT set processAffinity — would move popout into a different process from main', async () => {
     // Regression: an earlier version set `processAffinity: "gc-popout:<uuid>"`
     // thinking it'd "share" the renderer with main, but it actually

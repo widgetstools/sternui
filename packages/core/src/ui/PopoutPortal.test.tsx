@@ -249,7 +249,7 @@ describe('PopoutPortal', () => {
     );
     await act(async () => {});
 
-    expect(customOpen).toHaveBeenCalledWith({ name: 't6', width: 900, height: 700, alwaysOnTop: false });
+    expect(customOpen).toHaveBeenCalledWith({ name: 't6', width: 900, height: 700, alwaysOnTop: false, frame: true });
     // Child still lands in the fake-OpenFin document.
     expect(fake.document.querySelector('[data-testid="openfin-child"]')).not.toBeNull();
   });

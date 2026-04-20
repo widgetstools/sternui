@@ -112,6 +112,15 @@ export interface PopoutPortalProps {
    */
   alwaysOnTop?: boolean;
   /**
+   * Render the popout with or without OS chrome (title bar,
+   * close button, resize borders). Default: `true` (framed).
+   * Set to `false` when the React subtree renders its own
+   * title bar with `-webkit-app-region: drag`. OpenFin honors
+   * this; browser `window.open` ignores it (browsers always
+   * render full chrome — can't be controlled from web pages).
+   */
+  frame?: boolean;
+  /**
    * When provided, the popout grows to `expandedHeight` while a
    * Radix popover / dropdown / menu is open inside it, then shrinks
    * back to the base `height` when the last one closes.
@@ -140,7 +149,13 @@ export interface PopoutPortalProps {
    * `window.open(...)`. Pass a custom function when running under
    * OpenFin so `fin.Window.create(...)` is used instead.
    */
-  openWindow?: (opts: { name: string; width: number; height: number; alwaysOnTop: boolean }) => Window | Promise<Window | null> | null;
+  openWindow?: (opts: {
+    name: string;
+    width: number;
+    height: number;
+    alwaysOnTop: boolean;
+    frame: boolean;
+  }) => Window | Promise<Window | null> | null;
   /**
    * Fires once the popout window has been created and its document
    * prepared. Callers that need to programmatically focus / inspect
@@ -159,6 +174,7 @@ export function PopoutPortal({
   width = 900,
   height = 700,
   alwaysOnTop = false,
+  frame = true,
   expandedHeight,
   openWindow,
   onWindowOpened,
@@ -214,7 +230,7 @@ export function PopoutPortal({
           );
           let w: Window | null;
           if (openWindow) {
-            w = await openWindow({ name, width, height, alwaysOnTop });
+            w = await openWindow({ name, width, height, alwaysOnTop, frame });
           } else {
             // `window.open` has no always-on-top feature — the web
             // platform deliberately forbids it. `alwaysOnTop` is

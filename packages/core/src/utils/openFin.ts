@@ -50,6 +50,13 @@ interface OpenFinWindow {
       defaultWidth?: number;
       defaultHeight?: number;
       autoShow?: boolean;
+      /**
+       * When false, the OpenFin window is rendered frameless — no
+       * OS title bar, close button, or resize borders. The caller
+       * is responsible for providing its own title bar and close
+       * affordance. Use `-webkit-app-region: drag` on that custom
+       * title bar so the user can drag the window.
+       */
       frame?: boolean;
       resizable?: boolean;
       /** Pin above other windows. OpenFin-only. */
@@ -127,7 +134,13 @@ if (typeof window !== 'undefined') {
  * ```
  */
 export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
-  | ((opts: { name: string; width: number; height: number; alwaysOnTop?: boolean }) => Promise<Window | null>)
+  | ((opts: {
+      name: string;
+      width: number;
+      height: number;
+      alwaysOnTop?: boolean;
+      frame?: boolean;
+    }) => Promise<Window | null>)
   | undefined {
   if (!isOpenFin()) {
     // Diagnostic: tell the dev WHY the OpenFin path isn't taken
@@ -193,7 +206,7 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
     }
   };
 
-  return async ({ name, width, height, alwaysOnTop }) => {
+  return async ({ name, width, height, alwaysOnTop, frame }) => {
     const appUuid = fin.me?.identity?.uuid ?? 'gc-popout-host';
     const windowOpts = {
       name,
@@ -201,7 +214,12 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
       defaultWidth: width,
       defaultHeight: height,
       autoShow: true,
-      frame: true,
+      // Honor per-call `frame`; default to true (OS chrome) so
+      // callers that don't opt out get a normal framed window.
+      // Passing `false` makes the window frameless — the caller
+      // must supply its own draggable title bar
+      // (`-webkit-app-region: drag`) and close affordance.
+      frame: frame ?? true,
       resizable: true,
       alwaysOnTop: alwaysOnTop ?? callerAlwaysOnTop,
       // NO processAffinity — contrary to an earlier attempt here,
