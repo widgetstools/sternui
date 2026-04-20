@@ -76,33 +76,44 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     );
     expect(calls.length).toBeGreaterThanOrEqual(1);
     expect(calls[0].name).toBe('gc-popout-toolbar-demo-blotter-v2');
-    expect(calls[0].features).toMatch(/width=900/);
-    expect(calls[0].features).toMatch(/height=120/);
+    // 400×620 is the properties-panel popout dim (confirmed with
+    // user 2026-04-20). The old 900×120 compact-toolbar window is
+    // gone; popping out now shows the vertical-stack properties
+    // panel instead.
+    expect(calls[0].features).toMatch(/width=400/);
+    expect(calls[0].features).toMatch(/height=620/);
   });
 
-  test('toolbar flips to is-popped and renders inside the popout window', async ({ page }) => {
+  test('popped toolbar renders the properties panel (not the compact toolbar)', async ({ page }) => {
     await page.locator('[data-testid="formatting-popout-btn"]').click();
 
-    // Main doc should contain NO toolbar anymore — the whole subtree
-    // moved into the popout via PortalPortal.
+    // Main doc should contain NEITHER the compact toolbar NOR the
+    // properties panel — both live inside the popout window now.
     await expect(page.locator('[data-testid="formatting-toolbar"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="formatting-properties-panel"]')).toHaveCount(0);
 
     await expect.poll(async () => {
       return page.evaluate(() => {
         const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
         const doc = iframe?.contentDocument;
         return {
-          hasToolbar: !!doc?.querySelector('[data-testid="formatting-toolbar"]'),
-          hasPoppedClass: !!doc?.querySelector('.gc-formatting-toolbar.is-popped'),
+          // Popped mode renders the FormattingPropertiesPanel, not
+          // the compact toolbar. The panel exposes its own testid.
+          hasPropertiesPanel: !!doc?.querySelector('[data-testid="formatting-properties-panel"]'),
+          // And the compact toolbar should NOT be inside the popout.
+          hasCompactToolbar: !!doc?.querySelector('[data-testid="formatting-toolbar"]'),
+          // Header + sections are rendered by the panel.
+          hasHeader: !!doc?.querySelector('[data-testid="fmt-panel-header"]'),
+          sectionCount: doc?.querySelectorAll('[data-section-index]').length ?? 0,
           stylesCloned: doc?.head?.querySelectorAll('style, link[rel="stylesheet"]').length ?? 0,
-          popOutBtnHidden: !doc?.querySelector('[data-testid="formatting-popout-btn"]'),
         };
       });
     }, { timeout: 3000 }).toEqual({
-      hasToolbar: true,
-      hasPoppedClass: true,
+      hasPropertiesPanel: true,
+      hasCompactToolbar: false,
+      hasHeader: true,
+      sectionCount: 5, // Typography, Color, Border, Value Format, Templates
       stylesCloned: expect.any(Number),
-      popOutBtnHidden: true,
     });
   });
 
@@ -118,10 +129,12 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     expect(title).toContain('demo-blotter-v2');
   });
 
-  test('shadcn popovers (templates menu) from the popped toolbar render INSIDE the popout', async ({ page }) => {
-    // Templates menu trigger is disabled until at least one cell is
-    // selected (no column context = no template to apply). Click a
-    // cell first so the Radix Popover trigger is enabled + clickable.
+  test('shadcn popovers (color picker) from the popped panel render INSIDE the popout', async ({ page }) => {
+    // Most of the panel's editors render inline — but the color
+    // picker is still a popover. Regression: that popover must
+    // portal into the POPOUT's document, not main's, so clicks on
+    // its swatches hit-test correctly. Click a cell so the picker
+    // is enabled + clickable.
     await page.locator('.ag-row .ag-cell[col-id="price"]').first().click();
     await page.waitForTimeout(100);
 
@@ -131,10 +144,13 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     const before = await page.evaluate(() => document.querySelectorAll('[data-radix-popper-content-wrapper]').length);
     expect(before).toBe(0);
 
-    // Click the templates menu trigger inside the popout iframe.
+    // Trigger the Text color picker inside the panel. The compact
+    // ColorPickerPopover renders an unlabeled button with
+    // `.gc-tbtn` — pick the first one under the panel's COLOR
+    // section (section index 02).
     const clicked = await page.evaluate(() => {
       const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
-      const btn = iframe?.contentDocument?.querySelector('[data-testid="templates-menu-trigger"]') as HTMLElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-section-index="02"] button') as HTMLElement | null;
       if (!btn) return false;
       btn.click();
       return true;
@@ -154,11 +170,10 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     expect(where.wrappersInPopout).toBeGreaterThanOrEqual(1);
   });
 
-  test('popout auto-grows when a popover opens and shrinks back when it closes', async ({ page }) => {
-    // Instrument `resizeTo` on the iframe's contentWindow so we can
-    // assert the grow/shrink cycle. The stub's iframe is a passable
-    // proxy for a real OS window — `resizeTo` is a no-op here but
-    // the counter captures intent.
+  // The auto-grow/shrink dance is gone — the popout is now a
+  // fixed 400×620 properties panel where every editor is inline,
+  // so there's no popover tall enough to outgrow the window.
+  test('popout does NOT call resizeTo on popover-open (no auto-resize in the panel design)', async ({ page }) => {
     await page.evaluate(() => {
       (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls = [];
     });
@@ -176,33 +191,19 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
       };
     });
 
-    // Open a popover inside the popped toolbar — value-format picker
-    // trigger is always rendered.
+    // Open the color picker (the only popover still present in the
+    // panel design). Fixed-size panel should NOT trigger a resize.
     await page.evaluate(() => {
       const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
-      const btn = iframe?.contentDocument?.querySelector('[data-testid="fmt-picker-toolbar-trigger"]') as HTMLElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-section-index="02"] button') as HTMLElement | null;
       btn?.click();
     });
     await page.waitForTimeout(300);
 
-    const afterOpen = await page.evaluate(
+    const calls = await page.evaluate(
       () => (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls,
     );
-    // The grow call should have the toolbar's expandedHeight (560).
-    expect(afterOpen.some((c) => c.h === 560 && c.w === 900)).toBe(true);
-
-    // Dismiss via Esc → popover closes → shrink back.
-    await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
-      iframe?.contentDocument?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    await page.waitForTimeout(300);
-
-    const afterClose = await page.evaluate(
-      () => (window as unknown as { __popoutResizeCalls: { w: number; h: number }[] }).__popoutResizeCalls,
-    );
-    // A shrink call back to the 120 base height must follow.
-    expect(afterClose.some((c) => c.h === 120 && c.w === 900)).toBe(true);
+    expect(calls.length).toBe(0);
   });
 
   test('re-clicking the brush button while popped focuses the popout instead of closing inline', async ({ page }) => {

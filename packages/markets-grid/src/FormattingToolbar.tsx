@@ -81,6 +81,7 @@ import {
   DollarSign, Percent, Hash,
   Plus,
 } from 'lucide-react';
+import { FormattingPropertiesPanel } from './FormattingPropertiesPanel';
 
 // Extracted sibling modules — see AUDIT i1 split. Presets + pure helpers
 // live in `formatterPresets.ts`; hooks + api reads in
@@ -395,45 +396,82 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
   //
   // `popped` + `PopoutButton` flow from Poppable's render-prop below;
   // the toolbar hoists them up via closure for use inside the JSX.
+  // Figma-style properties panel as the popped-out layout. No more
+  // auto-resize gymnastics — the panel's fixed 400×620 shell hosts
+  // every editor inline, so popovers aren't needed inside the
+  // popout. The compact toolbar stays for the inline-in-grid case
+  // where a horizontal strip is the right metaphor.
+  const templateListForPanel = templateList.map((t) => ({ id: t.id, name: t.name }));
+  const activeTemplateId = colIds.length > 0
+    ? custState?.assignments?.[colIds[0]]?.templateIds?.[0]
+    : undefined;
+
   return (
     <Poppable
       ref={ref}
       name={`gc-popout-toolbar-${platform.gridId}`}
       title={`Formatting — ${platform.gridId}`}
-      width={900}
-      height={120}
+      // 400×620 is the user-confirmed size for the properties panel:
+      // fits all five sections at once on a standard viewport, tall
+      // enough that scrolling is rare but readily possible. The
+      // compact toolbar still uses its natural max-content width
+      // when NOT popped — this dim only applies to the OS window.
+      width={400}
+      height={620}
       // alwaysOnTop: honored by OpenFin (pins the popout above all
       // other windows — what traders want for a styling tool they
       // return to constantly). Browsers silently ignore it since the
       // web platform has no equivalent API. See openFin.ts for the
       // runtime split.
       alwaysOnTop
-      // Auto-grow to 560px while a popover is open inside the
-      // popout — the Format picker / Templates menu / Color
-      // picker can be 300-500px tall and would otherwise be
-      // clipped by the compact 120px base height. Shrinks back
-      // to 120px when the last popover closes, so the window
-      // stays out of the user's way.
-      expandedHeight={560}
     >
-      {({ popped, PopoutButton }) => (
+      {({ popped, PopoutButton }) => {
+        if (popped) {
+          return (
+            <FormattingPropertiesPanel
+              disabled={disabled}
+              isHeader={isHeader}
+              target={target}
+              colLabel={colLabel}
+              fmt={fmt}
+              pickerDataType={pickerDataType}
+              previewText={previewText}
+              templateList={templateListForPanel}
+              activeTemplateId={activeTemplateId}
+              saveAsTplName={saveAsTplName}
+              saveAsTplConfirmed={saveAsTplConfirmed}
+              setTarget={setTarget}
+              toggleBold={toggleBold}
+              toggleItalic={toggleItalic}
+              toggleUnderline={toggleUnderline}
+              setFontSizePx={setFontSizePx}
+              toggleAlign={toggleAlign}
+              setTextColor={setTextColor}
+              setBgColor={setBgColor}
+              applyBordersMap={applyBordersMap}
+              doFormat={doFormat}
+              doApplyTemplate={doApplyTemplate}
+              doSaveAsTemplate={doSaveAsTemplate}
+              doClearAllStyles={doClearAllStyles}
+              setSaveAsTplName={setSaveAsTplName}
+              flashSaveAsTpl={flashSaveAsTpl}
+            />
+          );
+        }
+        return (
     <div
       className={cn(
         'gc-formatting-toolbar flex flex-col gap-0 bg-card text-xs relative z-[10000]',
         !disabled && 'gc-toolbar-enabled',
         disabled && 'gc-toolbar-disabled',
-        popped && 'is-popped',
       )}
-      style={popped
-        ? { width: '100%', maxWidth: 'none', height: '100%', flex: '1 1 auto' }
-        : {
-            // Natural content width, capped at viewport. Rows flex-wrap inside.
-            width: 'max-content',
-            maxWidth: 'calc(100vw - 96px)',
-            flex: '0 1 auto',
-          }}
+      style={{
+        // Natural content width, capped at viewport. Rows flex-wrap inside.
+        width: 'max-content',
+        maxWidth: 'calc(100vw - 96px)',
+        flex: '0 1 auto',
+      }}
       data-testid="formatting-toolbar"
-      data-popped={popped ? 'true' : undefined}
       onMouseDown={(e) => {
         const tag = (e.target as HTMLElement).tagName;
         if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
@@ -1032,7 +1070,8 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
       </div>
 
     </div>
-      )}
+        );
+      }}
     </Poppable>
   );
 });
