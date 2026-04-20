@@ -119,6 +119,48 @@ test.describe('v2 — settings sheet pop-out window', () => {
     expect(backdropCount).toBe(0);
   });
 
+  test('re-clicking the settings icon while popped focuses the popout window (no second window, no inline re-open)', async ({ page }) => {
+    // Instrument the iframe stub's contentWindow so we can tell when
+    // `focus()` is called on it — a popout buried behind other OS
+    // windows should come to front on settings-icon re-click.
+    await page.evaluate(() => {
+      (window as unknown as { __focusCalls: number }).__focusCalls = 0;
+    });
+    await page.locator('[data-testid="v2-settings-popout-btn"]').click();
+    await page.waitForTimeout(400);
+
+    // Patch the popout iframe's contentWindow.focus so the counter
+    // bumps on each call. We do this AFTER the popout is opened so
+    // we only measure the user-initiated re-click, not the portal
+    // itself.
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[data-popout-iframe]') as HTMLIFrameElement | null;
+      const win = iframe?.contentWindow as unknown as { focus: () => void } | null;
+      if (!win) return;
+      const orig = win.focus?.bind(win) ?? (() => {});
+      win.focus = () => {
+        (window as unknown as { __focusCalls: number }).__focusCalls += 1;
+        orig();
+      };
+    });
+
+    // Re-click the settings icon — should raise the popout.
+    await page.locator('[data-testid="v2-settings-open-btn"]').click();
+    await page.waitForTimeout(200);
+
+    const focusCalls = await page.evaluate(
+      () => (window as unknown as { __focusCalls: number }).__focusCalls,
+    );
+    expect(focusCalls).toBeGreaterThanOrEqual(1);
+
+    // And no second popout iframe was opened + the sheet did NOT
+    // re-mount inline (there's no backdrop in the main doc).
+    const iframeCount = await page.locator('iframe[data-popout-iframe]').count();
+    expect(iframeCount).toBe(1);
+    const backdropCount = await page.locator('[data-testid="v2-settings-overlay"]').count();
+    expect(backdropCount).toBe(0);
+  });
+
   test('popout window title is suffixed with the grid\'s gridId', async ({ page }) => {
     // Users with multiple grids (e.g. the two-grid dashboard) need to
     // tell popout windows apart in the OS taskbar — the window title

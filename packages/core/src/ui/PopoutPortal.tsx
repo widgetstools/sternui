@@ -58,6 +58,14 @@ export interface PopoutPortalProps {
    * OpenFin so `fin.Window.create(...)` is used instead.
    */
   openWindow?: (opts: { name: string; width: number; height: number }) => Window | Promise<Window | null> | null;
+  /**
+   * Fires once the popout window has been created and its document
+   * prepared. Callers that need to programmatically focus / inspect
+   * the window later (e.g. the MarketsGrid settings icon wanting to
+   * raise the popout when the user re-clicks it) should stash the
+   * reference from this callback. Cleared when the portal unmounts.
+   */
+  onWindowOpened?: (win: Window) => void;
 }
 
 export function PopoutPortal({
@@ -68,6 +76,7 @@ export function PopoutPortal({
   width = 900,
   height = 700,
   openWindow,
+  onWindowOpened,
 }: PopoutPortalProps) {
   const [popout, setPopout] = useState<Window | null>(null);
   // Ref holds the latest onClose so the polling effect below doesn't
@@ -75,6 +84,8 @@ export function PopoutPortal({
   // re-renders with a new closure.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const onWindowOpenedRef = useRef(onWindowOpened);
+  onWindowOpenedRef.current = onWindowOpened;
 
   // ── Open the window on mount ──────────────────────────────────────
   useEffect(() => {
@@ -102,6 +113,7 @@ export function PopoutPortal({
 
       prepareDocument(w, title);
       setPopout(w);
+      onWindowOpenedRef.current?.(w);
     };
 
     void open();

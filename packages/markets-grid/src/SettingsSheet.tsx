@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   PopoutPortal,
   SharpBtn,
@@ -59,6 +59,23 @@ export interface SettingsSheetProps {
   initialModuleId?: string;
 }
 
+/**
+ * Imperative handle exposed via `ref` on `<SettingsSheet>`. Lets the
+ * hosting grid (MarketsGrid) check whether the sheet is currently
+ * popped out and, if so, raise the OS window — used when the user
+ * re-clicks the settings icon while the popout is buried behind
+ * other windows.
+ */
+export interface SettingsSheetHandle {
+  /**
+   * Bring the popout OS window to the front if the sheet is popped
+   * out and the window is still alive. Returns `true` if focus was
+   * requested, `false` otherwise — callers should then fall back to
+   * their normal "toggle settings open" flow.
+   */
+  focusIfPopped(): boolean;
+}
+
 function ensureStyles() {
   if (typeof document === 'undefined') return;
   // Inject the cockpit popout stylesheet. The v1-era settingsCSS
@@ -75,12 +92,12 @@ function ensureStyles() {
   }
 }
 
-export function SettingsSheet({
+export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>(function SettingsSheet({
   modules,
   open,
   onClose,
   initialModuleId,
-}: SettingsSheetProps) {
+}: SettingsSheetProps, ref) {
   // Every module panel is already mounted inside MarketsGrid's
   // <GridProvider>, so `useGridPlatform()` is always valid here. Pull
   // `gridId` from the platform instead of threading a redundant `core`
@@ -116,6 +133,28 @@ export function SettingsSheet({
   // flow without any sync layer. Closing the OS window flips this
   // back to false and the sheet re-mounts inline.
   const [popped, setPopped] = useState(false);
+  // Live ref to the popout OS window once opened. Used by the
+  // `focusIfPopped` imperative handle so the hosting grid can raise
+  // a buried popout when the user re-clicks the settings icon.
+  // Cleared whenever we return to inline mode (the window closes
+  // alongside the portal unmount).
+  const popoutWindowRef = useRef<Window | null>(null);
+  useEffect(() => {
+    if (!popped) popoutWindowRef.current = null;
+  }, [popped]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusIfPopped() {
+        const win = popoutWindowRef.current;
+        if (!popped || !win || win.closed) return false;
+        try { win.focus(); } catch { /* cross-origin or closed */ }
+        return true;
+      },
+    }),
+    [popped],
+  );
 
   const [selectedByModule, setSelectedByModule] = useState<Record<string, string | null>>({});
 
@@ -457,6 +496,10 @@ export function SettingsSheet({
           height={700}
           onClose={() => setPopped(false)}
           openWindow={openFinWindowOpener()}
+          // Stash the live window ref so `focusIfPopped()` can
+          // raise it to front when the user re-clicks the settings
+          // icon while the popout is buried.
+          onWindowOpened={(win) => { popoutWindowRef.current = win; }}
         >
           {sheet}
         </PopoutPortal>
@@ -476,4 +519,4 @@ export function SettingsSheet({
       {sheet}
     </div>
   );
-}
+});

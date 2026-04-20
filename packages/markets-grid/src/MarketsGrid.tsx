@@ -37,7 +37,7 @@ import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar } from './FormattingToolbar';
-import { SettingsSheet } from './SettingsSheet';
+import { SettingsSheet, type SettingsSheetHandle } from './SettingsSheet';
 import { ProfileSelector } from './ProfileSelector';
 
 let _agRegistered = false;
@@ -259,6 +259,20 @@ function Host<TData>({
 
   // Settings sheet — the Cockpit popout drawer.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Imperative handle into the SettingsSheet so the settings-icon
+  // click handler can raise a buried popout window to front instead
+  // of no-op-opening an already-open sheet. See handleOpenSettings
+  // below for the full policy.
+  const sheetRef = useRef<SettingsSheetHandle>(null);
+
+  const handleOpenSettings = useCallback(() => {
+    // If the sheet is already popped out into an OS window that's
+    // alive, raise it to front (it may be buried behind other
+    // windows) and bail. Otherwise fall through to the normal
+    // "open inline" path.
+    if (sheetRef.current?.focusIfPopped()) return;
+    setSettingsOpen(true);
+  }, []);
 
   // Formatting toolbar — always starts hidden. The Brush button on the
   // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
@@ -479,7 +493,7 @@ function Host<TData>({
                 <button
                   type="button"
                   className="gc-primary-action"
-                  onClick={() => setSettingsOpen(true)}
+                  onClick={handleOpenSettings}
                   title="Open settings"
                   data-testid="v2-settings-open-btn"
                 >
@@ -540,6 +554,7 @@ function Host<TData>({
       </div>
 
       <SettingsSheet
+        ref={sheetRef}
         modules={modules}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

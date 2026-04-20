@@ -186,6 +186,22 @@ describe('PopoutPortal', () => {
     expect(fake.document.title).toBe('Grid Customizer — grid-B');
   });
 
+  it('fires onWindowOpened exactly once with the opened Window reference', async () => {
+    const fake = createFakePopout();
+    vi.spyOn(window, 'open').mockImplementation(() => fake.win);
+    const onWindowOpened = vi.fn();
+
+    render(
+      <PopoutPortal name="onopen" onClose={() => {}} onWindowOpened={onWindowOpened}>
+        <div />
+      </PopoutPortal>,
+    );
+    await act(async () => {});
+
+    expect(onWindowOpened).toHaveBeenCalledTimes(1);
+    expect(onWindowOpened).toHaveBeenCalledWith(fake.win);
+  });
+
   it('uses a custom openWindow callback when provided (OpenFin path)', async () => {
     const fake = createFakePopout();
     const customOpen = vi.fn(async () => fake.win);
