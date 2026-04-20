@@ -676,7 +676,12 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
             </Row>
           </Section>
 
-          {/* 04 VALUE FORMAT */}
+          {/* 04 VALUE FORMAT — vertical layout: preset dropdown on
+              top, custom Excel input below. Fits the 360px panel
+              column without horizontal overflow. The header's
+              preview chip covers the live-preview affordance; the
+              vertical layout suppresses FormatterPicker's own
+              inline preview to avoid duplication. */}
           <Section index="04" title="Value Format">
             <Row align="start">
               <FormatterPicker
@@ -684,6 +689,7 @@ export function FormattingPropertiesPanel(props: FormattingPropertiesPanelProps)
                 onChange={(t) => doFormat(t)}
                 dataType={pickerDataType}
                 compact={false}
+                layout="vertical"
               />
             </Row>
           </Section>

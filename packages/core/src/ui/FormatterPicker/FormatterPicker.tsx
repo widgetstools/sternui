@@ -56,6 +56,18 @@ export interface FormatterPickerProps {
   /** Toolbar = true, editors = false. Controls the entire
    *  presentation (popover vs inline). */
   compact?: boolean;
+  /**
+   * Inline (non-compact) layout direction. `horizontal` (default)
+   * is one row: collapse-chevron + preset + custom + info + preview.
+   * `vertical` stacks: preset on top (full width), custom + info
+   * below (full width), preview suppressed (the host should own a
+   * preview chip elsewhere — e.g. in a panel header).
+   *
+   * Vertical is designed for narrow panels (≤400px) like the
+   * FormattingPropertiesPanel popout, where a single-row layout
+   * would overflow the column.
+   */
+  layout?: 'horizontal' | 'vertical';
   'data-testid'?: string;
 }
 
@@ -219,6 +231,7 @@ export function FormatterPicker({
   sampleValue,
   defaultCollapsed = false,
   compact = false,
+  layout = 'horizontal',
   'data-testid': testId,
 }: FormatterPickerProps) {
   const presets = useMemo(() => presetsForDataType(dataType), [dataType]);
@@ -312,6 +325,7 @@ export function FormatterPicker({
       pickPreset={pickPreset}
       dataType={dataType}
       defaultCollapsed={defaultCollapsed}
+      layout={layout}
       testId={testId}
     />
   );
@@ -681,10 +695,112 @@ function InlineFormatterPicker({
   pickPreset,
   dataType,
   defaultCollapsed,
+  layout = 'horizontal',
   testId,
-}: SharedBodyProps & { defaultCollapsed: boolean }) {
+}: SharedBodyProps & { defaultCollapsed: boolean; layout?: 'horizontal' | 'vertical' }) {
   const [expanded, setExpanded] = useState(!defaultCollapsed);
   const rowHeight = 28;
+
+  // Vertical layout: stack preset on top, custom input + info below.
+  // No collapse chevron (the host section is always-expanded in this
+  // layout). No inline preview (host header owns that). Everything
+  // full-width so it fits a narrow (≤360px) column without overflow.
+  if (layout === 'vertical') {
+    return (
+      <div
+        data-testid={testId}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          width: '100%',
+        }}
+      >
+        {/* Preset row — full-width dropdown trigger */}
+        <FormatDropdown<string>
+          value={activePreset?.id ?? ''}
+          onChange={(id) => {
+            const match = presets.find((p) => p.id === id);
+            if (match) pickPreset(match);
+          }}
+          options={presets.map((p) => ({
+            value: p.id,
+            label: p.hint ? `${p.label} — ${p.hint}` : p.label,
+          }))}
+          width={280}
+          trigger={
+            <button
+              type="button"
+              title="Presets"
+              data-testid={testId ? `${testId}-preset` : undefined}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                width: '100%',
+                height: rowHeight,
+                padding: '0 8px 0 10px',
+                background: 'var(--background)',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                color: 'var(--foreground)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 11,
+                letterSpacing: '0.02em',
+              }}
+            >
+              <span
+                style={{
+                  flex: 1,
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {activePreset?.label ?? 'Preset…'}
+              </span>
+              <ChevronDown size={12} strokeWidth={1.75} style={{ opacity: 0.6 }} />
+            </button>
+          }
+        />
+
+        {/* Custom format row — input grows, info tooltip pinned right */}
+        <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <IconInput
+              icon={<Hash size={12} strokeWidth={2} />}
+              value={draftExcel}
+              onChange={(v) => {
+                setDraftExcel(v);
+                const trimmed = v.trim();
+                if (!trimmed) {
+                  if (value?.kind === 'excelFormat') onChange(undefined);
+                  return;
+                }
+                if (isValidExcelFormat(trimmed)) {
+                  onChange({ kind: 'excelFormat', format: trimmed });
+                }
+              }}
+              onCommit={commitExcel}
+              monospace
+              placeholder={dataType === 'date' || dataType === 'datetime' ? 'yyyy-mm-dd' : '#,##0.00'}
+              error={!isExcelValid}
+              data-testid={testId ? `${testId}-excel` : undefined}
+            />
+          </div>
+          <ExcelReferencePopover
+            onPick={(format) => {
+              setDraftExcel(format);
+              commitExcel(format);
+            }}
+            data-testid={testId ? `${testId}-info` : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!expanded) {
     return (
