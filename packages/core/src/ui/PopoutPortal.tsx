@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PortalContainerProvider } from './PortalContainer';
 
@@ -313,13 +313,44 @@ export function PopoutPortal({
   }, [popout, expandedHeight, width, height]);
 
   // ── The mount node inside the popout's body ───────────────────────
-  const mountNode = useMemo(() => {
-    if (!popout) return null;
-    const node = popout.document.createElement('div');
-    node.setAttribute('data-popout-root', '');
-    node.style.cssText = 'width:100%;height:100vh;display:flex;flex-direction:column;';
-    popout.document.body.appendChild(node);
-    return node;
+  // Previously done in a `useMemo` — WRONG: useMemo runs during the
+  // render phase where side effects (appendChild) are illegal.
+  // React 19 StrictMode double-invokes useMemo in dev, so TWO divs
+  // were appended on every mount and the first one (empty, flex
+  // sized to 100vh) would overlay the second. Under OpenFin that
+  // manifested as "popout opens but no content" — the content was
+  // there, hidden behind a same-size empty div from the first run.
+  //
+  // Correct pattern: a side-effecting useEffect that returns a
+  // cleanup. StrictMode's mount-unmount-mount cycle now yields a
+  // single mount node in the final committed state, and every
+  // mutation of `popout` triggers a clean teardown + recreate.
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!popout) return;
+    let node: HTMLElement | null = null;
+    try {
+      if (!popout.document?.body) {
+        // Body still pending — shouldn't happen since prepareDocument
+        // awaits readyState, but log clearly if it does. The portal
+        // will re-try on the next popout change (unlikely in practice
+        // since popout is set once).
+        console.warn('[PopoutPortal] popout.document.body unavailable at mount — is the window fully loaded?');
+        return;
+      }
+      node = popout.document.createElement('div');
+      node.setAttribute('data-popout-root', '');
+      node.style.cssText = 'width:100%;height:100vh;display:flex;flex-direction:column;';
+      popout.document.body.appendChild(node);
+    } catch (err) {
+      console.warn('[PopoutPortal] failed to create mount node:', err);
+      return;
+    }
+    setMountNode(node);
+    return () => {
+      try { node?.remove(); } catch { /* document may already be closed */ }
+      setMountNode(null);
+    };
   }, [popout]);
 
   if (!popout || !mountNode) return null;

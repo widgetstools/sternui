@@ -105,6 +105,14 @@ describe('PopoutPortal', () => {
     expect(fake.document.querySelector('[data-testid="portalled-child"]')).not.toBeNull();
     // And inside the data-popout-root mount node.
     expect(fake.document.querySelector('[data-popout-root] [data-testid="portalled-child"]')).not.toBeNull();
+    // Regression: there must be EXACTLY ONE mount node. An earlier
+    // `useMemo` + appendChild pattern was a render-phase side
+    // effect; React 19 StrictMode double-invokes useMemo so two
+    // divs ended up in the body, and the empty first one overlaid
+    // the second under OpenFin — the symptom was "popout opens but
+    // shows no content". The mountNode is now a useEffect with
+    // clean teardown, so only one is present.
+    expect(fake.document.querySelectorAll('[data-popout-root]').length).toBe(1);
   });
 
   it('clones stylesheets from the main document into the popout head', async () => {
