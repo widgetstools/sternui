@@ -5,7 +5,7 @@ import {
   useModuleState,
   type SavedFiltersState,
 } from '@grid-customizer/core';
-import { Plus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight, Brush } from 'lucide-react';
+import { FunnelPlus, Pencil, Trash2, FunnelX, ChevronLeft, ChevronRight, Brush } from 'lucide-react';
 import type { SavedFilter } from './types';
 import {
   doesRowMatchFilterModel,
@@ -369,7 +369,7 @@ export function FiltersToolbar({
             onClick={handleDeactivateAll}
             title="Clear all filters"
           >
-            <FunnelX size={20} strokeWidth={2.75} />
+            <FunnelX size={16} strokeWidth={2.75} />
           </button>
         )}
 
@@ -390,7 +390,7 @@ export function FiltersToolbar({
             cursor: hasNewFilter ? 'pointer' : 'not-allowed',
           }}
         >
-          <Plus size={20} strokeWidth={3} />
+          <FunnelPlus size={16} strokeWidth={2.75} />
         </button>
 
         {onToggleStyleToolbar && (
