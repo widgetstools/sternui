@@ -304,3 +304,161 @@ describe('ProfileManager — reload persistence', () => {
     }
   });
 });
+
+describe('ProfileManager — phantom-profile regressions', () => {
+  /**
+   * The three paths that used to auto-generate ghost profile rows on
+   * delete / create. The fix forbids `persistActive` from implicitly
+   * creating missing rows + reorders `remove()` and `create()` so no
+   * concurrent save can find a stale activeId pointing at a
+   * non-existent row.
+   */
+
+  it('save() after an external delete does NOT resurrect the deleted profile', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Create + switch to a user profile, then simulate a concurrent
+    // tab deleting it from underneath (we just hit the adapter
+    // directly — the manager's own activeId stays pointing at 'p1').
+    await manager.create('P1');
+    expect(manager.getState().activeId).toBe('p1');
+
+    await adapter.deleteProfile(platform.gridId, 'p1');
+
+    // User makes edits + clicks Save. Pre-fix this would call
+    // persistActive, find no row, and auto-create a ghost with the
+    // current in-memory state.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['ghost'] }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await manager.save();
+    warn.mockRestore();
+
+    const row = await adapter.loadProfile(platform.gridId, 'p1');
+    expect(row).toBeNull();
+
+    manager.dispose();
+  });
+
+  it('remove() of the active profile flips activeId to Default BEFORE deleting the row', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    await manager.create('P2');
+    expect(manager.getState().activeId).toBe('p2');
+
+    // Observe the activeId timeline during the delete. The pointer
+    // MUST land on Default before (or at least without passing through
+    // a window where) the row exists but activeId points at a gone id.
+    const activeIdTimeline: string[] = [manager.getState().activeId];
+    manager.subscribe((s) => {
+      const last = activeIdTimeline[activeIdTimeline.length - 1];
+      if (s.activeId !== last) activeIdTimeline.push(s.activeId);
+    });
+    const deleteSpy = vi.spyOn(adapter, 'deleteProfile');
+
+    await manager.remove('p2');
+
+    // activeId transitioned p2 → __default__, not p2 → p2 → __default__.
+    expect(activeIdTimeline).toEqual(['p2', RESERVED_DEFAULT_PROFILE_ID]);
+    // By the time deleteProfile was called, the manager's activeId
+    // was already Default.
+    expect(deleteSpy).toHaveBeenCalledWith(platform.gridId, 'p2');
+    expect(manager.getState().activeId).toBe(RESERVED_DEFAULT_PROFILE_ID);
+    // And the row is gone.
+    expect(await adapter.loadProfile(platform.gridId, 'p2')).toBeNull();
+
+    manager.dispose();
+  });
+
+  it('create() writes the row to disk BEFORE flipping activeId (no ghost window)', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Instrument saveProfile so we can capture the manager's activeId
+    // AT THE MOMENT the adapter write is invoked. Pre-fix, activeId
+    // was flipped BEFORE saveProfile ran — so a concurrent save()
+    // would observe activeId='p3' with no p3 row on disk.
+    const activeIdAtWrite: string[] = [];
+    const orig = adapter.saveProfile.bind(adapter);
+    vi.spyOn(adapter, 'saveProfile').mockImplementation(async (snap) => {
+      activeIdAtWrite.push(manager.getState().activeId);
+      return orig(snap);
+    });
+
+    await manager.create('P3');
+
+    // At the point of the new profile's write, activeId was STILL
+    // the previous one (Default) — not the new one.
+    expect(activeIdAtWrite).toEqual([RESERVED_DEFAULT_PROFILE_ID]);
+    // After create() returns, the flip has landed.
+    expect(manager.getState().activeId).toBe('p3');
+    // And the row exists.
+    expect(await adapter.loadProfile(platform.gridId, 'p3')).not.toBeNull();
+
+    manager.dispose();
+  });
+
+  it('create() restores the outgoing profile\'s UI state until the commit succeeds', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Put some state under Default + save it.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['default-rule'] }));
+    await manager.save();
+
+    // Also make some un-committed edits on top.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['default-rule', 'unsaved'] }));
+
+    // Capture the live store state seen by a subscriber DURING the
+    // create() call. The snapshot-and-restore dance inside create()
+    // must not expose a window where the live store is blank before
+    // the new profile has committed.
+    const observed: string[][] = [];
+    const unsub = platform.store.subscribe(() => {
+      observed.push([...platform.store.getModuleState<StyleState>('style').rules]);
+    });
+
+    await manager.create('P4');
+    unsub();
+
+    // At the end, we're on P4 (blank).
+    expect(manager.getState().activeId).toBe('p4');
+    expect(platform.store.getModuleState<StyleState>('style').rules).toEqual([]);
+    // The underlying Default row kept its committed state. Module
+    // state is stored inside a `{ v, data }` envelope on disk.
+    const defRow = await adapter.loadProfile(platform.gridId, RESERVED_DEFAULT_PROFILE_ID);
+    const defStyle = (defRow?.state.style as { v: number; data: StyleState } | undefined);
+    expect(defStyle?.data.rules).toEqual(['default-rule']);
+
+    manager.dispose();
+  });
+
+  it('remove() of a non-active profile leaves the active profile untouched', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    await manager.create('Keep');
+    await manager.create('Drop');
+    // Switch back to Keep so Drop is non-active.
+    await manager.load('keep');
+    expect(manager.getState().activeId).toBe('keep');
+
+    await manager.remove('drop');
+
+    expect(manager.getState().activeId).toBe('keep');
+    expect(await adapter.loadProfile(platform.gridId, 'drop')).toBeNull();
+    expect(await adapter.loadProfile(platform.gridId, 'keep')).not.toBeNull();
+    manager.dispose();
+  });
+});

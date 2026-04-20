@@ -269,11 +269,21 @@ export class ProfileManager {
   /** Create a new profile, seeded from the module's `getInitialState()` for
    *  every module (so it's a true blank slate, not a clone of the current).
    *
-   *  Same ordering contract as `load()`: flush pending auto-save against
-   *  the OLD profile first, then flip the active-id pointer, then mutate.
-   *  Without flushing first, a debounced save from the previous profile
-   *  would land on the NEW profile's snapshot between the reset and the
-   *  adapter write — rare but real state bleed.
+   *  Ordering contract (prevents the "phantom profile on create" bug):
+   *   1. Flush any pending auto-save against the OLD profile so its
+   *      in-memory edits aren't leaked into the new one.
+   *   2. Capture a blank snapshot from a temporarily-reset store, then
+   *      restore the OLD store state. This means the new profile's
+   *      on-disk row reflects fresh module defaults and the current
+   *      profile's UI state doesn't flicker.
+   *   3. Write the new profile row to IDB.
+   *   4. ONLY THEN flip `activeId` + localStorage pointer + hydrate
+   *      the store from the new blank state. If step 4 happened
+   *      before step 3, a concurrent save() (or legacy auto-save
+   *      tick) would find `state.activeId = newId` with no
+   *      corresponding row on disk and — via the old persistActive
+   *      implicit-upsert — write a ghost snapshot using whatever
+   *      state happened to be in memory at that moment.
    */
   async create(name: string, options?: { id?: string }): Promise<ProfileMeta> {
     const id = options?.id ?? slugId(name);
@@ -282,35 +292,50 @@ export class ProfileManager {
     }
     const { gridId } = this.platform;
 
-    // Flush the old profile's pending debounce before flipping the pointer
-    // (legacy auto-save only). With auto-save disabled, create() always
-    // discards the outgoing profile's in-memory edits — the markets-grid
-    // host prompts the user before reaching this codepath.
+    // Step 1 — flush old-profile's pending debounce (legacy only).
     if (this.autoSave) await this.autoSave.flushNow();
 
-    // Flip BEFORE mutating (see load()'s rationale).
-    this.updateState({ activeId: id });
-    writeActiveId(gridId, id);
-
+    // Step 2 — capture a blank snapshot WITHOUT mutating the live
+    // store yet. We take a copy of the current serialized state,
+    // reset → serialize → restore, all while dirty is suppressed so
+    // the user's current edits aren't tripped as "dirty" by this
+    // round-trip. This keeps the current profile's UI intact until
+    // the commit (step 3) succeeds.
+    const savedState = this.platform.serializeAll();
     this.dirtySuppressDepth++;
+    let blankState: Record<string, SerializedState>;
     try {
       this.platform.resetAll();
+      blankState = this.platform.serializeAll();
+      this.platform.deserializeAll(savedState);
     } finally {
       this.dirtySuppressDepth--;
     }
 
+    // Step 3 — commit the new profile row. If this throws, the
+    // active-id pointer is unchanged and no phantom lingers.
     const now = Date.now();
     const snap: ProfileSnapshot = {
       id,
       gridId,
       name: name.trim() || id,
-      state: this.platform.serializeAll(),
+      state: blankState,
       createdAt: now,
       updatedAt: now,
     };
     await this.adapter.saveProfile(snap);
-    // Cancel the debounce scheduled by resetAll(); the snapshot is already
-    // on disk.
+
+    // Step 4 — flip pointer + hydrate the live store from the blank
+    // snapshot. Same shape as `load()`.
+    this.updateState({ activeId: id });
+    writeActiveId(gridId, id);
+    this.dirtySuppressDepth++;
+    try {
+      this.platform.resetAll();
+      this.platform.deserializeAll(blankState);
+    } finally {
+      this.dirtySuppressDepth--;
+    }
     this.autoSave?.cancelScheduled();
     this.updateState({ isDirty: false });
 
@@ -321,18 +346,60 @@ export class ProfileManager {
   }
 
   /** Delete a profile. Default is immutable; falls back to Default on delete
-   *  of the currently-active profile. */
+   *  of the currently-active profile.
+   *
+   *  Ordering contract (critical — prevents the "phantom profile
+   *  resurrects on delete" bug):
+   *   1. If deleting the active profile, flip `activeId` to Default
+   *      BEFORE touching the adapter. This closes the race window
+   *      where `state.activeId` points to a doomed id — any
+   *      concurrent save() in that window would write to the
+   *      about-to-be-deleted profile and, combined with the
+   *      now-removed `persistActive` resurrect path, would resurrect
+   *      it.
+   *   2. Cancel any pending auto-save (would target the old id).
+   *   3. Delete the row.
+   *   4. Hydrate the platform store from Default (same logic as
+   *      `load()`), but skip the flush since the old profile is gone.
+   */
   async remove(id: string): Promise<void> {
     if (id === RESERVED_DEFAULT_PROFILE_ID) return;
-    this.autoSave?.cancelScheduled();
     const { gridId } = this.platform;
+    const wasActive = this.state.activeId === id;
+
+    if (wasActive) {
+      // Flip the pointer FIRST so any concurrent persist() targets
+      // Default (always exists) rather than the doomed id.
+      this.updateState({ activeId: RESERVED_DEFAULT_PROFILE_ID });
+      writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
+    }
+    this.autoSave?.cancelScheduled();
+
     await this.adapter.deleteProfile(gridId, id);
     this.platform.events.emit('profile:deleted', { gridId, profileId: id });
-    if (this.state.activeId === id) {
-      await this.load(RESERVED_DEFAULT_PROFILE_ID, { skipFlush: true });
-    } else {
-      await this.refresh();
+
+    if (wasActive) {
+      // Hydrate the store from Default. `load()` would do this but
+      // we've already flipped activeId, so we inline the hydrate to
+      // avoid a redundant updateState → double-notify of listeners.
+      const def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+      if (def) {
+        this.dirtySuppressDepth++;
+        try {
+          this.platform.resetAll();
+          this.platform.deserializeAll(def.state);
+        } finally {
+          this.dirtySuppressDepth--;
+        }
+        this.autoSave?.cancelScheduled();
+        this.updateState({ isDirty: false });
+        this.platform.events.emit('profile:loaded', {
+          gridId,
+          profileId: RESERVED_DEFAULT_PROFILE_ID,
+        });
+      }
     }
+    await this.refresh();
   }
 
   async rename(id: string, name: string): Promise<void> {
@@ -446,13 +513,35 @@ export class ProfileManager {
     const id = this.state.activeId;
     const { gridId } = this.platform;
     const existing = await this.adapter.loadProfile(gridId, id);
+
+    // Safety: persistActive runs either from the auto-save debounce
+    // callback or from save(). If the active profile no longer exists
+    // on disk — because another tab deleted it, or because the user
+    // just removed it and we raced the state flip — writing a fresh
+    // snapshot here would RESURRECT the profile with whatever
+    // in-memory state we happen to hold. That's the "phantom profiles
+    // appear when I delete" bug. Refuse the write; the manager will
+    // re-reconcile on the next load/create, and the UI can show "this
+    // profile no longer exists" if needed.
+    //
+    // The reserved Default profile is the one exception: boot()
+    // guarantees it exists, and re-seeding it on a missing row is
+    // always safe (the row could only be missing from external
+    // storage corruption / manual DB editing).
+    if (!existing && id !== RESERVED_DEFAULT_PROFILE_ID) {
+      console.warn(
+        `[profiles] refusing to persist active profile "${id}" — no such row on disk (was it deleted elsewhere?)`,
+      );
+      return;
+    }
+
     const now = Date.now();
     const next: ProfileSnapshot = existing
       ? { ...existing, state, updatedAt: now }
       : {
           id,
           gridId,
-          name: id === RESERVED_DEFAULT_PROFILE_ID ? 'Default' : id,
+          name: 'Default',
           state,
           createdAt: now,
           updatedAt: now,
