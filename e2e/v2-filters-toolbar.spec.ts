@@ -229,4 +229,30 @@ test.describe('v2 FiltersToolbar', () => {
     expect(text).toContain('My BUY Filter');
   });
 
+  test('pill-row scroll container hides the browser scrollbar', async ({ page }) => {
+    // The carousel has dedicated carets for overflow discovery
+    // (`filters-caret-left` / `filters-caret-right`). The native
+    // scrollbar is hidden to stop it from stealing vertical space or
+    // clashing with the terminal aesthetic.
+    const scrollbarChrome = await page.evaluate(() => {
+      const el = document.querySelector('.gc-filter-scroll') as HTMLElement | null;
+      if (!el) return null;
+      const styles = getComputedStyle(el);
+      return {
+        // Firefox path — `scrollbar-width: none` + Firefox-specific prop.
+        scrollbarWidth: styles.getPropertyValue('scrollbar-width').trim(),
+        // Chromium/WebKit path — measure thumb thickness by diffing
+        // offsetHeight (visible box) from clientHeight (inner box);
+        // a hidden scrollbar means 0 diff even when content overflows.
+        offsetH: el.offsetHeight,
+        clientH: el.clientHeight,
+      };
+    });
+    expect(scrollbarChrome).not.toBeNull();
+    // Firefox reports 'none'; Chromium reports '' (unsupported) but the
+    // ::-webkit-scrollbar { display: none } suppresses the chrome box.
+    expect(['none', '']).toContain(scrollbarChrome!.scrollbarWidth);
+    // Scroll chrome should add 0 px height (offset == client).
+    expect(scrollbarChrome!.offsetH).toBe(scrollbarChrome!.clientH);
+  });
 });

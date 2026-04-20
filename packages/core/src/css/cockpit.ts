@@ -185,12 +185,17 @@ export const cockpitCSS = `
  * Light mode flips via [data-theme='light'] below.
  *
  * Applies to every host-chrome surface that scrolls horizontally or
- * vertically (formatting toolbar, filter pill carousel, popout body,
- * list pane). Browser-default scrollbars otherwise render bright white
- * on top of the dark toolbar — the user's first-look bug report.
+ * vertically (formatting toolbar, popout body, list pane). Browser-
+ * default scrollbars otherwise render bright white on top of the dark
+ * toolbar — the user's first-look bug report.
+ *
+ * .gc-filter-scroll (FiltersToolbar pill carousel) is deliberately
+ * EXCLUDED — it has dedicated left/right carets that appear only when
+ * overflow exists (see .gc-filters-caret), so the scrollbar itself
+ * would be a redundant UI affordance stealing a row of vertical space.
+ * Its scrollbar is hidden in a separate block below.
  */
 .gc-formatting-toolbar,
-.gc-filter-scroll,
 .gc-popout-list-items,
 .gc-popout-body,
 .gc-popout-body main {
@@ -203,7 +208,6 @@ export const cockpitCSS = `
  * control over the track background so the thumb doesn't bleed
  * through a stray lighter area. */
 .gc-formatting-toolbar::-webkit-scrollbar,
-.gc-filter-scroll::-webkit-scrollbar,
 .gc-popout-list-items::-webkit-scrollbar,
 .gc-popout-body::-webkit-scrollbar,
 .gc-popout-body main::-webkit-scrollbar {
@@ -211,14 +215,12 @@ export const cockpitCSS = `
   width: 8px;
 }
 .gc-formatting-toolbar::-webkit-scrollbar-track,
-.gc-filter-scroll::-webkit-scrollbar-track,
 .gc-popout-list-items::-webkit-scrollbar-track,
 .gc-popout-body::-webkit-scrollbar-track,
 .gc-popout-body main::-webkit-scrollbar-track {
   background: transparent;
 }
 .gc-formatting-toolbar::-webkit-scrollbar-thumb,
-.gc-filter-scroll::-webkit-scrollbar-thumb,
 .gc-popout-list-items::-webkit-scrollbar-thumb,
 .gc-popout-body::-webkit-scrollbar-thumb,
 .gc-popout-body main::-webkit-scrollbar-thumb {
@@ -226,7 +228,6 @@ export const cockpitCSS = `
   border-radius: 4px;
 }
 .gc-formatting-toolbar::-webkit-scrollbar-thumb:hover,
-.gc-filter-scroll::-webkit-scrollbar-thumb:hover,
 .gc-popout-list-items::-webkit-scrollbar-thumb:hover,
 .gc-popout-body::-webkit-scrollbar-thumb:hover,
 .gc-popout-body main::-webkit-scrollbar-thumb:hover {
@@ -235,25 +236,40 @@ export const cockpitCSS = `
 
 /* Light-mode scrollbar palette. */
 [data-theme='light'] .gc-formatting-toolbar,
-[data-theme='light'] .gc-filter-scroll,
 [data-theme='light'] .gc-popout-list-items,
 [data-theme='light'] .gc-popout-body,
 [data-theme='light'] .gc-popout-body main {
   scrollbar-color: #c0c6cd #f5f6f8;
 }
 [data-theme='light'] .gc-formatting-toolbar::-webkit-scrollbar-thumb,
-[data-theme='light'] .gc-filter-scroll::-webkit-scrollbar-thumb,
 [data-theme='light'] .gc-popout-list-items::-webkit-scrollbar-thumb,
 [data-theme='light'] .gc-popout-body::-webkit-scrollbar-thumb,
 [data-theme='light'] .gc-popout-body main::-webkit-scrollbar-thumb {
   background: #c0c6cd;
 }
 [data-theme='light'] .gc-formatting-toolbar::-webkit-scrollbar-thumb:hover,
-[data-theme='light'] .gc-filter-scroll::-webkit-scrollbar-thumb:hover,
 [data-theme='light'] .gc-popout-list-items::-webkit-scrollbar-thumb:hover,
 [data-theme='light'] .gc-popout-body::-webkit-scrollbar-thumb:hover,
 [data-theme='light'] .gc-popout-body main::-webkit-scrollbar-thumb:hover {
   background: #9ba3ad;
+}
+
+/* ── FiltersToolbar pill carousel — hide scrollbar entirely ─────
+ * Left/right carets (.gc-filters-caret) reveal themselves only when
+ * there's actual overflow, and clicking them scrolls the pill row by
+ * 150px — that's the scroll affordance. A visible scrollbar on top of
+ * that is noisy and eats a row of vertical space on the toolbar.
+ * Content still scrolls programmatically + via mouse wheel / drag; the
+ * chrome just doesn't render.
+ */
+.gc-filter-scroll {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE / legacy Edge */
+}
+.gc-filter-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;                  /* Chromium / WebKit */
 }
 
 /* ── Backdrop + popout chrome ────────────────────────────────── */
