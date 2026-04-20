@@ -21,6 +21,10 @@ export interface ProfileManagerState {
   activeId: string;
   profiles: ProfileMeta[];
   isLoading: boolean;
+  /** True when the live platform state has diverged from the last
+   *  successful persist on the active profile. Reset to false on boot,
+   *  load, save, create, and import. */
+  isDirty: boolean;
 }
 
 type Listener = (state: ProfileManagerState) => void;
@@ -42,6 +46,7 @@ export class ProfileManager {
     activeId: RESERVED_DEFAULT_PROFILE_ID,
     profiles: [],
     isLoading: true,
+    isDirty: false,
   };
   private listeners = new Set<Listener>();
   private autoSave: AutoSaveHandle | null = null;
@@ -49,6 +54,17 @@ export class ProfileManager {
   private readonly disableAutoSave: boolean;
   private disposed = false;
   private booted = false;
+  /** Unsubscribe handle for the store listener that tracks dirty state.
+   *  Only installed when auto-save is disabled — when auto-save is on,
+   *  every store change is already persisted so there's no reason to
+   *  mark anything dirty. */
+  private dirtyUnsubscribe: (() => void) | null = null;
+  /** Counter that suppresses dirty-marking inside `load()` / `create()` /
+   *  `import()` / `boot()` — those flows synchronously mutate the
+   *  platform store as they apply a snapshot, which would otherwise
+   *  immediately flip isDirty=true. A counter (not a bool) handles
+   *  nested or interleaved calls safely. */
+  private dirtySuppressDepth = 0;
 
   constructor(opts: ProfileManagerOptions) {
     this.platform = opts.platform;
@@ -118,10 +134,17 @@ export class ProfileManager {
         }
       }
 
-      // Apply state + announce.
-      this.platform.resetAll();
-      this.platform.deserializeAll(snapshot.state);
-      this.updateState({ activeId: resolvedId });
+      // Apply state + announce. Suppress dirty-marking while the store
+      // is hydrated from the snapshot — otherwise the initial deserialize
+      // would flip isDirty=true before the user has touched anything.
+      this.dirtySuppressDepth++;
+      try {
+        this.platform.resetAll();
+        this.platform.deserializeAll(snapshot.state);
+      } finally {
+        this.dirtySuppressDepth--;
+      }
+      this.updateState({ activeId: resolvedId, isDirty: false });
       writeActiveId(gridId, resolvedId);
       this.platform.events.emit('profile:loaded', { gridId, profileId: resolvedId });
 
@@ -130,16 +153,24 @@ export class ProfileManager {
       if (this.disposed) return;
       this.updateState({ isLoading: false });
 
-      // Wire auto-save now that boot completed. Double-check disposed
-      // once more so a late teardown can't leak a running auto-save
-      // subscription on `platform.store`.
-      if (!this.disableAutoSave && !this.disposed) {
-        this.autoSave = startAutoSave({
-          platform: this.platform,
-          store: this.platform.store,
-          debounceMs: this.autoSaveDebounceMs,
-          persist: (snap) => this.persistActive(snap),
-        });
+      // Wire either the auto-save engine (legacy / tests) or the dirty
+      // tracker (production default). Double-check disposed once more so
+      // a late teardown can't leak a running subscription on
+      // `platform.store`.
+      if (!this.disposed) {
+        if (this.disableAutoSave) {
+          this.dirtyUnsubscribe = this.platform.store.subscribe(() => {
+            if (this.dirtySuppressDepth > 0 || this.disposed) return;
+            if (!this.state.isDirty) this.updateState({ isDirty: true });
+          });
+        } else {
+          this.autoSave = startAutoSave({
+            platform: this.platform,
+            store: this.platform.store,
+            debounceMs: this.autoSaveDebounceMs,
+            persist: (snap) => this.persistActive(snap),
+          });
+        }
       }
     } catch (err) {
       if (this.disposed) return;
@@ -148,34 +179,64 @@ export class ProfileManager {
     }
   }
 
-  /** Flush any pending auto-save then explicitly persist the live state. */
+  /** Flush any pending auto-save then explicitly persist the live state.
+   *  Clears the dirty flag on success. */
   async save(): Promise<void> {
     if (this.autoSave) {
       await this.autoSave.flushNow();
     } else {
       await this.persistActive(this.platform.serializeAll());
     }
+    if (this.disposed) return;
+    if (this.state.isDirty) this.updateState({ isDirty: false });
+  }
+
+  /** Throw away in-memory changes and reload the active profile from
+   *  disk. Used by the "Discard changes" action on profile switch /
+   *  beforeunload prompts. */
+  async discard(): Promise<void> {
+    if (this.disposed) return;
+    const { gridId } = this.platform;
+    const id = this.state.activeId;
+    const snap = await this.adapter.loadProfile(gridId, id);
+    if (this.disposed) return;
+    this.autoSave?.cancelScheduled();
+    this.dirtySuppressDepth++;
+    try {
+      this.platform.resetAll();
+      if (snap) this.platform.deserializeAll(snap.state);
+    } finally {
+      this.dirtySuppressDepth--;
+    }
+    this.autoSave?.cancelScheduled();
+    this.updateState({ isDirty: false });
+    this.platform.events.emit('profile:loaded', { gridId, profileId: id });
   }
 
   /** Load a profile by id. Replaces the in-memory store + flips the
-   *  active pointer. `skipFlush` skips the auto-save drain (used by
-   *  `remove()` so we don't resurrect the just-deleted profile).
+   *  active pointer.
+   *
+   *  Behavior with auto-save disabled (the default now): any unsaved
+   *  edits on the OUTGOING profile are thrown away — callers that want
+   *  to preserve them must call `save()` BEFORE `load()`. The
+   *  markets-grid host pops an AlertDialog on switch-while-dirty so
+   *  the user makes this choice explicitly.
+   *
+   *  Behavior with auto-save enabled (legacy / tests): pending writes
+   *  are flushed to the OUTGOING profile before the pointer flips, so
+   *  in-flight edits land on the right snapshot. `skipFlush` opts out
+   *  (used by `remove()` so we don't resurrect the just-deleted
+   *  profile).
    *
    *  Ordering contract (critical for state isolation):
-   *    1. Flush (or cancel) any pending auto-save targeting the CURRENT
-   *       profile — otherwise we'd persist the about-to-be-overwritten
-   *       state back to the active id AFTER the pointer flip.
-   *    2. Flip the active-id pointer BEFORE mutating the platform store.
-   *       resetAll() + deserializeAll() trigger subscriptions, which
-   *       schedule a new auto-save tick; if the pointer is still on the
-   *       old id the next persist will write the NEW state into the
-   *       OLD profile's snapshot — exactly the "style bleed" the user
-   *       reported.
-   *    3. cancelScheduled() AGAIN after the mutations because the
-   *       subscription bumps race the id flip: even with the order above
-   *       we want a clean slate on the newly-active profile — the user
-   *       explicitly loaded it, they don't expect a spurious save to
-   *       overwrite it on the next tick.
+   *    1. Settle any pending auto-save first (flush or cancel).
+   *    2. Flip the active-id pointer BEFORE mutating the platform
+   *       store. resetAll() + deserializeAll() trigger subscriptions;
+   *       if the pointer is still on the old id a persist would write
+   *       the NEW state into the OLD profile's snapshot.
+   *    3. cancelScheduled() AGAIN after the mutations: even with the
+   *       order above we want a clean slate on the newly-active
+   *       profile.
    */
   async load(id: string, opts?: { skipFlush?: boolean }): Promise<void> {
     if (this.autoSave) {
@@ -188,11 +249,19 @@ export class ProfileManager {
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
-    this.platform.resetAll();
-    this.platform.deserializeAll(snap.state);
+    // Suppress dirty-marking through resetAll + deserializeAll — we're
+    // hydrating from disk, not editing.
+    this.dirtySuppressDepth++;
+    try {
+      this.platform.resetAll();
+      this.platform.deserializeAll(snap.state);
+    } finally {
+      this.dirtySuppressDepth--;
+    }
     // Kill the debounce scheduled by resetAll + deserializeAll. The state
     // we just loaded is already on disk — no reason to re-write it.
     this.autoSave?.cancelScheduled();
+    this.updateState({ isDirty: false });
     this.platform.events.emit('profile:loaded', { gridId, profileId: id });
     await this.refresh();
   }
@@ -213,16 +282,22 @@ export class ProfileManager {
     }
     const { gridId } = this.platform;
 
-    // Flush the old profile's pending debounce before flipping the pointer.
-    // Any edits the user made under the OLD profile are persisted there,
-    // not leaked into the newly-created one.
+    // Flush the old profile's pending debounce before flipping the pointer
+    // (legacy auto-save only). With auto-save disabled, create() always
+    // discards the outgoing profile's in-memory edits — the markets-grid
+    // host prompts the user before reaching this codepath.
     if (this.autoSave) await this.autoSave.flushNow();
 
     // Flip BEFORE mutating (see load()'s rationale).
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
 
-    this.platform.resetAll();
+    this.dirtySuppressDepth++;
+    try {
+      this.platform.resetAll();
+    } finally {
+      this.dirtySuppressDepth--;
+    }
 
     const now = Date.now();
     const snap: ProfileSnapshot = {
@@ -237,6 +312,7 @@ export class ProfileManager {
     // Cancel the debounce scheduled by resetAll(); the snapshot is already
     // on disk.
     this.autoSave?.cancelScheduled();
+    this.updateState({ isDirty: false });
 
     this.platform.events.emit('profile:saved', { gridId, profileId: id });
     this.platform.events.emit('profile:loaded', { gridId, profileId: id });
@@ -335,9 +411,15 @@ export class ProfileManager {
       if (this.autoSave) await this.autoSave.flushNow();
       this.updateState({ activeId: id });
       writeActiveId(gridId, id);
-      this.platform.resetAll();
-      this.platform.deserializeAll(snap.state);
+      this.dirtySuppressDepth++;
+      try {
+        this.platform.resetAll();
+        this.platform.deserializeAll(snap.state);
+      } finally {
+        this.dirtySuppressDepth--;
+      }
       this.autoSave?.cancelScheduled();
+      this.updateState({ isDirty: false });
       this.platform.events.emit('profile:loaded', { gridId, profileId: id });
     }
     return toMeta(snap);
@@ -348,6 +430,8 @@ export class ProfileManager {
     this.disposed = true;
     this.autoSave?.dispose();
     this.autoSave = null;
+    this.dirtyUnsubscribe?.();
+    this.dirtyUnsubscribe = null;
     this.listeners.clear();
   }
 
@@ -374,6 +458,11 @@ export class ProfileManager {
           updatedAt: now,
         };
     await this.adapter.saveProfile(next);
+    // In the auto-save codepath, clearing dirty here keeps the flag in
+    // sync without depending on save() being called explicitly.
+    if (!this.disposed && this.state.isDirty) {
+      this.updateState({ isDirty: false });
+    }
     this.platform.events.emit('profile:saved', { gridId, profileId: id });
   }
 

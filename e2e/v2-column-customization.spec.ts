@@ -103,8 +103,11 @@ test.describe('v2 — column-customization panel', () => {
         .first(),
     ).toHaveText('QUANTITY', { timeout: 3000 });
 
-    // Reload — profile auto-save should restore the rename.
-    await page.waitForTimeout(500); // auto-save debounce window
+    // Profiles are explicit-save now — close the settings sheet so its
+    // overlay doesn't intercept, then click Save before reloading.
+    await closeSettingsSheet(page);
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });

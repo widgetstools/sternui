@@ -219,7 +219,9 @@ test.describe('v2 — column-templates (indirect editor)', () => {
     await selectCell(page, 'venue');
     await applyTemplate(page, tplId);
 
-    await page.waitForTimeout(500); // auto-save debounce
+    // Explicit-save: click Save before reload.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });

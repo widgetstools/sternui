@@ -392,9 +392,10 @@ test.describe('v2 FiltersToolbar', () => {
     await expect(chip).toContainText('filters');
     await expect(chip).toContainText('1 active');
 
-    // Persist: the toolbar-visibility module stores the state — reload
-    // and confirm the collapsed view sticks.
-    await page.waitForTimeout(500); // auto-save debounce
+    // Persist: the toolbar-visibility module stores the state — save
+    // and reload to confirm the collapsed view sticks.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });

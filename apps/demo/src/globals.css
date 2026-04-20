@@ -427,6 +427,21 @@
   color: var(--bn-green, #2dd4bf);
 }
 
+/* Save button — relative positioning so the DirtyDot can be pinned
+   to the top-right corner of the icon. */
+.gc-primary-save {
+  position: relative;
+}
+.gc-primary-save-dirty {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
 /* Vertical divider between action groups — thin, low-contrast,
    centered vertically in the row. Replaces the prior treatment of
    putting a 1px border-left on EVERY button, which made the row look

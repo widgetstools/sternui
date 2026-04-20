@@ -199,7 +199,10 @@ test.describe('v2 — calculated-columns panel', () => {
       .fill('Persistent Name');
     await saveVirtual(page, SEED_COL_ID);
     await closeSettingsSheet(page);
-    await page.waitForTimeout(500); // auto-save debounce
+    // Profiles are explicit-save now — click Save before reloading or
+    // the rename evaporates with the in-memory state.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
 
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });

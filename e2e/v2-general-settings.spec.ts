@@ -164,7 +164,9 @@ test.describe('v2 — general-settings (Grid Options) panel', () => {
     await savePanel(page);
     await closeSettingsSheet(page);
 
-    await page.waitForTimeout(500); // auto-save debounce
+    // Explicit-save.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });

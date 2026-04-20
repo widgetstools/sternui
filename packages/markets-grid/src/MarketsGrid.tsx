@@ -3,6 +3,15 @@ import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  DirtyDot,
   GridProvider,
   MemoryAdapter,
   calculatedColumnsModule,
@@ -222,9 +231,16 @@ function Host<TData>({
   const adapterRef = useRef<StorageAdapter | null>(null);
   if (!adapterRef.current) adapterRef.current = storageAdapter ?? new MemoryAdapter();
 
+  // Profiles are explicit-save-only. Auto-save used to debounce every
+  // keystroke into the active profile; that was confusing in practice —
+  // users lost the mental model of "my profile = my saved state". With
+  // `disableAutoSave`, the ProfileManager instead tracks a dirty flag
+  // the Save button consumes (and the profile-switch / beforeunload
+  // guards below consult).
   const profiles = useProfileManager({
     adapter: adapterRef.current,
     autoSaveDebounceMs,
+    disableAutoSave: true,
   });
 
   const platform = useGridPlatform();
@@ -271,9 +287,75 @@ function Host<TData>({
     saveFlashTimer.current = setTimeout(() => setSaveFlash(false), 600);
   }, [profiles, api, platform]);
 
-  // Active profile dirty hint — not wired yet (auto-save makes it subtle).
-  // Exposed as a constant false so the save button's colour is stable.
-  const isDirty = false;
+  // Active profile dirty state — wired to the Save button indicator,
+  // the profile-switch AlertDialog, and the beforeunload warning.
+  const isDirty = profiles.isDirty;
+
+  // Warn the user if they try to close / reload the tab while their
+  // active profile has unsaved edits. The `returnValue` string is
+  // ignored by every modern browser (they show a generic message) but
+  // it's required for the prompt to appear at all.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // Profile-switch unsaved-changes prompt state. When the user picks a
+  // different profile from the switcher AND there are unsaved edits,
+  // we stash the target id here and open an AlertDialog offering
+  // Save / Discard / Cancel. The Dialog's action handlers finalise the
+  // switch; with no dirty edits the switch goes through directly.
+  const [pendingSwitch, setPendingSwitch] = useState<null | { id: string }>(null);
+
+  const requestLoadProfile = useCallback(
+    (id: string) => {
+      if (id === profiles.activeProfileId) return;
+      if (profiles.isDirty) {
+        setPendingSwitch({ id });
+        return;
+      }
+      void profiles.loadProfile(id);
+    },
+    [profiles],
+  );
+
+  const confirmSwitchSave = useCallback(async () => {
+    if (!pendingSwitch) return;
+    const targetId = pendingSwitch.id;
+    setPendingSwitch(null);
+    try {
+      // Route through the same Save-button path so AG-Grid native state
+      // (column widths / sort / filters / pagination) is captured before
+      // the snapshot lands — otherwise a Save-then-Switch would persist
+      // stale grid-state.
+      await handleSaveAll();
+      await profiles.loadProfile(targetId);
+    } catch (err) {
+      console.warn('[markets-grid] save-and-switch failed:', err);
+    }
+  }, [pendingSwitch, handleSaveAll, profiles]);
+
+  const confirmSwitchDiscard = useCallback(async () => {
+    if (!pendingSwitch) return;
+    const targetId = pendingSwitch.id;
+    setPendingSwitch(null);
+    try {
+      // Discard in-memory edits (reverts to the last-saved snapshot of
+      // the outgoing profile) BEFORE loading the new one. The discard
+      // is technically optional since load() also replaces state, but
+      // it keeps semantics clean: dirty=false is observable in between.
+      await profiles.discardActiveProfile();
+      await profiles.loadProfile(targetId);
+    } catch (err) {
+      console.warn('[markets-grid] discard-and-switch failed:', err);
+    }
+  }, [pendingSwitch, profiles]);
 
   // NOTE: the `coreShim` (minimal `{ gridId, getGridApi }` handle) is
   // gone as of the toolbar refactor's step 7. FormattingToolbar + its
@@ -325,7 +407,7 @@ function Host<TData>({
                   activeProfileId={profiles.activeProfileId ?? ''}
                   isDirty={isDirty}
                   onCreate={(name) => profiles.createProfile(name)}
-                  onLoad={(id) => profiles.loadProfile(id)}
+                  onLoad={(id) => requestLoadProfile(id)}
                   onDelete={(id) => profiles.deleteProfile(id)}
                   onExport={async (id) => {
                     try {
@@ -371,13 +453,22 @@ function Host<TData>({
                 <span className="gc-primary-divider" aria-hidden />
                 <button
                   type="button"
-                  className="gc-primary-action"
+                  className="gc-primary-action gc-primary-save"
                   onClick={handleSaveAll}
                   title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
                   data-testid="save-all-btn"
                   data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
                 >
                   {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
+                  {/* Dirty indicator — small pulsed teal dot top-right of
+                      the icon. Shown only when unsaved and NOT actively
+                      flashing (to avoid stacking indicators during the
+                      600ms post-save flash). */}
+                  {isDirty && !saveFlash && (
+                    <span className="gc-primary-save-dirty" data-testid="save-all-dirty">
+                      <DirtyDot title="Unsaved changes" />
+                    </span>
+                  )}
                 </button>
               </>
             )}
@@ -454,6 +545,49 @@ function Host<TData>({
         onClose={() => setSettingsOpen(false)}
         initialModuleId="conditional-styling"
       />
+
+      {/* Unsaved-changes prompt fired by the profile switcher when the
+          user picks a different profile while the active one is dirty.
+          Three explicit actions — we never silently drop edits. */}
+      <AlertDialog
+        open={pendingSwitch !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingSwitch(null);
+        }}
+      >
+        <AlertDialogContent data-testid="profile-switch-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes in the current profile. What do you want to
+              do before switching?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="profile-switch-cancel">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="profile-switch-discard"
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmSwitchDiscard();
+              }}
+            >
+              Discard changes
+            </AlertDialogAction>
+            <AlertDialogAction
+              data-testid="profile-switch-save"
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmSwitchSave();
+              }}
+            >
+              Save &amp; switch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

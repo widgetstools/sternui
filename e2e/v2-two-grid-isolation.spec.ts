@@ -158,9 +158,17 @@ test.describe('Two-grid dashboard — cross-grid isolation', () => {
     await selectCellInGrid(page, 'dashboard-equities-v2', 'quantity');
     await clickToolbarBtn(page, 'dashboard-equities-v2', 'Italic');
 
-    // Wait past the auto-save debounce (300ms default) so both grids
-    // commit their own profile snapshots to IndexedDB.
-    await page.waitForTimeout(800);
+    // Profiles are explicit-save-only. Click each grid's own Save
+    // button so both snapshots land in IndexedDB before the reload.
+    // Each grid renders its own Save button scoped under its
+    // `[data-grid-id]` root.
+    await page
+      .locator('[data-grid-id="dashboard-rates-v2"] [data-testid="save-all-btn"]')
+      .click();
+    await page
+      .locator('[data-grid-id="dashboard-equities-v2"] [data-testid="save-all-btn"]')
+      .click();
+    await page.waitForTimeout(300);
 
     await page.reload();
     await waitForBothGrids(page);

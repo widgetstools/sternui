@@ -236,7 +236,9 @@ test.describe('v2 — column-groups panel', () => {
   test('group persists across reload (profile auto-save round-trip)', async ({ page }) => {
     const id = await createGroupWithColumns(page, 'Persistent', ['side', 'quantity']);
     await closeSettingsSheet(page);
-    await page.waitForTimeout(500); // auto-save debounce window
+    // Explicit-save: click Save before reload.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
 
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
@@ -279,7 +281,11 @@ test.describe('v2 — column-groups panel', () => {
     // Chevron click toggles expanded state. Default openByDefault: true,
     // so clicking collapses. `venue` (show='open') then hides.
     await chevron.click();
-    await page.waitForTimeout(400); // auto-save debounce
+    await page.waitForTimeout(200);
+    // Explicit-save: the chevron click mutates the openGroupIds in
+    // module state but doesn't persist until we hit Save.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
 
     // Reload and verify the collapsed state was persisted via openGroupIds.
     await page.reload();

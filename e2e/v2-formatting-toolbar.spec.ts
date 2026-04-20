@@ -182,12 +182,15 @@ test.describe('v2 FormattingToolbar', () => {
     expect(await getCellStyle(page, colId, 'font-style')).toBe('normal');
   });
 
-  test('Bold persists across reload via auto-save (no Save All click)', async ({ page }) => {
+  test('Bold persists across reload after clicking Save (explicit-save contract)', async ({ page }) => {
     const colId = await getFirstDataColId(page);
     await selectCell(page, colId);
     await clickToolbarBtn(page, 'Bold');
-    // Wait past the auto-save debounce (default 300ms).
-    await page.waitForTimeout(800);
+    // Profiles are explicit-save-only now. Without clicking Save, the
+    // Bold mutation would live only in memory and get thrown away by
+    // the reload.
+    await page.locator('[data-testid="save-all-btn"]').click();
+    await page.waitForTimeout(200);
 
     await page.reload();
     await waitForGrid(page);

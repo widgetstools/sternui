@@ -13,8 +13,16 @@ export interface UseProfileManagerResult {
   activeProfileId: string;
   profiles: ProfileMeta[];
   isLoading: boolean;
+  /** True when the live store has diverged from the last successful
+   *  persist of the active profile. Drives the dirty-dot indicator on
+   *  the Save button + triggers the unsaved-changes confirm flow on
+   *  profile switch and page unload. */
+  isDirty: boolean;
   loadProfile: (id: string) => Promise<void>;
   saveActiveProfile: () => Promise<void>;
+  /** Throw away in-memory changes and reload the active profile from
+   *  disk. Used by the Discard branch of the unsaved-changes prompt. */
+  discardActiveProfile: () => Promise<void>;
   createProfile: (name: string, opts?: { id?: string }) => Promise<ProfileMeta>;
   deleteProfile: (id: string) => Promise<void>;
   renameProfile: (id: string, name: string) => Promise<void>;
@@ -97,6 +105,7 @@ export function useProfileManager(opts: {
 
   const loadProfile = useCallback((id: string) => manager.load(id), [manager]);
   const saveActiveProfile = useCallback(() => manager.save(), [manager]);
+  const discardActiveProfile = useCallback(() => manager.discard(), [manager]);
   const createProfile = useCallback(
     (name: string, o?: { id?: string }) => manager.create(name, o),
     [manager],
@@ -116,8 +125,10 @@ export function useProfileManager(opts: {
     activeProfileId: state.activeId,
     profiles: state.profiles,
     isLoading: state.isLoading,
+    isDirty: state.isDirty,
     loadProfile,
     saveActiveProfile,
+    discardActiveProfile,
     createProfile,
     deleteProfile,
     renameProfile,

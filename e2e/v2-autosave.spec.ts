@@ -1,34 +1,36 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * E2E for @grid-customizer/markets-grid-v2 — proves the auto-save contract
- * that makes the manual `Save all settings` click obsolete.
+ * E2E for @grid-customizer/markets-grid — explicit-save profile contract.
  *
- * These tests target the v2 demo mount (the demo (/)) which uses:
- *  - `@grid-customizer/core-v2`'s `useProfileManager` with a 300ms debounced
- *    auto-save subscriber on the Zustand store.
- *  - IndexedDB database `gc-customizer-v2` (distinct from v1's
- *    `GridCustomizerDB`), keyed by gridId `demo-blotter-v2`.
- *  - `ProfileSelector` wired to `core.persistAll()` via `profiles.saveActiveProfile()`.
+ * Profiles used to auto-persist every change via a 300ms debounce.
+ * That silently captured edits the user hadn't committed, which was
+ * confusing in practice — profiles now behave like saved documents:
+ * changes live in-memory until the user clicks Save, and a dirty
+ * indicator plus an unsaved-changes prompt guard the "switch / reload
+ * while dirty" paths.
  *
- * Scope of what's proven here:
- *  - Default profile is auto-seeded on first mount (reserved id `__default__`).
- *  - A user-created profile persists + becomes active without any Save click.
- *  - A captured saved-filter persists across reload within 500ms of capture
- *    (one auto-save debounce window + a generous flush buffer).
- *
- * What's NOT covered (deferred to v2.1 when the pill/stacked-toolbar UI
- * ports over): toolbar-visibility UI, Settings sheet, Profiles settings panel,
- * Style/Data stacked toolbars.
+ * This spec (still filed as "autosave" for historical continuity)
+ * proves the current contract:
+ *  - Default is still auto-seeded on first mount.
+ *  - User-created profiles persist on creation (create() is an
+ *    explicit write path — no debounce needed).
+ *  - Changes made AFTER save do NOT persist on reload unless Save is
+ *    clicked. A captured filter pill that hasn't been saved disappears.
+ *  - A captured filter pill, once saved, survives reload.
+ *  - The Save button surfaces a dirty indicator (`data-state="dirty"`
+ *    plus a `save-all-dirty` child) while there are unsaved edits and
+ *    clears it after a save.
+ *  - Switching profiles while dirty triggers the AlertDialog with
+ *    three actions: Cancel / Discard / Save-and-switch.
  */
 
-const GRID_ID_V2 = 'demo-blotter-v2';
 const V2_PATH = '/';
 
 async function waitForV2Grid(page: Page) {
   await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
   await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
-  // Give useProfileManager's initial auto-seed of Default a beat.
+  // Profile manager boot + initial dirty-subscription hookup.
   await page.waitForTimeout(400);
 }
 
@@ -40,8 +42,6 @@ async function clearV2Storage(page: Page) {
       req.onerror = () => resolve();
       req.onblocked = () => resolve();
     });
-    // Only the active-profile pointer for v2's gridId is written by v2 —
-    // clear everything in the gc-active-profile:* namespace for safety.
     Object.keys(localStorage)
       .filter((k) => k.startsWith('gc-active-profile:'))
       .forEach((k) => localStorage.removeItem(k));
@@ -61,7 +61,6 @@ async function createProfile(page: Page, name: string) {
   await openProfilePopover(page);
   await page.locator('[data-testid="profile-name-input"]').fill(name);
   await page.locator('[data-testid="profile-create-btn"]').click();
-  // Popover closes on create; wait for the trigger to reflect the new name.
   await expect(profileTrigger(page)).toContainText(name);
 }
 
@@ -92,10 +91,21 @@ async function setFilterModel(page: Page, model: Record<string, unknown>) {
       fiber = fiber.return;
     }
   }, model);
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(250);
 }
 
-test.describe('v2 — auto-save (no Save All click needed)', () => {
+async function clickSaveAll(page: Page) {
+  await page.locator('[data-testid="save-all-btn"]').click();
+  // Dirty flag clears synchronously on save; the 600ms flash is cosmetic.
+  await page.waitForTimeout(200);
+}
+
+async function captureCurrentFilter(page: Page) {
+  await page.locator('.gc-filters-add-btn').click();
+  await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
+}
+
+test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(V2_PATH);
     await waitForV2Grid(page);
@@ -108,55 +118,148 @@ test.describe('v2 — auto-save (no Save All click needed)', () => {
     await expect(profileTrigger(page)).toContainText('Default');
 
     await openProfilePopover(page);
-    // Reserved default row is present and carries the Lock icon (no delete btn).
     const defaultRow = page.locator('[data-testid="profile-row-__default__"]');
     await expect(defaultRow).toBeVisible();
     await expect(defaultRow.locator('button[title="Delete profile"]')).toHaveCount(0);
   });
 
-  test('user-created profile persists across reload without clicking Save All', async ({ page }) => {
-    await createProfile(page, 'Autosave-Test');
+  test('user-created profile persists across reload (create() is an explicit write)', async ({ page }) => {
+    await createProfile(page, 'Persist-Test');
 
-    // NO Save All click. Just wait past the 300ms debounce and reload.
-    await page.waitForTimeout(500);
+    // Profile creation is an explicit write, not a debounced auto-save —
+    // no Save click needed. Reload + assert the profile + the last-active
+    // pointer both survived.
     await page.reload();
     await waitForV2Grid(page);
 
-    // Last-active profile is re-selected on mount. The profile persisted only
-    // because auto-save fired — no explicit persistAll() was invoked.
-    await expect(profileTrigger(page)).toContainText('Autosave-Test');
+    await expect(profileTrigger(page)).toContainText('Persist-Test');
 
     await openProfilePopover(page);
-    // Both Default and the user profile should be listed after reload.
     await expect(page.locator('[data-testid="profile-row-__default__"]')).toBeVisible();
-    // Scope to the popover to avoid matching the trigger's own label span.
     const popover = page.locator('[data-testid="profile-selector-popover"]');
-    await expect(popover.getByText('Autosave-Test', { exact: true })).toBeVisible();
+    await expect(popover.getByText('Persist-Test', { exact: true })).toBeVisible();
   });
 
-  test('captured filter pill auto-persists across reload (no Save All click)', async ({ page }) => {
-    // Apply a filter so the FiltersToolbar capture button has something to capture.
+  test('unsaved filter pill DOES NOT persist across reload (explicit save contract)', async ({ page }) => {
     await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await captureCurrentFilter(page);
 
-    // Click the capture button in the FiltersToolbar — same class name v1 uses.
-    await page.locator('.gc-filters-add-btn').click();
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
-
-    // Wait one debounce window + flush margin, then reload — NO Save All click.
-    await page.waitForTimeout(500);
+    // Note: NO Save click. Reload — the pill must vanish because nothing
+    // was committed to disk. This is the core behavior the refactor
+    // introduced.
     await page.reload();
     await waitForV2Grid(page);
 
-    // Pill survives purely because auto-save wrote to the Default profile.
+    await expect(page.locator('.gc-filter-pill')).toHaveCount(0);
+  });
+
+  test('saved filter pill SURVIVES reload after clicking Save', async ({ page }) => {
+    await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await captureCurrentFilter(page);
+
+    await clickSaveAll(page);
+
+    await page.reload();
+    await waitForV2Grid(page);
+
     await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
   });
 
-  test('Save All button is still available as a visible-confirmation affordance', async ({ page }) => {
+  test('Save button surfaces a dirty indicator while there are unsaved edits', async ({ page }) => {
     const saveBtn = page.locator('[data-testid="save-all-btn"]');
-    await expect(saveBtn).toBeVisible();
-    await saveBtn.click();
-    // Click should complete without error; flash state lives inside the button
-    // but we don't need to assert the icon swap — just that the click succeeds.
-    await page.waitForTimeout(700);
+    // Initially clean — no dirty dot, data-state should not be "dirty".
+    await expect(saveBtn).toHaveAttribute('data-state', 'idle');
+    await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
+
+    // Mutate: capture a filter. The store change flips dirty=true.
+    await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await captureCurrentFilter(page);
+
+    await expect(saveBtn).toHaveAttribute('data-state', 'dirty');
+    await expect(page.locator('[data-testid="save-all-dirty"]')).toBeVisible();
+
+    // Save clears the indicator. data-state cycles through 'saved' for
+    // ~600ms of flash then back to 'idle'.
+    await clickSaveAll(page);
+    await page.waitForTimeout(800);
+    await expect(saveBtn).toHaveAttribute('data-state', 'idle');
+    await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
+  });
+
+  test('switching profiles while dirty opens the unsaved-changes AlertDialog', async ({ page }) => {
+    await createProfile(page, 'Switch-Target');
+
+    // Go back to Default so we have somewhere to switch TO and FROM.
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-__default__"]').click();
+    await expect(profileTrigger(page)).toContainText('Default');
+
+    // Make Default dirty.
+    await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await captureCurrentFilter(page);
+    await expect(page.locator('[data-testid="save-all-btn"]')).toHaveAttribute('data-state', 'dirty');
+
+    // Try to switch. The AlertDialog intercepts.
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-switch-target"]').click();
+    await expect(page.locator('[data-testid="profile-switch-confirm"]')).toBeVisible();
+
+    // Cancel keeps us where we are + preserves dirty state.
+    await page.locator('[data-testid="profile-switch-cancel"]').click();
+    await expect(page.locator('[data-testid="profile-switch-confirm"]')).toHaveCount(0);
+    await expect(profileTrigger(page)).toContainText('Default');
+    await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
+  });
+
+  test('Discard path on profile switch throws away unsaved edits + switches', async ({ page }) => {
+    await createProfile(page, 'Discard-Target');
+
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-__default__"]').click();
+    await expect(profileTrigger(page)).toContainText('Default');
+
+    await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await captureCurrentFilter(page);
+
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-discard-target"]').click();
+    await page.locator('[data-testid="profile-switch-discard"]').click();
+
+    // We landed on the target profile, and the pill we captured under
+    // Default was thrown away.
+    await expect(profileTrigger(page)).toContainText('Discard-Target');
+    await expect(page.locator('.gc-filter-pill')).toHaveCount(0);
+
+    // Going back to Default should also show no pill — the discard
+    // reverted the in-memory state to the last saved snapshot of
+    // Default, which had no pills.
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-__default__"]').click();
+    await expect(profileTrigger(page)).toContainText('Default');
+    await expect(page.locator('.gc-filter-pill')).toHaveCount(0);
+  });
+
+  test('Save-and-switch path writes the outgoing profile then switches', async ({ page }) => {
+    await createProfile(page, 'Save-Target');
+
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-__default__"]').click();
+    await expect(profileTrigger(page)).toContainText('Default');
+
+    await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
+    await captureCurrentFilter(page);
+
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-save-target"]').click();
+    await page.locator('[data-testid="profile-switch-save"]').click();
+
+    // We landed on the target profile. Default now persists the pill
+    // we saved at switch-time: flipping back proves the write succeeded.
+    await expect(profileTrigger(page)).toContainText('Save-Target');
+
+    await openProfilePopover(page);
+    await page.locator('[data-testid="profile-row-__default__"]').click();
+    await expect(profileTrigger(page)).toContainText('Default');
+    await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
   });
 });

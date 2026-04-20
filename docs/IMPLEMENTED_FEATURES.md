@@ -382,7 +382,7 @@ Module `column-groups` (priority 18 — runs after column-customization + calcul
   ```
   Each `ColumnGroupNode.children` is a mixed array of `{ kind: 'col', colId, show? }` or `{ kind: 'group', group }`, so nesting is arbitrary-depth (capped at 3 by the panel UI, not the state).
 
-- **Save semantics** — same draft/dirty pattern as every other editor (`useModuleDraft` scoped to `<groupId>`), explicit SAVE pill commits into module state, auto-save picks it up on the usual 300ms debounce.
+- **Save semantics** — same draft/dirty pattern as every other editor (`useModuleDraft` scoped to `<groupId>`); explicit SAVE pill commits into module state. Module state changes flip the profile-level dirty flag until the user clicks the primary Save button (profile-level auto-save is off as of 2026-04-20).
 
 - **Pure tree ops** — `treeOps.ts` hosts `updateGroupAtPath` / `deleteGroupAtPath` / `moveGroupAtPath` / `flattenGroups` as pure helpers with their own 11-test `treeOps.test.ts`. No rendering needed to regress group mutation logic.
 
@@ -450,7 +450,7 @@ Module `saved-filters` (priority 1001 — effectively last in the module chain; 
 
 - **New pill captures the DELTA, not the merged model** — when the user adds a column filter while one or more pills are active, AG-Grid reports the combined model `{ <active pills' criteria> ⊕ <new column> }`. Capturing that as the new pill's `filterModel` would duplicate the active pills' criteria inside the new pill, breaking toggle semantics (toggling an active pill off would still leave its criterion enforced by the new pill). `subtractFilterModel(live, mergedActive)` in `filtersToolbarLogic.ts` returns only the columns the user actually added or changed; `handleAdd` persists that delta. Example: pill A active with `{side: BUY}` → user filters `price > 100` → AG-Grid live = `{side: BUY, price > 100}` → new pill stores only `{price > 100}`.
 
-- **Auto-save path** — every add / toggle / rename / remove writes through `useModuleState(...)` setState, which the profile-auto-save debounce picks up on the usual 300ms cycle. Reload restores every pill (including active/inactive state) before the grid's first `modelUpdated`.
+- **Save path** — every add / toggle / rename / remove writes through `useModuleState(...)` setState; the profile-level dirty flag trips and the primary Save button becomes the commit point. Reload restores every pill (including active/inactive state) before the grid's first `modelUpdated`, provided the user hit Save before reloading.
 
 - **No settings panel** — the toolbar IS the editor. Nav entry intentionally omitted from the settings sheet.
 
@@ -686,14 +686,39 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 
 ### 1.15 Profile UX
 
-- **Per-profile auto-save** — debounced 300ms. Explicit Save button
-  flushes the debounce immediately.
+- **Explicit-save profile contract** — as of 2026-04-20, profiles no
+  longer auto-persist live state. `ProfileManager` is constructed with
+  `disableAutoSave: true`; module state mutations flip an internal
+  `isDirty` flag instead of scheduling a write. The primary Save
+  button (top-right of the grid's chrome) is the sole write path; it
+  calls `captureGridStateInto()` to capture AG-Grid native state then
+  `profiles.save()` which clears dirty on success. Rationale: "profile
+  = saved document" is a clearer mental model than "profile = live
+  mirror"; users lose no edits they didn't intend to persist.
+- **Dirty indicator on Save button** — `<DirtyDot/>` (teal pulsed
+  badge) appears at the top-right of the Save icon whenever the live
+  store diverges from the last persisted snapshot. Clears on successful
+  save; covered by `save-all-dirty` testid.
+- **Unsaved-changes prompt on profile switch** — switching profiles
+  while dirty opens a shadcn `AlertDialog` with three explicit
+  actions: `Save & switch`, `Discard changes`, `Cancel`. The prompt
+  emits under testid `profile-switch-confirm`; actions under
+  `profile-switch-save`, `profile-switch-discard`,
+  `profile-switch-cancel`. No edit is ever silently dropped.
+- **`beforeunload` warning** — a native `beforeunload` handler is
+  registered whenever `isDirty === true` (and only then, so clean
+  sessions don't warn on close). Modern browsers show a generic
+  "unsaved changes" dialog.
 - **New profile starts blank** — `resetAll()` runs before snapshotting
   in `createProfile`; the grid-state module handles `saved: null` by
   calling `api.setState({})` to clear AG-Grid-native state that lives
-  outside module transforms.
-- **Delete safety** — cancels pending auto-save before erasing the
-  record, uses `skipFlush: true` when falling back to Default.
+  outside module transforms. Profile creation itself is an explicit
+  write — no debounce needed.
+- **Auto-save still available** — `useProfileManager({ disableAutoSave: false })`
+  restores the legacy 300ms-debounced contract; tests use this path.
+- **Delete safety** — cancels pending auto-save (if any) before
+  erasing the record, uses `skipFlush: true` when falling back to
+  Default.
 - **Shadcn AlertDialog** — replaced native `window.confirm` for delete
   confirmation with a proper modal (`@radix-ui/react-alert-dialog`).
   Adds `AlertDialog` / `AlertDialogContent` / `AlertDialogHeader` /
@@ -794,7 +819,7 @@ Angular / PrimeNG apps) can consume one canonical palette.
 | Shadcn UI Components (incl. AlertDialog) | 12 |
 | Rule Indicator Icons (Lucide) | 20+ |
 | Tick-format denominations | 5 (32, 32+, 64, 128, 256) |
-| Profile Auto-save debounce | 300ms |
+| Profile save contract | Explicit Save button only — dirty flag + beforeunload + switch-prompt guards |
 | v2 E2E Test Suites | 10+ |
 | v2 Approximate LOC | ~9,000 (core-v2 ~7,200 + markets-grid-v2 ~1,800) |
 
@@ -802,7 +827,7 @@ Angular / PrimeNG apps) can consume one canonical palette.
 
 - Single source of truth: IndexedDB profile snapshots (`gc-customizer-v2` db).
 - Per-module `schemaVersion` with optional `migrate(raw, fromVersion)`.
-- Auto-save path: store → 300ms debounce → serializeAll → persist → `profile:saved` event.
+- Save path: Save-button click → `captureGridStateInto` → `serializeAll` → persist → `profile:saved` event. Auto-save (300ms debounce) is still implemented but opt-in — `MarketsGrid` ships with `disableAutoSave: true`. Internal `isDirty` flag drives the Save-button dirty-dot + profile-switch AlertDialog + `beforeunload` warning.
 - `grid-state` module is the one deliberate exception — captures on explicit Save only so AG-Grid native state isn't touched on every keystroke.
 - Module ordering (priority): `general-settings (0)` → `column-templates (1)` → `column-customization (10)` → `calculated-columns (15)` → `column-groups (18)` → `conditional-styling (20)` → `grid-state (200)`.
 - Every cross-module read goes through `ctx.getModuleState<T>(moduleId)` — no direct imports between modules.
