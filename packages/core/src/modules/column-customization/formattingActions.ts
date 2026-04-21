@@ -236,6 +236,38 @@ export function applyTemplateToColumnsReducer(
 }
 
 /**
+ * Strip a template id from every column's `templateIds` chain. Used
+ * after a template is deleted from column-templates so no assignment
+ * carries a dangling reference. Harmless if the id isn't referenced
+ * anywhere — returns the same state reference.
+ *
+ * If removing the id leaves an empty chain, `templateIds` is deleted
+ * entirely so the assignment falls back to typeDefaults on resolve
+ * (matching the "no explicit templateIds" branch in resolveTemplates).
+ */
+export function removeTemplateRefFromAssignmentsReducer(
+  templateId: string,
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (!templateId) return base;
+
+    let mutated = false;
+    const assignments = { ...base.assignments };
+    for (const [colId, a] of Object.entries(base.assignments)) {
+      if (!a.templateIds || !a.templateIds.includes(templateId)) continue;
+      mutated = true;
+      const next: ColumnAssignment = { ...a };
+      const filtered = a.templateIds.filter((id) => id !== templateId);
+      if (filtered.length === 0) delete next.templateIds;
+      else next.templateIds = filtered;
+      assignments[colId] = next;
+    }
+    return mutated ? { ...base, assignments } : base;
+  };
+}
+
+/**
  * Reset each listed column to a bare `{ colId }` assignment, dropping
  * overrides, formatter, filter, grouping, and template references.
  */
@@ -251,5 +283,38 @@ export function clearAllStylesReducer(
       assignments[colId] = { colId };
     }
     return { ...base, assignments };
+  };
+}
+
+/**
+ * Nuke every column-customization assignment in the active profile.
+ * Used by the "Clear all styles" button on the formatter toolbar +
+ * popped panel, which now wipes the whole profile's style state rather
+ * than just the selected columns.
+ *
+ * What it does clear:
+ *   - All `assignments[*]` — every column's cellStyleOverrides,
+ *     headerStyleOverrides, valueFormatterTemplate, templateIds,
+ *     filter, rowGrouping, and any structural overrides.
+ *
+ * What it preserves:
+ *   - The column-templates module (saved templates survive — users
+ *     expect explicit Save/Delete to govern template lifecycle).
+ *   - typeDefaults on the column-templates side (cross-module, not
+ *     touched here).
+ *   - Other module states (conditional-styling, calculated-columns,
+ *     column-groups, etc.). If the user wants a full profile reset,
+ *     that's a separate "reset profile" action.
+ *
+ * Returns a fresh `{ assignments: {} }`. Profile-level auto-save picks
+ * it up through the normal module-state change pipeline.
+ */
+export function clearAllStylesInProfileReducer(): (
+  prev: ColumnCustomizationState | undefined,
+) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (Object.keys(base.assignments).length === 0) return base;
+    return { ...base, assignments: {} };
   };
 }

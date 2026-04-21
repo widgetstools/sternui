@@ -1,9 +1,10 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Poppable,
   SharpBtn,
   V2_SHEET_STYLE_ID,
   v2SheetCSS,
+  isOpenFin,
   useDirtyCount,
   useGridPlatform,
   type AnyModule,
@@ -161,16 +162,23 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   //   - hide the maximize button when popped (OS window owns it)
   //   - drop in the pop-out trigger button in the header icon cluster
   // See Poppable's render-prop API for the contract.
-  const buildSheet = ({ popped, PopoutButton }: {
+  const buildSheet = ({ popped, PopoutButton, close }: {
     popped: boolean;
     PopoutButton: React.ComponentType<{ className?: string; title?: string; 'data-testid'?: string }>;
+    close: () => void;
   }) => {
+    // Only apply drag-region chrome when the popout is hosted by
+    // OpenFin (which supports `-webkit-app-region` + `frame: false`).
+    // Browsers ignore those and always render full OS chrome, so our
+    // custom titlebar would just duplicate it there.
+    const frameless = popped && isOpenFin();
     const sheetClasses = [
       'gc-sheet',
       'gc-sheet-v2',
       'gc-popout',
       maximized && !popped ? 'is-maximized' : '',
       popped ? 'is-popped' : '',
+      frameless ? 'is-frameless' : '',
     ]
       .filter(Boolean)
       .join(' ');
@@ -180,14 +188,24 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
       role="dialog"
       aria-label="Grid settings"
     >
-          {/* ── Title bar (terminal chrome) ─────────────────────── */}
-          <header className="gc-popout-title">
-            {/* Grip + green dot + "Grid Customizer v2.3.0" caption
-                are redundant when the sheet is popped: the OS
-                window's own title bar already identifies the window
-                and provides drag. Hide the whole lead cluster in
-                popped mode. */}
-            {!popped && (
+          {/* ── Title bar (terminal chrome) ───────────────────────
+               In OpenFin popped mode the OS frame is dropped
+               (`frame: false` below), so the header strip IS the
+               window's drag handle — we reassert the original brand
+               cluster (grip + dot + caption) so users can still see
+               what window they're in AND the strip has content to
+               drag. Browsers keep OS chrome so the brand cluster is
+               redundant there and stays hidden (inline mode keeps
+               its original behavior). */}
+          <header
+            className="gc-popout-title"
+            style={frameless ? ({ WebkitAppRegion: 'drag' } as CSSProperties) : undefined}
+          >
+            {/* Brand cluster shown inline AND in frameless popped
+                mode (where our strip is the only title bar). Hidden
+                in browser popped mode, because the OS title bar
+                already labels the window. */}
+            {(!popped || frameless) && (
               <>
                 <GripHorizontal size={14} color="var(--ck-t3)" />
                 <span style={{ color: 'var(--ck-green)', fontSize: 11 }}>●</span>
@@ -196,7 +214,12 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               </>
             )}
 
-            {/* Module dropdown — shadcn Popover */}
+            {/* Module dropdown — shadcn Popover.
+                `no-drag` inline style is only meaningful when the
+                header sits inside an OpenFin frameless window; in
+                every other mode it's a harmless no-op. Applying it
+                here (rather than on every button) keeps the
+                responsibility at each interactive node. */}
             {panelModules.length > 0 && activeModule && (
               <Popover open={moduleMenuOpen} onOpenChange={setModuleMenuOpen}>
                 <PopoverTrigger asChild>
@@ -205,6 +228,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                     className="gc-popout-module-btn"
                     aria-expanded={moduleMenuOpen}
                     data-testid="v2-settings-module-dropdown"
+                    style={frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : undefined}
                   >
                     <span>{activeModule.name}</span>
                     <ChevronDown size={11} strokeWidth={2} color="var(--ck-t2)" />
@@ -251,12 +275,24 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 {String(dirtyCount).padStart(2, '0')}
               </strong>
             </span>
-            <div style={{ display: 'inline-flex', gap: 2, marginLeft: 8 }}>
+            {/* Right-side control cluster. Entire container opts
+                out of the frameless drag region so every button
+                inside registers clicks instead of moving the
+                OpenFin window. */}
+            <div
+              style={{
+                display: 'inline-flex',
+                gap: 2,
+                marginLeft: 8,
+                ...(frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : {}),
+              }}
+            >
               <button
                 type="button"
                 className="gc-popout-title-btn"
                 onClick={() => setHelpOpen((v) => !v)}
                 title={helpOpen ? 'Back to settings' : 'Formats & expressions help'}
+                aria-label={helpOpen ? 'Back to settings' : 'Open formats and expressions help'}
                 aria-pressed={helpOpen}
                 data-testid="v2-settings-help-btn"
                 style={helpOpen ? { color: 'var(--ck-green)' } : undefined}
@@ -270,7 +306,8 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   type="button"
                   className="gc-popout-title-btn"
                   onClick={() => setMaximized((v) => !v)}
-                  title={maximized ? 'Restore' : 'Maximize'}
+                  title={maximized ? 'Restore window size' : 'Maximize'}
+                  aria-label={maximized ? 'Restore window size' : 'Maximize'}
                 >
                   {maximized ? <Minimize2 size={12} strokeWidth={2} /> : <Maximize2 size={12} strokeWidth={2} />}
                 </button>
@@ -283,15 +320,29 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 title="Open in a separate window"
                 data-testid="v2-settings-popout-btn"
               />
-              {/* Close X is owned by the OS window chrome when
-                  popped — closing the OS window already flips
-                  popped=false and re-mounts the sheet inline. */}
-              {!popped && (
+              {/* Close X shown inline (browser can't reach OS close)
+                  AND in frameless-popped mode (OS chrome is gone,
+                  so our own X is the only close affordance). In
+                  framed-popped mode (browser popout with OS chrome)
+                  the OS window close handles it. */}
+              {(!popped || frameless) && (
                 <button
                   type="button"
                   className="gc-popout-title-btn"
-                  onClick={onClose}
+                  onClick={() => {
+                    if (frameless) {
+                      // Popped + OpenFin: user clicked our custom X.
+                      // Tear down the window via Poppable's close,
+                      // then fully dismiss the sheet so reopening
+                      // starts clean (rather than re-mounting inline).
+                      close();
+                      onClose();
+                    } else {
+                      onClose();
+                    }
+                  }}
                   title="Close"
+                  aria-label="Close"
                   data-testid="v2-settings-close-btn"
                 >
                   <X size={14} strokeWidth={2} />
@@ -449,8 +500,16 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
       title={`Grid Customizer — ${gridId}`}
       width={960}
       height={700}
+      // Frameless popout: OpenFin honors `frame: false` by dropping
+      // the OS chrome; our header strip (with `-webkit-app-region:
+      // drag`) becomes the draggable title bar. Browsers ignore
+      // this flag and always render full chrome, so our custom
+      // strip there lives under the native title bar (harmless —
+      // users just see two title bars if they squint). Matches the
+      // FormattingPropertiesPanel frameless pattern.
+      frame={false}
     >
-      {({ popped, PopoutButton }) => (
+      {({ popped, PopoutButton, close }) => (
         <div
           data-gc-settings=""
           data-testid="v2-settings-sheet"
@@ -465,7 +524,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               data-testid="v2-settings-overlay"
             />
           )}
-          {buildSheet({ popped, PopoutButton })}
+          {buildSheet({ popped, PopoutButton, close })}
         </div>
       )}
     </Poppable>

@@ -33,6 +33,14 @@ import type { GridApi } from 'ag-grid-community';
 // functional coupling; pure CSS.
 import './FormattingToolbar.css';
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
   Button,
   Poppable,
   Popover as RadixPopover,
@@ -63,14 +71,17 @@ import {
   // core (formattingActions.test.ts + snapshotTemplate.test.ts) and
   // 15 integration tests in FormattingToolbar.test.tsx.
   addTemplateReducer,
+  removeTemplateReducer,
+  removeTemplateRefFromAssignmentsReducer,
   applyAlignmentReducer,
   applyBordersReducer,
   applyColorsReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
   applyTypographyReducer,
-  clearAllStylesReducer,
+  clearAllStylesInProfileReducer,
   snapshotTemplate,
+  useUndoRedo,
 } from '@grid-customizer/core';
 import {
   Undo2, Redo2, Bold, Italic, Underline,
@@ -79,9 +90,10 @@ import {
   LayoutTemplate, SquareDashed, Check, RemoveFormatting,
   ChevronDown, ArrowLeft, ArrowRight, ArrowLeftRight,
   DollarSign, Percent, Hash,
-  Plus,
+  Plus, ExternalLink,
 } from 'lucide-react';
 import { FormattingPropertiesPanel } from './FormattingPropertiesPanel';
+import { TemplateManager } from './TemplateManager';
 
 // Extracted sibling modules — see AUDIT i1 split. Presets + pure helpers
 // live in `formatterPresets.ts`; hooks + api reads in
@@ -156,6 +168,12 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
   const isHeader = target === 'header';
 
   const [clearConfirmed, flashClear] = useFlashConfirm();
+  // Controlled AlertDialog for "Clear all styles" — triggered from
+  // TBtn (which fires on mousedown, not click, so we can't use
+  // AlertDialogTrigger asChild without refactoring TBtn). Lifting the
+  // open state here also lets the panel's footer button reuse the same
+  // dialog instance via `doClearAllStyles` going through a callback.
+  const [clearAllConfirmOpen, setClearAllConfirmOpen] = useState(false);
   const [saveAsTplConfirmed, flashSaveAsTpl] = useFlashConfirm();
   const [saveAsTplName, setSaveAsTplName] = useState('');
 
@@ -164,10 +182,38 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
   // setters.
   const [custState, setCustState] = useModuleState<ColumnCustomizationState>('column-customization');
   const [tplState, setTplState] = useModuleState<ColumnTemplatesState>('column-templates');
+
+  // Undo/redo history scoped to column-customization. Tracks every
+  // reducer dispatch (typography, colors, formatter, borders, template
+  // apply, clear-all, etc.) — each mutation site below calls
+  // `undoRedo.push()` BEFORE dispatching its reducer, giving us one
+  // history entry per user action (deterministic; no auto-capture-via-
+  // effect noise from module bootstrap transitions). Capped at 50
+  // steps so a long session doesn't grow unbounded.
+  const undoRedo = useUndoRedo<ColumnCustomizationState | undefined>(
+    custState,
+    (next) => setCustState(() => next as ColumnCustomizationState),
+    { limit: 50 },
+  );
+  // Convenience: wrap the module setter so every call site auto-pushes
+  // the current state onto the undo stack before dispatching.
+  const setCustStateWithHistory = useCallback<typeof setCustState>(
+    (updater) => {
+      undoRedo.push();
+      setCustState(updater);
+    },
+    [setCustState, undoRedo],
+  );
   const templateList = useMemo(() => {
     const templates = tplState?.templates ?? {};
     return Object.values(templates).sort((a, b) => a.name.localeCompare(b.name));
   }, [tplState]);
+  // Active template id for the first active column — surfaces in both
+  // the toolbar's Templates popover and the popped panel so the saved
+  // template that produced the current style is visibly highlighted.
+  const activeTemplateId = colIds.length > 0
+    ? custState?.assignments?.[colIds[0]]?.templateIds?.[0]
+    : undefined;
 
   // Column label for the right-side context affordance.
   const colLabel = useMemo(() => {
@@ -221,44 +267,47 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
   }, [colIds, platform, colEventTick]);
 
   // Typography toggles — the reducers pass `undefined` to clear a leaf.
+  // All of these route through `setCustStateWithHistory` so the undo
+  // stack gets a snapshot per user action (one click = one history
+  // entry, exactly what we want).
   const toggleBold = useCallback(() => {
-    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true }));
-  }, [setCustState, fmt.bold]);
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true }));
+  }, [setCustStateWithHistory, fmt.bold]);
 
   const toggleItalic = useCallback(() => {
-    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { italic: fmt.italic ? undefined : true }));
-  }, [setCustState, fmt.italic]);
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { italic: fmt.italic ? undefined : true }));
+  }, [setCustStateWithHistory, fmt.italic]);
 
   const toggleUnderline = useCallback(() => {
-    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { underline: fmt.underline ? undefined : true }));
-  }, [setCustState, fmt.underline]);
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { underline: fmt.underline ? undefined : true }));
+  }, [setCustStateWithHistory, fmt.underline]);
 
   const setFontSizePx = useCallback((px: number) => {
-    setCustState(applyTypographyReducer(colIdsRef.current, targetRef.current, { fontSize: px }));
-  }, [setCustState]);
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { fontSize: px }));
+  }, [setCustStateWithHistory]);
 
   const toggleAlign = useCallback((h: 'left' | 'center' | 'right') => {
     const next = fmt.horizontal === h ? undefined : h;
-    setCustState(applyAlignmentReducer(colIdsRef.current, targetRef.current, { horizontal: next }));
-  }, [setCustState, fmt.horizontal]);
+    setCustStateWithHistory(applyAlignmentReducer(colIdsRef.current, targetRef.current, { horizontal: next }));
+  }, [setCustStateWithHistory, fmt.horizontal]);
 
   const setTextColor = useCallback((c: string | undefined) => {
-    setCustState(applyColorsReducer(colIdsRef.current, targetRef.current, { text: c || undefined }));
-  }, [setCustState]);
+    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { text: c || undefined }));
+  }, [setCustStateWithHistory]);
 
   const setBgColor = useCallback((c: string | undefined) => {
-    setCustState(applyColorsReducer(colIdsRef.current, targetRef.current, { background: c || undefined }));
-  }, [setCustState]);
+    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { background: c || undefined }));
+  }, [setCustStateWithHistory]);
 
   // Formatter — always cell-target (headers have no formatter).
   const doFormat = useCallback((t: ValueFormatterTemplate | undefined) => {
-    setCustState(applyFormatterReducer(colIdsRef.current, t));
-  }, [setCustState]);
+    setCustStateWithHistory(applyFormatterReducer(colIdsRef.current, t));
+  }, [setCustStateWithHistory]);
 
   // Template picker — replace templateIds chain on active columns.
   const doApplyTemplate = useCallback((tplId: string) => {
-    setCustState(applyTemplateToColumnsReducer(colIdsRef.current, tplId));
-  }, [setCustState]);
+    setCustStateWithHistory(applyTemplateToColumnsReducer(colIdsRef.current, tplId));
+  }, [setCustStateWithHistory]);
 
   // Save-as-template — snapshot the effective style of the first active
   // column (resolving its templateIds + typeDefault + own overrides) and
@@ -280,11 +329,25 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
     return tpl.id;
   }, [platform, custState, tplState, setTplState]);
 
-  // Reset all overrides on active columns — collapses each assignment
-  // to a bare `{ colId }`.
+  // Delete a saved template. Two writes run together: pop the template
+  // out of column-templates AND strip the id from every
+  // column-assignment's `templateIds` chain so no assignment is left
+  // carrying a dangling reference. Both stores converge on their own
+  // auto-save cycle.
+  const doDeleteTemplate = useCallback((tplId: string) => {
+    setTplState(removeTemplateReducer(tplId));
+    setCustStateWithHistory(removeTemplateRefFromAssignmentsReducer(tplId));
+  }, [setTplState, setCustStateWithHistory]);
+
+  // Clear ALL column-customization assignments in the active profile.
+  // Was scoped to selected columns; expanded per user request so the
+  // button reads "wipe the profile's styles clean" rather than "reset
+  // this one column". Templates are preserved (users manage those
+  // explicitly). Wrapped in an AlertDialog at each call site because
+  // this is destructive and global.
   const doClearAllStyles = useCallback(() => {
-    setCustState(clearAllStylesReducer(colIdsRef.current));
-  }, [setCustState]);
+    setCustStateWithHistory(clearAllStylesInProfileReducer());
+  }, [setCustStateWithHistory]);
 
   // Decimals ± — read the CURRENT reactive `custState`/`tplState` so
   // consecutive clicks compound on the latest committed formatter.
@@ -347,6 +410,12 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
           toSet[s] = nxt;
         }
       }
+      // Borders may emit multiple writes in one interaction (e.g.
+      // clearing some sides + setting others). Push ONCE so the whole
+      // border-edit counts as a single undoable step rather than N
+      // small ones.
+      const hasAny = toClear.length > 0 || Object.keys(toSet).length > 0;
+      if (hasAny) undoRedo.push();
       if (toClear.length) {
         setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, toClear, undefined));
       }
@@ -367,7 +436,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
         }
       }
     },
-    [fmt.borders, setCustState],
+    [fmt.borders, setCustState, undoRedo],
   );
 
   // ─── Render ────────────────────────────────────────────────────────────
@@ -402,11 +471,41 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
   // popout. The compact toolbar stays for the inline-in-grid case
   // where a horizontal strip is the right metaphor.
   const templateListForPanel = templateList.map((t) => ({ id: t.id, name: t.name }));
-  const activeTemplateId = colIds.length > 0
-    ? custState?.assignments?.[colIds[0]]?.templateIds?.[0]
-    : undefined;
 
   return (
+    <>
+      {/* Shared "Clear all styles" confirm dialog — one instance serves
+          BOTH the in-grid toolbar's button AND the popped-out panel's
+          footer button (which flips `clearAllConfirmOpen` via the
+          `requestClearAllStyles` callback below). Lives outside the
+          Poppable tree so opening/closing the popout doesn't remount
+          the dialog and lose in-flight confirm state. */}
+      <AlertDialog open={clearAllConfirmOpen} onOpenChange={setClearAllConfirmOpen}>
+        <AlertDialogContent data-testid="formatting-clear-all-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all styles?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes every column's cell + header styling, value
+              formatters, border overrides, filter config, and template
+              references from the active profile. Saved templates are
+              not affected. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                doClearAllStyles();
+                flashClear();
+              }}
+              data-testid="formatting-clear-all-confirm-btn"
+            >
+              Clear all styles
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     <Poppable
       ref={ref}
       name={`gc-popout-toolbar-${platform.gridId}`}
@@ -467,9 +566,16 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
               setBgColor={setBgColor}
               applyBordersMap={applyBordersMap}
               doFormat={doFormat}
+              decreaseDecimals={decreaseDecimals}
+              increaseDecimals={increaseDecimals}
               doApplyTemplate={doApplyTemplate}
               doSaveAsTemplate={doSaveAsTemplate}
-              doClearAllStyles={doClearAllStyles}
+              doDeleteTemplate={doDeleteTemplate}
+              requestClearAllStyles={() => setClearAllConfirmOpen(true)}
+              canUndo={undoRedo.canUndo}
+              canRedo={undoRedo.canRedo}
+              onUndo={undoRedo.undo}
+              onRedo={undoRedo.redo}
               setSaveAsTplName={setSaveAsTplName}
               flashSaveAsTpl={flashSaveAsTpl}
             />
@@ -501,6 +607,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
         className="gc-tb-popout-btn"
         title="Open toolbar in a separate window"
         data-testid="formatting-popout-btn"
+        icon={<ExternalLink size={13} strokeWidth={2.25} />}
       />
 
       {/* ───────────────────────────── ROW 1 — CHROME ───────────────────
@@ -617,11 +724,12 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
 
         <ToolbarSep />
 
-        {/* Templates: single icon-button that opens a popover with the
-             template list + a caret arrow. Replaces the visible
-             <select> to save toolbar real estate. The save-as
-             popover next to it keeps its own trigger (its popover
-             lets the user NAME a new template — orthogonal UX). */}
+        {/* Templates — one consolidated popover that hosts the full
+             TemplateManager surface: list with click-to-apply + a
+             two-step delete confirm, plus the save-as row. Identical
+             markup/behavior to the popped Properties panel's
+             Templates section so users don't relearn the interaction
+             when switching between the two surfaces. */}
         {!disabled && (
           <TGroup>
             <Popover
@@ -629,89 +737,46 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
                 <button
                   type="button"
                   className="gc-tb-btn-menu"
-                  aria-label="Apply a saved template"
-                  title="Apply a saved template"
+                  aria-label="Templates"
+                  title="Templates"
                   data-testid="templates-menu-trigger"
                   onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
-                  {/* LayoutTemplate — the canonical "saved layout / template"
-                      glyph in lucide. Distinct from the Borders button's
-                      SquareDashed so the two aren't confusable. */}
                   <LayoutTemplate size={13} strokeWidth={1.75} />
                   <ChevronDown size={9} strokeWidth={2} className="gc-tb-caret" />
                 </button>
               }
             >
-              <div className="p-1.5 min-w-[200px]" data-testid="templates-menu">
-                <div className="text-[9px] uppercase tracking-[0.1em] mb-1 px-1.5 text-muted-foreground font-semibold">
+              <div
+                className="p-2"
+                data-testid="templates-menu"
+                onMouseDown={(e) => {
+                  if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
+                }}
+              >
+                <div className="text-[9px] uppercase tracking-[0.1em] mb-2 px-1.5 text-muted-foreground font-semibold">
                   Templates
                 </div>
-                {templateList.length === 0 ? (
-                  <div className="px-2 py-2 text-[10px] text-muted-foreground italic">
-                    No templates yet
-                  </div>
-                ) : (
-                  templateList.map((tpl) => (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      className="flex items-center w-full px-2 py-1.5 rounded text-[11px] font-mono hover:bg-accent cursor-pointer transition-colors text-foreground text-left"
-                      onClick={() => doApplyTemplate(tpl.id)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      data-testid={`templates-menu-item-${tpl.id}`}
-                    >
-                      {tpl.name}
-                    </button>
-                  ))
-                )}
-              </div>
-            </Popover>
-            <Popover
-              trigger={
-                <TBtn tooltip="Save as template" className={saveAsTplConfirmed ? 'gc-tb-confirm' : undefined}>
-                  {saveAsTplConfirmed
-                    ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--bn-green, #2dd4bf)' }} />
-                    : <Plus size={14} strokeWidth={1.75} />}
-                </TBtn>
-              }
-            >
-              <div className="p-3 w-[230px]" onMouseDown={(e) => {
-                if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
-              }}>
-                <div className="text-[9px] uppercase tracking-[0.05em] mb-1.5 text-muted-foreground font-semibold">
-                  Save as template
-                </div>
-                <input
-                  type="text"
-                  value={saveAsTplName}
-                  onChange={(e) => setSaveAsTplName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && saveAsTplName.trim()) {
-                      doSaveAsTemplate(saveAsTplName);
+                <TemplateManager
+                  templates={templateList}
+                  activeTemplateId={activeTemplateId}
+                  disabled={disabled}
+                  saveName={saveAsTplName}
+                  saveConfirmed={saveAsTplConfirmed}
+                  onSaveNameChange={setSaveAsTplName}
+                  onSave={() => {
+                    const name = saveAsTplName.trim() || `${colLabel} Style`;
+                    const id = doSaveAsTemplate(name);
+                    if (id) {
                       setSaveAsTplName('');
                       flashSaveAsTpl();
                     }
                   }}
-                  placeholder={`${colLabel} Style`}
-                  className="w-full h-7 px-2.5 rounded-[3px] text-[11px] font-mono mb-2 bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-ring"
-                  autoFocus
-                  data-testid="save-tpl-input"
+                  onApply={doApplyTemplate}
+                  onDelete={doDeleteTemplate}
+                  variant="compact"
+                  testIdPrefix="tb-tpl"
                 />
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    const name = saveAsTplName.trim() || `${colLabel} Style`;
-                    doSaveAsTemplate(name);
-                    setSaveAsTplName('');
-                    flashSaveAsTpl();
-                  }}
-                  data-testid="save-tpl-btn"
-                >
-                  Save Template
-                </Button>
               </div>
             </Popover>
           </TGroup>
@@ -741,6 +806,8 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
                 disabled={disabled}
                 type="button"
                 className="gc-tb-chip"
+                title="Font size (px)"
+                aria-label="Font size"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
                 <span>{fontSizeLabel}</span>
@@ -792,6 +859,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
             icon={<Type size={11} strokeWidth={2} />}
             onChange={(c) => setTextColor(c)}
             compact
+            title="Text color"
           />
           <ColorPickerPopover
             disabled={disabled}
@@ -799,6 +867,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
             icon={<PaintBucket size={11} strokeWidth={1.5} />}
             onChange={(c) => setBgColor(c)}
             compact
+            title="Fill color"
           />
         </TGroup>
 
@@ -863,28 +932,27 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
              got shoved right. Only the Preview chip keeps `ml-auto` so
              it stays right-anchored as the toolbar's final element. */}
         <TGroup>
-          <Tooltip content="Undo/redo deferred to v2.2">
-            <span>
-              <TBtn disabled tooltip={undefined}>
-                <Undo2 size={14} strokeWidth={1.75} />
-              </TBtn>
-            </span>
-          </Tooltip>
-          <Tooltip content="Undo/redo deferred to v2.2">
-            <span>
-              <TBtn disabled tooltip={undefined}>
-                <Redo2 size={14} strokeWidth={1.75} />
-              </TBtn>
-            </span>
-          </Tooltip>
+          <TBtn
+            tooltip="Undo"
+            disabled={!undoRedo.canUndo}
+            onClick={undoRedo.undo}
+            data-testid="formatting-undo"
+          >
+            <Undo2 size={14} strokeWidth={1.75} />
+          </TBtn>
+          <TBtn
+            tooltip="Redo"
+            disabled={!undoRedo.canRedo}
+            onClick={undoRedo.redo}
+            data-testid="formatting-redo"
+          >
+            <Redo2 size={14} strokeWidth={1.75} />
+          </TBtn>
           <div className="gc-toolbar-sep h-4 opacity-50" />
           <TBtn
-            tooltip="Clear all styles"
-            disabled={disabled}
-            onClick={() => {
-              doClearAllStyles();
-              flashClear();
-            }}
+            tooltip="Clear all styles in this profile"
+            onClick={() => setClearAllConfirmOpen(true)}
+            data-testid="formatting-clear-all"
             className={clearConfirmed ? 'gc-tb-confirm' : undefined}
           >
             {clearConfirmed
@@ -916,6 +984,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
                 type="button"
                 disabled={disabled || isHeader}
                 aria-label="Currency"
+                title="Currency format (click for USD, chevron for EUR/GBP/JPY/BPS)"
                 className="gc-tb-btn"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 data-testid="fmt-currency-menu"
@@ -1090,6 +1159,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
         );
       }}
     </Poppable>
+    </>
   );
 });
 

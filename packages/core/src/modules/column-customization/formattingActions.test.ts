@@ -22,6 +22,8 @@ import {
   applyTypographyReducer,
   clearAllBordersReducer,
   clearAllStylesReducer,
+  clearAllStylesInProfileReducer,
+  removeTemplateRefFromAssignmentsReducer,
   mergeOverrides,
   overrideKey,
   stripUndefined,
@@ -424,5 +426,77 @@ describe('clearAllStylesReducer', () => {
 
   it('is a no-op for empty colIds', () => {
     expect(clearAllStylesReducer([])(EMPTY)).toBe(EMPTY);
+  });
+});
+
+// ─── Profile-wide clear ────────────────────────────────────────────────
+
+describe('clearAllStylesInProfileReducer', () => {
+  it('wipes every column assignment', () => {
+    let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    state = applyColorsReducer(['quantity'], 'cell', { text: '#f00' })(state);
+    state = applyTemplateToColumnsReducer(['spread'], 'tpl-x')(state);
+    expect(Object.keys(state.assignments).sort()).toEqual(['price', 'quantity', 'spread']);
+
+    const next = clearAllStylesInProfileReducer()(state);
+    expect(next.assignments).toEqual({});
+  });
+
+  it('returns the same reference when assignments is already empty', () => {
+    const next = clearAllStylesInProfileReducer()(EMPTY);
+    expect(next).toBe(EMPTY);
+  });
+
+  it('tolerates undefined prev', () => {
+    const next = clearAllStylesInProfileReducer()(undefined);
+    expect(next.assignments).toEqual({});
+  });
+});
+
+// ─── Template-ref cleanup after template deletion ──────────────────────
+
+describe('removeTemplateRefFromAssignmentsReducer', () => {
+  it('strips the id from every column that references it', () => {
+    let state = applyTemplateToColumnsReducer(['price'], 'tpl-x')(EMPTY);
+    state = applyTemplateToColumnsReducer(['quantity'], 'tpl-x')(state);
+    state = applyTemplateToColumnsReducer(['spread'], 'tpl-y')(state);
+
+    const next = removeTemplateRefFromAssignmentsReducer('tpl-x')(state);
+    expect(next.assignments['price'].templateIds).toBeUndefined();
+    expect(next.assignments['quantity'].templateIds).toBeUndefined();
+    // `spread` referenced a different template — untouched.
+    expect(next.assignments['spread'].templateIds).toEqual(['tpl-y']);
+  });
+
+  it('preserves other template ids in a multi-template chain', () => {
+    const state: typeof EMPTY = {
+      ...EMPTY,
+      assignments: {
+        price: { colId: 'price', templateIds: ['tpl-a', 'tpl-b', 'tpl-c'] },
+      },
+    };
+    const next = removeTemplateRefFromAssignmentsReducer('tpl-b')(state);
+    expect(next.assignments['price'].templateIds).toEqual(['tpl-a', 'tpl-c']);
+  });
+
+  it('returns the same reference when nothing references the id', () => {
+    const state = applyTemplateToColumnsReducer(['price'], 'tpl-x')(EMPTY);
+    const next = removeTemplateRefFromAssignmentsReducer('tpl-missing')(state);
+    expect(next).toBe(state);
+  });
+
+  it('is a no-op for empty templateId', () => {
+    const state = applyTemplateToColumnsReducer(['price'], 'tpl-x')(EMPTY);
+    const next = removeTemplateRefFromAssignmentsReducer('')(state);
+    expect(next).toBe(state);
+  });
+
+  it('preserves overrides on the column (only templateIds is touched)', () => {
+    let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
+    state = applyTemplateToColumnsReducer(['price'], 'tpl-x')(state);
+
+    const next = removeTemplateRefFromAssignmentsReducer('tpl-x')(state);
+    expect(next.assignments['price'].cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(next.assignments['price'].templateIds).toBeUndefined();
   });
 });

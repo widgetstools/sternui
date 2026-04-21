@@ -13,3 +13,4 @@ export {
   type UseModuleDraftOptions,
   type UseModuleDraftResult,
 } from './useModuleDraft';
+export { useUndoRedo, type UseUndoRedoResult } from './useUndoRedo';

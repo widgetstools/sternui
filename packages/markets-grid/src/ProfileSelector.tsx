@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload } from 'lucide-react';
+import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@grid-customizer/core';
 // Static-layout styles — AUDIT i5 partial migration. State-dependent
 // styles stay inline (see ProfileSelector.css for rationale).
@@ -26,6 +26,13 @@ export interface ProfileSelectorProps {
   onLoad: (id: string) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
   /**
+   * Optional: called per-profile from the row's clone button. Suggested
+   * implementation: dispatch `cloneProfile(sourceId, name)`. The parent
+   * decides the default name ("Source Name (copy)" is conventional).
+   * Omit to hide the clone affordance.
+   */
+  onClone?: (id: string) => void | Promise<unknown>;
+  /**
    * Optional: called per-profile from the row's download button AND from the
    * footer "Export active" action. Implementations should download a JSON
    * file. Omit to hide the export affordances.
@@ -51,6 +58,7 @@ export function ProfileSelector({
   onCreate,
   onLoad,
   onDelete,
+  onClone,
   onExport,
   onImport,
 }: ProfileSelectorProps) {
@@ -232,6 +240,44 @@ export function ProfileSelector({
                         flexShrink: 0,
                       }}
                     />
+                  )}
+
+                  {/* Per-row clone button — duplicates the profile with
+                      a "(copy)" suffix and activates it. Revealed on
+                      hover just like export/delete. */}
+                  {onClone && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClone(p.id);
+                        setOpen(false);
+                      }}
+                      title={`Clone "${p.name}"`}
+                      aria-label={`Clone profile ${p.name}`}
+                      data-testid={`profile-clone-${p.id}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 22, height: 22,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--muted-foreground, #8b93a1)',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        opacity: isHovered ? 1 : 0,
+                        transition: 'opacity 120ms, background 120ms, color 120ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--primary, #14b8a6) 14%, transparent)';
+                        e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--muted-foreground, #8b93a1)';
+                      }}
+                    >
+                      <Copy size={11} strokeWidth={1.75} />
+                    </button>
                   )}
 
                   {/* Per-row export button — revealed on hover next to delete */}

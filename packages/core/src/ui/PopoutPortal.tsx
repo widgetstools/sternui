@@ -387,11 +387,21 @@ export function PopoutPortal({
   // ── Mirror the main window's <html data-theme="..."> onto the popout
   // so the dark/light CSS vars resolve. Observes the attribute so a
   // toggle in main instantly repaints the popout.
+  //
+  // Also mirror onto the popout's <body>, because some of our scoped
+  // overrides in cockpit.ts target `.gc-sheet-v2[data-theme='light']`
+  // (same-element selector) — if the attr lives only on the <html>
+  // element but `gc-sheet-v2` lives on <body>, those overrides
+  // silently never match. Setting both keeps the selector
+  // ambiguous-friendly.
   useEffect(() => {
     if (!popout) return;
     const syncTheme = () => {
       const theme = document.documentElement.getAttribute('data-theme');
-      if (theme) popout.document.documentElement.setAttribute('data-theme', theme);
+      if (theme) {
+        popout.document.documentElement.setAttribute('data-theme', theme);
+        try { popout.document.body.setAttribute('data-theme', theme); } catch { /* */ }
+      }
     };
     syncTheme();
     const obs = new MutationObserver(syncTheme);
@@ -570,6 +580,23 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
         doc.head.appendChild(meta);
       }
     } catch (err) { console.warn('[PopoutPortal] viewport meta inject failed:', err); }
+
+    // Seed the popout's <body> with BOTH the cockpit scope class AND
+    // the gc-settings data-attr so every Radix portal target (we pass
+    // `popout.document.body` as the container) inherits the full
+    // --ck-*, --gc-*, + Tailwind shadcn token stack. Without this, a
+    // FormatPopover opened from inside a popped settings sheet would
+    // fall back to light-theme shadcn defaults — the user saw a white
+    // rectangle in the middle of the Indicator section because the
+    // portaled color-picker content had no --gc-surface bound.
+    //
+    // These are purely scoping hooks (no layout styles bound to them
+    // at :root level), so adding them to <body> is harmless for any
+    // direct-body consumers and fixes every downstream portal.
+    try {
+      doc.body.classList.add('gc-sheet-v2');
+      doc.body.setAttribute('data-gc-settings', '');
+    } catch (err) { console.warn('[PopoutPortal] body scope tag failed:', err); }
 
     try {
       const reset = doc.createElement('style');

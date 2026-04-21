@@ -417,6 +417,101 @@ export class ProfileManager {
     await this.refresh();
   }
 
+  /**
+   * Clone an existing profile into a new one with a fresh id + name.
+   * Activates the clone afterwards so the user can immediately edit
+   * without switching.
+   *
+   * Source-state semantics:
+   *   - If `sourceId` IS the currently active profile, the clone
+   *     captures the LIVE in-memory state (including unsaved edits).
+   *     Any pending auto-save is flushed first so recent debounced
+   *     edits are included. Matches the "clone what I'm looking at"
+   *     mental model users expect.
+   *   - If `sourceId` is a non-active profile, the clone captures the
+   *     snapshot on disk. Prevents surprising cross-profile captures.
+   *
+   * Errors:
+   *   - `sourceId` not found → throws.
+   *   - Target id collides with the Default id → throws (Default is
+   *     reserved; rename the clone to get around it).
+   *   - Target id collides with the source → throws (would overwrite
+   *     the source via the adapter's last-write-wins save).
+   *
+   * Side effects mirror `create()`:
+   *   - Flips `activeId` to the clone and hydrates the live store
+   *     from its state.
+   *   - Emits `profile:saved` + `profile:loaded`.
+   *   - Clears the dirty flag (the clone starts clean relative to
+   *     its own snapshot).
+   */
+  async clone(sourceId: string, name: string, options?: { id?: string }): Promise<ProfileMeta> {
+    const id = options?.id ?? slugId(name);
+    if (id === RESERVED_DEFAULT_PROFILE_ID) {
+      throw new Error(`[profiles] Cannot clone onto reserved id "${RESERVED_DEFAULT_PROFILE_ID}"`);
+    }
+    if (id === sourceId) {
+      throw new Error(`[profiles] Clone target id must differ from source id "${sourceId}"`);
+    }
+    const { gridId } = this.platform;
+
+    // Step 1 — capture the source state.
+    let sourceState: Record<string, SerializedState>;
+    if (sourceId === this.state.activeId) {
+      // Clone-from-live: flush any pending auto-save so recent
+      // debounced writes are included, then serialize.
+      if (this.autoSave) await this.autoSave.flushNow();
+      sourceState = this.platform.serializeAll();
+    } else {
+      const srcSnap = await this.adapter.loadProfile(gridId, sourceId);
+      if (!srcSnap) {
+        throw new Error(`[profiles] Source profile "${sourceId}" not found`);
+      }
+      sourceState = srcSnap.state;
+    }
+
+    // Step 2 — deep-copy so the clone doesn't alias the source's
+    // state object (subsequent edits to either must not leak).
+    // Fall back to JSON round-trip when structuredClone isn't
+    // available (older Node test envs, though jsdom > 20 supports
+    // it natively).
+    const clonedState: Record<string, SerializedState> =
+      typeof structuredClone === 'function'
+        ? structuredClone(sourceState)
+        : JSON.parse(JSON.stringify(sourceState));
+
+    // Step 3 — commit the new profile row.
+    const now = Date.now();
+    const snap: ProfileSnapshot = {
+      id,
+      gridId,
+      name: name.trim() || id,
+      state: clonedState,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.adapter.saveProfile(snap);
+
+    // Step 4 — flip pointer + hydrate from the cloned state. Same
+    // shape as create()'s activation step.
+    this.updateState({ activeId: id });
+    writeActiveId(gridId, id);
+    this.dirtySuppressDepth++;
+    try {
+      this.platform.resetAll();
+      this.platform.deserializeAll(clonedState);
+    } finally {
+      this.dirtySuppressDepth--;
+    }
+    this.autoSave?.cancelScheduled();
+    this.updateState({ isDirty: false });
+
+    this.platform.events.emit('profile:saved', { gridId, profileId: id });
+    this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+    await this.refresh();
+    return toMeta(snap);
+  }
+
   /** Snapshot a profile as a portable JSON payload. Flushes any pending
    *  auto-save first so the payload reflects the latest edits. */
   async export(id?: string): Promise<ExportedProfilePayload> {

@@ -435,6 +435,30 @@ function Host<TData>({
                   onCreate={(name) => profiles.createProfile(name)}
                   onLoad={(id) => requestLoadProfile(id)}
                   onDelete={(id) => profiles.deleteProfile(id)}
+                  onClone={async (id) => {
+                    // Compose a unique " (copy)" name, de-duping against
+                    // existing profiles so consecutive clones produce
+                    // "…(copy)", "…(copy 2)", "…(copy 3)". The manager
+                    // throws on id collision, so we also suffix the id
+                    // deterministically via the default slug; if it
+                    // still collides (edge case: user already made a
+                    // "<foo>-copy"), bump the suffix until it's free.
+                    try {
+                      const src = profiles.profiles.find((p) => p.id === id);
+                      if (!src) return;
+                      const existingNames = new Set(profiles.profiles.map((p) => p.name));
+                      let candidate = `${src.name} (copy)`;
+                      let n = 2;
+                      while (existingNames.has(candidate)) {
+                        candidate = `${src.name} (copy ${n})`;
+                        n++;
+                      }
+                      await profiles.cloneProfile(id, candidate);
+                    } catch (err) {
+                      console.warn('[markets-grid] profile clone failed:', err);
+                      window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                  }}
                   onExport={async (id) => {
                     try {
                       const payload = await profiles.exportProfile(id);

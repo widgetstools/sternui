@@ -114,29 +114,39 @@
 /* ─── Pop-out trigger — small ExternalLink icon, top-right corner.
    Absolutely positioned so the dense toolbar layout isn't disturbed.
    Hidden when `.is-popped` since the OS window chrome replaces it. */
+/* Pop-out button — was 18x18 @ opacity 0.55 with no border, which
+   made it a ghost in the corner. Bumped to 22x22 @ high opacity with
+   a soft border + tinted background so it reads as an actionable
+   control without dominating the chrome. Icon stroke is also thicker
+   at the call site. */
 .gc-formatting-toolbar .gc-tb-popout-btn {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 4px;
+  right: 4px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--tb-ink-2);
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: var(--foreground);
   cursor: pointer;
-  border-radius: 3px;
-  opacity: 0.55;
-  transition: opacity 120ms ease, color 120ms ease, background 120ms ease;
+  border-radius: 4px;
+  opacity: 0.85;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 .gc-formatting-toolbar .gc-tb-popout-btn:hover {
   opacity: 1;
-  color: var(--tb-accent);
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.gc-formatting-toolbar .gc-tb-popout-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 .gc-formatting-toolbar.is-popped .gc-tb-popout-btn {
   display: none;

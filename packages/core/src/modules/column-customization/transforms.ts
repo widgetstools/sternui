@@ -343,14 +343,34 @@ export function applyAssignments(
       // Excel color tags — `[Red]`, `[Green]` etc. in the format string —
       // only affect text semantics in SSF. Emit a `cellStyle` fn that
       // paints the computed color for the matched section.
-      if (resolved.valueFormatterTemplate.kind === 'excelFormat') {
-        const colorResolver = excelFormatColorResolver(resolved.valueFormatterTemplate.format);
-        if (colorResolver) {
-          merged.cellStyle = (params) => {
-            const color = colorResolver(params.value);
-            return color ? { color } : null;
-          };
-        }
+      //
+      // IMPORTANT: we always assign `merged.cellStyle` whenever a
+      // formatter is active, even when the new format has no color
+      // tags. Returning `null` from a cellStyle fn tells AG-Grid "don't
+      // override" — it does NOT clear the inline `color` property that
+      // a previous formatter's cellStyle put on the cell. So when the
+      // user switches from a `[Red]`-colored format to a plain one, the
+      // red color would stick until a full reload. Emitting
+      // `{ color: '' }` explicitly resets `cell.style.color` so AG-Grid
+      // clears the inline color. Does NOT interfere with class-based
+      // colors from `colors.text` overrides — those come from the
+      // injected `.gc-col-c-{colId}` rule, which an empty inline color
+      // cascades through.
+      const colorResolver =
+        resolved.valueFormatterTemplate.kind === 'excelFormat'
+          ? excelFormatColorResolver(resolved.valueFormatterTemplate.format)
+          : undefined;
+      if (colorResolver) {
+        merged.cellStyle = (params) => {
+          const color = colorResolver(params.value);
+          return color ? { color } : { color: '' };
+        };
+      } else if (colDef.cellStyle === undefined) {
+        // No color resolver AND the user's source colDef has no
+        // cellStyle of its own — safe to plant our "clear" fn. If the
+        // user DID set a cellStyle, we leave it alone (their handler
+        // should own color lifecycle).
+        merged.cellStyle = () => ({ color: '' });
       }
     }
 

@@ -129,11 +129,20 @@ export function buildVirtualColDef(
     valueFormatter: formatFn
       ? (params: ValueFormatterParams) => formatFn({ value: params.value, data: params.data })
       : undefined,
+    // See the twin comment in column-customization/transforms.ts: when
+    // switching from a `[Red]`-colored format to a plain one, the
+    // cellStyle fn must return `{ color: '' }` (NOT `null`) so AG-Grid
+    // clears the inline `color` property a previous formatter painted.
+    // For virtual columns we always emit a fn when there IS a formatter
+    // — without one (`undefined`) AG-Grid could retain the prior
+    // formatter's inline color on rendered cells.
     cellStyle: colorResolver
       ? (params: CellClassParams) => {
           const color = colorResolver(params.value);
-          return color ? { color } : null;
+          return color ? { color } : { color: '' };
         }
-      : undefined,
+      : v.valueFormatterTemplate
+        ? () => ({ color: '' })
+        : undefined,
   };
 }

@@ -67,10 +67,18 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       rowSelection: s.rowSelection
         ? { mode: s.rowSelection, checkboxes: s.checkboxSelection }
         : undefined,
-      // Re-emit AG-Grid's default selection column with permissive movability
-      // so its position round-trips through grid-state saves.
+      // Re-emit AG-Grid's default selection column pinned to the left.
+      // `pinned: 'left'` (NOT `initialPinned`) re-applies on every
+      // `setColumnDefs`, otherwise the selection column silently drifts
+      // rightward by one slot each time a formatting change triggers a
+      // columnDefs re-derive (user sees the checkbox column jump from
+      // position 0 to position 1 after the first style is applied).
+      // `initialPinned` is a mount-only hint AG-Grid drops on subsequent
+      // setColumnDefs calls; `pinned` is the load-bearing equivalent.
+      // `suppressMovable: false, lockPosition: false` still lets the
+      // user drag within the left-pinned area.
       selectionColumnDef: s.rowSelection && s.checkboxSelection
-        ? { suppressMovable: false, lockPosition: false, initialPinned: 'left' }
+        ? { suppressMovable: false, lockPosition: false, pinned: 'left' }
         : undefined,
       cellSelection: s.cellSelection,
       rowDragManaged: s.rowDragging,

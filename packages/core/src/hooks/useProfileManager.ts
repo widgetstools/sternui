@@ -24,6 +24,11 @@ export interface UseProfileManagerResult {
    *  disk. Used by the Discard branch of the unsaved-changes prompt. */
   discardActiveProfile: () => Promise<void>;
   createProfile: (name: string, opts?: { id?: string }) => Promise<ProfileMeta>;
+  /** Duplicate an existing profile into a new one under `name`.
+   *  Activates the clone immediately. If `sourceId` is the active
+   *  profile, captures the live (possibly-dirty) state so the clone
+   *  reflects what the user currently sees. */
+  cloneProfile: (sourceId: string, name: string, opts?: { id?: string }) => Promise<ProfileMeta>;
   deleteProfile: (id: string) => Promise<void>;
   renameProfile: (id: string, name: string) => Promise<void>;
   exportProfile: (id?: string) => Promise<ExportedProfilePayload>;
@@ -110,6 +115,10 @@ export function useProfileManager(opts: {
     (name: string, o?: { id?: string }) => manager.create(name, o),
     [manager],
   );
+  const cloneProfile = useCallback(
+    (sourceId: string, name: string, o?: { id?: string }) => manager.clone(sourceId, name, o),
+    [manager],
+  );
   const deleteProfile = useCallback((id: string) => manager.remove(id), [manager]);
   const renameProfile = useCallback(
     (id: string, name: string) => manager.rename(id, name),
@@ -130,6 +139,7 @@ export function useProfileManager(opts: {
     saveActiveProfile,
     discardActiveProfile,
     createProfile,
+    cloneProfile,
     deleteProfile,
     renameProfile,
     exportProfile,

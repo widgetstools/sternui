@@ -89,11 +89,17 @@ export {
   useDirtyCount,
   useGridColumns,
   useModuleDraft,
+  useUndoRedo,
   type DirtyHandle,
   type GridColumnInfo,
   type UseModuleDraftOptions,
   type UseModuleDraftResult,
+  type UseUndoRedoResult,
 } from './hooks';
+// Framework-agnostic history primitive — the non-React core of
+// useUndoRedo. Exposed separately for callers that want to manage a
+// stack outside of React's lifecycle (tests, headless tools, workers).
+export { HistoryStack, type HistoryStackOptions } from './history/HistoryStack';
 
 // Back-compat type aliases. `GridCore` is the minimal surface the
 // markets-grid `FormattingToolbar` threads through its helpers;
@@ -279,6 +285,7 @@ export {
   resolveTemplates,
   snapshotTemplate,
   addTemplateReducer,
+  removeTemplateReducer,
   type ColumnTemplate,
   type ColumnTemplatesState,
   type SnapshotTemplateDeps,
@@ -304,7 +311,9 @@ export {
   clearAllBordersReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
+  removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,
+  clearAllStylesInProfileReducer,
   type TargetKind,
   // Narrowed ColumnAssignment (with concrete filter + rowGrouping shapes).
   // This is what every consumer wants — the base shape with `unknown`
