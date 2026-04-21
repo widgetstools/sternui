@@ -131,3 +131,36 @@ export function addTemplateReducer(
     };
   };
 }
+
+/**
+ * Delete a template from `state.templates`. Any `typeDefaults[...]`
+ * entries pointing at the removed id are also cleared (otherwise the
+ * resolver would leave a dangling type-default reference — functionally
+ * equivalent to the id being missing thanks to resolveTemplates'
+ * silent-skip of unknown ids, but a clean state read is easier to
+ * reason about).
+ *
+ * Column `assignments[*].templateIds[]` are NOT rewritten here — that
+ * lives in column-customization. Callers that want full cleanup should
+ * dispatch `removeTemplateRefFromAssignmentsReducer(id)` to the
+ * column-customization store in the same tick.
+ */
+export function removeTemplateReducer(
+  templateId: string,
+): (prev: ColumnTemplatesState | undefined) => ColumnTemplatesState {
+  return (prev) => {
+    const base: ColumnTemplatesState = prev ?? {
+      templates: {},
+      typeDefaults: {},
+    };
+    if (!base.templates[templateId]) return base;
+
+    const { [templateId]: _removed, ...remaining } = base.templates;
+    // Clear any type-default that pointed at the removed id.
+    const typeDefaults = { ...base.typeDefaults };
+    for (const [dataType, id] of Object.entries(typeDefaults)) {
+      if (id === templateId) delete typeDefaults[dataType as keyof typeof typeDefaults];
+    }
+    return { ...base, templates: remaining, typeDefaults };
+  };
+}

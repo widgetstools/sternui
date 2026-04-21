@@ -51,6 +51,7 @@ export { resolveTemplates } from './resolveTemplates';
 export {
   snapshotTemplate,
   addTemplateReducer,
+  removeTemplateReducer,
   type SnapshotTemplateDeps,
 } from './snapshotTemplate';
 export type { ColumnTemplate, ColumnTemplatesState, ColumnDataType };

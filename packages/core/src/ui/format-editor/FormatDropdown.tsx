@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Check } from 'lucide-react';
 import { cn } from '../shadcn/utils';
+import { usePortalContainer } from '../PortalContainer';
 import { clickIsInsideAnyOpenPopover, registerPopoverRoot } from './popoverStack';
 
 /**
@@ -25,6 +26,9 @@ export function FormatDropdown<V extends string | number>({
 }) {
   const [open, setOpen] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  // Route through PortalContainer so the dropdown lands in the popout
+  // window when the sheet is popped out.
+  const portalContainer = usePortalContainer();
 
   React.useEffect(() => {
     if (!open || !contentRef.current) return;
@@ -36,7 +40,7 @@ export function FormatDropdown<V extends string | number>({
       <PopoverPrimitive.Trigger asChild>
         {trigger}
       </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
         <PopoverPrimitive.Content
           ref={contentRef}
           align="start"

@@ -60,18 +60,27 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   },
 
   transformColumnDefs(defs, state, ctx) {
-    if (Object.keys(state.assignments).length === 0) return defs;
     const templatesState = ctx.getModuleState<ColumnTemplatesState>(COLUMN_TEMPLATES_MODULE_ID);
 
     // CSS rule injection — one CssHandle per module, kept alive for the
     // grid's lifetime via the ResourceScope. `reinjectCSS` clears +
     // re-writes every pass; cheap because we only touch the text node.
+    //
+    // IMPORTANT: always run, even when assignments is empty. An empty
+    // assignments map means the user cleared / undid every column
+    // override — we need to CLEAR the previously-injected rules, not
+    // leave them dangling. Previously this ran only when assignments
+    // was non-empty, which meant Clear-All / Undo-to-empty left stale
+    // `.gc-col-c-{colId}` rules in the page stylesheet.
     const cells = ctx.resources.css(`${COLUMN_CUSTOMIZATION_MODULE_ID}-cells`);
     const headers = ctx.resources.css(`${COLUMN_CUSTOMIZATION_MODULE_ID}-headers`);
     reinjectCSS(cells, headers, state.assignments, templatesState, defs);
 
     // Walker emits cellClass / headerClass (NOT cellStyle / headerStyle) so
     // the CSS rules above take effect without per-row recomputation.
+    // Fast-path: skip the walker when there's nothing to merge — `defs`
+    // is returned as-is, same reference, so AG-Grid sees no change.
+    if (Object.keys(state.assignments).length === 0) return defs;
     return applyAssignments(defs, state.assignments, templatesState, ctx.resources.expression());
   },
 
@@ -133,6 +142,8 @@ export {
   clearAllBordersReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
+  removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,
+  clearAllStylesInProfileReducer,
   type TargetKind,
 } from './formattingActions';

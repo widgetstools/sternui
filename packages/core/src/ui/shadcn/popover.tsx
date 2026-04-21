@@ -23,6 +23,7 @@
 import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from './utils';
+import { usePortalContainer } from '../PortalContainer';
 
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -32,8 +33,13 @@ const PopoverClose = PopoverPrimitive.Close;
 const PopoverContent = React.forwardRef<
   React.ComponentRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = 'start', sideOffset = 4, children, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+>(({ className, align = 'start', sideOffset = 4, children, ...props }, ref) => {
+  // Route the Radix portal into the PortalContainer context's target
+  // (popout body when inside PopoutPortal, document.body otherwise).
+  // Undefined = Radix falls back to its own default.
+  const portalContainer = usePortalContainer();
+  return (
+  <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
@@ -69,7 +75,8 @@ const PopoverContent = React.forwardRef<
       {children}
     </PopoverPrimitive.Content>
   </PopoverPrimitive.Portal>
-));
+  );
+});
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 
 /**

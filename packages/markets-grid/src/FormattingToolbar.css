@@ -111,6 +111,67 @@
   height: var(--tb-h-bar);
 }
 
+/* ─── Pop-out trigger — small ExternalLink icon, top-right corner.
+   Absolutely positioned so the dense toolbar layout isn't disturbed.
+   Hidden when `.is-popped` since the OS window chrome replaces it. */
+/* Pop-out button — was 18x18 @ opacity 0.55 with no border, which
+   made it a ghost in the corner. Bumped to 22x22 @ high opacity with
+   a soft border + tinted background so it reads as an actionable
+   control without dominating the chrome. Icon stroke is also thicker
+   at the call site. */
+.gc-formatting-toolbar .gc-tb-popout-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: var(--foreground);
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0.85;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.gc-formatting-toolbar .gc-tb-popout-btn:hover {
+  opacity: 1;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.gc-formatting-toolbar .gc-tb-popout-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.gc-formatting-toolbar.is-popped .gc-tb-popout-btn {
+  display: none;
+}
+
+/* ─── Popped mode — the toolbar lives inside its own OS window via
+   PopoutPortal. The natural "max-content" width + toolbar chrome
+   don't apply in that context: the window IS the chrome, and the
+   toolbar should fill it edge-to-edge. */
+.gc-formatting-toolbar.is-popped {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto;
+  min-height: var(--tb-h-bar);
+  border: none;
+  border-radius: 0;
+  background: var(--tb-bg-bar);
+  box-shadow: none;
+  z-index: auto;
+}
+.gc-formatting-toolbar.is-popped .gc-toolbar-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
 /* ─── Group + divider ──────────────────────────────────────────── */
 .gc-formatting-toolbar .gc-tb-g {
   display: flex;

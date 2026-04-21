@@ -762,6 +762,43 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
 - **Grid API debug hook** (opt-in, not committed by default) for
   preview-based E2E / manual testing of column-state APIs.
 
+### 1.18a Pop-out settings sheet (detached OS window)
+
+- **`<PopoutPortal/>`** in `packages/core/src/ui/PopoutPortal.tsx` — a
+  generic React component that opens an OS window via `window.open`
+  (browser) or `fin.Window.create` (OpenFin, via the
+  `openFinWindowOpener()` helper in `packages/core/src/utils/openFin.ts`),
+  clones the main document's `<head>` stylesheets into the popout,
+  and returns `createPortal(children, popoutBody)`. Because the
+  children stay in the MAIN window's React tree, they share the same
+  `GridProvider`, Zustand store, `ProfileManager`, and theme — no
+  BroadcastChannel or URL-routed re-hydration needed.
+- **Button** — `ExternalLink` icon in the settings-sheet header next
+  to Help / Maximize / Close. Testid `v2-settings-popout-btn`. Hides
+  while popped (the OS window owns its own chrome). Clicking once
+  opens a 960×700 window named `gc-popout-<gridId>`; clicking again
+  while an open popout exists refocuses the existing window (real
+  browsers reuse named windows).
+- **Theme sync** — a MutationObserver on the main document's
+  `<html data-theme>` mirrors the value onto the popout so
+  dark/light toggling in main instantly repaints the popout. Cloned
+  stylesheets carry the `--bn-*`, `--ck-*`, `--primary` token
+  system.
+- **Lifecycle** — closing the popout (OS close button, Cmd-W,
+  `beforeunload`) flips the sheet back to inline mode. Closing the
+  main window closes the popout too (via `window.addEventListener
+  ('beforeunload', () => popout.close())`). Popup-blocker rejection
+  falls back to inline mode with a console warning.
+- **CSS** — `.gc-popout.is-popped` strips the fixed-overlay
+  centering chrome (position/transform/width/height/border/shadow)
+  so the sheet fills its new OS window edge-to-edge.
+- **Coverage** — 7 unit tests in `PopoutPortal.test.tsx` (rendering
+  into the portal doc, stylesheet cloning, beforeunload → onClose,
+  cleanup on unmount, popup-blocker fallback, OpenFin override) +
+  5 e2e tests in `v2-popout-window.spec.ts` (button presence, window
+  features, data-popped flip, backdrop suppression, main-window
+  buttons hidden).
+
 ### 1.18 `@grid-customizer/design-system` package
 
 New workspace at `packages/design-system` lifted from the FI Trading

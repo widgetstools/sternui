@@ -442,6 +442,118 @@ describe('ProfileManager — phantom-profile regressions', () => {
     manager.dispose();
   });
 
+  // ─── clone ─────────────────────────────────────────────────────
+
+  it('clone() duplicates the active profile\'s LIVE (dirty) state into the new row', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Commit some state on Default.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['committed'] }));
+    await manager.save();
+    // Add unsaved edits on top — these SHOULD be part of the clone.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['committed', 'dirty'] }));
+
+    await manager.clone(RESERVED_DEFAULT_PROFILE_ID, 'Default Variant');
+
+    // Clone is active.
+    expect(manager.getState().activeId).toBe('default-variant');
+    // Clone's row on disk contains both the committed AND the
+    // previously-unsaved state (live-state capture).
+    const row = await adapter.loadProfile(platform.gridId, 'default-variant');
+    const style = row?.state.style as { v: number; data: StyleState } | undefined;
+    expect(style?.data.rules).toEqual(['committed', 'dirty']);
+    // Clone is not dirty — its on-disk snapshot matches the live store.
+    expect(manager.getState().isDirty).toBe(false);
+
+    manager.dispose();
+  });
+
+  it('clone() of a NON-active profile uses the on-disk snapshot, not the live store', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    // Create a saved profile "source" with rules=['source-rule'].
+    await manager.create('Source');
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['source-rule'] }));
+    await manager.save();
+
+    // Switch to Default, and make DIFFERENT edits in the live store.
+    await manager.load(RESERVED_DEFAULT_PROFILE_ID);
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['default-live'] }));
+
+    // Clone 'source' — should capture source's DISK state, not the
+    // current live store (which is pointing at Default's live edits).
+    await manager.clone('source', 'Source Copy');
+
+    const row = await adapter.loadProfile(platform.gridId, 'source-copy');
+    const style = row?.state.style as { v: number; data: StyleState } | undefined;
+    expect(style?.data.rules).toEqual(['source-rule']);
+
+    manager.dispose();
+  });
+
+  it('clone() rejects the reserved Default id as a target', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    await expect(
+      manager.clone(RESERVED_DEFAULT_PROFILE_ID, 'Default', { id: RESERVED_DEFAULT_PROFILE_ID }),
+    ).rejects.toThrow(/reserved id/i);
+    manager.dispose();
+  });
+
+  it('clone() rejects when source == target id (would overwrite source)', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    await manager.create('Source');
+    await expect(manager.clone('source', 'Source', { id: 'source' }))
+      .rejects.toThrow(/must differ/i);
+    manager.dispose();
+  });
+
+  it('clone() throws when the source profile does not exist on disk', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    await expect(manager.clone('ghost', 'Ghost Copy'))
+      .rejects.toThrow(/not found/i);
+    manager.dispose();
+  });
+
+  it('clone() deep-copies state (edits to clone don\'t leak to source)', async () => {
+    const adapter = new MemoryAdapter();
+    const { platform } = makePlatform(adapter);
+    const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+    await manager.boot();
+
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['shared'] }));
+    await manager.save();
+
+    await manager.clone(RESERVED_DEFAULT_PROFILE_ID, 'Variant');
+    // Mutate the clone (the active profile now) + save.
+    platform.store.setModuleState<StyleState>('style', () => ({ rules: ['shared', 'clone-only'] }));
+    await manager.save();
+
+    // Source (Default) must still be ['shared'].
+    const defRow = await adapter.loadProfile(platform.gridId, RESERVED_DEFAULT_PROFILE_ID);
+    const defStyle = defRow?.state.style as { v: number; data: StyleState } | undefined;
+    expect(defStyle?.data.rules).toEqual(['shared']);
+
+    manager.dispose();
+  });
+
   it('remove() of a non-active profile leaves the active profile untouched', async () => {
     const adapter = new MemoryAdapter();
     const { platform } = makePlatform(adapter);

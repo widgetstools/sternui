@@ -312,13 +312,11 @@ describe('FormattingToolbar — templates', () => {
       expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
     );
 
-    // Click the templates icon-button to open the popover, then click
-    // the row for the seeded `tpl-red` template. Replaces the old
-    // `<select>` change-event flow; functional contract (dispatching
-    // `applyTemplateToColumnsReducer`) is identical.
+    // Open the templates popover, then change the Select to the
+    // seeded `tpl-red` template. TemplateManager applies on `change`.
     act(() => fireEvent.click(screen.getByTestId('templates-menu-trigger')));
-    const item = await screen.findByTestId('templates-menu-item-tpl-red');
-    act(() => fireEvent.click(item));
+    const select = await screen.findByTestId('tb-tpl-select');
+    act(() => fireEvent.change(select, { target: { value: 'tpl-red' } }));
 
     expect(getAssignment(platform, 'price')?.templateIds).toEqual(['tpl-red']);
   });
@@ -335,13 +333,13 @@ describe('FormattingToolbar — templates', () => {
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
     expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
 
-    // Open the "Save as template" popover, then type + hit Save.
-    // Open the popover via click (Radix Trigger listens on click — TBtn's
-    // onMouseDown.preventDefault intentionally does NOT interfere).
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save as template' })));
-    const input = await screen.findByTestId('save-tpl-input');
+    // Open the unified Templates popover (save-as input lives inside
+    // the same popover as the template list, via TemplateManager),
+    // then type + hit the Save button.
+    act(() => fireEvent.click(screen.getByTestId('templates-menu-trigger')));
+    const input = await screen.findByTestId('tb-tpl-save-input');
     act(() => fireEvent.change(input, { target: { value: 'Bold Style' } }));
-    act(() => fireEvent.click(screen.getByTestId('save-tpl-btn')));
+    act(() => fireEvent.click(screen.getByTestId('tb-tpl-save-btn')));
 
     const templates = getTplState(platform).templates;
     // Original `tpl-red` + the new one.
@@ -360,12 +358,12 @@ describe('FormattingToolbar — templates', () => {
       expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
     );
 
-    // Open the popover via click (Radix Trigger listens on click — TBtn's
-    // onMouseDown.preventDefault intentionally does NOT interfere).
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save as template' })));
-    const input = await screen.findByTestId('save-tpl-input');
+    // Open the unified Templates popover and try to save with no
+    // overrides on the column — expect the save to be a no-op.
+    act(() => fireEvent.click(screen.getByTestId('templates-menu-trigger')));
+    const input = await screen.findByTestId('tb-tpl-save-input');
     act(() => fireEvent.change(input, { target: { value: 'Empty' } }));
-    act(() => fireEvent.click(screen.getByTestId('save-tpl-btn')));
+    act(() => fireEvent.click(screen.getByTestId('tb-tpl-save-btn')));
 
     // Template count is unchanged — still just the seed `tpl-red`.
     expect(Object.keys(getTplState(platform).templates)).toEqual(['tpl-red']);

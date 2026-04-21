@@ -89,11 +89,17 @@ export {
   useDirtyCount,
   useGridColumns,
   useModuleDraft,
+  useUndoRedo,
   type DirtyHandle,
   type GridColumnInfo,
   type UseModuleDraftOptions,
   type UseModuleDraftResult,
+  type UseUndoRedoResult,
 } from './hooks';
+// Framework-agnostic history primitive — the non-React core of
+// useUndoRedo. Exposed separately for callers that want to manage a
+// stack outside of React's lifecycle (tests, headless tools, workers).
+export { HistoryStack, type HistoryStackOptions } from './history/HistoryStack';
 
 // Back-compat type aliases. `GridCore` is the minimal surface the
 // markets-grid `FormattingToolbar` threads through its helpers;
@@ -125,6 +131,20 @@ export { migrateExpressionSyntax, migrateExpressionsInObject } from './expressio
 // ─── Monaco ExpressionEditor (unchanged, re-exported) ───────────────────────
 export { ExpressionEditor } from './ui/ExpressionEditor';
 export type { ExpressionEditorProps, ExpressionEditorHandle } from './ui/ExpressionEditor';
+
+// ─── Popout window (React portal into a detached OS window) ────────────────
+export { PopoutPortal } from './ui/PopoutPortal';
+export type { PopoutPortalProps } from './ui/PopoutPortal';
+export { Poppable } from './ui/Poppable';
+export type {
+  PoppableProps,
+  PoppableHandle,
+  PoppableRenderProps,
+  PopoutButtonProps,
+} from './ui/Poppable';
+export { openFinWindowOpener, isOpenFin } from './utils/openFin';
+export { PortalContainerProvider, usePortalContainer } from './ui/PortalContainer';
+export type { PortalContainerProviderProps } from './ui/PortalContainer';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
@@ -265,6 +285,7 @@ export {
   resolveTemplates,
   snapshotTemplate,
   addTemplateReducer,
+  removeTemplateReducer,
   type ColumnTemplate,
   type ColumnTemplatesState,
   type SnapshotTemplateDeps,
@@ -290,7 +311,9 @@ export {
   clearAllBordersReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
+  removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,
+  clearAllStylesInProfileReducer,
   type TargetKind,
   // Narrowed ColumnAssignment (with concrete filter + rowGrouping shapes).
   // This is what every consumer wants — the base shape with `unknown`

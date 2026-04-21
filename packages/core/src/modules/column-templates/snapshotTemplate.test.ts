@@ -15,7 +15,7 @@ import type {
   ColumnTemplate,
   ColumnTemplatesState,
 } from './state';
-import { addTemplateReducer, snapshotTemplate } from './snapshotTemplate';
+import { addTemplateReducer, removeTemplateReducer, snapshotTemplate } from './snapshotTemplate';
 
 // Deterministic deps so id + timestamps are pinnable.
 const pinnedDeps = (now = 1_700_000_000_000, suffix = 'abcd') => ({
@@ -363,6 +363,50 @@ describe('addTemplateReducer', () => {
     const reducer = addTemplateReducer(makeTpl('fresh'));
     const next = reducer(undefined);
     expect(next.templates['fresh']).toBeDefined();
+    expect(next.typeDefaults).toEqual({});
+  });
+});
+
+// ─── removeTemplateReducer ────────────────────────────────────────────
+
+describe('removeTemplateReducer', () => {
+  const makeTpl = (id: string): ColumnTemplate => ({
+    id,
+    name: `Template ${id}`,
+    cellStyleOverrides: { typography: { bold: true } },
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  it('removes the named template', () => {
+    const reducer = removeTemplateReducer('a');
+    const next = reducer({
+      templates: { a: makeTpl('a'), b: makeTpl('b') },
+      typeDefaults: {},
+    });
+    expect(Object.keys(next.templates)).toEqual(['b']);
+  });
+
+  it('also clears typeDefaults entries that pointed at the removed id', () => {
+    const reducer = removeTemplateReducer('a');
+    const next = reducer({
+      templates: { a: makeTpl('a'), b: makeTpl('b') },
+      typeDefaults: { numeric: 'a', date: 'b' },
+    });
+    // `numeric` pointed at the removed id → cleared.
+    // `date` pointed at a still-present id → preserved.
+    expect(next.typeDefaults).toEqual({ date: 'b' });
+  });
+
+  it('returns the same reference when the id is not present (no-op)', () => {
+    const state = { templates: { a: makeTpl('a') }, typeDefaults: {} };
+    const next = removeTemplateReducer('missing')(state);
+    expect(next).toBe(state);
+  });
+
+  it('tolerates undefined prev', () => {
+    const next = removeTemplateReducer('a')(undefined);
+    expect(next.templates).toEqual({});
     expect(next.typeDefaults).toEqual({});
   });
 });

@@ -36,8 +36,8 @@ import { Save, Check, Settings as SettingsIcon, Brush } from 'lucide-react';
 import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
-import { FormattingToolbar } from './FormattingToolbar';
-import { SettingsSheet } from './SettingsSheet';
+import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
+import { SettingsSheet, type SettingsSheetHandle } from './SettingsSheet';
 import { ProfileSelector } from './ProfileSelector';
 
 let _agRegistered = false;
@@ -259,12 +259,38 @@ function Host<TData>({
 
   // Settings sheet — the Cockpit popout drawer.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Imperative handle into the SettingsSheet so the settings-icon
+  // click handler can raise a buried popout window to front instead
+  // of no-op-opening an already-open sheet. See handleOpenSettings
+  // below for the full policy.
+  const sheetRef = useRef<SettingsSheetHandle>(null);
+
+  const handleOpenSettings = useCallback(() => {
+    // If the sheet is already popped out into an OS window that's
+    // alive, raise it to front (it may be buried behind other
+    // windows) and bail. Otherwise fall through to the normal
+    // "open inline" path.
+    if (sheetRef.current?.focusIfPopped()) return;
+    setSettingsOpen(true);
+  }, []);
 
   // Formatting toolbar — always starts hidden. The Brush button on the
   // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
   // controls whether the feature is available (i.e. whether the Brush
   // pill + floating panel exist); it doesn't pre-open the toolbar.
   const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
+  // Imperative handle into the FormattingToolbar — same pattern as
+  // sheetRef. The brush button uses `focusIfPopped()` to raise a
+  // buried popout window before falling through to toggle.
+  const toolbarRef = useRef<FormattingToolbarHandle>(null);
+
+  const handleToggleStyleToolbar = useCallback(() => {
+    // If the toolbar is popped into an OS window, a buried popout
+    // should come to front on brush-click. Otherwise (or if focus
+    // fails because the popout is gone), fall through to toggle.
+    if (styleToolbarOpen && toolbarRef.current?.focusIfPopped()) return;
+    setStyleToolbarOpen((p) => !p);
+  }, [styleToolbarOpen]);
 
   const handleSaveAll = useCallback(async () => {
     // Capture native AG-Grid state (column order / widths / sort / filters /
@@ -389,7 +415,7 @@ function Host<TData>({
               <button
                 type="button"
                 className="gc-primary-action"
-                onClick={() => setStyleToolbarOpen((p) => !p)}
+                onClick={handleToggleStyleToolbar}
                 title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
                 data-testid="style-toolbar-toggle"
                 data-active={styleToolbarOpen ? 'true' : 'false'}
@@ -409,6 +435,30 @@ function Host<TData>({
                   onCreate={(name) => profiles.createProfile(name)}
                   onLoad={(id) => requestLoadProfile(id)}
                   onDelete={(id) => profiles.deleteProfile(id)}
+                  onClone={async (id) => {
+                    // Compose a unique " (copy)" name, de-duping against
+                    // existing profiles so consecutive clones produce
+                    // "…(copy)", "…(copy 2)", "…(copy 3)". The manager
+                    // throws on id collision, so we also suffix the id
+                    // deterministically via the default slug; if it
+                    // still collides (edge case: user already made a
+                    // "<foo>-copy"), bump the suffix until it's free.
+                    try {
+                      const src = profiles.profiles.find((p) => p.id === id);
+                      if (!src) return;
+                      const existingNames = new Set(profiles.profiles.map((p) => p.name));
+                      let candidate = `${src.name} (copy)`;
+                      let n = 2;
+                      while (existingNames.has(candidate)) {
+                        candidate = `${src.name} (copy ${n})`;
+                        n++;
+                      }
+                      await profiles.cloneProfile(id, candidate);
+                    } catch (err) {
+                      console.warn('[markets-grid] profile clone failed:', err);
+                      window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                  }}
                   onExport={async (id) => {
                     try {
                       const payload = await profiles.exportProfile(id);
@@ -479,7 +529,7 @@ function Host<TData>({
                 <button
                   type="button"
                   className="gc-primary-action"
-                  onClick={() => setSettingsOpen(true)}
+                  onClick={handleOpenSettings}
                   title="Open settings"
                   data-testid="v2-settings-open-btn"
                 >
@@ -507,7 +557,7 @@ function Host<TData>({
           data-testid="formatting-toolbar-pinned"
           style={{ flexShrink: 0 }}
         >
-          <FormattingToolbar />
+          <FormattingToolbar ref={toolbarRef} />
         </div>
       )}
 
@@ -540,6 +590,7 @@ function Host<TData>({
       </div>
 
       <SettingsSheet
+        ref={sheetRef}
         modules={modules}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

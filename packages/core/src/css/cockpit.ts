@@ -254,6 +254,43 @@ export const cockpitCSS = `
   background: #9ba3ad;
 }
 
+/* ── Utility: theme-aware scrollbar driven by CSS vars ─────────
+ * Apply .gc-themed-scrollbar to any scrollable container and it
+ * picks up the current theme automatically — no per-theme
+ * overrides. Prefer this over the legacy per-component selectors
+ * above for any NEW scrolling surface.
+ *
+ * Implementation: color-mix against --foreground gives the right
+ * contrast in both dark (light thumb on dark surface) and light
+ * (dark thumb on light surface) without needing [data-theme]
+ * branches. Track stays transparent so the parent background
+ * shows through.
+ */
+.gc-themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+}
+.gc-themed-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.gc-themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.gc-themed-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 120ms ease;
+}
+.gc-themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--foreground) 32%, transparent);
+}
+.gc-themed-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ── FiltersToolbar pill carousel — hide scrollbar entirely ─────
  * Left/right carets (.gc-filters-caret) reveal themselves only when
  * there's actual overflow, and clicking them scrolls the pill row by
@@ -311,6 +348,26 @@ export const cockpitCSS = `
   animation: gc-popout-rise 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .gc-popout.is-maximized { width: 94vw; height: 90vh; }
+
+/* Popped mode — the sheet lives inside a detached OS window via
+   PopoutPortal. Strip the fixed-overlay centering chrome: the popout
+   window IS the overlay, so we let the sheet fill its window edge-
+   to-edge instead of floating 960×640 in the middle of a viewport. */
+.gc-popout.is-popped {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+  flex: 1;
+}
 
 @keyframes gc-popout-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes gc-popout-rise {

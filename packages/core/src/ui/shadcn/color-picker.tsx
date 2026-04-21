@@ -106,6 +106,10 @@ export interface ColorPickerPopoverProps {
   disabled?: boolean;
   allowClear?: boolean;
   compact?: boolean;
+  /** Native tooltip + a11y label for the trigger. Defaults to a
+   *  generic "Pick a color" — callers should pass a specific label
+   *  (e.g. "Text color", "Fill color") for disambiguation. */
+  title?: string;
 }
 
 /**
@@ -117,12 +121,14 @@ export interface ColorPickerPopoverProps {
  * clicks, hue slider, hex typing) — it only closes when the user clicks
  * outside every open popover.
  */
-export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear = true }: ColorPickerPopoverProps) {
+export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear = true, title = 'Pick a color' }: ColorPickerPopoverProps) {
   return (
     <FormatPopover
       trigger={
         <button
           disabled={disabled}
+          title={title}
+          aria-label={title}
           className={cn(
             'shrink-0 rounded-[4px] gc-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
             disabled && 'opacity-25 pointer-events-none',
