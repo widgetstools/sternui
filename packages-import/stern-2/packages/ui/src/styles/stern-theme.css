@@ -1,0 +1,260 @@
+/*
+ * Stern Design System — Coinbase-Inspired Theme
+ *
+ * Design Language:
+ * - Primary: Coinbase Blue (#0052FF / hsl(221, 100%, 50%))
+ * - Clean, minimal, professional aesthetic
+ * - Generous whitespace, subtle borders
+ * - Typography inspired by financial/monospace documents
+ * - Dark mode as first-class citizen (traders prefer dark)
+ *
+ * Color Source: Coinbase Design System (cds.coinbase.com)
+ * - Woodsmoke (#0A0B0D) for dark backgrounds
+ * - Blue Ribbon (#0052FF) for primary actions
+ * - Semantic: green for positive, red for negative, orange for warning
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Typography */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ============================================================================
+ * Light Theme — Coinbase-Inspired
+ *
+ * Clean white backgrounds, Coinbase Blue primary,
+ * subtle gray borders, dark text.
+ * ============================================================================ */
+
+@layer base {
+  :root {
+    /* Core surfaces */
+    --background: 0 0% 100%;              /* #FFFFFF — pure white */
+    --foreground: 220 13% 5%;             /* #0A0B0D — Coinbase Woodsmoke */
+
+    /* Card / Panel surfaces */
+    --card: 0 0% 100%;                    /* #FFFFFF */
+    --card-foreground: 220 13% 5%;        /* #0A0B0D */
+
+    /* Popover / Dropdown surfaces */
+    --popover: 0 0% 100%;                 /* #FFFFFF */
+    --popover-foreground: 220 13% 5%;     /* #0A0B0D */
+
+    /* Primary — Coinbase Blue */
+    --primary: 221 100% 50%;              /* #0052FF — Blue Ribbon */
+    --primary-foreground: 0 0% 100%;      /* #FFFFFF */
+
+    /* Secondary — Soft gray */
+    --secondary: 220 14% 96%;             /* #F3F4F6 */
+    --secondary-foreground: 220 13% 15%;  /* Dark gray */
+
+    /* Muted — Subtle backgrounds */
+    --muted: 220 14% 96%;                 /* #F3F4F6 */
+    --muted-foreground: 220 9% 46%;       /* #6B7280 — medium gray */
+
+    /* Accent — Light blue tint */
+    --accent: 221 100% 97%;              /* Very light blue */
+    --accent-foreground: 221 100% 40%;   /* Darker blue */
+
+    /* Destructive — Error red */
+    --destructive: 355 73% 47%;           /* #CF202F — Coinbase error */
+    --destructive-foreground: 0 0% 100%;  /* White */
+
+    /* Borders & inputs */
+    --border: 220 13% 91%;               /* #E5E7EB — light border */
+    --input: 220 13% 91%;                /* Same as border */
+    --ring: 221 100% 50%;                /* Primary blue for focus rings */
+
+    /* Trading-specific semantic colors */
+    --positive: 155 87% 28%;              /* #09854F — Coinbase success green */
+    --positive-foreground: 0 0% 100%;
+    --negative: 355 73% 47%;              /* #CF202F — Coinbase error red */
+    --negative-foreground: 0 0% 100%;
+    --warning: 18 87% 43%;                /* #CF470E — Coinbase warning orange */
+    --warning-foreground: 0 0% 100%;
+
+    /* Chart colors — harmonized with Coinbase palette */
+    --chart-1: 221 100% 50%;              /* Primary blue */
+    --chart-2: 155 87% 28%;               /* Green */
+    --chart-3: 18 87% 43%;                /* Orange */
+    --chart-4: 275 80% 60%;               /* Purple */
+    --chart-5: 355 73% 47%;               /* Red */
+
+    /* Radius — slightly rounded, clean */
+    --radius: 0.5rem;
+  }
+
+  /* ============================================================================
+   * Dark Theme — Coinbase Dark Mode
+   *
+   * Near-black backgrounds (Woodsmoke), lighter blue primary,
+   * subtle dark borders, high-contrast text.
+   * Optimized for trading desk use (low eye strain, high readability).
+   * ============================================================================ */
+
+  .dark {
+    /* Core surfaces — Woodsmoke dark */
+    --background: 220 13% 5%;             /* #0A0B0D — Coinbase Woodsmoke */
+    --foreground: 0 0% 98%;               /* #FAFAFA — near white */
+
+    /* Card — slightly lighter than background */
+    --card: 220 10% 8%;                   /* #121417 */
+    --card-foreground: 0 0% 98%;          /* #FAFAFA */
+
+    /* Popover — slightly elevated */
+    --popover: 220 10% 10%;               /* #171A1E */
+    --popover-foreground: 0 0% 98%;       /* #FAFAFA */
+
+    /* Primary — Lighter blue for dark bg readability */
+    --primary: 221 94% 66%;               /* #578BFA — lighter blue */
+    --primary-foreground: 220 13% 5%;     /* #0A0B0D */
+
+    /* Secondary */
+    --secondary: 220 10% 15%;             /* #232629 */
+    --secondary-foreground: 0 0% 90%;     /* Light text */
+
+    /* Muted */
+    --muted: 220 10% 15%;                 /* #232629 */
+    --muted-foreground: 220 9% 60%;       /* #8B929C */
+
+    /* Accent — Dark blue tint */
+    --accent: 221 50% 15%;                /* Dark blue tint */
+    --accent-foreground: 221 94% 75%;     /* Bright blue text */
+
+    /* Destructive — Lighter red for dark bg */
+    --destructive: 355 82% 66%;           /* #F0616D — lighter red */
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders & inputs — subtle dark borders */
+    --border: 220 10% 18%;               /* #282C31 */
+    --input: 220 10% 18%;                /* Same as border */
+    --ring: 221 94% 66%;                 /* Lighter blue for focus */
+
+    /* Trading-specific semantic colors (lighter for dark bg) */
+    --positive: 155 62% 42%;              /* #27AD75 — Coinbase dark success */
+    --positive-foreground: 0 0% 98%;
+    --negative: 355 82% 66%;              /* #F0616D — Coinbase dark error */
+    --negative-foreground: 0 0% 98%;
+    --warning: 45 100% 39%;               /* #C79E00 — Coinbase dark warning (gold) */
+    --warning-foreground: 220 13% 5%;
+
+    /* Chart colors — brighter for dark bg */
+    --chart-1: 221 94% 66%;               /* Lighter blue */
+    --chart-2: 155 62% 50%;               /* Brighter green */
+    --chart-3: 30 90% 60%;                /* Bright orange */
+    --chart-4: 280 70% 65%;               /* Purple */
+    --chart-5: 355 82% 66%;               /* Lighter red */
+  }
+}
+
+/* ============================================================================
+ * Base Layer — Global Resets
+ * ============================================================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ============================================================================
+ * AG Grid Cell Flash Animation (Trading Data Updates)
+ * ============================================================================ */
+
+/* First phase: immediate change */
+.ag-cell-data-changed {
+  background-color: hsl(var(--positive) / 0.4) !important;
+}
+
+/* Second phase: fade animation */
+@keyframes ag-cell-data-changed-animation {
+  from {
+    background-color: hsl(var(--positive) / 0.4);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.ag-cell-data-changed-animation {
+  animation: ag-cell-data-changed-animation 1s;
+}
+
+/* Negative value flash (price decrease) */
+.ag-cell-data-changed-negative {
+  background-color: hsl(var(--negative) / 0.4) !important;
+}
+
+@keyframes ag-cell-data-changed-negative-animation {
+  from {
+    background-color: hsl(var(--negative) / 0.4);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.ag-cell-data-changed-negative-animation {
+  animation: ag-cell-data-changed-negative-animation 1s;
+}
+
+/* ============================================================================
+ * Trading-Specific Utility Classes
+ * ============================================================================ */
+
+@layer utilities {
+  /* Positive/Negative value coloring (common in trading UIs) */
+  .text-positive {
+    color: hsl(var(--positive));
+  }
+  .text-negative {
+    color: hsl(var(--negative));
+  }
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+  .bg-positive {
+    background-color: hsl(var(--positive));
+  }
+  .bg-negative {
+    background-color: hsl(var(--negative));
+  }
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
+  .bg-positive-wash {
+    background-color: hsl(var(--positive) / 0.1);
+  }
+  .bg-negative-wash {
+    background-color: hsl(var(--negative) / 0.1);
+  }
+  .bg-warning-wash {
+    background-color: hsl(var(--warning) / 0.1);
+  }
+}

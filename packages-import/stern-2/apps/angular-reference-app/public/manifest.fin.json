@@ -1,0 +1,47 @@
+{
+  "devtools_port": 9091,
+  "licenseKey": "stern-angular-reference-demo",
+  "runtime": {
+    "arguments": "--v=1 --inspect --remote-debugging-port=9223",
+    "version": "42.138.103.1"
+  },
+  "platform": {
+    "uuid": "stern-angular-platform",
+    "icon": "http://localhost:5174/star.svg",
+    "autoShow": false,
+    "providerUrl": "http://localhost:5174/platform/provider",
+    "preventQuitOnLastWindowClosed": true,
+    "defaultWindowOptions": {
+      "title": "Stern Angular Platform",
+      "customData": {
+        "platformContext": {
+          "apiUrl": "http://localhost:3001",
+          "environment": "local",
+          "description": "REST API endpoint for configuration service"
+        }
+      }
+    }
+  },
+  "desktopSettings": {
+    "systemApps": {
+      "workspace": {
+        "customConfig": {
+          "disableOpenFinAnalytics": true
+        }
+      }
+    }
+  },
+  "shortcut": {
+    "company": "Stern",
+    "description": "Stern Angular Reference Platform",
+    "icon": "http://localhost:5174/star.png",
+    "name": "Stern Angular Platform",
+    "target": ["desktop", "start-menu"]
+  },
+  "supportInformation": {
+    "company": "Stern",
+    "product": "Stern Angular Platform",
+    "email": "support@stern.dev",
+    "forwardErrorReports": false
+  }
+}
