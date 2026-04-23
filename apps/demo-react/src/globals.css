@@ -1,8 +1,9 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* ─── Scan core + markets-grid packages for Tailwind classes ─────────────── */
-@source "../../../packages/core/src/**/*.{ts,tsx}";
-@source "../../../packages/markets-grid/src/**/*.{ts,tsx}";
+/* Content scan paths live in tailwind.config.js — Tailwind 3 doesn't use
+   @source directives. */
 
 /* ─── FI Trading Terminal Design System ──────────────────────────────────── */
 /* Tokens from /Users/develop/projects/fi-trading-terminal/design-system      */

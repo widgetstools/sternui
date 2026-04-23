@@ -11,6 +11,9 @@ export interface FieldNode {
   nullable: boolean;
   sample?: any;
   children?: FieldNode[];
+  /** Tree depth (root = 0). Computed when walking the tree; optional on
+   *  raw nodes parsed from server schema. */
+  depth?: number;
 }
 
 /**

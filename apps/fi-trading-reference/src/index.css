@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
 /* ── Design System Tokens ── */
-@import '../../design-system/themes/fi-dark.css';
-@import '../../design-system/themes/fi-light.css';
+@import '../../../packages/design-system/src/themes/fi-dark.css';
+@import '../../../packages/design-system/src/themes/fi-light.css';
 
 @tailwind base;
 @tailwind components;

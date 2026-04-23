@@ -145,6 +145,8 @@ export interface WebSocketProviderConfig {
   heartbeatInterval?: number;
   reconnectAttempts?: number;
   reconnectDelay?: number;
+  /** Message to send after connection to begin data subscription. */
+  subscribeMessage?: string;
 }
 
 /**
@@ -163,6 +165,8 @@ export interface SocketIOProviderConfig {
   auth?: any;
   reconnection?: boolean;
   reconnectionDelay?: number;
+  /** Simplified single-event name alternative to the `events` object. */
+  eventName?: string;
 }
 
 /**
@@ -172,6 +176,8 @@ export interface MockProviderConfig {
   providerType: 'mock';
   dataType: 'positions' | 'trades' | 'orders' | 'custom';
   updateInterval?: number;
+  /** Alias for `updateInterval` in ms — preserved for UI template compatibility. */
+  updateIntervalMs?: number;
   rowCount?: number;
   enableUpdates?: boolean;
   customData?: any[];
