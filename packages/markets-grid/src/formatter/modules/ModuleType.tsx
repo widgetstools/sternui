@@ -9,7 +9,7 @@ import {
   AlignCenter, AlignLeft, AlignRight,
   Bold, ChevronDown, Italic, Underline,
 } from 'lucide-react';
-import { PopoverCompat as Popover } from '@grid-customizer/core';
+import { PopoverCompat as Popover } from '@marketsui/core';
 import { Hair, Menu, MenuItem, Module, Pill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

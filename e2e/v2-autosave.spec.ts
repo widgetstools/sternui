@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * E2E for @grid-customizer/markets-grid — explicit-save profile contract.
+ * E2E for @marketsui/markets-grid — explicit-save profile contract.
  *
  * Profiles used to auto-persist every change via a 300ms debounce.
  * That silently captured edits the user hadn't committed, which was

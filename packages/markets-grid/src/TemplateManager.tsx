@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Check } from 'lucide-react';
-import { Select } from '@grid-customizer/core';
+import { Select } from '@marketsui/core';
 
 export interface TemplateManagerProps {
   templates: ReadonlyArray<{ id: string; name: string }>;

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid } from '@grid-customizer/markets-grid';
-import { DexieAdapter, activeProfileKey } from '@grid-customizer/core';
-import type { StorageAdapter, ProfileSnapshot } from '@grid-customizer/core';
+import { MarketsGrid } from '@marketsui/markets-grid';
+import { DexieAdapter, activeProfileKey } from '@marketsui/core';
+import type { StorageAdapter, ProfileSnapshot } from '@marketsui/core';
 import { Sun, Moon } from 'lucide-react';
 
 import { generateOrders, startLiveTicking, type Order } from './data';

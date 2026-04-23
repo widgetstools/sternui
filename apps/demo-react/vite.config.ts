@@ -8,8 +8,8 @@ export default defineConfig({
   server: { port: 5190, open: true },
   resolve: {
     alias: {
-      '@grid-customizer/core': resolve(__dirname, '../../packages/core/src'),
-      '@grid-customizer/markets-grid': resolve(__dirname, '../../packages/markets-grid/src'),
+      '@marketsui/core': resolve(__dirname, '../../packages/core/src'),
+      '@marketsui/markets-grid': resolve(__dirname, '../../packages/markets-grid/src'),
     },
   },
 });

@@ -13,7 +13,7 @@ import {
   PopoverCompat as Popover,
   FormatterPicker,
   type ValueFormatterTemplate,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import {
   BPS_TEMPLATE,
   COMMA_TEMPLATE,

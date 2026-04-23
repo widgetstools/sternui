@@ -1,5 +1,5 @@
 {
-  "name": "@grid-customizer/markets-grid",
+  "name": "@marketsui/markets-grid",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,7 @@
     "ag-grid-react": "^35.0.0"
   },
   "dependencies": {
-    "@grid-customizer/core": "*"
+    "@marketsui/core": "*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

@@ -31,7 +31,7 @@ import {
   COCKPIT_STYLE_ID,
   type AnyModule,
   type StorageAdapter,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import { Save, Check, Settings as SettingsIcon, Brush } from 'lucide-react';
 import type { MarketsGridProps } from './types';
 import { useGridHost } from './useGridHost';

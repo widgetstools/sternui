@@ -1,8 +1,8 @@
 {
-  "name": "@grid-customizer/design-system",
+  "name": "@marketsui/design-system",
   "version": "0.1.0",
   "private": true,
-  "description": "FI Trading Terminal design system — primitives, semantic tokens, themes, and framework adapters",
+  "description": "MarketsUI design system \u2014 primitives, semantic tokens, themes, and framework adapters. Consolidates fi-trading-terminal tokens + stern-2 UI wrappers.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -21,7 +21,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "peerDependencies": {
+    "ag-grid-community": ">=35.0.0"
+  },
   "devDependencies": {
+    "ag-grid-community": "^35.1.0",
     "typescript": "^5.9.0"
   }
 }

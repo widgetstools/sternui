@@ -7,7 +7,7 @@
  * header (panel) via the stylesheet.
  */
 import { Undo2, Redo2 } from 'lucide-react';
-import { Tooltip } from '@grid-customizer/core';
+import { Tooltip } from '@marketsui/core';
 import {
   ColumnLabel,
   Pill,

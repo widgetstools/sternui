@@ -3,14 +3,14 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 /**
- * Vitest config for `@grid-customizer/markets-grid`.
+ * Vitest config for `@marketsui/markets-grid`.
  *
  * Covers:
  *   - FormattingToolbar component integration tests (mount inside a
  *     <GridProvider>, fake GridApi, click buttons, assert module state).
  *   - Future SettingsSheet / MarketsGrid wiring tests.
  *
- * We alias `@grid-customizer/core` → its source index rather than
+ * We alias `@marketsui/core` → its source index rather than
  * going through the published `dist/`. Two reasons:
  *   - Tests see the CURRENT source; no "did you remember to `npm run
  *     build` first?" footgun between commits.
@@ -26,7 +26,7 @@ const coreSrc = resolve(__dirname, '../core/src/index.ts');
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { '@grid-customizer/core': coreSrc },
+    alias: { '@marketsui/core': coreSrc },
   },
   test: {
     environment: 'jsdom',

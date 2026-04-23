@@ -23,7 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import { ModuleClear } from './modules/ModuleClear';
 import { ModuleContext } from './modules/ModuleContext';
 import { ModuleFormat } from './modules/ModuleFormat';

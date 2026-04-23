@@ -9,7 +9,7 @@ import {
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type ValueFormatterTemplate,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 
 /**
  * Reusable hooks + api helpers for the FormattingToolbar. Extracted from

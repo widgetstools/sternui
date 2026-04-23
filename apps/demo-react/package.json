@@ -1,15 +1,17 @@
 {
-  "name": "@grid-customizer/demo",
+  "name": "@marketsui/demo-react",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build"
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test"
   },
   "dependencies": {
-    "@grid-customizer/core": "*",
-    "@grid-customizer/design-system": "*",
-    "@grid-customizer/markets-grid": "*",
+    "@marketsui/core": "*",
+    "@marketsui/design-system": "*",
+    "@marketsui/markets-grid": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "ag-grid-community": "^35.1.0",

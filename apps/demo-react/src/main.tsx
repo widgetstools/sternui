@@ -5,8 +5,8 @@ import { createRoot } from 'react-dom/client';
 // over the design system's HSL-triplet shadcn vars — we keep the demo's
 // teal brand while still inheriting the design system's order-book /
 // trade-ticket overlay tokens and legacy --fi-* aliases.
-import '@grid-customizer/design-system/themes/fi-dark.css';
-import '@grid-customizer/design-system/themes/fi-light.css';
+import '@marketsui/design-system/themes/fi-dark.css';
+import '@marketsui/design-system/themes/fi-light.css';
 import './globals.css';
 import { App } from './App';
 

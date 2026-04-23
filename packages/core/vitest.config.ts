@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 /**
- * Vitest config for `@grid-customizer/core`.
+ * Vitest config for `@marketsui/core`.
  *
  * Covers:
  *  - Module-level units (modules/*) — pure logic, no DOM needed but jsdom is
@@ -18,7 +18,7 @@ export default defineConfig({
       // Self-reference so tests that import from the package entry
       // resolve against src/ rather than the published dist/. Keeps
       // vitest insulated from the `tsc && vite build` pipeline.
-      '@grid-customizer/core': resolve(__dirname, 'src/index.ts'),
+      '@marketsui/core': resolve(__dirname, 'src/index.ts'),
     },
   },
   test: {

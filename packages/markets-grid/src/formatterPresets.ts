@@ -1,4 +1,4 @@
-import type { ValueFormatterTemplate, TickToken } from '@grid-customizer/core';
+import type { ValueFormatterTemplate, TickToken } from '@marketsui/core';
 
 /**
  * Formatter presets + inspection helpers for the FormattingToolbar.

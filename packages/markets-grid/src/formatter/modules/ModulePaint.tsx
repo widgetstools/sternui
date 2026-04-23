@@ -8,8 +8,8 @@ import {
   Popover as RadixPopover,
   PopoverContent as RadixPopoverContent,
   PopoverTrigger as RadixPopoverTrigger,
-} from '@grid-customizer/core';
-import { BorderStyleEditor } from '@grid-customizer/core';
+} from '@marketsui/core';
+import { BorderStyleEditor } from '@marketsui/core';
 import { Hair, Module, Pill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

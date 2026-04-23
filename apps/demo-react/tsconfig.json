@@ -3,8 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "@grid-customizer/core": ["../../packages/core/src"],
-      "@grid-customizer/markets-grid": ["../../packages/markets-grid/src"]
+      "@marketsui/core": ["../../packages/core/src"],
+      "@marketsui/markets-grid": ["../../packages/markets-grid/src"]
     }
   },
   "include": [

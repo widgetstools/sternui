@@ -7,7 +7,7 @@
  * theme switch via `:root.dark` selectors without recomputing rules.
  *
  * `CellStyleProperties` / `ThemeAwareStyle` / `ConditionalRule` are
- * re-exported from `@grid-customizer/core` so on-disk profile
+ * re-exported from `@marketsui/core` so on-disk profile
  * snapshots from prior schema versions load cleanly without an
  * intermediate migration step.
  */

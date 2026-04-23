@@ -33,7 +33,7 @@ import {
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type ValueFormatterTemplate,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import {
   numberTemplate,
   templateDecimals,
@@ -48,7 +48,7 @@ import {
   type ResolvedFormatting,
   type TargetKind,
 } from '../formattingToolbarHooks';
-import { valueFormatterFromTemplate } from '@grid-customizer/core';
+import { valueFormatterFromTemplate } from '@marketsui/core';
 
 export type PickerDataType = 'number' | 'date' | 'datetime' | 'boolean' | 'string';
 

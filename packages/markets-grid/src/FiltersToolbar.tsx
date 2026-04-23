@@ -4,7 +4,7 @@ import {
   useGridPlatform,
   useModuleState,
   type SavedFiltersState,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import {
   FunnelPlus,
   Pencil,

@@ -1,7 +1,7 @@
 {
-  "name": "@grid-customizer/core",
+  "name": "@marketsui/core",
   "version": "0.1.0",
-  "description": "AG-Grid Customization Platform - An open-source AdapTable alternative",
+  "description": "MarketsUI core \u2014 GridPlatform, modules, ProfileManager, HistoryStack, ExpressionEngine. Framework-agnostic TypeScript foundation.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,9 +35,13 @@
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "dexie": "^4.0.0",
+    "lucide-react": "^1.8.0",
     "monaco-editor": "^0.55.1",
     "ssf": "^0.11.2",
+    "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

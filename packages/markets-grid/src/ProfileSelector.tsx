@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy } from 'lucide-react';
-import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@grid-customizer/core';
+import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@marketsui/core';
 // Static-layout styles — AUDIT i5 partial migration. State-dependent
 // styles stay inline (see ProfileSelector.css for rationale).
 import './ProfileSelector.css';
@@ -16,7 +16,7 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 
 export interface ProfileSelectorProps {
   profiles: ProfileMeta[];
