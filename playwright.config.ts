@@ -13,9 +13,9 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npm run dev -w apps/demo',
+    command: 'npm run dev -w @marketsui/demo-react',
     port: 5190,
     reuseExistingServer: true,
-    timeout: 30_000,
+    timeout: 90_000,
   },
 });
