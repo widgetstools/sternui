@@ -1,0 +1,21 @@
+{
+  "name": "@marketsui/registry-editor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@marketsui/openfin-platform": "*",
+    "@marketsui/icons-svg": "*",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  }
+}

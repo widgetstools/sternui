@@ -10,7 +10,7 @@
  * footer affordance).
  */
 import { Check, Trash2 } from 'lucide-react';
-import { Tooltip } from '@grid-customizer/core';
+import { Tooltip } from '@marketsui/core';
 import type { Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

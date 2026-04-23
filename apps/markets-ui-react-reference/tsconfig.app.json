@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "types": ["./src/types/fin", "./src/types/fdc3", "./src/types/svg"]
+  },
+  "include": ["src"]
+}

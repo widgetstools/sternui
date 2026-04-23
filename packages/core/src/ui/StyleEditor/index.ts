@@ -2,7 +2,7 @@
  * <StyleEditor /> — the one shared editor for text/color/border/format
  * overrides across v2 panels.
  *
- *   import { StyleEditor } from '@grid-customizer/core';
+ *   import { StyleEditor } from '@marketsui/core';
  *
  * Sub-sections are exported individually for panels that want to render
  * a single facet without the full stack (e.g. the column-groups panel

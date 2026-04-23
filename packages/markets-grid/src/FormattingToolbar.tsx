@@ -20,7 +20,7 @@ import {
   Poppable,
   useGridPlatform,
   type PoppableHandle,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import {
   ClearAllDialog,
   FormatterPanel,

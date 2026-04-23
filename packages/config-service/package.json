@@ -1,0 +1,13 @@
+{
+  "name": "@marketsui/config-service",
+  "version": "1.0.0",
+  "description": "Dual-mode configuration service for MarketsUI — Dexie/IndexedDB for dev, REST + Dexie for prod",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "dexie": "^4.4.2"
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
-import { GridPlatform, type AnyColDef, type AnyModule } from '@grid-customizer/core';
+import { GridPlatform, type AnyColDef, type AnyModule } from '@marketsui/core';
 
 /**
  * Binds a `GridPlatform` instance to the React lifecycle:

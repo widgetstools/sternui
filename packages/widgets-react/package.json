@@ -1,0 +1,58 @@
+{
+  "name": "@marketsui/widgets-react",
+  "version": "1.0.0",
+  "description": "Stern Widgets — SimpleBlotter and future trading widgets",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0",
+    "ag-grid-community": ">=35.0.0",
+    "ag-grid-react": ">=35.0.0",
+    "ag-grid-enterprise": ">=35.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "lucide-react": ">=0.300.0",
+    "@openfin/workspace": "^24.0.0",
+    "@openfin/workspace-platform": "^24.0.0"
+  },
+  "dependencies": {
+    "@marketsui/shared-types": "1.0.0",
+    "@marketsui/widget-sdk": "1.0.0",
+    "@marketsui/ui": "1.0.0",
+    "@stomp/stompjs": "^7.3.0"
+  },
+  "devDependencies": {
+    "@openfin/core": "~42.103.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-react": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "rimraf": "^5.0.5",
+    "typescript": "~5.9.3"
+  },
+  "keywords": [
+    "stern",
+    "widgets",
+    "blotter",
+    "ag-grid",
+    "trading"
+  ],
+  "author": "Stern Development Team",
+  "license": "MIT"
+}

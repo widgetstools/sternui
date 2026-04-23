@@ -25,7 +25,7 @@ import {
   GridProvider,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import { FormattingToolbar } from './FormattingToolbar';
 
 // ─── Fake GridApi harness ─────────────────────────────────────────────

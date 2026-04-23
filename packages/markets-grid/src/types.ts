@@ -1,5 +1,5 @@
 import type { ColDef, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type { AnyModule } from '@grid-customizer/core';
+import type { AnyModule } from '@marketsui/core';
 
 /**
  * One saved filter pinned to the toolbar. Shape is stable across

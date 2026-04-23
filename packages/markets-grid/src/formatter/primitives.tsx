@@ -9,7 +9,7 @@
  */
 import * as React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
-import { cn, Tooltip } from '@grid-customizer/core';
+import { cn, Tooltip } from '@marketsui/core';
 
 export type Orientation = 'horizontal' | 'vertical';
 

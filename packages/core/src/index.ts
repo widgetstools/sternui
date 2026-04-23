@@ -1,5 +1,5 @@
 /**
- * @grid-customizer/core — v3.
+ * @marketsui/core — v3.
  *
  * One package, no `-v2` suffix, no React-vs-vanilla split yet (that's a
  * future packaging decision). Keeps the layering clean internally:

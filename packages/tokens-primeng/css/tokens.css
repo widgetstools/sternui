@@ -1,0 +1,144 @@
+/**
+ * MarketsUI Design Language — Core Tokens
+ *
+ * All color values use HSL channel format (no hsl() wrapper)
+ * so Tailwind can compose alpha: hsl(var(--mdl-background) / 0.5)
+ *
+ * Inspired by Binance's trading platform layout — true black backgrounds,
+ * warm dark surfaces, professional monospace numbers.
+ * Accent: vibrant teal (#1DA898 light / #21B8A4 dark) — stands out on
+ * both light and dark backgrounds without conflicting with green (profit)
+ * or blue (bid) trading colors.
+ *
+ * Theme switching: `.dark` class on <html> (Tailwind convention)
+ * or `data-theme="dark"` attribute (OpenFin convention).
+ */
+
+/* ─── Google Fonts ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── Light Theme (default) ────────────────────────────────────────── */
+:root {
+  /* ── Typography ── */
+  --mdl-font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --mdl-font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --mdl-font-xs: 11px;
+  --mdl-font-sm: 13px;
+  --mdl-font-base: 14px;
+  --mdl-font-lg: 16px;
+  --mdl-font-xl: 18px;
+
+  /* ── Sizing ── */
+  --mdl-height-sm: 28px;
+  --mdl-height-default: 36px;
+  --mdl-height-lg: 44px;
+  --mdl-padding-x: 12px;
+  --mdl-padding-x-lg: 16px;
+  --mdl-padding-y: 8px;
+
+  /* ── Border Radius ── */
+  --mdl-radius: 0.5rem;
+  --mdl-radius-sm: 6px;
+  --mdl-radius-md: 10px;
+  --mdl-radius-lg: 14px;
+  --mdl-radius-xl: 18px;
+
+  /* ── Colors (HSL channels) — Light theme ──
+     Clean white/gray palette with teal accent.
+     Teal stands out on both light and dark backgrounds
+     without conflicting with green (profit) or blue (bid). */
+  --mdl-background: 0 0% 100%;
+  --mdl-foreground: 225 18% 10%;          /* #181A20 */
+  --mdl-card: 0 0% 100%;
+  --mdl-card-foreground: 225 18% 10%;
+  --mdl-popover: 0 0% 100%;
+  --mdl-popover-foreground: 225 18% 10%;
+  --mdl-primary: 174 72% 40%;             /* #1DA898 — teal, darker for light bg */
+  --mdl-primary-foreground: 0 0% 100%;    /* White text on teal */
+  --mdl-secondary: 220 9% 96%;            /* #F5F5F5 */
+  --mdl-secondary-foreground: 225 18% 10%;
+  --mdl-muted: 220 9% 96%;
+  --mdl-muted-foreground: 218 11% 52%;    /* #848E9C */
+  --mdl-accent: 220 9% 96%;              /* Neutral hover state */
+  --mdl-accent-foreground: 225 18% 10%;
+  --mdl-brand: 174 72% 40%;              /* Teal brand accent */
+  --mdl-brand-foreground: 0 0% 100%;
+  --mdl-destructive: 350 89% 60%;         /* #F6465D */
+  --mdl-destructive-foreground: 0 0% 100%;
+  --mdl-success: 158 68% 44%;             /* #0ECB81 — green (distinct from teal) */
+  --mdl-border: 220 9% 90%;
+  --mdl-input: 220 9% 90%;
+  --mdl-ring: 174 72% 40%;               /* Focus ring = teal */
+
+  /* ── Trading Semantic ── */
+  --mdl-bid: 210 100% 45%;               /* Blue — bid price */
+  --mdl-ask: 350 89% 60%;                /* Red — ask price (Binance red) */
+  --mdl-flash-up: 158 68% 44%;           /* #0ECB81 — price tick up */
+  --mdl-flash-down: 350 89% 60%;         /* #F6465D — price tick down */
+  --mdl-pnl-positive: 158 68% 38%;       /* Green — profit (slightly darker for text) */
+  --mdl-pnl-negative: 350 89% 50%;       /* Red — loss */
+
+  /* ── Shadcn backward compatibility aliases ──
+     Existing shadcn components reference unprefixed vars.
+     These aliases ensure zero breaking changes. */
+  --background: var(--mdl-background);
+  --foreground: var(--mdl-foreground);
+  --card: var(--mdl-card);
+  --card-foreground: var(--mdl-card-foreground);
+  --popover: var(--mdl-popover);
+  --popover-foreground: var(--mdl-popover-foreground);
+  --primary: var(--mdl-primary);
+  --primary-foreground: var(--mdl-primary-foreground);
+  --secondary: var(--mdl-secondary);
+  --secondary-foreground: var(--mdl-secondary-foreground);
+  --muted: var(--mdl-muted);
+  --muted-foreground: var(--mdl-muted-foreground);
+  --accent: var(--mdl-accent);
+  --accent-foreground: var(--mdl-accent-foreground);
+  --destructive: var(--mdl-destructive);
+  --destructive-foreground: var(--mdl-destructive-foreground);
+  --brand: var(--mdl-brand);
+  --brand-foreground: var(--mdl-brand-foreground);
+  --border: var(--mdl-border);
+  --input: var(--mdl-input);
+  --ring: var(--mdl-ring);
+  --radius: var(--mdl-radius);
+  --success: var(--mdl-success);
+}
+
+/* ─── Dark Theme ───────────────────────────────────────────────────── */
+/* True black background, warm dark gray surfaces, teal accent.
+   Teal is brighter in dark mode for contrast against dark surfaces. */
+.dark,
+[data-theme="dark"] {
+  --mdl-background: 225 18% 4%;           /* #0B0E11 — true black */
+  --mdl-foreground: 220 13% 93%;          /* #EAECEF — primary text */
+  --mdl-card: 224 14% 11%;                /* #1E2026 — card surface */
+  --mdl-card-foreground: 220 13% 93%;
+  --mdl-popover: 224 14% 11%;
+  --mdl-popover-foreground: 220 13% 93%;
+  --mdl-primary: 174 72% 46%;             /* #21B8A4 — teal, brighter for dark bg */
+  --mdl-primary-foreground: 225 18% 5%;   /* Near-black text on teal */
+  --mdl-secondary: 223 11% 18%;           /* #2B2F36 — elevated surface */
+  --mdl-secondary-foreground: 220 13% 93%;
+  --mdl-muted: 223 11% 18%;
+  --mdl-muted-foreground: 218 11% 55%;    /* #848E9C */
+  --mdl-accent: 223 11% 18%;              /* Neutral hover state */
+  --mdl-accent-foreground: 220 13% 93%;
+  --mdl-brand: 174 72% 46%;              /* Teal brand — slightly brighter in dark */
+  --mdl-brand-foreground: 225 18% 5%;
+  --mdl-destructive: 350 89% 60%;         /* #F6465D */
+  --mdl-destructive-foreground: 0 0% 100%;
+  --mdl-success: 158 68% 44%;             /* #0ECB81 */
+  --mdl-border: 223 11% 18%;              /* #2B2F36 — subtle border */
+  --mdl-input: 222 10% 25%;               /* #3B4046 — input bg */
+  --mdl-ring: 174 72% 46%;               /* Focus ring = teal */
+
+  /* Trading tokens (dark) — Binance's specific hues */
+  --mdl-bid: 210 100% 55%;               /* Blue bid */
+  --mdl-ask: 350 89% 63%;                /* #F6465D lighter for dark bg */
+  --mdl-flash-up: 158 68% 44%;           /* #0ECB81 — Binance green */
+  --mdl-flash-down: 350 89% 63%;         /* #F6465D — Binance red */
+  --mdl-pnl-positive: 158 68% 44%;       /* Green profit */
+  --mdl-pnl-negative: 350 89% 63%;       /* Red loss */
+}

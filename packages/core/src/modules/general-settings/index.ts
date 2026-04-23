@@ -176,7 +176,12 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       suppressMaxRenderedRowRestriction: s.suppressMaxRenderedRowRestriction,
       suppressAnimationFrame: s.suppressAnimationFrame,
       debounceVerticalScrollbar: s.debounceVerticalScrollbar,
-    } as Partial<GridOptions>;
+    // Double-cast: some grid-option fields (e.g. groupHideColumnsUntilExpanded)
+    // exist in newer AG-Grid minor releases but aren't in 35.1.0's type defs.
+    // Pinning to 35.1.0 exact (corporate requirement) means TS flags them as
+    // excess-properties; we pass them through at runtime since AG-Grid silently
+    // ignores unknown options.
+    } as unknown as Partial<GridOptions>;
   },
 
   SettingsPanel: GridOptionsPanel,

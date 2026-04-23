@@ -9,12 +9,12 @@ import {
   useGridPlatform,
   type AnyModule,
   type PoppableHandle,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@grid-customizer/core';
+} from '@marketsui/core';
 import {
   ChevronDown,
   GripHorizontal,

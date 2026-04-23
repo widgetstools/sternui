@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '@grid-customizer/core';
+import { Popover, PopoverContent, PopoverTrigger } from '@marketsui/core';
 import { TextSection } from './sections/TextSection';
 import { ColorSection } from './sections/ColorSection';
 import { BorderSection } from './sections/BorderSection';

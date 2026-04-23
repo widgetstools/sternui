@@ -4,8 +4,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@grid-customizer/core": ["../core/src"]
+      "@marketsui/core": ["../core/src"]
     }
   },
-  "include": ["src", "../core/src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.*", "node_modules", "dist"]
 }

@@ -1,0 +1,32 @@
+{
+  "name": "@marketsui/demo-react",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@marketsui/core": "*",
+    "@marketsui/design-system": "*",
+    "@marketsui/markets-grid": "*",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "ag-grid-react": "35.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "~4.5.2",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
+    "tailwindcss": "3.4.1",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "~5.9.3",
+    "vite": "~7.3.2"
+  }
+}

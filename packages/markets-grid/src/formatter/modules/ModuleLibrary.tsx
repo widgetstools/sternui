@@ -8,7 +8,7 @@
  */
 import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
-import { PopoverCompat as Popover } from '@grid-customizer/core';
+import { PopoverCompat as Popover } from '@marketsui/core';
 import { TemplateManager } from '../../TemplateManager';
 import { Module, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';

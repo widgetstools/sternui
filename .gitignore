@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .vite/
+.turbo/
 test-results/
 playwright-report/
 *.tsbuildinfo
@@ -8,3 +9,15 @@ playwright-report/
 .claude/
 /cell-format-toolbar*.html
 /toolbar-teal*.html
+
+# Accidentally committed TS compiler output in app src/ trees.
+# Ambient .d.ts files under any `src/types/` directory are intentional and tracked.
+apps/*/src/**/*.js
+apps/*/src/**/*.js.map
+apps/*/src/**/*.d.ts.map
+apps/markets-ui-react-reference/src/App.d.ts
+apps/markets-ui-react-reference/src/main.d.ts
+apps/markets-ui-react-reference/src/platform/Provider.d.ts
+apps/markets-ui-react-reference/src/lib/utils.d.ts
+apps/markets-ui-react-reference/src/components/ui/*.d.ts
+apps/markets-ui-react-reference/src/views/*.d.ts

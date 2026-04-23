@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/consolidation]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  install:
+    name: Install + cache
+    runs-on: ubuntu-latest
+    outputs:
+      node-version: ${{ env.NODE_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: npm ci (legacy peer deps)
+        # --legacy-peer-deps is required because several corporate-bundled
+        # .tgz dependencies (lucide-react, @widgetstools/dock-manager,
+        # @primeng/themes) declare peer ranges that conflict with our
+        # React 19 / Angular 21 pins. Documented in docs/DEPS_STANDARD.md.
+        run: npm ci --legacy-peer-deps
+
+  typecheck:
+    name: Typecheck (all packages)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Turbo typecheck
+        run: npx turbo typecheck
+
+  build:
+    name: Build (all packages + apps)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Turbo build
+        run: npx turbo build
+      - name: Upload demo-react bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-react-dist
+          path: apps/demo-react/dist
+          retention-days: 7
+          if-no-files-found: warn
+
+  test:
+    name: Unit tests (Vitest)
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Turbo test
+        run: npx turbo test
