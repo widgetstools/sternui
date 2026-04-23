@@ -7,5 +7,6 @@
       "@marketsui/core": ["../core/src"]
     }
   },
-  "include": ["src", "../core/src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.*", "node_modules", "dist"]
 }

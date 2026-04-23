@@ -1,0 +1,46 @@
+{
+  "name": "@marketsui/markets-ui-react-reference",
+  "version": "23.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "client": "node launch.mjs http://localhost:5174/platform/manifest.fin.json"
+  },
+  "dependencies": {
+    "@finos/fdc3": "2.0.3",
+    "@marketsui/dock-editor": "*",
+    "@marketsui/registry-editor": "*",
+    "@marketsui/icons-svg": "*",
+    "@marketsui/openfin-platform": "*",
+    "@marketsui/tokens-primeng": "*",
+    "@openfin/core": "43.101.2",
+    "@openfin/notifications": "2.13.1",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "0.544.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-router-dom": "^6.30.3",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@openfin/node-adapter": "43.101.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.9.2",
+    "vite": "^6.2.0",
+    "vite-plugin-svgr": "^5.0.0"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@marketsui/openfin-platform-stern",
+  "version": "1.0.0",
+  "description": "OpenFin platform integration with PlatformAdapter, dock, IAB, and workspace services",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@marketsui/shared-types": "1.0.0",
+    "@marketsui/widget-sdk": "1.0.0"
+  },
+  "peerDependencies": {
+    "@openfin/core": "^42.103.1",
+    "@openfin/workspace": "^22.3.27",
+    "@openfin/workspace-platform": "^22.3.27"
+  },
+  "peerDependenciesMeta": {
+    "@openfin/core": { "optional": true },
+    "@openfin/workspace": { "optional": true },
+    "@openfin/workspace-platform": { "optional": true }
+  },
+  "devDependencies": {
+    "@openfin/core": "^42.103.1",
+    "@openfin/workspace": "^22.3.27",
+    "@openfin/workspace-platform": "^22.3.27",
+    "typescript": "^5.3.3",
+    "rimraf": "^5.0.5"
+  },
+  "files": ["dist"]
+}

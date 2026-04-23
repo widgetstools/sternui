@@ -1,0 +1,36 @@
+{
+  "name": "@marketsui/stern-reference-react",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openfin/core": "^42.103.1",
+    "@openfin/workspace": "^22.3.27",
+    "@openfin/workspace-platform": "^22.3.27",
+    "@marketsui/openfin-platform-stern": "1.0.0",
+    "@marketsui/shared-types": "1.0.0",
+    "@marketsui/ui": "1.0.0",
+    "@marketsui/widget-sdk": "1.0.0",
+    "@marketsui/widgets-react": "1.0.0",
+    "@tanstack/react-query": "^5.80.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.1.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.4.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

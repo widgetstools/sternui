@@ -1,5 +1,5 @@
 {
-  "name": "fi-trading-terminal",
+  "name": "@marketsui/fi-trading-reference",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -93,8 +93,8 @@
     "vite": "~7.3.2"
   },
   "overrides": {
-    "@typescript-eslint/tsconfig-utils" :"8.58.1",
-    "@oxc-roject/types" :"0.122.0",
+    "@typescript-eslint/tsconfig-utils": "8.58.1",
+    "@oxc-roject/types": "0.122.0",
     "@rolldown/pluginutils": "1.0.0-rc.12"
   }
 }
