@@ -7,7 +7,9 @@
     "dev": "vite --port 5173",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "openfin": "node ../../tools/scripts/launch-openfin.mjs http://localhost:5173/manifest.fin.json",
+    "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -- --no-open\" \"wait-on http://localhost:5173 && npm run openfin\""
   },
   "dependencies": {
     "@openfin/core": "~42.103.4",

@@ -18,6 +18,7 @@
     "dev:demo-react": "turbo dev --filter=@marketsui/demo-react",
     "dev:demo-angular": "turbo dev --filter=@marketsui/demo-angular",
     "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
+    "dev:openfin:stern-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/stern-reference-react -- --no-open\" \"wait-on http://localhost:5173 && node tools/scripts/launch-openfin.mjs http://localhost:5173/manifest.fin.json\"",
     "launch:openfin": "node tools/scripts/launch-openfin.mjs",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
