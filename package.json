@@ -2,13 +2,11 @@
   "name": "marketsui-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "MarketsUI platform monorepo \u2014 config-driven UI framework for capital markets trading apps on OpenFin. Consolidates @grid-customizer, markets-ui, fi-trading-terminal, and stern-2.",
+  "description": "MarketsUI platform monorepo — config-driven UI framework for capital markets trading apps on OpenFin. Consolidates @grid-customizer, markets-ui, fi-trading-terminal, and stern-2.",
   "packageManager": "npm@10.9.0",
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "packages/adapters/*",
-    "tools/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "turbo build",
@@ -19,16 +17,20 @@
     "dev": "turbo dev --filter=@marketsui/demo-react",
     "dev:demo-react": "turbo dev --filter=@marketsui/demo-react",
     "dev:demo-angular": "turbo dev --filter=@marketsui/demo-angular",
-    "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/demo-react -- --open=false\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
-    "e2e": "turbo e2e",
-    "e2e:headed": "npm run e2e -w @marketsui/demo-react -- --headed",
-    "clean": "turbo clean && rm -rf node_modules"
+    "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
+    "launch:openfin": "node tools/scripts/launch-openfin.mjs",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui",
+    "clean": "rimraf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist .turbo"
   },
   "devDependencies": {
+    "@openfin/node-adapter": "^42.103.4",
     "@playwright/test": "^1.59.1",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.0.0",
     "postcss": "^8.5.9",
+    "rimraf": "^6.0.1",
     "tailwindcss": "3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "turbo": "^2.5.0",
