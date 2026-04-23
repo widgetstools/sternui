@@ -1,0 +1,17 @@
+{
+  "name": "@marketsui/openfin-platform",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@openfin/core": "43.101.2",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
+    "@marketsui/icons-svg": "*",
+    "@marketsui/config-service": "*"
+  }
+}
