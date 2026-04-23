@@ -19,11 +19,15 @@
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["stern", "types", "shared"],
+  "keywords": [
+    "stern",
+    "types",
+    "shared"
+  ],
   "author": "Stern Development Team",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.3.3",
+    "typescript": "~5.9.3",
     "rimraf": "^5.0.5"
   }
 }

@@ -18,11 +18,15 @@
     "@marketsui/config-service": "*"
   },
   "peerDependencies": {
-    "react": ">=19.2.4",
+    "react": ">=19.0.0",
     "@angular/core": ">=21.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "@angular/core": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "@angular/core": {
+      "optional": true
+    }
   }
 }

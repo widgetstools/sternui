@@ -18,12 +18,12 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@angular/common": ">=17.0.0",
-    "@angular/core": ">=17.0.0",
+    "@angular/common": ">=21.0.0",
+    "@angular/core": ">=21.0.0",
     "@angular/forms": ">=17.0.0",
-    "ag-grid-angular": ">=33.0.0",
-    "ag-grid-community": ">=33.0.0",
-    "ag-grid-enterprise": ">=33.0.0",
+    "ag-grid-angular": ">=35.0.0",
+    "ag-grid-community": ">=35.0.0",
+    "ag-grid-enterprise": ">=35.0.0",
     "@stomp/stompjs": ">=7.0.0",
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/openfin-platform-stern": "1.0.0",
@@ -31,21 +31,27 @@
     "rxjs": ">=7.0.0"
   },
   "devDependencies": {
-    "@angular/common": "^17.3.0",
-    "@angular/compiler": "^17.3.0",
-    "@angular/compiler-cli": "^17.3.0",
-    "@angular/core": "^17.3.0",
-    "@angular/forms": "^17.3.0",
-    "ag-grid-angular": "^33.0.0",
-    "ag-grid-community": "^33.0.0",
-    "ag-grid-enterprise": "^33.0.0",
+    "@angular/common": "21.1.0",
+    "@angular/compiler": "21.1.0",
+    "@angular/compiler-cli": "21.1.0",
+    "@angular/core": "21.1.0",
+    "@angular/forms": "21.1.0",
+    "ag-grid-angular": "35.1.0",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
     "@stomp/stompjs": "^7.3.0",
     "ng-packagr": "^17.3.0",
     "rimraf": "^5.0.5",
-    "rxjs": "^7.8.0",
-    "typescript": "~5.4.0"
+    "rxjs": "~7.8.2",
+    "typescript": "~5.9.3"
   },
-  "keywords": ["stern", "angular", "widgets", "dock-configurator", "data-provider-editor"],
+  "keywords": [
+    "stern",
+    "angular",
+    "widgets",
+    "dock-configurator",
+    "data-provider-editor"
+  ],
   "author": "Stern Development Team",
   "license": "MIT"
 }

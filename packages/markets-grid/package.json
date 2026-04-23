@@ -14,22 +14,22 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "ag-grid-community": "^35.0.0",
-    "ag-grid-react": "^35.0.0"
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0",
+    "ag-grid-community": ">=35.0.0",
+    "ag-grid-react": ">=35.0.0"
   },
   "dependencies": {
     "@marketsui/core": "*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.0.0",
+    "@testing-library/react": "~16.2.0",
     "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.7.0",
-    "jsdom": "^25.0.1",
-    "vitest": "^3.0.0"
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "~4.5.2",
+    "jsdom": "^29.0.2",
+    "vitest": "^4.1.4"
   }
 }

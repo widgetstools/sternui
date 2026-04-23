@@ -17,20 +17,28 @@
   },
   "peerDependencies": {
     "@openfin/core": "^42.103.1",
-    "@openfin/workspace": "^22.3.27",
-    "@openfin/workspace-platform": "^22.3.27"
+    "@openfin/workspace": "^24.0.0",
+    "@openfin/workspace-platform": "^24.0.0"
   },
   "peerDependenciesMeta": {
-    "@openfin/core": { "optional": true },
-    "@openfin/workspace": { "optional": true },
-    "@openfin/workspace-platform": { "optional": true }
+    "@openfin/core": {
+      "optional": true
+    },
+    "@openfin/workspace": {
+      "optional": true
+    },
+    "@openfin/workspace-platform": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@openfin/core": "^42.103.1",
-    "@openfin/workspace": "^22.3.27",
-    "@openfin/workspace-platform": "^22.3.27",
-    "typescript": "^5.3.3",
+    "@openfin/core": "~42.103.4",
+    "@openfin/workspace": "^24.0.0",
+    "@openfin/workspace-platform": "^24.0.0",
+    "typescript": "~5.9.3",
     "rimraf": "^5.0.5"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }

@@ -11,7 +11,7 @@
     "@marketsui/openfin-platform": "*",
     "@marketsui/icons-svg": "*",
     "primeicons": "^7.0.0",
-    "rxjs": "^7.4.0"
+    "rxjs": "~7.8.2"
   },
   "peerDependencies": {
     "@angular/common": ">=21.0.0",
