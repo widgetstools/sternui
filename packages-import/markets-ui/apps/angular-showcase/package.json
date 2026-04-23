@@ -1,0 +1,35 @@
+{
+  "name": "angular-showcase",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "ng": "ng",
+    "dev": "ng serve --port 4280",
+    "build": "ng build"
+  },
+  "dependencies": {
+    "@angular/animations": "21.0.0",
+    "@angular/common": "21.0.0",
+    "@angular/compiler": "21.0.0",
+    "@angular/core": "21.0.0",
+    "@angular/forms": "21.0.0",
+    "@angular/platform-browser": "21.0.0",
+    "@angular/router": "21.0.0",
+    "@angular/cdk": "21.0.0",
+    "@marketsui/tokens": "*",
+    "primeng": "21.0.0",
+    "@primeuix/themes": "^1.0.0",
+    "primeicons": "^7.0.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "21.0.0",
+    "@angular/cli": "21.0.0",
+    "@angular/compiler-cli": "21.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.9.2"
+  }
+}

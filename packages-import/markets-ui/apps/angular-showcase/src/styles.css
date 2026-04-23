@@ -1,0 +1,489 @@
+/* PrimeNG icons */
+@import 'primeicons/primeicons.css';
+
+/* MarketsUI Design Tokens — single source of truth */
+@import '@marketsui/tokens/css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--mdl-font-family);
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* ── Shared PrimeNG overrides — MarketsUI token integration ── */
+
+/* Input */
+.p-inputtext {
+  background: transparent !important;
+  border-color: hsl(var(--input)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+  height: 36px;
+  padding: 4px 12px !important;
+}
+.p-inputtext::placeholder { color: hsl(var(--muted-foreground)) !important; }
+.p-inputtext:focus {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+}
+textarea.p-inputtext,
+.p-textarea,
+textarea.p-textarea {
+  height: auto !important;
+  min-height: 80px;
+  padding: 8px 12px !important;
+  background: transparent !important;
+  border-color: hsl(var(--input)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+  font-family: var(--mdl-font-family) !important;
+}
+textarea.p-inputtext::placeholder,
+textarea.p-textarea::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+textarea.p-inputtext:focus,
+textarea.p-textarea:focus {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+}
+
+/* Select */
+.p-select {
+  background: transparent !important;
+  border-color: hsl(var(--input)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+  height: 36px;
+}
+.p-select .p-select-label { color: hsl(var(--foreground)) !important; font-size: 14px !important; }
+.p-select-dropdown { color: hsl(var(--muted-foreground)) !important; }
+.p-select-overlay {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  --p-select-option-focus-background: hsl(var(--secondary));
+  --p-select-option-focus-color: hsl(var(--secondary-foreground));
+  --p-select-option-selected-focus-background: hsl(var(--secondary));
+  --p-select-option-selected-focus-color: hsl(var(--secondary-foreground));
+  --p-select-option-selected-background: hsl(var(--secondary));
+  --p-select-option-selected-color: hsl(var(--secondary-foreground));
+}
+.p-select-option { color: hsl(var(--popover-foreground)) !important; font-size: 14px !important; }
+.p-select-option.p-focus,
+.p-select-option:hover {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--secondary-foreground)) !important;
+}
+.p-select-option.p-selected {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--secondary-foreground)) !important;
+}
+.p-select-option.p-selected.p-focus {
+  background: hsl(var(--secondary)) !important;
+}
+
+/* Button */
+.p-button {
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  height: 36px;
+  --p-button-primary-background: hsl(var(--primary));
+  --p-button-primary-border-color: hsl(var(--primary));
+  --p-button-primary-color: hsl(var(--primary-foreground));
+  --p-button-primary-hover-background: hsl(var(--primary) / 0.9);
+  --p-button-primary-hover-border-color: hsl(var(--primary) / 0.9);
+  --p-button-primary-hover-color: hsl(var(--primary-foreground));
+}
+
+/* ToggleSwitch */
+.p-toggleswitch {
+  --p-toggleswitch-checked-background: hsl(var(--primary));
+  --p-toggleswitch-checked-hover-background: hsl(var(--primary));
+  --p-toggleswitch-checked-border-color: hsl(var(--primary));
+}
+.p-toggleswitch .p-toggleswitch-slider { background: hsl(var(--input)); }
+.p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-slider {
+  background: hsl(var(--primary));
+}
+
+/* RadioButton — unchecked and checked states */
+.p-radiobutton {
+  /* Unchecked: transparent background, subtle border */
+  --p-radiobutton-background: transparent !important;
+  --p-radiobutton-border-color: hsl(var(--input)) !important;
+  --p-radiobutton-hover-background: transparent !important;
+  --p-radiobutton-hover-border-color: hsl(var(--ring)) !important;
+  /* Checked: transparent bg, teal border + icon */
+  --p-radiobutton-checked-background: transparent !important;
+  --p-radiobutton-checked-border-color: hsl(var(--primary)) !important;
+  --p-radiobutton-checked-hover-background: transparent !important;
+  --p-radiobutton-checked-hover-border-color: hsl(var(--primary)) !important;
+  --p-radiobutton-icon-checked-color: hsl(var(--primary)) !important;
+  --p-radiobutton-icon-checked-hover-color: hsl(var(--primary)) !important;
+  /* Focus */
+  --p-radiobutton-focus-ring-color: hsl(var(--ring) / 0.3) !important;
+}
+
+/* ── Accordion ── */
+.p-accordion {
+  --p-accordion-header-background: transparent;
+  --p-accordion-header-hover-background: hsl(var(--secondary));
+  --p-accordion-header-active-background: hsl(var(--secondary));
+  --p-accordion-header-color: hsl(var(--foreground));
+  --p-accordion-header-hover-color: hsl(var(--foreground));
+  --p-accordion-header-active-color: hsl(var(--foreground));
+  --p-accordion-content-background: transparent;
+  --p-accordion-content-color: hsl(var(--muted-foreground));
+  --p-accordion-header-border-color: hsl(var(--border));
+  --p-accordion-content-border-color: hsl(var(--border));
+}
+.p-accordionheader {
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 12px 16px !important;
+}
+.p-accordionheader:hover { background: hsl(var(--secondary)) !important; }
+.p-accordioncontent {
+  background: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+  font-size: 14px !important;
+}
+.p-accordioncontent .p-accordioncontent-content { padding: 12px 16px !important; }
+
+/* ── Message / Alert ── */
+.p-message {
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+}
+.p-message.p-message-info {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+.p-message.p-message-error {
+  background: hsl(var(--destructive) / 0.15) !important;
+  border-color: hsl(var(--destructive) / 0.3) !important;
+  color: hsl(var(--destructive)) !important;
+}
+.p-message.p-message-success {
+  background: hsl(var(--mdl-success) / 0.15) !important;
+  border-color: hsl(var(--mdl-success) / 0.3) !important;
+  color: hsl(var(--mdl-success)) !important;
+}
+.p-message.p-message-warn {
+  background: hsl(40 90% 55% / 0.15) !important;
+  border-color: hsl(40 90% 55% / 0.3) !important;
+  color: hsl(40 90% 60%) !important;
+}
+
+/* ── Avatar ── */
+.p-avatar {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* ── Checkbox ── */
+.p-checkbox {
+  --p-checkbox-checked-background: hsl(var(--primary));
+  --p-checkbox-checked-border-color: hsl(var(--primary));
+  --p-checkbox-checked-hover-background: hsl(var(--primary));
+  --p-checkbox-checked-hover-border-color: hsl(var(--primary));
+  --p-checkbox-icon-checked-color: hsl(var(--primary-foreground));
+  --p-checkbox-icon-checked-hover-color: hsl(var(--primary-foreground));
+}
+.p-checkbox .p-checkbox-box {
+  background: transparent !important;
+  border-color: hsl(var(--input)) !important;
+  border-radius: 4px !important;
+}
+.p-checkbox.p-checkbox-checked .p-checkbox-box {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* ── ProgressBar ── */
+.p-progressbar {
+  background: hsl(var(--secondary)) !important;
+  border-radius: 9999px !important;
+  height: 10px !important;
+}
+.p-progressbar .p-progressbar-value {
+  background: hsl(var(--primary)) !important;
+  border-radius: 9999px !important;
+}
+.p-progressbar .p-progressbar-label { display: none !important; }
+
+/* ── Slider ── */
+.p-slider {
+  background: hsl(var(--secondary)) !important;
+  border-radius: 9999px !important;
+  height: 6px !important;
+}
+.p-slider .p-slider-range {
+  background: hsl(var(--primary)) !important;
+}
+.p-slider .p-slider-handle {
+  background: hsl(var(--primary)) !important;
+  border: 2px solid hsl(var(--primary)) !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+.p-slider .p-slider-handle:hover {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+/* ── Table ── */
+.p-datatable {
+  --p-datatable-header-cell-background: transparent;
+  --p-datatable-row-background: transparent;
+  --p-datatable-body-cell-border-color: hsl(var(--border));
+  --p-datatable-header-cell-border-color: hsl(var(--border));
+}
+.p-datatable .p-datatable-thead > tr > th {
+  background: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 10px 16px !important;
+}
+.p-datatable .p-datatable-tbody > tr > td {
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+  font-size: 14px !important;
+  padding: 10px 16px !important;
+}
+.p-datatable .p-datatable-tbody > tr:hover > td {
+  background: hsl(var(--secondary)) !important;
+}
+
+/* ── SelectButton (Toggle Group) ── */
+.p-selectbutton {
+  background: transparent !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  border: none !important;
+  gap: 4px !important;
+}
+.p-selectbutton .p-togglebutton,
+.p-selectbutton .p-togglebutton .p-togglebutton-label,
+.p-selectbutton .p-togglebutton-content {
+  background: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+.p-selectbutton .p-togglebutton {
+  border: 1px solid hsl(var(--input)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 6px 16px !important;
+}
+.p-selectbutton .p-togglebutton.p-togglebutton-checked,
+.p-selectbutton .p-togglebutton.p-togglebutton-checked .p-togglebutton-label,
+.p-selectbutton .p-togglebutton.p-togglebutton-checked .p-togglebutton-content {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+.p-selectbutton .p-togglebutton.p-togglebutton-checked {
+  border-color: hsl(var(--ring)) !important;
+}
+.p-selectbutton .p-togglebutton:hover,
+.p-selectbutton .p-togglebutton:hover .p-togglebutton-label,
+.p-selectbutton .p-togglebutton:hover .p-togglebutton-content {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* ── ToggleButton (Single Toggle) ── */
+.p-togglebutton,
+.p-togglebutton .p-togglebutton-label,
+.p-togglebutton .p-togglebutton-content {
+  background: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+.p-togglebutton {
+  border: 1px solid hsl(var(--input)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+}
+.p-togglebutton.p-togglebutton-checked,
+.p-togglebutton.p-togglebutton-checked .p-togglebutton-label,
+.p-togglebutton.p-togglebutton-checked .p-togglebutton-content {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+.p-togglebutton.p-togglebutton-checked {
+  border-color: hsl(var(--ring)) !important;
+}
+
+/* ── Menu (Dropdown Menu) ── */
+.p-menu {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  padding: 4px !important;
+  min-width: 180px !important;
+}
+.p-menu .p-menuitem-link {
+  color: hsl(var(--popover-foreground)) !important;
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+}
+.p-menu .p-menuitem-link:hover {
+  background: hsl(var(--secondary)) !important;
+}
+.p-menu .p-menu-separator {
+  border-color: hsl(var(--border)) !important;
+  margin: 4px 0 !important;
+}
+.p-menu .p-submenu-header {
+  background: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 8px 12px 4px !important;
+}
+
+/* ── Skeleton ── */
+.p-skeleton {
+  background: hsl(var(--secondary)) !important;
+}
+
+/* ── DatePicker / Calendar ── */
+.p-datepicker {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  padding: 12px !important;
+}
+.p-datepicker-panel {
+  background: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+.p-datepicker .p-datepicker-header {
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  padding-bottom: 8px !important;
+}
+.p-datepicker .p-datepicker-title button {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 500 !important;
+}
+.p-datepicker .p-datepicker-title button:hover {
+  background: hsl(var(--secondary)) !important;
+}
+.p-datepicker .p-datepicker-prev,
+.p-datepicker .p-datepicker-next {
+  color: hsl(var(--muted-foreground)) !important;
+  border: none !important;
+  background: transparent !important;
+}
+.p-datepicker .p-datepicker-prev:hover,
+.p-datepicker .p-datepicker-next:hover {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+.p-datepicker table th {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+.p-datepicker table td > span {
+  color: hsl(var(--foreground)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+.p-datepicker table td > span:hover {
+  background: hsl(var(--secondary)) !important;
+}
+.p-datepicker table td.p-datepicker-today > span {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600 !important;
+}
+.p-datepicker table td > span.p-highlight {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+.p-datepicker table td.p-datepicker-other-month > span {
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.5;
+}
+/* Popup trigger input */
+.p-datepicker-input {
+  background: transparent !important;
+  border-color: hsl(var(--input)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem) - 2px) !important;
+  font-size: 14px !important;
+  height: 36px;
+}
+.p-datepicker-input:focus {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+}
+
+/* ── Divider ── */
+.p-divider {
+  --p-divider-border-color: hsl(var(--border));
+}
+.p-divider::before { border-color: hsl(var(--border)) !important; }
+
+/* ── Card (PrimeNG) ── */
+.p-card {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--mdl-radius, 0.5rem)) !important;
+  box-shadow: none !important;
+}
+
+/* ── Tag ── */
+.p-tag {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 9999px !important;
+  padding: 2px 10px !important;
+}
+
+/* ── Utility classes for trading colors ── */
+.font-mono { font-family: var(--mdl-font-mono, 'JetBrains Mono', monospace); }
+
+/* ── Flash animations ── */
+@keyframes flash-up {
+  0% { background-color: hsl(var(--mdl-flash-up) / 0.4); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-down {
+  0% { background-color: hsl(var(--mdl-flash-down) / 0.4); }
+  100% { background-color: transparent; }
+}
+.flash-up-demo { animation: flash-up 1s ease-out infinite; }
+.flash-down-demo { animation: flash-down 1s ease-out infinite; }

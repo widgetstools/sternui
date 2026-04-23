@@ -1,0 +1,70 @@
+{
+  "licenseKey": "openfin-demo-license-key",
+  "runtime": {
+    "arguments": "--enable-mesh --security-realm=react-workspace-starter",
+    "version": "43.142.101.2"
+  },
+  "platform": {
+    "uuid": "react-workspace-starter",
+    "icon": "http://localhost:5174/dock-provider.png",
+    "autoShow": true,
+    "providerUrl": "http://localhost:5174/platform/provider",
+    "preventQuitOnLastWindowClosed": true
+  },
+  "shortcut": {
+    "company": "OpenFin",
+    "description": "A way of showing examples of what OpenFin can do.",
+    "icon": "http://localhost:5174/favicon.ico",
+    "name": "React Workspace Starter",
+    "target": ["desktop", "start-menu"]
+  },
+  "supportInformation": {
+    "company": "OpenFin",
+    "product": "Workspace Starter - React Workspace Starter",
+    "email": "support@openfin.co",
+    "forwardErrorReports": true
+  },
+  "customSettings": {
+    "seedConfigUrl": "http://localhost:5174/seed-config.json",
+    "apps": [
+      {
+        "appId": "react-view1",
+        "name": "react-view1",
+        "title": "React View 1",
+        "description": "Display the React View 1",
+        "manifest": "http://localhost:5174/views/view1.fin.json",
+        "manifestType": "view",
+        "icons": [
+          {
+            "src": "http://localhost:5174/favicon.ico"
+          }
+        ],
+        "contactEmail": "contact@example.com",
+        "supportEmail": "support@example.com",
+        "publisher": "OpenFin",
+        "intents": [],
+        "images": [],
+        "tags": ["view", "openfin"]
+      },
+      {
+        "appId": "react-view2",
+        "name": "react-view2",
+        "title": "React View 2",
+        "description": "Display the React View 2",
+        "manifest": "http://localhost:5174/views/view2.fin.json",
+        "manifestType": "view",
+        "icons": [
+          {
+            "src": "http://localhost:5174/favicon.ico"
+          }
+        ],
+        "contactEmail": "contact@example.com",
+        "supportEmail": "support@example.com",
+        "publisher": "OpenFin",
+        "intents": [],
+        "images": [],
+        "tags": ["view", "openfin"]
+      }
+    ]
+  }
+}

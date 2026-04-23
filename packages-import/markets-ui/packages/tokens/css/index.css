@@ -1,0 +1,11 @@
+/**
+ * MarketsUI Design Tokens — Barrel Import
+ *
+ * Usage:
+ *   @import '@marketsui/tokens/css';
+ *
+ * Imports all token layers: core colors/sizing, editor tokens, animations.
+ */
+@import './tokens.css';
+@import './editor.css';
+@import './animations.css';

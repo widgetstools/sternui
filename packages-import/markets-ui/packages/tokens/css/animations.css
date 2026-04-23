@@ -1,0 +1,36 @@
+/**
+ * MarketsUI Shared Animations
+ *
+ * Keyframe definitions used by editor components (dock editor,
+ * registry editor) for entrance, loading, and interaction effects.
+ */
+
+@keyframes de-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes de-scale-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes de-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes de-pulse-subtle {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes de-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+@keyframes de-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

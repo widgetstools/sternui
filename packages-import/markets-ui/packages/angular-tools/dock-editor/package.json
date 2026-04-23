@@ -1,0 +1,23 @@
+{
+  "name": "@markets/angular-dock-editor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@markets/openfin-workspace": "*",
+    "@markets/icons-svg": "*",
+    "primeicons": "^7.0.0",
+    "rxjs": "^7.4.0"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=21.0.0",
+    "@angular/core": ">=21.0.0",
+    "@angular/forms": ">=21.0.0",
+    "primeng": ">=21.0.0",
+    "@primeuix/themes": ">=1.0.0"
+  }
+}

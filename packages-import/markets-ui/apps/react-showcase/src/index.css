@@ -1,0 +1,50 @@
+@import '@marketsui/tokens/css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--mdl-font-family);
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Flash animations for trading price ticks */
+@keyframes flash-up {
+  0% {
+    background-color: transparent;
+  }
+  15% {
+    background-color: hsl(var(--mdl-flash-up) / 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down {
+  0% {
+    background-color: transparent;
+  }
+  15% {
+    background-color: hsl(var(--mdl-flash-down) / 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-up-demo {
+  animation: flash-up 2s ease-out infinite;
+}
+
+.flash-down-demo {
+  animation: flash-down 2s ease-out infinite;
+  animation-delay: 1s;
+}

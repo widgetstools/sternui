@@ -1,0 +1,26 @@
+{
+  "name": "@marketsui/tokens",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared design tokens for MarketsUI — CSS custom properties, Tailwind preset, PrimeNG preset",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./css": "./css/index.css",
+    "./css/tokens": "./css/tokens.css",
+    "./css/editor": "./css/editor.css",
+    "./css/animations": "./css/animations.css",
+    "./tailwind-preset": "./tailwind-preset.cjs",
+    "./primeng-preset": "./primeng-preset.ts"
+  },
+  "scripts": {
+    "build": "echo 'tokens: no build needed (consumed as source)'"
+  },
+  "peerDependencies": {
+    "@primeuix/themes": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@primeuix/themes": { "optional": true }
+  }
+}

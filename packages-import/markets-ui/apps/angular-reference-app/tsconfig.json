@@ -1,0 +1,43 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "paths": {
+      "@markets/angular-dock-editor": ["../../packages/angular-tools/dock-editor/src/index.ts"],
+      "@markets/angular-registry-editor": ["../../packages/angular-tools/registry-editor/src/index.ts"],
+      "@markets/openfin-workspace": ["../../packages/openfin-workspace/src/index.ts"],
+      "@markets/icons-svg": ["../../packages/icons-svg/index.ts"],
+      "@markets/icons-svg/*": ["../../packages/icons-svg/*"],
+      "@marketsui/config-service": ["../../packages/config-service/src/index.ts"],
+      "@marketsui/tokens": ["../../packages/tokens/index.ts"],
+      "@marketsui/tokens/*": ["../../packages/tokens/*"]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}
