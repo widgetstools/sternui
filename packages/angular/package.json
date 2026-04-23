@@ -28,6 +28,7 @@
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/widget-sdk": "1.0.0",
+    "@marketsui/widgets-react": "1.0.0",
     "rxjs": ">=7.0.0"
   },
   "devDependencies": {

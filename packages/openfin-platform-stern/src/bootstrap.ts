@@ -12,7 +12,13 @@ import type { WorkspacePlatformOverrideCallback } from '@openfin/workspace-platf
 import { createConfigService } from '@marketsui/widget-sdk';
 import type { ConfigService, ConfigRow } from '@marketsui/shared-types';
 import { ConfigId } from '@marketsui/shared-types';
-import { dataProviderConfigService } from '@marketsui/widgets-react';
+// Note: stern-2's original bootstrap imported `dataProviderConfigService`
+// from `@marketsui/widgets-react` and called `.configure({ apiUrl })`.
+// That creates a workspace cycle (widgets-react imports openfin hooks
+// from this package). Turbo rejects build cycles. Consumer apps must
+// now configure the data-provider service themselves after importing
+// widgets-react. TODO: refactor — move the singleton into
+// `@marketsui/widget-sdk` (shared by both).
 import { THEME_PALETTES } from './platform/openfinThemePalettes.js';
 import { buildUrl } from './utils/urlHelper.js';
 import { registerConfigLookupCallback } from './platform/menuLauncher.js';
@@ -242,7 +248,9 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
     const cfg = AppContext.instance;
 
     const apiUrl = await getManifestApiUrl();
-    if (apiUrl) dataProviderConfigService.configure({ apiUrl });
+    // TODO: consumer must call `dataProviderConfigService.configure({ apiUrl })`
+    // externally after importing @marketsui/widgets-react. Circular-dep avoidance.
+    // apiUrl is still consumed below for baseUrl fallback.
 
     const baseUrl = cfg.config.baseUrl ?? `${apiUrl ?? 'http://localhost:3001'}/api/v1`;
     const cs = createConfigService({

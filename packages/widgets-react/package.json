@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rimraf dist && tsc",
     "watch": "tsc --watch",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"
@@ -37,6 +37,7 @@
     "@stomp/stompjs": "^7.3.0"
   },
   "devDependencies": {
+    "@openfin/core": "~42.103.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "ag-grid-community": "35.1.0",
