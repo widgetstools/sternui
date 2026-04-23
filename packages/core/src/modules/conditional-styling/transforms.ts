@@ -52,10 +52,11 @@ function styleToCSS(style: CellStyleProperties): string {
 }
 
 /**
- * Per-side borders rendered on a `::after` pseudo-element using real CSS
- * border properties — v1 used `inset box-shadow` which silently drops
- * `style` (dashed / dotted never render). DO NOT emit `position: relative`
- * on the target (see v2 comment history for the header-layout regression).
+ * Per-side borders rendered on a `::after` pseudo-element using real
+ * CSS border properties (NOT `inset box-shadow`, which silently drops
+ * the `style` so dashed / dotted never render). DO NOT emit
+ * `position: relative` on the target — caused a header-layout
+ * regression historically.
  */
 function borderOverlayCSS(selector: string, style: CellStyleProperties): string {
   const parts: string[] = [];

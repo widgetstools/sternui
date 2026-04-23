@@ -6,10 +6,11 @@ import type { ValueFormatterTemplate, TickToken } from '@grid-customizer/core';
  * preset table + small pure predicates live in a testable module
  * instead of being buried inside the 1300+ LOC component.
  *
- * v1 used Intl.NumberFormat expression strings; v2 prefers structured
- * preset templates because they're CSP-safe and round-trip through
- * JSON. BPS has no preset equivalent, so we retain v1's expression
- * for that one button.
+ * Currency / percent / thousands ship as structured preset templates
+ * because they're CSP-safe and round-trip through JSON. BPS has no
+ * preset equivalent today, so it falls back to a `kind: 'expression'`
+ * template (CSP-unsafe — `configureExpressionPolicy` controls runtime
+ * behaviour).
  */
 
 export type FormatterChoice = {
@@ -46,7 +47,9 @@ export const COMMA_TEMPLATE: ValueFormatterTemplate = {
   kind: 'preset', preset: 'number', options: { decimals: 0, thousands: true },
 };
 
-// BPS has no preset equivalent; v1 used a raw expression, we keep that.
+// BPS has no preset equivalent — falls back to expression-kind.
+// Strict CSP deployments will see this render as raw values (the
+// expression policy gate substitutes an identity formatter).
 export const BPS_TEMPLATE: ValueFormatterTemplate = {
   kind: 'expression',
   expression: "(x>=0?'+':'')+x.toFixed(1)+'bp'",
@@ -69,7 +72,8 @@ export function templateDecimals(t: ValueFormatterTemplate | undefined): number 
     return typeof n === 'number' ? n : null;
   }
   if (t.kind === 'expression') {
-    // Expression fallback: try a couple of known patterns so v1 snapshots keep working.
+    // Expression fallback: try a couple of known patterns so legacy
+    // expression-kind snapshots keep working under allow / warn modes.
     const m = t.expression.match(/maximumFractionDigits:(\d+)/);
     if (m) return parseInt(m[1], 10);
     const tx = t.expression.match(/toFixed\((\d+)\)/);

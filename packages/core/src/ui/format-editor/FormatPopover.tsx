@@ -87,6 +87,23 @@ export function FormatPopover({
             maxHeight: 'var(--radix-popover-content-available-height, 80vh)',
             overflowY: 'auto',
             padding: 10,
+            // Token-backed background — inline so it wins over the
+            // Tailwind arbitrary-value class above with the same
+            // specificity outcome but guaranteed application.
+            // `--gc-surface` inherits from `[data-gc-settings]` via
+            // cockpit.ts, which maps through `--card` with a `#161a1e`
+            // final fallback. Light theme flips automatically because
+            // `--card` re-binds under `[data-theme='light']` via the
+            // cascade (html → body → popover content).
+            background: 'var(--gc-surface, var(--popover, #161a1e))',
+            color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+            // Suppress the browser's default focus outline on the
+            // Radix Content element — Radix focuses the content on
+            // open, which paints a bright blue/white ring around the
+            // popover that isn't part of our design system. The
+            // in-popover controls keep their own focus-visible
+            // styling.
+            outline: 'none',
           }}
           onMouseDown={(e) => {
             e.stopPropagation();

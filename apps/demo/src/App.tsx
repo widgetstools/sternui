@@ -1,17 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
-import type { ColDef } from 'ag-grid-community';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid } from '@grid-customizer/markets-grid';
-import { DexieAdapter } from '@grid-customizer/core';
+import { DexieAdapter, activeProfileKey } from '@grid-customizer/core';
+import type { StorageAdapter, ProfileSnapshot } from '@grid-customizer/core';
 import { Sun, Moon } from 'lucide-react';
 
-import { generateOrders, type Order } from './data';
+import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
+import { MarketDepth } from './MarketDepth';
+import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
 
-type View = 'single' | 'dashboard';
+type View = 'single' | 'dashboard' | 'depth';
 
 /**
- * Initial view comes from `?view=dashboard` (falls back to single).
+ * Initial view comes from `?view=...` (falls back to single).
  * Captured ONCE on mount so a runtime toggle doesn't round-trip the
  * URL — the header button updates both state AND the URL in place via
  * `history.replaceState`.
@@ -19,7 +22,10 @@ type View = 'single' | 'dashboard';
 function initialView(): View {
   if (typeof window === 'undefined') return 'single';
   const q = new URLSearchParams(window.location.search);
-  return q.get('view') === 'dashboard' ? 'dashboard' : 'single';
+  const v = q.get('view');
+  if (v === 'dashboard') return 'dashboard';
+  if (v === 'depth') return 'depth';
+  return 'single';
 }
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
@@ -105,6 +111,51 @@ const defaultColDef: ColDef<Order> = {
   resizable: true,
 };
 
+// ─── Showcase seeding ──────────────────────────────────────────────────
+//
+// On first boot (per gridId), seed the "Showcase" profile directly into
+// the Dexie store and flip the active-profile localStorage pointer so
+// MarketsGrid boots straight into the styled / calculated / tick-flashed
+// view. Skipped on subsequent loads (idempotent: we match by name).
+
+const GRID_ID = 'demo-blotter-v2';
+const SEEDED_FLAG_KEY = `gc-showcase-seeded:${GRID_ID}`;
+
+async function ensureShowcaseSeed(adapter: StorageAdapter): Promise<void> {
+  // One-shot guard: if the flag's set, bail. We still check storage in
+  // case the user manually cleared IndexedDB but kept localStorage.
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(SEEDED_FLAG_KEY)) {
+      return;
+    }
+  } catch { /* access denied — press on */ }
+
+  const existing = await adapter.listProfiles(GRID_ID);
+  if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase())) {
+    try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
+    return;
+  }
+
+  const payload = buildShowcasePayload(GRID_ID);
+  const now = Date.now();
+  const id = 'showcase';
+  const snap: ProfileSnapshot = {
+    id,
+    gridId: GRID_ID,
+    name: payload.profile.name,
+    state: payload.profile.state,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await adapter.saveProfile(snap);
+
+  // Point the active-profile pointer at the fresh snapshot so the first
+  // MarketsGrid render lands here (avoids a default-profile → showcase
+  // flicker). Safe even if the key's already set — we're on first boot.
+  try { localStorage.setItem(activeProfileKey(GRID_ID), id); } catch { /* */ }
+  try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export function App() {
@@ -118,6 +169,20 @@ function AppInner() {
     catch { return true; }
   });
   const [view, setView] = useState<View>(initialView);
+  // Grid API captured via onGridReady — used to stream tick updates
+  // through applyTransactionAsync without replacing rowData.
+  const gridApiRef = useRef<GridApi<Order> | null>(null);
+  // Live-tick toggle in the header. Defaults on — that's the whole
+  // point of the showcase, but users debugging render issues can pause
+  // it. Persisted so a reload keeps the user's choice.
+  const [ticking, setTicking] = useState(() => {
+    try { return localStorage.getItem('gc-ticking') !== 'off'; }
+    catch { return true; }
+  });
+  // Gate the first render until the showcase profile has been seeded;
+  // otherwise MarketsGrid briefly boots with the default profile and
+  // then flips, producing a visible style flash.
+  const [seeded, setSeeded] = useState(false);
 
   // Apply data-theme attribute to root and persist preference
   useEffect(() => {
@@ -133,6 +198,7 @@ function AppInner() {
     if (typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
     if (view === 'dashboard') q.set('view', 'dashboard');
+    else if (view === 'depth') q.set('view', 'depth');
     else q.delete('view');
     const next = `${window.location.pathname}${q.toString() ? `?${q}` : ''}`;
     window.history.replaceState(null, '', next);
@@ -141,6 +207,42 @@ function AppInner() {
   const theme = isDark ? darkTheme : lightTheme;
 
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
+
+  // One-shot seed on mount. `ensureShowcaseSeed` is idempotent — it
+  // short-circuits on the per-grid flag or when the profile already
+  // exists in Dexie — so React 19 StrictMode double-mount is safe.
+  useEffect(() => {
+    let alive = true;
+    ensureShowcaseSeed(storageAdapter).finally(() => {
+      if (alive) setSeeded(true);
+    });
+    return () => { alive = false; };
+  }, [storageAdapter]);
+
+  // Persist the tick-toggle preference.
+  useEffect(() => {
+    try { localStorage.setItem('gc-ticking', ticking ? 'on' : 'off'); }
+    catch { /* */ }
+  }, [ticking]);
+
+  // Live ticking — start once the grid is ready + ticking is on. Emits
+  // row updates through the transaction API so AG-Grid only repaints
+  // the dirty cells (conditional styling's flash rule picks up the
+  // cellValueChanged event and fires the pulse).
+  useEffect(() => {
+    if (!ticking || view !== 'single') return;
+    const stop = startLiveTicking(rowData, (updates) => {
+      const api = gridApiRef.current;
+      if (!api) return;
+      try { api.applyTransactionAsync({ update: updates }); }
+      catch { /* grid tearing down — drop the batch */ }
+    }, 800);
+    return stop;
+  }, [ticking, view, rowData]);
+
+  const handleGridReady = useCallback((ev: GridReadyEvent<Order>) => {
+    gridApiRef.current = ev.api;
+  }, []);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
@@ -158,6 +260,9 @@ function AppInner() {
           <ViewTab active={view === 'dashboard'} onClick={() => setView('dashboard')} testId="view-tab-dashboard">
             Two-grid dashboard
           </ViewTab>
+          <ViewTab active={view === 'depth'} onClick={() => setView('depth')} testId="view-tab-depth">
+            Market depth
+          </ViewTab>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -165,6 +270,42 @@ function AppInner() {
             <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
               {rowData.length} orders
             </span>
+          )}
+          {/* Live-tick toggle — pulse dot when ticking is on, static
+              dot when paused. Placed next to the row-count so users
+              immediately see the "live" state of the showcase. */}
+          {view === 'single' && (
+            <button
+              onClick={() => setTicking((t) => !t)}
+              data-testid="tick-toggle"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                height: 26, padding: '0 10px', borderRadius: 5,
+                border: '1px solid var(--border)',
+                background: ticking
+                  ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)'
+                  : 'var(--secondary)',
+                color: ticking ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                cursor: 'pointer',
+                transition: 'all 150ms',
+              }}
+              title={ticking ? 'Pause live ticking' : 'Resume live ticking'}
+            >
+              <span
+                style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: ticking ? '#2dd4bf' : '#64748b',
+                  boxShadow: ticking ? '0 0 8px #2dd4bf' : 'none',
+                  animation: ticking ? 'gcTickPulse 1.4s ease-in-out infinite' : undefined,
+                }}
+              />
+              {ticking ? 'LIVE' : 'PAUSED'}
+            </button>
           )}
           <button
             onClick={() => setIsDark(!isDark)}
@@ -184,7 +325,26 @@ function AppInner() {
         </div>
       </header>
 
-      {view === 'single' ? (
+      {/* Pulse keyframes for the LIVE dot. Inlined here so the demo is
+          self-contained (globals.css is scoped to grid-customizer
+          tokens). */}
+      <style>{`
+        @keyframes gcTickPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.55; transform: scale(1.35); }
+        }
+      `}</style>
+
+      {!seeded ? (
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--muted-foreground)', fontSize: 11,
+          fontFamily: "'IBM Plex Sans', sans-serif", letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+        }}>
+          Loading showcase…
+        </div>
+      ) : view === 'single' ? (
         <div style={{ flex: 1 }}>
           <MarketsGrid
             gridId="demo-blotter-v2"
@@ -196,6 +356,7 @@ function AppInner() {
             storageAdapter={storageAdapter}
             showFiltersToolbar
             showFormattingToolbar
+            onGridReady={handleGridReady}
             sideBar={{ toolPanels: ['columns', 'filters'] }}
             statusBar={{
               statusPanels: [
@@ -205,8 +366,10 @@ function AppInner() {
             }}
           />
         </div>
-      ) : (
+      ) : view === 'dashboard' ? (
         <Dashboard theme={theme} columnDefs={columnDefs} defaultColDef={defaultColDef} />
+      ) : (
+        <MarketDepth isDark={isDark} />
       )}
     </div>
   );

@@ -33,7 +33,7 @@ const PopoverClose = PopoverPrimitive.Close;
 const PopoverContent = React.forwardRef<
   React.ComponentRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = 'start', sideOffset = 4, children, ...props }, ref) => {
+>(({ className, align = 'start', sideOffset = 4, children, style, ...props }, ref) => {
   // Route the Radix portal into the PortalContainer context's target
   // (popout body when inside PopoutPortal, document.body otherwise).
   // Undefined = Radix falls back to its own default.
@@ -69,6 +69,17 @@ const PopoverContent = React.forwardRef<
         e.stopPropagation();
         const tag = (e.target as HTMLElement).tagName;
         if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
+      }}
+      // Token-backed opaque background — inline (load-bearing over
+      // the Tailwind arbitrary-value class above) so it always wins.
+      // Caller-supplied `style` wins for non-background properties
+      // (spread last). `outline: none` suppresses the browser's
+      // default focus ring on the Radix-focused Content element.
+      style={{
+        background: 'var(--gc-surface, var(--popover, #161a1e))',
+        color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+        outline: 'none',
+        ...style,
       }}
       {...props}
     >

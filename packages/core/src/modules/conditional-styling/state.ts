@@ -6,9 +6,10 @@
  * mount time, NOT inline styles — keeps re-render cheap and lets the dark
  * theme switch via `:root.dark` selectors without recomputing rules.
  *
- * Re-using the v1 type shapes (CellStyleProperties / ThemeAwareStyle / ConditionalRule
- * are re-exported from `@grid-customizer/core` so existing v1 profile snapshots
- * load cleanly into v2 without any migration step.
+ * `CellStyleProperties` / `ThemeAwareStyle` / `ConditionalRule` are
+ * re-exported from `@grid-customizer/core` so on-disk profile
+ * snapshots from prior schema versions load cleanly without an
+ * intermediate migration step.
  */
 export type {
   CellStyleProperties,

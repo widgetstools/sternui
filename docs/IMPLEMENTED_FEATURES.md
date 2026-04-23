@@ -3,11 +3,16 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
-> This document is **v2-only**. The legacy v1 packages
-> (`@grid-customizer/markets-grid`, the v1 modules inside
-> `@grid-customizer/core`, and the v1 e2e specs) were removed from the
-> branch. History for v1 is preserved on the backup tag taken prior to
-> the removal.
+> The legacy v1 surface area is fully retired. Earlier removal pulled
+> the v1 packages (`@grid-customizer/markets-grid`-v1, the v1 modules
+> inside `@grid-customizer/core`, and the v1 e2e specs); a follow-up
+> pass removed the deserializer back-compat shims for v1-shape profile
+> snapshots (`migrateFromLegacy`, `LegacyOverride`,
+> `LegacyColumnCustomizationState`) and rewrote the in-source comments
+> that still referenced "v1 / v2" historical decisions. The branch now
+> ships v2 only — no version qualifier is meaningful in this codebase.
+> History for v1 is preserved on the backup tag taken prior to the
+> original removal.
 
 ---
 
@@ -835,6 +840,42 @@ Angular / PrimeNG apps) can consume one canonical palette.
 - **Typecheck wired** — the new package participates in the monorepo
   `npm run typecheck` flow and the full build (`npm run build`) stays
   green.
+
+### 1.X Expression-formatter security policy (CSP gate)
+
+Runtime switch governing the `kind: 'expression'` branch of
+`ValueFormatterTemplate` — the legacy escape hatch compiled via
+`new Function(...)` and therefore incompatible with a `script-src` CSP
+that forbids `unsafe-eval`.
+
+- **Three modes** — `'allow'` (default, preserves historical behaviour),
+  `'warn'` (compiles but fires `onViolation` + emits a one-shot
+  `console.warn` per unique expression), `'strict'` (adapter returns an
+  identity formatter; profile import rejects payloads containing
+  expression-kind templates).
+- **Public API** — `configureExpressionPolicy({ mode, onViolation })`
+  and `getExpressionPolicy()` exported from `@grid-customizer/core`.
+  Set once at application boot, before any `<MarketsGrid>` mounts.
+- **Two enforcement points** — (1) runtime compile in
+  `valueFormatterFromTemplate` (the identity fallback keeps cells
+  rendering a raw value); (2) synchronous scan in
+  `ProfileManager.import` that walks the payload before any storage
+  write. Strict-mode rejections throw with the offending expression in
+  the message so UIs can surface actionable errors.
+- **Opt-in sanitizer** — strict-mode imports accept a
+  `{ sanitize: true }` flag that rewrites every matching template to a
+  safe `{ kind: 'preset', preset: 'number' }` stand-in in place, then
+  completes the import. Lets ops migrate legacy profiles without a
+  round-trip through an editor.
+- **Observer hook** — `onViolation({ kind, expression, reason })` fires
+  in all modes so telemetry can watch for legacy-formatter usage even
+  under `'allow'`. Observer errors are swallowed so the import / format
+  pipeline can't be broken by a buggy listener.
+- **Test coverage** — 18 unit tests for the policy module (mode
+  merging, cyclic-object walking, one-shot warn dedup,
+  sanitize-in-place counting) + 6 integration tests against
+  `ProfileManager.import` (strict rejects, strict+sanitize rewrites,
+  warn observes, allow no-ops).
 
 ---
 

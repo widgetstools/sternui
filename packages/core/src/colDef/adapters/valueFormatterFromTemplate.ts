@@ -1,6 +1,10 @@
 import type { PresetId, ValueFormatterTemplate } from '../types';
 import { excelFormatter } from './excelFormatter';
 import { tickFormatter } from './tickFormatter';
+import {
+  getExpressionPolicy,
+  reportExpressionViolation,
+} from '../../security/expressionPolicy';
 
 export type FormatterParams = { value: unknown; data?: unknown };
 export type Formatter = (params: FormatterParams) => string;
@@ -152,7 +156,27 @@ export function valueFormatterFromTemplate(t: ValueFormatterTemplate): Formatter
       return render(value);
     };
   }
-  // kind: 'expression' — cache by expression string.
+  // kind: 'expression' — subject to the security policy. Strict mode
+  // refuses to compile (returns an identity formatter) so deployments
+  // running under a `script-src` CSP that forbids `unsafe-eval` stay
+  // safe even when legacy profiles carry expression-kind templates.
+  const policy = getExpressionPolicy();
+  if (policy.mode === 'strict') {
+    reportExpressionViolation({
+      kind: 'valueFormatter',
+      expression: t.expression,
+      reason: 'strict-mode rejected new Function compile',
+    });
+    return identityFormatter;
+  }
+  if (policy.mode === 'warn') {
+    reportExpressionViolation({
+      kind: 'valueFormatter',
+      expression: t.expression,
+      reason: 'warn-mode observed new Function compile',
+    });
+  }
+
   let fn = expressionCache.get(t.expression);
   if (!fn) {
     fn = compileExpression(t.expression);
@@ -160,3 +184,6 @@ export function valueFormatterFromTemplate(t: ValueFormatterTemplate): Formatter
   }
   return fn;
 }
+
+const identityFormatter: Formatter = ({ value }) =>
+  value == null ? '' : String(value);

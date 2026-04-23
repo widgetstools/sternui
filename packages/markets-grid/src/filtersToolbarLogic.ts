@@ -1,8 +1,8 @@
 /**
- * Pure helpers for FiltersToolbar. Extracted from the component during the
- * AUDIT M2 refactor so the inline "verbatim from v1" logic lives in a
- * separately-testable module instead of being buried inside a 622-LOC
- * React component.
+ * Pure helpers for FiltersToolbar. Extracted from the component during
+ * the AUDIT M2 refactor so the heuristic logic lives in a separately
+ * testable module instead of being buried inside a 622-LOC React
+ * component.
  *
  * Every function in this file is:
  *   - synchronous
@@ -28,8 +28,9 @@ export function makeId(): string {
 // ─── Auto-naming ────────────────────────────────────────────────────────
 
 /**
- * Synthesize a human-readable label from a filter model. Mirrors the v1
- * heuristic so labels look the same after auto-naming across versions.
+ * Synthesize a human-readable label from a filter model. Stable
+ * heuristic so auto-named labels look the same after a profile
+ * round-trip.
  */
 export function generateLabel(
   filterModel: Record<string, unknown>,

@@ -57,7 +57,18 @@ export function FormatDropdown<V extends string | number>({
             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
             'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
           )}
-          style={{ minWidth: width ?? 180, padding: 4 }}
+          style={{
+            minWidth: width ?? 180,
+            padding: 4,
+            // Token-backed opaque background. Mirrors FormatPopover;
+            // auto-flips for light theme via the --card re-binding
+            // under [data-theme='light'].
+            background: 'var(--gc-surface, var(--popover, #161a1e))',
+            color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+            // Suppress the browser's default focus outline on the
+            // Radix-focused Content element.
+            outline: 'none',
+          }}
           onMouseDown={(e) => {
             e.stopPropagation();
             const tag = (e.target as HTMLElement).tagName;

@@ -175,9 +175,12 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
     }
     const d = raw as Partial<CalculatedColumnsState>;
     const rawCols = Array.isArray(d.virtualColumns) ? d.virtualColumns : [];
-    // Back-compat: v1 / early-v2 stored `valueFormatterTemplate` as a
-    // bare expression string. Coerce into `{kind:'expression'}` so
-    // downstream code only ever sees the union.
+    // Back-compat: pre-discriminated-union builds stored
+    // `valueFormatterTemplate` as a bare expression string. Coerce
+    // into `{kind:'expression'}` so downstream code only ever sees the
+    // union. Note: this path emits an expression-kind template that
+    // the security policy (`configureExpressionPolicy`) may then reject
+    // under strict mode at compile time.
     const virtualColumns = rawCols.map((v) => {
       const t = (v as unknown as { valueFormatterTemplate?: unknown }).valueFormatterTemplate;
       if (typeof t === 'string') {

@@ -73,6 +73,12 @@ export function ExcelReferencePopover({
           padding: 8,
           maxHeight: 420,
           overflowY: 'auto',
+          // Token-backed opaque background. FormatPopover's Content
+          // above already provides a solid surface; pinning it here
+          // too means this specific scroll container stays opaque
+          // even if someone later swaps the inner container for a
+          // bespoke portal.
+          background: 'var(--gc-surface, var(--popover, #161a1e))',
           fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
           // Theme-aware scrollbar. `scrollbar-color` / `scrollbar-width`
           // are native CSS properties honoured by Firefox and modern

@@ -566,8 +566,8 @@ function Host<TData>({
           ref={gridRef}
           // Spread the module-pipeline options FIRST so explicit host props
           // (rowHeight / headerHeight / animateRows / etc.) win on conflict —
-          // preserves v1 ergonomics where the consumer's prop is authoritative
-          // unless a module deliberately wants to override it.
+          // the consumer's prop is authoritative unless a module deliberately
+          // wants to override it.
           {...(gridOptions as Record<string, unknown>)}
           theme={theme}
           rowData={rowData}
