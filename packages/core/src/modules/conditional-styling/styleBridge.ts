@@ -3,13 +3,13 @@ import type { BorderSpec } from '../../colDef';
 import type { StyleEditorValue } from '../../ui/StyleEditor';
 
 /**
- * Bridge: flat v1 `CellStyleProperties` (ThemeAwareStyle.light) ↔
+ * Bridge: flat `CellStyleProperties` (ThemeAwareStyle.light) ↔
  * semantic `StyleEditorValue`.
  *
- * Conditional-styling rules persist text / border / format identical across
- * light & dark themes; only backgroundColor historically differed. v2 keeps
- * that invariant: the shared StyleEditor edits one value, and the panel
- * writes the same patch into both theme slices.
+ * Conditional-styling rules persist text / border / format identical
+ * across light & dark themes; only backgroundColor differs per theme.
+ * The shared StyleEditor edits one value, and the panel writes the
+ * same patch into both theme slices.
  */
 
 type BorderSide = 'top' | 'right' | 'bottom' | 'left';
@@ -79,10 +79,10 @@ function stripUndef(obj: CellStyleProperties): CellStyleProperties {
 
 /**
  * Apply a StyleEditorValue to a ThemeAwareStyle. Text/border/align/size go
- * into BOTH themes identically. backgroundColor lands on both themes (v1
- * kept them separate but the new UI uses a single picker — we replicate
- * that single value into each slice so existing downstream code that
- * reads `style.dark.backgroundColor` continues to work).
+ * into BOTH themes identically. backgroundColor lands on both themes —
+ * the UI exposes a single picker, but downstream code reads
+ * `style.light.backgroundColor` and `style.dark.backgroundColor`
+ * separately, so we replicate the single value into each slice.
  */
 export function fromStyleEditorValue(
   previous: ThemeAwareStyle,

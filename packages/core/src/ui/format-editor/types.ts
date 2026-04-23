@@ -1,7 +1,7 @@
 /**
  * Shared types for the Format Editor primitive set.
  *
- * These mirror the v1 flat `CellStyleProperties` border triplets
+ * These mirror the flat `CellStyleProperties` border triplets
  * (`borderTopWidth`, `borderTopStyle`, `borderTopColor`, ...) on a per-side
  * basis. Consumers translate from/to whatever state shape they persist.
  */

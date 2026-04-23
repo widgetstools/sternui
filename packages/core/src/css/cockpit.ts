@@ -133,16 +133,13 @@ export const cockpitCSS = `
   --ck-header-lift:    0 8px 12px -10px rgba(15, 23, 42, 0.15);
 }
 
-/* ── Legacy --gc-* token aliases for format-editor + shadcn popover ──
- * The shadcn PopoverContent, format-editor (FormatDropdown,
- * FormatColorPicker, BorderSidesEditor), and other v1 UI components
- * read --gc-surface / --gc-text / --gc-border / --gc-font etc. v2
- * shipped these via a separate settingsCSS stylesheet, but that file
- * also carried a conflicting .gc-sheet { top: 0 } layout rule so we
- * stopped injecting it. Bind the --gc-* token set to the same hosts
- * as --ck-* (sheet, sheet-v2, popout backdrop, [data-gc-settings]
- * portaled content) so every consumer resolves the tokens AND they
- * follow theme flips via the light-mode override below.
+/* ── --gc-* token aliases for format-editor + shadcn popover ──
+ * The shadcn PopoverContent + format-editor primitives (FormatDropdown,
+ * FormatColorPicker, BorderSidesEditor) read --gc-surface / --gc-text /
+ * --gc-border / --gc-font etc. Bind the --gc-* token set to the same
+ * hosts as --ck-* (sheet, sheet-v2, popout backdrop,
+ * [data-gc-settings] portaled content) so every consumer resolves the
+ * tokens AND they follow theme flips via the light-mode override below.
  */
 .gc-sheet,
 .gc-sheet-v2,

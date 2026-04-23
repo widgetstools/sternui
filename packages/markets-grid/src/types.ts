@@ -2,8 +2,8 @@ import type { ColDef, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-communit
 import type { AnyModule } from '@grid-customizer/core';
 
 /**
- * One saved filter pinned to the toolbar. Same shape v1/v2 used so
- * existing profile snapshots load cleanly.
+ * One saved filter pinned to the toolbar. Shape is stable across
+ * schema versions so on-disk profile snapshots load cleanly.
  */
 export interface SavedFilter {
   id: string;

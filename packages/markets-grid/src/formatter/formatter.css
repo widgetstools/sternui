@@ -1,0 +1,669 @@
+/**
+ * Formatter design system — single stylesheet driving both the in-grid
+ * `<FormattingToolbar />` strip and the popped `<FormattingPropertiesPanel />`
+ * inspector. Replaces the legacy `FormattingToolbar.css`.
+ *
+ * Aesthetic: trading-desk editorial. Bloomberg/Reuters terminal precision
+ * finished with refined-broadsheet typography.
+ *
+ *   Display caps (module eyebrow): JetBrains Mono 10px / 0.18em / 500
+ *   Body labels:                   IBM Plex Sans 10–11px / 0.04em / 500
+ *   Numerics + readouts:           JetBrains Mono / tabular-nums
+ *   Accent (active state):         phosphor-teal #3ee5c4 — ring only
+ *   Live preview tint:             warm amber #ffb454
+ *
+ * Naming: `.fx-*` — short, self-namespaced, doesn't collide with the
+ * legacy `.gc-tb-*` selectors during the transition.
+ */
+
+/* ─── Tokens — bind to host theme via [data-theme] cascade ─────── */
+
+.fx-shell {
+  --fx-bg:           var(--gc-surface, #11161b);
+  --fx-bg-soft:      var(--gc-surface-2, #161b21);
+  --fx-bg-sunken:    var(--gc-surface-3, #0c1015);
+  --fx-line:         var(--gc-border, #1f262e);
+  --fx-line-strong:  var(--gc-border-2, #2a323c);
+
+  --fx-ink:          var(--gc-text, #e7eaee);
+  --fx-ink-soft:     var(--gc-text-muted, #8a93a0);
+  --fx-ink-faint:    var(--gc-text-faint, #5a626d);
+
+  --fx-accent:       #3ee5c4;
+  --fx-accent-soft:  rgba(62, 229, 196, 0.10);
+  --fx-accent-line:  rgba(62, 229, 196, 0.55);
+  --fx-amber:        #ffb454;
+  --fx-amber-soft:   rgba(255, 180, 84, 0.08);
+  --fx-amber-line:   rgba(255, 180, 84, 0.32);
+  --fx-danger:       #f87171;
+
+  --fx-radius:       3px;
+  --fx-radius-lg:    4px;
+  --fx-px-tight:     6px;
+  --fx-px-comfy:     10px;
+  --fx-px-loose:     16px;
+
+  --fx-pill-h:       24px;
+  --fx-pill-h-lg:    28px;
+
+  --fx-font-sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --fx-font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Internal sizing knobs the layouts use — both surfaces share. */
+  --fx-icon:         13px;
+  --fx-eyebrow-fs:   10px;
+  --fx-label-fs:     10px;
+  --fx-readout-fs:   11px;
+
+  font-family: var(--fx-font-sans);
+  color: var(--fx-ink);
+  background: var(--fx-bg);
+}
+
+/* Light theme — softer line + inverted accent contrast. */
+[data-theme='light'] .fx-shell {
+  --fx-bg:           #ffffff;
+  --fx-bg-soft:      #f8f9fb;
+  --fx-bg-sunken:    #f1f3f5;
+  --fx-line:         #e3e6eb;
+  --fx-line-strong:  #d2d6dd;
+  --fx-ink:          #1c2128;
+  --fx-ink-soft:     #5a626d;
+  --fx-ink-faint:    #8a93a0;
+  --fx-accent:       #0d9488;
+  --fx-accent-soft:  rgba(13, 148, 136, 0.10);
+  --fx-accent-line:  rgba(13, 148, 136, 0.55);
+  --fx-amber:        #b45309;
+  --fx-amber-soft:   rgba(180, 83, 9, 0.08);
+  --fx-amber-line:   rgba(180, 83, 9, 0.32);
+}
+
+/* ─── Shell ─────────────────────────────────────────────────────── */
+
+.fx-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Toolbar variant — single horizontal row, dense. */
+.fx-shell--horizontal {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-px-comfy);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--fx-line);
+  flex-wrap: wrap;
+  width: max-content;
+  max-width: calc(100vw - 96px);
+}
+
+/* Panel variant — full vertical layout. */
+.fx-shell--vertical {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--fx-bg);
+}
+
+/* ─── Module ────────────────────────────────────────────────────── */
+
+.fx-module {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-px-tight);
+}
+
+/* Vertical-mode module — section card with eyebrow header. */
+.fx-shell--vertical .fx-module {
+  display: block;
+  padding: 14px 18px 16px;
+  border-bottom: 1px solid var(--fx-line);
+}
+.fx-shell--vertical .fx-module:last-child {
+  border-bottom: none;
+}
+
+/* Module eyebrow — `01 · CONTEXT` style, monospace tracked-out. */
+.fx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-eyebrow-fs);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fx-ink-faint);
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+.fx-eyebrow__num {
+  color: var(--fx-accent);
+  font-weight: 600;
+}
+.fx-eyebrow__sep {
+  opacity: 0.6;
+}
+
+/* Horizontal eyebrow — vertical chip on the left of each module. */
+.fx-shell--horizontal .fx-eyebrow {
+  border-right: 1px solid var(--fx-line);
+  padding-right: 8px;
+  margin-right: 2px;
+}
+
+/* Vertical eyebrow — bigger, becomes the section header. */
+.fx-shell--vertical .fx-eyebrow {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.fx-module__body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--fx-px-tight);
+}
+
+.fx-shell--vertical .fx-module__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Hairline between sub-groups inside a module. */
+.fx-hair {
+  display: inline-block;
+  width: 1px;
+  height: 14px;
+  background: var(--fx-line);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ─── Pill — generic toggleable button ──────────────────────────── */
+
+.fx-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: var(--fx-pill-h);
+  min-width: var(--fx-pill-h);
+  padding: 0 6px;
+  background: transparent;
+  border: 1px solid var(--fx-line);
+  border-radius: var(--fx-radius);
+  color: var(--fx-ink-soft);
+  font-family: var(--fx-font-sans);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 120ms, border-color 120ms, background 120ms, transform 80ms;
+  position: relative;
+}
+.fx-pill:hover:not(:disabled) {
+  color: var(--fx-ink);
+  border-color: var(--fx-line-strong);
+  background: var(--fx-bg-soft);
+}
+.fx-pill:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.fx-pill[data-on='true'],
+.fx-pill[aria-pressed='true'] {
+  color: var(--fx-accent);
+  border-color: var(--fx-accent-line);
+  background: var(--fx-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--fx-accent-line);
+}
+.fx-pill:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.fx-pill:focus-visible {
+  outline: 1px solid var(--fx-accent);
+  outline-offset: 1px;
+}
+
+/* Text-content pill — `← .0`, `.0 →`, denominator number. Slightly wider. */
+.fx-pill--text {
+  font-family: var(--fx-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 0 8px;
+  min-width: 30px;
+}
+
+/* Narrow chevron-only pill — used as the right half of split pills. */
+.fx-pill--narrow {
+  min-width: 18px;
+  padding: 0 3px;
+}
+
+/* Split-pill housing — joins a primary pill + narrow chevron pill. */
+.fx-split {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--fx-radius);
+  overflow: hidden;
+  border: 1px solid var(--fx-line);
+}
+.fx-split:hover {
+  border-color: var(--fx-line-strong);
+}
+.fx-split .fx-pill {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.fx-split .fx-pill[data-on='true'],
+.fx-split .fx-pill[aria-pressed='true'] {
+  background: var(--fx-accent-soft);
+  color: var(--fx-accent);
+  box-shadow: inset 0 0 0 1px var(--fx-accent-line);
+}
+.fx-split .fx-pill + .fx-pill {
+  border-left: 1px solid var(--fx-line);
+}
+
+/* ─── Context strip — column label + scope + undo/redo + preview ─ */
+
+.fx-ctx {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Vertical context strip = sticky header. */
+.fx-shell--vertical .fx-ctx {
+  height: 48px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--fx-line);
+  background: var(--fx-bg);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Column label readout. */
+.fx-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--fx-pill-h);
+  padding: 0 10px;
+  border-radius: var(--fx-radius);
+  background: var(--fx-bg-sunken);
+  border: 1px solid var(--fx-line);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-readout-fs);
+  color: var(--fx-ink);
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fx-shell--vertical .fx-col {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+.fx-col__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--fx-accent);
+  box-shadow: 0 0 6px var(--fx-accent);
+  flex-shrink: 0;
+  animation: fxLivePulse 1.6s ease-in-out infinite;
+}
+.fx-col[data-disabled='true'] .fx-col__dot {
+  background: var(--fx-ink-faint);
+  box-shadow: none;
+  animation: none;
+}
+.fx-col[data-disabled='true'] {
+  color: var(--fx-ink-faint);
+}
+.fx-col__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes fxLivePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.2); }
+}
+
+/* Scope toggle — CELL ⇄ HEADER pill. */
+.fx-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--fx-pill-h);
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid var(--fx-line);
+  border-radius: var(--fx-radius);
+  font-family: var(--fx-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fx-accent);
+  cursor: pointer;
+  transition: all 120ms;
+  white-space: nowrap;
+}
+.fx-scope:hover {
+  border-color: var(--fx-accent-line);
+  background: var(--fx-accent-soft);
+}
+.fx-scope__swap {
+  opacity: 0.5;
+  transition: transform 200ms, opacity 200ms;
+}
+.fx-scope:hover .fx-scope__swap {
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+/* ─── Preview readout — phosphor amber, tabular-num. ─────────────── */
+
+.fx-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--fx-pill-h);
+  padding: 0 10px;
+  border-radius: var(--fx-radius);
+  background: var(--fx-amber-soft);
+  border: 1px solid var(--fx-amber-line);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-readout-fs);
+  color: var(--fx-amber);
+  font-variant-numeric: tabular-nums;
+  max-width: 240px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fx-preview__lbl {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fx-amber);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.fx-preview__val {
+  color: var(--fx-amber);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Hairline divider between modules in horizontal mode. ──────── */
+
+.fx-shell--horizontal > .fx-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--fx-line);
+  margin: 2px 4px;
+  flex-shrink: 0;
+}
+.fx-shell--vertical > .fx-divider {
+  display: none;
+}
+
+/* ─── Popover content surfaces (currency menu, font-size, tick) ─── */
+
+.fx-menu {
+  font-family: var(--fx-font-sans);
+  font-size: 11px;
+  color: var(--fx-ink);
+  padding: 4px;
+  min-width: 140px;
+}
+.fx-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--fx-radius);
+  color: var(--fx-ink);
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+.fx-menu__item:hover {
+  background: var(--fx-accent-soft);
+  color: var(--fx-accent);
+}
+.fx-menu__item[data-active='true'] {
+  background: var(--fx-accent-soft);
+  color: var(--fx-accent);
+}
+.fx-menu__glyph {
+  width: 14px;
+  font-family: var(--fx-font-mono);
+  font-size: 10px;
+  color: var(--fx-ink-faint);
+  text-align: center;
+  flex-shrink: 0;
+}
+.fx-menu__name {
+  flex: 1;
+}
+.fx-menu__sample {
+  font-family: var(--fx-font-mono);
+  font-size: 10px;
+  color: var(--fx-ink-faint);
+}
+.fx-menu__sep {
+  height: 1px;
+  background: var(--fx-line);
+  margin: 4px 0;
+}
+
+/* ─── Pop-out trigger ──────────────────────────────────────────── */
+
+.fx-popout {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--fx-line);
+  border-radius: var(--fx-radius);
+  background: var(--fx-bg-soft);
+  color: var(--fx-ink-soft);
+  cursor: pointer;
+  transition: all 120ms;
+  z-index: 3;
+}
+.fx-popout:hover {
+  color: var(--fx-accent);
+  border-color: var(--fx-accent-line);
+  background: var(--fx-accent-soft);
+}
+
+/* ─── Vertical-mode body / scroll container ────────────────────── */
+
+.fx-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fx-line-strong) transparent;
+}
+.fx-body::-webkit-scrollbar {
+  width: 8px;
+}
+.fx-body::-webkit-scrollbar-thumb {
+  background: var(--fx-line-strong);
+  border-radius: 4px;
+}
+.fx-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Vertical-mode footer — destruct zone. */
+.fx-footer {
+  height: 48px;
+  padding: 0 18px;
+  border-top: 1px solid var(--fx-line);
+  background: var(--fx-bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Destruct button — used in the Clear module. Same in both surfaces. */
+.fx-destruct {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--fx-pill-h-lg);
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--fx-danger) 35%, transparent);
+  border-radius: var(--fx-radius);
+  background: transparent;
+  color: var(--fx-danger);
+  font-family: var(--fx-font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 120ms;
+}
+.fx-destruct:hover {
+  background: color-mix(in srgb, var(--fx-danger) 12%, transparent);
+  border-color: var(--fx-danger);
+}
+.fx-destruct[data-confirmed='true'] {
+  color: var(--fx-accent);
+  border-color: var(--fx-accent-line);
+  background: var(--fx-accent-soft);
+}
+
+/* Horizontal-mode mini destruct (icon only) */
+.fx-shell--horizontal .fx-destruct {
+  height: var(--fx-pill-h);
+  width: var(--fx-pill-h);
+  padding: 0;
+  justify-content: center;
+}
+.fx-shell--horizontal .fx-destruct__lbl {
+  display: none;
+}
+
+/* ─── Title bar (vertical / popped, OpenFin frameless mode) ────── */
+
+.fx-titlebar {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--fx-line);
+  background: var(--fx-bg-sunken);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  font-family: var(--fx-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fx-ink-faint);
+}
+.fx-titlebar__close {
+  -webkit-app-region: no-drag;
+  background: transparent;
+  border: none;
+  color: var(--fx-ink-soft);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--fx-radius);
+  transition: all 120ms;
+}
+.fx-titlebar__close:hover {
+  background: color-mix(in srgb, var(--fx-danger) 18%, transparent);
+  color: var(--fx-danger);
+}
+
+/* ─── Module index trail — tiny "01·02·03·04·05" navigation ───── */
+
+.fx-trail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--fx-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--fx-ink-faint);
+  user-select: none;
+}
+.fx-trail__dot {
+  opacity: 0.45;
+}
+.fx-trail__num {
+  color: var(--fx-ink-soft);
+  cursor: pointer;
+  transition: color 120ms;
+}
+.fx-trail__num:hover {
+  color: var(--fx-accent);
+}
+.fx-trail__num[data-active='true'] {
+  color: var(--fx-accent);
+}
+
+/* ─── Stagger reveal on popout open ────────────────────────────── */
+
+.fx-shell--vertical .fx-module {
+  opacity: 0;
+  transform: translateY(4px);
+  animation: fxReveal 240ms ease-out forwards;
+}
+.fx-shell--vertical .fx-module:nth-child(1) { animation-delay: 40ms; }
+.fx-shell--vertical .fx-module:nth-child(2) { animation-delay: 80ms; }
+.fx-shell--vertical .fx-module:nth-child(3) { animation-delay: 120ms; }
+.fx-shell--vertical .fx-module:nth-child(4) { animation-delay: 160ms; }
+.fx-shell--vertical .fx-module:nth-child(5) { animation-delay: 200ms; }
+
+@keyframes fxReveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  .fx-col__dot,
+  .fx-shell--vertical .fx-module,
+  .fx-pill,
+  .fx-scope__swap {
+    animation: none !important;
+    transition: none !important;
+  }
+}

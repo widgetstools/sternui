@@ -1,11 +1,11 @@
 /**
  * Public props for <ExpressionEditor>.
  *
- * Designed to absorb every existing call site (7 of them across v1 + v2):
- * conditional-styling, calculated-columns, cell-flashing, entitlements,
- * named-queries, the expression-editor playground, and the future formula
- * bar. Variance between sites (single-line vs multi-line, live vs on-commit,
- * validated vs optional) is absorbed by props — ONE editor everywhere.
+ * Designed to absorb every call site (7 today): conditional-styling,
+ * calculated-columns, cell-flashing, entitlements, named-queries, the
+ * expression-editor playground, and the future formula bar. Variance
+ * between sites (single-line vs multi-line, live vs on-commit, validated
+ * vs optional) is absorbed by props — ONE editor everywhere.
  */
 export interface ExpressionEditorProps {
   /** Initial expression text. Uncontrolled model: the editor maintains its

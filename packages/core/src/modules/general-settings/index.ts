@@ -6,8 +6,10 @@
  * module sees a canonical `defaultColDef` + row sizing + selection
  * config shaped by the user's preferences.
  *
- * `schemaVersion: 2` — a v1 snapshot (smaller subset) migrates by
- * additively filling every new field from `INITIAL_GENERAL_SETTINGS`.
+ * `schemaVersion: 2` — a schemaVersion 1 snapshot (smaller field set)
+ * migrates by additively filling every new field from
+ * `INITIAL_GENERAL_SETTINGS`. The bump is intra-module — the app
+ * version was never tied to module schema versions.
  */
 import type { GridOptions } from 'ag-grid-community';
 import type { Module } from '../../platform/types';

@@ -72,6 +72,22 @@ export type {
   ExportedProfilePayload,
 } from './profiles';
 
+// ─── Security policy ────────────────────────────────────────────────────────
+//
+// Runtime gate for the `kind: 'expression'` valueFormatter escape hatch
+// (compiled via `new Function`, therefore CSP-unsafe). Set to `'strict'`
+// at boot when running under a `script-src` CSP that forbids
+// `unsafe-eval`. See docs in `./security/expressionPolicy.ts`.
+export {
+  configureExpressionPolicy,
+  getExpressionPolicy,
+} from './security/expressionPolicy';
+export type {
+  ExpressionPolicy,
+  ExpressionPolicyMode,
+  ExpressionPolicyViolation,
+} from './security/expressionPolicy';
+
 // ─── React bindings ─────────────────────────────────────────────────────────
 export {
   GridProvider,

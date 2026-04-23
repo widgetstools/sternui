@@ -7,6 +7,12 @@ import {
 } from '../persistence/StorageAdapter';
 import type { SerializedState } from '../platform/types';
 import { startAutoSave, type AutoSaveHandle } from '../store/autosave';
+import {
+  findExpressionFormatter,
+  getExpressionPolicy,
+  reportExpressionViolation,
+  sanitizeExpressionFormatters,
+} from '../security/expressionPolicy';
 import type { ExportedProfilePayload, ProfileMeta } from './types';
 
 export interface ProfileManagerOptions {
@@ -529,12 +535,55 @@ export class ProfileManager {
 
   /** Import a previously-exported payload. Always additive — unique id +
    *  name on collision so imports never overwrite. Activates the new
-   *  profile unless `activate: false`. */
+   *  profile unless `activate: false`.
+   *
+   *  Expression-policy enforcement:
+   *    - In `'strict'` mode, payloads containing any
+   *      `{ kind: 'expression', expression: string }` valueFormatter
+   *      are rejected by throwing, UNLESS the caller passes
+   *      `sanitize: true` — in which case offending templates are
+   *      rewritten to a safe `kind: 'preset'` stand-in before the
+   *      snapshot hits storage.
+   *    - In `'warn'` mode the violation fires the `onViolation`
+   *      observer but the import proceeds unmodified.
+   *    - In `'allow'` mode nothing changes.
+   *  See `configureExpressionPolicy`. */
   async import(
     payload: unknown,
-    options?: { name?: string; activate?: boolean },
+    options?: { name?: string; activate?: boolean; sanitize?: boolean },
   ): Promise<ProfileMeta> {
     const parsed = validatePayload(payload);
+
+    // Policy gate — runs before storage writes so rejections leave no
+    // trace on disk. `sanitize` mutates `parsed.profile.state` in place.
+    const policy = getExpressionPolicy();
+    if (policy.mode !== 'allow') {
+      const hit = findExpressionFormatter(parsed.profile.state);
+      if (hit != null) {
+        reportExpressionViolation({
+          kind: 'profileImport',
+          expression: hit,
+          reason: policy.mode === 'strict'
+            ? (options?.sanitize
+                ? 'strict-mode sanitized expression-kind formatter on import'
+                : 'strict-mode rejected profile import with expression-kind formatter')
+            : 'warn-mode observed expression-kind formatter in import payload',
+        });
+        if (policy.mode === 'strict') {
+          if (options?.sanitize) {
+            sanitizeExpressionFormatters(parsed.profile.state);
+          } else {
+            throw new Error(
+              `[profiles] Import blocked by strict expression policy: payload contains ` +
+                `a kind:'expression' valueFormatter which requires unsafe-eval. ` +
+                `Pass { sanitize: true } to strip it, or relax the policy via ` +
+                `configureExpressionPolicy({ mode: 'allow' }). Expression: ${hit}`,
+            );
+          }
+        }
+      }
+    }
+
     const { gridId } = this.platform;
     const existing = await this.adapter.listProfiles(gridId);
     const existingIds = new Set(existing.map((p) => p.id));

@@ -76,8 +76,7 @@ export function snapshotTemplate(
   };
 
   // Resolve so the saved template captures the EFFECTIVE appearance
-  // (templates + typeDefault + this column's own overrides) — matches
-  // v1 / v2 behavior.
+  // (templates + typeDefault + this column's own overrides).
   const resolved = resolveTemplates(assignment, templatesState, dataType);
 
   const hasCell =

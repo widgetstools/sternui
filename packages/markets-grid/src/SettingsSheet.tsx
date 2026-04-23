@@ -36,11 +36,11 @@ import { HelpPanel } from './HelpPanel';
  */
 
 /**
- * Back-compat aliases. The original v1/v2 flat panels exposed a top-level
- * testid per module (`cs-panel`, `cg-panel`, `cc-panel`). The master-detail
- * split removed those wrappers; this map lets the sheet re-emit the same
- * id on the editor-pane wrapper so existing e2e tests keep working without
- * having to relearn every selector.
+ * Back-compat aliases. The original flat panels exposed a top-level
+ * testid per module (`cs-panel`, `cg-panel`, `cc-panel`). The
+ * master-detail split removed those wrappers; this map lets the sheet
+ * re-emit the same id on the editor-pane wrapper so existing e2e
+ * tests keep working without having to relearn every selector.
  */
 const PANEL_TESTID_BY_MODULE_ID: Record<string, string> = {
   'conditional-styling': 'cs-panel',
@@ -68,12 +68,10 @@ export type SettingsSheetHandle = PoppableHandle;
 
 function ensureStyles() {
   if (typeof document === 'undefined') return;
-  // Inject the cockpit popout stylesheet. The v1-era settingsCSS
-  // (which set `.gc-sheet { position: fixed; top: 0; ... }`) has been
-  // removed — MarketsGrid's top-level ensureCockpitStyles already
-  // covers the cockpit tokens; this function stays because the sheet
-  // itself may mount before MarketsGrid's effect runs on cold-mount
-  // edge cases.
+  // Inject the cockpit popout stylesheet. MarketsGrid's top-level
+  // ensureCockpitStyles already covers the cockpit tokens; this
+  // function stays because the sheet itself may mount before
+  // MarketsGrid's effect runs on cold-mount edge cases.
   if (!document.getElementById(V2_SHEET_STYLE_ID)) {
     const v2style = document.createElement('style');
     v2style.id = V2_SHEET_STYLE_ID;

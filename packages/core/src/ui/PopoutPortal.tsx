@@ -22,6 +22,15 @@ const pendingCloses = new Map<string, ReturnType<typeof setTimeout>>();
 const pendingCreates = new Map<string, Promise<Window | null>>();
 const STRICTMODE_REMOUNT_GRACE_MS = 50;
 
+// Dev handle so popped documents are reachable from the main-window
+// devtools console during debugging:
+//   [...window.__gcPopouts.values()][0].document
+// Same pattern as `window.__debugOpenFin` in openFin.ts. Harmless in
+// production — just a read-only accessor over the module-local map.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __gcPopouts?: Map<string, Window> }).__gcPopouts = liveWindows;
+}
+
 function cancelPendingClose(name: string): boolean {
   const t = pendingCloses.get(name);
   if (t === undefined) return false;
@@ -384,24 +393,33 @@ export function PopoutPortal({
     };
   }, [popout]);
 
-  // ── Mirror the main window's <html data-theme="..."> onto the popout
-  // so the dark/light CSS vars resolve. Observes the attribute so a
-  // toggle in main instantly repaints the popout.
+  // ── Mirror the main window's <html data-theme="..."> onto the popout's
+  // <html> (NOT onto <body>).
   //
-  // Also mirror onto the popout's <body>, because some of our scoped
-  // overrides in cockpit.ts target `.gc-sheet-v2[data-theme='light']`
-  // (same-element selector) — if the attr lives only on the <html>
-  // element but `gc-sheet-v2` lives on <body>, those overrides
-  // silently never match. Setting both keeps the selector
-  // ambiguous-friendly.
+  // Why NOT body: the demo loads two stylesheets that both define shadcn
+  // tokens — fi-dark.css (design-system, HSL triplets like
+  // `--card: 214 26% 10%`) and globals.css (demo, hex like
+  // `--card: #161a1e`). fi-dark.css uses selector `:root, [data-theme="dark"]`
+  // while globals.css uses just `:root`.
+  //
+  // - On <html>: both rules match. globals.css is loaded LAST so its hex
+  //   value wins — `--card` resolves to #161a1e, `var(--card)` is a valid
+  //   color, and descendants inherit correctly.
+  // - If we ALSO set data-theme on <body>: fi-dark's `[data-theme="dark"]`
+  //   rule matches body directly. globals.css's `:root` rule does NOT match
+  //   body. So on body, fi-dark wins → `--card` is "214 26% 10%" (HSL
+  //   triplet meant for hsl(var(--card))) → `var(--card)` is an invalid
+  //   background value → transparent popovers.
+  //
+  // Keeping data-theme only on <html> means body inherits the valid hex
+  // via the normal CSS-var cascade. The descendant-form selectors in
+  // cockpit.ts (`[data-theme='light'] .gc-sheet-v2`) still match because
+  // body is a descendant of html.
   useEffect(() => {
     if (!popout) return;
     const syncTheme = () => {
       const theme = document.documentElement.getAttribute('data-theme');
-      if (theme) {
-        popout.document.documentElement.setAttribute('data-theme', theme);
-        try { popout.document.body.setAttribute('data-theme', theme); } catch { /* */ }
-      }
+      if (theme) popout.document.documentElement.setAttribute('data-theme', theme);
     };
     syncTheme();
     const obs = new MutationObserver(syncTheme);

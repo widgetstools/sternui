@@ -124,3 +124,101 @@ function generateEquityOrder(index: number): Order {
 export function generateEquityOrders(count: number = 300): Order[] {
   return Array.from({ length: count }, (_, i) => generateEquityOrder(i));
 }
+
+// ─── Live ticking ──────────────────────────────────────────────────────
+//
+// Deterministic mutation loop that fires N random updates per tick across
+// price / yield / spread / filled. Each mutated row is returned as a FULL
+// row object (not a diff) so AG-Grid's `applyTransactionAsync({ update })`
+// path matches by rowIdField and re-renders only the dirty cells. This
+// also means conditional-styling flash + cellClassRules trigger exactly
+// the same as they would in production, because `cellValueChanged` fires
+// for the changed cells only.
+
+export interface TickOptions {
+  /** How many rows to mutate per tick. Default 18 — enough movement to
+   *  keep the grid feeling alive without drowning the styling layer. */
+  mutationsPerTick?: number;
+  /** Max absolute price drift per tick, in currency units. Default 0.25. */
+  priceDrift?: number;
+  /** Max absolute spread drift per tick, in bps. Default 3. */
+  spreadDrift?: number;
+  /** Max absolute yield drift per tick, in percent. Default 0.05. */
+  yieldDrift?: number;
+}
+
+/**
+ * Start a live-ticking loop. Calls `onTick(updates)` every `intervalMs`
+ * with a fresh array of mutated Order objects (by-id match). The hosting
+ * component pipes those into `gridApi.applyTransactionAsync({ update })`.
+ *
+ * Returns a `stop()` function — call on unmount.
+ */
+export function startLiveTicking(
+  rows: Order[],
+  onTick: (updates: Order[]) => void,
+  intervalMs: number = 750,
+  opts: TickOptions = {},
+): () => void {
+  const {
+    mutationsPerTick = 18,
+    priceDrift = 0.25,
+    spreadDrift = 3,
+    yieldDrift = 0.05,
+  } = opts;
+
+  // Keep a working copy indexed by id so repeated ticks on the same row
+  // accumulate rather than each tick reverting to the seed.
+  const byId = new Map<string, Order>(rows.map((r) => [r.id, { ...r }]));
+
+  const handle = setInterval(() => {
+    const updates: Order[] = [];
+    const ids = Array.from(byId.keys());
+    const seen = new Set<string>();
+
+    for (let i = 0; i < mutationsPerTick; i++) {
+      const id = ids[Math.floor(Math.random() * ids.length)];
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const current = byId.get(id);
+      if (!current) continue;
+
+      const dPrice = (Math.random() - 0.5) * 2 * priceDrift;
+      const dSpread = Math.round((Math.random() - 0.5) * 2 * spreadDrift);
+      const dYield = (Math.random() - 0.5) * 2 * yieldDrift;
+
+      const nextPrice = Math.max(1, Math.round((current.price + dPrice) * 100) / 100);
+      const nextSpread = current.spread + dSpread;
+      const nextYield = Math.max(0, Math.round((current.yield + dYield) * 1000) / 1000);
+
+      // Nudge fill progress for OPEN / PARTIAL rows so the status badge
+      // occasionally flips to PARTIAL or FILLED — gives the conditional
+      // styling on `status` a reason to light up.
+      let filled = current.filled;
+      let status = current.status;
+      if (status === 'OPEN' || status === 'PARTIAL') {
+        if (Math.random() < 0.35) {
+          const fillStep = Math.round((current.quantity * 0.1) / 100) * 100;
+          filled = Math.min(current.quantity, filled + fillStep);
+          status = filled >= current.quantity ? 'FILLED' : filled > 0 ? 'PARTIAL' : 'OPEN';
+        }
+      }
+
+      const next: Order = {
+        ...current,
+        price: nextPrice,
+        spread: nextSpread,
+        yield: nextYield,
+        filled,
+        status,
+        notional: Math.round(current.quantity * nextPrice * 10) / 10,
+      };
+      byId.set(id, next);
+      updates.push(next);
+    }
+
+    if (updates.length > 0) onTick(updates);
+  }, intervalMs);
+
+  return () => clearInterval(handle);
+}

@@ -13,10 +13,7 @@
 import type { Module } from '../../platform/types';
 import {
   INITIAL_COLUMN_CUSTOMIZATION,
-  migrateFromLegacy,
-  type ColumnAssignment,
   type ColumnCustomizationState,
-  type LegacyColumnCustomizationState,
 } from './state';
 import type { ColumnTemplatesState } from '../column-templates';
 import { COLUMN_TEMPLATES_MODULE_ID } from '../column-templates';
@@ -40,13 +37,16 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   getInitialState: () => ({ ...INITIAL_COLUMN_CUSTOMIZATION }),
 
   migrate(raw, fromVersion) {
-    // v4 adds optional `filter` per-assignment. v5 adds optional `rowGrouping`.
-    // Both are additive — v1..v4 snapshots roundtrip unchanged.
+    // Intra-v2 schema evolution:
+    //   - schemaVersion 4 added optional `filter` per-assignment
+    //   - schemaVersion 5 added optional `rowGrouping`
+    // Both are additive so schemaVersion 1..4 snapshots roundtrip
+    // unchanged; we accept them and let the deserializer sanitise.
     if (fromVersion >= 1 && fromVersion <= 4) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           '[column-customization]',
-          `malformed v${fromVersion} snapshot; falling back to initial state.`,
+          `malformed schemaVersion ${fromVersion} snapshot; falling back to initial state.`,
         );
         return { ...INITIAL_COLUMN_CUSTOMIZATION };
       }
@@ -89,12 +89,10 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   deserialize: (data) => {
     if (!data || typeof data !== 'object') return { ...INITIAL_COLUMN_CUSTOMIZATION };
     const raw = data as Record<string, unknown>;
-    // v1 snapshot: { overrides: {...} } — translate to assignments.
-    if ('overrides' in raw && !('assignments' in raw)) {
-      return migrateFromLegacy(raw as unknown as LegacyColumnCustomizationState);
-    }
-    // Strip a legacy `templates` field — it lived on this module in
-    // pre-extract builds and now lives on column-templates.
+    // Strip a stale `templates` field — it lived on this module in
+    // pre-extract intra-v2 builds and now lives on column-templates.
+    // Kept defensively so a snapshot from an older v2 build still
+    // loads cleanly without dropping the rest of the state.
     const { templates: _drop, ...rest } = raw as { templates?: unknown };
     void _drop;
     return {

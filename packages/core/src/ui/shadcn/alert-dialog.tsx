@@ -61,7 +61,7 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 const AlertDialogContent = React.forwardRef<
   React.ComponentRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => {
+>(({ className, style, ...props }, ref) => {
   // Route the Radix portal into the PortalContainer context — when
   // the settings sheet is popped into a separate OS window, the
   // dialog has to render IN that window, not the main document.body.
@@ -89,6 +89,15 @@ const AlertDialogContent = React.forwardRef<
         'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
         className,
       )}
+      // Token-backed opaque background — auto-flips for light theme
+      // via the --card re-binding under [data-theme='light'].
+      // `outline: none` suppresses the browser's default focus ring.
+      style={{
+        background: 'var(--gc-surface, var(--popover, #161a1e))',
+        color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+        outline: 'none',
+        ...style,
+      }}
       {...props}
     />
   </AlertDialogPortal>
