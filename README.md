@@ -48,14 +48,15 @@ you followed a link from one of the archived repos.
 | `@marketsui/openfin-platform` | TS | markets-ui OpenFin workspace bootstrap |
 | `@marketsui/openfin-platform-stern` | TS | stern-2 OpenFin platform bootstrap |
 
-### `apps/` — runnable demos + reference apps (8)
+### `apps/` — runnable demos + reference apps (9)
 
 | App | What it is |
 |---|---|
 | `demo-react` | **Primary dev target.** Config-driven MarketsGrid demo. `npm run dev` |
 | `demo-angular` | Angular parity demo |
 | `config-service-server` | Reference config-service REST server |
-| `fi-trading-reference` | fi-trading-terminal cockpit preserved for regression |
+| `fi-trading-reference` | fi-trading-terminal cockpit preserved for regression (React) |
+| `fi-trading-reference-angular` | fi-trading-terminal cockpit, Angular 21 port |
 | `markets-ui-react-reference` | markets-ui framework's React reference scenarios |
 | `markets-ui-angular-reference` | markets-ui framework's Angular reference scenarios |
 | `stern-reference-react` | stern-2 reference app (React) |

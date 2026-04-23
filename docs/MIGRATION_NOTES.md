@@ -58,7 +58,7 @@ OLD: widgetstools/fi-trading-terminal
   react-app/src/design-system/
                              → packages/design-system/src
   react-app/                 → apps/fi-trading-reference
-  angular-app/               → apps/fi-trading-reference (Angular variant preserved for reference)
+  angular-app/               → apps/fi-trading-reference-angular
 
 OLD: nndrao/stern-2 → widgetstools/stern-2
   packages/widget-sdk        → packages/widget-sdk

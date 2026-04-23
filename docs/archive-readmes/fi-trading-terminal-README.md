@@ -21,7 +21,7 @@ here.
 |---|---|
 | `react-app/src/design-system/` | [`packages/design-system/src/`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/design-system) — `@marketsui/design-system` |
 | `react-app/` (cockpit reference) | [`apps/fi-trading-reference/`](https://github.com/widgetstools/marketsui-platform/tree/main/apps/fi-trading-reference) |
-| `angular-app/` | Parity preserved in the Angular demo + framework packages |
+| `angular-app/` (cockpit reference, Angular 21) | [`apps/fi-trading-reference-angular/`](https://github.com/widgetstools/marketsui-platform/tree/main/apps/fi-trading-reference-angular) |
 | `docs/` | Merged into [`docs/`](https://github.com/widgetstools/marketsui-platform/tree/main/docs) |
 
 ## Key design decisions preserved
