@@ -42,6 +42,11 @@ export const routes: Routes = [
       import('./views/registry-editor-page.component').then((m) => m.RegistryEditorPageComponent),
   },
   {
+    path: 'config-browser',
+    loadComponent: () =>
+      import('./views/config-browser-page.component').then((m) => m.ConfigBrowserPageComponent),
+  },
+  {
     path: 'import-config',
     loadComponent: () =>
       import('./views/import-config-page.component').then((m) => m.ImportConfigPageComponent),

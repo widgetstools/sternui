@@ -18,6 +18,7 @@ import {
   ACTION_IMPORT_CONFIG,
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
+  ACTION_OPEN_CONFIG_BROWSER,
   IAB_THEME_CHANGED,
   shutdownDock,
 } from './dock';
@@ -381,6 +382,54 @@ async function initializePlatform(
         }
       },
 
+      // ── Open the config browser window ──
+      [ACTION_OPEN_CONFIG_BROWSER]: async (e): Promise<void> => {
+        if (
+          e.callerType !== CustomActionCallerType.CustomButton &&
+          e.callerType !== CustomActionCallerType.CustomDropdownItem
+        ) {
+          return;
+        }
+
+        const appId = (() => {
+          try { return fin.me.identity.uuid; } catch { return ''; }
+        })();
+
+        try {
+          const existingWindow = fin.Window.wrapSync({
+            uuid: fin.me.identity.uuid,
+            name: "config-browser",
+          });
+          await existingWindow.setAsForeground();
+        } catch {
+          const app = await fin.Application.getCurrent();
+          const manifest: Record<string, unknown> = await app.getManifest();
+          const platformConfig = manifest['platform'] as Record<string, string> | undefined;
+          const providerUrl = platformConfig?.['providerUrl'] ?? "";
+
+          let origin: string;
+          try {
+            origin = new URL(providerUrl).origin;
+          } catch {
+            console.error("Could not determine app origin from providerUrl:", providerUrl);
+            return;
+          }
+
+          await fin.Window.create({
+            name: "config-browser",
+            url: `${origin}/config-browser`,
+            defaultWidth: 1100,
+            defaultHeight: 720,
+            autoShow: true,
+            frame: true,
+            resizable: true,
+            saveWindowState: true,
+            contextMenu: true,
+            customData: { appId },
+          });
+        }
+      },
+
       // ── Reload the dock buttons from the saved config ──
       [ACTION_RELOAD_DOCK]: async (e): Promise<void> => {
         if (e.callerType !== CustomActionCallerType.CustomDropdownItem) {
@@ -524,6 +573,22 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
 
   [ACTION_OPEN_REGISTRY_EDITOR]: async () => {
     await openChildWindow("registry-editor", "/registry-editor", 800, 700);
+  },
+
+  [ACTION_OPEN_CONFIG_BROWSER]: async () => {
+    // Forward the host app's uuid as `appId` via customData so the
+    // browser's readHostEnv() returns a real value and can hard-scope
+    // rows to the current app.
+    const appId = (() => {
+      try { return fin.me.identity.uuid; } catch { return ''; }
+    })();
+    await openChildWindow(
+      "config-browser",
+      "/config-browser",
+      1100,
+      720,
+      { customData: { appId } },
+    );
   },
 
   [ACTION_RELOAD_DOCK]: async () => {

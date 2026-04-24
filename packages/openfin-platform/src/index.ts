@@ -15,6 +15,7 @@ export {
   IAB_THEME_CHANGED,
   IAB_REGISTRY_CONFIG_UPDATE,
   ACTION_OPEN_REGISTRY_EDITOR,
+  ACTION_OPEN_CONFIG_BROWSER,
 } from './dock';
 
 // ─── Persistence (config service) ────────────────────────────────────

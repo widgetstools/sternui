@@ -1,22 +1,31 @@
 // ─── ConfigClient ────────────────────────────────────────────────────
 //
 // A framework-agnostic (no React / no Angular) REST-shaped client for
-// component configurations. The interface mirrors the backend REST
-// contract exposed by `apps/config-service-server` exactly, so switching
-// between local (Dexie) and remote (HTTP) is purely a URL-driven choice:
+// all 5 editable config-service tables:
+//   • appConfig      — component configurations (templates + instances)
+//   • appRegistry    — registered apps
+//   • userProfile    — user ↔ app ↔ role mappings
+//   • roles          — role definitions
+//   • permissions    — fine-grained permission definitions
+//
+// The interface mirrors the backend REST contract exposed by
+// `apps/config-service-server` exactly, so switching between local
+// (Dexie) and remote (HTTP) is purely a URL-driven choice:
 //
 //   createConfigClient({ seedUrl: "/seed-config.json" })
 //   createConfigClient({ baseUrl: "https://config-api.example.com/api/v1" })
 //
-// The unified schema is defined by `AppConfigRow` in ./types.ts. Both
-// implementations round-trip that shape without translation.
-//
-// Out of scope here: appRegistry, userProfile, roles, permissions. Those
-// are local-only today (not in the REST contract) — use `ConfigManager`
-// directly for them.
+// All 5 tables have full CRUD on both sides; swapping LocalConfigClient
+// for RestConfigClient is transparent.
 
 import { ConfigManager, createConfigManager } from './config-manager';
-import type { AppConfigRow, ConfigManagerOptions } from './types';
+import type {
+  AppConfigRow,
+  AppRegistryRow,
+  PermissionRow,
+  RoleRow,
+  UserProfileRow,
+} from './types';
 
 // ─── Shared query types ───────────────────────────────────────────────
 
@@ -141,9 +150,62 @@ export interface ConfigClient {
     includeDeleted?: boolean,
   ): Promise<AppConfigRow[]>;
 
+  // ── Auth tables (full CRUD — Dexie and REST at parity) ─────────────
+
+  apps: AppRegistryOps;
+  userProfiles: UserProfileOps;
+  roles: RoleOps;
+  permissions: PermissionOps;
+
   // ── System ───────────────────────────────────────────────────────────
 
   getHealth(): Promise<HealthStatus>;
+}
+
+/** CRUD for the `appRegistry` table. */
+export interface AppRegistryOps {
+  create(row: AppRegistryRow): Promise<AppRegistryRow>;
+  get(appId: string): Promise<AppRegistryRow | undefined>;
+  update(appId: string, patch: Partial<AppRegistryRow>): Promise<AppRegistryRow>;
+  upsert(row: AppRegistryRow): Promise<AppRegistryRow>;
+  delete(appId: string): Promise<boolean>;
+  list(includeDeleted?: boolean): Promise<AppRegistryRow[]>;
+}
+
+/** CRUD for the `userProfile` table. */
+export interface UserProfileOps {
+  create(row: UserProfileRow): Promise<UserProfileRow>;
+  get(userId: string): Promise<UserProfileRow | undefined>;
+  update(userId: string, patch: Partial<UserProfileRow>): Promise<UserProfileRow>;
+  upsert(row: UserProfileRow): Promise<UserProfileRow>;
+  delete(userId: string): Promise<boolean>;
+  list(includeDeleted?: boolean): Promise<UserProfileRow[]>;
+  listByApp(appId: string, includeDeleted?: boolean): Promise<UserProfileRow[]>;
+}
+
+/** CRUD for the `roles` table. */
+export interface RoleOps {
+  create(row: RoleRow): Promise<RoleRow>;
+  get(roleId: string): Promise<RoleRow | undefined>;
+  update(roleId: string, patch: Partial<RoleRow>): Promise<RoleRow>;
+  upsert(row: RoleRow): Promise<RoleRow>;
+  delete(roleId: string): Promise<boolean>;
+  list(includeDeleted?: boolean): Promise<RoleRow[]>;
+}
+
+/** CRUD for the `permissions` table + 2 derived queries. */
+export interface PermissionOps {
+  create(row: PermissionRow): Promise<PermissionRow>;
+  get(permissionId: string): Promise<PermissionRow | undefined>;
+  update(permissionId: string, patch: Partial<PermissionRow>): Promise<PermissionRow>;
+  upsert(row: PermissionRow): Promise<PermissionRow>;
+  delete(permissionId: string): Promise<boolean>;
+  list(includeDeleted?: boolean): Promise<PermissionRow[]>;
+  listByCategory(category: string, includeDeleted?: boolean): Promise<PermissionRow[]>;
+  /** All permissions the user has through the union of their roles. */
+  getForUser(userId: string): Promise<PermissionRow[]>;
+  /** True if the user has the given permission via any of their roles. */
+  checkForUser(userId: string, permissionId: string): Promise<boolean>;
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────
@@ -189,7 +251,17 @@ export function createConfigClient(options: CreateConfigClientOptions = {}): Con
 // ─── LocalConfigClient (Dexie) ────────────────────────────────────────
 
 export class LocalConfigClient implements ConfigClient {
-  constructor(private readonly manager: ConfigManager) {}
+  public readonly apps: AppRegistryOps;
+  public readonly userProfiles: UserProfileOps;
+  public readonly roles: RoleOps;
+  public readonly permissions: PermissionOps;
+
+  constructor(private readonly manager: ConfigManager) {
+    this.apps = createLocalAppRegistryOps(manager);
+    this.userProfiles = createLocalUserProfileOps(manager);
+    this.roles = createLocalRoleOps(manager);
+    this.permissions = createLocalPermissionOps(manager);
+  }
 
   async init(): Promise<void> {
     await this.manager.init();
@@ -353,10 +425,28 @@ export class LocalConfigClient implements ConfigClient {
 // ─── RestConfigClient ─────────────────────────────────────────────────
 
 export class RestConfigClient implements ConfigClient {
+  public readonly apps: AppRegistryOps;
+  public readonly userProfiles: UserProfileOps;
+  public readonly roles: RoleOps;
+  public readonly permissions: PermissionOps;
+
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch,
-  ) {}
+  ) {
+    this.apps = createRestAppRegistryOps(this);
+    this.userProfiles = createRestUserProfileOps(this);
+    this.roles = createRestRoleOps(this);
+    this.permissions = createRestPermissionOps(this);
+  }
+
+  /** Shared HTTP entry — exposed so auth-table op factories can reuse it. */
+  rawRequest<T>(
+    path: string,
+    init: { method: string; body?: unknown; allow404?: boolean },
+  ): Promise<T> {
+    return this.request<T>(path, init);
+  }
 
   async init(): Promise<void> {
     /* nothing to do — the server owns lifecycle */
@@ -602,4 +692,282 @@ function generateId(): string {
   const g = (globalThis as unknown as { crypto?: { randomUUID?: () => string } }).crypto;
   if (g?.randomUUID) return g.randomUUID();
   return `cfg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// ─── Auth-table ops — local (Dexie) ───────────────────────────────────
+
+function createLocalAppRegistryOps(manager: ConfigManager): AppRegistryOps {
+  return {
+    async create(row) {
+      await manager.saveAppRegistry(row);
+      return row;
+    },
+    get: (appId) => manager.getAppRegistry(appId),
+    async update(appId, patch) {
+      const existing = await manager.getAppRegistry(appId);
+      if (!existing) throw new ConfigNotFoundError(appId);
+      const next: AppRegistryRow = { ...existing, ...patch, appId };
+      await manager.saveAppRegistry(next);
+      return next;
+    },
+    async upsert(row) {
+      await manager.saveAppRegistry(row);
+      return row;
+    },
+    async delete(appId) {
+      const existing = await manager.getAppRegistry(appId);
+      if (!existing) return false;
+      await manager.deleteAppRegistry(appId);
+      return true;
+    },
+    list: (_includeDeleted) => manager.getAllApps(),
+  };
+}
+
+function createLocalUserProfileOps(manager: ConfigManager): UserProfileOps {
+  return {
+    async create(row) {
+      await manager.saveUserProfile(row);
+      return row;
+    },
+    get: (userId) => manager.getUserProfile(userId),
+    async update(userId, patch) {
+      const existing = await manager.getUserProfile(userId);
+      if (!existing) throw new ConfigNotFoundError(userId);
+      const next: UserProfileRow = { ...existing, ...patch, userId };
+      await manager.saveUserProfile(next);
+      return next;
+    },
+    async upsert(row) {
+      await manager.saveUserProfile(row);
+      return row;
+    },
+    async delete(userId) {
+      const existing = await manager.getUserProfile(userId);
+      if (!existing) return false;
+      await manager.deleteUserProfile(userId);
+      return true;
+    },
+    list: (_includeDeleted) => manager.getAllUserProfiles(),
+    listByApp: (appId, _includeDeleted) => manager.getUsersByApp(appId),
+  };
+}
+
+function createLocalRoleOps(manager: ConfigManager): RoleOps {
+  return {
+    async create(row) {
+      await manager.saveRole(row);
+      return row;
+    },
+    get: (roleId) => manager.getRole(roleId),
+    async update(roleId, patch) {
+      const existing = await manager.getRole(roleId);
+      if (!existing) throw new ConfigNotFoundError(roleId);
+      const next: RoleRow = { ...existing, ...patch, roleId };
+      await manager.saveRole(next);
+      return next;
+    },
+    async upsert(row) {
+      await manager.saveRole(row);
+      return row;
+    },
+    async delete(roleId) {
+      const existing = await manager.getRole(roleId);
+      if (!existing) return false;
+      await manager.deleteRole(roleId);
+      return true;
+    },
+    list: (_includeDeleted) => manager.getAllRoles(),
+  };
+}
+
+function createLocalPermissionOps(manager: ConfigManager): PermissionOps {
+  return {
+    async create(row) {
+      await manager.savePermission(row);
+      return row;
+    },
+    get: (permissionId) => manager.getPermission(permissionId),
+    async update(permissionId, patch) {
+      const existing = await manager.getPermission(permissionId);
+      if (!existing) throw new ConfigNotFoundError(permissionId);
+      const next: PermissionRow = { ...existing, ...patch, permissionId };
+      await manager.savePermission(next);
+      return next;
+    },
+    async upsert(row) {
+      await manager.savePermission(row);
+      return row;
+    },
+    async delete(permissionId) {
+      const existing = await manager.getPermission(permissionId);
+      if (!existing) return false;
+      await manager.deletePermission(permissionId);
+      return true;
+    },
+    list: (_includeDeleted) => manager.getAllPermissions(),
+    listByCategory: (category, _includeDeleted) =>
+      manager.getPermissionsByCategory(category),
+    getForUser: (userId) => manager.getUserPermissions(userId),
+    checkForUser: (userId, permissionId) => manager.userHasPermission(userId, permissionId),
+  };
+}
+
+// ─── Auth-table ops — REST ────────────────────────────────────────────
+
+function createRestAppRegistryOps(client: RestConfigClient): AppRegistryOps {
+  const base = '/app-registry';
+  return {
+    create: (row) => client.rawRequest<AppRegistryRow>(base, { method: 'POST', body: row }),
+    get: (appId) =>
+      client.rawRequest<AppRegistryRow | undefined>(`${base}/${encodeURIComponent(appId)}`, {
+        method: 'GET',
+        allow404: true,
+      }),
+    update: (appId, patch) =>
+      client.rawRequest<AppRegistryRow>(`${base}/${encodeURIComponent(appId)}`, {
+        method: 'PATCH',
+        body: patch,
+      }),
+    upsert: (row) =>
+      client.rawRequest<AppRegistryRow>(`${base}/${encodeURIComponent(row.appId)}`, {
+        method: 'PUT',
+        body: row,
+      }),
+    async delete(appId) {
+      const res = await client.rawRequest<{ success: boolean } | undefined>(
+        `${base}/${encodeURIComponent(appId)}`,
+        { method: 'DELETE', allow404: true },
+      );
+      return Boolean(res?.success);
+    },
+    list: (includeDeleted) => {
+      const qs = includeDeleted ? '?includeDeleted=true' : '';
+      return client.rawRequest<AppRegistryRow[]>(`${base}${qs}`, { method: 'GET' });
+    },
+  };
+}
+
+function createRestUserProfileOps(client: RestConfigClient): UserProfileOps {
+  const base = '/user-profiles';
+  return {
+    create: (row) => client.rawRequest<UserProfileRow>(base, { method: 'POST', body: row }),
+    get: (userId) =>
+      client.rawRequest<UserProfileRow | undefined>(`${base}/${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        allow404: true,
+      }),
+    update: (userId, patch) =>
+      client.rawRequest<UserProfileRow>(`${base}/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        body: patch,
+      }),
+    upsert: (row) =>
+      client.rawRequest<UserProfileRow>(`${base}/${encodeURIComponent(row.userId)}`, {
+        method: 'PUT',
+        body: row,
+      }),
+    async delete(userId) {
+      const res = await client.rawRequest<{ success: boolean } | undefined>(
+        `${base}/${encodeURIComponent(userId)}`,
+        { method: 'DELETE', allow404: true },
+      );
+      return Boolean(res?.success);
+    },
+    list: (includeDeleted) => {
+      const qs = includeDeleted ? '?includeDeleted=true' : '';
+      return client.rawRequest<UserProfileRow[]>(`${base}${qs}`, { method: 'GET' });
+    },
+    listByApp: (appId, includeDeleted) => {
+      const qs = includeDeleted ? '?includeDeleted=true' : '';
+      return client.rawRequest<UserProfileRow[]>(
+        `${base}/by-app/${encodeURIComponent(appId)}${qs}`,
+        { method: 'GET' },
+      );
+    },
+  };
+}
+
+function createRestRoleOps(client: RestConfigClient): RoleOps {
+  const base = '/roles';
+  return {
+    create: (row) => client.rawRequest<RoleRow>(base, { method: 'POST', body: row }),
+    get: (roleId) =>
+      client.rawRequest<RoleRow | undefined>(`${base}/${encodeURIComponent(roleId)}`, {
+        method: 'GET',
+        allow404: true,
+      }),
+    update: (roleId, patch) =>
+      client.rawRequest<RoleRow>(`${base}/${encodeURIComponent(roleId)}`, {
+        method: 'PATCH',
+        body: patch,
+      }),
+    upsert: (row) =>
+      client.rawRequest<RoleRow>(`${base}/${encodeURIComponent(row.roleId)}`, {
+        method: 'PUT',
+        body: row,
+      }),
+    async delete(roleId) {
+      const res = await client.rawRequest<{ success: boolean } | undefined>(
+        `${base}/${encodeURIComponent(roleId)}`,
+        { method: 'DELETE', allow404: true },
+      );
+      return Boolean(res?.success);
+    },
+    list: (includeDeleted) => {
+      const qs = includeDeleted ? '?includeDeleted=true' : '';
+      return client.rawRequest<RoleRow[]>(`${base}${qs}`, { method: 'GET' });
+    },
+  };
+}
+
+function createRestPermissionOps(client: RestConfigClient): PermissionOps {
+  const base = '/permissions';
+  return {
+    create: (row) => client.rawRequest<PermissionRow>(base, { method: 'POST', body: row }),
+    get: (permissionId) =>
+      client.rawRequest<PermissionRow | undefined>(
+        `${base}/${encodeURIComponent(permissionId)}`,
+        { method: 'GET', allow404: true },
+      ),
+    update: (permissionId, patch) =>
+      client.rawRequest<PermissionRow>(`${base}/${encodeURIComponent(permissionId)}`, {
+        method: 'PATCH',
+        body: patch,
+      }),
+    upsert: (row) =>
+      client.rawRequest<PermissionRow>(`${base}/${encodeURIComponent(row.permissionId)}`, {
+        method: 'PUT',
+        body: row,
+      }),
+    async delete(permissionId) {
+      const res = await client.rawRequest<{ success: boolean } | undefined>(
+        `${base}/${encodeURIComponent(permissionId)}`,
+        { method: 'DELETE', allow404: true },
+      );
+      return Boolean(res?.success);
+    },
+    list: (includeDeleted) => {
+      const qs = includeDeleted ? '?includeDeleted=true' : '';
+      return client.rawRequest<PermissionRow[]>(`${base}${qs}`, { method: 'GET' });
+    },
+    listByCategory: (category, includeDeleted) => {
+      const qs = includeDeleted ? '?includeDeleted=true' : '';
+      return client.rawRequest<PermissionRow[]>(
+        `${base}/by-category/${encodeURIComponent(category)}${qs}`,
+        { method: 'GET' },
+      );
+    },
+    getForUser: (userId) =>
+      client.rawRequest<PermissionRow[]>(`${base}/by-user/${encodeURIComponent(userId)}`, {
+        method: 'GET',
+      }),
+    async checkForUser(userId, permissionId) {
+      const qs = new URLSearchParams({ userId, permissionId });
+      const res = await client.rawRequest<{ allowed: boolean }>(`${base}/check?${qs}`, {
+        method: 'GET',
+      });
+      return Boolean(res.allowed);
+    },
+  };
 }

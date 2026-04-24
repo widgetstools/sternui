@@ -24,3 +24,7 @@ apps/markets-ui-react-reference/src/views/*.d.ts
 
 # Angular compiler cache — local build artifact, not source
 apps/*/.angular/
+
+# Config-service-server runtime artifacts
+apps/config-service-server/logs/
+apps/config-service-server/data/*.db

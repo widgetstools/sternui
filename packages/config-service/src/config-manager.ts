@@ -238,6 +238,28 @@ export class ConfigManager {
     return this.db.appRegistry.toArray();
   }
 
+  /**
+   * Upsert an app registry entry.
+   * In REST mode, also sends to the remote backend.
+   */
+  async saveAppRegistry(row: AppRegistryRow): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("upsert", "app-registry", row.appId, row);
+    }
+    await this.db.appRegistry.put(row);
+  }
+
+  /**
+   * Delete an app registry entry by ID.
+   * In REST mode, also deletes from the remote backend.
+   */
+  async deleteAppRegistry(appId: string): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("delete", "app-registry", appId, undefined);
+    }
+    await this.db.appRegistry.delete(appId);
+  }
+
   // ─── USER_PROFILE operations ──────────────────────────────────────
 
   /**
@@ -254,6 +276,33 @@ export class ConfigManager {
     return this.db.userProfile.where("appId").equals(appId).toArray();
   }
 
+  /** Get every row in the userProfile table. */
+  async getAllUserProfiles(): Promise<UserProfileRow[]> {
+    return this.db.userProfile.toArray();
+  }
+
+  /**
+   * Upsert a user profile.
+   * In REST mode, also sends to the remote backend.
+   */
+  async saveUserProfile(row: UserProfileRow): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("upsert", "user-profiles", row.userId, row);
+    }
+    await this.db.userProfile.put(row);
+  }
+
+  /**
+   * Delete a user profile by ID.
+   * In REST mode, also deletes from the remote backend.
+   */
+  async deleteUserProfile(userId: string): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("delete", "user-profiles", userId, undefined);
+    }
+    await this.db.userProfile.delete(userId);
+  }
+
   // ─── ROLES operations ─────────────────────────────────────────────
 
   /**
@@ -268,6 +317,28 @@ export class ConfigManager {
    */
   async getAllRoles(): Promise<RoleRow[]> {
     return this.db.roles.toArray();
+  }
+
+  /**
+   * Upsert a role definition.
+   * In REST mode, also sends to the remote backend.
+   */
+  async saveRole(row: RoleRow): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("upsert", "roles", row.roleId, row);
+    }
+    await this.db.roles.put(row);
+  }
+
+  /**
+   * Delete a role by ID.
+   * In REST mode, also deletes from the remote backend.
+   */
+  async deleteRole(roleId: string): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("delete", "roles", roleId, undefined);
+    }
+    await this.db.roles.delete(roleId);
   }
 
   // ─── PERMISSIONS operations ────────────────────────────────────────
@@ -291,6 +362,28 @@ export class ConfigManager {
    */
   async getPermissionsByCategory(category: string): Promise<PermissionRow[]> {
     return this.db.permissions.where("category").equals(category).toArray();
+  }
+
+  /**
+   * Upsert a permission definition.
+   * In REST mode, also sends to the remote backend.
+   */
+  async savePermission(row: PermissionRow): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("upsert", "permissions", row.permissionId, row);
+    }
+    await this.db.permissions.put(row);
+  }
+
+  /**
+   * Delete a permission by ID.
+   * In REST mode, also deletes from the remote backend.
+   */
+  async deletePermission(permissionId: string): Promise<void> {
+    if (this.restUrl) {
+      await this.syncToRest("delete", "permissions", permissionId, undefined);
+    }
+    await this.db.permissions.delete(permissionId);
   }
 
   /**

@@ -1,0 +1,28 @@
+{
+  "name": "@marketsui/config-browser",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "echo '@marketsui/config-browser: consumed as source (no emit)'",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@marketsui/config-service": "*",
+    "@marketsui/design-system": "*",
+    "@marketsui/dock-editor": "*",
+    "@marketsui/icons-svg": "*",
+    "@marketsui/openfin-platform": "*",
+    "@marketsui/ui": "*",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "ag-grid-community": ">=35.0.0",
+    "ag-grid-react": ">=35.0.0",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  }
+}

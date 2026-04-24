@@ -46,6 +46,7 @@ export const ACTION_EXPORT_CONFIG     = "export-config";
 export const ACTION_IMPORT_CONFIG     = "import-config";
 export const ACTION_TOGGLE_PROVIDER   = "toggle-provider-window";
 export const ACTION_OPEN_REGISTRY_EDITOR = "open-registry-editor";
+export const ACTION_OPEN_CONFIG_BROWSER  = "open-config-browser";
 
 // ─── Module-level state ──────────────────────────────────────────────
 
@@ -148,6 +149,13 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
       label: "Component Registry",
       icon: contentMenuIcon(SETTINGS_SVG),
       itemData: { actionId: ACTION_OPEN_REGISTRY_EDITOR },
+    },
+    {
+      type: "item",
+      id: "tool-config-browser",
+      label: "Config Browser",
+      icon: contentMenuIcon(SETTINGS_SVG),
+      itemData: { actionId: ACTION_OPEN_CONFIG_BROWSER },
     },
     {
       type: "item",
