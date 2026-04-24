@@ -4,8 +4,14 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { ConfigurationService } from './services/ConfigurationService.js';
+import { AuthService } from './services/AuthService.js';
 import { createConfigurationRoutes } from './routes/configurations.js';
+import { createAppRegistryRoutes } from './routes/app-registry.js';
+import { createUserProfileRoutes } from './routes/user-profiles.js';
+import { createRoleRoutes } from './routes/roles.js';
+import { createPermissionRoutes } from './routes/permissions.js';
 import { StorageFactory } from './storage/StorageFactory.js';
+import { seedAuthIfEmpty } from './seed.js';
 import logger from './utils/logger.js';
 
 export async function createApp(): Promise<express.Application> {
@@ -92,17 +98,33 @@ export async function createApp(): Promise<express.Application> {
   });
 
   let configService: ConfigurationService;
+  let authService: AuthService;
   try {
     StorageFactory.validateEnvironment();
     configService = new ConfigurationService();
     await configService.initialize();
     logger.info('ConfigurationService initialized successfully');
+
+    authService = new AuthService();
+    await authService.initialize();
+    logger.info('AuthService initialized successfully');
+
+    const seeded = await seedAuthIfEmpty(authService);
+    if (seeded) {
+      logger.info('Auth tables seeded from seed-config.json');
+    } else {
+      logger.info('Auth tables already seeded, skipping seed step');
+    }
   } catch (error) {
     logger.error('Failed to initialize services', { error });
     throw error;
   }
 
   app.use('/api/v1/configurations', createConfigurationRoutes(configService));
+  app.use('/api/v1/app-registry', createAppRegistryRoutes(authService));
+  app.use('/api/v1/user-profiles', createUserProfileRoutes(authService));
+  app.use('/api/v1/roles', createRoleRoutes(authService));
+  app.use('/api/v1/permissions', createPermissionRoutes(authService));
 
   app.use('*', (req, res) => {
     res.status(404).json({
@@ -133,6 +155,7 @@ export async function createApp(): Promise<express.Application> {
     logger.info('Received shutdown signal, starting graceful shutdown...');
     try {
       await configService.shutdown();
+      await authService.shutdown();
       logger.info('Services shut down successfully');
     } catch (error) {
       logger.error('Error during service shutdown', { error });

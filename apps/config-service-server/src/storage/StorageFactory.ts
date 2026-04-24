@@ -1,5 +1,7 @@
 import { IConfigurationStorage } from './IConfigurationStorage.js';
 import { SqliteStorage } from './SqliteStorage.js';
+import { IAuthStorage } from './IAuthStorage.js';
+import { SqliteAuthStorage } from './SqliteAuthStorage.js';
 
 /**
  * Factory for creating the configuration storage implementation.
@@ -7,6 +9,10 @@ import { SqliteStorage } from './SqliteStorage.js';
  * future option.
  */
 export class StorageFactory {
+  static createAuthStorage(): IAuthStorage {
+    return new SqliteAuthStorage();
+  }
+
   static createStorage(): IConfigurationStorage {
     const env = process.env.NODE_ENV || 'development';
     const override = process.env.DATABASE_TYPE;

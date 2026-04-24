@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from "react";
 import { DynamicIcon as Icon } from "@marketsui/icons-svg/react";
 import { ICON_NAMES, ICON_META } from "@marketsui/icons-svg";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Switch,
+} from "@marketsui/ui";
+import {
   generateTemplateConfigId,
   deriveSingletonConfigId,
   validateEntry,
@@ -265,34 +269,38 @@ export function RegistryItemForm({
             </FieldGroup>
           </div>
 
-          {/* ── v2: Hosting + Config ─────────────────────────── */}
+          {/* ── v2: Hosting + Config (shadcn primitives from @marketsui/ui) ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <FieldGroup label="Hosting">
-              <select value={form.type}
-                onChange={(e) => update('type', e.target.value as 'internal' | 'external')}
-                style={inputStyle}>
-                <option value="internal">internal</option>
-                <option value="external">external</option>
-              </select>
+              <Select value={form.type}
+                onValueChange={(v) => update('type', v as 'internal' | 'external')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">internal</SelectItem>
+                  <SelectItem value="external">external</SelectItem>
+                </SelectContent>
+              </Select>
             </FieldGroup>
             <FieldGroup label="Singleton">
-              <select value={form.singleton ? 'yes' : 'no'}
-                onChange={(e) => update('singleton', e.target.value === 'yes')}
-                style={inputStyle}>
-                <option value="no">no (spawn new)</option>
-                <option value="yes">yes (focus existing)</option>
-              </select>
+              <Select value={form.singleton ? 'yes' : 'no'}
+                onValueChange={(v) => update('singleton', v === 'yes')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">spawn new</SelectItem>
+                  <SelectItem value="yes">focus existing</SelectItem>
+                </SelectContent>
+              </Select>
             </FieldGroup>
           </div>
 
           <FieldGroup label="Uses host config service">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 0' }}>
-              <input type="checkbox" checked={form.usesHostConfig}
-                onChange={(e) => update('usesHostConfig', e.target.checked)} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+              <Switch checked={form.usesHostConfig}
+                onCheckedChange={(checked) => update('usesHostConfig', checked)} />
               <span style={{ fontSize: 12, color: 'var(--de-text-secondary)' }}>
                 Inherit appId + configServiceUrl from the host app
               </span>
-            </label>
+            </div>
           </FieldGroup>
 
           <FieldGroup label="App ID" error={fieldErrors.appId}>

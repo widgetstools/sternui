@@ -29,6 +29,8 @@ import { dark, light } from '@marketsui/design-system/tokens/semantic';
 // PrimeNG imports
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 
 
 /**
@@ -199,7 +201,8 @@ export class IconUrlPipe implements PipeTransform {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule, FormsModule,
-    ButtonModule, InputTextModule, IconUrlPipe,
+    ButtonModule, InputTextModule, SelectButtonModule, ToggleSwitchModule,
+    IconUrlPipe,
   ],
   providers: [RegistryEditorService],
   styles: [`
@@ -455,38 +458,36 @@ export class IconUrlPipe implements PipeTransform {
                 </div>
               </div>
 
-              <!-- v2: Hosting + Singleton -->
+              <!-- v2: Hosting + Singleton (PrimeNG SelectButton — segmented) -->
               <div class="form-row-2col">
                 <div class="form-field">
                   <label class="form-label">Hosting</label>
-                  <select [ngModel]="form().type"
+                  <p-selectbutton [options]="HOSTING_OPTIONS"
+                    [ngModel]="form().type"
                     (ngModelChange)="updateFormTyped('type', $event)"
-                    style="width: 100%; padding: 10px 14px; background: var(--de-bg-surface); color: var(--de-text); border: 1px solid var(--de-border-strong); border-radius: var(--de-radius-md); font-size: 13px;">
-                    <option value="internal">internal</option>
-                    <option value="external">external</option>
-                  </select>
+                    optionLabel="label" optionValue="value"
+                    [allowEmpty]="false"></p-selectbutton>
                 </div>
                 <div class="form-field">
                   <label class="form-label">Singleton</label>
-                  <select [ngModel]="form().singleton ? 'yes' : 'no'"
-                    (ngModelChange)="updateForm('singleton', $event === 'yes'); onTypeSubTypeChange()"
-                    style="width: 100%; padding: 10px 14px; background: var(--de-bg-surface); color: var(--de-text); border: 1px solid var(--de-border-strong); border-radius: var(--de-radius-md); font-size: 13px;">
-                    <option value="no">no (spawn new)</option>
-                    <option value="yes">yes (focus existing)</option>
-                  </select>
+                  <p-selectbutton [options]="SINGLETON_OPTIONS"
+                    [ngModel]="form().singleton"
+                    (ngModelChange)="updateForm('singleton', $event); onTypeSubTypeChange()"
+                    optionLabel="label" optionValue="value"
+                    [allowEmpty]="false"></p-selectbutton>
                 </div>
               </div>
 
-              <!-- Uses host config toggle -->
+              <!-- Uses host config — PrimeNG ToggleSwitch -->
               <div class="form-field">
                 <label class="form-label">Uses host config service</label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 0;">
-                  <input type="checkbox" [ngModel]="form().usesHostConfig"
-                    (ngModelChange)="onUsesHostConfigChange($event)" />
+                <div style="display: flex; align-items: center; gap: 10px; padding: 4px 0;">
+                  <p-toggleswitch [ngModel]="form().usesHostConfig"
+                    (ngModelChange)="onUsesHostConfigChange($event)"></p-toggleswitch>
                   <span style="font-size: 12px; color: var(--de-text-secondary);">
                     Inherit appId + configServiceUrl from the host app
                   </span>
-                </label>
+                </div>
               </div>
 
               <!-- App ID -->
@@ -552,6 +553,17 @@ export class IconUrlPipe implements PipeTransform {
 export class RegistryEditorComponent implements OnInit {
   readonly svc = inject(RegistryEditorService);
   private readonly destroyRef = inject(DestroyRef);
+
+  // Static options for the PrimeNG Select dropdowns. Kept as class
+  // properties so the template doesn't re-allocate arrays each CD pass.
+  readonly HOSTING_OPTIONS = [
+    { label: 'internal', value: 'internal' },
+    { label: 'external', value: 'external' },
+  ];
+  readonly SINGLETON_OPTIONS = [
+    { label: 'spawn new', value: false },
+    { label: 'focus existing', value: true },
+  ];
 
   readonly theme = signal<'dark' | 'light'>('dark');
   readonly dialogVisible = signal(false);
