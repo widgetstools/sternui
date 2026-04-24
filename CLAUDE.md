@@ -41,6 +41,30 @@ on the next run. Don't remove it.
 - Playwright 1.59 against `apps/demo-react`. Baseline: 195/214 passing
   (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
 
+## UI stack rules (non-negotiable)
+
+Every UI component — new or updated — MUST:
+
+1. **Consume `@marketsui/design-system` tokens.** Never hardcode colors,
+   spacing, typography. Resolve through `--bn-*` / `--fi-*` CSS variables
+   or the semantic exports from `@marketsui/design-system/tokens/semantic`.
+
+2. **Use the framework-matching primitive library:**
+   - **React** → shadcn/ui (via `@marketsui/ui` + `@marketsui/core`'s
+     settings-panel primitives). **No native `<input>` / `<textarea>` /
+     `<select>`.** Always wrap with the shadcn equivalent.
+   - **Angular** → PrimeNG (themed via `@marketsui/tokens-primeng`).
+     `pInputText`, `pButton`, `pDropdown`, `pDialog`, etc.
+
+3. **Be 100% dark/light compatible.** Every surface renders correctly
+   under `[data-theme="dark"]` AND `[data-theme="light"]`. No hardcoded
+   hex anywhere. Theme switching = flip `data-theme` on `<html>`;
+   tokens resolve from there.
+
+Applies to one-off dev UIs too. If tempted to build a custom primitive
+that duplicates an existing shadcn/PrimeNG one, stop and use the existing
+one instead.
+
 ## Import boundary rules
 
 Enforced via convention (ESLint enforcement is a follow-up). See
