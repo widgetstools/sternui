@@ -898,15 +898,17 @@ only) keep working unchanged. Plan doc:
 
 ### ConfigService-backed persistence
 
-`@marketsui/config-service` ships `createConfigServiceStorage({ configManager, appId, userId })` — a `StorageAdapterFactory` that persists profiles as `AppConfigRow` rows:
+`@marketsui/config-service` ships `createConfigServiceStorage({ configManager, appId, userId })` — a `StorageAdapterFactory` that persists **one `AppConfigRow` per instance** with all profiles bundled in the payload:
 
 | Field | Value |
 |---|---|
-| `componentType` | `"markets-grid-profile"` |
-| `componentSubType` | `<instanceId>` |
-| `configId` | `"<instanceId>::<profileId>"` (composite primary key) |
+| `componentType` | `"markets-grid-profile-set"` |
+| `componentSubType` | `""` (unused) |
+| `configId` | `<instanceId>` |
 | `appId` / `userId` | baked into the factory closure |
-| `payload` | the `ProfileSnapshot` |
+| `payload` | `{ profiles: ProfileSnapshot[] }` — the whole bundle |
+
+Each adapter method does load-modify-write against the single row. ProfileManager sees the standard per-profile `StorageAdapter` API; the bundling is internal.
 
 Also exports `migrateProfilesToConfigService({ source, target, gridId, ... })` — consumer-triggered, one-shot migration from `DexieAdapter`/`MemoryAdapter` → ConfigService storage. `skip-if-exists` default, `overwrite` available.
 

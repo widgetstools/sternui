@@ -1,41 +1,55 @@
 /**
- * ConfigService-backed ProfileStorage adapter for `<MarketsGrid>`.
+ * ConfigService-backed storage adapter for `<MarketsGrid>` profiles.
  *
- * Produces a `StorageAdapter` (from @marketsui/core) whose profile
- * CRUD operations route through `ConfigManager`'s `AppConfigRow` store.
- * One row per (appId, userId, instanceId, profileId) — finer-grained
- * than the plan's original "one row per instance" because we reuse the
- * existing per-profile `StorageAdapter` interface instead of redesigning
- * it. Keeps all 242 ProfileManager tests intact.
+ * One `AppConfigRow` per `(appId, userId, instanceId)` — the row's
+ * `payload` is a bundle of every profile for that instance:
+ *
+ *   {
+ *     profiles: ProfileSnapshot[]
+ *   }
+ *
+ * This matches the original storage design in
+ * `docs/plans/MARKETS_GRID_API.md` §Storage ("one row per instance
+ * carrying the whole profile set"). Each adapter method implements
+ * read-modify-write on the bundle under the hood so ProfileManager
+ * and its 242-test suite continue to call the standard per-profile
+ * `StorageAdapter` API unchanged.
  *
  * Row-mapping contract:
- *   componentType    = "markets-grid-profile"
- *   componentSubType = <instanceId>
+ *   componentType    = "markets-grid-profile-set"
+ *   componentSubType = ""
  *   appId            = <host app id>
  *   userId           = <signed-in user id>
- *   configId         = <instanceId>::<profileId>   (composite key)
- *   payload          = the ProfileSnapshot (json-serializable)
+ *   configId         = <instanceId>          (primary key scope)
+ *   payload          = { profiles: ProfileSnapshot[] }
  *
- * Why composite configId:
- *   AppConfigRow.configId is a primary key in ConfigService. If two
- *   different instances shared a profile id "default", their rows
- *   would collide. Composite key keeps the existing primary-key
- *   semantics while letting us scope by instance + profile.
+ * Why bundled, not per-profile:
+ *   - Config Browser shows one row per instance instead of N rows — a
+ *     much clearer mental model for admins ("this is alice's state for
+ *     bond-blotter").
+ *   - Single round-trip to hydrate a grid at mount; no client-side
+ *     filter across the whole user's config.
+ *   - Profile list + switch semantics stay inside the payload shape
+ *     we own, rather than leaking into configId naming.
+ *
+ * Consistency note:
+ *   saveProfile does load-modify-write against a single row. Two
+ *   tabs mutating the same instance concurrently could race; the
+ *   later write wins. Acceptable for the current demo target; a
+ *   production REST backend would want optimistic concurrency
+ *   (If-Match / version field) to surface conflicts. Not in scope
+ *   for v1.
  *
  * Usage at app bootstrap (typical):
  *
  *   const storage = createConfigServiceStorage({
- *     configManager,           // required; produced by createConfigManager()
+ *     configManager,
  *     appId: host.appId,
  *     userId: currentUser.id,
  *   });
- *
  *   <MarketsGrid storage={storage} ... />
- *
- * The returned value is a `StorageAdapterFactory` — call it with an
- * `instanceId` to produce a per-instance adapter. MarketsGrid does this
- * internally; consumers rarely call the factory themselves.
  */
+
 // Type-only import — @marketsui/core is a peerDependency so the types
 // line up exactly with what MarketsGrid expects. No runtime dep on
 // core; consumers naturally satisfy the peer by depending on both.
@@ -45,19 +59,19 @@ import type { ConfigManager } from './config-manager';
 
 export type { ProfileSnapshot, StorageAdapter };
 
-export const MARKETS_GRID_PROFILE_COMPONENT_TYPE = 'markets-grid-profile';
+/** ComponentType used on the AppConfigRow that holds a whole
+ *  instance's bundle of profiles. Singular "profile-set" (not
+ *  "profile") — the row IS the set. */
+export const MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE = 'markets-grid-profile-set';
 
-/** Build the composite configId used to key an individual profile row. */
-function composeConfigId(instanceId: string, profileId: string): string {
-  return `${instanceId}::${profileId}`;
-}
+/** Back-compat re-export of the old component-type name so callers
+ *  that imported `MARKETS_GRID_PROFILE_COMPONENT_TYPE` don't break —
+ *  it now just points at the set-style constant. */
+export const MARKETS_GRID_PROFILE_COMPONENT_TYPE = MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
 
-/** Recover the profileId from a composite configId. Returns null if
- *  the row doesn't belong to this instance. */
-function extractProfileId(configId: string, instanceId: string): string | null {
-  const prefix = `${instanceId}::`;
-  if (!configId.startsWith(prefix)) return null;
-  return configId.slice(prefix.length);
+/** Payload shape inside the single-row bundle. */
+interface ProfileSetPayload {
+  profiles: ProfileSnapshot[];
 }
 
 export interface ConfigServiceStorageOptions {
@@ -70,8 +84,9 @@ export interface ConfigServiceStorageOptions {
   /** User id. Different users see different profile sets for the same
    *  `(appId, instanceId)` pair. */
   userId: string;
-  /** Optional display-text prefix shown on stored rows. Defaults to
-   *  "MarketsGrid profile". Only surfaces in the Config Browser UI. */
+  /** Optional display-text used on the stored row. Defaults to
+   *  "MarketsGrid profiles: <instanceId>". Only surfaces in the
+   *  Config Browser UI. */
   displayTextPrefix?: string;
 }
 
@@ -90,91 +105,132 @@ export function createConfigServiceStorage(
   opts: ConfigServiceStorageOptions,
 ): ProfileStorageFactory {
   const { configManager, appId, userId } = opts;
-  const displayTextPrefix = opts.displayTextPrefix ?? 'MarketsGrid profile';
+  const displayTextPrefix = opts.displayTextPrefix ?? 'MarketsGrid profiles';
 
-  return (instanceId: string): StorageAdapter => ({
-    async loadProfile(gridId: string, profileId: string): Promise<ProfileSnapshot | null> {
-      // gridId from the ProfileManager maps 1:1 to instanceId at this
-      // layer. We trust the closure's instanceId as the source of
-      // truth — if the manager ever asks for a different gridId here,
-      // that's a contract violation we'd rather surface loudly.
-      void gridId;
-      const row = await configManager.getConfig(composeConfigId(instanceId, profileId));
-      if (!row || !isProfileRow(row, instanceId, userId)) return null;
-      return normalizeSnapshot(row.payload, instanceId);
-    },
+  return (instanceId: string): StorageAdapter => {
+    const rowId = instanceId;
 
-    async saveProfile(snapshot: ProfileSnapshot): Promise<void> {
+    // Load the bundled row for this instance; returns null when no
+    // profiles have been written yet. Filters defensively against
+    // rows that happen to share the configId but belong to a
+    // different owner (should never happen in practice — configId
+    // is the ConfigService primary key — but this keeps the boundary
+    // explicit).
+    const loadSet = async (): Promise<ProfileSetPayload | null> => {
+      const row = await configManager.getConfig(rowId);
+      if (!row) return null;
+      if (!isProfileSetRow(row, appId, userId)) return null;
+      return normalizePayload(row.payload);
+    };
+
+    const saveSet = async (set: ProfileSetPayload): Promise<void> => {
+      const now = new Date().toISOString();
+      // Preserve original creationTime if the row already exists.
+      const existing = await configManager.getConfig(rowId);
+      const creationTime = isProfileSetRow(existing, appId, userId)
+        ? (existing?.creationTime ?? now)
+        : now;
+
       const row: AppConfigRow = {
-        configId: composeConfigId(instanceId, snapshot.id),
+        configId: rowId,
         appId,
         userId,
-        displayText: `${displayTextPrefix}: ${snapshot.name}`,
-        componentType: MARKETS_GRID_PROFILE_COMPONENT_TYPE,
-        componentSubType: instanceId,
+        displayText: `${displayTextPrefix}: ${instanceId}`,
+        componentType: MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
+        componentSubType: '',
         isTemplate: false,
-        payload: snapshot,
+        payload: set,
         createdBy: userId,
         updatedBy: userId,
-        creationTime: new Date(snapshot.createdAt).toISOString(),
-        updatedTime: new Date(snapshot.updatedAt).toISOString(),
+        creationTime,
+        updatedTime: now,
       };
       await configManager.saveConfig(row);
-    },
+    };
 
-    async deleteProfile(gridId: string, profileId: string): Promise<void> {
-      void gridId;
-      await configManager.deleteConfig(composeConfigId(instanceId, profileId));
-    },
+    return {
+      async loadProfile(gridId: string, profileId: string): Promise<ProfileSnapshot | null> {
+        void gridId; // gridId maps 1:1 to instanceId at this seam
+        const set = await loadSet();
+        if (!set) return null;
+        return set.profiles.find((p) => p.id === profileId) ?? null;
+      },
 
-    async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
-      void gridId;
-      // ConfigManager.getConfigsByUser + client-side filter. Not the
-      // most efficient query, but the workload is small: one user's
-      // profiles for one instance = a handful of rows in practice.
-      const rows = await configManager.getConfigsByUser(userId);
-      const profiles: ProfileSnapshot[] = [];
-      for (const row of rows) {
-        if (!isProfileRow(row, instanceId, userId)) continue;
-        if (row.appId !== appId) continue;
-        profiles.push(normalizeSnapshot(row.payload, instanceId));
-      }
-      return profiles;
-    },
-  });
+      async saveProfile(snapshot: ProfileSnapshot): Promise<void> {
+        const set = (await loadSet()) ?? { profiles: [] };
+        const idx = set.profiles.findIndex((p) => p.id === snapshot.id);
+        if (idx >= 0) {
+          set.profiles[idx] = snapshot;
+        } else {
+          set.profiles.push(snapshot);
+        }
+        await saveSet(set);
+      },
+
+      async deleteProfile(gridId: string, profileId: string): Promise<void> {
+        void gridId;
+        const set = await loadSet();
+        if (!set) return;
+        const filtered = set.profiles.filter((p) => p.id !== profileId);
+        if (filtered.length === set.profiles.length) return; // not found; no-op
+        await saveSet({ profiles: filtered });
+      },
+
+      async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
+        void gridId;
+        const set = await loadSet();
+        return set?.profiles ?? [];
+      },
+    };
+  };
 }
 
-/** Guard: does this row belong to a markets-grid profile for this
- *  instance + user combo? */
-function isProfileRow(row: AppConfigRow, instanceId: string, userId: string): boolean {
+/** Guard: does this row belong to a markets-grid profile-set owned
+ *  by `(appId, userId)`? */
+function isProfileSetRow(
+  row: AppConfigRow | null | undefined,
+  appId: string,
+  userId: string,
+): row is AppConfigRow {
+  if (!row) return false;
   return (
-    row.componentType === MARKETS_GRID_PROFILE_COMPONENT_TYPE
-    && row.componentSubType === instanceId
+    row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE
+    && row.appId === appId
     && row.userId === userId
-    && extractProfileId(row.configId, instanceId) !== null
   );
 }
 
 /** Defensively normalize the persisted payload back into a
- *  ProfileSnapshot. The payload came from our own saveProfile, but
- *  a REST backend or stale row could return unexpected shapes — keep
- *  the type boundary explicit. */
-function normalizeSnapshot(payload: unknown, instanceId: string): ProfileSnapshot {
-  const p = payload as Partial<ProfileSnapshot> & { gridId?: string };
+ *  ProfileSetPayload. Guards against malformed / legacy shapes. */
+function normalizePayload(payload: unknown): ProfileSetPayload {
+  const p = payload as { profiles?: unknown } | null | undefined;
+  const arr = Array.isArray(p?.profiles) ? p.profiles : [];
+  const profiles: ProfileSnapshot[] = [];
+  for (const raw of arr) {
+    const snap = normalizeSnapshot(raw);
+    if (snap) profiles.push(snap);
+  }
+  return { profiles };
+}
+
+function normalizeSnapshot(raw: unknown): ProfileSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Partial<ProfileSnapshot> & { gridId?: string };
+  if (!p.id || !p.gridId) return null;
   return {
-    id: String(p?.id ?? ''),
-    gridId: String(p?.gridId ?? instanceId),
-    name: String(p?.name ?? ''),
-    state: (p?.state ?? {}) as ProfileSnapshot['state'],
-    createdAt: Number(p?.createdAt ?? Date.now()),
-    updatedAt: Number(p?.updatedAt ?? Date.now()),
+    id: String(p.id),
+    gridId: String(p.gridId),
+    name: String(p.name ?? ''),
+    state: (p.state ?? {}) as ProfileSnapshot['state'],
+    createdAt: Number(p.createdAt ?? Date.now()),
+    updatedAt: Number(p.updatedAt ?? Date.now()),
   };
 }
 
 /**
  * One-shot migration helper: copy profiles from local Dexie/Memory
- * storage into ConfigService storage for a given `(gridId, instanceId,
- * userId)` tuple.
+ * storage into ConfigService bundled storage for a given `(gridId,
+ * instanceId, userId)` tuple.
  *
  * Consumer-triggered — NOT called automatically. Trading apps that
  * want to migrate users write a small admin action that invokes this
@@ -182,11 +238,11 @@ function normalizeSnapshot(payload: unknown, instanceId: string): ProfileSnapsho
  *
  * Strategy:
  *   "skip-if-exists" (default) — no-op when target already has any
- *   profile rows for this instance (cross-device safety: user may
- *   have newer data on another device already synced).
+ *   profiles in the bundle (cross-device safety: user may have newer
+ *   data on another device already synced).
  *
- *   "overwrite" — unconditionally writes all local profiles to target,
- *   overwriting target rows that share the same profileId.
+ *   "overwrite" — unconditionally rewrites the target bundle with
+ *   the source profile list.
  *
  * Returns `{ migrated: boolean, count?: number, reason?: string }`.
  */
@@ -211,9 +267,11 @@ export async function migrateProfilesToConfigService(params: {
     return { migrated: false, reason: 'no-source-profiles' };
   }
 
+  // Rewrite gridId to the target's instanceId so snapshots round-trip
+  // cleanly through the bundled adapter. saveProfile is sequential
+  // but load-modify-writes the same bundle each time — acceptable for
+  // a one-shot migration at small sizes.
   for (const profile of sourceProfiles) {
-    // Rewrite gridId to the target's instanceId so the normalized
-    // snapshot round-trips cleanly through the ConfigService adapter.
     await targetAdapter.saveProfile({ ...profile, gridId: effectiveInstanceId });
   }
 

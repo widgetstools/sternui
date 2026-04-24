@@ -5,7 +5,7 @@
 > **Two shape tweaks landed during implementation** (both documented inline where relevant):
 >
 > 1. **`handle.profiles` is `UseProfileManagerResult`**, not the raw `ProfileManager` class. Same semantic; more ergonomic call site (consumers already use the hook shape).
-> 2. **`storage` prop takes a `StorageAdapterFactory`** that returns the existing `@marketsui/core` `StorageAdapter` (per-profile CRUD), NOT the redesigned `ProfileStorage` bundle-CRUD interface originally in the plan. Reason: zero churn to `ProfileManager` and its 242-test suite. Same user-facing outcome; different internal seam.
+> 2. **`storage` prop takes a `StorageAdapterFactory`** that returns the existing `@marketsui/core` `StorageAdapter` (per-profile CRUD at the interface boundary). Internally the ConfigService adapter implements load-modify-write against a **single bundled row per instance** (`{ profiles: ProfileSnapshot[] }` payload) — matching the original plan's "one row per instance carrying the whole profile set" design. ProfileManager and its 242-test suite never see the bundling; it happens behind the `StorageAdapter` API.
 
 ## Decision
 
