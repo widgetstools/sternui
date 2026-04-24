@@ -29,7 +29,6 @@ import { dark, light } from '@marketsui/design-system/tokens/semantic';
 // PrimeNG imports
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { SelectButtonModule } from 'primeng/selectbutton';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 
 
@@ -201,7 +200,7 @@ export class IconUrlPipe implements PipeTransform {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule, FormsModule,
-    ButtonModule, InputTextModule, SelectButtonModule, ToggleSwitchModule,
+    ButtonModule, InputTextModule, ToggleSwitchModule,
     IconUrlPipe,
   ],
   providers: [RegistryEditorService],
@@ -269,6 +268,43 @@ export class IconUrlPipe implements PipeTransform {
     }
     :host ::ng-deep .form-actions .p-button.p-button-secondary:hover {
       background: var(--de-bg-hover);
+    }
+
+    /* v2 toggle row — elegant switch + label + subtitle, dark/light compatible via tokens */
+    .form-toggle-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px;
+      background: var(--de-bg-surface);
+      border: 1px solid var(--de-border);
+      border-radius: var(--de-radius-md);
+      transition: border-color 0.15s ease;
+    }
+    .form-toggle-row:hover { border-color: var(--de-border-strong); }
+    .form-toggle-text {
+      flex: 1; display: flex; flex-direction: column; gap: 2px;
+      min-width: 0;
+    }
+    .form-toggle-title {
+      font-size: 13px; font-weight: 500; color: var(--de-text); line-height: 1.2;
+    }
+    .form-toggle-subtitle {
+      font-size: 11px; color: var(--de-text-tertiary); line-height: 1.2;
+    }
+
+    /* PrimeNG ToggleSwitch — force design-system tokens so it tracks [data-theme] */
+    :host ::ng-deep .p-toggleswitch .p-toggleswitch-slider {
+      background: var(--de-bg-hover) !important;
+      border: 1px solid var(--de-border-strong) !important;
+    }
+    :host ::ng-deep .p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-slider {
+      background: var(--de-accent) !important;
+      border-color: var(--de-accent) !important;
+    }
+    :host ::ng-deep .p-toggleswitch .p-toggleswitch-handle {
+      background: var(--de-bg-raised) !important;
+    }
+    :host ::ng-deep .p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-handle {
+      background: #fff !important;
     }
 
     /* Icon display row — click to open picker */
@@ -458,67 +494,51 @@ export class IconUrlPipe implements PipeTransform {
                 </div>
               </div>
 
-              <!-- v2: Hosting + Singleton (PrimeNG SelectButton — segmented) -->
-              <div class="form-row-2col">
-                <div class="form-field">
-                  <label class="form-label">Hosting</label>
-                  <p-selectbutton [options]="HOSTING_OPTIONS"
-                    [ngModel]="form().type"
-                    (ngModelChange)="updateFormTyped('type', $event)"
-                    optionLabel="label" optionValue="value"
-                    [allowEmpty]="false"></p-selectbutton>
-                </div>
-                <div class="form-field">
-                  <label class="form-label">Singleton</label>
-                  <p-selectbutton [options]="SINGLETON_OPTIONS"
-                    [ngModel]="form().singleton"
-                    (ngModelChange)="updateForm('singleton', $event); onTypeSubTypeChange()"
-                    optionLabel="label" optionValue="value"
-                    [allowEmpty]="false"></p-selectbutton>
-                </div>
-              </div>
-
-              <!-- Uses host config — PrimeNG ToggleSwitch -->
+              <!-- v2: External + Singleton toggle rows -->
               <div class="form-field">
-                <label class="form-label">Uses host config service</label>
-                <div style="display: flex; align-items: center; gap: 10px; padding: 4px 0;">
-                  <p-toggleswitch [ngModel]="form().usesHostConfig"
-                    (ngModelChange)="onUsesHostConfigChange($event)"></p-toggleswitch>
-                  <span style="font-size: 12px; color: var(--de-text-secondary);">
-                    Inherit appId + configServiceUrl from the host app
-                  </span>
-                </div>
-              </div>
-
-              <!-- App ID -->
-              <div class="form-field">
-                <label class="form-label">App ID</label>
-                <input pInputText [ngModel]="form().appId"
-                  (ngModelChange)="updateForm('appId', $event)"
-                  [disabled]="form().usesHostConfig"
-                  [style.opacity]="form().usesHostConfig ? '0.6' : '1'"
-                  placeholder="e.g., tradingApp1" />
-                @if (form().usesHostConfig) {
-                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
-                    Inherited from host manifest
+                <div class="form-toggle-row">
+                  <div class="form-toggle-text">
+                    <div class="form-toggle-title">External component</div>
+                    <div class="form-toggle-subtitle">Hosted at a foreign URL, may use its own ConfigService</div>
                   </div>
-                }
+                  <p-toggleswitch [ngModel]="form().type === 'external'"
+                    (ngModelChange)="onExternalToggle($event)"></p-toggleswitch>
+                </div>
               </div>
 
-              <!-- Config Service URL -->
               <div class="form-field">
-                <label class="form-label">Config Service URL</label>
-                <input pInputText [ngModel]="form().configServiceUrl"
-                  (ngModelChange)="updateForm('configServiceUrl', $event)"
-                  [disabled]="form().usesHostConfig"
-                  [style.opacity]="form().usesHostConfig ? '0.6' : '1'"
-                  [placeholder]="form().usesHostConfig ? '' : 'https://… (optional for self-contained externals)'" />
-                @if (form().usesHostConfig) {
-                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
-                    Inherited from host manifest
+                <div class="form-toggle-row">
+                  <div class="form-toggle-text">
+                    <div class="form-toggle-title">Singleton</div>
+                    <div class="form-toggle-subtitle">Re-launching focuses the existing instance instead of spawning a new one</div>
                   </div>
-                }
+                  <p-toggleswitch [ngModel]="form().singleton"
+                    (ngModelChange)="updateForm('singleton', $event); onTypeSubTypeChange()"></p-toggleswitch>
+                </div>
               </div>
+
+              <!-- External-only fields: AppId + ConfigServiceUrl (optional edits) -->
+              @if (form().type === 'external') {
+                <div class="form-field">
+                  <label class="form-label">App ID</label>
+                  <input pInputText [ngModel]="form().appId"
+                    (ngModelChange)="updateForm('appId', $event)"
+                    placeholder="e.g., tradingApp1" />
+                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
+                    Defaults to the host app's appId. Edit only if this external component targets a different app.
+                  </div>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label">Config Service URL</label>
+                  <input pInputText [ngModel]="form().configServiceUrl"
+                    (ngModelChange)="updateForm('configServiceUrl', $event)"
+                    placeholder="https://…" />
+                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
+                    Defaults to the host's ConfigService. Leave empty if the component is self-contained.
+                  </div>
+                </div>
+              }
 
               <!-- Config ID (disabled when singleton — auto-derived) -->
               <div class="form-field">
@@ -554,16 +574,6 @@ export class RegistryEditorComponent implements OnInit {
   readonly svc = inject(RegistryEditorService);
   private readonly destroyRef = inject(DestroyRef);
 
-  // Static options for the PrimeNG Select dropdowns. Kept as class
-  // properties so the template doesn't re-allocate arrays each CD pass.
-  readonly HOSTING_OPTIONS = [
-    { label: 'internal', value: 'internal' },
-    { label: 'external', value: 'external' },
-  ];
-  readonly SINGLETON_OPTIONS = [
-    { label: 'spawn new', value: false },
-    { label: 'focus existing', value: true },
-  ];
 
   readonly theme = signal<'dark' | 'light'>('dark');
   readonly dialogVisible = signal(false);
@@ -646,15 +656,20 @@ export class RegistryEditorComponent implements OnInit {
     this.updateForm(field, value);
   }
 
-  /** Toggling usesHostConfig resets appId/configServiceUrl to host values
-   *  when switched on, prevents ghost state when switched off. */
-  onUsesHostConfigChange(checked: boolean): void {
+  /** Toggling the External switch flips `type` and resets the
+   *  appId/configServiceUrl fields to host defaults so the user
+   *  starts from a sensible baseline they can then tweak. When
+   *  switching back to internal, the values revert to host values
+   *  (internal components always use host config). */
+  onExternalToggle(checked: boolean): void {
     const env = this.svc.hostEnv();
     this.form.update(prev => ({
       ...prev,
-      usesHostConfig: checked,
-      appId: checked ? env.appId : prev.appId,
-      configServiceUrl: checked ? env.configServiceUrl : prev.configServiceUrl,
+      type: checked ? 'external' : 'internal',
+      // Always reset to host defaults on toggle — prevents stale
+      // foreign values from leaking into an internal entry on save.
+      appId: env.appId,
+      configServiceUrl: env.configServiceUrl,
     }));
   }
 
@@ -755,6 +770,14 @@ export class RegistryEditorComponent implements OnInit {
     const componentType = f.componentType.toUpperCase();
     const componentSubType = f.componentSubType.toUpperCase();
 
+    // Derive usesHostConfig:
+    //   internal → always uses host config (by definition)
+    //   external + appId/configUrl match host → uses host config (shared service)
+    //   external + user edited either → doesn't use host config
+    const env = this.svc.hostEnv();
+    const usesHostConfig = f.type === 'internal'
+      || (f.appId === env.appId && f.configServiceUrl === env.configServiceUrl);
+
     const entry: RegistryEntry = {
       id: currentEditingId ?? crypto.randomUUID(),
       displayName: f.displayName,
@@ -769,9 +792,12 @@ export class RegistryEditorComponent implements OnInit {
         ? (this.svc.entries().find((e) => e.id === currentEditingId)?.createdAt ?? new Date().toISOString())
         : new Date().toISOString(),
       type: f.type,
-      usesHostConfig: f.usesHostConfig,
-      appId: f.appId,
-      configServiceUrl: f.configServiceUrl,
+      usesHostConfig,
+      // Internal entries always store the host's values — external
+      // entries store whatever the user entered (may equal host,
+      // may differ).
+      appId: f.type === 'internal' ? env.appId : f.appId,
+      configServiceUrl: f.type === 'internal' ? env.configServiceUrl : f.configServiceUrl,
       singleton: f.singleton,
     };
 

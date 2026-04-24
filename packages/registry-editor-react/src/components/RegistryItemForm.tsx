@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { DynamicIcon as Icon } from "@marketsui/icons-svg/react";
 import { ICON_NAMES, ICON_META } from "@marketsui/icons-svg";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Switch,
-} from "@marketsui/ui";
+import { Switch } from "@marketsui/ui";
 import {
   generateTemplateConfigId,
   deriveSingletonConfigId,
@@ -103,18 +100,17 @@ export function RegistryItemForm({
     }
   }, [form.componentType, form.componentSubType, form.singleton, configIdEdited, form.configId]);
 
-  // When usesHostConfig toggles on, reset appId + configServiceUrl to host values.
-  useEffect(() => {
-    if (form.usesHostConfig) {
-      if (form.appId !== hostEnv.appId || form.configServiceUrl !== hostEnv.configServiceUrl) {
-        setForm(prev => ({
-          ...prev,
-          appId: hostEnv.appId,
-          configServiceUrl: hostEnv.configServiceUrl,
-        }));
-      }
-    }
-  }, [form.usesHostConfig, hostEnv.appId, hostEnv.configServiceUrl, form.appId, form.configServiceUrl]);
+  /** Toggling External flips `type` and resets appId/configServiceUrl
+   *  to host defaults so the user starts from a sensible baseline they
+   *  can then tweak. Going back to internal re-locks to host values. */
+  function onExternalToggle(checked: boolean) {
+    setForm(prev => ({
+      ...prev,
+      type: checked ? 'external' : 'internal',
+      appId: hostEnv.appId,
+      configServiceUrl: hostEnv.configServiceUrl,
+    }));
+  }
 
   // Memoize icon filtering
   const filteredIcons = useMemo(() =>
@@ -163,6 +159,13 @@ export function RegistryItemForm({
   }
 
   function handleSave() {
+    // Derive usesHostConfig:
+    //   internal → always true (by definition)
+    //   external + appId/configUrl equal host → true (shared service)
+    //   external + user edited either → false
+    const usesHostConfig = form.type === 'internal'
+      || (form.appId === hostEnv.appId && form.configServiceUrl === hostEnv.configServiceUrl);
+
     const normalized: RegistryFormData = {
       ...form,
       componentType: form.componentType.toUpperCase(),
@@ -170,6 +173,11 @@ export function RegistryItemForm({
       configId: form.singleton
         ? deriveSingletonConfigId(form.componentType, form.componentSubType)
         : form.configId || generateTemplateConfigId(form.componentType.toUpperCase(), form.componentSubType.toUpperCase()),
+      usesHostConfig,
+      // Internal entries always store host values. External stores
+      // whatever the user entered (may equal host).
+      appId: form.type === 'internal' ? hostEnv.appId : form.appId,
+      configServiceUrl: form.type === 'internal' ? hostEnv.configServiceUrl : form.configServiceUrl,
     };
 
     // Full entry-level validation.
@@ -184,9 +192,6 @@ export function RegistryItemForm({
 
     onSave(normalized);
   }
-
-  const appIdLocked = form.usesHostConfig;
-  const configUrlLocked = form.usesHostConfig;
 
   return (
     <>
@@ -269,65 +274,44 @@ export function RegistryItemForm({
             </FieldGroup>
           </div>
 
-          {/* ── v2: Hosting + Config (shadcn primitives from @marketsui/ui) ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <FieldGroup label="Hosting">
-              <Select value={form.type}
-                onValueChange={(v) => update('type', v as 'internal' | 'external')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">internal</SelectItem>
-                  <SelectItem value="external">external</SelectItem>
-                </SelectContent>
-              </Select>
-            </FieldGroup>
-            <FieldGroup label="Singleton">
-              <Select value={form.singleton ? 'yes' : 'no'}
-                onValueChange={(v) => update('singleton', v === 'yes')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no">spawn new</SelectItem>
-                  <SelectItem value="yes">focus existing</SelectItem>
-                </SelectContent>
-              </Select>
-            </FieldGroup>
-          </div>
+          {/* ── v2: External + Singleton toggle rows (shadcn Switch from @marketsui/ui) ── */}
+          <ToggleRow
+            title="External component"
+            subtitle="Hosted at a foreign URL, may use its own ConfigService"
+            checked={form.type === 'external'}
+            onChange={(checked) => onExternalToggle(checked)}
+          />
+          <ToggleRow
+            title="Singleton"
+            subtitle="Re-launching focuses the existing instance instead of spawning a new one"
+            checked={form.singleton}
+            onChange={(checked) => update('singleton', checked)}
+          />
 
-          <FieldGroup label="Uses host config service">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-              <Switch checked={form.usesHostConfig}
-                onCheckedChange={(checked) => update('usesHostConfig', checked)} />
-              <span style={{ fontSize: 12, color: 'var(--de-text-secondary)' }}>
-                Inherit appId + configServiceUrl from the host app
-              </span>
-            </div>
-          </FieldGroup>
+          {/* External-only fields — AppId + ConfigServiceUrl (optional edits) */}
+          {form.type === 'external' && (
+            <>
+              <FieldGroup label="App ID" error={fieldErrors.appId}>
+                <input value={form.appId}
+                  onChange={(e) => update('appId', e.target.value)}
+                  placeholder="e.g., tradingApp1"
+                  style={inputStyle} />
+                <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
+                  Defaults to the host app's appId. Edit only if this external component targets a different app.
+                </div>
+              </FieldGroup>
 
-          <FieldGroup label="App ID" error={fieldErrors.appId}>
-            <input value={form.appId}
-              onChange={(e) => update('appId', e.target.value)}
-              disabled={appIdLocked}
-              placeholder="e.g., tradingApp1"
-              style={{ ...inputStyle, opacity: appIdLocked ? 0.6 : 1 }} />
-            {appIdLocked && (
-              <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
-                Inherited from host manifest
-              </div>
-            )}
-          </FieldGroup>
-
-          <FieldGroup label="Config Service URL" error={fieldErrors.configServiceUrl}>
-            <input value={form.configServiceUrl}
-              onChange={(e) => update('configServiceUrl', e.target.value)}
-              disabled={configUrlLocked}
-              placeholder={form.usesHostConfig ? '' : 'https://… (optional for self-contained externals)'}
-              style={{ ...inputStyle, opacity: configUrlLocked ? 0.6 : 1 }} />
-            {configUrlLocked && (
-              <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
-                Inherited from host manifest
-              </div>
-            )}
-          </FieldGroup>
+              <FieldGroup label="Config Service URL" error={fieldErrors.configServiceUrl}>
+                <input value={form.configServiceUrl}
+                  onChange={(e) => update('configServiceUrl', e.target.value)}
+                  placeholder="https://…"
+                  style={inputStyle} />
+                <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
+                  Defaults to the host's ConfigService. Leave empty if the component is self-contained.
+                </div>
+              </FieldGroup>
+            </>
+          )}
 
           {/* Config ID */}
           <FieldGroup label="Config ID" error={fieldErrors.configId}>
@@ -358,6 +342,42 @@ export function RegistryItemForm({
         </div>
       </div>
     </>
+  );
+}
+
+/** Elegant toggle row — switch on the right, title + muted subtitle
+ *  on the left. Surface + border come from design-system tokens so
+ *  the row tracks [data-theme] automatically. */
+function ToggleRow({
+  title, subtitle, checked, onChange,
+}: {
+  title: string;
+  subtitle: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '10px 12px',
+      background: 'var(--de-bg-surface)',
+      border: '1px solid var(--de-border)',
+      borderRadius: 'var(--de-radius-md)',
+      transition: 'border-color 0.15s ease',
+    }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--de-border-strong)')}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--de-border)')}
+    >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--de-text)', lineHeight: 1.2 }}>
+          {title}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--de-text-tertiary)', lineHeight: 1.2 }}>
+          {subtitle}
+        </div>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
   );
 }
 
