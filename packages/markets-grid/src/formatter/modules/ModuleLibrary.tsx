@@ -40,6 +40,13 @@ export function ModuleLibrary({
         const name = state.saveAsTplName.trim() || `${colLabel} Style`;
         const id = actions.saveAsTemplate(name);
         if (id) {
+          // Auto-apply the freshly saved template to the active column(s).
+          // Without this, the Select closed-state keeps showing "Choose a
+          // template…" because `activeTemplateId` is still undefined —
+          // the save succeeded but the UI gives the user no visible
+          // signal. Applying immediately makes the Select reflect the
+          // new template by name and enables the delete button.
+          actions.applyTemplate(id);
           actions.setSaveAsTplName('');
           actions.flashSaveAsTpl();
         }
