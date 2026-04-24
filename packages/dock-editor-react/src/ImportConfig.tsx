@@ -2,7 +2,8 @@
 declare const fin: any;
 
 import { useState, useRef, useEffect } from "react";
-import { saveDockConfig, IAB_RELOAD_AFTER_IMPORT } from "@marketsui/openfin-platform";
+// /config subpath — side-effect-free; safe in plain-browser dev contexts.
+import { saveDockConfig, IAB_RELOAD_AFTER_IMPORT } from "@marketsui/openfin-platform/config";
 import { UPLOAD_SVG } from "@marketsui/icons-svg/all-icons";
 
 // ─── Types ───────────────────────────────────────────────────────────

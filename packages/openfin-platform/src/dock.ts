@@ -30,23 +30,43 @@ import type { PlatformSettings } from './types';
 const ICON_COLOR_DARK_THEME = "#ffffff";
 const ICON_COLOR_LIGHT_THEME = "#1a1a2e";
 
-// ─── IAB topic names ────────────────────────────────────────────────
-export const IAB_DOCK_CONFIG_UPDATE = "dock-config-update";
-export const IAB_RELOAD_AFTER_IMPORT = "reload-dock-after-import";
-export const IAB_THEME_CHANGED = "theme-changed";
-export const IAB_REGISTRY_CONFIG_UPDATE = "registry-config-update";
-
-// ─── Action ID constants ─────────────────────────────────────────────
-export const ACTION_LAUNCH_APP        = "launch-app";
-export const ACTION_TOGGLE_THEME      = "toggle-theme";
-export const ACTION_OPEN_DOCK_EDITOR  = "open-dock-editor";
-export const ACTION_RELOAD_DOCK       = "reload-dock";
-export const ACTION_SHOW_DEVTOOLS     = "show-devtools";
-export const ACTION_EXPORT_CONFIG     = "export-config";
-export const ACTION_IMPORT_CONFIG     = "import-config";
-export const ACTION_TOGGLE_PROVIDER   = "toggle-provider-window";
-export const ACTION_OPEN_REGISTRY_EDITOR = "open-registry-editor";
-export const ACTION_OPEN_CONFIG_BROWSER  = "open-config-browser";
+// ─── IAB topics + action IDs ────────────────────────────────────────
+// Lifted into ./iab-topics.ts so non-OpenFin consumers (Config Browser
+// rendered in a plain browser, dock-editor's import panel, etc.) can
+// import just the strings without pulling @openfin/workspace-platform
+// through this file. Re-exported here for back-compat.
+import {
+  IAB_DOCK_CONFIG_UPDATE,
+  IAB_RELOAD_AFTER_IMPORT,
+  IAB_THEME_CHANGED,
+  IAB_REGISTRY_CONFIG_UPDATE,
+  ACTION_LAUNCH_APP,
+  ACTION_TOGGLE_THEME,
+  ACTION_OPEN_DOCK_EDITOR,
+  ACTION_RELOAD_DOCK,
+  ACTION_SHOW_DEVTOOLS,
+  ACTION_EXPORT_CONFIG,
+  ACTION_IMPORT_CONFIG,
+  ACTION_TOGGLE_PROVIDER,
+  ACTION_OPEN_REGISTRY_EDITOR,
+  ACTION_OPEN_CONFIG_BROWSER,
+} from './iab-topics';
+export {
+  IAB_DOCK_CONFIG_UPDATE,
+  IAB_RELOAD_AFTER_IMPORT,
+  IAB_THEME_CHANGED,
+  IAB_REGISTRY_CONFIG_UPDATE,
+  ACTION_LAUNCH_APP,
+  ACTION_TOGGLE_THEME,
+  ACTION_OPEN_DOCK_EDITOR,
+  ACTION_RELOAD_DOCK,
+  ACTION_SHOW_DEVTOOLS,
+  ACTION_EXPORT_CONFIG,
+  ACTION_IMPORT_CONFIG,
+  ACTION_TOGGLE_PROVIDER,
+  ACTION_OPEN_REGISTRY_EDITOR,
+  ACTION_OPEN_CONFIG_BROWSER,
+};
 
 // ─── Module-level state ──────────────────────────────────────────────
 

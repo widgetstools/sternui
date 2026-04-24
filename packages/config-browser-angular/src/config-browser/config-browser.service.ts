@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable, signal, computed } from '@angular/core';
+// /config subpath = workspace-platform-free entry; safe in non-OpenFin
+// contexts. See packages/openfin-platform/src/config-only.ts.
 import {
   getConfigManager,
   readHostEnv,
   type HostEnv,
-} from '@marketsui/openfin-platform';
+} from '@marketsui/openfin-platform/config';
 import type { ConfigManager } from '@marketsui/config-service';
 import { TABLES, type TableKey, type TableMeta } from './tables';
 

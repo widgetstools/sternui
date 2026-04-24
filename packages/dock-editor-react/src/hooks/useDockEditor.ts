@@ -2,6 +2,9 @@
 declare const fin: any; // OpenFin global — available at runtime in OpenFin windows
 
 import { useReducer, useEffect, useCallback, useRef } from "react";
+// /config subpath — avoids pulling @openfin/workspace-platform at
+// module-eval time. The dock-editor renders in a browser window (not
+// always inside OpenFin) so the main barrel's side effects break here.
 import {
   loadDockConfig,
   saveDockConfig,
@@ -12,7 +15,7 @@ import {
   type DockActionButtonConfig,
   type DockDropdownButtonConfig,
   type DockMenuItemConfig,
-} from "@marketsui/openfin-platform";
+} from "@marketsui/openfin-platform/config";
 
 // ─── Action Types ────────────────────────────────────────────────────
 

@@ -7,11 +7,13 @@ import { TreeItem, type TreeItemData } from "./components/dock-editor/TreeItem";
 import { ItemFormDialog, type ItemFormData } from "./components/dock-editor/ItemFormDialog";
 import { iconIdToSvgUrl, parseIconUrl } from "./components/dock-editor/icon-utils";
 import { injectEditorStyles } from "./components/dock-editor/editor-styles";
+// Type-only import via /config subpath — avoids the workspace-platform
+// module-eval side effects that the main barrel triggers.
 import type {
   DockButtonConfig,
   DockDropdownButtonConfig,
   DockMenuItemConfig,
-} from "@marketsui/openfin-platform";
+} from "@marketsui/openfin-platform/config";
 
 // ─── Converters ──────────────────────────────────────────────────────
 

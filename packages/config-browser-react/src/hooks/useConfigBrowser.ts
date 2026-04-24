@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useRef, useState } from "react";
+// Import from the /config subpath so we don't drag @openfin/workspace-platform
+// into consumers running outside an OpenFin window (plain browser dev
+// harness, overlay mounts in non-OpenFin demo apps, etc.).
 import {
   getConfigManager,
   readHostEnv,
   type HostEnv,
-} from "@marketsui/openfin-platform";
+} from "@marketsui/openfin-platform/config";
 import type { ConfigManager } from "@marketsui/config-service";
 import { TABLES, type TableKey, type TableMeta } from "../types";
 

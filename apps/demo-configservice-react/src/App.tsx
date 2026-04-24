@@ -9,7 +9,9 @@ import {
   createConfigServiceStorage,
   type ConfigManager,
 } from '@marketsui/config-service';
-import { setConfigManager as publishSharedConfigManager } from '@marketsui/openfin-platform';
+// /config subpath avoids the @openfin/workspace-platform module-load
+// that would otherwise throw in this plain-browser dev harness.
+import { setConfigManager as publishSharedConfigManager } from '@marketsui/openfin-platform/config';
 import {
   ConfigBrowserPanel,
   createConfigBrowserAction,
