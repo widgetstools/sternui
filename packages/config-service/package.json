@@ -19,7 +19,16 @@
   "dependencies": {
     "dexie": "^4.4.2"
   },
+  "peerDependencies": {
+    "@marketsui/core": "*"
+  },
+  "peerDependenciesMeta": {
+    "@marketsui/core": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@marketsui/core": "*",
     "rimraf": "^5.0.5",
     "typescript": "~5.9.3"
   },

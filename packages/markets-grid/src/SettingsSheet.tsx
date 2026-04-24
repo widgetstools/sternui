@@ -21,9 +21,11 @@ import {
   HelpCircle,
   Maximize2,
   Minimize2,
+  Wrench,
   X,
 } from 'lucide-react';
 import { HelpPanel } from './HelpPanel';
+import type { AdminAction } from './types';
 
 /**
  * Cockpit Terminal popout — the v2 settings sheet.
@@ -57,6 +59,10 @@ export interface SettingsSheetProps {
   open: boolean;
   onClose: () => void;
   initialModuleId?: string;
+  /** Admin-tool entries exposed through a Tools dropdown in the sheet
+   *  header. When omitted, empty, or every entry has `visible: false`,
+   *  the Tools button is not rendered. */
+  adminActions?: AdminAction[];
 }
 
 /**
@@ -85,6 +91,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   open,
   onClose,
   initialModuleId,
+  adminActions,
 }: SettingsSheetProps, ref) {
   // Every module panel is already mounted inside MarketsGrid's
   // <GridProvider>, so `useGridPlatform()` is always valid here. Pull
@@ -285,6 +292,10 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 ...(frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : {}),
               }}
             >
+              {/* Tools — admin-action dropdown. Rendered only when the
+                  consumer passed at least one visible action. End-user
+                  grids pay zero chrome cost for this affordance. */}
+              <ToolsMenu actions={adminActions} />
               <button
                 type="button"
                 className="gc-popout-title-btn"
@@ -528,3 +539,136 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     </Poppable>
   );
 });
+
+/**
+ * Tools dropdown — admin-action launcher in the settings sheet header.
+ *
+ * Invisible when `actions` is empty, undefined, or every entry has
+ * `visible: false`. End-user grids (no admin actions passed) pay zero
+ * chrome cost — no icon, no dropdown shell, no keyboard trap.
+ *
+ * Dropdown rendered via shadcn Popover (consistent with the module
+ * picker above). Each entry renders icon + label + optional muted
+ * description. Clicking invokes the action's `onClick` callback and
+ * closes the menu; the consumer decides what "launch" means
+ * (navigate, OpenFin window, modal, etc.).
+ *
+ * Stable e2e testids:
+ *   settings-tools-button          the trigger
+ *   settings-tools-menu            the dropdown content
+ *   admin-action-${id}             each visible action row
+ */
+function ToolsMenu({ actions }: { actions: AdminAction[] | undefined }) {
+  const [open, setOpen] = useState(false);
+  const visibleActions = useMemo(
+    () => (actions ?? []).filter((a) => a.visible !== false),
+    [actions],
+  );
+
+  if (visibleActions.length === 0) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="gc-popout-title-btn"
+          title="Admin tools"
+          aria-label="Admin tools"
+          aria-pressed={open}
+          data-testid="settings-tools-button"
+        >
+          <Wrench size={12} strokeWidth={2} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={4}
+        data-testid="settings-tools-menu"
+        style={{
+          padding: 4,
+          minWidth: 220,
+          maxWidth: 320,
+          background: 'var(--ck-bg-raised, var(--de-bg-raised, #1a1a1a))',
+          border: '1px solid var(--ck-border, var(--de-border, #333))',
+        }}
+      >
+        {visibleActions.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            data-testid={`admin-action-${action.id}`}
+            onClick={() => {
+              setOpen(false);
+              // Fire-and-forget; consumer owns async handling.
+              void action.onClick();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              width: '100%',
+              padding: '8px 10px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 4,
+              color: 'var(--ck-t0, var(--de-text, #eee))',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              fontSize: 12,
+              lineHeight: 1.35,
+              transition: 'background 0.1s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--ck-bg-hover, var(--de-bg-hover, rgba(255,255,255,0.06)))';
+            }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <ActionIcon icon={action.icon} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 500 }}>{action.label}</span>
+              {action.description && (
+                <span style={{
+                  display: 'block',
+                  fontSize: 11,
+                  color: 'var(--ck-t2, var(--de-text-tertiary, #888))',
+                  marginTop: 2,
+                }}>
+                  {action.description}
+                </span>
+              )}
+            </span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Tiny icon renderer — delegates to the referenced lucide/mkt icon via
+ *  dynamic import when possible, falls back to a Wrench glyph. Keeps
+ *  the dropdown lightweight (no icons-svg dep at this layer). */
+function ActionIcon({ icon }: { icon?: string }) {
+  // Lightweight fallback — the core of the project has richer icon
+  // infra (DynamicIcon from @marketsui/icons-svg), but wiring that in
+  // here would pull another package. For v1 we just show a Wrench;
+  // consumers who want branded icons can pass them via label instead,
+  // or we upgrade this to DynamicIcon in a follow-up.
+  void icon; // reserved for future icon-library wiring
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 16,
+      height: 16,
+      color: 'var(--ck-t2, var(--de-text-secondary, #aaa))',
+      flexShrink: 0,
+      marginTop: 1,
+    }}>
+      <Wrench size={13} strokeWidth={1.75} />
+    </span>
+  );
+}

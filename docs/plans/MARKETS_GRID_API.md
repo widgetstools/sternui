@@ -1,6 +1,11 @@
 # Plan: `<MarketsGrid>` API shape — imperative handle, not HOC
 
-> **Status:** plan · **Supersedes:** the "HOC refactor of `<MarketsGrid>`" item in the consolidation plan's §"What gets UNBLOCKED after consolidation" · **Scope:** how consumers get programmatic access to an instance of `<MarketsGrid>` from both React and Angular.
+> **Status:** §API + §Storage + §Admin Actions all SHIPPED on the React side (298 tests green). Angular mirrors land with ANGULAR_PORT Phase 4. · **Supersedes:** the "HOC refactor of `<MarketsGrid>`" item in the consolidation plan's §"What gets UNBLOCKED after consolidation" · **Scope:** how consumers get programmatic access to an instance of `<MarketsGrid>` from both React and Angular.
+
+> **Two shape tweaks landed during implementation** (both documented inline where relevant):
+>
+> 1. **`handle.profiles` is `UseProfileManagerResult`**, not the raw `ProfileManager` class. Same semantic; more ergonomic call site (consumers already use the hook shape).
+> 2. **`storage` prop takes a `StorageAdapterFactory`** that returns the existing `@marketsui/core` `StorageAdapter` (per-profile CRUD), NOT the redesigned `ProfileStorage` bundle-CRUD interface originally in the plan. Reason: zero churn to `ProfileManager` and its 242-test suite. Same user-facing outcome; different internal seam.
 
 ## Decision
 

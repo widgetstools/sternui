@@ -5,4 +5,10 @@ export { DraggableFloat } from './DraggableFloat';
 export { SettingsSheet, type SettingsSheetProps } from './SettingsSheet';
 export { ProfileSelector, type ProfileSelectorProps } from './ProfileSelector';
 export { HelpPanel } from './HelpPanel';
-export type { MarketsGridProps, SavedFilter } from './types';
+export type {
+  MarketsGridProps,
+  SavedFilter,
+  AdminAction,
+  MarketsGridHandle,
+  StorageAdapterFactory,
+} from './types';

@@ -39,6 +39,10 @@ export type {
   BulkUpdateEntry,
   BulkDeleteResult,
   HealthStatus,
+  AppRegistryOps,
+  UserProfileOps,
+  RoleOps,
+  PermissionOps,
 } from './client';
 
 // ─── Lower-level ConfigManager ──────────────────────────────────────
@@ -61,3 +65,17 @@ export type {
   SeedData,
   UserProfileRow,
 } from './types';
+
+// ─── MarketsGrid profile storage (StorageAdapter factory) ───────────
+// ConfigService-backed persistence for <MarketsGrid>. Pass the factory
+// to MarketsGrid's `storage` prop to opt-in to cross-device profile
+// sync scoped by (appId, userId, instanceId).
+export {
+  createConfigServiceStorage,
+  migrateProfilesToConfigService,
+  MARKETS_GRID_PROFILE_COMPONENT_TYPE,
+  type ConfigServiceStorageOptions,
+  type ProfileStorageFactory,
+  type ProfileSnapshot,
+  type StorageAdapter,
+} from './profile-storage';

@@ -1,4 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ForwardedRef,
+  type ReactElement,
+  type RefAttributes,
+} from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
@@ -33,7 +44,12 @@ import {
   type StorageAdapter,
 } from '@marketsui/core';
 import { Save, Check, Settings as SettingsIcon, Brush } from 'lucide-react';
-import type { MarketsGridProps } from './types';
+import type {
+  AdminAction,
+  MarketsGridHandle,
+  MarketsGridProps,
+  StorageAdapterFactory,
+} from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
@@ -80,7 +96,10 @@ export const DEFAULT_MODULES: AnyModule[] = [
   gridStateModule,
 ];
 
-export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
+function MarketsGridInner<TData = unknown>(
+  props: MarketsGridProps<TData>,
+  ref: ForwardedRef<MarketsGridHandle>,
+) {
   const {
     rowData,
     columnDefs: baseColumnDefs,
@@ -105,6 +124,11 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
     onGridReady: onGridReadyProp,
     className,
     style,
+    // v2 additions
+    instanceId,
+    storage,
+    onReady,
+    adminActions,
   } = props;
 
   ensureAgGridRegistered();
@@ -133,6 +157,21 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
     [style],
   );
 
+  // Resolve effective instance id — framework-hosted widgets pass
+  // `instanceId` explicitly (from customData / launch env). Standalone
+  // consumers omit it; we fall back to `gridId` so the key is still
+  // stable per-grid.
+  const effectiveInstanceId = instanceId ?? gridId;
+
+  // Storage precedence: factory > direct adapter > MemoryAdapter default.
+  // Consumers typically use the factory (createConfigServiceStorage)
+  // which closes over (appId, userId) at bootstrap and produces a
+  // per-instance adapter here.
+  const resolvedAdapter = useMemo<StorageAdapter | undefined>(() => {
+    if (storage) return storage(effectiveInstanceId);
+    return storageAdapter as StorageAdapter | undefined;
+  }, [storage, storageAdapter, effectiveInstanceId]);
+
   return (
     <GridProvider platform={platform}>
       <Host
@@ -159,12 +198,21 @@ export function MarketsGrid<TData = unknown>(props: MarketsGridProps<TData>) {
         className={className}
         rootStyle={rootStyle}
         gridRef={gridRef}
-        storageAdapter={storageAdapter as StorageAdapter | undefined}
+        storageAdapter={resolvedAdapter}
         autoSaveDebounceMs={autoSaveDebounceMs}
+        forwardedRef={ref}
+        onReady={onReady}
+        adminActions={adminActions}
       />
     </GridProvider>
   );
 }
+
+// Generic forwardRef cast — canonical TS workaround for typed generic handles.
+// Consumers get correct inference on TData AND ref access to MarketsGridHandle.
+export const MarketsGrid = forwardRef(MarketsGridInner) as <TData = unknown>(
+  props: MarketsGridProps<TData> & RefAttributes<MarketsGridHandle>,
+) => ReactElement;
 
 /**
  * Inner shell — runs INSIDE the GridProvider so it can call hooks
@@ -197,6 +245,9 @@ function Host<TData>({
   gridRef,
   storageAdapter,
   autoSaveDebounceMs,
+  forwardedRef,
+  onReady,
+  adminActions,
 }: {
   rowData: TData[];
   columnDefs: unknown[];
@@ -223,6 +274,9 @@ function Host<TData>({
   gridRef: React.RefObject<AgGridReact<TData> | null>;
   storageAdapter: StorageAdapter | undefined;
   autoSaveDebounceMs: number | undefined;
+  forwardedRef: ForwardedRef<MarketsGridHandle>;
+  onReady: ((handle: MarketsGridHandle) => void) | undefined;
+  adminActions: AdminAction[] | undefined;
 }) {
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
@@ -245,6 +299,29 @@ function Host<TData>({
 
   const platform = useGridPlatform();
   const api = useGridApi();
+
+  // ── Imperative handle ─────────────────────────────────────────────
+  // Populated once AG-Grid's onGridReady has fired (api becomes non-null)
+  // which in turn has already let GridPlatform run the module pipeline,
+  // including the active profile apply. Consumers reading `ref.current`
+  // before this see `null` (React ref semantics); after this see the
+  // stable handle. `onReady` fires exactly once per mount.
+  const handleRef = useRef<MarketsGridHandle | null>(null);
+  handleRef.current = api ? { gridApi: api, platform, profiles } : null;
+
+  useImperativeHandle(
+    forwardedRef,
+    () => handleRef.current as MarketsGridHandle,
+    [api, platform, profiles],
+  );
+
+  const readyFiredRef = useRef(false);
+  useEffect(() => {
+    if (!readyFiredRef.current && handleRef.current) {
+      readyFiredRef.current = true;
+      onReady?.(handleRef.current);
+    }
+  }, [api, onReady]);
 
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -595,6 +672,7 @@ function Host<TData>({
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         initialModuleId="conditional-styling"
+        adminActions={adminActions}
       />
 
       {/* Unsaved-changes prompt fired by the profile switcher when the
