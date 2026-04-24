@@ -73,6 +73,7 @@ export type {
 export {
   createConfigServiceStorage,
   migrateProfilesToConfigService,
+  ProfileSetVersionConflictError,
   MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
   /** @deprecated alias for `MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE` — same value */
   MARKETS_GRID_PROFILE_COMPONENT_TYPE,

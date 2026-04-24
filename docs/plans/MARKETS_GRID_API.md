@@ -434,6 +434,27 @@ function createCachedStorage(
 
 Not in scope for v1 — document the error behavior, let apps compose.
 
+## Concurrency
+
+The bundled row carries a `version: number` that's bumped on every
+successful `saveProfile` / `deleteProfile`. Adapter reads the row's
+current version right before writing; if it has advanced since the
+caller's load, it throws `ProfileSetVersionConflictError`.
+
+This catches two-tab / two-device races cheaply. Caller handling:
+- **ProfileManager** (today): lets the error propagate through its
+  normal error channel.
+- **Future**: wrap `saveActiveProfile` to detect the error + surface a
+  "changes conflict" toast with Reload / Overwrite options. Deferred.
+
+Rows predating the version field self-heal: `normalizePayload` treats
+missing `version` as 0; the next save stamps 1. No explicit migration.
+
+For a real REST backend, the adapter should add `If-Match: <version>`
+on PUT so the server enforces the check (client-side compare is
+racy across multi-tab writes under Dexie's non-transactional
+saveConfig). Deferred until real REST mode lands.
+
 ## Non-goals
 
 - **No auto-migration on boot.** Consumer must opt into migration explicitly.

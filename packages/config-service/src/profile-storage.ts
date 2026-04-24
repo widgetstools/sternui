@@ -69,9 +69,45 @@ export const MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE = 'markets-grid-profile-set
  *  it now just points at the set-style constant. */
 export const MARKETS_GRID_PROFILE_COMPONENT_TYPE = MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
 
-/** Payload shape inside the single-row bundle. */
+/** Payload shape inside the single-row bundle.
+ *
+ *  `version` is an opaque monotonic counter bumped on every successful
+ *  `saveSet`. The adapter uses it to detect concurrent writes from
+ *  another tab / device: on save we read the current row's version,
+ *  write `expected + 1`, and throw `ProfileSetVersionConflictError` if
+ *  the row's version has moved on. Rows predating the version field
+ *  are treated as version 0 and self-heal on the first save. */
 interface ProfileSetPayload {
+  version: number;
   profiles: ProfileSnapshot[];
+}
+
+/**
+ * Thrown by the ConfigService storage adapter when a `saveProfile`,
+ * `deleteProfile`, or other write observes that the backing row's
+ * version has advanced since it was loaded — meaning another writer
+ * (another tab, another device) beat this one to the row.
+ *
+ * Consumers `catch` this to surface a "changes conflict" UI. A simple
+ * recovery path is to reload and let the user reapply; a nicer one
+ * merges + retries. MarketsGrid does not catch this today — it
+ * propagates up through ProfileManager's normal error channel, which
+ * means failed saves surface as unhandled rejections. Wrapping with a
+ * user-visible toast is a deferred follow-up (see
+ * docs/plans/MARKETS_GRID_API.md §Deferred).
+ */
+export class ProfileSetVersionConflictError extends Error {
+  readonly name = 'ProfileSetVersionConflictError';
+  constructor(
+    public readonly expected: number,
+    public readonly actual: number,
+    public readonly instanceId: string,
+  ) {
+    super(
+      `Profile set for instance "${instanceId}" was modified by another writer. `
+      + `Expected version ${expected}, found ${actual}. Reload to see the latest state.`,
+    );
+  }
 }
 
 export interface ConfigServiceStorageOptions {
@@ -158,10 +194,38 @@ export function createConfigServiceStorage(
       return normalizePayload(row.payload);
     };
 
-    const saveSet = async (set: ProfileSetPayload): Promise<void> => {
+    /**
+     * Write the bundle with optimistic-concurrency check.
+     *
+     * `expectedVersion` is the version the caller observed on its
+     * read. `saveSet` re-reads the row right before writing, compares,
+     * and throws `ProfileSetVersionConflictError` on mismatch — a
+     * cheap way to catch two-tab / two-device races before they
+     * silently clobber each other.
+     *
+     * The read-compare-write isn't atomic at the client (JavaScript
+     * isn't transactional across two awaits). For local Dexie the
+     * race window is microscopic — JS is single-threaded per tab,
+     * and Dexie serializes writes within a tab. For future REST
+     * backends, the adapter should add `If-Match: <version>` on the
+     * PUT so the server enforces the check; that's deferred until
+     * real REST mode lands.
+     */
+    const saveSet = async (
+      set: ProfileSetPayload,
+      expectedVersion: number,
+    ): Promise<void> => {
       const now = new Date().toISOString();
-      // Preserve original creationTime if the row already exists.
       const existing = await configManager.getConfig(rowId);
+      const actualVersion = isProfileSetRow(existing, appId, userId)
+        ? readVersion(existing.payload)
+        : 0;
+
+      if (actualVersion !== expectedVersion) {
+        throw new ProfileSetVersionConflictError(expectedVersion, actualVersion, instanceId);
+      }
+
+      // Preserve original creationTime if the row already exists.
       const creationTime = isProfileSetRow(existing, appId, userId)
         ? (existing?.creationTime ?? now)
         : now;
@@ -174,7 +238,7 @@ export function createConfigServiceStorage(
         componentType: MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
         componentSubType: '',
         isTemplate: false,
-        payload: set,
+        payload: { ...set, version: expectedVersion + 1 },
         createdBy: userId,
         updatedBy: userId,
         creationTime,
@@ -192,23 +256,29 @@ export function createConfigServiceStorage(
       },
 
       async saveProfile(snapshot: ProfileSnapshot): Promise<void> {
-        const set = (await loadSet()) ?? { profiles: [] };
-        const idx = set.profiles.findIndex((p) => p.id === snapshot.id);
+        // Load the existing bundle, then upsert the snapshot and
+        // write back. The expected-version from the load is threaded
+        // into saveSet so a second writer that landed in between
+        // gets caught on the version-compare.
+        const loaded = await loadSet();
+        const expectedVersion = loaded?.version ?? 0;
+        const profiles = loaded?.profiles ?? [];
+        const idx = profiles.findIndex((p) => p.id === snapshot.id);
         if (idx >= 0) {
-          set.profiles[idx] = snapshot;
+          profiles[idx] = snapshot;
         } else {
-          set.profiles.push(snapshot);
+          profiles.push(snapshot);
         }
-        await saveSet(set);
+        await saveSet({ version: expectedVersion, profiles }, expectedVersion);
       },
 
       async deleteProfile(gridId: string, profileId: string): Promise<void> {
         void gridId;
-        const set = await loadSet();
-        if (!set) return;
-        const filtered = set.profiles.filter((p) => p.id !== profileId);
-        if (filtered.length === set.profiles.length) return; // not found; no-op
-        await saveSet({ profiles: filtered });
+        const loaded = await loadSet();
+        if (!loaded) return;
+        const filtered = loaded.profiles.filter((p) => p.id !== profileId);
+        if (filtered.length === loaded.profiles.length) return; // not found; no-op
+        await saveSet({ version: loaded.version, profiles: filtered }, loaded.version);
       },
 
       async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
@@ -236,16 +306,28 @@ function isProfileSetRow(
 }
 
 /** Defensively normalize the persisted payload back into a
- *  ProfileSetPayload. Guards against malformed / legacy shapes. */
+ *  ProfileSetPayload. Guards against malformed / legacy shapes.
+ *
+ *  Pre-version rows (written before the version-field landed) are
+ *  treated as version 0 — they self-heal on the next save when the
+ *  adapter writes a proper version field. No explicit migration
+ *  pass required. */
 function normalizePayload(payload: unknown): ProfileSetPayload {
-  const p = payload as { profiles?: unknown } | null | undefined;
+  const p = payload as { profiles?: unknown; version?: unknown } | null | undefined;
   const arr = Array.isArray(p?.profiles) ? p.profiles : [];
   const profiles: ProfileSnapshot[] = [];
   for (const raw of arr) {
     const snap = normalizeSnapshot(raw);
     if (snap) profiles.push(snap);
   }
-  return { profiles };
+  return { version: readVersion(p), profiles };
+}
+
+/** Pull the `version` number out of a payload, tolerating the pre-
+ *  version-field shape. Missing / non-numeric values map to 0. */
+function readVersion(payload: unknown): number {
+  const v = (payload as { version?: unknown } | null | undefined)?.version;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
 }
 
 function normalizeSnapshot(raw: unknown): ProfileSnapshot | null {

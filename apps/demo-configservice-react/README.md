@@ -141,6 +141,21 @@ Both run simultaneously and persist to different IndexedDB databases
 (`demo-react` → Grid Customizer profiles DB; this demo →
 `marketsui-config` DB via ConfigManager).
 
+## Optimistic concurrency
+
+Every profile-set row carries a monotonic `version` number. The
+adapter bumps it on each save and rejects saves that observe the
+row has advanced since the last load — a `ProfileSetVersionConflictError`
+is thrown from the ConfigService adapter.
+
+Two-tab smoke test (after shipping the version field):
+
+- [ ] Open `http://localhost:5191` in two tabs as user `dev1`.
+- [ ] In tab 1: create profile "A", save. Check Config Browser — row's payload now has `version: <N>`.
+- [ ] In tab 2: reload to pick up A, then create profile "B", save. Check Config Browser — `version: <N+1>`.
+- [ ] In tab 1 (without reloading): edit A, save → throws `ProfileSetVersionConflictError` (tab 1 still thinks version is N, but actual is N+1). Current UI propagates this as an unhandled rejection; wrapping in a user-visible toast with Reload / Overwrite options is a deferred follow-up.
+- [ ] Reload tab 1 and retry — succeeds.
+
 ## Things you can verify
 
 - [ ] Open `http://localhost:5191`. Active user defaults to **dev1**. Showcase profile loads automatically.
