@@ -20,9 +20,18 @@
     "tailwind-merge": "^2.6.0"
   },
   "peerDependencies": {
+    "@marketsui/markets-grid": "*",
     "ag-grid-community": ">=35.0.0",
     "ag-grid-react": ">=35.0.0",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@marketsui/markets-grid": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@marketsui/markets-grid": "*"
   }
 }

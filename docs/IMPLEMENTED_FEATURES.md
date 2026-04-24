@@ -879,6 +879,69 @@ that forbids `unsafe-eval`.
 
 ---
 
+## 1.N MarketsGrid v2 API — imperative handle, storage factory, admin actions
+
+Consumer-facing API additions on `<MarketsGrid>`. All four props are
+**optional** and **additive** — apps on the today's API (`storageAdapter`
+only) keep working unchanged. Plan doc:
+[`docs/plans/MARKETS_GRID_API.md`](./plans/MARKETS_GRID_API.md).
+
+### What shipped
+
+| Prop | Purpose | Default |
+|---|---|---|
+| `ref` + `MarketsGridHandle` | Imperative handle exposing `{ gridApi, platform, profiles }` via `forwardRef`. `profiles` is `UseProfileManagerResult` (hook-shaped wrapper — ergonomic delta from the plan's original `ProfileManager` class). | no handle exposed |
+| `onReady?` | Same handle delivered via callback; fires exactly once per mount after AG-Grid ready + platform mount + active profile applied. | no-op |
+| `instanceId?` | Stable per-instance identity from a framework (OpenFin customData). | falls back to `gridId` |
+| `storage?: StorageAdapterFactory` | Factory `(instanceId) => StorageAdapter`. Typically closes over `(appId, userId)` at app bootstrap. Takes precedence over `storageAdapter`. | falls back to `storageAdapter`, then `MemoryAdapter` |
+| `adminActions?: AdminAction[]` | Entries rendered in the settings-sheet Tools dropdown (Wrench icon in header). Hidden entirely when array is empty or all-hidden. | no Tools button |
+
+### ConfigService-backed persistence
+
+`@marketsui/config-service` ships `createConfigServiceStorage({ configManager, appId, userId })` — a `StorageAdapterFactory` that persists profiles as `AppConfigRow` rows:
+
+| Field | Value |
+|---|---|
+| `componentType` | `"markets-grid-profile"` |
+| `componentSubType` | `<instanceId>` |
+| `configId` | `"<instanceId>::<profileId>"` (composite primary key) |
+| `appId` / `userId` | baked into the factory closure |
+| `payload` | the `ProfileSnapshot` |
+
+Also exports `migrateProfilesToConfigService({ source, target, gridId, ... })` — consumer-triggered, one-shot migration from `DexieAdapter`/`MemoryAdapter` → ConfigService storage. `skip-if-exists` default, `overwrite` available.
+
+### ConfigBrowser integration
+
+`@marketsui/config-browser` ships `createConfigBrowserAction({ launch })` — returns an `AdminAction` with default id / label / icon / description. Consumer supplies just the launch callback (route, OpenFin window, overlay — whatever fits the app). Apps that don't use ConfigBrowser omit the dep; no forced coupling.
+
+### Demo app
+
+`apps/demo-configservice-react` (port 5191) — forked from `apps/demo-react`, same three views (single / dashboard / depth), but persistence routes through the ConfigService factory. Demonstrates:
+
+- Per-user profile scoping (Alice / Bob switcher in header)
+- Cross-grid profile isolation under one `(appId, userId)` scope
+- Full-screen ConfigBrowser overlay launched via the Tools menu
+- Showcase profile seeded per-user via the same factory MarketsGrid uses (so seed rows are inspectable in the Config Browser)
+
+Run side-by-side with `apps/demo-react` on 5190 for A/B comparison (different IndexedDB databases, no clobbering).
+
+### Layer cleanliness
+
+- `@marketsui/core`'s `StorageAdapter` interface unchanged — 242 existing tests untouched.
+- `@marketsui/config-service` declares `@marketsui/core` as an **optional** peerDependency (type-only).
+- `@marketsui/config-browser` declares `@marketsui/markets-grid` as an **optional** peerDependency (for the `AdminAction` type the helper returns).
+- `<MarketsGrid>` does NOT import anything from `@marketsui/config-browser` or `@marketsui/config-service` — the admin-actions slot is the integration seam. Composition, not coupling.
+
+### Angular mirror
+
+Deferred to ANGULAR_PORT Phase 4 (`docs/plans/ANGULAR_PORT.md`) — the plan's Angular selectors (`mkt-markets-grid` with `[adminActions]` and `(ready)`) ship together with `@marketsui/markets-grid-angular`. React API is the frozen reference shape.
+
+### Tests + verification
+
+298 unit tests unchanged (242 core + 56 markets-grid). `npx turbo typecheck build test` → 55/55 green across 3 new files (`registry-host-env.ts`, `profile-storage.ts`, `helpers.ts`) + 2 modified components (`MarketsGrid.tsx`, `SettingsSheet.tsx`) + 1 new demo app (25 files).
+
+---
+
 ## 2. Summary Statistics
 
 | Category | Count |

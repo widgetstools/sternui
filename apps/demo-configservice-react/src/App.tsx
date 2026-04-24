@@ -9,7 +9,12 @@ import {
   createConfigServiceStorage,
   type ConfigManager,
 } from '@marketsui/config-service';
-import { Sun, Moon, User, Database } from 'lucide-react';
+import { setConfigManager as publishSharedConfigManager } from '@marketsui/openfin-platform';
+import {
+  ConfigBrowserPanel,
+  createConfigBrowserAction,
+} from '@marketsui/config-browser';
+import { Sun, Moon, User, Database, X } from 'lucide-react';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -251,6 +256,11 @@ function AppInner() {
   // would pass `{ restUrl, apiKey }` here to push writes upstream.
   const [configManager, setConfigManager] = useState<ConfigManager | null>(null);
   const [cfgError, setCfgError] = useState<Error | null>(null);
+  // Full-screen ConfigBrowser overlay — toggled by the admin action's
+  // launch callback. A real app might use a route, OpenFin window, or
+  // modal instead; the AdminAction onClick is just a thunk so we can
+  // do whatever feels right in this context.
+  const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
 
   // Apply data-theme attribute to root and persist preference
   useEffect(() => {
@@ -278,11 +288,21 @@ function AppInner() {
   // in the demo). Awaiting init gates the factory behind a loaded
   // configuration — we don't want MarketsGrid to race its first
   // listProfiles call against a half-initialized Dexie table.
+  //
+  // Also publish the instance to @marketsui/openfin-platform's shared
+  // singleton so `<ConfigBrowserPanel>` (which reads via getConfigManager())
+  // sees the same ConfigManager. Without this, the browser's fallback
+  // path would create a second manager against the same Dexie DB —
+  // functional but wasteful.
   useEffect(() => {
     let alive = true;
     const mgr = createConfigManager({});
     mgr.init()
-      .then(() => { if (alive) setConfigManager(mgr); })
+      .then(() => {
+        if (!alive) return;
+        publishSharedConfigManager(mgr); // share with ConfigBrowserPanel's hook
+        setConfigManager(mgr); // local state for factory memoization
+      })
       .catch((err) => { if (alive) setCfgError(err); });
     return () => {
       alive = false;
@@ -309,26 +329,13 @@ function AppInner() {
   }, [userId]);
 
   // Admin actions surfaced in the MarketsGrid settings-sheet Tools
-  // menu. Today this is a ConfigBrowser stub — the real helper
-  // (`createConfigBrowserAction` from @marketsui/config-browser)
-  // will plug in here once the ConfigBrowser packages are committed.
+  // menu. One entry: launch the real @marketsui/config-browser
+  // full-screen overlay. `createConfigBrowserAction` supplies the
+  // default id/label/icon/description; we just wire the launch.
   const adminActions = useMemo<AdminAction[]>(() => [
-    {
-      id: 'config-browser',
-      label: 'Config Browser',
-      icon: 'lucide:database',
-      description: 'Inspect raw ConfigService rows (stub — real browser wires in separately)',
-      onClick: () => {
-        alert(
-          'Config Browser would open here.\n\n'
-          + 'Integration point is wired end-to-end: <MarketsGrid> exposes '
-          + 'the adminActions slot, and this demo passes a single entry '
-          + 'that would launch @marketsui/config-browser. The real helper '
-          + '(createConfigBrowserAction) ships with the ConfigBrowser '
-          + 'package once that lands on main.',
-        );
-      },
-    },
+    createConfigBrowserAction({
+      launch: () => setConfigBrowserOpen(true),
+    }),
   ], []);
 
   // One-shot seed of the Showcase profile per user. Seeds via the same
@@ -574,6 +581,57 @@ function AppInner() {
         />
       ) : (
         <MarketDepth isDark={isDark} />
+      )}
+
+      {/* ConfigBrowser full-screen overlay. Rendered only when opened
+          from the Tools dropdown. The Panel self-bootstraps via
+          @marketsui/openfin-platform's getConfigManager() — which we
+          already pointed at the demo's ConfigManager via
+          publishSharedConfigManager(). A real app would use a route or
+          OpenFin window instead of an overlay; this is the quickest
+          way to demo the integration without adding a router. */}
+      {configBrowserOpen && (
+        <div
+          data-testid="config-browser-overlay"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            display: 'flex', flexDirection: 'column',
+            background: 'var(--background)',
+          }}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 12px', borderBottom: '1px solid var(--border)',
+            background: 'var(--card)', flexShrink: 0,
+          }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: 'var(--muted-foreground)',
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}>
+              Config Browser · {APP_ID} / {userId}
+            </span>
+            <button
+              onClick={() => setConfigBrowserOpen(false)}
+              data-testid="config-browser-close"
+              title="Close Config Browser"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 5,
+                border: '1px solid var(--border)',
+                background: 'var(--secondary)',
+                color: 'var(--foreground)',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={13} strokeWidth={1.75} />
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+            <ConfigBrowserPanel />
+          </div>
+        </div>
       )}
     </div>
   );
