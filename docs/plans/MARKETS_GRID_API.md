@@ -464,3 +464,289 @@ Three scenarios a team might be in:
    Pass `storage` into every `<MarketsGrid>` (or have your widget wrapper do it). Grid now persists to ConfigService scoped by `(appId, userId, instanceId)`.
 3. **Migrating an existing localStorage deployment to ConfigService.** Build a one-time admin action that calls `migrateProfilesToConfigService(...)` for each known (gridId, user) pair. Ship it once, remove it after the migration window closes.
 
+---
+
+# §Admin Actions — extensible settings-sheet slot (ConfigBrowser + future tools)
+
+> **Problem.** When `<MarketsGrid>` persists via ConfigService, admins need a way to inspect + edit the raw config rows. The `@marketsui/config-browser` and `@marketsui/angular-config-browser` packages already provide that UI in both frameworks. MarketsGrid's settings sheet is the natural launch point, but MarketsGrid shouldn't take a hard dep on config-browser — that would entangle an end-user widget with admin tooling it shouldn't know about.
+>
+> **Solution.** Generalized `adminActions` prop — MarketsGrid exposes a slot; consumer apps fill it. ConfigBrowser is one common entry; audit-log viewers, perf traces, etc., plug into the same slot.
+
+## Decisions
+
+| Decision | Value |
+|---|---|
+| Extension shape | `adminActions: AdminAction[]` prop on `<MarketsGrid>` |
+| MarketsGrid → config-browser dep | **None.** Consumer apps mount ConfigBrowser themselves and wire the launcher. |
+| UX placement | Tools button in the settings-sheet header → dropdown listing actions |
+| Visibility | Tools button hidden when `adminActions` is empty or every entry has `visible: false` |
+| Role gating | Consumer's concern — `visible: boolean` on each action |
+| Launch semantics | `onClick: () => void \| Promise<void>` — consumer decides route/window/modal |
+| Convenience helper | `createConfigBrowserAction(...)` exported from `@marketsui/config-browser` for the common case |
+
+## The interface
+
+```typescript
+// @marketsui/markets-grid — new export
+
+export interface AdminAction {
+  /** Stable id. Used for React key + testid (`admin-action-${id}`). */
+  id: string;
+  /** Human-readable label shown in the Tools dropdown. */
+  label: string;
+  /** Icon ref (mkt:* or lucide:*). Optional; defaults to `lucide:wrench`. */
+  icon?: string;
+  /** Muted subtitle below the label, optional. */
+  description?: string;
+  /** Invoked when the user clicks the action. Consumer decides what
+   *  "launching" means — navigate, open a window, show a modal, etc. */
+  onClick: () => void | Promise<void>;
+  /** When false, the action is omitted from the dropdown. Use for
+   *  role gating (e.g., `visible: user.hasRole('admin')`). Default true. */
+  visible?: boolean;
+}
+```
+
+## UX — Tools button in the settings-sheet header
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Settings                       [🛠 Tools ▼] [  ×  ]│
+├─────────────────────────────────────────────────────┤
+│  Module dropdown nav ▼                              │
+│                                                     │
+│  Currently-selected panel content                   │
+│                                                     │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+Click the Tools button → compact dropdown lists every visible action:
+
+```
+                                  ┌─────────────────────┐
+                                  │ [🗄] Config Browser │
+                                  │     Browse and edit │
+                                  │     raw ConfigService│
+                                  │     rows            │
+                                  │                     │
+                                  │ [📋] Audit Log      │
+                                  │     (future)        │
+                                  └─────────────────────┘
+```
+
+- **Hidden when empty.** If no `adminActions` are passed, or every entry has `visible: false`, the Tools button itself is omitted — end-user grids show zero chrome churn.
+- **Single click path.** One click to open, one to act. No nested dropdowns.
+- **Testids:** `settings-tools-button`, `settings-tools-menu`, `admin-action-${id}` — stable for e2e.
+
+### Why this over a "tabs under settings" or "footer row" layout
+
+- **Tabs / dropdown entry** puts admin tooling on the same visual footing as end-user modules. Wrong signal — admin tools are an escape hatch, not a mode.
+- **Footer row** adds permanent chrome to every settings sheet, even for end users without admin role. Option C keeps end-user UX unchanged.
+- **Tools button in header** = admin tools are visibly a separate surface, and the affordance cost is zero when no actions are present.
+
+## Consumer wiring — React
+
+```tsx
+import { ConfigBrowserPanel } from '@marketsui/config-browser';
+import { createConfigServiceStorage } from '@marketsui/config-service';
+import { useNavigate } from 'react-router-dom';
+
+function BondBlotter() {
+  const navigate = useNavigate();
+  const user = useCurrentUser();
+  const host = useOpenFinHost();
+
+  const storage = useMemo(
+    () => createConfigServiceStorage({
+      baseUrl: host.configServiceUrl,
+      appId: host.appId,
+      userId: user.id,
+    }),
+    [host.configServiceUrl, host.appId, user.id],
+  );
+
+  return (
+    <MarketsGrid
+      gridId="bond-blotter"
+      instanceId={host.instanceId}
+      storage={storage}
+      adminActions={[
+        {
+          id: 'config-browser',
+          label: 'Config Browser',
+          icon: 'lucide:database',
+          description: 'Browse and edit raw ConfigService rows',
+          onClick: () => navigate('/config-browser'),
+          visible: user.hasRole('admin'),
+        },
+      ]}
+    />
+  );
+}
+
+// Elsewhere in the app:
+<Route path="/config-browser" element={<ConfigBrowserPanel />} />
+```
+
+## Consumer wiring — Angular
+
+```typescript
+// bond-blotter.component.ts
+import type { AdminAction } from '@marketsui/markets-grid';
+import { Router } from '@angular/router';
+
+@Component({ selector: 'mkt-bond-blotter', ... })
+export class BondBlotterComponent {
+  private readonly router = inject(Router);
+  private readonly host = inject(OpenFinHostService);
+  private readonly user = inject(CurrentUserService);
+
+  readonly adminActions: AdminAction[] = [
+    {
+      id: 'config-browser',
+      label: 'Config Browser',
+      icon: 'lucide:database',
+      description: 'Browse and edit raw ConfigService rows',
+      onClick: () => this.router.navigate(['/config-browser']),
+      visible: this.user.hasRole('admin'),
+    },
+  ];
+}
+```
+
+```html
+<mkt-markets-grid
+  gridId="bond-blotter"
+  [instanceId]="host.instanceId()"
+  [storage]="storage"
+  [adminActions]="adminActions" />
+```
+
+## OpenFin variant — launch as a separate window
+
+When the consumer app wants Config Browser in its own OpenFin window (typical for workspace-style apps):
+
+```typescript
+onClick: async () => {
+  const platform = fin.Platform.getCurrentSync();
+  await platform.createWindow({
+    name: 'config-browser',
+    url: `${window.location.origin}/config-browser`,
+    customData: { appId: host.appId, userId: user.id },
+    defaultWidth: 1280,
+    defaultHeight: 800,
+    defaultCentered: true,
+  });
+},
+```
+
+Same `AdminAction` shape; only `onClick` differs. MarketsGrid stays agnostic.
+
+## Convenience helper — `createConfigBrowserAction`
+
+For apps that want the entry without hand-rolling it:
+
+```typescript
+// @marketsui/config-browser — new export
+import type { AdminAction } from '@marketsui/markets-grid';
+
+export function createConfigBrowserAction(opts: {
+  /** Called when the user clicks the action. Consumer decides
+   *  route / window / modal. */
+  launch: () => void | Promise<void>;
+  /** Override the default id (for apps that need multiple config-browser
+   *  entries — e.g., scoped to different apps). */
+  id?: string;
+  /** Override the default label. */
+  label?: string;
+  /** Role gate. Default: always visible (consumer handles gating). */
+  visible?: boolean;
+}): AdminAction {
+  return {
+    id: opts.id ?? 'config-browser',
+    label: opts.label ?? 'Config Browser',
+    icon: 'lucide:database',
+    description: 'Browse and edit raw ConfigService rows',
+    onClick: opts.launch,
+    visible: opts.visible ?? true,
+  };
+}
+```
+
+Consumer:
+
+```tsx
+<MarketsGrid
+  adminActions={[
+    createConfigBrowserAction({
+      launch: () => navigate('/config-browser'),
+      visible: user.hasRole('admin'),
+    }),
+  ]}
+/>
+```
+
+Both the raw `AdminAction` object and the helper work interchangeably.
+
+## Why MarketsGrid does NOT take a dep on `@marketsui/config-browser`
+
+- **Layer cleanliness.** MarketsGrid is a widget primitive. ConfigBrowser is an admin tool. Pulling admin tooling into a user-facing widget inverts the dep direction that Architecture.md's layers prescribe.
+- **Bundle size.** ConfigBrowser pulls `ag-grid-community` + its own adapter UI + table schemas. Consumers who don't use it shouldn't pay for it. With the `adminActions` pattern, only apps that use Config Browser bundle it.
+- **Composability.** Future admin entries (audit log, perf trace, user manager) slot into the same `adminActions` array without further changes to MarketsGrid.
+- **Consumer control.** Mount points, routing, OpenFin window creation, role gating — all consumer concerns. MarketsGrid isn't the right place for that logic.
+
+## Affected files (when executed — NOT NOW)
+
+| File | Change |
+|---|---|
+| `packages/markets-grid/src/types.ts` | NEW export: `AdminAction` interface |
+| `packages/markets-grid/src/MarketsGrid.tsx` | New optional prop `adminActions`; thread into `SettingsSheet` |
+| `packages/markets-grid/src/SettingsSheet.tsx` (or equivalent) | Render Tools button in header when `adminActions` has ≥1 visible entry; dropdown menu on click; map each action onto an item with `onClick` / aria / testids |
+| `packages/markets-grid-angular/*` | Mirror: `[adminActions]` input + Tools button in the component template (per ANGULAR_PORT) |
+| `packages/config-browser/src/index.ts` | NEW export: `createConfigBrowserAction()` |
+| `packages/config-browser-angular/src/index.ts` | NEW export: same helper, Angular-compatible |
+| `e2e/v2-admin-actions.spec.ts` | NEW — scenarios: no actions → tools button hidden; one action → button visible, dropdown shows entry, click invokes callback; visible:false → entry omitted |
+| `docs/IMPLEMENTED_FEATURES.md` | Add "MarketsGrid admin actions slot (Config Browser + extensibility)" |
+
+## Non-goals
+
+- **No built-in Config Browser in MarketsGrid.** Consumer mounts and launches it. MarketsGrid is agnostic.
+- **No auto-role detection.** MarketsGrid doesn't know about ConfigService roles or permissions. Consumer passes `visible` flags based on its own auth context.
+- **No grouping / nested dropdowns.** Flat list of actions. If apps ever need 10+ admin actions and want categories, revisit — but that's a symptom of doing too much inside the settings sheet, probably better solved by a dedicated admin view.
+- **No action ordering API.** Order is the array order the consumer passes. If the same consumer composes actions from multiple sources, they sort before passing.
+- **No async loading / spinners during onClick.** If the launch involves slow work, the consumer handles the UX. Action callbacks fire-and-forget from MarketsGrid's perspective.
+
+## Cross-references
+
+- [`SHELL_AND_REGISTRY.md`](./SHELL_AND_REGISTRY.md) — role model + `requiredPermissions` on registry entries; the same role source informs `visible` flags on admin actions
+- [`ANGULAR_PORT.md`](./ANGULAR_PORT.md) — Angular MarketsGrid implements `[adminActions]` input from day 1
+
+## Summary of all `<MarketsGrid>` v2 prop additions (handle + storage + admin)
+
+Cumulative from this plan doc:
+
+```tsx
+<MarketsGrid
+  // ── existing props (unchanged) ───────────────────────────────
+  gridId="bond-blotter"
+  rowData={rows}
+  columnDefs={cols}
+  /* …rest of existing props… */
+
+  // ── §API additions ───────────────────────────────────────────
+  ref={gridRef}                        // forwardRef handle
+  onReady={(handle) => { /* ... */ }}  // callback receiving the same handle
+
+  // ── §Storage additions ───────────────────────────────────────
+  instanceId="bond-blotter-42"         // optional; falls back to gridId
+  storage={profileStorageFactory}      // optional; localStorage default
+
+  // ── §Admin Actions addition ──────────────────────────────────
+  adminActions={[/* AdminAction[] */]} // optional; Tools button hidden when empty
+/>
+```
+
+Four new optional props total. All additive, zero breaking change to today's API. Consumers who do nothing get today's behavior verbatim.
+
+
