@@ -11,12 +11,12 @@ import {
 } from '@marketsui/config-service';
 // /config subpath avoids the @openfin/workspace-platform module-load
 // that would otherwise throw in this plain-browser dev harness.
-import { setConfigManager as publishSharedConfigManager } from '@marketsui/openfin-platform/config';
 import {
-  ConfigBrowserPanel,
-  createConfigBrowserAction,
-} from '@marketsui/config-browser';
-import { Sun, Moon, User, Database, X } from 'lucide-react';
+  setConfigManager as publishSharedConfigManager,
+  encodeHostEnvForQueryString,
+} from '@marketsui/openfin-platform/config';
+import { createConfigBrowserAction } from '@marketsui/config-browser';
+import { Sun, Moon, User, Database } from 'lucide-react';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -258,11 +258,6 @@ function AppInner() {
   // would pass `{ restUrl, apiKey }` here to push writes upstream.
   const [configManager, setConfigManager] = useState<ConfigManager | null>(null);
   const [cfgError, setCfgError] = useState<Error | null>(null);
-  // Full-screen ConfigBrowser overlay — toggled by the admin action's
-  // launch callback. A real app might use a route, OpenFin window, or
-  // modal instead; the AdminAction onClick is just a thunk so we can
-  // do whatever feels right in this context.
-  const [configBrowserOpen, setConfigBrowserOpen] = useState(false);
 
   // Apply data-theme attribute to root and persist preference
   useEffect(() => {
@@ -330,13 +325,31 @@ function AppInner() {
     try { localStorage.setItem(CURRENT_USER_LS_KEY, userId); } catch { /* */ }
   }, [userId]);
 
-  // Admin actions surfaced in the MarketsGrid settings-sheet Tools
-  // menu. One entry: launch the real @marketsui/config-browser
-  // full-screen overlay. `createConfigBrowserAction` supplies the
-  // default id/label/icon/description; we just wire the launch.
+  // Admin actions surfaced at the right edge of MarketsGrid's primary
+  // toolbar row. One entry: launch the real @marketsui/config-browser
+  // in a popout browser window so the user can see the grid AND its
+  // raw ConfigService rows side-by-side. Same-origin = Dexie is
+  // shared → the popout sees writes from the main window on refresh.
   const adminActions = useMemo<AdminAction[]>(() => [
     createConfigBrowserAction({
-      launch: () => setConfigBrowserOpen(true),
+      launch: () => {
+        // Carry the demo's hostEnv via query string so ConfigBrowser's
+        // readHostEnv() returns our appId (instead of the default
+        // 'dev-host') and its queries filter to our rows.
+        const env = encodeHostEnvForQueryString({
+          appId: APP_ID,
+          // Placeholder — everything is local Dexie in the demo. A
+          // real app would pass the REST url so the popout talks to
+          // the same backend.
+          configServiceUrl: 'local-dexie',
+        });
+        const url = `${window.location.origin}${window.location.pathname}?configBrowser=1&hostEnv=${env}`;
+        // Fixed window name = clicking the action a second time
+        // focuses the existing popup instead of spawning a duplicate.
+        const features = 'width=1280,height=800,resizable=yes,scrollbars=yes';
+        const w = window.open(url, 'marketsui-config-browser', features);
+        if (w && !w.closed) w.focus();
+      },
     }),
   ], []);
 
@@ -585,56 +598,6 @@ function AppInner() {
         <MarketDepth isDark={isDark} />
       )}
 
-      {/* ConfigBrowser full-screen overlay. Rendered only when opened
-          from the Tools dropdown. The Panel self-bootstraps via
-          @marketsui/openfin-platform's getConfigManager() — which we
-          already pointed at the demo's ConfigManager via
-          publishSharedConfigManager(). A real app would use a route or
-          OpenFin window instead of an overlay; this is the quickest
-          way to demo the integration without adding a router. */}
-      {configBrowserOpen && (
-        <div
-          data-testid="config-browser-overlay"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            display: 'flex', flexDirection: 'column',
-            background: 'var(--background)',
-          }}
-        >
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 12px', borderBottom: '1px solid var(--border)',
-            background: 'var(--card)', flexShrink: 0,
-          }}>
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: 'var(--muted-foreground)',
-              fontFamily: "'IBM Plex Sans', sans-serif",
-            }}>
-              Config Browser · {APP_ID} / {userId}
-            </span>
-            <button
-              onClick={() => setConfigBrowserOpen(false)}
-              data-testid="config-browser-close"
-              title="Close Config Browser"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 28, height: 28, borderRadius: 5,
-                border: '1px solid var(--border)',
-                background: 'var(--secondary)',
-                color: 'var(--foreground)',
-                cursor: 'pointer',
-              }}
-            >
-              <X size={13} strokeWidth={1.75} />
-            </button>
-          </div>
-          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-            <ConfigBrowserPanel />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

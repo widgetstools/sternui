@@ -78,7 +78,11 @@ export {
 
 // ── Host-env reader + registry schema utilities ─────────────────────
 // (all pure TS, no workspace-platform transitively)
-export { readHostEnv, isHostEnvMissing } from './registry-host-env';
+export {
+  readHostEnv,
+  isHostEnvMissing,
+  encodeHostEnvForQueryString,
+} from './registry-host-env';
 export {
   generateTemplateConfigId,
   deriveSingletonConfigId,

@@ -32,19 +32,61 @@ const DEV_FALLBACK: HostEnv = {
  * If host env is genuinely missing in OpenFin, the returned object
  * carries empty strings and the editor's UI can detect + surface that
  * case via `isHostEnvMissing()`.
+ *
+ * Resolution priority:
+ *   1. OpenFin `fin.me.customData.{appId, configServiceUrl}` — real
+ *      launches inside a workspace window
+ *   2. URL query param `?hostEnv=<base64(json)>` — used by popups spawned
+ *      from non-OpenFin demo apps that need to pass host identity
+ *      without a framework
+ *   3. DEV_FALLBACK — only applies when nothing else is available
  */
 export async function readHostEnv(): Promise<HostEnv> {
-  if (typeof fin === 'undefined') return DEV_FALLBACK;
+  // 1. OpenFin — customData wins
+  if (typeof fin !== 'undefined') {
+    try {
+      const opts = await fin.me.getOptions();
+      const cd = opts?.customData;
+      const appId = typeof cd?.appId === 'string' ? cd.appId : '';
+      const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
+      return { appId, configServiceUrl };
+    } catch {
+      return { appId: '', configServiceUrl: '' };
+    }
+  }
 
+  // 2. Query string override — for standalone-browser popups spawned
+  //    by a parent demo/dev app. Shape:
+  //      ?hostEnv=<base64(JSON.stringify({ appId, configServiceUrl }))>
+  //    Base64 keeps the URL tidy and forgiving of special chars.
+  const qsEnv = readHostEnvFromQueryString();
+  if (qsEnv) return qsEnv;
+
+  // 3. Dev fallback
+  return DEV_FALLBACK;
+}
+
+function readHostEnvFromQueryString(): HostEnv | null {
+  if (typeof window === 'undefined') return null;
   try {
-    const opts = await fin.me.getOptions();
-    const cd = opts?.customData;
-    const appId = typeof cd?.appId === 'string' ? cd.appId : '';
-    const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
+    const raw = new URLSearchParams(window.location.search).get('hostEnv');
+    if (!raw) return null;
+    const decoded = JSON.parse(atob(raw)) as Partial<HostEnv>;
+    const appId = typeof decoded.appId === 'string' ? decoded.appId : '';
+    const configServiceUrl = typeof decoded.configServiceUrl === 'string' ? decoded.configServiceUrl : '';
+    if (!appId && !configServiceUrl) return null;
     return { appId, configServiceUrl };
   } catch {
-    return { appId: '', configServiceUrl: '' };
+    return null;
   }
+}
+
+/**
+ * Helper — encode a HostEnv for use as the `?hostEnv=` query-string
+ * override. Symmetric with the decoder inside `readHostEnv`.
+ */
+export function encodeHostEnvForQueryString(env: HostEnv): string {
+  return btoa(JSON.stringify(env));
 }
 
 /** True when readHostEnv returned empty fields inside a real OpenFin
