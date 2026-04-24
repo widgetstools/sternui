@@ -139,6 +139,8 @@ function MarketsGridInner<TData = unknown>(
     style,
     // v2 additions
     instanceId,
+    appId,
+    userId,
     storage,
     onReady,
     adminActions,
@@ -176,14 +178,29 @@ function MarketsGridInner<TData = unknown>(
   // stable per-grid.
   const effectiveInstanceId = instanceId ?? gridId;
 
+  // Required-companion assertion: a storage factory combined with an
+  // empty identity is almost always a bug (rows land in whatever
+  // scope the factory defaults to — usually "dev-host" — and get
+  // mixed across users). Surface it loudly so the developer catches
+  // the misconfiguration on first mount rather than shipping to
+  // users who then wonder why profiles vanish.
+  if (storage && (!appId || !userId)) {
+    throw new Error(
+      '<MarketsGrid storage={...}> requires `appId` and `userId` props. ' +
+      'ConfigService-backed factories scope rows by (appId, userId, instanceId); ' +
+      'without both identities the factory cannot produce a correctly-scoped adapter. ' +
+      `Received: appId=${JSON.stringify(appId)}, userId=${JSON.stringify(userId)}.`,
+    );
+  }
+
   // Storage precedence: factory > direct adapter > MemoryAdapter default.
-  // Consumers typically use the factory (createConfigServiceStorage)
-  // which closes over (appId, userId) at bootstrap and produces a
-  // per-instance adapter here.
+  // Factory receives an opts object carrying the resolved identity
+  // triple; factories can ignore `appId`/`userId` if they only key on
+  // instanceId (local-storage, in-memory), or honor them (ConfigService).
   const resolvedAdapter = useMemo<StorageAdapter | undefined>(() => {
-    if (storage) return storage(effectiveInstanceId);
+    if (storage) return storage({ instanceId: effectiveInstanceId, appId, userId });
     return storageAdapter as StorageAdapter | undefined;
-  }, [storage, storageAdapter, effectiveInstanceId]);
+  }, [storage, storageAdapter, effectiveInstanceId, appId, userId]);
 
   return (
     <GridProvider platform={platform}>

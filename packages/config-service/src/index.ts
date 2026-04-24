@@ -78,6 +78,7 @@ export {
   MARKETS_GRID_PROFILE_COMPONENT_TYPE,
   type ConfigServiceStorageOptions,
   type ProfileStorageFactory,
+  type ProfileStorageFactoryOpts,
   type ProfileSnapshot,
   type StorageAdapter,
 } from './profile-storage';

@@ -80,16 +80,46 @@ export interface MarketsGridProps<TData = unknown> {
   instanceId?: string;
 
   /**
+   * App identity — required when `storage` is a ConfigService-backed
+   * factory. Scopes all profile writes so they land on the right app's
+   * rows and never leak across apps sharing the same ConfigService.
+   *
+   * Typed as optional because pure-local-storage consumers don't need
+   * it, but a runtime assertion inside `<MarketsGrid>` throws loudly
+   * when `storage` is supplied without `appId`.
+   */
+  appId?: string;
+
+  /**
+   * User identity — required when `storage` is a ConfigService-backed
+   * factory. Scopes profile writes to the signed-in user so different
+   * users on the same machine see independent profile sets.
+   *
+   * Typed as optional because pure-local-storage consumers don't need
+   * it, but a runtime assertion inside `<MarketsGrid>` throws loudly
+   * when `storage` is supplied without `userId`.
+   */
+  userId?: string;
+
+  /**
    * Storage adapter factory. When provided, takes precedence over
-   * `storageAdapter`. Called internally with the resolved
-   * `effectiveInstanceId = instanceId ?? gridId`.
+   * `storageAdapter`. Called internally with
+   * `{ instanceId, appId, userId }` — consumers using
+   * `createConfigServiceStorage()` get scoped writes without having
+   * to re-close the factory on every userId change.
+   *
+   * Required companion props when this is set:
+   *   - `appId`   — non-empty string
+   *   - `userId`  — non-empty string
+   * MarketsGrid throws at mount time if either is missing.
    *
    * Typical construction at app bootstrap:
-   *   const storage = createConfigServiceStorage({ baseUrl, appId, userId });
-   *   <MarketsGrid ... storage={storage} />
+   *   const storage = createConfigServiceStorage({ configManager });
+   *   <MarketsGrid ... storage={storage} appId={...} userId={userId} />
    *
-   * Same factory may be reused across many grids; each receives its own
-   * `StorageAdapter` closed over the resolved instanceId.
+   * Same factory can be reused across many grids; each receives its
+   * own `StorageAdapter` closed over the resolved
+   * (instanceId, appId, userId) triple.
    */
   storage?: StorageAdapterFactory;
 
@@ -115,11 +145,30 @@ export interface MarketsGridProps<TData = unknown> {
 }
 
 /**
- * Factory that, given a resolved instanceId, returns a `StorageAdapter`
- * scoped to that instance. Produced by helpers like
- * `createConfigServiceStorage({ appId, userId })`.
+ * Options passed into a `StorageAdapterFactory` at call time. MarketsGrid
+ * populates `instanceId` from `instanceId ?? gridId`; `appId` and `userId`
+ * come straight from the corresponding props.
  */
-export type StorageAdapterFactory = (instanceId: string) => StorageAdapter;
+export interface StorageAdapterFactoryOpts {
+  /** Resolved instance id — `instanceId ?? gridId`. Always present. */
+  instanceId: string;
+  /** Consumer-supplied app identity. Required for ConfigService-backed
+   *  factories; factories that key only on instanceId (local storage,
+   *  in-memory) can ignore. */
+  appId?: string;
+  /** Consumer-supplied user identity. Same story as `appId`. */
+  userId?: string;
+}
+
+/**
+ * Factory that returns a `StorageAdapter` scoped to the supplied opts.
+ * Typically produced by helpers like `createConfigServiceStorage()`.
+ *
+ * MarketsGrid calls the factory ONCE when the effective opts change
+ * (instanceId, appId, or userId swap). Same factory can produce many
+ * independently-scoped adapters across the app's grid instances.
+ */
+export type StorageAdapterFactory = (opts: StorageAdapterFactoryOpts) => StorageAdapter;
 
 /**
  * Imperative handle returned by `ref` / `onReady`. Bundles the three

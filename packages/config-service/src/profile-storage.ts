@@ -78,36 +78,71 @@ export interface ConfigServiceStorageOptions {
   /** Already-initialized ConfigManager instance. Bring-your-own so
    *  consumer controls Dexie vs REST mode + init lifecycle. */
   configManager: ConfigManager;
-  /** Host app id. Scopes storage writes so profiles belonging to one
-   *  app are isolated from another on the same ConfigService. */
-  appId: string;
-  /** User id. Different users see different profile sets for the same
-   *  `(appId, instanceId)` pair. */
-  userId: string;
+  /** Optional app-id fallback — used when MarketsGrid doesn't pass
+   *  `appId` at call time. Most apps leave this undefined and pass
+   *  `appId` on the `<MarketsGrid>` prop instead (reactive identity). */
+  appId?: string;
+  /** Optional user-id fallback — same treatment as `appId`. */
+  userId?: string;
   /** Optional display-text used on the stored row. Defaults to
    *  "MarketsGrid profiles: <instanceId>". Only surfaces in the
    *  Config Browser UI. */
   displayTextPrefix?: string;
 }
 
+/** Options the factory receives from MarketsGrid at call time. */
+export interface ProfileStorageFactoryOpts {
+  instanceId: string;
+  appId?: string;
+  userId?: string;
+}
+
 /** Factory type — matches `StorageAdapterFactory` in @marketsui/markets-grid. */
-export type ProfileStorageFactory = (instanceId: string) => StorageAdapter;
+export type ProfileStorageFactory = (opts: ProfileStorageFactoryOpts) => StorageAdapter;
 
 /**
  * Create a profile-storage factory backed by ConfigService.
  *
- * The factory closes over `(configManager, appId, userId)`. Each call
- * with a distinct `instanceId` produces an independent `StorageAdapter`
- * scoped to that instance. Same factory is safely reused across many
- * `<MarketsGrid>` instances — no per-grid re-creation needed.
+ * The factory takes `{ instanceId, appId?, userId? }` at call time.
+ * MarketsGrid supplies those from its own props.
+ *
+ * Resolution order for `appId` / `userId`:
+ *   1. Call-time opts (from MarketsGrid's appId/userId props)
+ *   2. Closure fallback (from `createConfigServiceStorage({ appId, userId })`)
+ *   3. Error — thrown on the first CRUD call if neither is available
+ *
+ * Typical usage:
+ *
+ *   const storage = createConfigServiceStorage({ configManager });
+ *   <MarketsGrid storage={storage} appId="TestApp" userId={userId} />
+ *
+ * User-switching becomes trivial — change the userId prop; no factory
+ * re-creation needed. If you still want app-bootstrap-level scoping,
+ * pass `appId`/`userId` to `createConfigServiceStorage({...})` as
+ * closure fallbacks; MarketsGrid's props override them.
  */
 export function createConfigServiceStorage(
   opts: ConfigServiceStorageOptions,
 ): ProfileStorageFactory {
-  const { configManager, appId, userId } = opts;
+  const { configManager } = opts;
+  const closureAppId = opts.appId;
+  const closureUserId = opts.userId;
   const displayTextPrefix = opts.displayTextPrefix ?? 'MarketsGrid profiles';
 
-  return (instanceId: string): StorageAdapter => {
+  return (factoryOpts: ProfileStorageFactoryOpts): StorageAdapter => {
+    const instanceId = factoryOpts.instanceId;
+    const appId = factoryOpts.appId ?? closureAppId;
+    const userId = factoryOpts.userId ?? closureUserId;
+
+    if (!appId || !userId) {
+      throw new Error(
+        'createConfigServiceStorage: appId and userId must be supplied ' +
+        'either at factory-creation time (createConfigServiceStorage({ appId, userId })) ' +
+        'or at call time via MarketsGrid props. ' +
+        `Received: appId=${JSON.stringify(appId)}, userId=${JSON.stringify(userId)}.`,
+      );
+    }
+
     const rowId = instanceId;
 
     // Load the bundled row for this instance; returns null when no
@@ -251,10 +286,19 @@ export async function migrateProfilesToConfigService(params: {
   target: ProfileStorageFactory;
   gridId: string;
   instanceId?: string;
+  /** App + user identity passed into the factory at call time. If the
+   *  factory was built with closure-level fallbacks these may be
+   *  omitted — otherwise they're required, same rule as MarketsGrid. */
+  appId?: string;
+  userId?: string;
   strategy?: 'skip-if-exists' | 'overwrite';
 }): Promise<{ migrated: boolean; count?: number; reason?: string }> {
   const effectiveInstanceId = params.instanceId ?? params.gridId;
-  const targetAdapter = params.target(effectiveInstanceId);
+  const targetAdapter = params.target({
+    instanceId: effectiveInstanceId,
+    appId: params.appId,
+    userId: params.userId,
+  });
   const strategy = params.strategy ?? 'skip-if-exists';
 
   const existing = await targetAdapter.listProfiles(effectiveInstanceId);

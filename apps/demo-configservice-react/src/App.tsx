@@ -203,7 +203,9 @@ async function ensureShowcaseSeedFor(
     }
   } catch { /* access denied — press on */ }
 
-  const adapter = storage(GRID_ID); // effectiveInstanceId = gridId for standalone
+  // Seed via the same factory MarketsGrid uses — passes the full
+  // identity triple so the row is correctly scoped to (TestApp, userId).
+  const adapter = storage({ instanceId: GRID_ID, appId: APP_ID, userId });
   const existing = await adapter.listProfiles(GRID_ID);
   if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase())) {
     try { localStorage.setItem(flagKey, '1'); } catch { /* */ }
@@ -326,17 +328,14 @@ function AppInner() {
   }, []);
 
   // Build the ConfigService-backed StorageAdapterFactory. Closes over
-  // `(configManager, appId, userId)`; each <MarketsGrid> instance
-  // resolves its own `effectiveInstanceId = instanceId ?? gridId`
-  // and calls the factory to get a per-instance adapter.
+  // `configManager` only — `appId` and `userId` flow through MarketsGrid's
+  // own props, so switching users is just a prop change (no factory
+  // rebuild, no useMemo churn). Same factory reused across every grid
+  // in the app.
   const storage = useMemo<StorageAdapterFactory | undefined>(() => {
     if (!configManager) return undefined;
-    return createConfigServiceStorage({
-      configManager,
-      appId: APP_ID,
-      userId,
-    });
-  }, [configManager, userId]);
+    return createConfigServiceStorage({ configManager });
+  }, [configManager]);
 
   // Persist the selected user across reloads.
   useEffect(() => {
@@ -591,6 +590,8 @@ function AppInner() {
             theme={theme}
             rowIdField="id"
             storage={storage}
+            appId={APP_ID}
+            userId={userId}
             adminActions={adminActions}
             showFiltersToolbar
             showFormattingToolbar
@@ -610,6 +611,8 @@ function AppInner() {
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           storage={storage}
+          appId={APP_ID}
+          userId={userId}
           adminActions={adminActions}
         />
       ) : (

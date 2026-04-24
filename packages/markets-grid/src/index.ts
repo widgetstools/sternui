@@ -11,4 +11,5 @@ export type {
   AdminAction,
   MarketsGridHandle,
   StorageAdapterFactory,
+  StorageAdapterFactoryOpts,
 } from './types';

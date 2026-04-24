@@ -36,14 +36,19 @@ export interface DashboardProps {
    *  Both grids receive the same factory; each resolves its own
    *  `effectiveInstanceId = gridId`, producing per-instance adapters
    *  that write to independent ConfigService rows but share the
-   *  (appId, userId) scope. */
+   *  (appId, userId) scope supplied via props below. */
   storage: StorageAdapterFactory | undefined;
+  /** App identity. Propagated to both grids; required by the
+   *  ConfigService-backed storage factory. */
+  appId: string;
+  /** User identity. Same treatment — both grids see the current user. */
+  userId: string;
   /** Admin actions propagated to both grids. */
   adminActions: AdminAction[];
 }
 
 export function Dashboard({
-  theme, columnDefs, defaultColDef, storage, adminActions,
+  theme, columnDefs, defaultColDef, storage, appId, userId, adminActions,
 }: DashboardProps) {
   const [ratesData] = useState(() => generateOrders(500));
   const [equityData] = useState(() => generateEquityOrders(300));
@@ -68,6 +73,8 @@ export function Dashboard({
         defaultColDef={defaultColDef}
         theme={theme}
         storage={storage}
+        appId={appId}
+        userId={userId}
         adminActions={adminActions}
       />
       <GridPanel
@@ -78,6 +85,8 @@ export function Dashboard({
         defaultColDef={defaultColDef}
         theme={theme}
         storage={storage}
+        appId={appId}
+        userId={userId}
         adminActions={adminActions}
       />
     </div>
@@ -92,6 +101,8 @@ interface GridPanelProps {
   defaultColDef: ColDef<Order>;
   theme: Theme;
   storage: StorageAdapterFactory | undefined;
+  appId: string;
+  userId: string;
   adminActions: AdminAction[];
 }
 
@@ -103,6 +114,8 @@ function GridPanel({
   defaultColDef,
   theme,
   storage,
+  appId,
+  userId,
   adminActions,
 }: GridPanelProps) {
   return (
@@ -155,6 +168,8 @@ function GridPanel({
           theme={theme}
           rowIdField="id"
           storage={storage}
+          appId={appId}
+          userId={userId}
           adminActions={adminActions}
           showFiltersToolbar
           showFormattingToolbar
