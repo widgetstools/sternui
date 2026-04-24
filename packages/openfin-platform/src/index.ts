@@ -25,9 +25,30 @@ export { getConfigManager } from './db';
 // ─── Registry config types ──────────────────────────────────────────
 export {
   generateTemplateConfigId,
+  deriveSingletonConfigId,
+  REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,
 } from './registry-config-types';
+
+// ─── Registry v2 validators, migrator, host env reader ──────────────
+export {
+  validateEntry,
+  validateSingletonUniqueness,
+  type ValidationError,
+} from './registry-validate';
+
+export {
+  migrateRegistryToV2,
+  type RegistryEntryV1,
+  type RegistryEditorConfigV1,
+  type HostEnv,
+} from './registry-migrate';
+
+export {
+  readHostEnv,
+  isHostEnvMissing,
+} from './registry-host-env';
 
 // Re-export config service types for convenience
 export { createConfigManager, type ConfigManager } from "@marketsui/config-service";

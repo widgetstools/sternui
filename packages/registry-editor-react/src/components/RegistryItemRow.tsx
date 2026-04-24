@@ -58,7 +58,7 @@ export function RegistryItemRow({ entry, onEdit, onTest, onDelete }: RegistryIte
         )}
       </div>
 
-      {/* Type tags */}
+      {/* Type tags + v2 badges */}
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
         <span style={{
           padding: "2px 6px", borderRadius: "var(--de-radius-sm)", fontSize: 10, fontWeight: 500,
@@ -74,6 +74,33 @@ export function RegistryItemRow({ entry, onEdit, onTest, onDelete }: RegistryIte
         }}>
           {entry.componentSubType}
         </span>
+        {entry.singleton && (
+          <span title="Singleton — focus existing instance on launch" style={{
+            padding: "2px 6px", borderRadius: "var(--de-radius-sm)", fontSize: 10, fontWeight: 500,
+            background: "var(--de-accent-dim)", color: "var(--de-accent)",
+            textTransform: "uppercase", letterSpacing: "0.04em",
+          }}>
+            1x
+          </span>
+        )}
+        {entry.type === 'external' && (
+          <span title="External hosting — foreign URL" style={{
+            padding: "2px 6px", borderRadius: "var(--de-radius-sm)", fontSize: 10, fontWeight: 500,
+            background: "var(--de-bg-surface)", color: "var(--de-danger)",
+            textTransform: "uppercase", letterSpacing: "0.04em",
+          }}>
+            EXT
+          </span>
+        )}
+        {!entry.usesHostConfig && (
+          <span title="Own config — does not use host ConfigService" style={{
+            padding: "2px 6px", borderRadius: "var(--de-radius-sm)", fontSize: 10, fontWeight: 500,
+            background: "var(--de-bg-surface)", color: "var(--de-text-secondary)",
+            textTransform: "uppercase", letterSpacing: "0.04em",
+          }}>
+            OWN CFG
+          </span>
+        )}
       </div>
 
       {/* Actions (visible on hover) */}

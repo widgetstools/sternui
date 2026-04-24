@@ -1,0 +1,95 @@
+/**
+ * Registry v1 → v2 migrator. Runs once on read in `loadRegistryConfig()`
+ * (or equivalent editor-side fetch paths); the on-disk record is
+ * permanently upgraded to v2 on the first subsequent save.
+ *
+ * v1 entries had no concept of `type`, `usesHostConfig`, `singleton`,
+ * or per-entry `appId`/`configServiceUrl`. We default them:
+ *
+ *   - type             = 'internal'       (v1 only supported in-app components)
+ *   - usesHostConfig   = true             (v1 implicitly used the host's ConfigService)
+ *   - singleton        = false            (v1 had no singleton concept; safer default)
+ *   - appId            = hostEnv.appId    (passed in at migration time)
+ *   - configServiceUrl = hostEnv.configServiceUrl
+ *
+ * `configId` is preserved — v1 users may have customized it; we do NOT
+ * re-derive singleton ids on migration (defaulting `singleton: false`
+ * means the derived-id rule doesn't apply).
+ */
+import type { RegistryEditorConfig, RegistryEntry } from './registry-config-types';
+import { REGISTRY_CONFIG_VERSION } from './registry-config-types';
+
+/** The v1 entry shape — same as v2 minus the new fields. */
+export interface RegistryEntryV1 {
+  id: string;
+  hostUrl: string;
+  iconId: string;
+  componentType: string;
+  componentSubType: string;
+  configId: string;
+  displayName: string;
+  createdAt: string;
+}
+
+export interface RegistryEditorConfigV1 {
+  version: 1;
+  entries: RegistryEntryV1[];
+}
+
+export interface HostEnv {
+  appId: string;
+  configServiceUrl: string;
+}
+
+/**
+ * Upgrade a v1 config (or a loose object with no version) to v2.
+ * Idempotent: if the input is already v2, returns it unchanged.
+ */
+export function migrateRegistryToV2(
+  config: RegistryEditorConfig | RegistryEditorConfigV1 | null | undefined,
+  hostEnv: HostEnv,
+): RegistryEditorConfig {
+  if (!config) {
+    return { version: REGISTRY_CONFIG_VERSION, entries: [] };
+  }
+
+  if ((config.version ?? 1) >= 2) {
+    // Already v2 — return as-is but normalize shape in case some
+    // fields are missing (defensive; handles partial data).
+    return {
+      version: REGISTRY_CONFIG_VERSION,
+      entries: (config.entries as RegistryEntry[]).map((e) => fillMissingV2Fields(e, hostEnv)),
+    };
+  }
+
+  return {
+    version: REGISTRY_CONFIG_VERSION,
+    entries: (config.entries as RegistryEntryV1[]).map((e) => ({
+      ...e,
+      type: 'internal',
+      usesHostConfig: true,
+      singleton: false,
+      appId: hostEnv.appId,
+      configServiceUrl: hostEnv.configServiceUrl,
+    })),
+  };
+}
+
+/** Fill in any v2 fields that might be missing (e.g., partial write). */
+function fillMissingV2Fields(entry: Partial<RegistryEntry>, hostEnv: HostEnv): RegistryEntry {
+  return {
+    id: entry.id ?? crypto.randomUUID(),
+    hostUrl: entry.hostUrl ?? '',
+    iconId: entry.iconId ?? 'lucide:box',
+    componentType: entry.componentType ?? '',
+    componentSubType: entry.componentSubType ?? '',
+    configId: entry.configId ?? '',
+    displayName: entry.displayName ?? '',
+    createdAt: entry.createdAt ?? new Date().toISOString(),
+    type: entry.type ?? 'internal',
+    usesHostConfig: entry.usesHostConfig ?? true,
+    singleton: entry.singleton ?? false,
+    appId: entry.appId ?? hostEnv.appId,
+    configServiceUrl: entry.configServiceUrl ?? hostEnv.configServiceUrl,
+  };
+}

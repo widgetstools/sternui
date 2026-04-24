@@ -15,7 +15,13 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistryEditorService } from './registry-editor.service';
-import { generateTemplateConfigId, type RegistryEntry } from '@marketsui/openfin-platform';
+import {
+  generateTemplateConfigId,
+  deriveSingletonConfigId,
+  validateEntry,
+  validateSingletonUniqueness,
+  type RegistryEntry,
+} from '@marketsui/openfin-platform';
 import { ICON_NAMES, ICON_META } from '@marketsui/icons-svg';
 import { iconIdToSvgUrl } from '@marketsui/angular-dock-editor';
 import { dark, light } from '@marketsui/design-system/tokens/semantic';
@@ -147,12 +153,23 @@ interface FormData {
   componentType: string;
   componentSubType: string;
   configId: string;
+  // v2 fields
+  type: 'internal' | 'external';
+  usesHostConfig: boolean;
+  appId: string;
+  configServiceUrl: string;
+  singleton: boolean;
 }
 
 const EMPTY_FORM: FormData = {
   displayName: '', hostUrl: '',
   iconId: 'lucide:box', componentType: '', componentSubType: '',
   configId: '',
+  type: 'internal',
+  usesHostConfig: true,
+  appId: '',
+  configServiceUrl: '',
+  singleton: false,
 };
 
 /**
@@ -330,6 +347,21 @@ export class IconUrlPipe implements PipeTransform {
                 [style.color]="'var(--de-accent)'">{{ entry.componentType }}</span>
               <span class="reg-tag" [style.background]="'var(--de-bg-surface)'"
                 [style.color]="'var(--de-text-secondary)'">{{ entry.componentSubType }}</span>
+              @if (entry.singleton) {
+                <span class="reg-tag" title="Singleton — focus existing instance on launch"
+                  [style.background]="'var(--de-accent-dim)'"
+                  [style.color]="'var(--de-accent)'">1x</span>
+              }
+              @if (entry.type === 'external') {
+                <span class="reg-tag" title="External hosting — foreign URL"
+                  [style.background]="'var(--de-bg-surface)'"
+                  [style.color]="'var(--de-danger)'">EXT</span>
+              }
+              @if (!entry.usesHostConfig) {
+                <span class="reg-tag" title="Own config — does not use host ConfigService"
+                  [style.background]="'var(--de-bg-surface)'"
+                  [style.color]="'var(--de-text-secondary)'">OWN CFG</span>
+              }
               <div class="reg-actions">
                 <button class="action-btn" (click)="openEditDialog(entry)" title="Edit">✎</button>
                 <button class="action-btn" (click)="svc.testComponent(entry)" title="Test">▶</button>
@@ -409,19 +441,97 @@ export class IconUrlPipe implements PipeTransform {
                     placeholder="e.g., GRID" />
                 </div>
                 <div class="form-field">
-                  <label class="form-label">Component SubType</label>
+                  <label class="form-label">
+                    Component SubType
+                    @if (singletonUniquenessError()) {
+                      <span style="color: var(--de-danger); margin-left: 4px; font-weight: 400;">
+                        {{ singletonUniquenessError() }}
+                      </span>
+                    }
+                  </label>
                   <input pInputText [ngModel]="form().componentSubType"
                     (ngModelChange)="updateForm('componentSubType', $event); onTypeSubTypeChange()"
                     placeholder="e.g., CREDIT" />
                 </div>
               </div>
 
-              <!-- Config ID -->
+              <!-- v2: Hosting + Singleton -->
+              <div class="form-row-2col">
+                <div class="form-field">
+                  <label class="form-label">Hosting</label>
+                  <select [ngModel]="form().type"
+                    (ngModelChange)="updateFormTyped('type', $event)"
+                    style="width: 100%; padding: 10px 14px; background: var(--de-bg-surface); color: var(--de-text); border: 1px solid var(--de-border-strong); border-radius: var(--de-radius-md); font-size: 13px;">
+                    <option value="internal">internal</option>
+                    <option value="external">external</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="form-label">Singleton</label>
+                  <select [ngModel]="form().singleton ? 'yes' : 'no'"
+                    (ngModelChange)="updateForm('singleton', $event === 'yes'); onTypeSubTypeChange()"
+                    style="width: 100%; padding: 10px 14px; background: var(--de-bg-surface); color: var(--de-text); border: 1px solid var(--de-border-strong); border-radius: var(--de-radius-md); font-size: 13px;">
+                    <option value="no">no (spawn new)</option>
+                    <option value="yes">yes (focus existing)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Uses host config toggle -->
+              <div class="form-field">
+                <label class="form-label">Uses host config service</label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 0;">
+                  <input type="checkbox" [ngModel]="form().usesHostConfig"
+                    (ngModelChange)="onUsesHostConfigChange($event)" />
+                  <span style="font-size: 12px; color: var(--de-text-secondary);">
+                    Inherit appId + configServiceUrl from the host app
+                  </span>
+                </label>
+              </div>
+
+              <!-- App ID -->
+              <div class="form-field">
+                <label class="form-label">App ID</label>
+                <input pInputText [ngModel]="form().appId"
+                  (ngModelChange)="updateForm('appId', $event)"
+                  [disabled]="form().usesHostConfig"
+                  [style.opacity]="form().usesHostConfig ? '0.6' : '1'"
+                  placeholder="e.g., tradingApp1" />
+                @if (form().usesHostConfig) {
+                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
+                    Inherited from host manifest
+                  </div>
+                }
+              </div>
+
+              <!-- Config Service URL -->
+              <div class="form-field">
+                <label class="form-label">Config Service URL</label>
+                <input pInputText [ngModel]="form().configServiceUrl"
+                  (ngModelChange)="updateForm('configServiceUrl', $event)"
+                  [disabled]="form().usesHostConfig"
+                  [style.opacity]="form().usesHostConfig ? '0.6' : '1'"
+                  [placeholder]="form().usesHostConfig ? '' : 'https://… (optional for self-contained externals)'" />
+                @if (form().usesHostConfig) {
+                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
+                    Inherited from host manifest
+                  </div>
+                }
+              </div>
+
+              <!-- Config ID (disabled when singleton — auto-derived) -->
               <div class="form-field">
                 <label class="form-label">Config ID</label>
                 <input pInputText class="mono" [ngModel]="form().configId"
                   (ngModelChange)="updateForm('configId', $event); configIdEdited.set(true)"
-                  placeholder="Auto-generated from type/subtype" />
+                  [disabled]="form().singleton"
+                  [style.opacity]="form().singleton ? '0.6' : '1'"
+                  [placeholder]="form().singleton ? 'Derived from component type + subtype' : 'Auto-generated from type/subtype'" />
+                @if (form().singleton) {
+                  <div style="font-size: 10px; color: var(--de-text-tertiary); margin-top: 4px;">
+                    Singleton configId is auto-derived and must be unique per appId
+                  </div>
+                }
               </div>
             </div>
 
@@ -430,6 +540,7 @@ export class IconUrlPipe implements PipeTransform {
               <button pButton (click)="dialogVisible.set(false)" label="Cancel"
                 severity="secondary" size="small"></button>
               <button pButton (click)="handleSave()" label="Save"
+                [disabled]="!!singletonUniquenessError()"
                 severity="warn" size="small"></button>
             </div>
           </div>
@@ -513,26 +624,88 @@ export class RegistryEditorComponent implements OnInit {
     this.theme.set(this.theme() === 'dark' ? 'light' : 'dark');
   }
 
-  /** Update a single form field immutably — triggers OnPush CD */
-  updateForm(field: keyof FormData, value: string): void {
+  /** Update a string form field immutably — triggers OnPush CD */
+  updateForm<K extends keyof FormData>(field: K, value: FormData[K]): void {
     this.form.update(f => ({ ...f, [field]: value }));
   }
 
+  /** Typed update — semantic alias for non-string-valued fields in templates. */
+  updateFormTyped<K extends keyof FormData>(field: K, value: FormData[K]): void {
+    this.updateForm(field, value);
+  }
+
+  /** Toggling usesHostConfig resets appId/configServiceUrl to host values
+   *  when switched on, prevents ghost state when switched off. */
+  onUsesHostConfigChange(checked: boolean): void {
+    const env = this.svc.hostEnv();
+    this.form.update(prev => ({
+      ...prev,
+      usesHostConfig: checked,
+      appId: checked ? env.appId : prev.appId,
+      configServiceUrl: checked ? env.configServiceUrl : prev.configServiceUrl,
+    }));
+  }
+
   onTypeSubTypeChange(): void {
+    const f = this.form();
+    if (!f.componentType || !f.componentSubType) return;
+
+    // Singleton: configId is always derived, overrides any manual edit.
+    if (f.singleton) {
+      const derived = deriveSingletonConfigId(f.componentType, f.componentSubType);
+      this.form.update(prev => ({ ...prev, configId: derived }));
+      return;
+    }
+
+    // Non-singleton: auto-fill unless user manually edited.
     if (!this.configIdEdited()) {
-      const f = this.form();
-      if (f.componentType && f.componentSubType) {
-        this.form.update(prev => ({
-          ...prev,
-          configId: generateTemplateConfigId(prev.componentType.toUpperCase(), prev.componentSubType.toUpperCase()),
-        }));
-      }
+      this.form.update(prev => ({
+        ...prev,
+        configId: generateTemplateConfigId(prev.componentType.toUpperCase(), prev.componentSubType.toUpperCase()),
+      }));
     }
   }
 
+  /** Live singleton-uniqueness check — returns an error string if the
+   *  current form state would collide with an existing entry. */
+  readonly singletonUniquenessError = computed<string | null>(() => {
+    const f = this.form();
+    if (!f.singleton || !f.componentType.trim() || !f.componentSubType.trim()) return null;
+
+    const editingId = this.editingId();
+    const allEntries = this.svc.entries();
+    const hypothetical: RegistryEntry[] = allEntries.map(e =>
+      e.id === editingId
+        ? {
+            ...e, ...f,
+            componentType: f.componentType.toUpperCase(),
+            componentSubType: f.componentSubType.toUpperCase(),
+          }
+        : e,
+    );
+    if (!editingId) {
+      hypothetical.push({
+        ...f,
+        componentType: f.componentType.toUpperCase(),
+        componentSubType: f.componentSubType.toUpperCase(),
+        id: '__new__',
+        createdAt: new Date().toISOString(),
+        configId: deriveSingletonConfigId(f.componentType, f.componentSubType),
+      });
+    }
+
+    const errs = validateSingletonUniqueness(hypothetical, f.appId);
+    return errs.length > 0 ? errs[0].message : null;
+  });
+
   openAddDialog(): void {
+    const env = this.svc.hostEnv();
     this.editingId.set(null);
-    this.form.set({ ...EMPTY_FORM });
+    this.form.set({
+      ...EMPTY_FORM,
+      appId: env.appId,
+      configServiceUrl: env.configServiceUrl,
+    });
     this.configIdEdited.set(false);
     this.iconSearch.set('');
     this.iconPickerOpen.set(false);
@@ -549,6 +722,11 @@ export class RegistryEditorComponent implements OnInit {
       componentType: entry.componentType,
       componentSubType: entry.componentSubType,
       configId: entry.configId ?? '',
+      type: entry.type,
+      usesHostConfig: entry.usesHostConfig,
+      appId: entry.appId,
+      configServiceUrl: entry.configServiceUrl,
+      singleton: entry.singleton,
     });
     this.configIdEdited.set(true);
     this.iconSearch.set('');
@@ -559,27 +737,38 @@ export class RegistryEditorComponent implements OnInit {
 
   handleSave(): void {
     const f = this.form();
-    if (!f.displayName || !f.hostUrl || !f.componentType || !f.componentSubType) {
-      return;
-    }
+    if (this.singletonUniquenessError()) return;
 
     const currentEditingId = this.editingId();
+    const componentType = f.componentType.toUpperCase();
+    const componentSubType = f.componentSubType.toUpperCase();
 
     const entry: RegistryEntry = {
       id: currentEditingId ?? crypto.randomUUID(),
       displayName: f.displayName,
       hostUrl: f.hostUrl,
       iconId: f.iconId,
-      componentType: f.componentType.toUpperCase(),
-      componentSubType: f.componentSubType.toUpperCase(),
-      configId: f.configId || generateTemplateConfigId(
-        f.componentType.toUpperCase(),
-        f.componentSubType.toUpperCase(),
-      ),
+      componentType,
+      componentSubType,
+      configId: f.singleton
+        ? deriveSingletonConfigId(f.componentType, f.componentSubType)
+        : (f.configId || generateTemplateConfigId(componentType, componentSubType)),
       createdAt: currentEditingId
         ? (this.svc.entries().find((e) => e.id === currentEditingId)?.createdAt ?? new Date().toISOString())
         : new Date().toISOString(),
+      type: f.type,
+      usesHostConfig: f.usesHostConfig,
+      appId: f.appId,
+      configServiceUrl: f.configServiceUrl,
+      singleton: f.singleton,
     };
+
+    // Final entry-level validation against host env — belt-and-suspenders.
+    const errs = validateEntry(entry, this.svc.hostEnv());
+    if (errs.length > 0) {
+      console.warn('Registry entry validation failed:', errs);
+      return;
+    }
 
     if (currentEditingId) {
       this.svc.updateEntry(currentEditingId, entry);

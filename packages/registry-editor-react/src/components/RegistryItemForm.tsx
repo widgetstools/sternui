@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { DynamicIcon as Icon } from "@marketsui/icons-svg/react";
 import { ICON_NAMES, ICON_META } from "@marketsui/icons-svg";
-import { generateTemplateConfigId } from "@marketsui/openfin-platform";
+import {
+  generateTemplateConfigId,
+  deriveSingletonConfigId,
+  validateEntry,
+  validateSingletonUniqueness,
+  type RegistryEntry,
+  type HostEnv,
+  type ValidationError,
+} from "@marketsui/openfin-platform";
 
 export interface RegistryFormData {
   displayName: string;
@@ -10,51 +18,101 @@ export interface RegistryFormData {
   componentType: string;
   componentSubType: string;
   configId: string;
+  // v2 fields
+  type: 'internal' | 'external';
+  usesHostConfig: boolean;
+  appId: string;
+  configServiceUrl: string;
+  singleton: boolean;
 }
 
 interface RegistryItemFormProps {
   open: boolean;
   title: string;
   initial?: Partial<RegistryFormData>;
+  /** Host env — used to pre-fill and lock appId + configServiceUrl
+   *  when usesHostConfig === true. Passed in from the parent which
+   *  reads it once via `readHostEnv()` and caches it. */
+  hostEnv: HostEnv;
+  /** All registry entries (including the one being edited) — used
+   *  for singleton-uniqueness validation. Parent is responsible for
+   *  keeping this fresh; form itself is stateless w.r.t. the list. */
+  allEntries: readonly RegistryEntry[];
+  /** Id of the entry being edited, or null on Add. Excluded from
+   *  the uniqueness check so editing an existing singleton doesn't
+   *  collide with itself. */
+  editingId: string | null;
   onSave: (data: RegistryFormData) => void;
   onCancel: () => void;
 }
 
-export function RegistryItemForm({ open, title, initial, onSave, onCancel }: RegistryItemFormProps) {
-  const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
-  const [hostUrl, setHostUrl] = useState(initial?.hostUrl ?? "");
-  const [iconId, setIconId] = useState(initial?.iconId ?? "lucide:box");
-  const [componentType, setComponentType] = useState(initial?.componentType ?? "");
-  const [componentSubType, setComponentSubType] = useState(initial?.componentSubType ?? "");
-  const [configId, setConfigId] = useState(initial?.configId ?? "");
+function buildInitial(initial: Partial<RegistryFormData> | undefined, hostEnv: HostEnv): RegistryFormData {
+  return {
+    displayName: initial?.displayName ?? "",
+    hostUrl: initial?.hostUrl ?? "",
+    iconId: initial?.iconId ?? "lucide:box",
+    componentType: initial?.componentType ?? "",
+    componentSubType: initial?.componentSubType ?? "",
+    configId: initial?.configId ?? "",
+    type: initial?.type ?? "internal",
+    usesHostConfig: initial?.usesHostConfig ?? true,
+    appId: initial?.appId ?? hostEnv.appId,
+    configServiceUrl: initial?.configServiceUrl ?? hostEnv.configServiceUrl,
+    singleton: initial?.singleton ?? false,
+  };
+}
+
+export function RegistryItemForm({
+  open, title, initial, hostEnv, allEntries, editingId, onSave, onCancel,
+}: RegistryItemFormProps) {
+  const [form, setForm] = useState<RegistryFormData>(() => buildInitial(initial, hostEnv));
   const [configIdEdited, setConfigIdEdited] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [iconSearch, setIconSearch] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open) {
-      setDisplayName(initial?.displayName ?? "");
-      setHostUrl(initial?.hostUrl ?? "");
-      setIconId(initial?.iconId ?? "lucide:box");
-      setComponentType(initial?.componentType ?? "");
-      setComponentSubType(initial?.componentSubType ?? "");
-      setConfigId(initial?.configId ?? "");
+      setForm(buildInitial(initial, hostEnv));
       setConfigIdEdited(!!initial?.configId);
-      setErrors({});
+      setFieldErrors({});
       setIconPickerOpen(false);
       setIconSearch("");
     }
-  }, [open, initial]);
+  }, [open, initial, hostEnv]);
 
-  // Auto-populate configId when type/subtype change and user hasn't manually edited
+  // ── Derived form behaviors ────────────────────────────────────
+
+  // Auto-populate configId when type/subtype/singleton change.
   useEffect(() => {
-    if (!configIdEdited && componentType.trim() && componentSubType.trim()) {
-      setConfigId(generateTemplateConfigId(componentType.toUpperCase(), componentSubType.toUpperCase()));
-    }
-  }, [componentType, componentSubType, configIdEdited]);
+    const { componentType, componentSubType, singleton } = form;
+    if (!componentType.trim() || !componentSubType.trim()) return;
 
-  // Memoize icon filtering — only recalculates when search term changes
+    if (singleton) {
+      // Singleton: configId is ALWAYS derived. Ignore manual edits.
+      const derived = deriveSingletonConfigId(componentType, componentSubType);
+      if (form.configId !== derived) setForm(prev => ({ ...prev, configId: derived }));
+    } else if (!configIdEdited) {
+      // Non-singleton: auto-generate unless user manually edited.
+      const generated = generateTemplateConfigId(componentType.toUpperCase(), componentSubType.toUpperCase());
+      if (form.configId !== generated) setForm(prev => ({ ...prev, configId: generated }));
+    }
+  }, [form.componentType, form.componentSubType, form.singleton, configIdEdited, form.configId]);
+
+  // When usesHostConfig toggles on, reset appId + configServiceUrl to host values.
+  useEffect(() => {
+    if (form.usesHostConfig) {
+      if (form.appId !== hostEnv.appId || form.configServiceUrl !== hostEnv.configServiceUrl) {
+        setForm(prev => ({
+          ...prev,
+          appId: hostEnv.appId,
+          configServiceUrl: hostEnv.configServiceUrl,
+        }));
+      }
+    }
+  }, [form.usesHostConfig, hostEnv.appId, hostEnv.configServiceUrl, form.appId, form.configServiceUrl]);
+
+  // Memoize icon filtering
   const filteredIcons = useMemo(() =>
     ICON_NAMES.filter((name) => {
       if (!iconSearch) return true;
@@ -65,58 +123,96 @@ export function RegistryItemForm({ open, title, initial, onSave, onCancel }: Reg
     [iconSearch],
   );
 
+  // ── Live singleton-uniqueness check ──────────────────────────
+  const singletonUniquenessError = useMemo<string | null>(() => {
+    if (!form.singleton || !form.componentType.trim() || !form.componentSubType.trim()) return null;
+
+    // Build a hypothetical entries list reflecting the in-progress edit.
+    const hypothetical: RegistryEntry[] = allEntries.map(e =>
+      e.id === editingId
+        ? { ...e, ...form, componentType: form.componentType.toUpperCase(), componentSubType: form.componentSubType.toUpperCase() }
+        : e,
+    );
+    // If adding new, append a synthetic entry with a placeholder id.
+    if (!editingId) {
+      hypothetical.push({
+        ...form,
+        componentType: form.componentType.toUpperCase(),
+        componentSubType: form.componentSubType.toUpperCase(),
+        id: '__new__',
+        createdAt: new Date().toISOString(),
+        configId: deriveSingletonConfigId(form.componentType, form.componentSubType),
+      });
+    }
+
+    const errs = validateSingletonUniqueness(hypothetical, form.appId);
+    // Only surface errors that reference our edit (not collisions between
+    // other existing entries, which aren't this user's problem right now).
+    return errs.length > 0 ? errs[0].message : null;
+  }, [form, allEntries, editingId]);
+
   if (!open) return null;
 
-  function validate(): boolean {
-    const newErrors: Record<string, string> = {};
-    if (!displayName.trim()) newErrors.displayName = "Required";
-    if (!hostUrl.trim()) newErrors.hostUrl = "Required";
-    if (!componentType.trim()) newErrors.componentType = "Required";
-    if (!componentSubType.trim()) newErrors.componentSubType = "Required";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  // ── Helpers ──────────────────────────────────────────────────
+  function update<K extends keyof RegistryFormData>(key: K, value: RegistryFormData[K]) {
+    setForm(prev => ({ ...prev, [key]: value }));
   }
 
   function handleSave() {
-    if (!validate()) return;
-    const finalConfigId = configId || generateTemplateConfigId(componentType.toUpperCase(), componentSubType.toUpperCase());
-    onSave({ displayName, hostUrl, iconId, componentType: componentType.toUpperCase(), componentSubType: componentSubType.toUpperCase(), configId: finalConfigId });
+    const normalized: RegistryFormData = {
+      ...form,
+      componentType: form.componentType.toUpperCase(),
+      componentSubType: form.componentSubType.toUpperCase(),
+      configId: form.singleton
+        ? deriveSingletonConfigId(form.componentType, form.componentSubType)
+        : form.configId || generateTemplateConfigId(form.componentType.toUpperCase(), form.componentSubType.toUpperCase()),
+    };
+
+    // Full entry-level validation.
+    const errs = validateEntry(normalized, hostEnv);
+    if (singletonUniquenessError) {
+      errs.push({ field: 'componentSubType', message: singletonUniquenessError });
+    }
+    if (errs.length > 0) {
+      setFieldErrors(toErrorMap(errs));
+      return;
+    }
+
+    onSave(normalized);
   }
+
+  const appIdLocked = form.usesHostConfig;
+  const configUrlLocked = form.usesHostConfig;
 
   return (
     <>
-      {/* Backdrop — theme-invariant dim overlay (intentionally not tokenized:
-           modal backdrops always darken what's behind them regardless of theme). */}
       <div onClick={onCancel} style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
         zIndex: 1000, animation: "de-fade-in 0.15s ease",
       }} />
 
-      {/* Dialog — fixed height, scrollable body, pinned footer */}
       <div style={{
         position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-        width: 480, maxHeight: "85vh",
+        width: 520, maxHeight: "85vh",
         background: "var(--de-bg-raised)", border: "1px solid var(--de-border)",
         borderRadius: "var(--de-radius-lg)", boxShadow: "var(--de-shadow-lg)",
         zIndex: 1001, animation: "de-scale-in 0.2s ease",
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>
-        {/* Header — pinned */}
+        {/* Header */}
         <div style={{ padding: "20px 24px 0", flexShrink: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--de-text)" }}>{title}</div>
         </div>
 
-        {/* Scrollable body */}
+        {/* Body */}
         <div style={{ flex: 1, overflow: "auto", padding: "16px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Display Name */}
-          <FieldGroup label="Display Name" error={errors.displayName}>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+          <FieldGroup label="Display Name" error={fieldErrors.displayName}>
+            <input value={form.displayName} onChange={(e) => update('displayName', e.target.value)}
               placeholder="e.g., Credit Blotter" style={inputStyle} />
           </FieldGroup>
 
-          {/* Host URL */}
-          <FieldGroup label="Host URL" error={errors.hostUrl}>
-            <input value={hostUrl} onChange={(e) => setHostUrl(e.target.value)}
+          <FieldGroup label="Host URL" error={fieldErrors.hostUrl}>
+            <input value={form.hostUrl} onChange={(e) => update('hostUrl', e.target.value)}
               placeholder="e.g., http://localhost:5174/views/credit-blotter" style={inputStyle} />
           </FieldGroup>
 
@@ -125,8 +221,8 @@ export function RegistryItemForm({ open, title, initial, onSave, onCancel }: Reg
             <button onClick={() => setIconPickerOpen(!iconPickerOpen)} style={{
               ...inputStyle, display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
             }}>
-              <Icon icon={iconId} style={{ width: 16, height: 16, color: "var(--de-accent)" }} />
-              <span style={{ fontSize: 12, color: "var(--de-text-secondary)" }}>{iconId}</span>
+              <Icon icon={form.iconId} style={{ width: 16, height: 16, color: "var(--de-accent)" }} />
+              <span style={{ fontSize: 12, color: "var(--de-text-secondary)" }}>{form.iconId}</span>
             </button>
             {iconPickerOpen && (
               <div style={{
@@ -139,10 +235,10 @@ export function RegistryItemForm({ open, title, initial, onSave, onCancel }: Reg
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 32px)", gap: 4 }}>
                   {filteredIcons.slice(0, 80).map((name) => (
                     <button key={name} title={name}
-                      onClick={() => { setIconId(`mkt:${name}`); setIconPickerOpen(false); }}
+                      onClick={() => { update('iconId', `mkt:${name}`); setIconPickerOpen(false); }}
                       style={{
                         width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-                        background: iconId === `mkt:${name}` ? "var(--de-accent-dim)" : "transparent",
+                        background: form.iconId === `mkt:${name}` ? "var(--de-accent-dim)" : "transparent",
                         border: "1px solid transparent", borderRadius: "var(--de-radius-sm)", cursor: "pointer",
                         color: "var(--de-text-secondary)",
                       }}>
@@ -154,37 +250,103 @@ export function RegistryItemForm({ open, title, initial, onSave, onCancel }: Reg
             )}
           </FieldGroup>
 
-          {/* Component Type + SubType */}
+          {/* Type + SubType */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <FieldGroup label="Component Type" error={errors.componentType}>
-              <input value={componentType} onChange={(e) => setComponentType(e.target.value)}
+            <FieldGroup label="Component Type" error={fieldErrors.componentType}>
+              <input value={form.componentType} onChange={(e) => update('componentType', e.target.value)}
                 placeholder="e.g., GRID" style={inputStyle} />
             </FieldGroup>
-            <FieldGroup label="Component SubType" error={errors.componentSubType}>
-              <input value={componentSubType} onChange={(e) => setComponentSubType(e.target.value)}
+            <FieldGroup
+              label="Component SubType"
+              error={fieldErrors.componentSubType ?? singletonUniquenessError ?? undefined}
+            >
+              <input value={form.componentSubType} onChange={(e) => update('componentSubType', e.target.value)}
                 placeholder="e.g., CREDIT" style={inputStyle} />
             </FieldGroup>
           </div>
 
+          {/* ── v2: Hosting + Config ─────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FieldGroup label="Hosting">
+              <select value={form.type}
+                onChange={(e) => update('type', e.target.value as 'internal' | 'external')}
+                style={inputStyle}>
+                <option value="internal">internal</option>
+                <option value="external">external</option>
+              </select>
+            </FieldGroup>
+            <FieldGroup label="Singleton">
+              <select value={form.singleton ? 'yes' : 'no'}
+                onChange={(e) => update('singleton', e.target.value === 'yes')}
+                style={inputStyle}>
+                <option value="no">no (spawn new)</option>
+                <option value="yes">yes (focus existing)</option>
+              </select>
+            </FieldGroup>
+          </div>
+
+          <FieldGroup label="Uses host config service">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 0' }}>
+              <input type="checkbox" checked={form.usesHostConfig}
+                onChange={(e) => update('usesHostConfig', e.target.checked)} />
+              <span style={{ fontSize: 12, color: 'var(--de-text-secondary)' }}>
+                Inherit appId + configServiceUrl from the host app
+              </span>
+            </label>
+          </FieldGroup>
+
+          <FieldGroup label="App ID" error={fieldErrors.appId}>
+            <input value={form.appId}
+              onChange={(e) => update('appId', e.target.value)}
+              disabled={appIdLocked}
+              placeholder="e.g., tradingApp1"
+              style={{ ...inputStyle, opacity: appIdLocked ? 0.6 : 1 }} />
+            {appIdLocked && (
+              <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
+                Inherited from host manifest
+              </div>
+            )}
+          </FieldGroup>
+
+          <FieldGroup label="Config Service URL" error={fieldErrors.configServiceUrl}>
+            <input value={form.configServiceUrl}
+              onChange={(e) => update('configServiceUrl', e.target.value)}
+              disabled={configUrlLocked}
+              placeholder={form.usesHostConfig ? '' : 'https://… (optional for self-contained externals)'}
+              style={{ ...inputStyle, opacity: configUrlLocked ? 0.6 : 1 }} />
+            {configUrlLocked && (
+              <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
+                Inherited from host manifest
+              </div>
+            )}
+          </FieldGroup>
+
           {/* Config ID */}
-          <FieldGroup label="Config ID">
+          <FieldGroup label="Config ID" error={fieldErrors.configId}>
             <input
-              value={configId}
-              onChange={(e) => { setConfigId(e.target.value); setConfigIdEdited(true); }}
-              placeholder="Auto-generated from type/subtype"
-              style={{ ...inputStyle, fontFamily: "var(--de-mono)" }}
+              value={form.configId}
+              onChange={(e) => { update('configId', e.target.value); setConfigIdEdited(true); }}
+              disabled={form.singleton}
+              placeholder={form.singleton ? 'Derived from component type + subtype' : 'Auto-generated from type/subtype'}
+              style={{ ...inputStyle, fontFamily: "var(--de-mono)", opacity: form.singleton ? 0.6 : 1 }}
             />
+            {form.singleton && (
+              <div style={{ fontSize: 10, color: 'var(--de-text-tertiary)', marginTop: 4 }}>
+                Singleton configId is auto-derived and must be unique per appId
+              </div>
+            )}
           </FieldGroup>
         </div>
 
-        {/* Footer — pinned at bottom */}
+        {/* Footer */}
         <div style={{
           display: "flex", justifyContent: "flex-end", gap: 8,
           padding: "12px 24px", borderTop: "1px solid var(--de-border)",
           flexShrink: 0,
         }}>
           <button onClick={onCancel} style={cancelBtnStyle}>Cancel</button>
-          <button onClick={handleSave} style={saveBtnStyle}>Save</button>
+          <button onClick={handleSave} style={saveBtnStyle}
+            disabled={!!singletonUniquenessError}>Save</button>
         </div>
       </div>
     </>
@@ -200,6 +362,14 @@ function FieldGroup({ label, error, children }: { label: string; error?: string;
       {children}
     </div>
   );
+}
+
+function toErrorMap(errors: ValidationError[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const e of errors) {
+    if (!map[e.field]) map[e.field] = e.message;
+  }
+  return map;
 }
 
 const inputStyle: React.CSSProperties = {

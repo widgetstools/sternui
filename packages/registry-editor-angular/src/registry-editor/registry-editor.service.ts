@@ -8,27 +8,35 @@ import {
   clearRegistryConfig,
   IAB_REGISTRY_CONFIG_UPDATE,
   generateTemplateConfigId,
+  migrateRegistryToV2,
+  readHostEnv,
+  REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,
+  type HostEnv,
 } from '@marketsui/openfin-platform';
-
-const CONFIG_VERSION = 1;
 
 @Injectable()
 export class RegistryEditorService {
   private _entries = signal<RegistryEntry[]>([]);
   private _isDirty = signal(false);
   private _isLoading = signal(true);
+  private _hostEnv = signal<HostEnv>({ appId: '', configServiceUrl: '' });
 
   readonly entries = computed(() => this._entries());
   readonly isDirty = computed(() => this._isDirty());
   readonly isLoading = computed(() => this._isLoading());
   readonly entryCount = computed(() => this._entries().length);
+  readonly hostEnv = computed(() => this._hostEnv());
 
   async init(): Promise<void> {
     try {
+      const env = await readHostEnv();
+      this._hostEnv.set(env);
+
       const saved = await loadRegistryConfig();
-      this._entries.set(saved ? saved.entries : []);
+      const migrated = migrateRegistryToV2(saved as RegistryEditorConfig | null, env);
+      this._entries.set(migrated.entries);
     } catch (err) {
       console.error('Failed to load registry config:', err);
       this._entries.set([]);
@@ -54,7 +62,7 @@ export class RegistryEditorService {
 
   async save(): Promise<void> {
     const config: RegistryEditorConfig = {
-      version: CONFIG_VERSION,
+      version: REGISTRY_CONFIG_VERSION,
       entries: this._entries(),
     };
     await saveRegistryConfig(config);
@@ -76,8 +84,6 @@ export class RegistryEditorService {
         return;
       }
 
-      // Pass customData so the component-host can resolve identity.
-      // The launched view reads this via readCustomData() to load its config.
       const instanceId = crypto.randomUUID();
       const templateId = entry.configId || generateTemplateConfigId(
         entry.componentType,
@@ -92,6 +98,10 @@ export class RegistryEditorService {
           templateId,
           componentType: entry.componentType,
           componentSubType: entry.componentSubType,
+          // v2: forward the effective appId + configServiceUrl (may be
+          // host's values or the entry's own, depending on usesHostConfig).
+          appId: entry.appId,
+          configServiceUrl: entry.configServiceUrl,
         },
       });
     } catch (err) {

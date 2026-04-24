@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 
-import { useReducer, useEffect, useCallback, useRef } from "react";
+import { useReducer, useEffect, useCallback, useRef, useState } from "react";
 import {
   loadRegistryConfig,
   saveRegistryConfig,
   clearRegistryConfig,
   IAB_REGISTRY_CONFIG_UPDATE,
   generateTemplateConfigId,
+  migrateRegistryToV2,
+  readHostEnv,
+  REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,
+  type HostEnv,
 } from "@marketsui/openfin-platform";
 
 // ─── Action Types ────────────────────────────────────────────────────
@@ -21,8 +25,6 @@ type RegistryAction =
   | { type: "REMOVE_ENTRY"; id: string }
   | { type: "SET_DIRTY"; dirty: boolean }
   | { type: "SET_LOADING"; loading: boolean };
-
-// ─── State ───────────────────────────────────────────────────────────
 
 interface RegistryState {
   entries: RegistryEntry[];
@@ -36,36 +38,28 @@ const initialState: RegistryState = {
   isLoading: true,
 };
 
-// ─── Reducer ─────────────────────────────────────────────────────────
-
 function registryReducer(state: RegistryState, action: RegistryAction): RegistryState {
   switch (action.type) {
     case "SET_ENTRIES":
       return { ...state, entries: action.entries, isDirty: false, isLoading: false };
-
     case "ADD_ENTRY":
       return { ...state, entries: [...state.entries, action.entry], isDirty: true };
-
     case "UPDATE_ENTRY":
       return {
         ...state,
         entries: state.entries.map((e) => (e.id === action.id ? action.entry : e)),
         isDirty: true,
       };
-
     case "REMOVE_ENTRY":
       return {
         ...state,
         entries: state.entries.filter((e) => e.id !== action.id),
         isDirty: true,
       };
-
     case "SET_DIRTY":
       return { ...state, isDirty: action.dirty };
-
     case "SET_LOADING":
       return { ...state, isLoading: action.loading };
-
     default:
       return state;
   }
@@ -77,40 +71,40 @@ export interface UseRegistryEditorReturn {
   entries: RegistryEntry[];
   isDirty: boolean;
   isLoading: boolean;
+  hostEnv: HostEnv;
   dispatch: React.Dispatch<RegistryAction>;
   save: () => Promise<void>;
   reset: () => Promise<void>;
   testComponent: (entry: RegistryEntry) => Promise<void>;
 }
 
-const CONFIG_VERSION = 1;
-
 export function useRegistryEditor(): UseRegistryEditorReturn {
   const [state, dispatch] = useReducer(registryReducer, initialState);
+  const [hostEnv, setHostEnv] = useState<HostEnv>({ appId: '', configServiceUrl: '' });
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Load initial config from IndexedDB on mount
+  // Load host env + initial config on mount. The v1→v2 migrator runs
+  // here so no downstream code ever sees a v1-shaped entry.
   useEffect(() => {
-    async function loadInitialConfig() {
+    (async () => {
       try {
+        const env = await readHostEnv();
+        setHostEnv(env);
+
         const saved = await loadRegistryConfig();
-        if (saved) {
-          dispatch({ type: "SET_ENTRIES", entries: saved.entries });
-        } else {
-          dispatch({ type: "SET_ENTRIES", entries: [] });
-        }
+        const migrated = migrateRegistryToV2(saved as RegistryEditorConfig | null, env);
+        dispatch({ type: "SET_ENTRIES", entries: migrated.entries });
       } catch (err) {
         console.error("Failed to load registry config:", err);
         dispatch({ type: "SET_ENTRIES", entries: [] });
       }
-    }
-    loadInitialConfig();
+    })();
   }, []);
 
   const buildConfig = useCallback((): RegistryEditorConfig => {
     return {
-      version: CONFIG_VERSION,
+      version: REGISTRY_CONFIG_VERSION,
       entries: stateRef.current.entries,
     };
   }, []);
@@ -142,13 +136,10 @@ export function useRegistryEditor(): UseRegistryEditorReturn {
     try {
       const openFinApi = (window as any).fin;
       if (typeof openFinApi === "undefined") {
-        // Outside OpenFin — open in a new browser tab
         window.open(entry.hostUrl, "_blank");
         return;
       }
 
-      // Pass customData so the component-host can resolve identity.
-      // The launched view reads this via readCustomData() to load its config.
       const instanceId = crypto.randomUUID();
       const templateId = entry.configId || generateTemplateConfigId(
         entry.componentType,
@@ -163,6 +154,11 @@ export function useRegistryEditor(): UseRegistryEditorReturn {
           templateId,
           componentType: entry.componentType,
           componentSubType: entry.componentSubType,
+          // v2: forward the appId + configServiceUrl the component will
+          // target. For usesHostConfig === true this equals hostEnv; for
+          // external entries it equals the entry's own values.
+          appId: entry.appId,
+          configServiceUrl: entry.configServiceUrl,
         },
       });
     } catch (err) {
@@ -174,6 +170,7 @@ export function useRegistryEditor(): UseRegistryEditorReturn {
     entries: state.entries,
     isDirty: state.isDirty,
     isLoading: state.isLoading,
+    hostEnv,
     dispatch,
     save,
     reset,

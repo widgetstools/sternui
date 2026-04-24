@@ -21,7 +21,7 @@ const CTA_ON_ACCENT_TEXT = dark.action.buyText;
 // ─── Main Component ──────────────────────────────────────────────────
 
 export function RegistryEditorPanel() {
-  const { entries, isDirty, isLoading, dispatch, save, testComponent } = useRegistryEditor();
+  const { entries, isDirty, isLoading, hostEnv, dispatch, save, testComponent } = useRegistryEditor();
 
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -95,6 +95,11 @@ export function RegistryEditorPanel() {
         componentType: entry.componentType,
         componentSubType: entry.componentSubType,
         configId: entry.configId,
+        type: entry.type,
+        usesHostConfig: entry.usesHostConfig,
+        appId: entry.appId,
+        configServiceUrl: entry.configServiceUrl,
+        singleton: entry.singleton,
       },
     });
     setDialogTitle("Edit Component");
@@ -251,6 +256,9 @@ export function RegistryEditorPanel() {
         open={dialogOpen}
         title={dialogTitle}
         initial={editTarget?.data}
+        hostEnv={hostEnv}
+        allEntries={entries}
+        editingId={editTarget?.id ?? null}
         onSave={handleFormSave}
         onCancel={() => setDialogOpen(false)}
       />
