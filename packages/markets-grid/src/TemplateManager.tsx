@@ -79,6 +79,7 @@ export function TemplateManager({
   const isCompact = variant === 'compact';
   const rowHeight = 28;
 
+  const isEmpty = templates.length === 0;
   const deleteDisabled = disabled || !activeTemplateId;
 
   return (
@@ -92,44 +93,48 @@ export function TemplateManager({
         width: isCompact ? undefined : '100%',
       }}
     >
-      {/* Select — the "apply" surface. First empty option reads as
-          a placeholder; the `value=""` path is a no-op (no reducer
-          dispatched) to avoid an accidental "clear template" when
-          the user re-opens the select and taps it. */}
-      <Select
-        value={activeTemplateId ?? ''}
-        disabled={disabled || templates.length === 0}
-        data-testid={`${testIdPrefix}-select`}
-        title={templates.length === 0
-          ? 'Save a template first with the + button below'
-          : 'Pick a saved template to apply to the selected column(s)'}
-        aria-label="Apply saved template"
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v) onApply(v);
-        }}
-        className="h-7"
-      >
-        <option value="" disabled>
-          {templates.length === 0 ? 'No templates yet' : 'Choose a template…'}
-        </option>
-        {templates.map((tpl) => (
-          <option key={tpl.id} value={tpl.id}>
-            {tpl.name}
-          </option>
-        ))}
-      </Select>
+      {/* Select — the "apply" surface. Only rendered when we actually
+          have templates to choose from. When empty, we skip the select
+          entirely and show an inline hint below the save row (see
+          the helper caption further down) — this avoids a disabled
+          greyed-out control + a native title tooltip that was
+          obscuring the save/delete action row right below it.
 
-      {/* Save-as input + [+] save + [🗑] delete active */}
+          First empty option is a placeholder; the `value=""` path is
+          a no-op (no reducer dispatched) to avoid an accidental "clear
+          template" when the user re-opens the select and taps it. */}
+      {!isEmpty && (
+        <Select
+          value={activeTemplateId ?? ''}
+          disabled={disabled}
+          data-testid={`${testIdPrefix}-select`}
+          aria-label="Apply saved template"
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) onApply(v);
+          }}
+          className="h-7"
+        >
+          <option value="" disabled>Choose a template…</option>
+          {templates.map((tpl) => (
+            <option key={tpl.id} value={tpl.id}>
+              {tpl.name}
+            </option>
+          ))}
+        </Select>
+      )}
+
+      {/* Save-as input + [+] save + [🗑] delete active.
+          Delete only renders when there's a template to delete —
+          cleaner empty state, fewer disabled controls. */}
       <div style={{ display: 'flex', gap: 6 }}>
         <input
           type="text"
           value={saveName}
           onChange={(e) => onSaveNameChange(e.target.value)}
-          placeholder="Save current style as…"
+          placeholder={isEmpty ? 'Save your first template…' : 'Save current style as…'}
           disabled={disabled}
           data-testid={`${testIdPrefix}-save-input`}
-          title="Name a new template that captures the selected column's current style"
           aria-label="New template name"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && saveName.trim()) onSave();
@@ -185,67 +190,90 @@ export function TemplateManager({
         {/* Delete currently-selected template — two-step confirm.
             First click arms (button widens, turns destructive red);
             second click commits. Auto-disarms after 3s OR when the
-            active selection changes. */}
-        <button
-          type="button"
-          disabled={deleteDisabled}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!activeTemplateId) return;
-            if (confirmArmed) {
-              onDelete(activeTemplateId);
-              disarm();
-            } else {
-              armDelete();
+            active selection changes.
+
+            Hidden entirely when the library is empty (nothing to
+            delete → don't render a permanently-disabled trash can). */}
+        {!isEmpty && (
+          <button
+            type="button"
+            disabled={deleteDisabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!activeTemplateId) return;
+              if (confirmArmed) {
+                onDelete(activeTemplateId);
+                disarm();
+              } else {
+                armDelete();
+              }
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            data-testid={`${testIdPrefix}-delete-btn`}
+            title={
+              deleteDisabled
+                ? 'Pick a template to delete'
+                : confirmArmed
+                  ? 'Click again to delete'
+                  : 'Delete selected template'
             }
-          }}
-          onMouseDown={(e) => e.preventDefault()}
-          data-testid={`${testIdPrefix}-delete-btn`}
-          title={
-            deleteDisabled
-              ? 'Pick a template to delete'
-              : confirmArmed
-                ? 'Click again to delete'
-                : 'Delete selected template'
-          }
-          aria-label={confirmArmed ? 'Confirm delete template' : 'Delete selected template'}
+            aria-label={confirmArmed ? 'Confirm delete template' : 'Delete selected template'}
+            style={{
+              width: confirmArmed ? 70 : rowHeight,
+              height: rowHeight,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              padding: 0,
+              border: `1px solid ${confirmArmed
+                ? 'var(--destructive)'
+                : 'var(--border)'}`,
+              borderRadius: 3,
+              background: confirmArmed
+                ? 'color-mix(in srgb, var(--destructive) 18%, transparent)'
+                : 'transparent',
+              color: confirmArmed ? 'var(--destructive)' : 'var(--muted-foreground)',
+              fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              cursor: deleteDisabled ? 'not-allowed' : 'pointer',
+              opacity: deleteDisabled ? 0.3 : 1,
+              transition: 'width 120ms, background 120ms, color 120ms, border-color 120ms',
+              flexShrink: 0,
+            }}
+          >
+            {confirmArmed ? (
+              <>
+                <Trash2 size={11} strokeWidth={2} />
+                <span>DELETE</span>
+              </>
+            ) : (
+              <Trash2 size={13} strokeWidth={1.75} />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Empty-state hint — only shown when there are no templates yet.
+          Inline caption (not a tooltip) so it can't obscure anything. */}
+      {isEmpty && (
+        <div
+          data-testid={`${testIdPrefix}-empty-hint`}
           style={{
-            width: confirmArmed ? 70 : rowHeight,
-            height: rowHeight,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            padding: 0,
-            border: `1px solid ${confirmArmed
-              ? 'var(--destructive)'
-              : 'var(--border)'}`,
-            borderRadius: 3,
-            background: confirmArmed
-              ? 'color-mix(in srgb, var(--destructive) 18%, transparent)'
-              : 'transparent',
-            color: confirmArmed ? 'var(--destructive)' : 'var(--muted-foreground)',
-            fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
             fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            cursor: deleteDisabled ? 'not-allowed' : 'pointer',
-            opacity: deleteDisabled ? 0.3 : 1,
-            transition: 'width 120ms, background 120ms, color 120ms, border-color 120ms',
-            flexShrink: 0,
+            color: 'var(--muted-foreground)',
+            fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
+            lineHeight: 1.4,
+            paddingTop: 2,
           }}
         >
-          {confirmArmed ? (
-            <>
-              <Trash2 size={11} strokeWidth={2} />
-              <span>DELETE</span>
-            </>
-          ) : (
-            <Trash2 size={13} strokeWidth={1.75} />
-          )}
-        </button>
-      </div>
+          Name a style, then click <span style={{ fontWeight: 600 }}>+</span> to save your
+          first template. Applied templates will appear as a dropdown here.
+        </div>
+      )}
     </div>
   );
 }
