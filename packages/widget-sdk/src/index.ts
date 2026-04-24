@@ -7,24 +7,24 @@ export type {
   WidgetConfig,
   WidgetProps,
   WidgetContext,
-  WidgetHostProps
+  WidgetHostProps,
 } from './types/widget.js';
 
 export type {
   PlatformAdapter,
-  ParentIdentity
+  ParentIdentity,
 } from './types/platform.js';
 
 export type {
   SettingsScreenContext,
-  SettingsScreenDefinition
+  SettingsScreenDefinition,
 } from './types/settings.js';
 
 export type {
   SlotContent,
   WidgetEnhancer,
   ActionContext,
-  WidgetExtensionConfig
+  WidgetExtensionConfig,
 } from './types/slots.js';
 
 // ============================================================================
@@ -49,11 +49,24 @@ export { useSettingsScreen } from './hooks/useSettingsScreen.js';
 export { BrowserAdapter } from './adapters/BrowserAdapter.js';
 
 // ============================================================================
-// Services
+// Layout helpers (thin functions over the unified ConfigClient)
 // ============================================================================
-export { ConfigClient } from './services/configClient.js';
-export { createConfigService } from './config/createConfigService.js';
-export type { CreateConfigServiceOptions } from './config/createConfigService.js';
+export {
+  getLayouts,
+  saveLayout,
+  loadLayout,
+  deleteLayout,
+} from './services/widgetLayouts.js';
+
+// ============================================================================
+// Config service re-exports
+// ============================================================================
+// For convenience — same client that useWidgetHost() provides.
+export { createConfigClient } from '@marketsui/config-service';
+export type {
+  ConfigClient,
+  CreateConfigClientOptions,
+} from '@marketsui/config-service';
 
 // ============================================================================
 // Extensibility

@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
+
+/* PrimeNG icons — retained because dock-editor and registry-editor
+   sub-packages render PrimeNG components that use this font. */
+@import 'primeicons/primeicons.css';
+
+/* MarketsUI Design System Tokens — single source of truth.
+   Both files define variables scoped by [data-theme]. */
+@import '../../../packages/design-system/src/themes/fi-dark.css';
+@import '../../../packages/design-system/src/themes/fi-light.css';
+
+/* Tailwind v3 directives — utilities resolve via the shadcn-compatible
+   aliases exported by fi-dark.css / fi-light.css. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-border; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+  }
+  body {
+    background: var(--bn-bg);
+    color: var(--bn-t0);
+    font-family: var(--fi-sans);
+    font-size: var(--fi-font-sm);
+    padding: 10px;
+  }
+}

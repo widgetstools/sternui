@@ -115,7 +115,7 @@ export class ComponentHostService<T = unknown> implements OnDestroy {
 
       // Update all signals
       this.instanceId.set(identity.instanceId);
-      this.config.set(loadedRow ? (loadedRow.config as T) : null);
+      this.config.set(loadedRow ? (loadedRow.payload as T) : null);
       this.theme.set(currentTheme);
       this.isLoading.set(false);
       this.isSaved.set(!isNew);
@@ -135,7 +135,7 @@ export class ComponentHostService<T = unknown> implements OnDestroy {
     // Merge into row so the saver has the latest state
     this.row = {
       ...this.row,
-      config: { ...this.row.config, ...partial },
+      payload: { ...(this.row.payload as Record<string, unknown>), ...partial },
     };
 
     // Optimistic signal update — template reflects change immediately

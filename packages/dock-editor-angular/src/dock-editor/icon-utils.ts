@@ -7,9 +7,12 @@
  */
 
 import { marketIconToDataUrl } from "@marketsui/icons-svg/all-icons";
+import { dark, light } from "@marketsui/design-system/tokens/semantic";
 
-const DARK_COLOR  = '#ffffff';
-const LIGHT_COLOR = '#1a1a2e';
+// Default icon colors sourced from the design-system text.primary tokens
+// for each theme.
+const DARK_COLOR  = dark.text.primary;
+const LIGHT_COLOR = light.text.primary;
 const ICON_HEIGHT = 24;
 const DEFAULT_ICON_ID = 'lucide:file-text';
 

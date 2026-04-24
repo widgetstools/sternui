@@ -3,13 +3,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { LayoutInfo } from '@marketsui/shared-types';
 import type { WidgetContext, WidgetConfig } from '../types/widget.js';
 import { useWidgetHost } from '../providers/WidgetHost.js';
+import {
+  getLayouts as layoutsGet,
+  saveLayout as layoutsSave,
+  loadLayout as layoutsLoad,
+  deleteLayout as layoutsDelete,
+} from '../services/widgetLayouts.js';
 
 /**
  * useWidget(configId) — the main hook for all widget components.
  * Fetches config, manages layouts, wires lifecycle, and exposes platform communication.
  */
 export function useWidget(configId: string): WidgetContext {
-  const { userId, platform, configClient } = useWidgetHost();
+  const { platform, configClient, userId } = useWidgetHost();
   const queryClient = useQueryClient();
 
   const instanceId = useMemo(() => platform.getInstanceId(), [platform]);
@@ -23,7 +29,7 @@ export function useWidget(configId: string): WidgetContext {
     refetch
   } = useQuery({
     queryKey: ['config', configId],
-    queryFn: () => configClient.getById(configId),
+    queryFn: async () => (await configClient.getConfig(configId)) ?? null,
     enabled: !!configId
   });
 
@@ -32,7 +38,7 @@ export function useWidget(configId: string): WidgetContext {
     data: layouts = []
   } = useQuery({
     queryKey: ['layouts', configId],
-    queryFn: () => configClient.getLayouts(configId),
+    queryFn: () => layoutsGet(configClient, configId),
     enabled: !!configId
   });
 
@@ -68,15 +74,15 @@ export function useWidget(configId: string): WidgetContext {
 
   // ─── Config Operations ─────────────────────────────
   const updateConfig = useCallback(async (updates: Partial<WidgetConfig>) => {
-    await configClient.update(configId, updates);
+    await configClient.updateConfig(configId, updates);
     queryClient.invalidateQueries({ queryKey: ['config', configId] });
   }, [configId, configClient, queryClient]);
 
   const saveConfig = useCallback(async (fullConfig?: WidgetConfig) => {
     if (fullConfig) {
-      await configClient.update(configId, fullConfig);
+      await configClient.updateConfig(configId, fullConfig);
     } else if (config) {
-      await configClient.update(configId, config);
+      await configClient.updateConfig(configId, config);
     }
     queryClient.invalidateQueries({ queryKey: ['config', configId] });
   }, [configId, config, configClient, queryClient]);
@@ -85,37 +91,21 @@ export function useWidget(configId: string): WidgetContext {
     await refetch();
   }, [refetch]);
 
-  // ─── Hierarchy Operations ──────────────────────────
-  const configSource = config?.isInherited ? 'inherited' as const : 'own' as const;
-  const inheritedFrom = config?.sourceNodePath;
-
-  const forkConfig = useCallback(async (newName?: string): Promise<WidgetConfig> => {
-    if (!config?.nodeId) {
-      throw new Error('Cannot fork: config has no nodeId');
-    }
-    const forked = await configClient.forkConfig(configId, config.nodeId, userId, newName);
-    return forked;
-  }, [configId, config, userId, configClient]);
-
-  const promoteConfig = useCallback(async (targetNodePath: string) => {
-    await configClient.promoteConfig(configId, targetNodePath, userId);
-  }, [configId, userId, configClient]);
-
   // ─── Layout Operations ─────────────────────────────
   const saveLayout = useCallback(async (name: string, state: unknown): Promise<LayoutInfo> => {
-    const layout = await configClient.saveLayout(configId, name, state, userId, config?.appId || 'default-app');
+    const layout = await layoutsSave(configClient, configId, name, state, userId, config?.appId || 'default-app');
     queryClient.invalidateQueries({ queryKey: ['layouts', configId] });
     return layout;
   }, [configId, userId, config, configClient, queryClient]);
 
   const loadLayout = useCallback(async (layoutId: string): Promise<unknown> => {
-    const state = await configClient.loadLayout(layoutId);
+    const state = await layoutsLoad(configClient, layoutId);
     setActiveLayoutId(layoutId);
     return state;
   }, [configClient]);
 
   const deleteLayout = useCallback(async (layoutId: string) => {
-    await configClient.deleteLayout(layoutId);
+    await layoutsDelete(configClient, layoutId);
     if (activeLayoutId === layoutId) {
       setActiveLayoutId(null);
     }
@@ -168,11 +158,6 @@ export function useWidget(configId: string): WidgetContext {
     updateConfig,
     saveConfig,
     refetchConfig,
-
-    configSource,
-    inheritedFrom,
-    forkConfig,
-    promoteConfig,
 
     layouts,
     activeLayout,

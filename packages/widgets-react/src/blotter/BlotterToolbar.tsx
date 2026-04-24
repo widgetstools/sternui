@@ -61,11 +61,6 @@ export const BlotterToolbar: React.FC<BlotterToolbarProps> = ({
         {widget.isLoading && (
           <span className="text-xs text-muted-foreground">Loading...</span>
         )}
-        {widget.configSource === 'inherited' && widget.inheritedFrom && (
-          <span className="text-xs text-muted-foreground italic">
-            Inherited: {widget.inheritedFrom}
-          </span>
-        )}
         {onOpenSettings && (
           <Button variant="ghost" size="sm" onClick={onOpenSettings} className="h-7 text-xs">
             Settings

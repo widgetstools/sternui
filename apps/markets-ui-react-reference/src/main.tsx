@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import App from "./App";
+import { ThemeProvider } from "./context/ThemeContext";
 import "./index.css";
 
 // ─── Lazy-loaded route components ────────────────────────────────────
@@ -34,23 +35,25 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        {/* Main app shell */}
-        <Route path="/" element={<App />} />
+    <ThemeProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Main app shell */}
+          <Route path="/" element={<App />} />
 
-        {/* OpenFin platform provider — runs in a hidden window on startup */}
-        <Route path="/platform/provider" element={<Provider />} />
+          {/* OpenFin platform provider — runs in a hidden window on startup */}
+          <Route path="/platform/provider" element={<Provider />} />
 
-        {/* Sample views — launched as OpenFin Views from the dock */}
-        <Route path="/views/view1" element={<View1 />} />
-        <Route path="/views/view2" element={<View2 />} />
+          {/* Sample views — launched as OpenFin Views from the dock */}
+          <Route path="/views/view1" element={<View1 />} />
+          <Route path="/views/view2" element={<View2 />} />
 
-        {/* Utility windows — opened by dock toolbar buttons */}
-        <Route path="/dock-editor"       element={<React.Suspense fallback={LOADING}><DockEditor /></React.Suspense>} />
-        <Route path="/registry-editor"  element={<React.Suspense fallback={LOADING}><RegistryEditor /></React.Suspense>} />
-        <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
-      </Routes>
-    </BrowserRouter>
+          {/* Utility windows — opened by dock toolbar buttons */}
+          <Route path="/dock-editor"       element={<React.Suspense fallback={LOADING}><DockEditor /></React.Suspense>} />
+          <Route path="/registry-editor"  element={<React.Suspense fallback={LOADING}><RegistryEditor /></React.Suspense>} />
+          <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   </React.StrictMode>,
 );

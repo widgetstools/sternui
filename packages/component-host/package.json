@@ -11,7 +11,8 @@
     "./angular": "./angular/index.ts"
   },
   "scripts": {
-    "build": "tsc --noEmit --project tsconfig.json"
+    "build": "echo '@marketsui/component-host: consumed as source (no emit)'",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
     "@marketsui/openfin-platform": "*",

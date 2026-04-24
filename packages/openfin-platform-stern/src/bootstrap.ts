@@ -1,7 +1,10 @@
 /// <reference path="./types/openfin.d.ts" />
 /**
  * bootstrapPlatform — single entry point for OpenFin platform initialization.
- * Implements MarketsUI Lean Spec v1.3 §4.
+ *
+ * Built on the unified `@marketsui/config-service` ConfigClient. Swapping
+ * between local (Dexie) and remote (REST) storage is driven entirely by
+ * the `config.baseUrl` in the manifest's customData — no code changes.
  *
  * The dock module (openfinDock.ts) lives in the reference app to avoid a
  * circular package dependency. Callers inject it via opts.dockActions.
@@ -9,16 +12,61 @@
 
 import { init } from '@openfin/workspace-platform';
 import type { WorkspacePlatformOverrideCallback } from '@openfin/workspace-platform';
-import { createConfigService } from '@marketsui/widget-sdk';
-import type { ConfigService, ConfigRow } from '@marketsui/shared-types';
-import { ConfigId } from '@marketsui/shared-types';
+import {
+  createConfigClient,
+  type ConfigClient,
+  type AppConfigRow,
+  type UpsertConfigInput,
+} from '@marketsui/config-service';
+
+// ─── Deterministic id factory ────────────────────────────────────────
+// Intentionally local to this file (not imported from @marketsui/config-service)
+// so the angular vite plugin doesn't have to walk a cross-file re-export
+// chain during production bundling.
+type ConfigRowKind = 'registration' | 'template' | 'instance' | 'workspace';
+
+function _randomUUID(): string {
+  const g = (globalThis as unknown as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (g?.randomUUID) return g.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+const ConfigId = {
+  registration: (componentType: string, componentSubType: string): string =>
+    `REG_${componentType}_${componentSubType}`,
+  template: (componentType: string, componentSubType: string): string =>
+    `TMPL_${componentType}_${componentSubType}`,
+  instance: (componentType: string, componentSubType: string): string =>
+    `${componentType}_${componentSubType}_${_randomUUID()}`,
+  workspace: (): string => `WS_${_randomUUID()}`,
+  parse(id: string): { kind: ConfigRowKind; componentType: string; componentSubType: string } {
+    if (id.startsWith('REG_')) {
+      const [, t, s] = id.split('_', 3);
+      return { kind: 'registration', componentType: t ?? '', componentSubType: s ?? '' };
+    }
+    if (id.startsWith('TMPL_')) {
+      const [, t, s] = id.split('_', 3);
+      return { kind: 'template', componentType: t ?? '', componentSubType: s ?? '' };
+    }
+    if (id.startsWith('WS_')) {
+      return { kind: 'workspace', componentType: 'WORKSPACE', componentSubType: 'SNAPSHOT' };
+    }
+    const [t, s] = id.split('_');
+    return { kind: 'instance', componentType: t ?? '', componentSubType: s ?? '' };
+  },
+  isTemplate(id: string): boolean {
+    return id.startsWith('REG_') || id.startsWith('TMPL_');
+  },
+} as const;
 // Note: stern-2's original bootstrap imported `dataProviderConfigService`
 // from `@marketsui/widgets-react` and called `.configure({ apiUrl })`.
 // That creates a workspace cycle (widgets-react imports openfin hooks
 // from this package). Turbo rejects build cycles. Consumer apps must
 // now configure the data-provider service themselves after importing
-// widgets-react. TODO: refactor — move the singleton into
-// `@marketsui/widget-sdk` (shared by both).
+// widgets-react.
 import { THEME_PALETTES } from './platform/openfinThemePalettes.js';
 import { buildUrl } from './utils/urlHelper.js';
 import { registerConfigLookupCallback } from './platform/menuLauncher.js';
@@ -74,6 +122,59 @@ export class AppContext {
 }
 
 // ============================================================================
+// Local helpers — build & clone AppConfigRow values
+// ============================================================================
+
+/** Build a full AppConfigRow from the id + a payload. Used for seed writes. */
+function buildRow(params: {
+  id: string;
+  appId: string;
+  userId: string;
+  componentType: string;
+  componentSubType: string;
+  displayText?: string;
+  payload: unknown;
+}): UpsertConfigInput {
+  return {
+    configId: params.id,
+    appId: params.appId,
+    userId: params.userId,
+    componentType: params.componentType,
+    componentSubType: params.componentSubType,
+    isTemplate: ConfigId.isTemplate(params.id),
+    displayText: params.displayText ?? params.id,
+    payload: params.payload,
+    createdBy: params.userId,
+    updatedBy: params.userId,
+  };
+}
+
+/**
+ * Clone by explicit new id — the default `cloneConfig` mints its own
+ * uuid, but the launch flow needs the new id up-front so we can name
+ * the window after it.
+ */
+async function cloneWithId(
+  client: ConfigClient,
+  sourceId: string,
+  newId: string,
+  userId: string,
+): Promise<AppConfigRow> {
+  const src = await client.getConfig(sourceId);
+  if (!src) throw new Error(`cloneWithId: source not found — ${sourceId}`);
+  return client.upsertConfig({
+    ...src,
+    configId: newId,
+    userId,
+    isTemplate: false,
+    createdBy: userId,
+    updatedBy: userId,
+    // Mark provenance in payload for audit, but keep data shape intact.
+    payload: src.payload,
+  });
+}
+
+// ============================================================================
 // resolveInstanceId — clone detection (§5)
 // ============================================================================
 
@@ -88,10 +189,12 @@ export async function resolveInstanceId(): Promise<string> {
 
     // Clone detected — create new instance from source
     const inst = AppContext.instance ?? { appId: 'stern-platform', userId: 'default-user' };
-    const cs = createConfigService({ mode: 'indexeddb', appId: inst.appId, userId: inst.userId ?? 'default-user' });
-    const { configType, configSubType } = ConfigId.parse(urlId);
-    const newId = ConfigId.instance(configType, configSubType);
-    await cs.clone(urlId, newId);
+    const userId = inst.userId ?? 'default-user';
+    const client = createConfigClient({}); // local Dexie mode for the view
+    await client.init();
+    const { componentType, componentSubType } = ConfigId.parse(urlId);
+    const newId = ConfigId.instance(componentType, componentSubType);
+    await cloneWithId(client, urlId, newId, userId);
     await (fin.me as any).updateOptions({ name: newId, customData: { instanceId: newId } });
     history.replaceState(null, '', `?id=${encodeURIComponent(newId)}`);
     return newId;
@@ -132,50 +235,52 @@ export interface RegistrationEntry {
 }
 
 async function seedAdminComponents(
-  cs: ConfigService,
+  client: ConfigClient,
   appId: string,
+  userId: string,
   registrations: RegistrationEntry[],
   defaultDockItems: DockMenuItem[],
 ): Promise<void> {
   for (const reg of registrations) {
-    const regId  = ConfigId.registration(reg.configType, reg.configSubType);
-    const existing = await cs.get(regId);
+    const regId = ConfigId.registration(reg.configType, reg.configSubType);
+    const existing = await client.getConfig(regId);
     if (!existing) {
-      await cs.save({
+      await client.upsertConfig(buildRow({
         id: regId,
         appId,
-        configType: reg.configType,
-        configSubType: reg.configSubType,
-        type: 'registration',
-        config: {
+        userId,
+        componentType: reg.configType,
+        componentSubType: reg.configSubType,
+        displayText: reg.label ?? `${reg.configType}/${reg.configSubType}`,
+        payload: {
           displayName: reg.label ?? `${reg.configType}/${reg.configSubType}`,
           url: reg.url,
           width: reg.width ?? 1200,
           height: reg.height ?? 800,
           iconUrl: reg.icon ?? '',
         },
-      });
-      await cs.save({
+      }));
+      await client.upsertConfig(buildRow({
         id: ConfigId.template(reg.configType, reg.configSubType),
         appId,
-        configType: reg.configType,
-        configSubType: reg.configSubType,
-        type: 'template',
-        config: {},
-      });
+        userId,
+        componentType: reg.configType,
+        componentSubType: reg.configSubType,
+        payload: {},
+      }));
     }
   }
 
-  const treeRow = await cs.get('DOCK_MENU_TREE');
+  const treeRow = await client.getConfig('DOCK_MENU_TREE');
   if (!treeRow) {
-    await cs.save({
+    await client.upsertConfig(buildRow({
       id: 'DOCK_MENU_TREE',
       appId,
-      configType: 'DOCK',
-      configSubType: 'MENU_TREE',
-      type: 'template',
-      config: { items: defaultDockItems },
-    });
+      userId,
+      componentType: 'DOCK',
+      componentSubType: 'MENU_TREE',
+      payload: { items: defaultDockItems },
+    }));
   }
 }
 
@@ -184,19 +289,20 @@ async function seedAdminComponents(
 // ============================================================================
 
 async function launch(
-  configType: string,
-  configSubType: string,
-  cs: ConfigService,
+  componentType: string,
+  componentSubType: string,
+  client: ConfigClient,
   appId: string,
+  userId: string,
 ): Promise<string> {
-  const regId = ConfigId.registration(configType, configSubType);
-  const reg = await cs.get(regId);
+  const regId = ConfigId.registration(componentType, componentSubType);
+  const reg = await client.getConfig(regId);
   if (!reg) throw new Error(`launch: not registered — ${regId}`);
 
-  const instanceId = ConfigId.instance(configType, configSubType);
-  await cs.clone(ConfigId.template(configType, configSubType), instanceId);
+  const instanceId = ConfigId.instance(componentType, componentSubType);
+  await cloneWithId(client, ConfigId.template(componentType, componentSubType), instanceId, userId);
 
-  const regCfg = reg.config as { url: string; width?: number; height?: number };
+  const regCfg = reg.payload as { url: string; width?: number; height?: number };
   const url = `${buildUrl(regCfg.url)}?id=${encodeURIComponent(instanceId)}`;
 
   await fin.Window.create({
@@ -227,6 +333,8 @@ export interface BootstrapPlatformOptions {
   registrations?: RegistrationEntry[];
   /** Default dock menu items (used if DOCK_MENU_TREE row absent). */
   defaultDockItems?: DockMenuItem[];
+  /** Optional seed config JSON url for first-run local init. */
+  seedConfigUrl?: string;
   onReady?: () => void;
 }
 
@@ -246,19 +354,16 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
   try {
     await AppContext.init();
     const cfg = AppContext.instance;
+    const userId = cfg.userId ?? 'default-user';
 
     const apiUrl = await getManifestApiUrl();
-    // TODO: consumer must call `dataProviderConfigService.configure({ apiUrl })`
-    // externally after importing @marketsui/widgets-react. Circular-dep avoidance.
-    // apiUrl is still consumed below for baseUrl fallback.
 
     const baseUrl = cfg.config.baseUrl ?? `${apiUrl ?? 'http://localhost:3001'}/api/v1`;
-    const cs = createConfigService({
-      mode:    cfg.config.enabled ? 'rest' : 'indexeddb',
-      appId:   cfg.appId,
-      userId:  cfg.userId ?? 'default-user',
+    const client = createConfigClient({
       baseUrl: cfg.config.enabled ? baseUrl : undefined,
+      seedUrl: opts.seedConfigUrl,
     });
+    await client.init();
 
     const defaultDockItems: DockMenuItem[] = opts.defaultDockItems ?? (opts.registrations ?? []).map((r, i) =>
       createMenuItem({
@@ -270,14 +375,20 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
       })
     );
 
-    await seedAdminComponents(cs, cfg.appId, opts.registrations ?? [], defaultDockItems);
+    await seedAdminComponents(client, cfg.appId, userId, opts.registrations ?? [], defaultDockItems);
 
     // Register launch() as config lookup callback for dock menu items
     registerConfigLookupCallback(async (itemId) => {
       const parts = itemId.toUpperCase().split('-');
       if (parts.length >= 2) {
         try {
-          const instanceId = await launch(parts[0], parts.slice(1).join('_'), cs, cfg.appId);
+          const instanceId = await launch(
+            parts[0],
+            parts.slice(1).join('_'),
+            client,
+            cfg.appId,
+            userId,
+          );
           return { configId: instanceId, isExisting: false };
         } catch { /* not a registered component — use direct URL */ }
       }
@@ -311,25 +422,29 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
             for (const w of (snapshot.windows ?? [])) {
               collectIds(w, instanceIds);
             }
-            await cs.save({
+            const wsId = ConfigId.workspace();
+            await client.upsertConfig(buildRow({
+              id: wsId,
               appId: cfg.appId,
-              configType: 'WORKSPACE',
-              configSubType: 'SNAPSHOT',
-              type: 'workspace',
-              config: {
+              userId,
+              componentType: 'WORKSPACE',
+              componentSubType: 'SNAPSHOT',
+              displayText: req?.workspace?.title ?? 'Workspace',
+              payload: {
                 name: req?.workspace?.title ?? 'Workspace',
                 openfinSnapshot: req,
                 instanceIds,
               },
-            });
+            }));
           } catch { /* best-effort */ }
           return super.createSavedWorkspace(req);
         }
 
         async getSavedWorkspace(id: string) {
           try {
-            const row: ConfigRow | null = await cs.get(`WS_${id}`);
-            if (row?.config?.openfinSnapshot) return row.config.openfinSnapshot as any;
+            const row = await client.getConfig(`WS_${id}`);
+            const payload = row?.payload as { openfinSnapshot?: unknown } | null | undefined;
+            if (payload?.openfinSnapshot) return payload.openfinSnapshot as any;
           } catch { /* fall through */ }
           return super.getSavedWorkspace(id);
         }
@@ -360,9 +475,9 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
 
         if (d.isDockAvailable()) {
           try {
-            const treeRow = await cs.get('DOCK_MENU_TREE');
-            const rawItems = treeRow?.config?.items;
-            const items: DockMenuItem[] = Array.isArray(rawItems) ? rawItems : defaultDockItems;
+            const treeRow = await client.getConfig('DOCK_MENU_TREE');
+            const rawItems = (treeRow?.payload as { items?: unknown })?.items;
+            const items: DockMenuItem[] = Array.isArray(rawItems) ? (rawItems as DockMenuItem[]) : defaultDockItems;
             await d.register({ id: `${cfg.appId}-dock`, title: opts.dock.title, icon: opts.dock.icon, menuItems: items });
           } catch (e: any) {
             if (!e?.message?.includes('system topic payload')) throw e;
@@ -382,9 +497,9 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
           { uuid: fin.me.uuid },
           'stern:dock-editor:request-config',
           async () => {
-            const treeRow = await cs.get('DOCK_MENU_TREE');
-            const rawItems = treeRow?.config?.items;
-            const items: DockMenuItem[] = Array.isArray(rawItems) ? rawItems : defaultDockItems;
+            const treeRow = await client.getConfig('DOCK_MENU_TREE');
+            const rawItems = (treeRow?.payload as { items?: unknown })?.items;
+            const items: DockMenuItem[] = Array.isArray(rawItems) ? (rawItems as DockMenuItem[]) : defaultDockItems;
             await fin.InterApplicationBus.publish('stern:dock-editor:config', { menuItems: items });
           },
         );
@@ -394,14 +509,14 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
           'stern:dock-editor:apply',
           async (_sender: unknown, data: { menuItems: DockMenuItem[] }) => {
             await d.updateConfig({ menuItems: data.menuItems });
-            await cs.save({
+            await client.upsertConfig(buildRow({
               id: 'DOCK_MENU_TREE',
               appId: cfg.appId,
-              configType: 'DOCK',
-              configSubType: 'MENU_TREE',
-              type: 'template',
-              config: { items: data.menuItems },
-            });
+              userId,
+              componentType: 'DOCK',
+              componentSubType: 'MENU_TREE',
+              payload: { items: data.menuItems },
+            }));
           },
         );
 

@@ -16,7 +16,7 @@
     "./tailwind-config": "./tailwind.config.js"
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
     "watch": "tsc --watch",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"

@@ -85,7 +85,8 @@ export function RegistryItemForm({ open, title, initial, onSave, onCancel }: Reg
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — theme-invariant dim overlay (intentionally not tokenized:
+           modal backdrops always darken what's behind them regardless of theme). */}
       <div onClick={onCancel} style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
         zIndex: 1000, animation: "de-fade-in 0.15s ease",

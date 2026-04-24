@@ -10,12 +10,7 @@ import type { SimpleBlotterProps, BlotterSlots, BlotterSlotContext } from '@mark
 const orderSlots: BlotterSlots = {
   header: ({ widget }: BlotterSlotContext) => (
     <div className="px-3 py-1 text-xs font-medium text-muted-foreground border-b border-border bg-card/50">
-      Orders — {widget.config?.name || 'Untitled'}
-      {widget.configSource === 'inherited' && widget.inheritedFrom && (
-        <span className="ml-2 italic text-muted-foreground/70">
-          (inherited from {widget.inheritedFrom})
-        </span>
-      )}
+      Orders — {widget.config?.displayText || 'Untitled'}
     </div>
   ),
   footer: ({ selectedRows }: BlotterSlotContext) => (

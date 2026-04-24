@@ -32,12 +32,6 @@ export interface WidgetContext {
   saveConfig: (config?: WidgetConfig) => Promise<void>;
   refetchConfig: () => Promise<void>;
 
-  // ─── Hierarchy ────────────────────────────────────────
-  configSource: 'own' | 'inherited';
-  inheritedFrom?: string;                                     // e.g., "Desk: Equity Trading"
-  forkConfig: (newName?: string) => Promise<WidgetConfig>;    // fork inherited config as user's own
-  promoteConfig: (targetNodePath: string) => Promise<void>;   // promote config to higher level
-
   // ─── Layouts ──────────────────────────────────────────
   layouts: LayoutInfo[];
   activeLayout: LayoutInfo | null;

@@ -104,7 +104,7 @@ export function useComponentHost<T = unknown>(
         // All done — update state
         setState({
           instanceId: identity.instanceId,
-          config: row ? (row.config as T) : null,
+          config: row ? (row.payload as T) : null,
           theme: currentTheme,
           isLoading: false,
           isSaved: !isNew,
@@ -154,7 +154,7 @@ export function useComponentHost<T = unknown>(
     // Merge into row ref so the saver always has the latest
     rowRef.current = {
       ...rowRef.current,
-      config: { ...rowRef.current.config, ...partial },
+      payload: { ...(rowRef.current.payload as Record<string, unknown>), ...partial },
     };
 
     // Queue the debounced write

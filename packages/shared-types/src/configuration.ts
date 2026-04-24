@@ -1,165 +1,86 @@
-// Core UnifiedConfig schema and related types for Stern Configuration Service
+// Core UnifiedConfig schema for the MarketsUI Configuration Service.
+//
+// This is the contract shared between:
+//   - `@marketsui/config-service` (Dexie / IndexedDB client)
+//   - `apps/config-service-server` (REST / SQLite backend)
+//   - Every consumer that reads or writes component configurations
+//
+// The shape intentionally matches `AppConfigRow` in
+// `@marketsui/config-service` 1:1 — switching from local to remote
+// means pointing at a base URL; no field translation happens at the
+// boundary.
 
 // ============================================================================
-// Hierarchy Types (Organizational Configuration Inheritance)
+// Unified Configuration
 // ============================================================================
 
 /**
- * Hierarchy node types — represents organizational levels
+ * The single source of truth for a component configuration row.
+ *
+ * `payload` holds the component-specific config blob — its shape is
+ * determined by `componentType` + `componentSubType` and is opaque to
+ * the config service itself. Versioning, tagging, and similar features
+ * are the responsibility of the consumer and live inside `payload`.
  */
-export type HierarchyNodeType = 'APP' | 'REGION' | 'CITY' | 'DEPARTMENT' | 'DESK' | 'USER';
-
-/**
- * Strategy for merging inherited configurations
- */
-export type InheritanceStrategy = 'REPLACE' | 'SHALLOW_MERGE' | 'DEEP_MERGE';
-
-/**
- * A node in the organizational hierarchy tree
- */
-export interface HierarchyNode {
-  id: string;
-  nodeName: string;
-  nodeType: HierarchyNodeType;
-  parentId: string | null;
-  path: string;                    // "/stern/APAC/HongKong/Equities/EquityTrading"
-  level: number;                   // 0 = root (APP)
-  metadata?: Record<string, unknown>;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-/**
- * Rules for how a config at one hierarchy level merges with its parent
- */
-export interface InheritanceRules {
-  strategy: InheritanceStrategy;
-  overrideParent: boolean;
-}
-
-/**
- * Access control for configuration ownership and permissions
- */
-export interface AccessControl {
-  ownerId: string;
-  canEdit: string[];
-  canView: string[];
-  canMove: string[];               // who can promote to higher level
-}
-
-/**
- * Result of resolving a config through the hierarchy
- */
-export interface ConfigResolutionResult {
-  config: UnifiedConfig;
-  source: 'own' | 'inherited';
-  inheritedFrom?: string;          // "Desk: Equity Trading"
-  resolvedPath: string[];          // ancestor node paths used in resolution
-}
-
-// ============================================================================
-// Core Configuration Types
-// ============================================================================
-
 export interface UnifiedConfig {
-  // === Identity ===
-  configId: string;           // Unique identifier (UUID)
-  appId: string;              // Application identifier
-  userId: string;             // User who owns this config
+  /** Primary key — unique id for this row. */
+  configId: string;
 
-  // === Parent-Child Relationship ===
-  parentId?: string | null;   // Optional parent config ID for hierarchical configs (e.g., layouts linked to blotter)
+  /** Foreign key → application (platform uuid). */
+  appId: string;
 
-  // === Component Classification ===
-  componentType: string;      // 'datasource' | 'grid' | 'profile' | 'workspace' | 'theme' | 'layout' | 'simple-blotter' | 'simple-blotter-layout'
-  componentSubType?: string;  // 'stomp' | 'rest' | 'default' | 'custom' | 'shared' | 'direct'
+  /**
+   * Owner of this config row. System-level rows (e.g. seeded templates)
+   * typically use a reserved user id such as `"system"`.
+   */
+  userId: string;
 
-  // === Display ===
-  name: string;               // User-friendly name
-  description?: string;       // Optional description
-  icon?: string;              // Optional icon identifier
+  /** Component type: "GRID", "CHART", "HEATMAP", "ORDERTICKET", "DOCK", etc. */
+  componentType: string;
 
-  // === Configuration Data ===
-  config: Record<string, unknown>;  // Component-specific current configuration (strongly typed)
-  settings: ConfigVersion[];        // Version history (profiles, themes, layouts, views, etc.)
-  activeSetting: string;            // ID of active version
+  /** Sub-category within the component type (e.g. "CREDIT", "RATES"). */
+  componentSubType: string;
 
-  // === Metadata ===
-  tags?: string[];            // Searchable tags
-  category?: string;          // Organizational category
-  isShared?: boolean;         // Shared with other users
-  isDefault?: boolean;        // System default
-  isLocked?: boolean;         // Prevent modifications
+  /** True = shareable template. False = a user-specific instance. */
+  isTemplate: boolean;
 
-  // === Audit ===
-  createdBy: string;          // User ID who created
-  lastUpdatedBy: string;      // User ID who last updated
-  creationTime: Date;         // ISO timestamp
-  lastUpdated: Date;          // ISO timestamp
+  /** Human-readable label shown in toolbars, menus, and lookups. */
+  displayText: string;
 
-  // === Soft Delete ===
-  deletedAt?: Date | null;    // Soft delete timestamp
-  deletedBy?: string | null;  // User who deleted
+  /** Opaque, component-defined configuration payload. */
+  payload: Record<string, unknown> | unknown;
 
-  // === Row kind (ConfigService compat) ===
-  rowKind?: string;                    // 'registration' | 'template' | 'instance' | 'workspace'
+  /** User id of the creator. */
+  createdBy: string;
 
-  // === Hierarchy (optional, backward-compatible) ===
-  nodeId?: string;                     // hierarchy node where this config lives
-  nodePath?: string;                   // "/stern/APAC/HongKong/.../trader-1"
-  inheritanceStrategy?: InheritanceStrategy;
-  inheritanceRules?: InheritanceRules;
-  isInherited?: boolean;               // true if resolved from parent node
-  sourceNodePath?: string;             // path of owning node (if inherited)
-  accessControl?: AccessControl;
+  /** User id of the last editor. */
+  updatedBy: string;
+
+  /** ISO-8601 timestamp of creation. */
+  creationTime: string;
+
+  /** ISO-8601 timestamp of the last modification. */
+  updatedTime: string;
 }
 
-export interface ConfigVersion {
-  versionId: string;          // Unique version identifier (UUID)
-  name: string;               // Version name (e.g., "Default", "Trading View", "Dark Theme")
-  description?: string;       // Optional version description
-  config: Record<string, unknown>;  // Version-specific configuration data (strongly typed)
-  createdTime: Date;          // Version creation timestamp
-  updatedTime: Date;          // Version last update timestamp
-  isActive: boolean;          // Whether this version is currently active
-  metadata?: Record<string, unknown>;  // Version-specific metadata (strongly typed)
-}
+// ============================================================================
+// Query / filtering
+// ============================================================================
 
 export interface ConfigurationFilter {
-  // Identity Filters
-  configIds?: string[];           // Multiple config IDs
-  appIds?: string[];              // Multiple app IDs
-  userIds?: string[];             // Multiple user IDs
-  parentIds?: string[];           // Multiple parent config IDs (for hierarchical queries)
-
-  // Component Classification Filters
-  componentTypes?: string[];      // Multiple component types
-  componentSubTypes?: string[];   // Multiple component subtypes
-
-  // Content Filters
-  nameContains?: string;          // Name contains text
-  descriptionContains?: string;   // Description contains text
-  tags?: string[];                // Must have all specified tags
-  categories?: string[];          // Multiple categories
-
-  // Boolean Filters
-  isShared?: boolean;             // Shared configurations
-  isDefault?: boolean;            // Default configurations
-  isLocked?: boolean;             // Locked configurations
-  includeDeleted?: boolean;       // Include soft-deleted records
-
-  // Date Range Filters
-  createdAfter?: Date;            // Created after date
-  createdBefore?: Date;           // Created before date
-  updatedAfter?: Date;            // Updated after date
-  updatedBefore?: Date;           // Updated before date
-
-  // Advanced Filters
-  hasVersions?: boolean;          // Has versions in settings array
-  activeSettingExists?: boolean;  // Has valid activeSetting reference
-
-  // Hierarchy Filters
-  nodeIds?: string[];             // Filter by hierarchy node IDs
+  configIds?: string[];
+  appIds?: string[];
+  userIds?: string[];
+  componentTypes?: string[];
+  componentSubTypes?: string[];
+  displayTextContains?: string;
+  isTemplate?: boolean;
+  /** Reserved for future soft-delete support. Ignored when unsupported. */
+  includeDeleted?: boolean;
+  createdAfter?: string;
+  createdBefore?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
 }
 
 export interface PaginatedResult<T> {
@@ -175,10 +96,10 @@ export interface PaginatedResult<T> {
 export interface StorageHealthStatus {
   isHealthy: boolean;
   connectionStatus: 'connected' | 'disconnected' | 'error';
-  lastChecked: Date;
+  lastChecked: string;
   responseTime: number;
   errorMessage?: string;
-  storageType: 'sqlite' | 'mongodb' | 'mock';
+  storageType: 'sqlite' | 'dexie' | 'mock';
 }
 
 export interface BulkUpdateRequest {
@@ -198,7 +119,10 @@ export interface CleanupResult {
   dryRun?: boolean;
 }
 
+// ============================================================================
 // Component type constants
+// ============================================================================
+
 export const COMPONENT_TYPES = {
   DATASOURCE: 'datasource',
   DATA_PROVIDER: 'data-provider',
@@ -212,7 +136,7 @@ export const COMPONENT_TYPES = {
   DOCK: 'dock',
   SIMPLE_BLOTTER: 'simple-blotter',
   SIMPLE_BLOTTER_LAYOUT: 'simple-blotter-layout',
-  CUSTOM: 'custom'
+  CUSTOM: 'custom',
 } as const;
 
 export const COMPONENT_SUBTYPES = {
@@ -225,7 +149,7 @@ export const COMPONENT_SUBTYPES = {
   DEFAULT: 'default',
   CUSTOM: 'custom',
   SHARED: 'shared',
-  DIRECT: 'direct'
+  DIRECT: 'direct',
 } as const;
 
 export type ComponentType = typeof COMPONENT_TYPES[keyof typeof COMPONENT_TYPES];

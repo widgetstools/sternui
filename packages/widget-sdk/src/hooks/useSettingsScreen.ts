@@ -10,7 +10,7 @@ import { useWidgetHost } from '../providers/WidgetHost.js';
  * and provides save/close operations.
  */
 export function useSettingsScreen(): SettingsScreenContext {
-  const { userId, configClient, platform } = useWidgetHost();
+  const { configClient, platform, userId: _userId } = useWidgetHost();
   const queryClient = useQueryClient();
 
   // Parse parent identity from URL
@@ -37,15 +37,12 @@ export function useSettingsScreen(): SettingsScreenContext {
     error
   } = useQuery({
     queryKey: ['config', parentConfigId],
-    queryFn: () => configClient.getById(parentConfigId),
+    queryFn: async () => (await configClient.getConfig(parentConfigId)) ?? null,
     enabled: !!parentConfigId
   });
 
-  const configSource = config?.isInherited ? 'inherited' as const : 'own' as const;
-  const inheritedFrom = config?.sourceNodePath;
-
   const saveConfig = useCallback(async (updates: Partial<WidgetConfig>) => {
-    await configClient.update(parentConfigId, updates);
+    await configClient.updateConfig(parentConfigId, updates);
     queryClient.invalidateQueries({ queryKey: ['config', parentConfigId] });
 
     // Notify parent via broadcast
@@ -68,25 +65,6 @@ export function useSettingsScreen(): SettingsScreenContext {
     window.close();
   }, [parentInstanceId, platform]);
 
-  const forkAndSave = useCallback(async (updates: Partial<WidgetConfig>, newName?: string) => {
-    if (!config?.nodeId) {
-      throw new Error('Cannot fork: config has no nodeId');
-    }
-
-    // Fork the config
-    const forked = await configClient.forkConfig(parentConfigId, config.nodeId, userId, newName);
-
-    // Apply updates to the forked config
-    await configClient.update(forked.configId, updates);
-
-    // Notify parent
-    platform.broadcast('settings-forked', {
-      parentConfigId,
-      parentInstanceId,
-      newConfigId: forked.configId
-    });
-  }, [parentConfigId, parentInstanceId, config, userId, configClient, platform]);
-
   return {
     parentConfigId,
     parentInstanceId,
@@ -99,9 +77,5 @@ export function useSettingsScreen(): SettingsScreenContext {
     saveConfig,
     close,
     launchData,
-
-    configSource,
-    inheritedFrom,
-    forkAndSave
   };
 }

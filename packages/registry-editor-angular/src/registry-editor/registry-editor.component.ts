@@ -18,46 +18,116 @@ import { RegistryEditorService } from './registry-editor.service';
 import { generateTemplateConfigId, type RegistryEntry } from '@marketsui/openfin-platform';
 import { ICON_NAMES, ICON_META } from '@marketsui/icons-svg';
 import { iconIdToSvgUrl } from '@marketsui/angular-dock-editor';
+import { dark, light } from '@marketsui/design-system/tokens/semantic';
 
 // PrimeNG imports
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 
 
-/** Inject the shared --de-* design system CSS at runtime. */
+/**
+ * Registry-editor design tokens — 100% derived from @marketsui/design-system.
+ *
+ * Every `--de-*` variable below resolves to a design-system token
+ * (`--bn-*` for colors/surfaces/text, `--fi-*` for typography). The
+ * `--de-*` names are kept as internal aliases so the component styles
+ * (below) can reference familiar semantic names while the resolved
+ * values come from the one source of truth.
+ *
+ * Consumers must have the design-system theme CSS loaded at the app
+ * root (see `packages/design-system/README.md`).
+ */
+// Scoped to :root, [data-dock-editor] so modal portals render with tokens.
 const EDITOR_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-[data-dock-editor] {
-  --de-font: 'DM Sans', system-ui, sans-serif;
-  --de-mono: 'JetBrains Mono', monospace;
-  --de-bg-deep: #0c0c0e; --de-bg: #111114; --de-bg-raised: #18181c;
-  --de-bg-surface: #1e1e24; --de-bg-hover: #252530; --de-bg-active: #2a2a38;
-  --de-border: rgba(255,255,255,0.06); --de-border-subtle: rgba(255,255,255,0.04);
-  --de-border-strong: rgba(255,255,255,0.10);
-  --de-text: #e8e8ec; --de-text-secondary: #8b8b9e;
-  --de-text-tertiary: #5c5c6e; --de-text-ghost: #3a3a4a;
-  --de-accent: #e8a849; --de-accent-dim: rgba(232,168,73,0.12);
-  --de-accent-subtle: rgba(232,168,73,0.06);
-  --de-danger: #e5534b; --de-danger-dim: rgba(229,83,75,0.12);
-  --de-success: #3fb950;
-  --de-shadow-sm: 0 1px 2px rgba(0,0,0,0.3); --de-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+:root, [data-dock-editor] {
+  --de-font: var(--fi-sans);
+  --de-mono: var(--fi-mono);
+
+  --de-bg-deep:    var(--bn-bg);
+  --de-bg:         var(--bn-bg1);
+  --de-bg-raised:  var(--bn-bg1);
+  --de-bg-surface: var(--bn-bg2);
+  --de-bg-hover:   var(--bn-bg3);
+  --de-bg-active:  var(--bn-bg3);
+
+  --de-border:         var(--bn-border);
+  --de-border-subtle:  var(--bn-border);
+  --de-border-strong:  var(--bn-border2);
+
+  --de-text:           var(--bn-t0);
+  --de-text-secondary: var(--bn-t1);
+  --de-text-tertiary:  var(--bn-t2);
+  --de-text-ghost:     var(--bn-t3);
+
+  /* --de-accent is the PRIMARY BRAND accent — maps to --bn-blue
+     (NOT --bn-amber, which is WARNING semantic). */
+  --de-accent:         var(--bn-blue);
+  --de-accent-dim:     var(--bn-info-soft);
+  --de-accent-subtle:  var(--bn-info-soft);
+
+  --de-danger:         var(--bn-red);
+  --de-danger-dim:     var(--bn-negative-soft);
+  --de-success:        var(--bn-green);
+
+  --de-radius-sm: 6px;
+  --de-radius-md: 10px;
+  --de-radius-lg: 14px;
+
+  --de-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --de-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
   --de-shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
-  --de-radius-sm: 6px; --de-radius-md: 10px; --de-radius-lg: 14px;
-  font-family: var(--de-font); color: var(--de-text);
+
+  font-family: var(--de-font);
+  color: var(--de-text);
   -webkit-font-smoothing: antialiased;
 }
-[data-dock-editor][data-theme="light"] {
-  --de-bg-deep: #f5f5f7; --de-bg: #fafafa; --de-bg-raised: #ffffff;
-  --de-bg-surface: #f0f0f3; --de-bg-hover: #e8e8ec; --de-bg-active: #dddde3;
-  --de-border: rgba(0,0,0,0.08); --de-border-subtle: rgba(0,0,0,0.04);
-  --de-border-strong: rgba(0,0,0,0.12);
-  --de-text: #1a1a2e; --de-text-secondary: #5c5c72;
-  --de-text-tertiary: #8e8ea0; --de-text-ghost: #b8b8c8;
-  --de-accent: #c4882e; --de-accent-dim: rgba(196,136,46,0.10);
-  --de-shadow-sm: 0 1px 2px rgba(0,0,0,0.06); --de-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+
+/* Match the root-level [data-theme="light"] selector so portal content inherits. */
+[data-theme="light"], [data-dock-editor][data-theme="light"] {
+  --de-shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --de-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
   --de-shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
 }
 
+/* ── PrimeNG chrome overrides ─────────────────────────────────────
+ * Force PrimeNG components (rendered via portals) to use design-system
+ * tokens so they track [data-theme] together with the rest of the UI. */
+.p-dialog,
+.p-dialog-content,
+.p-dialog-header,
+.p-dialog-footer {
+  background: var(--bn-bg1) !important;
+  color: var(--bn-t0) !important;
+}
+.p-dialog { border: 1px solid var(--bn-border) !important; }
+.p-dialog-header { border-bottom: 1px solid var(--bn-border) !important; }
+.p-dialog-footer { border-top: 1px solid var(--bn-border) !important; }
+.p-dialog-title { color: var(--bn-t0) !important; }
+.p-dialog-mask { background: rgba(0, 0, 0, 0.55) !important; }
+
+.p-inputtext {
+  background: var(--bn-bg2) !important;
+  color: var(--bn-t0) !important;
+  border: 1px solid var(--bn-border) !important;
+}
+.p-inputtext:focus,
+.p-inputtext:enabled:focus {
+  border-color: var(--bn-blue) !important;
+  box-shadow: 0 0 0 2px var(--bn-info-soft) !important;
+}
+.p-inputtext::placeholder { color: var(--bn-t2) !important; }
+
+.p-button.p-button-text {
+  background: transparent !important;
+  color: var(--bn-t0) !important;
+  border: 1px solid var(--bn-border) !important;
+}
+.p-button.p-button-text:enabled:hover { background: var(--bn-bg3) !important; }
+.p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger) {
+  background: var(--bn-blue) !important;
+  color: #fff !important;
+  border: 1px solid var(--bn-blue) !important;
+}
 `;
 
 let cssInjected = false;
@@ -93,7 +163,11 @@ const EMPTY_FORM: FormData = {
 @Pipe({ name: 'iconUrl', standalone: true, pure: true })
 export class IconUrlPipe implements PipeTransform {
   transform(iconId: string, theme: 'dark' | 'light'): string {
-    const accentColor = theme === 'dark' ? '#e8a849' : '#c4882e';
+    // Icon tint sourced from the design-system accent.info tokens
+    // (the brand blue — NOT accent.warning/amber). SVG data URLs need
+    // literal hex values at generation time, so we import resolved
+    // values from @marketsui/design-system rather than hardcoding them.
+    const accentColor = (theme === 'dark' ? dark : light).accent.info;
     const [prefix, name] = iconId.split(':');
     if (prefix === 'mkt' && name) {
       return iconIdToSvgUrl(iconId, accentColor);

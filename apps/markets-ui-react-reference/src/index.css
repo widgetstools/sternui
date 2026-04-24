@@ -1,7 +1,12 @@
-/* MarketsUI Design Tokens — single source of truth */
-@import '@marketsui/tokens-primeng/css';
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
-/* Tailwind v3 directives */
+/* MarketsUI Design System Tokens — single source of truth.
+   Both files define variables scoped by [data-theme]. */
+@import '../../../packages/design-system/src/themes/fi-dark.css';
+@import '../../../packages/design-system/src/themes/fi-light.css';
+
+/* Tailwind v3 directives — utilities resolve via the shadcn-compatible
+   aliases exported by fi-dark.css / fi-light.css. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,8 +17,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: var(--mdl-font-family);
+    background: var(--bn-bg);
+    color: var(--bn-t0);
+    font-family: var(--fi-sans);
+    font-size: var(--fi-font-sm);
     margin: 0;
     padding: 10px;
   }
@@ -21,6 +28,6 @@
 
 /* ── OpenFin theme variable bridge ───────────────────────────────── */
 :root {
-  --of-bg: var(--theme-background-primary, hsl(var(--background)));
-  --of-fg: var(--theme-text-default, hsl(var(--foreground)));
+  --of-bg: var(--theme-background-primary, var(--bn-bg));
+  --of-fg: var(--theme-text-default, var(--bn-t0));
 }

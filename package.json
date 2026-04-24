@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo build",
+    "build": "turbo build --force",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "test:watch": "turbo test:watch",
@@ -19,6 +19,8 @@
     "dev:demo-angular": "turbo dev --filter=@marketsui/demo-angular",
     "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
     "dev:openfin:stern-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/stern-reference-react -- --no-open\" \"wait-on http://localhost:5173 && node tools/scripts/launch-openfin.mjs http://localhost:5173/manifest.fin.json\"",
+    "dev:openfin:markets-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/markets-ui-react-reference -- --no-open\" \"wait-on http://localhost:5174 && node tools/scripts/launch-openfin.mjs http://localhost:5174/platform/manifest.fin.json\"",
+    "dev:openfin:markets-angular": "concurrently -k -n ng,openfin -c cyan,magenta \"npm run dev -w @marketsui/markets-ui-angular-reference\" \"wait-on http://localhost:4200 && node tools/scripts/launch-openfin.mjs http://localhost:4200/platform/manifest.fin.json\"",
     "launch:openfin": "node tools/scripts/launch-openfin.mjs",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",

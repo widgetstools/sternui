@@ -17,7 +17,34 @@
 //
 //   const config = await configManager.getConfig("my-component-1");
 
-// ─── Factory function ───────────────────────────────────────────────
+// ─── ConfigClient (framework-agnostic, REST-shaped) ─────────────────
+// The recommended entry point for component configuration. Same
+// interface for local (Dexie) and remote (HTTP) modes.
+export {
+  createConfigClient,
+  LocalConfigClient,
+  RestConfigClient,
+  ConfigNotFoundError,
+  ConfigClientHttpError,
+} from './client';
+export type {
+  ConfigClient,
+  CreateConfigClientOptions,
+  ConfigFilter,
+  PageOptions,
+  PaginatedResult,
+  CompositeKey,
+  CreateConfigInput,
+  UpsertConfigInput,
+  BulkUpdateEntry,
+  BulkDeleteResult,
+  HealthStatus,
+} from './client';
+
+// ─── Lower-level ConfigManager ──────────────────────────────────────
+// Exposed for consumers that need direct access to auth tables
+// (appRegistry / userProfile / roles / permissions) or to dock/snapshot
+// convenience methods. New feature code should prefer `ConfigClient`.
 export { createConfigManager, ConfigManager } from './config-manager';
 
 // ─── Database (for advanced use cases only) ──────────────────────────

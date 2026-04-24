@@ -25,8 +25,14 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SelectModule } from 'primeng/select';
+import { colors } from '@marketsui/design-system/tokens/primitives';
 import { ICON_OPTIONS, DEFAULT_ICON, findIconById, type IconOption } from '../icons';
 import { iconIdToSvgUrl } from '../icon-utils';
+
+// Neutral mid-gray for the select-preview icon, sourced from the
+// design-system's charcoal palette. Works as a sensible default in
+// both dark and light themes.
+const NEUTRAL_ICON_COLOR = colors.charcoal[500];
 
 @Component({
   selector: 'mkt-icon-select',
@@ -94,8 +100,7 @@ export class IconSelectComponent implements OnInit, OnChanges {
 
   /** Build an Iconify CDN URL for rendering the icon as an <img> */
   protected getIconUrl(iconId: string): string {
-    // Use a neutral dark color — works in most PrimeNG themes
-    return iconIdToSvgUrl(iconId, '#6b7280');
+    return iconIdToSvgUrl(iconId, NEUTRAL_ICON_COLOR);
   }
 
   protected onIconChange(): void {

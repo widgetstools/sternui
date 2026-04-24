@@ -19,6 +19,7 @@
     "@angular/cdk": "21.1.0",
     "@marketsui/angular-dock-editor": "*",
     "@marketsui/angular-registry-editor": "*",
+    "@marketsui/design-system": "*",
     "@marketsui/icons-svg": "*",
     "@marketsui/openfin-platform": "*",
     "@marketsui/tokens-primeng": "*",

@@ -5,11 +5,18 @@ declare const fin: any;
 
 import { useState, useEffect } from "react";
 import { DynamicIcon as Icon } from "@marketsui/icons-svg/react";
+import { dark } from "@marketsui/design-system/tokens/semantic";
 import { useRegistryEditor } from "./hooks/useRegistryEditor";
 import { RegistryItemRow } from "./components/RegistryItemRow";
 import { RegistryItemForm, type RegistryFormData } from "./components/RegistryItemForm";
 import { injectEditorStyles } from "./editor-styles";
 import type { RegistryEntry } from "@marketsui/openfin-platform";
+
+// Text color that pairs with the brand-accent CTA background.
+// `action.buyText` resolves to the design-system's CTA foreground
+// (white) — pairs correctly with the blue brand accent on the Save
+// button, same as other CTA buttons in the design system.
+const CTA_ON_ACCENT_TEXT = dark.action.buyText;
 
 // ─── Main Component ──────────────────────────────────────────────────
 
@@ -177,7 +184,7 @@ export function RegistryEditorPanel() {
         <button onClick={save} disabled={!isDirty} title="Save"
           style={{
             background: isDirty ? "var(--de-accent)" : "var(--de-bg-surface)",
-            color: isDirty ? "#000" : "var(--de-text-tertiary)",
+            color: isDirty ? CTA_ON_ACCENT_TEXT : "var(--de-text-tertiary)",
             border: isDirty ? "none" : "1px solid var(--de-border)",
             borderRadius: "var(--de-radius-sm)", padding: "6px 16px",
             fontSize: 12, fontWeight: 600, cursor: isDirty ? "pointer" : "default",

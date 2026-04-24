@@ -37,8 +37,8 @@ export const SimpleBlotter: React.FC<SimpleBlotterProps> = ({
 
   const { captureGridState, applyGridState, resetGridState } = useGridStateManager(gridApi);
 
-  // ─── Component-specific data (nested in config.config) ──
-  const configData = widget.config?.config as Record<string, unknown> | undefined;
+  // ─── Component-specific data (nested in config.payload) ──
+  const configData = widget.config?.payload as Record<string, unknown> | undefined;
 
   // ─── Column definitions from config ────────────────
   const columns = useMemo((): ColDef[] => {

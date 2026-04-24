@@ -88,7 +88,8 @@ export function ItemFormDialog({ open, onOpenChange, title, initial, onSave }: I
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — theme-invariant dim overlay (intentionally not tokenized:
+           modal backdrops always darken what's behind them regardless of theme). */}
       <div onClick={() => onOpenChange(false)} style={{
         position: "fixed", inset: 0, zIndex: 9998,
         background: "rgba(0, 0, 0, 0.6)", backdropFilter: "blur(4px)",

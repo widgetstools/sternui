@@ -73,12 +73,16 @@ export default function ImportConfig() {
       }
 
       // Import dock config — look for the "dock-config" entry inside appConfig[].
-      // Each entry in appConfig is an AppConfigRow with a `configId` and `config` field.
+      // Each entry is an AppConfigRow with a `configId` and `payload` field.
+      // Tolerate legacy exports that still use the old `config` key.
       let dockConfigFound = false;
       for (const row of importData.appConfig) {
-        if (row.configId === "dock-config" && row.config) {
-          await saveDockConfig(row.config);
-          dockConfigFound = true;
+        if (row.configId === "dock-config") {
+          const payload = row.payload ?? row.config;
+          if (payload) {
+            await saveDockConfig(payload);
+            dockConfigFound = true;
+          }
         }
       }
 

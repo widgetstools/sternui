@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
     "watch": "tsc --watch",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"
@@ -26,13 +26,11 @@
     "react-dom": ">=19.0.0"
   },
   "dependencies": {
-    "dexie": "^4.4.2",
-    "uuid": "^9.0.1"
+    "@marketsui/config-service": "1.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@types/uuid": "^9.0.7",
     "rimraf": "^5.0.5",
     "typescript": "~5.9.3"
   },

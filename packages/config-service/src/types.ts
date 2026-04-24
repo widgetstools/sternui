@@ -27,6 +27,12 @@ export interface AppConfigRow {
   /** Foreign key → APP_REGISTRY. Identifies which app owns this config. */
   appId: string;
 
+  /**
+   * Owner of this config row. Templates typically use a system/shared user
+   * id; instance configs use the signed-in user id.
+   */
+  userId: string;
+
   /** Human-readable label shown in toolbars and menus. */
   displayText: string;
 
@@ -40,7 +46,7 @@ export interface AppConfigRow {
   isTemplate: boolean;
 
   /** The full component configuration object (shape varies by componentType). */
-  config: any;
+  payload: any;
 
   /** User ID of the person who created this config. */
   createdBy: string;
@@ -49,10 +55,10 @@ export interface AppConfigRow {
   updatedBy: string;
 
   /** ISO timestamp of when this config was first created. */
-  createdAt: string;
+  creationTime: string;
 
   /** ISO timestamp of the last modification. Used for conflict resolution. */
-  updatedAt: string;
+  updatedTime: string;
 }
 
 // ─── APP_REGISTRY ────────────────────────────────────────────────────

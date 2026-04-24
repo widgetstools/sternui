@@ -21,11 +21,6 @@ export interface SettingsScreenContext {
 
   // Data passed by openSettings()
   launchData: Record<string, unknown> | null;
-
-  // Hierarchy awareness
-  configSource: 'own' | 'inherited';
-  inheritedFrom?: string;
-  forkAndSave: (updates: Partial<WidgetConfig>, newName?: string) => Promise<void>;
 }
 
 /**

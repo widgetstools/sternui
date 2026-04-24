@@ -59,10 +59,7 @@ export class ConfigDatabase extends Dexie {
   constructor() {
     super("marketsui-config");
 
-    // Define the schema for version 1 of the database.
-    // Only indexed fields are listed here — Dexie stores all
-    // properties of each object, but only indexed fields can
-    // be used in .where() queries.
+    // v1: original shape (kept so existing browsers can upgrade cleanly).
     this.version(1).stores({
       appConfig: "configId, appId, [componentType+componentSubType], isTemplate",
       appRegistry: "appId",
@@ -71,5 +68,38 @@ export class ConfigDatabase extends Dexie {
       permissions: "permissionId, category",
       pendingSync: "++id, tableName, recordId",
     });
+
+    // v2: unified schema. Adds `userId` index on appConfig. Migration
+    // renames fields on every existing row: config→payload,
+    // createdAt→creationTime, updatedAt→updatedTime, and backfills
+    // userId from createdBy so existing rows remain queryable.
+    this.version(2)
+      .stores({
+        appConfig: "configId, appId, userId, [componentType+componentSubType], isTemplate",
+        appRegistry: "appId",
+        userProfile: "userId, appId",
+        roles: "roleId",
+        permissions: "permissionId, category",
+        pendingSync: "++id, tableName, recordId",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("appConfig").toCollection().modify((row: any) => {
+          if (row.config !== undefined && row.payload === undefined) {
+            row.payload = row.config;
+            delete row.config;
+          }
+          if (row.createdAt !== undefined && row.creationTime === undefined) {
+            row.creationTime = row.createdAt;
+            delete row.createdAt;
+          }
+          if (row.updatedAt !== undefined && row.updatedTime === undefined) {
+            row.updatedTime = row.updatedAt;
+            delete row.updatedAt;
+          }
+          if (row.userId === undefined) {
+            row.userId = row.createdBy ?? "system";
+          }
+        });
+      });
   }
 }

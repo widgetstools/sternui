@@ -149,7 +149,7 @@ export class ConfigManager {
    */
   async saveConfig(config: AppConfigRow): Promise<void> {
     // Update the timestamp
-    config.updatedAt = new Date().toISOString();
+    config.updatedTime = new Date().toISOString();
 
     // In REST mode, try to sync to the remote backend first
     if (this.restUrl) {
@@ -176,6 +176,21 @@ export class ConfigManager {
    */
   async getConfigsByApp(appId: string): Promise<AppConfigRow[]> {
     return this.db.appConfig.where("appId").equals(appId).toArray();
+  }
+
+  /**
+   * Get all configs belonging to a specific user.
+   */
+  async getConfigsByUser(userId: string): Promise<AppConfigRow[]> {
+    return this.db.appConfig.where("userId").equals(userId).toArray();
+  }
+
+  /**
+   * Get every row in the appConfig table. Use sparingly — prefer the
+   * indexed queries (`getConfigsByApp`, `getConfigsByUser`, etc.).
+   */
+  async getAllConfigs(): Promise<AppConfigRow[]> {
+    return this.db.appConfig.toArray();
   }
 
   /**
@@ -357,15 +372,16 @@ export class ConfigManager {
     const row: AppConfigRow = {
       configId: snapshotId,
       appId,
+      userId: "system",
       displayText: `Snapshot ${snapshotId}`,
       componentType: "WORKSPACE_SNAPSHOT",
       componentSubType: "",
       isTemplate: false,
-      config: snapshotData,
+      payload: snapshotData,
       createdBy: "system",
       updatedBy: "system",
-      createdAt: now,
-      updatedAt: now,
+      creationTime: now,
+      updatedTime: now,
     };
     await this.saveConfig(row);
   }
@@ -379,7 +395,7 @@ export class ConfigManager {
     if (!row || row.componentType !== "WORKSPACE_SNAPSHOT") {
       return undefined;
     }
-    return row.config;
+    return row.payload;
   }
 
   /**
@@ -389,15 +405,15 @@ export class ConfigManager {
   async getLatestSnapshot(appId: string): Promise<any | undefined> {
     const allForApp = await this.getConfigsByApp(appId);
 
-    // Filter to only snapshots, then sort by updatedAt descending
+    // Filter to only snapshots, then sort by updatedTime descending
     const snapshots = allForApp
       .filter((row) => row.componentType === "WORKSPACE_SNAPSHOT")
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      .sort((a, b) => b.updatedTime.localeCompare(a.updatedTime));
 
     if (snapshots.length === 0) {
       return undefined;
     }
-    return snapshots[0].config;
+    return snapshots[0].payload;
   }
 
   // ─── Dock config convenience methods ──────────────────────────────
@@ -415,21 +431,22 @@ export class ConfigManager {
     const row: AppConfigRow = {
       configId: DOCK_CONFIG_ID,
       appId: "",
+      userId: "system",
       displayText: "Dock Configuration",
       componentType: "DOCK",
       componentSubType: "",
       isTemplate: false,
-      config: dockConfig,
+      payload: dockConfig,
       createdBy: "system",
       updatedBy: "system",
-      createdAt: now,
-      updatedAt: now,
+      creationTime: now,
+      updatedTime: now,
     };
 
-    // Check if a dock config already exists to preserve createdAt
+    // Check if a dock config already exists to preserve creationTime
     const existing = await this.db.appConfig.get(DOCK_CONFIG_ID);
     if (existing) {
-      row.createdAt = existing.createdAt;
+      row.creationTime = existing.creationTime;
     }
 
     await this.saveConfig(row);
@@ -444,7 +461,7 @@ export class ConfigManager {
     if (!row) {
       return null;
     }
-    return row.config;
+    return row.payload;
   }
 
   /**

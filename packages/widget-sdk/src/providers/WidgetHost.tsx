@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createConfigClient, type ConfigClient } from '@marketsui/config-service';
 import type { PlatformAdapter } from '../types/platform.js';
 import type { WidgetHostProps } from '../types/widget.js';
 import { WidgetRegistry } from '../registry/WidgetRegistry.js';
-import { ConfigClient } from '../services/configClient.js';
 import { BrowserAdapter } from '../adapters/BrowserAdapter.js';
 
 export interface WidgetHostContextValue {
@@ -28,29 +28,50 @@ const defaultQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      retry: 1
-    }
-  }
+      retry: 1,
+    },
+  },
 });
 
 /**
- * WidgetHost — top-level provider that supplies platform adapter, config client,
- * widget registry, and React Query to all widgets in the tree.
+ * WidgetHost — top-level provider that supplies platform adapter, config
+ * client, widget registry, and React Query to all widgets in the tree.
+ *
+ * `apiUrl` is forwarded to the config client as its REST base URL when
+ * non-empty; when empty, the client runs in local Dexie-only mode.
  */
 export function WidgetHost({
   apiUrl,
   userId,
   platform,
   registry,
-  children
+  children,
 }: WidgetHostProps) {
-  const value = useMemo<WidgetHostContextValue>(() => ({
-    apiUrl,
-    userId,
-    platform: platform || new BrowserAdapter(apiUrl),
-    registry: registry || new WidgetRegistry(),
-    configClient: new ConfigClient(apiUrl)
-  }), [apiUrl, userId, platform, registry]);
+  const value = useMemo<WidgetHostContextValue>(() => {
+    const configClient = createConfigClient({
+      baseUrl: apiUrl && apiUrl.trim().length > 0 ? apiUrl : undefined,
+    });
+    return {
+      apiUrl,
+      userId,
+      platform: platform || new BrowserAdapter(apiUrl),
+      registry: registry || new WidgetRegistry(),
+      configClient,
+    };
+  }, [apiUrl, userId, platform, registry]);
+
+  // Lazy init + dispose on unmount so background seed loading / REST
+  // sync loops (if any) tear down with the provider.
+  useEffect(() => {
+    let disposed = false;
+    value.configClient.init().catch((err) => {
+      if (!disposed) console.error('ConfigClient init failed', err);
+    });
+    return () => {
+      disposed = true;
+      value.configClient.dispose();
+    };
+  }, [value.configClient]);
 
   return (
     <QueryClientProvider client={defaultQueryClient}>

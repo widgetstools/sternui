@@ -5,9 +5,12 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "build": "tsc --noEmit --project tsconfig.json"
+    "build": "echo '@marketsui/angular-registry-editor: consumed as source (no emit)'",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
+    "@marketsui/angular-dock-editor": "*",
+    "@marketsui/design-system": "*",
     "@marketsui/openfin-platform": "*",
     "@marketsui/icons-svg": "*",
     "primeicons": "^7.0.0",

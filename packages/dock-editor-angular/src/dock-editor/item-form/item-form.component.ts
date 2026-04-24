@@ -33,11 +33,18 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TooltipModule } from 'primeng/tooltip';
+import { dark } from '@marketsui/design-system/tokens/semantic';
 import { iconIdToSvgUrl } from '../icon-utils';
 import { ICON_OPTIONS, DEFAULT_ICON, type IconOption } from '../icons';
 
 // ─── Predefined icon colors ─────────────────────────────────────────
-
+//
+// A small palette the user can pick from when colorizing a dock icon.
+// These are intentional DATA — not styling drift — because they need
+// to be a varied set of visually distinct hues regardless of theme.
+// The values are chosen to cover what the design-system palette
+// provides (brand blue, cyan, green, amber, red, purple) plus a few
+// additional accent hues that aren't first-class design-system colors.
 export const PREDEFINED_COLORS = [
   { name: 'Electric Blue', hex: '#2196F3' },
   { name: 'Cyan',          hex: '#00BCD4' },
@@ -50,6 +57,11 @@ export const PREDEFINED_COLORS = [
   { name: 'Lavender',      hex: '#B388FF' },
   { name: 'White',         hex: '#FFFFFF' },
 ];
+
+// Form UI icon tint — pulled from the design-system dark scheme so the
+// form's chevrons/pipettes match the rest of the editor chrome.
+const FORM_ICON_COLOR        = dark.text.secondary;
+const FORM_ICON_MUTED_COLOR  = dark.text.muted;
 
 // ─── Form data shape ────────────────────────────────────────────────
 
@@ -294,10 +306,10 @@ export class ItemFormComponent implements OnInit, OnChanges {
   private readonly fb = inject(FormBuilder);
 
   // Pre-built icon URLs for chrome elements
-  protected readonly chevronDownUrl = iconIdToSvgUrl('lucide:chevron-down', '#5c5c6e');
-  protected readonly chevronUpUrl   = iconIdToSvgUrl('lucide:chevron-up',   '#5c5c6e');
-  protected readonly sunMoonUrl     = iconIdToSvgUrl('lucide:sun-moon',     '#8b8b9e');
-  protected readonly pipetteUrl     = iconIdToSvgUrl('lucide:pipette',      '#8b8b9e');
+  protected readonly chevronDownUrl = iconIdToSvgUrl('lucide:chevron-down', FORM_ICON_MUTED_COLOR);
+  protected readonly chevronUpUrl   = iconIdToSvgUrl('lucide:chevron-up',   FORM_ICON_MUTED_COLOR);
+  protected readonly sunMoonUrl     = iconIdToSvgUrl('lucide:sun-moon',     FORM_ICON_COLOR);
+  protected readonly pipetteUrl     = iconIdToSvgUrl('lucide:pipette',      FORM_ICON_COLOR);
 
   protected readonly filteredIcons = signal<IconOption[]>(ICON_OPTIONS);
 
@@ -329,7 +341,7 @@ export class ItemFormComponent implements OnInit, OnChanges {
   }
 
   protected getIconUrl(iconId: string): string {
-    return iconIdToSvgUrl(iconId, '#8b8b9e');
+    return iconIdToSvgUrl(iconId, FORM_ICON_COLOR);
   }
 
   protected getSelectedIconUrl(): string {

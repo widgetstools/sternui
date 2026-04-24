@@ -10,10 +10,12 @@
  */
 
 import { marketIconToDataUrl } from "@marketsui/icons-svg/all-icons";
+import { dark, light } from "@marketsui/design-system/tokens/semantic";
 
-// Default icon colors — white for dark backgrounds, dark navy for light.
-const DARK_COLOR  = "#ffffff";
-const LIGHT_COLOR = "#1a1a2e";
+// Default icon colors sourced from the design-system text.primary tokens
+// for each theme (warm off-white for dark, deep cool charcoal for light).
+const DARK_COLOR  = dark.text.primary;
+const LIGHT_COLOR = light.text.primary;
 
 // The rendered height of each icon in pixels.
 const ICON_HEIGHT = 24;

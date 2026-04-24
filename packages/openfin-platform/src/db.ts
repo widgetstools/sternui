@@ -126,15 +126,16 @@ export async function saveRegistryConfig(config: RegistryEditorConfig): Promise<
   await manager.saveConfig({
     configId: "component-registry",
     appId: "system",
+    userId: "system",
     displayText: "Component Registry",
     componentType: "REGISTRY",
     componentSubType: "EDITOR",
     isTemplate: false,
-    config,
+    payload: config,
     createdBy: "registry-editor",
     updatedBy: "registry-editor",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    creationTime: new Date().toISOString(),
+    updatedTime: new Date().toISOString(),
   });
 }
 
@@ -145,7 +146,7 @@ export async function saveRegistryConfig(config: RegistryEditorConfig): Promise<
 export async function loadRegistryConfig(): Promise<RegistryEditorConfig | null> {
   const manager = await getConfigManager();
   const row = await manager.getConfig("component-registry");
-  return row ? (row.config as RegistryEditorConfig) : null;
+  return row ? (row.payload as RegistryEditorConfig) : null;
 }
 
 /**

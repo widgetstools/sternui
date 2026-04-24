@@ -10,12 +10,16 @@ import type {
   StorageHealthStatus,
   BulkUpdateRequest,
   BulkUpdateResult,
-  CleanupResult
+  CleanupResult,
 } from '@marketsui/shared-types';
 
 /**
- * SQLite storage implementation using sql.js (pure JavaScript, no native bindings).
- * Extended with nodeId column for hierarchy support.
+ * SQLite storage implementation using sql.js (pure JS, no native bindings).
+ *
+ * Schema — single `configurations` table with the unified columns only.
+ * Soft-delete is a timestamp column; there is no hierarchy, versioning,
+ * tags, or access-control on the row. Opaque per-component data lives
+ * inside `payload`.
  */
 export class SqliteStorage implements IConfigurationStorage {
   private db: SqlJsDatabase | null = null;
@@ -36,14 +40,12 @@ export class SqliteStorage implements IConfigurationStorage {
 
   async connect(): Promise<void> {
     this.SQL = await initSqlJs();
-
     if (fs.existsSync(this.dbPath)) {
       const buffer = fs.readFileSync(this.dbPath);
       this.db = new this.SQL.Database(buffer);
     } else {
       this.db = new this.SQL.Database();
     }
-
     this.initializeSchema();
   }
 
@@ -66,110 +68,82 @@ export class SqliteStorage implements IConfigurationStorage {
   private initializeSchema(): void {
     if (!this.db) throw new Error('Database not connected');
 
+    // Detect the legacy schema (columns: name, config, lastUpdated, ...)
+    // and refuse to start — guarding against silent data loss. The
+    // operator decides: drop the .db file or run a manual migration.
+    try {
+      const tableInfo = this.db.exec("PRAGMA table_info(configurations)");
+      const columns: string[] = tableInfo[0]?.values?.map((row: any) => String(row[1])) ?? [];
+      const hasLegacy = columns.includes('name') || columns.includes('lastUpdated');
+      const hasUnified = columns.includes('displayText') && columns.includes('payload') && columns.includes('updatedTime');
+      if (hasLegacy && !hasUnified) {
+        throw new Error(
+          `SqliteStorage: legacy schema detected in ${this.dbPath}. ` +
+          `The configurations table uses the pre-unified shape (name/config/lastUpdated/hierarchy). ` +
+          `Delete the .db file (dev only) or run the migration script before starting the server.`,
+        );
+      }
+    } catch (e) {
+      // If the table doesn't exist yet, PRAGMA returns empty — fall through
+      // to CREATE TABLE below. Only rethrow real errors (legacy schema).
+      if (e instanceof Error && e.message.includes('legacy schema')) {
+        throw e;
+      }
+    }
+
     this.db.run(`
       CREATE TABLE IF NOT EXISTS configurations (
         configId TEXT PRIMARY KEY,
         appId TEXT NOT NULL,
         userId TEXT NOT NULL,
-        parentId TEXT,
-        nodeId TEXT,
         componentType TEXT NOT NULL,
-        componentSubType TEXT,
-        name TEXT NOT NULL,
-        description TEXT,
-        icon TEXT,
-        config TEXT NOT NULL,
-        settings TEXT NOT NULL,
-        activeSetting TEXT NOT NULL,
-        tags TEXT,
-        category TEXT,
-        isShared BOOLEAN DEFAULT FALSE,
-        isDefault BOOLEAN DEFAULT FALSE,
-        isLocked BOOLEAN DEFAULT FALSE,
+        componentSubType TEXT NOT NULL DEFAULT '',
+        isTemplate INTEGER NOT NULL DEFAULT 0,
+        displayText TEXT NOT NULL,
+        payload TEXT NOT NULL,
         createdBy TEXT NOT NULL,
-        lastUpdatedBy TEXT NOT NULL,
-        creationTime DATETIME NOT NULL,
-        lastUpdated DATETIME NOT NULL,
-        deletedAt DATETIME,
-        deletedBy TEXT,
-        rowKind TEXT
+        updatedBy TEXT NOT NULL,
+        creationTime TEXT NOT NULL,
+        updatedTime TEXT NOT NULL,
+        deletedAt TEXT,
+        deletedBy TEXT
       );
     `);
 
-    // Migration: Add columns if they don't exist (for existing databases)
-    try {
-      const tableInfo = this.db.exec("PRAGMA table_info(configurations)");
-      const columns = tableInfo[0]?.values?.map((row: any) => row[1]) || [];
-
-      if (!columns.includes('parentId')) {
-        this.db.run('ALTER TABLE configurations ADD COLUMN parentId TEXT');
-      }
-      if (!columns.includes('nodeId')) {
-        this.db.run('ALTER TABLE configurations ADD COLUMN nodeId TEXT');
-      }
-      if (!columns.includes('rowKind')) {
-        this.db.run('ALTER TABLE configurations ADD COLUMN rowKind TEXT');
-      }
-    } catch {
-      // Columns already exist or table is new
-    }
-
-    // Indexes
     this.db.run('CREATE INDEX IF NOT EXISTS idx_app_user ON configurations(appId, userId)');
     this.db.run('CREATE INDEX IF NOT EXISTS idx_component ON configurations(componentType, componentSubType)');
     this.db.run('CREATE INDEX IF NOT EXISTS idx_user ON configurations(userId)');
-    this.db.run('CREATE INDEX IF NOT EXISTS idx_parent ON configurations(parentId)');
-    this.db.run('CREATE INDEX IF NOT EXISTS idx_node ON configurations(nodeId)');
-    this.db.run('CREATE INDEX IF NOT EXISTS idx_created ON configurations(creationTime)');
-    this.db.run('CREATE INDEX IF NOT EXISTS idx_updated ON configurations(lastUpdated)');
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_updated ON configurations(updatedTime)');
     this.db.run('CREATE INDEX IF NOT EXISTS idx_deleted ON configurations(deletedAt)');
-    this.db.run('CREATE INDEX IF NOT EXISTS idx_name ON configurations(name)');
-    this.db.run('CREATE INDEX IF NOT EXISTS idx_composite_lookup ON configurations(userId, componentType, componentSubType, name)');
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_composite_lookup ON configurations(userId, componentType, componentSubType, displayText)');
 
     this.saveToFile();
   }
 
   async create(config: UnifiedConfig): Promise<UnifiedConfig> {
     if (!this.db) throw new Error('Database not connected');
-
-    const sql = `
-      INSERT INTO configurations (
-        configId, appId, userId, parentId, nodeId, componentType, componentSubType,
-        name, description, icon, config, settings, activeSetting, tags, category,
-        isShared, isDefault, isLocked, createdBy, lastUpdatedBy,
-        creationTime, lastUpdated, deletedAt, deletedBy, rowKind
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
     try {
-      this.db.run(sql, [
-        config.configId,
-        config.appId,
-        config.userId,
-        config.parentId || null,
-        config.nodeId || null,
-        config.componentType,
-        config.componentSubType || null,
-        config.name,
-        config.description || null,
-        config.icon || null,
-        JSON.stringify(config.config),
-        JSON.stringify(config.settings),
-        config.activeSetting,
-        config.tags ? JSON.stringify(config.tags) : null,
-        config.category || null,
-        config.isShared ? 1 : 0,
-        config.isDefault ? 1 : 0,
-        config.isLocked ? 1 : 0,
-        config.createdBy,
-        config.lastUpdatedBy,
-        config.creationTime.toISOString(),
-        config.lastUpdated.toISOString(),
-        config.deletedAt ? config.deletedAt.toISOString() : null,
-        config.deletedBy || null,
-        config.rowKind || null,
-      ]);
-
+      this.db.run(
+        `INSERT INTO configurations (
+          configId, appId, userId, componentType, componentSubType, isTemplate,
+          displayText, payload, createdBy, updatedBy, creationTime, updatedTime,
+          deletedAt, deletedBy
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+        [
+          config.configId,
+          config.appId,
+          config.userId,
+          config.componentType,
+          config.componentSubType,
+          config.isTemplate ? 1 : 0,
+          config.displayText,
+          JSON.stringify(config.payload ?? null),
+          config.createdBy,
+          config.updatedBy,
+          config.creationTime,
+          config.updatedTime,
+        ],
+      );
       this.saveToFile();
       return config;
     } catch (error) {
@@ -182,150 +156,107 @@ export class SqliteStorage implements IConfigurationStorage {
 
   async findById(configId: string, includeDeleted = false): Promise<UnifiedConfig | null> {
     if (!this.db) throw new Error('Database not connected');
-
-    const whereClause = includeDeleted
-      ? 'WHERE configId = ?'
-      : 'WHERE configId = ? AND deletedAt IS NULL';
-
-    const result = this.db.exec(`SELECT * FROM configurations ${whereClause}`, [configId]);
-
-    if (result.length === 0 || result[0].values.length === 0) {
-      return null;
-    }
-
-    return this.deserializeConfig(result[0].columns, result[0].values[0]);
+    const where = includeDeleted ? 'WHERE configId = ?' : 'WHERE configId = ? AND deletedAt IS NULL';
+    const result = this.db.exec(`SELECT * FROM configurations ${where}`, [configId]);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+    return this.deserialize(result[0].columns, result[0].values[0]);
   }
 
   async findByCompositeKey(
     userId: string,
     componentType: string,
-    name: string,
-    componentSubType?: string
+    displayText: string,
+    componentSubType?: string,
   ): Promise<UnifiedConfig | null> {
     if (!this.db) throw new Error('Database not connected');
-
-    const whereClause = componentSubType
-      ? 'WHERE userId = ? AND componentType = ? AND componentSubType = ? AND name = ? AND deletedAt IS NULL'
-      : 'WHERE userId = ? AND componentType = ? AND name = ? AND deletedAt IS NULL';
-
+    const where = componentSubType
+      ? 'WHERE userId = ? AND componentType = ? AND componentSubType = ? AND displayText = ? AND deletedAt IS NULL'
+      : 'WHERE userId = ? AND componentType = ? AND displayText = ? AND deletedAt IS NULL';
     const params = componentSubType
-      ? [userId, componentType, componentSubType, name]
-      : [userId, componentType, name];
-
-    const result = this.db.exec(`SELECT * FROM configurations ${whereClause}`, params);
-
-    if (result.length === 0 || result[0].values.length === 0) {
-      return null;
-    }
-
-    return this.deserializeConfig(result[0].columns, result[0].values[0]);
+      ? [userId, componentType, componentSubType, displayText]
+      : [userId, componentType, displayText];
+    const result = this.db.exec(`SELECT * FROM configurations ${where}`, params);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+    return this.deserialize(result[0].columns, result[0].values[0]);
   }
 
   async update(configId: string, updates: Partial<UnifiedConfig>): Promise<UnifiedConfig> {
     const existing = await this.findById(configId);
-    if (!existing) {
-      throw new Error(`Configuration ${configId} not found`);
-    }
+    if (!existing) throw new Error(`Configuration ${configId} not found`);
 
     const updated: UnifiedConfig = {
       ...existing,
       ...updates,
       configId: existing.configId,
-      lastUpdated: new Date()
+      updatedTime: new Date().toISOString(),
     };
 
     if (!this.db) throw new Error('Database not connected');
-
-    const sql = `
-      UPDATE configurations SET
-        appId = ?, userId = ?, parentId = ?, nodeId = ?,
-        componentType = ?, componentSubType = ?, name = ?,
-        description = ?, icon = ?, config = ?, settings = ?, activeSetting = ?,
-        tags = ?, category = ?, isShared = ?, isDefault = ?, isLocked = ?,
-        lastUpdatedBy = ?, lastUpdated = ?, rowKind = ?
-      WHERE configId = ?
-    `;
-
-    this.db.run(sql, [
-      updated.appId,
-      updated.userId,
-      updated.parentId || null,
-      updated.nodeId || null,
-      updated.componentType,
-      updated.componentSubType || null,
-      updated.name,
-      updated.description || null,
-      updated.icon || null,
-      JSON.stringify(updated.config),
-      JSON.stringify(updated.settings),
-      updated.activeSetting,
-      updated.tags ? JSON.stringify(updated.tags) : null,
-      updated.category || null,
-      updated.isShared ? 1 : 0,
-      updated.isDefault ? 1 : 0,
-      updated.isLocked ? 1 : 0,
-      updated.lastUpdatedBy,
-      updated.lastUpdated.toISOString(),
-      updated.rowKind || null,
-      configId,
-    ]);
-
+    this.db.run(
+      `UPDATE configurations SET
+        appId = ?, userId = ?, componentType = ?, componentSubType = ?, isTemplate = ?,
+        displayText = ?, payload = ?, updatedBy = ?, updatedTime = ?
+       WHERE configId = ?`,
+      [
+        updated.appId,
+        updated.userId,
+        updated.componentType,
+        updated.componentSubType,
+        updated.isTemplate ? 1 : 0,
+        updated.displayText,
+        JSON.stringify(updated.payload ?? null),
+        updated.updatedBy,
+        updated.updatedTime,
+        configId,
+      ],
+    );
     this.saveToFile();
     return updated;
   }
 
   async delete(configId: string): Promise<boolean> {
     if (!this.db) throw new Error('Database not connected');
-
-    const sql = `
-      UPDATE configurations SET deletedAt = ?, deletedBy = ?
-      WHERE configId = ? AND deletedAt IS NULL
-    `;
-
-    try {
-      this.db.run(sql, [new Date().toISOString(), 'system', configId]);
-      this.saveToFile();
-      return true;
-    } catch {
-      return false;
-    }
+    const now = new Date().toISOString();
+    this.db.run(
+      `UPDATE configurations SET deletedAt = ?, deletedBy = ?
+       WHERE configId = ? AND deletedAt IS NULL`,
+      [now, 'system', configId],
+    );
+    this.saveToFile();
+    return true;
   }
 
-  async clone(sourceConfigId: string, newName: string, userId: string): Promise<UnifiedConfig> {
-    const sourceConfig = await this.findById(sourceConfigId);
-    if (!sourceConfig) {
-      throw new Error(`Configuration ${sourceConfigId} not found`);
-    }
-
-    const clonedConfig: UnifiedConfig = {
-      ...sourceConfig,
+  async clone(
+    sourceConfigId: string,
+    newDisplayText: string,
+    userId: string,
+  ): Promise<UnifiedConfig> {
+    const src = await this.findById(sourceConfigId);
+    if (!src) throw new Error(`Configuration ${sourceConfigId} not found`);
+    const now = new Date().toISOString();
+    const clone: UnifiedConfig = {
+      ...src,
       configId: uuidv4(),
-      name: newName,
+      displayText: newDisplayText,
       userId,
+      isTemplate: false,
       createdBy: userId,
-      lastUpdatedBy: userId,
-      creationTime: new Date(),
-      lastUpdated: new Date(),
-      isDefault: false,
-      isLocked: false,
-      deletedAt: null,
-      deletedBy: null
+      updatedBy: userId,
+      creationTime: now,
+      updatedTime: now,
     };
-
-    return this.create(clonedConfig);
+    return this.create(clone);
   }
 
   async findByMultipleCriteria(criteria: ConfigurationFilter): Promise<UnifiedConfig[]> {
     if (!this.db) throw new Error('Database not connected');
-
     const { whereClause, params } = this.buildWhereClause(criteria);
-    const result = this.db.exec(`SELECT * FROM configurations ${whereClause} ORDER BY lastUpdated DESC`, params);
-
-    if (result.length === 0) {
-      return [];
-    }
-
-    return result[0].values.map((row: any) => this.deserializeConfig(result[0].columns, row));
+    const result = this.db.exec(
+      `SELECT * FROM configurations ${whereClause} ORDER BY updatedTime DESC`,
+      params,
+    );
+    if (result.length === 0) return [];
+    return result[0].values.map((row: any) => this.deserialize(result[0].columns, row));
   }
 
   async findByAppId(appId: string, includeDeleted = false): Promise<UnifiedConfig[]> {
@@ -339,17 +270,10 @@ export class SqliteStorage implements IConfigurationStorage {
   async findByComponentType(
     componentType: string,
     componentSubType?: string,
-    includeDeleted = false
+    includeDeleted = false,
   ): Promise<UnifiedConfig[]> {
-    const criteria: ConfigurationFilter = {
-      componentTypes: [componentType],
-      includeDeleted
-    };
-
-    if (componentSubType) {
-      criteria.componentSubTypes = [componentSubType];
-    }
-
+    const criteria: ConfigurationFilter = { componentTypes: [componentType], includeDeleted };
+    if (componentSubType) criteria.componentSubTypes = [componentSubType];
     return this.findByMultipleCriteria(criteria);
   }
 
@@ -357,27 +281,29 @@ export class SqliteStorage implements IConfigurationStorage {
     criteria: ConfigurationFilter,
     page: number,
     limit: number,
-    sortBy = 'lastUpdated',
-    sortOrder: 'asc' | 'desc' = 'desc'
+    sortBy = 'updatedTime',
+    sortOrder: 'asc' | 'desc' = 'desc',
   ): Promise<PaginatedResult<UnifiedConfig>> {
     if (!this.db) throw new Error('Database not connected');
-
     const { whereClause, params } = this.buildWhereClause(criteria);
 
-    const countResult = this.db.exec(`SELECT COUNT(*) as total FROM configurations ${whereClause}`, params);
-    const total = countResult.length > 0 ? countResult[0].values[0][0] as number : 0;
-
+    const countResult = this.db.exec(
+      `SELECT COUNT(*) as total FROM configurations ${whereClause}`,
+      params,
+    );
+    const total = countResult.length > 0 ? (countResult[0].values[0][0] as number) : 0;
     const offset = (page - 1) * limit;
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
 
     const dataResult = this.db.exec(
       `SELECT * FROM configurations ${whereClause} ORDER BY ${sortBy} ${sortOrder.toUpperCase()} LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      [...params, limit, offset],
     );
 
-    const data = dataResult.length > 0
-      ? dataResult[0].values.map((row: any) => this.deserializeConfig(dataResult[0].columns, row))
-      : [];
+    const data =
+      dataResult.length > 0
+        ? dataResult[0].values.map((row: any) => this.deserialize(dataResult[0].columns, row))
+        : [];
 
     return {
       data,
@@ -386,165 +312,105 @@ export class SqliteStorage implements IConfigurationStorage {
       limit,
       totalPages,
       hasNextPage: page < totalPages,
-      hasPrevPage: page > 1
+      hasPrevPage: page > 1,
     };
   }
 
   async bulkCreate(configs: UnifiedConfig[]): Promise<UnifiedConfig[]> {
-    if (!this.db) throw new Error('Database not connected');
-
-    const sql = `
-      INSERT INTO configurations (
-        configId, appId, userId, parentId, nodeId, componentType, componentSubType,
-        name, description, icon, config, settings, activeSetting, tags, category,
-        isShared, isDefault, isLocked, createdBy, lastUpdatedBy,
-        creationTime, lastUpdated, deletedAt, deletedBy
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    for (const config of configs) {
-      this.db.run(sql, [
-        config.configId,
-        config.appId,
-        config.userId,
-        config.parentId || null,
-        config.nodeId || null,
-        config.componentType,
-        config.componentSubType || null,
-        config.name,
-        config.description || null,
-        config.icon || null,
-        JSON.stringify(config.config),
-        JSON.stringify(config.settings),
-        config.activeSetting,
-        config.tags ? JSON.stringify(config.tags) : null,
-        config.category || null,
-        config.isShared ? 1 : 0,
-        config.isDefault ? 1 : 0,
-        config.isLocked ? 1 : 0,
-        config.createdBy,
-        config.lastUpdatedBy,
-        config.creationTime.toISOString(),
-        config.lastUpdated.toISOString(),
-        config.deletedAt ? config.deletedAt.toISOString() : null,
-        config.deletedBy || null
-      ]);
-    }
-
-    this.saveToFile();
+    for (const c of configs) await this.create(c);
     return configs;
   }
 
   async bulkUpdate(updates: BulkUpdateRequest[]): Promise<BulkUpdateResult[]> {
     const results: BulkUpdateResult[] = [];
-
-    for (const updateReq of updates) {
+    for (const u of updates) {
       try {
-        await this.update(updateReq.configId, updateReq.updates);
-        results.push({ configId: updateReq.configId, success: true });
-      } catch (error) {
+        await this.update(u.configId, u.updates);
+        results.push({ configId: u.configId, success: true });
+      } catch (err) {
         results.push({
-          configId: updateReq.configId,
+          configId: u.configId,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     }
-
     return results;
   }
 
   async bulkDelete(configIds: string[]): Promise<BulkUpdateResult[]> {
-    if (!this.db) throw new Error('Database not connected');
-
     const results: BulkUpdateResult[] = [];
-    const now = new Date().toISOString();
-
-    const sql = `
-      UPDATE configurations SET deletedAt = ?, deletedBy = ?
-      WHERE configId = ? AND deletedAt IS NULL
-    `;
-
-    for (const configId of configIds) {
+    for (const id of configIds) {
       try {
-        this.db.run(sql, [now, 'system', configId]);
-        results.push({ configId, success: true });
-      } catch (error) {
+        await this.delete(id);
+        results.push({ configId: id, success: true });
+      } catch (err) {
         results.push({
-          configId,
+          configId: id,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     }
-
-    this.saveToFile();
     return results;
   }
 
   async cleanup(dryRun = true): Promise<CleanupResult> {
     if (!this.db) throw new Error('Database not connected');
-
-    const retentionPeriod = 30;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - retentionPeriod);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const cutoffIso = cutoff.toISOString();
 
     const selectResult = this.db.exec(
       `SELECT * FROM configurations WHERE deletedAt IS NOT NULL AND deletedAt < ?`,
-      [cutoffDate.toISOString()]
+      [cutoffIso],
     );
-
-    const configs = selectResult.length > 0
-      ? selectResult[0].values.map((row: any) => this.deserializeConfig(selectResult[0].columns, row))
-      : [];
+    const configs =
+      selectResult.length > 0
+        ? selectResult[0].values.map((row: any) =>
+            this.deserialize(selectResult[0].columns, row),
+          )
+        : [];
 
     if (!dryRun && configs.length > 0) {
       this.db.run(
         `DELETE FROM configurations WHERE deletedAt IS NOT NULL AND deletedAt < ?`,
-        [cutoffDate.toISOString()]
+        [cutoffIso],
       );
       this.saveToFile();
     }
 
-    return {
-      removedCount: configs.length,
-      configs: dryRun ? configs : undefined,
-      dryRun
-    };
+    return { removedCount: configs.length, configs: dryRun ? configs : undefined, dryRun };
   }
 
   async healthCheck(): Promise<StorageHealthStatus> {
-    const startTime = Date.now();
-
+    const start = Date.now();
     try {
       if (!this.db) {
         return {
           isHealthy: false,
           connectionStatus: 'disconnected',
-          lastChecked: new Date(),
-          responseTime: Date.now() - startTime,
-          storageType: 'sqlite'
+          lastChecked: new Date().toISOString(),
+          responseTime: Date.now() - start,
+          storageType: 'sqlite',
         };
       }
-
-      this.db.exec('SELECT COUNT(*) as count FROM configurations');
-      const responseTime = Math.max(1, Date.now() - startTime);
-
+      this.db.exec('SELECT COUNT(*) FROM configurations');
       return {
         isHealthy: true,
         connectionStatus: 'connected',
-        lastChecked: new Date(),
-        responseTime,
-        storageType: 'sqlite'
+        lastChecked: new Date().toISOString(),
+        responseTime: Math.max(1, Date.now() - start),
+        storageType: 'sqlite',
       };
-    } catch (error) {
+    } catch (err) {
       return {
         isHealthy: false,
         connectionStatus: 'error',
-        lastChecked: new Date(),
-        responseTime: Date.now() - startTime,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        storageType: 'sqlite'
+        lastChecked: new Date().toISOString(),
+        responseTime: Date.now() - start,
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        storageType: 'sqlite',
       };
     }
   }
@@ -553,126 +419,75 @@ export class SqliteStorage implements IConfigurationStorage {
     const conditions: string[] = [];
     const params: any[] = [];
 
-    if (!criteria.includeDeleted) {
-      conditions.push('deletedAt IS NULL');
-    }
+    if (!criteria.includeDeleted) conditions.push('deletedAt IS NULL');
 
     if (criteria.configIds?.length) {
       conditions.push(`configId IN (${criteria.configIds.map(() => '?').join(',')})`);
       params.push(...criteria.configIds);
     }
-
     if (criteria.appIds?.length) {
       conditions.push(`appId IN (${criteria.appIds.map(() => '?').join(',')})`);
       params.push(...criteria.appIds);
     }
-
     if (criteria.userIds?.length) {
       conditions.push(`userId IN (${criteria.userIds.map(() => '?').join(',')})`);
       params.push(...criteria.userIds);
     }
-
-    if (criteria.parentIds?.length) {
-      conditions.push(`parentId IN (${criteria.parentIds.map(() => '?').join(',')})`);
-      params.push(...criteria.parentIds);
-    }
-
-    if (criteria.nodeIds?.length) {
-      conditions.push(`nodeId IN (${criteria.nodeIds.map(() => '?').join(',')})`);
-      params.push(...criteria.nodeIds);
-    }
-
     if (criteria.componentTypes?.length) {
       conditions.push(`componentType IN (${criteria.componentTypes.map(() => '?').join(',')})`);
       params.push(...criteria.componentTypes);
     }
-
     if (criteria.componentSubTypes?.length) {
       conditions.push(`componentSubType IN (${criteria.componentSubTypes.map(() => '?').join(',')})`);
       params.push(...criteria.componentSubTypes);
     }
-
-    if (criteria.nameContains) {
-      conditions.push('name LIKE ?');
-      params.push(`%${criteria.nameContains}%`);
+    if (criteria.displayTextContains) {
+      conditions.push('displayText LIKE ?');
+      params.push(`%${criteria.displayTextContains}%`);
     }
-
-    if (criteria.descriptionContains) {
-      conditions.push('description LIKE ?');
-      params.push(`%${criteria.descriptionContains}%`);
+    if (criteria.isTemplate !== undefined) {
+      conditions.push('isTemplate = ?');
+      params.push(criteria.isTemplate ? 1 : 0);
     }
-
-    if (criteria.isShared !== undefined) {
-      conditions.push('isShared = ?');
-      params.push(criteria.isShared);
-    }
-
-    if (criteria.isDefault !== undefined) {
-      conditions.push('isDefault = ?');
-      params.push(criteria.isDefault);
-    }
-
-    if (criteria.isLocked !== undefined) {
-      conditions.push('isLocked = ?');
-      params.push(criteria.isLocked);
-    }
-
     if (criteria.createdAfter) {
       conditions.push('creationTime > ?');
-      params.push(criteria.createdAfter.toISOString());
+      params.push(criteria.createdAfter);
     }
-
     if (criteria.createdBefore) {
       conditions.push('creationTime < ?');
-      params.push(criteria.createdBefore.toISOString());
+      params.push(criteria.createdBefore);
     }
-
     if (criteria.updatedAfter) {
-      conditions.push('lastUpdated > ?');
-      params.push(criteria.updatedAfter.toISOString());
+      conditions.push('updatedTime > ?');
+      params.push(criteria.updatedAfter);
     }
-
     if (criteria.updatedBefore) {
-      conditions.push('lastUpdated < ?');
-      params.push(criteria.updatedBefore.toISOString());
+      conditions.push('updatedTime < ?');
+      params.push(criteria.updatedBefore);
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     return { whereClause, params };
   }
 
-  private deserializeConfig(columns: string[], values: any[]): UnifiedConfig {
+  private deserialize(columns: string[], values: any[]): UnifiedConfig {
     const row: any = {};
     columns.forEach((col, idx) => {
       row[col] = values[idx];
     });
-
     return {
       configId: row.configId,
       appId: row.appId,
       userId: row.userId,
-      parentId: row.parentId || null,
-      nodeId: row.nodeId || undefined,
       componentType: row.componentType,
-      componentSubType: row.componentSubType,
-      name: row.name,
-      description: row.description,
-      icon: row.icon,
-      config: JSON.parse(row.config),
-      settings: JSON.parse(row.settings),
-      activeSetting: row.activeSetting,
-      tags: row.tags ? JSON.parse(row.tags) : undefined,
-      category: row.category,
-      isShared: Boolean(row.isShared),
-      isDefault: Boolean(row.isDefault),
-      isLocked: Boolean(row.isLocked),
+      componentSubType: row.componentSubType ?? '',
+      isTemplate: Boolean(row.isTemplate),
+      displayText: row.displayText,
+      payload: row.payload ? JSON.parse(row.payload) : null,
       createdBy: row.createdBy,
-      lastUpdatedBy: row.lastUpdatedBy,
-      creationTime: new Date(row.creationTime),
-      lastUpdated: new Date(row.lastUpdated),
-      deletedAt: row.deletedAt ? new Date(row.deletedAt) : null,
-      deletedBy: row.deletedBy || null,
-      rowKind: row.rowKind || undefined,
+      updatedBy: row.updatedBy,
+      creationTime: row.creationTime,
+      updatedTime: row.updatedTime,
     };
   }
 }

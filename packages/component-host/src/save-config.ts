@@ -51,8 +51,8 @@ export function createDebouncedSaver<T>(
     const updated: AppConfigRow = {
       ...row,
       configId: instanceId,
-      config: { ...row.config, ...snapshot },
-      updatedAt: new Date().toISOString(),
+      payload: { ...(row.payload as Record<string, unknown>), ...snapshot },
+      updatedTime: new Date().toISOString(),
     };
 
     try {

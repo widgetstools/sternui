@@ -17,10 +17,8 @@
     "paths": {
       "@marketsui/angular-dock-editor": ["../../packages/dock-editor-angular/src/index.ts"],
       "@marketsui/angular-registry-editor": ["../../packages/registry-editor-angular/src/index.ts"],
-      "@marketsui/openfin-platform": ["../../packages/openfin-workspace/src/index.ts"],
       "@marketsui/icons-svg": ["../../packages/icons-svg/index.ts"],
       "@marketsui/icons-svg/*": ["../../packages/icons-svg/*"],
-      "@marketsui/config-service": ["../../packages/config-service/src/index.ts"],
       "@marketsui/tokens-primeng": ["../../packages/tokens-primeng/index.ts"],
       "@marketsui/tokens-primeng/*": ["../../packages/tokens-primeng/*"]
     }

@@ -18,9 +18,15 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
 import { BadgeModule } from 'primeng/badge';
+import { dark, light } from '@marketsui/design-system/tokens/semantic';
 import { iconIdToSvgUrl } from '../icon-utils';
 
 const INDENT_STEP = 22;
+
+// Resolves to the design-system color scheme for the requested theme.
+// Used by this component to source icon-SVG tint colors from the
+// design-system's semantic tokens (since SVG data URLs need literal hex).
+const DS_SCHEME = (theme: 'dark' | 'light') => (theme === 'dark' ? dark : light);
 
 export interface TreeItemData {
   id: string;
@@ -197,12 +203,14 @@ export class TreeItemComponent {
   protected readonly hovered  = signal(false);
   protected readonly INDENT_STEP = INDENT_STEP;
 
-  // Icon colors per theme — values match --de-* token definitions in editor.css.
-  // SVG data URLs require literal hex colors (CSS variables don't work in SVG strings).
-  private get secondaryColor(): string { return this.theme === 'dark' ? '#8b8b9e' : '#5c5c72'; }
-  private get tertiaryColor(): string { return this.theme === 'dark' ? '#5c5c6e' : '#8e8ea0'; }
-  private get ghostColor(): string { return this.theme === 'dark' ? '#3a3a4a' : '#b8b8c8'; }
-  private get dangerColor(): string { return this.theme === 'dark' ? '#e5534b' : '#dc2626'; }
+  // Icon colors sourced from @marketsui/design-system semantic tokens.
+  // SVG data URLs require literal hex values at generation time (CSS variables
+  // don't work inside SVG content), so we import resolved values from the
+  // design-system's `dark` / `light` color schemes and pick one per theme.
+  private get secondaryColor(): string { return DS_SCHEME(this.theme).text.secondary; }
+  private get tertiaryColor(): string { return DS_SCHEME(this.theme).text.muted; }
+  private get ghostColor(): string { return DS_SCHEME(this.theme).text.faint; }
+  private get dangerColor(): string { return DS_SCHEME(this.theme).accent.negative; }
 
   protected get chevronDownUrl(): string  { return iconIdToSvgUrl('lucide:chevron-down',  this.tertiaryColor); }
   protected get chevronRightUrl(): string { return iconIdToSvgUrl('lucide:chevron-right', this.tertiaryColor); }

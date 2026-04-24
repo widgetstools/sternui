@@ -308,42 +308,7 @@ export async function registerDock(
           hideDragHandle: true,
         },
       },
-      override: (Base: any) => {
-        return class MarketsUIDock3 extends Base {
-          async loadConfig() {
-            // Load from IndexedDB on startup
-            const saved = await loadDockConfig();
-            if (saved) {
-              lastEditorConfig = saved;
-              const favs = buildAllFavorites(saved);
-              const menu = buildContentMenuEntries(saved);
-              this['config'] = {
-                ...this['config'],
-                favorites: favs as any[],
-                contentMenu: menu as any[],
-              };
-            }
-            return this['config'];
-          }
-
-          async saveConfig({ config }: { config: any }) {
-            // Dock3 calls this when user reorders favorites (drag).
-            // We don't persist Dock3-level saves — persistence is via dock editor.
-            // Just update the internal config.
-            this['config'] = config;
-          }
-
-          async launchEntry({ entry }: { entry: any }) {
-            // Dispatch to our action handlers
-            const data = entry.itemData;
-            if (data?.actionId && actionDispatcher) {
-              await actionDispatcher(data.actionId, data.customData);
-            } else if (data?.actionId) {
-              console.warn(`No action dispatcher for: ${data.actionId}`);
-            }
-          }
-        } as any;
-      },
+      override: buildDock3Override(),
     });
 
     console.log("Dock3 provider initialized.");
@@ -406,14 +371,112 @@ export async function recolorDockIcons(isDark: boolean): Promise<void> {
 
 /**
  * Reload dock from saved config in IndexedDB.
+ *
+ * Dock3's `updateConfig` is supposed to propagate config changes live,
+ * but in practice the favorites/contentMenu UI doesn't always re-render
+ * (no public refresh API exists — `updateConfig` and `shutdown` are the
+ * only Dock3Provider public methods). For the user-facing "Reload Dock"
+ * action we therefore do a full shutdown + re-init — guaranteed fresh
+ * window, guaranteed visible change.
+ *
+ * For IAB-driven background updates we still use the soft `updateConfig`
+ * path via `applyDock3Config`, since that preserves the dock's running
+ * state (selected tab, drag position, etc.).
  */
 export async function reloadDockFromConfig(): Promise<void> {
   const saved = await loadDockConfig();
   if (saved) {
     lastEditorConfig = saved;
   }
-  await applyDock3Config();
+  await hardReloadDock();
   console.log("Dock reloaded from config.");
+}
+
+/**
+ * Force the dock window to reload its URL. This triggers Dock3 to
+ * re-bootstrap from scratch inside the dock window, which in turn
+ * calls our `loadConfig` override — pulling the latest config from
+ * Dexie and rebuilding favorites/contentMenu.
+ *
+ * This is preferred over `dockProvider.shutdown()` + `Dock.init(...)`
+ * because the shutdown/init dance has a race: shutdown closes the
+ * window but doesn't always clear the workspace-platform's internal
+ * registration cleanly, causing subsequent init to silently fail in
+ * some contexts (consistently repro-ed in Angular host apps).
+ *
+ * We still update `lastEditorConfig` from storage first so the soft
+ * `updateConfig` path (used for IAB-driven live updates) stays in
+ * sync with whatever the reload picks up.
+ */
+async function hardReloadDock(): Promise<void> {
+  if (!dockProvider) {
+    console.error("Cannot hard-reload dock: provider not initialized.");
+    return;
+  }
+
+  // 1. Apply current config via updateConfig — harmless if it no-ops.
+  //    This keeps the handle's internal config consistent.
+  try {
+    await applyDock3Config();
+  } catch (err) {
+    console.warn("Soft updateConfig failed before hard reload (continuing):", err);
+  }
+
+  // 2. Reload the dock window's URL. Forces Dock3 to re-bootstrap.
+  try {
+    const dockWindow: any = typeof dockProvider.getWindowSync === "function"
+      ? dockProvider.getWindowSync()
+      : undefined;
+    if (dockWindow && typeof dockWindow.reload === "function") {
+      await dockWindow.reload();
+      console.log("Dock window reloaded.");
+    } else {
+      console.warn("Dock window handle not available for reload; soft updateConfig was applied.");
+    }
+  } catch (err) {
+    console.error("Failed to reload dock window.", err);
+  }
+}
+
+/**
+ * Build the Dock3Provider override class. Extracted so it can be shared
+ * between the initial `registerDock` and the hard-reload path.
+ */
+function buildDock3Override() {
+  return (Base: any) => {
+    return class MarketsUIDock3 extends Base {
+      async loadConfig() {
+        const saved = await loadDockConfig();
+        if (saved) {
+          lastEditorConfig = saved;
+          const favs = buildAllFavorites(saved);
+          const menu = buildContentMenuEntries(saved);
+          this['config'] = {
+            ...this['config'],
+            favorites: favs as any[],
+            contentMenu: menu as any[],
+          };
+        }
+        return this['config'];
+      }
+
+      async saveConfig({ config }: { config: any }) {
+        // Dock3 calls this when user reorders favorites (drag).
+        // We don't persist Dock3-level saves — persistence is via dock editor.
+        // Just update the internal config.
+        this['config'] = config;
+      }
+
+      async launchEntry({ entry }: { entry: any }) {
+        const data = entry.itemData;
+        if (data?.actionId && actionDispatcher) {
+          await actionDispatcher(data.actionId, data.customData);
+        } else if (data?.actionId) {
+          console.warn(`No action dispatcher for: ${data.actionId}`);
+        }
+      }
+    } as any;
+  };
 }
 
 /**

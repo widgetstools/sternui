@@ -29,6 +29,7 @@ import {
   type DockDropdownButtonConfig,
   type DockMenuItemConfig,
 } from '@marketsui/openfin-platform';
+import { dark, light } from '@marketsui/design-system/tokens/semantic';
 import { iconIdToSvgUrl } from './icon-utils';
 import { parseIconUrl } from './icon-utils';
 
@@ -322,7 +323,12 @@ export class DockEditorComponent implements OnInit, OnDestroy {
   );
 
   // ─── Static icon URLs computed once per theme change ─────────────
-  private readonly iconColor = computed(() => this.theme() === 'dark' ? '#8b8b9e' : '#5c5c72');
+  // Icon tint sourced from design-system semantic tokens (text.secondary
+  // in each theme). SVG data URLs need literal hex, so we import resolved
+  // values from @marketsui/design-system rather than hardcoding them.
+  private readonly iconColor = computed(() =>
+    (this.theme() === 'dark' ? dark : light).text.secondary,
+  );
 
   protected readonly layoutGridIcon  = computed(() => iconIdToSvgUrl('lucide:layout-grid', this.iconColor()));
   protected readonly listTreeIcon    = computed(() => iconIdToSvgUrl('lucide:list-tree', this.iconColor()));

@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
     "watch": "tsc --watch",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"
@@ -31,6 +31,7 @@
     "@openfin/workspace-platform": "^24.0.0"
   },
   "dependencies": {
+    "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/widget-sdk": "1.0.0",
     "@marketsui/ui": "1.0.0",

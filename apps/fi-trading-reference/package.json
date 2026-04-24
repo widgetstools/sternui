@@ -53,7 +53,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "tabby_ai-hijri-converter": "file:libs/tabby_ai-hijri-converter-1.0.5.tgz",
-    "@widgetstools/dock-manager-core": "file:libs/widgetstools-dock-manager-core-1.0.0.tgz",
+    "@widgetstools/dock-manager-core": "file:../../libs/widgetstools-dock-manager-core-1.0.0.tgz",
     "@widgetstools/react-dock-manager": "file:libs/widgetstools-react-dock-manager-1.0.0.tgz",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",

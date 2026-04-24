@@ -76,8 +76,8 @@ export async function resolveInstanceId(
       ...template,
       configId: identity.instanceId,
       isTemplate: false,
-      createdAt: now,
-      updatedAt: now,
+      creationTime: now,
+      updatedTime: now,
     };
     await configManager.saveConfig(cloned);
     return { config: cloned, isNew: true };

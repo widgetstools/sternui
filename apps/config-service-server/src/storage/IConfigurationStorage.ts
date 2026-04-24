@@ -5,58 +5,58 @@ import type {
   StorageHealthStatus,
   BulkUpdateRequest,
   BulkUpdateResult,
-  CleanupResult
+  CleanupResult,
 } from '@marketsui/shared-types';
 
 /**
  * Universal storage interface for configuration management.
- * Supports SQLite (development) and MongoDB (production) implementations.
+ * Backend-agnostic — SQLite today, any other engine tomorrow.
  */
 export interface IConfigurationStorage {
-  // Basic CRUD Operations
+  // Basic CRUD
   create(config: UnifiedConfig): Promise<UnifiedConfig>;
   findById(configId: string, includeDeleted?: boolean): Promise<UnifiedConfig | null>;
   findByCompositeKey(
     userId: string,
     componentType: string,
-    name: string,
-    componentSubType?: string
+    displayText: string,
+    componentSubType?: string,
   ): Promise<UnifiedConfig | null>;
   update(configId: string, updates: Partial<UnifiedConfig>): Promise<UnifiedConfig>;
   delete(configId: string): Promise<boolean>;
 
-  // Advanced Operations
-  clone(sourceConfigId: string, newName: string, userId: string): Promise<UnifiedConfig>;
+  // Clone
+  clone(sourceConfigId: string, newDisplayText: string, userId: string): Promise<UnifiedConfig>;
 
-  // Query Operations with Multiple Criteria
+  // Query
   findByMultipleCriteria(criteria: ConfigurationFilter): Promise<UnifiedConfig[]>;
   findByAppId(appId: string, includeDeleted?: boolean): Promise<UnifiedConfig[]>;
   findByUserId(userId: string, includeDeleted?: boolean): Promise<UnifiedConfig[]>;
   findByComponentType(
     componentType: string,
     componentSubType?: string,
-    includeDeleted?: boolean
+    includeDeleted?: boolean,
   ): Promise<UnifiedConfig[]>;
 
-  // Pagination and Sorting
+  // Pagination
   findWithPagination(
     criteria: ConfigurationFilter,
     page: number,
     limit: number,
     sortBy?: string,
-    sortOrder?: 'asc' | 'desc'
+    sortOrder?: 'asc' | 'desc',
   ): Promise<PaginatedResult<UnifiedConfig>>;
 
-  // Bulk Operations
+  // Bulk
   bulkCreate(configs: UnifiedConfig[]): Promise<UnifiedConfig[]>;
   bulkUpdate(updates: BulkUpdateRequest[]): Promise<BulkUpdateResult[]>;
   bulkDelete(configIds: string[]): Promise<BulkUpdateResult[]>;
 
-  // Maintenance Operations
+  // Maintenance
   cleanup(dryRun?: boolean): Promise<CleanupResult>;
   healthCheck(): Promise<StorageHealthStatus>;
 
-  // Connection Management
+  // Lifecycle
   connect(): Promise<void>;
   disconnect(): Promise<void>;
 }

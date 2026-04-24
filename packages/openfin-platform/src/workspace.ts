@@ -28,6 +28,75 @@ import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
 
 /**
+ * Read the current theme from this window's documentElement.
+ * Falls back to localStorage, then "dark" as the last resort.
+ * Used by the theme toggle handlers to determine the current state
+ * without depending on OpenFin's `platform.Theme.getSelectedScheme()`
+ * (which can desync due to a known promise-never-resolves quirk).
+ */
+function readCurrentTheme(): "dark" | "light" {
+  try {
+    const attr = document.documentElement.getAttribute("data-theme");
+    if (attr === "light" || attr === "dark") return attr;
+  } catch { /* non-browser */ }
+  try {
+    const stored = localStorage.getItem("theme");
+    if (stored === "light") return "light";
+  } catch { /* storage unavailable */ }
+  return "dark";
+}
+
+/**
+ * Re-entry guard for the theme-toggle handlers. When the user clicks
+ * the dock's toggle button twice in rapid succession, both invocations
+ * used to read the same stale `data-theme` value (because the async
+ * work in the first invocation hadn't yet committed the state change)
+ * and they'd both flip to the same target — causing the toggle to
+ * appear stuck. We now commit state synchronously up front AND gate
+ * re-entry so concurrent presses are coalesced.
+ */
+let themeToggleInFlight = false;
+
+/**
+ * Read current theme, flip it, apply the new `[data-theme]` attribute
+ * *synchronously* (so a follow-up click reads the new value), then
+ * run the supplied async continuation (OpenFin scheme flip, dock-icon
+ * recolor, IAB broadcast, etc.).
+ */
+async function runThemeToggle(
+  continuation: (isDark: boolean) => Promise<void>,
+): Promise<void> {
+  if (themeToggleInFlight) return;
+  themeToggleInFlight = true;
+  try {
+    const isDark = readCurrentTheme() !== "dark";
+    // Commit the new theme synchronously — every subsequent
+    // readCurrentTheme() sees this value immediately.
+    applyLocalDataTheme(isDark);
+    await continuation(isDark);
+  } finally {
+    themeToggleInFlight = false;
+  }
+}
+
+/**
+ * Flip the `[data-theme]` attribute on this window's documentElement.
+ * Keeps the design-system CSS tokens (--bn-*, shadcn aliases, PrimeNG
+ * preset via darkModeSelector '[data-theme="dark"]') in sync with the
+ * dock's OpenFin theme toggle.
+ */
+function applyLocalDataTheme(isDark: boolean): void {
+  try {
+    const theme = isDark ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    document.body.dataset["agThemeMode"] = theme;
+    try { localStorage.setItem("theme", theme); } catch { /* non-browser or locked */ }
+  } catch {
+    /* not running in a DOM-capable context */
+  }
+}
+
+/**
  * Prevents initWorkspace() from running more than once.
  * The platform can only be initialised a single time per provider window,
  * so a second call silently returns without doing anything.
@@ -123,7 +192,7 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
   }
   const dockConfig = await cm.loadDockConfig();
   if (dockConfig) {
-    allConfigs.push({ configId: "dock-config", appId: "", componentType: "DOCK", config: dockConfig });
+    allConfigs.push({ configId: "dock-config", appId: "", componentType: "DOCK", payload: dockConfig });
   }
   const exportData = {
     appRegistry: allApps,
@@ -201,33 +270,25 @@ async function initializePlatform(
           return;
         }
 
-        // 1. Read the current scheme and flip it
-        const platform = getCurrentSync();
-        const currentScheme = await platform.Theme.getSelectedScheme();
-        const newScheme =
-          currentScheme === ColorSchemeOptionType.Dark
-            ? ColorSchemeOptionType.Light
-            : ColorSchemeOptionType.Dark;
+        await runThemeToggle(async (isDark) => {
+          // Fire-and-forget OpenFin scheme flip (setSelectedScheme's promise
+          // never resolves — known OpenFin quirk).
+          try {
+            getCurrentSync().Theme.setSelectedScheme(
+              isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light,
+            );
+          } catch { /* non-fatal */ }
 
-        // 2. Tell OpenFin to switch the theme (updates CSS variables).
-        //    Note: We intentionally do NOT await this call because
-        //    setSelectedScheme() successfully changes the theme but
-        //    its returned promise never resolves (OpenFin API quirk).
-        platform.Theme.setSelectedScheme(newScheme);
+          await recolorDockIcons(isDark);
 
-        // 3. Recolor all dock icons to match the new theme
-        const isDark = newScheme === ColorSchemeOptionType.Dark;
-        await recolorDockIcons(isDark);
-
-        // 4. Notify child windows (e.g. dock editor) about the change.
-        //    Child windows run in separate processes and cannot call
-        //    our functions directly, so we use InterApplicationBus.
-        try {
-          await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
-        } catch (iabErr) {
-          // IAB publish can fail if no child windows are subscribed — safe to ignore
-          console.warn("Could not publish theme-changed event via IAB.", iabErr);
-        }
+          // Notify child windows (e.g. dock editor) about the change.
+          try {
+            await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
+          } catch (iabErr) {
+            // IAB publish can fail if no child windows are subscribed — safe to ignore
+            console.warn("Could not publish theme-changed event via IAB.", iabErr);
+          }
+        });
       },
 
       // ── Open the dock editor window ──
@@ -442,20 +503,19 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
   },
 
   [ACTION_TOGGLE_THEME]: async () => {
-    const platform = getCurrentSync();
-    const currentScheme = await platform.Theme.getSelectedScheme();
-    const newScheme =
-      currentScheme === ColorSchemeOptionType.Dark
-        ? ColorSchemeOptionType.Light
-        : ColorSchemeOptionType.Dark;
-    platform.Theme.setSelectedScheme(newScheme);
-    const isDark = newScheme === ColorSchemeOptionType.Dark;
-    await recolorDockIcons(isDark);
-    try {
-      await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
-    } catch (iabErr) {
-      console.warn("Could not publish theme-changed event via IAB.", iabErr);
-    }
+    await runThemeToggle(async (isDark) => {
+      try {
+        getCurrentSync().Theme.setSelectedScheme(
+          isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light,
+        );
+      } catch { /* non-fatal */ }
+      await recolorDockIcons(isDark);
+      try {
+        await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
+      } catch (iabErr) {
+        console.warn("Could not publish theme-changed event via IAB.", iabErr);
+      }
+    });
   },
 
   [ACTION_OPEN_DOCK_EDITOR]: async () => {
@@ -520,6 +580,11 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
 
 /**
  * Open or bring-to-front a child window (dock editor, registry editor, import config).
+ *
+ * `wrapSync` never throws — it just returns a handle. To decide whether the
+ * window actually exists we call `getInfo()`, which resolves only for real
+ * windows. This avoids a silent-failure mode where a handle claims to
+ * succeed `setAsForeground()` on a non-existent window and nothing opens.
  */
 async function openChildWindow(
   name: string,
@@ -528,21 +593,33 @@ async function openChildWindow(
   height: number,
   extraOptions?: Record<string, any>,
 ): Promise<void> {
+  console.log(`[openChildWindow] Opening "${name}" at "${path}"`);
+
+  // 1. Does the window actually exist? Use getInfo to probe.
   try {
     const existing = fin.Window.wrapSync({ uuid: fin.me.identity.uuid, name });
+    await existing.getInfo();              // throws if the window doesn't exist
     await existing.setAsForeground();
-  } catch {
+    console.log(`[openChildWindow] Brought existing "${name}" to front.`);
+    return;
+  } catch (probeErr) {
+    console.log(`[openChildWindow] "${name}" does not exist, creating new window.`, probeErr);
+  }
+
+  // 2. Create a new window.
+  let origin: string;
+  try {
     const app = await fin.Application.getCurrent();
     const manifest: Record<string, unknown> = await app.getManifest();
     const platformConfig = manifest["platform"] as Record<string, string> | undefined;
     const providerUrl = platformConfig?.["providerUrl"] ?? "";
-    let origin: string;
-    try {
-      origin = new URL(providerUrl).origin;
-    } catch {
-      console.error("Could not determine app origin from providerUrl:", providerUrl);
-      return;
-    }
+    origin = new URL(providerUrl).origin;
+  } catch (originErr) {
+    console.error(`[openChildWindow] Could not determine origin for "${name}"`, originErr);
+    return;
+  }
+
+  try {
     await fin.Window.create({
       name,
       url: `${origin}${path}`,
@@ -555,6 +632,9 @@ async function openChildWindow(
       contextMenu: true,
       ...extraOptions,
     });
+    console.log(`[openChildWindow] Created window "${name}" at ${origin}${path}`);
+  } catch (createErr) {
+    console.error(`[openChildWindow] Failed to create "${name}"`, createErr);
   }
 }
 

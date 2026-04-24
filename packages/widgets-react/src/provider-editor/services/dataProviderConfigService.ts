@@ -36,21 +36,28 @@ export class DataProviderConfigService {
       throw new Error(`Unknown provider type: ${provider.providerType}`);
     }
 
+    // Extra per-provider fields (description, tags, isDefault) don't
+    // have first-class columns in the unified schema, so we stash them
+    // inside the opaque `payload`.
+    const payload: Record<string, unknown> = {
+      ...(provider.config as unknown as Record<string, unknown>),
+      __providerMeta: {
+        description: provider.description,
+        tags: provider.tags ?? [],
+        isDefault: Boolean(provider.isDefault),
+      },
+    };
     return {
       configId: provider.providerId,
       appId: 'stern-platform',
       userId,
       componentType: COMPONENT_TYPES.DATA_PROVIDER,
       componentSubType,
-      name: provider.name,
-      description: provider.description,
-      config: provider.config as unknown as Record<string, unknown>,
-      settings: [],
-      activeSetting: 'default',
-      tags: provider.tags || [],
-      isDefault: provider.isDefault || false,
+      isTemplate: false,
+      displayText: provider.name,
+      payload,
       createdBy: userId,
-      lastUpdatedBy: userId,
+      updatedBy: userId,
     };
   }
 
@@ -62,15 +69,17 @@ export class DataProviderConfigService {
     if (!providerType) {
       throw new Error(`Unknown component subtype: ${config.componentSubType}`);
     }
-
+    const payload = (config.payload ?? {}) as Record<string, unknown>;
+    const { __providerMeta, ...rest } = payload;
+    const meta = (__providerMeta ?? {}) as Record<string, unknown>;
     return {
       providerId: config.configId,
-      name: config.name,
-      description: config.description,
+      name: config.displayText,
+      description: (meta.description as string | undefined) ?? undefined,
       providerType,
-      config: config.config as unknown as ProviderConfig,
-      tags: config.tags,
-      isDefault: config.isDefault,
+      config: rest as unknown as ProviderConfig,
+      tags: (meta.tags as string[] | undefined) ?? undefined,
+      isDefault: Boolean(meta.isDefault),
       userId: config.userId,
     };
   }
@@ -87,13 +96,18 @@ export class DataProviderConfigService {
   }
 
   async update(providerId: string, updates: Partial<DataProviderConfig>, userId: string): Promise<DataProviderConfig> {
+    const payload: Record<string, unknown> = {
+      ...((updates.config as unknown as Record<string, unknown>) ?? {}),
+      __providerMeta: {
+        description: updates.description,
+        tags: updates.tags ?? [],
+        isDefault: Boolean(updates.isDefault),
+      },
+    };
     const body: Partial<UnifiedConfig> = {
-      name: updates.name,
-      description: updates.description,
-      config: updates.config as unknown as Record<string, unknown>,
-      tags: updates.tags,
-      isDefault: updates.isDefault,
-      lastUpdatedBy: userId,
+      displayText: updates.name,
+      payload,
+      updatedBy: userId,
     };
     if (updates.providerType) {
       body.componentSubType = PROVIDER_TYPE_TO_COMPONENT_SUBTYPE[updates.providerType];
