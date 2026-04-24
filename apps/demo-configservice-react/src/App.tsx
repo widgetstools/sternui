@@ -38,10 +38,17 @@ import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
 // but now MarketsGrid is decoupled from the storage medium and the
 // same setup would transparently hit a REST backend in prod.
 
-const APP_ID = 'demo-configservice';
+// Canonical identities used across the MarketsUI reference apps.
+// `TestApp` is the app registered in every shipped seed-config.json;
+// `dev1` is its default user with developer + admin role permissions.
+// Alice / Bob are demo-only alternates kept alongside so the per-user
+// scoping mechanism is visible even to first-time visitors — they
+// have no seed rows, just MarketsGrid profile-set rows they create.
+const APP_ID = 'TestApp';
 const DEMO_USERS = [
+  { id: 'dev1',  label: 'dev1' },
   { id: 'alice', label: 'Alice' },
-  { id: 'bob', label: 'Bob' },
+  { id: 'bob',   label: 'Bob' },
 ] as const;
 type DemoUserId = (typeof DEMO_USERS)[number]['id'];
 
@@ -52,7 +59,7 @@ function initialUser(): DemoUserId {
     const stored = localStorage.getItem(CURRENT_USER_LS_KEY);
     if (stored && DEMO_USERS.some((u) => u.id === stored)) return stored as DemoUserId;
   } catch { /* access denied */ }
-  return 'alice';
+  return 'dev1';
 }
 
 /** User-scoped active-profile key. Keeps Alice's "last open profile"
@@ -282,18 +289,29 @@ function AppInner() {
   const theme = isDark ? darkTheme : lightTheme;
 
   // Init ConfigManager once on mount. Dexie-only (no REST endpoint
-  // in the demo). Awaiting init gates the factory behind a loaded
-  // configuration — we don't want MarketsGrid to race its first
-  // listProfiles call against a half-initialized Dexie table.
+  // in the demo). `seedConfigUrl` points at public/seed-config.json
+  // which ConfigManager fetches ONCE on first boot — when the Dexie
+  // tables (appRegistry, userProfiles, roles, permissions) are empty
+  // — and uses to populate them. Subsequent boots skip the fetch
+  // because `appCount > 0`. That's how 'TestApp' + 'dev1' + the role
+  // graph appear in the Config Browser without any manual seeding.
+  //
+  // Awaiting init gates the storage factory behind a loaded
+  // configuration — MarketsGrid's first listProfiles call doesn't
+  // race a half-initialized Dexie table.
   //
   // Also publish the instance to @marketsui/openfin-platform's shared
-  // singleton so `<ConfigBrowserPanel>` (which reads via getConfigManager())
-  // sees the same ConfigManager. Without this, the browser's fallback
-  // path would create a second manager against the same Dexie DB —
-  // functional but wasteful.
+  // singleton so `<ConfigBrowserPanel>` (which reads via
+  // getConfigManager()) sees the same ConfigManager. Without this,
+  // the browser's fallback path would create a second manager
+  // against the same Dexie DB — functional but wasteful.
   useEffect(() => {
     let alive = true;
-    const mgr = createConfigManager({});
+    const mgr = createConfigManager({
+      // Resolved against the current origin — works under Vite's
+      // `/` root, and a subpath deployment can override via BASE_URL.
+      seedConfigUrl: new URL('seed-config.json', document.baseURI).toString(),
+    });
     mgr.init()
       .then(() => {
         if (!alive) return;

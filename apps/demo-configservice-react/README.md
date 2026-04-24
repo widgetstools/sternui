@@ -28,16 +28,28 @@ sibling). Both can run side-by-side for visual comparison.
 
 ## What the demo proves
 
-### 1. MarketsGrid consumes a `StorageAdapterFactory`
+### 1. ConfigService seeds itself from `seed-config.json`
+
+On first boot (Dexie tables empty) the demo's `createConfigManager({ seedConfigUrl })` call points at `public/seed-config.json` — same file shipped with the other reference apps. It populates the `appRegistry`, `userProfiles`, `roles`, and `permissions` tables with canonical values:
+
+- **appId:** `TestApp`
+- **user:** `dev1` (assigned the `admin` + `developer` roles for `TestApp`)
+- Plus the full permission + role graph
+
+Subsequent boots skip the fetch (the ConfigManager bails when `appRegistry.count() > 0`). You can inspect the seeded rows by opening the Config Browser from the grid's Database icon.
+
+### 2. MarketsGrid consumes a `StorageAdapterFactory`
 
 `App.tsx`:
 
 ```ts
+const APP_ID = 'TestApp';   // matches the seed
+
 const storage = useMemo<StorageAdapterFactory | undefined>(() => {
   if (!configManager) return undefined;
   return createConfigServiceStorage({
     configManager,
-    appId: 'demo-configservice',
+    appId: APP_ID,
     userId,     // flips when the user-switcher is clicked
   });
 }, [configManager, userId]);
@@ -50,43 +62,49 @@ standalone — no framework-supplied instanceId) and calls the factory.
 Each grid gets its own `StorageAdapter`, but they all share the
 `(appId, userId)` scope baked into the factory.
 
-### 2. Profile data is scoped by `userId`
+### 3. Profile data is scoped by `userId`
 
-Two demo users in the header: **Alice** and **Bob**. Click to swap.
+Three demo users in the header: **dev1** (default, matches the seed), **Alice**, and **Bob**. Click to swap.
 
 - Each user has their own set of profiles.
 - Each user's Showcase profile is seeded independently on first view.
-- Switching from Alice → Bob replaces every `<MarketsGrid>`'s profile
-  list in place. Alice's bolded columns, calculated columns, colour
-  rules — all gone. Bob's pristine Showcase is what he sees.
-- Switch back to Alice → her work is exactly as she left it.
+- Switching from dev1 → Alice replaces every `<MarketsGrid>`'s profile
+  list in place. dev1's bolded columns, calculated columns, colour
+  rules — all gone. Alice's pristine Showcase is what she sees.
+- Switch back → the previous user's work is exactly as they left it.
 
-Under the hood: the factory's closure changes (`userId: 'alice'` →
-`userId: 'bob'`). Next `listProfiles` call returns Bob's rows from
-ConfigService, filtered by `userId = 'bob'` + `componentSubType =
-instanceId` + `componentType = 'markets-grid-profile'`.
+Under the hood: the factory's closure changes (`userId: 'dev1'` →
+`userId: 'alice'`). Next `listProfiles` call returns the new user's
+bundle from ConfigService, filtered by `appId=TestApp` + `userId=<new>`
++ `componentType='markets-grid-profile-set'` + `configId=<instanceId>`.
 
-### 3. Profiles persist across reloads
+### 4. Profiles persist across reloads
 
 Reload the page — whatever profile was active per-user comes back.
-Dexie under the hood (this demo runs `createConfigManager({})` with no
-`restUrl`, so all writes land in IndexedDB). A production app would
-pass `{ restUrl, apiKey }` and the **same client code** would round-trip
-via the corporate ConfigService backend, no MarketsGrid changes needed.
+Dexie under the hood (this demo runs `createConfigManager({ seedConfigUrl })`
+in pure-Dexie mode — no `configServiceRestUrl`, so all writes land in
+IndexedDB). A production app would pass
+`configServiceRestUrl: 'https://…'` and the **same client code** would
+round-trip via the corporate ConfigService backend, no MarketsGrid
+changes needed.
 
-### 4. Admin actions slot (Tools menu)
+### 5. Admin actions slot — Database icon on the right edge of the primary toolbar
 
-Click the grid's **Settings** button, then the **Wrench icon** in the
-settings sheet header. Dropdown shows a single entry:
+The Database icon at the far right of the grid's toolbar row launches
+a Config Browser popup window (`window.open` with a fixed window
+name). The popup:
 
-> **Config Browser**
-> Inspect raw ConfigService rows (stub — real browser wires in separately)
+- Carries the demo's `hostEnv` via `?hostEnv=<base64>` query param so
+  the browser filters to `appId='TestApp'`
+- Shares the same Dexie database (same-origin = same IndexedDB) so
+  writes from the main window show up on the next Refresh click
+- Closes via the OS window close button; main window stays put
 
-Clicking fires an alert explaining the integration point. The real
-`@marketsui/config-browser` ships `createConfigBrowserAction(...)`
-once committed — this demo stubs it to prove the slot works end-to-end.
+The admin entry is built via `createConfigBrowserAction({ launch })`
+from `@marketsui/config-browser` — the same helper ships with the
+package for any consumer.
 
-### 5. Cross-grid profile isolation under ConfigService
+### 6. Cross-grid profile isolation under ConfigService
 
 Two-grid dashboard view (`?view=dashboard`). Two grids, two different
 `gridId`s: `dashboard-rates-v2` + `dashboard-equities-v2`. Both pass
@@ -114,9 +132,10 @@ lockstep.
 | Profile storage | `new DexieAdapter()` (direct) | `createConfigServiceStorage({...})` (factory) |
 | MarketsGrid prop | `storageAdapter={...}` | `storage={...}` |
 | Scope | `gridId` only | `(appId, userId, instanceId)` |
-| User switching | n/a | Alice / Bob tabs in the header |
-| Admin actions | not shown | Tools button in settings header |
-| Production path | `DexieAdapter` is dev-only | Same code hits REST ConfigService with `{ restUrl }` |
+| User switching | n/a | dev1 / Alice / Bob tabs in the header |
+| Admin actions | not shown | Database icon on right edge of primary toolbar → Config Browser popup |
+| Seed data | none | `public/seed-config.json` loaded on first boot |
+| Production path | `DexieAdapter` is dev-only | Same code hits REST ConfigService with `configServiceRestUrl` |
 
 Both run simultaneously and persist to different IndexedDB databases
 (`demo-react` → Grid Customizer profiles DB; this demo →
@@ -124,15 +143,15 @@ Both run simultaneously and persist to different IndexedDB databases
 
 ## Things you can verify
 
-- [ ] Open the app. Click grid Settings → Wrench. Tools menu shows Config Browser entry.
-- [ ] Active user defaults to Alice. Showcase profile loads automatically.
-- [ ] Bold the `price` column in the formatting toolbar. Save profile.
-- [ ] Switch user to Bob. Alice's bold is gone. Bob sees his own fresh Showcase.
-- [ ] Switch back to Alice. Bold is back.
-- [ ] Reload the page. Active user persists. Alice's bold still there.
-- [ ] Switch to dashboard view (`?view=dashboard`). Both grids load
-      per-user profile state independently.
-- [ ] Open DevTools → Application → IndexedDB → `marketsui-config` →
-      `appConfig` table. See rows with `componentType:
-      "markets-grid-profile"`, `configId: "demo-blotter-v2::showcase"`,
-      separate rows for alice vs bob.
+- [ ] Open `http://localhost:5191`. Active user defaults to **dev1**. Showcase profile loads automatically.
+- [ ] Click the Database icon at the far right of the top toolbar row. A new window opens titled "Config Browser · MarketsGrid Demo".
+- [ ] In the popup, click the `App Registry` tab — see `TestApp` row (seeded from `seed-config.json`).
+- [ ] Click `User Profiles` tab — see `dev1` with roles `admin`, `developer` for `TestApp`.
+- [ ] Click `App Config` tab — see one row with `componentType: "markets-grid-profile-set"`, `configId: "demo-blotter-v2"`, `appId: "TestApp"`, `userId: "dev1"`. Expand the payload — it's `{ profiles: [ Showcase ] }`.
+- [ ] Back in the main window: bold the `price` column in the formatting toolbar. Save profile.
+- [ ] In the popup: click Refresh. The `markets-grid-profile-set` row's `updatedTime` is newer and the payload reflects the bold.
+- [ ] Switch user to **Alice**. Main grid's bold is gone — Alice's pristine Showcase seeds.
+- [ ] In the popup after Refresh: two `markets-grid-profile-set` rows now, one for `dev1`, one for `alice`, each scoped independently.
+- [ ] Switch back to **dev1**. Your bold is exactly where you left it.
+- [ ] Reload the page. Active user persists. The seed is NOT re-run (ConfigManager bails when `appRegistry.count() > 0`).
+- [ ] Switch to dashboard view (`?view=dashboard`). Both grids load per-user profile state independently.
