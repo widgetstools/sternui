@@ -3,7 +3,7 @@
   "licenseKey": "stern-reference-demo",
   "runtime": {
     "arguments": "--v=1 --inspect --remote-debugging-port=9222",
-    "version": "stable"
+    "version": "43.142.101.2"
   },
   "platform": {
     "uuid": "stern-reference-platform",

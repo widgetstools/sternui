@@ -5,18 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "tsc --noEmit && vite build",
+    "build": "export NODE_OPTIONS=--disable-warning=ExperimentalWarning && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "openfin": "node ../../tools/scripts/launch-openfin.mjs http://localhost:5173/manifest.fin.json",
     "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -- --no-open\" \"wait-on http://localhost:5173 && npm run openfin\""
   },
   "dependencies": {
-    "@openfin/core": "~42.103.4",
-    "@openfin/workspace": "^24.0.0",
-    "@openfin/workspace-platform": "^24.0.0",
+    "@openfin/core": "43.101.4",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",
+    "@marketsui/tokens-primeng": "1.0.0",
     "@marketsui/ui": "1.0.0",
     "@marketsui/widget-sdk": "1.0.0",
     "@marketsui/widgets-react": "1.0.0",

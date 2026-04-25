@@ -209,7 +209,7 @@ export function RowGroupingEditor({
           borderTop: '1px dashed var(--ck-border)',
         }}
       >
-        <Caps size={9} color="var(--ck-t2, var(--muted-foreground))">
+        <Caps size={9} color="var(--ck-t2, var(--bn-t2))">
           Grid-level · applies to every column
         </Caps>
       </div>

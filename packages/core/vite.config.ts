@@ -28,6 +28,14 @@ export default defineConfig({
           'react-dom': 'ReactDOM',
         },
       },
+      onwarn(warning, defaultHandler) {
+        // Radix-UI + lucide-react ship `"use client"` RSC directives
+        // that are irrelevant in this plain client-side library
+        // bundle — filter the false-positive warning out.
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        defaultHandler(warning);
+      },
     },
   },
   resolve: {

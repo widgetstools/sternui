@@ -30,3 +30,15 @@ export const ACTION_IMPORT_CONFIG        = "import-config";
 export const ACTION_TOGGLE_PROVIDER      = "toggle-provider-window";
 export const ACTION_OPEN_REGISTRY_EDITOR = "open-registry-editor";
 export const ACTION_OPEN_CONFIG_BROWSER  = "open-config-browser";
+/**
+ * Dock button / menu item action: launch a component registered in
+ * the Component Registry. `customData` shape:
+ *   { registryEntryId: string, asWindow?: boolean }
+ *
+ * The handler (registered in workspace.ts) resolves the live registry
+ * entry by id at click-time, so updates to the registry (hostUrl /
+ * configId / appId / etc.) propagate immediately to every dock item
+ * that references the id. Missing ids are handled gracefully — a
+ * user-visible notification, no hard failure.
+ */
+export const ACTION_LAUNCH_COMPONENT     = "launch-component";

@@ -1,9 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
-/* MarketsUI Design System Tokens — single source of truth.
-   Both files define variables scoped by [data-theme]. */
+/* MarketsUI Design System Tokens — single source of truth for every app. */
 @import '../../../packages/design-system/src/themes/fi-dark.css';
 @import '../../../packages/design-system/src/themes/fi-light.css';
+
+/* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
+@import '../../../packages/markets-grid/src/styles/marketsGrid.css';
 
 /* Tailwind v3 directives — utilities resolve via the shadcn-compatible
    aliases exported by fi-dark.css / fi-light.css. */

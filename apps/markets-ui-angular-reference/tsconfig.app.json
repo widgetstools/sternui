@@ -7,7 +7,9 @@
     "types": []
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "../../node_modules/@marketsui/icons-svg/index.ts",
+    "../../node_modules/@marketsui/icons-svg/all-icons.ts"
   ],
   "exclude": [
     "src/**/*.spec.ts"

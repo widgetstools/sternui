@@ -104,10 +104,10 @@ export function ProfileSelector({
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 28, padding: '0 10px 0 8px',
-              background: 'var(--card, #161a1e)',
-              border: '1px solid var(--border, #313944)',
+              background: 'var(--bn-bg1, #161a1e)',
+              border: '1px solid var(--bn-border, #313944)',
               borderRadius: 6,
-              color: active ? 'var(--foreground, #eaecef)' : 'var(--muted-foreground, #a0a8b4)',
+              color: active ? 'var(--bn-t0, #eaecef)' : 'var(--bn-t2, #a0a8b4)',
               cursor: 'pointer',
               fontSize: 11,
               lineHeight: 1,
@@ -122,9 +122,9 @@ export function ProfileSelector({
                   position: 'absolute', top: -2, right: -3,
                   width: 6, height: 6, borderRadius: '50%',
                   background: active
-                    ? (isDirty ? 'var(--bn-yellow, #f0b90b)' : 'var(--primary, #14b8a6)')
-                    : 'var(--muted-foreground, #6b7280)',
-                  boxShadow: '0 0 0 1.5px var(--card, #161a1e)',
+                    ? (isDirty ? 'var(--bn-yellow, #f0b90b)' : 'var(--bn-blue, #14b8a6)')
+                    : 'var(--bn-t2, #6b7280)',
+                  boxShadow: '0 0 0 1.5px var(--bn-bg1, #161a1e)',
                 }}
               />
             </span>
@@ -191,11 +191,11 @@ export function ProfileSelector({
                     borderRadius: 6,
                     cursor: 'pointer',
                     background: isActive
-                      ? 'color-mix(in srgb, var(--primary, #14b8a6) 8%, transparent)'
+                      ? 'color-mix(in srgb, var(--bn-blue, #14b8a6) 8%, transparent)'
                       : isHovered
-                        ? 'color-mix(in srgb, var(--foreground, #eaecef) 5%, transparent)'
+                        ? 'color-mix(in srgb, var(--bn-t0, #eaecef) 5%, transparent)'
                         : 'transparent',
-                    color: 'var(--foreground, #eaecef)',
+                    color: 'var(--bn-t0, #eaecef)',
                     fontSize: 11,
                     transition: 'background 120ms',
                   }}
@@ -206,14 +206,14 @@ export function ProfileSelector({
                     style={{
                       position: 'absolute', left: 2, top: 7, bottom: 7,
                       width: 2, borderRadius: 2,
-                      background: isActive ? 'var(--primary, #14b8a6)' : 'transparent',
+                      background: isActive ? 'var(--bn-blue, #14b8a6)' : 'transparent',
                     }}
                   />
 
                   {/* Leading indicator */}
                   <span className="gc-ps-row-indicator">
                     {isActive ? (
-                      <Check size={12} strokeWidth={2.5} style={{ color: 'var(--primary, #14b8a6)' }} />
+                      <Check size={12} strokeWidth={2.5} style={{ color: 'var(--bn-blue, #14b8a6)' }} />
                     ) : (
                       <span className="gc-ps-row-dot" />
                     )}
@@ -223,7 +223,7 @@ export function ProfileSelector({
                   <span style={{
                     flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     fontWeight: isActive ? 600 : 450,
-                    color: isActive ? 'var(--foreground, #eaecef)' : 'var(--foreground, #d7dde5)',
+                    color: isActive ? 'var(--bn-t0, #eaecef)' : 'var(--bn-t0, #d7dde5)',
                     letterSpacing: 0.1,
                   }}>
                     {p.name}
@@ -261,19 +261,19 @@ export function ProfileSelector({
                         width: 22, height: 22,
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--muted-foreground, #8b93a1)',
+                        color: 'var(--bn-t2, #8b93a1)',
                         borderRadius: 4,
                         cursor: 'pointer',
                         opacity: isHovered ? 1 : 0,
                         transition: 'opacity 120ms, background 120ms, color 120ms',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--primary, #14b8a6) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)';
+                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--muted-foreground, #8b93a1)';
+                        e.currentTarget.style.color = 'var(--bn-t2, #8b93a1)';
                       }}
                     >
                       <Copy size={11} strokeWidth={1.75} />
@@ -296,19 +296,19 @@ export function ProfileSelector({
                         width: 22, height: 22,
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--muted-foreground, #8b93a1)',
+                        color: 'var(--bn-t2, #8b93a1)',
                         borderRadius: 4,
                         cursor: 'pointer',
                         opacity: isHovered ? 1 : 0,
                         transition: 'opacity 120ms, background 120ms, color 120ms',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--primary, #14b8a6) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)';
+                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--muted-foreground, #8b93a1)';
+                        e.currentTarget.style.color = 'var(--bn-t2, #8b93a1)';
                       }}
                     >
                       <Download size={11} strokeWidth={1.75} />
@@ -322,7 +322,7 @@ export function ProfileSelector({
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 22, height: 22,
-                        color: 'var(--muted-foreground, #8b93a1)',
+                        color: 'var(--bn-t2, #8b93a1)',
                         opacity: 0.55,
                       }}
                     >
@@ -347,19 +347,19 @@ export function ProfileSelector({
                         width: 22, height: 22,
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--muted-foreground, #8b93a1)',
+                        color: 'var(--bn-t2, #8b93a1)',
                         borderRadius: 4,
                         cursor: 'pointer',
                         opacity: isHovered ? 1 : 0,
                         transition: 'opacity 120ms, background 120ms, color 120ms',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--destructive, #ef4444) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--destructive, #ef4444)';
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-red, #ef4444) 14%, transparent)';
+                        e.currentTarget.style.color = 'var(--bn-red, #ef4444)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--muted-foreground, #8b93a1)';
+                        e.currentTarget.style.color = 'var(--bn-t2, #8b93a1)';
                       }}
                     >
                       <Trash2 size={11} strokeWidth={1.75} />
@@ -373,7 +373,7 @@ export function ProfileSelector({
           {/* Separator */}
           <div style={{
             height: 1,
-            background: 'color-mix(in srgb, var(--border, #313944) 60%, transparent)',
+            background: 'color-mix(in srgb, var(--bn-border, #313944) 60%, transparent)',
           }} />
 
           {/* Create new */}
@@ -381,7 +381,7 @@ export function ProfileSelector({
             <div style={{
               fontSize: 10, fontWeight: 600, letterSpacing: 0.6,
               textTransform: 'uppercase',
-              color: 'var(--muted-foreground, #8b93a1)',
+              color: 'var(--bn-t2, #8b93a1)',
               marginBottom: 6,
             }}>
               Save current as
@@ -389,13 +389,13 @@ export function ProfileSelector({
             <div
               style={{
                 display: 'flex', alignItems: 'center',
-                background: 'var(--background, #0b0e11)',
+                background: 'var(--bn-bg, #0b0e11)',
                 border: `1px solid ${inputFocused
-                  ? 'color-mix(in srgb, var(--primary, #14b8a6) 55%, var(--border, #313944))'
-                  : 'var(--border, #313944)'}`,
+                  ? 'color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))'
+                  : 'var(--bn-border, #313944)'}`,
                 borderRadius: 6,
                 boxShadow: inputFocused
-                  ? '0 0 0 3px color-mix(in srgb, var(--primary, #14b8a6) 14%, transparent)'
+                  ? '0 0 0 3px color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)'
                   : 'none',
                 transition: 'border-color 120ms, box-shadow 120ms',
                 overflow: 'hidden',
@@ -418,7 +418,7 @@ export function ProfileSelector({
                   flex: 1, minWidth: 0, height: 30, padding: '0 10px',
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--foreground, #eaecef)',
+                  color: 'var(--bn-t0, #eaecef)',
                   fontSize: 11,
                   outline: 'none',
                   letterSpacing: 0.1,
@@ -433,10 +433,10 @@ export function ProfileSelector({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   height: 30, padding: '0 12px',
-                  background: canCreate ? 'var(--primary, #14b8a6)' : 'transparent',
-                  color: canCreate ? '#0b0e11' : 'var(--muted-foreground, #6b7280)',
+                  background: canCreate ? 'var(--bn-blue, #14b8a6)' : 'transparent',
+                  color: canCreate ? '#0b0e11' : 'var(--bn-t2, #6b7280)',
                   border: 'none',
-                  borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--border, #313944)'}`,
+                  borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--bn-border, #313944)'}`,
                   fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
                   cursor: canCreate ? 'pointer' : 'not-allowed',
                   transition: 'background 120ms, color 120ms',
@@ -455,7 +455,7 @@ export function ProfileSelector({
             <>
               <div style={{
                 height: 1,
-                background: 'color-mix(in srgb, var(--border, #313944) 60%, transparent)',
+                background: 'color-mix(in srgb, var(--bn-border, #313944) 60%, transparent)',
               }} />
               <div style={{
                 display: 'flex', gap: 6,
@@ -472,20 +472,20 @@ export function ProfileSelector({
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                       height: 28,
                       background: 'transparent',
-                      border: '1px solid var(--border, #313944)',
+                      border: '1px solid var(--bn-border, #313944)',
                       borderRadius: 6,
-                      color: 'var(--foreground, #eaecef)',
+                      color: 'var(--bn-t0, #eaecef)',
                       fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
                       cursor: 'pointer',
                       transition: 'border-color 120ms, background 120ms, color 120ms',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary, #14b8a6) 55%, var(--border, #313944))';
-                      e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))';
+                      e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border, #313944)';
-                      e.currentTarget.style.color = 'var(--foreground, #eaecef)';
+                      e.currentTarget.style.borderColor = 'var(--bn-border, #313944)';
+                      e.currentTarget.style.color = 'var(--bn-t0, #eaecef)';
                     }}
                   >
                     <Download size={12} strokeWidth={1.75} />
@@ -518,20 +518,20 @@ export function ProfileSelector({
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                         height: 28,
                         background: 'transparent',
-                        border: '1px solid var(--border, #313944)',
+                        border: '1px solid var(--bn-border, #313944)',
                         borderRadius: 6,
-                        color: 'var(--foreground, #eaecef)',
+                        color: 'var(--bn-t0, #eaecef)',
                         fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
                         cursor: 'pointer',
                         transition: 'border-color 120ms, background 120ms, color 120ms',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary, #14b8a6) 55%, var(--border, #313944))';
-                        e.currentTarget.style.color = 'var(--primary, #14b8a6)';
+                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))';
+                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border, #313944)';
-                        e.currentTarget.style.color = 'var(--foreground, #eaecef)';
+                        e.currentTarget.style.borderColor = 'var(--bn-border, #313944)';
+                        e.currentTarget.style.color = 'var(--bn-t0, #eaecef)';
                       }}
                     >
                       <Upload size={12} strokeWidth={1.75} />

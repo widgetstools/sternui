@@ -1,19 +1,31 @@
-// ─── Dock config persistence (backed by @marketsui/config-service) ───
+// ─── Dock + Registry persistence (backed by @marketsui/config-service) ───
 //
-// This file provides the same public API as the original db.ts, but
-// delegates all persistence to the shared ConfigManager from
-// @marketsui/config-service.
+// This file is the single entry point for dock-editor and
+// registry-editor persistence. Both save as `AppConfigRow` rows
+// through the generic `ConfigManager.saveConfig()` API — mirroring
+// MarketsGrid's `createConfigServiceStorage(...)` pattern in
+// `packages/config-service/src/profile-storage.ts`.
 //
-// The dock-editor package imports these functions — by keeping the
-// same export signatures, no changes are needed in dock-editor.
+// Shared invariants with MarketsGrid profile rows:
+//   • `componentType` is a kebab-case domain discriminator
+//     (e.g. `'dock-config'`, `'component-registry'`) matching the
+//     canonical constants exported from `@marketsui/shared-types`.
+//   • `(appId, userId, configId)` triple uniquely identifies a row
+//     from a given owner's point of view. The Config Browser shows
+//     dock + registry rows alongside MarketsGrid profile-set rows
+//     with no special casing.
+//   • `creationTime` is preserved across overwrites; `updatedTime`
+//     is refreshed on every save.
 //
-// The ConfigManager singleton is initialized in workspace.ts during
-// platform startup. Until then, these functions create a temporary
-// local ConfigManager as a fallback (this handles the dock-editor
-// window, which runs in a separate process and may not have access
-// to the provider's ConfigManager instance).
+// Back-compat: earlier versions wrote `componentType: "DOCK"` /
+// `"REGISTRY"` via now-removed ConfigManager shim methods. The load
+// functions below recognise those historical values and their
+// configIds so existing Dexie rows continue to work after upgrade.
+// The next save rewrites them in the canonical shape.
 
 import { createConfigManager, type ConfigManager } from "@marketsui/config-service";
+import type { AppConfigRow } from "@marketsui/config-service";
+import { COMPONENT_TYPES } from "@marketsui/shared-types";
 import type { DockEditorConfig } from './dock-config-types';
 import type { RegistryEditorConfig } from './registry-config-types';
 
@@ -34,11 +46,6 @@ let configManagerInstance: ConfigManager | undefined;
  * is being created. This prevents a race condition where two concurrent
  * callers both try to create separate instances before the first one
  * has finished initialising.
- *
- * How it works:
- *   - First caller: creates the promise and awaits it.
- *   - Concurrent callers: receive the same promise and await the same result.
- *   - Once resolved, configManagerInstance is set and the promise is cleared.
  */
 let initPromise: Promise<ConfigManager> | undefined;
 
@@ -66,93 +73,305 @@ export function setConfigManager(manager: ConfigManager): void {
  * ConfigManager is ever created.
  */
 export async function getConfigManager(): Promise<ConfigManager> {
-  // Fast path: instance already exists
-  if (configManagerInstance) {
-    return configManagerInstance;
-  }
-
-  // If init is already in progress, wait for that same promise
-  // rather than starting a second one.
+  if (configManagerInstance) return configManagerInstance;
   if (!initPromise) {
     initPromise = (async () => {
       const manager = createConfigManager();
       await manager.init();
       configManagerInstance = manager;
-      initPromise = undefined; // clear so it can be GC'd
+      initPromise = undefined;
       return manager;
     })();
   }
-
   return initPromise;
 }
 
-// ─── Public API (same signatures as before) ──────────────────────────
+// ─── Scoping options (shared by dock + registry) ─────────────────────
 
 /**
- * Save the dock button configuration.
- * Overwrites any previously saved config.
+ * Scope under which a dock / registry config is stored.
+ *
+ * The defaults (`appId: 'system'`, `userId: 'system'`) preserve the
+ * pre-refactor global-singleton behaviour — existing call-sites that
+ * don't pass scope continue to save to the same rows they did before.
+ * Hosting apps that want per-user or per-app separation pass real
+ * values.
  */
-export async function saveDockConfig(config: DockEditorConfig): Promise<void> {
-  const manager = await getConfigManager();
-  await manager.saveDockConfig(config);
+export interface ConfigScope {
+  appId?: string;
+  userId?: string;
 }
 
 /**
- * Load the saved dock button configuration.
- * Returns null if no config has been saved yet.
+ * Hard-coded fallback scope used before the platform calls
+ * `setPlatformDefaultScope()`. Kept distinct from `currentPlatformScope`
+ * (mutable) so the legacy back-compat fallback in `loadDockConfig` and
+ * `loadRegistryConfig` always knows what the original "system/system"
+ * shape was.
  */
-export async function loadDockConfig(): Promise<DockEditorConfig | null> {
-  const manager = await getConfigManager();
-  return manager.loadDockConfig();
+const LEGACY_DEFAULT_SCOPE: Required<ConfigScope> = { appId: 'system', userId: 'system' };
+
+/**
+ * Live default scope. Platform shells call `setPlatformDefaultScope()`
+ * during `initWorkspace()` so that all save/load calls in this module
+ * default to the platform's own `(appId, userId)` — keeping dock,
+ * registry, MarketsGrid profiles, and any other per-app config under
+ * one scope key. Until the platform sets it, we behave like the legacy
+ * `system/system` default for bit-for-bit back-compat with rows
+ * written before this refactor.
+ */
+let currentPlatformScope: Required<ConfigScope> = { ...LEGACY_DEFAULT_SCOPE };
+
+/**
+ * Set the default `(appId, userId)` for every save/load call that
+ * doesn't pass an explicit scope. Idempotent — safe to call on every
+ * platform boot.
+ */
+export function setPlatformDefaultScope(scope: ConfigScope): void {
+  currentPlatformScope = {
+    appId: scope.appId ?? currentPlatformScope.appId,
+    userId: scope.userId ?? currentPlatformScope.userId,
+  };
 }
 
 /**
- * Clear the saved dock configuration.
- * Next startup will fall back to manifest defaults.
+ * Read the currently-active platform default scope. Returns the
+ * `LEGACY_DEFAULT_SCOPE` snapshot before `setPlatformDefaultScope` has
+ * been called. Useful for callers that need to forward the platform's
+ * scope into child windows (e.g. the Config Browser's `appId` chip).
  */
-export async function clearDockConfig(): Promise<void> {
-  const manager = await getConfigManager();
-  await manager.clearDockConfig();
+export function getPlatformDefaultScope(): Required<ConfigScope> {
+  return { ...currentPlatformScope };
 }
 
-// ─── Registry config persistence ────────────────────────────────────
+function resolveScope(scope: ConfigScope | undefined): Required<ConfigScope> {
+  return {
+    appId: scope?.appId ?? currentPlatformScope.appId,
+    userId: scope?.userId ?? currentPlatformScope.userId,
+  };
+}
 
 /**
- * Save the component registry configuration.
- * Overwrites any previously saved registry config.
+ * Primary-key composition. MarketsGrid uses `configId === instanceId`
+ * because it owns a separate row per (appId, userId, instanceId)
+ * triple. DockEditor + Registry have a single "logical" config per
+ * scope, so we encode the scope into `configId` when it differs from
+ * the platform default — this keeps each owner's row distinct under
+ * the primary-key-is-configId invariant.
+ *
+ * When scope matches the live platform default, we keep the bare
+ * configIds (`dock-config`, `component-registry`) — same row, just
+ * tagged with whichever `(appId, userId)` the platform configured.
  */
-export async function saveRegistryConfig(config: RegistryEditorConfig): Promise<void> {
+function scopedConfigId(base: string, scope: Required<ConfigScope>): string {
+  if (scope.appId === currentPlatformScope.appId && scope.userId === currentPlatformScope.userId) {
+    return base;
+  }
+  return `${base}::${scope.appId}::${scope.userId}`;
+}
+
+// ─── Dock config ─────────────────────────────────────────────────────
+
+const DOCK_CONFIG_BASE_ID = 'dock-config';
+const DOCK_DISPLAY = 'Dock Configuration';
+/** Back-compat componentType written by pre-refactor saves. */
+const LEGACY_DOCK_COMPONENT_TYPE = 'DOCK';
+
+/** Save the dock button configuration. Overwrites any previous save in the same scope. */
+export async function saveDockConfig(
+  config: DockEditorConfig,
+  scope?: ConfigScope,
+): Promise<void> {
+  const resolved = resolveScope(scope);
+  const configId = scopedConfigId(DOCK_CONFIG_BASE_ID, resolved);
   const manager = await getConfigManager();
-  await manager.saveConfig({
-    configId: "component-registry",
-    appId: "system",
-    userId: "system",
-    displayText: "Component Registry",
-    componentType: "REGISTRY",
-    componentSubType: "EDITOR",
+  const existing = await manager.getConfig(configId);
+  const now = new Date().toISOString();
+
+  const row: AppConfigRow = {
+    configId,
+    appId: resolved.appId,
+    userId: resolved.userId,
+    displayText: DOCK_DISPLAY,
+    componentType: COMPONENT_TYPES.DOCK_CONFIG,
+    componentSubType: '',
     isTemplate: false,
     payload: config,
-    createdBy: "registry-editor",
-    updatedBy: "registry-editor",
-    creationTime: new Date().toISOString(),
-    updatedTime: new Date().toISOString(),
-  });
+    createdBy: existing?.createdBy ?? resolved.userId,
+    updatedBy: resolved.userId,
+    creationTime: existing?.creationTime ?? now,
+    updatedTime: now,
+  };
+  await manager.saveConfig(row);
+}
+
+/** Load the saved dock button configuration. Returns null if none. */
+export async function loadDockConfig(
+  scope?: ConfigScope,
+): Promise<DockEditorConfig | null> {
+  const resolved = resolveScope(scope);
+  const manager = await getConfigManager();
+  const scoped = await manager.getConfig(scopedConfigId(DOCK_CONFIG_BASE_ID, resolved));
+  if (scoped) return scoped.payload as DockEditorConfig;
+  // Back-compat fallback: the bare legacy row (configId='dock-config',
+  // componentType='DOCK', appId='', userId='system') still loads even
+  // after we've re-scoped new saves.
+  if (resolved.appId === LEGACY_DEFAULT_SCOPE.appId && resolved.userId === LEGACY_DEFAULT_SCOPE.userId) {
+    const legacy = await manager.getConfig(DOCK_CONFIG_BASE_ID);
+    if (legacy && (legacy.componentType === LEGACY_DOCK_COMPONENT_TYPE ||
+                   legacy.componentType === COMPONENT_TYPES.DOCK_CONFIG)) {
+      return legacy.payload as DockEditorConfig;
+    }
+  }
+  return null;
+}
+
+/** Clear the saved dock configuration. */
+export async function clearDockConfig(scope?: ConfigScope): Promise<void> {
+  const resolved = resolveScope(scope);
+  const manager = await getConfigManager();
+  await manager.deleteConfig(scopedConfigId(DOCK_CONFIG_BASE_ID, resolved));
+}
+
+// ─── Registry config ─────────────────────────────────────────────────
+
+const REGISTRY_CONFIG_BASE_ID = 'component-registry';
+const REGISTRY_DISPLAY = 'Component Registry';
+/** Back-compat componentType written by pre-refactor saves. */
+const LEGACY_REGISTRY_COMPONENT_TYPE = 'REGISTRY';
+
+/** Save the component registry configuration. Overwrites any previous save in the same scope. */
+export async function saveRegistryConfig(
+  config: RegistryEditorConfig,
+  scope?: ConfigScope,
+): Promise<void> {
+  const resolved = resolveScope(scope);
+  const configId = scopedConfigId(REGISTRY_CONFIG_BASE_ID, resolved);
+  const manager = await getConfigManager();
+  const existing = await manager.getConfig(configId);
+  const now = new Date().toISOString();
+
+  const row: AppConfigRow = {
+    configId,
+    appId: resolved.appId,
+    userId: resolved.userId,
+    displayText: REGISTRY_DISPLAY,
+    componentType: COMPONENT_TYPES.COMPONENT_REGISTRY,
+    componentSubType: '',
+    isTemplate: false,
+    payload: config,
+    createdBy: existing?.createdBy ?? resolved.userId,
+    updatedBy: resolved.userId,
+    creationTime: existing?.creationTime ?? now,
+    updatedTime: now,
+  };
+  await manager.saveConfig(row);
+}
+
+/** Load the saved component registry configuration. Returns null if none. */
+export async function loadRegistryConfig(
+  scope?: ConfigScope,
+): Promise<RegistryEditorConfig | null> {
+  const resolved = resolveScope(scope);
+  const manager = await getConfigManager();
+  const scoped = await manager.getConfig(scopedConfigId(REGISTRY_CONFIG_BASE_ID, resolved));
+  if (scoped) return scoped.payload as RegistryEditorConfig;
+  if (resolved.appId === LEGACY_DEFAULT_SCOPE.appId && resolved.userId === LEGACY_DEFAULT_SCOPE.userId) {
+    const legacy = await manager.getConfig(REGISTRY_CONFIG_BASE_ID);
+    if (legacy && (legacy.componentType === LEGACY_REGISTRY_COMPONENT_TYPE ||
+                   legacy.componentType === COMPONENT_TYPES.COMPONENT_REGISTRY)) {
+      return legacy.payload as RegistryEditorConfig;
+    }
+  }
+  return null;
+}
+
+/** Clear the saved component registry configuration. */
+export async function clearRegistryConfig(scope?: ConfigScope): Promise<void> {
+  const resolved = resolveScope(scope);
+  const manager = await getConfigManager();
+  await manager.deleteConfig(scopedConfigId(REGISTRY_CONFIG_BASE_ID, resolved));
+}
+
+// ─── One-shot legacy-scope migration ─────────────────────────────────
+
+/**
+ * Re-tag pre-platform `appId='system' / userId='system'` dock + registry
+ * rows so they carry the live `currentPlatformScope` instead. Idempotent,
+ * cheap to call on every platform boot.
+ *
+ * Why this matters: the Config Browser filters App Config rows by the
+ * runtime `appId` (typically `fin.me.identity.uuid`). Rows still carrying
+ * the legacy `'system'` appId are invisible to the browser even though
+ * they live in the same Dexie database. After this runs once, the dock
+ * and registry rows show up in the browser alongside everything else
+ * the platform writes under its own scope.
+ *
+ * Only operates on rows whose `configId` is the bare `dock-config` /
+ * `component-registry` (i.e. originally written under the legacy default
+ * scope). Suffixed configIds (`dock-config::someApp::someUser`) are left
+ * untouched — they were already explicitly scoped.
+ */
+export async function migrateLegacyPlatformScope(): Promise<{ migrated: number }> {
+  const manager = await getConfigManager();
+  let migrated = 0;
+  for (const baseId of [DOCK_CONFIG_BASE_ID, REGISTRY_CONFIG_BASE_ID] as const) {
+    const row = await manager.getConfig(baseId);
+    if (!row) continue;
+    const onLegacyScope =
+      row.appId === LEGACY_DEFAULT_SCOPE.appId &&
+      row.userId === LEGACY_DEFAULT_SCOPE.userId;
+    const onPlatformScope =
+      row.appId === currentPlatformScope.appId &&
+      row.userId === currentPlatformScope.userId;
+    if (!onLegacyScope || onPlatformScope) continue;
+    const now = new Date().toISOString();
+    await manager.saveConfig({
+      ...row,
+      appId: currentPlatformScope.appId,
+      userId: currentPlatformScope.userId,
+      updatedBy: currentPlatformScope.userId,
+      updatedTime: now,
+    });
+    migrated += 1;
+  }
+  return { migrated };
 }
 
 /**
- * Load the saved component registry configuration.
- * Returns null if no registry has been saved yet.
+ * Broad sweep: re-stamp EVERY row in the `appConfig` table so its
+ * `appId` and `userId` columns match the current platform default scope.
+ *
+ * Stronger than `migrateLegacyPlatformScope()` — that only touches the
+ * legacy `'system'/'system'` dock + registry rows. This walks every row
+ * regardless of original scope. Rows whose scope columns already match
+ * the platform default are skipped (idempotent).
+ *
+ * `configId` (the primary key) is preserved — the row keeps its identity
+ * and payload; only the scope columns + `updatedBy`/`updatedTime` change.
+ *
+ * Use this when you want the entire local Dexie store to collapse onto
+ * a single canonical `(appId, userId)` — e.g. after seeding TestApp /
+ * dev1 and you want every pre-existing row visible under that chip.
  */
-export async function loadRegistryConfig(): Promise<RegistryEditorConfig | null> {
+export async function realignAllConfigsToPlatformScope(): Promise<{ realigned: number; total: number }> {
   const manager = await getConfigManager();
-  const row = await manager.getConfig("component-registry");
-  return row ? (row.payload as RegistryEditorConfig) : null;
-}
-
-/**
- * Clear the saved component registry configuration.
- */
-export async function clearRegistryConfig(): Promise<void> {
-  const manager = await getConfigManager();
-  await manager.deleteConfig("component-registry");
+  const rows = await manager.getAllConfigs();
+  const now = new Date().toISOString();
+  let realigned = 0;
+  for (const row of rows) {
+    if (
+      row.appId === currentPlatformScope.appId &&
+      row.userId === currentPlatformScope.userId
+    ) continue;
+    await manager.saveConfig({
+      ...row,
+      appId: currentPlatformScope.appId,
+      userId: currentPlatformScope.userId,
+      updatedBy: currentPlatformScope.userId,
+      updatedTime: now,
+    });
+    realigned += 1;
+  }
+  return { realigned, total: rows.length };
 }

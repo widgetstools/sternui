@@ -278,6 +278,7 @@ function findMenuItemById(
         [visible]="dialogOpen()"
         [title]="dialogTitle()"
         [initial]="dialogInitial()"
+        [registryEntries]="service.registryEntries()"
         (saved)="onDialogSaved($event)"
         (cancelled)="dialogOpen.set(false)"
       />
@@ -453,13 +454,15 @@ export class DockEditorComponent implements OnInit, OnDestroy {
 
     for (const btn of this.service.buttons()) {
       if (btn.id === id) {
+        const isActionBtn = btn.type === 'ActionButton';
         this.dialogTitle.set('Edit Button');
         this.dialogInitial.set({
           label:       btn.tooltip,
           iconId:      btn.iconId ?? 'lucide:file-text',
-          actionId:    btn.type === 'ActionButton' ? (btn as any).actionId : '',
+          actionId:    isActionBtn ? (btn as any).actionId : '',
           hasChildren: btn.type === 'DropdownButton',
           iconColor:   btn.iconColor,
+          customData:  isActionBtn ? (btn as any).customData : undefined,
         });
         this.dialogOpen.set(true);
         return;
@@ -474,6 +477,7 @@ export class DockEditorComponent implements OnInit, OnDestroy {
             actionId:    found.actionId ?? '',
             hasChildren: Array.isArray(found.options),
             iconColor:   found.iconColor,
+            customData:  found.customData,
           });
           this.dialogOpen.set(true);
           return;
@@ -499,7 +503,9 @@ export class DockEditorComponent implements OnInit, OnDestroy {
           iconUrl,
           iconId: data.iconId,
           iconColor: color,
-          ...(btn.type === 'ActionButton' ? { actionId: data.actionId } : {}),
+          ...(btn.type === 'ActionButton'
+            ? { actionId: data.actionId, customData: data.customData }
+            : {}),
         } as DockButtonConfig);
       } else {
         for (const btn of this.service.buttons()) {
@@ -508,7 +514,7 @@ export class DockEditorComponent implements OnInit, OnDestroy {
             if (found) {
               this.service.updateMenuItem(btn.id, id, {
                 ...found, tooltip: data.label, iconUrl, iconId: data.iconId,
-                iconColor: color, actionId: data.actionId,
+                iconColor: color, actionId: data.actionId, customData: data.customData,
               });
               break;
             }
@@ -521,6 +527,7 @@ export class DockEditorComponent implements OnInit, OnDestroy {
       this.service.addMenuItem(buttonId, {
         id: `menu-${Date.now()}`, tooltip: data.label, iconUrl,
         iconId: data.iconId, iconColor: color, actionId: data.actionId,
+        customData: data.customData,
         options: data.hasChildren ? [] : undefined,
       }, parentItemId);
     } else {
@@ -534,6 +541,7 @@ export class DockEditorComponent implements OnInit, OnDestroy {
         this.service.addButton({
           type: 'ActionButton', id, tooltip: data.label,
           iconUrl, iconId: data.iconId, iconColor: color, actionId: data.actionId,
+          customData: data.customData,
         });
       }
     }

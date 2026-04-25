@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "build": "export NODE_OPTIONS=--disable-warning=ExperimentalWarning && tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
@@ -18,9 +18,9 @@
     "@angular/platform-browser": "21.1.0",
     "@angular/platform-browser-dynamic": "^17.3.0",
     "@angular/router": "21.1.0",
-    "@openfin/core": "~42.103.4",
-    "@openfin/workspace": "^24.0.0",
-    "@openfin/workspace-platform": "^24.0.0",
+    "@openfin/core": "43.101.4",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
     "@marketsui/angular": "1.0.0",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",

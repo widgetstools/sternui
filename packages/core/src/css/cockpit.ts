@@ -144,20 +144,20 @@ export const cockpitCSS = `
 .gc-sheet,
 .gc-sheet-v2,
 [data-gc-settings] {
-  --gc-bg:             var(--background,        #0b0e11);
-  --gc-surface:        var(--card,              #161a1e);
-  --gc-surface-hover:  var(--secondary,         #1e2329);
-  --gc-surface-active: var(--muted,             #2b3139);
-  --gc-text:           var(--foreground,        #eaecef);
-  --gc-text-muted:     var(--muted-foreground,  #a0a8b4);
-  --gc-text-dim:       var(--muted-foreground,  #7a8494);
-  --gc-text-faint:     var(--muted-foreground,  #4a5568);
-  --gc-border:         var(--border,            #313944);
-  --gc-border2:        var(--input,             #3e4754);
-  --gc-accent:         var(--primary,           #14b8a6);
-  --gc-accent-hover:   var(--primary,           #0d9488);
+  --gc-bg:             var(--bn-bg,        #0b0e11);
+  --gc-surface:        var(--bn-bg1,              #161a1e);
+  --gc-surface-hover:  var(--bn-bg3,         #1e2329);
+  --gc-surface-active: var(--bn-bg2,             #2b3139);
+  --gc-text:           var(--bn-t0,        #eaecef);
+  --gc-text-muted:     var(--bn-t2,  #a0a8b4);
+  --gc-text-dim:       var(--bn-t2,  #7a8494);
+  --gc-text-faint:     var(--bn-t2,  #4a5568);
+  --gc-border:         var(--bn-border,            #313944);
+  --gc-border2:        var(--bn-border2,             #3e4754);
+  --gc-accent:         var(--bn-blue,           #14b8a6);
+  --gc-accent-hover:   var(--bn-blue,           #0d9488);
   --gc-accent-muted:   rgba(45, 212, 191, 0.10);
-  --gc-accent-text:    var(--primary-foreground, #ffffff);
+  --gc-accent-text:    var(--bn-cta-text, #ffffff);
   --gc-positive:       var(--bn-green,          #2dd4bf);
   --gc-positive-muted: rgba(45, 212, 191, 0.10);
   --gc-negative:       var(--bn-red,            #f87171);
@@ -265,7 +265,7 @@ export const cockpitCSS = `
  */
 .gc-themed-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--bn-t0) 22%, transparent) transparent;
 }
 .gc-themed-scrollbar::-webkit-scrollbar {
   width: 10px;
@@ -275,14 +275,14 @@ export const cockpitCSS = `
   background: transparent;
 }
 .gc-themed-scrollbar::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+  background-color: color-mix(in srgb, var(--bn-t0) 18%, transparent);
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: padding-box;
   transition: background-color 120ms ease;
 }
 .gc-themed-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in srgb, var(--foreground) 32%, transparent);
+  background-color: color-mix(in srgb, var(--bn-t0) 32%, transparent);
 }
 .gc-themed-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
@@ -1079,14 +1079,14 @@ export const cockpitCSS = `
   --be-ink-3: var(--ck-t3, #434c58);
 
   /* Primary accent — cockpit teal */
-  --be-accent:       var(--ck-green, var(--primary, #2dd4bf));
+  --be-accent:       var(--ck-green, var(--bn-blue, #2dd4bf));
   --be-accent-dim:   color-mix(in srgb, var(--be-accent) 70%, transparent);
   --be-accent-ghost: color-mix(in srgb, var(--be-accent) 16%, transparent);
   --be-accent-line:  color-mix(in srgb, var(--be-accent) 45%, transparent);
   --be-accent-ring:  color-mix(in srgb, var(--be-accent) 60%, transparent);
 
   /* Destructive */
-  --be-red:       var(--ck-red, var(--destructive, #f87171));
+  --be-red:       var(--ck-red, var(--bn-red, #f87171));
   --be-red-ghost: color-mix(in srgb, var(--be-red) 12%, transparent);
 
   /* Geometry */

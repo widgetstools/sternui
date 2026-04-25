@@ -38,10 +38,6 @@ const PENDING_SYNC_INTERVAL_MS = 10_000;
 // investigation — it is never automatically deleted on failure.
 const MAX_SYNC_RETRIES = 10;
 
-// The fixed configId used to store dock button configuration.
-// Using a constant avoids typos when reading or writing the record.
-const DOCK_CONFIG_ID = "dock-config";
-
 /**
  * Create a new ConfigManager instance.
  *
@@ -509,60 +505,14 @@ export class ConfigManager {
     return snapshots[0].payload;
   }
 
-  // ─── Dock config convenience methods ──────────────────────────────
-  // These methods provide a simple API for dock configuration that
-  // is compatible with the existing saveDockConfig/loadDockConfig
-  // functions in @marketsui/openfin-platform.
-
-  /**
-   * Save the dock editor configuration.
-   * Stores it as an APP_CONFIG row with configId "dock-config".
-   */
-  async saveDockConfig(dockConfig: any): Promise<void> {
-    const now = new Date().toISOString();
-
-    const row: AppConfigRow = {
-      configId: DOCK_CONFIG_ID,
-      appId: "",
-      userId: "system",
-      displayText: "Dock Configuration",
-      componentType: "DOCK",
-      componentSubType: "",
-      isTemplate: false,
-      payload: dockConfig,
-      createdBy: "system",
-      updatedBy: "system",
-      creationTime: now,
-      updatedTime: now,
-    };
-
-    // Check if a dock config already exists to preserve creationTime
-    const existing = await this.db.appConfig.get(DOCK_CONFIG_ID);
-    if (existing) {
-      row.creationTime = existing.creationTime;
-    }
-
-    await this.saveConfig(row);
-  }
-
-  /**
-   * Load the dock editor configuration.
-   * Returns null if no dock config has been saved yet.
-   */
-  async loadDockConfig(): Promise<any | null> {
-    const row = await this.db.appConfig.get(DOCK_CONFIG_ID);
-    if (!row) {
-      return null;
-    }
-    return row.payload;
-  }
-
-  /**
-   * Delete the dock editor configuration.
-   */
-  async clearDockConfig(): Promise<void> {
-    await this.db.appConfig.delete(DOCK_CONFIG_ID);
-  }
+  // Note: dock + registry config persistence used to live here as
+  // domain-specific shims (`saveDockConfig`, `loadDockConfig`, …).
+  // They've been removed — ConfigManager stays a GENERIC (configId →
+  // AppConfigRow) store, and domain helpers live in
+  // `@marketsui/openfin-platform/db.ts` alongside the types they
+  // wrap. That file builds AppConfigRow instances directly and
+  // passes them to `saveConfig`, matching the pattern MarketsGrid's
+  // `createConfigServiceStorage` uses.
 
   // ─── Seeding ──────────────────────────────────────────────────────
 

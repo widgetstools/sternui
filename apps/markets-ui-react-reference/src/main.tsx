@@ -16,6 +16,9 @@ const View2       = React.lazy(() => import("./views/View2"));
 const DockEditor      = React.lazy(() => import("./views/DockEditor"));
 const RegistryEditor  = React.lazy(() => import("./views/RegistryEditor"));
 const ConfigBrowser   = React.lazy(() => import("./views/ConfigBrowser"));
+// MarketsGrid blotter — hosted at /blotters/marketsgrid. Lazy so the
+// AG-Grid bundle (~1 MB) stays out of the shell's initial load.
+const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid"));
 
 // ImportConfig lives in the @marketsui/dock-editor package (not a local view file).
 // The .then() unwraps the named export into the default export shape that
@@ -48,6 +51,18 @@ root.render(
           {/* Sample views — launched as OpenFin Views from the dock */}
           <Route path="/views/view1" element={<View1 />} />
           <Route path="/views/view2" element={<View2 />} />
+
+          {/* Blotters — MarketsGrid hosted inside the reference app.
+              DexieAdapter persists profile state locally; theme flows
+              through the ambient <ThemeProvider>. */}
+          <Route
+            path="/blotters/marketsgrid"
+            element={
+              <React.Suspense fallback={LOADING}>
+                <BlottersMarketsGrid />
+              </React.Suspense>
+            }
+          />
 
           {/* Utility windows — opened by dock toolbar buttons */}
           <Route path="/dock-editor"       element={<React.Suspense fallback={LOADING}><DockEditor /></React.Suspense>} />

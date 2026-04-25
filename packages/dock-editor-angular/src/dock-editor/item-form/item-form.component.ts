@@ -34,6 +34,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TooltipModule } from 'primeng/tooltip';
 import { dark } from '@marketsui/design-system/tokens/semantic';
+import { ACTION_LAUNCH_COMPONENT, type RegistryEntry } from '@marketsui/openfin-platform';
 import { iconIdToSvgUrl } from '../icon-utils';
 import { ICON_OPTIONS, DEFAULT_ICON, type IconOption } from '../icons';
 
@@ -71,6 +72,21 @@ export interface ItemFormData {
   actionId: string;
   hasChildren: boolean;
   iconColor?: string;
+  /**
+   * Optional action customData. When `actionId === ACTION_LAUNCH_COMPONENT`,
+   * shape is `{ registryEntryId, asWindow? }` as expected by the
+   * runtime handler in `@marketsui/openfin-platform/workspace.ts`.
+   */
+  customData?: unknown;
+}
+
+interface LaunchComponentCustomData {
+  registryEntryId: string;
+  asWindow?: boolean;
+}
+
+function isLaunchComponentData(x: unknown): x is LaunchComponentCustomData {
+  return !!x && typeof x === 'object' && typeof (x as LaunchComponentCustomData).registryEntryId === 'string';
 }
 
 function isCustomColor(color: string | undefined): boolean {
@@ -243,9 +259,81 @@ function isCustomColor(color: string | undefined): boolean {
             class="w-full font-mono text-sm"
             [value]="form.get('actionId')?.value"
             (input)="form.get('actionId')?.setValue($any($event.target).value)"
-            placeholder="e.g., file.new"
+            placeholder="e.g., file.new  —  or pick 'launch-component'"
           />
-          <small class="text-xs text-muted-foreground">Unique identifier for this action</small>
+          <small class="text-xs text-muted-foreground" *ngIf="!isLaunchComponent()">
+            Unique identifier for this action. Use <span class="font-mono">'launch-component'</span>
+            to launch a registered component from the dropdown below.
+          </small>
+          <small class="text-xs text-muted-foreground" *ngIf="isLaunchComponent()">
+            Launches the selected registered component when clicked.
+          </small>
+          <!-- Quick-set button: flips to launch-component without the user having to type the string. -->
+          <button
+            type="button"
+            *ngIf="!isLaunchComponent()"
+            (click)="setActionToLaunchComponent()"
+            class="self-start mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium
+                   border border-border rounded-md bg-transparent text-primary cursor-pointer
+                   transition-colors hover:bg-primary/10"
+          >
+            <span>🧩</span>
+            Launch a registered component…
+          </button>
+        </div>
+
+        <!-- Registered Component picker (only when actionId === 'launch-component') -->
+        <div class="flex flex-col gap-1" *ngIf="isLaunchComponent() && !form.get('hasChildren')?.value">
+          <label class="text-xs font-medium text-muted-foreground">
+            Registered Component <span class="text-red-500">*</span>
+          </label>
+          <select
+            class="w-full h-9 px-3 text-sm border border-border rounded-md bg-card text-foreground"
+            [value]="registryEntryId()"
+            (change)="registryEntryId.set($any($event.target).value)"
+          >
+            <option value="">— Select a registered component —</option>
+            <option
+              *ngFor="let entry of sortedRegistryEntries()"
+              [value]="entry.id"
+            >{{ entry.displayName || entry.id }}{{ (entry.componentType || entry.componentSubType)
+                ? '  [' + entry.componentType + (entry.componentSubType ? ' / ' + entry.componentSubType : '') + ']'
+                : '' }}</option>
+          </select>
+          <small
+            class="text-xs text-muted-foreground"
+            *ngIf="sortedRegistryEntries().length === 0"
+          >
+            No components registered yet — open the Component Registry editor to add some.
+          </small>
+          <small
+            class="text-xs text-red-500"
+            *ngIf="form.touched && !registryEntryId() && sortedRegistryEntries().length > 0"
+          >
+            Pick a registered component
+          </small>
+        </div>
+
+        <!-- Launch in new window -->
+        <div
+          *ngIf="isLaunchComponent() && !form.get('hasChildren')?.value"
+          class="flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-all"
+          [class.border-primary]="asWindow()"
+          [class.bg-primary/5]="asWindow()"
+          [class.border-border]="!asWindow()"
+          (click)="asWindow.set(!asWindow())"
+        >
+          <p-checkbox
+            [binary]="true"
+            [ngModel]="asWindow()"
+            (ngModelChange)="asWindow.set($event)"
+          />
+          <div>
+            <div class="text-sm font-medium text-foreground">Launch in new window</div>
+            <div class="text-xs text-muted-foreground mt-0.5">
+              Standalone OpenFin Window. Default is a View inside the current workspace.
+            </div>
+          </div>
         </div>
 
         <!-- Has Children -->
@@ -293,6 +381,12 @@ export class ItemFormComponent implements OnInit, OnChanges {
   @Input() title = 'Add Item';
   @Input() visible = false;
   @Input() initial?: Partial<ItemFormData>;
+  /**
+   * Live list of Component-Registry entries used to populate the
+   * "Launch registered component" dropdown. Supplied by the parent
+   * (`DockEditorComponent`) from `DockEditorService.registryEntries()`.
+   */
+  @Input() registryEntries: RegistryEntry[] = [];
 
   @Output() saved = new EventEmitter<ItemFormData>();
   @Output() cancelled = new EventEmitter<void>();
@@ -301,9 +395,31 @@ export class ItemFormComponent implements OnInit, OnChanges {
   protected readonly selectedColor = signal<string | undefined>(undefined);
   protected readonly iconPickerOpen = signal(false);
   protected readonly iconSearch = signal('');
+  /** Selected registry entry id — only meaningful when `actionId === ACTION_LAUNCH_COMPONENT`. */
+  protected readonly registryEntryId = signal<string>('');
+  /** "Launch in new window" toggle — only meaningful when `actionId === ACTION_LAUNCH_COMPONENT`. */
+  protected readonly asWindow = signal<boolean>(false);
+
+  protected readonly launchComponentActionId = ACTION_LAUNCH_COMPONENT;
 
   protected form!: FormGroup;
   private readonly fb = inject(FormBuilder);
+
+  /** Entries sorted by displayName for a stable dropdown. */
+  protected sortedRegistryEntries(): RegistryEntry[] {
+    return [...(this.registryEntries ?? [])].sort((a, b) =>
+      (a.displayName ?? '').localeCompare(b.displayName ?? ''),
+    );
+  }
+
+  protected isLaunchComponent(): boolean {
+    return this.form?.get('actionId')?.value === ACTION_LAUNCH_COMPONENT;
+  }
+
+  /** Quick-set button handler — flips the actionId so the dropdown appears. */
+  protected setActionToLaunchComponent(): void {
+    this.form.patchValue({ actionId: ACTION_LAUNCH_COMPONENT });
+  }
 
   // Pre-built icon URLs for chrome elements
   protected readonly chevronDownUrl = iconIdToSvgUrl('lucide:chevron-down', FORM_ICON_MUTED_COLOR);
@@ -333,6 +449,13 @@ export class ItemFormComponent implements OnInit, OnChanges {
         hasChildren: this.initial?.hasChildren ?? false,
       });
       this.selectedColor.set(this.initial?.iconColor);
+      if (isLaunchComponentData(this.initial?.customData)) {
+        this.registryEntryId.set(this.initial.customData.registryEntryId);
+        this.asWindow.set(Boolean(this.initial.customData.asWindow));
+      } else {
+        this.registryEntryId.set('');
+        this.asWindow.set(false);
+      }
       this.iconPickerOpen.set(false);
       this.iconSearch.set('');
       this.updateFilteredIcons();
@@ -377,12 +500,31 @@ export class ItemFormComponent implements OnInit, OnChanges {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     const { label, iconId, actionId, hasChildren } = this.form.value;
+    const trimmedActionId = actionId?.trim() ?? '';
+
+    // Launch-component requires a registry pick; block save until set.
+    if (trimmedActionId === ACTION_LAUNCH_COMPONENT && !this.registryEntryId()) {
+      return;
+    }
+
+    // Build customData: structured shape for launch-component; preserve
+    // whatever was there previously (free-form) for other actions so
+    // the editor doesn't silently drop data it didn't author.
+    const customData: unknown =
+      trimmedActionId === ACTION_LAUNCH_COMPONENT
+        ? ({
+            registryEntryId: this.registryEntryId(),
+            ...(this.asWindow() ? { asWindow: true } : {}),
+          } as LaunchComponentCustomData)
+        : this.initial?.customData;
+
     this.saved.emit({
       label: label.trim(),
       iconId: iconId.trim() || DEFAULT_ICON.icon,
-      actionId: actionId?.trim() ?? '',
+      actionId: trimmedActionId,
       hasChildren: !!hasChildren,
       iconColor: this.selectedColor(),
+      customData,
     });
   }
 

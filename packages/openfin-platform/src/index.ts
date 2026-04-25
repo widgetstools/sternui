@@ -1,6 +1,7 @@
 // ─── Workspace initialization ────────────────────────────────────────
 export { initWorkspace } from './workspace';
-export { launchApp } from './launch';
+export { launchApp, launchRegisteredComponent } from './launch';
+export type { LaunchRegisteredComponentOptions } from './launch';
 
 // ─── Dock management ─────────────────────────────────────────────────
 export {
@@ -16,12 +17,20 @@ export {
   IAB_REGISTRY_CONFIG_UPDATE,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_LAUNCH_COMPONENT,
 } from './dock';
 
 // ─── Persistence (config service) ────────────────────────────────────
 export { saveDockConfig, loadDockConfig, clearDockConfig } from './db';
 export { saveRegistryConfig, loadRegistryConfig, clearRegistryConfig } from './db';
-export { getConfigManager, setConfigManager } from './db';
+export {
+  getConfigManager,
+  setConfigManager,
+  setPlatformDefaultScope,
+  migrateLegacyPlatformScope,
+  realignAllConfigsToPlatformScope,
+} from './db';
+export type { ConfigScope } from './db';
 
 // ─── Registry config types ──────────────────────────────────────────
 export {

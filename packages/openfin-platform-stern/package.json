@@ -17,9 +17,9 @@
     "@marketsui/widget-sdk": "1.0.0"
   },
   "peerDependencies": {
-    "@openfin/core": "^42.103.1",
-    "@openfin/workspace": "^24.0.0",
-    "@openfin/workspace-platform": "^24.0.0"
+    "@openfin/core": "43.101.4",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20"
   },
   "peerDependenciesMeta": {
     "@openfin/core": {
@@ -33,9 +33,9 @@
     }
   },
   "devDependencies": {
-    "@openfin/core": "~42.103.4",
-    "@openfin/workspace": "^24.0.0",
-    "@openfin/workspace-platform": "^24.0.0",
+    "@openfin/core": "43.101.4",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
     "typescript": "~5.9.3",
     "rimraf": "^5.0.5"
   },

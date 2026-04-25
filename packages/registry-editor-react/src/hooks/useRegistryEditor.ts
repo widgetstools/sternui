@@ -11,10 +11,23 @@ import {
   migrateRegistryToV2,
   readHostEnv,
   REGISTRY_CONFIG_VERSION,
+  type ConfigScope,
   type RegistryEditorConfig,
   type RegistryEntry,
   type HostEnv,
 } from "@marketsui/openfin-platform";
+
+/**
+ * Options for `useRegistryEditor()`. `scope` is an optional
+ * `(appId, userId)` pair threaded through to
+ * `saveRegistryConfig` / `loadRegistryConfig`. When omitted the
+ * registry saves as the historical global singleton
+ * (`appId: 'system'`, `userId: 'system'`) so existing callers keep
+ * working unchanged.
+ */
+export interface UseRegistryEditorOptions {
+  scope?: ConfigScope;
+}
 
 // ─── Action Types ────────────────────────────────────────────────────
 
@@ -78,7 +91,8 @@ export interface UseRegistryEditorReturn {
   testComponent: (entry: RegistryEntry) => Promise<void>;
 }
 
-export function useRegistryEditor(): UseRegistryEditorReturn {
+export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegistryEditorReturn {
+  const scope = opts.scope;
   const [state, dispatch] = useReducer(registryReducer, initialState);
   const [hostEnv, setHostEnv] = useState<HostEnv>({ appId: '', configServiceUrl: '' });
   const stateRef = useRef(state);
@@ -92,7 +106,7 @@ export function useRegistryEditor(): UseRegistryEditorReturn {
         const env = await readHostEnv();
         setHostEnv(env);
 
-        const saved = await loadRegistryConfig();
+        const saved = await loadRegistryConfig(scope);
         const migrated = migrateRegistryToV2(saved as RegistryEditorConfig | null, env);
         dispatch({ type: "SET_ENTRIES", entries: migrated.entries });
       } catch (err) {
@@ -100,7 +114,7 @@ export function useRegistryEditor(): UseRegistryEditorReturn {
         dispatch({ type: "SET_ENTRIES", entries: [] });
       }
     })();
-  }, []);
+  }, [scope]);
 
   const buildConfig = useCallback((): RegistryEditorConfig => {
     return {
@@ -121,16 +135,16 @@ export function useRegistryEditor(): UseRegistryEditorReturn {
 
   const save = useCallback(async () => {
     const config = buildConfig();
-    await saveRegistryConfig(config);
+    await saveRegistryConfig(config, scope);
     await publishConfig(config);
     dispatch({ type: "SET_DIRTY", dirty: false });
     console.log("Registry config saved.");
-  }, [buildConfig, publishConfig]);
+  }, [buildConfig, publishConfig, scope]);
 
   const reset = useCallback(async () => {
-    await clearRegistryConfig();
+    await clearRegistryConfig(scope);
     dispatch({ type: "SET_ENTRIES", entries: [] });
-  }, []);
+  }, [scope]);
 
   const testComponent = useCallback(async (entry: RegistryEntry) => {
     try {

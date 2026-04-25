@@ -14,10 +14,10 @@ import { cn } from './utils';
  * block). If a consumer is on Tailwind 3 without the extend config
  * (e.g. the ConfigService demo) then `bg-card` resolves to nothing,
  * the select paints browser-default white, and disabled states look
- * busted. Using `bg-[var(--card)]` sidesteps the whole theme-config
+ * busted. Using `bg-[var(--bn-bg1)]` sidesteps the whole theme-config
  * question — it always resolves to the CSS variable at runtime.
  *
- * `disabled:bg-[var(--card)]` is belt-and-suspenders: browser UA
+ * `disabled:bg-[var(--bn-bg1)]` is belt-and-suspenders: browser UA
  * stylesheets (Chrome / Safari on macOS) force disabled selects to
  * white on some configs, and `appearance-none` doesn't always fully
  * suppress that. An explicit disabled-state background wins.
@@ -29,10 +29,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
         ref={ref}
         className={cn(
           'flex h-7 w-full appearance-none rounded px-2 pr-7 text-[11px]',
-          'border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]',
-          'focus:outline-none focus:ring-1 focus:ring-[var(--ring)] focus:border-[var(--ring)]',
+          'border border-[var(--bn-border)] bg-[var(--bn-bg1)] text-[var(--bn-t0)]',
+          'focus:outline-none focus:ring-1 focus:ring-[var(--bn-focus-ring)] focus:border-[var(--bn-focus-ring)]',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          'disabled:bg-[var(--card)] disabled:text-[var(--foreground)]',
+          'disabled:bg-[var(--bn-bg1)] disabled:text-[var(--bn-t0)]',
           className,
         )}
         {...props}
@@ -41,7 +41,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
       </select>
       <ChevronDown
         className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 size-3"
-        style={{ color: 'var(--muted-foreground)' }}
+        style={{ color: 'var(--bn-t2)' }}
       />
     </div>
   ),

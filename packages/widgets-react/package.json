@@ -27,8 +27,8 @@
     "ag-grid-enterprise": ">=35.0.0",
     "@tanstack/react-query": "^5.0.0",
     "lucide-react": ">=0.300.0",
-    "@openfin/workspace": "^24.0.0",
-    "@openfin/workspace-platform": "^24.0.0"
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20"
   },
   "dependencies": {
     "@marketsui/openfin-platform-stern": "1.0.0",
@@ -38,7 +38,9 @@
     "@stomp/stompjs": "^7.3.0"
   },
   "devDependencies": {
-    "@openfin/core": "~42.103.4",
+    "@openfin/core": "43.101.4",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "ag-grid-community": "35.1.0",

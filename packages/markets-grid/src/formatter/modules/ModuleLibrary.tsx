@@ -88,7 +88,19 @@ export function ModuleLibrary({
               fontFamily: 'var(--fx-font-sans)',
             }}
             onMouseDown={(e) => {
-              if ((e.target as HTMLElement).tagName !== 'INPUT') e.preventDefault();
+              // The outer guard preserves the active AG-Grid cell by
+              // eating mousedown on anything that isn't a form control
+              // (otherwise the popover swallows focus and the selected
+              // column context is lost). Form controls MUST be exempt,
+              // though: native <select> opens its dropdown on mousedown,
+              // so preventDefault here kills the dropdown — which is
+              // exactly the bug where the template dropdown wouldn't
+              // open from the toolbar popover while working fine in the
+              // popped-out properties panel.
+              const tag = (e.target as HTMLElement).tagName;
+              if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'OPTION' && tag !== 'TEXTAREA') {
+                e.preventDefault();
+              }
             }}
           >
             {manager}

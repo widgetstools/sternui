@@ -3,7 +3,7 @@
   "licenseKey": "stern-angular-reference-demo",
   "runtime": {
     "arguments": "--v=1 --inspect --remote-debugging-port=9223",
-    "version": "44.146.100.7"
+    "version": "43.142.101.2"
   },
   "platform": {
     "uuid": "stern-angular-platform",

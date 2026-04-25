@@ -11,6 +11,7 @@ import {
   migrateRegistryToV2,
   readHostEnv,
   REGISTRY_CONFIG_VERSION,
+  type ConfigScope,
   type RegistryEditorConfig,
   type RegistryEntry,
   type HostEnv,
@@ -29,12 +30,24 @@ export class RegistryEditorService {
   readonly entryCount = computed(() => this._entries().length);
   readonly hostEnv = computed(() => this._hostEnv());
 
+  /**
+   * Persistence scope. Undefined = historical global-singleton
+   * behaviour (`appId: 'system'`, `userId: 'system'`). Host apps
+   * that want per-user/per-app registries call `setScope(...)` before
+   * `init()` / `save()`.
+   */
+  private scope: ConfigScope | undefined;
+
+  setScope(scope: ConfigScope | undefined): void {
+    this.scope = scope;
+  }
+
   async init(): Promise<void> {
     try {
       const env = await readHostEnv();
       this._hostEnv.set(env);
 
-      const saved = await loadRegistryConfig();
+      const saved = await loadRegistryConfig(this.scope);
       const migrated = migrateRegistryToV2(saved as RegistryEditorConfig | null, env);
       this._entries.set(migrated.entries);
     } catch (err) {
@@ -65,14 +78,14 @@ export class RegistryEditorService {
       version: REGISTRY_CONFIG_VERSION,
       entries: this._entries(),
     };
-    await saveRegistryConfig(config);
+    await saveRegistryConfig(config, this.scope);
     await this.publishConfig(config);
     this._isDirty.set(false);
     console.log('Registry config saved.');
   }
 
   async reset(): Promise<void> {
-    await clearRegistryConfig();
+    await clearRegistryConfig(this.scope);
     this._entries.set([]);
     this._isDirty.set(false);
   }

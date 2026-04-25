@@ -12,6 +12,7 @@
     "@marketsui/core": "*",
     "@marketsui/design-system": "*",
     "@marketsui/markets-grid": "*",
+    "@marketsui/tokens-primeng": "*",
     "react": "~19.2.5",
     "react-dom": "~19.2.5",
     "ag-grid-community": "35.1.0",

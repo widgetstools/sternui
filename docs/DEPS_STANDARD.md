@@ -11,7 +11,7 @@
 >
 > **Conflict resolutions locked in:**
 > - Tailwind: **3.4.1 exact** (fi-trading authority wins; `@tailwindcss/vite` is NOT used)
-> - OpenFin Core: **42.103.x** family (extras-list authority wins)
+> - OpenFin Core: **43.101.x** family — paired with workspace SDK **23.0.20** + runtime **43.142.101.2** (canonical v22/v42 triple, see below)
 
 ---
 
@@ -92,12 +92,49 @@ These packages are NOT on corporate artifactory. They are vendored as `.tgz` fil
 
 | Package | Version | Source | Notes |
 |---|---|---|---|
-| `@openfin/core` | `~42.103.4` | extras list resolution | **DOWNGRADE** from fi-trading's `43.101.2`; matches stern-2 + aggrid-customization |
-| `@openfin/node-adapter` | `^42.103.4` | extras list | |
-| `@openfin/workspace` | `~42.103.4` | match @openfin/core family | |
-| `@openfin/workspace-platform` | `~42.103.4` | match @openfin/core family | |
+| `@openfin/core` | `~43.101.2` | extras list resolution | API adapter; pairs with v22 workspace SDK + v42 runtime |
+| `@openfin/node-adapter` | `^43.101.2` | extras list | |
+| `@openfin/workspace` | `23.0.20` | npm dist-tag `latest` (paired with v42 runtime) | |
+| `@openfin/workspace-platform` | `23.0.20` | npm dist-tag `latest` (paired with v42 runtime) | Pinned exact — releases as a triple with `@openfin/workspace` and `@openfin/core` |
+| `@openfin/notifications` | `2.13.1` | npm `latest` stable (no 2.12.x line published) | User-requested `2.12.5` does not exist on the registry — pending confirmation |
 
-**Action item:** fi-trading-terminal's react-app uses `@openfin/core: 43.101.2` — when importing that repo, downgrade imports to 42.103.x. Check for 43.x-only APIs and flag any; 42/43 have compatibility breaks in Workspace bootstrap.
+### Canonical OpenFin pairing (v23 / v43)
+
+The four versions below MUST move together. Authoritative source: OpenFin's own [`built-on-openfin/workspace-starter`](https://github.com/built-on-openfin/workspace-starter) repo, branch `workspace/v23.0.0 (or main, which tracks v23)`.
+
+| Layer | Version |
+|---|---|
+| `@openfin/workspace` | `23.0.20` |
+| `@openfin/workspace-platform` | `23.0.20` |
+| `@openfin/core` / `@openfin/node-adapter` | `43.101.2` |
+| Runtime (`manifest.fin.json` → `runtime.version`) | `43.142.101.2` |
+
+`@openfin/workspace-platform` performs a strict runtime-version check inside `init()`; pairing the SDK family with the matching runtime build is mandatory or `initWorkspace` throws `Runtime version is not supported`.
+
+### OpenFin runtime — pinned to `43.142.101.2`
+
+**Every `manifest.fin.json` declares `runtime.version: "43.142.101.2"`.** This matches the v22 workspace SDK's accepted band.
+
+Affected manifests (all pinned identically):
+
+```
+apps/markets-ui-react-reference/public/platform/manifest.fin.json
+apps/markets-ui-angular-reference/public/platform/manifest.fin.json
+apps/stern-reference-react/public/manifest.fin.json
+apps/stern-reference-angular/public/manifest.fin.json
+```
+
+View manifests under `public/views/*.fin.json` deliberately omit the `runtime` block — views inherit from the platform that hosts them, so a single source of truth lives at the platform-manifest level.
+
+### When upgrading either side
+
+1. Consult the matching `workspace/vXX.0.0` branch in `built-on-openfin/workspace-starter` for the canonical SDK + runtime + core triplet — never bump one without the others.
+2. Bump `@openfin/workspace` + `@openfin/workspace-platform` together (they release as a pair, exact-pinned).
+3. Match `@openfin/core` / `@openfin/node-adapter` to the runtime major (v42 ↔ v22 workspace, v43 ↔ v23 workspace, v44 ↔ v24 workspace).
+4. Update `runtime.version` in every manifest in lockstep.
+5. Run `npm run dev:openfin` on each app and confirm the workspace boots without a runtime-version error in the console.
+
+**Action item:** fi-trading-terminal's react-app uses `@openfin/core: 43.101.2` — when importing that repo, downgrade imports to 43.101.x. Check for 43.x-only APIs and flag any; 42/43 have compatibility breaks in Workspace bootstrap.
 
 ## Radix UI — adopt fi-trading versions verbatim
 
@@ -142,10 +179,11 @@ All Radix packages in fi-trading-terminal/react-app/package.json are corporate-m
 | `autoprefixer` | `^10.4.27` | required for PostCSS |
 | `postcss` | `^8.5.9` | required for Tailwind 3 |
 
-**Action item:** current `aggrid-customization/package.json` has `tailwindcss: ^4.2.2` + `@tailwindcss/vite: ^4.2.2`. Both **removed**. Migration:
-1. Add `tailwind.config.js` + `postcss.config.js` to every React-serving package (was CSS-first in v4).
-2. Remove `@import "tailwindcss"` from CSS files; use classic `@tailwind base; @tailwind components; @tailwind utilities;`.
-3. Audit any `@plugin` / `@theme` directives (v4-only) — port to `tailwind.config.js` plugins section.
+**Migration — completed:**
+1. ✅ `tailwind.config.js` + `postcss.config.js` present in every React-serving package.
+2. ✅ No `@import "tailwindcss"` anywhere; all CSS uses classic `@tailwind base; @tailwind components; @tailwind utilities;`.
+3. ✅ `@theme inline { ... }` blocks (Tailwind-4-only syntax) ported to `theme.extend` in `tailwind.config.js` — previously in `apps/demo-react/src/globals.css` + `apps/demo-configservice-react/src/globals.css`. Under Tailwind 3 the directive was silently ignored, which left semantic classes like `bg-card` / `text-foreground` undefined and rendered browser-default whites on dark surfaces (shadcn `<Select>` being the most visible victim).
+4. ✅ `tailwind-merge` pinned to `^3.5.0` across every workspace that consumes it — previously drifted across `^2.2.0` / `^2.6.0` / `^3.5.0`.
 
 ## UI utilities (React)
 
@@ -268,7 +306,7 @@ This section tracks every version change required when consolidating from the 4 
 | `vitest` | `^3.0.0` | `^4.1.4` | **MAJOR BUMP** — review test configs |
 | `jsdom` | `^25.0.1` | `^29.0.2` | **MAJOR BUMP** |
 | `wait-on` | `^8.0.0` | `^9.0.5` | **MAJOR BUMP** |
-| `@openfin/node-adapter` | `^42.103.0` | `^42.103.4` | Patch bump |
+| `@openfin/node-adapter` | `^42.103.0` | `^43.101.2` | Patch bump |
 | React | `^19.2.0` | `~19.2.5` | Patch-lock |
 | TypeScript | `^5.9.0` | `~5.9.3` | Patch-lock |
 | `@vitejs/plugin-react` | `^4.7.0` | `~4.5.2` | **DOWNGRADE** |
@@ -290,7 +328,7 @@ This section tracks every version change required when consolidating from the 4 
 | `typescript` | `^5.7.3` | `~5.9.3` | Minor bump |
 | `vite` | `^6.0.11` | `~7.3.2` | **MAJOR BUMP** — vite.config.ts shape check |
 | `tailwindcss` | `^3.4.17` | `3.4.1` exact | **DOWNGRADE** — pin to 3.4.1 |
-| `@openfin/core` | `^42.103.1` | `~42.103.4` | Patch bump, compatible |
+| `@openfin/core` | `^42.103.1` | `~43.101.2` | Patch bump, compatible |
 | `@tanstack/react-query` | `^5.80.7` | `^5.80.7` | (keep — not in fi-trading's standard, but used by widget-sdk) |
 | `@stomp/stompjs` | current | (keep) | (not in fi-trading standard, but needed by StompDataProvider) |
 | `ag-grid` | `33.x` | `35.1.0` exact | **MAJOR BUMP** — AG-Grid 33→35 has breaking API changes in rowModel/filter |

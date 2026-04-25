@@ -71,7 +71,7 @@
   ],
   "appRegistry": [
     {
-      "appId": "react-workspace-starter",
+      "appId": "TestApp",
       "displayName": "React Workspace Starter",
       "manifestUrl": "http://localhost:5174/platform/manifest.fin.json",
       "configServiceEnabled": false,
@@ -80,8 +80,8 @@
   ],
   "userProfiles": [
     {
-      "userId": "dev-user-001",
-      "appId": "react-workspace-starter",
+      "userId": "dev1",
+      "appId": "TestApp",
       "roleIds": ["admin", "developer"],
       "displayName": "Developer"
     }

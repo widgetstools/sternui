@@ -134,6 +134,12 @@ export const COMPONENT_TYPES = {
   THEME: 'theme',
   LAYOUT: 'layout',
   DOCK: 'dock',
+  /** Persisted OpenFin dock-editor configuration (buttons + dropdowns). */
+  DOCK_CONFIG: 'dock-config',
+  /** Persisted component-registry editor configuration (registry entries). */
+  COMPONENT_REGISTRY: 'component-registry',
+  /** MarketsGrid profile-set bundle — one row per (appId, userId, instanceId). */
+  MARKETS_GRID_PROFILE_SET: 'markets-grid-profile-set',
   SIMPLE_BLOTTER: 'simple-blotter',
   SIMPLE_BLOTTER_LAYOUT: 'simple-blotter-layout',
   CUSTOM: 'custom',

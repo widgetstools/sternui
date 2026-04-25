@@ -143,10 +143,10 @@ export function TemplateManager({
             flex: 1,
             height: rowHeight,
             padding: '0 10px',
-            border: '1px solid var(--border)',
+            border: '1px solid var(--bn-border)',
             borderRadius: 3,
-            background: 'var(--bn-bg, var(--background))',
-            color: 'var(--foreground)',
+            background: 'var(--bn-bg, var(--bn-bg))',
+            color: 'var(--bn-t0)',
             fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
             fontSize: 11,
             outline: 'none',
@@ -170,13 +170,13 @@ export function TemplateManager({
             alignItems: 'center',
             justifyContent: 'center',
             border: `1px solid ${saveConfirmed
-              ? 'color-mix(in srgb, var(--primary) 40%, transparent)'
-              : 'var(--border)'}`,
+              ? 'color-mix(in srgb, var(--bn-blue) 40%, transparent)'
+              : 'var(--bn-border)'}`,
             borderRadius: 3,
             background: saveConfirmed
-              ? 'color-mix(in srgb, var(--primary) 14%, transparent)'
+              ? 'color-mix(in srgb, var(--bn-blue) 14%, transparent)'
               : 'transparent',
-            color: saveConfirmed ? 'var(--primary)' : 'var(--muted-foreground)',
+            color: saveConfirmed ? 'var(--bn-blue)' : 'var(--bn-t2)',
             cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
             opacity: disabled || !saveName.trim() ? 0.3 : 1,
             transition: 'all 120ms',
@@ -227,13 +227,13 @@ export function TemplateManager({
               gap: 4,
               padding: 0,
               border: `1px solid ${confirmArmed
-                ? 'var(--destructive)'
-                : 'var(--border)'}`,
+                ? 'var(--bn-red)'
+                : 'var(--bn-border)'}`,
               borderRadius: 3,
               background: confirmArmed
-                ? 'color-mix(in srgb, var(--destructive) 18%, transparent)'
+                ? 'color-mix(in srgb, var(--bn-red) 18%, transparent)'
                 : 'transparent',
-              color: confirmArmed ? 'var(--destructive)' : 'var(--muted-foreground)',
+              color: confirmArmed ? 'var(--bn-red)' : 'var(--bn-t2)',
               fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
               fontSize: 10,
               fontWeight: 600,
@@ -264,7 +264,7 @@ export function TemplateManager({
           data-testid={`${testIdPrefix}-empty-hint`}
           style={{
             fontSize: 10,
-            color: 'var(--muted-foreground)',
+            color: 'var(--bn-t2)',
             fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
             lineHeight: 1.4,
             paddingTop: 2,

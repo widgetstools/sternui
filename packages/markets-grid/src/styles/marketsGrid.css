@@ -1,0 +1,774 @@
+/**
+ * marketsGrid.css — layout + chrome styles for `@marketsui/markets-grid`.
+ *
+ * Every `.gc-*` class the package's JSX stamps onto toolbar / filter
+ * rows / stacked-toolbar surfaces is defined here. Ship this file
+ * from the package itself so consumer apps can import it once and
+ * not worry about theme-token-vs-selector drift.
+ *
+ * Import
+ * ------
+ * In an app's root CSS, after the design-system token imports:
+ *     @import '@marketsui/markets-grid/styles.css';
+ *
+ * Dependencies on ambient CSS variables
+ * -------------------------------------
+ * These rules consume the MarketsUI `--bn-*` (Binance-style dense UI)
+ * and `--fi-*` (FI Trading Terminal) token families, NOT the shadcn
+ * HSL-triplet tokens. Both token families are provided by the
+ * design-system source `packages/design-system/src/themes/fi-dark.css`
+ * and `fi-light.css` — any app that imports those files gets every
+ * variable referenced below as a final colour value.
+ *
+ * The canonical consumer pattern (see `apps/fi-trading-reference/`
+ * and `apps/fi-trading-reference-angular/`):
+ *
+ *   @import '.../packages/design-system/src/themes/fi-dark.css';
+ *   @import '.../packages/design-system/src/themes/fi-light.css';
+ *   @import '@marketsui/markets-grid/styles.css';
+ *
+ * The shadcn tokens (`--popover`, `--card`, etc.) from fi-*.css
+ * remain HSL triplets for Tailwind utility-class consumption
+ * (`bg-card` via `hsl(var(--card))` wrapping in the preset). This
+ * package NEVER consumes them as raw `var(--card)` — it only reads
+ * `--bn-*` finalised colours, so the two forms don't collide.
+ *
+ * Filter-pill colour variables live at :root / [data-theme='light']
+ * so hosts don't have to supply them. Override in an app-local
+ * stylesheet if the trading-terminal defaults don't suit.
+ */
+
+/* ─── Filter pill colour variables ─────────────────────────────────── */
+
+:root {
+  --filter-active-bg: rgba(34, 211, 238, 0.30);
+  --filter-active-text: #ffffff;
+  --filter-active-border: rgba(34, 211, 238, 0.55);
+  --filter-inactive-bg: transparent;
+  --filter-inactive-text: rgba(255, 255, 255, 0.70);
+  --filter-inactive-border: rgba(255, 255, 255, 0.22);
+  --filter-label-color: #22d3ee;
+}
+
+[data-theme="light"] {
+  --filter-active-bg: rgba(8, 145, 178, 0.20);
+  --filter-active-text: #0e3a4a;
+  --filter-active-border: rgba(8, 145, 178, 0.50);
+  --filter-inactive-bg: transparent;
+  --filter-inactive-text: rgba(0, 0, 0, 0.55);
+  --filter-inactive-border: rgba(0, 0, 0, 0.18);
+  --filter-label-color: #0891b2;
+}
+
+/* ─── Toolbar button theme styles (wrapped in @layer so Tailwind's
+       base reset doesn't override them) ───────────────────────────── */
+
+@layer components {
+  .gc-tbtn {
+    color: var(--bn-t0);
+    opacity: 0.55;
+  }
+  .gc-tbtn:hover {
+    opacity: 1;
+    background: var(--bn-bg3);
+  }
+  .gc-toolbar-enabled .gc-tbtn {
+    opacity: 0.85;
+  }
+  .gc-toolbar-enabled .gc-tbtn:hover {
+    opacity: 1;
+    background: var(--bn-bg3);
+  }
+  .gc-tbtn-active {
+    opacity: 1 !important;
+    background: color-mix(in srgb, var(--bn-blue) 15%, transparent);
+    color: var(--bn-blue) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bn-blue) 30%, transparent);
+  }
+  .gc-tbtn-active:hover {
+    background: color-mix(in srgb, var(--bn-blue) 22%, transparent);
+  }
+  .gc-toolbar-sep {
+    width: 1px;
+    background: var(--bn-border);
+    flex-shrink: 0;
+  }
+  .gc-toolbar-group-bg {
+    background: color-mix(in srgb, var(--bn-bg1) 60%, transparent);
+  }
+
+  /* Toolbar Switcher — dropdown */
+  .gc-switcher-trigger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--bn-t2);
+    transition: color 120ms ease;
+  }
+  .gc-switcher-trigger:hover {
+    color: var(--bn-t0);
+  }
+  .gc-switcher-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--sw-color, var(--bn-blue));
+    box-shadow: 0 0 4px color-mix(in srgb, var(--sw-color, var(--bn-blue)) 50%, transparent);
+  }
+  .gc-switcher-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 10010;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    border-radius: 6px;
+    background: var(--bn-bg1);
+    border: 1px solid var(--bn-border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.04);
+  }
+  .gc-switcher-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--bn-t0);
+    cursor: pointer;
+    transition: background 100ms ease;
+  }
+  .gc-switcher-item:hover {
+    background: var(--bn-bg3);
+  }
+  .gc-switcher-item-active {
+    color: var(--sw-color, var(--bn-t0));
+    background: color-mix(in srgb, var(--sw-color, var(--bn-blue)) 10%, transparent);
+  }
+  .gc-switcher-item-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sw-color, var(--bn-t2));
+    flex-shrink: 0;
+  }
+  .gc-switcher-item-active .gc-switcher-item-dot {
+    box-shadow: 0 0 3px color-mix(in srgb, var(--sw-color, var(--bn-blue)) 50%, transparent);
+  }
+  .gc-switcher-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .gc-switcher-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* ─── Primary toolbar row (filters + right action cluster) ──────────
+   Unifies the filters toolbar, formatter-toolbar toggle, profile
+   selector, save button, and settings icon into a single 44px strip.
+   Must be OUTSIDE @layer so Tailwind's reset can't overwrite the
+   flexbox layout. */
+
+.gc-primary-row {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 44px;
+  background: var(--bn-bg1, #161a1e);
+  border-bottom: 1px solid var(--bn-border, #313944);
+}
+
+.gc-primary-filters {
+  flex: 1 1 0px;
+  min-width: 0;
+  overflow-x: clip;
+  display: flex;
+  align-items: center;
+}
+
+.gc-primary-filters-empty {
+  flex: 1 1 0px;
+  height: 100%;
+}
+
+.gc-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+/* Shared icon button for Brush / Save / Settings. */
+.gc-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--bn-t2, #a0a8b4);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.gc-primary-action:hover {
+  color: var(--bn-t0, #eaecef);
+  background: var(--bn-bg3, rgba(255, 255, 255, 0.04));
+  border-color: var(--bn-border, #313944);
+}
+.gc-primary-action[aria-pressed='true'],
+.gc-primary-action[data-active='true'] {
+  color: var(--bn-green, #2dd4bf);
+  background: rgba(45, 212, 191, 0.12);
+  border-color: rgba(45, 212, 191, 0.35);
+}
+.gc-primary-action[data-state='dirty'] {
+  color: var(--bn-yellow, #f0b90b);
+}
+.gc-primary-action[data-state='saved'] {
+  color: var(--bn-green, #2dd4bf);
+}
+
+.gc-primary-save {
+  position: relative;
+}
+.gc-primary-save-dirty {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.gc-primary-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--bn-border, #313944);
+  opacity: 0.6;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ─── Filters toolbar itself ───────────────────────────────────────── */
+
+.gc-filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 10px 0 6px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.gc-filters-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--bn-t2, #a0a8b4);
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: color 100ms ease, background 100ms ease;
+}
+.gc-filters-collapse:hover {
+  color: var(--bn-t0, #eaecef);
+  background: var(--bn-bg3, rgba(255, 255, 255, 0.04));
+}
+
+/* Summary chip (collapsed state) */
+.gc-filters-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  background: var(--bn-bg3, #1e2329);
+  border: 1px solid var(--bn-border, #313944);
+  border-radius: 13px;
+  color: var(--bn-t0, #eaecef);
+  font-family: var(--fi-sans, 'Geist', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 120ms ease;
+}
+.gc-filters-summary:hover {
+  border-color: var(--bn-border2, #3e4754);
+  background: var(--bn-bg2, #2b3139);
+}
+.gc-filters-summary-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--bn-cyan, #22d3ee);
+}
+.gc-filters-summary-label {
+  color: var(--bn-t2, #a0a8b4);
+}
+.gc-filters-summary-active {
+  color: var(--bn-yellow, #f0b90b);
+  font-weight: 500;
+}
+.gc-filters-summary-empty {
+  color: var(--bn-t2, #a0a8b4);
+  font-style: italic;
+}
+
+/* Clear-all / Add-new sticky actions */
+.gc-filters-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.gc-filters-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.10);
+  color: #dc2626;
+}
+
+.gc-filters-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #14b8a6;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.gc-filters-add-btn:hover:not(:disabled) {
+  background: rgba(20, 184, 166, 0.10);
+  color: #0d9488;
+}
+
+.gc-filter-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.gc-filter-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.gc-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 12px 0 18px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--fi-sans, 'Geist', sans-serif);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 150ms ease;
+  cursor: default;
+}
+
+.gc-filter-active {
+  background: var(--filter-active-bg);
+  color: var(--filter-active-text);
+  border-color: var(--filter-active-border);
+}
+.gc-filter-active:hover {
+  filter: brightness(1.12);
+}
+
+.gc-filter-inactive {
+  background: var(--filter-inactive-bg);
+  color: var(--filter-inactive-text);
+  border-color: var(--filter-inactive-border);
+}
+.gc-filter-inactive:hover {
+  background: color-mix(in srgb, var(--filter-inactive-border) 15%, transparent);
+}
+
+.gc-filter-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+}
+
+.gc-filter-pill-count {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 0 5px;
+  height: 16px;
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  opacity: 0.7;
+}
+.gc-filter-active .gc-filter-pill-count {
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0.85;
+}
+
+.gc-filter-pill-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  flex-shrink: 0;
+}
+.gc-filter-pill:hover .gc-filter-pill-actions {
+  opacity: 1;
+}
+
+.gc-filter-pill-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.gc-filter-pill-action:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+.gc-filter-pill-action-remove:hover {
+  color: var(--bn-red, #f87171);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.gc-filters-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--bn-t2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 100ms ease, background 100ms ease;
+}
+.gc-filters-caret:hover {
+  color: var(--bn-t0);
+  background: var(--bn-bg3);
+}
+
+.gc-filters-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.gc-filters-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--bn-border);
+  border-radius: 4px;
+  color: var(--bn-t2);
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.gc-filters-icon-btn:hover {
+  color: var(--bn-t0);
+  background: var(--bn-bg3);
+  border-color: var(--bn-t0, rgba(255,255,255,0.2));
+}
+.gc-filters-icon-btn-confirm {
+  border-color: var(--bn-green, #2dd4bf);
+}
+
+.gc-filter-rename-input {
+  height: 24px;
+  width: 110px;
+  min-width: 70px;
+  max-width: 160px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--fi-sans, 'Geist', sans-serif);
+  border-radius: 12px;
+  border: 1px solid var(--bn-blue);
+  background: var(--bn-bg);
+  color: var(--bn-t0);
+  outline: none;
+  flex-shrink: 0;
+}
+
+/* ─── Stacked toolbar slide-in animation ───────────────────────────── */
+
+@keyframes gc-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Toolbar visibility pills ─────────────────────────────────────── */
+
+.gc-toolbar-pills-dock {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  background: var(--bn-bg1, #161a1e);
+  border: 1px solid var(--bn-border, #313944);
+  border-radius: 999px;
+  z-index: 12;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+
+.gc-toolbar-primary:hover .gc-toolbar-pills-dock,
+.gc-toolbar-pills-dock:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.gc-pill {
+  height: 16px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--fi-sans, 'Geist', sans-serif);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+  background: transparent;
+  color: var(--bn-t2, #a0a8b4);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.gc-pill > svg {
+  width: 9px;
+  height: 9px;
+}
+
+.gc-pill:hover {
+  background: color-mix(in srgb, var(--gc-pill-color) 14%, transparent);
+  color: var(--gc-pill-color);
+  border-color: color-mix(in srgb, var(--gc-pill-color) 45%, transparent);
+}
+
+.gc-pill[data-active='true'] {
+  background: color-mix(in srgb, var(--gc-pill-color) 22%, transparent);
+  color: var(--gc-pill-color);
+  border-color: color-mix(in srgb, var(--gc-pill-color) 55%, transparent);
+}
+
+.gc-pill[data-active='true']:hover {
+  background: color-mix(in srgb, var(--gc-pill-color) 30%, transparent);
+}
+
+/* Stacked-toolbar close button (always visible) */
+.gc-stacked-close:hover {
+  background: color-mix(in srgb, var(--bn-red, #f87171) 12%, transparent) !important;
+  color: var(--bn-red, #f87171) !important;
+}
+
+/* ─── AG-Grid chrome tweaks the grid expects alongside this package ── */
+
+/* Scrollbar styling — AG-Grid scroll containers.
+   Must be outside @layer so it overrides AG-Grid's own rules. */
+.ag-body-viewport,
+.ag-body-vertical-scroll-viewport,
+.ag-body-horizontal-scroll-viewport,
+.ag-horizontal-left-spacer,
+.ag-horizontal-right-spacer,
+.ag-side-bar,
+.ag-popup,
+.ag-virtual-list-viewport,
+.ag-center-cols-viewport,
+.ag-sticky-top-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, var(--bn-t2)) transparent;
+}
+
+.ag-body-viewport::-webkit-scrollbar,
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
+.ag-side-bar::-webkit-scrollbar,
+.ag-virtual-list-viewport::-webkit-scrollbar,
+.ag-center-cols-viewport::-webkit-scrollbar,
+.ag-sticky-top-viewport::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ag-body-viewport::-webkit-scrollbar-track,
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
+.ag-side-bar::-webkit-scrollbar-track,
+.ag-virtual-list-viewport::-webkit-scrollbar-track,
+.ag-center-cols-viewport::-webkit-scrollbar-track,
+.ag-sticky-top-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ag-body-viewport::-webkit-scrollbar-thumb,
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-side-bar::-webkit-scrollbar-thumb,
+.ag-virtual-list-viewport::-webkit-scrollbar-thumb,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb,
+.ag-sticky-top-viewport::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, var(--bn-t2));
+  border-radius: 3px;
+}
+
+.ag-body-viewport::-webkit-scrollbar-thumb:hover,
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-side-bar::-webkit-scrollbar-thumb:hover,
+.ag-virtual-list-viewport::-webkit-scrollbar-thumb:hover,
+.ag-center-cols-viewport::-webkit-scrollbar-thumb:hover,
+.ag-sticky-top-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, var(--bn-t0));
+}
+
+.ag-body-viewport::-webkit-scrollbar-corner,
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-corner,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+:root {
+  --scrollbar-thumb: #4a5568;
+  --scrollbar-thumb-hover: #7a8494;
+}
+
+[data-theme="light"] {
+  --scrollbar-thumb: #c4c4c4;
+  --scrollbar-thumb-hover: #a0a0a0;
+}
+
+/* AG-Grid header buttons — hide until hover, keep slot width reserved
+   (prevents hover reflow of the adjacent column label). */
+.ag-header-cell-menu-button,
+.ag-header-cell-filter-button,
+.ag-floating-filter-button {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.ag-header-cell:hover .ag-header-cell-menu-button,
+.ag-header-cell:hover .ag-header-cell-filter-button,
+.ag-floating-filter:hover .ag-floating-filter-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ag-header-cell-menu-button[aria-expanded='true'],
+.ag-header-cell-filter-button[aria-expanded='true'],
+.ag-floating-filter-button[aria-expanded='true'],
+.ag-header-cell:focus-within .ag-header-cell-menu-button,
+.ag-header-cell:focus-within .ag-header-cell-filter-button,
+.ag-floating-filter:focus-within .ag-floating-filter-button {
+  opacity: 1;
+  pointer-events: auto;
+}

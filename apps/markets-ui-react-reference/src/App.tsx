@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./components/ui/card";
 
 function App() {
@@ -20,6 +21,21 @@ function App() {
           <CardContent>
             <p>To launch this application in the OpenFin container, run the following command:</p>
             <pre className="mt-2 rounded-md bg-muted p-3 font-mono text-sm">npm run client</pre>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Blotters</CardTitle>
+            <CardDescription>Hosted MarketsGrid instances</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Link
+              to="/blotters/marketsgrid"
+              className="text-sm text-primary hover:underline"
+            >
+              /blotters/marketsgrid &mdash; MarketsGrid sample blotter (DexieAdapter, 500 orders)
+            </Link>
           </CardContent>
         </Card>
       </main>

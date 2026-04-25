@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DynamicIcon as Icon } from "@marketsui/icons-svg/react";
+import { ACTION_LAUNCH_COMPONENT, type RegistryEntry } from "@marketsui/openfin-platform/config";
 import { IconSelect } from "./IconSelect";
 import { DEFAULT_ICON } from "./icons";
 
@@ -15,6 +16,27 @@ export interface ItemFormData {
    * When undefined, the icon recolors automatically with the theme.
    */
   iconColor?: string;
+  /**
+   * Optional action customData. Today the only structured shape is
+   * `{ registryEntryId, asWindow? }` for
+   * `actionId === ACTION_LAUNCH_COMPONENT`; other actions treat it as
+   * free-form.
+   */
+  customData?: unknown;
+}
+
+/**
+ * Shape of the customData field when `actionId === ACTION_LAUNCH_COMPONENT`.
+ * Mirrors the expectation of the runtime handler registered in
+ * `@marketsui/openfin-platform/workspace.ts`.
+ */
+interface LaunchComponentCustomData {
+  registryEntryId: string;
+  asWindow?: boolean;
+}
+
+function isLaunchComponentData(x: unknown): x is LaunchComponentCustomData {
+  return !!x && typeof x === "object" && typeof (x as LaunchComponentCustomData).registryEntryId === "string";
 }
 
 // ─── Predefined colors ──────────────────────────────────────────────
@@ -52,15 +74,23 @@ interface ItemFormDialogProps {
   title: string;
   initial?: Partial<ItemFormData>;
   onSave: (data: ItemFormData) => void;
+  /**
+   * Live list of Component-Registry entries used to populate the
+   * "Launch registered component" dropdown. Passed in from the
+   * `useDockEditor` hook so this dialog doesn't have to re-fetch.
+   */
+  registryEntries?: RegistryEntry[];
 }
 
-export function ItemFormDialog({ open, onOpenChange, title, initial, onSave }: ItemFormDialogProps) {
+export function ItemFormDialog({ open, onOpenChange, title, initial, onSave, registryEntries = [] }: ItemFormDialogProps) {
   const [label, setLabel] = useState("");
   const [iconName, setIconName] = useState<string>(DEFAULT_ICON.name);
   const [iconId, setIconId] = useState<string>(DEFAULT_ICON.icon);
   const [actionId, setActionId] = useState("");
   const [hasChildren, setHasChildren] = useState(false);
   const [iconColor, setIconColor] = useState<string | undefined>(undefined);
+  const [registryEntryId, setRegistryEntryId] = useState<string>("");
+  const [asWindow, setAsWindow] = useState<boolean>(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -71,16 +101,49 @@ export function ItemFormDialog({ open, onOpenChange, title, initial, onSave }: I
       setActionId(initial?.actionId ?? "");
       setHasChildren(initial?.hasChildren ?? false);
       setIconColor(initial?.iconColor);
+      // Seed the launch-component fields from customData when editing
+      // an existing menu item; otherwise reset to empty.
+      if (isLaunchComponentData(initial?.customData)) {
+        setRegistryEntryId(initial.customData.registryEntryId);
+        setAsWindow(Boolean(initial.customData.asWindow));
+      } else {
+        setRegistryEntryId("");
+        setAsWindow(false);
+      }
       setErrors({});
     }
   }, [open, initial]);
+
+  // Sort registry entries by displayName for a stable, scannable list.
+  const sortedRegistryEntries = useMemo(
+    () => [...registryEntries].sort((a, b) =>
+      (a.displayName ?? "").localeCompare(b.displayName ?? ""),
+    ),
+    [registryEntries],
+  );
+
+  const isLaunchComponent = actionId === ACTION_LAUNCH_COMPONENT;
 
   const handleSave = () => {
     const e: Record<string, boolean> = {};
     if (!label.trim()) e.label = true;
     if (!actionId.trim()) e.actionId = true;
+    if (isLaunchComponent && !registryEntryId) e.registryEntryId = true;
     if (Object.keys(e).length) { setErrors(e); return; }
-    onSave({ label: label.trim(), iconName, iconId, actionId: actionId.trim(), hasChildren, iconColor });
+
+    const customData = isLaunchComponent
+      ? ({ registryEntryId, ...(asWindow ? { asWindow: true } : {}) } as LaunchComponentCustomData)
+      : initial?.customData;
+
+    onSave({
+      label: label.trim(),
+      iconName,
+      iconId,
+      actionId: actionId.trim(),
+      hasChildren,
+      iconColor,
+      customData,
+    });
     onOpenChange(false);
   };
 
@@ -218,9 +281,13 @@ export function ItemFormDialog({ open, onOpenChange, title, initial, onSave }: I
 
           {/* Action ID */}
           <Field label="Action ID" required error={errors.actionId ? "Action ID is required" : undefined}
-            hint={!errors.actionId ? "Unique identifier for this action" : undefined}>
+            hint={!errors.actionId
+              ? (isLaunchComponent
+                  ? "Launches the selected registered component when clicked."
+                  : "Unique identifier for this action. Use 'launch-component' to launch a registered component from the dropdown below.")
+              : undefined}>
             <input value={actionId} onChange={(e) => { setActionId(e.target.value); if (e.target.value.trim()) setErrors(p => ({ ...p, actionId: false })); }}
-              placeholder="e.g., file.new"
+              placeholder="e.g., file.new  —  or pick 'launch-component'"
               style={{
                 width: "100%", height: 36, padding: "0 12px", fontSize: 13, fontFamily: "var(--de-mono)",
                 border: `1px solid ${errors.actionId ? "var(--de-danger)" : "var(--de-border-strong)"}`,
@@ -232,7 +299,96 @@ export function ItemFormDialog({ open, onOpenChange, title, initial, onSave }: I
               onFocus={e => { if (!errors.actionId) e.currentTarget.style.borderColor = "var(--de-accent)"; e.currentTarget.style.boxShadow = errors.actionId ? "" : "0 0 0 2px var(--de-accent-dim)"; }}
               onBlur={e => { e.currentTarget.style.borderColor = errors.actionId ? "var(--de-danger)" : "var(--de-border-strong)"; e.currentTarget.style.boxShadow = errors.actionId ? "0 0 0 2px var(--de-danger-dim)" : "none"; }}
             />
+            {/* Quick-set button — flips the action to `launch-component` so
+                the registry dropdown appears without the user having to
+                know the exact string. */}
+            {!isLaunchComponent && (
+              <button
+                type="button"
+                onClick={() => { setActionId(ACTION_LAUNCH_COMPONENT); setErrors((p) => ({ ...p, actionId: false })); }}
+                style={{
+                  marginTop: 6, alignSelf: "flex-start",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "4px 10px", fontSize: 11, fontWeight: 500, fontFamily: "var(--de-font)",
+                  border: "1px solid var(--de-border)", borderRadius: "var(--de-radius-sm)",
+                  background: "transparent", color: "var(--de-accent)", cursor: "pointer",
+                  transition: "all 0.12s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--de-accent-subtle)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <Icon icon="lucide:puzzle" style={{ width: 12, height: 12 }} />
+                Launch a registered component…
+              </button>
+            )}
           </Field>
+
+          {/* Registered-component picker — only visible when the action is
+              `launch-component`. Populated from live registry data passed
+              in by the parent (via useDockEditor().registryEntries). */}
+          {isLaunchComponent && (
+            <>
+              <Field
+                label="Registered Component"
+                required
+                error={errors.registryEntryId ? "Pick a registered component" : undefined}
+                hint={
+                  errors.registryEntryId
+                    ? undefined
+                    : (sortedRegistryEntries.length === 0
+                        ? "No components registered yet — open the Component Registry editor to add some."
+                        : "Clicking this item launches the selected component.")
+                }
+              >
+                <select
+                  value={registryEntryId}
+                  onChange={(e) => { setRegistryEntryId(e.target.value); if (e.target.value) setErrors((p) => ({ ...p, registryEntryId: false })); }}
+                  style={{
+                    width: "100%", height: 36, padding: "0 10px", fontSize: 13, fontFamily: "var(--de-font)",
+                    border: `1px solid ${errors.registryEntryId ? "var(--de-danger)" : "var(--de-border-strong)"}`,
+                    borderRadius: "var(--de-radius-sm)", background: "var(--de-bg-surface)",
+                    color: "var(--de-text)", outline: "none", transition: "border-color 0.15s",
+                    boxShadow: errors.registryEntryId ? "0 0 0 2px var(--de-danger-dim)" : "none",
+                  }}
+                >
+                  <option value="">— Select a registered component —</option>
+                  {sortedRegistryEntries.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.displayName || entry.id}
+                      {entry.componentType || entry.componentSubType
+                        ? `  [${[entry.componentType, entry.componentSubType].filter(Boolean).join(" / ")}]`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              {/* Launch in window — default is a View inside the current
+                   Platform (matches registry-editor/testComponent). Opt in
+                   here for a standalone OpenFin Window. */}
+              <div onClick={() => setAsWindow(!asWindow)} style={{
+                display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
+                borderRadius: "var(--de-radius-sm)", cursor: "pointer",
+                border: "1px solid var(--de-border)", background: asWindow ? "var(--de-accent-subtle)" : "transparent",
+                transition: "all 0.15s",
+              }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: "var(--de-radius-sm)", display: "flex", alignItems: "center", justifyContent: "center",
+                  background: asWindow ? "var(--de-accent)" : "transparent",
+                  border: asWindow ? "none" : "1.5px solid var(--de-border-strong)",
+                  transition: "all 0.15s", flexShrink: 0,
+                }}>
+                  {asWindow && <Icon icon="lucide:check" style={{ width: 12, height: 12, color: "var(--de-bg-deep)" }} />}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--de-text)" }}>Launch in new window</div>
+                  <div style={{ fontSize: 11, color: "var(--de-text-tertiary)", marginTop: 1 }}>
+                    Standalone OpenFin Window. Default is a View inside the current workspace.
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Has Children — when checked, this item becomes a dropdown
                button (or sub-menu) that can contain other items.

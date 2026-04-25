@@ -10,4 +10,14 @@ export default defineConfig({
       "@design-system": path.resolve(__dirname, "../../packages/design-system/src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 4500,
+    rollupOptions: {
+      onwarn(warning, defaultHandler) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        defaultHandler(warning);
+      },
+    },
+  },
 });

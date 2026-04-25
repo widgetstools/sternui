@@ -31,6 +31,9 @@
 export {
   getConfigManager,
   setConfigManager,
+  setPlatformDefaultScope,
+  migrateLegacyPlatformScope,
+  realignAllConfigsToPlatformScope,
   saveDockConfig,
   loadDockConfig,
   clearDockConfig,
@@ -38,6 +41,7 @@ export {
   loadRegistryConfig,
   clearRegistryConfig,
 } from './db';
+export type { ConfigScope } from './db';
 
 // ── IAB topic + action-ID constants (pure strings, no runtime deps) ──
 export {
@@ -55,6 +59,7 @@ export {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_LAUNCH_COMPONENT,
 } from './iab-topics';
 
 // ── Dock config types (pure TS shapes; serializable) ────────────────

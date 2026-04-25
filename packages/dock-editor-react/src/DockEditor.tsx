@@ -63,7 +63,7 @@ function findMenuItemById(items: DockMenuItemConfig[], id: string): DockMenuItem
 // ─── Component ───────────────────────────────────────────────────────
 
 export function DockEditorPanel() {
-  const { buttons, isDirty, isLoading, dispatch, save, reset } = useDockEditor();
+  const { buttons, isDirty, isLoading, dispatch, save, reset, registryEntries } = useDockEditor();
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addChildDialogOpen, setAddChildDialogOpen] = useState(false);
@@ -154,7 +154,7 @@ export function DockEditorPanel() {
     if (data.hasChildren) {
       dispatch({ type: "ADD_BUTTON", button: { type: "DropdownButton", id, tooltip: data.label, iconUrl, iconId: data.iconId, iconColor: color, options: [] } });
     } else {
-      dispatch({ type: "ADD_BUTTON", button: { type: "ActionButton", id, tooltip: data.label, iconUrl, iconId: data.iconId, iconColor: color, actionId: data.actionId } });
+      dispatch({ type: "ADD_BUTTON", button: { type: "ActionButton", id, tooltip: data.label, iconUrl, iconId: data.iconId, iconColor: color, actionId: data.actionId, customData: data.customData } });
     }
   }, [dispatch]);
 
@@ -168,6 +168,7 @@ export function DockEditorPanel() {
       iconId: data.iconId,
       iconColor: color,
       actionId: data.actionId,
+      customData: data.customData,
       options: data.hasChildren ? [] : undefined,
     };
     dispatch({ type: "ADD_MENU_ITEM", buttonId: addChildParent.buttonId, item, parentItemId: addChildParent.parentItemId });
@@ -178,7 +179,19 @@ export function DockEditorPanel() {
     for (const btn of buttons) {
       if (btn.id === id) {
         const parsed = btn.iconId ? { iconName: parseIconUrl(btn.iconUrl).iconName, iconId: btn.iconId } : parseIconUrl(btn.iconUrl);
-        setEditTarget({ id, data: { label: btn.tooltip, actionId: btn.type === "ActionButton" ? (btn as { actionId: string }).actionId : "", hasChildren: btn.type === "DropdownButton", iconName: parsed.iconName, iconId: parsed.iconId, iconColor: btn.iconColor } });
+        const isActionBtn = btn.type === "ActionButton";
+        setEditTarget({
+          id,
+          data: {
+            label: btn.tooltip,
+            actionId: isActionBtn ? (btn as { actionId: string }).actionId : "",
+            hasChildren: btn.type === "DropdownButton",
+            iconName: parsed.iconName,
+            iconId: parsed.iconId,
+            iconColor: btn.iconColor,
+            customData: isActionBtn ? (btn as { customData?: unknown }).customData : undefined,
+          },
+        });
         setEditDialogOpen(true);
         return;
       }
@@ -186,7 +199,18 @@ export function DockEditorPanel() {
         const found = findMenuItemById((btn as DockDropdownButtonConfig).options, id);
         if (found) {
           const parsed = found.iconId ? { iconName: parseIconUrl(found.iconUrl).iconName, iconId: found.iconId } : parseIconUrl(found.iconUrl);
-          setEditTarget({ id, data: { label: found.tooltip, actionId: found.actionId ?? "", hasChildren: !!(found.options?.length), iconName: parsed.iconName, iconId: parsed.iconId, iconColor: found.iconColor } });
+          setEditTarget({
+            id,
+            data: {
+              label: found.tooltip,
+              actionId: found.actionId ?? "",
+              hasChildren: !!(found.options?.length),
+              iconName: parsed.iconName,
+              iconId: parsed.iconId,
+              iconColor: found.iconColor,
+              customData: found.customData,
+            },
+          });
           setEditDialogOpen(true);
           return;
         }
@@ -202,13 +226,39 @@ export function DockEditorPanel() {
     const btnIndex = buttons.findIndex((b) => b.id === id);
     if (btnIndex !== -1) {
       const btn = buttons[btnIndex];
-      dispatch({ type: "UPDATE_BUTTON", id, button: { ...btn, tooltip: data.label, iconUrl: newIconUrl, iconId: data.iconId, iconColor: color, ...(btn.type === "ActionButton" ? { actionId: data.actionId } : {}) } as DockButtonConfig });
+      dispatch({
+        type: "UPDATE_BUTTON",
+        id,
+        button: {
+          ...btn,
+          tooltip: data.label,
+          iconUrl: newIconUrl,
+          iconId: data.iconId,
+          iconColor: color,
+          ...(btn.type === "ActionButton"
+            ? { actionId: data.actionId, customData: data.customData }
+            : {}),
+        } as DockButtonConfig,
+      });
     } else {
       for (const btn of buttons) {
         if (btn.type === "DropdownButton") {
           const found = findMenuItemById((btn as DockDropdownButtonConfig).options, id);
           if (found) {
-            dispatch({ type: "UPDATE_MENU_ITEM", buttonId: btn.id, itemId: id, item: { ...found, tooltip: data.label, iconUrl: newIconUrl, iconId: data.iconId, iconColor: color, actionId: data.actionId } });
+            dispatch({
+              type: "UPDATE_MENU_ITEM",
+              buttonId: btn.id,
+              itemId: id,
+              item: {
+                ...found,
+                tooltip: data.label,
+                iconUrl: newIconUrl,
+                iconId: data.iconId,
+                iconColor: color,
+                actionId: data.actionId,
+                customData: data.customData,
+              },
+            });
             break;
           }
         }
@@ -461,10 +511,10 @@ export function DockEditorPanel() {
       </div>
 
       {/* ── Dialogs ─────────────────────────────────────────────── */}
-      <ItemFormDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} title="Add Toolbar Button" onSave={handleAddToolbarButton} />
-      <ItemFormDialog open={addChildDialogOpen} onOpenChange={(o) => { setAddChildDialogOpen(o); if (!o) setAddChildParent(null); }} title="Add Child Item" onSave={handleAddChild} />
+      <ItemFormDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} title="Add Toolbar Button" onSave={handleAddToolbarButton} registryEntries={registryEntries} />
+      <ItemFormDialog open={addChildDialogOpen} onOpenChange={(o) => { setAddChildDialogOpen(o); if (!o) setAddChildParent(null); }} title="Add Child Item" onSave={handleAddChild} registryEntries={registryEntries} />
       {editTarget && (
-        <ItemFormDialog open={editDialogOpen} onOpenChange={(o) => { setEditDialogOpen(o); if (!o) setEditTarget(null); }} title="Edit Item" initial={editTarget.data} onSave={handleSaveEdit} />
+        <ItemFormDialog open={editDialogOpen} onOpenChange={(o) => { setEditDialogOpen(o); if (!o) setEditTarget(null); }} title="Edit Item" initial={editTarget.data} onSave={handleSaveEdit} registryEntries={registryEntries} />
       )}
     </div>
   );

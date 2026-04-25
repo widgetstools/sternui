@@ -14,7 +14,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
+      "outputs": [],
       "inputs": ["src/**", "test/**", "tsconfig*.json", "vitest.config.*", "vite.config.*", "package.json"]
     },
     "test:watch": {

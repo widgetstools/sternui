@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any; // OpenFin global — available at runtime in OpenFin windows
 
-import { useReducer, useEffect, useCallback, useRef } from "react";
+import { useReducer, useEffect, useCallback, useRef, useState } from "react";
 // /config subpath — avoids pulling @openfin/workspace-platform at
 // module-eval time. The dock-editor renders in a browser window (not
 // always inside OpenFin) so the main barrel's side effects break here.
@@ -9,13 +9,36 @@ import {
   loadDockConfig,
   saveDockConfig,
   clearDockConfig,
+  loadRegistryConfig,
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_REGISTRY_CONFIG_UPDATE,
+  type ConfigScope,
   type DockEditorConfig,
   type DockButtonConfig,
   type DockActionButtonConfig,
   type DockDropdownButtonConfig,
   type DockMenuItemConfig,
+  type RegistryEditorConfig,
+  type RegistryEntry,
 } from "@marketsui/openfin-platform/config";
+
+/**
+ * Options for `useDockEditor()`.
+ *
+ * `scope` — optional (appId, userId) pair that gets threaded through
+ * to `saveDockConfig` / `loadDockConfig` / `clearDockConfig`. When
+ * omitted the config persists as the historical global singleton
+ * (appId='system', userId='system') — matching pre-refactor
+ * behaviour so existing call-sites keep working.
+ *
+ * Host apps that want per-user or per-app dock layouts pass real
+ * identifiers; the underlying ConfigService uses them to compose a
+ * scoped `configId`, making the row appear in the Config Browser
+ * alongside MarketsGrid profile-set rows owned by the same user.
+ */
+export interface UseDockEditorOptions {
+  scope?: ConfigScope;
+}
 
 // ─── Action Types ────────────────────────────────────────────────────
 
@@ -208,6 +231,13 @@ export interface UseDockEditorReturn {
   reset: () => Promise<void>;
   /** Publish current config to dock for live preview without saving */
   preview: () => Promise<void>;
+  /**
+   * Live list of Component-Registry entries. Populated on mount from
+   * `loadRegistryConfig()` and refreshed whenever the registry-editor
+   * publishes `IAB_REGISTRY_CONFIG_UPDATE`. Consumed by the menu-item
+   * form to render the "Launch registered component" dropdown.
+   */
+  registryEntries: RegistryEntry[];
 }
 
 // Version number embedded in every saved config.
@@ -215,8 +245,10 @@ export interface UseDockEditorReturn {
 // so old configs can be migrated or ignored.
 const CONFIG_VERSION = 1;
 
-export function useDockEditor(): UseDockEditorReturn {
+export function useDockEditor(opts: UseDockEditorOptions = {}): UseDockEditorReturn {
+  const scope = opts.scope;
   const [state, dispatch] = useReducer(editorReducer, initialState);
+  const [registryEntries, setRegistryEntries] = useState<RegistryEntry[]>([]);
 
   // stateRef gives useCallback functions access to the latest state
   // without listing `state` as a dependency (which would recreate every
@@ -225,12 +257,61 @@ export function useDockEditor(): UseDockEditorReturn {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // ── Component Registry ──
+  // Load once on mount + subscribe to IAB updates so edits made in a
+  // separate registry-editor window propagate to the dock editor's
+  // "Launch registered component" dropdown without a reload.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const reg = await loadRegistryConfig(scope);
+        if (!cancelled) setRegistryEntries(reg?.entries ?? []);
+      } catch (err) {
+        console.warn("useDockEditor: failed to load registry", err);
+      }
+    })();
+
+    // Subscribe to registry-config-update IAB messages. Guarded for
+    // non-OpenFin contexts (the editor window runs in a plain browser
+    // at dev time).
+    let unsubscribe: (() => void) | undefined;
+    try {
+      if (typeof fin !== "undefined" && fin?.InterApplicationBus?.subscribe) {
+        const handler = (msg: RegistryEditorConfig) => {
+          if (!cancelled) setRegistryEntries(msg?.entries ?? []);
+        };
+        fin.InterApplicationBus.subscribe(
+          { uuid: "*" },
+          IAB_REGISTRY_CONFIG_UPDATE,
+          handler,
+        );
+        unsubscribe = () => {
+          try {
+            fin.InterApplicationBus.unsubscribe(
+              { uuid: "*" },
+              IAB_REGISTRY_CONFIG_UPDATE,
+              handler,
+            );
+          } catch { /* best-effort */ }
+        };
+      }
+    } catch (err) {
+      console.warn("useDockEditor: registry IAB subscribe failed", err);
+    }
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [scope]);
+
   // Load initial config from IndexedDB on first render.
   // The empty dependency array [] means this runs once, on mount.
   useEffect(() => {
     async function loadInitialConfig() {
       try {
-        const saved = await loadDockConfig();
+        const saved = await loadDockConfig(scope);
         if (saved) {
           dispatch({ type: "SET_BUTTONS", buttons: saved.buttons });
         } else {
@@ -243,7 +324,7 @@ export function useDockEditor(): UseDockEditorReturn {
       }
     }
     loadInitialConfig();
-  }, []);
+  }, [scope]);
 
   // Build a saveable DockEditorConfig snapshot from the current state
   const buildConfig = useCallback((): DockEditorConfig => {
@@ -267,14 +348,14 @@ export function useDockEditor(): UseDockEditorReturn {
 
   const save = useCallback(async () => {
     const config = buildConfig();
-    await saveDockConfig(config);
+    await saveDockConfig(config, scope);
     await publishConfig(config);
     dispatch({ type: "SET_DIRTY", dirty: false });
     console.log("Dock config saved.");
-  }, [buildConfig, publishConfig]);
+  }, [buildConfig, publishConfig, scope]);
 
   const reset = useCallback(async () => {
-    await clearDockConfig();
+    await clearDockConfig(scope);
     dispatch({ type: "SET_BUTTONS", buttons: [] });
     // Publish empty config so dock reverts to defaults
     try {
@@ -284,7 +365,7 @@ export function useDockEditor(): UseDockEditorReturn {
     } catch (err) {
       console.warn("Failed to publish dock config reset:", err);
     }
-  }, []);
+  }, [scope]);
 
   const preview = useCallback(async () => {
     const config = buildConfig();
@@ -299,5 +380,6 @@ export function useDockEditor(): UseDockEditorReturn {
     save,
     reset,
     preview,
+    registryEntries,
   };
 }

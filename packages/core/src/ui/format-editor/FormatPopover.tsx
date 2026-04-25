@@ -65,8 +65,8 @@ export function FormatPopover({
             // / --border from the host app). The `--gc-*` vars remain as an
             // intermediate override for consumers that explicitly want to pin
             // the popover chrome (e.g. inside the cockpit-dark preview).
-            'bg-[var(--gc-surface,var(--popover,#161a1e))] text-[var(--gc-text,var(--popover-foreground,#eaecef))]',
-            'border border-[var(--gc-border,var(--border,#313944))]',
+            'bg-[var(--gc-surface,var(--bn-bg1,#161a1e))] text-[var(--gc-text,var(--bn-t0,#eaecef))]',
+            'border border-[var(--gc-border,var(--bn-border,#313944))]',
             'shadow-[0_16px_40px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.04)_inset]',
             'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)] text-[11px]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -95,8 +95,8 @@ export function FormatPopover({
             // final fallback. Light theme flips automatically because
             // `--card` re-binds under `[data-theme='light']` via the
             // cascade (html → body → popover content).
-            background: 'var(--gc-surface, var(--popover, #161a1e))',
-            color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+            background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
+            color: 'var(--gc-text, var(--bn-t0, #eaecef))',
             // Suppress the browser's default focus outline on the
             // Radix Content element — Radix focuses the content on
             // open, which paints a bright blue/white ring around the

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
-import { Dock } from "@openfin/workspace-platform";
+import { Dock, ColorSchemeOptionType, getCurrentSync } from "@openfin/workspace-platform";
 import type { App } from "@openfin/workspace";
 import { loadDockConfig, saveDockConfig } from './db';
 import {
@@ -50,6 +50,7 @@ import {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_LAUNCH_COMPONENT,
 } from './iab-topics';
 export {
   IAB_DOCK_CONFIG_UPDATE,
@@ -66,6 +67,7 @@ export {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_LAUNCH_COMPONENT,
 };
 
 // ─── Module-level state ──────────────────────────────────────────────
@@ -132,6 +134,89 @@ function recolorIconifyUrl(iconUrl: string, color: string): string {
   } catch {
     return iconUrl;
   }
+}
+
+// ─── v22 icon coercion ──────────────────────────────────────────────
+//
+// Dock3 in @openfin/workspace v22 types `DockEntry.icon` and
+// `ContentMenuEntry.icon` as plain `string` (only the top-level
+// `Dock.config.icon` accepts `string | TaskbarIcon`). v24 was lenient
+// about per-item `{ dark, light }` objects, but v22's `CustomIcon`
+// invokes `n.startsWith(...)` directly on the value and crashes the
+// workspace browser UI when handed a non-string.
+//
+// We keep `{ dark, light }` internally — every editor + theme-toggle
+// path produces it — and flatten to a single string at the OpenFin
+// boundary, picking the variant for the live theme. `applyDock3Config`
+// re-runs this flatten on every theme toggle so the dock keeps the
+// correct icon variant after the user flips themes.
+
+function readDockTheme(): "dark" | "light" {
+  try {
+    const attr = document.documentElement.getAttribute("data-theme");
+    if (attr === "light" || attr === "dark") return attr;
+  } catch { /* non-browser */ }
+  try {
+    const stored = localStorage.getItem("theme");
+    if (stored === "light") return "light";
+  } catch { /* storage unavailable */ }
+  return "dark";
+}
+
+function pickIconVariant(
+  icon: string | { dark: string; light: string } | undefined,
+  theme: "dark" | "light",
+): string | undefined {
+  if (icon == null) return undefined;
+  if (typeof icon === "string") return icon;
+  if (typeof icon === "object" && typeof icon[theme] === "string") return icon[theme];
+  return undefined;
+}
+
+function flattenFavoritesForV22(entries: Dock3Entry[], theme: "dark" | "light"): any[] {
+  return entries.map((entry) => {
+    if (entry.type === "folder") {
+      // v22 DockEntry folder shape does not carry an icon — strip it.
+      return {
+        type: "folder" as const,
+        id: entry.id,
+        label: entry.label,
+        children: flattenFavoritesForV22(entry.children, theme),
+      };
+    }
+    return {
+      type: "item" as const,
+      id: entry.id,
+      label: entry.label,
+      icon: pickIconVariant(entry.icon, theme) ?? "",
+      itemData: entry.itemData,
+    };
+  });
+}
+
+function flattenContentMenuForV22(
+  entries: ContentMenuEntryType[],
+  theme: "dark" | "light",
+): any[] {
+  return entries.map((entry) => {
+    if (entry.type === "folder") {
+      // v22 ContentMenuEntry folder has no icon field — children only.
+      return {
+        type: "folder" as const,
+        id: entry.id,
+        label: entry.label,
+        children: flattenContentMenuForV22(entry.children, theme),
+      };
+    }
+    return {
+      type: "item" as const,
+      id: entry.id,
+      label: entry.label,
+      icon: pickIconVariant(entry.icon, theme) ?? "",
+      itemData: entry.itemData,
+      ...(entry.bookmarked != null ? { bookmarked: entry.bookmarked } : {}),
+    };
+  });
 }
 
 // ─── Content menu builder (Tools) ────────────────────────────────────
@@ -299,12 +384,35 @@ export async function registerDock(
   _roles?: string[],
   onAction?: (actionId: string, customData?: any) => Promise<void>,
 ): Promise<any> {
+  // Idempotency guard. The OpenFin v22 starter creates exactly one
+  // Dock3Provider per platform window; calling Dock.init() again
+  // produces a second provider that competes with the first for the
+  // dock window's IAB channel — manifesting as
+  // "client is disconnected from the target provider" on click.
+  // If we've already initialized, refresh the captured callbacks/settings
+  // and push the live config through the existing handle instead.
+  if (dockProvider) {
+    console.log("Dock3 provider already initialized — refreshing config in place.");
+    storedPlatformSettings = platformSettings;
+    storedIcon = dockIcon ?? platformSettings.icon;
+    themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
+    themeToggleLightIcon = lightIcon ?? DEFAULT_LIGHT_THEME_ICON;
+    actionDispatcher = onAction;
+    if (!lastEditorConfig) {
+      const saved = await loadDockConfig();
+      lastEditorConfig = saved ?? appsToEditorConfig(apps ?? [], platformSettings.icon);
+    }
+    await applyDock3Config();
+    return dockProvider;
+  }
+
   console.log("Initializing the Dock3 provider.");
 
-  // Reset module-level state before re-initializing
-  resetDockState();
-
-  // Cache settings
+  // Cache settings before init() so the override class methods can
+  // read them on first invocation. resetDockState() is intentionally
+  // NOT called here — there's no prior provider to clear (the guard
+  // above handles the "already initialized" branch). Calling it would
+  // zombie a still-bound provider in edge cases (concurrent re-entry).
   storedPlatformSettings = platformSettings;
   storedIcon = dockIcon ?? platformSettings.icon;
   themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
@@ -321,8 +429,9 @@ export async function registerDock(
   }
 
   // Build the initial Dock3 config
-  const favorites = buildAllFavorites(lastEditorConfig);
-  const contentMenu = buildContentMenuEntries(lastEditorConfig);
+  const theme = readDockTheme();
+  const favorites = flattenFavoritesForV22(buildAllFavorites(lastEditorConfig), theme);
+  const contentMenu = flattenContentMenuForV22(buildContentMenuEntries(lastEditorConfig), theme);
 
   try {
     dockProvider = await Dock.init({
@@ -390,10 +499,16 @@ export async function registerDock(
 /**
  * Recolor all dock icons to match the current theme.
  * Called from the toggle-theme action in workspace.ts.
+ *
+ * Soft path only: re-flattens icons for the current theme and pushes
+ * via `dockProvider.updateConfig()`. State-preserving — open menus,
+ * highlighted items, drag positions all survive the toggle. The dock
+ * chrome theme propagation is handled by the workspace platform's
+ * own scheme dispatch when running on a properly-configured runtime.
  */
 export async function recolorDockIcons(isDark: boolean): Promise<void> {
   currentIconColor = isDark ? ICON_COLOR_DARK_THEME : ICON_COLOR_LIGHT_THEME;
-  console.log(`Recoloring dock icons for ${isDark ? "dark" : "light"} theme`);
+  console.log(`Recoloring dock icons for ${isDark ? "dark" : "light"} theme.`);
   await applyDock3Config();
 }
 
@@ -416,53 +531,107 @@ export async function reloadDockFromConfig(): Promise<void> {
   if (saved) {
     lastEditorConfig = saved;
   }
+  // For the user-initiated "Reload Dock" action we want a guaranteed
+  // visual refresh — the soft `updateConfig()` path (used for IAB
+  // background updates) sometimes propagates config without re-rendering
+  // favorites/content-menu in v22.
+  //
+  // The supported v22 API for forcing a full Dock3 re-bootstrap is
+  // `dockProvider.shutdown()` + a fresh `Dock.init()` (NOT a window URL
+  // reload — that desynchronises the IAB channel client from the
+  // provider and produces "client disconnected from target provider"
+  // on subsequent clicks).
   await hardReloadDock();
   console.log("Dock reloaded from config.");
 }
 
 /**
- * Force the dock window to reload its URL. This triggers Dock3 to
- * re-bootstrap from scratch inside the dock window, which in turn
- * calls our `loadConfig` override — pulling the latest config from
- * Dexie and rebuilding favorites/contentMenu.
+ * Tear the live Dock3Provider down and re-initialise it with the
+ * cached platform settings + the latest `lastEditorConfig`. Used by
+ * the "Reload Dock" menu action when the soft `updateConfig` path
+ * isn't enough to force the favorites/content-menu UI to re-render.
  *
- * This is preferred over `dockProvider.shutdown()` + `Dock.init(...)`
- * because the shutdown/init dance has a race: shutdown closes the
- * window but doesn't always clear the workspace-platform's internal
- * registration cleanly, causing subsequent init to silently fail in
- * some contexts (consistently repro-ed in Angular host apps).
+ * Sequence (matches the v22 OpenFin starter shutdown→init pattern):
+ *   1. Snapshot the captured settings (resetDockState wipes them).
+ *   2. `await dockProvider.shutdown()` — closes the dock window and
+ *      releases the IAB channel cleanly.
+ *   3. `resetDockState()` — wipes `dockProvider` so registerDock's
+ *      idempotency guard takes the cold path on the next call.
+ *   4. `await registerDock(...snapshot)` — creates a fresh provider,
+ *      a fresh dock window, a fresh channel, all bound together.
  *
- * We still update `lastEditorConfig` from storage first so the soft
- * `updateConfig` path (used for IAB-driven live updates) stays in
- * sync with whatever the reload picks up.
+ * If shutdown fails (e.g., the SDK can't tear down a half-broken
+ * provider), we still proceed: resetDockState + re-init gives us a
+ * working dock at the cost of leaking the old provider. That trade
+ * is preferable to leaving the user with no working dock.
  */
 async function hardReloadDock(): Promise<void> {
-  if (!dockProvider) {
-    console.error("Cannot hard-reload dock: provider not initialized.");
+  if (!dockProvider || !storedPlatformSettings) {
+    console.warn("[hardReloadDock] Provider not initialised — using soft updateConfig.");
+    await applyDock3Config();
     return;
   }
 
-  // 1. Apply current config via updateConfig — harmless if it no-ops.
-  //    This keeps the handle's internal config consistent.
+  // Snapshot every cached setting before resetDockState() wipes them.
+  const snapshot = {
+    settings: storedPlatformSettings,
+    icon: storedIcon,
+    darkIcon: themeToggleDarkIcon,
+    lightIcon: themeToggleLightIcon,
+    dispatcher: actionDispatcher,
+  };
+
   try {
-    await applyDock3Config();
+    await dockProvider.shutdown();
+    console.log("[hardReloadDock] Old Dock3 provider shut down.");
   } catch (err) {
-    console.warn("Soft updateConfig failed before hard reload (continuing):", err);
+    // Don't bail — proceed to re-init. A leaked provider is recoverable;
+    // a missing dock is not.
+    console.error("[hardReloadDock] dockProvider.shutdown failed (continuing):", err);
   }
 
-  // 2. Reload the dock window's URL. Forces Dock3 to re-bootstrap.
-  try {
-    const dockWindow: any = typeof dockProvider.getWindowSync === "function"
-      ? dockProvider.getWindowSync()
-      : undefined;
-    if (dockWindow && typeof dockWindow.reload === "function") {
-      await dockWindow.reload();
-      console.log("Dock window reloaded.");
-    } else {
-      console.warn("Dock window handle not available for reload; soft updateConfig was applied.");
+  // Tear off IAB subscriptions explicitly here — registerDock's
+  // re-init path checks `iabSubscribed` and won't re-subscribe if it's
+  // still true, leaving us subscribed to the dead provider's handlers.
+  if (iabSubscribed) {
+    try {
+      if (iabConfigHandler) {
+        await fin.InterApplicationBus.unsubscribe(
+          { uuid: fin.me.identity.uuid },
+          IAB_DOCK_CONFIG_UPDATE,
+          iabConfigHandler,
+        );
+      }
+      if (iabReloadHandler) {
+        await fin.InterApplicationBus.unsubscribe(
+          { uuid: fin.me.identity.uuid },
+          IAB_RELOAD_AFTER_IMPORT,
+          iabReloadHandler,
+        );
+      }
+    } catch (err) {
+      console.warn("[hardReloadDock] IAB unsubscribe failed (continuing):", err);
     }
+  }
+
+  // Now safe to wipe state — old provider is dead, IAB handlers detached.
+  resetDockState();
+
+  // Re-init. registerDock's guard sees no `dockProvider` and runs the
+  // full Dock.init() path, producing a fresh provider + dock window.
+  try {
+    await registerDock(
+      snapshot.settings,
+      undefined,             // apps not needed — lastEditorConfig already in Dexie
+      snapshot.icon,
+      snapshot.darkIcon,
+      snapshot.lightIcon,
+      undefined,             // roles passthrough; registerDock currently ignores
+      snapshot.dispatcher,
+    );
+    console.log("[hardReloadDock] Dock3 provider re-initialised.");
   } catch (err) {
-    console.error("Failed to reload dock window.", err);
+    console.error("[hardReloadDock] Re-init failed:", err);
   }
 }
 
@@ -473,34 +642,135 @@ async function hardReloadDock(): Promise<void> {
 function buildDock3Override() {
   return (Base: any) => {
     return class MarketsUIDock3 extends Base {
+      // Every override method wraps its body in try/catch. Per the v22
+      // OpenFin starter contract, throws inside override methods are
+      // surfaced through the dock-provider IAB channel as failures —
+      // and consistent failures will cause the workspace SDK to mark
+      // the channel as broken, manifesting as "client disconnected
+      // from the target provider" on subsequent dispatches. None of
+      // these methods should ever throw to the SDK; we log and return
+      // a safe fallback.
+
       async loadConfig() {
-        const saved = await loadDockConfig();
-        if (saved) {
-          lastEditorConfig = saved;
-          const favs = buildAllFavorites(saved);
-          const menu = buildContentMenuEntries(saved);
-          this['config'] = {
-            ...this['config'],
-            favorites: favs as any[],
-            contentMenu: menu as any[],
-          };
+        try {
+          const saved = await loadDockConfig();
+          if (saved) {
+            lastEditorConfig = saved;
+            const theme = readDockTheme();
+            // Flatten {dark, light} → string — Dock3 calls this on every
+            // dock-window bootstrap and hands the raw config straight to
+            // CustomIcon. v22 CustomIcon calls .startsWith() on the icon
+            // and crashes on objects.
+            const favs = flattenFavoritesForV22(buildAllFavorites(saved), theme);
+            const menu = flattenContentMenuForV22(buildContentMenuEntries(saved), theme);
+            this['config'] = {
+              ...this['config'],
+              favorites: favs as any[],
+              contentMenu: menu as any[],
+            };
+          }
+          return this['config'];
+        } catch (err) {
+          console.error("[Dock3] loadConfig failed (returning current config):", err);
+          return this['config'];
         }
-        return this['config'];
       }
 
       async saveConfig({ config }: { config: any }) {
-        // Dock3 calls this when user reorders favorites (drag).
-        // We don't persist Dock3-level saves — persistence is via dock editor.
-        // Just update the internal config.
-        this['config'] = config;
+        try {
+          // Dock3 calls this when user reorders favorites (drag).
+          // We don't persist Dock3-level saves — persistence is via dock
+          // editor. Just update the internal config so the SDK's view of
+          // its own state stays consistent.
+          this['config'] = config;
+        } catch (err) {
+          console.error("[Dock3] saveConfig failed (ignored):", err);
+        }
       }
 
       async launchEntry({ entry }: { entry: any }) {
-        const data = entry.itemData;
-        if (data?.actionId && actionDispatcher) {
+        try {
+          const data = entry?.itemData;
+
+          // Handle theme toggle INLINE here — this is the canonical
+          // pattern from OpenFin's `register-with-dock3-basic` starter
+          // (see THEME_TOGGLE_ON_DOCK.md). The toggle MUST run inside
+          // the dock channel's launchEntry handler, NOT routed through
+          // `customActions` or an external dispatcher.
+          //
+          // Why: `Theme.setSelectedScheme()` dispatches back to multiple
+          // channels including dock3's. If we route the toggle through
+          // an external action handler, we hold the dock channel's
+          // launchEntry promise open while waiting for setSelectedScheme,
+          // which itself needs the dock channel free to dispatch its
+          // scheme update. Result: deadlock — `setSelectedScheme` hangs
+          // forever and the dock chrome never updates.
+          //
+          // Inline handling completes the toggle synchronously within
+          // launchEntry; setSelectedScheme's dispatch then runs cleanly
+          // and Dock3 chrome flips along with all other workspace
+          // surfaces. No state lost, no flash.
+          if (data?.actionId === ACTION_TOGGLE_THEME || entry?.id === "theme-toggle") {
+            const platform = getCurrentSync();
+            const currentScheme = await platform.Theme.getSelectedScheme();
+            const newScheme = currentScheme === ColorSchemeOptionType.Light
+              ? ColorSchemeOptionType.Dark
+              : ColorSchemeOptionType.Light;
+            const isDark = newScheme === ColorSchemeOptionType.Dark;
+            console.log(`[Dock3 theme] ${currentScheme} → ${newScheme}`);
+
+            // Fire setSelectedScheme WITHOUT awaiting. The SDK's internal
+            // dispatch persists the choice via `System.setThemePreferences`
+            // and connects to `__of_workspace_protocol__` to sync workspace
+            // storage — that channel hangs in our setup, so awaiting blocks
+            // every downstream side-effect (icon refresh + IAB publish to
+            // our content windows) that the user's content actually needs
+            // to update. The SDK still flips dock + chrome because those
+            // dispatches happen synchronously before the hang.
+            void platform.Theme.setSelectedScheme(newScheme);
+
+            // Side effects we own (SDK doesn't know about these):
+            //   • Provider window's data-theme attribute (drives our CSS vars)
+            //   • Dock icon variants (we manage {dark, light} per icon)
+            //   • IAB notify our content child windows (dock editor, etc.)
+            try { document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light"); } catch { /* */ }
+            try { localStorage.setItem("theme", isDark ? "dark" : "light"); } catch { /* */ }
+            currentIconColor = isDark ? ICON_COLOR_DARK_THEME : ICON_COLOR_LIGHT_THEME;
+            await applyDock3Config();
+            console.log(`[Dock3 theme] About to publish IAB '${IAB_THEME_CHANGED}' with { isDark: ${isDark} } from uuid='${fin.me?.identity?.uuid}'.`);
+            try {
+              await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
+              console.log("[Dock3 theme] IAB publish resolved.");
+            } catch (iabErr) {
+              console.warn("[Dock3 theme] IAB publish failed:", iabErr);
+            }
+            return;
+          }
+
+          // Other actions: route through the registered dispatcher.
+          if (!data?.actionId) return;
+          if (!actionDispatcher) {
+            console.warn(`[Dock3] No action dispatcher for: ${data.actionId}`);
+            return;
+          }
           await actionDispatcher(data.actionId, data.customData);
-        } else if (data?.actionId) {
-          console.warn(`No action dispatcher for: ${data.actionId}`);
+        } catch (err) {
+          // Critically, do NOT rethrow — that would poison the SDK's
+          // channel and cause subsequent clicks to fail with
+          // "client disconnected from target provider".
+          console.error("[Dock3] launchEntry handler threw (swallowed):", err);
+        }
+      }
+
+      async bookmarkContentMenuEntry(payload: { entry: any }) {
+        try {
+          // Bookmark requests come from the content-menu UI when the
+          // user pins an item. We don't currently materialise these as
+          // separate persisted bookmarks (the dock editor owns the
+          // canonical list), so just acknowledge by no-op.
+          void payload;
+        } catch (err) {
+          console.error("[Dock3] bookmarkContentMenuEntry failed (ignored):", err);
         }
       }
     } as any;
@@ -561,11 +831,24 @@ export async function shutdownDock(): Promise<void> {
       console.error("Error shutting down Dock3 provider.", error);
     }
   }
+  // Now safe to clear module state — the provider is dead, its
+  // channel torn down by the SDK. Clearing here means a subsequent
+  // initWorkspace() boot starts from a clean slate.
+  resetDockState();
 }
 
 /**
  * Reset all module-level state to initial values.
- * Called at the top of registerDock() to ensure a clean slate.
+ *
+ * Should ONLY be called after `dockProvider.shutdown()` has resolved —
+ * otherwise the provider is orphaned (its IAB channel stays bound to
+ * the dock window but our reference is gone, and any subsequent
+ * dispatch from the dock window arrives at a zombie).
+ *
+ * The legacy `registerDock` flow used to call this unconditionally at
+ * the top of init; that path is replaced by the idempotency guard in
+ * `registerDock` itself. The only remaining caller is `shutdownDock`,
+ * which calls `dockProvider.shutdown()` immediately before this.
  */
 function resetDockState(): void {
   dockProvider = undefined;
@@ -593,8 +876,9 @@ async function applyDock3Config(): Promise<void> {
     return;
   }
 
-  const favorites = buildAllFavorites(lastEditorConfig);
-  const contentMenu = buildContentMenuEntries(lastEditorConfig);
+  const theme = readDockTheme();
+  const favorites = flattenFavoritesForV22(buildAllFavorites(lastEditorConfig), theme);
+  const contentMenu = flattenContentMenuForV22(buildContentMenuEntries(lastEditorConfig), theme);
 
   try {
     await dockProvider.updateConfig({

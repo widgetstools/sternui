@@ -403,12 +403,12 @@ export function PopoutPortal({
   // while globals.css uses just `:root`.
   //
   // - On <html>: both rules match. globals.css is loaded LAST so its hex
-  //   value wins — `--card` resolves to #161a1e, `var(--card)` is a valid
+  //   value wins — `--card` resolves to #161a1e, `var(--bn-bg1)` is a valid
   //   color, and descendants inherit correctly.
   // - If we ALSO set data-theme on <body>: fi-dark's `[data-theme="dark"]`
   //   rule matches body directly. globals.css's `:root` rule does NOT match
   //   body. So on body, fi-dark wins → `--card` is "214 26% 10%" (HSL
-  //   triplet meant for hsl(var(--card))) → `var(--card)` is an invalid
+  //   triplet meant for hsl(var(--bn-bg1))) → `var(--bn-bg1)` is an invalid
   //   background value → transparent popovers.
   //
   // Keeping data-theme only on <html> means body inherits the valid hex
@@ -620,7 +620,7 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
       const reset = doc.createElement('style');
       reset.textContent = `
         html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
-        body { font-family: inherit; background: var(--background, #0b0e11); color: var(--foreground, #eaecef); }
+        body { font-family: inherit; background: var(--bn-bg, #0b0e11); color: var(--bn-t0, #eaecef); }
       `;
       doc.head.appendChild(reset);
     } catch (err) { console.warn('[PopoutPortal] reset style inject failed:', err); }

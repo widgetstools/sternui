@@ -93,8 +93,8 @@ const AlertDialogContent = React.forwardRef<
       // via the --card re-binding under [data-theme='light'].
       // `outline: none` suppresses the browser's default focus ring.
       style={{
-        background: 'var(--gc-surface, var(--popover, #161a1e))',
-        color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+        background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
+        color: 'var(--gc-text, var(--bn-t0, #eaecef))',
         outline: 'none',
         ...style,
       }}
@@ -167,8 +167,8 @@ const AlertDialogAction = React.forwardRef<
       'focus-visible:ring-offset-[var(--gc-surface,#161a1e)]',
       'disabled:pointer-events-none disabled:opacity-50',
       variant === 'destructive'
-        ? 'bg-[var(--destructive,#ef4444)] text-white hover:bg-[color-mix(in_srgb,var(--destructive,#ef4444)_90%,#000)] focus-visible:ring-[var(--destructive,#ef4444)]'
-        : 'bg-[var(--primary,#14b8a6)] text-[#0b0e11] hover:bg-[color-mix(in_srgb,var(--primary,#14b8a6)_90%,#000)] focus-visible:ring-[var(--primary,#14b8a6)]',
+        ? 'bg-[var(--bn-red,#ef4444)] text-white hover:bg-[color-mix(in_srgb,var(--bn-red,#ef4444)_90%,#000)] focus-visible:ring-[var(--bn-red,#ef4444)]'
+        : 'bg-[var(--bn-blue,#14b8a6)] text-[#0b0e11] hover:bg-[color-mix(in_srgb,var(--bn-blue,#14b8a6)_90%,#000)] focus-visible:ring-[var(--bn-blue,#14b8a6)]',
       className,
     )}
     {...props}

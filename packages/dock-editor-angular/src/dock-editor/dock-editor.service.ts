@@ -15,11 +15,16 @@ import {
   loadDockConfig,
   saveDockConfig,
   clearDockConfig,
+  loadRegistryConfig,
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_REGISTRY_CONFIG_UPDATE,
+  type ConfigScope,
   type DockEditorConfig,
   type DockButtonConfig,
   type DockDropdownButtonConfig,
   type DockMenuItemConfig,
+  type RegistryEditorConfig,
+  type RegistryEntry,
 } from '@marketsui/openfin-platform';
 
 // Version number embedded in every saved config.
@@ -82,18 +87,45 @@ export class DockEditorService implements OnDestroy {
   private readonly _buttons = signal<DockButtonConfig[]>([]);
   private readonly _isDirty = signal(false);
   private readonly _isLoading = signal(true);
+  /**
+   * Live Component-Registry entries. Populated on mount and refreshed
+   * on `IAB_REGISTRY_CONFIG_UPDATE`. Bound by the menu-item form's
+   * "Launch registered component" dropdown.
+   */
+  private readonly _registryEntries = signal<RegistryEntry[]>([]);
 
   // Public read-only computed signals for template binding
   readonly buttons = computed(() => this._buttons());
   readonly isDirty = computed(() => this._isDirty());
   readonly isLoading = computed(() => this._isLoading());
+  readonly registryEntries = computed(() => this._registryEntries());
+
+  /** Unsubscribe fn for the registry-update IAB subscription; null outside OpenFin. */
+  private unsubscribeRegistry: (() => void) | null = null;
+
+  /**
+   * Scope under which this service persists config. Null = default
+   * (`appId: 'system'`, `userId: 'system'`) — historical global-
+   * singleton behaviour. Host apps can call `setScope(...)` before
+   * any save/load to persist per-user/per-app.
+   */
+  private scope: ConfigScope | undefined;
+
+  /** Set the persistence scope. Must be called before any save/load. */
+  setScope(scope: ConfigScope | undefined): void {
+    this.scope = scope;
+  }
 
   constructor() {
     this.loadInitialConfig();
+    this.loadRegistryAndSubscribe();
   }
 
   ngOnDestroy(): void {
-    // Nothing to clean up — signals are garbage collected automatically
+    // Release the registry IAB subscription. Signals are garbage
+    // collected automatically.
+    this.unsubscribeRegistry?.();
+    this.unsubscribeRegistry = null;
   }
 
   // ── Initialisation ──────────────────────────────────────────────
@@ -101,7 +133,7 @@ export class DockEditorService implements OnDestroy {
   /** Load the saved dock config from IndexedDB on first use. */
   private async loadInitialConfig(): Promise<void> {
     try {
-      const saved = await loadDockConfig();
+      const saved = await loadDockConfig(this.scope);
       if (saved) {
         this._buttons.set(saved.buttons);
       } else {
@@ -112,6 +144,42 @@ export class DockEditorService implements OnDestroy {
       this._buttons.set([]);
     } finally {
       this._isLoading.set(false);
+    }
+  }
+
+  /**
+   * Load the current Component-Registry entries and subscribe to
+   * updates. The dock editor's menu-item form consumes
+   * `registryEntries()` when rendering the "Launch registered
+   * component" dropdown. Updates from a separate registry-editor
+   * window arrive via OpenFin IAB so the dropdown stays fresh
+   * without a reload.
+   */
+  private async loadRegistryAndSubscribe(): Promise<void> {
+    try {
+      const reg = await loadRegistryConfig(this.scope);
+      this._registryEntries.set(reg?.entries ?? []);
+    } catch (err) {
+      console.warn('DockEditorService: Failed to load registry', err);
+    }
+    try {
+      const finRef = (globalThis as unknown as { fin?: { InterApplicationBus?: {
+        subscribe: (ident: { uuid: string }, topic: string, handler: (msg: RegistryEditorConfig) => void) => void;
+        unsubscribe: (ident: { uuid: string }, topic: string, handler: (msg: RegistryEditorConfig) => void) => void;
+      }}}).fin;
+      if (finRef?.InterApplicationBus?.subscribe) {
+        const handler = (msg: RegistryEditorConfig): void => {
+          this._registryEntries.set(msg?.entries ?? []);
+        };
+        finRef.InterApplicationBus.subscribe({ uuid: '*' }, IAB_REGISTRY_CONFIG_UPDATE, handler);
+        this.unsubscribeRegistry = () => {
+          try {
+            finRef.InterApplicationBus!.unsubscribe({ uuid: '*' }, IAB_REGISTRY_CONFIG_UPDATE, handler);
+          } catch { /* best-effort */ }
+        };
+      }
+    } catch (err) {
+      console.warn('DockEditorService: registry IAB subscribe failed', err);
     }
   }
 
@@ -224,7 +292,7 @@ export class DockEditorService implements OnDestroy {
   /** Save to IndexedDB and push to the live dock via IAB. */
   async save(): Promise<void> {
     const config = this.buildConfig();
-    await saveDockConfig(config);
+    await saveDockConfig(config, this.scope);
     await this.publishConfig(config);
     this._isDirty.set(false);
     console.log('DockEditorService: Config saved.');
@@ -232,7 +300,7 @@ export class DockEditorService implements OnDestroy {
 
   /** Clear saved config and reset to empty state. */
   async reset(): Promise<void> {
-    await clearDockConfig();
+    await clearDockConfig(this.scope);
     this._buttons.set([]);
     this._isDirty.set(false);
   }

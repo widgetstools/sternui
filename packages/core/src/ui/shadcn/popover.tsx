@@ -76,8 +76,8 @@ const PopoverContent = React.forwardRef<
       // (spread last). `outline: none` suppresses the browser's
       // default focus ring on the Radix-focused Content element.
       style={{
-        background: 'var(--gc-surface, var(--popover, #161a1e))',
-        color: 'var(--gc-text, var(--popover-foreground, #eaecef))',
+        background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
+        color: 'var(--gc-text, var(--bn-t0, #eaecef))',
         outline: 'none',
         ...style,
       }}

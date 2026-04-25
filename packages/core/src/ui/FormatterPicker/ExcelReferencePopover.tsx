@@ -56,10 +56,10 @@ export function ExcelReferencePopover({
             width: 24,
             height: 24,
             padding: 0,
-            background: 'var(--ck-bg, var(--background))',
-            border: '1px solid var(--ck-border-hi, var(--border))',
+            background: 'var(--ck-bg, var(--bn-bg))',
+            border: '1px solid var(--ck-border-hi, var(--bn-border))',
             borderRadius: 2,
-            color: 'var(--ck-t2, var(--muted-foreground))',
+            color: 'var(--ck-t2, var(--bn-t2))',
             cursor: 'pointer',
           }}
         >
@@ -78,7 +78,7 @@ export function ExcelReferencePopover({
           // too means this specific scroll container stays opaque
           // even if someone later swaps the inner container for a
           // bespoke portal.
-          background: 'var(--gc-surface, var(--popover, #161a1e))',
+          background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
           fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
           // Theme-aware scrollbar. `scrollbar-color` / `scrollbar-width`
           // are native CSS properties honoured by Firefox and modern
@@ -100,7 +100,7 @@ export function ExcelReferencePopover({
                 fontWeight: 600,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
-                color: 'var(--ck-t2, var(--muted-foreground))',
+                color: 'var(--ck-t2, var(--bn-t2))',
               }}
             >
               {cat.title}
@@ -127,7 +127,7 @@ export function ExcelReferencePopover({
                         borderRadius: 2,
                         cursor: copyable ? 'pointer' : 'default',
                         textAlign: 'left',
-                        color: 'var(--ck-t0, var(--foreground))',
+                        color: 'var(--ck-t0, var(--bn-t0))',
                         fontFamily: 'inherit',
                         fontSize: 11,
                         transition: 'background 100ms, border-color 100ms',
@@ -135,19 +135,19 @@ export function ExcelReferencePopover({
                       onMouseEnter={(e) => {
                         if (copyable) {
                           (e.currentTarget as HTMLButtonElement).style.background =
-                            'var(--ck-surface-hover, var(--accent, #1e2329))';
+                            'var(--ck-surface-hover, var(--bn-bg3, #1e2329))';
                         }
                       }}
                       onMouseLeave={(e) => {
                         (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                       }}
                     >
-                      <span style={{ color: 'var(--ck-t1, var(--foreground))' }}>{ex.label}</span>
+                      <span style={{ color: 'var(--ck-t1, var(--bn-t0))' }}>{ex.label}</span>
                       <code
                         style={{
                           fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
                           fontSize: 11,
-                          color: 'var(--ck-green, var(--primary))',
+                          color: 'var(--ck-green, var(--bn-blue))',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -161,7 +161,7 @@ export function ExcelReferencePopover({
                           alignItems: 'center',
                           gap: 4,
                           fontSize: 10,
-                          color: 'var(--ck-t2, var(--muted-foreground))',
+                          color: 'var(--ck-t2, var(--bn-t2))',
                         }}
                       >
                         <span style={{ fontFamily: 'var(--ck-font-mono)' }}>{ex.sample}</span>

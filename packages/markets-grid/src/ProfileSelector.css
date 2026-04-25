@@ -31,13 +31,13 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--muted-foreground, #8b93a1);
+  color: var(--bn-t2, #8b93a1);
 }
 
 .gc-ps-header-count {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: var(--muted-foreground, #6b7280);
+  color: var(--bn-t2, #6b7280);
 }
 
 /* Scrollable body wrapping the profile rows. */
@@ -51,7 +51,7 @@
   padding: 18px 12px;
   font-size: 11px;
   text-align: center;
-  color: var(--muted-foreground, #8b93a1);
+  color: var(--bn-t2, #8b93a1);
 }
 
 /* Leading 14×14 slot that holds either a check (active) or a dot
@@ -68,5 +68,5 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--muted-foreground, #6b7280) 45%, transparent);
+  background: color-mix(in srgb, var(--bn-t2, #6b7280) 45%, transparent);
 }

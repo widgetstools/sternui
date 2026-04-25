@@ -4,7 +4,13 @@ import type OpenFin from "@openfin/core";
 import { Home, Storefront, type App } from "@openfin/workspace";
 import { ColorSchemeOptionType, CustomActionCallerType, getCurrentSync, init } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@marketsui/config-service";
-import { setConfigManager } from './db';
+import {
+  setConfigManager,
+  setPlatformDefaultScope,
+  getPlatformDefaultScope,
+  migrateLegacyPlatformScope,
+  realignAllConfigsToPlatformScope,
+} from './db';
 import {
   registerDock,
   recolorDockIcons,
@@ -19,11 +25,12 @@ import {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_LAUNCH_COMPONENT,
   IAB_THEME_CHANGED,
   shutdownDock,
 } from './dock';
 import { registerHome } from './home';
-import { launchApp } from './launch';
+import { launchApp, launchRegisteredComponent } from './launch';
 import { registerNotifications } from './notifications';
 import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
@@ -98,6 +105,43 @@ function applyLocalDataTheme(isDark: boolean): void {
 }
 
 /**
+ * Resolve the canonical `(appId, userId)` to use as the platform's
+ * default scope for every implicit-scope save/load.
+ *
+ * Strategy: read the seeded `appRegistry` + `userProfile` tables and
+ * pick the first row of each. This keeps the choice data-driven —
+ * editing `seed-config.json` to add a different default user / app
+ * automatically takes effect on next boot without a code change.
+ *
+ * Hard fallbacks (`'TestApp'` / `'dev1'`) match the values currently
+ * shipped in `apps/markets-ui-react-reference/public/seed-config.json`
+ * and are used only when the tables are empty (e.g. the seed failed to
+ * load, or the user has manually emptied them).
+ */
+async function resolveDefaultPlatformScope(
+  cm: ConfigManager,
+): Promise<{ appId: string; userId: string }> {
+  let appId = 'TestApp';
+  let userId = 'dev1';
+  try {
+    const apps = await cm.getAllApps();
+    if (apps.length > 0 && apps[0].appId) appId = apps[0].appId;
+  } catch (err) {
+    console.warn('[initWorkspace] Could not read appRegistry; falling back to TestApp.', err);
+  }
+  try {
+    const profiles = await cm.getAllUserProfiles();
+    // Prefer a profile that's already scoped to the resolved appId — so
+    // multi-app seeds pick the right user automatically.
+    const match = profiles.find((p) => p.appId === appId) ?? profiles[0];
+    if (match?.userId) userId = match.userId;
+  } catch (err) {
+    console.warn('[initWorkspace] Could not read userProfile; falling back to dev1.', err);
+  }
+  return { appId, userId };
+}
+
+/**
  * Prevents initWorkspace() from running more than once.
  * The platform can only be initialised a single time per provider window,
  * so a second call silently returns without doing anything.
@@ -151,6 +195,52 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // uses the same database as everything else.
   setConfigManager(configManager);
 
+  // Tag every implicit-scope save with the canonical (appId, userId)
+  // pair seeded into the config service:
+  //   • appId  = "TestApp"  (the only row in appRegistry seed)
+  //   • userId = "dev1"     (the only row in userProfiles seed)
+  // Dock, registry, MarketsGrid profiles, and any future per-app config
+  // all land in one scope bucket — visible together in the Config Browser.
+  // Decoupled from `fin.me.identity.uuid` deliberately: the platform's
+  // OpenFin uuid is a runtime detail; the config-service identity is the
+  // stable key that survives platform rename/relaunch and matches whatever
+  // appears in the appRegistry / userProfile tables. Replace `dev1` with
+  // the signed-in user's id when real auth is wired.
+  const defaultScope = await resolveDefaultPlatformScope(configManager);
+  setPlatformDefaultScope(defaultScope);
+  log(
+    `Platform default scope: appId='${defaultScope.appId}' userId='${defaultScope.userId}' ` +
+    `(resolved from appRegistry + userProfile seed).`,
+  );
+  // One-shot migration: pre-platform rows still tagged with the legacy
+  // `appId='system'` get re-stamped to the platform scope so they show
+  // up in the browser without forcing the user to re-save.
+  try {
+    const result = await migrateLegacyPlatformScope();
+    if (result.migrated > 0) {
+      log(`Migrated ${result.migrated} legacy-scope config row(s) to appId='${defaultScope.appId}'.`);
+    }
+  } catch (migrateErr) {
+    console.warn('[initWorkspace] migrateLegacyPlatformScope failed:', migrateErr);
+  }
+
+  // Broad sweep: collapse every appConfig row onto the platform scope —
+  // catches rows previously tagged with stale `(appId, userId)` (e.g.
+  // `react-workspace-starter`/`system` from earlier builds) so the whole
+  // table renders under a single chip in the Config Browser. Idempotent
+  // — rows already on the platform scope are skipped.
+  try {
+    const result = await realignAllConfigsToPlatformScope();
+    if (result.realigned > 0) {
+      log(
+        `Realigned ${result.realigned}/${result.total} config row(s) to ` +
+        `appId='${defaultScope.appId}' userId='${defaultScope.userId}'.`,
+      );
+    }
+  } catch (realignErr) {
+    console.warn('[initWorkspace] realignAllConfigsToPlatformScope failed:', realignErr);
+  }
+
   log("Config service initialized");
 
   // Wait for the platform API to be ready before registering components.
@@ -191,10 +281,16 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
     const configs = await cm.getConfigsByApp(app.appId);
     allConfigs.push(...configs);
   }
-  const dockConfig = await cm.loadDockConfig();
-  if (dockConfig) {
-    allConfigs.push({ configId: "dock-config", appId: "", componentType: "DOCK", payload: dockConfig });
-  }
+  // Dock + registry persist as regular AppConfigRows keyed by a
+  // fixed configId (for the default `system`/`system` scope). Pick
+  // them up via the generic `getConfig()` API — the domain-specific
+  // shim methods were removed when persistence moved into
+  // `openfin-platform/db.ts`. See db.ts for the scoping scheme that
+  // lets per-user / per-app rows coexist.
+  const dockRow = await cm.getConfig('dock-config');
+  if (dockRow) allConfigs.push(dockRow);
+  const registryRow = await cm.getConfig('component-registry');
+  if (registryRow) allConfigs.push(registryRow);
   const exportData = {
     appRegistry: allApps,
     appConfig: allConfigs,
@@ -265,29 +361,50 @@ async function initializePlatform(
         }
       },
 
-      // ── Toggle between dark and light theme ──
-      [ACTION_TOGGLE_THEME]: async (e): Promise<void> => {
-        if (e.callerType !== CustomActionCallerType.CustomButton) {
+      // ── Launch a registered component from a dock button / menu item ──
+      // customData shape: { registryEntryId: string, asWindow?: boolean }
+      // Resolves the id against the live registry on every click so
+      // edits to the registry propagate immediately.
+      [ACTION_LAUNCH_COMPONENT]: async (e): Promise<void> => {
+        if (
+          e.callerType !== CustomActionCallerType.CustomButton &&
+          e.callerType !== CustomActionCallerType.CustomDropdownItem
+        ) {
           return;
         }
+        const cd = (e.customData ?? {}) as { registryEntryId?: string; asWindow?: boolean };
+        if (!cd.registryEntryId) {
+          console.warn(`[${ACTION_LAUNCH_COMPONENT}] missing registryEntryId in customData`);
+          return;
+        }
+        await launchRegisteredComponent(cd.registryEntryId, { asWindow: cd.asWindow });
+      },
 
+      // ── Toggle between dark and light theme ──
+      // The toggle is handled INLINE inside the Dock3Provider override's
+      // `launchEntry()` (see `dock.ts`). That's the canonical v23 pattern
+      // from the `register-with-dock3-basic` starter (THEME_TOGGLE_ON_DOCK.md):
+      // the toggle must run inside the dock channel's launchEntry handler
+      // to avoid a deadlock between dock channel and platform scheme dispatch.
+      //
+      // This entry is kept for fallback / non-dock callers (e.g. a custom
+      // browser button if one is ever added). It uses `runThemeToggle`
+      // for safe re-entry coalescing.
+      [ACTION_TOGGLE_THEME]: async (e): Promise<void> => {
+        if (e.callerType !== CustomActionCallerType.CustomButton) return;
         await runThemeToggle(async (isDark) => {
-          // Fire-and-forget OpenFin scheme flip (setSelectedScheme's promise
-          // never resolves — known OpenFin quirk).
+          const platform = getCurrentSync();
+          const next = isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light;
           try {
-            getCurrentSync().Theme.setSelectedScheme(
-              isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light,
-            );
-          } catch { /* non-fatal */ }
-
+            await platform.Theme.setSelectedScheme(next);
+          } catch (schemeErr) {
+            console.warn("setSelectedScheme failed:", schemeErr);
+          }
           await recolorDockIcons(isDark);
-
-          // Notify child windows (e.g. dock editor) about the change.
           try {
             await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
           } catch (iabErr) {
-            // IAB publish can fail if no child windows are subscribed — safe to ignore
-            console.warn("Could not publish theme-changed event via IAB.", iabErr);
+            console.warn("IAB publish failed:", iabErr);
           }
         });
       },
@@ -391,9 +508,16 @@ async function initializePlatform(
           return;
         }
 
-        const appId = (() => {
+        // Use the platform default scope (set during initWorkspace) so the
+        // browser's appId chip matches the appId every other piece of the
+        // platform writes under. Falls back to the OpenFin uuid if the
+        // platform scope wasn't initialised — shouldn't happen in normal
+        // boots but keeps the launcher robust.
+        const scope = getPlatformDefaultScope();
+        const appId = scope.appId || (() => {
           try { return fin.me.identity.uuid; } catch { return ''; }
         })();
+        const userId = scope.userId;
 
         try {
           const existingWindow = fin.Window.wrapSync({
@@ -425,7 +549,7 @@ async function initializePlatform(
             resizable: true,
             saveWindowState: true,
             contextMenu: true,
-            customData: { appId },
+            customData: { appId, userId },
           });
         }
       },
@@ -551,21 +675,24 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
     await launchApp(customData as App);
   },
 
-  [ACTION_TOGGLE_THEME]: async () => {
-    await runThemeToggle(async (isDark) => {
-      try {
-        getCurrentSync().Theme.setSelectedScheme(
-          isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light,
-        );
-      } catch { /* non-fatal */ }
-      await recolorDockIcons(isDark);
-      try {
-        await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
-      } catch (iabErr) {
-        console.warn("Could not publish theme-changed event via IAB.", iabErr);
-      }
-    });
+  // Launch a Component-Registry entry by id. Shape:
+  //   customData = { registryEntryId: string, asWindow?: boolean }
+  // Missing ids are handled gracefully inside launchRegisteredComponent
+  // (warn + no-op) so a stale dock menu item never hard-fails.
+  [ACTION_LAUNCH_COMPONENT]: async (customData) => {
+    const cd = (customData ?? {}) as { registryEntryId?: string; asWindow?: boolean };
+    if (!cd.registryEntryId) {
+      console.warn(`[${ACTION_LAUNCH_COMPONENT}] missing registryEntryId in customData`);
+      return;
+    }
+    await launchRegisteredComponent(cd.registryEntryId, { asWindow: cd.asWindow });
   },
+
+  // ACTION_TOGGLE_THEME is intentionally NOT in this map.
+  // The dock theme toggle is handled inline in the Dock3Provider
+  // override's `launchEntry()` (see dock.ts) — that's the canonical v23
+  // pattern. Routing it through this handler caused
+  // `setSelectedScheme()` to deadlock the dock channel.
 
   [ACTION_OPEN_DOCK_EDITOR]: async () => {
     await openChildWindow("dock-editor", "/dock-editor", 720, 800);
@@ -576,18 +703,21 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
   },
 
   [ACTION_OPEN_CONFIG_BROWSER]: async () => {
-    // Forward the host app's uuid as `appId` via customData so the
-    // browser's readHostEnv() returns a real value and can hard-scope
-    // rows to the current app.
-    const appId = (() => {
+    // Forward the platform default scope (TestApp / dev1 by default) via
+    // customData so the browser's readHostEnv() returns the same scope
+    // every other surface writes under — keeping dock, registry, blotter,
+    // and any future config rows visible together.
+    const scope = getPlatformDefaultScope();
+    const appId = scope.appId || (() => {
       try { return fin.me.identity.uuid; } catch { return ''; }
     })();
+    const userId = scope.userId;
     await openChildWindow(
       "config-browser",
       "/config-browser",
       1100,
       720,
-      { customData: { appId } },
+      { customData: { appId, userId } },
     );
   },
 
@@ -661,14 +791,17 @@ async function openChildWindow(
   console.log(`[openChildWindow] Opening "${name}" at "${path}"`);
 
   // 1. Does the window actually exist? Use getInfo to probe.
+  // The probe THROWS when the window doesn't exist — that's the success path
+  // here (we'll fall through and create it). We swallow the error and log a
+  // plain message so it doesn't render as a red stack trace in DevTools.
   try {
     const existing = fin.Window.wrapSync({ uuid: fin.me.identity.uuid, name });
     await existing.getInfo();              // throws if the window doesn't exist
     await existing.setAsForeground();
     console.log(`[openChildWindow] Brought existing "${name}" to front.`);
     return;
-  } catch (probeErr) {
-    console.log(`[openChildWindow] "${name}" does not exist, creating new window.`, probeErr);
+  } catch {
+    console.debug(`[openChildWindow] "${name}" does not exist; will create.`);
   }
 
   // 2. Create a new window.

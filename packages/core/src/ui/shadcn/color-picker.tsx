@@ -59,7 +59,7 @@ function Swatch({ color, selected, onClick }: {
         width: SWATCH_SIZE, height: SWATCH_SIZE,
         borderRadius: SWATCH_RADIUS,
         background: color,
-        outline: selected ? '2px solid var(--primary)' : 'none',
+        outline: selected ? '2px solid var(--bn-blue)' : 'none',
         outlineOffset: selected ? 1 : 0,
         transform: selected ? 'scale(1.08)' : undefined,
         zIndex: selected ? 10 : undefined,
@@ -138,7 +138,7 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
             {icon}
             <span
               className="w-3.5 h-[2px] rounded-full transition-colors"
-              style={{ background: value || 'var(--muted-foreground)' }}
+              style={{ background: value || 'var(--bn-t2)' }}
             />
           </span>
         </button>

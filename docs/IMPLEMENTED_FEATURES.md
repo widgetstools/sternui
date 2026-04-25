@@ -944,6 +944,396 @@ Deferred to ANGULAR_PORT Phase 4 (`docs/plans/ANGULAR_PORT.md`) — the plan's A
 
 ---
 
+## 1.O `@marketsui/data-plane` — Week 1 + 1.5 (protocol + dual cache + dual provider bases)
+
+Per [`docs/plans/DATA_PLANE.md`](./plans/DATA_PLANE.md). Week 1 delivered protocol + cache + provider bases for keyed-resource mode; Week 1.5 adds the row-stream primitives that match stern-1's production architecture (`/Users/develop/Documents/projects/stern-1/client/src/workers/engine/`).
+
+### Why two cache models + two provider bases
+
+Reviewing the existing stern-1 STOMP implementation and the companion `/Users/develop/Documents/projects/stomp-server` surfaced a fundamental distinction the original plan conflated:
+
+| Mode | Cache | Provider | Used by |
+|---|---|---|---|
+| **Keyed-resource** (Week 1) | `ProviderCache` — per-key LRU + TTL, `singleFlight` dedup | `ProviderBase` with `fetch(key)` / `subscribe(key, emit)` | AppData (kv store), future REST-per-endpoint, per-ticker price |
+| **Row-stream** (Week 1.5) | `RowCache` — upsert keyed by `keyColumn`, no TTL, no LRU cap | `StreamProviderBase` with snapshot → snapshot-complete → realtime phases + late-joiner detection | STOMP / WebSocket / SocketIO blotters |
+
+Both coexist in the same package and use the same wire protocol — the client picks opcodes by provider type.
+
+### Package
+
+- `packages/data-plane/` — workspace `@marketsui/data-plane@0.1.0`
+- Depends only on `@marketsui/shared-types`.
+- Subpath exports: `@marketsui/data-plane` (full barrel), `@marketsui/data-plane/protocol`, `@marketsui/data-plane/providers`.
+
+### What landed
+
+| File | What it is |
+|---|---|
+| `src/protocol.ts` | `DataPlaneRequest` / `DataPlaneResponse` discriminated unions. Opcodes for both modes: keyed-resource (`get` / `put` / `subscribe` + `update`) AND row-stream (`subscribe-stream` / `get-cached-rows` + `snapshot-batch` / `snapshot-complete` / `row-update`). `ErrorCode`, `isRequest` / `isResponse` type guards. JSON-safe + structured-clone-safe. |
+| `src/protocol.test.ts` | 46 tests — round-trip coverage for every message shape under both JSON and native structured clone. |
+| `src/worker/cache.ts` | Keyed-resource cache: `ProviderCache` (per-key LRU + TTL), `CacheState`, `isExpired`, `singleFlight` thundering-herd dedup. |
+| `src/worker/cache.test.ts` | 20 tests — LRU eviction, TTL boundaries, concurrent `singleFlight` dedup, cross-provider isolation. |
+| `src/worker/rowCache.ts` | Row-stream cache: `RowCache<TRow>` — upsert-by-`keyColumn`. Direct port of stern-1's `CacheManager`. Returns `{ accepted, skipped }` so the router can surface diagnostics when `keyColumn` is misconfigured (rows arriving but cache empty). |
+| `src/worker/rowCache.test.ts` | 10 tests — upsert identity, row-copy-on-insert, skip-when-key-missing, remove, clear. |
+| `src/providers/ProviderBase.ts` | Keyed-resource abstract base with `configure` / `fetch` / `subscribe?` / `teardown` + `track` / `untrack` refcount helpers. |
+| `src/providers/MockProvider.ts` | Keyed-resource synthetic provider for demos + tests. |
+| `src/providers/AppDataProvider.ts` | Keyed-resource reactive k/v — backbone for template bindings (`{{app1.token1}}`). |
+| `src/providers/AppDataProvider.test.ts` | 12 tests — reactivity, unsubscribe-during-fanout safety, teardown. |
+| `src/providers/StreamProviderBase.ts` | Row-stream abstract base. Manages `RowCache`, phase state (snapshot / realtime), listener fan-out, `registerSubscriber` / `shouldReceiveCached` late-joiner tracking, error + connect/disconnect statistics. Direct port of stern-1's `StompEngine` patterns, generalized so `StompStreamProvider`, `WebSocketStreamProvider`, `SocketIOStreamProvider` can all subclass it. |
+| `src/providers/StreamProviderBase.test.ts` | 13 tests — snapshot phase transitions, snapshot-complete idempotency, upsert-on-realtime-update, late-joiner logic (early vs late port detection), listener safety (throwing + self-removing during fan-out), error + lifecycle reporting, reset for reconnects. |
+| `src/index.ts` | Public barrel exporting both modes. |
+
+### Design decisions worth calling out
+
+- **Correction from earlier Week-1 doc:** my original take called `StompDatasourceProvider` "snapshot-only + not streaming." That's true of `packages/widgets-react/src/provider-editor/stomp/StompDatasourceProvider.ts` (which is a field-inference tool — fetches one snapshot, disconnects). The REAL streaming provider lives in stern-1 (`client/src/workers/engine/StompEngine.ts` + `CacheManager.ts` + `BroadcastManager.ts`). It's full snapshot + realtime with late-joiner support. The row-stream primitives added in Week 1.5 are the porting target for that architecture.
+- **Phase machine is authoritative.** `StreamProviderBase.markSnapshotComplete()` is idempotent; any late `ingestSnapshotBatch()` after completion transparently routes to the update path. This matches stern-1's defensive behaviour and avoids clients seeing mode regressions.
+- **`keyColumn` is REQUIRED for row-stream providers.** Unlike the keyed-resource mode where the caller chooses the key, row-stream rows carry their own identity in a configured field (`positionId`, `tradeId`, etc.). `RowCache` drops rows missing that field and exposes the count via `UpsertResult.skipped` so the protocol's `snapshot-batch.diagnostics.skipped` can surface the misconfiguration at grid bootstrap.
+- **Late-joiner semantics ported 1:1 from stern-1.** A port subscribing during the snapshot phase is marked in `liveSnapshotPorts`. After `snapshot-complete`, `shouldReceiveCached(portId)` returns `false` for those ports — they already received the live data, sending cached rows would duplicate. Ports that subscribed after complete are not in the set, so they get the cached replay.
+- **Listener iteration is crash + mutation safe.** `StreamProviderBase.dispatch` snapshots the listener set and catches per-listener exceptions so one bad consumer doesn't kill the provider or break iteration for other listeners. Tested with a listener that removes itself mid-dispatch and one that throws.
+- **Existing `DataProviderEditor` UI stays put.** It persists through `dataProviderConfigService` → the shared-types `ProviderConfig` union. The data-plane consumes the same union verbatim at `configure()` time.
+- **Existing `IBlotterDataProvider` contract kept.** It lives in `@marketsui/widgets-react/interfaces.ts` and drives `useBlotterDataConnection`. Legacy per-widget adapter; `StreamProviderBase` is the new multiplexed contract. Both coexist during migration.
+
+### Tests + verification
+
+- 97 tests in `@marketsui/data-plane`:
+  - 46 protocol round-trip (keyed + row-stream opcodes)
+  - 20 keyed-resource cache (LRU / TTL / dedup / isolation)
+  - 10 row cache (upsert / skip / remove / clear)
+  - 12 AppData reactivity
+  - 13 StreamProviderBase (phases / late-joiner / listener safety / lifecycle)
+- `npx turbo typecheck build test` → 58/58 tasks green across the monorepo.
+
+---
+
+## 1.O.W2 — Week 2 (Router + BroadcastManager + DataPlaneClient + transport ladder)
+
+Week 2 bolts the dispatch + transport surface onto the Week-1/1.5 primitives. Nothing about the primitives changed; the new code is purely additive and tested end-to-end through `connectInPage` so every assertion exercises the real wire format.
+
+### What landed in Week 2
+
+| File | What it is |
+|---|---|
+| `src/worker/broadcastManager.ts` + 11 tests | Per-provider port registry with targeted + fan-out delivery, dead-port purge on `postMessage` throws, `removePortFromAll` for port-closed cleanup. Direct port of stern-1's `BroadcastManager` generalised to the data-plane's response union. |
+| `src/worker/providerFactory.ts` | `ProviderFactory` type + `defaultProviderFactory`. Returns a discriminated `{ shape: 'keyed' \| 'stream', provider }` so the router can branch safely. Wrap to add STOMP / WebSocket / SocketIO without touching router code. |
+| `src/worker/router.ts` + 14 tests | The dispatcher. Handles every opcode: `configure / get / put / subscribe / unsubscribe / invalidate / teardown / ping` (keyed-resource) AND `subscribe-stream / get-cached-rows` (row-stream). Owns: in-flight `ProviderCache` per keyed provider, single-flight dedup on `get`, monotonic per-provider `streamSeq` for row updates, port-id generation (`WeakMap<MessagePort, string>`), auto-teardown on idle — but ONLY for stream providers (keyed providers persist in-memory state and must not lose it when the last subscriber leaves). |
+| `src/worker/entry.ts` | `installWorker({ router })` — wires `self.onconnect` (SharedWorker) AND `self.onmessage` (dedicated Worker bootstrap) into the router. Periodic dead-port sweep at configurable interval (default 30s / 60s timeout, matching stern-1). |
+| `src/worker/index.ts` | Subpath barrel `@marketsui/data-plane/worker` for worker assets. |
+| `src/client/DataPlaneClient.ts` + 9 tests | Main-thread SDK. Typed async APIs for every one-shot op (`configure/get/put/invalidate/teardown/ping`) plus `subscribe(k, onUpdate)` / `subscribeStream(listener)` / `getCachedRows()`. `close()` rejects every pending request with `TRANSPORT_CLOSED`. Typed `DataPlaneClientError` (extends `Error`) for every failure so callers can `catch` and branch on `.code` / `.retryable`. |
+| `src/client/fallbacks.ts` | `hasSharedWorker` / `hasDedicatedWorker` probes + `TransportMode` type. |
+| `src/client/connect.ts` | Three entry points: `connectSharedWorker(url)` (production), `connectDedicatedWorker(url)` (fallback for environments without SharedWorker — Safari old / OpenFin view contexts), `connectInPage(router)` (last resort + test path). Auto-degrading `connect({ url, router? })` picks the best available. |
+| `src/client/index.ts` | Subpath barrel `@marketsui/data-plane/client` for main-thread code. |
+| `package.json` exports | Added `./client` + `./worker` subpath exports so consumers can tree-shake. |
+
+### Design decisions worth calling out
+
+- **Two transport modes share one code path.** Everything the router does is `handleRequest(port, req)` — totally oblivious to whether the port came from `SharedWorker.port`, a dedicated `Worker` bootstrap message, or a local `MessageChannel`. This is why the `connectInPage` test path produces the same assertions the SharedWorker would: no simulation of wire-format, just a real Channel.
+- **Keyed providers do NOT auto-teardown on idle.** AppData is pure memory. Tearing down a keyed provider when its last subscriber leaves would silently wipe state. Stream providers DO auto-teardown — they hold network connections we should release. The distinction is enforced in `maybeTeardownProvider` by checking `slot.instance.shape`.
+- **In-flight dedup for `get`.** Three concurrent `client.get(p, k)` calls for the same `(providerId, key)` invoke `provider.fetch` exactly once and all three resolve with the same value. The router uses the `ProviderCache.singleFlight` helper from Week 1.
+- **Row-stream late-joiner semantics preserved end-to-end.** When a port subscribes during the snapshot phase, `StreamProviderBase.registerSubscriber` marks it in `liveSnapshotPorts`. Post-complete, a `get-cached-rows` from that port replies with an empty batch + immediate complete (no double-delivery). Late joiners get the full cached set with `diagnostics.keyColumn` / `cacheSize` attached so the grid can surface key-column mismatches at bootstrap.
+- **Client-side error routing is explicit.** `onSubscribeError` is optional per subscription; protocol `err` frames with a reqId correlate back to the pending promise, everything else fans out to registered listeners.
+- **Dead-port detection is best-effort.** The `entry.ts` heartbeat sweep is the only reliable signal in a SharedWorker (ports don't fire a `close` event). Clients don't need to send explicit heartbeats — every request counts as liveness. 60s timeout (stern-1's value) is the default; consumers can tune via `installWorker({ deadPortTimeoutMs })`.
+
+### Public API surface
+
+```ts
+// Main-thread consumer:
+import { connect, connectInPage, DataPlaneClient } from '@marketsui/data-plane/client';
+import type { AppDataProviderConfig } from '@marketsui/shared-types';
+
+const { client, close } = connect({
+  url: new URL('./myDataWorker.ts', import.meta.url),
+  name: 'my-app-data-plane',
+});
+
+await client.configure('app', { providerType: 'appdata', variables: {} });
+await client.put('app', 'token', 'abc');
+const token = await client.get<string>('app', 'token');
+
+const unsub = await client.subscribeStream<Position>('bond-blotter', {
+  onSnapshotBatch: (b) => grid.applyTransaction({ add: [...b.rows] }),
+  onSnapshotComplete: () => grid.hideLoadingOverlay(),
+  onRowUpdate: (u) => grid.applyTransaction({ update: [...u.rows] }),
+  onError: (err) => console.error(err),
+});
+```
+
+```ts
+// Worker side (Vite asset):
+import { installWorker, Router } from '@marketsui/data-plane/worker';
+
+const router = new Router({
+  providerFactory: async (id, cfg) => {
+    if (cfg.providerType === 'stomp') {
+      const { StompStreamProvider } = await import('./providers/StompStreamProvider');
+      const p = new StompStreamProvider(id);
+      await p.configure(cfg);
+      return { shape: 'stream', provider: p };
+    }
+    const { defaultProviderFactory } = await import('@marketsui/data-plane/worker');
+    return defaultProviderFactory(id, cfg);
+  },
+});
+installWorker({ router });
+```
+
+### Tests + verification
+
+- 129 tests in `@marketsui/data-plane` (up from 97):
+  - 46 protocol round-trip (unchanged)
+  - 20 keyed-resource cache (unchanged)
+  - 10 row cache (unchanged)
+  - 12 AppData reactivity (unchanged)
+  - 13 StreamProviderBase (unchanged)
+  - **11 BroadcastManager (new)** — add/remove/count, fan-out, dead-port purge, targeted delivery
+  - **14 Router (new)** — every opcode, keyed-resource dedup via singleFlight, row-stream snapshot/complete/update sequence, late-joiner via `get-cached-rows`, port-close cleanup distinguishing keyed from stream, ping/pong, BroadcastManager injection
+  - **9 DataPlaneClient (new)** — end-to-end round-trip via `connectInPage`, keyed put/get/subscribe/unsubscribe, row-stream snapshot ordering, late-joiner replay, early-joiner empty replay, typed errors on unconfigured provider, `close()` rejecting pending with `TRANSPORT_CLOSED`
+- `npx turbo typecheck build` on the package: clean
+- Full monorepo sweep `npx turbo typecheck build test`: **58/58 tasks green** (fully cached after first run)
+
+---
+
+## 1.O.W3 — Week 3 (StompStreamProvider — real production STOMP)
+
+Port of stern-1's `StompEngine` onto the Week-1.5 `StreamProviderBase`. Speaks the same wire format as `/Users/develop/Documents/projects/stomp-server/` (the reference broker): subscribe to a listener topic, optionally publish a trigger, consume snapshot batches until a `"Success"`-containing body arrives, then handle every subsequent message as a realtime update.
+
+### What landed
+
+| File | What it is |
+|---|---|
+| `src/providers/StompStreamProvider.ts` | Full subclass of `StreamProviderBase<StompProviderConfig, StompRow>`. `configure()` validates `keyColumn`/`websocketUrl`/`listenerTopic` and rebuilds the internal `RowCache` keyed by the configured column. `start()` constructs a `@stomp/stompjs` client via an injectable factory, resolves `{clientId}` template vars in both `listenerTopic` + `requestMessage`, publishes the optional trigger on `onConnect`. Message handling: trim body → if `body.toLowerCase().includes(snapshotEndToken.toLowerCase())` → `markSnapshotComplete()`; otherwise JSON-parse and route to snapshot/update ingest based on current phase. Supports four payload shapes: top-level array, `{rows: [...]}`, `{data: [...]}`, single-object. Rejects non-JSON frames silently (reference broker occasionally sends control frames). Missing-keyColumn rows counted in `UpsertResult.skipped`. |
+| `src/providers/StompStreamProvider.test.ts` (18 tests) | Full protocol coverage without a live broker — a `FakeClient` implements `StompClientLike` so tests drive the protocol directly. Covers: configure validation (keyColumn / websocketUrl / listenerTopic), start-before-configure throws, onConnect → activate + subscribe + trigger publish, STOMP error propagation, WebSocket error propagation, stop tears down subscription + client + cache, all four payload shapes parse correctly, non-JSON bodies are dropped silently, snapshot-end detection is case-insensitive (`"success"` / `"SUCCESS"` / `"Success"` all match), updates post-complete route through realtime path and upsert the cache, listener ordering (snap → snap → complete → update), `{clientId}` template substitution in topic + trigger destination, stable clientId across stop/start cycles. |
+| `src/worker/providerFactory.ts` | Updated: `defaultProviderFactory` now constructs `StompStreamProvider` for `providerType: 'stomp'`. Added `composeFactory(base, ...overrides)` helper for consumers wiring custom providers. Added `buildStompFactory(createClient)` for injecting the STOMP transport (auth middleware / telemetry). |
+
+### Design decisions
+
+- **Transport injection, not a hard dep.** `@stomp/stompjs` is a peerDependency marked `optional` in the package.json, and the module is `require`-imported lazily inside `defaultCreateClient` only when a real STOMP provider is constructed. Consumers who don't use STOMP pay nothing; consumers who do provide `{ createClient }` can substitute auth middleware without patching our module.
+- **`StompClientLike` structural interface.** The provider doesn't depend on `@stomp/stompjs`'s concrete types at compile time — just a structural shape. That keeps tests totally offline (no live broker) and makes the provider portable to stomp-over-sockjs or stomp-over-webtransport adapters if those ever land.
+- **`{clientId}` stability.** Generated at provider construction and cached in `this.clientId`. A stop/start cycle reuses the same id. This matches the broker's expectation that client identity is stable across reconnects (the broker uses it to index per-client stream state).
+- **Late-joiner semantics inherited for free.** Because `StompStreamProvider` just extends `StreamProviderBase`, the live-snapshot / late-joiner dedup logic from Week 1.5 applies verbatim — no STOMP-specific code had to be written for it.
+
+---
+
+## 1.O.W4 — Week 4 (React bindings — new `@marketsui/data-plane-react` package)
+
+New workspace. Framework isolation per the plan: `@marketsui/data-plane` stays framework-agnostic; every React import lives in the companion package.
+
+### Package
+
+- `packages/data-plane-react/` — `@marketsui/data-plane-react@0.1.0`
+- peerDep: React `>=19.0.0`
+- Depends on `@marketsui/data-plane` + `@marketsui/shared-types`
+
+### What landed
+
+| File | What it is |
+|---|---|
+| `src/context.tsx` | `<DataPlaneProvider>` + `useDataPlaneClient()`. Provider accepts either a pre-built `DataPlaneClient` (caller owns lifetime) or full `connect()` args (provider owns lifetime, tears down on unmount). Hook throws if called outside the provider. |
+| `src/useDataPlaneValue.ts` | `useDataPlaneValue<T>(providerId, key)` — subscribes + fetches initial value. Returns `{ value, isLoading, error }`. Mount: subscribe first (don't miss an update during get), then fetch initial. Unmount / providerId-or-key change: unsubscribe + cancel pending. `fetchInitial: false` option for write-only keys. |
+| `src/useDataPlaneAppData.ts` | `useDataPlaneAppData<T>(providerId, key)` — returns `{ value, setValue, isLoading, error }`. `setValue` is a stable `client.put` wrapper. The backbone of `{{app.token}}`-style bindings: one component writes, all subscribed components re-render. |
+| `src/useDataPlaneRowStream.ts` | `useDataPlaneRowStream<TRow>(providerId, opts)` — two modes. Default: buffered. Hook maintains an internal Map keyed by the provider's `keyColumn`; `rows` reflects the current cached state after every snapshot batch / update. `opts.onEvent` mode: no buffering — every `snapshot-batch` / `snapshot-complete` / `row-update` is forwarded verbatim to the callback, and `rows` stays empty. The onEvent escape hatch is the primary integration point for AG-Grid's `applyTransaction` on large blotters (bypasses React re-renders). |
+| `src/hooks.test.tsx` (5 tests) | RTL + `connectInPage` end-to-end round-trips. Covers: `useDataPlaneAppData` read + subscribe + setValue; `useDataPlaneValue` external-put triggers re-render; `useDataPlaneRowStream` buffered mode accumulates snapshot → flips on complete → upserts on update; `useDataPlaneRowStream` onEvent mode forwards events and keeps `rows` empty; `DataPlaneProvider` throws when hooks run outside. |
+| `src/index.ts` | Public barrel. |
+
+### Why buffered + onEvent
+
+Row-stream providers can deliver 10k+ rows per snapshot. Pushing that into `useState([...prev, ...batch])` is O(n²) and re-renders the tree on every batch. The `onEvent` mode lets grid consumers pipe straight into an imperative sink (AG-Grid `applyTransaction`, Recharts dataset ref, etc.) without React re-renders. The buffered mode covers small-scale cases (app-state-ish streams, demo blotters) where the ergonomics win.
+
+### Tests + verification
+
+- **18 tests** on STOMP provider (offline, via FakeClient)
+- **5 tests** on React hooks (jsdom + RTL + `connectInPage`)
+- **165 tests** total across `@marketsui/data-plane` (up from 129)
+- `npx turbo typecheck build test` on both new packages: clean
+- Full monorepo sweep `npx turbo typecheck build test`: **61/61 tasks green** (up from 58 — new workspace adds typecheck/build/test)
+
+### Consumer usage example
+
+```tsx
+// Near the app root:
+import { DataPlaneProvider } from '@marketsui/data-plane-react';
+
+function App() {
+  return (
+    <DataPlaneProvider connect={{ url: new URL('./dataWorker.ts', import.meta.url), name: 'my-app' }}>
+      <Dashboard />
+    </DataPlaneProvider>
+  );
+}
+
+// AppData usage — a text input backed by a template-binding variable:
+function TokenInput() {
+  const { value, setValue } = useDataPlaneAppData<string>('app', 'token');
+  return <input value={value ?? ''} onChange={(e) => void setValue(e.target.value)} />;
+}
+
+// Row-stream usage — a blotter fed by STOMP:
+function PositionsBlotter() {
+  const gridApiRef = useRef<GridApi>();
+  useDataPlaneRowStream('bond-blotter', {
+    onEvent: {
+      onSnapshotBatch: (b) => gridApiRef.current?.applyTransaction({ add: [...b.rows] }),
+      onSnapshotComplete: () => gridApiRef.current?.hideOverlay(),
+      onRowUpdate: (u) => gridApiRef.current?.applyTransaction({ update: [...u.rows] }),
+    },
+  });
+  return <AgGridReact onGridReady={(p) => { gridApiRef.current = p.api; }} getRowId={getRowId} />;
+}
+```
+
+### What's NOT here yet
+
+- `providers/RestStreamProvider.ts` / `WebSocketStreamProvider.ts` / `SocketIOStreamProvider.ts` — the STOMP pattern is trivially transposable to each, but each has quirks (REST polling backoff; WebSocket binary vs JSON; SocketIO event names). Defer until a consumer actually needs one.
+- `worker/iab-bridge.ts` — cross-app routing (stern-1's AppData + OpenFin IAB pattern). Deferred to the `SHELL_AND_REGISTRY.md` plan rather than pinned to this package.
+- Angular signal bindings (`@marketsui/data-plane-angular`) — analogous shape to the React package.
+- `apps/demo-react` integration with a running STOMP server — requires `/Users/develop/Documents/projects/stomp-server` booted, so scoping as a local dev/e2e cycle rather than a CI artifact.
+- E2E: 4-widgets-one-STOMP-topic assertion that only one outbound WebSocket connects.
+
+---
+
+## 1.P DockEditor + Component Registry — ConfigService alignment
+
+DockEditor and Component Registry now save through the same canonical path as MarketsGrid profiles: generic `ConfigManager.saveConfig(AppConfigRow)` with kebab-case `componentType`, a scope-aware `configId`, and an optional `(appId, userId)` scope parameter.
+
+### The change
+
+Before the refactor, both editors wrote to unscoped global rows with inconsistent conventions: `ConfigManager` carried domain-specific shim methods (`saveDockConfig`, `loadDockConfig`, `clearDockConfig`) that hardcoded `configId: "dock-config"`, `appId: ""`, `userId: "system"`, `componentType: "DOCK"` (uppercase). Registry was analogous with `componentType: "REGISTRY"` and `componentSubType: "EDITOR"`. Neither followed the `markets-grid-profile-set` pattern established by `createConfigServiceStorage`.
+
+### What shipped
+
+| File | Change |
+|---|---|
+| `packages/shared-types/src/configuration.ts` | Added `COMPONENT_TYPES.DOCK_CONFIG = 'dock-config'`, `COMPONENT_TYPES.COMPONENT_REGISTRY = 'component-registry'`, `COMPONENT_TYPES.MARKETS_GRID_PROFILE_SET = 'markets-grid-profile-set'` as the canonical discriminators. |
+| `packages/config-service/src/config-manager.ts` | Removed `saveDockConfig()`, `loadDockConfig()`, `clearDockConfig()` shims + the `DOCK_CONFIG_ID` constant. ConfigManager is now purely generic `(configId → AppConfigRow)`; domain knowledge lives in consumer packages. |
+| `packages/openfin-platform/src/db.ts` | Rewritten. Exports `saveDockConfig(config, scope?)`, `loadDockConfig(scope?)`, `clearDockConfig(scope?)`, and the matching Registry trio. All build `AppConfigRow` directly and call generic `saveConfig`. Preserves `creationTime` on overwrite. New `ConfigScope` type. `scopedConfigId(base, scope)` composes a `${base}::${appId}::${userId}` primary key when scope differs from the default — legacy default-scope writes keep the bare `configId` for back-compat. Load paths tolerate legacy `componentType: "DOCK"` / `"REGISTRY"` rows so existing Dexie data survives the upgrade. |
+| `packages/openfin-platform/src/workspace.ts` | `exportAllConfig()` now reads dock + registry rows via generic `cm.getConfig('dock-config')` / `cm.getConfig('component-registry')` instead of the deleted shims. |
+| `packages/openfin-platform/src/index.ts` + `config-only.ts` | Export the new `ConfigScope` type. |
+| `packages/dock-editor-react/src/hooks/useDockEditor.ts` | New `UseDockEditorOptions { scope? }` parameter. Hook threads `scope` through load/save/clear. Default behaviour unchanged (no scope → global singleton). |
+| `packages/dock-editor-angular/src/dock-editor/dock-editor.service.ts` | Added `setScope(scope)` + private `scope` field; service threads it through load/save/clear. Same back-compat default. |
+| `packages/registry-editor-react/src/hooks/useRegistryEditor.ts` | New `UseRegistryEditorOptions { scope? }` parameter; same threading pattern. |
+| `packages/registry-editor-angular/src/registry-editor/registry-editor.service.ts` | Same `setScope()` pattern as dock editor. |
+
+### Canonical `AppConfigRow` shape each editor now writes
+
+```ts
+// DockEditor:
+{
+  configId: 'dock-config' | `dock-config::${appId}::${userId}`,
+  appId: 'system' | <hostApp>,
+  userId: 'system' | <signedInUser>,
+  displayText: 'Dock Configuration',
+  componentType: 'dock-config',          // kebab-case, matches MarketsGrid style
+  componentSubType: '',
+  isTemplate: false,
+  payload: DockEditorConfig,             // unchanged interior shape
+  createdBy, updatedBy, creationTime, updatedTime,
+}
+
+// Component Registry:
+{
+  configId: 'component-registry' | `component-registry::${appId}::${userId}`,
+  appId: 'system' | <hostApp>,
+  userId: 'system' | <signedInUser>,
+  displayText: 'Component Registry',
+  componentType: 'component-registry',
+  componentSubType: '',
+  isTemplate: false,
+  payload: RegistryEditorConfig,
+  createdBy, updatedBy, creationTime, updatedTime,
+}
+```
+
+### Back-compat story
+
+- Existing rows with `componentType: "DOCK"` / `"REGISTRY"` at `configId: "dock-config"` / `"component-registry"` still load (the fallback branch in the new `loadDockConfig` / `loadRegistryConfig`).
+- On the next save with default scope, they're overwritten with the canonical `dock-config` / `component-registry` componentType.
+- The `exportAllConfig()` path in `workspace.ts` continues to see them either way.
+- Non-default scope creates new `${base}::${appId}::${userId}` rows; legacy default-scope rows remain untouched until re-saved under the default scope.
+
+### Per-user / per-app scoping
+
+Host apps that want per-user registries or dock layouts opt in by passing scope:
+
+```tsx
+// React
+const { save, ...rest } = useDockEditor({ scope: { appId, userId } });
+const { save: saveReg, ...registryRest } = useRegistryEditor({ scope: { appId, userId } });
+
+// Angular (DockEditorService / RegistryEditorService)
+dockService.setScope({ appId, userId });
+await dockService.init(); // (for RegistryEditorService — Dock service loads in constructor)
+```
+
+Without a scope argument, both services keep the historical global-singleton behaviour so existing call-sites are unaffected.
+
+### Architecture win
+
+`ConfigManager` is now a purely generic (configId → AppConfigRow) store — no domain-specific shims. Every editor that wants to persist config follows the same pattern as `createConfigServiceStorage`:
+
+1. Build an `AppConfigRow` with your canonical componentType (kebab-case, exported from `shared-types`).
+2. Compose a scope-aware `configId` if multiple instances per user/app are needed.
+3. Call `manager.saveConfig(row)`.
+4. Preserve `creationTime` by reading the existing row first.
+
+Config Browser sees Dock + Registry rows in the same table as MarketsGrid's `markets-grid-profile-set` rows, with `appId` + `userId` filters working identically.
+
+### Verification
+
+- `npx turbo typecheck build test` → **61/61 tasks green**
+- No changes to payload shapes — `DockEditorConfig` + `RegistryEditorConfig` are identical on the wire, so existing Dexie data + REST payloads continue to deserialize.
+- All hook consumer call-sites are source-compatible (new `scope` parameter is optional).
+
+---
+
+## 1.Q DockEditor ↔ Component Registry integration
+
+A dock menu item can now launch a component selected from the Component Registry. At edit time, the menu-item form shows a dropdown of every registered entry. At runtime, clicking the dock item resolves the entry from the live registry and launches it as an OpenFin View (default) or Window (opt-in).
+
+### Why the design avoids a "registered component" flag
+
+The dock editor reads a single, well-known ConfigService row (`componentType: 'component-registry'`) via `loadRegistryConfig()` and iterates its `payload.entries[]` directly. **Every entry in that array is, by definition, a registered component.** No additional "is-launchable" flag is needed; being in the registry's entries IS the signal. The `componentType` / `componentSubType` on each entry describe the registered thing (e.g. `'grid'` + `'stomp'`), not whether it's launchable.
+
+### What landed
+
+| File | Change |
+|---|---|
+| `packages/openfin-platform/src/iab-topics.ts` | New `ACTION_LAUNCH_COMPONENT = 'launch-component'` constant alongside the existing dock action IDs. |
+| `packages/openfin-platform/src/launch.ts` | New `launchRegisteredComponent(entryId, { asWindow? })` helper. Loads the live registry, finds the entry by id, builds `customData` identical to `registry-editor/testComponent()`, and calls `platform.createView` (default) or `fin.Window.create` (when `asWindow`). Missing ids log a warning and no-op — never throw. |
+| `packages/openfin-platform/src/workspace.ts` | Registers `[ACTION_LAUNCH_COMPONENT]` in both `customActions` (CustomButton / CustomDropdownItem callers) and `dockActionHandlers` (Dock3 launchEntry path). Each delegates to `launchRegisteredComponent`. |
+| `packages/openfin-platform/src/dock.ts` + `index.ts` + `config-only.ts` | Re-export `ACTION_LAUNCH_COMPONENT` + `launchRegisteredComponent` + `LaunchRegisteredComponentOptions` so consumers can import from the main barrel or the `/config` subpath. |
+| `packages/dock-editor-react/src/hooks/useDockEditor.ts` | Loads the registry on mount via `loadRegistryConfig(scope)`, subscribes to `IAB_REGISTRY_CONFIG_UPDATE` so edits in another window propagate live, exposes `registryEntries: RegistryEntry[]` on the hook return. |
+| `packages/dock-editor-react/src/components/dock-editor/ItemFormDialog.tsx` | New `customData?: unknown` field on `ItemFormData`. New `registryEntries?: RegistryEntry[]` prop. When `actionId === ACTION_LAUNCH_COMPONENT`, renders a sorted `<select>` of entries (with `componentType / componentSubType` hint) and a "Launch in new window" checkbox. Quick-set "🧩 Launch a registered component…" button flips the action so users don't need to type the action id. |
+| `packages/dock-editor-react/src/DockEditor.tsx` | Threads `registryEntries` to all three `<ItemFormDialog>` instances (add-toolbar, add-child, edit). All three save handlers preserve `customData` on ActionButton + menu-item paths. Edit seed reads existing `customData` so the dropdown pre-selects the saved registry id. |
+| `packages/dock-editor-angular/src/dock-editor/dock-editor.service.ts` | Adds `_registryEntries: signal<RegistryEntry[]>` + public `registryEntries()` computed. `loadRegistryAndSubscribe()` runs in the constructor and binds an IAB unsubscribe to `ngOnDestroy`. |
+| `packages/dock-editor-angular/src/dock-editor/item-form/item-form.component.ts` | `ItemFormData` extended with `customData?: unknown`. New `@Input() registryEntries: RegistryEntry[]`. Two `signal()`s back the launch-component fields. Template adds the registry `<select>`, the "Launch in new window" toggle, and the quick-set button. `onSave()` blocks when launch-component is selected without a registry pick. |
+| `packages/dock-editor-angular/src/dock-editor/dock-editor.component.ts` | Passes `[registryEntries]="service.registryEntries()"` to `<mkt-item-form>`. `onEditItem` seeder reads existing `customData`; `onDialogSaved` writes it back through `addButton` / `updateButton` / `addMenuItem` / `updateMenuItem`. |
+
+### Runtime flow
+
+1. User opens the dock editor, picks a button or menu item, clicks the quick-set button.
+2. Form switches to the `launch-component` action; a sorted dropdown of registry entries appears.
+3. User picks an entry, optionally checks "Launch in new window", saves.
+4. Dock config persists with `actionId: 'launch-component'` + `customData: { registryEntryId, asWindow? }` — schema-compatible with `AppConfigRow` (the dock saves through the canonical `dock-config` componentType from §1.P).
+5. At runtime, OpenFin invokes the `customActions['launch-component']` handler in `workspace.ts`, which calls `launchRegisteredComponent`. That helper reads `loadRegistryConfig()`, finds the entry by id, and creates the View / Window with `customData = { instanceId, templateId, componentType, componentSubType, appId, configServiceUrl }` — the same shape `registry-editor/testComponent()` uses.
+
+### Graceful failure
+
+- Registry entry deleted between dock save + click → console warning, no crash.
+- `customData.registryEntryId` missing or malformed → console warning, no crash.
+- Registry not yet loaded → `loadRegistryConfig` returns `null`, helper logs the missing id and returns `undefined`.
+
+### Verification
+
+- `npx turbo typecheck build test` → **61/61 tasks green** (no regressions outside this feature).
+- The `dock-config` AppConfigRow shape is unchanged; only optional `customData` payloads grow new structured fields. Existing dock configs without launch-component menu items load identically.
+- Live propagation: editing a registry entry's `displayName` in the registry-editor window → IAB publishes → dock editor's open dropdown re-renders. No reload required.
+
+### Deferred
+
+- **"Add all from registry" bulk-import button** in the dock editor — cheap follow-up that creates one ActionButton per registry entry in a single click.
+- **Visible warning badge** in the rendered dock when a referenced entry is missing — currently we log + no-op; a disabled/badged item would be a nicer UX. Out of scope for v1.
+
+---
+
 ## 2. Summary Statistics
 
 | Category | Count |
