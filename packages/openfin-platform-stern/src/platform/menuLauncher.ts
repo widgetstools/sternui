@@ -5,7 +5,7 @@
  */
 
 import { getCurrentSync } from '@openfin/workspace-platform';
-import type { DockMenuItem } from '../types/dockConfig.js';
+import type { DockMenuItem } from '@marketsui/shared-types';
 import { buildUrl } from '../utils/urlHelper.js';
 import { platformContext } from '../core/PlatformContext.js';
 

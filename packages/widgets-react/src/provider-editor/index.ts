@@ -17,9 +17,3 @@ export {
   useDeleteDataProvider,
   dataProviderKeys,
 } from './hooks/useDataProviderQueries.js';
-
-// ─── Service ────────────────────────────────────
-export { DataProviderConfigService, dataProviderConfigService } from './services/dataProviderConfigService.js';
-
-// ─── STOMP Provider (for field inference in non-React contexts) ──────────────
-export { StompDataProvider } from './stomp/StompDatasourceProvider.js';

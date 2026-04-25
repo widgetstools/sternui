@@ -59,5 +59,8 @@
     "dist",
     "src/themes",
     "src/icons"
-  ]
+  ],
+  "dependencies": {
+    "turbo": "^2.9.6"
+  }
 }

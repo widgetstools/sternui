@@ -1,6 +1,9 @@
 /**
- * STOMP Data Provider
- * Based on stern-1 implementation with field inference capabilities.
+ * STOMP Data Provider — snapshot fetching and field inference.
+ *
+ * Distinct from `StompStreamProvider` (a continuous-stream Provider for the
+ * data-plane runtime). This class is for one-shot snapshot retrieval used by
+ * provider-configuration tooling (UI editors, CLI inspectors).
  *
  * Features:
  * - WebSocket connection via @stomp/stompjs
@@ -72,7 +75,6 @@ export class StompDataProvider {
       try {
         testClient.activate();
 
-        // Timeout after 10 seconds
         setTimeout(() => {
           try { testClient.deactivate(); } catch { /* ignore */ }
           resolve(false);
@@ -114,7 +116,6 @@ export class StompDataProvider {
               try {
                 const data = JSON.parse(message.body);
 
-                // Check for snapshot end token
                 if (data.snapshotToken === snapshotEndToken || data.status === snapshotEndToken) {
                   console.log('[StompProvider] Snapshot complete token received');
                   snapshotComplete = true;
@@ -124,7 +125,6 @@ export class StompDataProvider {
                   return;
                 }
 
-                // Process data rows
                 const rows = data.rows || data.data || (Array.isArray(data) ? data : [data]);
 
                 if (rows.length > 0) {
@@ -162,7 +162,6 @@ export class StompDataProvider {
             }
           );
 
-          // Send snapshot request if configured
           if (this.config.requestMessage) {
             console.log('[StompProvider] Sending snapshot request', this.config.requestMessage);
             client.publish({

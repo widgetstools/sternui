@@ -20,3 +20,8 @@ export {
   type StompProviderOpts,
   type StompRow,
 } from './StompStreamProvider';
+export {
+  StompDataProvider,
+  type StompConnectionConfig,
+  type StompConnectionResult,
+} from './StompDataProvider';

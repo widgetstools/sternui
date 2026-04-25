@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DataProviderConfig } from '@marketsui/shared-types';
 import { useToast } from '@marketsui/ui';
-import { dataProviderConfigService } from '../services/dataProviderConfigService.js';
+import { dataProviderConfigService } from '@marketsui/data-plane';
 
 export const dataProviderKeys = {
   all: ['dataProviders'] as const,

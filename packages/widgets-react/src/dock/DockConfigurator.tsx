@@ -31,7 +31,7 @@ import {
   duplicateMenuItem,
   moveMenuItem,
   countItems,
-} from '@marketsui/openfin-platform-stern';
+} from '@marketsui/shared-types';
 
 // ============================================================================
 // Types

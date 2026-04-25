@@ -7,7 +7,7 @@
  */
 
 import { buildUrl } from './urlHelper.js';
-import type { DockMenuItem } from '../types/dockConfig.js';
+import type { DockMenuItem } from '@marketsui/shared-types';
 
 interface IconCategory {
   baseName: string;

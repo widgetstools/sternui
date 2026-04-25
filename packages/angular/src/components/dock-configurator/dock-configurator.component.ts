@@ -19,7 +19,7 @@ import {
   addMenuItem,
   duplicateMenuItem,
   countItems,
-} from '@marketsui/openfin-platform-stern';
+} from '@marketsui/shared-types';
 import { TreeNodeComponent } from './tree-node.component';
 import { PropertiesPanelComponent } from './properties-panel.component';
 

@@ -70,8 +70,8 @@ const ConfigId = {
 import { THEME_PALETTES } from './platform/openfinThemePalettes.js';
 import { buildUrl } from './utils/urlHelper.js';
 import { registerConfigLookupCallback } from './platform/menuLauncher.js';
-import type { DockMenuItem } from './types/dockConfig.js';
-import { createMenuItem } from './types/dockConfig.js';
+import type { DockMenuItem } from '@marketsui/shared-types';
+import { createMenuItem } from '@marketsui/shared-types';
 
 // ============================================================================
 // AppContext

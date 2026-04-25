@@ -14,19 +14,6 @@ export type { ILogger, IConfigService, IViewManager, ViewInstance, CreateViewOpt
 export { ConsoleLogger } from './core/interfaces.js';
 export { platformContext } from './core/PlatformContext.js';
 
-// ─── Types ──────────────────────────────────────
-export type {
-  DockMenuItem,
-  DockButton,
-  DockButtonOption,
-  DockConfigFilter,
-} from './types/dockConfig.js';
-export {
-  DEFAULT_WINDOW_OPTIONS,
-  DEFAULT_VIEW_OPTIONS,
-  createMenuItem,
-} from './types/dockConfig.js';
-
 export * from './types/openfin.js';
 export * from './types/openfinEvents.js';
 
@@ -69,16 +56,6 @@ export {
 export type { ConfigLookupResult, ConfigLookupCallback } from './platform/menuLauncher.js';
 
 // ─── Dock Utils ─────────────────────────────────
-export {
-  findMenuItem,
-  updateMenuItem,
-  deleteMenuItem,
-  addMenuItem,
-  duplicateMenuItem,
-  moveMenuItem,
-  countItems,
-  getAllItemIds,
-} from './utils/treeUtils.js';
 export { getDefaultMenuIcon } from './utils/defaultIcons.js';
 
 // ─── Bootstrap ──────────────────────────────────

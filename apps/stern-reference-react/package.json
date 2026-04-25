@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "export NODE_OPTIONS=--disable-warning=ExperimentalWarning && tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "openfin": "node ../../tools/scripts/launch-openfin.mjs http://localhost:5173/manifest.fin.json",
@@ -15,6 +15,7 @@
     "@openfin/core": "43.101.4",
     "@openfin/workspace": "23.0.20",
     "@openfin/workspace-platform": "23.0.20",
+    "@marketsui/data-plane": "*",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/tokens-primeng": "1.0.0",

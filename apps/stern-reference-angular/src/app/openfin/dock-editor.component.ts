@@ -10,7 +10,7 @@
 
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import type { DockMenuItem } from '@marketsui/openfin-platform-stern';
+import type { DockMenuItem } from '@marketsui/shared-types';
 import { DockConfiguratorComponent } from '@marketsui/angular';
 
 declare const fin: any;

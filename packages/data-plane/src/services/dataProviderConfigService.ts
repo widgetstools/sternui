@@ -27,18 +27,15 @@ export class DataProviderConfigService {
     this.apiBase = `${base}/api/v1/configurations`;
   }
 
-  /**
-   * Convert DataProviderConfig to UnifiedConfig format for storage.
-   */
   private toUnifiedConfig(provider: DataProviderConfig, userId: string): Partial<UnifiedConfig> {
     const componentSubType = PROVIDER_TYPE_TO_COMPONENT_SUBTYPE[provider.providerType];
     if (!componentSubType) {
       throw new Error(`Unknown provider type: ${provider.providerType}`);
     }
 
-    // Extra per-provider fields (description, tags, isDefault) don't
-    // have first-class columns in the unified schema, so we stash them
-    // inside the opaque `payload`.
+    // Extra per-provider fields (description, tags, isDefault) don't have
+    // first-class columns in the unified schema, so we stash them inside
+    // the opaque `payload`.
     const payload: Record<string, unknown> = {
       ...(provider.config as unknown as Record<string, unknown>),
       __providerMeta: {
@@ -61,9 +58,6 @@ export class DataProviderConfigService {
     };
   }
 
-  /**
-   * Convert UnifiedConfig back to DataProviderConfig format.
-   */
   private fromUnifiedConfig(config: UnifiedConfig): DataProviderConfig {
     const providerType = COMPONENT_SUBTYPE_TO_PROVIDER_TYPE[config.componentSubType || ''];
     if (!providerType) {
@@ -141,7 +135,7 @@ export class DataProviderConfigService {
 
     const configs: UnifiedConfig[] = await res.json();
 
-    // Filter by componentType case-insensitively for backward compatibility
+    // Filter componentType case-insensitively for backward compatibility.
     return configs
       .filter(c => {
         const type = c.componentType?.toLowerCase();

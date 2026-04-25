@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { buildUrl, bootstrapPlatform, type DockMenuItem, createMenuItem } from '@marketsui/openfin-platform-stern';
+import { buildUrl, bootstrapPlatform } from '@marketsui/openfin-platform-stern';
+import { type DockMenuItem, createMenuItem } from '@marketsui/shared-types';
 import { DockConfigurator } from '@marketsui/widgets-react';
 import * as dock from './openfinDock.js';
 

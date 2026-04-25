@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import type { DockMenuItem } from '@marketsui/openfin-platform-stern';
+import type { DockMenuItem } from '@marketsui/shared-types';
 
 @Component({
   selector: 'stern-properties-panel',

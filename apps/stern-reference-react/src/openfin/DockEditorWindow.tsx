@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { DockConfigurator } from '@marketsui/widgets-react';
-import type { DockMenuItem } from '@marketsui/openfin-platform-stern';
+import type { DockMenuItem } from '@marketsui/shared-types';
 
 /**
  * Dock Editor — rendered in a standalone fin.Window at /dock-editor.

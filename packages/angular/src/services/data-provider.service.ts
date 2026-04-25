@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import type { DataProviderConfig } from '@marketsui/shared-types';
-import { DataProviderConfigService } from '@marketsui/widgets-react';
+import { DataProviderConfigService } from '@marketsui/data-plane';
 
 @Injectable({ providedIn: 'root' })
 export class DataProviderService {

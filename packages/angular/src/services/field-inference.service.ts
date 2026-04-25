@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import type { StompProviderConfig, FieldNode } from '@marketsui/shared-types';
 import { convertFieldInfoToNode, collectNonObjectLeaves, findFieldByPath } from '@marketsui/shared-types';
-import { StompDataProvider } from '@marketsui/widgets-react';
+import { StompDataProvider } from '@marketsui/data-plane';
 
 export interface FieldInferenceState {
   inferring: boolean;

@@ -2,7 +2,7 @@
  * Tree Utilities — immutable operations on DockMenuItem[] trees.
  */
 
-import type { DockMenuItem } from '../types/dockConfig.js';
+import type { DockMenuItem } from './dockConfig.js';
 
 /** Recursively find a menu item by id. */
 export function findMenuItem(items: DockMenuItem[], id: string): DockMenuItem | null {
@@ -105,14 +105,12 @@ export function moveMenuItem(
   const source = findMenuItem(items, sourceId);
   if (!source) return items;
 
-  // Remove from current location
   let result = deleteMenuItem(items, sourceId);
 
   if (position === 'inside') {
     return addMenuItem(result, source, targetId);
   }
 
-  // Insert before/after target
   return insertRelative(result, source, targetId, position);
 }
 

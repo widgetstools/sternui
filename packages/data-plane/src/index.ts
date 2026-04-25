@@ -42,13 +42,23 @@ export {
   MockProvider,
   AppDataProvider,
   StreamProviderBase,
+  StompDataProvider,
   type Unsubscribe as ProviderUnsubscribe,
   type ProviderEmitter,
   type MockRow,
   type MockSnapshot,
   type StreamProviderListener,
   type StreamStatistics,
+  type StompConnectionConfig,
+  type StompConnectionResult,
 } from './providers';
+
+// Framework-agnostic services for managing data-provider configuration
+// (CRUD over the unified-config REST API).
+export {
+  DataProviderConfigService,
+  dataProviderConfigService,
+} from './services';
 
 // Main-thread SDK — the vast majority of app consumers only need this
 // surface. Import from `@marketsui/data-plane/client` to avoid pulling

@@ -1,6 +1,7 @@
 import React from 'react';
 import { WidgetHost, BrowserAdapter, WidgetRegistry } from '@marketsui/widget-sdk';
-import { BlotterProvider, dataProviderConfigService } from '@marketsui/widgets-react';
+import { BlotterProvider } from '@marketsui/widgets-react';
+import { dataProviderConfigService } from '@marketsui/data-plane';
 import type { IBlotterDataProvider, IActionRegistry } from '@marketsui/widgets-react';
 import { MockDataProvider } from '../data/MockDataProvider.js';
 import { widgetRegistry } from '../registry/widgetRegistry.js';

@@ -31,6 +31,7 @@
     "@openfin/workspace-platform": "23.0.20"
   },
   "dependencies": {
+    "@marketsui/data-plane": "*",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/widget-sdk": "1.0.0",

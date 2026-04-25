@@ -12,7 +12,8 @@
 
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { bootstrapPlatform, buildUrl, createMenuItem, type DockMenuItem } from '@marketsui/openfin-platform-stern';
+import { bootstrapPlatform, buildUrl } from '@marketsui/openfin-platform-stern';
+import { createMenuItem, type DockMenuItem } from '@marketsui/shared-types';
 import { DockConfiguratorComponent } from '@marketsui/angular';
 import * as dock from './openfinDock';
 

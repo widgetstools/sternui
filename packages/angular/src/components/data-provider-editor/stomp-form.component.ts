@@ -13,7 +13,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { Subject, takeUntil } from 'rxjs';
 import type { StompProviderConfig, FieldNode } from '@marketsui/shared-types';
 import { filterFields, collectNonObjectLeaves } from '@marketsui/shared-types';
-import { StompDataProvider } from '@marketsui/widgets-react';
+import { StompDataProvider } from '@marketsui/data-plane';
 import { FieldInferenceService, type FieldInferenceState } from '../../services/field-inference.service';
 
 // ─── AG Grid ──────────────────────────────────────────────────────────────────

@@ -24,11 +24,11 @@ import {
 } from '@openfin/workspace-platform';
 import {
   buildUrl,
-  type DockMenuItem,
   OpenFinCustomEvents,
   launchMenuItem,
 } from '@marketsui/openfin-platform-stern';
 import { getDefaultMenuIcon } from '@marketsui/openfin-platform-stern';
+import type { DockMenuItem } from '@marketsui/shared-types';
 
 // ============================================================================
 // Module State
