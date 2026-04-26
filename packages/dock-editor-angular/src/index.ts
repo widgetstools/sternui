@@ -15,6 +15,7 @@
 export { DockEditorComponent } from './dock-editor/dock-editor.component';
 export { DockEditorService   } from './dock-editor/dock-editor.service';
 export { ImportConfigComponent } from './import-config/import-config.component';
+export { WorkspaceSetupComponent } from './workspace-setup/workspace-setup.component';
 
 // Form types (useful for host apps that extend the editor)
 export type { ItemFormData } from './dock-editor/item-form/item-form.component';

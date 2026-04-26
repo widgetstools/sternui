@@ -53,4 +53,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./views/import-config-page.component').then((m) => m.ImportConfigPageComponent),
   },
+  {
+    path: 'workspace-setup',
+    loadComponent: () =>
+      import('./views/workspace-setup-page.component').then((m) => m.WorkspaceSetupPageComponent),
+  },
 ];
