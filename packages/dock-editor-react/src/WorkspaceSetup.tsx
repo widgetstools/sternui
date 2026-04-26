@@ -91,6 +91,52 @@ export function WorkspaceSetup() {
     registry.dispatch({ type: "UPDATE_ENTRY", id, entry: { ...current, ...patch } });
   }, [registry]);
 
+  // ─── Dock CRUD bridges ──────────────────────────────────────────
+  // Add a registry entry as a top-level launch-component button on
+  // the dock. No-op if it's already in the dock — the inDockEntryIds
+  // set covers that — but the InspectorPane only shows the button
+  // when the entry is NOT already there, so callers don't normally
+  // race past this guard.
+  const handleAddToDock = useCallback((entry: RegistryEntry) => {
+    if (inDockEntryIds.has(entry.id)) return;
+    const newButtonId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `btn-${Date.now()}`;
+    dock.dispatch({
+      type: "ADD_BUTTON",
+      button: {
+        type: "ActionButton",
+        id: newButtonId,
+        tooltip: entry.displayName || "Untitled",
+        iconUrl: "",
+        iconId: entry.iconId,
+        iconColor: "",
+        actionId: ACTION_LAUNCH_COMPONENT,
+        customData: {
+          registryEntryId: entry.id,
+          asWindow: false,
+        },
+      },
+    });
+    // Move selection to the new dock item so the inspector gives
+    // immediate feedback that placement happened
+    setSelection({ kind: "dock-item", itemId: newButtonId });
+  }, [dock, inDockEntryIds]);
+
+  const handleRemoveFromDock = useCallback((buttonId: string) => {
+    dock.dispatch({ type: "REMOVE_BUTTON", id: buttonId });
+    if (selection.kind === "dock-item" && selection.itemId === buttonId) {
+      setSelection({ kind: "none" });
+    }
+  }, [dock, selection]);
+
+  const handleReorderDock = useCallback((fromIndex: number, toIndex: number) => {
+    const max = dock.buttons.length - 1;
+    if (toIndex < 0 || toIndex > max || fromIndex === toIndex) return;
+    dock.dispatch({ type: "REORDER_BUTTONS", fromIndex, toIndex });
+  }, [dock]);
+
   // Save — writes BOTH registry and dock if dirty.
   const handleSaveAll = useCallback(async () => {
     if (registry.isDirty) await registry.save();
@@ -159,12 +205,15 @@ export function WorkspaceSetup() {
           entries={registry.entries}
           selection={selection}
           onSelect={setSelection}
+          onRemove={handleRemoveFromDock}
+          onReorder={handleReorderDock}
         />
         <InspectorPane
           selection={selection}
           entries={registry.entries}
           onChange={handleEntryChange}
           onTest={registry.testComponent}
+          onAddToDock={handleAddToDock}
           inDockEntryIds={inDockEntryIds}
           summary={summary}
         />

@@ -17,7 +17,7 @@
  */
 
 import { useMemo } from "react";
-import { PlayCircle, AlertCircle } from "lucide-react";
+import { PlayCircle, AlertCircle, ArrowRight } from "lucide-react";
 import type { RegistryEntry } from "@marketsui/openfin-platform/config";
 import { deriveSingletonConfigId, generateTemplateConfigId } from "@marketsui/openfin-platform/config";
 import type { EditorSelection } from "./types";
@@ -27,6 +27,8 @@ interface InspectorPaneProps {
   entries: RegistryEntry[];
   onChange: (id: string, patch: Partial<RegistryEntry>) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
+  /** Add the selected component to the user's dock as a top-level button. */
+  onAddToDock: (entry: RegistryEntry) => void;
   inDockEntryIds: Set<string>;
   /** Counts for the "nothing selected" summary card. */
   summary: {
@@ -42,6 +44,7 @@ export function InspectorPane({
   entries,
   onChange,
   onTest,
+  onAddToDock,
   inDockEntryIds,
   summary,
 }: InspectorPaneProps) {
@@ -79,6 +82,7 @@ export function InspectorPane({
     entries={entries}
     onChange={(patch) => onChange(entry.id, patch)}
     onTest={onTest}
+    onAddToDock={onAddToDock}
     isInDock={inDockEntryIds.has(entry.id)}
   />;
 }
@@ -117,12 +121,14 @@ function ComponentForm({
   entries,
   onChange,
   onTest,
+  onAddToDock,
   isInDock,
 }: {
   entry: RegistryEntry;
   entries: RegistryEntry[];
   onChange: (patch: Partial<RegistryEntry>) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
+  onAddToDock: (entry: RegistryEntry) => void;
   isInDock: boolean;
 }) {
   // Uniqueness check: another entry with the same (componentType, subType)?
@@ -285,18 +291,37 @@ function ComponentForm({
         </Field>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: "var(--bn-border)" }}>
-          <button
-            type="button"
-            onClick={() => void onTest(entry)}
-            disabled={!entry.hostUrl}
-            className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-            style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
-          >
-            <PlayCircle className="w-3 h-3" /> Test Launch
-          </button>
+        <div className="flex flex-col gap-2 pt-2 border-t" style={{ borderColor: "var(--bn-border)" }}>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void onTest(entry)}
+              disabled={!entry.hostUrl}
+              className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
+            >
+              <PlayCircle className="w-3 h-3" /> Test Launch
+            </button>
+            {!isInDock && (
+              <button
+                type="button"
+                onClick={() => onAddToDock(entry)}
+                disabled={!entry.hostUrl}
+                className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                style={{
+                  background: "var(--bn-bg2)",
+                  border: "1px solid var(--bn-border)",
+                  color: "var(--bn-t0)",
+                }}
+              >
+                <ArrowRight className="w-3 h-3" /> Add to your dock
+              </button>
+            )}
+          </div>
           <span className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
-            {isInDock ? "Currently in your dock" : "Not in your dock yet"}
+            {isInDock
+              ? "✓ Currently in your dock"
+              : "Not in your dock yet — click \"Add to your dock\" to surface it"}
           </span>
         </div>
       </div>

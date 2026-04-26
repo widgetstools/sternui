@@ -14,6 +14,7 @@
  * working editor (Components + Inspector are fully functional now).
  */
 
+import { ChevronUp, ChevronDown, X } from "lucide-react";
 import type {
   DockEditorConfig,
   DockButtonConfig,
@@ -29,10 +30,16 @@ interface DockPaneProps {
   entries: RegistryEntry[];
   selection: EditorSelection;
   onSelect: (sel: EditorSelection) => void;
+  /** Remove a top-level dock button by its id. */
+  onRemove: (buttonId: string) => void;
+  /** Reorder the top-level dock buttons. fromIndex / toIndex are
+   *  positions in the buttons[] array. Out-of-range moves are no-ops. */
+  onReorder: (fromIndex: number, toIndex: number) => void;
 }
 
-export function DockPane({ dock, entries, selection, onSelect }: DockPaneProps) {
+export function DockPane({ dock, entries, selection, onSelect, onRemove, onReorder }: DockPaneProps) {
   const entriesById = new Map(entries.map((e) => [e.id, e]));
+  const buttons = dock?.buttons ?? [];
 
   return (
     <div className="flex flex-col h-full border-r" style={{ borderColor: "var(--bn-border)" }}>
@@ -48,23 +55,25 @@ export function DockPane({ dock, entries, selection, onSelect }: DockPaneProps) 
       </div>
 
       <div className="flex-1 overflow-auto p-3">
-        {(!dock || dock.buttons.length === 0) && (
+        {buttons.length === 0 && (
           <div className="rounded-md border border-dashed p-4 text-center text-xs" style={{
             borderColor: "var(--bn-border)",
             color: "var(--bn-t2)",
           }}>
-            Your dock has no buttons yet. (In a follow-up commit you'll
-            be able to drag a component here from pane ①. For now use
-            the existing Dock Editor to add buttons.)
+            Your dock has no buttons yet. Select a component on the left
+            and click <strong>Add to your dock</strong> to surface it here.
           </div>
         )}
-        {dock?.buttons.map((btn) => (
+        {buttons.map((btn, idx) => (
           <DockButton
             key={btn.id}
             button={btn}
             entriesById={entriesById}
             selection={selection}
             onSelect={onSelect}
+            onRemove={() => onRemove(btn.id)}
+            onMoveUp={idx > 0 ? () => onReorder(idx, idx - 1) : undefined}
+            onMoveDown={idx < buttons.length - 1 ? () => onReorder(idx, idx + 1) : undefined}
           />
         ))}
       </div>
@@ -77,32 +86,69 @@ function DockButton({
   entriesById,
   selection,
   onSelect,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
 }: {
   button: DockButtonConfig;
   entriesById: Map<string, RegistryEntry>;
   selection: EditorSelection;
   onSelect: (sel: EditorSelection) => void;
+  onRemove: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const isDropdown = button.type === "DropdownButton";
   const dropdown = isDropdown ? (button as DockDropdownButtonConfig) : null;
   const isSelected = selection.kind === "dock-item" && selection.itemId === button.id;
+
+  // For launch-component buttons, surface the referenced component name
+  // and a broken-reference indicator next to the button label.
+  const isLaunchComponent = (button as { actionId?: string }).actionId === ACTION_LAUNCH_COMPONENT;
+  const refId = isLaunchComponent ? ((button as { customData?: unknown }).customData as { registryEntryId?: string } | undefined)?.registryEntryId : undefined;
+  const broken = isLaunchComponent && refId && !entriesById.has(refId);
+
   return (
-    <div className="mb-2">
-      <button
-        type="button"
-        onClick={() => onSelect({ kind: "dock-item", itemId: button.id })}
-        className="w-full text-left rounded-md px-2 py-1.5 text-xs"
-        style={{
-          background: isSelected ? "var(--bn-bg3)" : "var(--bn-bg2)",
-          border: "1px solid var(--bn-border)",
-          color: "var(--bn-t0)",
-        }}
-      >
-        <span style={{ color: "var(--bn-t2)" }}>
-          {isDropdown ? "▼ " : "• "}
-        </span>
-        <span className="font-medium">{button.tooltip}</span>
-      </button>
+    <div className="mb-2 group">
+      <div className="flex items-stretch gap-1">
+        <button
+          type="button"
+          onClick={() => onSelect({ kind: "dock-item", itemId: button.id })}
+          className="flex-1 text-left rounded-md px-2 py-1.5 text-xs"
+          style={{
+            background: isSelected ? "var(--bn-bg3)" : "var(--bn-bg2)",
+            border: "1px solid var(--bn-border)",
+            color: broken ? "var(--bn-warn, #f59e0b)" : "var(--bn-t0)",
+            textDecoration: broken ? "line-through" : "none",
+          }}
+        >
+          <span style={{ color: "var(--bn-t2)" }}>
+            {isDropdown ? "▼ " : "• "}
+          </span>
+          <span className="font-medium">{button.tooltip}</span>
+          {broken && (
+            <span className="ml-2 text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
+              ⚠ Component deleted
+            </span>
+          )}
+        </button>
+        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <RowAction title="Move up" onClick={onMoveUp} disabled={!onMoveUp}>
+            <ChevronUp className="w-3 h-3" />
+          </RowAction>
+          <RowAction title="Move down" onClick={onMoveDown} disabled={!onMoveDown}>
+            <ChevronDown className="w-3 h-3" />
+          </RowAction>
+        </div>
+        <RowAction
+          title="Remove from dock"
+          onClick={() => {
+            if (confirm(`Remove "${button.tooltip}" from your dock?`)) onRemove();
+          }}
+        >
+          <X className="w-3 h-3" />
+        </RowAction>
+      </div>
       {dropdown && dropdown.options.length > 0 && (
         <div className="ml-4 mt-1 border-l pl-2" style={{ borderColor: "var(--bn-border)" }}>
           {dropdown.options.map((it) => (
@@ -111,6 +157,31 @@ function DockButton({
         </div>
       )}
     </div>
+  );
+}
+
+function RowAction({
+  title,
+  onClick,
+  disabled,
+  children,
+}: {
+  title: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded p-1 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+      style={{ color: "var(--bn-t1)" }}
+    >
+      {children}
+    </button>
   );
 }
 
