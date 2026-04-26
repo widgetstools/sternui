@@ -20,10 +20,12 @@ export interface HostEnv {
    * The signed-in user id under which this child window should persist
    * its data. Forwarded by the parent provider via `customData.userId`
    * so child editors save to the same `(appId, userId)` scope the
-   * provider operates under. Empty string when the parent didn't
-   * forward it (e.g. legacy launchers, dev sandbox).
+   * provider operates under. Optional so producers (e.g. demo apps
+   * that build a HostEnv manually for `encodeHostEnvForQueryString`)
+   * don't have to know about the field — `readHostEnv()` always
+   * resolves it to a string (empty when the parent didn't forward it).
    */
-  userId: string;
+  userId?: string;
   configServiceUrl: string;
 }
 
