@@ -1,0 +1,13 @@
+{
+  "name": "@marketsui/e2e-openfin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:e2e": "vitest run --config vitest.config.ts"
+  },
+  "devDependencies": {
+    "@openfin/node-adapter": "43.101.2",
+    "vitest": "^4.1.4"
+  }
+}

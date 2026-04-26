@@ -6,7 +6,8 @@
   "packageManager": "npm@10.9.0",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "e2e-openfin"
   ],
   "scripts": {
     "build": "turbo build --force",
@@ -26,6 +27,7 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
+    "test:e2e:openfin": "npm run test:e2e -w @marketsui/e2e-openfin",
     "clean": "rimraf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist .turbo"
   },
   "devDependencies": {

@@ -47,6 +47,20 @@ function Provider() {
     } catch (err) {
       console.error("Failed to initialize workspace platform:", err);
     }
+
+    // Install the e2e test bridge in dev mode only — code-split out of
+    // production builds. The bridge exposes a small set of
+    // WorkspacePlatform.Storage operations over an OpenFin Channel so
+    // out-of-runtime test specs (under `e2e-openfin/`) can drive
+    // saved-workspace lifecycle. See e2e-openfin/README.md for details.
+    // Cast: this app's tsconfig pins `types` to fin/fdc3/svg only, so
+    // `vite/client` types aren't ambient — narrow the access locally.
+    const isDev = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV;
+    if (isDev) {
+      void import("../test-bridge/install").then((m) => m.installTestBridge()).catch((err) => {
+        console.warn("[provider] test bridge failed to install:", err);
+      });
+    }
   }, []); // Empty array — run once on mount, never again
 
   return (
