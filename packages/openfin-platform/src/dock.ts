@@ -209,11 +209,19 @@ function flattenContentMenuForV22(
 ): any[] {
   return entries.map((entry) => {
     if (entry.type === "folder") {
-      // v22 ContentMenuEntry folder has no icon field — children only.
+      // The published v22 `ContentMenuEntry` type omits `icon` on its
+      // folder branch, but the runtime renders folder icons (the
+      // official register-with-dock3-basic starter screenshots show
+      // them). We pass it through after pickIconVariant so v22's
+      // CustomIcon — which calls `.startsWith()` directly — gets a
+      // plain string rather than `{ dark, light }`. Empty string skips
+      // the field entirely so a folder without an icon stays unset.
+      const folderIcon = pickIconVariant(entry.icon, theme) ?? "";
       return {
         type: "folder" as const,
         id: entry.id,
         label: entry.label,
+        ...(folderIcon ? { icon: folderIcon } : {}),
         children: flattenContentMenuForV22(entry.children, theme),
       };
     }

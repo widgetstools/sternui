@@ -99,6 +99,15 @@ export interface ContentMenuFolderEntry {
   type: "folder";
   id: string;
   label: string;
+  /**
+   * Optional icon for the folder header. The OpenFin v22
+   * `ContentMenuEntry` type doesn't expose `icon` on its folder branch,
+   * but the runtime accepts it — the official register-with-dock3-basic
+   * starter and the user's own dock both render folder icons. We carry
+   * it on the internal type so editor + flatten paths can pass it
+   * through; the OpenFin boundary uses `as any` where needed.
+   */
+  icon?: DockEntryIcon;
   children: ContentMenuEntryType[];
   bookmarked?: boolean;
 }
@@ -196,6 +205,12 @@ export function toDock3Favorites(
 /**
  * Convert a single DockMenuItemConfig (which can have nested children)
  * into a ContentMenuEntry. Handles arbitrary nesting depth.
+ *
+ * Both leaf items AND sub-folders carry the icon resolved from
+ * `item.iconId`. The OpenFin runtime renders icons on folders too
+ * (per the official register-with-dock3-basic starter), even though
+ * the published `ContentMenuEntry` type omits `icon` on the folder
+ * branch.
  */
 function menuItemToContentMenuEntry(
   item: DockMenuItemConfig,
@@ -212,6 +227,7 @@ function menuItemToContentMenuEntry(
       type: "folder",
       id: item.id,
       label: item.tooltip,
+      ...(icon ? { icon } : {}),
       children: item.options.map((child) =>
         menuItemToContentMenuEntry(child, generateIcon, recolorUrl, darkColor, lightColor),
       ),
@@ -246,6 +262,7 @@ export function toDock3UserContentMenu(
   return config.buttons
     .filter((btn): btn is DockDropdownButtonConfig => btn.type === "DropdownButton")
     .map((btn): ContentMenuEntryType => {
+      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
       const children = btn.options.map((item) =>
         menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
       );
@@ -253,6 +270,7 @@ export function toDock3UserContentMenu(
         type: "folder",
         id: btn.id,
         label: btn.tooltip,
+        ...(icon ? { icon } : {}),
         children,
       };
     });
