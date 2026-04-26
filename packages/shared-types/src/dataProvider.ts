@@ -110,6 +110,21 @@ export interface StompProviderConfig {
   };
   inferredFields?: FieldInfo[];
   columnDefinitions?: ColumnDefinition[];
+  /**
+   * Conflate row updates by this column before fanning out to
+   * subscribers. Two updates for the same key value within a
+   * `throttleMs` window collapse into the latest one (upsert
+   * semantics). Typically set to the same value as `keyColumn` so
+   * grids see exactly one update per row per flush. Omit for
+   * "every row update is delivered" behaviour.
+   */
+  conflateByKey?: string;
+  /**
+   * Coalesce row-update fanout into trailing-edge bursts every
+   * `throttleMs`. 0 / undefined → immediate fanout (no batching).
+   * The conflation window above only takes effect when this is set.
+   */
+  throttleMs?: number;
 }
 
 /**
