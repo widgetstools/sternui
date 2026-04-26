@@ -8,7 +8,12 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  // Main app shell shows the router outlet (AppComponent is the bootstrap root)
+  // Landing page — rendered when the app is opened in a browser at `/`.
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () => import('./home.component').then((m) => m.HomeComponent),
+  },
 
   // OpenFin platform provider — runs in a hidden window on startup.
   // Calls initWorkspace() to register the dock, home, store, etc.

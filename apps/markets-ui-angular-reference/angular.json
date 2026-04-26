@@ -34,6 +34,7 @@
               "src/styles.scss"
             ],
             "allowedCommonJsDependencies": [
+              "@openfin/notifications",
               "@openfin/workspace",
               "@openfin/workspace-platform",
               "@openfin/workspace/notifications"

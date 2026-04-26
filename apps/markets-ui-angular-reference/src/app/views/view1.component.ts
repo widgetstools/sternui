@@ -1,53 +1,128 @@
 /**
- * View1Component — sample view with FDC3 context broadcasting.
+ * View1Component — sample view with FDC3 broadcasting + OpenFin Notifications.
  * Angular equivalent of the React View1.
  */
 
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  signal,
+  ChangeDetectionStrategy,
+  OnInit,
+  OnDestroy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import * as Notifications from '@openfin/notifications';
+
+declare const fin: any;
 
 @Component({
   selector: 'app-view1',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [CommonModule, ButtonModule, CardModule],
   template: `
-    <div class="flex flex-col gap-4 p-4">
-      <h1 class="text-lg font-bold">Angular View 1</h1>
-      <p class="text-sm text-muted-foreground">
-        This is a sample OpenFin view rendered by Angular.
-        It demonstrates how an Angular component can run inside an OpenFin view.
-      </p>
-      <button
-        class="px-4 py-2 text-sm font-medium rounded border cursor-pointer
-               bg-primary text-primary-foreground hover:opacity-90"
-        (click)="broadcastContext()"
-      >
-        Broadcast FDC3 Context
-      </button>
-      <p class="text-xs text-muted-foreground">{{ status() }}</p>
+    <div class="flex flex-col flex-1 gap-5 p-6">
+      <header class="flex flex-row justify-between items-center">
+        <div class="flex flex-col">
+          <h1 class="text-xl font-bold">OpenFin Angular View 1</h1>
+          <p class="text-sm text-muted-foreground">Angular app view in an OpenFin workspace</p>
+        </div>
+      </header>
+
+      <main>
+        <p-card header="Workspace Features" subheader="Notifications and FDC3 broadcasting">
+          <div class="flex flex-col gap-2 items-start">
+            <p-button label="Show Notification" (onClick)="showNotification()" />
+            <p-button
+              label="Broadcast FDC3 Context"
+              severity="secondary"
+              (onClick)="broadcastFDC3Context()"
+            />
+            <p-button
+              label="Broadcast FDC3 Context on App Channel"
+              [outlined]="true"
+              (onClick)="broadcastFDC3ContextAppChannel()"
+            />
+            <p
+              *ngIf="notificationActionMessage()"
+              class="text-sm text-muted-foreground m-0"
+            >
+              Notification action: {{ notificationActionMessage() }}
+            </p>
+          </div>
+        </p-card>
+      </main>
     </div>
   `,
 })
-export class View1Component {
-  readonly status = signal('');
+export class View1Component implements OnInit, OnDestroy {
+  readonly notificationActionMessage = signal('');
 
-  async broadcastContext(): Promise<void> {
+  private notificationHandler:
+    | ((event: Notifications.NotificationActionEvent) => void)
+    | undefined;
+
+  async ngOnInit(): Promise<void> {
     try {
-      const fdc3 = (window as any).fdc3;
-      if (fdc3) {
-        await fdc3.broadcast({
-          type: 'fdc3.instrument',
-          name: 'Apple',
-          id: { ticker: 'AAPL' },
-        });
-        this.status.set('Context broadcast: AAPL');
-      } else {
-        this.status.set('FDC3 API not available');
-      }
+      await Notifications.register();
+      this.notificationHandler = (event: Notifications.NotificationActionEvent) => {
+        const data = event.result['customData'];
+        console.log('Notification clicked:', data);
+        this.notificationActionMessage.set(String(data ?? ''));
+      };
+      Notifications.addEventListener('notification-action', this.notificationHandler);
     } catch (err) {
-      this.status.set('Broadcast failed');
-      console.error(err);
+      console.warn('Notifications registration failed:', err);
     }
+  }
+
+  ngOnDestroy(): void {
+    if (this.notificationHandler) {
+      Notifications.removeEventListener('notification-action', this.notificationHandler);
+      this.notificationHandler = undefined;
+    }
+  }
+
+  async showNotification(): Promise<void> {
+    if (typeof fin === 'undefined') return;
+    await Notifications.create({
+      platform: fin.me.identity.uuid,
+      title: 'Simple Notification',
+      body: 'This is a simple notification',
+      toast: 'transient',
+      buttons: [
+        {
+          title: 'Click me',
+          type: 'button',
+          cta: true,
+          onClick: {
+            customData: 'custom notification data',
+          },
+        },
+      ],
+    });
+  }
+
+  async broadcastFDC3Context(): Promise<void> {
+    const fdc3 = (window as any).fdc3;
+    if (!fdc3) return;
+    await fdc3.broadcast({
+      type: 'fdc3.instrument',
+      name: 'Microsoft Corporation',
+      id: { ticker: 'MSFT' },
+    });
+  }
+
+  async broadcastFDC3ContextAppChannel(): Promise<void> {
+    const fdc3 = (window as any).fdc3;
+    if (!fdc3) return;
+    const appChannel = await fdc3.getOrCreateChannel('CUSTOM-APP-CHANNEL');
+    await appChannel.broadcast({
+      type: 'fdc3.instrument',
+      name: 'Apple Inc.',
+      id: { ticker: 'AAPL' },
+    });
   }
 }
