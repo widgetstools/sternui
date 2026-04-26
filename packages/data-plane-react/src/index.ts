@@ -24,3 +24,5 @@ export {
   type UseRowStreamOpts,
   type UseRowStreamResult,
 } from './useDataPlaneRowStream';
+export { useDataPlaneRestart, type UseRestartResult } from './useDataPlaneRestart';
+export { useDataPlaneResolve, type UseResolveResult } from './useDataPlaneResolve';

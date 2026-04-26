@@ -53,11 +53,38 @@ export abstract class ProviderBase<TConfig = unknown, TValue = unknown> {
   /** Stable provider id assigned by the router on `configure`. */
   readonly id: string;
 
+  /**
+   * Last-applied config — captured on `configure()` so `restart()` can
+   * re-apply without the caller having to re-pass it. Subclasses that
+   * override `configure` should call `super.configure(config)` (or set
+   * `this.lastConfig = config` themselves) for `restart()` to work.
+   */
+  protected lastConfig: TConfig | undefined;
+
   constructor(id: string) {
     this.id = id;
   }
 
   abstract configure(config: TConfig): Promise<void>;
+
+  /**
+   * Re-apply the last-known config. Default impl: tear down the current
+   * transport and re-run `configure(lastConfig)`. Subclasses with
+   * snapshot/stream lifecycle (e.g. `StreamProviderBase`) override this
+   * to also reset cached snapshot state and broadcast the fresh
+   * snapshot to existing subscribers.
+   *
+   * `extra` is a free-form bag forwarded by the worker — used by the
+   * MarketsGrid historical-mode date picker (`{ asOfDate }`) and any
+   * other consumer that needs to parameterise the restart.
+   */
+  async restart(_extra?: Record<string, unknown>): Promise<void> {
+    if (this.lastConfig === undefined) {
+      throw new Error(`[${this.type}:${this.id}] restart() called before configure()`);
+    }
+    await this.teardown();
+    await this.configure(this.lastConfig);
+  }
 
   abstract fetch(key: string): Promise<TValue>;
 

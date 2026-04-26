@@ -117,6 +117,8 @@ export class Router {
         case 'ping':        this.reply(port, { op: 'pong', reqId: req.reqId }); break;
         case 'subscribe-stream': await this.handleSubscribeStream(port, portId, req); break;
         case 'get-cached-rows':  this.handleGetCachedRows(port, portId, req); break;
+        case 'restart':     await this.handleRestart(port, req); break;
+        case 'resolve':     this.handleResolve(port, req); break;
         default: {
           const _exhaustive: never = req;
           throw new Error(`Unknown opcode: ${(_exhaustive as { op: string }).op}`);
@@ -341,6 +343,52 @@ export class Router {
   private async handleTeardown(port: MessagePort, req: Extract<DataPlaneRequest, { op: 'teardown' }>): Promise<void> {
     await this.teardownProvider(req.providerId);
     this.reply(port, { op: 'ok', reqId: req.reqId, cached: false, fetchedAt: 0 });
+  }
+
+  /**
+   * Re-run the provider's snapshot/configure cycle. Existing subscribers
+   * stay attached and receive the new snapshot via the standard listener
+   * path; no re-subscribe is needed on the client side.
+   *
+   * For STOMP/Stream providers, `restart()` is implemented in
+   * `StreamProviderBase` and re-broadcasts via `addListener` callbacks
+   * already wired up in `handleSubscribeStream`. For keyed providers
+   * (AppData, REST), `restart()` re-fetches; existing key subscribers
+   * receive an `update` for any key whose value changes via the
+   * `subscribe` emitter chain.
+   */
+  private async handleRestart(port: MessagePort, req: Extract<DataPlaneRequest, { op: 'restart' }>): Promise<void> {
+    const slot = this.providers.get(req.providerId);
+    if (!slot) {
+      return this.replyErr(port, req.reqId, 'PROVIDER_NOT_CONFIGURED', 'call configure first', false);
+    }
+    await slot.instance.provider.restart(req.extra);
+    this.reply(port, { op: 'ok', reqId: req.reqId, cached: false, fetchedAt: 0 });
+  }
+
+  /**
+   * Substitute `{{providerId.key}}` tokens in a template string. Each
+   * `providerId` must resolve to a configured AppData provider; the
+   * key is read synchronously via `provider.peek(key)`. Tokens that
+   * reference a non-AppData provider, an unknown provider id, or an
+   * unknown key are left as-is in the output (with a console warning)
+   * so downstream consumers can decide how to handle them.
+   */
+  private handleResolve(port: MessagePort, req: Extract<DataPlaneRequest, { op: 'resolve' }>): void {
+    const out = req.template.replace(/\{\{([^{}]+)\}\}/g, (full, expr: string) => {
+      const dot = expr.indexOf('.');
+      if (dot < 0) return full;
+      const providerId = expr.slice(0, dot).trim();
+      const key = expr.slice(dot + 1).trim();
+      const slot = this.providers.get(providerId);
+      if (!slot || slot.instance.shape !== 'keyed') return full;
+      const provider = slot.instance.provider as { type?: string; peek?: (k: string) => unknown };
+      if (provider.type !== 'appdata' || typeof provider.peek !== 'function') return full;
+      const value = provider.peek(key);
+      if (value === undefined) return full;
+      return typeof value === 'string' ? value : JSON.stringify(value);
+    });
+    this.reply(port, { op: 'ok', reqId: req.reqId, value: out, cached: false, fetchedAt: Date.now() });
   }
 
   private async handleSubscribeStream(

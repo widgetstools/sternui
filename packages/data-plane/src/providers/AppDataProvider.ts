@@ -27,6 +27,8 @@ export class AppDataProvider extends ProviderBase<AppDataProviderConfig, unknown
   private readonly subs = new Map<string, Set<ProviderEmitter<unknown>>>();
 
   async configure(config: AppDataProviderConfig): Promise<void> {
+    // Capture for `restart()` (inherited from ProviderBase).
+    this.lastConfig = config;
     // Seed initial variables from the config. Callers may update
     // them later via `put`.
     if (config.variables) {
@@ -34,6 +36,21 @@ export class AppDataProvider extends ProviderBase<AppDataProviderConfig, unknown
         this.state.set(k, v.value);
       }
     }
+  }
+
+  /**
+   * Read a key's value synchronously — used by the worker router's
+   * `resolve` handler to substitute `{{providerId.key}}` tokens
+   * without going through the async `fetch` path. Returns `undefined`
+   * for unknown keys (mirrors `Map.get` semantics).
+   */
+  peek(key: string): unknown {
+    return this.state.get(key);
+  }
+
+  /** Whether `key` has ever been written. Distinguishes "never set" from "set to undefined". */
+  has(key: string): boolean {
+    return this.state.has(key);
   }
 
   async fetch(key: string): Promise<unknown> {

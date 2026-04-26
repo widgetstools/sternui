@@ -141,6 +141,28 @@ export class DataPlaneClient {
     return this.request({ op: 'teardown', reqId: this.mkId('req'), providerId }).then(() => undefined);
   }
 
+  /**
+   * Re-run the provider's snapshot/configure cycle. Existing
+   * subscribers stay attached and receive the new snapshot via the
+   * standard event stream — no resubscribe needed. `extra` is
+   * forwarded to the provider's `restart()` (used for date-driven
+   * historical providers via `{ asOfDate }`).
+   */
+  restart(providerId: string, extra?: Record<string, unknown>): Promise<void> {
+    return this.request({ op: 'restart', reqId: this.mkId('req'), providerId, extra }).then(() => undefined);
+  }
+
+  /**
+   * Substitute `{{providerId.key}}` tokens in `template` against the
+   * configured AppData providers. Tokens that don't resolve are left
+   * as-is in the output.
+   */
+  async resolve(template: string): Promise<string> {
+    const res = await this.request({ op: 'resolve', reqId: this.mkId('req'), template });
+    if (res.op !== 'ok') throw this.unexpected(res);
+    return (res.value as string) ?? template;
+  }
+
   async ping(): Promise<void> {
     const res = await this.request({ op: 'ping', reqId: this.mkId('req') });
     if (res.op !== 'pong') throw this.unexpected(res);

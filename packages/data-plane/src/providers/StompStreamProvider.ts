@@ -122,6 +122,7 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
       keyColumn: config.keyColumn,
     });
     this.config = config;
+    this.lastConfig = config;
   }
 
   async start(): Promise<void> {
