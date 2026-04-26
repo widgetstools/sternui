@@ -252,6 +252,29 @@ function menuItemToContentMenuEntry(
  * Each DropdownButton becomes a "folder" with its menu items as children.
  * Each ActionButton is skipped (those go into favorites).
  */
+/**
+ * Convert top-level DropdownButtons to content-menu entries.
+ *
+ * OpenFin Dock3's `ContentMenuEntry` folder branch has no `icon` field
+ * — the runtime ignores any icon we pass on a folder (verified against
+ * the bundled platform JS, the official register-with-dock3-basic
+ * starter, and live screenshots from this app's dock).
+ *
+ * Workaround: emit each dropdown as a sibling pair at the top of the
+ * content menu, mirroring the OpenFin starter's "Google" pattern:
+ *
+ *   1. An ITEM with the dropdown's icon + label. Items DO carry icons
+ *      in ContentMenuEntry, so this is the visual anchor. Clicking it
+ *      launches the dropdown's first launchable child (the registered
+ *      component or sub-action) — gives the row a meaningful action
+ *      while the folder below still owns the full hierarchy.
+ *   2. A FOLDER with the same label + children. Clicking it expands
+ *      the menu items inline as before. No icon (platform limitation).
+ *
+ * If the dropdown has no launchable child (empty options or only
+ * sub-folders), the icon-item is omitted — there's nothing useful to
+ * launch and an undecorated visual marker would just confuse the user.
+ */
 export function toDock3UserContentMenu(
   config: DockEditorConfig,
   generateIcon: (iconId: string, color: string) => string,
@@ -259,21 +282,56 @@ export function toDock3UserContentMenu(
   darkColor: string,
   lightColor: string,
 ): ContentMenuEntryType[] {
-  return config.buttons
-    .filter((btn): btn is DockDropdownButtonConfig => btn.type === "DropdownButton")
-    .map((btn): ContentMenuEntryType => {
-      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
-      const children = btn.options.map((item) =>
-        menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
-      );
-      return {
-        type: "folder",
-        id: btn.id,
+  const result: ContentMenuEntryType[] = [];
+  for (const btn of config.buttons) {
+    if (btn.type !== "DropdownButton") continue;
+    const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+    const children = btn.options.map((item) =>
+      menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
+    );
+
+    // Icon-item shortcut — only emit when we have both an icon AND a
+    // launchable child to wire the click to.
+    const firstLaunchable = findFirstLaunchableChild(btn.options);
+    if (icon && firstLaunchable) {
+      result.push({
+        type: "item",
+        id: `${btn.id}--header`,
         label: btn.tooltip,
-        ...(icon ? { icon } : {}),
-        children,
-      };
+        icon,
+        itemData: {
+          actionId: firstLaunchable.actionId,
+          customData: firstLaunchable.customData,
+        },
+      });
+    }
+
+    // The actual folder — owns the full hierarchy.
+    result.push({
+      type: "folder",
+      id: btn.id,
+      label: btn.tooltip,
+      ...(icon ? { icon } : {}),
+      children,
     });
+  }
+  return result;
+}
+
+/**
+ * Walk a menu-item tree and return the first leaf that has an
+ * actionId — used to give the dropdown's icon-item shortcut a sensible
+ * default click target.
+ */
+function findFirstLaunchableChild(items: DockMenuItemConfig[]): DockMenuItemConfig | null {
+  for (const item of items) {
+    if (item.actionId) return item;
+    if (item.options?.length) {
+      const nested = findFirstLaunchableChild(item.options);
+      if (nested) return nested;
+    }
+  }
+  return null;
 }
 
 /**
