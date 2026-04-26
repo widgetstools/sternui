@@ -187,6 +187,30 @@ export interface GeneralSettingsState {
   suppressDragLeaveHidesColumns: boolean;
   suppressColumnMoveAnimation: boolean;
 
+  // ─── Side Bar ────────────────────────────────────────────────────────────
+  // AG-Grid's tool-panel sidebar. The master switch flips the whole panel
+  // on/off; individual `sideBarShow*` toggles control which tool panels
+  // appear inside it.
+  sideBar: boolean;
+  sideBarShowColumns: boolean;
+  sideBarShowFilters: boolean;
+  /** Which panel opens by default when the side bar is shown. `undefined`
+   *  leaves it closed; values must reference an enabled tool panel. */
+  sideBarDefaultPanel: 'columns' | 'filters' | undefined;
+
+  // ─── Status Bar ──────────────────────────────────────────────────────────
+  // AG-Grid's status bar at the bottom of the grid. Master switch flips
+  // the whole bar on/off; individual `statusBarShow*` toggles control
+  // which status panels appear inside it.
+  statusBar: boolean;
+  /** "X of Y rows" — the most common single-panel choice. */
+  statusBarShowTotalAndFilteredCount: boolean;
+  statusBarShowFilteredCount: boolean;
+  statusBarShowTotalCount: boolean;
+  statusBarShowSelectedCount: boolean;
+  /** Sum / Avg / Min / Max of the current cell-range selection. */
+  statusBarShowAggregation: boolean;
+
   // ─── Performance overrides (advanced / collapsed) ────────────────────────
   /** Live-editable. */
   rowBuffer: number;
@@ -303,6 +327,25 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   enableCellTextSelection: false,
   suppressDragLeaveHidesColumns: true,
   suppressColumnMoveAnimation: false,
+
+  // Side Bar — off by default; matches AG-Grid's stock behaviour. Both
+  // tool panels start as enabled-but-not-yet-visible so toggling the
+  // master switch on gives a usable sidebar without further config.
+  sideBar: false,
+  sideBarShowColumns: true,
+  sideBarShowFilters: true,
+  sideBarDefaultPanel: undefined,
+
+  // Status Bar — off by default. When enabled, the four standard
+  // counters are pre-checked because they're the typical "I want a
+  // status bar" use case; aggregation is opt-in since it requires
+  // cell-range selection to be useful.
+  statusBar: false,
+  statusBarShowTotalAndFilteredCount: true,
+  statusBarShowFilteredCount: false,
+  statusBarShowTotalCount: false,
+  statusBarShowSelectedCount: true,
+  statusBarShowAggregation: false,
 
   // Performance
   rowBuffer: 10,
