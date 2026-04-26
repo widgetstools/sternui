@@ -16,8 +16,8 @@
  * to ConfigService; until then changes accumulate as dirty state.
  */
 
-import { useMemo } from "react";
-import { PlayCircle, AlertCircle, ArrowRight, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
+import { PlayCircle, AlertCircle, ArrowRight, ExternalLink, ImageIcon } from "lucide-react";
 import type {
   RegistryEntry,
   DockButtonConfig,
@@ -29,6 +29,9 @@ import {
   ACTION_LAUNCH_COMPONENT,
 } from "@marketsui/openfin-platform/config";
 import type { EditorSelection } from "./types";
+import { IconPicker } from "../IconPicker";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
 
 /**
  * Where in the dock a component is referenced. One DockPlacement per
@@ -47,6 +50,12 @@ interface InspectorPaneProps {
   entries: RegistryEntry[];
   buttons: DockButtonConfig[];
   onChange: (id: string, patch: Partial<RegistryEntry>) => void;
+  /**
+   * Update label / icon / iconColor on a top-level dock button. The
+   * dock-item inspector treats these as per-placement overrides
+   * independent of the referenced component's defaults.
+   */
+  onEditButton: (buttonId: string, patch: Partial<DockButtonConfig>) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
   /** Add the selected component to the user's dock as a top-level button. */
   onAddToDock: (entry: RegistryEntry) => void;
@@ -67,6 +76,7 @@ export function InspectorPane({
   entries,
   buttons,
   onChange,
+  onEditButton,
   onTest,
   onAddToDock,
   onSelect,
@@ -89,6 +99,7 @@ export function InspectorPane({
         itemId={selection.itemId}
         buttons={buttons}
         entries={entries}
+        onEditButton={onEditButton}
         onSelect={onSelect}
       />
     );
@@ -251,20 +262,28 @@ function ComponentForm({
   return (
     <PaneShell title="COMPONENT">
       <div className="flex flex-col gap-3">
-        {/* Name */}
-        <Field label="Name">
-          <input
-            value={entry.displayName}
-            onChange={(e) => onChange({ displayName: e.target.value })}
-            placeholder="e.g. Risk Dashboard"
-            className="w-full rounded-md px-2 py-1 text-xs outline-none"
-            style={{
-              background: "var(--bn-bg2)",
-              border: "1px solid var(--bn-border)",
-              color: "var(--bn-t0)",
-            }}
+        {/* Icon + Name row — icon picker is the visual anchor */}
+        <div className="flex gap-2 items-end">
+          <IconField
+            iconId={entry.iconId}
+            onChange={(iconId) => onChange({ iconId })}
           />
-        </Field>
+          <div className="flex-1">
+            <Field label="Name">
+              <input
+                value={entry.displayName}
+                onChange={(e) => onChange({ displayName: e.target.value })}
+                placeholder="e.g. Risk Dashboard"
+                className="w-full rounded-md px-2 py-1 text-xs outline-none"
+                style={{
+                  background: "var(--bn-bg2)",
+                  border: "1px solid var(--bn-border)",
+                  color: "var(--bn-t0)",
+                }}
+              />
+            </Field>
+          </div>
+        </div>
 
         {/* Type / SubType */}
         <div className="grid grid-cols-2 gap-2">
@@ -463,11 +482,13 @@ function DockItemInspector({
   itemId,
   buttons,
   entries,
+  onEditButton,
   onSelect,
 }: {
   itemId: string;
   buttons: DockButtonConfig[];
   entries: RegistryEntry[];
+  onEditButton: (buttonId: string, patch: Partial<DockButtonConfig>) => void;
   onSelect: (sel: EditorSelection) => void;
 }) {
   const button = findButton(buttons, itemId);
@@ -495,22 +516,33 @@ function DockItemInspector({
   return (
     <PaneShell title="DOCK ITEM">
       <div className="flex flex-col gap-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
-            Label
-          </div>
-          <div className="rounded-md px-2 py-1 text-xs font-medium" style={{
-            background: "var(--bn-bg2)",
-            border: "1px solid var(--bn-border)",
-            color: "var(--bn-t0)",
-          }}>
-            {button.tooltip}
-          </div>
-          <div className="text-[10px] mt-1" style={{ color: "var(--bn-t2)" }}>
-            (Per-item label/icon overrides land in a follow-up commit. For
-            now use the existing Dock Editor for those edits.)
+        {/* Icon + Label — per-placement overrides */}
+        <div className="flex gap-2 items-end">
+          <IconField
+            iconId={button.iconId ?? ""}
+            onChange={(iconId) => onEditButton(button.id, { iconId } as Partial<DockButtonConfig>)}
+          />
+          <div className="flex-1">
+            <Field label="Label">
+              <input
+                value={button.tooltip}
+                onChange={(e) => onEditButton(button.id, { tooltip: e.target.value } as Partial<DockButtonConfig>)}
+                className="w-full rounded-md px-2 py-1 text-xs outline-none"
+                style={{
+                  background: "var(--bn-bg2)",
+                  border: "1px solid var(--bn-border)",
+                  color: "var(--bn-t0)",
+                }}
+              />
+            </Field>
           </div>
         </div>
+        {referenced && (
+          <div className="text-[10px] -mt-2" style={{ color: "var(--bn-t2)" }}>
+            Component default: <span style={{ color: "var(--bn-t1)" }}>{referenced.iconId || "—"}</span>{" "}
+            · per-placement overrides win.
+          </div>
+        )}
 
         <div>
           <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
@@ -603,5 +635,70 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       />
       <span className="text-xs" style={{ color: "var(--bn-t1)" }}>{label}</span>
     </label>
+  );
+}
+
+// ─── Icon field with picker popover ──────────────────────────────────
+//
+// Click the swatch to open a searchable grid (IconPicker). Selecting an
+// icon writes the iconId back via onChange and closes the popover.
+// Empty iconId → renders an "ImageIcon" placeholder, signalling "no
+// icon set" (only meaningful for dock-item overrides where empty means
+// "fall back to component default").
+
+function IconField({ iconId, onChange }: { iconId: string; onChange: (iconId: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const previewUrl = useMemo(() => (iconId ? iconIdToSvgUrl(iconId, "currentColor") : ""), [iconId]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+        Icon
+      </span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-9 h-9 flex items-center justify-center rounded-md"
+            style={{
+              background: "var(--bn-bg2)",
+              border: "1px solid var(--bn-border)",
+              color: "var(--bn-t1)",
+            }}
+            title={iconId ? `Icon: ${iconId} — click to change` : "Pick an icon"}
+          >
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt=""
+                width={20}
+                height={20}
+                style={{ display: "block" }}
+              />
+            ) : (
+              <ImageIcon className="w-4 h-4" style={{ color: "var(--bn-t2)" }} />
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="p-2 w-[360px]"
+          align="start"
+          style={{
+            background: "var(--bn-bg)",
+            border: "1px solid var(--bn-border)",
+            color: "var(--bn-t0)",
+          }}
+        >
+          <IconPicker
+            selectedIcon={iconId}
+            color="currentColor"
+            onSelect={(id) => {
+              onChange(id);
+              setOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

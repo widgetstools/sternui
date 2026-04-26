@@ -183,6 +183,20 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
     dock.dispatch({ type: "REORDER_BUTTONS", fromIndex, toIndex });
   }, [dock]);
 
+  // Per-item override editor: lets the inspector update label + icon on a
+  // top-level dock button. Snapshot semantics — the dock item carries its
+  // own iconId/tooltip independent of the underlying component, so editing
+  // here does not mutate the registry entry.
+  const handleEditButton = useCallback((buttonId: string, patch: Partial<DockButtonConfig>) => {
+    const current = dock.buttons.find((b) => b.id === buttonId);
+    if (!current) return;
+    dock.dispatch({
+      type: "UPDATE_BUTTON",
+      id: buttonId,
+      button: { ...current, ...patch } as DockButtonConfig,
+    });
+  }, [dock]);
+
   // Save — writes BOTH registry and dock if dirty. Saves run in series
   // (registry first, dock second) so an IAB consumer that listens to dock
   // updates and re-reads the registry sees the freshest registry payload.
@@ -252,6 +266,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           entries={registry.entries}
           buttons={dock.buttons}
           onChange={handleEntryChange}
+          onEditButton={handleEditButton}
           onTest={registry.testComponent}
           onAddToDock={handleAddToDock}
           onSelect={setSelection}
