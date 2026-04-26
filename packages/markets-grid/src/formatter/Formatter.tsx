@@ -30,17 +30,9 @@ import { ModuleFormat } from './modules/ModuleFormat';
 import { ModuleLibrary } from './modules/ModuleLibrary';
 import { ModulePaint } from './modules/ModulePaint';
 import { ModuleType } from './modules/ModuleType';
-import { ModuleDivider, ModuleTrail, TitleBar, type TrailItem } from './primitives';
+import { ModuleDivider, TitleBar } from './primitives';
 import './formatter.css';
 import type { FormatterActions, FormatterState } from './state';
-
-const MODULE_TRAIL: TrailItem[] = [
-  { index: '01', label: 'Context' },
-  { index: '02', label: 'Type' },
-  { index: '03', label: 'Paint' },
-  { index: '04', label: 'Format' },
-  { index: '05', label: 'Library' },
-];
 
 // ─── Shared confirm dialog ────────────────────────────────────────
 
@@ -142,7 +134,6 @@ export function FormatterPanel({
 
       <header data-testid="fmt-panel-header" className="fx-ctx" style={{ position: 'relative' }}>
         <ModuleContext state={state} actions={actions} />
-        <ModuleTrail items={MODULE_TRAIL} />
       </header>
 
       <div className="fx-body" data-testid="fmt-panel-body">

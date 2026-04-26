@@ -97,12 +97,18 @@ export class ComponentHostService<T = unknown> implements OnDestroy {
       // Step 3: Read current theme
       const currentTheme = await getCurrentTheme(options?.defaultTheme);
 
-      // Step 4: Create debounced saver
+      // Step 4: Create debounced saver. When this is a singleton
+      // launch, mark the persisted row as a registered-component
+      // config so workspace GC keeps it across launches even when no
+      // saved workspace references it.
       this.saver = createDebouncedSaver<T>(
         identity.instanceId,
         configManager,
         () => this.row,
-        options?.debounceMs ?? 300,
+        {
+          debounceMs: options?.debounceMs ?? 300,
+          isRegisteredComponent: identity.singleton === true,
+        },
       );
 
       // Step 5: Subscribe to theme changes via IAB

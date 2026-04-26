@@ -106,3 +106,6 @@ export {
   type RegistryEditorConfigV1,
   type HostEnv,
 } from './registry-migrate';
+
+// ── Host URL normaliser (pure DOM, no workspace-platform) ───────────
+export { resolveHostUrl } from './host-url';

@@ -11,6 +11,16 @@ export default defineConfig({
     svgr(),   // Enables: import Icon from 'path/to/icon.svg?react'
   ],
   resolve: {
+    // Prefer `.tsx`/`.ts` over `.js`/`.mjs` so source files always win
+    // when imports omit the extension. This guards against a recurring
+    // pitfall: the app's `tsconfig.app.json` has `composite: true` and
+    // no `outDir`, so any `tsc -b` run (manual or editor-triggered)
+    // emits `.js` siblings next to every `.tsx` under `src/`. Vite's
+    // default extension order picks `.js` first, so the stale compiled
+    // output silently shadows live source edits and HMR appears broken.
+    // Putting source extensions ahead of compiled ones makes the dev
+    // server resolve to source regardless.
+    extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
     alias: {
       // Resolve @marketsui/core + @marketsui/markets-grid to their
       // `src/` directories rather than the prebuilt `dist/`. Core's

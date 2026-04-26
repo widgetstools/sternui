@@ -288,6 +288,45 @@ export const cockpitCSS = `
   background: transparent;
 }
 
+/* Format popover + portaled gc-settings surfaces.
+ * Every Radix popover that sets data-gc-settings inherits the
+ * --gc- token set; extend the same scrollbar treatment so the
+ * default browser white scrollbar does not surface on dark backgrounds.
+ * Target both the host element AND any descendants that scroll
+ * (FormatterPicker preset grid is an internal overflow-y auto div).
+ * Same color-mix pattern as gc-themed-scrollbar so light mode flips
+ * automatically via --bn-t0 rebinding under data-theme='light'. */
+[data-gc-settings],
+[data-gc-settings] * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--bn-t0) 22%, transparent) transparent;
+}
+[data-gc-settings]::-webkit-scrollbar,
+[data-gc-settings] *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+[data-gc-settings]::-webkit-scrollbar-track,
+[data-gc-settings] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-gc-settings]::-webkit-scrollbar-thumb,
+[data-gc-settings] *::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--bn-t0) 18%, transparent);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 120ms ease;
+}
+[data-gc-settings]::-webkit-scrollbar-thumb:hover,
+[data-gc-settings] *::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--bn-t0) 32%, transparent);
+}
+[data-gc-settings]::-webkit-scrollbar-corner,
+[data-gc-settings] *::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ── FiltersToolbar pill carousel — hide scrollbar entirely ─────
  * Left/right carets (.gc-filters-caret) reveal themselves only when
  * there's actual overflow, and clicking them scrolls the pill row by

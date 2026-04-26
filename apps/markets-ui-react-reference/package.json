@@ -25,6 +25,7 @@
     "@marketsui/tokens-primeng": "*",
     "@marketsui/ui": "*",
     "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
     "ag-grid-react": "35.1.0",
     "@openfin/core": "43.101.4",
     "@openfin/notifications": "2.13.1",

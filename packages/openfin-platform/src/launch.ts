@@ -5,6 +5,7 @@ import type { App } from "@openfin/workspace";
 import { AppManifestType, getCurrentSync } from "@openfin/workspace-platform";
 import { loadRegistryConfig } from "./db";
 import { generateTemplateConfigId, type RegistryEntry } from "./registry-config-types";
+import { resolveHostUrl } from "./host-url";
 
 // ─── Singleton in-flight + opened registry ───────────────────────────
 //
@@ -23,28 +24,63 @@ type SingletonOwner = OpenFin.View | OpenFin.Window;
 const singletons = new Map<string, Promise<SingletonOwner>>();
 
 function attachSingletonCleanup(configId: string, owner: SingletonOwner): void {
-  try {
-    // OpenFin's View and Window both expose an async on('closed', fn).
-    // Cast to any so we don't pin to a specific event-shape per type.
-    (owner as any).on?.('closed', () => {
-      singletons.delete(configId);
-    });
-  } catch (err) {
-    console.warn(`[launch] failed to attach singleton cleanup for '${configId}':`, err);
-  }
+  const o = owner as any;
+  if (typeof o.on !== 'function') return;
+
+  // OpenFin emits different lifecycle-end events depending on owner type:
+  //   • Window — 'closed' fires when the user closes a standalone Window.
+  //   • View   — 'destroyed' fires when the View is torn down (including
+  //              when its host window closes; 'closed' is NOT a View event).
+  // Listening to both makes cleanup robust regardless of which API path
+  // produced the singleton (asWindow vs createView).
+  //
+  // Defensive: only delete the Map entry if WE are still the registered
+  // owner. A rapid close-then-relaunch can replace us with a fresh
+  // promise before the late 'destroyed' event arrives — without this
+  // guard we'd accidentally drop the live entry.
+  const cleanup = () => {
+    const current = singletons.get(configId);
+    if (!current) return;
+    current
+      .then((stillOwner) => {
+        if (stillOwner === owner) singletons.delete(configId);
+      })
+      .catch(() => {
+        singletons.delete(configId);
+      });
+  };
+
+  // `on()` is async; swallow any registration errors so a hostile
+  // implementation can't break the launcher.
+  Promise.resolve(o.on('closed', cleanup)).catch(() => {});
+  Promise.resolve(o.on('destroyed', cleanup)).catch(() => {});
 }
 
-async function focusSingleton(owner: SingletonOwner): Promise<void> {
-  // Both View and Window expose focus()/setAsForeground(); call
-  // whichever is available — Views typically need their parent
-  // window brought to front, Windows can focus directly.
+/**
+ * Attempt to focus an existing singleton. Returns `true` on success.
+ *
+ * Returns `false` when the owner appears to be gone — typically because
+ * the user closed it but our 'destroyed' / 'closed' listener hasn't
+ * fired yet (or never will, e.g. the host window crashed). The caller
+ * is expected to drop the stale Map entry and launch a fresh instance.
+ *
+ * Distinguishing "owner is dead" from "transient focus error" is hard
+ * with OpenFin's current error shapes — `View.focus()` internally calls
+ * `getCurrentWindow()` and any failure there bubbles up as a generic
+ * `RuntimeError`. We treat ALL focus failures as fatal-for-the-singleton
+ * and recreate. Worst case a re-creation is one extra view-mount; best
+ * case the user gets unstuck without having to restart the platform.
+ */
+async function focusSingleton(owner: SingletonOwner): Promise<boolean> {
   try {
     const o = owner as any;
     if (typeof o.focus === 'function') await o.focus();
     if (typeof o.setAsForeground === 'function') await o.setAsForeground();
     if (typeof o.bringToFront === 'function') await o.bringToFront();
+    return true;
   } catch (err) {
-    console.warn('[launch] failed to focus singleton owner:', err);
+    console.warn('[launch] focus failed — treating singleton as stale:', err);
+    return false;
   }
 }
 
@@ -134,11 +170,21 @@ export async function launchRegisteredComponent(
     if (inFlight) {
       try {
         const owner = await inFlight;
-        await focusSingleton(owner);
-        return owner;
+        const focused = await focusSingleton(owner);
+        if (focused) return owner;
+        // focus() failed — the owner is almost certainly gone (user
+        // closed it before our 'destroyed' listener fired, or the host
+        // window crashed). Drop the stale Map entry, then fall through
+        // to the fresh-launch path below using the same configId so
+        // the persisted config row is restored.
+        if (singletons.get(entry.configId) === inFlight) {
+          singletons.delete(entry.configId);
+        }
       } catch {
         // The previous launch threw — fall through and try a fresh launch
-        singletons.delete(entry.configId);
+        if (singletons.get(entry.configId) === inFlight) {
+          singletons.delete(entry.configId);
+        }
       }
     }
     const launchPromise = createComponentInstance(entry, opts, /* singletonId */ entry.configId);
@@ -185,11 +231,21 @@ async function createComponentInstance(
     componentSubType: entry.componentSubType,
     appId: entry.appId,
     configServiceUrl: entry.configServiceUrl,
+    // Mark singleton launches so component-host can flag the persisted
+    // row with `isRegisteredComponent: true`, keeping it safe from
+    // workspace GC. `singletonId` is set in the singleton-aware
+    // launchRegisteredComponent branch (entry.singleton && entry.configId);
+    // non-singleton spawns leave this falsy.
+    singleton: singletonId !== undefined,
   };
+
+  // Resolve relative hostUrls (e.g. "/blotters/marketsgrid") against the
+  // platform-provider window's origin before passing to OpenFin.
+  const resolvedUrl = resolveHostUrl(entry.hostUrl);
 
   if (opts.asWindow) {
     return fin.Window.create({
-      url: entry.hostUrl,
+      url: resolvedUrl,
       name: `registered-${entry.id}-${instanceId}`,
       defaultWidth: 1200,
       defaultHeight: 800,
@@ -200,7 +256,7 @@ async function createComponentInstance(
 
   const platform = getCurrentSync();
   return platform.createView({
-    url: entry.hostUrl,
+    url: resolvedUrl,
     customData,
   } as unknown as Parameters<ReturnType<typeof getCurrentSync>["createView"]>[0]);
 }

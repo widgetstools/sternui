@@ -38,6 +38,11 @@ export async function readCustomData(): Promise<ComponentIdentity | null> {
       templateId: data.templateId || "",
       componentType: data.componentType,
       componentSubType: data.componentSubType || "",
+      // singleton flag is plumbed down so the saver can mark the
+      // resulting row with `isRegisteredComponent: true`. The launcher
+      // sets `customData.singleton: true` for entries with both
+      // singleton:true and configId set; treat anything else as falsy.
+      singleton: data.singleton === true,
     };
   } catch {
     return null;
@@ -76,6 +81,11 @@ export async function resolveInstanceId(
       ...template,
       configId: identity.instanceId,
       isTemplate: false,
+      // The clone is a per-instance copy, NOT the registered config.
+      // Workspace GC reaps these when no workspace references them.
+      // (Explicit false rather than relying on `...template` inheritance —
+      // a template can legitimately carry isRegisteredComponent:true.)
+      isRegisteredComponent: false,
       creationTime: now,
       updatedTime: now,
     };
@@ -103,5 +113,6 @@ export function buildFallbackIdentity(
     templateId: generateTemplateConfigId(componentType, componentSubType),
     componentType,
     componentSubType,
+    singleton: false,
   };
 }

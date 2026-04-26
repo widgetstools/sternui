@@ -29,6 +29,16 @@ export interface ComponentIdentity {
   templateId: string;
   componentType: string;
   componentSubType: string;
+  /**
+   * True when launched as a singleton — instanceId === templateId ===
+   * the registry entry's configId. Component-host passes this down to
+   * the saver so the persisted row is flagged with
+   * `isRegisteredComponent: true`, keeping it safe from workspace GC.
+   *
+   * Optional so launches that don't supply it (legacy customData,
+   * dev-mode fallback) default to non-singleton.
+   */
+  singleton?: boolean;
 }
 
 /**

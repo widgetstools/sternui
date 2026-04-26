@@ -36,4 +36,4 @@ export {
 export { onCloseRequested } from "./lifecycle";
 
 export { createDebouncedSaver } from "./save-config";
-export type { DebouncedSaver } from "./save-config";
+export type { DebouncedSaver, DebouncedSaverOptions } from "./save-config";

@@ -220,30 +220,6 @@ export function TitleBar({
   );
 }
 
-// ─── Module index trail — tiny `01·02·03·04·05` strip ────────────
-//
-// Renders above the toolbar / inside the panel header so users see at
-// a glance "this is the same surface in two shapes" — the numbering
-// echoes between both surfaces.
-
-export interface TrailItem {
-  index: string;
-  label: string;
-}
-
-export function ModuleTrail({ items }: { items: TrailItem[] }) {
-  return (
-    <span className="fx-trail" aria-hidden>
-      {items.map((m, i) => (
-        <React.Fragment key={m.index}>
-          {i > 0 && <span className="fx-trail__dot">·</span>}
-          <span className="fx-trail__num" title={m.label}>{m.index}</span>
-        </React.Fragment>
-      ))}
-    </span>
-  );
-}
-
 // ─── Menu — shared popover content surface (used by currency
 //     menu, font-size menu, tick-precision menu). ─────────────────
 

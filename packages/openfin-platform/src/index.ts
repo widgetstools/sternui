@@ -2,6 +2,7 @@
 export { initWorkspace } from './workspace';
 export { launchApp, launchRegisteredComponent } from './launch';
 export type { LaunchRegisteredComponentOptions } from './launch';
+export { resolveHostUrl } from './host-url';
 
 // ─── Dock management ─────────────────────────────────────────────────
 export {

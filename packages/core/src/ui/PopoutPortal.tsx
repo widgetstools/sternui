@@ -616,23 +616,34 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
       doc.body.setAttribute('data-gc-settings', '');
     } catch (err) { console.warn('[PopoutPortal] body scope tag failed:', err); }
 
-    try {
-      const reset = doc.createElement('style');
-      reset.textContent = `
-        html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
-        body { font-family: inherit; background: var(--bn-bg, #0b0e11); color: var(--bn-t0, #eaecef); }
-      `;
-      doc.head.appendChild(reset);
-    } catch (err) { console.warn('[PopoutPortal] reset style inject failed:', err); }
-
     // Clone every stylesheet from the main document so our CSS-in-
     // JS tokens (--bn-*, --ck-*, --primary) + cockpit runtime styles
-    // + Tailwind bundle all resolve.
+    // + Tailwind bundle all resolve. Done BEFORE the reset so that
+    // the popout-specific reset (`body { padding: 0 }`,
+    // `[data-popout-root] { overflow: hidden }`) wins the cascade —
+    // the main app's `index.css` typically sets `body { padding: 10px }`
+    // which would otherwise leak into the popout and produce a 20px
+    // shadow scroll.
     try {
       for (const el of Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))) {
         try { doc.head.appendChild(el.cloneNode(true)); } catch { /* single stylesheet fail shouldn't abort the rest */ }
       }
     } catch (err) { console.warn('[PopoutPortal] stylesheet clone failed:', err); }
+
+    try {
+      const reset = doc.createElement('style');
+      // !important is belt-and-braces against any cloned rule using
+      // it too. Cascade order alone (reset appended last) is enough
+      // for the common cases, but trader-app stylesheets sometimes
+      // arrive late via dynamic imports and would re-clobber a
+      // cascade-only reset.
+      reset.textContent = `
+        html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; width: 100% !important; overflow: hidden !important; }
+        body { font-family: inherit; background: var(--bn-bg, #0b0e11); color: var(--bn-t0, #eaecef); }
+        [data-popout-root] { width: 100% !important; height: 100% !important; min-width: 0; min-height: 0; overflow: hidden !important; }
+      `;
+      doc.head.appendChild(reset);
+    } catch (err) { console.warn('[PopoutPortal] reset style inject failed:', err); }
   } catch (err) {
     console.warn('[PopoutPortal] prepareDocument failed:', err);
   }

@@ -297,8 +297,11 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     onWorkspaceChange: async () => {
       try {
         const r = await gcOrphanedConfigs({ cm, appId: defaultScope.appId, userId: defaultScope.userId });
-        if (r.deleted > 0) {
-          log(`Workspace GC: deleted ${r.deleted} orphan per-instance config row(s).`);
+        // Deletion is currently disabled in workspace-gc; r.deleted is
+        // always 0. r.wouldDelete tracks the rows that match no
+        // preservation rule, kept for telemetry while we audit.
+        if (r.wouldDelete > 0) {
+          log(`Workspace GC: ${r.wouldDelete} orphan row(s) identified (deletion disabled — none removed).`);
         }
       } catch (gcErr) {
         console.warn('[initWorkspace] post-workspace-change GC failed:', gcErr);
@@ -312,8 +315,8 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   void (async () => {
     try {
       const r = await gcOrphanedConfigs({ cm, appId: defaultScope.appId, userId: defaultScope.userId });
-      if (r.deleted > 0) {
-        log(`Workspace GC (boot): deleted ${r.deleted} orphan per-instance config row(s).`);
+      if (r.wouldDelete > 0) {
+        log(`Workspace GC (boot): ${r.wouldDelete} orphan row(s) identified (deletion disabled — none removed).`);
       }
     } catch (gcErr) {
       console.warn('[initWorkspace] boot GC failed:', gcErr);
