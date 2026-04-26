@@ -39,7 +39,13 @@ import {
   createConfigServiceStorage,
   type ConfigManager,
 } from '@marketsui/config-service';
-import { getConfigManager } from '@marketsui/openfin-platform';
+// Use the side-effect-free `/config` subpath, NOT the main barrel.
+// The main barrel re-exports from workspace.ts which top-level-imports
+// `@openfin/workspace-platform` — that module reads `fin.me.identity.uuid`
+// at load time and crashes outside an OpenFin runtime (vite dev,
+// standalone). The `/config` subpath only pulls the ConfigManager
+// singleton accessor and pure-data exports.
+import { getConfigManager } from '@marketsui/openfin-platform/config';
 import { useTheme } from '../context/ThemeContext';
 
 // ─── Row shape + synthetic data ───────────────────────────────────────
@@ -190,7 +196,56 @@ const defaultColDef: ColDef<Order> = {
 
 // ─── View ─────────────────────────────────────────────────────────────
 
-const GRID_ID = 'markets-ui-reference-blotter';
+/**
+ * Default fallback gridId used only when no host-supplied identity is
+ * present (i.e. plain-browser dev hits without a `?instanceId=` query
+ * param). Keeps the historical refresh-and-see-your-saved-profiles UX
+ * working for developers.
+ */
+const DEFAULT_GRID_ID = 'markets-ui-reference-blotter';
+
+/**
+ * Resolve a stable per-instance gridId from the host environment.
+ *
+ * Priority:
+ *   1. OpenFin `fin.me.getOptions().customData.instanceId` — the workspace
+ *      restore-safe identity assigned by the platform when the view is
+ *      created or rehydrated. Lives across save/restore.
+ *   2. URL `?instanceId=` query param — for non-OpenFin embeds and
+ *      ad-hoc dev links to a specific saved profile-set.
+ *   3. `DEFAULT_GRID_ID` — back-compat fallback for plain `npm run dev`
+ *      navigation; means every refresh hits the same row, which is what
+ *      developers expect when iterating locally.
+ *
+ * The resolved id is used both as `gridId` (the storage key the
+ * profile/grid-state modules write under) and as `instanceId` (the
+ * scope key for ConfigService rows). MarketsGrid defaults
+ * `instanceId` to `gridId` when omitted, but we set it explicitly so a
+ * future caller can read the storage row by predictable key.
+ */
+async function resolveGridInstanceId(): Promise<string> {
+  // 1. OpenFin customData
+  if (typeof fin !== 'undefined') {
+    try {
+      const options = await fin.me.getOptions();
+      const id = (options as { customData?: { instanceId?: string } })?.customData?.instanceId;
+      if (typeof id === 'string' && id.length > 0) return id;
+    } catch {
+      /* not in an OpenFin view, or getOptions failed — fall through */
+    }
+  }
+
+  // 2. URL query param
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('instanceId');
+    if (fromUrl && fromUrl.length > 0) return fromUrl;
+  } catch {
+    /* SSR / no window — fall through */
+  }
+
+  // 3. Fallback
+  return DEFAULT_GRID_ID;
+}
 
 /**
  * App and user identity used for ConfigService scoping.
@@ -213,6 +268,33 @@ const USER_ID = 'dev1';
 function BlottersMarketsGrid() {
   const { isDark } = useTheme();
 
+  // Auto-hiding debug header. The header used to take ~50px of
+  // permanent vertical real estate at the top of the grid; now it
+  // collapses by default and slides down as an overlay only when the
+  // mouse approaches the top edge of the view (8px hover strip). A
+  // short grace timeout keeps it visible while the cursor moves
+  // between the strip and the header itself, so it doesn't flicker
+  // when the user is reading the path / gridId.
+  const [debugVisible, setDebugVisible] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
+  const showHeader = useCallback(() => {
+    if (hideTimerRef.current !== null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setDebugVisible(true);
+  }, []);
+  const scheduleHide = useCallback(() => {
+    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(() => {
+      setDebugVisible(false);
+      hideTimerRef.current = null;
+    }, 250);
+  }, []);
+  useEffect(() => () => {
+    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+  }, []);
+
   // Seed a small synthetic dataset once on mount so the blotter has
   // something meaningful to render. A real blotter would plug a
   // data-plane provider in via `@marketsui/data-plane-react`.
@@ -230,6 +312,22 @@ function BlottersMarketsGrid() {
       .then((cm) => { if (!cancelled) setConfigManager(cm); })
       .catch((err) => {
         console.error('[BlottersMarketsGrid] Failed to resolve ConfigManager:', err);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Resolve the per-instance gridId from the host (OpenFin customData
+  // or `?instanceId=` URL param). Each unique id becomes its own
+  // ConfigService row, so multiple blotter instances can save independent
+  // profile sets, column layouts, conditional styles, etc.
+  const [gridInstanceId, setGridInstanceId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolveGridInstanceId()
+      .then((id) => { if (!cancelled) setGridInstanceId(id); })
+      .catch((err) => {
+        console.error('[BlottersMarketsGrid] Failed to resolve gridInstanceId:', err);
+        if (!cancelled) setGridInstanceId(DEFAULT_GRID_ID);
       });
     return () => { cancelled = true; };
   }, []);
@@ -260,41 +358,105 @@ function BlottersMarketsGrid() {
   }, []);
 
   return (
+    // The inline `<style>` neutralises the global `body { padding: 10px }`
+    // rule from index.css while THIS view is mounted. React 19 hoists
+    // style elements rendered in JSX into <head> automatically, and
+    // tears them down when the component unmounts — so other routes
+    // (the home Card layout) keep their default 10px chrome. Without
+    // this override the body padding pushes 100vh/100vw past the
+    // viewport edges and the page-level scrollbars appear on <html>.
+    //
+    // `position: fixed; inset: 0` on the wrapper pins it to the
+    // viewport regardless of body box. `overflow: hidden` belt-and-
+    // braces: any stray descendant overflow stays contained — AG-Grid
+    // still scrolls its rows internally, that's the grid's own viewport.
+    <>
+      <style>{`
+        html, body {
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+        }
+      `}</style>
     <div
       style={{
+        position: 'fixed',
+        inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
         background: 'var(--bn-bg)',
         color: 'var(--bn-t0)',
+        overflow: 'hidden',
       }}
     >
-      <header
+      {/* Hover strip — invisible 8px tall row at the very top edge.
+          Mouse enters here -> debug header slides down. Pointer events
+          are on so the strip captures the hover, but visually it's a
+          no-op. Sits at z-index 10 so it stays above the grid's chrome
+          but below the header (z-index 20) when expanded. */}
+      <div
+        aria-hidden="true"
+        onMouseEnter={showHeader}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 14px',
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          height: 8,
+          zIndex: 10,
+        }}
+      />
+
+      {/* Debug header — slides down from the top as an OVERLAY (the
+          grid below keeps its full height; the header doesn't push
+          content). Hidden by default, revealed on hover. The metadata
+          is rendered as labelled chips for legibility — readable at a
+          glance without squinting at 10px text. */}
+      <header
+        onMouseEnter={showHeader}
+        onMouseLeave={scheduleHide}
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          zIndex: 20,
+          padding: '10px 16px',
+          background: 'color-mix(in srgb, var(--bn-bg1, #161a1e) 92%, transparent)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
           borderBottom: '1px solid var(--bn-border, #313944)',
-          background: 'var(--bn-bg1, #161a1e)',
-          flexShrink: 0,
+          boxShadow: debugVisible ? '0 4px 16px rgba(0,0,0,0.35)' : 'none',
+          transform: debugVisible ? 'translateY(0)' : 'translateY(-100%)',
+          opacity: debugVisible ? 1 : 0,
+          pointerEvents: debugVisible ? 'auto' : 'none',
+          transition: 'transform 160ms ease-out, opacity 160ms ease-out, box-shadow 160ms ease-out',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bn-t0)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--bn-t0)',
+              letterSpacing: 0.2,
+            }}
+          >
             MarketsGrid
           </span>
-          <span style={{ fontSize: 10, color: 'var(--bn-t2, #7a8494)' }}>
-            /blotters/marketsgrid · {rowData.length} rows · gridId: {GRID_ID} · appId: {APP_ID} · user: {USER_ID}
-          </span>
+          <span style={{ color: 'var(--bn-t3, #5a6472)', fontSize: 12 }}>·</span>
+          <DebugChip label="path" value="/blotters/marketsgrid" mono />
+          <DebugChip label="rows" value={String(rowData.length)} />
+          <DebugChip label="gridId" value={gridInstanceId ?? '…'} mono truncate />
+          <DebugChip label="appId" value={APP_ID} />
+          <DebugChip label="user" value={USER_ID} />
         </div>
       </header>
 
       <div style={{ flex: 1, minHeight: 0 }}>
-        {storage ? (
+        {storage && gridInstanceId ? (
           <MarketsGrid<Order>
-            gridId={GRID_ID}
+            // gridId AND instanceId both flow from the host-resolved
+            // per-instance id, so every blotter instance writes to its
+            // own ConfigService row keyed by `(appId, userId, instanceId)`.
+            gridId={gridInstanceId}
+            instanceId={gridInstanceId}
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
@@ -323,12 +485,79 @@ function BlottersMarketsGrid() {
               color: 'var(--bn-t2, #7a8494)',
             }}
           >
-            Connecting to ConfigService…
+            {storage ? 'Resolving instance…' : 'Connecting to ConfigService…'}
           </div>
         )}
       </div>
     </div>
+    </>
   );
 }
 
 export default BlottersMarketsGrid;
+
+// ─── Debug-header helpers ────────────────────────────────────────────
+
+/**
+ * Chip used inside the auto-hide debug header. Two-tier label/value so
+ * the long IDs (gridId, appId) stay scannable: a small uppercase label
+ * to the left of the chip, the value to the right in a slightly larger
+ * size so it reads cleanly even at a glance.
+ *
+ * `mono` switches the value font to JetBrains Mono so URLs and UUIDs
+ * line up nicely. `truncate` adds ellipsis on overflow — used for
+ * gridId since it's a UUID.
+ */
+function DebugChip({
+  label,
+  value,
+  mono = false,
+  truncate = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  truncate?: boolean;
+}) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '3px 9px',
+        background: 'var(--bn-bg2, #1e2329)',
+        border: '1px solid var(--bn-border, #313944)',
+        borderRadius: 4,
+        maxWidth: truncate ? 280 : undefined,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: 0.6,
+          textTransform: 'uppercase',
+          color: 'var(--bn-t3, #5a6472)',
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          color: 'var(--bn-t0, #eaecef)',
+          fontFamily: mono
+            ? "'JetBrains Mono', 'IBM Plex Mono', monospace"
+            : 'inherit',
+          whiteSpace: 'nowrap',
+          overflow: truncate ? 'hidden' : 'visible',
+          textOverflow: truncate ? 'ellipsis' : 'clip',
+        }}
+        title={truncate ? value : undefined}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
