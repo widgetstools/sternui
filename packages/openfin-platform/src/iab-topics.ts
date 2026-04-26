@@ -50,16 +50,3 @@ export const ACTION_OPEN_WORKSPACE_SETUP = "open-workspace-setup";
  * user-visible notification, no hard failure.
  */
 export const ACTION_LAUNCH_COMPONENT     = "launch-component";
-/**
- * Dock content-menu item action: open the DockPopout window for a
- * top-level user-defined dropdown. `customData` shape:
- *   { dropdownId: string }
- *
- * Dock3's `ContentMenuEntry` folder branch has no `icon` field, so
- * a top-level dropdown rendered as a folder cannot show its icon.
- * Workaround: emit it as a content-menu ITEM (which DOES carry an
- * icon) whose click opens a small custom React window listing the
- * dropdown's children — each child rendered with its own icon and
- * a click handler that launches the registered component.
- */
-export const ACTION_OPEN_DOCK_POPOUT     = "open-dock-popout";
