@@ -35,6 +35,7 @@ import { registerNotifications } from './notifications';
 import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
 import { createWorkspacePersistenceOverride } from './workspace-persistence';
+import { gcOrphanedConfigs } from './workspace-gc';
 
 /**
  * Read the current theme from this window's documentElement.
@@ -267,13 +268,40 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
 
   // Build the workspace-persistence override so saved workspaces land in
   // ConfigService (Option A — single source of truth, shareable between
-  // users). OpenFin's local IndexedDB is bypassed entirely.
+  // users). OpenFin's local IndexedDB is bypassed entirely. The
+  // onWorkspaceChange hook drives orphan-config GC after every workspace
+  // mutation so per-instance config rows that no workspace references
+  // anymore get reaped.
+  const cm = configManager;
   const workspaceOverride = createWorkspacePersistenceOverride({
-    cm: configManager,
+    cm,
     appId: defaultScope.appId,
     userId: defaultScope.userId,
-    // GC of orphan per-instance configs is wired in Phase 3.
+    onWorkspaceChange: async () => {
+      try {
+        const r = await gcOrphanedConfigs({ cm, appId: defaultScope.appId, userId: defaultScope.userId });
+        if (r.deleted > 0) {
+          log(`Workspace GC: deleted ${r.deleted} orphan per-instance config row(s).`);
+        }
+      } catch (gcErr) {
+        console.warn('[initWorkspace] post-workspace-change GC failed:', gcErr);
+      }
+    },
   });
+
+  // App-start GC sweep: catches orphans left over from a crashed session
+  // or from a workspace deletion that happened in another tab. Fire-and-
+  // forget so it never blocks platform init.
+  void (async () => {
+    try {
+      const r = await gcOrphanedConfigs({ cm, appId: defaultScope.appId, userId: defaultScope.userId });
+      if (r.deleted > 0) {
+        log(`Workspace GC (boot): deleted ${r.deleted} orphan per-instance config row(s).`);
+      }
+    } catch (gcErr) {
+      console.warn('[initWorkspace] boot GC failed:', gcErr);
+    }
+  })();
 
   // init() starts the platform and triggers "platform-api-ready" above
   await initializePlatform(settings.platformSettings, config?.theme, workspaceOverride);
