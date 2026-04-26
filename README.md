@@ -116,6 +116,149 @@ npm run build -w @marketsui/core
 npm test  -w @marketsui/markets-grid
 ```
 
+## Hosting components in the reference apps
+
+Both `apps/markets-ui-react-reference` and `apps/markets-ui-angular-reference`
+expose components via plain client-side routes. The reference apps ship a
+generic `HostedComponent` wrapper that handles the hosting concerns once —
+identity resolution, ConfigService wiring, debug overlay, document title —
+so each route's view file only owns its own content.
+
+### What the wrapper provides
+
+- **Per-instance identity (`instanceId`)** resolved in priority order:
+  1. OpenFin `customData.instanceId` (when launched inside an OpenFin
+     view — survives workspace save/restore)
+  2. URL `?instanceId=…` query param (for non-OpenFin embeds)
+  3. The `defaultInstanceId` you supply
+- **`appId`/`userId`** resolved the same way (OpenFin customData → defaults
+  baked from `seed-config.json`).
+- **`ConfigManager` singleton** — same Dexie connection every other piece
+  of the platform writes through, so a hosted component's profile rows
+  appear in the Config Browser alongside dock + registry rows.
+- **`StorageAdapterFactory`** — opt-in via `withStorage`; only created
+  when the inner component reads/writes the host's ConfigService.
+  External components that manage their own storage leave this off.
+- **Auto-hide debug overlay** — collapsed by default; slides down from
+  the top edge on hover. Renders the resolved `instanceId`/`appId`/
+  `user` as labelled chips so you can verify scope at a glance.
+
+### React — `<HostedComponent>` render-prop
+
+```tsx
+// apps/markets-ui-react-reference/src/views/MyView.tsx
+import { HostedComponent } from '../components/HostedComponent';
+import { MarketsGrid } from '@marketsui/markets-grid';
+
+export default function MyView() {
+  return (
+    <HostedComponent
+      componentName="My Blotter"
+      defaultInstanceId="my-blotter-default"
+      withStorage    // opt in for ConfigService-backed storage
+    >
+      {({ instanceId, storage, appId, userId }) =>
+        instanceId == null || storage == null
+          ? <div>Loading…</div>
+          : <MarketsGrid
+              gridId={instanceId}
+              instanceId={instanceId}
+              storage={storage}
+              appId={appId}
+              userId={userId}
+              /* …your column defs, theme, row data… */
+            />
+      }
+    </HostedComponent>
+  );
+}
+```
+
+Then wire it as a route in `main.tsx`:
+
+```tsx
+const MyView = React.lazy(() => import('./views/MyView'));
+
+<Route
+  path="/blotters/myview"
+  element={
+    <React.Suspense fallback={<div>Loading…</div>}>
+      <MyView />
+    </React.Suspense>
+  }
+/>
+```
+
+For an **external** component (one that fetches its own state), drop
+`withStorage` — `storage` will be `null` and the component is expected
+to use the `appId`/`userId` it receives as hints when calling its own
+backend.
+
+### Angular — `<app-hosted-component>` + `HostedComponentService`
+
+The Angular wrapper uses content projection and a component-scoped
+service. Inner components inject the service to read the resolved
+identity; the wrapper itself handles everything else.
+
+```ts
+// apps/markets-ui-angular-reference/src/app/views/my-view-page.component.ts
+import { Component, inject } from '@angular/core';
+import { HostedComponentComponent, HostedComponentService } from '../components/hosted-component';
+
+@Component({
+  selector: 'app-my-view-page',
+  standalone: true,
+  imports: [HostedComponentComponent, MyInnerComponent],
+  template: `
+    <app-hosted-component
+      componentName="My Blotter"
+      defaultInstanceId="my-blotter-default"
+    >
+      <app-my-inner />
+    </app-hosted-component>
+  `,
+})
+export class MyViewPageComponent {}
+
+// In MyInnerComponent — inject the service to read context
+@Component({ ... })
+export class MyInnerComponent {
+  private host = inject(HostedComponentService);
+  readonly instanceId = this.host.instanceId;  // signal<string | null>
+  readonly appId = this.host.appId;            // signal<string>
+  readonly userId = this.host.userId;          // signal<string>
+}
+```
+
+Wire it as a lazy route in `app.routes.ts`:
+
+```ts
+{
+  path: 'blotters/myview',
+  loadComponent: () =>
+    import('./views/my-view-page.component').then((m) => m.MyViewPageComponent),
+},
+```
+
+### Routes vs OpenFin views
+
+A route is just a path the SPA renders. The same route is used in three
+launch contexts:
+
+1. **Plain browser** (vite dev) — type the URL, the wrapper resolves
+   identity from URL params or its default.
+2. **OpenFin View** inside the platform — the dock launches it via
+   `platform.createView({ url, customData: { instanceId, appId,
+   userId } })`. The wrapper reads customData and the same component
+   round-trips its config across workspace saves.
+3. **Standalone OpenFin Window** — same URL, opened via
+   `fin.Window.create({ url, customData: { … } })`. Workspace
+   captures it the same way.
+
+All three paths feed the same `instanceId` → `(appId, userId,
+instanceId)` ConfigService scope, so a component saved inside OpenFin
+shows up identically in plain browser dev (same Dexie DB, same row).
+
 ## Key docs
 
 - [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md) — layer diagram + import
