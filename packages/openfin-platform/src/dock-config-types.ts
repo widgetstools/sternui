@@ -99,15 +99,6 @@ export interface ContentMenuFolderEntry {
   type: "folder";
   id: string;
   label: string;
-  /**
-   * Optional icon for the folder header. The OpenFin v22
-   * `ContentMenuEntry` type doesn't expose `icon` on its folder branch,
-   * but the runtime accepts it — the official register-with-dock3-basic
-   * starter and the user's own dock both render folder icons. We carry
-   * it on the internal type so editor + flatten paths can pass it
-   * through; the OpenFin boundary uses `as any` where needed.
-   */
-  icon?: DockEntryIcon;
   children: ContentMenuEntryType[];
   bookmarked?: boolean;
 }
@@ -153,21 +144,9 @@ function makeDualIcon(
 }
 
 /**
- * Convert top-level dock buttons from a DockEditorConfig into Dock3 favorites.
- *
- * Both ActionButtons AND DropdownButtons land here:
- *   - ActionButton  → Dock3 item   (icon + click → launch action)
- *   - DropdownButton→ Dock3 folder (icon + click → opens content menu by id)
- *
- * DropdownButton folders also appear in `toDock3UserContentMenu()` with the
- * SAME id and their children. OpenFin's Dock3 navigates the content menu to
- * the matching folder when a favorites folder is clicked, so the icon shows
- * in the dock bar (DockEntry folder shape supports icon) while the children
- * render through ContentMenuEntry (which carries the icon for its leaf items).
- *
- * Children are intentionally NOT carried on the favorites folder — the
- * OpenFin DockEntry folder shape has no `children` field. The id-based
- * link to the content-menu copy is the authoritative one.
+ * Convert ActionButtons from a DockEditorConfig into Dock3 favorites.
+ * DropdownButtons are NOT included here — they go into contentMenu via
+ * `toDock3UserContentMenu()`.
  */
 export function toDock3Favorites(
   config: DockEditorConfig,
@@ -176,41 +155,26 @@ export function toDock3Favorites(
   darkColor: string,
   lightColor: string,
 ): Dock3Entry[] {
-  return config.buttons.map((btn): Dock3Entry => {
-    const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
-    if (btn.type === "DropdownButton") {
+  return config.buttons
+    .filter((btn): btn is DockActionButtonConfig => btn.type === "ActionButton")
+    .map((btn): Dock3Entry => {
+      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
       return {
-        type: "folder",
+        type: "item",
         id: btn.id,
         label: btn.tooltip,
         icon,
-        // Children live in the matching content-menu folder; OpenFin
-        // links by id when the favorite is clicked.
-        children: [],
+        itemData: {
+          actionId: btn.actionId,
+          customData: btn.customData,
+        },
       };
-    }
-    return {
-      type: "item",
-      id: btn.id,
-      label: btn.tooltip,
-      icon,
-      itemData: {
-        actionId: btn.actionId,
-        customData: btn.customData,
-      },
-    };
-  });
+    });
 }
 
 /**
  * Convert a single DockMenuItemConfig (which can have nested children)
  * into a ContentMenuEntry. Handles arbitrary nesting depth.
- *
- * Both leaf items AND sub-folders carry the icon resolved from
- * `item.iconId`. The OpenFin runtime renders icons on folders too
- * (per the official register-with-dock3-basic starter), even though
- * the published `ContentMenuEntry` type omits `icon` on the folder
- * branch.
  */
 function menuItemToContentMenuEntry(
   item: DockMenuItemConfig,
@@ -227,7 +191,6 @@ function menuItemToContentMenuEntry(
       type: "folder",
       id: item.id,
       label: item.tooltip,
-      ...(icon ? { icon } : {}),
       children: item.options.map((child) =>
         menuItemToContentMenuEntry(child, generateIcon, recolorUrl, darkColor, lightColor),
       ),
@@ -252,29 +215,6 @@ function menuItemToContentMenuEntry(
  * Each DropdownButton becomes a "folder" with its menu items as children.
  * Each ActionButton is skipped (those go into favorites).
  */
-/**
- * Convert top-level DropdownButtons to content-menu entries.
- *
- * OpenFin Dock3's `ContentMenuEntry` folder branch has no `icon` field
- * — the runtime ignores any icon we pass on a folder (verified against
- * the bundled platform JS, the official register-with-dock3-basic
- * starter, and live screenshots from this app's dock).
- *
- * Workaround: emit each dropdown as a sibling pair at the top of the
- * content menu, mirroring the OpenFin starter's "Google" pattern:
- *
- *   1. An ITEM with the dropdown's icon + label. Items DO carry icons
- *      in ContentMenuEntry, so this is the visual anchor. Clicking it
- *      launches the dropdown's first launchable child (the registered
- *      component or sub-action) — gives the row a meaningful action
- *      while the folder below still owns the full hierarchy.
- *   2. A FOLDER with the same label + children. Clicking it expands
- *      the menu items inline as before. No icon (platform limitation).
- *
- * If the dropdown has no launchable child (empty options or only
- * sub-folders), the icon-item is omitted — there's nothing useful to
- * launch and an undecorated visual marker would just confuse the user.
- */
 export function toDock3UserContentMenu(
   config: DockEditorConfig,
   generateIcon: (iconId: string, color: string) => string,
@@ -282,56 +222,19 @@ export function toDock3UserContentMenu(
   darkColor: string,
   lightColor: string,
 ): ContentMenuEntryType[] {
-  const result: ContentMenuEntryType[] = [];
-  for (const btn of config.buttons) {
-    if (btn.type !== "DropdownButton") continue;
-    const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
-    const children = btn.options.map((item) =>
-      menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
-    );
-
-    // Icon-item shortcut — only emit when we have both an icon AND a
-    // launchable child to wire the click to.
-    const firstLaunchable = findFirstLaunchableChild(btn.options);
-    if (icon && firstLaunchable) {
-      result.push({
-        type: "item",
-        id: `${btn.id}--header`,
+  return config.buttons
+    .filter((btn): btn is DockDropdownButtonConfig => btn.type === "DropdownButton")
+    .map((btn): ContentMenuEntryType => {
+      const children = btn.options.map((item) =>
+        menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
+      );
+      return {
+        type: "folder",
+        id: btn.id,
         label: btn.tooltip,
-        icon,
-        itemData: {
-          actionId: firstLaunchable.actionId,
-          customData: firstLaunchable.customData,
-        },
-      });
-    }
-
-    // The actual folder — owns the full hierarchy.
-    result.push({
-      type: "folder",
-      id: btn.id,
-      label: btn.tooltip,
-      ...(icon ? { icon } : {}),
-      children,
+        children,
+      };
     });
-  }
-  return result;
-}
-
-/**
- * Walk a menu-item tree and return the first leaf that has an
- * actionId — used to give the dropdown's icon-item shortcut a sensible
- * default click target.
- */
-function findFirstLaunchableChild(items: DockMenuItemConfig[]): DockMenuItemConfig | null {
-  for (const item of items) {
-    if (item.actionId) return item;
-    if (item.options?.length) {
-      const nested = findFirstLaunchableChild(item.options);
-      if (nested) return nested;
-    }
-  }
-  return null;
 }
 
 /**
