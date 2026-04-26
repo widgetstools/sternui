@@ -21,7 +21,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { ChevronUp, ChevronDown, X, FolderPlus, Plus, Search } from "lucide-react";
+import { ChevronUp, ChevronDown, X, FolderPlus, Plus, Search, Folder, Box } from "lucide-react";
 import type {
   DockEditorConfig,
   DockButtonConfig,
@@ -31,7 +31,37 @@ import type {
 } from "@marketsui/openfin-platform/config";
 import { ACTION_LAUNCH_COMPONENT } from "@marketsui/openfin-platform/config";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
 import type { EditorSelection } from "./types";
+
+// ─── Inline icon preview ─────────────────────────────────────────────
+// Renders the iconId the user picked next to each dock row so the
+// editor visualises the actual selection. Falls back to a generic
+// folder/box glyph when no iconId is set yet — useful for empty
+// dropdowns or freshly-created action buttons before the user has
+// chosen an icon.
+
+function RowIcon({ iconId, isFolder }: { iconId: string | undefined; isFolder: boolean }) {
+  const url = iconId ? iconIdToSvgUrl(iconId, "currentColor") : "";
+  const size = 16;
+  const baseStyle: React.CSSProperties = {
+    width: size,
+    height: size,
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--bn-t1)",
+  };
+  if (url) {
+    return <img src={url} alt="" width={size} height={size} style={baseStyle} />;
+  }
+  return isFolder ? (
+    <Folder className="w-4 h-4" style={baseStyle} />
+  ) : (
+    <Box className="w-4 h-4" style={baseStyle} />
+  );
+}
 
 interface DockPaneProps {
   dock: DockEditorConfig | null;
@@ -169,7 +199,7 @@ function DockButtonRow({
         <button
           type="button"
           onClick={() => onSelect({ kind: "dock-item", itemId: button.id })}
-          className="flex-1 text-left rounded-md px-2 py-1.5 text-xs"
+          className="flex-1 text-left rounded-md px-2 py-1.5 text-xs flex items-center gap-2"
           style={{
             background: isSelected ? "var(--bn-bg3)" : "var(--bn-bg2)",
             border: "1px solid var(--bn-border)",
@@ -177,10 +207,13 @@ function DockButtonRow({
             textDecoration: broken ? "line-through" : "none",
           }}
         >
-          <span style={{ color: "var(--bn-t2)" }}>{isDropdown ? "▼ " : "• "}</span>
-          <span className="font-medium">{button.tooltip}</span>
+          <RowIcon iconId={button.iconId} isFolder={isDropdown} />
+          <span className="font-medium flex-1 truncate">
+            {isDropdown && <span style={{ color: "var(--bn-t2)" }}>▾ </span>}
+            {button.tooltip}
+          </span>
           {broken && (
-            <span className="ml-2 text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
+            <span className="text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
               ⚠ Component deleted
             </span>
           )}
@@ -263,23 +296,24 @@ function DockMenuItemRow({
   const broken = isLaunchComponent && refId && !entriesById.has(refId);
   const isSelected = selection.kind === "dock-item" && selection.itemId === item.id;
 
+  const isFolder = (item.options?.length ?? 0) > 0;
   return (
     <div className="group">
       <div className="flex items-stretch gap-1 my-1">
         <button
           type="button"
           onClick={() => onSelect({ kind: "dock-item", itemId: item.id })}
-          className="flex-1 text-left rounded-md px-2 py-1 text-xs"
+          className="flex-1 text-left rounded-md px-2 py-1 text-xs flex items-center gap-2"
           style={{
             background: isSelected ? "var(--bn-bg3)" : "transparent",
             color: broken ? "var(--bn-warn, #f59e0b)" : "var(--bn-t1)",
             textDecoration: broken ? "line-through" : "none",
           }}
         >
-          <span style={{ color: "var(--bn-t2)" }}>↳ </span>
-          {item.tooltip}
+          <RowIcon iconId={item.iconId} isFolder={isFolder} />
+          <span className="flex-1 truncate">{item.tooltip}</span>
           {broken && (
-            <span className="ml-1 text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
+            <span className="text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
               ⚠ Component deleted
             </span>
           )}
