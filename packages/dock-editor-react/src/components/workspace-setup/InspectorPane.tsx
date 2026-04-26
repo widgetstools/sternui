@@ -572,13 +572,13 @@ function DockItemInspector({
 
 function PaneShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b" style={{ borderColor: "var(--bn-border)" }}>
+    <div className="flex flex-col h-full min-h-0">
+      <div className="px-3 py-2 border-b shrink-0" style={{ borderColor: "var(--bn-border)" }}>
         <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--bn-t1)" }}>
           ③ {title}
         </span>
       </div>
-      <div className="flex-1 overflow-auto p-3">{children}</div>
+      <div className="flex-1 overflow-auto bn-scrollbar p-3 min-h-0">{children}</div>
     </div>
   );
 }

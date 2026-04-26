@@ -54,7 +54,7 @@ export function DockPane({ dock, entries, selection, onSelect, onRemove, onReord
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-3">
+      <div className="flex-1 overflow-auto bn-scrollbar p-3 min-h-0">
         {buttons.length === 0 && (
           <div className="rounded-md border border-dashed p-4 text-center text-xs" style={{
             borderColor: "var(--bn-border)",

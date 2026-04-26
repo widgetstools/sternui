@@ -114,7 +114,7 @@ export function ComponentsPane({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bn-scrollbar min-h-0">
         {filtered.length === 0 && (
           <div className="px-3 py-6 text-center text-xs" style={{ color: "var(--bn-t2)" }}>
             {entries.length === 0

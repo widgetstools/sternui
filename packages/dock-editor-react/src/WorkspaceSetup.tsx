@@ -204,50 +204,32 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
 
   return (
     <div
+      data-dock-editor=""
       className="flex flex-col h-full w-full overflow-hidden"
       style={{ background: "var(--bn-bg)", color: "var(--bn-t0)" }}
     >
-      {/* Top bar */}
-      <div
+      {/* Fixed header — title + unsaved badge */}
+      <header
         className="flex items-center justify-between px-4 py-2 border-b shrink-0"
-        style={{ borderColor: "var(--bn-border)" }}
+        style={{ borderColor: "var(--bn-border)", background: "var(--bn-bg)" }}
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">Workspace Setup</span>
-          {isDirty && (
-            <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--bn-warn, #f59e0b)" }}>
-              <span style={{ color: "var(--bn-warn, #f59e0b)" }}>●</span> Unsaved
-            </span>
-          )}
+          <span className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
+            {summary.totalComponents} component{summary.totalComponents === 1 ? "" : "s"} · {summary.dockButtons} dock button{summary.dockButtons === 1 ? "" : "s"}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => { void handleDiscard(); }}
-            disabled={!isDirty}
-            className="rounded-md px-3 py-1 text-xs font-medium disabled:opacity-50"
-            style={{
-              background: "var(--bn-bg2)",
-              color: "var(--bn-t1)",
-              border: "1px solid var(--bn-border)",
-            }}
-          >
-            Discard
-          </button>
-          <button
-            type="button"
-            onClick={() => { void handleSaveAll(); }}
-            disabled={!isDirty}
-            className="rounded-md px-3 py-1 text-xs font-medium disabled:opacity-50"
-            style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
-          >
-            Save
-          </button>
-        </div>
-      </div>
+        {isDirty && (
+          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--bn-warn, #f59e0b)" }}>
+            <span style={{ color: "var(--bn-warn, #f59e0b)" }}>●</span> Unsaved changes
+          </span>
+        )}
+      </header>
 
-      {/* 3-pane body */}
-      <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0 overflow-hidden">
+      {/* Scrollable body — only the panes' inner content scrolls; the
+          outer container has overflow-hidden so no scrollbar appears
+          on the shell itself. */}
+      <main className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0 min-w-0 overflow-hidden">
         <ComponentsPane
           entries={registry.entries}
           inDockEntryIds={inDockEntryIds}
@@ -276,7 +258,37 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           inDockEntryIds={inDockEntryIds}
           summary={summary}
         />
-      </div>
+      </main>
+
+      {/* Fixed footer — Save / Discard. Anchored at the bottom so primary
+          actions are reachable regardless of which pane is scrolled. */}
+      <footer
+        className="flex items-center justify-end gap-2 px-4 py-2 border-t shrink-0"
+        style={{ borderColor: "var(--bn-border)", background: "var(--bn-bg)" }}
+      >
+        <button
+          type="button"
+          onClick={() => { void handleDiscard(); }}
+          disabled={!isDirty}
+          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+          style={{
+            background: "var(--bn-bg2)",
+            color: "var(--bn-t1)",
+            border: "1px solid var(--bn-border)",
+          }}
+        >
+          Discard
+        </button>
+        <button
+          type="button"
+          onClick={() => { void handleSaveAll(); }}
+          disabled={!isDirty}
+          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+          style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
+        >
+          Save
+        </button>
+      </footer>
     </div>
   );
 }
