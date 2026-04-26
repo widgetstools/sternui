@@ -2,7 +2,7 @@
 declare const fin: any;
 import type OpenFin from "@openfin/core";
 import { Home, Storefront, type App } from "@openfin/workspace";
-import { ColorSchemeOptionType, CustomActionCallerType, getCurrentSync, init } from "@openfin/workspace-platform";
+import { ColorSchemeOptionType, CustomActionCallerType, getCurrentSync, init, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
 import { createConfigManager, type ConfigManager } from "@marketsui/config-service";
 import {
   setConfigManager,
@@ -34,6 +34,7 @@ import { launchApp, launchRegisteredComponent } from './launch';
 import { registerNotifications } from './notifications';
 import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
+import { createWorkspacePersistenceOverride } from './workspace-persistence';
 
 /**
  * Read the current theme from this window's documentElement.
@@ -264,8 +265,18 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     }
   });
 
+  // Build the workspace-persistence override so saved workspaces land in
+  // ConfigService (Option A — single source of truth, shareable between
+  // users). OpenFin's local IndexedDB is bypassed entirely.
+  const workspaceOverride = createWorkspacePersistenceOverride({
+    cm: configManager,
+    appId: defaultScope.appId,
+    userId: defaultScope.userId,
+    // GC of orphan per-instance configs is wired in Phase 3.
+  });
+
   // init() starts the platform and triggers "platform-api-ready" above
-  await initializePlatform(settings.platformSettings, config?.theme);
+  await initializePlatform(settings.platformSettings, config?.theme, workspaceOverride);
 }
 
 // ─── Export config helper ─────────────────────────────────────────────
@@ -319,8 +330,10 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
 async function initializePlatform(
   platformSettings: PlatformSettings,
   theme?: WorkspaceConfig["theme"],
+  overrideCallback?: WorkspacePlatformOverrideCallback,
 ): Promise<void> {
   await init({
+    ...(overrideCallback ? { overrideCallback } : {}),
     browser: {
       defaultWindowOptions: {
         icon: platformSettings.icon,
