@@ -423,3 +423,92 @@ export async function realignAllConfigsToPlatformScope(): Promise<{ realigned: n
   }
   return { realigned, total: rows.length };
 }
+
+/**
+ * Phase-5 migration: relocate the component registry from per-user scope
+ * to the new GLOBAL scope (appId, 'system').
+ *
+ * Phase 4 promoted the registry to global storage. Pre-Phase-4 installs
+ * still have their registry row at the platform-default `(appId, userId)`
+ * — `loadRegistryConfig`'s back-compat fallback finds them but never
+ * relocates. This function does the relocation: copy payload to the
+ * global location, delete the old row.
+ *
+ * Idempotent: if the global row already exists OR no per-user row is
+ * present, it's a no-op. Safe to invoke on every platform boot.
+ *
+ * Returns the number of registry rows migrated (0 or 1 in normal
+ * operation; could be >1 if multiple per-user rows somehow accumulated).
+ */
+export async function migrateRegistryToGlobalScope(): Promise<{ migrated: number }> {
+  const manager = await getConfigManager();
+  const targetAppId = currentPlatformScope.appId;
+  const globalScope: Required<ConfigScope> = { appId: targetAppId, userId: GLOBAL_USER_ID };
+  const globalConfigId = scopedConfigId(REGISTRY_CONFIG_BASE_ID, globalScope);
+
+  // If the global row already exists, nothing to do
+  const existingGlobal = await manager.getConfig(globalConfigId);
+  if (existingGlobal) return { migrated: 0 };
+
+  // Find every registry row for this app at any non-global userId
+  const all = await manager.getAllConfigs();
+  const candidates = all.filter((r) =>
+    r.appId === targetAppId &&
+    r.userId !== GLOBAL_USER_ID &&
+    (r.componentType === COMPONENT_TYPES.COMPONENT_REGISTRY ||
+     r.componentType === LEGACY_REGISTRY_COMPONENT_TYPE),
+  );
+
+  if (candidates.length === 0) {
+    // Also handle the very-legacy bare-id row at 'system'/'system'
+    const veryLegacy = await manager.getConfig(REGISTRY_CONFIG_BASE_ID);
+    if (
+      veryLegacy &&
+      veryLegacy.appId === LEGACY_DEFAULT_SCOPE.appId &&
+      veryLegacy.userId === LEGACY_DEFAULT_SCOPE.userId &&
+      (veryLegacy.componentType === COMPONENT_TYPES.COMPONENT_REGISTRY ||
+       veryLegacy.componentType === LEGACY_REGISTRY_COMPONENT_TYPE)
+    ) {
+      const now = new Date().toISOString();
+      await manager.saveConfig({
+        ...veryLegacy,
+        configId: globalConfigId,
+        appId: globalScope.appId,
+        userId: globalScope.userId,
+        componentType: COMPONENT_TYPES.COMPONENT_REGISTRY,
+        updatedBy: globalScope.userId,
+        updatedTime: now,
+      });
+      try { await manager.deleteConfig(veryLegacy.configId); } catch { /* ignore */ }
+      return { migrated: 1 };
+    }
+    return { migrated: 0 };
+  }
+
+  // Pick the most-recently-updated candidate as the source of truth.
+  // Multiple per-user registry rows shouldn't normally exist, but if
+  // they do (e.g., the user opened the app under different userIds
+  // before Phase 4 landed), the freshest wins.
+  candidates.sort((a, b) => (b.updatedTime ?? '').localeCompare(a.updatedTime ?? ''));
+  const source = candidates[0];
+  const now = new Date().toISOString();
+
+  await manager.saveConfig({
+    ...source,
+    configId: globalConfigId,
+    appId: globalScope.appId,
+    userId: globalScope.userId,
+    componentType: COMPONENT_TYPES.COMPONENT_REGISTRY,
+    updatedBy: globalScope.userId,
+    updatedTime: now,
+  });
+
+  // Delete every per-user copy (the source plus any losers)
+  for (const c of candidates) {
+    try { await manager.deleteConfig(c.configId); } catch (err) {
+      console.warn(`[migrateRegistryToGlobalScope] failed to delete legacy row '${c.configId}':`, err);
+    }
+  }
+
+  return { migrated: candidates.length };
+}

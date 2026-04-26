@@ -9,6 +9,7 @@ import {
   setPlatformDefaultScope,
   getPlatformDefaultScope,
   migrateLegacyPlatformScope,
+  migrateRegistryToGlobalScope,
   realignAllConfigsToPlatformScope,
 } from './db';
 import {
@@ -241,6 +242,21 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
     }
   } catch (realignErr) {
     console.warn('[initWorkspace] realignAllConfigsToPlatformScope failed:', realignErr);
+  }
+
+  // Phase-5 migration: relocate the component registry from per-user
+  // scope (where Phase 3 and earlier wrote it) to the new global scope
+  // (appId, 'system') so every user of the app shares the same catalog.
+  // Runs AFTER realignAllConfigsToPlatformScope so any stray rows have
+  // already been re-tagged to the current platform scope first — keeps
+  // the candidate-picking logic deterministic.
+  try {
+    const r = await migrateRegistryToGlobalScope();
+    if (r.migrated > 0) {
+      log(`Workspace setup migrated to new format (registry → global scope, ${r.migrated} row(s)).`);
+    }
+  } catch (regMigErr) {
+    console.warn('[initWorkspace] migrateRegistryToGlobalScope failed:', regMigErr);
   }
 
   log("Config service initialized");
