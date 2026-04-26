@@ -23,6 +23,18 @@ import { clickIsInsideAnyOpenPopover, registerPopoverRoot } from './popoverStack
  *   - stopPropagation on mousedown inside content
  *   - max z-index (2147483647)
  */
+/**
+ * `children` can be either a static React node OR a render function
+ * that receives `{ close }`. The function form lets popover content
+ * drive its own dismissal (e.g. an inline "apply" button on the
+ * format-string input that needs to commit + close in one click).
+ * Plain-node consumers stay unchanged — the type union is checked at
+ * runtime so existing callsites compile and run as before.
+ */
+export type FormatPopoverChildren =
+  | React.ReactNode
+  | ((api: { close: () => void }) => React.ReactNode);
+
 export function FormatPopover({
   trigger,
   children,
@@ -30,7 +42,7 @@ export function FormatPopover({
   align = 'start',
 }: {
   trigger: React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>;
-  children: React.ReactNode;
+  children: FormatPopoverChildren;
   width?: number;
   align?: 'start' | 'center' | 'end';
 }) {
@@ -77,15 +89,21 @@ export function FormatPopover({
           // Keep the popover inside the viewport. Radix exposes
           // `--radix-popover-content-available-height` = the max height
           // that fits before it would hit the viewport edge (given the
-          // `collisionPadding` below). Cap there and scroll internally
-          // so tall content (FormatterPicker's preset grid + currency
-          // row + custom Excel input) stays reachable on short
-          // viewports instead of clipping off the top or bottom.
+          // `collisionPadding` below). Cap there and let CHILDREN
+          // manage their own internal scroll — flex-column + overflow-hidden
+          // on this Content means the FormatterPicker's preset grid can
+          // be the single scrollable region (flex: 1; min-height: 0;
+          // overflow-y: auto) while the CURRENT chip + custom-Excel row
+          // stay pinned. Without this the popover would also scroll,
+          // producing the doubled scrollbars users complained about.
           style={{
             width,
             maxWidth: 'calc(100vw - 16px)',
             maxHeight: 'var(--radix-popover-content-available-height, 80vh)',
-            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'hidden',
             padding: 10,
             // Token-backed background — inline so it wins over the
             // Tailwind arbitrary-value class above with the same
@@ -118,7 +136,9 @@ export function FormatPopover({
             }
           }}
         >
-          {children}
+          {typeof children === 'function'
+            ? children({ close: () => setOpen(false) })
+            : children}
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>

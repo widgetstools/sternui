@@ -6,10 +6,11 @@
  * module sees a canonical `defaultColDef` + row sizing + selection
  * config shaped by the user's preferences.
  *
- * `schemaVersion: 2` — a schemaVersion 1 snapshot (smaller field set)
- * migrates by additively filling every new field from
+ * `schemaVersion: 3` — a schemaVersion 1 or 2 snapshot (smaller field
+ * set) migrates by additively filling every new field from
  * `INITIAL_GENERAL_SETTINGS`. The bump is intra-module — the app
- * version was never tied to module schema versions.
+ * version was never tied to module schema versions. v3 adds Side Bar
+ * + Status Bar visibility toggles + their per-panel sub-toggles.
  */
 import type { GridOptions } from 'ag-grid-community';
 import type { Module } from '../../platform/types';
@@ -22,7 +23,7 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
   id: GENERAL_SETTINGS_MODULE_ID,
   name: 'Grid Options',
   code: '00',
-  schemaVersion: 2,
+  schemaVersion: 3,
   priority: 0,
 
   getInitialState: () => ({ ...INITIAL_GENERAL_SETTINGS }),
@@ -55,6 +56,69 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
       afterEdit: { enterNavigatesVertically: false, enterNavigatesVerticallyAfterEdit: true  },
       both:      { enterNavigatesVertically: true,  enterNavigatesVerticallyAfterEdit: true  },
     }[s.enterNavigation];
+
+    // Side Bar — when off, pass `false` (AG-Grid hides the panel and
+    // its anchor button entirely). When on, build a tool-panels array
+    // by filtering the show-flags, mirroring AG-Grid's stock
+    // `agColumnsToolPanel` / `agFiltersToolPanel` definitions.
+    const sideBarPanels: Array<Record<string, unknown>> = [];
+    if (s.sideBar) {
+      if (s.sideBarShowColumns) {
+        sideBarPanels.push({
+          id: 'columns',
+          labelDefault: 'Columns',
+          labelKey: 'columns',
+          iconKey: 'columns',
+          toolPanel: 'agColumnsToolPanel',
+        });
+      }
+      if (s.sideBarShowFilters) {
+        sideBarPanels.push({
+          id: 'filters',
+          labelDefault: 'Filters',
+          labelKey: 'filters',
+          iconKey: 'filter',
+          toolPanel: 'agFiltersToolPanel',
+        });
+      }
+    }
+    // Default panel is only honoured if it references an actually-enabled
+    // panel — otherwise AG-Grid logs a warning and leaves it closed.
+    const defaultPanelEnabled =
+      (s.sideBarDefaultPanel === 'columns' && s.sideBarShowColumns) ||
+      (s.sideBarDefaultPanel === 'filters' && s.sideBarShowFilters);
+    const sideBarOpt = !s.sideBar || sideBarPanels.length === 0
+      ? false
+      : {
+          toolPanels: sideBarPanels,
+          defaultToolPanel: defaultPanelEnabled ? s.sideBarDefaultPanel : undefined,
+        };
+
+    // Status Bar — same pattern. AG-Grid's `statusBar` is undefined when
+    // off (it has no `false` shorthand like `sideBar` does), so we omit
+    // the property entirely rather than assign undefined to satisfy the
+    // type checker.
+    const statusBarPanels: Array<Record<string, unknown>> = [];
+    if (s.statusBar) {
+      if (s.statusBarShowTotalAndFilteredCount) {
+        statusBarPanels.push({ statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' });
+      }
+      if (s.statusBarShowFilteredCount) {
+        statusBarPanels.push({ statusPanel: 'agFilteredRowCountComponent' });
+      }
+      if (s.statusBarShowTotalCount) {
+        statusBarPanels.push({ statusPanel: 'agTotalRowCountComponent' });
+      }
+      if (s.statusBarShowSelectedCount) {
+        statusBarPanels.push({ statusPanel: 'agSelectedRowCountComponent' });
+      }
+      if (s.statusBarShowAggregation) {
+        statusBarPanels.push({ statusPanel: 'agAggregationComponent', align: 'right' });
+      }
+    }
+    const statusBarOpt = s.statusBar && statusBarPanels.length > 0
+      ? { statusPanels: statusBarPanels }
+      : undefined;
 
     return {
       ...opts,
@@ -168,6 +232,17 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
         enableValue: s.enableValue,
         ...opts.defaultColDef,
       },
+
+      // ── Side Bar / Status Bar ──
+      // sideBar: `false` when off (matches AG-Grid's "no sidebar" shape);
+      // a SideBarDef with toolPanels[] when on. The host's `opts.sideBar`
+      // is intentionally OVERRIDDEN — this is a user-controlled option,
+      // and the host typically passes nothing here anyway.
+      sideBar: sideBarOpt,
+      // statusBar is omitted (left as host's `opts.statusBar`) when off,
+      // so a host that wires its own status bar isn't clobbered. When the
+      // user enables it, our config wins.
+      ...(statusBarOpt ? { statusBar: statusBarOpt } : {}),
 
       // ── Performance ──
       rowBuffer: s.rowBuffer,

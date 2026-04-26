@@ -1,18 +1,49 @@
 /**
  * Workspace-membership-driven GC for orphaned per-instance config rows.
  *
- * The "config rows are ephemeral until claimed by a workspace" rule (per
- * the design) is implemented as set-membership cleanup, not as a flag on
- * the row. A per-instance config row is preserved iff it's referenced by
- * at least one of the user's saved workspaces; otherwise it's reaped.
+ * ┌──────────────────────────────────────────────────────────────────┐
+ * │  DELETION IS CURRENTLY DISABLED                                  │
+ * │                                                                  │
+ * │  Repeated false-positive deletions (registry scope mismatches,   │
+ * │  pre-flag rows, race conditions on first save) made this sweep   │
+ * │  unsafe to leave armed. The sweep still RUNS and still computes  │
+ * │  which rows it WOULD have reaped — that count is reported as     │
+ * │  `result.wouldDelete` so we keep telemetry — but no              │
+ * │  `cm.deleteConfig()` call is issued.                             │
+ * │                                                                  │
+ * │  Re-enable by flipping `DELETION_ENABLED` to `true` once the     │
+ * │  preservation rules have been audited end-to-end against real    │
+ * │  user databases. Until then, IndexedDB just accumulates orphan   │
+ * │  rows — costs a few KB per stale instance, no functional impact. │
+ * └──────────────────────────────────────────────────────────────────┘
+ *
+ * The intended rule (when re-enabled): per-instance clones are ephemeral
+ * until claimed by a saved workspace; everything that represents a
+ * registered component (singleton row, non-singleton template) is
+ * permanent and never reaped.
  *
  * Preservation rules (any one is enough to keep a row):
- *   1. componentType === 'workspace'      — workspace rows are not per-instance
- *   2. isTemplate === true                — shared seeds, not per-instance
- *   3. configId in WELL_KNOWN_SHARED_IDS  — admin/system rows (dock, registry)
- *   4. configId === '<componentType>_<componentSubType>' for some
- *      registered component                — singleton or template key
- *   5. configId referenced by some saved workspace's instanceIds
+ *   1. componentType === 'workspace'           — workspace rows themselves
+ *   2. isTemplate === true                     — admin-defined templates
+ *   3. isRegisteredComponent === true          — explicit flag set when the
+ *                                                row was written as a
+ *                                                registered-component config
+ *   4. configId in WELL_KNOWN_SHARED_IDS       — admin/system rows
+ *                                                (dock, registry, ws-setup)
+ *   5. configId === deriveSingletonConfigId(componentType, componentSubType)
+ *                                              — self-describing fallback for
+ *                                                pre-flag rows; protects existing
+ *                                                singleton rows that haven't
+ *                                                been re-saved yet
+ *   6. configId in singletonKeys (registry)    — entry-driven catch for
+ *                                                custom configIds that don't
+ *                                                match the canonical derivation
+ *   7. configId referenced by some saved workspace's instanceIds
+ *
+ * Rules 3, 5, and 6 are layered defenses for the same intent — "registered
+ * components are protected." The explicit flag (rule 3) is the canonical
+ * signal going forward; rules 5–6 catch legacy rows and registries written
+ * under unusual scopes.
  *
  * GC is wired to:
  *   • createSavedWorkspace / updateSavedWorkspace / deleteSavedWorkspace
@@ -20,8 +51,17 @@
  *   • app start (via initWorkspace bootstrap)
  */
 
+/**
+ * Master switch for GC deletion. Currently OFF — see file header for why.
+ * Set to `true` to re-enable destructive sweeps once preservation rules
+ * are trusted end-to-end.
+ */
+const DELETION_ENABLED = false;
+
 import type { ConfigManager, AppConfigRow } from '@marketsui/config-service';
 import { COMPONENT_TYPES } from '@marketsui/shared-types';
+import { deriveSingletonConfigId } from './registry-config-types';
+import { loadRegistryConfig } from './db';
 
 interface RegistryEntryLite {
   configId?: string;
@@ -39,10 +79,11 @@ const WELL_KNOWN_SHARED_CONFIG_IDS: ReadonlySet<string> = new Set<string>([
   'workspace-setup',
 ]);
 
-function singletonKeysFromRegistry(reg: AppConfigRow | undefined): Set<string> {
+function singletonKeysFromRegistryEntries(
+  entries: RegistryEntryLite[] | undefined,
+): Set<string> {
   const keys = new Set<string>();
-  if (!reg) return keys;
-  const entries = (reg.payload as { entries?: RegistryEntryLite[] } | undefined)?.entries ?? [];
+  if (!entries) return keys;
   for (const e of entries) {
     // Singleton lifecycle entries reuse the same configId every launch
     // (deriveSingletonConfigId writes it onto the entry at save time);
@@ -51,6 +92,22 @@ function singletonKeysFromRegistry(reg: AppConfigRow | undefined): Set<string> {
     if (e?.singleton && e?.configId) keys.add(e.configId);
   }
   return keys;
+}
+
+/**
+ * True when a row's configId equals the canonical derivation for its
+ * componentType/componentSubType. This is the back-compat signal for
+ * rows written before `isRegisteredComponent` existed — those rows
+ * have no flag, but their configId IS the derived singleton id, so we
+ * can identify them by shape alone.
+ */
+function isSingletonShape(row: AppConfigRow): boolean {
+  if (!row.componentType) return false;
+  const expected = deriveSingletonConfigId(
+    row.componentType,
+    row.componentSubType ?? '',
+  );
+  return row.configId === expected;
 }
 
 function instanceIdsFromWorkspaces(workspaces: AppConfigRow[]): Set<string> {
@@ -72,10 +129,23 @@ export interface GcOptions {
 
 export interface GcResult {
   scanned: number;
+  /**
+   * Rows actually removed from the store. Will be 0 while
+   * `DELETION_ENABLED === false`. Kept on the result so external
+   * logging / telemetry that already reads `r.deleted` keeps working.
+   */
   deleted: number;
+  /**
+   * Rows that matched no preservation rule and would have been deleted
+   * if `DELETION_ENABLED === true`. Equal to `deleted` when deletion is
+   * armed; otherwise tracks the would-be-reaped count for visibility.
+   */
+  wouldDelete: number;
   preservedTemplate: number;
+  preservedRegistered: number;
   preservedKnown: number;
   preservedSingleton: number;
+  preservedSingletonShape: number;
   preservedReferenced: number;
 }
 
@@ -94,17 +164,29 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
   const workspaces = inScope.filter((r) => r.componentType === COMPONENT_TYPES.WORKSPACE);
   const referenced = instanceIdsFromWorkspaces(workspaces);
 
-  // Registry can live at a different scope (Phase 4 promotes it to global
-  // (appId, userId='system')), so we look it up by canonical configId.
-  const registry = await cm.getConfig('component-registry');
-  const singletonKeys = singletonKeysFromRegistry(registry);
+  // Load the registry through the canonical loader so scope resolution
+  // (Phase 4 global scope, legacy bare-id row, etc.) is handled correctly.
+  // The previous direct `cm.getConfig('component-registry')` only matched
+  // the bare-id row and missed registries written under non-default scopes.
+  let singletonKeys = new Set<string>();
+  try {
+    const registry = await loadRegistryConfig({ appId, userId });
+    singletonKeys = singletonKeysFromRegistryEntries(registry?.entries as RegistryEntryLite[] | undefined);
+  } catch (err) {
+    // Failing to load the registry should not cause us to delete singleton
+    // rows. Other rules (explicit flag, singleton-shape) still protect them.
+    console.warn('[workspace-gc] failed to load registry; falling back to flag/shape rules only:', err);
+  }
 
   const result: GcResult = {
     scanned: 0,
     deleted: 0,
+    wouldDelete: 0,
     preservedTemplate: 0,
+    preservedRegistered: 0,
     preservedKnown: 0,
     preservedSingleton: 0,
+    preservedSingletonShape: 0,
     preservedReferenced: 0,
   };
 
@@ -119,6 +201,14 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
       if (verbose) console.debug(`[workspace-gc] keep (template): ${row.configId}`);
       continue;
     }
+    // Rule 3 — explicit "this is a registered-component config" flag.
+    // Set by component-host when the saver was created with
+    // isRegisteredComponent: true (i.e. for singleton launches).
+    if (row.isRegisteredComponent === true) {
+      result.preservedRegistered++;
+      if (verbose) console.debug(`[workspace-gc] keep (registered): ${row.configId}`);
+      continue;
+    }
     if (WELL_KNOWN_SHARED_CONFIG_IDS.has(row.configId)) {
       result.preservedKnown++;
       if (verbose) console.debug(`[workspace-gc] keep (well-known): ${row.configId}`);
@@ -126,7 +216,16 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
     }
     if (singletonKeys.has(row.configId)) {
       result.preservedSingleton++;
-      if (verbose) console.debug(`[workspace-gc] keep (singleton): ${row.configId}`);
+      if (verbose) console.debug(`[workspace-gc] keep (singleton-registry): ${row.configId}`);
+      continue;
+    }
+    // Rule 5 — self-describing fallback. Protects pre-flag singleton rows
+    // (written before `isRegisteredComponent` existed) by recognising that
+    // their configId matches the canonical derivation. After the next
+    // save the explicit flag covers them under rule 3.
+    if (isSingletonShape(row)) {
+      result.preservedSingletonShape++;
+      if (verbose) console.debug(`[workspace-gc] keep (singleton-shape): ${row.configId}`);
       continue;
     }
     if (referenced.has(row.configId)) {
@@ -135,6 +234,13 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
       continue;
     }
 
+    // No preservation rule matched. Tally what *would* have been
+    // deleted, but only actually delete when DELETION_ENABLED is on.
+    result.wouldDelete++;
+    if (!DELETION_ENABLED) {
+      if (verbose) console.debug(`[workspace-gc] would-delete (disabled): ${row.configId}`);
+      continue;
+    }
     try {
       await cm.deleteConfig(row.configId);
       result.deleted++;

@@ -27,6 +27,13 @@ const ImportConfig = React.lazy(() =>
   import("@marketsui/dock-editor").then((m) => ({ default: m.ImportConfig })),
 );
 
+// WorkspaceSetup — the unified Components + Dock + Inspector editor
+// (Phase 6). Same lazy-import pattern as ImportConfig. Hosts at
+// /workspace-setup; the dock launches it via ACTION_OPEN_WORKSPACE_SETUP.
+const WorkspaceSetup = React.lazy(() =>
+  import("@marketsui/dock-editor").then((m) => ({ default: m.WorkspaceSetup })),
+);
+
 // ─── Loading fallback ────────────────────────────────────────────────
 // Shown while a lazy-loaded component is being fetched.
 // Intentionally minimal — these windows are usually small utility windows
@@ -69,6 +76,7 @@ root.render(
           <Route path="/registry-editor"  element={<React.Suspense fallback={LOADING}><RegistryEditor /></React.Suspense>} />
           <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
           <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
+          <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

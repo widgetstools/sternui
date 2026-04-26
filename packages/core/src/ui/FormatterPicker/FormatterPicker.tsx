@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, Hash, Info, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, Hash, Info, X } from 'lucide-react';
 import { FormatDropdown, FormatPopover } from '../format-editor';
 import {
   isValidExcelFormat,
@@ -348,6 +348,63 @@ interface SharedBodyProps {
   testId?: string;
 }
 
+/**
+ * Small inline action button used next to the custom Excel format
+ * input (Apply ✓ / Clear ×). Visually mirrors the top-bar Clear chip
+ * — square, monochrome border, accent-tinted icon — so the two button
+ * variants and the existing top X all read as the same affordance.
+ *
+ * Local helper rather than a shared primitive: single use site, and
+ * the design-system `Pill` is too heavy for this.
+ */
+function ApplyOrClearButton({
+  icon,
+  title,
+  accent,
+  disabled,
+  onClick,
+  ...rest
+}: {
+  icon: React.ReactNode;
+  title: string;
+  accent: 'green' | 'red';
+  disabled?: boolean;
+  onClick: () => void;
+  'data-testid'?: string;
+}) {
+  const accentColor =
+    accent === 'green'
+      ? 'var(--ck-green, var(--bn-blue))'
+      : 'var(--ck-red, var(--bn-red))';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      data-testid={rest['data-testid']}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 26,
+        height: 26,
+        padding: 0,
+        background: 'transparent',
+        border: '1px solid var(--ck-border-hi, var(--bn-border))',
+        borderRadius: 2,
+        color: disabled ? 'var(--ck-t3)' : accentColor,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+        transition: 'background 100ms, border-color 100ms, color 100ms',
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
 function CompactFormatterPicker({
   value,
   onChange,
@@ -417,9 +474,17 @@ function CompactFormatterPicker({
         </button>
       }
     >
+      {({ close }) => (
       <div
         data-testid={testId}
         style={{
+          // Fill the popover Content (which is flex-column / overflow:
+          // hidden / capped at the viewport-available height). With
+          // `flex: 1` + `min-height: 0` the preset grid below can be
+          // the single scrollable region — header/footer chrome stays
+          // pinned, no doubled scrollbar on the outer popover.
+          flex: 1,
+          minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
@@ -427,8 +492,8 @@ function CompactFormatterPicker({
           padding: 2,
         }}
       >
-        {/* Top bar — current / preview / clear */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Top bar — current / preview / clear (fixed-height shrinker) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <SubLabel>CURRENT</SubLabel>
           <span
             style={{
@@ -485,13 +550,18 @@ function CompactFormatterPicker({
           </button>
         </div>
 
-        {/* Preset tile grid, grouped by category */}
+        {/* Preset tile grid — the single scrollable region of the
+            popover. `flex: 1` + `min-height: 0` lets it grow to fill
+            the popover height between the fixed CURRENT bar above and
+            the divider+custom-Excel block below; if it still overflows
+            the available space, only THIS section scrolls. */}
         <div
           style={{
+            flex: 1,
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
-            maxHeight: 360,
             overflowY: 'auto',
             paddingRight: 2,
             scrollbarColor: 'var(--gc-border, #313944) transparent',
@@ -567,10 +637,10 @@ function CompactFormatterPicker({
           ) : null}
         </div>
 
-        <div style={{ height: 1, background: 'var(--ck-border, var(--bn-border))' }} />
+        <div style={{ height: 1, background: 'var(--ck-border, var(--bn-border))', flexShrink: 0 }} />
 
-        {/* Custom Excel input + info */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {/* Custom Excel input + info (fixed-height shrinker — never collapses) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
           <SubLabel>Custom Excel format</SubLabel>
 
           {/* Currency symbol quick-insert — one click swaps the symbol
@@ -656,6 +726,35 @@ function CompactFormatterPicker({
                 data-testid={testId ? `${testId}-excel` : undefined}
               />
             </div>
+            {/* Apply — commits the current draft and dismisses the popover.
+             *  Disabled when the input is empty or syntactically invalid;
+             *  the user shouldn't be able to "apply" nothing or a parse-fail. */}
+            <ApplyOrClearButton
+              icon={<Check size={12} strokeWidth={2.25} />}
+              title="Apply format"
+              accent="green"
+              disabled={!draftExcel.trim() || !isExcelValid}
+              data-testid={testId ? `${testId}-apply` : undefined}
+              onClick={() => {
+                commitExcel(draftExcel);
+                close();
+              }}
+            />
+            {/* Clear — wipes the draft AND the committed formatter. Mirrors
+             *  the top-bar X but lives next to the input so the user
+             *  doesn't have to scroll past the preset grid to reset.
+             *  Stays open so the user can immediately type a new format. */}
+            <ApplyOrClearButton
+              icon={<X size={12} strokeWidth={2.25} />}
+              title="Clear format"
+              accent="red"
+              disabled={!draftExcel && !value}
+              data-testid={testId ? `${testId}-clear-inline` : undefined}
+              onClick={() => {
+                setDraftExcel('');
+                onChange(undefined);
+              }}
+            />
             <ExcelReferencePopover
               onPick={(format) => {
                 setDraftExcel(format);
@@ -671,6 +770,7 @@ function CompactFormatterPicker({
           </Caps>
         </div>
       </div>
+      )}
     </FormatPopover>
   );
 }

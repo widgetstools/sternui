@@ -324,9 +324,55 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
     ],
   },
 
-  // ─── 08 PERFORMANCE (ADVANCED) ─────────────────────────────────────
+  // ─── 08 SIDE BAR ───────────────────────────────────────────────────
   {
     index: '08',
+    title: 'SIDE BAR',
+    fields: [
+      { kind: 'bool', key: 'sideBar', label: 'SHOW SIDE BAR', hint: "AG-Grid's tool-panel side bar (right edge of the grid)", testId: 'go-side-bar' },
+      {
+        kind: 'conditional',
+        show: (s) => s.sideBar,
+        fields: [
+          { kind: 'bool', key: 'sideBarShowColumns', label: 'COLUMNS PANEL', hint: 'Drag-and-drop column show/hide + grouping', testId: 'go-side-bar-columns' },
+          { kind: 'bool', key: 'sideBarShowFilters', label: 'FILTERS PANEL', hint: 'Per-column filter editors stacked in the side bar', testId: 'go-side-bar-filters' },
+          {
+            kind: 'select', key: 'sideBarDefaultPanel', label: 'DEFAULT PANEL',
+            hint: 'Which panel opens when the side bar first appears', testId: 'go-side-bar-default',
+            options: [
+              { value: undefined, label: 'Closed (user must click a tab)' },
+              { value: 'columns', label: 'Columns' },
+              { value: 'filters', label: 'Filters' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── 09 STATUS BAR ─────────────────────────────────────────────────
+  {
+    index: '09',
+    title: 'STATUS BAR',
+    fields: [
+      { kind: 'bool', key: 'statusBar', label: 'SHOW STATUS BAR', hint: 'Counter row at the bottom of the grid', testId: 'go-status-bar' },
+      {
+        kind: 'conditional',
+        show: (s) => s.statusBar,
+        fields: [
+          { kind: 'bool', key: 'statusBarShowTotalAndFilteredCount', label: 'TOTAL + FILTERED', hint: '"X of Y rows" — single panel covering both counts', testId: 'go-status-bar-total-filtered' },
+          { kind: 'bool', key: 'statusBarShowFilteredCount', label: 'FILTERED COUNT', hint: 'Filtered-row count alone', testId: 'go-status-bar-filtered' },
+          { kind: 'bool', key: 'statusBarShowTotalCount', label: 'TOTAL COUNT', hint: 'Total-row count alone', testId: 'go-status-bar-total' },
+          { kind: 'bool', key: 'statusBarShowSelectedCount', label: 'SELECTED COUNT', testId: 'go-status-bar-selected' },
+          { kind: 'bool', key: 'statusBarShowAggregation', label: 'AGGREGATION', hint: 'Sum / Avg / Min / Max of the current cell-range selection', testId: 'go-status-bar-aggregation' },
+        ],
+      },
+    ],
+  },
+
+  // ─── 10 PERFORMANCE (ADVANCED) ─────────────────────────────────────
+  {
+    index: '10',
     title: 'PERFORMANCE (ADVANCED)',
     fields: [
       { kind: 'num', key: 'rowBuffer', label: 'ROW BUFFER', hint: 'Rows rendered outside viewport · 5-50 practical', testId: 'go-row-buffer', min: 0 },

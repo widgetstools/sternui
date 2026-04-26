@@ -97,11 +97,27 @@
   max-width: calc(100vw - 96px);
 }
 
-/* Panel variant — full vertical layout. */
+/* Panel variant — full vertical layout.
+ *
+ * `width: 100%` + `overflow: hidden` make the panel responsive to its
+ * container (the popout window's body). Without these, a header item
+ * that doesn't fit at the current width would expand the panel past
+ * 100% of the body, producing horizontal scrollbars on the popout
+ * itself. Internal scrolling lives on `.fx-body` (vertical only) and
+ * any narrow-viewport overflow in the header is clipped there.
+ *
+ * `min-width: 0` / `min-height: 0` let nested flex items honor the
+ * shrink rules — the column-label chip and module trail need to be
+ * compressible, not forced to their content width.
+ */
 .fx-shell--vertical {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   background: var(--fx-bg);
 }
 
@@ -279,7 +295,16 @@
   flex-shrink: 0;
 }
 
-/* Vertical context strip = sticky header. */
+/* Vertical context strip = sticky header.
+ *
+ * `min-width: 0` + `overflow: hidden` keep the strip clipped to the
+ * panel's width even when the user shrinks the popout below the
+ * comfortable default — items further to the right (preview pill,
+ * module trail) start clipping behind a hidden edge instead of
+ * pushing the parent wider. Combined with `.fx-shell--vertical`'s
+ * own `overflow: hidden`, this guarantees the OS popout window
+ * never grows scrollbars on its body.
+ */
 .fx-shell--vertical .fx-ctx {
   height: 48px;
   padding: 0 18px;
@@ -289,6 +314,8 @@
   position: sticky;
   top: 0;
   z-index: 2;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Column label readout. */
@@ -583,6 +610,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 0 12px;
   border-bottom: 1px solid var(--fx-line);
   background: var(--fx-bg-sunken);
@@ -593,6 +621,17 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--fx-ink-faint);
+  overflow: hidden;
+}
+/* Long gridIds (UUIDs) ellipsize instead of pushing the close button
+ * off-screen. The text label takes the available space, the close
+ * button keeps its fixed width on the right. */
+.fx-titlebar > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .fx-titlebar__close {
   -webkit-app-region: no-drag;
@@ -611,33 +650,6 @@
 .fx-titlebar__close:hover {
   background: color-mix(in srgb, var(--fx-danger) 18%, transparent);
   color: var(--fx-danger);
-}
-
-/* ─── Module index trail — tiny "01·02·03·04·05" navigation ───── */
-
-.fx-trail {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--fx-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  color: var(--fx-ink-faint);
-  user-select: none;
-}
-.fx-trail__dot {
-  opacity: 0.45;
-}
-.fx-trail__num {
-  color: var(--fx-ink-soft);
-  cursor: pointer;
-  transition: color 120ms;
-}
-.fx-trail__num:hover {
-  color: var(--fx-accent);
-}
-.fx-trail__num[data-active='true'] {
-  color: var(--fx-accent);
 }
 
 /* ─── Stagger reveal on popout open ────────────────────────────── */

@@ -10,6 +10,7 @@ import {
   generateTemplateConfigId,
   migrateRegistryToV2,
   readHostEnv,
+  resolveHostUrl,
   REGISTRY_CONFIG_VERSION,
   type ConfigScope,
   type RegistryEditorConfig,
@@ -148,9 +149,15 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
 
   const testComponent = useCallback(async (entry: RegistryEntry) => {
     try {
+      // Normalise host-relative paths (e.g. "/blotters/marketsgrid")
+      // against the editor's own origin before launching. OpenFin needs
+      // an absolute URL; `window.open` doesn't, but normalising in both
+      // branches keeps user behaviour consistent across the two paths.
+      const resolvedUrl = resolveHostUrl(entry.hostUrl);
+
       const openFinApi = (window as any).fin;
       if (typeof openFinApi === "undefined") {
-        window.open(entry.hostUrl, "_blank");
+        window.open(resolvedUrl, "_blank");
         return;
       }
 
@@ -162,7 +169,7 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
 
       const platform = openFinApi.Platform.getCurrentSync();
       await platform.createView({
-        url: entry.hostUrl,
+        url: resolvedUrl,
         customData: {
           instanceId,
           templateId,

@@ -10,6 +10,7 @@ import {
   generateTemplateConfigId,
   migrateRegistryToV2,
   readHostEnv,
+  resolveHostUrl,
   REGISTRY_CONFIG_VERSION,
   type ConfigScope,
   type RegistryEditorConfig,
@@ -92,8 +93,12 @@ export class RegistryEditorService {
 
   async testComponent(entry: RegistryEntry): Promise<void> {
     try {
+      // Normalise host-relative paths against the editor's own origin
+      // before launching. OpenFin's createView requires an absolute URL.
+      const resolvedUrl = resolveHostUrl(entry.hostUrl);
+
       if (typeof fin === 'undefined') {
-        window.open(entry.hostUrl, '_blank');
+        window.open(resolvedUrl, '_blank');
         return;
       }
 
@@ -105,7 +110,7 @@ export class RegistryEditorService {
 
       const platform = fin.Platform.getCurrentSync();
       await platform.createView({
-        url: entry.hostUrl,
+        url: resolvedUrl,
         customData: {
           instanceId,
           templateId,

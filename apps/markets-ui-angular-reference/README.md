@@ -57,3 +57,52 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Hosting components via the wrapper
+
+This app exposes components as plain Angular routes. Each routed view
+typically wraps its content in `<app-hosted-component>` so the hosting
+chrome (debug overlay, identity resolution, document title) is taken
+care of in one place. See the project's root README's "Hosting
+components in the reference apps" section for the full pattern; the
+short version:
+
+```ts
+// app/views/my-view-page.component.ts
+import { Component } from '@angular/core';
+import { HostedComponentComponent } from '../components/hosted-component';
+import { MyInnerComponent } from './my-inner.component';
+
+@Component({
+  selector: 'app-my-view-page',
+  standalone: true,
+  imports: [HostedComponentComponent, MyInnerComponent],
+  template: `
+    <app-hosted-component
+      componentName="My View"
+      defaultInstanceId="my-view-default"
+    >
+      <app-my-inner />
+    </app-hosted-component>
+  `,
+})
+export class MyViewPageComponent {}
+```
+
+Inside `MyInnerComponent`, `inject(HostedComponentService)` returns the
+resolved `instanceId`/`appId`/`userId` signals — populated from OpenFin
+customData when running inside a view, from URL params when running
+standalone, or from the supplied default when neither is present.
+
+Wire the route at `app/app.routes.ts`:
+
+```ts
+{
+  path: 'my-view',
+  loadComponent: () =>
+    import('./views/my-view-page.component').then((m) => m.MyViewPageComponent),
+},
+```
+
+The OpenFin dock launches routes via the same URL — the wrapper
+auto-detects whether it's running in an OpenFin View and adjusts.

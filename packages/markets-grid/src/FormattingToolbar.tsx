@@ -55,11 +55,15 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
           ref={ref}
           name={`gc-popout-toolbar-${platform.gridId}`}
           title={`Formatting — ${platform.gridId}`}
-          // 400×640 fits all five modules at once on a standard
-          // viewport, tall enough that scrolling is rare. Compact
-          // toolbar uses its natural max-content width when not popped.
-          width={400}
-          height={640}
+          // 560×680 is the comfortable default: the header strip
+          // (column label + scope toggle + undo/redo + preview pill +
+          // module trail) needs ~540px, plus the body shows all five
+          // modules without forcing scroll on a typical viewport.
+          // The panel is fully responsive — resizing the popout
+          // shrinks/grows the layout via flex; this is just the
+          // initial size before the user drags the corner.
+          width={560}
+          height={680}
           // OpenFin honors alwaysOnTop (pins above other windows —
           // the right behaviour for a styling tool returned to often).
           // Browsers silently ignore.

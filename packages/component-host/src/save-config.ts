@@ -20,20 +20,47 @@ export interface DebouncedSaver<T> {
 }
 
 /**
+ * Options for `createDebouncedSaver()`. All optional.
+ */
+export interface DebouncedSaverOptions {
+  /** Debounce window in ms. Default 300. */
+  debounceMs?: number;
+  /**
+   * Set `isRegisteredComponent: true` on every persisted row. Pass when
+   * the saver is wired to a singleton's row (instanceId ===
+   * templateId === registry entry's configId) so workspace GC keeps
+   * the row alive across launches even when no workspace references it.
+   *
+   * Default false — per-instance clones don't get the flag and are
+   * reaped if orphaned.
+   */
+  isRegisteredComponent?: boolean;
+}
+
+/**
  * Create a debounced saver for a component's config.
  *
  * @param instanceId - The config ID to save under
  * @param configManager - The ConfigManager instance
  * @param getRow - A function returning the current AppConfigRow (kept as a getter
  *                 so the saver always has the latest row reference)
- * @param debounceMs - Debounce delay in milliseconds (default 300)
+ * @param debounceMsOrOptions - Either a debounce-ms number (legacy
+ *                              two-arg-plus-number form) or an options
+ *                              object. Object form is preferred going forward.
  */
 export function createDebouncedSaver<T>(
   instanceId: string,
   configManager: ConfigManager,
   getRow: () => AppConfigRow | null,
-  debounceMs = 300,
+  debounceMsOrOptions: number | DebouncedSaverOptions = 300,
 ): DebouncedSaver<T> {
+  // Back-compat: accept a bare number (legacy callers) or an options object.
+  const opts: DebouncedSaverOptions = typeof debounceMsOrOptions === "number"
+    ? { debounceMs: debounceMsOrOptions }
+    : debounceMsOrOptions;
+  const debounceMs = opts.debounceMs ?? 300;
+  const flagAsRegistered = opts.isRegisteredComponent === true;
+
   let timerId: ReturnType<typeof setTimeout> | null = null;
   let pendingConfig: Partial<T> | null = null;
 
@@ -53,6 +80,10 @@ export function createDebouncedSaver<T>(
       configId: instanceId,
       payload: { ...(row.payload as Record<string, unknown>), ...snapshot },
       updatedTime: new Date().toISOString(),
+      // Preserve any pre-existing flag from the row, but force it on
+      // when the caller declared this is a registered-component saver.
+      // Never silently flip it off — if the row already has it, keep it.
+      isRegisteredComponent: flagAsRegistered ? true : row.isRegisteredComponent,
     };
 
     try {

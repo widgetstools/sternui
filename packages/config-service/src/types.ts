@@ -45,6 +45,30 @@ export interface AppConfigRow {
   /** True = base template config, false = user-specific instance. */
   isTemplate: boolean;
 
+  /**
+   * True when this row IS a registered-component config — i.e. it was
+   * created by a Registry entry rather than as a per-launch instance
+   * clone. Workspace GC must never delete these rows; they're the
+   * source-of-truth used to spawn new instances.
+   *
+   * Set in two situations:
+   *   • Singleton entries — every launch resolves to the same configId
+   *     (`deriveSingletonConfigId(...)`) so the row IS the registered
+   *     component. The first save by component-host sets this flag.
+   *   • Non-singleton TEMPLATE rows — created by admin tooling at
+   *     `generateTemplateConfigId(...)`; flag set at write time.
+   *
+   * Per-instance clones (case 2 in resolveInstanceId) explicitly set
+   * this to `false` — they're cheap copies, GC-able when no workspace
+   * references them.
+   *
+   * Optional for back-compat: rows written before this field existed
+   * default to undefined, and the GC has a self-describing fallback
+   * (configId === deriveSingletonConfigId(...)) that protects them
+   * until the next save flags them explicitly.
+   */
+  isRegisteredComponent?: boolean;
+
   /** The full component configuration object (shape varies by componentType). */
   payload: any;
 

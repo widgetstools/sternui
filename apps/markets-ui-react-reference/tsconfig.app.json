@@ -3,6 +3,13 @@
   "compilerOptions": {
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    // Vite is the build tool here; tsc is only used for typechecking and
+    // project-reference graph metadata. `composite: true` requires emit,
+    // so we redirect it to a junk dir under node_modules instead of
+    // letting it pollute `src/` with `.js` siblings (which Vite's
+    // resolver would then prefer over the live `.tsx` source — the
+    // exact failure mode that masked this trap before).
+    "outDir": "./node_modules/.tmp/tsc-out",
     "types": ["./src/types/fin", "./src/types/fdc3", "./src/types/svg"]
   },
   "include": ["src"]
