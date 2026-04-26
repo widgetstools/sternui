@@ -147,10 +147,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
   // ─── Dock CRUD bridges ──────────────────────────────────────────
   const handleAddToDock = useCallback((entry: RegistryEntry) => {
     if (inDockEntryIds.has(entry.id)) return;
-    const newButtonId =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `btn-${Date.now()}`;
+    const newButtonId = newId();
     dock.dispatch({
       type: "ADD_BUTTON",
       button: {
@@ -196,6 +193,85 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
       button: { ...current, ...patch } as DockButtonConfig,
     });
   }, [dock]);
+
+  // Nested menu-item edit: the inspector resolves a selected menu item
+  // to its top-level dropdown's id + the chain to its direct parent,
+  // then calls this with a patch for the leaf item.
+  const handleEditMenuItem = useCallback(
+    (
+      topButtonId: string,
+      itemId: string,
+      parentItemId: string | undefined,
+      patch: Partial<DockMenuItemConfig>,
+    ) => {
+      // Locate the existing item to merge the patch onto.
+      const top = dock.buttons.find((b) => b.id === topButtonId);
+      if (!top || top.type !== "DropdownButton") return;
+      const found = findMenuItem((top as DockDropdownButtonConfig).options ?? [], itemId);
+      if (!found) return;
+      dock.dispatch({
+        type: "UPDATE_MENU_ITEM",
+        buttonId: topButtonId,
+        itemId,
+        parentItemId,
+        item: { ...found, ...patch },
+      });
+    },
+    [dock],
+  );
+
+  // ─── Dropdown authoring ─────────────────────────────────────────
+  // Create an empty DropdownButton. The user fills it via "+ Add" on
+  // the dropdown row; until then it's a labelled empty group that
+  // surfaces as a folder in the dock content menu.
+  const handleCreateDropdown = useCallback(() => {
+    const id = newId();
+    dock.dispatch({
+      type: "ADD_BUTTON",
+      button: {
+        type: "DropdownButton",
+        id,
+        tooltip: "New menu",
+        iconUrl: "",
+        iconId: "lucide:folder",
+        iconColor: "",
+        options: [],
+      },
+    });
+    setSelection({ kind: "dock-item", itemId: id });
+  }, [dock]);
+
+  // Add a registered component as a child of an existing dropdown
+  // button. The child carries its own iconId/tooltip (snapshot), so
+  // future edits to the registry entry don't propagate automatically —
+  // matches the top-level Add To Dock semantics.
+  const handleAddComponentToDropdown = useCallback((parentButtonId: string, entry: RegistryEntry) => {
+    const id = newId();
+    dock.dispatch({
+      type: "ADD_MENU_ITEM",
+      buttonId: parentButtonId,
+      item: {
+        id,
+        tooltip: entry.displayName || "Untitled",
+        iconId: entry.iconId,
+        actionId: ACTION_LAUNCH_COMPONENT,
+        customData: { registryEntryId: entry.id, asWindow: false },
+      },
+    });
+  }, [dock]);
+
+  // Remove a menu item (leaf or sub-folder). buttonId is the top-level
+  // dropdown that owns the subtree; itemId is the menu item to remove;
+  // parentItemId scopes nested removals.
+  const handleRemoveMenuItem = useCallback(
+    (buttonId: string, itemId: string, parentItemId?: string) => {
+      dock.dispatch({ type: "REMOVE_MENU_ITEM", buttonId, itemId, parentItemId });
+      if (selection.kind === "dock-item" && selection.itemId === itemId) {
+        setSelection({ kind: "none" });
+      }
+    },
+    [dock, selection],
+  );
 
   // Save — writes BOTH registry and dock if dirty. Saves run in series
   // (registry first, dock second) so an IAB consumer that listens to dock
@@ -260,6 +336,9 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           onSelect={setSelection}
           onRemove={handleRemoveFromDock}
           onReorder={handleReorderDock}
+          onCreateDropdown={handleCreateDropdown}
+          onAddComponentToDropdown={handleAddComponentToDropdown}
+          onRemoveMenuItem={handleRemoveMenuItem}
         />
         <InspectorPane
           selection={selection}
@@ -267,6 +346,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           buttons={dock.buttons}
           onChange={handleEntryChange}
           onEditButton={handleEditButton}
+          onEditMenuItem={handleEditMenuItem}
           onTest={registry.testComponent}
           onAddToDock={handleAddToDock}
           onSelect={setSelection}
@@ -306,6 +386,25 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
       </footer>
     </div>
   );
+}
+
+// ─── Local helpers ───────────────────────────────────────────────────
+
+function newId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `id-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
+function findMenuItem(items: DockMenuItemConfig[], itemId: string): DockMenuItemConfig | null {
+  for (const it of items) {
+    if (it.id === itemId) return it;
+    if (it.options?.length) {
+      const nested = findMenuItem(it.options, itemId);
+      if (nested) return nested;
+    }
+  }
+  return null;
 }
 
 // ─── Cascade prune helper ────────────────────────────────────────────
