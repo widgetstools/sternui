@@ -50,6 +50,7 @@ import {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_LAUNCH_COMPONENT,
 } from './iab-topics';
 export {
@@ -67,6 +68,7 @@ export {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_LAUNCH_COMPONENT,
 };
 
@@ -254,6 +256,13 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
       label: "Component Registry",
       icon: contentMenuIcon(SETTINGS_SVG),
       itemData: { actionId: ACTION_OPEN_REGISTRY_EDITOR },
+    },
+    {
+      type: "item",
+      id: "tool-workspace-setup",
+      label: "Workspace Setup (new)",
+      icon: contentMenuIcon(SETTINGS_SVG),
+      itemData: { actionId: ACTION_OPEN_WORKSPACE_SETUP },
     },
     {
       type: "item",

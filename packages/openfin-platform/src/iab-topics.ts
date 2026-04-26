@@ -31,6 +31,14 @@ export const ACTION_TOGGLE_PROVIDER      = "toggle-provider-window";
 export const ACTION_OPEN_REGISTRY_EDITOR = "open-registry-editor";
 export const ACTION_OPEN_CONFIG_BROWSER  = "open-config-browser";
 /**
+ * Dock action to open the unified Workspace Setup editor — Phase 6
+ * supersedes the standalone Dock Editor + Registry Editor with one
+ * three-pane editor (Components / Dock / Inspector). The standalone
+ * editors remain available for now; both surfaces edit the same
+ * underlying ConfigService rows.
+ */
+export const ACTION_OPEN_WORKSPACE_SETUP = "open-workspace-setup";
+/**
  * Dock button / menu item action: launch a component registered in
  * the Component Registry. `customData` shape:
  *   { registryEntryId: string, asWindow?: boolean }

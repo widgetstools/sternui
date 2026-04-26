@@ -26,6 +26,7 @@ import {
   ACTION_TOGGLE_PROVIDER,
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
+  ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_LAUNCH_COMPONENT,
   IAB_THEME_CHANGED,
   shutdownDock,
@@ -556,6 +557,19 @@ async function initializePlatform(
         }
       },
 
+      // ── Open the unified Workspace Setup editor (Phase 6) ──
+      // Wider than the standalone editors because it hosts 3 panes
+      // side-by-side: Components (320) + Dock (~600) + Inspector (360).
+      [ACTION_OPEN_WORKSPACE_SETUP]: async (e): Promise<void> => {
+        if (
+          e.callerType !== CustomActionCallerType.CustomButton &&
+          e.callerType !== CustomActionCallerType.CustomDropdownItem
+        ) {
+          return;
+        }
+        await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760);
+      },
+
       // ── Open the config browser window ──
       [ACTION_OPEN_CONFIG_BROWSER]: async (e): Promise<void> => {
         if (
@@ -757,6 +771,10 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
 
   [ACTION_OPEN_REGISTRY_EDITOR]: async () => {
     await openChildWindow("registry-editor", "/registry-editor", 800, 700);
+  },
+
+  [ACTION_OPEN_WORKSPACE_SETUP]: async () => {
+    await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760);
   },
 
   [ACTION_OPEN_CONFIG_BROWSER]: async () => {
