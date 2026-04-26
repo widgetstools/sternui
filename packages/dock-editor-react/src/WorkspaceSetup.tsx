@@ -211,9 +211,11 @@ export function WorkspaceSetup() {
         <InspectorPane
           selection={selection}
           entries={registry.entries}
+          buttons={dock.buttons}
           onChange={handleEntryChange}
           onTest={registry.testComponent}
           onAddToDock={handleAddToDock}
+          onSelect={setSelection}
           inDockEntryIds={inDockEntryIds}
           summary={summary}
         />

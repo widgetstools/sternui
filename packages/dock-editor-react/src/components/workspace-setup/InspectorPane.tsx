@@ -17,18 +17,41 @@
  */
 
 import { useMemo } from "react";
-import { PlayCircle, AlertCircle, ArrowRight } from "lucide-react";
-import type { RegistryEntry } from "@marketsui/openfin-platform/config";
-import { deriveSingletonConfigId, generateTemplateConfigId } from "@marketsui/openfin-platform/config";
+import { PlayCircle, AlertCircle, ArrowRight, ExternalLink } from "lucide-react";
+import type {
+  RegistryEntry,
+  DockButtonConfig,
+  DockDropdownButtonConfig,
+} from "@marketsui/openfin-platform/config";
+import {
+  deriveSingletonConfigId,
+  generateTemplateConfigId,
+  ACTION_LAUNCH_COMPONENT,
+} from "@marketsui/openfin-platform/config";
 import type { EditorSelection } from "./types";
+
+/**
+ * Where in the dock a component is referenced. One DockPlacement per
+ * appearance — a single component can show up in multiple places.
+ *
+ * `path` is a human-readable trail like "Reports → Risk Dashboard"
+ * rendered in the "In your dock" footer.
+ */
+export interface DockPlacement {
+  buttonId: string;
+  path: string;
+}
 
 interface InspectorPaneProps {
   selection: EditorSelection;
   entries: RegistryEntry[];
+  buttons: DockButtonConfig[];
   onChange: (id: string, patch: Partial<RegistryEntry>) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
   /** Add the selected component to the user's dock as a top-level button. */
   onAddToDock: (entry: RegistryEntry) => void;
+  /** Move selection to a dock item (used by reverse-link "jump to placement"). */
+  onSelect: (sel: EditorSelection) => void;
   inDockEntryIds: Set<string>;
   /** Counts for the "nothing selected" summary card. */
   summary: {
@@ -42,24 +65,32 @@ interface InspectorPaneProps {
 export function InspectorPane({
   selection,
   entries,
+  buttons,
   onChange,
   onTest,
   onAddToDock,
+  onSelect,
   inDockEntryIds,
   summary,
 }: InspectorPaneProps) {
+  // Derive the dock placement index — for each registry entry, where
+  // does it appear in the dock? Used by both the "In your dock at"
+  // footer (component selected) and the dock-item ↔ component pivot
+  // (dock item selected → which component does it reference?).
+  const placementsByEntry = useMemo(() => collectPlacements(buttons), [buttons]);
+
   if (selection.kind === "none") {
     return <SummaryCard summary={summary} />;
   }
 
   if (selection.kind === "dock-item") {
     return (
-      <PaneShell title="DOCK ITEM">
-        <p className="text-xs" style={{ color: "var(--bn-t2)" }}>
-          Per-dock-item edits land in a follow-up commit. For now use the
-          existing Dock Editor for label/icon overrides.
-        </p>
-      </PaneShell>
+      <DockItemInspector
+        itemId={selection.itemId}
+        buttons={buttons}
+        entries={entries}
+        onSelect={onSelect}
+      />
     );
   }
 
@@ -83,8 +114,57 @@ export function InspectorPane({
     onChange={(patch) => onChange(entry.id, patch)}
     onTest={onTest}
     onAddToDock={onAddToDock}
+    onSelect={onSelect}
     isInDock={inDockEntryIds.has(entry.id)}
+    placements={placementsByEntry.get(entry.id) ?? []}
   />;
+}
+
+// ─── Dock placement collector ────────────────────────────────────────
+
+function collectPlacements(buttons: DockButtonConfig[]): Map<string, DockPlacement[]> {
+  const result = new Map<string, DockPlacement[]>();
+  for (const btn of buttons) {
+    visitButton(btn, btn.tooltip, result);
+  }
+  return result;
+}
+
+function visitButton(btn: DockButtonConfig, prefix: string, acc: Map<string, DockPlacement[]>): void {
+  // ActionButton itself can launch a component
+  if ((btn as { actionId?: string }).actionId === ACTION_LAUNCH_COMPONENT) {
+    const refId = ((btn as { customData?: unknown }).customData as { registryEntryId?: string } | undefined)?.registryEntryId;
+    if (refId) {
+      const existing = acc.get(refId) ?? [];
+      existing.push({ buttonId: btn.id, path: prefix });
+      acc.set(refId, existing);
+    }
+  }
+  if (btn.type === "DropdownButton") {
+    const dropdown = btn as DockDropdownButtonConfig;
+    for (const opt of (dropdown.options ?? [])) {
+      visitMenuItem(opt, btn.id, `${prefix} → ${opt.tooltip}`, acc);
+    }
+  }
+}
+
+function visitMenuItem(
+  item: { id: string; tooltip: string; actionId?: string; customData?: unknown; options?: unknown[] },
+  topButtonId: string,
+  pathSoFar: string,
+  acc: Map<string, DockPlacement[]>,
+): void {
+  if (item.actionId === ACTION_LAUNCH_COMPONENT) {
+    const refId = (item.customData as { registryEntryId?: string } | undefined)?.registryEntryId;
+    if (refId) {
+      const existing = acc.get(refId) ?? [];
+      existing.push({ buttonId: topButtonId, path: pathSoFar });
+      acc.set(refId, existing);
+    }
+  }
+  for (const sub of ((item.options ?? []) as Array<typeof item>)) {
+    visitMenuItem(sub, topButtonId, `${pathSoFar} → ${sub.tooltip}`, acc);
+  }
 }
 
 // ─── Summary card (shown when nothing selected) ──────────────────────
@@ -122,14 +202,18 @@ function ComponentForm({
   onChange,
   onTest,
   onAddToDock,
+  onSelect,
   isInDock,
+  placements,
 }: {
   entry: RegistryEntry;
   entries: RegistryEntry[];
   onChange: (patch: Partial<RegistryEntry>) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
   onAddToDock: (entry: RegistryEntry) => void;
+  onSelect: (sel: EditorSelection) => void;
   isInDock: boolean;
+  placements: DockPlacement[];
 }) {
   // Uniqueness check: another entry with the same (componentType, subType)?
   const dupKey = useMemo(() => {
@@ -324,6 +408,161 @@ function ComponentForm({
               : "Not in your dock yet — click \"Add to your dock\" to surface it"}
           </span>
         </div>
+
+        {/* "In your dock at" reverse-link footer — every dock placement
+            shows as a click-to-jump pill so users can navigate directly
+            from a component to where it appears in the dock. */}
+        {placements.length > 0 && (
+          <div className="flex flex-col gap-1 pt-2 border-t" style={{ borderColor: "var(--bn-border)" }}>
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+              📍 In your dock at:
+            </div>
+            <div className="flex flex-col gap-1">
+              {placements.map((p) => (
+                <button
+                  key={`${p.buttonId}-${p.path}`}
+                  type="button"
+                  onClick={() => onSelect({ kind: "dock-item", itemId: p.buttonId })}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-left"
+                  style={{
+                    background: "var(--bn-bg2)",
+                    border: "1px solid var(--bn-border)",
+                    color: "var(--bn-t1)",
+                  }}
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span className="truncate">{p.path}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </PaneShell>
+  );
+}
+
+// ─── Dock item inspector ─────────────────────────────────────────────
+
+function findButton(buttons: DockButtonConfig[], itemId: string): DockButtonConfig | null {
+  for (const b of buttons) {
+    if (b.id === itemId) return b;
+    if (b.type === "DropdownButton") {
+      // Dock items nested inside dropdowns share the same selection
+      // surface — we surface them as the parent dropdown for now since
+      // per-menu-item editing isn't in this commit
+      const dropdown = b as DockDropdownButtonConfig;
+      const found = (dropdown.options ?? []).find((o) => o.id === itemId);
+      if (found) return b;  // return the parent dropdown
+    }
+  }
+  return null;
+}
+
+function DockItemInspector({
+  itemId,
+  buttons,
+  entries,
+  onSelect,
+}: {
+  itemId: string;
+  buttons: DockButtonConfig[];
+  entries: RegistryEntry[];
+  onSelect: (sel: EditorSelection) => void;
+}) {
+  const button = findButton(buttons, itemId);
+  if (!button) {
+    return (
+      <PaneShell title="DOCK ITEM">
+        <div className="flex items-start gap-2 rounded-md p-2" style={{ background: "var(--bn-bg2)" }}>
+          <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--bn-warn, #f59e0b)" }} />
+          <p className="text-xs" style={{ color: "var(--bn-t1)" }}>
+            Selected dock item no longer exists. It may have been removed.
+          </p>
+        </div>
+      </PaneShell>
+    );
+  }
+
+  // Resolve referenced component (if this is a launch-component button)
+  const isLaunchComponent = (button as { actionId?: string }).actionId === ACTION_LAUNCH_COMPONENT;
+  const refId = isLaunchComponent
+    ? ((button as { customData?: unknown }).customData as { registryEntryId?: string } | undefined)?.registryEntryId
+    : undefined;
+  const referenced = refId ? entries.find((e) => e.id === refId) : null;
+  const broken = isLaunchComponent && refId && !referenced;
+
+  return (
+    <PaneShell title="DOCK ITEM">
+      <div className="flex flex-col gap-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+            Label
+          </div>
+          <div className="rounded-md px-2 py-1 text-xs font-medium" style={{
+            background: "var(--bn-bg2)",
+            border: "1px solid var(--bn-border)",
+            color: "var(--bn-t0)",
+          }}>
+            {button.tooltip}
+          </div>
+          <div className="text-[10px] mt-1" style={{ color: "var(--bn-t2)" }}>
+            (Per-item label/icon overrides land in a follow-up commit. For
+            now use the existing Dock Editor for those edits.)
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+            Type
+          </div>
+          <div className="rounded-md px-2 py-1 text-xs" style={{
+            background: "var(--bn-bg2)",
+            border: "1px solid var(--bn-border)",
+            color: "var(--bn-t1)",
+          }}>
+            {button.type === "DropdownButton" ? "Dropdown (with menu items)" : "Action button"}
+            {isLaunchComponent ? " · launches a component" : ""}
+          </div>
+        </div>
+
+        {isLaunchComponent && (
+          <div>
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+              Launches component
+            </div>
+            {broken && (
+              <div className="flex items-start gap-2 rounded-md p-2 mt-1 text-[11px]" style={{
+                background: "var(--bn-bg2)",
+                border: "1px solid var(--bn-warn, #f59e0b)",
+                color: "var(--bn-warn, #f59e0b)",
+              }}>
+                <AlertCircle className="w-3 h-3 mt-0.5" />
+                <span>
+                  Component <code>{refId}</code> was deleted. Remove this
+                  dock item or restore the component.
+                </span>
+              </div>
+            )}
+            {referenced && (
+              <button
+                type="button"
+                onClick={() => onSelect({ kind: "component", entryId: referenced.id })}
+                className="w-full mt-1 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-left"
+                style={{
+                  background: "var(--bn-bg2)",
+                  border: "1px solid var(--bn-border)",
+                  color: "var(--bn-t1)",
+                }}
+              >
+                <ExternalLink className="w-3 h-3" />
+                <span className="truncate">
+                  {referenced.displayName} <span style={{ color: "var(--bn-t2)" }}>({referenced.componentType}/{referenced.componentSubType})</span>
+                </span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </PaneShell>
   );
