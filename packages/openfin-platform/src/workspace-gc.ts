@@ -24,8 +24,8 @@ import type { ConfigManager, AppConfigRow } from '@marketsui/config-service';
 import { COMPONENT_TYPES } from '@marketsui/shared-types';
 
 interface RegistryEntryLite {
-  componentType?: string;
-  componentSubType?: string;
+  configId?: string;
+  singleton?: boolean;
 }
 
 /**
@@ -44,9 +44,11 @@ function singletonKeysFromRegistry(reg: AppConfigRow | undefined): Set<string> {
   if (!reg) return keys;
   const entries = (reg.payload as { entries?: RegistryEntryLite[] } | undefined)?.entries ?? [];
   for (const e of entries) {
-    const t = e?.componentType ?? '';
-    if (!t) continue;
-    keys.add(`${t}_${e?.componentSubType ?? ''}`);
+    // Singleton lifecycle entries reuse the same configId every launch
+    // (deriveSingletonConfigId writes it onto the entry at save time);
+    // protect that exact id from GC. Templates also live at the entry's
+    // configId but are protected separately by the isTemplate=true rule.
+    if (e?.singleton && e?.configId) keys.add(e.configId);
   }
   return keys;
 }
