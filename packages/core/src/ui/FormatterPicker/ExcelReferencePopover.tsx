@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Info } from 'lucide-react';
+import { Copy, Info } from 'lucide-react';
 import { FormatPopover } from '../format-editor';
 import { EXCEL_EXAMPLES } from './excelExamples';
 
 /**
  * Info popover with categorised Excel format examples. Clicking any
- * row copies the format string into the clipboard AND fires the
- * supplied callback so the FormatterPicker can paste it straight
- * into its custom-format input.
+ * row populates the FormatterPicker's custom-format input via the
+ * supplied callback AND closes this reference popover so the picker's
+ * input gets immediate focus.
+ *
+ * Clipboard write happens too — a few users had complained that the
+ * "click row" UX wasn't paste-elsewhere-friendly, and the cost is one
+ * `navigator.clipboard.writeText()` call per click.
  *
  * Width is deliberately 420px — wide enough that long formats like
  * `[>0][Green]▲0.00;[<0][Red]▼0.00;0.00` don't wrap mid-token.
@@ -19,28 +22,6 @@ export function ExcelReferencePopover({
   onPick: (format: string) => void;
   'data-testid'?: string;
 }) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  // Clear the 1200ms "copied" flash timer on unmount so we don't setState on
-  // a gone component when the popover closes mid-flash.
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    };
-  }, []);
-
-  const handleCopy = (format: string, id: string) => {
-    // Swallow rejections — clipboard can fail on http:// origins, etc.
-    void navigator.clipboard?.writeText(format).catch(() => {});
-    onPick(format);
-    setCopiedId(id);
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    copyTimerRef.current = setTimeout(
-      () => setCopiedId((prev) => (prev === id ? null : prev)),
-      1200,
-    );
-  };
-
   return (
     <FormatPopover
       width={420}
@@ -67,6 +48,14 @@ export function ExcelReferencePopover({
         </button>
       }
     >
+      {({ close }) => {
+        const handleCopy = (format: string) => {
+          // Swallow rejections — clipboard can fail on http:// origins, etc.
+          void navigator.clipboard?.writeText(format).catch(() => {});
+          onPick(format);
+          close();
+        };
+        return (
       <div
         className="gc-excel-ref-scroll"
         style={{
@@ -113,7 +102,7 @@ export function ExcelReferencePopover({
                   <li key={id}>
                     <button
                       type="button"
-                      onClick={() => copyable && handleCopy(ex.format, id)}
+                      onClick={() => copyable && handleCopy(ex.format)}
                       disabled={!copyable}
                       style={{
                         width: '100%',
@@ -166,11 +155,7 @@ export function ExcelReferencePopover({
                       >
                         <span style={{ fontFamily: 'var(--ck-font-mono)' }}>{ex.sample}</span>
                         {copyable ? (
-                          copiedId === id ? (
-                            <Check size={11} strokeWidth={2} style={{ color: 'var(--ck-green)' }} />
-                          ) : (
-                            <Copy size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
-                          )
+                          <Copy size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
                         ) : null}
                       </span>
                     </button>
@@ -181,6 +166,8 @@ export function ExcelReferencePopover({
           </section>
         ))}
       </div>
+        );
+      }}
     </FormatPopover>
   );
 }
