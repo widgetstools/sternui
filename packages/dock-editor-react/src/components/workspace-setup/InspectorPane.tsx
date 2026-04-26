@@ -16,12 +16,13 @@
  * to ConfigService; until then changes accumulate as dirty state.
  */
 
-import { useMemo } from "react";
-import { PlayCircle, AlertCircle, ArrowRight, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
+import { PlayCircle, AlertCircle, ArrowRight, ExternalLink, ImageIcon } from "lucide-react";
 import type {
   RegistryEntry,
   DockButtonConfig,
   DockDropdownButtonConfig,
+  DockMenuItemConfig,
 } from "@marketsui/openfin-platform/config";
 import {
   deriveSingletonConfigId,
@@ -29,6 +30,9 @@ import {
   ACTION_LAUNCH_COMPONENT,
 } from "@marketsui/openfin-platform/config";
 import type { EditorSelection } from "./types";
+import { IconPicker } from "../IconPicker";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
 
 /**
  * Where in the dock a component is referenced. One DockPlacement per
@@ -47,6 +51,23 @@ interface InspectorPaneProps {
   entries: RegistryEntry[];
   buttons: DockButtonConfig[];
   onChange: (id: string, patch: Partial<RegistryEntry>) => void;
+  /**
+   * Update label / icon / iconColor on a top-level dock button. The
+   * dock-item inspector treats these as per-placement overrides
+   * independent of the referenced component's defaults.
+   */
+  onEditButton: (buttonId: string, patch: Partial<DockButtonConfig>) => void;
+  /**
+   * Update a nested menu item inside a dropdown. `topButtonId` is the
+   * top-level DropdownButton that owns the chain; `parentItemId` is
+   * the direct parent menu item if the leaf lives in a sub-menu.
+   */
+  onEditMenuItem: (
+    topButtonId: string,
+    itemId: string,
+    parentItemId: string | undefined,
+    patch: Partial<DockMenuItemConfig>,
+  ) => void;
   onTest: (entry: RegistryEntry) => void | Promise<void>;
   /** Add the selected component to the user's dock as a top-level button. */
   onAddToDock: (entry: RegistryEntry) => void;
@@ -67,6 +88,8 @@ export function InspectorPane({
   entries,
   buttons,
   onChange,
+  onEditButton,
+  onEditMenuItem,
   onTest,
   onAddToDock,
   onSelect,
@@ -89,6 +112,8 @@ export function InspectorPane({
         itemId={selection.itemId}
         buttons={buttons}
         entries={entries}
+        onEditButton={onEditButton}
+        onEditMenuItem={onEditMenuItem}
         onSelect={onSelect}
       />
     );
@@ -251,20 +276,28 @@ function ComponentForm({
   return (
     <PaneShell title="COMPONENT">
       <div className="flex flex-col gap-3">
-        {/* Name */}
-        <Field label="Name">
-          <input
-            value={entry.displayName}
-            onChange={(e) => onChange({ displayName: e.target.value })}
-            placeholder="e.g. Risk Dashboard"
-            className="w-full rounded-md px-2 py-1 text-xs outline-none"
-            style={{
-              background: "var(--bn-bg2)",
-              border: "1px solid var(--bn-border)",
-              color: "var(--bn-t0)",
-            }}
+        {/* Icon + Name row — icon picker is the visual anchor */}
+        <div className="flex gap-2 items-end">
+          <IconField
+            iconId={entry.iconId}
+            onChange={(iconId) => onChange({ iconId })}
           />
-        </Field>
+          <div className="flex-1">
+            <Field label="Name">
+              <input
+                value={entry.displayName}
+                onChange={(e) => onChange({ displayName: e.target.value })}
+                placeholder="e.g. Risk Dashboard"
+                className="w-full rounded-md px-2 py-1 text-xs outline-none"
+                style={{
+                  background: "var(--bn-bg2)",
+                  border: "1px solid var(--bn-border)",
+                  color: "var(--bn-t0)",
+                }}
+              />
+            </Field>
+          </div>
+        </div>
 
         {/* Type / SubType */}
         <div className="grid grid-cols-2 gap-2">
@@ -444,16 +477,47 @@ function ComponentForm({
 
 // ─── Dock item inspector ─────────────────────────────────────────────
 
-function findButton(buttons: DockButtonConfig[], itemId: string): DockButtonConfig | null {
+/**
+ * Resolve the selected dock-item id to either a top-level button or a
+ * nested menu item. Returning a discriminated union lets the inspector
+ * route its edits to the correct dispatcher (UPDATE_BUTTON vs.
+ * UPDATE_MENU_ITEM) and surface the right "type" label.
+ */
+type ResolvedDockEntity =
+  | { kind: "button"; button: DockButtonConfig }
+  | {
+      kind: "menuItem";
+      topButtonId: string;
+      parentItemId: string | undefined;
+      item: DockMenuItemConfig;
+    };
+
+function resolveDockEntity(
+  buttons: DockButtonConfig[],
+  itemId: string,
+): ResolvedDockEntity | null {
   for (const b of buttons) {
-    if (b.id === itemId) return b;
+    if (b.id === itemId) return { kind: "button", button: b };
     if (b.type === "DropdownButton") {
-      // Dock items nested inside dropdowns share the same selection
-      // surface — we surface them as the parent dropdown for now since
-      // per-menu-item editing isn't in this commit
-      const dropdown = b as DockDropdownButtonConfig;
-      const found = (dropdown.options ?? []).find((o) => o.id === itemId);
-      if (found) return b;  // return the parent dropdown
+      const found = findInOptions((b as DockDropdownButtonConfig).options ?? [], itemId, undefined);
+      if (found) {
+        return { kind: "menuItem", topButtonId: b.id, parentItemId: found.parentItemId, item: found.item };
+      }
+    }
+  }
+  return null;
+}
+
+function findInOptions(
+  items: DockMenuItemConfig[],
+  itemId: string,
+  parentItemId: string | undefined,
+): { item: DockMenuItemConfig; parentItemId: string | undefined } | null {
+  for (const it of items) {
+    if (it.id === itemId) return { item: it, parentItemId };
+    if (it.options?.length) {
+      const nested = findInOptions(it.options, itemId, it.id);
+      if (nested) return nested;
     }
   }
   return null;
@@ -463,15 +527,24 @@ function DockItemInspector({
   itemId,
   buttons,
   entries,
+  onEditButton,
+  onEditMenuItem,
   onSelect,
 }: {
   itemId: string;
   buttons: DockButtonConfig[];
   entries: RegistryEntry[];
+  onEditButton: (buttonId: string, patch: Partial<DockButtonConfig>) => void;
+  onEditMenuItem: (
+    topButtonId: string,
+    itemId: string,
+    parentItemId: string | undefined,
+    patch: Partial<DockMenuItemConfig>,
+  ) => void;
   onSelect: (sel: EditorSelection) => void;
 }) {
-  const button = findButton(buttons, itemId);
-  if (!button) {
+  const resolved = resolveDockEntity(buttons, itemId);
+  if (!resolved) {
     return (
       <PaneShell title="DOCK ITEM">
         <div className="flex items-start gap-2 rounded-md p-2" style={{ background: "var(--bn-bg2)" }}>
@@ -484,45 +557,89 @@ function DockItemInspector({
     );
   }
 
-  // Resolve referenced component (if this is a launch-component button)
-  const isLaunchComponent = (button as { actionId?: string }).actionId === ACTION_LAUNCH_COMPONENT;
+  // Surface common fields uniformly across button / menuItem.
+  const label = resolved.kind === "button" ? resolved.button.tooltip : resolved.item.tooltip;
+  const iconId =
+    resolved.kind === "button" ? resolved.button.iconId ?? "" : resolved.item.iconId ?? "";
+  const actionId =
+    resolved.kind === "button"
+      ? (resolved.button as { actionId?: string }).actionId
+      : resolved.item.actionId;
+  const customData =
+    resolved.kind === "button"
+      ? (resolved.button as { customData?: unknown }).customData
+      : resolved.item.customData;
+
+  const isLaunchComponent = actionId === ACTION_LAUNCH_COMPONENT;
   const refId = isLaunchComponent
-    ? ((button as { customData?: unknown }).customData as { registryEntryId?: string } | undefined)?.registryEntryId
+    ? (customData as { registryEntryId?: string } | undefined)?.registryEntryId
     : undefined;
   const referenced = refId ? entries.find((e) => e.id === refId) : null;
   const broken = isLaunchComponent && refId && !referenced;
 
+  // Single edit dispatcher — both forms use the same fields, only the
+  // routing differs.
+  const setLabel = (next: string) => {
+    if (resolved.kind === "button") {
+      onEditButton(resolved.button.id, { tooltip: next } as Partial<DockButtonConfig>);
+    } else {
+      onEditMenuItem(resolved.topButtonId, resolved.item.id, resolved.parentItemId, { tooltip: next });
+    }
+  };
+  const setIconId = (next: string) => {
+    if (resolved.kind === "button") {
+      onEditButton(resolved.button.id, { iconId: next } as Partial<DockButtonConfig>);
+    } else {
+      onEditMenuItem(resolved.topButtonId, resolved.item.id, resolved.parentItemId, { iconId: next });
+    }
+  };
+
+  const typeLine =
+    resolved.kind === "button"
+      ? `${resolved.button.type === "DropdownButton" ? "Dropdown (with menu items)" : "Action button"}${isLaunchComponent ? " · launches a component" : ""}`
+      : `Menu item${(resolved.item.options?.length ?? 0) > 0 ? " (sub-menu)" : ""}${isLaunchComponent ? " · launches a component" : ""}`;
+
   return (
     <PaneShell title="DOCK ITEM">
       <div className="flex flex-col gap-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
-            Label
-          </div>
-          <div className="rounded-md px-2 py-1 text-xs font-medium" style={{
-            background: "var(--bn-bg2)",
-            border: "1px solid var(--bn-border)",
-            color: "var(--bn-t0)",
-          }}>
-            {button.tooltip}
-          </div>
-          <div className="text-[10px] mt-1" style={{ color: "var(--bn-t2)" }}>
-            (Per-item label/icon overrides land in a follow-up commit. For
-            now use the existing Dock Editor for those edits.)
+        {/* Icon + Label — per-placement overrides */}
+        <div className="flex gap-2 items-end">
+          <IconField iconId={iconId} onChange={setIconId} />
+          <div className="flex-1">
+            <Field label="Label">
+              <input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="w-full rounded-md px-2 py-1 text-xs outline-none"
+                style={{
+                  background: "var(--bn-bg2)",
+                  border: "1px solid var(--bn-border)",
+                  color: "var(--bn-t0)",
+                }}
+              />
+            </Field>
           </div>
         </div>
+        {referenced && (
+          <div className="text-[10px] -mt-2" style={{ color: "var(--bn-t2)" }}>
+            Component default: <span style={{ color: "var(--bn-t1)" }}>{referenced.iconId || "—"}</span>{" "}
+            · per-placement overrides win.
+          </div>
+        )}
 
         <div>
           <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
             Type
           </div>
-          <div className="rounded-md px-2 py-1 text-xs" style={{
-            background: "var(--bn-bg2)",
-            border: "1px solid var(--bn-border)",
-            color: "var(--bn-t1)",
-          }}>
-            {button.type === "DropdownButton" ? "Dropdown (with menu items)" : "Action button"}
-            {isLaunchComponent ? " · launches a component" : ""}
+          <div
+            className="rounded-md px-2 py-1 text-xs"
+            style={{
+              background: "var(--bn-bg2)",
+              border: "1px solid var(--bn-border)",
+              color: "var(--bn-t1)",
+            }}
+          >
+            {typeLine}
           </div>
         </div>
 
@@ -572,13 +689,13 @@ function DockItemInspector({
 
 function PaneShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-3 py-2 border-b" style={{ borderColor: "var(--bn-border)" }}>
+    <div className="flex flex-col h-full min-h-0">
+      <div className="px-3 py-2 border-b shrink-0" style={{ borderColor: "var(--bn-border)" }}>
         <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--bn-t1)" }}>
           ③ {title}
         </span>
       </div>
-      <div className="flex-1 overflow-auto p-3">{children}</div>
+      <div className="flex-1 overflow-auto bn-scrollbar p-3 min-h-0">{children}</div>
     </div>
   );
 }
@@ -603,5 +720,70 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       />
       <span className="text-xs" style={{ color: "var(--bn-t1)" }}>{label}</span>
     </label>
+  );
+}
+
+// ─── Icon field with picker popover ──────────────────────────────────
+//
+// Click the swatch to open a searchable grid (IconPicker). Selecting an
+// icon writes the iconId back via onChange and closes the popover.
+// Empty iconId → renders an "ImageIcon" placeholder, signalling "no
+// icon set" (only meaningful for dock-item overrides where empty means
+// "fall back to component default").
+
+function IconField({ iconId, onChange }: { iconId: string; onChange: (iconId: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const previewUrl = useMemo(() => (iconId ? iconIdToSvgUrl(iconId, "currentColor") : ""), [iconId]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+        Icon
+      </span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-9 h-9 flex items-center justify-center rounded-md"
+            style={{
+              background: "var(--bn-bg2)",
+              border: "1px solid var(--bn-border)",
+              color: "var(--bn-t1)",
+            }}
+            title={iconId ? `Icon: ${iconId} — click to change` : "Pick an icon"}
+          >
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt=""
+                width={20}
+                height={20}
+                style={{ display: "block" }}
+              />
+            ) : (
+              <ImageIcon className="w-4 h-4" style={{ color: "var(--bn-t2)" }} />
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="p-2 w-[360px]"
+          align="start"
+          style={{
+            background: "var(--bn-bg)",
+            border: "1px solid var(--bn-border)",
+            color: "var(--bn-t0)",
+          }}
+        >
+          <IconPicker
+            selectedIcon={iconId}
+            color="currentColor"
+            onSelect={(id) => {
+              onChange(id);
+              setOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

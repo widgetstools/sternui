@@ -227,7 +227,16 @@ export interface UseDockEditorReturn {
   dispatch: React.Dispatch<EditorAction>;
   /** Save current config to IndexedDB and notify the dock */
   save: () => Promise<void>;
-  /** Clear saved config and reload defaults */
+  /**
+   * Re-load buttons from storage and clear the dirty flag. The "Discard
+   * unsaved changes" path — does NOT touch IndexedDB.
+   */
+  reload: () => Promise<void>;
+  /**
+   * DESTRUCTIVE: clear the persisted dock config entirely and notify the
+   * live dock to revert to defaults. Intended for admin flows; do not
+   * wire to a Discard button. See `reload()`.
+   */
   reset: () => Promise<void>;
   /** Publish current config to dock for live preview without saving */
   preview: () => Promise<void>;
@@ -354,6 +363,16 @@ export function useDockEditor(opts: UseDockEditorOptions = {}): UseDockEditorRet
     console.log("Dock config saved.");
   }, [buildConfig, publishConfig, scope]);
 
+  const reload = useCallback(async () => {
+    try {
+      const saved = await loadDockConfig(scope);
+      dispatch({ type: "SET_BUTTONS", buttons: saved?.buttons ?? [] });
+    } catch (err) {
+      console.error("Failed to reload dock config:", err);
+      dispatch({ type: "SET_BUTTONS", buttons: [] });
+    }
+  }, [scope]);
+
   const reset = useCallback(async () => {
     await clearDockConfig(scope);
     dispatch({ type: "SET_BUTTONS", buttons: [] });
@@ -378,6 +397,7 @@ export function useDockEditor(opts: UseDockEditorOptions = {}): UseDockEditorRet
     isLoading: state.isLoading,
     dispatch,
     save,
+    reload,
     reset,
     preview,
     registryEntries,

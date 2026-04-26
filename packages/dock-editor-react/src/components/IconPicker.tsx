@@ -5,6 +5,11 @@
  *
  * Displays curated Lucide icons + market icons from @marketsui/icons-svg.
  * Uses DynamicIcon from @marketsui/icons-svg/react for rendering.
+ *
+ * Emits an iconId ("mkt:bond" or "lucide:settings") so callers can
+ * persist a stable identifier and re-render the icon under either
+ * theme via iconIdToSvgUrl(). Also passes the resolved SVG data URL
+ * for callers that want to write it directly to a dock-config field.
  */
 
 import { useState, useMemo } from "react";
@@ -19,7 +24,13 @@ import { cn } from "../lib/utils";
 // ─── Types ───────────────────────────────────────────────────────────
 
 interface IconPickerProps {
-  onSelect: (iconName: string, svgDataUrl: string) => void;
+  /**
+   * Called with the iconId ("mkt:bond" or "lucide:settings") and the
+   * resolved SVG data URL. Persist the iconId; the URL is convenience
+   * for dock configs that snapshot a colored variant.
+   */
+  onSelect: (iconId: string, svgDataUrl: string) => void;
+  /** Currently selected iconId (e.g. "mkt:bond"). */
   selectedIcon?: string;
   /** Color for the SVG data URL (default "#ffffff" for dark theme) */
   color?: string;
@@ -78,14 +89,14 @@ export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPi
       const key = icon.id.replace("mkt:", "");
       const svg = MARKET_ICON_SVGS[key];
       if (svg) {
-        onSelect(icon.name, svgToDataUrl(svg, color));
+        onSelect(icon.id, svgToDataUrl(svg, color));
       }
     } else {
       // Lucide icons — build an Iconify CDN URL
       const [prefix, name] = icon.id.split(":");
       if (prefix && name) {
         const url = `https://api.iconify.design/${prefix}/${name}.svg?color=${encodeURIComponent(color)}&height=24`;
-        onSelect(icon.name, url);
+        onSelect(icon.id, url);
       }
     }
   }
@@ -120,7 +131,7 @@ export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPi
               className={cn(
                 "w-8 h-8 flex items-center justify-center rounded border cursor-pointer",
                 "hover:bg-accent hover:border-accent transition-colors",
-                selectedIcon === icon.name && "bg-accent border-primary",
+                selectedIcon === icon.id && "bg-accent border-primary",
               )}
               style={{ background: "var(--de-bg-surface, var(--card))", borderColor: "var(--de-border, var(--border))" }}
             >

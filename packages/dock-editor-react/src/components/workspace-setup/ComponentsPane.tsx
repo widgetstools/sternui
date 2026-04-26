@@ -18,8 +18,9 @@
  */
 
 import { useMemo, useState } from "react";
-import { Plus, PlayCircle, Trash2, Search } from "lucide-react";
+import { Plus, PlayCircle, Trash2, Search, Box } from "lucide-react";
 import type { RegistryEntry } from "@marketsui/openfin-platform/config";
+import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
 import type { EditorSelection, ComponentFilter } from "./types";
 
 interface ComponentsPaneProps {
@@ -114,7 +115,7 @@ export function ComponentsPane({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bn-scrollbar min-h-0">
         {filtered.length === 0 && (
           <div className="px-3 py-6 text-center text-xs" style={{ color: "var(--bn-t2)" }}>
             {entries.length === 0
@@ -137,6 +138,7 @@ export function ComponentsPane({
                 borderLeft: isSelected ? "2px solid var(--bn-accent, #14b8a6)" : "2px solid transparent",
               }}
             >
+              <ComponentIcon iconId={entry.iconId} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 text-xs font-medium truncate" style={{ color: "var(--bn-t0)" }}>
                   {entry.singleton && <span title="Singleton">⭐</span>}
@@ -173,6 +175,24 @@ export function ComponentsPane({
       </div>
     </div>
   );
+}
+
+// Visual preview of the registry entry's iconId. Falls back to a
+// generic Box glyph when no icon is set yet.
+function ComponentIcon({ iconId }: { iconId: string | undefined }) {
+  const url = iconId ? iconIdToSvgUrl(iconId, "currentColor") : "";
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt=""
+        width={20}
+        height={20}
+        style={{ width: 20, height: 20, flexShrink: 0, color: "var(--bn-t1)" }}
+      />
+    );
+  }
+  return <Box className="w-5 h-5 shrink-0" style={{ color: "var(--bn-t2)" }} />;
 }
 
 function FilterChip({

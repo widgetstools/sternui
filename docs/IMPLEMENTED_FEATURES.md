@@ -1334,6 +1334,76 @@ The dock editor reads a single, well-known ConfigService row (`componentType: 'c
 
 ---
 
+## 1.R Workspace Setup — unified editor redesign + persistence fix
+
+The "Workspace Setup (new)" 3-pane editor (`packages/dock-editor-react/src/WorkspaceSetup.tsx`) was functionally working but had four user-reported issues. All four are now closed; the older standalone Dock Editor + Component Registry windows remain available unchanged.
+
+### Persistence — components stop disappearing
+
+Root cause: the child window opened with no scope context from the parent provider, so `db.ts`'s module-level `currentPlatformScope` defaulted to legacy `(system, system)`. Saves wrote to that scope while the provider's boot-time migrations (`migrateLegacyPlatformScope`, `realignAllConfigsToPlatformScope`, `migrateRegistryToGlobalScope`) relocated rows to the real `(appId, userId)` scope, and the next reload found nothing.
+
+- All six dock/registry/workspace-setup launchers in `workspace.ts` now forward `customData: { appId, userId }` (matching the existing Config Browser pattern).
+- `HostEnv` carries `userId` through `readHostEnv()`. Optional in the type so demo apps that build a manual `HostEnv` for `encodeHostEnvForQueryString` keep compiling.
+- WorkspaceSetup reads `customData` at mount, calls `setPlatformDefaultScope`, and passes the scope explicitly into both `useRegistryEditor({ scope })` and `useDockEditor({ scope })` so the load + save effects target the right row even before the module-level default propagates.
+
+### Discard no longer wipes IndexedDB
+
+The previous Discard button called `registry.reset()` / `dock.reset()`, both of which invoked `clear*Config(scope)` and silently wiped the entire row. A user pressing Discard expecting "revert my unsaved edits" got their catalogue erased.
+
+- Added `reload()` (non-destructive — re-reads from storage) to both `useRegistryEditor` and `useDockEditor`.
+- Discard now wires through `reload()`. The destructive `reset()` is preserved for admin "Clear all" flows but no longer reachable from a Discard control.
+
+### Cascade prune on registry deletion
+
+Deleting a registry entry left orphaned dock items pointing at the dead `customData.registryEntryId`. The Inspector showed an orange "Component {uuid} was deleted" warning but the dock itself still rendered the broken button.
+
+- `WorkspaceSetup.handleDelete` now walks the dock tree (top-level ActionButtons + nested DropdownButton menu items, recursively through sub-menus) and dispatches `REMOVE_BUTTON` / `REMOVE_MENU_ITEM` for every item that references the deleted entry. The orphan warning still exists for legacy stale rows but no longer accumulates from new deletions.
+
+### Layout — fits its container, themed scrollbars
+
+- Outer shell: `h-full w-full overflow-hidden` + three rows (`<header>` / `<main>` / `<footer>`). The previous `h-screen w-screen` ignored window resizing.
+- Save / Discard moved from the header into a dedicated footer so primary actions stay anchored at the bottom regardless of which pane is scrolled. Header keeps the title, summary counts, and the unsaved-changes badge.
+- Each pane's inner content is the only scrolling region; outer container has `overflow-hidden` so the shell never shows a scrollbar of its own.
+- New `.bn-scrollbar` utility in `editor-styles.ts` resolves track + thumb colours through `--bn-bg2` / `--bn-border` / `--bn-t3`, so dark and light themes both render correctly without per-theme overrides. Pure CSS — `::-webkit-scrollbar` for Chromium and `scrollbar-color` for Firefox / recent WebKit.
+
+### Icon picker (per-component default + per-placement override)
+
+Replaced the placeholder "(per-item label/icon overrides land in a follow-up commit)" text in `DockItemInspector` with real fields backed by the shared `IconPicker`.
+
+- `IconField` (Popover-hosted searchable grid) lives above the Name field in `ComponentForm` (writes `entry.iconId`) and beside the Label field in `DockItemInspector` (writes the dock button's `iconId`, treated as a per-placement override). Component default is shown as a hint underneath the override field.
+- Fixed the existing `IconPicker` contract: was emitting display name (`"Bond"`) while the storage layer expects iconId (`"mkt:bond"`). The component had no live callers, so the signature change is a clean break.
+- Added 33 curated trading-action icons under the user's `/svg` folder into `packages/icons-svg/svg/` and the corresponding entries in `ICON_PATHS` / `ICON_META` / `MARKET_ICON_SVGS` (`all-icons.ts`). These ship with hardcoded hex palettes (e.g. `#1ed8a0` / `#ff4d7d`) so they keep their stylized colour identity in both themes — `svgToDataUrl()`'s currentColor replacement is a no-op for them. Names that overlapped with existing icons-svg entries (alert, blotter, bond, candlestick, compliance, heatmap, line-chart, order-book, pnl, refresh, risk, settings, watchlist) were not imported; the existing currentColor variants stay because they theme correctly.
+
+### Dropdown authoring — registered components reachable inside dropdown menus
+
+Schema already supported nested dropdowns (`DockDropdownButtonConfig.options: DockMenuItemConfig[]`) and the older standalone Dock Editor authored them; the new editor was missing the affordances.
+
+- `DockPane` now has a header **+ New menu** button that creates an empty `DropdownButton`.
+- Each `DropdownButton` row carries a **+ Add** Popover listing every registered component with search; selecting one fires `ADD_MENU_ITEM` with the right `parentItemId`. Sub-menus are rendered recursively.
+- Each row gets an **X** button that fires `REMOVE_MENU_ITEM` (top-level) or `REMOVE_BUTTON` (root).
+- `InspectorPane` now resolves a selected dock-item id to either a top-level button or a nested menu item via a discriminated-union `resolveDockEntity`. Edit fields route to `onEditButton` (UPDATE_BUTTON) or `onEditMenuItem` (UPDATE_MENU_ITEM with the right `parentItemId` chain). Without that split, clicking a nested item silently mutated the parent dropdown.
+
+### Files
+
+| Path | Role |
+|---|---|
+| `packages/dock-editor-react/src/WorkspaceSetup.tsx` | Outer shell — scope init, header / body / footer, dock CRUD bridges |
+| `packages/dock-editor-react/src/components/workspace-setup/DockPane.tsx` | Tree renderer + +New menu + +Add Popover + remove |
+| `packages/dock-editor-react/src/components/workspace-setup/InspectorPane.tsx` | Component form + dock-item form (button OR menu item) with icon picker |
+| `packages/dock-editor-react/src/components/dock-editor/editor-styles.ts` | `.bn-scrollbar` utility + token aliases |
+| `packages/dock-editor-react/src/components/IconPicker.tsx` | Shared grid (now emits iconId, not display name) |
+| `packages/dock-editor-react/src/hooks/useDockEditor.ts` | + non-destructive `reload()` |
+| `packages/registry-editor-react/src/hooks/useRegistryEditor.ts` | + non-destructive `reload()` |
+| `packages/openfin-platform/src/registry-host-env.ts` | `HostEnv.userId` (optional) + readHostEnv populates from `customData.userId` |
+| `packages/openfin-platform/src/workspace.ts` | Six launchers forward `customData: { appId, userId }` |
+| `packages/icons-svg/index.ts`, `all-icons.ts`, `svg/` | + 33 curated trading-action icons |
+
+### Tests
+
+Baseline preserved: 242 (`@marketsui/core`) + 56 (`@marketsui/markets-grid`) + 42 (`@marketsui/openfin-platform`) + 147 (`@marketsui/data-plane`) = 487 tests passing. No regressions; full `npx turbo typecheck test --force` is green across all 50 tasks.
+
+---
+
 ## 2. Summary Statistics
 
 | Category | Count |

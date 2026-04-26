@@ -129,6 +129,48 @@ export const ICON_PATHS = {
   'upload':                    'svg/upload.svg',
   'wrench':                    'svg/wrench.svg',
 
+  // ── Curated (added in feat/workspace-setup-redesign) ────────────────
+  // Trading actions
+  'buy':                       'svg/buy.svg',
+  'sell':                      'svg/sell.svg',
+  'execute':                   'svg/execute.svg',
+  'new-order':                 'svg/new-order.svg',
+  'cancel-order':              'svg/cancel-order.svg',
+  'fill-report':               'svg/fill-report.svg',
+  'options':                   'svg/options.svg',
+  'futures':                   'svg/futures.svg',
+  'fx':                        'svg/fx.svg',
+  'crypto':                    'svg/crypto.svg',
+  'equity':                    'svg/equity.svg',
+  'commodity':                 'svg/commodity.svg',
+  'settlement':                'svg/settlement.svg',
+  'trades':                    'svg/trades.svg',
+  'algo':                      'svg/algo.svg',
+
+  // Charts (curated)
+  'depth-chart':               'svg/depth-chart.svg',
+  'indicator':                 'svg/indicator.svg',
+  'volume':                    'svg/volume.svg',
+
+  // Risk (curated)
+  'exposure':                  'svg/exposure.svg',
+  'var':                       'svg/var.svg',
+  'loss':                      'svg/loss.svg',
+  'profit':                    'svg/profit.svg',
+  'take-profit':               'svg/take-profit.svg',
+  'stop-loss':                 'svg/stop-loss.svg',
+  'liquidity':                 'svg/liquidity.svg',
+  'greeks':                    'svg/greeks.svg',
+  'positions':                 'svg/positions.svg',
+
+  // General (curated)
+  'audit':                     'svg/audit.svg',
+  'export':                    'svg/export.svg',
+  'filter':                    'svg/filter.svg',
+  'search':                    'svg/search.svg',
+  'news':                      'svg/news.svg',
+  'connectivity':              'svg/connectivity.svg',
+
 } as const;
 
 export type MarketIconName = keyof typeof ICON_PATHS;
@@ -232,6 +274,48 @@ export const ICON_META: Record<MarketIconName, IconMeta> = {
   'sun': { name: 'Sun', category: 'system' },
   'upload': { name: 'Upload', category: 'system' },
   'wrench': { name: 'Wrench', category: 'system' },
+
+  // ── Curated (fixed-palette stylized icons) ──────────────────────────
+  // Trading actions
+  'buy': { name: 'Buy', category: 'trading' },
+  'sell': { name: 'Sell', category: 'trading' },
+  'execute': { name: 'Execute', category: 'trading' },
+  'new-order': { name: 'New Order', category: 'trading' },
+  'cancel-order': { name: 'Cancel Order', category: 'trading' },
+  'fill-report': { name: 'Fill Report', category: 'trading' },
+  'options': { name: 'Options', category: 'trading' },
+  'futures': { name: 'Futures', category: 'trading' },
+  'fx': { name: 'FX', category: 'trading' },
+  'crypto': { name: 'Crypto', category: 'trading' },
+  'equity': { name: 'Equity', category: 'trading' },
+  'commodity': { name: 'Commodity', category: 'trading' },
+  'settlement': { name: 'Settlement', category: 'trading' },
+  'trades': { name: 'Trades', category: 'trading' },
+  'algo': { name: 'Algo', category: 'trading' },
+
+  // Charts (curated)
+  'depth-chart': { name: 'Depth Chart', category: 'charts' },
+  'indicator': { name: 'Indicator', category: 'charts' },
+  'volume': { name: 'Volume', category: 'charts' },
+
+  // Risk (curated)
+  'exposure': { name: 'Exposure', category: 'risk' },
+  'var': { name: 'VaR', category: 'risk' },
+  'loss': { name: 'Loss', category: 'risk' },
+  'profit': { name: 'Profit', category: 'risk' },
+  'take-profit': { name: 'Take Profit', category: 'risk' },
+  'stop-loss': { name: 'Stop Loss', category: 'risk' },
+  'liquidity': { name: 'Liquidity', category: 'risk' },
+  'greeks': { name: 'Greeks', category: 'risk' },
+  'positions': { name: 'Positions', category: 'risk' },
+
+  // General (curated)
+  'audit': { name: 'Audit', category: 'general' },
+  'export': { name: 'Export', category: 'general' },
+  'filter': { name: 'Filter', category: 'general' },
+  'search': { name: 'Search', category: 'general' },
+  'news': { name: 'News', category: 'general' },
+  'connectivity': { name: 'Connectivity', category: 'general' },
 
 };
 

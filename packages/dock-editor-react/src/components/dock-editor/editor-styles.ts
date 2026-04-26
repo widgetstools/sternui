@@ -116,6 +116,38 @@ const EDITOR_CSS = `
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ── Themed scrollbars ───────────────────────────────────────────────
+ * Used by .bn-scrollbar (any element that scrolls inside the editor
+ * shells). Track + thumb derive from --bn-bg2 / --bn-border so they
+ * flip cleanly when [data-theme] changes on the document root.
+ *
+ * Pure-CSS approach so the same rule works in every browser the
+ * platform supports — Chromium uses ::-webkit-scrollbar, others fall
+ * back to scrollbar-color (Firefox, recent WebKit).
+ */
+.bn-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bn-border2, var(--bn-border)) transparent;
+}
+.bn-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.bn-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.bn-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--bn-border2, var(--bn-border));
+  border: 2px solid var(--bn-bg);
+  border-radius: 6px;
+}
+.bn-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--bn-t3, var(--bn-t2));
+}
+.bn-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
 `;
 
 let injected = false;

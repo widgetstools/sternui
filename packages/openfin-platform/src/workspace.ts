@@ -479,6 +479,13 @@ async function initializePlatform(
           return;
         }
 
+        // Forward the platform scope so the child window's db.ts default
+        // matches the provider's — see Config Browser launcher below.
+        // Without this, the child saves to (system, system) while the
+        // provider's boot-time migrations relocate rows under the real
+        // (appId, userId), and the next reload finds nothing.
+        const scope = getPlatformDefaultScope();
+
         // Try to bring an existing editor window to the front
         try {
           const existingWindow = fin.Window.wrapSync({
@@ -513,6 +520,7 @@ async function initializePlatform(
             resizable: true,
             saveWindowState: true,
             contextMenu: true,
+            customData: { appId: scope.appId, userId: scope.userId },
           });
         }
       },
@@ -525,6 +533,8 @@ async function initializePlatform(
         ) {
           return;
         }
+
+        const scope = getPlatformDefaultScope();
 
         try {
           const existingWindow = fin.Window.wrapSync({
@@ -556,6 +566,7 @@ async function initializePlatform(
             resizable: true,
             saveWindowState: true,
             contextMenu: true,
+            customData: { appId: scope.appId, userId: scope.userId },
           });
         }
       },
@@ -570,7 +581,10 @@ async function initializePlatform(
         ) {
           return;
         }
-        await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760);
+        const scope = getPlatformDefaultScope();
+        await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760, {
+          customData: { appId: scope.appId, userId: scope.userId },
+        });
       },
 
       // ── Open the config browser window ──
@@ -769,15 +783,24 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
   // `setSelectedScheme()` to deadlock the dock channel.
 
   [ACTION_OPEN_DOCK_EDITOR]: async () => {
-    await openChildWindow("dock-editor", "/dock-editor", 720, 800);
+    const scope = getPlatformDefaultScope();
+    await openChildWindow("dock-editor", "/dock-editor", 720, 800, {
+      customData: { appId: scope.appId, userId: scope.userId },
+    });
   },
 
   [ACTION_OPEN_REGISTRY_EDITOR]: async () => {
-    await openChildWindow("registry-editor", "/registry-editor", 800, 700);
+    const scope = getPlatformDefaultScope();
+    await openChildWindow("registry-editor", "/registry-editor", 800, 700, {
+      customData: { appId: scope.appId, userId: scope.userId },
+    });
   },
 
   [ACTION_OPEN_WORKSPACE_SETUP]: async () => {
-    await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760);
+    const scope = getPlatformDefaultScope();
+    await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760, {
+      customData: { appId: scope.appId, userId: scope.userId },
+    });
   },
 
   [ACTION_OPEN_CONFIG_BROWSER]: async () => {
