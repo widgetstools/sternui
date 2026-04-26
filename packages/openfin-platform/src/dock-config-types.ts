@@ -212,8 +212,24 @@ function menuItemToContentMenuEntry(
 
 /**
  * Convert DropdownButtons from a DockEditorConfig into Dock3 ContentMenuEntry[].
- * Each DropdownButton becomes a "folder" with its menu items as children.
- * Each ActionButton is skipped (those go into favorites).
+ *
+ * Each top-level DropdownButton becomes a content-menu **item** (not a
+ * folder) carrying the dropdown's iconId + label, with itemData
+ * `{ actionId: ACTION_OPEN_DOCK_POPOUT, customData: { dropdownId } }`.
+ *
+ * Why an item, not a folder? Dock3's `ContentMenuEntry` folder branch
+ * has no `icon` field — folders render label-only, even when we pass
+ * an icon. Verified against the published types, the official
+ * register-with-dock3-basic starter, and the live runtime. Items DO
+ * carry icons, so emitting the dropdown as an item is the only way to
+ * surface the user-picked icon. The dropdown's children no longer
+ * appear inline in the content menu — they're served by the DockPopout
+ * window opened on click. See iab-topics.ts ACTION_OPEN_DOCK_POPOUT.
+ *
+ * `actionId` parameter: passed in (rather than imported) so this file
+ * stays free of OpenFin-only imports — `iab-topics.ts` is the source.
+ *
+ * ActionButtons are skipped here (they go into favorites).
  */
 export function toDock3UserContentMenu(
   config: DockEditorConfig,
@@ -221,18 +237,21 @@ export function toDock3UserContentMenu(
   recolorUrl: (url: string, color: string) => string,
   darkColor: string,
   lightColor: string,
+  popoutActionId: string,
 ): ContentMenuEntryType[] {
   return config.buttons
     .filter((btn): btn is DockDropdownButtonConfig => btn.type === "DropdownButton")
     .map((btn): ContentMenuEntryType => {
-      const children = btn.options.map((item) =>
-        menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
-      );
+      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
       return {
-        type: "folder",
+        type: "item",
         id: btn.id,
         label: btn.tooltip,
-        children,
+        icon: icon || "",
+        itemData: {
+          actionId: popoutActionId,
+          customData: { dropdownId: btn.id },
+        },
       };
     });
 }

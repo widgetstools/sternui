@@ -52,6 +52,7 @@ import {
   ACTION_OPEN_CONFIG_BROWSER,
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_LAUNCH_COMPONENT,
+  ACTION_OPEN_DOCK_POPOUT,
 } from './iab-topics';
 export {
   IAB_DOCK_CONFIG_UPDATE,
@@ -70,6 +71,7 @@ export {
   ACTION_OPEN_CONFIG_BROWSER,
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_LAUNCH_COMPONENT,
+  ACTION_OPEN_DOCK_POPOUT,
 };
 
 // ─── Module-level state ──────────────────────────────────────────────
@@ -318,7 +320,9 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
  * DropdownButton → options hierarchy.
  */
 function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEntryType[] {
-  // User-configured dropdown buttons → content menu folders with children
+  // User-configured dropdown buttons → content-menu items that open the
+  // DockPopout window on click. (Folders can't show icons in Dock3 v22;
+  // see ACTION_OPEN_DOCK_POPOUT in iab-topics.ts for the rationale.)
   const userMenus = editorConfig
     ? toDock3UserContentMenu(
         editorConfig,
@@ -326,6 +330,7 @@ function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEn
         recolorIconifyUrl,
         ICON_COLOR_DARK_THEME,
         ICON_COLOR_LIGHT_THEME,
+        ACTION_OPEN_DOCK_POPOUT,
       )
     : [];
 
@@ -371,6 +376,95 @@ function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
   };
 
   return [...userFavorites, themeToggle];
+}
+
+// ─── DockPopout window ───────────────────────────────────────────────
+//
+// Opens a small custom React window showing the children of a top-level
+// user dropdown. Anchored to the Dock3 provider's own window via the
+// `Dock3Provider.getWindowSync()` API + the per-window
+// `showPopupWindow()` API. Clicking outside closes the popup
+// (`blurBehavior: 'close'`); selecting a row dispatches the popup
+// result and auto-closes (`resultDispatchBehavior: 'close'`).
+//
+// The popup window itself is just an OpenFin window pointed at the
+// hosting app's `/dock-popout` route, with `customData` carrying
+// `{ dropdownId, appId, userId }` so it can re-load the dock config
+// under the right scope and find the matching dropdown.
+
+/** Pixel size of the popup window. */
+const DOCK_POPOUT_WIDTH = 280;
+const DOCK_POPOUT_HEIGHT = 400;
+/** y offset below the dock bar so the popup peeks out from under it. */
+const DOCK_POPOUT_Y_OFFSET = 56;
+
+async function openDockPopout(dropdownId: string): Promise<void> {
+  if (!dockProvider) {
+    console.warn("[Dock3] openDockPopout called before dock provider initialised");
+    return;
+  }
+
+  // The hosting app's /dock-popout route is served from the same origin
+  // as the dock provider window. Read its providerUrl from the manifest
+  // and reuse the origin.
+  let origin: string;
+  try {
+    const app = await fin.Application.getCurrent();
+    const manifest: Record<string, unknown> = await app.getManifest();
+    const platformConfig = manifest["platform"] as Record<string, string> | undefined;
+    const providerUrl = platformConfig?.["providerUrl"] ?? "";
+    origin = new URL(providerUrl).origin;
+  } catch (err) {
+    console.error("[Dock3] openDockPopout: could not resolve origin", err);
+    return;
+  }
+
+  // Forward the platform scope so the popup loads dock config from the
+  // same row the provider operates under (matches workspace.ts's
+  // ACTION_OPEN_WORKSPACE_SETUP launcher pattern).
+  const { getPlatformDefaultScope } = await import("./db");
+  const scope = getPlatformDefaultScope();
+
+  let dockWindow: any;
+  try {
+    dockWindow = dockProvider.getWindowSync();
+  } catch (err) {
+    console.warn("[Dock3] openDockPopout: getWindowSync failed", err);
+    return;
+  }
+
+  try {
+    await dockWindow.showPopupWindow({
+      name: "dock-popout",
+      url: `${origin}/dock-popout`,
+      width: DOCK_POPOUT_WIDTH,
+      height: DOCK_POPOUT_HEIGHT,
+      // x: 0 is left-edge of the dock window; tuning the actual click
+      // anchor is left to a follow-up — we don't get click coordinates
+      // from Dock3's launchEntry payload.
+      x: 0,
+      y: DOCK_POPOUT_Y_OFFSET,
+      blurBehavior: "close",
+      resultDispatchBehavior: "close",
+      focus: true,
+      additionalOptions: {
+        customData: {
+          dropdownId,
+          appId: scope.appId,
+          userId: scope.userId,
+        },
+      },
+      initialOptions: {
+        frame: false,
+        resizable: false,
+        saveWindowState: false,
+        contextMenu: false,
+        autoShow: true,
+      },
+    });
+  } catch (err) {
+    console.error("[Dock3] openDockPopout: showPopupWindow failed", err);
+  }
 }
 
 // ─── Public API ──────────────────────────────────────────────────────
@@ -753,6 +847,17 @@ function buildDock3Override() {
             } catch (iabErr) {
               console.warn("[Dock3 theme] IAB publish failed:", iabErr);
             }
+            return;
+          }
+
+          // Open the custom DockPopout window for a top-level user
+          // dropdown. Handled inline so the popup anchors to the Dock3
+          // provider's own window (clean visual placement under the
+          // dock bar) without round-tripping through the external
+          // dispatcher.
+          if (data?.actionId === ACTION_OPEN_DOCK_POPOUT) {
+            const dropdownId = (data?.customData as { dropdownId?: string } | undefined)?.dropdownId;
+            if (dropdownId) await openDockPopout(dropdownId);
             return;
           }
 

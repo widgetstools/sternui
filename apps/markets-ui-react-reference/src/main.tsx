@@ -34,6 +34,13 @@ const WorkspaceSetup = React.lazy(() =>
   import("@marketsui/dock-editor").then((m) => ({ default: m.WorkspaceSetup })),
 );
 
+// DockPopout — small popup window opened when the user clicks a top-level
+// dropdown in the Dock3 content menu. Hosts at /dock-popout; opened by
+// dock.ts's openDockPopout() via Dock3Provider.getWindowSync().showPopupWindow().
+const DockPopout = React.lazy(() =>
+  import("@marketsui/dock-editor").then((m) => ({ default: m.DockPopout })),
+);
+
 // ─── Loading fallback ────────────────────────────────────────────────
 // Shown while a lazy-loaded component is being fetched.
 // Intentionally minimal — these windows are usually small utility windows
@@ -77,6 +84,7 @@ root.render(
           <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
           <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
           <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
+          <Route path="/dock-popout"      element={<React.Suspense fallback={LOADING}><DockPopout /></React.Suspense>} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
