@@ -144,9 +144,21 @@ function makeDualIcon(
 }
 
 /**
- * Convert ActionButtons from a DockEditorConfig into Dock3 favorites.
- * DropdownButtons are NOT included here — they go into contentMenu via
- * `toDock3UserContentMenu()`.
+ * Convert top-level dock buttons from a DockEditorConfig into Dock3 favorites.
+ *
+ * Both ActionButtons AND DropdownButtons land here:
+ *   - ActionButton  → Dock3 item   (icon + click → launch action)
+ *   - DropdownButton→ Dock3 folder (icon + click → opens content menu by id)
+ *
+ * DropdownButton folders also appear in `toDock3UserContentMenu()` with the
+ * SAME id and their children. OpenFin's Dock3 navigates the content menu to
+ * the matching folder when a favorites folder is clicked, so the icon shows
+ * in the dock bar (DockEntry folder shape supports icon) while the children
+ * render through ContentMenuEntry (which carries the icon for its leaf items).
+ *
+ * Children are intentionally NOT carried on the favorites folder — the
+ * OpenFin DockEntry folder shape has no `children` field. The id-based
+ * link to the content-menu copy is the authoritative one.
  */
 export function toDock3Favorites(
   config: DockEditorConfig,
@@ -155,21 +167,30 @@ export function toDock3Favorites(
   darkColor: string,
   lightColor: string,
 ): Dock3Entry[] {
-  return config.buttons
-    .filter((btn): btn is DockActionButtonConfig => btn.type === "ActionButton")
-    .map((btn): Dock3Entry => {
-      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+  return config.buttons.map((btn): Dock3Entry => {
+    const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+    if (btn.type === "DropdownButton") {
       return {
-        type: "item",
+        type: "folder",
         id: btn.id,
         label: btn.tooltip,
         icon,
-        itemData: {
-          actionId: btn.actionId,
-          customData: btn.customData,
-        },
+        // Children live in the matching content-menu folder; OpenFin
+        // links by id when the favorite is clicked.
+        children: [],
       };
-    });
+    }
+    return {
+      type: "item",
+      id: btn.id,
+      label: btn.tooltip,
+      icon,
+      itemData: {
+        actionId: btn.actionId,
+        customData: btn.customData,
+      },
+    };
+  });
 }
 
 /**

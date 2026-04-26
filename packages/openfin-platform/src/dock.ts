@@ -178,12 +178,19 @@ function pickIconVariant(
 function flattenFavoritesForV22(entries: Dock3Entry[], theme: "dark" | "light"): any[] {
   return entries.map((entry) => {
     if (entry.type === "folder") {
-      // v22 DockEntry folder shape does not carry an icon — strip it.
+      // OpenFin v22 DockEntry folder shape carries an optional icon as
+      // `string | { dark, light }`. We've coerced it to a single string
+      // here so v22's CustomIcon (which calls `.startsWith()` directly)
+      // doesn't choke on the object form. Children are NOT included on
+      // the favorites folder — OpenFin's content menu, addressed by id,
+      // owns the children. Click on a favorite folder navigates the
+      // content menu to its matching folder.
+      const folderIcon = pickIconVariant(entry.icon, theme) ?? "";
       return {
         type: "folder" as const,
         id: entry.id,
         label: entry.label,
-        children: flattenFavoritesForV22(entry.children, theme),
+        ...(folderIcon ? { icon: folderIcon } : {}),
       };
     }
     return {
