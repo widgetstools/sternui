@@ -9,22 +9,27 @@
  *    global)         appear — per-       is selected)
  *                    user)
  *
- * Logical flow reads left → right:
- *   1. Define what's available  (pane ①, +New)
- *   2. Place it in the dock     (pane ②, drag from ① — drag lands
- *                                in commit 2; for now use the existing
- *                                Dock Editor for placement)
- *   3. Configure / test         (pane ③, edit form + Test Launch)
- *
- * Builds on the existing useRegistryEditor + useDockEditor hooks, so
- * IAB updates flow naturally — saving here propagates to other windows
- * exactly as the standalone editors do.
+ * Mounted in a separate OpenFin child window. The parent provider
+ * forwards its `(appId, userId)` scope via `customData` so this child
+ * persists registry + dock rows under the same scope the provider's
+ * other surfaces read from. Without that, saves land at the legacy
+ * `(system, system)` default while boot-time migrations relocate rows
+ * onto the real platform scope, leaving the editor empty on the next
+ * open. See `workspace.ts`'s ACTION_OPEN_WORKSPACE_SETUP launcher.
  */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRegistryEditor } from "@marketsui/registry-editor";
-import type { RegistryEntry } from "@marketsui/openfin-platform/config";
-import { ACTION_LAUNCH_COMPONENT } from "@marketsui/openfin-platform/config";
+import {
+  ACTION_LAUNCH_COMPONENT,
+  readHostEnv,
+  setPlatformDefaultScope,
+  type ConfigScope,
+  type RegistryEntry,
+  type DockButtonConfig,
+  type DockDropdownButtonConfig,
+  type DockMenuItemConfig,
+} from "@marketsui/openfin-platform/config";
 import { useDockEditor } from "./hooks/useDockEditor";
 import { ComponentsPane } from "./components/workspace-setup/ComponentsPane";
 import { InspectorPane } from "./components/workspace-setup/InspectorPane";
@@ -33,20 +38,63 @@ import { newDraftEntry } from "./components/workspace-setup/types";
 import type { EditorSelection } from "./components/workspace-setup/types";
 import { injectEditorStyles } from "./components/dock-editor/editor-styles";
 
+// ─── Outer shell ─────────────────────────────────────────────────────
+// Reads the platform scope forwarded via OpenFin customData, primes
+// db.ts's module-level default, then mounts the body with an explicit
+// scope so both editor hooks load from and save to the same row the
+// provider operates under.
+
 export function WorkspaceSetup() {
-  // Inject global font + scrollbar styles (shared with the standalone editors)
   useEffect(() => { injectEditorStyles(); }, []);
 
-  // Registry hook — global scope. We don't pass scope; it defaults to
-  // the platform default which db.ts maps to (appId, 'system') for
-  // registry CRUD per Phase 4.
-  const registry = useRegistryEditor();
-  // Dock hook — per-user scope (default).
-  const dock = useDockEditor();
+  const [scope, setScope] = useState<ConfigScope | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const env = await readHostEnv();
+        const resolved: ConfigScope = {
+          appId: env.appId || undefined,
+          userId: env.userId || undefined,
+        };
+        // Defensive: also prime the module-level default so any helper
+        // that doesn't accept an explicit scope (e.g. internal
+        // migrations) sees the right values too.
+        if (resolved.appId || resolved.userId) {
+          setPlatformDefaultScope(resolved);
+        }
+        if (!cancelled) setScope(resolved);
+      } catch (err) {
+        console.warn("WorkspaceSetup: failed to read host env, falling back to platform default", err);
+        if (!cancelled) setScope({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (scope === null) {
+    return (
+      <div
+        className="flex items-center justify-center h-full w-full"
+        style={{ background: "var(--bn-bg)", color: "var(--bn-t2)" }}
+      >
+        <span className="text-xs">Loading workspace setup…</span>
+      </div>
+    );
+  }
+
+  return <WorkspaceSetupBody scope={scope} />;
+}
+
+// ─── Editor body ─────────────────────────────────────────────────────
+
+function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
+  const registry = useRegistryEditor({ scope });
+  const dock = useDockEditor({ scope });
 
   const [selection, setSelection] = useState<EditorSelection>({ kind: "none" });
 
-  // ─── Cross-pane indexes ─────────────────────────────────────────
   // For pane ①'s "in dock" badge + filter chips, and for the Inspector's
   // "currently in your dock" footer.
   const inDockEntryIds = useMemo(() => {
@@ -63,7 +111,6 @@ export function WorkspaceSetup() {
     return ids;
   }, [dock.buttons]);
 
-  // Counts for the empty-selection summary card.
   const summary = useMemo(() => ({
     totalComponents: registry.entries.length,
     inDock: inDockEntryIds.size,
@@ -78,12 +125,18 @@ export function WorkspaceSetup() {
     setSelection({ kind: "component", entryId: entry.id });
   }, [registry]);
 
+  // Delete a registry entry AND prune any dock items that reference it.
+  // Without the cascade, removing a component leaves orphaned ActionButtons
+  // and DropdownButton menu items pointing at the dead `registryEntryId` —
+  // the InspectorPane shows a "Component deleted" warning but the dock
+  // itself still tries to launch the missing component on click.
   const handleDelete = useCallback((entryId: string) => {
+    pruneDockReferencesTo(entryId, dock.buttons, dock.dispatch);
     registry.dispatch({ type: "REMOVE_ENTRY", id: entryId });
     if (selection.kind === "component" && selection.entryId === entryId) {
       setSelection({ kind: "none" });
     }
-  }, [registry, selection]);
+  }, [registry, dock, selection]);
 
   const handleEntryChange = useCallback((id: string, patch: Partial<RegistryEntry>) => {
     const current = registry.entries.find((e) => e.id === id);
@@ -92,11 +145,6 @@ export function WorkspaceSetup() {
   }, [registry]);
 
   // ─── Dock CRUD bridges ──────────────────────────────────────────
-  // Add a registry entry as a top-level launch-component button on
-  // the dock. No-op if it's already in the dock — the inDockEntryIds
-  // set covers that — but the InspectorPane only shows the button
-  // when the entry is NOT already there, so callers don't normally
-  // race past this guard.
   const handleAddToDock = useCallback((entry: RegistryEntry) => {
     if (inDockEntryIds.has(entry.id)) return;
     const newButtonId =
@@ -119,8 +167,6 @@ export function WorkspaceSetup() {
         },
       },
     });
-    // Move selection to the new dock item so the inspector gives
-    // immediate feedback that placement happened
     setSelection({ kind: "dock-item", itemId: newButtonId });
   }, [dock, inDockEntryIds]);
 
@@ -137,22 +183,33 @@ export function WorkspaceSetup() {
     dock.dispatch({ type: "REORDER_BUTTONS", fromIndex, toIndex });
   }, [dock]);
 
-  // Save — writes BOTH registry and dock if dirty.
+  // Save — writes BOTH registry and dock if dirty. Saves run in series
+  // (registry first, dock second) so an IAB consumer that listens to dock
+  // updates and re-reads the registry sees the freshest registry payload.
   const handleSaveAll = useCallback(async () => {
     if (registry.isDirty) await registry.save();
     if (dock.isDirty) await dock.save();
+  }, [registry, dock]);
+
+  // Discard — non-destructive: re-load from storage. Replaces the previous
+  // implementation which called `clearRegistryConfig`/`clearDockConfig`
+  // and silently wiped IndexedDB. That destroyed the user's catalog
+  // every time they pressed Discard expecting "revert my edits".
+  const handleDiscard = useCallback(async () => {
+    await Promise.all([registry.reload(), dock.reload()]);
+    setSelection({ kind: "none" });
   }, [registry, dock]);
 
   const isDirty = registry.isDirty || dock.isDirty;
 
   return (
     <div
-      className="flex flex-col h-screen w-screen"
+      className="flex flex-col h-full w-full overflow-hidden"
       style={{ background: "var(--bn-bg)", color: "var(--bn-t0)" }}
     >
       {/* Top bar */}
       <div
-        className="flex items-center justify-between px-4 py-2 border-b"
+        className="flex items-center justify-between px-4 py-2 border-b shrink-0"
         style={{ borderColor: "var(--bn-border)" }}
       >
         <div className="flex items-center gap-3">
@@ -166,7 +223,7 @@ export function WorkspaceSetup() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => { void registry.reset(); void dock.reset(); setSelection({ kind: "none" }); }}
+            onClick={() => { void handleDiscard(); }}
             disabled={!isDirty}
             className="rounded-md px-3 py-1 text-xs font-medium disabled:opacity-50"
             style={{
@@ -190,7 +247,7 @@ export function WorkspaceSetup() {
       </div>
 
       {/* 3-pane body */}
-      <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0">
+      <div className="flex-1 grid grid-cols-[320px_1fr_360px] min-h-0 overflow-hidden">
         <ComponentsPane
           entries={registry.entries}
           inDockEntryIds={inDockEntryIds}
@@ -222,6 +279,64 @@ export function WorkspaceSetup() {
       </div>
     </div>
   );
+}
+
+// ─── Cascade prune helper ────────────────────────────────────────────
+//
+// Walks the dock tree and dispatches removals for every item whose
+// `customData.registryEntryId` matches `entryId`. Top-level matches
+// fire `REMOVE_BUTTON`; nested matches inside dropdowns fire
+// `REMOVE_MENU_ITEM` with the right `parentItemId` chain.
+//
+// Items are removed deepest-first within each branch so parent-id
+// references stay valid through the dispatch sequence.
+
+type DockEditorDispatch = ReturnType<typeof useDockEditor>["dispatch"];
+
+function pruneDockReferencesTo(
+  entryId: string,
+  buttons: DockButtonConfig[],
+  dispatch: DockEditorDispatch,
+): void {
+  for (const btn of buttons) {
+    if (btn.type === "ActionButton") {
+      if (referencesEntry(btn.customData, entryId)) {
+        dispatch({ type: "REMOVE_BUTTON", id: btn.id });
+      }
+      continue;
+    }
+    // DropdownButton — walk its options and dispatch removals for matches.
+    const dropdown = btn as DockDropdownButtonConfig;
+    const removals: Array<{ buttonId: string; itemId: string; parentItemId?: string }> = [];
+    collectMenuItemRemovals(dropdown.options ?? [], dropdown.id, undefined, entryId, removals);
+    // Removing leaf items first keeps parent references stable; the
+    // collector emits in pre-order, so we reverse before dispatch.
+    for (const r of removals.reverse()) {
+      dispatch({ type: "REMOVE_MENU_ITEM", buttonId: r.buttonId, itemId: r.itemId, parentItemId: r.parentItemId });
+    }
+  }
+}
+
+function referencesEntry(customData: unknown, entryId: string): boolean {
+  const cd = customData as { registryEntryId?: string } | undefined;
+  return cd?.registryEntryId === entryId;
+}
+
+function collectMenuItemRemovals(
+  items: DockMenuItemConfig[],
+  buttonId: string,
+  parentItemId: string | undefined,
+  entryId: string,
+  acc: Array<{ buttonId: string; itemId: string; parentItemId?: string }>,
+): void {
+  for (const item of items) {
+    if (referencesEntry(item.customData, entryId)) {
+      acc.push({ buttonId, itemId: item.id, parentItemId });
+    }
+    if (item.options?.length) {
+      collectMenuItemRemovals(item.options, buttonId, item.id, entryId, acc);
+    }
+  }
 }
 
 export default WorkspaceSetup;

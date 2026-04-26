@@ -38,6 +38,13 @@ export interface RegistryEditorConfigV1 {
 
 export interface HostEnv {
   appId: string;
+  /**
+   * Optional — the migrator doesn't read it, but the structurally-shared
+   * `HostEnv` returned by `readHostEnv()` always carries a userId so
+   * child windows can forward the platform scope. Optional here for
+   * back-compat with v1 callers that only ever passed appId + url.
+   */
+  userId?: string;
   configServiceUrl: string;
 }
 

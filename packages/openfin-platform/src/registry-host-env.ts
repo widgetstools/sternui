@@ -16,11 +16,20 @@ declare const fin: any;
 
 export interface HostEnv {
   appId: string;
+  /**
+   * The signed-in user id under which this child window should persist
+   * its data. Forwarded by the parent provider via `customData.userId`
+   * so child editors save to the same `(appId, userId)` scope the
+   * provider operates under. Empty string when the parent didn't
+   * forward it (e.g. legacy launchers, dev sandbox).
+   */
+  userId: string;
   configServiceUrl: string;
 }
 
 const DEV_FALLBACK: HostEnv = {
   appId: 'dev-host',
+  userId: 'dev-user',
   configServiceUrl: 'http://localhost:0000',
 };
 
@@ -48,10 +57,11 @@ export async function readHostEnv(): Promise<HostEnv> {
       const opts = await fin.me.getOptions();
       const cd = opts?.customData;
       const appId = typeof cd?.appId === 'string' ? cd.appId : '';
+      const userId = typeof cd?.userId === 'string' ? cd.userId : '';
       const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
-      return { appId, configServiceUrl };
+      return { appId, userId, configServiceUrl };
     } catch {
-      return { appId: '', configServiceUrl: '' };
+      return { appId: '', userId: '', configServiceUrl: '' };
     }
   }
 
@@ -73,9 +83,10 @@ function readHostEnvFromQueryString(): HostEnv | null {
     if (!raw) return null;
     const decoded = JSON.parse(atob(raw)) as Partial<HostEnv>;
     const appId = typeof decoded.appId === 'string' ? decoded.appId : '';
+    const userId = typeof decoded.userId === 'string' ? decoded.userId : '';
     const configServiceUrl = typeof decoded.configServiceUrl === 'string' ? decoded.configServiceUrl : '';
-    if (!appId && !configServiceUrl) return null;
-    return { appId, configServiceUrl };
+    if (!appId && !userId && !configServiceUrl) return null;
+    return { appId, userId, configServiceUrl };
   } catch {
     return null;
   }

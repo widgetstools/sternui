@@ -88,6 +88,18 @@ export interface UseRegistryEditorReturn {
   hostEnv: HostEnv;
   dispatch: React.Dispatch<RegistryAction>;
   save: () => Promise<void>;
+  /**
+   * Re-load entries from storage and clear the dirty flag. This is the
+   * "Discard unsaved changes" path — it does NOT touch IndexedDB. Safe
+   * to call from a Discard button without risk of data loss.
+   */
+  reload: () => Promise<void>;
+  /**
+   * DESTRUCTIVE: clear the persisted registry entirely and reset state
+   * to empty. Intended for admin/troubleshooting flows ("Clear all
+   * components"). Never wire this to a button labelled Discard — the
+   * behaviour does not match user expectation. See `reload()`.
+   */
   reset: () => Promise<void>;
   testComponent: (entry: RegistryEntry) => Promise<void>;
 }
@@ -142,6 +154,18 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
     console.log("Registry config saved.");
   }, [buildConfig, publishConfig, scope]);
 
+  const reload = useCallback(async () => {
+    try {
+      const env = await readHostEnv();
+      const saved = await loadRegistryConfig(scope);
+      const migrated = migrateRegistryToV2(saved as RegistryEditorConfig | null, env);
+      dispatch({ type: "SET_ENTRIES", entries: migrated.entries });
+    } catch (err) {
+      console.error("Failed to reload registry config:", err);
+      dispatch({ type: "SET_ENTRIES", entries: [] });
+    }
+  }, [scope]);
+
   const reset = useCallback(async () => {
     await clearRegistryConfig(scope);
     dispatch({ type: "SET_ENTRIES", entries: [] });
@@ -194,6 +218,7 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
     hostEnv,
     dispatch,
     save,
+    reload,
     reset,
     testComponent,
   };
