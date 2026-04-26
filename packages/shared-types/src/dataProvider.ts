@@ -192,6 +192,22 @@ export interface AppDataVariable {
   type: 'string' | 'number' | 'boolean' | 'json';
   description?: string;
   sensitive?: boolean;
+  /**
+   * Durability of this key:
+   *   'volatile'  — in-memory only, lost on worker restart (default).
+   *                 Auth tokens, transient selections, rate-limited
+   *                 caches, anything sensitive that shouldn't leak
+   *                 across sessions.
+   *   'persisted' — written through to ConfigService on every `put`
+   *                 and rehydrated from ConfigService when the
+   *                 AppData provider configures. User preferences,
+   *                 long-lived feature flags, anything the user
+   *                 expects to survive a reboot.
+   *
+   * Defaults to 'volatile' for back-compat. Existing configs without
+   * this field behave as today.
+   */
+  durability?: 'volatile' | 'persisted';
 }
 
 /**

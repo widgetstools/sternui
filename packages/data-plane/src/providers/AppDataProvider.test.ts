@@ -150,3 +150,81 @@ describe('AppDataProvider — lifecycle', () => {
     expect(cb).not.toHaveBeenCalled();
   });
 });
+
+// ─── Per-key durability ───────────────────────────────────────────────
+
+describe('AppDataProvider — per-key durability', () => {
+  it('rehydrates persisted keys from the host store, overlaying the seed', async () => {
+    const loadPersisted = vi.fn(async () => ({ token: 'from-store' }));
+    const savePersisted = vi.fn(async () => undefined);
+    const p = new AppDataProvider('app1', { loadPersisted, savePersisted });
+
+    await p.configure({
+      providerType: 'appdata',
+      variables: {
+        token: { key: 'token', value: 'seed', type: 'string', durability: 'persisted' },
+        cache: { key: 'cache', value: 'seed-cache', type: 'string', durability: 'volatile' },
+      },
+    });
+
+    expect(loadPersisted).toHaveBeenCalledWith('app1');
+    expect(await p.fetch('token')).toBe('from-store');
+    expect(await p.fetch('cache')).toBe('seed-cache');
+  });
+
+  it('writes through to the host store on put for persisted keys only', async () => {
+    const loadPersisted = vi.fn(async () => ({}));
+    const savePersisted = vi.fn(async () => undefined);
+    const p = new AppDataProvider('app1', { loadPersisted, savePersisted });
+
+    await p.configure({
+      providerType: 'appdata',
+      variables: {
+        prefs: { key: 'prefs', value: { theme: 'dark' }, type: 'json', durability: 'persisted' },
+        token: { key: 'token', value: '', type: 'string' /* default volatile */ },
+      },
+    });
+    savePersisted.mockClear();
+
+    await p.put('prefs', { theme: 'light' });
+    await p.put('token', 'jwt-x');
+    // Wait a tick for the fire-and-forget save to settle.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(savePersisted).toHaveBeenCalledTimes(1);
+    expect(savePersisted).toHaveBeenCalledWith('app1', { prefs: { theme: 'light' } });
+    expect(await p.fetch('token')).toBe('jwt-x');
+  });
+
+  it('isPersisted reflects the configured durability flag', async () => {
+    const p = new AppDataProvider('app1', {
+      loadPersisted: async () => ({}),
+      savePersisted: async () => undefined,
+    });
+    await p.configure({
+      providerType: 'appdata',
+      variables: {
+        a: { key: 'a', value: 1, type: 'number', durability: 'persisted' },
+        b: { key: 'b', value: 2, type: 'number', durability: 'volatile' },
+        c: { key: 'c', value: 3, type: 'number' },
+      },
+    });
+    expect(p.isPersisted('a')).toBe(true);
+    expect(p.isPersisted('b')).toBe(false);
+    expect(p.isPersisted('c')).toBe(false);
+  });
+
+  it('a failing loadPersisted does not crash configure (fallback to seed)', async () => {
+    const loadPersisted = vi.fn(async () => { throw new Error('store offline'); });
+    const savePersisted = vi.fn(async () => undefined);
+    const p = new AppDataProvider('app1', { loadPersisted, savePersisted });
+
+    await p.configure({
+      providerType: 'appdata',
+      variables: {
+        token: { key: 'token', value: 'seed', type: 'string', durability: 'persisted' },
+      },
+    });
+    expect(await p.fetch('token')).toBe('seed');
+  });
+});
