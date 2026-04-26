@@ -266,15 +266,16 @@ describe('getSavedWorkspace', () => {
     expect(ws.metadata).toEqual({ color: 'blue' });
   });
 
-  it('throws on a non-existent id', async () => {
+  // The WorkspacePlatformProvider.getSavedWorkspace contract returns
+  // `Workspace | undefined` — must NOT throw. Storage.saveWorkspace()
+  // calls it first to detect create-vs-update; a throw breaks upsert.
+  it('returns undefined for a non-existent id', async () => {
     const cm = new InMemoryConfigManager();
     const provider = await makeProvider({ cm, appId: APP_ID, userId: USER_ID });
-    await expect(provider.getSavedWorkspace('missing')).rejects.toThrow(
-      /no workspace found for id 'missing'/,
-    );
+    expect(await provider.getSavedWorkspace('missing')).toBeUndefined();
   });
 
-  it('throws when configId exists but is the wrong componentType', async () => {
+  it('returns undefined when configId exists but is the wrong componentType', async () => {
     const cm = new InMemoryConfigManager();
     cm.rows.set('WS_imposter', {
       configId: 'WS_imposter',
@@ -291,9 +292,7 @@ describe('getSavedWorkspace', () => {
       updatedTime: '',
     });
     const provider = await makeProvider({ cm, appId: APP_ID, userId: USER_ID });
-    await expect(provider.getSavedWorkspace('imposter')).rejects.toThrow(
-      /no workspace found/,
-    );
+    expect(await provider.getSavedWorkspace('imposter')).toBeUndefined();
   });
 });
 

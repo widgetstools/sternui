@@ -17,50 +17,34 @@ function Provider() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    // Wrap in try/catch so any initialization error surfaces in the console
-    // rather than crashing the window silently.
-    try {
-      initWorkspace({
-        // The icon shown at the left end of the dock bar.
-        dockIcon: "http://localhost:5174/dock-provider.png",
-
-        // Theme toggle icons default to the built-in sun/moon SVGs from
-        // @marketsui/openfin-platform. Override here if you want custom ones.
-        // themeToggleDarkIcon: "...",
-        // themeToggleLightIcon: "...",
-
-        // Progress callback — updates the status message shown below.
-        onProgress: setMessage,
-
-        // User roles — controls which system buttons are shown in the dock
-        // (e.g. only admin/developer see the Dock Editor button).
-        roles: ["admin", "developer"],
-
-        // Home (search bar) and Store are disabled for this reference app
-        // because they require additional manifest configuration to be useful.
-        // Remove these lines to re-enable them.
-        components: {
-          home: false,
-          store: false,
-        },
-      });
-    } catch (err) {
-      console.error("Failed to initialize workspace platform:", err);
-    }
-
-    // Install the e2e test bridge in dev mode only — code-split out of
-    // production builds. The bridge exposes a small set of
-    // WorkspacePlatform.Storage operations over an OpenFin Channel so
-    // out-of-runtime test specs (under `e2e-openfin/`) can drive
-    // saved-workspace lifecycle. See e2e-openfin/README.md for details.
     // Cast: this app's tsconfig pins `types` to fin/fdc3/svg only, so
     // `vite/client` types aren't ambient — narrow the access locally.
     const isDev = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV;
-    if (isDev) {
-      void import("../test-bridge/install").then((m) => m.installTestBridge()).catch((err) => {
-        console.warn("[provider] test bridge failed to install:", err);
+
+    // Initialise the platform first; only AFTER initWorkspace() has fully
+    // resolved (which means @openfin/workspace-platform's init() has
+    // returned and `WorkspacePlatform.getCurrentSync()` is usable) install
+    // the e2e test bridge. Without this chaining, out-of-runtime e2e
+    // specs would race the platform-api-ready signal and see
+    // "The targeted Platform is not currently running" on their first
+    // Storage.getWorkspaces() call.
+    initWorkspace({
+      dockIcon: "http://localhost:5174/dock-provider.png",
+      onProgress: setMessage,
+      roles: ["admin", "developer"],
+      components: { home: false, store: false },
+    })
+      .then(() => {
+        if (!isDev) return undefined;
+        // Test bridge is dev-only — code-split out of production builds.
+        // Exposes a small set of WorkspacePlatform.Storage operations over
+        // an OpenFin Channel so out-of-runtime test code (e2e-openfin/)
+        // can drive saved-workspace lifecycle. See e2e-openfin/README.md.
+        return import("../test-bridge/install").then((m) => m.installTestBridge());
+      })
+      .catch((err) => {
+        console.error("Failed to initialize workspace platform:", err);
       });
-    }
   }, []); // Empty array — run once on mount, never again
 
   return (

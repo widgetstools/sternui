@@ -219,9 +219,13 @@ export function createWorkspacePersistenceOverride(
       }
 
       async getSavedWorkspace(id: string): Promise<any> {
+        // Contract per WorkspacePlatformProvider.getSavedWorkspace: return
+        // `Workspace | undefined` — DO NOT throw on missing. Storage.
+        // saveWorkspace() calls this first to detect create-vs-update;
+        // throwing here would break the upsert path.
         const row = await cm.getConfig(workspaceConfigId(id));
         if (!row || row.componentType !== COMPONENT_TYPES.WORKSPACE) {
-          throw new Error(`[workspace-persistence] no workspace found for id '${id}'`);
+          return undefined;
         }
         return rowToWorkspace(row);
       }
