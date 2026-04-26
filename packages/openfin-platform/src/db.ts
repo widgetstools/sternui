@@ -152,6 +152,30 @@ function resolveScope(scope: ConfigScope | undefined): Required<ConfigScope> {
 }
 
 /**
+ * The userId stamped on rows that are GLOBAL within an app — shared by
+ * every user. The component registry is the canonical example: every
+ * user of the app sees the same catalog. Per-user data (dock layout,
+ * per-instance configs, saved workspaces) keeps its real userId.
+ */
+const GLOBAL_USER_ID = 'system';
+
+/**
+ * Force the userId portion of the resolved scope to GLOBAL_USER_ID. The
+ * appId still derives from the caller or platform default, so different
+ * apps get different global registries (matching the locked
+ * "componentType+componentSubType unique within an app" rule).
+ *
+ * Used by the registry CRUD so all calls — regardless of which user is
+ * signed in — read and write the same row.
+ */
+function resolveGlobalScope(scope: ConfigScope | undefined): Required<ConfigScope> {
+  return {
+    appId: scope?.appId ?? currentPlatformScope.appId,
+    userId: GLOBAL_USER_ID,
+  };
+}
+
+/**
  * Primary-key composition. MarketsGrid uses `configId === instanceId`
  * because it owns a separate row per (appId, userId, instanceId)
  * triple. DockEditor + Registry have a single "logical" config per
@@ -240,12 +264,19 @@ const REGISTRY_DISPLAY = 'Component Registry';
 /** Back-compat componentType written by pre-refactor saves. */
 const LEGACY_REGISTRY_COMPONENT_TYPE = 'REGISTRY';
 
-/** Save the component registry configuration. Overwrites any previous save in the same scope. */
+/**
+ * Save the component registry configuration.
+ *
+ * The registry is GLOBAL within an app (see `resolveGlobalScope`). The
+ * `userId` portion of the passed scope is intentionally ignored — every
+ * user of the app reads and writes the same row. This matches the
+ * locked design: catalogue is shared, per-user data is per-user.
+ */
 export async function saveRegistryConfig(
   config: RegistryEditorConfig,
   scope?: ConfigScope,
 ): Promise<void> {
-  const resolved = resolveScope(scope);
+  const resolved = resolveGlobalScope(scope);
   const configId = scopedConfigId(REGISTRY_CONFIG_BASE_ID, resolved);
   const manager = await getConfigManager();
   const existing = await manager.getConfig(configId);
@@ -268,15 +299,32 @@ export async function saveRegistryConfig(
   await manager.saveConfig(row);
 }
 
-/** Load the saved component registry configuration. Returns null if none. */
+/**
+ * Load the saved component registry configuration. Returns null if none.
+ *
+ * Read order (first hit wins):
+ *   1. The new GLOBAL location ((appId, 'system')) — Phase 4 onward
+ *   2. The pre-Phase-4 platform-default-scoped row — for unmigrated
+ *      installs. Removed once Phase 5's migration has run on all clients.
+ *   3. The very-legacy bare-`component-registry` row — for v1 installs.
+ */
 export async function loadRegistryConfig(
   scope?: ConfigScope,
 ): Promise<RegistryEditorConfig | null> {
-  const resolved = resolveScope(scope);
   const manager = await getConfigManager();
-  const scoped = await manager.getConfig(scopedConfigId(REGISTRY_CONFIG_BASE_ID, resolved));
-  if (scoped) return scoped.payload as RegistryEditorConfig;
-  if (resolved.appId === LEGACY_DEFAULT_SCOPE.appId && resolved.userId === LEGACY_DEFAULT_SCOPE.userId) {
+
+  // (1) New global location
+  const global = resolveGlobalScope(scope);
+  const globalRow = await manager.getConfig(scopedConfigId(REGISTRY_CONFIG_BASE_ID, global));
+  if (globalRow) return globalRow.payload as RegistryEditorConfig;
+
+  // (2) Pre-Phase-4 location: stored under the calling user's scope
+  const perUser = resolveScope(scope);
+  const perUserRow = await manager.getConfig(scopedConfigId(REGISTRY_CONFIG_BASE_ID, perUser));
+  if (perUserRow) return perUserRow.payload as RegistryEditorConfig;
+
+  // (3) v1 legacy bare-id row at the legacy 'system'/'system' default
+  if (perUser.appId === LEGACY_DEFAULT_SCOPE.appId && perUser.userId === LEGACY_DEFAULT_SCOPE.userId) {
     const legacy = await manager.getConfig(REGISTRY_CONFIG_BASE_ID);
     if (legacy && (legacy.componentType === LEGACY_REGISTRY_COMPONENT_TYPE ||
                    legacy.componentType === COMPONENT_TYPES.COMPONENT_REGISTRY)) {
@@ -286,9 +334,9 @@ export async function loadRegistryConfig(
   return null;
 }
 
-/** Clear the saved component registry configuration. */
+/** Clear the saved component registry configuration (the GLOBAL one). */
 export async function clearRegistryConfig(scope?: ConfigScope): Promise<void> {
-  const resolved = resolveScope(scope);
+  const resolved = resolveGlobalScope(scope);
   const manager = await getConfigManager();
   await manager.deleteConfig(scopedConfigId(REGISTRY_CONFIG_BASE_ID, resolved));
 }
