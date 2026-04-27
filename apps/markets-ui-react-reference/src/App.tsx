@@ -42,7 +42,11 @@ function App() {
         <Card>
           <CardHeader>
             <CardTitle>Administration</CardTitle>
-            <CardDescription>Author and manage shared DataProvider configurations.</CardDescription>
+            <CardDescription>
+              Authoring tools live in the dock&apos;s ▾ Tools menu — Workspace Setup,
+              Data Providers, Component Registry, Config Browser, etc. The links
+              below are dev-mode shortcuts for use outside OpenFin.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Link

@@ -39,6 +39,13 @@ export const ACTION_OPEN_CONFIG_BROWSER  = "open-config-browser";
  */
 export const ACTION_OPEN_WORKSPACE_SETUP = "open-workspace-setup";
 /**
+ * Dock action to open the DataProvider editor — the authoring surface
+ * for STOMP / REST / Mock / AppData providers that any blotter in the
+ * platform can later bind to via <DataProviderSelector>. Same scope
+ * + customData plumbing as the other admin tools.
+ */
+export const ACTION_OPEN_DATA_PROVIDERS  = "open-data-providers";
+/**
  * Dock button / menu item action: launch a component registered in
  * the Component Registry. `customData` shape:
  *   { registryEntryId: string, asWindow?: boolean }

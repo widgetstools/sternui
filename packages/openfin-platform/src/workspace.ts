@@ -27,6 +27,7 @@ import {
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
   ACTION_OPEN_WORKSPACE_SETUP,
+  ACTION_OPEN_DATA_PROVIDERS,
   ACTION_LAUNCH_COMPONENT,
   IAB_THEME_CHANGED,
   shutdownDock,
@@ -587,6 +588,25 @@ async function initializePlatform(
         });
       },
 
+      // ── Open the DataProvider editor ──
+      // Sized to comfortably fit the 4-tab provider configurator
+      // (Connection / Fields / Columns / Behaviour). Forwards the
+      // platform default scope as customData so the editor's
+      // dataProviderConfigService writes land under the right userId,
+      // matching every other admin tool.
+      [ACTION_OPEN_DATA_PROVIDERS]: async (e): Promise<void> => {
+        if (
+          e.callerType !== CustomActionCallerType.CustomButton &&
+          e.callerType !== CustomActionCallerType.CustomDropdownItem
+        ) {
+          return;
+        }
+        const scope = getPlatformDefaultScope();
+        await openChildWindow("data-providers", "/dataproviders", 1180, 760, {
+          customData: { appId: scope.appId, userId: scope.userId },
+        });
+      },
+
       // ── Open the config browser window ──
       [ACTION_OPEN_CONFIG_BROWSER]: async (e): Promise<void> => {
         if (
@@ -799,6 +819,13 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
   [ACTION_OPEN_WORKSPACE_SETUP]: async () => {
     const scope = getPlatformDefaultScope();
     await openChildWindow("workspace-setup", "/workspace-setup", 1280, 760, {
+      customData: { appId: scope.appId, userId: scope.userId },
+    });
+  },
+
+  [ACTION_OPEN_DATA_PROVIDERS]: async () => {
+    const scope = getPlatformDefaultScope();
+    await openChildWindow("data-providers", "/dataproviders", 1180, 760, {
       customData: { appId: scope.appId, userId: scope.userId },
     });
   },
