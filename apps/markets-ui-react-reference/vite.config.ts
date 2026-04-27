@@ -31,6 +31,20 @@ export default defineConfig({
       // the demo-react + demo-configservice-react apps use.
       "@marketsui/core": resolve(__dirname, "../../packages/core/src"),
       "@marketsui/markets-grid": resolve(__dirname, "../../packages/markets-grid/src"),
+      // Alias every v2 data-plane / widgets-react entrypoint to its
+      // source. Without these the dev server reads the prebuilt
+      // `dist/` from each package's `exports` map, so source edits
+      // don't take effect until you also run `turbo build`. Symptoms
+      // of forgetting: new console.logs never show up; refactors
+      // (e.g. removing useProviderStream from the container) don't
+      // visibly land. Aliasing to source makes Vite HMR Just Work.
+      "@marketsui/widgets-react/v2/markets-grid-container": resolve(__dirname, "../../packages/widgets-react/src/v2/markets-grid-container/index.ts"),
+      "@marketsui/widgets-react/v2/provider-editor": resolve(__dirname, "../../packages/widgets-react/src/v2/provider-editor/index.ts"),
+      "@marketsui/widgets-react/v2/data-provider-selector": resolve(__dirname, "../../packages/widgets-react/src/v2/data-provider-selector/index.ts"),
+      "@marketsui/data-plane-react/v2": resolve(__dirname, "../../packages/data-plane-react/src/v2/index.tsx"),
+      "@marketsui/data-plane/v2/client": resolve(__dirname, "../../packages/data-plane/src/v2/client/index.ts"),
+      "@marketsui/data-plane/v2/worker": resolve(__dirname, "../../packages/data-plane/src/v2/worker/index.ts"),
+      "@marketsui/data-plane/v2": resolve(__dirname, "../../packages/data-plane/src/v2/index.ts"),
       // Force the ESM6 entry for stompjs. Its `exports` map puts
       // "browser" → UMD before "import" → ESM, and Vite's `module`-mode
       // SharedWorker bundler picks the UMD branch which then explodes
