@@ -132,8 +132,17 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
     if (this.client?.connected) return;
     const cfg = this.config;
 
+    // If the consumer didn't inject their own createClient, resolve
+    // the default one now — it does an async dynamic import. Doing
+    // this BEFORE entering the `new Promise` keeps the existing
+    // resolve/reject paths sync and lets `defaultCreateClient` stay
+    // a sync factory.
+    if (this.createClient === defaultCreateClient) {
+      await ensureDefaultClientCtor();
+    }
+
     // Visibility for "did the worker even try to connect?" — surfaces
-    // in the OpenFin window's devtools console.
+    // in the SharedWorker's devtools console.
     // eslint-disable-next-line no-console
     console.info(`[StompStreamProvider:${this.id}] activating`, {
       websocketUrl: cfg.websocketUrl,
@@ -299,16 +308,52 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
 }
 
 // ─── Default `createClient` — lazy imports `@stomp/stompjs` ───────────
+//
+// Originally this used `require('@stomp/stompjs')` to defer the import
+// until first use. That broke module-mode workers because they have no
+// `require` global, and Vite/Rollup don't rewrite `require()` calls
+// (they only handle ESM `import`/`import()`). We use a dynamic
+// `import()` so:
+//   • module SharedWorkers / dedicated Workers see a real ESM import
+//     and resolve to a code-split chunk.
+//   • bundlers tree-split @stomp/stompjs into its own chunk, preserving
+//     the "Mock-only consumer doesn't pay for stompjs" property.
+//   • the package's "optional peer" semantics still hold — consumers
+//     who never construct a STOMP provider never trigger the import.
+//
+// The factory itself stays synchronous; we resolve the constructor in
+// `start()` before invoking it (see `ensureDefaultClientCtor`).
 
 let _clientCtor:
   | (new (cfg: StompClientConfig) => StompClientLike)
   | null = null;
+let _clientCtorPromise:
+  | Promise<new (cfg: StompClientConfig) => StompClientLike>
+  | null = null;
+
+async function ensureDefaultClientCtor(): Promise<new (cfg: StompClientConfig) => StompClientLike> {
+  if (_clientCtor) return _clientCtor;
+  if (!_clientCtorPromise) {
+    _clientCtorPromise = import('@stomp/stompjs').then((mod) => {
+      const ctor = (mod as unknown as { Client: new (cfg: StompClientConfig) => StompClientLike }).Client;
+      _clientCtor = ctor;
+      return ctor;
+    });
+  }
+  return _clientCtorPromise;
+}
 
 const defaultCreateClient: StompClientFactory = (cfg) => {
   if (!_clientCtor) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('@stomp/stompjs') as { Client: new (cfg: StompClientConfig) => StompClientLike };
-    _clientCtor = mod.Client;
+    // start() is responsible for awaiting `ensureDefaultClientCtor()`
+    // before invoking the factory. If we got here without that, the
+    // call site is using `defaultCreateClient` outside the
+    // StompStreamProvider lifecycle — surface a clear error.
+    throw new Error(
+      '[StompStreamProvider] @stomp/stompjs is not yet loaded. ' +
+      'Use the provider via its lifecycle (configure → start), or ' +
+      'inject your own `createClient` in the constructor.',
+    );
   }
   return new _clientCtor(cfg);
 };

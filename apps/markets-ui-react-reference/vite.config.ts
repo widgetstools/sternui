@@ -31,6 +31,14 @@ export default defineConfig({
       // the demo-react + demo-configservice-react apps use.
       "@marketsui/core": resolve(__dirname, "../../packages/core/src"),
       "@marketsui/markets-grid": resolve(__dirname, "../../packages/markets-grid/src"),
+      // Force the ESM6 entry for stompjs. Its `exports` map puts
+      // "browser" → UMD before "import" → ESM, and Vite's `module`-mode
+      // SharedWorker bundler picks the UMD branch which then explodes
+      // with `require is not defined` at runtime in the worker. The
+      // ESM build works equally well in the main thread, so a plain
+      // resolver alias is the cheapest fix that keeps both contexts
+      // happy.
+      "@stomp/stompjs": resolve(__dirname, "../../node_modules/@stomp/stompjs/esm6/index.js"),
     },
   },
   server: {
@@ -48,5 +56,16 @@ export default defineConfig({
         defaultHandler(warning);
       },
     },
+  },
+  worker: {
+    // The data-plane SharedWorker uses dynamic `import('@stomp/stompjs')`
+    // to lazy-load the STOMP client. Dynamic imports require
+    // code-splitting, which Vite's default IIFE worker format doesn't
+    // support — Rollup throws "Invalid value 'iife' for option
+    // 'worker.format' — UMD and IIFE output formats are not supported
+    // for code-splitting builds." ESM workers are widely supported in
+    // modern Chromium / OpenFin and are the right format for module
+    // workers anyway.
+    format: 'es',
   },
 });
