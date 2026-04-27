@@ -187,6 +187,8 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
               onManualColumnsChange={columnConfig.setManualColumns}
               onFieldColumnOverridesChange={columnConfig.setFieldColumnOverrides}
               onClearAll={handleClearAllColumns}
+              config={config}
+              onConfigChange={onChange}
             />
           </TabsContent>
 
