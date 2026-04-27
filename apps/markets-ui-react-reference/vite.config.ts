@@ -45,6 +45,18 @@ export default defineConfig({
       "@marketsui/data-plane/v2/client": resolve(__dirname, "../../packages/data-plane/src/v2/client/index.ts"),
       "@marketsui/data-plane/v2/worker": resolve(__dirname, "../../packages/data-plane/src/v2/worker/index.ts"),
       "@marketsui/data-plane/v2": resolve(__dirname, "../../packages/data-plane/src/v2/index.ts"),
+      // openfin-platform exports from BOTH `./config` (dock-editor +
+      // registry-editor read-only entrypoint that avoids pulling
+      // @openfin/* runtimes into non-OpenFin builds) AND `.` (the
+      // full surface). Both need to alias to source so adding/
+      // renaming exports (e.g. `deriveTemplateConfigId`) doesn't
+      // require a turbo build before the dev server picks it up.
+      "@marketsui/openfin-platform/config": resolve(__dirname, "../../packages/openfin-platform/src/config-only.ts"),
+      "@marketsui/openfin-platform": resolve(__dirname, "../../packages/openfin-platform/src/index.ts"),
+      // config-service has the AppConfigRow type — alias it too so
+      // the `singleton?: boolean` field added in the same refactor
+      // is visible to consumers without a rebuild.
+      "@marketsui/config-service": resolve(__dirname, "../../packages/config-service/src/index.ts"),
       // Force the ESM6 entry for stompjs. Its `exports` map puts
       // "browser" → UMD before "import" → ESM, and Vite's `module`-mode
       // SharedWorker bundler picks the UMD branch which then explodes
