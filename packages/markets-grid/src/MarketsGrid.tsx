@@ -163,11 +163,14 @@ function MarketsGridInner<TData = unknown>(
 
   const handleGridReady = useCallback(
     (event: GridReadyEvent) => {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/markets-grid] AG-Grid onGridReady gridId=%s rowIdField=%s columns=%d`,
+        gridId, rowIdField, Array.isArray(columnDefs) ? columnDefs.length : 0);
       onGridReady(event);
       event.api.sizeColumnsToFit();
       onGridReadyProp?.(event);
     },
-    [onGridReady, onGridReadyProp],
+    [onGridReady, onGridReadyProp, gridId, rowIdField, columnDefs],
   );
 
   const rootStyle = useMemo(
@@ -351,20 +354,28 @@ function Host<TData>({
     initialLoadRef.current = true;
     const adapter = adapterRef.current;
     if (!adapter?.loadGridLevelData) {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/markets-grid] gridLevelData: adapter has no loadGridLevelData method (using null)`);
       lastPersistedRef.current = null;
       onGridLevelDataLoadRef.current?.(null);
       return;
     }
+    // eslint-disable-next-line no-console
+    console.log(`[v2/markets-grid] gridLevelData: load → adapter.loadGridLevelData(%s)`, gridId);
     let cancelled = false;
     void adapter
       .loadGridLevelData(gridId)
       .then((loaded) => {
         if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.log(`[v2/markets-grid] gridLevelData: loaded`, loaded);
         lastPersistedRef.current = loaded;
         onGridLevelDataLoadRef.current?.(loaded);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.warn(`[v2/markets-grid] gridLevelData: load failed`, err);
         lastPersistedRef.current = null;
         onGridLevelDataLoadRef.current?.(null);
       });
@@ -382,6 +393,8 @@ function Host<TData>({
     if (lastPersistedRef.current === gridLevelData) return;
     const adapter = adapterRef.current;
     if (!adapter?.saveGridLevelData) return;
+    // eslint-disable-next-line no-console
+    console.log(`[v2/markets-grid] gridLevelData: save`, gridLevelData);
     lastPersistedRef.current = gridLevelData;
     void adapter.saveGridLevelData(gridId, gridLevelData);
   }, [gridLevelData, gridId]);
@@ -420,6 +433,8 @@ function Host<TData>({
   useEffect(() => {
     if (!readyFiredRef.current && handleRef.current) {
       readyFiredRef.current = true;
+      // eslint-disable-next-line no-console
+      console.log(`[v2/markets-grid] handle delivered to onReady (gridApi alive — consumer can now subscribe)`);
       onReady?.(handleRef.current);
     }
   }, [api, onReady]);
