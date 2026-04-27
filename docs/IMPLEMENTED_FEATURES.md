@@ -1404,6 +1404,65 @@ Baseline preserved: 242 (`@marketsui/core`) + 56 (`@marketsui/markets-grid`) + 4
 
 ---
 
+## 1.S DataProvider integration — end-to-end pipeline
+
+Brings the data plane (`@marketsui/data-plane` + `@marketsui/data-plane-react`) into MarketsGrid as a first-class citizen. Apps can now bind a grid to a saved DataProvider via the new selector + container without ever touching local row generators. Plan: [`docs/plans/DATA_PLANE_INTEGRATION.md`](./plans/DATA_PLANE_INTEGRATION.md).
+
+### Phase A — Runtime gaps closed
+
+- New `restart` and `resolve` opcodes on the wire protocol; React hooks `useDataPlaneRestart` and `useDataPlaneResolve` expose them with stable callbacks.
+- `StreamProviderBase.restart(extra)` clears the row cache, resets the snapshot phase, and re-runs the start handshake. `extra` is overlaid into the request body — drives MarketsGrid's historical-mode date picker via `restart({ asOfDate })`.
+- New `RestDataProvider` — snapshot-only stream provider with GET/POST + headers + auth (bearer/apikey/basic) + dot-notation `rowsPath` walk. `RestDataProvider.fetchSnapshot(config)` is the configurator's probe entry point.
+- `AppDataProvider` gained per-key `durability: 'volatile' | 'persisted'` with persistence write-through hooks; rehydrate-on-configure with overlay-on-top semantics.
+- Worker-side `bufferedDispatch` (conflate-by-key + trailing-edge throttle) wraps row updates when the provider config sets the relevant knobs.
+- SharedWorker keying changed to `sharedworker_${origin}_${appId}` so multiple apps on the same origin no longer share a worker.
+- `dataProviderConfigService.listVisible(userId, { subtype? })` merges public rows (stored under `userId='system'`) with the user's private rows.
+- `StompDataProvider.inferFields(rows, { targetSampleSize, maxFields })` — completeness-weighted sampling so sparse rows don't dilute the inferred schema.
+
+### Phase B — Redesigned configurator (`@marketsui/widgets-react`)
+
+4-tab shell shared between STOMP and REST configurators (Connection · Fields · Columns · Behaviour) with a public/private toggle in the top header.
+
+- **Connection tab** — live diagnostics card (idle / testing / ok / error) so users see what their last Test Connection actually did.
+- **Fields tab** — sample-size picker (50 / 100 / 200 / 500) + inference summary header (rows used / fetched / fields detected) + Re-sample button.
+- **Columns tab** — Row Identity callout that surfaces the configured `keyColumn` with three states (not set / set+matches / set+orphan) and a Select dropdown of inferred field paths.
+- **Behaviour tab** — conflate-by-key + throttle + reconnect (STOMP) or just conflate + throttle (REST, snapshot-only).
+- Centralised column registry (`columnRegistry.ts`) — formatters/renderers list once, reused across tabs.
+- `RestConfigurationForm` — REST-specific Connection (method/baseUrl/endpoint/auth/rowsPath/keyColumn) and Behaviour tabs; reuses the shared FieldsTab + ColumnsTab.
+
+### Phase C — Selector + container
+
+- `DataProviderSelector` (in `@marketsui/widgets-react/data-provider-selector`) — picker in two modes: compact `dropdown` and vertical `list`. Each row shows a Public/Private scope badge. Optional `onCreate` / `onEdit` for inline configurator launches; reads via `useVisibleDataProviders` (TanStack Query wrapper around `listVisible`).
+- `MarketsGridContainer` (in `@marketsui/widgets-react/markets-grid-container`) — wraps `<MarketsGrid>` and feeds it from the data plane via `useDataPlaneRowStream` in `onEvent` mode. Snapshot batches stream into `applyTransactionAsync({ add })` as they arrive (no JS-side buffering of 10k+ row snapshots); realtime updates → `applyTransactionAsync({ update })`. `asOfDate` prop drives `restart({ asOfDate })` on change.
+
+### Phase D — Local-data cleanup
+
+- `apps/markets-ui-react-reference/src/views/BlottersMarketsGrid.tsx` — `generateOrders(500)` and the synthetic INSTRUMENTS / SIDES / VENUES / etc. arrays are gone. The view now mounts `<DataPlaneProvider>` + `<QueryClientProvider>`, surfaces a `<DataProviderSelector>` at the top, and renders `<MarketsGridContainer>` once a provider is picked. An empty state ("No data provider selected") replaces the synthetic seed.
+- A SharedWorker entry (`apps/markets-ui-react-reference/src/dataPlaneWorker.ts`) runs the data-plane Router with the default factory (Mock + AppData + STOMP + REST).
+- demo-react migration is deferred — its showcase profile depends on the synthetic ticking generator, and rationalising it requires a `MockRowStreamProvider` that's not yet built. Tracked separately.
+
+### Files
+
+| Path | Role |
+|---|---|
+| `packages/data-plane/src/providers/RestDataProvider.ts` | Snapshot-only REST provider + `fetchSnapshot` probe |
+| `packages/data-plane/src/worker/bufferedDispatch.ts` | Conflate + throttle helper |
+| `packages/data-plane-react/src/useDataPlaneRestart.ts` | `restart(extra)` hook |
+| `packages/data-plane-react/src/useDataPlaneResolve.ts` | `resolve(template)` hook |
+| `packages/widgets-react/src/provider-editor/columnRegistry.ts` | Centralised formatters / renderers |
+| `packages/widgets-react/src/provider-editor/stomp/{ConnectionTab,FieldsTab,ColumnsTab,BehaviourTab}.tsx` | 4-tab STOMP form |
+| `packages/widgets-react/src/provider-editor/rest/` | 4-tab REST form (mirrors STOMP, transport-specific tabs) |
+| `packages/widgets-react/src/data-provider-selector/DataProviderSelector.tsx` | Picker (dropdown / list modes) |
+| `packages/widgets-react/src/markets-grid-container/MarketsGridContainer.tsx` | Wrapper that imperatively feeds AG-Grid from the data plane |
+| `apps/markets-ui-react-reference/src/dataPlaneWorker.ts` | SharedWorker entry |
+| `apps/markets-ui-react-reference/src/views/BlottersMarketsGrid.tsx` | Migrated — synthetic data removed |
+
+### Tests
+
+`@marketsui/data-plane` test suite expanded to **175 tests** (prior baseline 147), all green; `npx turbo typecheck` covers all 45 packages with no regressions.
+
+---
+
 ## 2. Summary Statistics
 
 | Category | Count |
