@@ -93,8 +93,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   } = props;
 
   const gridApiRef = useRef<GridApi<TData> | null>(null);
-  const snapshotBufferRef = useRef<TData[]>([]);
   const snapshotCompleteRef = useRef(false);
+  // Snapshot rows accumulate here while the snapshot phase is in
+  // flight; on `onSnapshotComplete` they're dispatched via
+  // setGridOption('rowData', ...) in one shot. pendingUpdatesRef
+  // holds row-updates that arrived too early (grid not ready, or
+  // snapshot hasn't completed yet).
+  const snapshotRowsRef = useRef<TData[]>([]);
+  const pendingUpdatesRef = useRef<TData[]>([]);
 
   // Mutable callback ref so the listener identity stays stable but
   // callers can swap the onError handler freely.
@@ -125,8 +131,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     setProviderReady(false);
     setResolvedRowIdField(null);
     setResolvedColumnDefs(null);
+    // Reset snapshot/realtime state for the new provider — any rows
+    // accumulated for the previous provider must NOT spill into the
+    // new one's setRowData call.
     snapshotCompleteRef.current = false;
-    snapshotBufferRef.current = [];
+    snapshotRowsRef.current = [];
+    pendingUpdatesRef.current = [];
 
     if (!providerId) return;
 
@@ -205,12 +215,34 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     return () => { cancelled = true; };
   }, [providerId, client, rowIdFieldOverride, columnDefsOverride]);
 
-  // ── Imperative apply helpers ─────────────────────────────────────
-  const applyAdds = useCallback((rows: readonly TData[]) => {
-    const api = gridApiRef.current;
-    if (!api || rows.length === 0) return;
-    api.applyTransactionAsync({ add: rows.slice() });
-  }, []);
+  // ── Snapshot vs realtime semantics ──────────────────────────────
+  //
+  // STOMP server contract: a stream of snapshot batches, then an
+  // end-of-snapshot token (e.g. "Success"), then live updates. The
+  // worker translates that to:
+  //   onSnapshotBatch * N  →  onSnapshotComplete  →  onRowUpdate * N
+  //
+  // The grid handles those two phases very differently:
+  //
+  //   • Snapshot phase — we accumulate ALL batches into a buffer and,
+  //     on `onSnapshotComplete`, apply the entire set as `rowData` in
+  //     one synchronous call. This is the documented AG-Grid pattern
+  //     for initial loads. It also avoids a race that the previous
+  //     "stream batches via applyTransactionAsync({add})" path
+  //     exhibited: AG-Grid's transaction queue isn't flushed
+  //     synchronously, so live updates that arrived right after
+  //     "Success" could land before the corresponding adds, producing
+  //     "Could not find row id=…" errors for every update.
+  //
+  //   • Realtime phase — every batch and every row-update goes
+  //     through `applyTransactionAsync({ update })`. The id is
+  //     guaranteed to exist because we already replaced rowData with
+  //     the full snapshot.
+  //
+  // If updates arrive BEFORE the grid is ready (rare — onReady fires
+  // synchronously on AgGridReact mount), or before `onSnapshotComplete`
+  // (also rare — by definition the server sent updates after
+  // "Success"), we buffer them and drain at the right boundary.
 
   const applyUpdates = useCallback((rows: readonly TData[]) => {
     const api = gridApiRef.current;
@@ -218,25 +250,51 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     api.applyTransactionAsync({ update: rows.slice() });
   }, []);
 
+  const flushSnapshotToGrid = useCallback(() => {
+    const api = gridApiRef.current;
+    if (!api) return;
+    api.setGridOption('rowData', snapshotRowsRef.current.slice());
+    // Snapshot is now in the grid; release the buffer so it doesn't
+    // pin memory. Subsequent batches go through update transactions.
+    snapshotRowsRef.current = [];
+    if (pendingUpdatesRef.current.length > 0) {
+      api.applyTransactionAsync({ update: pendingUpdatesRef.current.slice() });
+      pendingUpdatesRef.current = [];
+    }
+  }, []);
+
   // ── Stable onEvent listener (one identity for the lifetime) ─────
   const stableOnEvent = useMemo<StreamListener<TData>>(() => ({
     onSnapshotBatch: (batch) => {
-      if (gridApiRef.current && snapshotCompleteRef.current === false) {
-        applyAdds(batch.rows);
-      } else if (!gridApiRef.current) {
-        // Grid not ready yet — buffer until onReady drains.
-        snapshotBufferRef.current.push(...(batch.rows as TData[]));
-      } else {
-        // Realtime-phase batch (rare but possible after restart).
+      if (!snapshotCompleteRef.current) {
+        // Snapshot phase — accumulate, don't touch the grid yet.
+        snapshotRowsRef.current.push(...(batch.rows as TData[]));
+        return;
+      }
+      // Realtime-phase batch (uncommon: a restart() can re-issue
+      // batches). Treat as upsert.
+      if (gridApiRef.current) {
         applyUpdates(batch.rows);
+      } else {
+        pendingUpdatesRef.current.push(...(batch.rows as TData[]));
       }
     },
     onSnapshotComplete: () => {
       snapshotCompleteRef.current = true;
+      // If the grid is mounted, apply the snapshot as rowData now.
+      // Otherwise onReady will drain when the grid arrives.
+      if (gridApiRef.current) {
+        flushSnapshotToGrid();
+      }
     },
     onRowUpdate: (update) => {
-      if (gridApiRef.current) {
+      if (gridApiRef.current && snapshotCompleteRef.current) {
         applyUpdates(update.rows);
+      } else {
+        // Defer: either the grid isn't ready, or the snapshot
+        // hasn't finished. Either way we must NOT apply an update
+        // before the corresponding row is in rowData.
+        pendingUpdatesRef.current.push(...(update.rows as TData[]));
       }
     },
     onError: (err) => {
@@ -247,19 +305,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         console.error('[MarketsGridContainer] stream error', error);
       }
     },
-  }), [applyAdds, applyUpdates]);
+  }), [applyUpdates, flushSnapshotToGrid]);
 
   // ── Capture grid api on ready, drain any buffered snapshot ───────
   const onReady = useCallback(
     (handle: MarketsGridHandle) => {
       gridApiRef.current = handle.gridApi as unknown as GridApi<TData>;
-      if (snapshotBufferRef.current.length > 0) {
-        applyAdds(snapshotBufferRef.current);
-        snapshotBufferRef.current = [];
+      // If the snapshot already completed before the grid mounted,
+      // apply it now via rowData. If the snapshot is still ongoing,
+      // the buffer keeps growing and onSnapshotComplete will flush it.
+      if (snapshotCompleteRef.current) {
+        flushSnapshotToGrid();
       }
       onReadyProp?.(handle);
     },
-    [applyAdds, onReadyProp],
+    [flushSnapshotToGrid, onReadyProp],
   );
 
   // ── Historical-mode restart on asOfDate change ───────────────────
