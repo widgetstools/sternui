@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { DataProviderConfig } from '@marketsui/shared-types';
+import type { DataProviderConfig, ProviderConfig } from '@marketsui/shared-types';
 import { useToast } from '@marketsui/ui';
 import { dataProviderConfigService } from '@marketsui/data-plane';
 
@@ -11,6 +11,9 @@ export const dataProviderKeys = {
   all: ['dataProviders'] as const,
   lists: () => [...dataProviderKeys.all, 'list'] as const,
   list: (userId: string) => [...dataProviderKeys.lists(), userId] as const,
+  /** Public + private merged list, optionally subtype-filtered. */
+  visible: (userId: string, subtype?: string) =>
+    [...dataProviderKeys.lists(), 'visible', userId, subtype ?? 'all'] as const,
   details: () => [...dataProviderKeys.all, 'detail'] as const,
   detail: (id: string) => [...dataProviderKeys.details(), id] as const,
 };
@@ -19,6 +22,22 @@ export function useDataProviders(userId: string) {
   return useQuery({
     queryKey: dataProviderKeys.list(userId),
     queryFn: () => dataProviderConfigService.getByUser(userId),
+    enabled: !!userId,
+  });
+}
+
+/**
+ * Returns every provider visible to the given user — public rows
+ * (stored under userId='system') plus the user's own private rows —
+ * with optional `subtype` filter. Used by the DataProviderSelector.
+ */
+export function useVisibleDataProviders(
+  userId: string,
+  subtype?: ProviderConfig['providerType'],
+) {
+  return useQuery({
+    queryKey: dataProviderKeys.visible(userId, subtype),
+    queryFn: () => dataProviderConfigService.listVisible(userId, { subtype }),
     enabled: !!userId,
   });
 }

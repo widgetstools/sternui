@@ -1,28 +1,34 @@
 /**
- * useFieldInference — hook for inferring fields from STOMP data.
- * Handles field inference, selection, expansion, and two-phase commit.
+ * useRestFieldInference — REST analogue of useFieldInference.
+ *
+ * Same UI surface (selection + expansion + two-phase commit + sample
+ * picker + summary), driven by `RestDataProvider.fetchSnapshot` instead
+ * of a STOMP probe. The schema-derivation step itself is shared:
+ * `StompDataProvider.inferFields(rows, opts)` is a pure helper that
+ * walks rows and produces a `FieldInfo` map regardless of transport.
+ *
+ * Sample-size semantics
+ * ---------------------
+ * REST endpoints typically return a single fixed payload — there's no
+ * server-side knob to "ask for more rows for inference". The fetch
+ * brings whatever the endpoint returns, and `targetSampleSize` then
+ * trims it down via completeness-weighted sorting. The user-facing
+ * sample-size picker therefore controls **how many rows are kept for
+ * scoring**, not how many are fetched.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@marketsui/ui';
-import type { StompProviderConfig } from '@marketsui/shared-types';
+import type { RestProviderConfig } from '@marketsui/shared-types';
 import {
   type FieldNode,
   convertFieldInfoToNode,
   collectNonObjectLeaves,
   findFieldByPath,
 } from '@marketsui/shared-types';
+import type { InferenceSummary } from '../../stomp/hooks/useFieldInference.js';
 
-export interface InferenceSummary {
-  /** Rows fetched from the upstream snapshot. */
-  rowsFetched: number;
-  /** Rows actually used for inference (may be ≤ rowsFetched if sampleSize caps it). */
-  rowsUsed: number;
-  /** Distinct top-level fields detected. */
-  fieldsDetected: number;
-}
-
-export interface UseFieldInferenceReturn {
+export interface UseRestFieldInferenceReturn {
   inferring: boolean;
   inferredFields: FieldNode[];
   selectedFields: Set<string>;
@@ -32,10 +38,8 @@ export interface UseFieldInferenceReturn {
   selectAllIndeterminate: boolean;
   pendingFieldChanges: boolean;
   committedSelectedFields: Set<string>;
-  /** Target sample size for the next inference run; user-adjustable in the Fields tab. */
   sampleSize: number;
   setSampleSize: (n: number) => void;
-  /** Stats from the last inference run (null until inferFields has run). */
   lastSummary: InferenceSummary | null;
   inferFields: () => Promise<void>;
   toggleField: (path: string) => void;
@@ -44,14 +48,12 @@ export interface UseFieldInferenceReturn {
   selectAll: (checked: boolean) => void;
   clearAllFields: () => void;
   commitFieldSelection: () => void;
-  initializeFromConfig: (config: StompProviderConfig) => void;
+  initializeFromConfig: (config: RestProviderConfig) => void;
 }
 
-/** Default rows used by the configurator's inference run. Capped at 500
- *  in the UI to keep wire + parse time predictable on large snapshots. */
 const DEFAULT_SAMPLE_SIZE = 200;
 
-export function useFieldInference(config: StompProviderConfig): UseFieldInferenceReturn {
+export function useRestFieldInference(config: RestProviderConfig): UseRestFieldInferenceReturn {
   const { toast } = useToast();
 
   const [inferring, setInferring] = useState(false);
@@ -66,10 +68,9 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
   const [sampleSize, setSampleSize] = useState<number>(DEFAULT_SAMPLE_SIZE);
   const [lastSummary, setLastSummary] = useState<InferenceSummary | null>(null);
 
-  // Update select-all checkbox state
+  // Keep select-all checkbox state in sync (same logic as STOMP).
   useEffect(() => {
     const allLeafPaths = new Set<string>();
-
     const collectLeafPaths = (fields: FieldNode[]) => {
       fields.forEach(field => {
         if (field.type !== 'object' || !field.children || field.children.length === 0) {
@@ -98,36 +99,30 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
   const inferFields = useCallback(async () => {
     setInferring(true);
 
-    if (!config.websocketUrl) {
-      toast({ title: 'Field Inference Failed', description: 'WebSocket URL is required', variant: 'destructive' });
+    if (!config.baseUrl || !config.endpoint) {
+      toast({
+        title: 'Field Inference Failed',
+        description: 'Base URL and Endpoint are required',
+        variant: 'destructive',
+      });
       setInferring(false);
       return;
     }
 
     try {
-      const { StompDataProvider } = await import('@marketsui/data-plane');
+      const { RestDataProvider, StompDataProvider } = await import('@marketsui/data-plane');
 
-      const provider = new StompDataProvider({
-        websocketUrl: config.websocketUrl,
-        listenerTopic: config.listenerTopic || '',
-        requestMessage: config.requestMessage,
-        requestBody: config.requestBody || 'START',
-        snapshotEndToken: config.snapshotEndToken || 'Success',
-        keyColumn: config.keyColumn,
-        messageRate: config.messageRate,
-        snapshotTimeoutMs: config.snapshotTimeoutMs || 60000,
-        dataType: config.dataType,
-        batchSize: config.batchSize,
+      const result = await RestDataProvider.fetchSnapshot({
+        ...config,
+        keyColumn: config.keyColumn || '__probe__',
       });
 
-      // Fetch some headroom over the target sample size so completeness-
-      // weighted filtering has rows to choose from. STOMP snapshots are
-      // capped on the upstream side anyway; we ask for what we want.
-      const fetchSize = Math.min(Math.max(sampleSize * 2, sampleSize + 50), 1000);
-      const result = await provider.fetchSnapshot(fetchSize);
-
       if (!result.success || !result.data || result.data.length === 0) {
-        toast({ title: 'Field Inference Failed', description: result.error || 'No data received from STOMP server', variant: 'destructive' });
+        toast({
+          title: 'Field Inference Failed',
+          description: result.error || 'No data returned by the endpoint',
+          variant: 'destructive',
+        });
         setInferring(false);
         return;
       }
@@ -142,7 +137,7 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
         fieldsDetected: fieldNodes.length,
       });
 
-      // Auto-expand object fields
+      // Auto-expand object fields.
       const objectPaths = new Set<string>();
       const findObjects = (fields: FieldNode[]) => {
         fields.forEach(f => {
@@ -165,7 +160,7 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
     } finally {
       setInferring(false);
     }
-  }, [config, toast]);
+  }, [config, sampleSize, toast]);
 
   const toggleField = useCallback((path: string) => {
     const field = findFieldByPath(path, inferredFields);
@@ -173,7 +168,6 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
 
     setSelectedFields(prev => {
       const next = new Set(prev);
-
       if (field.type === 'object') {
         const leafPaths = collectNonObjectLeaves(field);
         const allSelected = leafPaths.every(p => next.has(p));
@@ -186,7 +180,6 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
         if (next.has(path)) next.delete(path);
         else next.add(path);
       }
-
       return next;
     });
     setPendingFieldChanges(true);
@@ -234,12 +227,11 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
     toast({ title: 'Columns Updated', description: `${selectedFields.size} field(s) will be used as columns` });
   }, [selectedFields, toast]);
 
-  const initializeFromConfig = useCallback((cfg: StompProviderConfig) => {
+  const initializeFromConfig = useCallback((cfg: RestProviderConfig) => {
     if (cfg.inferredFields && cfg.inferredFields.length > 0) {
       const fieldNodes = cfg.inferredFields.map(convertFieldInfoToNode);
       setInferredFields(fieldNodes);
 
-      // Auto-expand objects
       const objectPaths = new Set<string>();
       const findObjects = (fields: FieldNode[]) => {
         fields.forEach(f => {
@@ -252,7 +244,6 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
       findObjects(fieldNodes);
       setExpandedFields(objectPaths);
 
-      // Restore selected fields from column definitions
       if (cfg.columnDefinitions && cfg.columnDefinitions.length > 0) {
         const selected = new Set<string>();
         cfg.columnDefinitions.forEach(col => {

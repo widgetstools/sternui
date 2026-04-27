@@ -91,6 +91,39 @@ export interface TeardownRequest {
   providerId: string;
 }
 
+/**
+ * `restart` — re-apply the provider's last-known config and re-fetch
+ * the snapshot. Stream subscribers stay attached and receive the new
+ * snapshot via the standard `snapshot-batch` + `snapshot-complete`
+ * sequence. Keyed-resource subscribers receive an `update` for each
+ * key whose value has changed.
+ *
+ * `extra` is a free-form bag forwarded to the provider's `restart()`
+ * — used by the MarketsGrid historical-mode date picker
+ * (`{ asOfDate: '2026-04-01' }`) and any other consumer that
+ * needs to parameterise the restart.
+ */
+export interface RestartRequest {
+  op: 'restart';
+  reqId: string;
+  providerId: string;
+  extra?: Record<string, unknown>;
+}
+
+/**
+ * `resolve` — substitute `{{providerId.key}}` tokens in a template
+ * string, looking up each token's value via the matching AppData
+ * provider. Targets the `appdata` provider type only; non-AppData
+ * provider ids in a token are left as-is with a warning.
+ *
+ * Returns the substituted string in `OkResponse.value`.
+ */
+export interface ResolveRequest {
+  op: 'resolve';
+  reqId: string;
+  template: string;
+}
+
 export interface PingRequest {
   op: 'ping';
   reqId: string;
@@ -135,7 +168,9 @@ export type DataPlaneRequest =
   | TeardownRequest
   | PingRequest
   | SubscribeStreamRequest
-  | GetCachedRowsRequest;
+  | GetCachedRowsRequest
+  | RestartRequest
+  | ResolveRequest;
 
 // ─── Response shapes (worker → client) ─────────────────────────────────
 

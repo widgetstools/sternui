@@ -43,6 +43,7 @@ export {
   AppDataProvider,
   StreamProviderBase,
   StompDataProvider,
+  RestDataProvider,
   type Unsubscribe as ProviderUnsubscribe,
   type ProviderEmitter,
   type MockRow,
@@ -51,6 +52,8 @@ export {
   type StreamStatistics,
   type StompConnectionConfig,
   type StompConnectionResult,
+  type RestFetchFn,
+  type RestProviderOpts,
 } from './providers';
 
 // Framework-agnostic services for managing data-provider configuration
@@ -70,6 +73,7 @@ export {
   connectSharedWorker,
   connectDedicatedWorker,
   connectInPage,
+  buildSharedWorkerName,
   hasSharedWorker,
   hasDedicatedWorker,
   type KeyedUpdateEvent,

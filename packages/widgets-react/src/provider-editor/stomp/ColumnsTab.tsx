@@ -21,13 +21,22 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Alert,
+  AlertDescription,
 } from '@marketsui/ui';
 import { ModuleRegistry, type ColDef, type GridApi, type GridReadyEvent, type CellValueChangedEvent } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { AgGridReact } from 'ag-grid-react';
 import { useAgGridTheme } from '../../theme/index.js';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Key, AlertTriangle } from 'lucide-react';
 import type { FieldNode } from '@marketsui/shared-types';
+
+/**
+ * Minimal slice of provider config the Columns tab reads. Both STOMP
+ * and REST configs expose `keyColumn`, so typing this loosely lets the
+ * tab serve both transports without per-flavour duplication.
+ */
+type ConfigWithKeyColumn = { keyColumn?: string };
 import type { ColumnDefinition } from '@marketsui/shared-types';
 
 // Register AG-Grid Enterprise modules
@@ -78,6 +87,10 @@ interface ColumnsTabProps {
   onManualColumnsChange: (columns: ColumnDefinition[]) => void;
   onFieldColumnOverridesChange: (overrides: Record<string, Partial<ColumnDefinition>>) => void;
   onClearAll: () => void;
+  /** Provider config — needed for the Row Identity callout. */
+  config?: ConfigWithKeyColumn;
+  /** Threaded through so the callout's "change" affordance can update keyColumn. */
+  onConfigChange?: (field: string, value: unknown) => void;
 }
 
 export const ColumnsTab: React.FC<ColumnsTabProps> = ({
@@ -88,6 +101,8 @@ export const ColumnsTab: React.FC<ColumnsTabProps> = ({
   onManualColumnsChange,
   onFieldColumnOverridesChange,
   onClearAll,
+  config,
+  onConfigChange,
 }) => {
   const [newColumn, setNewColumn] = useState({ field: '', header: '', type: 'text' as ColumnDefinition['cellDataType'] });
   const [, setGridApi] = useState<GridApi | null>(null);
@@ -294,6 +309,17 @@ export const ColumnsTab: React.FC<ColumnsTabProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-background">
+      {/* Row identity callout — explicit picker for the column that
+          uniquely identifies a row. AG-Grid's getRowId reads from this;
+          delta updates can't match rows without a stable id. */}
+      {(config && onConfigChange) && (
+        <RowIdentityCallout
+          keyColumn={config.keyColumn ?? ''}
+          inferredFields={inferredFields}
+          onChange={(next) => onConfigChange('keyColumn', next)}
+        />
+      )}
+
       {/* Add manual column toolbar — labeled inputs aligned at bottom */}
       <div className="px-4 py-3 border-b border-border flex-shrink-0 bg-muted/30">
         <div className="flex items-end gap-3">
@@ -371,6 +397,118 @@ export const ColumnsTab: React.FC<ColumnsTabProps> = ({
           domLayout="normal"
         />
       </div>
+    </div>
+  );
+};
+
+// ─── Row identity callout ─────────────────────────────────────────────
+
+interface RowIdentityCalloutProps {
+  keyColumn: string;
+  inferredFields: FieldNode[];
+  onChange: (next: string) => void;
+}
+
+const RowIdentityCallout: React.FC<RowIdentityCalloutProps> = ({
+  keyColumn, inferredFields, onChange,
+}) => {
+  // Suggest leaf field paths the user could pick — keeps the dropdown
+  // useful even before they've selected fields for columns.
+  const candidates = useMemo(() => {
+    const out: string[] = [];
+    const walk = (fields: FieldNode[]): void => {
+      for (const f of fields) {
+        if (f.type !== 'object' || !f.children?.length) {
+          out.push(f.path);
+        }
+        if (f.children) walk(f.children);
+      }
+    };
+    walk(inferredFields);
+    return out;
+  }, [inferredFields]);
+
+  const isSet = Boolean(keyColumn);
+  const isInferred = isSet && candidates.includes(keyColumn);
+  // The id is set but doesn't appear in inferred fields — flag as a
+  // potential typo or stale reference.
+  const isOrphan = isSet && candidates.length > 0 && !isInferred;
+
+  return (
+    <div className="px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0">
+      <Alert
+        className={
+          isSet
+            ? (isOrphan ? 'bg-background border-amber-500/50' : 'bg-background')
+            : 'bg-background border-destructive/40'
+        }
+      >
+        {isOrphan ? (
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+        ) : (
+          <Key className="h-4 w-4" />
+        )}
+        <AlertDescription className="text-xs">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span>
+              <strong className="text-foreground">Row identity:</strong>{' '}
+              {isSet ? (
+                <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">{keyColumn}</code>
+              ) : (
+                <span className="text-destructive font-medium">not set</span>
+              )}
+            </span>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="row-identity-input" className="text-[11px] text-muted-foreground sr-only">
+                Key column
+              </Label>
+              {candidates.length > 0 ? (
+                <Select value={keyColumn} onValueChange={onChange}>
+                  <SelectTrigger className="h-7 w-[200px] text-xs" id="row-identity-input">
+                    <SelectValue placeholder="Pick a unique column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {candidates.map((path) => (
+                      <SelectItem key={path} value={path}>
+                        {path}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="row-identity-input"
+                  value={keyColumn}
+                  onChange={(e) => onChange(e.target.value)}
+                  placeholder="e.g. orderId"
+                  className="h-7 w-[200px] text-xs font-mono"
+                />
+              )}
+            </div>
+          </div>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            {isOrphan ? (
+              <>
+                <span className="text-amber-600 dark:text-amber-500 font-medium">⚠ </span>
+                <code>{keyColumn}</code> isn't in the inferred field set — typo, or
+                inference hasn't run for this column yet. AG-Grid's <code>getRowId</code> needs a
+                column that's always present.
+              </>
+            ) : isSet ? (
+              <>
+                Drives AG-Grid's <code>getRowId</code> + the worker's RowCache upsert. Updates
+                only land on existing rows when this column matches.
+              </>
+            ) : (
+              <>
+                Pick the column that uniquely identifies a row. Without it, delta updates
+                can't match incoming rows to grid rows and the snapshot is the only data
+                that ever renders.
+              </>
+            )}
+          </p>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };

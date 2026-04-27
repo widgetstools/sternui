@@ -122,6 +122,38 @@ export abstract class StreamProviderBase<
   /** Tear down the upstream transport. MUST be idempotent. */
   abstract stop(): Promise<void>;
 
+  /**
+   * Last-applied config — captured by subclasses in `configure()` so
+   * `restart()` can re-apply without the caller re-passing it.
+   * Subclasses that override `configure` should set `this.lastConfig`.
+   */
+  protected lastConfig: TConfig | undefined;
+
+  /**
+   * Restart this stream: stop the current transport, clear the snapshot
+   * cache + reset late-joiner tracking, then `start()` again. Existing
+   * subscribers (any port that called `addListener`) stay attached and
+   * receive the fresh snapshot the same way a brand-new subscriber
+   * would — `onSnapshotBatch` for each batch + `onSnapshotComplete`
+   * once the stream end-token arrives.
+   *
+   * `extra` is a free-form bag forwarded by the worker; subclasses
+   * (e.g. `RestDataProvider`) use it to receive parameters like
+   * `{ asOfDate }` driven from the MarketsGrid historical-mode
+   * date picker. The default implementation ignores `extra` —
+   * override `restart()` if you need to thread it into `configure()`
+   * or `start()`.
+   */
+  async restart(_extra?: Record<string, unknown>): Promise<void> {
+    await this.stop();
+    this.cache.clear();
+    this.resetSnapshotState();
+    if (this.lastConfig !== undefined) {
+      await this.configure(this.lastConfig);
+    }
+    await this.start();
+  }
+
   // ─── Listener plumbing ───────────────────────────────────────────────
 
   /**

@@ -110,6 +110,38 @@ export interface StompProviderConfig {
   };
   inferredFields?: FieldInfo[];
   columnDefinitions?: ColumnDefinition[];
+  /**
+   * Conflate row updates by this column before fanning out to
+   * subscribers. Two updates for the same key value within a
+   * `throttleMs` window collapse into the latest one (upsert
+   * semantics). Typically set to the same value as `keyColumn` so
+   * grids see exactly one update per row per flush. Omit for
+   * "every row update is delivered" behaviour.
+   */
+  conflateByKey?: string;
+  /**
+   * Coalesce row-update fanout into trailing-edge bursts every
+   * `throttleMs`. 0 / undefined → immediate fanout (no batching).
+   * The conflation window above only takes effect when this is set.
+   */
+  throttleMs?: number;
+  /**
+   * Reconnect policy. Today only `initialDelayMs` is honoured (it
+   * becomes the stompjs `reconnectDelay`); full exponential backoff +
+   * jitter + maxAttempts requires bypassing stompjs's auto-reconnect
+   * and is tracked as a follow-up. The fields are reserved here so
+   * configurators can author them now without a schema migration.
+   */
+  reconnect?: {
+    /** Static reconnect delay in ms. Default 5000 (matches prior behaviour). */
+    initialDelayMs?: number;
+    /** Reserved for exp-backoff implementation. Currently ignored. */
+    maxDelayMs?: number;
+    /** Reserved for exp-backoff implementation. Currently ignored. */
+    jitter?: 'full' | 'equal' | 'none';
+    /** Reserved for exp-backoff implementation. Currently ignored. */
+    maxAttempts?: number;
+  };
 }
 
 /**
@@ -132,6 +164,24 @@ export interface RestProviderConfig {
     headerName?: string;
   };
   timeout?: number;
+  /**
+   * Required for streaming consumers (MarketsGrid). The column whose
+   * value uniquely identifies a row — drives RowCache upsert + AG-Grid
+   * `getRowId`.
+   */
+  keyColumn?: string;
+  /**
+   * Path inside the JSON response that holds the rows array.
+   * Dot notation; e.g. `data.results`. Default: response is the
+   * rows array directly.
+   */
+  rowsPath?: string;
+  /** Persisted schema introspection — see StompProviderConfig. */
+  inferredFields?: FieldInfo[];
+  columnDefinitions?: ColumnDefinition[];
+  /** See StompProviderConfig — same fanout knobs apply. */
+  conflateByKey?: string;
+  throttleMs?: number;
 }
 
 /**
@@ -192,6 +242,22 @@ export interface AppDataVariable {
   type: 'string' | 'number' | 'boolean' | 'json';
   description?: string;
   sensitive?: boolean;
+  /**
+   * Durability of this key:
+   *   'volatile'  — in-memory only, lost on worker restart (default).
+   *                 Auth tokens, transient selections, rate-limited
+   *                 caches, anything sensitive that shouldn't leak
+   *                 across sessions.
+   *   'persisted' — written through to ConfigService on every `put`
+   *                 and rehydrated from ConfigService when the
+   *                 AppData provider configures. User preferences,
+   *                 long-lived feature flags, anything the user
+   *                 expects to survive a reboot.
+   *
+   * Defaults to 'volatile' for back-compat. Existing configs without
+   * this field behave as today.
+   */
+  durability?: 'volatile' | 'persisted';
 }
 
 /**
@@ -266,6 +332,16 @@ export interface DataProviderConfig {
   tags?: string[];
   isDefault?: boolean;
   userId: string;
+  /**
+   * Visibility:
+   *   true  → row is saved with userId='system' (visible to everyone
+   *           sharing the appId).
+   *   false / undefined → row is saved with the active userId
+   *           (visible only to the author).
+   *
+   * The configurator surfaces this as a single "Public" toggle.
+   */
+  public?: boolean;
 }
 
 /**

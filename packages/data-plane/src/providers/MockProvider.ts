@@ -52,6 +52,7 @@ export class MockProvider extends ProviderBase<MockProviderConfig, MockSnapshot 
 
   async configure(config: MockProviderConfig): Promise<void> {
     this.config = { ...this.config, ...config };
+    this.lastConfig = this.config;
   }
 
   async fetch(key: string): Promise<MockSnapshot> {

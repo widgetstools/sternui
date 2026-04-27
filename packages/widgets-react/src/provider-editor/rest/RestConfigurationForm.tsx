@@ -1,26 +1,29 @@
 /**
- * StompConfigurationForm — 4-tab orchestrator for STOMP provider configuration.
- * Tabs: Connection, Fields, Columns, Behaviour with context-aware footer actions.
+ * RestConfigurationForm — 4-tab orchestrator for REST provider configuration.
+ * Mirrors StompConfigurationForm structure: Connection / Fields / Columns /
+ * Behaviour, with REST-specific Connection and Behaviour tabs and shared
+ * Fields + Columns tabs (column build is transport-agnostic).
  *
- * Top header carries the visibility toggle (public ↔ private). Public
- * providers are stored under userId='system' (visible to everyone of
- * the same appId); private providers are stored under the active user
- * (visible only to the author). See dataProviderConfigService.
+ * Top header carries the visibility toggle (public ↔ private). Same
+ * userId='system' sentinel semantics as STOMP.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, Badge, Button, Switch, Label } from '@marketsui/ui';
-import { ConnectionTab } from './ConnectionTab.js';
-import { FieldsTab } from './FieldsTab.js';
-import { ColumnsTab } from './ColumnsTab.js';
-import { BehaviourTab } from './BehaviourTab.js';
-import type { StompProviderConfig } from '@marketsui/shared-types';
-import { useConnectionTest, useFieldInference, useColumnConfig } from './hooks/index.js';
+import { RestConnectionTab } from './RestConnectionTab.js';
+import { FieldsTab } from '../stomp/FieldsTab.js';
+import { ColumnsTab } from '../stomp/ColumnsTab.js';
+import { RestBehaviourTab } from './RestBehaviourTab.js';
+import type { RestProviderConfig } from '@marketsui/shared-types';
+import {
+  useRestConnectionTest,
+  useRestFieldInference,
+  useColumnConfig,
+} from './hooks/index.js';
 
-interface StompConfigurationFormProps {
+interface RestConfigurationFormProps {
   name: string;
-  config: StompProviderConfig;
-  /** Visibility flag — public rows store under userId='system'. */
+  config: RestProviderConfig;
   isPublic: boolean;
   onPublicChange: (next: boolean) => void;
   onChange: (field: string, value: any) => void;
@@ -30,7 +33,7 @@ interface StompConfigurationFormProps {
   isEditMode?: boolean;
 }
 
-export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
+export const RestConfigurationForm: React.FC<RestConfigurationFormProps> = ({
   name,
   config,
   isPublic,
@@ -44,20 +47,19 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
   const [activeTab, setActiveTab] = useState('connection');
   const isInitialLoadRef = useRef(true);
 
-  const connectionTest = useConnectionTest(config);
-  const fieldInference = useFieldInference(config);
+  const connectionTest = useRestConnectionTest(config);
+  const fieldInference = useRestFieldInference(config);
   const columnConfig = useColumnConfig(
     fieldInference.inferredFields,
     fieldInference.committedSelectedFields,
-    onChange
+    onChange,
   );
 
-  // Initialize from existing config on first mount
   useEffect(() => {
     if (!isInitialLoadRef.current) return;
     isInitialLoadRef.current = false;
     fieldInference.initializeFromConfig(config);
-    columnConfig.initializeFromConfig(config);
+    columnConfig.initializeFromConfig(config as any);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInferFields = async () => {
@@ -77,13 +79,15 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
     columnConfig.clearAll();
   };
 
+  const hasMinConfig = Boolean(config.baseUrl) && Boolean(config.endpoint);
+
   return (
     <div className="h-full w-full flex flex-col">
-      {/* Top header — visibility toggle + subtype badge. */}
+      {/* Top header — visibility + subtype badge. */}
       <div className="flex items-center justify-between gap-3 px-4 py-2 border-b bg-card">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className="text-[10px] uppercase">STOMP</Badge>
-          <span>Real-time streaming provider</span>
+          <Badge variant="outline" className="text-[10px] uppercase">REST</Badge>
+          <span>Snapshot HTTP provider</span>
         </div>
         <div className="flex items-center gap-2">
           <Label htmlFor="provider-public-toggle" className="text-xs cursor-pointer">
@@ -138,7 +142,7 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
             className="rounded-none text-sm data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
           >
             <span>Behaviour</span>
-            {(config.conflateByKey || (typeof config.throttleMs === 'number' && config.throttleMs > 0) || config.reconnect) && (
+            {(config.conflateByKey || (typeof config.throttleMs === 'number' && config.throttleMs > 0)) && (
               <Badge variant="secondary" className="ml-2 text-xs">on</Badge>
             )}
           </TabsTrigger>
@@ -146,7 +150,7 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
 
         <div className="flex-1 overflow-hidden">
           <TabsContent value="connection" className="h-full overflow-auto m-0">
-            <ConnectionTab
+            <RestConnectionTab
               name={name}
               config={config}
               onChange={onChange}
@@ -193,11 +197,11 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
           </TabsContent>
 
           <TabsContent value="behaviour" className="h-full overflow-auto m-0">
-            <BehaviourTab config={config} onChange={onChange} />
+            <RestBehaviourTab config={config} onChange={onChange} />
           </TabsContent>
         </div>
 
-        {/* Footer — consistent sm buttons, context-aware left actions */}
+        {/* Footer — context-aware left actions. */}
         <div className="border-t bg-card px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-2">
             {activeTab === 'connection' && (
@@ -205,7 +209,7 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={connectionTest.testConnection}
-                disabled={connectionTest.testing || !config.websocketUrl}
+                disabled={connectionTest.testing || !hasMinConfig}
               >
                 {connectionTest.testing ? 'Testing...' : 'Test Connection'}
               </Button>
@@ -218,7 +222,7 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
                     size="sm"
                     variant="outline"
                     onClick={handleInferFields}
-                    disabled={fieldInference.inferring || !config.websocketUrl}
+                    disabled={fieldInference.inferring || !hasMinConfig}
                   >
                     {fieldInference.inferring ? 'Inferring...' : 'Infer Fields'}
                   </Button>

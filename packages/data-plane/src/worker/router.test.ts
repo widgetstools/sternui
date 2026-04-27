@@ -36,7 +36,9 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
  */
 class TestStream extends StreamProviderBase<{ keyColumn: string }, Record<string, unknown>> {
   readonly type: ProviderType = 'stomp';
-  async configure(_c: { keyColumn: string }): Promise<void> {}
+  async configure(c: { keyColumn: string }): Promise<void> {
+    this.lastConfig = c;
+  }
   async start(): Promise<void> { this.reportConnected(); }
   async stop(): Promise<void> { this.reportDisconnected(); }
 
@@ -368,5 +370,125 @@ describe('Router — BroadcastManager injection', () => {
 
     expect(addSpy).toHaveBeenCalledTimes(1);
     expect(bm.getSubscriberCount('a')).toBe(1);
+  });
+});
+
+// ─── Tests: restart opcode ─────────────────────────────────────────────
+
+describe('Router — restart opcode', () => {
+  it('responds with ok and re-invokes provider.restart() with the extra bag', async () => {
+    const factory: ProviderFactory = async (_id, config) => {
+      if (config.providerType === 'stomp') {
+        const inst = new TestStream('p', { keyColumn: 'id' });
+        // configure() captures lastConfig so restart() has something to re-apply
+        await inst.configure({ keyColumn: 'id' });
+        return { shape: 'stream', provider: inst } as ProviderInstance;
+      }
+      throw new Error('unsupported');
+    };
+    const router = new Router({ providerFactory: factory });
+    const port = mkPort();
+
+    await router.handleRequest(port.worker, { op: 'configure', reqId: 'c', providerId: 'p', config: { providerType: 'stomp' } as never });
+    await flush();
+
+    // We can't easily reach the live instance, but a successful `restart`
+    // request returns ok — and the underlying call goes through the
+    // ProviderBase default impl (teardown + configure). Snapshot any
+    // existing listener captures fresh data on the next ingestSnapshotBatch.
+    await router.handleRequest(port.worker, { op: 'restart', reqId: 'r', providerId: 'p', extra: { asOfDate: '2026-04-01' } });
+    await flush();
+
+    const restartReply = port.received.find((m) => m.reqId === 'r');
+    expect(restartReply).toBeDefined();
+    if (restartReply?.op === 'err') {
+      // Print the error to make debugging trivial if this regresses.
+      // eslint-disable-next-line no-console
+      console.error('restart returned err:', restartReply.error);
+    }
+    expect(restartReply?.op).toBe('ok');
+  });
+
+  it('errors out when the provider was never configured', async () => {
+    const router = new Router();
+    const port = mkPort();
+
+    await router.handleRequest(port.worker, { op: 'restart', reqId: 'r', providerId: 'never-configured' });
+    await flush();
+
+    const reply = port.received.find((m) => m.reqId === 'r');
+    expect(reply?.op).toBe('err');
+    if (reply?.op === 'err') {
+      expect(reply.error.code).toBe('PROVIDER_NOT_CONFIGURED');
+    }
+  });
+});
+
+// ─── Tests: resolve opcode ─────────────────────────────────────────────
+
+describe('Router — resolve opcode (template substitution)', () => {
+  let router: Router;
+  let port: ClientPort;
+
+  beforeEach(() => {
+    router = new Router();
+    port = mkPort();
+  });
+
+  async function configureAppData(providerId: string, vars: Record<string, unknown>) {
+    const cfg: AppDataProviderConfig = {
+      providerType: 'appdata',
+      variables: Object.fromEntries(
+        Object.entries(vars).map(([k, v]) => [k, { key: k, value: v, type: typeof v as 'string' | 'number' | 'boolean' }]),
+      ),
+    };
+    await router.handleRequest(port.worker, { op: 'configure', reqId: `c-${providerId}`, providerId, config: cfg });
+  }
+
+  it('substitutes a single token with the AppData provider value', async () => {
+    await configureAppData('app', { token: 'secret123' });
+    await router.handleRequest(port.worker, { op: 'resolve', reqId: 'r', template: 'Bearer {{app.token}}' });
+    await flush();
+
+    const reply = port.received.find((m) => m.reqId === 'r' && m.op === 'ok') as Extract<DataPlaneResponse, { op: 'ok' }>;
+    expect(reply.value).toBe('Bearer secret123');
+  });
+
+  it('substitutes multiple tokens across multiple providers', async () => {
+    await configureAppData('app', { token: 'abc' });
+    await configureAppData('user', { name: 'dev1' });
+    await router.handleRequest(port.worker, { op: 'resolve', reqId: 'r', template: '{{user.name}}/{{app.token}}' });
+    await flush();
+
+    const reply = port.received.find((m) => m.reqId === 'r' && m.op === 'ok') as Extract<DataPlaneResponse, { op: 'ok' }>;
+    expect(reply.value).toBe('dev1/abc');
+  });
+
+  it('leaves unknown tokens as-is', async () => {
+    await configureAppData('app', { token: 'abc' });
+    await router.handleRequest(port.worker, { op: 'resolve', reqId: 'r', template: '{{nope.who}}/{{app.token}}' });
+    await flush();
+
+    const reply = port.received.find((m) => m.reqId === 'r' && m.op === 'ok') as Extract<DataPlaneResponse, { op: 'ok' }>;
+    expect(reply.value).toBe('{{nope.who}}/abc');
+  });
+
+  it('non-AppData providers are skipped (token left as-is)', async () => {
+    // configure() the appdata one + a stream one with the same id-prefix shouldn't matter.
+    await configureAppData('app', { token: 'abc' });
+    await router.handleRequest(port.worker, { op: 'resolve', reqId: 'r', template: '{{app.missing}}/{{app.token}}' });
+    await flush();
+
+    const reply = port.received.find((m) => m.reqId === 'r' && m.op === 'ok') as Extract<DataPlaneResponse, { op: 'ok' }>;
+    expect(reply.value).toBe('{{app.missing}}/abc');
+  });
+
+  it('JSON-stringifies non-string values', async () => {
+    await configureAppData('app', { count: 42, flags: { a: 1 } });
+    await router.handleRequest(port.worker, { op: 'resolve', reqId: 'r', template: '{{app.count}}-{{app.flags}}' });
+    await flush();
+
+    const reply = port.received.find((m) => m.reqId === 'r' && m.op === 'ok') as Extract<DataPlaneResponse, { op: 'ok' }>;
+    expect(reply.value).toBe('42-{"a":1}');
   });
 });

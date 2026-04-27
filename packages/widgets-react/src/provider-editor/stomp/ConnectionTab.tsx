@@ -16,8 +16,8 @@
  */
 
 import React from 'react';
-import { Input, Label, Checkbox, Alert, AlertDescription } from '@marketsui/ui';
-import { Info } from 'lucide-react';
+import { Input, Label, Checkbox, Alert, AlertDescription, Badge } from '@marketsui/ui';
+import { Info, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import type { StompProviderConfig } from '@marketsui/shared-types';
 
 interface ConnectionTabProps {
@@ -25,6 +25,10 @@ interface ConnectionTabProps {
   config: StompProviderConfig;
   onChange: (field: string, value: any) => void;
   onNameChange: (name: string) => void;
+  /** Live test state — surfaced inline as a diagnostics card. */
+  testing?: boolean;
+  testResult?: { success: boolean; error?: string } | null;
+  testError?: string;
 }
 
 export const ConnectionTab: React.FC<ConnectionTabProps> = ({
@@ -32,6 +36,9 @@ export const ConnectionTab: React.FC<ConnectionTabProps> = ({
   config,
   onChange,
   onNameChange,
+  testing = false,
+  testResult = null,
+  testError = '',
 }) => {
   return (
     <div className="p-6">
@@ -172,8 +179,85 @@ export const ConnectionTab: React.FC<ConnectionTabProps> = ({
               </Label>
             </div>
           </section>
+
+          {/* Diagnostics — live state of the most recent Test Connection. */}
+          <DiagnosticsCard
+            testing={testing}
+            testResult={testResult}
+            testError={testError}
+            hasUrl={Boolean(config.websocketUrl)}
+          />
         </div>
       </div>
     </div>
+  );
+};
+
+// ─── Diagnostics card ─────────────────────────────────────────────────
+
+interface DiagnosticsCardProps {
+  testing: boolean;
+  testResult: { success: boolean; error?: string } | null;
+  testError: string;
+  hasUrl: boolean;
+}
+
+const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({ testing, testResult, testError, hasUrl }) => {
+  let state: 'idle' | 'testing' | 'ok' | 'error';
+  let title = 'Diagnostics';
+  let detail: React.ReactNode;
+
+  if (testing) {
+    state = 'testing';
+    title = 'Connecting…';
+    detail = <span>Awaiting STOMP handshake + snapshot end-token.</span>;
+  } else if (testResult?.success) {
+    state = 'ok';
+    title = 'Connection OK';
+    detail = <span>Last test succeeded — the configured URL accepted the subscribe payload and produced a snapshot.</span>;
+  } else if (testResult?.success === false || testError) {
+    state = 'error';
+    title = 'Connection failed';
+    detail = (
+      <span className="break-words text-destructive-foreground/90">
+        {testResult?.error || testError || 'Unknown error.'}
+      </span>
+    );
+  } else {
+    state = 'idle';
+    detail = (
+      <span>
+        {hasUrl
+          ? <>Click <strong>Test Connection</strong> in the footer to verify the URL + topic + end-token round-trip.</>
+          : <>Enter a WebSocket URL above; the test button enables once a URL is set.</>}
+      </span>
+    );
+  }
+
+  const Icon = state === 'testing' ? Loader2 : state === 'ok' ? CheckCircle2 : state === 'error' ? AlertCircle : Info;
+  const accent =
+    state === 'ok' ? 'text-green-600 dark:text-green-500'
+      : state === 'error' ? 'text-destructive'
+      : state === 'testing' ? 'text-primary'
+      : 'text-muted-foreground';
+
+  return (
+    <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Diagnostics
+        </h3>
+        <Badge variant={state === 'ok' ? 'default' : state === 'error' ? 'destructive' : 'outline'} className="text-[10px]">
+          {state === 'ok' ? 'Ready' : state === 'error' ? 'Failed' : state === 'testing' ? 'Testing' : 'Idle'}
+        </Badge>
+      </div>
+      <div className="flex items-start gap-2">
+        <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${accent} ${state === 'testing' ? 'animate-spin' : ''}`} />
+        <div className="text-[12px] leading-snug">
+          <div className="font-medium">{title}</div>
+          <div className="text-muted-foreground mt-0.5">{detail}</div>
+        </div>
+      </div>
+    </section>
   );
 };

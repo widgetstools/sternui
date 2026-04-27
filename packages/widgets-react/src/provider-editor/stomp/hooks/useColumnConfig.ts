@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { StompProviderConfig, ColumnDefinition } from '@marketsui/shared-types';
 import { type FieldNode, findFieldByPath, convertFieldNodeToInfo } from '@marketsui/shared-types';
+import { defaultColumnFor, type CellDataType } from '../../columnRegistry.js';
 
 export interface UseColumnConfigReturn {
   manualColumns: ColumnDefinition[];
@@ -108,34 +109,27 @@ function buildColumnsFromFields(
   return Array.from(selectedFields).map(path => {
     const override = overrides[path] || {};
     const fieldNode = findFieldByPath(path, inferredFields);
-    const cellDataType = override.cellDataType || mapFieldTypeToCellType(fieldNode?.type || 'string');
+    const cellDataType: CellDataType = (override.cellDataType ?? mapFieldTypeToCellType(fieldNode?.type ?? 'string')) as CellDataType;
 
+    // Type-driven defaults from the centralised registry. The user's
+    // explicit overrides win over the defaults for any non-undefined
+    // field. See packages/widgets-react/src/provider-editor/columnRegistry.ts
+    // for the source of truth.
+    const defaults = defaultColumnFor(cellDataType);
     const column: ColumnDefinition = {
       field: path,
-      headerName: override.headerName || formatFieldName(path),
+      headerName: override.headerName ?? formatFieldName(path),
       cellDataType,
+      ...defaults,
+      ...(override.valueFormatter ? { valueFormatter: override.valueFormatter } : {}),
+      ...(override.cellRenderer ? { cellRenderer: override.cellRenderer } : {}),
+      ...(override.width ? { width: override.width } : {}),
+      ...(override.filter !== undefined ? { filter: override.filter } : {}),
+      ...(override.sortable !== undefined ? { sortable: override.sortable } : {}),
+      ...(override.resizable !== undefined ? { resizable: override.resizable } : {}),
+      ...(override.hide !== undefined ? { hide: override.hide } : {}),
+      ...(override.type ? { type: override.type } : {}),
     };
-
-    if (override.valueFormatter) column.valueFormatter = override.valueFormatter;
-    if (override.cellRenderer) column.cellRenderer = override.cellRenderer;
-    if (override.width) column.width = override.width;
-    if (override.filter !== undefined) column.filter = override.filter;
-    if (override.sortable !== undefined) column.sortable = override.sortable;
-    if (override.resizable !== undefined) column.resizable = override.resizable;
-    if (override.hide !== undefined) column.hide = override.hide;
-    if (override.type) column.type = override.type;
-
-    // Type-specific defaults
-    if (cellDataType === 'number') {
-      column.type = 'numericColumn';
-      column.filter = 'agNumberColumnFilter';
-      if (!override.valueFormatter) column.valueFormatter = '2DecimalWithThousandSeparator';
-      if (!override.cellRenderer) column.cellRenderer = 'NumericCellRenderer';
-    }
-    if (cellDataType === 'date' || cellDataType === 'dateString') {
-      column.filter = 'agDateColumnFilter';
-      if (!override.valueFormatter) column.valueFormatter = 'YYYY-MM-DD HH:mm:ss';
-    }
 
     return column;
   });

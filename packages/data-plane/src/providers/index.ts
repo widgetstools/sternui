@@ -6,7 +6,7 @@
  */
 export { ProviderBase, type Unsubscribe, type ProviderEmitter } from './ProviderBase';
 export { MockProvider, type MockRow, type MockSnapshot } from './MockProvider';
-export { AppDataProvider } from './AppDataProvider';
+export { AppDataProvider, type AppDataPersistenceHooks } from './AppDataProvider';
 export {
   StreamProviderBase,
   type StreamProviderListener,
@@ -25,3 +25,4 @@ export {
   type StompConnectionConfig,
   type StompConnectionResult,
 } from './StompDataProvider';
+export { RestDataProvider, type RestFetchFn, type RestProviderOpts } from './RestDataProvider';

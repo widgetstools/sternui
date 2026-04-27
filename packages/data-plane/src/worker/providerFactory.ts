@@ -26,11 +26,13 @@ import type {
   MockProviderConfig,
   ProviderConfig,
   ProviderType,
+  RestProviderConfig,
   StompProviderConfig,
 } from '@marketsui/shared-types';
-import { AppDataProvider } from '../providers/AppDataProvider';
+import { AppDataProvider, type AppDataPersistenceHooks } from '../providers/AppDataProvider';
 import { MockProvider } from '../providers/MockProvider';
 import type { ProviderBase } from '../providers/ProviderBase';
+import { RestDataProvider } from '../providers/RestDataProvider';
 import type { StreamProviderBase } from '../providers/StreamProviderBase';
 import {
   StompStreamProvider,
@@ -64,6 +66,56 @@ export type ProviderFactory = (
  *     return defaultProviderFactory(id, cfg);
  *   };
  */
+/**
+ * Build a default factory, optionally wired with AppData persistence
+ * hooks. Worker shells that want write-through for `durability:
+ * 'persisted'` AppData keys pass `{ appDataHooks }`; the rest of the
+ * platform's defaults remain untouched.
+ *
+ * Equivalent to `defaultProviderFactory` (back-compat export below)
+ * when called with no args.
+ */
+export function buildDefaultProviderFactory(opts?: {
+  appDataHooks?: AppDataPersistenceHooks;
+}): ProviderFactory {
+  const appDataHooks = opts?.appDataHooks;
+  return async (providerId, config) => {
+    const type: ProviderType = config.providerType;
+    switch (type) {
+      case 'appdata': {
+        const p = new AppDataProvider(providerId, appDataHooks);
+        await p.configure(config as AppDataProviderConfig);
+        return { shape: 'keyed', provider: p };
+      }
+      case 'mock': {
+        const p = new MockProvider(providerId);
+        await p.configure(config as MockProviderConfig);
+        return { shape: 'keyed', provider: p };
+      }
+      case 'stomp': {
+        const p = new StompStreamProvider(providerId);
+        await p.configure(config as StompProviderConfig);
+        return { shape: 'stream', provider: p };
+      }
+      case 'rest': {
+        const p = new RestDataProvider(providerId);
+        await p.configure(config as RestProviderConfig);
+        return { shape: 'stream', provider: p };
+      }
+      case 'websocket':
+      case 'socketio':
+        throw new Error(
+          `Provider type '${type}' is not implemented in the default factory. ` +
+          'Wrap defaultProviderFactory to add it (see providerFactory.ts doc).',
+        );
+      default: {
+        const _exhaustive: never = type;
+        throw new Error(`Unknown provider type: ${_exhaustive as string}`);
+      }
+    }
+  };
+}
+
 export const defaultProviderFactory: ProviderFactory = async (providerId, config) => {
   const type: ProviderType = config.providerType;
 
@@ -83,9 +135,13 @@ export const defaultProviderFactory: ProviderFactory = async (providerId, config
       await p.configure(config as StompProviderConfig);
       return { shape: 'stream', provider: p };
     }
+    case 'rest': {
+      const p = new RestDataProvider(providerId);
+      await p.configure(config as RestProviderConfig);
+      return { shape: 'stream', provider: p };
+    }
     case 'websocket':
     case 'socketio':
-    case 'rest':
       throw new Error(
         `Provider type '${type}' is not implemented in the default factory. ` +
         'Wrap defaultProviderFactory to add it (see providerFactory.ts doc).',

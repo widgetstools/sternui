@@ -48,8 +48,18 @@ import {
 import type { ProviderBase, Unsubscribe } from '../providers/ProviderBase';
 import type { StreamProviderBase } from '../providers/StreamProviderBase';
 import { BroadcastManager } from './broadcastManager';
+import { bufferedDispatch, type BufferedDispatchHandle } from './bufferedDispatch';
 import { ProviderCache, isExpired, singleFlight } from './cache';
 import { defaultProviderFactory, type ProviderFactory, type ProviderInstance } from './providerFactory';
+
+/** Read conflate/throttle knobs off any provider config that has them. */
+function extractStreamOpts(config: ProviderConfig): { conflateByKey?: string; throttleMs?: number } | undefined {
+  const cfg = config as { conflateByKey?: string; throttleMs?: number };
+  if (cfg.conflateByKey || (typeof cfg.throttleMs === 'number' && cfg.throttleMs > 0)) {
+    return { conflateByKey: cfg.conflateByKey, throttleMs: cfg.throttleMs };
+  }
+  return undefined;
+}
 
 export interface RouterOpts {
   /** Inject a custom factory (e.g. to add STOMP). Defaults to the built-ins. */
@@ -79,6 +89,12 @@ interface ProviderSlot {
   cache?: ProviderCache;
   /** Monotonic seq for row-stream updates (broadcast to subscribers). */
   streamSeq: number;
+  /**
+   * Cached fanout buffering knobs from the config. Populated on
+   * configure for stream providers; read by handleSubscribeStream
+   * to decide whether to wrap onRowUpdate in a bufferedDispatch.
+   */
+  streamOpts?: { conflateByKey?: string; throttleMs?: number };
 }
 
 export class Router {
@@ -117,6 +133,8 @@ export class Router {
         case 'ping':        this.reply(port, { op: 'pong', reqId: req.reqId }); break;
         case 'subscribe-stream': await this.handleSubscribeStream(port, portId, req); break;
         case 'get-cached-rows':  this.handleGetCachedRows(port, portId, req); break;
+        case 'restart':     await this.handleRestart(port, req); break;
+        case 'resolve':     this.handleResolve(port, req); break;
         default: {
           const _exhaustive: never = req;
           throw new Error(`Unknown opcode: ${(_exhaustive as { op: string }).op}`);
@@ -343,6 +361,52 @@ export class Router {
     this.reply(port, { op: 'ok', reqId: req.reqId, cached: false, fetchedAt: 0 });
   }
 
+  /**
+   * Re-run the provider's snapshot/configure cycle. Existing subscribers
+   * stay attached and receive the new snapshot via the standard listener
+   * path; no re-subscribe is needed on the client side.
+   *
+   * For STOMP/Stream providers, `restart()` is implemented in
+   * `StreamProviderBase` and re-broadcasts via `addListener` callbacks
+   * already wired up in `handleSubscribeStream`. For keyed providers
+   * (AppData, REST), `restart()` re-fetches; existing key subscribers
+   * receive an `update` for any key whose value changes via the
+   * `subscribe` emitter chain.
+   */
+  private async handleRestart(port: MessagePort, req: Extract<DataPlaneRequest, { op: 'restart' }>): Promise<void> {
+    const slot = this.providers.get(req.providerId);
+    if (!slot) {
+      return this.replyErr(port, req.reqId, 'PROVIDER_NOT_CONFIGURED', 'call configure first', false);
+    }
+    await slot.instance.provider.restart(req.extra);
+    this.reply(port, { op: 'ok', reqId: req.reqId, cached: false, fetchedAt: 0 });
+  }
+
+  /**
+   * Substitute `{{providerId.key}}` tokens in a template string. Each
+   * `providerId` must resolve to a configured AppData provider; the
+   * key is read synchronously via `provider.peek(key)`. Tokens that
+   * reference a non-AppData provider, an unknown provider id, or an
+   * unknown key are left as-is in the output (with a console warning)
+   * so downstream consumers can decide how to handle them.
+   */
+  private handleResolve(port: MessagePort, req: Extract<DataPlaneRequest, { op: 'resolve' }>): void {
+    const out = req.template.replace(/\{\{([^{}]+)\}\}/g, (full, expr: string) => {
+      const dot = expr.indexOf('.');
+      if (dot < 0) return full;
+      const providerId = expr.slice(0, dot).trim();
+      const key = expr.slice(dot + 1).trim();
+      const slot = this.providers.get(providerId);
+      if (!slot || slot.instance.shape !== 'keyed') return full;
+      const provider = slot.instance.provider as { type?: string; peek?: (k: string) => unknown };
+      if (provider.type !== 'appdata' || typeof provider.peek !== 'function') return full;
+      const value = provider.peek(key);
+      if (value === undefined) return full;
+      return typeof value === 'string' ? value : JSON.stringify(value);
+    });
+    this.reply(port, { op: 'ok', reqId: req.reqId, value: out, cached: false, fetchedAt: Date.now() });
+  }
+
   private async handleSubscribeStream(
     port: MessagePort,
     portId: string,
@@ -364,6 +428,29 @@ export class Router {
     const providerId = req.providerId;
     let batch = 0;
 
+    // Build the row-update sink. When the provider's config has
+    // conflateByKey or throttleMs set, wrap it in bufferedDispatch so
+    // bursty deltas coalesce + flush at the configured cadence
+    // before they hit the wire.
+    const sendUpdate = (rows: readonly Record<string, unknown>[]): void => {
+      slot.streamSeq += 1;
+      this.broadcast.sendToSubscriber(providerId, portId, {
+        op: 'row-update',
+        providerId,
+        subId,
+        rows,
+        seq: slot.streamSeq,
+      });
+    };
+    let updateHandle: BufferedDispatchHandle<Record<string, unknown>> | undefined;
+    if (slot.streamOpts) {
+      updateHandle = bufferedDispatch<Record<string, unknown>>({
+        conflateByKey: slot.streamOpts.conflateByKey,
+        throttleMs: slot.streamOpts.throttleMs,
+        flush: sendUpdate,
+      });
+    }
+
     const off = provider.addListener({
       onSnapshotBatch: (rows) => {
         this.broadcast.sendToSubscriber(providerId, portId, {
@@ -376,6 +463,10 @@ export class Router {
         });
       },
       onSnapshotComplete: () => {
+        // Flush any updates that landed during the snapshot tail before
+        // signalling completion — keeps update ordering "snapshot ends,
+        // then deltas" even with throttling.
+        updateHandle?.flushNow();
         this.broadcast.sendToSubscriber(providerId, portId, {
           op: 'snapshot-complete',
           providerId,
@@ -384,14 +475,8 @@ export class Router {
         });
       },
       onRowUpdate: (rows) => {
-        slot.streamSeq += 1;
-        this.broadcast.sendToSubscriber(providerId, portId, {
-          op: 'row-update',
-          providerId,
-          subId,
-          rows,
-          seq: slot.streamSeq,
-        });
+        if (updateHandle) updateHandle.push(rows);
+        else sendUpdate(rows);
       },
       onError: (err) => {
         this.broadcast.sendToSubscriber(providerId, portId, {
@@ -402,7 +487,13 @@ export class Router {
       },
     });
 
-    this.streamSubs.set(subId, { subId, portId, providerId, unsubscribe: off });
+    // Compose unsubscribe so tearing down the listener also drains the
+    // buffered dispatch and cancels its timer.
+    const composedOff: Unsubscribe = () => {
+      off();
+      updateHandle?.teardown();
+    };
+    this.streamSubs.set(subId, { subId, portId, providerId, unsubscribe: composedOff });
     this.reply(port, { op: 'sub-established', reqId: req.reqId, subId });
   }
 
@@ -480,6 +571,11 @@ export class Router {
         instance,
         cache: instance.shape === 'keyed' ? new ProviderCache() : undefined,
         streamSeq: 0,
+        // Capture conflate/throttle knobs from the config for stream
+        // providers. Pulled from `config` directly rather than reading
+        // back through the provider so non-STOMP stream providers can
+        // also opt in by using the same field names.
+        streamOpts: instance.shape === 'stream' ? extractStreamOpts(config) : undefined,
       };
       if (instance.shape === 'stream') {
         await instance.provider.start();

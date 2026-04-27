@@ -32,9 +32,36 @@ export interface ConnectedClient {
 }
 
 export interface ConnectSharedWorkerOpts {
-  /** Worker name — SharedWorkers with different names are different worker instances. */
+  /**
+   * Override the SharedWorker name. SharedWorkers with different
+   * names are different worker instances; same-name workers
+   * multiplex automatically across tabs of the same origin.
+   *
+   * If omitted, the name is composed as
+   *   `sharedworker_<origin>_<appId>`
+   * so that two apps served from the same origin (or two flavours
+   * of the same app under different appIds) get distinct workers
+   * and don't share their DataProvider caches.
+   */
   name?: string;
+  /**
+   * App identifier used when composing the default name. Required
+   * unless `name` is supplied explicitly. Pass the same `appId` the
+   * platform's other surfaces use (e.g. the workspace customData
+   * `appId`) so MarketsGrid and the dock land on the same worker.
+   */
+  appId?: string;
   type?: WorkerType;
+}
+
+/**
+ * Compose the canonical SharedWorker name `sharedworker_<origin>_<appId>`.
+ * Exported so consumers (e.g. tests, alternative bootstraps) can build
+ * the same key without re-deriving the convention.
+ */
+export function buildSharedWorkerName(appId: string): string {
+  const origin = (typeof location !== 'undefined' && location.origin) || 'unknown-origin';
+  return `sharedworker_${origin}_${appId}`;
 }
 
 export function connectSharedWorker(
@@ -44,9 +71,16 @@ export function connectSharedWorker(
   if (!hasSharedWorker()) {
     throw new Error('SharedWorker is not available in this environment');
   }
+  if (!opts.name && !opts.appId) {
+    throw new Error(
+      'connectSharedWorker: pass either `name` or `appId`. Worker keys must be ' +
+      'app-scoped so distinct apps on the same origin do not share state.',
+    );
+  }
+  const name = opts.name ?? buildSharedWorkerName(opts.appId!);
   const worker = new SharedWorker(url, {
     type: opts.type ?? 'module',
-    name: opts.name ?? 'marketsui-data-plane',
+    name,
   });
   const client = new DataPlaneClient(worker.port);
   return {
