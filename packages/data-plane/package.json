@@ -26,6 +26,14 @@
     "./worker": {
       "import": "./dist/worker/index.js",
       "types": "./dist/worker/index.d.ts"
+    },
+    "./v2": {
+      "import": "./dist/v2/index.js",
+      "types": "./dist/v2/index.d.ts"
+    },
+    "./v2/worker": {
+      "import": "./dist/v2/worker/index.js",
+      "types": "./dist/v2/worker/index.d.ts"
     }
   },
   "scripts": {
