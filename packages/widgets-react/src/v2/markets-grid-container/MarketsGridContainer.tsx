@@ -245,42 +245,80 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     return defs && defs.length > 0 ? defs : null;
   }, [activeCfg]);
 
-  // Imperative grid handles + row pump.
-  const apiRef = useRef<GridApi<TData> | null>(null);
+  // ── Grid → Hub attach gating ─────────────────────────────────────
+  //
+  // We DO NOT attach to the Hub until AG-Grid has finished initialising
+  // and `onReady` has captured the live `gridApi`. Without this gate
+  // there is a race on every page reload (and on every provider
+  // switch, since the grid remounts via the `key` prop):
+  //
+  //   t=0   MarketsGrid mounts; AG-Grid starts async init
+  //   t=0+  useProviderStream's effect calls client.attach
+  //   t=ε   Hub sends `replace: true` with its cache (sub-ms over the
+  //         SharedWorker MessagePort)
+  //   t=ε   onDelta fires — but `apiRef.current` is still null because
+  //         the AG-Grid React adapter's onGridReady hasn't fired yet,
+  //         so the snapshot is silently dropped
+  //   t=Δ   onGridReady fires; api is now ready, but the snapshot ship
+  //         has sailed
+  //   t=Δ+  the next live tick arrives as `replace: false`; we
+  //         applyTransaction({update}) for ids that aren't in the grid
+  //         and AG-Grid throws error #4 ("Could not find row id")
+  //
+  // Gating attach on `gridApi` flips this around: by the time the Hub
+  // sends its replay, the grid is already initialised, so the snapshot
+  // lands as `setGridOption('rowData', rows)` exactly once on every
+  // page reload — never piecemeal as individual ticks.
+  const [gridApi, setGridApi] = useState<GridApi<TData> | null>(null);
   const onReady = useCallback((handle: MarketsGridHandle) => {
-    apiRef.current = handle.gridApi as unknown as GridApi<TData>;
+    setGridApi(handle.gridApi as unknown as GridApi<TData>);
     onReadyProp?.(handle);
   }, [onReadyProp]);
+
+  // The grid remounts when activeId/rowIdField change (key prop on
+  // MarketsGrid below). On remount, the gridApi we captured is dead;
+  // reset state so the new mount's attach waits for the new gridApi.
+  useEffect(() => {
+    setGridApi(null);
+  }, [activeId, rowIdField]);
 
   // Snapshot vs. delta dispatch. See data-plane v2 docs for the
   // detailed contract — `replace: true` is a setRowData reset; without
   // it we split each batch into add/update by `getRowNode`.
-  const stream = useProviderStream<TData>(activeId, activeCfg, {
-    onDelta: (rows, replace) => {
-      const api = apiRef.current; if (!api) return;
-      if (replace) {
-        api.setGridOption('rowData', rows.slice());
-        return;
-      }
-      if (rows.length === 0) return;
-      if (!rowIdField) {
-        api.applyTransactionAsync({ update: rows.slice() });
-        return;
-      }
-      const adds: TData[] = [];
-      const updates: TData[] = [];
-      for (const row of rows) {
-        const raw = (row as Record<string, unknown>)[rowIdField];
-        const id = raw === null || raw === undefined ? null : String(raw);
-        if (id !== null && api.getRowNode(id)) updates.push(row);
-        else adds.push(row);
-      }
-      api.applyTransactionAsync({ add: adds, update: updates });
+  //
+  // `gridApi ? activeId : null` is the gate: useProviderStream sees a
+  // null providerId until the grid is ready, so it never attaches
+  // early.
+  const stream = useProviderStream<TData>(
+    gridApi ? activeId : null,
+    gridApi ? activeCfg : null,
+    {
+      onDelta: (rows, replace) => {
+        const api = gridApi; if (!api) return; // belt + suspenders
+        if (replace) {
+          api.setGridOption('rowData', rows.slice());
+          return;
+        }
+        if (rows.length === 0) return;
+        if (!rowIdField) {
+          api.applyTransactionAsync({ update: rows.slice() });
+          return;
+        }
+        const adds: TData[] = [];
+        const updates: TData[] = [];
+        for (const row of rows) {
+          const raw = (row as Record<string, unknown>)[rowIdField];
+          const id = raw === null || raw === undefined ? null : String(raw);
+          if (id !== null && api.getRowNode(id)) updates.push(row);
+          else adds.push(row);
+        }
+        api.applyTransactionAsync({ add: adds, update: updates });
+      },
+      onStatus: (_status, error) => {
+        if (error) (onError ?? defaultOnError)(new Error(error));
+      },
     },
-    onStatus: (_status, error) => {
-      if (error) (onError ?? defaultOnError)(new Error(error));
-    },
-  });
+  );
 
   const refresh = useCallback(() => {
     if (!activeId) return;
