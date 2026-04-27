@@ -52,6 +52,25 @@ export interface AttachOpts {
   extra?: Record<string, unknown>;
 }
 
+/**
+ * Two-phase subscription handle returned by `client.subscribe(...)`.
+ *
+ * The two phases match the natural reload-time flow:
+ *   1. await `snapshot` — single Promise that resolves with the full
+ *      cache (or rejects if the provider can't deliver one).
+ *   2. register `onUpdate` — receive live ticks from now on.
+ *
+ * Updates that arrive between the snapshot resolving and `onUpdate`
+ * being registered are buffered, then flushed in order on
+ * registration — nothing is silently dropped.
+ */
+export interface SubscribeHandle<T = unknown> {
+  snapshot: Promise<readonly T[]>;
+  onUpdate(cb: (rows: readonly T[]) => void): void;
+  onStatus(cb: (status: ProviderStatus, error?: string) => void): void;
+  unsubscribe(): void;
+}
+
 interface DataSub {
   kind: 'data';
   listener: DataListener;
@@ -100,6 +119,153 @@ export class DataPlane {
       extra: opts.extra,
     });
     return subId;
+  }
+
+  /**
+   * Two-phase subscription that matches the natural mental model:
+   *
+   *   1. Reload → connect to (or create) the SharedWorker.
+   *   2. Grid requests the snapshot.
+   *   3. Worker delivers the snapshot — either from its cache, or by
+   *      starting the provider and waiting for its snapshot phase to
+   *      complete.
+   *   4. Grid applies the snapshot.
+   *   5. Grid subscribes for live updates.
+   *
+   * Returns a handle with:
+   *   • `snapshot: Promise<T[]>` — resolves with the full snapshot
+   *     once. Awaiting it is step 4 of the flow above.
+   *   • `onUpdate(cb)` — registers the live-tick callback. Called only
+   *     for post-snapshot updates. If updates arrive between snapshot
+   *     resolution and onUpdate registration, they're buffered and
+   *     flushed in order on registration.
+   *   • `onStatus(cb)` — provider status changes (loading/ready/error).
+   *   • `unsubscribe()` — tear down the subscription.
+   *
+   * Internally this rides the same wire protocol as `attach`: the
+   * Hub's first emit is always `{replace: true}` carrying the snapshot,
+   * subsequent emits are live deltas. The handle simply unbundles
+   * those two phases for the consumer so the snapshot can be awaited
+   * and the live-update path doesn't have to also know about
+   * `replace: true`.
+   */
+  subscribe<T = unknown>(
+    providerId: string,
+    cfg: ProviderConfig | undefined,
+    opts: AttachOpts = {},
+  ): SubscribeHandle<T> {
+    if (this.closed) throw new Error('[DataPlane] client is closed');
+
+    let snapshotResolve!: (rows: readonly T[]) => void;
+    let snapshotReject!: (err: Error) => void;
+    const snapshot = new Promise<readonly T[]>((resolve, reject) => {
+      snapshotResolve = resolve;
+      snapshotReject = reject;
+    });
+
+    let snapshotSettled = false; // true after resolve OR reject
+    let updateCb: ((rows: readonly T[]) => void) | null = null;
+    let statusCb: ((status: ProviderStatus, error?: string) => void) | null = null;
+    const bufferedUpdates: ReadonlyArray<T>[] = [];
+
+    // Snapshot is "the cache state at the moment the provider becomes
+    // ready". The Hub's wire protocol sends:
+    //   1. an immediate replace=true delta on attach carrying whatever
+    //      is currently in the cache (possibly empty if the provider
+    //      is still in its loading/snapshot phase);
+    //   2. one or more `status` events as the provider transitions;
+    //   3. on snapshot-end-token, another replace=true delta with the
+    //      now-populated cache, followed by `status: 'ready'`.
+    //
+    // We hold the LATEST replace=true rows in `latestSnapshotRows` and
+    // commit-resolve only when the status reaches `ready`. That way:
+    //   - subscribing to an already-ready provider resolves on the
+    //     first round-trip (delta + status:ready arrive together);
+    //   - subscribing to a still-loading provider waits past the
+    //     empty initial replay until the real snapshot lands.
+    let latestSnapshotRows: readonly T[] | null = null;
+    let currentStatus: ProviderStatus | null = null;
+    let currentError: string | undefined;
+
+    const flushBuffered = () => {
+      if (!updateCb) return;
+      while (bufferedUpdates.length > 0) {
+        const next = bufferedUpdates.shift()!;
+        updateCb(next);
+      }
+    };
+
+    const trySettleSnapshot = () => {
+      if (snapshotSettled) return;
+      if (currentStatus === 'error') {
+        snapshotSettled = true;
+        snapshotReject(new Error(currentError ?? 'Provider error'));
+        return;
+      }
+      if (currentStatus === 'ready' && latestSnapshotRows !== null) {
+        snapshotSettled = true;
+        snapshotResolve(latestSnapshotRows);
+      }
+    };
+
+    const listener: DataListener<T> = {
+      onDelta: (rows, replace) => {
+        if (replace) {
+          latestSnapshotRows = rows;
+          trySettleSnapshot();
+          return;
+        }
+        // Non-replace delta. Pre-snapshot deltas shouldn't happen
+        // under our protocol (the provider buffers during the
+        // snapshot phase and emits replace=true at the end), but if
+        // they do we queue them rather than dropping. After the
+        // snapshot is settled, deltas are live ticks.
+        if (updateCb) {
+          updateCb(rows);
+        } else {
+          bufferedUpdates.push(rows);
+        }
+      },
+      onStatus: (status, error) => {
+        currentStatus = status;
+        currentError = error;
+        trySettleSnapshot();
+        statusCb?.(status, error);
+      },
+    };
+
+    const subId = this.generateSubId();
+    this.subs.set(subId, { kind: 'data', listener: listener as DataListener });
+    this.send({
+      kind: 'attach',
+      subId,
+      providerId,
+      cfg,
+      mode: 'data',
+      extra: opts.extra,
+    });
+
+    return {
+      snapshot,
+      onUpdate: (cb) => {
+        updateCb = cb;
+        flushBuffered();
+      },
+      onStatus: (cb) => {
+        statusCb = cb;
+      },
+      unsubscribe: () => {
+        if (!this.subs.delete(subId)) return;
+        if (this.closed) return;
+        this.send({ kind: 'detach', subId });
+        // Reject the snapshot promise if it's still pending so awaiters
+        // don't hang on unmount.
+        if (!snapshotSettled) {
+          snapshotSettled = true;
+          snapshotReject(new Error('Subscription cancelled before snapshot arrived'));
+        }
+      },
+    };
   }
 
   attachStats(providerId: string, listener: StatsListener): SubId {

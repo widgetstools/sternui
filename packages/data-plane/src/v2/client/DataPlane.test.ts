@@ -158,6 +158,96 @@ describe('DataPlane client', () => {
     expect(controllers.get('c-1')!.restarts).toEqual([{ asOfDate: '2026-04-01' }]);
   });
 
+  it('subscribe() resolves the snapshot promise when the provider becomes ready, then routes updates to onUpdate', async () => {
+    const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
+    const updates: Array<readonly { id: string; x: number }[]> = [];
+    handle.onUpdate((rows) => { updates.push(rows); });
+    await flush();
+
+    // Provider's snapshot phase: rows arrive as replace=true, then
+    // status flips to ready.
+    controllers.get('c-1')!.emit({
+      rows: [{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }],
+      replace: true,
+    });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+
+    const snapshot = await handle.snapshot;
+    expect(snapshot).toHaveLength(2);
+    expect(snapshot[0]).toEqual({ id: 'r1', x: 1 });
+
+    // Subsequent live tick lands in onUpdate, NOT in the snapshot.
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r2', x: 99 }] });
+    await flush();
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toEqual([{ id: 'r2', x: 99 }]);
+
+    handle.unsubscribe();
+  });
+
+  it('subscribe() buffers updates that arrive before onUpdate is registered, flushes on registration', async () => {
+    const handle = w.client.subscribe<{ id: string; x: number }>('p1', cfg());
+    await flush();
+
+    // Snapshot delivery: rows + ready status.
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 1 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await handle.snapshot;
+
+    // Now a couple of live updates BEFORE onUpdate is registered.
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 2 }] });
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 3 }] });
+    await flush();
+
+    // Register the handler — buffered updates flush in order.
+    const seen: Array<readonly { id: string; x: number }[]> = [];
+    handle.onUpdate((rows) => { seen.push(rows); });
+
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toEqual([{ id: 'r1', x: 2 }]);
+    expect(seen[1]).toEqual([{ id: 'r1', x: 3 }]);
+
+    handle.unsubscribe();
+  });
+
+  it('subscribe() to an already-ready provider resolves immediately with the cached snapshot', async () => {
+    // Provider 1: a primer subscriber that drives the cache to ready.
+    const primer = w.client.subscribe('p1', cfg());
+    await flush();
+    controllers.get('c-1')!.emit({ rows: [{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }], replace: true });
+    controllers.get('c-1')!.emit({ status: 'ready' });
+    await primer.snapshot;
+    primer.unsubscribe();
+
+    // Provider 2: a fresh subscriber attaching AFTER ready. The Hub
+    // should replay the cache + ready status; the subscribe handle's
+    // snapshot promise should resolve without any further provider
+    // events.
+    const late = w.client.subscribe<{ id: string; x: number }>('p1');
+    const snapshot = await late.snapshot;
+    expect(snapshot).toHaveLength(2);
+    late.unsubscribe();
+  });
+
+  it('subscribe() rejects the snapshot promise when the provider emits an error before snapshot lands', async () => {
+    const handle = w.client.subscribe('p1', cfg());
+    await flush();
+
+    controllers.get('c-1')!.emit({ status: 'error', error: 'upstream blew up' });
+
+    await expect(handle.snapshot).rejects.toThrow(/upstream blew up/);
+    handle.unsubscribe();
+  });
+
+  it('subscribe().unsubscribe() rejects a pending snapshot promise so awaiters do not hang', async () => {
+    const handle = w.client.subscribe('p1', cfg());
+    await flush();
+    // Don't emit anything; just unsubscribe.
+    handle.unsubscribe();
+    await expect(handle.snapshot).rejects.toThrow(/cancelled/);
+  });
+
   it('stop() tears the provider down and surfaces error to subscribers', async () => {
     const { listener, captured } = makeListener();
     w.client.attach('p1', cfg(), listener);

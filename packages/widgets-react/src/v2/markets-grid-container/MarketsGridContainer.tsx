@@ -34,7 +34,6 @@ import { MarketsGrid } from '@marketsui/markets-grid';
 import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@marketsui/markets-grid';
 import type { StorageAdapter } from '@marketsui/core';
 import {
-  useProviderStream,
   useDataProviderConfig,
   useResolvedCfg,
   useDataProvidersList,
@@ -102,6 +101,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   } = props;
 
   const dp = useDataPlane();
+  const dpClient = dp.client;
   const appData = useAppDataStore();
 
   // ── Storage adapter ──────────────────────────────────────────────
@@ -245,112 +245,126 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     return defs && defs.length > 0 ? defs : null;
   }, [activeCfg]);
 
-  // ── Grid → Hub attach gating ─────────────────────────────────────
+  // ── Grid lifecycle: capture the gridApi when AG-Grid is ready ────
   //
-  // We DO NOT attach to the Hub until AG-Grid has finished initialising
-  // AND the api we captured belongs to the CURRENT grid (the one
-  // matching the active provider's cfg). Without this gate there is a
-  // race on every page reload (and on every provider switch, since
-  // the grid remounts via the `key` prop):
+  // The grid mounts twice across a normal session:
+  //   1. The "no provider" placeholder grid (empty cols, sentinel
+  //      rowIdField). Reachable via Alt+Shift+P so support staff can
+  //      pick a provider from the empty state.
+  //   2. The real data-attached grid, mounted with a key that includes
+  //      the provider id and key column.
   //
-  //   t=0   activeRow.cfg arrives → rowIdField flips null → real →
-  //         render switches from the "no provider" empty-grid branch
-  //         to the real branch → MarketsGrid remounts under a new key
-  //   t=0+  effects run in declaration order. A `setGridApi(null)`
-  //         reset effect schedules a re-render, but the in-progress
-  //         commit's useProviderStream effect ALREADY captured the
-  //         OLD (empty-grid) gridApi from state — and runs first,
-  //         attaching with the new providerId
-  //   t=ε   Hub posts the cached snapshot back (sub-ms when the
-  //         SharedWorker is already running with a populated cache —
-  //         exactly the page-refresh case)
-  //   t=ε+  the listener uses the STILL-EMPTY grid's api (or, after
-  //         microtask flush, no api at all because the cleanup
-  //         already ran) — the snapshot is silently dropped
-  //   t=Δ+  live ticks arrive next, the new grid is ready by then,
-  //         add/update split fires applyTransaction({add: [tick]})
-  //         for every row → the user sees rows materialise one-by-
-  //         one instead of as a single snapshot reset
-  //
-  // Gating attach on a STAMPED gridApi (one paired with the key it
-  // was created for) flips this around: an api carrying the empty
-  // grid's stamp never matches the real grid's expected key, so
-  // `liveApi` is null until the new mount's onReady fires AND
-  // setStamped commits with a matching key. By that time the grid is
-  // ready; the Hub's replay lands as exactly one
-  // `setGridOption('rowData', rows)` call. Subsequent live ticks then
-  // hit the populated grid for the add/update split.
+  // We only care about the api from mount #2. To distinguish the two
+  // we stamp the captured api with the `key` it was created for; the
+  // subscribe effect below only fires when the stamped key matches
+  // the current `expectedKey`. An onReady from the placeholder grid
+  // (where `expectedKey === null`) is a no-op stamp.
   const expectedKey = (activeId && !activeRow.loading && rowIdField && columnDefs)
     ? `${activeId}::${rowIdField}`
     : null;
 
   const [stamped, setStamped] = useState<{ key: string; api: GridApi<TData> } | null>(null);
 
-  // `expectedKeyRef` lets `onReady` read the current expected key
-  // without depending on it (which would change the callback identity
-  // every time `activeRow.loading` flips and re-fire MarketsGrid's
-  // ready effect).
   const expectedKeyRef = useRef(expectedKey);
   useEffect(() => { expectedKeyRef.current = expectedKey; }, [expectedKey]);
 
   const onReady = useCallback((handle: MarketsGridHandle) => {
     const k = expectedKeyRef.current;
-    // Only stamp when we're in the real-data branch. An onReady from
-    // the "no provider" empty-grid branch (expectedKey === null) is
-    // discarded — that grid's api isn't the one we want to attach to.
     if (k) {
       setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
     }
     onReadyProp?.(handle);
   }, [onReadyProp]);
 
-  // `liveApi` is non-null only when the stamped api's key matches the
-  // current expected key. The comparison is computed synchronously
-  // during render — no useEffect lag, no stale-state window.
   const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
 
-  // Snapshot vs. delta dispatch. See data-plane v2 docs for the
-  // detailed contract — `replace: true` is a setRowData reset; without
-  // it we split each batch into add/update by `getRowNode`.
-  const stream = useProviderStream<TData>(
-    liveApi ? activeId : null,
-    liveApi ? activeCfg : null,
-    {
-      onDelta: (rows, replace) => {
-        const api = liveApi; if (!api) return;
-        if (replace) {
-          api.setGridOption('rowData', rows.slice());
-          return;
-        }
-        if (rows.length === 0) return;
-        if (!rowIdField) {
-          api.applyTransactionAsync({ update: rows.slice() });
-          return;
-        }
-        const adds: TData[] = [];
-        const updates: TData[] = [];
-        for (const row of rows) {
-          const raw = (row as Record<string, unknown>)[rowIdField];
-          const id = raw === null || raw === undefined ? null : String(raw);
-          if (id !== null && api.getRowNode(id)) updates.push(row);
-          else adds.push(row);
-        }
-        api.applyTransactionAsync({ add: adds, update: updates });
-      },
-      onStatus: (_status, error) => {
-        if (error) (onError ?? defaultOnError)(new Error(error));
-      },
-    },
-  );
+  // ── Two-phase data flow ──────────────────────────────────────────
+  //
+  // The flow matches the natural reload-time sequence:
+  //
+  //   1. App reloads → connect to (or create) the SharedWorker.
+  //   2. Grid requests the snapshot from the worker.
+  //   3. Worker delivers it — either from its cache (hot reload), or
+  //      by starting the provider and waiting for its snapshot phase
+  //      to finish (cold reload / first load).
+  //   4. Grid applies the snapshot via setGridOption('rowData', ...).
+  //   5. Grid subscribes for live updates.
+  //
+  // `client.subscribe` returns a handle with both phases unbundled:
+  //   • `await handle.snapshot` — step 3.
+  //   • `handle.onUpdate(cb)` — step 5.
+  //
+  // Updates that arrive between snapshot resolution and onUpdate
+  // registration are buffered by the client and flushed in order on
+  // registration, so nothing is dropped.
+  //
+  // Refresh is implemented as: re-subscribe with `extra: {asOfDate}`
+  // for historical mode, or `extra: {__refresh: ts}` for live. The
+  // worker turns either into provider.restart(extra), which clears
+  // the cache and resets to 'loading' until the new snapshot arrives.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const refreshExtraRef = useRef<Record<string, unknown> | undefined>(undefined);
+
+  useEffect(() => {
+    if (!liveApi || !activeId || !activeCfg) return;
+
+    const extra = refreshExtraRef.current;
+    refreshExtraRef.current = undefined;
+    const handle = dpClient.subscribe<TData>(activeId, activeCfg, extra ? { extra } : {});
+    let cancelled = false;
+
+    handle.onStatus((_s, err) => {
+      if (err && !cancelled) (onError ?? defaultOnError)(new Error(err));
+    });
+
+    handle.snapshot
+      .then((rows) => {
+        if (cancelled) return;
+        // Phase 1 done: apply the snapshot in a single setRowData.
+        liveApi.setGridOption('rowData', rows.slice());
+        // Phase 2: live updates. Add vs update is decided per-row by
+        // `getRowNode(id)` — rows already in the grid get `update`,
+        // new rows get `add`. Both arrays go in one
+        // `applyTransactionAsync` so AG-Grid batches them in a frame.
+        handle.onUpdate((updateRows) => {
+          if (cancelled || updateRows.length === 0) return;
+          if (!rowIdField) {
+            liveApi.applyTransactionAsync({ update: updateRows.slice() });
+            return;
+          }
+          const adds: TData[] = [];
+          const updates: TData[] = [];
+          for (const row of updateRows) {
+            const raw = (row as Record<string, unknown>)[rowIdField];
+            const id = raw === null || raw === undefined ? null : String(raw);
+            if (id !== null && liveApi.getRowNode(id)) updates.push(row);
+            else adds.push(row);
+          }
+          liveApi.applyTransactionAsync({ add: adds, update: updates });
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+      });
+
+    return () => {
+      cancelled = true;
+      handle.unsubscribe();
+    };
+    // `refreshTick` is a deliberate trigger: bumping it tears down
+    // the current handle and re-subscribes with whatever
+    // `refreshExtraRef.current` was set to before the bump.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveApi, activeId, activeCfg, rowIdField, dpClient, onError, refreshTick]);
 
   const refresh = useCallback(() => {
     if (!activeId) return;
-    if (selection.mode === 'historical' && asOfDate) {
-      stream.refresh({ asOfDate });
-    } else {
-      stream.refresh();
-    }
-  }, [activeId, selection.mode, asOfDate, stream]);
+    refreshExtraRef.current = (selection.mode === 'historical' && asOfDate)
+      ? { asOfDate }
+      : { __refresh: Date.now() };
+    setRefreshTick((t) => t + 1);
+  }, [activeId, selection.mode, asOfDate]);
 
   // ── Toolbar slot content ──────────────────────────────────────────
   //
