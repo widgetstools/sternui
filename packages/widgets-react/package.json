@@ -19,6 +19,10 @@
     "./v2/markets-grid-container": {
       "import": "./dist/v2/markets-grid-container/index.js",
       "types": "./dist/v2/markets-grid-container/index.d.ts"
+    },
+    "./v2/provider-editor": {
+      "import": "./dist/v2/provider-editor/index.js",
+      "types": "./dist/v2/provider-editor/index.d.ts"
     }
   },
   "scripts": {
