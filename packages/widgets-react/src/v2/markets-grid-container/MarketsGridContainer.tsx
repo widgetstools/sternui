@@ -305,8 +305,23 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [refreshTick, setRefreshTick] = useState(0);
   const refreshExtraRef = useRef<Record<string, unknown> | undefined>(undefined);
 
+  // Render-time log of the gating inputs so you can see WHY the
+  // subscribe effect isn't firing yet (or that it IS gated correctly
+  // and waiting for the missing piece). Logs every render — fine,
+  // grids don't render hundreds of times on their own.
+  // eslint-disable-next-line no-console
+  console.log(
+    `[v2/grid] render gate: loaded=%s liveApi=%s activeId=%s rowIdField=%s columnDefs=%s cfgLoaded=%s pickerVisible=%s`,
+    loaded, Boolean(liveApi), activeId, rowIdField, Boolean(columnDefs), Boolean(activeCfg), pickerVisible,
+  );
+
   useEffect(() => {
-    if (!liveApi || !activeId || !activeCfg) return;
+    if (!liveApi || !activeId || !activeCfg) {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/grid]   subscribe effect skipped: liveApi=%s activeId=%s activeCfg=%s`,
+        Boolean(liveApi), activeId, Boolean(activeCfg));
+      return;
+    }
 
     const extra = refreshExtraRef.current;
     refreshExtraRef.current = undefined;
