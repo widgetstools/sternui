@@ -25,3 +25,4 @@ export {
   type StompConnectionConfig,
   type StompConnectionResult,
 } from './StompDataProvider';
+export { RestDataProvider, type RestFetchFn, type RestProviderOpts } from './RestDataProvider';

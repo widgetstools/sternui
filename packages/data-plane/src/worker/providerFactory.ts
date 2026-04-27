@@ -26,11 +26,13 @@ import type {
   MockProviderConfig,
   ProviderConfig,
   ProviderType,
+  RestProviderConfig,
   StompProviderConfig,
 } from '@marketsui/shared-types';
 import { AppDataProvider, type AppDataPersistenceHooks } from '../providers/AppDataProvider';
 import { MockProvider } from '../providers/MockProvider';
 import type { ProviderBase } from '../providers/ProviderBase';
+import { RestDataProvider } from '../providers/RestDataProvider';
 import type { StreamProviderBase } from '../providers/StreamProviderBase';
 import {
   StompStreamProvider,
@@ -95,9 +97,13 @@ export function buildDefaultProviderFactory(opts?: {
         await p.configure(config as StompProviderConfig);
         return { shape: 'stream', provider: p };
       }
+      case 'rest': {
+        const p = new RestDataProvider(providerId);
+        await p.configure(config as RestProviderConfig);
+        return { shape: 'stream', provider: p };
+      }
       case 'websocket':
       case 'socketio':
-      case 'rest':
         throw new Error(
           `Provider type '${type}' is not implemented in the default factory. ` +
           'Wrap defaultProviderFactory to add it (see providerFactory.ts doc).',
@@ -129,9 +135,13 @@ export const defaultProviderFactory: ProviderFactory = async (providerId, config
       await p.configure(config as StompProviderConfig);
       return { shape: 'stream', provider: p };
     }
+    case 'rest': {
+      const p = new RestDataProvider(providerId);
+      await p.configure(config as RestProviderConfig);
+      return { shape: 'stream', provider: p };
+    }
     case 'websocket':
     case 'socketio':
-    case 'rest':
       throw new Error(
         `Provider type '${type}' is not implemented in the default factory. ` +
         'Wrap defaultProviderFactory to add it (see providerFactory.ts doc).',

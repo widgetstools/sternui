@@ -164,6 +164,24 @@ export interface RestProviderConfig {
     headerName?: string;
   };
   timeout?: number;
+  /**
+   * Required for streaming consumers (MarketsGrid). The column whose
+   * value uniquely identifies a row — drives RowCache upsert + AG-Grid
+   * `getRowId`.
+   */
+  keyColumn?: string;
+  /**
+   * Path inside the JSON response that holds the rows array.
+   * Dot notation; e.g. `data.results`. Default: response is the
+   * rows array directly.
+   */
+  rowsPath?: string;
+  /** Persisted schema introspection — see StompProviderConfig. */
+  inferredFields?: FieldInfo[];
+  columnDefinitions?: ColumnDefinition[];
+  /** See StompProviderConfig — same fanout knobs apply. */
+  conflateByKey?: string;
+  throttleMs?: number;
 }
 
 /**
