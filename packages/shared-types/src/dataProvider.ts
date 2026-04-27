@@ -125,6 +125,23 @@ export interface StompProviderConfig {
    * The conflation window above only takes effect when this is set.
    */
   throttleMs?: number;
+  /**
+   * Reconnect policy. Today only `initialDelayMs` is honoured (it
+   * becomes the stompjs `reconnectDelay`); full exponential backoff +
+   * jitter + maxAttempts requires bypassing stompjs's auto-reconnect
+   * and is tracked as a follow-up. The fields are reserved here so
+   * configurators can author them now without a schema migration.
+   */
+  reconnect?: {
+    /** Static reconnect delay in ms. Default 5000 (matches prior behaviour). */
+    initialDelayMs?: number;
+    /** Reserved for exp-backoff implementation. Currently ignored. */
+    maxDelayMs?: number;
+    /** Reserved for exp-backoff implementation. Currently ignored. */
+    jitter?: 'full' | 'equal' | 'none';
+    /** Reserved for exp-backoff implementation. Currently ignored. */
+    maxAttempts?: number;
+  };
 }
 
 /**

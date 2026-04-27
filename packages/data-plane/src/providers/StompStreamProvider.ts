@@ -135,7 +135,14 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
     return new Promise((resolve, reject) => {
       const client = this.createClient({
         brokerURL: cfg.websocketUrl,
-        reconnectDelay: 5000,
+        // Honour the configured static reconnect delay if set; default
+        // to 5s (the historical hardcoded value). Full exponential
+        // backoff + jitter requires bypassing stompjs's built-in
+        // reconnect and is tracked as a follow-up — the other
+        // `reconnect` fields (maxDelayMs/jitter/maxAttempts) are
+        // reserved in the schema so configurators can author them
+        // without waiting on the implementation.
+        reconnectDelay: cfg.reconnect?.initialDelayMs ?? 5000,
         heartbeatIncoming: cfg.heartbeat?.incoming ?? 4000,
         heartbeatOutgoing: cfg.heartbeat?.outgoing ?? 4000,
         debug: (msg) => {
