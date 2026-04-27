@@ -70,6 +70,7 @@ export {
   connectSharedWorker,
   connectDedicatedWorker,
   connectInPage,
+  buildSharedWorkerName,
   hasSharedWorker,
   hasDedicatedWorker,
   type KeyedUpdateEvent,

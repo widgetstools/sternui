@@ -14,6 +14,7 @@ export {
   connectSharedWorker,
   connectDedicatedWorker,
   connectInPage,
+  buildSharedWorkerName,
   type ConnectOpts,
   type ConnectSharedWorkerOpts,
   type ConnectDedicatedWorkerOpts,
