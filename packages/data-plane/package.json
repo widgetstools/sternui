@@ -34,6 +34,10 @@
     "./v2/worker": {
       "import": "./dist/v2/worker/index.js",
       "types": "./dist/v2/worker/index.d.ts"
+    },
+    "./v2/client": {
+      "import": "./dist/v2/client/index.js",
+      "types": "./dist/v2/client/index.d.ts"
     }
   },
   "scripts": {
