@@ -27,14 +27,29 @@ function App() {
         <Card>
           <CardHeader>
             <CardTitle>Blotters</CardTitle>
-            <CardDescription>Hosted MarketsGrid instances</CardDescription>
+            <CardDescription>Hosted MarketsGrid instances — bind one to a saved DataProvider to see rows.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Link
               to="/blotters/marketsgrid"
               className="text-sm text-primary hover:underline"
             >
-              /blotters/marketsgrid &mdash; MarketsGrid sample blotter (DexieAdapter, 500 orders)
+              /blotters/marketsgrid &mdash; MarketsGrid blotter (data plane &middot; pick a provider)
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Administration</CardTitle>
+            <CardDescription>Author and manage shared DataProvider configurations.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Link
+              to="/dataproviders"
+              className="text-sm text-primary hover:underline"
+            >
+              /dataproviders &mdash; Create / edit STOMP, REST, Mock and AppData providers
             </Link>
           </CardContent>
         </Card>

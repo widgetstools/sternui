@@ -20,6 +20,10 @@ const ConfigBrowser   = React.lazy(() => import("./views/ConfigBrowser"));
 // AG-Grid bundle (~1 MB) stays out of the shell's initial load.
 const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid"));
 
+// DataProviders admin page — hosts <DataProviderEditor>. Lazy so the
+// React-Query + provider-editor bundle stays out of the shell.
+const DataProviders = React.lazy(() => import("./views/DataProviders"));
+
 // ImportConfig lives in the @marketsui/dock-editor package (not a local view file).
 // The .then() unwraps the named export into the default export shape that
 // React.lazy() requires.
@@ -67,6 +71,17 @@ root.render(
             element={
               <React.Suspense fallback={LOADING}>
                 <BlottersMarketsGrid />
+              </React.Suspense>
+            }
+          />
+
+          {/* DataProvider admin — author STOMP / REST / Mock providers
+              that any blotter in this app can later bind to. */}
+          <Route
+            path="/dataproviders"
+            element={
+              <React.Suspense fallback={LOADING}>
+                <DataProviders />
               </React.Suspense>
             }
           />

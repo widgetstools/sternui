@@ -17,12 +17,23 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
+import { useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DataPlaneProvider } from '@marketsui/data-plane-react';
+import { dataProviderConfigService } from '@marketsui/data-plane';
 import { DataProviderSelector } from '@marketsui/widgets-react';
 import { MarketsGridContainer } from '@marketsui/widgets-react/markets-grid-container';
 import { useTheme } from '../context/ThemeContext';
 import { HostedComponent } from '../components/HostedComponent';
+
+// Bootstrap the config service against the configured backend so the
+// <DataProviderSelector>'s `listVisible` query lands on the right URL.
+// Mirrors what /views/DataProviders does so either entry point is
+// independently usable.
+const PROVIDER_API_URL =
+  (import.meta.env.VITE_DATA_PROVIDER_API_URL as string | undefined) ||
+  'http://localhost:3001';
+dataProviderConfigService.configure({ apiUrl: PROVIDER_API_URL });
 
 // ─── Default columns ──────────────────────────────────────────────────
 //
@@ -173,9 +184,23 @@ interface BlotterShellProps {
 function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps) {
   const { isDark } = useTheme();
   const agTheme = isDark ? darkTheme : lightTheme;
+  const navigate = useNavigate();
 
   const [providerId, setProviderIdState] = useState<string | null>(() => loadProviderId(instanceId));
   const [rowIdField, setRowIdFieldState] = useState<string>(() => loadRowIdField(instanceId));
+
+  // Hand off authoring to /dataproviders. We pass the picker's current
+  // intent (`new` or the providerId being edited) as a query param so
+  // a future enhancement can deep-link straight to the right row; the
+  // editor ignores unknown params today and just lands on its empty
+  // state, which is acceptable for the round-trip.
+  const goToEditor = useCallback(
+    (intent: 'new' | string) => {
+      const qs = intent === 'new' ? '?intent=new' : `?intent=edit&providerId=${encodeURIComponent(intent)}`;
+      navigate(`/dataproviders${qs}`);
+    },
+    [navigate],
+  );
 
   const setProviderId = useCallback(
     (next: string | null) => {
@@ -214,6 +239,8 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
             value={providerId}
             onChange={setProviderId}
             placeholder="Pick a data provider…"
+            onCreate={() => goToEditor('new')}
+            onEdit={(p) => goToEditor(p.providerId ?? 'new')}
           />
         </div>
         <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
