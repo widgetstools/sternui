@@ -17,3 +17,17 @@ export {
   useDeleteDataProvider,
   dataProviderKeys,
 } from './hooks/useDataProviderQueries.js';
+
+// ─── Column registry (formatters + cell renderers) ─────────────
+export {
+  FORMATTERS,
+  CELL_RENDERERS,
+  DEFAULT_FORMATTER_BY_TYPE,
+  DEFAULT_RENDERER_BY_TYPE,
+  formattersFor,
+  renderersFor,
+  defaultColumnFor,
+  type FormatterOption,
+  type CellRendererOption,
+  type CellDataType,
+} from './columnRegistry.js';
