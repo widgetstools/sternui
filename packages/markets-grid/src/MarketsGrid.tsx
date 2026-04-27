@@ -144,6 +144,9 @@ function MarketsGridInner<TData = unknown>(
     storage,
     onReady,
     adminActions,
+    gridLevelData,
+    onGridLevelDataLoad,
+    headerExtras,
   } = props;
 
   ensureAgGridRegistered();
@@ -233,6 +236,9 @@ function MarketsGridInner<TData = unknown>(
         forwardedRef={ref}
         onReady={onReady}
         adminActions={adminActions}
+        gridLevelData={gridLevelData}
+        onGridLevelDataLoad={onGridLevelDataLoad}
+        headerExtras={headerExtras}
       />
     </GridProvider>
   );
@@ -278,6 +284,9 @@ function Host<TData>({
   forwardedRef,
   onReady,
   adminActions,
+  gridLevelData,
+  onGridLevelDataLoad,
+  headerExtras,
 }: {
   rowData: TData[];
   columnDefs: unknown[];
@@ -307,6 +316,9 @@ function Host<TData>({
   forwardedRef: ForwardedRef<MarketsGridHandle>;
   onReady: ((handle: MarketsGridHandle) => void) | undefined;
   adminActions: AdminAction[] | undefined;
+  gridLevelData: unknown;
+  onGridLevelDataLoad: ((data: unknown) => void) | undefined;
+  headerExtras: import('react').ReactNode;
 }) {
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
@@ -314,6 +326,65 @@ function Host<TData>({
   // apps should pass `new DexieAdapter()`.
   const adapterRef = useRef<StorageAdapter | null>(null);
   if (!adapterRef.current) adapterRef.current = storageAdapter ?? new MemoryAdapter();
+
+  // ── Grid-level data persistence ───────────────────────────────────
+  //
+  // Read once on mount, hand the loaded value back to the consumer via
+  // `onGridLevelDataLoad`, then watch the `gridLevelData` prop for
+  // changes and write them through the adapter. Optional adapter
+  // method (`loadGridLevelData?`) — when missing, we silently no-op
+  // both reads and writes so older third-party adapters keep working.
+  //
+  // The `lastPersistedRef` comparison handles two edge cases:
+  //   1. React StrictMode's double-effect fires the persist effect on
+  //      the second setup with the just-loaded value still in the
+  //      prop. Without the comparison we'd write that value back to
+  //      disk on mount.
+  //   2. Round-trips A → B → A still emit, because each transition
+  //      differs from the previously-persisted snapshot.
+  const onGridLevelDataLoadRef = useRef(onGridLevelDataLoad);
+  useEffect(() => { onGridLevelDataLoadRef.current = onGridLevelDataLoad; }, [onGridLevelDataLoad]);
+  const lastPersistedRef = useRef<unknown>(undefined);
+  const initialLoadRef = useRef(false);
+  useEffect(() => {
+    if (initialLoadRef.current) return;
+    initialLoadRef.current = true;
+    const adapter = adapterRef.current;
+    if (!adapter?.loadGridLevelData) {
+      lastPersistedRef.current = null;
+      onGridLevelDataLoadRef.current?.(null);
+      return;
+    }
+    let cancelled = false;
+    void adapter
+      .loadGridLevelData(gridId)
+      .then((loaded) => {
+        if (cancelled) return;
+        lastPersistedRef.current = loaded;
+        onGridLevelDataLoadRef.current?.(loaded);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        lastPersistedRef.current = null;
+        onGridLevelDataLoadRef.current?.(null);
+      });
+    return () => { cancelled = true; };
+    // gridId is stable per-mount; we deliberately don't depend on the
+    // prop or the load-callback (both captured via refs).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Skip until the initial load has resolved — otherwise the first
+    // render's `gridLevelData` prop (typically `null`/`undefined`)
+    // would race the load and clobber persisted state.
+    if (!initialLoadRef.current) return;
+    if (lastPersistedRef.current === gridLevelData) return;
+    const adapter = adapterRef.current;
+    if (!adapter?.saveGridLevelData) return;
+    lastPersistedRef.current = gridLevelData;
+    void adapter.saveGridLevelData(gridId, gridLevelData);
+  }, [gridLevelData, gridId]);
 
   // Profiles are explicit-save-only. Auto-save used to debounce every
   // keystroke into the active profile; that was confusing in practice —
@@ -501,6 +572,20 @@ function Host<TData>({
       style={rootStyle}
       data-grid-id={gridId}
     >
+      {/* Header extras — slot for consumer-supplied chrome that needs
+           to live INSIDE the grid's frame but ABOVE the filters/format
+           toolbars. The v2 data-plane container uses this for the
+           data-provider picker (live + historical, mode toggle, refresh,
+           edit). Hidden by default in v2; revealed only via Alt+Shift+P
+           — a developer/support affordance, not surfaced to end users. */}
+      {headerExtras ? (
+        <div
+          className="gc-toolbar-primary gc-primary-row"
+          data-grid-header-extras
+        >
+          {headerExtras}
+        </div>
+      ) : null}
       {showToolbar && (
         <div className="gc-toolbar-primary gc-primary-row">
           {/* LEFT — filters carousel (flex:1, collapses/expands via its

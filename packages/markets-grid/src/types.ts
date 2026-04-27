@@ -142,6 +142,48 @@ export interface MarketsGridProps<TData = unknown> {
    * knows nothing about roles or permissions.
    */
   adminActions?: AdminAction[];
+
+  /**
+   * Opaque, top-level data persisted alongside the grid's profile-set
+   * in the same backing storage row — but at the grid level, NOT
+   * inside any particular profile. Used for state that must survive
+   * profile switches (e.g. v2's data-provider selection:
+   * `{ liveProviderId, historicalProviderId, mode }`).
+   *
+   * Treat this as a controlled prop: pass the current value in via
+   * `gridLevelData`, receive the persisted value once via
+   * `onGridLevelDataLoad`. MarketsGrid persists every subsequent
+   * change to the prop via the configured storage adapter.
+   *
+   * Shape is opaque to MarketsGrid — consumers own the type. Set to
+   * `null`/`undefined` to express "no value persisted yet".
+   */
+  gridLevelData?: unknown;
+
+  /**
+   * Fires once on mount after the storage adapter has resolved the
+   * persisted grid-level-data value. Receives `null` when no value
+   * has been written yet (or when the adapter doesn't implement
+   * `loadGridLevelData`).
+   *
+   * Consumers typically `setState(loaded)` here to reconcile the
+   * controlled `gridLevelData` prop with what's on disk.
+   */
+  onGridLevelDataLoad?: (data: unknown) => void;
+
+  /**
+   * Slot rendered in the grid's primary toolbar row, BEFORE the
+   * filters/formatting toolbars. Used by `<MarketsGridContainer>` to
+   * mount the data-provider toolbar (live/historical pickers, mode
+   * toggle, refresh, edit) so it lives inside the grid's own chrome
+   * rather than as a separate strip above it. Anything renderable;
+   * `undefined` collapses the slot.
+   *
+   * The slot is hidden by default in v2 — the container only mounts
+   * its toolbar when the user reveals it via the Alt+Shift+P chord
+   * (a developer/support affordance, not surfaced to end users).
+   */
+  headerExtras?: import('react').ReactNode;
 }
 
 /**

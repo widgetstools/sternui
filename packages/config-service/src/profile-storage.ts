@@ -76,10 +76,18 @@ export const MARKETS_GRID_PROFILE_COMPONENT_TYPE = MARKETS_GRID_PROFILE_SET_COMP
  *  another tab / device: on save we read the current row's version,
  *  write `expected + 1`, and throw `ProfileSetVersionConflictError` if
  *  the row's version has moved on. Rows predating the version field
- *  are treated as version 0 and self-heal on the first save. */
+ *  are treated as version 0 and self-heal on the first save.
+ *
+ *  `gridLevelData` is an opaque, top-level field used for state that
+ *  needs to survive profile switches (e.g. the v2 data-provider
+ *  selection — `{ liveProviderId, historicalProviderId, mode }`). It's
+ *  optional so older rows written before the field existed continue to
+ *  load cleanly. The adapter never inspects the value; consumers own
+ *  its type via `<MarketsGrid gridLevelData={...}>`. */
 interface ProfileSetPayload {
   version: number;
   profiles: ProfileSnapshot[];
+  gridLevelData?: unknown;
 }
 
 /**
@@ -259,7 +267,8 @@ export function createConfigServiceStorage(
         // Load the existing bundle, then upsert the snapshot and
         // write back. The expected-version from the load is threaded
         // into saveSet so a second writer that landed in between
-        // gets caught on the version-compare.
+        // gets caught on the version-compare. `gridLevelData` is
+        // preserved verbatim — saving a profile must not clobber it.
         const loaded = await loadSet();
         const expectedVersion = loaded?.version ?? 0;
         const profiles = loaded?.profiles ?? [];
@@ -269,7 +278,10 @@ export function createConfigServiceStorage(
         } else {
           profiles.push(snapshot);
         }
-        await saveSet({ version: expectedVersion, profiles }, expectedVersion);
+        await saveSet(
+          { version: expectedVersion, profiles, gridLevelData: loaded?.gridLevelData },
+          expectedVersion,
+        );
       },
 
       async deleteProfile(gridId: string, profileId: string): Promise<void> {
@@ -278,13 +290,38 @@ export function createConfigServiceStorage(
         if (!loaded) return;
         const filtered = loaded.profiles.filter((p) => p.id !== profileId);
         if (filtered.length === loaded.profiles.length) return; // not found; no-op
-        await saveSet({ version: loaded.version, profiles: filtered }, loaded.version);
+        await saveSet(
+          { version: loaded.version, profiles: filtered, gridLevelData: loaded.gridLevelData },
+          loaded.version,
+        );
       },
 
       async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
         void gridId;
         const set = await loadSet();
         return set?.profiles ?? [];
+      },
+
+      async loadGridLevelData(gridId: string): Promise<unknown | null> {
+        void gridId;
+        const set = await loadSet();
+        return set?.gridLevelData ?? null;
+      },
+
+      async saveGridLevelData(gridId: string, data: unknown): Promise<void> {
+        void gridId;
+        // Read-modify-write the same bundled row. Keep profiles and
+        // version intact — only the `gridLevelData` field changes.
+        const loaded = await loadSet();
+        const expectedVersion = loaded?.version ?? 0;
+        await saveSet(
+          {
+            version: expectedVersion,
+            profiles: loaded?.profiles ?? [],
+            gridLevelData: data,
+          },
+          expectedVersion,
+        );
       },
     };
   };
@@ -313,14 +350,17 @@ function isProfileSetRow(
  *  adapter writes a proper version field. No explicit migration
  *  pass required. */
 function normalizePayload(payload: unknown): ProfileSetPayload {
-  const p = payload as { profiles?: unknown; version?: unknown } | null | undefined;
+  const p = payload as { profiles?: unknown; version?: unknown; gridLevelData?: unknown } | null | undefined;
   const arr = Array.isArray(p?.profiles) ? p.profiles : [];
   const profiles: ProfileSnapshot[] = [];
   for (const raw of arr) {
     const snap = normalizeSnapshot(raw);
     if (snap) profiles.push(snap);
   }
-  return { version: readVersion(p), profiles };
+  // `gridLevelData` is intentionally opaque — pass through whatever the
+  // row carried (or undefined). Pre-`gridLevelData` rows omit the field
+  // and self-heal on the next saveGridLevelData call.
+  return { version: readVersion(p), profiles, gridLevelData: p?.gridLevelData };
 }
 
 /** Pull the `version` number out of a payload, tolerating the pre-

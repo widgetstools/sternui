@@ -1,32 +1,38 @@
 /**
  * MarketsGridContainer — v2.
  *
- * Replaces v1's 415-LOC container. Same imperative grid integration
- * (setRowData on replace, applyTransactionAsync({update}) on delta),
- * but driven by a much smaller substrate:
- *
  *   - Two providers in the picker, ONE active at a time.
- *   - Active provider's cfg is read from ConfigManager, then walked
- *     through `useResolvedCfg` to substitute `{{appdata.key}}`
- *     templates against the live AppData snapshot. When a templated
- *     key changes, the cfg identity flips, the hook re-attaches, and
- *     the Hub turns the second attach into a `provider.restart(extra)`.
- *   - Toolbar hidden by default. Shift+Ctrl+P toggles it. The
- *     listener is scoped to the container's root div so it doesn't
- *     fire across other routes.
- *   - Refresh button calls `useProviderStream`'s refresh(), which
- *     wraps a fresh `attach` with `extra: { __refresh: ts }`.
+ *   - Picker toolbar is mounted INSIDE MarketsGrid via the
+ *     `headerExtras` slot — it lives inside the grid's own chrome,
+ *     not as a separate strip above it.
+ *   - Toolbar visibility is dev-only, gated by Alt+Shift+P. The
+ *     chord, the toolbar, and the very existence of the picker are
+ *     intentionally NOT documented in the UI: end users see only the
+ *     configured grid; support staff toggle the toolbar to reconfigure.
+ *   - Provider selection persists at the GRID level (not per-profile)
+ *     in the SAME storage row MarketsGrid uses for its profile-set,
+ *     via the StorageAdapter's `loadGridLevelData / saveGridLevelData`
+ *     methods. Profile switches preserve the selection because it's
+ *     not stored in any individual profile.
  *
- * The grid is gated on a resolved cfg + non-null keyColumn — AG-Grid's
- * `getRowId` is an INITIAL property and we avoid mounting until we
- * know what to set it to. Swapping providers (different keyColumn)
- * remounts via the `key` prop.
+ *   Persistence flow:
+ *     - Container resolves the storage adapter from
+ *       `props.storage({ instanceId, appId, userId })` once on mount.
+ *     - Reads `loadGridLevelData(gridId)`; while pending, renders a
+ *       small loading state. This guarantees MarketsGrid mounts
+ *       exactly once with the correct rowIdField for the persisted
+ *       provider — no remount-on-load loop.
+ *     - On every selection mutation, calls `saveGridLevelData(gridId,
+ *       selection)`. The adapter writes back to the same bundled row
+ *       that holds the profile-set (top-level field, not nested in a
+ *       profile).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@marketsui/markets-grid';
-import type { MarketsGridProps, MarketsGridHandle } from '@marketsui/markets-grid';
+import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@marketsui/markets-grid';
+import type { StorageAdapter } from '@marketsui/core';
 import {
   useProviderStream,
   useDataProviderConfig,
@@ -42,11 +48,7 @@ import { useChordHotkey } from './useChordHotkey.js';
 const EMPTY: never[] = [];
 
 export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
-  extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField' | 'columnDefs'> {
-  /** Initial live provider id. May be null until the user picks. */
-  initialLiveProviderId?: string | null;
-  /** Initial historical provider id. Optional. */
-  initialHistoricalProviderId?: string | null;
+  extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField' | 'columnDefs' | 'gridLevelData' | 'onGridLevelDataLoad' | 'headerExtras'> {
   /**
    * Where to write the historical date when the user picks one.
    * Format: `'appDataProviderName.key'` — e.g. `'positions.asOfDate'`.
@@ -55,8 +57,6 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    * Required when a historical provider is supplied.
    */
   historicalDateAppDataRef?: string;
-  /** Mode to start in. Defaults to `'live'`. */
-  initialMode?: ProviderMode;
   /**
    * Called when the user clicks the toolbar's Edit button. The
    * consumer is expected to open the editor (typically as a popout
@@ -65,35 +65,38 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
   onEditProvider?(providerId: string): void;
   /** Surface stream errors. Defaults to console.error. */
   onError?(error: Error): void;
-  /**
-   * Called whenever the user mutates the provider selection (live id,
-   * historical id, or mode). Fires on change only — never on the
-   * initial sync from the `initial*` props. Consumers persist this
-   * payload so the grid restores the same selection on next mount.
-   * `asOfDate` lives in AppData (driven by `historicalDateAppDataRef`)
-   * and is intentionally NOT included here.
-   */
-  onSelectionChange?(selection: ProviderSelection): void;
 }
 
-/** Persisted picker state — what `onSelectionChange` carries. */
+/** Persisted picker state. Stored as MarketsGrid's `gridLevelData`. */
 export interface ProviderSelection {
   liveProviderId: string | null;
   historicalProviderId: string | null;
   mode: ProviderMode;
 }
 
+const DEFAULT_SELECTION: ProviderSelection = {
+  liveProviderId: null,
+  historicalProviderId: null,
+  mode: 'live',
+};
+
+function normalizeSelection(raw: unknown): ProviderSelection {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_SELECTION };
+  const v = raw as Partial<ProviderSelection>;
+  return {
+    liveProviderId: typeof v.liveProviderId === 'string' ? v.liveProviderId : null,
+    historicalProviderId: typeof v.historicalProviderId === 'string' ? v.historicalProviderId : null,
+    mode: v.mode === 'historical' ? 'historical' : 'live',
+  };
+}
+
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
   props: MarketsGridContainerProps<TData>,
 ) {
   const {
-    initialLiveProviderId = null,
-    initialHistoricalProviderId = null,
     historicalDateAppDataRef,
-    initialMode = 'live',
     onEditProvider,
     onError,
-    onSelectionChange,
     onReady: onReadyProp,
     ...marketsGridProps
   } = props;
@@ -101,81 +104,122 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const dp = useDataPlane();
   const appData = useAppDataStore();
 
-  // Picker state — toolbar hidden by default.
+  // ── Storage adapter ──────────────────────────────────────────────
+  //
+  // Same factory MarketsGrid uses for profile persistence; we resolve
+  // a copy here to read/write the grid-level-data field of the same
+  // row. Memoised on the identity-affecting tuple so a userId swap
+  // (rare) rebuilds the adapter cleanly.
+  const storageFactory = (props as { storage?: StorageAdapterFactory }).storage;
+  const adapter = useMemo<StorageAdapter | null>(() => {
+    if (!storageFactory) return null;
+    const instanceId = props.instanceId ?? props.gridId;
+    return storageFactory({
+      instanceId,
+      appId: props.appId,
+      userId: props.userId,
+    });
+  }, [storageFactory, props.instanceId, props.gridId, props.appId, props.userId]);
+
+  // ── Picker state ──────────────────────────────────────────────────
+  //
+  // `loaded === false` while we wait for the first load. Once it
+  // flips, MarketsGrid mounts with the persisted selection in place
+  // — no second mount required when the load resolves.
+  const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
+  const [loaded, setLoaded] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [liveId, setLiveId] = useState<string | null>(initialLiveProviderId);
-  const [historicalId, setHistoricalId] = useState<string | null>(initialHistoricalProviderId);
-  const [mode, setMode] = useState<ProviderMode>(initialMode);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
 
-  // Persistence: notify the consumer whenever the selection differs
-  // from what we last sent. We compare against a `lastSaved` ref
-  // (seeded from the `initial*` props) instead of "skip the first
-  // run", which would mis-fire under React StrictMode's double-effect
-  // — refs survive the simulated unmount/remount, so a flag-based
-  // guard ends up emitting on the second setup with the initial
-  // values.
-  //
-  // Comparing against `lastSaved` also handles "user reverts to
-  // original value" correctly: the round-trip A → B → A still emits
-  // both transitions because each one differs from the previous
-  // saved snapshot.
-  //
-  // We intentionally do NOT include `asOfDate` here: it's mirrored
-  // into AppData via `historicalDateAppDataRef` and persists through
-  // that channel. Including it would force two writes per date pick.
-  const onSelectionChangeRef = useRef(onSelectionChange);
-  useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
-  const lastSavedRef = useRef<ProviderSelection>({
-    liveProviderId: initialLiveProviderId,
-    historicalProviderId: initialHistoricalProviderId,
-    mode: initialMode,
-  });
+  // Initial load. If the adapter doesn't implement grid-level data
+  // (older third-party adapters), or there's no adapter at all, we
+  // fall through to the default selection and mark as loaded.
   useEffect(() => {
-    const last = lastSavedRef.current;
+    let cancelled = false;
+    if (!adapter?.loadGridLevelData) {
+      setLoaded(true);
+      return;
+    }
+    void adapter
+      .loadGridLevelData(props.gridId)
+      .then((raw) => {
+        if (cancelled) return;
+        setSelection(normalizeSelection(raw));
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSelection({ ...DEFAULT_SELECTION });
+        setLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [adapter, props.gridId]);
+
+  // Persist on mutation. `lastSavedRef` skips the initial sync when
+  // `loaded` flips (selection just came FROM disk; saving back would
+  // be a no-op write) AND handles React StrictMode's double-effect
+  // correctly across remounts.
+  const lastSavedRef = useRef<ProviderSelection | null>(null);
+  useEffect(() => {
+    if (!loaded) return;
+    // First post-load run: seed lastSaved with whatever just loaded
+    // and bail out — no need to write the value we just read.
+    if (lastSavedRef.current === null) {
+      lastSavedRef.current = selection;
+      return;
+    }
     if (
-      liveId === last.liveProviderId &&
-      historicalId === last.historicalProviderId &&
-      mode === last.mode
+      lastSavedRef.current.liveProviderId === selection.liveProviderId
+      && lastSavedRef.current.historicalProviderId === selection.historicalProviderId
+      && lastSavedRef.current.mode === selection.mode
     ) {
       return;
     }
-    const next: ProviderSelection = {
-      liveProviderId: liveId,
-      historicalProviderId: historicalId,
-      mode,
-    };
-    lastSavedRef.current = next;
-    onSelectionChangeRef.current?.(next);
-  }, [liveId, historicalId, mode]);
+    lastSavedRef.current = selection;
+    if (adapter?.saveGridLevelData) {
+      void adapter.saveGridLevelData(props.gridId, selection);
+    }
+  }, [selection, loaded, adapter, props.gridId]);
 
-  // List of available providers per slot. Subtype filter could be
-  // tightened (live=stomp, historical=rest) but keeping it open is
-  // friendlier — the user might want a Mock for either slot in dev.
-  const liveList = useDataProvidersList();
-  const histList = useDataProvidersList();
+  const setLiveId = useCallback((id: string | null) => {
+    setSelection((s) => ({ ...s, liveProviderId: id }));
+  }, []);
+  const setHistoricalId = useCallback((id: string | null) => {
+    setSelection((s) => ({ ...s, historicalProviderId: id }));
+  }, []);
+  const setMode = useCallback((mode: ProviderMode) => {
+    setSelection((s) => ({ ...s, mode }));
+  }, []);
 
-  // Hotkey: toggle the toolbar globally while the container is mounted.
-  // The listener attaches to document so it fires regardless of focus
-  // (the grid often has focus and we don't want it to swallow the chord).
+  // ── Hotkey ────────────────────────────────────────────────────────
+  //
+  // Alt+Shift+P toggles the picker. Intentionally undocumented in the
+  // UI — the empty state shows nothing actionable so end users don't
+  // discover the toolbar accidentally. Support staff and developers
+  // know the chord; that's the audience.
   //
   // Chord choice: Alt+Shift+P. The original plan called for
   // Ctrl+Shift+P but every major browser binds that to "open
   // incognito / private window" — Chromium intercepts it before the
-  // page-level keydown listener runs, so the toolbar never reveals
-  // in plain browser AND in OpenFin (Chromium under the hood). Alt+
-  // Shift+P is unbound in Chrome / Firefox / Edge / Safari / OpenFin
-  // and is mnemonic for "Provider".
+  // page-level keydown listener runs. Alt+Shift+P is unbound in
+  // Chrome / Firefox / Edge / Safari / OpenFin and is mnemonic for
+  // "Provider".
   const toggleToolbar = useCallback(() => setPickerVisible((v) => !v), []);
   useChordHotkey('Alt+Shift+P', (e) => {
     e.preventDefault();
     toggleToolbar();
   });
 
-  // Active provider: the selected one for the current mode.
-  const activeId = mode === 'live' ? liveId : historicalId;
+  // ── Active provider resolution ────────────────────────────────────
+  const activeId = selection.mode === 'live' ? selection.liveProviderId : selection.historicalProviderId;
   const activeRow = useDataProviderConfig(activeId);
   const activeCfg = useResolvedCfg(activeRow.cfg?.config ?? null);
+
+  // List of available providers per slot. Subtype filter could be
+  // tightened (live=stomp, historical=rest) but keeping it open is
+  // friendlier — the user might want a Mock for either slot in dev.
+  const liveList = useDataProvidersList();
+  const histList = useDataProvidersList();
 
   // Date picker writes through to AppData; the next render's
   // `useResolvedCfg` produces a fresh cfg → useProviderStream
@@ -192,14 +236,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     }
   }, [appData.store, historicalDateAppDataRef]);
 
-  // Use the active provider's keyColumn for `rowIdField` and its
-  // saved columnDefinitions for the grid layout. Both are read from
-  // the saved DataProviderConfig — never authored at the blotter
-  // level (see CLAUDE history: "Could not find row id" errors when
-  // those drift).
   const rowIdField = activeRow.cfg
     ? (activeCfg as { keyColumn?: string } | null)?.keyColumn ?? null
     : null;
+
+  const columnDefs = useMemo<ColDef<TData>[] | null>(() => {
+    const defs = (activeCfg as { columnDefinitions?: ColDef<TData>[] } | null)?.columnDefinitions;
+    return defs && defs.length > 0 ? defs : null;
+  }, [activeCfg]);
 
   // Imperative grid handles + row pump.
   const apiRef = useRef<GridApi<TData> | null>(null);
@@ -208,21 +252,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     onReadyProp?.(handle);
   }, [onReadyProp]);
 
-  // Snapshot vs. delta dispatch.
-  //
-  //   • `replace: true`  → `setGridOption('rowData', ...)`. Resets the
-  //     grid to the supplied set in one go. Used for the first emit on
-  //     attach (Hub replays its cache) and on `provider.restart()`.
-  //
-  //   • `replace: false` → keyed upserts via `applyTransactionAsync`.
-  //     AG Grid's transaction API distinguishes `add` (row id NOT in
-  //     the grid) from `update` (row id IS in the grid). Sending a row
-  //     to `update` whose id the grid doesn't know about throws AG Grid
-  //     error #4 ("Could not find row id ..."). We split the incoming
-  //     batch by querying `api.getRowNode(id)` per row and routing
-  //     accordingly. New rows that arrive after the snapshot (e.g. a
-  //     freshly opened position on a STOMP feed) take the `add` branch;
-  //     ticks on rows we already have take `update`.
+  // Snapshot vs. delta dispatch. See data-plane v2 docs for the
+  // detailed contract — `replace: true` is a setRowData reset; without
+  // it we split each batch into add/update by `getRowNode`.
   const stream = useProviderStream<TData>(activeId, activeCfg, {
     onDelta: (rows, replace) => {
       const api = apiRef.current; if (!api) return;
@@ -231,10 +263,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         return;
       }
       if (rows.length === 0) return;
-      // Without a key column we can't distinguish add vs update; fall
-      // back to update-only and let AG Grid surface error #4 for any
-      // rows it can't match. This shouldn't happen in practice — the
-      // editor enforces a non-empty keyColumn before save.
       if (!rowIdField) {
         api.applyTransactionAsync({ update: rows.slice() });
         return;
@@ -256,88 +284,77 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const refresh = useCallback(() => {
     if (!activeId) return;
-    if (mode === 'historical' && asOfDate) {
+    if (selection.mode === 'historical' && asOfDate) {
       stream.refresh({ asOfDate });
     } else {
       stream.refresh();
     }
-  }, [activeId, mode, asOfDate, stream]);
-  const columnDefs = useMemo<ColDef<TData>[] | null>(() => {
-    const defs = (activeCfg as { columnDefinitions?: ColDef<TData>[] } | null)?.columnDefinitions;
-    return defs && defs.length > 0 ? defs : null;
-  }, [activeCfg]);
+  }, [activeId, selection.mode, asOfDate, stream]);
 
-  return (
-    <div className="flex flex-col h-full min-h-0">
-      {pickerVisible && (
-        <ProviderToolbar
-          liveProviders={liveList.configs}
-          historicalProviders={histList.configs}
-          liveProviderId={liveId}
-          historicalProviderId={historicalId}
-          mode={mode}
-          asOfDate={asOfDate}
-          onLiveChange={setLiveId}
-          onHistoricalChange={setHistoricalId}
-          onModeChange={setMode}
-          onAsOfDateChange={setAsOfDateAndPersist}
-          onRefresh={refresh}
-          onEdit={(id) => onEditProvider?.(id)}
-        />
-      )}
+  // ── Toolbar slot content ──────────────────────────────────────────
+  //
+  // Always pass via `headerExtras`; the slot is hidden when the
+  // picker is closed. End users never see this; only Alt+Shift+P
+  // surfaces it, and that chord is intentionally undocumented in
+  // the UI.
+  const headerExtras = pickerVisible ? (
+    <ProviderToolbar
+      liveProviders={liveList.configs}
+      historicalProviders={histList.configs}
+      liveProviderId={selection.liveProviderId}
+      historicalProviderId={selection.historicalProviderId}
+      mode={selection.mode}
+      asOfDate={asOfDate}
+      onLiveChange={setLiveId}
+      onHistoricalChange={setHistoricalId}
+      onModeChange={setMode}
+      onAsOfDateChange={setAsOfDateAndPersist}
+      onRefresh={refresh}
+      onEdit={(id) => onEditProvider?.(id)}
+    />
+  ) : null;
 
-      <div className="flex-1 min-h-0">
-        {!activeId ? (
-          <EmptyState onReveal={() => setPickerVisible(true)} />
-        ) : !activeRow.loading && rowIdField && columnDefs ? (
-          <MarketsGrid<TData>
-            {...(marketsGridProps as MarketsGridProps<TData>)}
-            key={`${activeId}::${rowIdField}`}
-            rowData={EMPTY as TData[]}
-            rowIdField={rowIdField}
-            columnDefs={columnDefs}
-            onReady={onReady}
-          />
-        ) : (
-          <LoadingState status={stream.status} />
-        )}
+  // ── Render ────────────────────────────────────────────────────────
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+        Loading…
       </div>
+    );
+  }
 
-      {/* keep ref to dp for future expansion (stop button, etc.) */}
-      <span className="sr-only" data-dataplane-ready>{dp ? 'ok' : '–'}</span>
-    </div>
+  // Provider selected and cfg loaded → full data-attached grid.
+  if (activeId && !activeRow.loading && rowIdField && columnDefs) {
+    return (
+      <MarketsGrid<TData>
+        {...(marketsGridProps as MarketsGridProps<TData>)}
+        key={`${activeId}::${rowIdField}`}
+        rowData={EMPTY as TData[]}
+        rowIdField={rowIdField}
+        columnDefs={columnDefs}
+        onReady={onReady}
+        headerExtras={headerExtras}
+      />
+    );
+  }
+
+  // No provider selected (or cfg still resolving): mount MarketsGrid
+  // with a sentinel rowIdField so the toolbar slot is reachable. End
+  // users see an empty grid; support staff press Alt+Shift+P to pick
+  // a provider. No keyboard hint is shown — the chord is dev-only.
+  return (
+    <MarketsGrid<TData>
+      {...(marketsGridProps as MarketsGridProps<TData>)}
+      key="__no_provider__"
+      rowData={EMPTY as TData[]}
+      rowIdField="__none__"
+      columnDefs={EMPTY as unknown as ColDef<TData>[]}
+      headerExtras={headerExtras}
+    />
   );
 }
 
 function defaultOnError(err: Error): void {
   // eslint-disable-next-line no-console
   console.error('[MarketsGridContainer]', err);
-}
-
-function EmptyState({ onReveal }: { onReveal: () => void }) {
-  return (
-    <div className="flex items-center justify-center h-full p-8 text-center">
-      <div className="max-w-md">
-        <div className="text-sm font-medium mb-1">No data provider selected</div>
-        <div className="text-xs text-muted-foreground mb-3">
-          Press <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Alt</kbd>+<kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Shift</kbd>+<kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">P</kbd> to reveal the provider toolbar, then pick a Live (and optionally Historical) provider.
-        </div>
-        <button
-          type="button"
-          className="text-xs text-primary hover:underline"
-          onClick={onReveal}
-        >
-          Show toolbar now
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function LoadingState({ status }: { status: string }) {
-  return (
-    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-      {status === 'error' ? 'Provider error — check the editor diagnostics.' : 'Loading…'}
-    </div>
-  );
 }
