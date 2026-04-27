@@ -30,9 +30,13 @@ import { HostedComponent } from '../components/HostedComponent';
 // <DataProviderSelector>'s `listVisible` query lands on the right URL.
 // Mirrors what /views/DataProviders does so either entry point is
 // independently usable.
+//
+// Local cast: this app's tsconfig pins `types` to fin/fdc3/svg only,
+// so `vite/client` types aren't ambient — narrow the access locally
+// (same idiom as platform/Provider.tsx).
 const PROVIDER_API_URL =
-  (import.meta.env.VITE_DATA_PROVIDER_API_URL as string | undefined) ||
-  'http://localhost:3001';
+  (import.meta as unknown as { env?: { VITE_DATA_PROVIDER_API_URL?: string } }).env
+    ?.VITE_DATA_PROVIDER_API_URL || 'http://localhost:3001';
 dataProviderConfigService.configure({ apiUrl: PROVIDER_API_URL });
 
 // ─── Default columns ──────────────────────────────────────────────────

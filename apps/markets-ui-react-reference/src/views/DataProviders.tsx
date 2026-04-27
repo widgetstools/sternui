@@ -33,13 +33,18 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
 
-const API_URL =
-  (import.meta.env.VITE_DATA_PROVIDER_API_URL as string | undefined) ||
-  'http://localhost:3001';
+// Local cast: this app's tsconfig pins `types` to fin/fdc3/svg only,
+// so `vite/client` types aren't ambient — narrow the access locally
+// (same idiom as platform/Provider.tsx).
+const viteEnv = (import.meta as unknown as {
+  env?: { VITE_DATA_PROVIDER_API_URL?: string; VITE_DEFAULT_USER_ID?: string };
+}).env;
+
+const API_URL = viteEnv?.VITE_DATA_PROVIDER_API_URL || 'http://localhost:3001';
 
 dataProviderConfigService.configure({ apiUrl: API_URL });
 
-const DEV_USER_ID = (import.meta.env.VITE_DEFAULT_USER_ID as string | undefined) || 'dev1';
+const DEV_USER_ID = viteEnv?.VITE_DEFAULT_USER_ID || 'dev1';
 
 function DataProviders() {
   // Resolve the effective userId: openfin customData wins, then env
