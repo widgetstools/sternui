@@ -30,6 +30,7 @@ export type ErrorCode =
   | 'TRANSPORT_CLOSED'
   | 'VALIDATION_FAILED'
   | 'RATE_LIMITED'
+  | 'TIMEOUT'
   | 'INTERNAL';
 
 export interface DataPlaneError {

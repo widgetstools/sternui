@@ -72,7 +72,23 @@ export class DataPlaneClientError extends Error {
 interface PendingRequest {
   resolve: (value: DataPlaneResponse) => void;
   reject: (err: Error) => void;
+  timer?: ReturnType<typeof setTimeout>;
 }
+
+/**
+ * Default request timeout. The worker SHOULD always reply (with `ok` or
+ * `err`), but if the worker hangs — script never started, port never
+ * received the message, provider's start() promise never settled — the
+ * client would otherwise wait forever and the consumer sees nothing.
+ *
+ * Most ops are sub-second. `configure` for stream providers spans the
+ * upstream connect handshake, which can be slow on cold caches; the
+ * default budget needs to comfortably cover that and stay below the
+ * point where users assume the UI has hung. 30s is a reasonable middle
+ * ground. Apps that need different behaviour can pass `requestTimeoutMs`
+ * to the client constructor.
+ */
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 interface KeyedSubEntry {
   subId: string;
@@ -85,11 +101,17 @@ interface StreamSubEntry {
   listener: StreamListener;
 }
 
+export interface DataPlaneClientOpts {
+  /** Override the default per-request timeout. Set to `0` to disable. */
+  requestTimeoutMs?: number;
+}
+
 export class DataPlaneClient {
   private readonly port: MessagePort;
   private readonly pending = new Map<string, PendingRequest>();
   private readonly keyedSubs = new Map<string, KeyedSubEntry>();
   private readonly streamSubs = new Map<string, StreamSubEntry>();
+  private readonly requestTimeoutMs: number;
 
   /**
    * Targeted reqId correlation: `get-cached-rows` emits a
@@ -104,8 +126,9 @@ export class DataPlaneClient {
 
   private counter = 0;
 
-  constructor(port: MessagePort) {
+  constructor(port: MessagePort, opts: DataPlaneClientOpts = {}) {
     this.port = port;
+    this.requestTimeoutMs = opts.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     this.port.addEventListener('message', (ev: MessageEvent) => this.route(ev.data));
     this.port.addEventListener('messageerror', (ev: MessageEvent) => {
       // The browser rejects the incoming message (clone failed). We
@@ -267,10 +290,28 @@ export class DataPlaneClient {
   private request(req: DataPlaneRequest): Promise<DataPlaneResponse> {
     const reqId = (req as { reqId?: string }).reqId!;
     return new Promise((resolve, reject) => {
-      this.pending.set(reqId, { resolve, reject });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      // Timeout-protected: if the worker never replies (script error,
+      // hung provider start, lost port message), the consumer sees a
+      // clear error instead of a forever-pending UI. The accept/reject
+      // path that runs first cancels the timer in `route()`.
+      if (this.requestTimeoutMs > 0) {
+        timer = setTimeout(() => {
+          if (!this.pending.delete(reqId)) return;
+          reject(new DataPlaneClientError(
+            'TIMEOUT',
+            `Request '${(req as { op: string }).op}' (reqId=${reqId}) did not receive a worker reply within ${this.requestTimeoutMs}ms. ` +
+            `If you're using a SharedWorker, check chrome://inspect → Shared Workers and look for an "inspect" link next to the data-plane worker — that's where provider start-up logs and errors land.`,
+            true,
+          ));
+        }, this.requestTimeoutMs);
+      }
+      this.pending.set(reqId, { resolve, reject, timer });
       try {
         this.port.postMessage(req);
       } catch (err) {
+        const entry = this.pending.get(reqId);
+        if (entry?.timer) clearTimeout(entry.timer);
         this.pending.delete(reqId);
         reject(err instanceof Error ? err : new Error(String(err)));
       }

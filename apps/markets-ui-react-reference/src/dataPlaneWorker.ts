@@ -11,12 +11,31 @@
  *     )
  *
  * The Router uses the default factory which covers Mock + AppData +
- * STOMP + REST. Wrapping with a custom factory (e.g. to inject auth
- * middleware) happens here, not in app code.
+ * STOMP + REST.
+ *
+ * Top-level logs let you confirm the worker is alive: open
+ * chrome://inspect → Shared Workers → click "inspect" next to
+ * `mkt-data-plane:<appId>`. If you DON'T see "[dataPlaneWorker]
+ * booted" there, the worker script either failed to load or threw
+ * before installWorker ran — that's the source of the
+ * "subscribe-stream hangs forever" symptom.
  */
+
+// eslint-disable-next-line no-console
+console.info('[dataPlaneWorker] script loaded');
 
 import { Router, installWorker } from '@marketsui/data-plane/worker';
 
-const router = new Router();
+// eslint-disable-next-line no-console
+console.info('[dataPlaneWorker] imports resolved');
 
-installWorker({ router });
+try {
+  const router = new Router();
+  installWorker({ router });
+  // eslint-disable-next-line no-console
+  console.info('[dataPlaneWorker] booted; router waiting for ports');
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.error('[dataPlaneWorker] boot failed', err);
+  throw err;
+}
