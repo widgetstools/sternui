@@ -20,13 +20,25 @@ export type EditorSelection =
 export type ComponentFilter = 'all' | 'in-dock' | 'not-in-dock' | 'singleton';
 
 /**
- * A blank registry entry suitable for "+ New" — every required field is
- * present with an empty/sensible default so the entry validates as a
- * draft state.
+ * A blank registry entry suitable for "+ New".
+ *
+ * The `id` and `configId` start as empty strings — they get
+ * computed from `componentType` + `componentSubType` via
+ * `deriveTemplateConfigId` as soon as the user types either of
+ * those fields in the Inspector pane (see InspectorPane's
+ * `handleTypeChange`). The user CANNOT save with empty type/subtype
+ * (validation rejects it), so by the time the entry is persisted
+ * the id is always the canonical `${componentType}-${componentSubType}`.
+ *
+ * Why not seed a UUID up front and let it be overwritten on first
+ * typeChange? Because if the user never changes type/subtype (rare,
+ * but possible in QA workflows), the UUID would silently survive
+ * into the persisted entry — which is the bug we kept hitting.
+ * Empty strings make the broken state visible.
  */
 export function newDraftEntry(env: { appId: string; configServiceUrl: string }): RegistryEntry {
   return {
-    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `entry-${Date.now()}`,
+    id: '',
     hostUrl: '',
     iconId: '',
     componentType: '',

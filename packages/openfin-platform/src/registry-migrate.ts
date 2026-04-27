@@ -17,7 +17,7 @@
  * means the derived-id rule doesn't apply).
  */
 import type { RegistryEditorConfig, RegistryEntry } from './registry-config-types';
-import { REGISTRY_CONFIG_VERSION } from './registry-config-types';
+import { REGISTRY_CONFIG_VERSION, deriveTemplateConfigId } from './registry-config-types';
 
 /** The v1 entry shape — same as v2 minus the new fields. */
 export interface RegistryEntryV1 {
@@ -84,13 +84,24 @@ export function migrateRegistryToV2(
 
 /** Fill in any v2 fields that might be missing (e.g., partial write). */
 function fillMissingV2Fields(entry: Partial<RegistryEntry>, hostEnv: HostEnv): RegistryEntry {
+  // Canonical id derivation — same as the Workspace Setup inspector
+  // and the Registry Editor add-entry path. Falls back to whatever
+  // the entry already had only when type+subtype are both empty
+  // (the genuinely partial case where we have nothing to derive
+  // from); a UUID would be wrong now that the registry contract
+  // ties id to type/subtype.
+  const componentType = entry.componentType ?? '';
+  const componentSubType = entry.componentSubType ?? '';
+  const derivedId = (componentType || componentSubType)
+    ? deriveTemplateConfigId(componentType, componentSubType)
+    : '';
   return {
-    id: entry.id ?? crypto.randomUUID(),
+    id: entry.id || derivedId,
     hostUrl: entry.hostUrl ?? '',
     iconId: entry.iconId ?? 'lucide:box',
-    componentType: entry.componentType ?? '',
-    componentSubType: entry.componentSubType ?? '',
-    configId: entry.configId ?? '',
+    componentType,
+    componentSubType,
+    configId: entry.configId || derivedId,
     displayName: entry.displayName ?? '',
     createdAt: entry.createdAt ?? new Date().toISOString(),
     type: entry.type ?? 'internal',

@@ -25,8 +25,7 @@ import type {
   DockMenuItemConfig,
 } from "@marketsui/openfin-platform/config";
 import {
-  deriveSingletonConfigId,
-  generateTemplateConfigId,
+  deriveTemplateConfigId,
   ACTION_LAUNCH_COMPONENT,
 } from "@marketsui/openfin-platform/config";
 import type { EditorSelection } from "./types";
@@ -252,25 +251,34 @@ function ComponentForm({
     return clash ? clash.displayName : null;
   }, [entry.id, entry.componentType, entry.componentSubType, entries]);
 
-  // When singleton flag flips on, re-derive configId. When subtype/type
-  // change AND singleton is on, also re-derive. Forms-of-defaults pattern.
+  // Singleton-toggle is now a pure flag flip — `id` and `configId`
+  // are both bound to `${componentType}-${componentSubType}` whether
+  // singleton is on or off, so toggling no longer changes the id.
   const handleSingletonToggle = (next: boolean) => {
-    onChange({
-      singleton: next,
-      configId: next
-        ? deriveSingletonConfigId(entry.componentType, entry.componentSubType)
-        : entry.configId || generateTemplateConfigId(entry.componentType, entry.componentSubType),
-    });
+    onChange({ singleton: next });
   };
 
+  // When componentType / componentSubType change, re-derive BOTH the
+  // entry's `id` AND its `configId` from the canonical template
+  // configId formula (`${type}-${subtype}` lowercase). This is the
+  // contract the user spelled out:
+  //
+  //   • the registry-entry id IS the template configId
+  //   • templates have one row keyed by `${type}-${subtype}`
+  //   • per-instance rows derive from the template; their `configId`
+  //     is a separate UUID at launch time, not authored here
+  //
+  // Empty strings while the user is mid-typing are tolerated (the
+  // derived id collapses to `-` or `foo-`, validated downstream).
   const handleTypeChange = (field: "componentType" | "componentSubType", value: string) => {
-    const patch: Partial<RegistryEntry> = { [field]: value } as Partial<RegistryEntry>;
-    if (entry.singleton) {
-      const t = field === "componentType" ? value : entry.componentType;
-      const s = field === "componentSubType" ? value : entry.componentSubType;
-      patch.configId = deriveSingletonConfigId(t, s);
-    }
-    onChange(patch);
+    const t = field === "componentType" ? value : entry.componentType;
+    const s = field === "componentSubType" ? value : entry.componentSubType;
+    const derivedId = deriveTemplateConfigId(t, s);
+    onChange({
+      [field]: value,
+      id: derivedId,
+      configId: derivedId,
+    } as Partial<RegistryEntry>);
   };
 
   return (
@@ -403,7 +411,7 @@ function ComponentForm({
             border: "1px solid var(--bn-border)",
             color: "var(--bn-t1)",
           }}>
-            {entry.configId || generateTemplateConfigId(entry.componentType, entry.componentSubType) || "—"}
+            {entry.configId || deriveTemplateConfigId(entry.componentType, entry.componentSubType) || "—"}
           </div>
         </Field>
 

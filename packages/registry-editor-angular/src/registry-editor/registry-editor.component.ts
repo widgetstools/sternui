@@ -778,16 +778,19 @@ export class RegistryEditorComponent implements OnInit {
     const usesHostConfig = f.type === 'internal'
       || (f.appId === env.appId && f.configServiceUrl === env.configServiceUrl);
 
+    // Both `id` and `configId` derive from componentType +
+    // componentSubType — single canonical formula. The registry
+    // entry id IS the template configId; one row per
+    // (componentType, componentSubType) pair.
+    const derivedId = `${componentType}-${componentSubType}`.toLowerCase();
     const entry: RegistryEntry = {
-      id: currentEditingId ?? crypto.randomUUID(),
+      id: derivedId,
       displayName: f.displayName,
       hostUrl: f.hostUrl,
       iconId: f.iconId,
       componentType,
       componentSubType,
-      configId: f.singleton
-        ? deriveSingletonConfigId(f.componentType, f.componentSubType)
-        : (f.configId || generateTemplateConfigId(componentType, componentSubType)),
+      configId: derivedId,
       createdAt: currentEditingId
         ? (this.svc.entries().find((e) => e.id === currentEditingId)?.createdAt ?? new Date().toISOString())
         : new Date().toISOString(),
