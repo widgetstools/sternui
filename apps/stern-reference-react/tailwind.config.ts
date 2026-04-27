@@ -15,7 +15,14 @@ const config: Config = {
     './src/**/*.{ts,tsx}',
     './index.html',
     '../../packages/ui/src/**/*.{ts,tsx}',
-    '../../packages/widgets/src/**/*.{ts,tsx}',
+    // widgets-react ships SimpleBlotter, BlotterGrid, the Provider
+    // Editor (DataProviderEditor + TypeSelectionDialog +
+    // ProviderForm + the STOMP/REST 4-tab configurators), and the
+    // DataProviderSelector. JIT must scan it or these surfaces
+    // render unstyled (e.g. dialogs become invisible cards).
+    // Note: the previous `packages/widgets/src/**` glob pointed at
+    // a path that no longer exists in this monorepo — replaced.
+    '../../packages/widgets-react/src/**/*.{ts,tsx}',
   ],
 };
 
