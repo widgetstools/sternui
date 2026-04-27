@@ -495,6 +495,44 @@ export class Router {
     };
     this.streamSubs.set(subId, { subId, portId, providerId, unsubscribe: composedOff });
     this.reply(port, { op: 'sub-established', reqId: req.reqId, subId });
+
+    // ── Late-joiner cache replay ────────────────────────────────────
+    //
+    // The provider may have started ingesting BEFORE this listener
+    // attached — `client.configure()` resolves as soon as the upstream
+    // is connected, the worker fires snapshot-batch dispatches into a
+    // listener set that's still empty, and a few ms later the
+    // subscribe-stream RPC arrives. Without this replay, the new
+    // subscriber would see only the rows that landed AFTER it
+    // attached: an undercounted snapshot, with subsequent live
+    // updates referring to row ids the grid has never seen.
+    //
+    // Replay the cache as one synthetic snapshot-batch, then — if
+    // the upstream snapshot has already finished — emit a synthetic
+    // snapshot-complete so the consumer can transition to realtime
+    // mode. If the upstream snapshot is still in flight, subsequent
+    // batches reach the listener naturally; the consumer is
+    // responsible for de-duping by keyColumn at flush time
+    // (MarketsGridContainer does this).
+    const cached = provider.getCache();
+    if (cached.length > 0) {
+      this.broadcast.sendToSubscriber(providerId, portId, {
+        op: 'snapshot-batch',
+        providerId,
+        subId,
+        rows: cached,
+        batch: batch++,
+        isFinal: false,
+      });
+    }
+    if (provider.isSnapshotComplete()) {
+      this.broadcast.sendToSubscriber(providerId, portId, {
+        op: 'snapshot-complete',
+        providerId,
+        subId,
+        rowCount: cached.length,
+      });
+    }
   }
 
   private handleGetCachedRows(

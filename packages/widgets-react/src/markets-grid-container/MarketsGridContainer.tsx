@@ -253,7 +253,28 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const flushSnapshotToGrid = useCallback(() => {
     const api = gridApiRef.current;
     if (!api) return;
-    api.setGridOption('rowData', snapshotRowsRef.current.slice());
+    // Dedupe by row id before handing to AG-Grid. The buffer can
+    // contain duplicates because the worker replays its cache to
+    // late joiners (see router.handleSubscribeStream "Late-joiner
+    // cache replay") AND any subsequent live batches that arrive
+    // before snapshot-complete will overlap with that replay. Last
+    // write wins — subsequent batches carry the freshest server
+    // state per id.
+    const idField = resolvedRowIdField;
+    const deduped: TData[] = idField
+      ? Array.from(
+          (() => {
+            const m = new Map<string, TData>();
+            for (const row of snapshotRowsRef.current) {
+              const k = (row as Record<string, unknown>)[idField];
+              if (k === undefined || k === null) continue;
+              m.set(String(k), row);
+            }
+            return m.values();
+          })(),
+        )
+      : snapshotRowsRef.current.slice();
+    api.setGridOption('rowData', deduped);
     // Snapshot is now in the grid; release the buffer so it doesn't
     // pin memory. Subsequent batches go through update transactions.
     snapshotRowsRef.current = [];
@@ -261,7 +282,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       api.applyTransactionAsync({ update: pendingUpdatesRef.current.slice() });
       pendingUpdatesRef.current = [];
     }
-  }, []);
+  }, [resolvedRowIdField]);
 
   // ── Stable onEvent listener (one identity for the lifetime) ─────
   const stableOnEvent = useMemo<StreamListener<TData>>(() => ({
