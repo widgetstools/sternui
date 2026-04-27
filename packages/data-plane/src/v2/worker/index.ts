@@ -13,8 +13,15 @@ export {
   probeStomp,
   type StompOpts,
   type StompClientFactory,
-  type ProbeResult,
+  type ProbeResult as StompProbeResult,
   type ProbeOpts,
 } from '../providers/stomp.js';
+export {
+  startRest,
+  probeRest,
+  type RestFetchFn,
+  type RestOpts,
+  type ProbeResult as RestProbeResult,
+} from '../providers/rest.js';
 export { inferFields, type InferOptions } from '../providers/inferFields.js';
 export type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
