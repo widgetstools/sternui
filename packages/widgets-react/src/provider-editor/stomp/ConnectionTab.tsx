@@ -95,15 +95,41 @@ export const ConnectionTab: React.FC<ConnectionTabProps> = ({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="requestMessage" className="text-xs font-medium text-muted-foreground">
-                Trigger Topic
+                Trigger Destination
               </Label>
               <Input
                 id="requestMessage"
                 value={config.requestMessage || ''}
                 onChange={e => onChange('requestMessage', e.target.value)}
-                placeholder="/app/subscribe"
-                className="h-8 text-sm"
+                placeholder="/snapshot/positions/TRADER001/1000"
+                className="h-8 text-sm font-mono"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Destination the worker publishes to after subscribing. Many
+                servers (e.g. the bundled STOMP fixed-income server) encode
+                the rate / clientId in the URL itself, so the trigger
+                destination is the same as the listener topic plus a rate
+                segment.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="requestBody" className="text-xs font-medium text-muted-foreground">
+                Trigger Body
+              </Label>
+              <Input
+                id="requestBody"
+                value={config.requestBody ?? ''}
+                onChange={e => onChange('requestBody', e.target.value)}
+                placeholder="(empty — rate in destination)"
+                className="h-8 text-sm font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Optional payload. Leave empty when the trigger destination
+                already encodes everything the server needs (the common
+                pattern). Some servers expect a sentinel like{' '}
+                <code className="bg-muted px-1 rounded">START</code> or a
+                JSON envelope here instead — match what your server expects.
+              </p>
             </div>
             <Alert className="bg-background">
               <Info className="h-3.5 w-3.5" />
