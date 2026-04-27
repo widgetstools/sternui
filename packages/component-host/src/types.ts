@@ -54,6 +54,20 @@ export interface ComponentIdentity {
    * and `isTemplate: false`.
    */
   isTemplate?: boolean;
+  /**
+   * App identity, forwarded by the launcher. The saver needs this
+   * when it has to materialise a NEW AppConfigRow from scratch —
+   * specifically the test-launch case where no template existed
+   * before AND the launched view is the FIRST writer for the
+   * `${componentType}-${componentSubType}` configId.
+   */
+  appId?: string;
+  /**
+   * User identity, forwarded by the launcher. Used the same way as
+   * `appId` — populates `userId`, `createdBy`, and `updatedBy` on
+   * a freshly-built AppConfigRow when no prior row exists.
+   */
+  userId?: string;
 }
 
 /**

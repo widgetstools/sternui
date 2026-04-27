@@ -44,6 +44,11 @@ export async function readCustomData(): Promise<ComponentIdentity | null> {
       // `isTemplate` is the test-launch marker. The Registry Editor's
       // testComponent() sets it; dock launches leave it false.
       isTemplate: data.isTemplate === true,
+      // appId / userId forwarded by the launcher so the saver can
+      // build a fresh AppConfigRow from identity alone when no prior
+      // row exists — this is the first-ever-test-launch case.
+      appId: typeof data.appId === "string" ? data.appId : undefined,
+      userId: typeof data.userId === "string" ? data.userId : undefined,
     };
   } catch {
     return null;

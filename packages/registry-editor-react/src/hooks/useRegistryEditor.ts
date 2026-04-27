@@ -222,6 +222,12 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
           // external entries it equals the entry's own values.
           appId: entry.appId,
           configServiceUrl: entry.configServiceUrl,
+          // userId is taken from the editor's hostEnv (set by the
+          // parent OpenFin provider via customData.userId on the
+          // editor window). Component-host's saver needs it to
+          // populate `userId` / `createdBy` / `updatedBy` on a
+          // freshly-built AppConfigRow when no prior template exists.
+          userId: hostEnv.userId,
         },
       });
     } catch (err) {

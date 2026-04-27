@@ -8,6 +8,7 @@
  */
 
 import type { ConfigManager, AppConfigRow } from "@marketsui/config-service";
+import type { ComponentIdentity } from "./types";
 
 /** The saver interface returned by createDebouncedSaver. */
 export interface DebouncedSaver<T> {
@@ -26,13 +27,11 @@ export interface DebouncedSaverOptions {
   /** Debounce window in ms. Default 300. */
   debounceMs?: number;
   /**
-   * Set `isRegisteredComponent: true` on every persisted row. Pass when
-   * the saver is wired to a singleton's row (instanceId ===
-   * templateId === registry entry's configId) so workspace GC keeps
-   * the row alive across launches even when no workspace references it.
-   *
-   * Default false — per-instance clones don't get the flag and are
-   * reaped if orphaned.
+   * @deprecated The saver now reads identity directly and writes
+   * `isTemplate` from `identity.isTemplate`; the back-compat
+   * `isRegisteredComponent` flag is set to the same value
+   * automatically. Setting this option no longer has any effect on
+   * its own; identity is the source of truth.
    */
   isRegisteredComponent?: boolean;
 }
@@ -40,26 +39,34 @@ export interface DebouncedSaverOptions {
 /**
  * Create a debounced saver for a component's config.
  *
- * @param instanceId - The config ID to save under
- * @param configManager - The ConfigManager instance
- * @param getRow - A function returning the current AppConfigRow (kept as a getter
- *                 so the saver always has the latest row reference)
- * @param debounceMsOrOptions - Either a debounce-ms number (legacy
- *                              two-arg-plus-number form) or an options
- *                              object. Object form is preferred going forward.
+ * The saver enforces three identity-bound attributes on EVERY write:
+ *   • `componentType`   — exactly the registered component's value
+ *   • `componentSubType` — exactly the registered component's value
+ *   • `isTemplate`       — `true` for test-launches, `false` otherwise
+ *
+ * This guarantees that the row keyed by
+ * `${componentType}-${componentSubType}` (the test-launch case)
+ * always lands as the canonical template row, and per-instance rows
+ * inherit the registered type/subtype regardless of which payload the
+ * user happened to send first.
+ *
+ * @param identity      - Resolved ComponentIdentity (instanceId,
+ *                        componentType, etc.) — read at construction
+ *                        time, applied to every persisted row.
+ * @param configManager - The ConfigManager instance.
+ * @param getRow        - Getter returning the current AppConfigRow, or
+ *                        null when no row exists yet (first-save
+ *                        of a never-before-persisted config — e.g. the
+ *                        very first test launch with no prior template).
+ * @param options       - Debounce + back-compat flag options.
  */
 export function createDebouncedSaver<T>(
-  instanceId: string,
+  identity: ComponentIdentity,
   configManager: ConfigManager,
   getRow: () => AppConfigRow | null,
-  debounceMsOrOptions: number | DebouncedSaverOptions = 300,
+  options: DebouncedSaverOptions = {},
 ): DebouncedSaver<T> {
-  // Back-compat: accept a bare number (legacy callers) or an options object.
-  const opts: DebouncedSaverOptions = typeof debounceMsOrOptions === "number"
-    ? { debounceMs: debounceMsOrOptions }
-    : debounceMsOrOptions;
-  const debounceMs = opts.debounceMs ?? 300;
-  const flagAsRegistered = opts.isRegisteredComponent === true;
+  const debounceMs = options.debounceMs ?? 300;
 
   let timerId: ReturnType<typeof setTimeout> | null = null;
   let pendingConfig: Partial<T> | null = null;
@@ -71,20 +78,58 @@ export function createDebouncedSaver<T>(
     // the write is in flight.
     const snapshot = pendingConfig;
     pendingConfig = null;
+    if (!snapshot) return;
 
     const row = getRow();
-    if (!row || !snapshot) return;
+    const now = new Date().toISOString();
+    const isTemplate = identity.isTemplate === true;
 
-    const updated: AppConfigRow = {
-      ...row,
-      configId: instanceId,
-      payload: { ...(row.payload as Record<string, unknown>), ...snapshot },
-      updatedTime: new Date().toISOString(),
-      // Preserve any pre-existing flag from the row, but force it on
-      // when the caller declared this is a registered-component saver.
-      // Never silently flip it off — if the row already has it, keep it.
-      isRegisteredComponent: flagAsRegistered ? true : row.isRegisteredComponent,
+    // Common fields enforced from identity — these MUST match the
+    // registered component on every save. Per the contract: if the
+    // launch was a test-launch, isTemplate is true and configId is
+    // `${type}-${subtype}`; otherwise it's a per-instance row with a
+    // UUID configId, but componentType + componentSubType still
+    // mirror the registered component's values.
+    const enforced = {
+      configId: identity.instanceId,
+      componentType: identity.componentType,
+      componentSubType: identity.componentSubType,
+      isTemplate,
+      singleton: identity.singleton ?? false,
+      // Back-compat flag — kept aligned with isTemplate while the
+      // field is still on the schema. Will be removed in a future
+      // schema bump (see config-service/src/types.ts).
+      isRegisteredComponent: isTemplate,
+      updatedTime: now,
     };
+
+    let updated: AppConfigRow;
+    if (row) {
+      // Existing row — merge the partial into its payload.
+      updated = {
+        ...row,
+        ...enforced,
+        payload: { ...(row.payload as Record<string, unknown>), ...snapshot },
+      };
+    } else {
+      // No prior row — materialise a fresh AppConfigRow from
+      // identity. This is the first-save-of-a-never-before-persisted
+      // config path, hit by the test-launch scenario when no
+      // template existed yet for this (componentType, componentSubType).
+      const appId = identity.appId ?? "";
+      const userId = identity.userId ?? "";
+      updated = {
+        ...enforced,
+        appId,
+        userId,
+        displayText: identity.componentType
+          + (identity.componentSubType ? ` · ${identity.componentSubType}` : ""),
+        payload: snapshot as unknown as Record<string, unknown>,
+        createdBy: userId,
+        updatedBy: userId,
+        creationTime: now,
+      };
+    }
 
     try {
       await configManager.saveConfig(updated);
