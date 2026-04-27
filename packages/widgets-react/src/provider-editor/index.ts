@@ -11,6 +11,7 @@ export { StompConfigurationForm } from './stomp/StompConfigurationForm.js';
 // ─── Hooks ──────────────────────────────────────
 export {
   useDataProviders,
+  useVisibleDataProviders,
   useDataProvider,
   useCreateDataProvider,
   useUpdateDataProvider,

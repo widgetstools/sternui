@@ -42,6 +42,9 @@ export { sternDarkTheme, sternLightTheme, useAgGridTheme } from './theme/index.j
 // ─── Provider Editor ────────────────────────────
 export * from './provider-editor/index.js';
 
+// ─── Data Provider Selector ──────────────────────
+export * from './data-provider-selector/index.js';
+
 // ─── Dock Configurator ───────────────────────────
 export { DockConfigurator } from './dock/DockConfigurator.js';
 export type { DockConfiguratorProps } from './dock/DockConfigurator.js';
