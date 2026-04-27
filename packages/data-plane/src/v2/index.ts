@@ -22,3 +22,23 @@ export type {
   Event,
 } from './protocol.js';
 export { isRequest, isEvent } from './protocol.js';
+
+// Template substitution (client-side, before attach).
+export {
+  resolveTemplate,
+  resolveCfg,
+  collectTemplateRefs,
+  type AppDataLookup,
+} from './template/resolver.js';
+
+// Persistence helpers — main-thread, ConfigManager-backed.
+export {
+  DataProviderConfigStore,
+  AppDataConfigStore,
+  PUBLIC_USER_ID,
+  COMPONENT_TYPE_DATA_PROVIDER,
+  COMPONENT_TYPE_APPDATA,
+  type AppDataConfig,
+  type ListOptions,
+} from './config/store.js';
+export { AppDataStore } from './config/AppDataStore.js';

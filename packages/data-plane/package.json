@@ -45,10 +45,14 @@
     "@marketsui/shared-types": "*"
   },
   "peerDependencies": {
-    "@stomp/stompjs": "^7.3.0"
+    "@stomp/stompjs": "^7.3.0",
+    "@marketsui/config-service": "*"
   },
   "peerDependenciesMeta": {
     "@stomp/stompjs": {
+      "optional": true
+    },
+    "@marketsui/config-service": {
       "optional": true
     }
   },
