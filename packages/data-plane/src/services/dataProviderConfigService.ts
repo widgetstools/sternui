@@ -55,12 +55,50 @@ export class DataProviderConfigService {
   private local: DataProviderLocalBackend | undefined;
 
   /**
+   * Pending local-backend wiring. When the app calls
+   * `expectLocalBackend()` at boot (typically from
+   * `ensureDataProvidersLocalBackend()` in the consuming app), this
+   * promise is created and every CRUD method awaits it before
+   * dispatching. `configureLocal(backend)` resolves the promise.
+   *
+   * This means components are oblivious to wiring order — they call
+   * the service whenever they want, and the service either:
+   *   • dispatches immediately if the local backend is already set;
+   *   • waits if the app declared "I'm bringing a local backend, hold
+   *     on" but the resolution is still in flight;
+   *   • falls through to REST if the app never opted into local mode.
+   *
+   * Apps without a local backend (REST-only) skip
+   * `expectLocalBackend()` entirely; the service's behaviour matches
+   * the original "fetch immediately" path exactly.
+   */
+  private localPending: Promise<void> | null = null;
+  private resolveLocalPending: (() => void) | null = null;
+
+  /**
    * Configure the service with a custom API base URL.
    * Should be called once at app startup (e.g., from manifest customData).
    */
   configure(options: { apiUrl: string }): void {
     const base = options.apiUrl.replace(/\/+$/, '');
     this.apiBase = `${base}/api/v1/configurations`;
+  }
+
+  /**
+   * Declare that a local backend is being set up asynchronously.
+   * Subsequent CRUD calls will wait for `configureLocal()` instead of
+   * silently falling through to REST. Idempotent.
+   *
+   * Apps call this synchronously at boot — typically from a helper
+   * like `ensureDataProvidersLocalBackend()` that ALSO kicks off the
+   * async work to build the backend. Components stay oblivious to
+   * wiring order.
+   */
+  expectLocalBackend(): void {
+    if (this.localPending) return;
+    this.localPending = new Promise<void>((resolve) => {
+      this.resolveLocalPending = resolve;
+    });
   }
 
   /**
@@ -74,6 +112,20 @@ export class DataProviderConfigService {
    */
   configureLocal(backend: DataProviderLocalBackend | undefined): void {
     this.local = backend;
+    // Release any CRUD calls that were waiting via `expectLocalBackend`.
+    if (this.resolveLocalPending) {
+      this.resolveLocalPending();
+      this.resolveLocalPending = null;
+      this.localPending = null;
+    }
+  }
+
+  /**
+   * Internal: every CRUD method awaits this. No-op fast-path when no
+   * local-backend wiring is in flight (REST-only apps pay nothing).
+   */
+  private awaitBackendReady(): Promise<void> | undefined {
+    return this.localPending ?? undefined;
   }
 
   /** True when a local backend is active. Useful for callers that
@@ -152,6 +204,7 @@ export class DataProviderConfigService {
   }
 
   async create(provider: DataProviderConfig, userId: string): Promise<DataProviderConfig> {
+    await this.awaitBackendReady();
     const unifiedConfig = this.toUnifiedConfig(provider, userId);
 
     if (this.local) {
@@ -174,6 +227,7 @@ export class DataProviderConfigService {
   }
 
   async update(providerId: string, updates: Partial<DataProviderConfig>, userId: string): Promise<DataProviderConfig> {
+    await this.awaitBackendReady();
     const payload: Record<string, unknown> = {
       ...((updates.config as unknown as Record<string, unknown>) ?? {}),
       __providerMeta: {
@@ -228,6 +282,7 @@ export class DataProviderConfigService {
   }
 
   async delete(providerId: string): Promise<void> {
+    await this.awaitBackendReady();
     if (this.local) {
       await this.local.delete(providerId);
       return;
@@ -237,6 +292,7 @@ export class DataProviderConfigService {
   }
 
   async getById(providerId: string): Promise<DataProviderConfig | null> {
+    await this.awaitBackendReady();
     if (this.local) {
       const row = await this.local.getById(providerId);
       return row ? this.fromUnifiedConfig(row) : null;
@@ -248,6 +304,7 @@ export class DataProviderConfigService {
   }
 
   async getByUser(userId: string): Promise<DataProviderConfig[]> {
+    await this.awaitBackendReady();
     if (this.local) {
       const rows = await this.local.listByUser(userId);
       return rows

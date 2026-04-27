@@ -95,19 +95,39 @@ function buildBackend(manager: ConfigManager): DataProviderLocalBackend {
 let pending: Promise<void> | null = null;
 
 /**
- * Idempotent bootstrap. Resolves once the service is wired to a
- * ConfigManager-backed local backend. Safe to call from many places —
- * subsequent calls return the cached promise.
+ * Idempotent bootstrap. Call once at app boot (before any view
+ * mounts). Components don't need to know this exists — they just
+ * call `dataProviderConfigService.<method>()` and the service
+ * itself awaits the wiring internally via `expectLocalBackend()`.
+ *
+ * The synchronous portion runs first: `expectLocalBackend()` flips
+ * the service into "hold pending CRUD" mode immediately. The async
+ * portion resolves the ConfigManager + sets the backend; once that
+ * settles, the gate releases and any waiting CRUD calls proceed.
+ *
+ * Apps that DON'T want local mode just don't call this — the service
+ * stays in REST mode by default and CRUD calls dispatch immediately.
  */
 export function ensureDataProvidersLocalBackend(): Promise<void> {
   if (pending) return pending;
+
+  // Synchronous: tell the service to hold any CRUD calls that fire
+  // before the async resolution lands. This eliminates the race
+  // window where a view mounts, calls e.g. getById(), and the call
+  // falls through to REST because configureLocal() hasn't been
+  // invoked yet.
+  dataProviderConfigService.expectLocalBackend();
+
   pending = (async () => {
     const manager = await getConfigManager();
     dataProviderConfigService.configureLocal(buildBackend(manager));
   })().catch((err) => {
     // Reset so a future caller can retry. Surface the error too —
-    // callers can decide whether to render an error state.
+    // callers can decide whether to render an error state. Also
+    // release the gate so calls don't hang forever on a permanent
+    // failure (better to fall through to REST than deadlock).
     pending = null;
+    dataProviderConfigService.configureLocal(undefined);
     throw err;
   });
   return pending;
