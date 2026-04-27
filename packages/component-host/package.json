@@ -12,7 +12,11 @@
   },
   "scripts": {
     "build": "echo '@marketsui/component-host: consumed as source (no emit)'",
-    "typecheck": "tsc --noEmit --project tsconfig.json"
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
   },
   "dependencies": {
     "@marketsui/openfin-platform": "*",
