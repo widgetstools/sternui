@@ -104,7 +104,9 @@ export function createDebouncedSaver<T>(
     };
 
     let updated: AppConfigRow;
+    let mode: "merge-existing" | "build-fresh";
     if (row) {
+      mode = "merge-existing";
       // Existing row — merge the partial into its payload.
       updated = {
         ...row,
@@ -112,6 +114,7 @@ export function createDebouncedSaver<T>(
         payload: { ...(row.payload as Record<string, unknown>), ...snapshot },
       };
     } else {
+      mode = "build-fresh";
       // No prior row — materialise a fresh AppConfigRow from
       // identity. This is the first-save-of-a-never-before-persisted
       // config path, hit by the test-launch scenario when no
@@ -130,6 +133,26 @@ export function createDebouncedSaver<T>(
         creationTime: now,
       };
     }
+
+    // Single-line trace of every persisted row so you can confirm in
+    // the page console (no IndexedDB poke required) that the enforced
+    // identity fields landed correctly. Particularly useful when
+    // chasing the test-launch contract:
+    //   configId === ${componentType}-${componentSubType}
+    //   isTemplate === true
+    //   componentType / componentSubType match the registered entry.
+    /* eslint-disable no-console */
+    console.log(
+      `[component-host/save] %c${mode}%c configId=%s componentType=%s componentSubType=%s isTemplate=%s singleton=%s payloadKeys=%d`,
+      mode === "build-fresh" ? "color:#10b981;font-weight:bold" : "color:#3b82f6", "",
+      enforced.configId,
+      enforced.componentType,
+      enforced.componentSubType,
+      enforced.isTemplate,
+      enforced.singleton,
+      Object.keys(updated.payload as Record<string, unknown>).length,
+    );
+    /* eslint-enable no-console */
 
     try {
       await configManager.saveConfig(updated);
