@@ -23,6 +23,10 @@
     "./v2/provider-editor": {
       "import": "./dist/v2/provider-editor/index.js",
       "types": "./dist/v2/provider-editor/index.d.ts"
+    },
+    "./v2/data-provider-selector": {
+      "import": "./dist/v2/data-provider-selector/index.js",
+      "types": "./dist/v2/data-provider-selector/index.d.ts"
     }
   },
   "scripts": {
