@@ -310,25 +310,68 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
     const extra = refreshExtraRef.current;
     refreshExtraRef.current = undefined;
+    const t0 = performance.now();
+    // eslint-disable-next-line no-console
+    console.log(
+      `[v2/grid] %csubscribe%c provider=%s%s rowIdField=%s gridReady=%s`,
+      'color:#3b82f6;font-weight:bold', '',
+      activeId,
+      extra ? ` extra=${JSON.stringify(extra)}` : '',
+      rowIdField,
+      Boolean(liveApi),
+    );
     const handle = dpClient.subscribe<TData>(activeId, activeCfg, extra ? { extra } : {});
     let cancelled = false;
 
-    handle.onStatus((_s, err) => {
+    // Track ids we've handed to AG-Grid as `add` but whose transaction
+    // hasn't been applied yet. Without this, two live ticks for the
+    // SAME new id arriving in the same frame both observe
+    // `getRowNode(id) === null` (because applyTransactionAsync is
+    // async — transactions queue and flush together at the next
+    // animation frame), classify both as `add`, and AG-Grid emits
+    // warning #2 ("Duplicate node id detected"). Server-side fan-out
+    // with multiple ticks per row makes this hit constantly.
+    const pendingAddIds = new Set<string>();
+
+    handle.onStatus((s, err) => {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[v2/grid] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms)`,
+        'color:#a855f7', '', s,
+      );
       if (err && !cancelled) (onError ?? defaultOnError)(new Error(err));
     });
 
     handle.snapshot
       .then((rows) => {
-        if (cancelled) return;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2/grid] %csnapshot ✓%c %d rows received (+${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#10b981;font-weight:bold', '',
+          rows.length,
+        );
+        if (cancelled) {
+          // eslint-disable-next-line no-console
+          console.log('[v2/grid]   …but the subscription was cancelled before snapshot landed; skipping setGridOption');
+          return;
+        }
         // Phase 1 done: apply the snapshot in a single setRowData.
         liveApi.setGridOption('rowData', rows.slice());
-        // Phase 2: live updates. Add vs update is decided per-row by
-        // `getRowNode(id)` — rows already in the grid get `update`,
-        // new rows get `add`. Both arrays go in one
-        // `applyTransactionAsync` so AG-Grid batches them in a frame.
+        // eslint-disable-next-line no-console
+        console.log(`[v2/grid]   setGridOption('rowData', %d rows) applied`, rows.length);
+        // Phase 2: live updates. Add vs update is decided per-row.
+        // A row is treated as `update` if EITHER:
+        //   - `getRowNode(id)` finds it (already committed to grid), OR
+        //   - it's in `pendingAddIds` (we queued an add for it
+        //     earlier in this same frame and AG-Grid hasn't flushed
+        //     yet).
+        let updateBatchCount = 0;
         handle.onUpdate((updateRows) => {
           if (cancelled || updateRows.length === 0) return;
+          updateBatchCount += 1;
           if (!rowIdField) {
+            // eslint-disable-next-line no-console
+            console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
             liveApi.applyTransactionAsync({ update: updateRows.slice() });
             return;
           }
@@ -337,19 +380,54 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           for (const row of updateRows) {
             const raw = (row as Record<string, unknown>)[rowIdField];
             const id = raw === null || raw === undefined ? null : String(raw);
-            if (id !== null && liveApi.getRowNode(id)) updates.push(row);
-            else adds.push(row);
+            if (id === null) continue;
+            if (liveApi.getRowNode(id) || pendingAddIds.has(id)) {
+              updates.push(row);
+            } else {
+              adds.push(row);
+              pendingAddIds.add(id);
+            }
           }
-          liveApi.applyTransactionAsync({ add: adds, update: updates });
+          // Only log every 50th batch to avoid flooding the console
+          // under a high-rate feed. The first few are useful for
+          // confirming the grid is healthy after the snapshot.
+          if (updateBatchCount <= 5 || updateBatchCount % 50 === 0) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[v2/grid] %cupdate#%d%c %d rows → %d add, %d update (pendingAdds=%d)`,
+              'color:#f59e0b', '', updateBatchCount,
+              updateRows.length, adds.length, updates.length, pendingAddIds.size,
+            );
+          }
+          liveApi.applyTransactionAsync({ add: adds, update: updates }, (result) => {
+            // Transaction has now been applied — those ids are real
+            // grid rows now, so getRowNode will find them on the
+            // next batch. Clear them from the pending set.
+            for (const node of result.add) {
+              const nodeId = node.id;
+              if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
+            }
+          });
         });
+        // eslint-disable-next-line no-console
+        console.log(`[v2/grid]   onUpdate handler registered`);
       })
       .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[v2/grid] %csnapshot ✗%c rejected: %s (+${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#ef4444;font-weight:bold', '',
+          err instanceof Error ? err.message : String(err),
+        );
         if (cancelled) return;
         (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
       });
 
     return () => {
       cancelled = true;
+      // eslint-disable-next-line no-console
+      console.log(`[v2/grid] %cunsubscribe%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
+        'color:#6b7280', '', activeId);
       handle.unsubscribe();
     };
     // `refreshTick` is a deliberate trigger: bumping it tears down

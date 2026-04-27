@@ -131,6 +131,8 @@ export function startStomp(
     // phase — even if zero rows arrived. That gives consumers a
     // deterministic "the snapshot is now this set" signal and lets
     // the Hub clear any stale cache entries from a prior session.
+    // eslint-disable-next-line no-console
+    console.log(`[v2/stomp] flushSnapshot: emit replace=true with ${state.snapshotBuffer.length} buffered rows`);
     emit({ rows: state.snapshotBuffer, replace: true });
     state.snapshotBuffer = [];
   };
@@ -142,6 +144,8 @@ export function startStomp(
 
     // End-of-snapshot token (case-insensitive substring match).
     if (matchesEndToken(trimmed, cfg.snapshotEndToken)) {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/stomp] end-token matched: "${cfg.snapshotEndToken}" — closing snapshot phase`);
       if (!state.snapshotComplete) {
         flushSnapshot();
         state.snapshotComplete = true;

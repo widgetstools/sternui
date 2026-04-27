@@ -151,10 +151,13 @@ export class Hub {
 
   private handleAttach(port: PortLike, req: AttachRequest): void {
     let slot = this.providers.get(req.providerId);
+    const wasRunning = Boolean(slot);
 
     if (!slot) {
       if (!req.cfg) {
         // Can't create without a config; surface as error to this sub.
+        // eslint-disable-next-line no-console
+        console.log(`[v2/hub] attach REJECTED subId=${req.subId} provider=${req.providerId}: not running and no cfg`);
         port.postMessage({
           subId: req.subId,
           kind: 'status',
@@ -163,12 +166,20 @@ export class Hub {
         });
         return;
       }
+      // eslint-disable-next-line no-console
+      console.log(`[v2/hub] attach CREATE subId=${req.subId} provider=${req.providerId}`);
       slot = this.createProvider(req.providerId, req.cfg);
       this.providers.set(req.providerId, slot);
     } else if (req.extra) {
       // Existing provider + restart payload: kick it.
+      // eslint-disable-next-line no-console
+      console.log(`[v2/hub] attach RESTART subId=${req.subId} provider=${req.providerId} extra=${JSON.stringify(req.extra)}`);
       void slot.handle.restart(req.extra);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/hub] attach LATE-JOINER subId=${req.subId} provider=${req.providerId} cacheSize=${slot.cache.size} status=${slot.status}`);
     }
+    void wasRunning;
 
     if (req.mode === 'data') {
       this.attachDataListener(req.providerId, req.subId, port, slot);
@@ -321,10 +332,13 @@ export class Hub {
     this.dataListeners.set(providerId, set);
 
     // Guaranteed first emit: full cache + current status.
+    const cacheRows = [...slot.cache.values()];
+    // eslint-disable-next-line no-console
+    console.log(`[v2/hub] → subId=${subId}: replay delta(replace=true) rows=${cacheRows.length}, status=${slot.status} (totalListeners=${set.size})`);
     port.postMessage({
       subId,
       kind: 'delta',
-      rows: [...slot.cache.values()],
+      rows: cacheRows,
       replace: true,
     } satisfies Event);
     port.postMessage({
@@ -357,6 +371,14 @@ export class Hub {
   private broadcastData(providerId: string, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
+    // eslint-disable-next-line no-console
+    if (eventTemplate.kind === 'delta') {
+      const tpl = eventTemplate as Event & { kind: 'delta'; rows: readonly unknown[]; replace?: boolean };
+      console.log(`[v2/hub] broadcast provider=${providerId} kind=delta replace=${Boolean(tpl.replace)} rows=${tpl.rows.length} → ${listeners.size} listener(s)`);
+    } else if (eventTemplate.kind === 'status') {
+      const tpl = eventTemplate as Event & { kind: 'status'; status: string; error?: string };
+      console.log(`[v2/hub] broadcast provider=${providerId} kind=status status=${tpl.status}${tpl.error ? ' error=' + JSON.stringify(tpl.error) : ''} → ${listeners.size} listener(s)`);
+    }
     for (const l of listeners.values()) {
       l.port.postMessage({ ...eventTemplate, subId: l.subId } as Event);
     }

@@ -156,6 +156,13 @@ export class DataPlane {
   ): SubscribeHandle<T> {
     if (this.closed) throw new Error('[DataPlane] client is closed');
 
+    const subId = this.generateSubId();
+    // eslint-disable-next-line no-console
+    console.log(
+      `[v2/client] %csubscribe→worker%c subId=%s provider=%s cfgPassed=%s${opts.extra ? ' extra=' + JSON.stringify(opts.extra) : ''}`,
+      'color:#3b82f6', '', subId, providerId, Boolean(cfg),
+    );
+
     let snapshotResolve!: (rows: readonly T[]) => void;
     let snapshotReject!: (err: Error) => void;
     const snapshot = new Promise<readonly T[]>((resolve, reject) => {
@@ -210,6 +217,12 @@ export class DataPlane {
 
     const listener: DataListener<T> = {
       onDelta: (rows, replace) => {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2/client] %cdelta←worker%c subId=%s rows=%d replace=%s settled=%s`,
+          replace ? 'color:#10b981' : 'color:#f59e0b', '',
+          subId, rows.length, replace, snapshotSettled,
+        );
         if (replace) {
           latestSnapshotRows = rows;
           trySettleSnapshot();
@@ -224,9 +237,16 @@ export class DataPlane {
           updateCb(rows);
         } else {
           bufferedUpdates.push(rows);
+          // eslint-disable-next-line no-console
+          console.log(`[v2/client]   …buffered (no onUpdate handler yet); pending=%d`, bufferedUpdates.length);
         }
       },
       onStatus: (status, error) => {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2/client] %cstatus←worker%c subId=%s status=%s%s`,
+          'color:#a855f7', '', subId, status, error ? ` error=${JSON.stringify(error)}` : '',
+        );
         currentStatus = status;
         currentError = error;
         trySettleSnapshot();
@@ -234,7 +254,6 @@ export class DataPlane {
       },
     };
 
-    const subId = this.generateSubId();
     this.subs.set(subId, { kind: 'data', listener: listener as DataListener });
     this.send({
       kind: 'attach',
