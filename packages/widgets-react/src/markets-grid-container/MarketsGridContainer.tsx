@@ -4,40 +4,42 @@
  *
  * Lifecycle
  * ---------
- *   1. Mount with `rowData={[]}` and a `getRowId` callback derived from
- *      the configured `rowIdField`.
- *   2. Once AG-Grid fires `onReady`, capture the `gridApi`.
- *   3. Subscribe to the data-plane row stream in `onEvent` mode (no
- *      React-side buffering — every batch / update flows straight into
- *      AG-Grid's imperative API).
- *   4. Snapshot batches → `applyTransactionAsync({ add })` (the worker
- *      resets the cache on `restart`, so first-batch-of-snapshot can
- *      safely add; identity-keyed adds become updates if a row already
- *      exists, which makes the path resilient to late-joining
- *      subscribers reading from cache).
- *   5. Realtime updates → `applyTransactionAsync({ update })`.
- *   6. On error, surface the message via the `onError` prop or, by
- *      default, fall through to AG-Grid's status overlay.
+ *   1. On `providerId` change, look up the saved DataProviderConfig
+ *      via `dataProviderConfigService.getById()` and call
+ *      `client.configure(providerId, cfg.config)` so the worker
+ *      router has a slot to subscribe to. Without this step,
+ *      `subscribe-stream` is rejected with PROVIDER_NOT_CONFIGURED
+ *      and no rows ever flow.
+ *   2. Mount `<MarketsGrid />` with `rowData={[]}` and a `getRowId`
+ *      derived from `rowIdField`. AG-Grid's `onReady` captures the
+ *      `gridApi` ref.
+ *   3. Once configure resolves, mount the `<StreamSubscriber>` leaf
+ *      which uses `useDataPlaneRowStream` in `onEvent` mode. Snapshot
+ *      batches stream through `applyTransactionAsync({ add })`,
+ *      realtime updates through `applyTransactionAsync({ update })`.
+ *      No React-side buffering of rows.
  *
- * Why imperative
- * --------------
- * Pushing every batch through React state would be O(n) per render
- * for n rows in the cache, and a 10k-row snapshot pulls the main
- * thread under. AG-Grid's `applyTransactionAsync` was built for this
- * exact pattern; the container wires it up so callers don't have to.
- *
- * Backward compatibility
- * ----------------------
- * `<MarketsGrid />` keeps its existing `rowData` prop — apps using
- * static data continue to work unchanged. The container is additive.
+ * Why split into two components
+ * -----------------------------
+ * `useDataPlaneRowStream` re-runs its subscribe effect when its
+ * `providerId` arg or `onEvent` identity changes. We want AG-Grid
+ * mounted unconditionally (so its chrome doesn't flash on every
+ * provider swap) but the subscription mounted only after configure
+ * has succeeded. Splitting `<StreamSubscriber>` out makes that
+ * independence explicit and keeps AG-Grid's lifecycle stable.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@marketsui/markets-grid';
 import type { MarketsGridProps, MarketsGridHandle } from '@marketsui/markets-grid';
-import { useDataPlaneRowStream, useDataPlaneRestart } from '@marketsui/data-plane-react';
+import {
+  useDataPlaneRowStream,
+  useDataPlaneRestart,
+  useDataPlaneClient,
+} from '@marketsui/data-plane-react';
 import type { StreamListener } from '@marketsui/data-plane/client';
+import { dataProviderConfigService } from '@marketsui/data-plane';
 
 export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
   extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField'> {
@@ -83,6 +85,49 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const snapshotBufferRef = useRef<TData[]>([]);
   const snapshotCompleteRef = useRef(false);
 
+  // Mutable callback ref so the listener identity stays stable but
+  // callers can swap the onError handler freely.
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+
+  // ── Configure the worker for this providerId ────────────────────
+  //
+  // The router rejects subscribe-stream with PROVIDER_NOT_CONFIGURED
+  // when no slot exists for the given id. So before we can subscribe
+  // we have to look up the saved DataProviderConfig (REST or local
+  // Dexie) and call `client.configure()` to register it. Router's
+  // getOrCreate is idempotent — repeat calls for the same id are safe.
+  const client = useDataPlaneClient();
+  const [providerReady, setProviderReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setProviderReady(false);
+    snapshotCompleteRef.current = false;
+    snapshotBufferRef.current = [];
+
+    if (!providerId) return;
+
+    (async () => {
+      const cfg = await dataProviderConfigService.getById(providerId);
+      if (cancelled) return;
+      if (!cfg) {
+        throw new Error(`DataProvider not found: ${providerId}`);
+      }
+      // The DataProviderConfig wrapper carries a typed inner `config`
+      // (StompProviderConfig | RestProviderConfig | …). The worker's
+      // factory dispatches on `providerType` to build the right
+      // provider instance.
+      await client.configure(providerId, cfg.config);
+      if (!cancelled) setProviderReady(true);
+    })().catch((err: unknown) => {
+      if (cancelled) return;
+      onErrorRef.current?.(err instanceof Error ? err : new Error(String(err)));
+    });
+
+    return () => { cancelled = true; };
+  }, [providerId, client]);
+
   // ── Imperative apply helpers ─────────────────────────────────────
   const applyAdds = useCallback((rows: readonly TData[]) => {
     const api = gridApiRef.current;
@@ -96,20 +141,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     api.applyTransactionAsync({ update: rows.slice() });
   }, []);
 
-  // ── Stable onEvent listener ──────────────────────────────────────
-  //
-  // The data-plane row-stream hook depends on `opts.onEvent` identity
-  // for its subscribe/unsubscribe effect. If we passed a fresh object
-  // literal on every render, the effect would re-run, re-subscribe,
-  // and the worker's per-late-joiner snapshot replay would fire again
-  // — producing an unbounded re-subscribe / replay / re-render loop.
-  //
-  // Keep the listener object identity stable for the component's
-  // lifetime and read fresh callbacks via a ref. This is the standard
-  // "always-fresh callback through a stable wrapper" idiom.
-  const onErrorRef = useRef(onError);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
-
+  // ── Stable onEvent listener (one identity for the lifetime) ─────
   const stableOnEvent = useMemo<StreamListener<TData>>(() => ({
     onSnapshotBatch: (batch) => {
       if (gridApiRef.current && snapshotCompleteRef.current === false) {
@@ -119,7 +151,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         snapshotBufferRef.current.push(...(batch.rows as TData[]));
       } else {
         // Realtime-phase batch (rare but possible after restart).
-        // Treat as upsert.
         applyUpdates(batch.rows);
       }
     },
@@ -135,12 +166,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       onErrorRef.current?.(err instanceof Error ? err : new Error(String(err)));
     },
   }), [applyAdds, applyUpdates]);
-
-  // Subscribe to the data plane in onEvent mode (no React buffering).
-  useDataPlaneRowStream<TData>(providerId, {
-    keyColumn: rowIdField,
-    onEvent: stableOnEvent,
-  });
 
   // ── Capture grid api on ready, drain any buffered snapshot ───────
   const onReady = useCallback(
@@ -162,29 +187,57 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     if (asOfDate === lastAsOfDateRef.current) return;
     lastAsOfDateRef.current = asOfDate;
     if (asOfDate === undefined) return;
+    if (!providerReady) return; // skip until first configure resolves
 
-    // Reset snapshot tracking + clear grid before re-fetching so the
-    // new snapshot doesn't visually accrete on top of the old.
     snapshotCompleteRef.current = false;
     if (gridApiRef.current) {
       gridApiRef.current.setGridOption('rowData', []);
     }
     const extra = { asOfDate };
     onRequestRestart?.(extra);
-    restart(extra).catch((err) => onError?.(err instanceof Error ? err : new Error(String(err))));
-  }, [asOfDate, restart, onRequestRestart, onError]);
+    restart(extra).catch((err) => onErrorRef.current?.(err instanceof Error ? err : new Error(String(err))));
+  }, [asOfDate, providerReady, restart, onRequestRestart]);
 
   // Empty rowData is fine — we hydrate via applyTransactionAsync. The
-  // memo keeps prop-identity stable across renders so MarketsGrid
-  // doesn't re-diff on every update.
+  // memo keeps prop-identity stable across renders.
   const emptyRows = useMemo<TData[]>(() => [], []);
 
   return (
-    <MarketsGrid<TData>
-      {...(marketsGridProps as MarketsGridProps<TData>)}
-      rowData={emptyRows}
-      rowIdField={rowIdField}
-      onReady={onReady}
-    />
+    <>
+      {providerReady && (
+        <StreamSubscriber<TData>
+          providerId={providerId}
+          keyColumn={rowIdField}
+          onEvent={stableOnEvent}
+        />
+      )}
+      <MarketsGrid<TData>
+        {...(marketsGridProps as MarketsGridProps<TData>)}
+        rowData={emptyRows}
+        rowIdField={rowIdField}
+        onReady={onReady}
+      />
+    </>
   );
+}
+
+// ─── Stream subscriber leaf ─────────────────────────────────────────
+//
+// Side-effect-only component. Splitting the subscription out of
+// MarketsGridContainer lets us mount/unmount the subscription on
+// `providerReady` flips without remounting AG-Grid every time.
+
+interface StreamSubscriberProps<TData> {
+  providerId: string;
+  keyColumn: string;
+  onEvent: StreamListener<TData>;
+}
+
+function StreamSubscriber<TData extends Record<string, unknown>>({
+  providerId,
+  keyColumn,
+  onEvent,
+}: StreamSubscriberProps<TData>): React.ReactElement | null {
+  useDataPlaneRowStream<TData>(providerId, { keyColumn, onEvent });
+  return null;
 }
