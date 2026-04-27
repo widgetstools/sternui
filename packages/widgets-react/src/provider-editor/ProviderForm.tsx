@@ -123,12 +123,14 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({
 
   const isEditMode = Boolean(provider.providerId);
 
-  // STOMP uses its own full 3-tab form (Connection, Fields, Columns)
+  // STOMP uses its own full 4-tab form (Connection, Fields, Columns, Behaviour)
   if (formData.providerType === PROVIDER_TYPES.STOMP) {
     return (
       <StompConfigurationForm
         name={formData.name}
         config={formData.config as StompProviderConfig}
+        isPublic={Boolean(formData.public)}
+        onPublicChange={(next: boolean) => handleFieldChange('public', next)}
         onChange={handleConfigChange}
         onNameChange={(name: string) => handleFieldChange('name', name)}
         onSave={handleSave}

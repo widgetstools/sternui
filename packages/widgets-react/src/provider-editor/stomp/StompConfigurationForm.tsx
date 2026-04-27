@@ -1,19 +1,28 @@
 /**
- * StompConfigurationForm — 3-tab orchestrator for STOMP provider configuration.
- * Tabs: Connection, Fields, Columns with context-aware footer actions.
+ * StompConfigurationForm — 4-tab orchestrator for STOMP provider configuration.
+ * Tabs: Connection, Fields, Columns, Behaviour with context-aware footer actions.
+ *
+ * Top header carries the visibility toggle (public ↔ private). Public
+ * providers are stored under userId='system' (visible to everyone of
+ * the same appId); private providers are stored under the active user
+ * (visible only to the author). See dataProviderConfigService.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger, Badge, Button } from '@marketsui/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger, Badge, Button, Switch, Label } from '@marketsui/ui';
 import { ConnectionTab } from './ConnectionTab.js';
 import { FieldsTab } from './FieldsTab.js';
 import { ColumnsTab } from './ColumnsTab.js';
+import { BehaviourTab } from './BehaviourTab.js';
 import type { StompProviderConfig } from '@marketsui/shared-types';
 import { useConnectionTest, useFieldInference, useColumnConfig } from './hooks/index.js';
 
 interface StompConfigurationFormProps {
   name: string;
   config: StompProviderConfig;
+  /** Visibility flag — public rows store under userId='system'. */
+  isPublic: boolean;
+  onPublicChange: (next: boolean) => void;
   onChange: (field: string, value: any) => void;
   onNameChange: (name: string) => void;
   onSave: () => void;
@@ -24,6 +33,8 @@ interface StompConfigurationFormProps {
 export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
   name,
   config,
+  isPublic,
+  onPublicChange,
   onChange,
   onNameChange,
   onSave,
@@ -68,8 +79,32 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
 
   return (
     <div className="h-full w-full flex flex-col">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 rounded-none h-10 bg-muted/50 border-b">
+      {/* Top header — visibility toggle + subtype badge. */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2 border-b bg-card">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="outline" className="text-[10px] uppercase">STOMP</Badge>
+          <span>Real-time streaming provider</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="provider-public-toggle" className="text-xs cursor-pointer">
+            {isPublic ? 'Public' : 'Private'}
+          </Label>
+          <Switch
+            id="provider-public-toggle"
+            checked={isPublic}
+            onCheckedChange={onPublicChange}
+            aria-label="Visibility — public visible to everyone, private to me only"
+          />
+          <span className="text-[10px] text-muted-foreground hidden md:inline">
+            {isPublic
+              ? 'Everyone in this app can pick this provider.'
+              : 'Only you can pick this provider.'}
+          </span>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
+        <TabsList className="grid w-full grid-cols-4 rounded-none h-10 bg-muted/50 border-b">
           <TabsTrigger
             value="connection"
             className="rounded-none text-sm data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
@@ -96,6 +131,15 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
               <Badge variant="secondary" className="ml-2 text-xs">
                 {fieldInference.committedSelectedFields.size + columnConfig.manualColumns.length}
               </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="behaviour"
+            className="rounded-none text-sm data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
+          >
+            <span>Behaviour</span>
+            {(config.conflateByKey || (typeof config.throttleMs === 'number' && config.throttleMs > 0) || config.reconnect) && (
+              <Badge variant="secondary" className="ml-2 text-xs">on</Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -138,6 +182,10 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
               onFieldColumnOverridesChange={columnConfig.setFieldColumnOverrides}
               onClearAll={handleClearAllColumns}
             />
+          </TabsContent>
+
+          <TabsContent value="behaviour" className="h-full overflow-auto m-0">
+            <BehaviourTab config={config} onChange={onChange} />
           </TabsContent>
         </div>
 
