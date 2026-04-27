@@ -42,30 +42,50 @@ export interface AppConfigRow {
   /** Sub-category within the component type: "CREDIT", "RATES", "MBS", "CMBS", etc. */
   componentSubType: string;
 
-  /** True = base template config, false = user-specific instance. */
+  /**
+   * True for the **template** config saved during a component's test
+   * launch (the initial-settings row that the registry entry points
+   * at). Per-instance clones spawned later from the dock menu set
+   * this to `false`.
+   *
+   * Naming-convention invariant: when `isTemplate === true` the
+   * `configId` MUST equal `deriveTemplateConfigId(componentType,
+   * componentSubType)` (i.e. `${componentType}-${componentSubType}`
+   * lowercase). There is at most ONE template per
+   * (componentType, componentSubType) pair. Per-instance rows carry
+   * an arbitrary UUID as `configId` but inherit the same
+   * `componentType` + `componentSubType` from the template they
+   * cloned.
+   */
   isTemplate: boolean;
 
   /**
-   * True when this row IS a registered-component config — i.e. it was
-   * created by a Registry entry rather than as a per-launch instance
-   * clone. Workspace GC must never delete these rows; they're the
-   * source-of-truth used to spawn new instances.
+   * True when the registered component is a **singleton** — i.e. only
+   * one config row ever exists for it, and every launch resolves to
+   * the template row (no per-instance clones). For non-singletons,
+   * the dock spawns a fresh instance on every click and clones the
+   * template into a new UUID-keyed row.
    *
-   * Set in two situations:
-   *   • Singleton entries — every launch resolves to the same configId
-   *     (`deriveSingletonConfigId(...)`) so the row IS the registered
-   *     component. The first save by component-host sets this flag.
-   *   • Non-singleton TEMPLATE rows — created by admin tooling at
-   *     `generateTemplateConfigId(...)`; flag set at write time.
+   * Mirrors `RegistryEntry.singleton` for the matching registry row;
+   * stored on the AppConfigRow so component-host can decide the
+   * clone-vs-reuse behaviour without round-tripping the registry.
    *
-   * Per-instance clones (case 2 in resolveInstanceId) explicitly set
-   * this to `false` — they're cheap copies, GC-able when no workspace
-   * references them.
+   * Optional for back-compat — rows written before this field
+   * existed default to `undefined` and are treated as non-singleton.
+   */
+  singleton?: boolean;
+
+  /**
+   * Back-compat flag: true when this row IS the registered-component
+   * config (the template). Workspace GC must never delete these rows.
    *
-   * Optional for back-compat: rows written before this field existed
-   * default to undefined, and the GC has a self-describing fallback
-   * (configId === deriveSingletonConfigId(...)) that protects them
-   * until the next save flags them explicitly.
+   * Superseded by `isTemplate` (same semantics now that the
+   * configId-naming convention is unified). Kept on the type so older
+   * rows still load cleanly; new writes set both `isTemplate` and
+   * `isRegisteredComponent` to the same value.
+   *
+   * @deprecated Use `isTemplate` instead. Will be removed in a
+   * future schema version.
    */
   isRegisteredComponent?: boolean;
 

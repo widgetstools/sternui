@@ -12,7 +12,7 @@ declare const fin: any;
 
 import type { ComponentIdentity, AppConfigRow } from "./types";
 import type { ConfigManager } from "@marketsui/config-service";
-import { generateTemplateConfigId } from "@marketsui/openfin-platform";
+import { deriveTemplateConfigId } from "@marketsui/openfin-platform";
 
 // ─── Step 1: Read identity from OpenFin ─────────────────────────────
 
@@ -38,11 +38,12 @@ export async function readCustomData(): Promise<ComponentIdentity | null> {
       templateId: data.templateId || "",
       componentType: data.componentType,
       componentSubType: data.componentSubType || "",
-      // singleton flag is plumbed down so the saver can mark the
-      // resulting row with `isRegisteredComponent: true`. The launcher
-      // sets `customData.singleton: true` for entries with both
-      // singleton:true and configId set; treat anything else as falsy.
+      // `singleton` plumbed down so component-host writes it onto
+      // the persisted row (drives clone-vs-reuse on next launch).
       singleton: data.singleton === true,
+      // `isTemplate` is the test-launch marker. The Registry Editor's
+      // testComponent() sets it; dock launches leave it false.
+      isTemplate: data.isTemplate === true,
     };
   } catch {
     return null;
@@ -72,7 +73,7 @@ export async function resolveInstanceId(
 
   // Case 2: Fresh launch — try to clone the template
   const templateId = identity.templateId
-    || generateTemplateConfigId(identity.componentType, identity.componentSubType);
+    || deriveTemplateConfigId(identity.componentType, identity.componentSubType);
 
   const template = (await configManager.getConfig(templateId)) ?? null;
   if (template) {
@@ -80,11 +81,20 @@ export async function resolveInstanceId(
     const cloned: AppConfigRow = {
       ...template,
       configId: identity.instanceId,
+      // Per-instance clones are NOT templates. The clone inherits
+      // componentType + componentSubType from the template (matching
+      // the user's "instance shares type/subtype with its template"
+      // contract) but carries an arbitrary UUID for `configId` (the
+      // `identity.instanceId` we're cloning into).
       isTemplate: false,
-      // The clone is a per-instance copy, NOT the registered config.
-      // Workspace GC reaps these when no workspace references them.
-      // (Explicit false rather than relying on `...template` inheritance —
-      // a template can legitimately carry isRegisteredComponent:true.)
+      // Mirror `singleton` from identity onto the row. For singletons
+      // we shouldn't actually reach this branch — the launcher should
+      // have used `instanceId === templateId` so case 1 hit. Setting
+      // it explicitly keeps the row self-describing regardless.
+      singleton: identity.singleton,
+      // Back-compat: keep `isRegisteredComponent` aligned with
+      // `isTemplate` until the field is removed in a future schema
+      // version. Workspace GC checks both.
       isRegisteredComponent: false,
       creationTime: now,
       updatedTime: now,
@@ -93,7 +103,10 @@ export async function resolveInstanceId(
     return { config: cloned, isNew: true };
   }
 
-  // Case 3: No template — component starts with defaults
+  // Case 3: No template — component starts with defaults. If this is
+  // a test-launch (isTemplate: true), the next save by the component
+  // creates the template row; otherwise the component runs with
+  // built-in defaults and the launcher gets nothing persisted yet.
   return { config: null, isNew: true };
 }
 
@@ -110,9 +123,10 @@ export function buildFallbackIdentity(
 ): ComponentIdentity {
   return {
     instanceId: crypto.randomUUID(),
-    templateId: generateTemplateConfigId(componentType, componentSubType),
+    templateId: deriveTemplateConfigId(componentType, componentSubType),
     componentType,
     componentSubType,
     singleton: false,
+    isTemplate: false,
   };
 }

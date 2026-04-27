@@ -30,15 +30,30 @@ export interface ComponentIdentity {
   componentType: string;
   componentSubType: string;
   /**
-   * True when launched as a singleton — instanceId === templateId ===
-   * the registry entry's configId. Component-host passes this down to
-   * the saver so the persisted row is flagged with
-   * `isRegisteredComponent: true`, keeping it safe from workspace GC.
+   * Mirrors `RegistryEntry.singleton`. Component-host writes this
+   * onto the persisted AppConfigRow so the row carries enough info
+   * to decide clone-vs-reuse on the next launch without round-
+   * tripping the registry. Also drives the workspace GC's
+   * "never delete" guard for the template row.
    *
    * Optional so launches that don't supply it (legacy customData,
    * dev-mode fallback) default to non-singleton.
    */
   singleton?: boolean;
+  /**
+   * Test-launch marker. When `true`, the registry editor spawned
+   * this view to author the **template / initial-settings** config
+   * row directly. The component-host saver sets `isTemplate: true`
+   * on the resulting AppConfigRow and uses
+   * `${componentType}-${componentSubType}` (lowercase) as its
+   * configId — which is what the launcher already wrote into
+   * `instanceId` for the test-launch path.
+   *
+   * Non-test launches (dock menu) leave this `undefined`/`false`,
+   * and the saver writes a per-instance row with a UUID configId
+   * and `isTemplate: false`.
+   */
+  isTemplate?: boolean;
 }
 
 /**

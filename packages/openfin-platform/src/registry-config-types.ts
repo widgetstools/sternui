@@ -83,23 +83,52 @@ export interface RegistryEditorConfig {
 export const REGISTRY_CONFIG_VERSION = 2;
 
 /**
- * Generate the config ID for a non-singleton template component.
- * Format: `templateComponent<ComponentType><ComponentSubType>`
- * e.g., `templateComponentGRIDCREDIT`
+ * Canonical config-id derivation for the **template** (initial-
+ * settings) config of a registered component. There is at most ONE
+ * template per (componentType, componentSubType) pair, and this
+ * function is the only valid way to compute its configId.
+ *
+ * Format: `<componenttype>-<componentsubtype>` (lowercase,
+ * dash-separated). e.g. `grid-credit`, `blotter-markets`.
+ *
+ * The same string also serves as the `RegistryEntry.id` — registry
+ * entries and their template config rows are keyed identically so
+ * the join is trivial and admins can read the registry without a
+ * lookup table.
+ *
+ * Per-instance rows spawned from the dock for non-singleton
+ * components carry an **arbitrary UUID** as their `configId`
+ * (different from this template id) but keep the same
+ * `componentType` + `componentSubType`.
+ *
+ * Uniqueness within a given appId is enforced by
+ * `validateSingletonUniqueness()` in `./registry-validate.ts` — and
+ * because the template id IS the registry-entry id, that validator
+ * doubles as a duplicate-entry check for the registry as a whole.
  */
-export function generateTemplateConfigId(componentType: string, componentSubType: string): string {
-  return `templateComponent${componentType}${componentSubType}`;
+export function deriveTemplateConfigId(componentType: string, componentSubType: string): string {
+  return `${componentType}-${componentSubType}`.toLowerCase();
 }
 
 /**
- * Derive the config ID for a singleton component.
- * Format: `<componenttype>-<componentsubtype>` (lowercase, dash-separated).
- * e.g., `grid-credit`.
- *
- * Called at save time by the registry editor when `singleton === true`.
- * Uniqueness of the derived id within a given appId is enforced by
- * `validateSingletonUniqueness()` in `./registry-validate.ts`.
+ * @deprecated Use {@link deriveTemplateConfigId}. Kept as a
+ * source-compatibility alias so existing imports keep working
+ * during the rename. The output format is now identical to
+ * `deriveTemplateConfigId` (lowercase `${type}-${subtype}`); the
+ * old `templateComponent<Type><SubType>` format is gone.
+ */
+export function generateTemplateConfigId(componentType: string, componentSubType: string): string {
+  return deriveTemplateConfigId(componentType, componentSubType);
+}
+
+/**
+ * @deprecated Use {@link deriveTemplateConfigId}. The singleton-vs-
+ * non-singleton distinction is no longer encoded in the configId —
+ * BOTH cases use `${componentType}-${componentSubType}` lowercase
+ * for the template row. The instance row for a non-singleton uses
+ * an arbitrary UUID; the instance row for a singleton doesn't
+ * exist (everyone shares the template).
  */
 export function deriveSingletonConfigId(componentType: string, componentSubType: string): string {
-  return `${componentType}-${componentSubType}`.toLowerCase();
+  return deriveTemplateConfigId(componentType, componentSubType);
 }

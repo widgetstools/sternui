@@ -7,7 +7,7 @@ import {
   saveRegistryConfig,
   clearRegistryConfig,
   IAB_REGISTRY_CONFIG_UPDATE,
-  generateTemplateConfigId,
+  deriveTemplateConfigId,
   migrateRegistryToV2,
   readHostEnv,
   resolveHostUrl,
@@ -185,11 +185,25 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
         return;
       }
 
-      const instanceId = crypto.randomUUID();
-      const templateId = entry.configId || generateTemplateConfigId(
+      // Test launch policy: the spawned view operates DIRECTLY on the
+      // template row. Pass the template configId AS the `instanceId`
+      // so when the user saves, the write lands on
+      // `${componentType}-${componentSubType}` (the canonical
+      // template id) — overwriting initial settings rather than
+      // creating a per-launch UUID-keyed clone.
+      //
+      // The `isTemplate: true` flag on customData tells the
+      // component-host saver to mark the resulting AppConfigRow as
+      // a template (and to set `singleton` from the entry).
+      //
+      // Non-test launches (dock menu) use a different flow — a fresh
+      // UUID instanceId, then component-host clones the template
+      // payload into that UUID-keyed row, with isTemplate=false.
+      const templateId = entry.configId || deriveTemplateConfigId(
         entry.componentType,
         entry.componentSubType,
       );
+      const instanceId = templateId;
 
       const platform = openFinApi.Platform.getCurrentSync();
       await platform.createView({
@@ -199,6 +213,10 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
           templateId,
           componentType: entry.componentType,
           componentSubType: entry.componentSubType,
+          // Test-launch marker: tells component-host that any save
+          // from this view is the template/initial-settings save.
+          isTemplate: true,
+          singleton: entry.singleton,
           // v2: forward the appId + configServiceUrl the component will
           // target. For usesHostConfig === true this equals hostEnv; for
           // external entries it equals the entry's own values.

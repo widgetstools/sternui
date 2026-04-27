@@ -10,7 +10,7 @@ import { useRegistryEditor } from "./hooks/useRegistryEditor";
 import { RegistryItemRow } from "./components/RegistryItemRow";
 import { RegistryItemForm, type RegistryFormData } from "./components/RegistryItemForm";
 import { injectEditorStyles } from "./editor-styles";
-import type { RegistryEntry } from "@marketsui/openfin-platform";
+import { deriveTemplateConfigId, type RegistryEntry } from "@marketsui/openfin-platform";
 
 // Text color that pairs with the brand-accent CTA background.
 // `action.buyText` resolves to the design-system's CTA foreground
@@ -118,11 +118,23 @@ export function RegistryEditorPanel() {
         },
       });
     } else {
+      // Registry entry id IS the template configId — see
+      // `deriveTemplateConfigId` in @marketsui/openfin-platform.
+      // One canonical string identifies BOTH the registry row and
+      // the template AppConfigRow, so admins can read either side
+      // without a join. Uniqueness within the registry is enforced
+      // by the same `validateSingletonUniqueness` validator that
+      // already protected the configId.
+      const id = deriveTemplateConfigId(data.componentType, data.componentSubType);
       dispatch({
         type: "ADD_ENTRY",
         entry: {
-          id: crypto.randomUUID(),
+          id,
           ...data,
+          // Keep configId aligned with the entry id for new
+          // entries — the form may emit either, and they should
+          // converge on the canonical derivation.
+          configId: id,
           createdAt: new Date().toISOString(),
         },
       });
