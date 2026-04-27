@@ -151,6 +151,9 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
               config={config}
               onChange={onChange}
               onNameChange={onNameChange}
+              testing={connectionTest.testing}
+              testResult={connectionTest.testResult}
+              testError={connectionTest.testError}
             />
           </TabsContent>
 
@@ -169,6 +172,9 @@ export const StompConfigurationForm: React.FC<StompConfigurationFormProps> = ({
               onClearAll={handleClearAllFields}
               onInferFields={handleInferFields}
               inferring={fieldInference.inferring}
+              sampleSize={fieldInference.sampleSize}
+              onSampleSizeChange={fieldInference.setSampleSize}
+              lastSummary={fieldInference.lastSummary}
             />
           </TabsContent>
 

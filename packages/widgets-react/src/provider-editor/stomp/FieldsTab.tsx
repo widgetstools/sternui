@@ -11,11 +11,17 @@
  */
 
 import React, { useMemo } from 'react';
-import { Input, Checkbox, ScrollArea, Badge, Button } from '@marketsui/ui';
-import { Search, Database, Loader2 } from 'lucide-react';
+import { Input, Checkbox, ScrollArea, Badge, Button, Label } from '@marketsui/ui';
+import { Search, Database, Loader2, RefreshCw } from 'lucide-react';
 import type { FieldNode } from '@marketsui/shared-types';
 import { SimpleTreeView } from './SimpleTreeView.js';
 import { filterFields } from '@marketsui/shared-types';
+import type { InferenceSummary } from './hooks/useFieldInference.js';
+
+/** Sample-size choices surfaced in the Fields tab. 200 is the default
+ *  per the integration plan §7 — biased toward rows with the most
+ *  non-null fields (completeness-weighted). */
+const SAMPLE_SIZE_OPTIONS = [50, 100, 200, 500] as const;
 
 interface FieldsTabProps {
   inferredFields: FieldNode[];
@@ -31,6 +37,11 @@ interface FieldsTabProps {
   onClearAll: () => void;
   onInferFields?: () => void;
   inferring?: boolean;
+  /** Target sample size; bound to user-facing selector. */
+  sampleSize?: number;
+  onSampleSizeChange?: (n: number) => void;
+  /** Last-run summary; rendered as a header card when present. */
+  lastSummary?: InferenceSummary | null;
 }
 
 export const FieldsTab: React.FC<FieldsTabProps> = ({
@@ -47,6 +58,9 @@ export const FieldsTab: React.FC<FieldsTabProps> = ({
   onClearAll,
   onInferFields,
   inferring = false,
+  sampleSize = 200,
+  onSampleSizeChange,
+  lastSummary = null,
 }) => {
   const filteredFields = useMemo(
     () => filterFields(inferredFields, fieldSearchQuery),
@@ -62,6 +76,12 @@ export const FieldsTab: React.FC<FieldsTabProps> = ({
           <p className="text-sm text-muted-foreground mb-4">
             Click "Infer Fields" to fetch sample data and analyze the schema.
           </p>
+          {onSampleSizeChange && (
+            <div className="flex items-center justify-center gap-2 mb-4 text-xs text-muted-foreground">
+              <span>Sample size:</span>
+              <SampleSizePicker value={sampleSize} onChange={onSampleSizeChange} />
+            </div>
+          )}
           {onInferFields && (
             <Button onClick={onInferFields} disabled={inferring}>
               {inferring ? (
@@ -77,6 +97,11 @@ export const FieldsTab: React.FC<FieldsTabProps> = ({
               )}
             </Button>
           )}
+          <p className="text-[11px] text-muted-foreground mt-3 max-w-xs mx-auto">
+            Inference uses completeness-weighted sampling — rows with the
+            fewest null/empty fields take priority so the schema reflects
+            actual coverage.
+          </p>
         </div>
       </div>
     );
@@ -84,6 +109,42 @@ export const FieldsTab: React.FC<FieldsTabProps> = ({
 
   return (
     <div className="h-full flex flex-col">
+      {/* Inference summary header */}
+      {lastSummary && (
+        <div className="px-4 py-2.5 border-b border-border bg-muted/30 flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 text-xs">
+            <Badge variant="outline" className="text-[10px]">Inference</Badge>
+            <span className="text-muted-foreground">
+              <strong className="text-foreground">{lastSummary.rowsUsed}</strong> rows used
+              {lastSummary.rowsFetched > lastSummary.rowsUsed && (
+                <span className="text-muted-foreground"> (of {lastSummary.rowsFetched} fetched)</span>
+              )}
+              <span className="mx-2">·</span>
+              <strong className="text-foreground">{lastSummary.fieldsDetected}</strong> fields detected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {onSampleSizeChange && (
+              <SampleSizePicker value={sampleSize} onChange={onSampleSizeChange} />
+            )}
+            {onInferFields && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onInferFields}
+                disabled={inferring}
+                title="Re-fetch + re-infer with the current sample size"
+              >
+                {inferring
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <RefreshCw className="h-3.5 w-3.5" />}
+                <span className="ml-1.5 text-xs">Re-sample</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Toolbar: search + select all */}
       <div className="px-4 py-3 border-b border-border space-y-3 flex-shrink-0">
         {/* Search */}
@@ -150,7 +211,7 @@ export const FieldsTab: React.FC<FieldsTabProps> = ({
         </div>
 
         {/* Selected fields sidebar */}
-        <div className="w-64 border-l border-border bg-muted/30 flex flex-col flex-shrink-0">
+        <div className="w-64 border-l border-border bg-muted/30 flex flex-col flex-shrink-0" data-tab-sidebar="selected">
           <div className="px-3 py-2.5 border-b border-border">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -190,3 +251,39 @@ export const FieldsTab: React.FC<FieldsTabProps> = ({
     </div>
   );
 };
+
+// ─── Sample-size picker ──────────────────────────────────────────────
+
+interface SampleSizePickerProps {
+  value: number;
+  onChange: (n: number) => void;
+}
+
+const SampleSizePicker: React.FC<SampleSizePickerProps> = ({ value, onChange }) => {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-md border bg-background p-0.5">
+      {SAMPLE_SIZE_OPTIONS.map((n) => {
+        const active = n === value;
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+              active
+                ? 'bg-primary text-primary-foreground font-medium'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+            aria-pressed={active}
+            title={`Sample ${n} rows for inference`}
+          >
+            {n}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// Suppress unused-import lint for Label (used in Connection card; kept here for future expansions).
+void Label;

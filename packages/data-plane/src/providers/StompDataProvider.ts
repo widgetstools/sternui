@@ -220,12 +220,46 @@ export class StompDataProvider {
   /**
    * Infer field schema from data rows.
    * Analyzes multiple rows to determine field types, nullability, and structure.
+   *
+   * `opts.targetSampleSize` enables completeness-weighted sampling:
+   * each row is scored by the number of non-null/non-empty top-level
+   * fields it carries; rows are sorted by that score (desc) and the
+   * top N are kept. This biases inference toward rows with the
+   * fullest schema coverage so sparse rows don't dilute the result.
+   * Falls back to "use all rows" when omitted (back-compat).
+   *
+   * `opts.maxFields` caps how many fields to return. Useful for
+   * extremely wide payloads.
    */
-  static inferFields(rows: any[]): Record<string, FieldInfo> {
+  static inferFields(
+    rows: any[],
+    opts?: { targetSampleSize?: number; maxFields?: number },
+  ): Record<string, FieldInfo> {
     if (!rows || rows.length === 0) return {};
 
+    let working = rows;
+    if (opts?.targetSampleSize && rows.length > opts.targetSampleSize) {
+      const target = opts.targetSampleSize;
+      // Score each row by completeness: count of keys with non-null,
+      // non-empty values. Object-typed values count as 1 if they're
+      // non-empty objects.
+      const scored = rows.map((row, idx) => ({ row, idx, score: completenessScore(row) }));
+      // Stable-sort by score desc; tie-breaks by original index so
+      // ordering is deterministic for tests.
+      scored.sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
+      working = scored.slice(0, target).map((s) => s.row);
+    }
+
     const fields: Record<string, FieldInfo> = {};
-    rows.forEach(row => StompDataProvider.inferObject(row, '', fields));
+    working.forEach(row => StompDataProvider.inferObject(row, '', fields));
+
+    if (opts?.maxFields && Object.keys(fields).length > opts.maxFields) {
+      // Keep the first N keys deterministically — Object.keys order
+      // is insertion order in V8.
+      const trimmed: Record<string, FieldInfo> = {};
+      Object.keys(fields).slice(0, opts.maxFields).forEach((k) => { trimmed[k] = fields[k]; });
+      return trimmed;
+    }
     return fields;
   }
 
@@ -300,4 +334,23 @@ export class StompDataProvider {
     }
     return 'string';
   }
+}
+
+/**
+ * Count of top-level keys whose values are "filled" — non-null,
+ * non-undefined, and not the empty string. Used by completeness-
+ * weighted sampling to pick rows that best represent the schema.
+ *
+ * Nested objects count as 1 each (we don't recurse — sparse rows
+ * are usually sparse at the top level).
+ */
+function completenessScore(row: unknown): number {
+  if (!row || typeof row !== 'object') return 0;
+  let score = 0;
+  for (const v of Object.values(row as Record<string, unknown>)) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === 'string' && v === '') continue;
+    score += 1;
+  }
+  return score;
 }

@@ -13,6 +13,15 @@ import {
   findFieldByPath,
 } from '@marketsui/shared-types';
 
+export interface InferenceSummary {
+  /** Rows fetched from the upstream snapshot. */
+  rowsFetched: number;
+  /** Rows actually used for inference (may be ≤ rowsFetched if sampleSize caps it). */
+  rowsUsed: number;
+  /** Distinct top-level fields detected. */
+  fieldsDetected: number;
+}
+
 export interface UseFieldInferenceReturn {
   inferring: boolean;
   inferredFields: FieldNode[];
@@ -23,6 +32,11 @@ export interface UseFieldInferenceReturn {
   selectAllIndeterminate: boolean;
   pendingFieldChanges: boolean;
   committedSelectedFields: Set<string>;
+  /** Target sample size for the next inference run; user-adjustable in the Fields tab. */
+  sampleSize: number;
+  setSampleSize: (n: number) => void;
+  /** Stats from the last inference run (null until inferFields has run). */
+  lastSummary: InferenceSummary | null;
   inferFields: () => Promise<void>;
   toggleField: (path: string) => void;
   toggleExpand: (path: string) => void;
@@ -32,6 +46,10 @@ export interface UseFieldInferenceReturn {
   commitFieldSelection: () => void;
   initializeFromConfig: (config: StompProviderConfig) => void;
 }
+
+/** Default rows used by the configurator's inference run. Capped at 500
+ *  in the UI to keep wire + parse time predictable on large snapshots. */
+const DEFAULT_SAMPLE_SIZE = 200;
 
 export function useFieldInference(config: StompProviderConfig): UseFieldInferenceReturn {
   const { toast } = useToast();
@@ -45,6 +63,8 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
   const [selectAllIndeterminate, setSelectAllIndeterminate] = useState(false);
   const [pendingFieldChanges, setPendingFieldChanges] = useState(false);
   const [committedSelectedFields, setCommittedSelectedFields] = useState<Set<string>>(new Set());
+  const [sampleSize, setSampleSize] = useState<number>(DEFAULT_SAMPLE_SIZE);
+  const [lastSummary, setLastSummary] = useState<InferenceSummary | null>(null);
 
   // Update select-all checkbox state
   useEffect(() => {
@@ -100,7 +120,11 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
         batchSize: config.batchSize,
       });
 
-      const result = await provider.fetchSnapshot(100);
+      // Fetch some headroom over the target sample size so completeness-
+      // weighted filtering has rows to choose from. STOMP snapshots are
+      // capped on the upstream side anyway; we ask for what we want.
+      const fetchSize = Math.min(Math.max(sampleSize * 2, sampleSize + 50), 1000);
+      const result = await provider.fetchSnapshot(fetchSize);
 
       if (!result.success || !result.data || result.data.length === 0) {
         toast({ title: 'Field Inference Failed', description: result.error || 'No data received from STOMP server', variant: 'destructive' });
@@ -108,10 +132,15 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
         return;
       }
 
-      const inferredFieldsMap = StompDataProvider.inferFields(result.data);
+      const inferredFieldsMap = StompDataProvider.inferFields(result.data, { targetSampleSize: sampleSize });
       const fieldNodes = Object.values(inferredFieldsMap).map(f => convertFieldInfoToNode(f));
 
       setInferredFields(fieldNodes);
+      setLastSummary({
+        rowsFetched: result.data.length,
+        rowsUsed: Math.min(result.data.length, sampleSize),
+        fieldsDetected: fieldNodes.length,
+      });
 
       // Auto-expand object fields
       const objectPaths = new Set<string>();
@@ -126,7 +155,10 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
       findObjects(fieldNodes);
       setExpandedFields(objectPaths);
 
-      toast({ title: 'Fields Inferred', description: `Found ${fieldNodes.length} fields from ${result.data.length} sample rows` });
+      toast({
+        title: 'Fields Inferred',
+        description: `Found ${fieldNodes.length} fields from ${Math.min(result.data.length, sampleSize)} sample rows (of ${result.data.length} fetched)`,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to infer fields';
       toast({ title: 'Field Inference Error', description: errorMessage, variant: 'destructive' });
@@ -244,6 +276,9 @@ export function useFieldInference(config: StompProviderConfig): UseFieldInferenc
     selectAllIndeterminate,
     pendingFieldChanges,
     committedSelectedFields,
+    sampleSize,
+    setSampleSize,
+    lastSummary,
     inferFields,
     toggleField,
     toggleExpand,
