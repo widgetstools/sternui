@@ -240,16 +240,48 @@ export class Hub {
     if ('rows' in event) {
       const keyColumn = (slot.cfg as { keyColumn?: string }).keyColumn;
       if (event.replace) slot.cache.clear();
+      // Build a per-batch dedup map IN PARALLEL with the cache update.
+      // Both consume `event.rows` in order, so the last-write-wins
+      // semantics line up: the cache and the broadcast batch see the
+      // same final value per key.
+      const batch = new Map<string, unknown>();
       for (const row of event.rows) {
         const k = keyOf(row, keyColumn);
-        if (k !== null) slot.cache.set(k, row);
+        if (k === null) continue;
+        slot.cache.set(k, row);
+        batch.set(k, row);
       }
       slot.msgCount += 1;
       slot.msgsByBucket[slot.bucketIdx] += 1;
       slot.lastMessageAt = Date.now();
+
+      // Broadcast contract: rows are ALWAYS unique by `keyColumn`.
+      //
+      // - `replace: true`  → broadcast the full cache. Provider
+      //   snapshot buffers (notably the STOMP provider's
+      //   snapshot-phase accumulator) can carry the same row twice
+      //   when the upstream feed delivers an updated version of an
+      //   already-buffered row before its end-token arrives. AG-Grid
+      //   emits warning #2 ("Duplicate node id") on `setRowData` if
+      //   any two rows resolve to the same `getRowId(...)`. Going
+      //   through `cache.values()` collapses duplicates by
+      //   `keyColumn` (last-write-wins).
+      //
+      // - `replace: false` → broadcast the per-batch dedup map. A
+      //   single live message can carry multiple updates for the same
+      //   row id (e.g. an upstream batched feed coalescing two ticks
+      //   for the same position into one frame). Without dedup the
+      //   consumer's `applyTransactionAsync({add: [...], update:
+      //   [...]})` ends up with duplicate ids in one of those arrays
+      //   — same warning #2.
+      //
+      // Rows lacking the keyColumn are dropped from the broadcast
+      // entirely; the cache also skips them, and they couldn't be
+      // routed by the consumer's `getRowId` either.
+      const broadcastRows = event.replace ? [...slot.cache.values()] : [...batch.values()];
       this.broadcastData(providerId, {
         kind: 'delta',
-        rows: event.rows,
+        rows: broadcastRows,
         replace: event.replace,
         subId: '', // replaced per listener below
       });

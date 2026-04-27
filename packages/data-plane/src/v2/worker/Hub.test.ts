@@ -146,6 +146,77 @@ describe('Hub — attach lifecycle', () => {
 
     expect(ctrl.restartLog).toEqual([{ asOfDate: '2026-04-01' }]);
   });
+
+  it('dedupes by keyColumn when broadcasting a replace event so AG-Grid never sees duplicate row ids', () => {
+    // STOMP's snapshot-phase buffer can carry the same row twice when
+    // upstream delivers an updated version of an already-buffered row
+    // before the end-token arrives. Hub must collapse those by
+    // keyColumn before broadcasting; otherwise consumers running
+    // `setRowData` on a grid with `getRowId(row) => row[keyColumn]`
+    // emit AG-Grid warning #2 ("Duplicate node id detected").
+    const hub = new Hub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    port.messages.length = 0; // clear initial empty replace + status
+
+    ctrl.emit({
+      rows: [
+        { id: 'r1', x: 1 },
+        { id: 'r2', x: 2 },
+        { id: 'r1', x: 99 }, // duplicate of r1 — last write wins
+      ],
+      replace: true,
+    });
+
+    const broadcast = port.messages.find((m) => m.kind === 'delta' && (m as { replace?: boolean }).replace) as Event & { rows: Array<{ id: string; x: number }> };
+    expect(broadcast.rows).toHaveLength(2);
+    const byId = new Map(broadcast.rows.map((r) => [r.id, r]));
+    expect(byId.get('r1')?.x).toBe(99); // last write wins
+    expect(byId.get('r2')?.x).toBe(2);
+  });
+
+  it('dedupes by keyColumn on non-replace deltas (live ticks for the same id within one batch)', () => {
+    // A single upstream message can carry multiple updates for the
+    // same row id when the source coalesces ticks (e.g. a STOMP
+    // server batching two updates for the same position into one
+    // frame). Without dedup the consumer's
+    // `applyTransactionAsync({add: [...], update: [...]})` ends up
+    // with duplicate ids in one of those arrays — AG-Grid warning #2
+    // ("Duplicate node id") fires.
+    //
+    // Hub collapses duplicates last-write-wins, matching the
+    // semantics of the cache update that runs alongside.
+    const hub = new Hub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    port.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'r1', x: 1 }, { id: 'r1', x: 2 }] });
+
+    const delta = port.messages.find((m) => m.kind === 'delta' && !(m as { replace?: boolean }).replace) as Event & { rows: Array<{ id: string; x: number }> };
+    expect(delta.rows).toHaveLength(1);
+    expect(delta.rows[0]).toEqual({ id: 'r1', x: 2 }); // last write wins
+  });
+
+  it('drops rows without a keyColumn value from the broadcast (no id → cannot route)', () => {
+    // Defense in depth: rows lacking the keyColumn cannot be applied
+    // by the grid's `getRowId` and would never land in the cache
+    // either. Dropping them at the Hub keeps the broadcast contract
+    // simple ("rows are always unique by keyColumn").
+    const hub = new Hub();
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+    port.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'r1', x: 1 }, { x: 'orphan' }, { id: 'r2', x: 3 }] });
+
+    const delta = port.messages.find((m) => m.kind === 'delta' && !(m as { replace?: boolean }).replace) as Event & { rows: Array<{ id?: string }> };
+    expect(delta.rows).toHaveLength(2);
+    expect(delta.rows.every((r) => r.id !== undefined)).toBe(true);
+  });
 });
 
 describe('Hub — no auto-teardown', () => {
