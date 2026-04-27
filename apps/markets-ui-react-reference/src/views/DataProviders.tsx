@@ -58,6 +58,27 @@ function DataProviders() {
     return () => { document.title = prev; };
   }, []);
 
+  // The shell's `body { padding: 10px }` (set in index.css for the
+  // home page chrome) leaks here as 10px gutters around the popout
+  // and pushes h-screen content past the viewport — producing the
+  // OS-default page-level scrollbars. Zero body padding/margin on
+  // mount so the editor fills the popout flush, then restore on
+  // unmount so other routes keep their gutters.
+  useEffect(() => {
+    const bodyStyle = document.body.style;
+    const prevPadding = bodyStyle.padding;
+    const prevMargin = bodyStyle.margin;
+    const prevOverflow = bodyStyle.overflow;
+    bodyStyle.padding = '0';
+    bodyStyle.margin = '0';
+    bodyStyle.overflow = 'hidden';
+    return () => {
+      bodyStyle.padding = prevPadding;
+      bodyStyle.margin = prevMargin;
+      bodyStyle.overflow = prevOverflow;
+    };
+  }, []);
+
   return (
     <div className="flex flex-col h-screen w-screen bg-background overflow-hidden">
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card flex-shrink-0">

@@ -158,7 +158,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
           <ColumnsTab columns={currentColumns} onChange={updateColumns} />
         </TabsContent>
 
-        <TabsContent value="behaviour" className="flex-1 min-h-0 overflow-auto m-0 mt-3 p-4">
+        <TabsContent value="behaviour" className="flex-1 min-h-0 overflow-auto scrollbar-thin m-0 mt-3 p-4">
           <BehaviourFields cfg={provider.config} onChange={updateCfg} />
         </TabsContent>
 
@@ -217,7 +217,7 @@ function Header({
       <div className="space-y-1.5">
         <Label className="text-[11px] font-medium text-muted-foreground">Description</Label>
         <Textarea
-          className="text-xs min-h-0"
+          className="text-xs min-h-0 scrollbar-thin"
           rows={1}
           value={provider.description ?? ''}
           onChange={(e) => onDescriptionChange(e.target.value)}

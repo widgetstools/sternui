@@ -84,7 +84,7 @@ export function RestFields({ cfg, onChange }: RestFieldsProps) {
         {cfg.method === 'POST' && (
           <Field label="Request Body (JSON)">
             <Textarea
-              className="font-mono text-xs"
+              className="font-mono text-xs scrollbar-thin"
               rows={5}
               value={cfg.body ?? ''}
               onChange={(e) => onChange({ body: e.target.value })}

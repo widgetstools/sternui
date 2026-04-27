@@ -80,7 +80,7 @@ function Live({ providerId }: { providerId: string }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex-1 overflow-auto scrollbar-thin p-4 space-y-4">
         {error && (
           <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}

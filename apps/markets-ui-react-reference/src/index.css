@@ -4,6 +4,10 @@
 @import '../../../packages/design-system/src/themes/fi-dark.css';
 @import '../../../packages/design-system/src/themes/fi-light.css';
 
+/* Theme-flipping scrollbar utilities (`.scrollbar-themed`, `.scrollbar-thin`).
+   Pulls from `--scrollbar-thumb` which fi-dark/fi-light define per theme. */
+@import '../../../packages/design-system/src/themes/scrollbars.css';
+
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
 @import '../../../packages/markets-grid/src/styles/marketsGrid.css';
 
