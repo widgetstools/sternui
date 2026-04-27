@@ -248,53 +248,76 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // ── Grid → Hub attach gating ─────────────────────────────────────
   //
   // We DO NOT attach to the Hub until AG-Grid has finished initialising
-  // and `onReady` has captured the live `gridApi`. Without this gate
-  // there is a race on every page reload (and on every provider
-  // switch, since the grid remounts via the `key` prop):
+  // AND the api we captured belongs to the CURRENT grid (the one
+  // matching the active provider's cfg). Without this gate there is a
+  // race on every page reload (and on every provider switch, since
+  // the grid remounts via the `key` prop):
   //
-  //   t=0   MarketsGrid mounts; AG-Grid starts async init
-  //   t=0+  useProviderStream's effect calls client.attach
-  //   t=ε   Hub sends `replace: true` with its cache (sub-ms over the
-  //         SharedWorker MessagePort)
-  //   t=ε   onDelta fires — but `apiRef.current` is still null because
-  //         the AG-Grid React adapter's onGridReady hasn't fired yet,
-  //         so the snapshot is silently dropped
-  //   t=Δ   onGridReady fires; api is now ready, but the snapshot ship
-  //         has sailed
-  //   t=Δ+  the next live tick arrives as `replace: false`; we
-  //         applyTransaction({update}) for ids that aren't in the grid
-  //         and AG-Grid throws error #4 ("Could not find row id")
+  //   t=0   activeRow.cfg arrives → rowIdField flips null → real →
+  //         render switches from the "no provider" empty-grid branch
+  //         to the real branch → MarketsGrid remounts under a new key
+  //   t=0+  effects run in declaration order. A `setGridApi(null)`
+  //         reset effect schedules a re-render, but the in-progress
+  //         commit's useProviderStream effect ALREADY captured the
+  //         OLD (empty-grid) gridApi from state — and runs first,
+  //         attaching with the new providerId
+  //   t=ε   Hub posts the cached snapshot back (sub-ms when the
+  //         SharedWorker is already running with a populated cache —
+  //         exactly the page-refresh case)
+  //   t=ε+  the listener uses the STILL-EMPTY grid's api (or, after
+  //         microtask flush, no api at all because the cleanup
+  //         already ran) — the snapshot is silently dropped
+  //   t=Δ+  live ticks arrive next, the new grid is ready by then,
+  //         add/update split fires applyTransaction({add: [tick]})
+  //         for every row → the user sees rows materialise one-by-
+  //         one instead of as a single snapshot reset
   //
-  // Gating attach on `gridApi` flips this around: by the time the Hub
-  // sends its replay, the grid is already initialised, so the snapshot
-  // lands as `setGridOption('rowData', rows)` exactly once on every
-  // page reload — never piecemeal as individual ticks.
-  const [gridApi, setGridApi] = useState<GridApi<TData> | null>(null);
+  // Gating attach on a STAMPED gridApi (one paired with the key it
+  // was created for) flips this around: an api carrying the empty
+  // grid's stamp never matches the real grid's expected key, so
+  // `liveApi` is null until the new mount's onReady fires AND
+  // setStamped commits with a matching key. By that time the grid is
+  // ready; the Hub's replay lands as exactly one
+  // `setGridOption('rowData', rows)` call. Subsequent live ticks then
+  // hit the populated grid for the add/update split.
+  const expectedKey = (activeId && !activeRow.loading && rowIdField && columnDefs)
+    ? `${activeId}::${rowIdField}`
+    : null;
+
+  const [stamped, setStamped] = useState<{ key: string; api: GridApi<TData> } | null>(null);
+
+  // `expectedKeyRef` lets `onReady` read the current expected key
+  // without depending on it (which would change the callback identity
+  // every time `activeRow.loading` flips and re-fire MarketsGrid's
+  // ready effect).
+  const expectedKeyRef = useRef(expectedKey);
+  useEffect(() => { expectedKeyRef.current = expectedKey; }, [expectedKey]);
+
   const onReady = useCallback((handle: MarketsGridHandle) => {
-    setGridApi(handle.gridApi as unknown as GridApi<TData>);
+    const k = expectedKeyRef.current;
+    // Only stamp when we're in the real-data branch. An onReady from
+    // the "no provider" empty-grid branch (expectedKey === null) is
+    // discarded — that grid's api isn't the one we want to attach to.
+    if (k) {
+      setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
+    }
     onReadyProp?.(handle);
   }, [onReadyProp]);
 
-  // The grid remounts when activeId/rowIdField change (key prop on
-  // MarketsGrid below). On remount, the gridApi we captured is dead;
-  // reset state so the new mount's attach waits for the new gridApi.
-  useEffect(() => {
-    setGridApi(null);
-  }, [activeId, rowIdField]);
+  // `liveApi` is non-null only when the stamped api's key matches the
+  // current expected key. The comparison is computed synchronously
+  // during render — no useEffect lag, no stale-state window.
+  const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
 
   // Snapshot vs. delta dispatch. See data-plane v2 docs for the
   // detailed contract — `replace: true` is a setRowData reset; without
   // it we split each batch into add/update by `getRowNode`.
-  //
-  // `gridApi ? activeId : null` is the gate: useProviderStream sees a
-  // null providerId until the grid is ready, so it never attaches
-  // early.
   const stream = useProviderStream<TData>(
-    gridApi ? activeId : null,
-    gridApi ? activeCfg : null,
+    liveApi ? activeId : null,
+    liveApi ? activeCfg : null,
     {
       onDelta: (rows, replace) => {
-        const api = gridApi; if (!api) return; // belt + suspenders
+        const api = liveApi; if (!api) return;
         if (replace) {
           api.setGridOption('rowData', rows.slice());
           return;
