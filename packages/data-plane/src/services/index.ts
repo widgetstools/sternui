@@ -5,4 +5,5 @@
 export {
   DataProviderConfigService,
   dataProviderConfigService,
+  type DataProviderLocalBackend,
 } from './dataProviderConfigService';

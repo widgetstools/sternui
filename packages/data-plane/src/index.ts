@@ -57,10 +57,11 @@ export {
 } from './providers';
 
 // Framework-agnostic services for managing data-provider configuration
-// (CRUD over the unified-config REST API).
+// (CRUD over the unified-config REST API or an injected local backend).
 export {
   DataProviderConfigService,
   dataProviderConfigService,
+  type DataProviderLocalBackend,
 } from './services';
 
 // Main-thread SDK — the vast majority of app consumers only need this

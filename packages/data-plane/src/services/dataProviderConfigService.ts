@@ -3,6 +3,23 @@
  *
  * Wrapper around fetch for managing DataProvider configurations.
  * Providers are stored as UnifiedConfig with componentType='data-provider'.
+ *
+ * Two backends, switched at runtime via `configure()` / `configureLocal()`:
+ *
+ *   1. **REST mode** (default) — talks to a UnifiedConfig REST API at
+ *      `<apiBase>/api/v1/configurations`. Suitable when the platform
+ *      runs against a shared backend (matches the stern-2 contract).
+ *
+ *   2. **Local mode** — routes every CRUD op through an injected
+ *      `DataProviderLocalBackend`. Useful when the consumer ships an
+ *      IndexedDB / Dexie persistence layer (`@marketsui/config-service`'s
+ *      `ConfigManager` is the canonical implementation) and doesn't
+ *      want to require a running config server.
+ *
+ * Both modes preserve the same `DataProviderConfig` <-> `UnifiedConfig`
+ * mapping; the local backend just sees the unified-shaped row directly
+ * and decides where to put it. When a local backend is set it wins
+ * over REST — `configureLocal(undefined)` explicitly returns to REST.
  */
 
 import type { UnifiedConfig } from '@marketsui/shared-types';
@@ -15,8 +32,27 @@ import type { DataProviderConfig, ProviderConfig } from '@marketsui/shared-types
 
 const DEFAULT_API_URL = 'http://localhost:3001';
 
+/**
+ * Pluggable persistence backend. Consumers wire one of these via
+ * `dataProviderConfigService.configureLocal(...)` to opt out of REST
+ * mode entirely. The shape mirrors what the service does over HTTP —
+ * the unified-config envelope is built/decoded by the service, the
+ * backend just stores and retrieves rows.
+ */
+export interface DataProviderLocalBackend {
+  /** Insert or update a row. The backend assigns / preserves
+   *  `configId` / timestamps / createdBy as appropriate. */
+  upsert(row: UnifiedConfig): Promise<UnifiedConfig>;
+  delete(configId: string): Promise<void>;
+  getById(configId: string): Promise<UnifiedConfig | null>;
+  /** Return every row owned by `userId`. The service applies
+   *  `componentType === data-provider` filtering on top. */
+  listByUser(userId: string): Promise<UnifiedConfig[]>;
+}
+
 export class DataProviderConfigService {
   private apiBase = `${DEFAULT_API_URL}/api/v1/configurations`;
+  private local: DataProviderLocalBackend | undefined;
 
   /**
    * Configure the service with a custom API base URL.
@@ -25,6 +61,25 @@ export class DataProviderConfigService {
   configure(options: { apiUrl: string }): void {
     const base = options.apiUrl.replace(/\/+$/, '');
     this.apiBase = `${base}/api/v1/configurations`;
+  }
+
+  /**
+   * Switch into local-backend mode. Pass a backend to enable, pass
+   * `undefined` to revert to REST.
+   *
+   * The reference app wires `@marketsui/config-service`'s `ConfigManager`
+   * as the backend so DataProviders persist into the same IndexedDB
+   * the rest of the platform's config rows live in — no separate
+   * server required for dev.
+   */
+  configureLocal(backend: DataProviderLocalBackend | undefined): void {
+    this.local = backend;
+  }
+
+  /** True when a local backend is active. Useful for callers that
+   *  want to surface a "running locally" indicator. */
+  get isLocal(): boolean {
+    return Boolean(this.local);
   }
 
   /** Sentinel userId for public (system-scope) rows. */
@@ -98,6 +153,17 @@ export class DataProviderConfigService {
 
   async create(provider: DataProviderConfig, userId: string): Promise<DataProviderConfig> {
     const unifiedConfig = this.toUnifiedConfig(provider, userId);
+
+    if (this.local) {
+      // Local backends accept the full UnifiedConfig — they handle id
+      // assignment + timestamps internally. Cast to UnifiedConfig: the
+      // service's `toUnifiedConfig` returns Partial<> only because the
+      // REST server fills in server-managed fields; the local backend
+      // does the same fill-in deterministically.
+      const created = await this.local.upsert(unifiedConfig as UnifiedConfig);
+      return this.fromUnifiedConfig(created);
+    }
+
     const res = await fetch(this.apiBase, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -114,15 +180,42 @@ export class DataProviderConfigService {
         description: updates.description,
         tags: updates.tags ?? [],
         isDefault: Boolean(updates.isDefault),
+        public: Boolean(updates.public),
       },
     };
     const body: Partial<UnifiedConfig> = {
+      configId: providerId,
       displayText: updates.name,
       payload,
       updatedBy: userId,
     };
     if (updates.providerType) {
       body.componentSubType = PROVIDER_TYPE_TO_COMPONENT_SUBTYPE[updates.providerType];
+    }
+
+    if (this.local) {
+      // Read-merge-write so the backend doesn't lose immutable fields
+      // (createdBy, creationTime, appId, isTemplate, etc.) that the
+      // PUT body deliberately omits.
+      const existing = await this.local.getById(providerId);
+      if (!existing) {
+        throw new Error(`Failed to update provider (not found: ${providerId})`);
+      }
+      // Visibility rule mirrors REST: a `public` flip changes the
+      // owning userId between 'system' and the caller.
+      const nextUserId = updates.public === undefined
+        ? existing.userId
+        : (updates.public ? DataProviderConfigService.PUBLIC_USER_ID : userId);
+      const merged: UnifiedConfig = {
+        ...existing,
+        ...body,
+        userId: nextUserId,
+        // payload fully overrides — `body.payload` already carries the
+        // entire new config + meta block.
+        payload: body.payload ?? existing.payload,
+      };
+      const written = await this.local.upsert(merged);
+      return this.fromUnifiedConfig(written);
     }
 
     const res = await fetch(`${this.apiBase}/${providerId}`, {
@@ -135,11 +228,19 @@ export class DataProviderConfigService {
   }
 
   async delete(providerId: string): Promise<void> {
+    if (this.local) {
+      await this.local.delete(providerId);
+      return;
+    }
     const res = await fetch(`${this.apiBase}/${providerId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error(`Failed to delete provider (${res.status})`);
   }
 
   async getById(providerId: string): Promise<DataProviderConfig | null> {
+    if (this.local) {
+      const row = await this.local.getById(providerId);
+      return row ? this.fromUnifiedConfig(row) : null;
+    }
     const res = await fetch(`${this.apiBase}/${providerId}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Failed to fetch provider (${res.status})`);
@@ -147,6 +248,15 @@ export class DataProviderConfigService {
   }
 
   async getByUser(userId: string): Promise<DataProviderConfig[]> {
+    if (this.local) {
+      const rows = await this.local.listByUser(userId);
+      return rows
+        .filter(c => {
+          const type = c.componentType?.toLowerCase();
+          return type === 'data-provider' || type === 'dataprovider' || type === 'datasource';
+        })
+        .map(c => this.fromUnifiedConfig(c));
+    }
     const params = new URLSearchParams({ includeDeleted: 'false' });
     const res = await fetch(`${this.apiBase}/by-user/${userId}?${params}`);
     if (!res.ok) throw new Error(`Failed to fetch providers (${res.status})`);

@@ -14,7 +14,7 @@
  * no synthetic rows, ever.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +25,7 @@ import { DataProviderSelector } from '@marketsui/widgets-react';
 import { MarketsGridContainer } from '@marketsui/widgets-react/markets-grid-container';
 import { useTheme } from '../context/ThemeContext';
 import { HostedComponent } from '../components/HostedComponent';
+import { ensureDataProvidersLocalBackend } from '../data-providers-local';
 
 // Bootstrap the config service against the configured backend so the
 // <DataProviderSelector>'s `listVisible` query lands on the right URL.
@@ -193,6 +194,20 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
   const [providerId, setProviderIdState] = useState<string | null>(() => loadProviderId(instanceId));
   const [rowIdField, setRowIdFieldState] = useState<string>(() => loadRowIdField(instanceId));
 
+  // Wire the picker's listVisible() query through ConfigManager (Dexie)
+  // so it sees the same rows the /dataproviders editor writes. The
+  // bootstrap is idempotent — calling it from both surfaces is fine.
+  // Gate the picker mount on completion so the first listVisible call
+  // doesn't race the bootstrap and fall back to REST mode.
+  const [pickerReady, setPickerReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    ensureDataProvidersLocalBackend()
+      .then(() => { if (!cancelled) setPickerReady(true); })
+      .catch(() => { if (!cancelled) setPickerReady(true); }); // best-effort; surface upstream errors via the picker's empty state
+    return () => { cancelled = true; };
+  }, []);
+
   // Hand off authoring to /dataproviders. We pass the picker's current
   // intent (`new` or the providerId being edited) as a query param so
   // a future enhancement can deep-link straight to the right row; the
@@ -247,14 +262,18 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
             when the grid is hungry. */}
         <div className="flex items-center gap-3 px-3 py-2 border-b border-border bg-card/50 flex-shrink-0">
           <div className="flex-1 min-w-0">
-            <DataProviderSelector
-              userId={userId}
-              value={providerId}
-              onChange={setProviderId}
-              placeholder="Pick a data provider…"
-              onCreate={() => goToEditor('new')}
-              onEdit={(p) => goToEditor(p.providerId ?? 'new')}
-            />
+            {pickerReady ? (
+              <DataProviderSelector
+                userId={userId}
+                value={providerId}
+                onChange={setProviderId}
+                placeholder="Pick a data provider…"
+                onCreate={() => goToEditor('new')}
+                onEdit={(p) => goToEditor(p.providerId ?? 'new')}
+              />
+            ) : (
+              <span className="text-xs text-muted-foreground">Loading providers…</span>
+            )}
           </div>
           <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span>Row id field:</span>
