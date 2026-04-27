@@ -10,6 +10,7 @@
 import type { ProviderConfig } from '@marketsui/shared-types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
 import { startMock } from './mock.js';
+import { startStomp } from './stomp.js';
 
 export type ProviderFactory<T extends ProviderConfig = ProviderConfig> = (
   cfg: T,
@@ -18,7 +19,8 @@ export type ProviderFactory<T extends ProviderConfig = ProviderConfig> = (
 
 const factories: Partial<Record<ProviderConfig['providerType'], ProviderFactory>> = {
   mock: startMock as ProviderFactory,
-  // stomp + rest land in steps 2 + 3.
+  stomp: startStomp as ProviderFactory,
+  // rest lands in step 3.
 };
 
 /**
