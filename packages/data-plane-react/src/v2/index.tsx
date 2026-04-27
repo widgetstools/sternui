@@ -68,7 +68,13 @@ export function DataPlaneProvider({ client, configManager, userId, children }: D
     configStore: new DataProviderConfigStore(configManager),
   }), [client, configManager, userId]);
 
-  return <DataPlaneContext.Provider value={value}>{children}</DataPlaneContext.Provider>;
+  return (
+    <DataPlaneContext.Provider value={value}>
+      <DataPlaneUserIdContext.Provider value={userId}>
+        {children}
+      </DataPlaneUserIdContext.Provider>
+    </DataPlaneContext.Provider>
+  );
 }
 
 function useDataPlaneContext(): ContextValue {
@@ -146,6 +152,55 @@ export function useDataProviderConfig(providerId: string | null | undefined): Da
 
   return view;
 }
+
+// ─── Hook 3b: list DataProvider configs ──────────────────────────
+//
+// Returns the union of public (userId='system') + the active user's
+// own DataProvider rows, optionally filtered by subtype. Re-fetches
+// when `version` bumps — exposed via `refresh()` so consumers can
+// re-pull after a save without re-mounting the picker.
+
+export interface DataProvidersListView {
+  configs: readonly DataProviderConfig[];
+  loading: boolean;
+  error?: string;
+  refresh(): void;
+}
+
+export function useDataProvidersList(opts: { subtype?: ProviderConfig['providerType'] } = {}): DataProvidersListView {
+  const { configStore } = useDataPlaneContext();
+  const userId = useUserIdFromContext();
+  const [view, setView] = useState<{ configs: readonly DataProviderConfig[]; loading: boolean; error?: string }>(
+    { configs: [], loading: true },
+  );
+  const [tick, setTick] = useState(0);
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setView((v) => ({ ...v, loading: true }));
+    configStore.list(userId, opts.subtype ? { subtype: opts.subtype } : {})
+      .then((rows) => { if (!cancelled) setView({ configs: rows, loading: false }); })
+      .catch((err: unknown) => {
+        if (!cancelled) setView({ configs: [], loading: false, error: err instanceof Error ? err.message : String(err) });
+      });
+    return () => { cancelled = true; };
+  }, [configStore, userId, opts.subtype, tick]);
+
+  return { ...view, refresh };
+}
+
+// Internal: read userId out of the context so list/save hooks don't
+// re-take it as a prop.
+function useUserIdFromContext(): string {
+  const ctx = useContext(DataPlaneUserIdContext);
+  if (ctx === null) {
+    throw new Error('useDataProvidersList requires <DataPlaneProvider userId="...">');
+  }
+  return ctx;
+}
+
+const DataPlaneUserIdContext = createContext<string | null>(null);
 
 // ─── Hook 4: template-resolved cfg ───────────────────────────────
 //
