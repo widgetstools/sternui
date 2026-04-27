@@ -14,7 +14,7 @@
  * no synthetic rows, ever.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +24,7 @@ import { DataProviderSelector } from '@marketsui/widgets-react';
 import { MarketsGridContainer } from '@marketsui/widgets-react/markets-grid-container';
 import { useTheme } from '../context/ThemeContext';
 import { HostedComponent } from '../components/HostedComponent';
+import { dataPlaneClient } from '../data-plane-client';
 
 // Note: DataProvider storage is wired in main.tsx via
 // ensureDataProvidersLocalBackend(). The service's internal gate
@@ -131,9 +132,11 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
 
-// ─── Data-plane SharedWorker — built once per blotter mount ──────────
-// Vite resolves this URL at build time; the file lives next to main.tsx.
-const buildDataPlaneUrl = () => new URL('../dataPlaneWorker.ts', import.meta.url);
+// The DataPlane SharedWorker + client are constructed once at module
+// load in `../data-plane-client.ts`. Vite needs the `new SharedWorker(
+// new URL(...))` literal pair to live in the app's own source so it
+// can emit a worker chunk; routing through @marketsui/data-plane's
+// connect() helper would defeat that static analysis.
 
 // ─── View ─────────────────────────────────────────────────────────────
 
@@ -213,18 +216,8 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
     [instanceId],
   );
 
-  // Memoise connectArgs so the provider doesn't reconnect on every render.
-  const connectArgs = useMemo(
-    () => ({
-      url: buildDataPlaneUrl(),
-      name: `mkt-data-plane:${appId}`,
-      appId,
-    }),
-    [appId],
-  );
-
   return (
-    <DataPlaneProvider connect={connectArgs}>
+    <DataPlaneProvider client={dataPlaneClient}>
       {/* Outer flex column so the picker strip stays its natural height
           and the grid below claims everything else. HostedComponent's
           content area is a flex *item* (not a flex *container*), so we
