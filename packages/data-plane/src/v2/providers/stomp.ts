@@ -9,10 +9,25 @@
  *        the trigger frame to `cfg.requestMessage` (body =
  *        `cfg.requestBody ?? ''`).
  *     3. Each frame body is parsed as JSON. Arrays expand; single
- *        objects become a 1-element batch. The case-insensitive
- *        `cfg.snapshotEndToken` flips status: 'loading' → 'ready'.
- *     4. Live-phase frames emit as keyed deltas via
- *        `emit({ rows })` — Hub upserts into its cache.
+ *        objects become a 1-element batch.
+ *     4. **Snapshot phase** (before the case-insensitive
+ *        `cfg.snapshotEndToken` matches a frame): rows are
+ *        accumulated in an in-memory buffer. Nothing is emitted to
+ *        the Hub per-frame. When the end-token arrives we flush the
+ *        buffer as a single `emit({ rows: [...all], replace: true })`
+ *        followed by `emit({ status: 'ready' })`. The Hub then sends
+ *        that one snapshot to every attached listener which applies
+ *        it via `setGridOption('rowData', ...)` (one cheap reset
+ *        instead of N small `add` transactions).
+ *     5. **Live phase** (after the end-token): each frame emits as
+ *        keyed deltas via `emit({ rows })` — Hub upserts into its
+ *        cache, listeners receive `{replace: false}` and route to
+ *        `applyTransactionAsync` (split into adds vs updates by
+ *        `getRowNode` on the consumer side).
+ *     6. **No end-token configured** (legacy / probe paths): we
+ *        cannot tell snapshot from live, so every frame emits as a
+ *        delta. Status stays `loading` until something else flips
+ *        it (typically the consumer relies on the cache filling up).
  *
  *   restart(extra):
  *     Disconnects, clears local state, emits `{ rows: [], replace:
@@ -76,6 +91,14 @@ async function loadDefaultClientCtor(): Promise<new (cfg: StompClientCfg) => Sto
 export interface StompOpts {
   /** Inject the Client constructor for tests. */
   createClient?: StompClientFactory;
+  /**
+   * Skip the snapshot-phase row buffer and forward every batch as a
+   * `{rows}` delta in real time. Used by `probeStomp` (which wants
+   * the first N rows ASAP regardless of where the end-token sits)
+   * and by callers that just want raw frame fan-out. Default: false
+   * — Hub consumers want the buffered, replace-flagged snapshot.
+   */
+  passthroughSnapshot?: boolean;
 }
 
 // ─── start() — long-running provider ───────────────────────────────
@@ -85,12 +108,31 @@ export function startStomp(
   emit: ProviderEmit,
   opts: StompOpts = {},
 ): ProviderHandle {
+  // `hasEndToken` decides whether we buffer-then-flush (true) or
+  // straight-pass each frame (false). When the cfg has no end token
+  // there is no defined "snapshot complete" moment, so buffering
+  // would never flush.
+  // `passthroughSnapshot` (probe / debug callers) also disables
+  // buffering — they want frames as they arrive.
+  const hasEndToken = Boolean(cfg.snapshotEndToken);
+  const buffering = hasEndToken && !opts.passthroughSnapshot;
+
   const state = {
     client: null as StompClient | null,
     sub: null as { unsubscribe(): void } | null,
-    snapshotComplete: false,
+    snapshotComplete: !buffering, // no buffering → start in live phase
+    snapshotBuffer: [] as unknown[],
     overlay: undefined as Record<string, unknown> | undefined,
     stopped: false,
+  };
+
+  const flushSnapshot = () => {
+    // Always emit a replace=true frame at the end of the snapshot
+    // phase — even if zero rows arrived. That gives consumers a
+    // deterministic "the snapshot is now this set" signal and lets
+    // the Hub clear any stale cache entries from a prior session.
+    emit({ rows: state.snapshotBuffer, replace: true });
+    state.snapshotBuffer = [];
   };
 
   const handleFrame = (body: string) => {
@@ -100,7 +142,10 @@ export function startStomp(
 
     // End-of-snapshot token (case-insensitive substring match).
     if (matchesEndToken(trimmed, cfg.snapshotEndToken)) {
-      state.snapshotComplete = true;
+      if (!state.snapshotComplete) {
+        flushSnapshot();
+        state.snapshotComplete = true;
+      }
       emit({ byteSize });
       emit({ status: 'ready' });
       return;
@@ -119,6 +164,16 @@ export function startStomp(
       emit({ byteSize });
       return;
     }
+
+    if (!state.snapshotComplete) {
+      // Snapshot phase: accumulate in memory, no emit yet. Bytes are
+      // still surfaced so Diagnostics can show the upstream activity.
+      state.snapshotBuffer.push(...rows);
+      emit({ byteSize });
+      return;
+    }
+
+    // Live phase: pass through as a keyed delta.
     emit({ rows });
     emit({ byteSize });
   };
@@ -208,7 +263,13 @@ export function startStomp(
       state.sub = null;
       try { await state.client?.deactivate(); } catch { /* ignore */ }
       state.client = null;
-      state.snapshotComplete = false;
+      // Reset snapshot tracking. `snapshotComplete` returns to its
+      // initial value (`!buffering`) so the new connection re-buffers
+      // its snapshot phase if buffering is enabled. Buffer is empty
+      // either way — we either flushed it on the previous end-token,
+      // or we never used it (passthrough / no-token path).
+      state.snapshotComplete = !buffering;
+      state.snapshotBuffer = [];
       emit({ rows: [], replace: true });
       // Allow the new start() to proceed (resets stopped flag, but
       // only if the consumer didn't call stop() in between).
@@ -274,7 +335,13 @@ export async function probeStomp(
           finish({ ok: false, error: event.error ?? 'Unknown STOMP error' });
         }
       }
-    }, opts.createClient ? { createClient: opts.createClient } : {});
+    }, {
+      // Probe must see rows as they arrive so it can cap at maxRows
+      // and resolve quickly. Buffering the snapshot would defer
+      // every row to the end-token (or never, if there isn't one).
+      passthroughSnapshot: true,
+      ...(opts.createClient ? { createClient: opts.createClient } : {}),
+    });
   });
 }
 

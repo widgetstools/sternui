@@ -105,7 +105,7 @@ describe('startStomp', () => {
     expect(ctrl.publishLog).toEqual([{ destination: '/app/test/1000', body: '' }]);
   });
 
-  it('parses snapshot batches as keyed deltas; flips to ready on the end token', async () => {
+  it('buffers snapshot batches and flushes them as a single replace=true on the end token', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
     startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
@@ -114,12 +114,21 @@ describe('startStomp', () => {
 
     ctrl.deliver(JSON.stringify([{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }]));
     ctrl.deliver(JSON.stringify({ id: 'r3', x: 3 }));   // single object → 1-row batch
+    // Before the end-token, no row events have been emitted — they're
+    // accumulating in the in-memory snapshot buffer.
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+
     ctrl.deliver('Success: All 3 records delivered');    // case-insensitive token
 
+    // After the end-token, the buffer flushes as a single
+    // replace=true batch carrying every row collected during the
+    // snapshot phase. Hub consumers route this to
+    // setGridOption('rowData', ...) — one cheap reset instead of N
+    // small `add` transactions.
     const deltas = events.filter((e): e is { rows: readonly unknown[]; replace?: boolean } => 'rows' in e);
-    expect(deltas).toHaveLength(2);
-    expect(deltas[0].rows).toHaveLength(2);
-    expect(deltas[1].rows).toHaveLength(1);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toHaveLength(3);
+    expect(deltas[0].replace).toBe(true);
 
     expect(events.find((e) => 'status' in e && e.status === 'ready')).toBeTruthy();
   });

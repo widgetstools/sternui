@@ -134,6 +134,15 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     }
   }, [appData.store, historicalDateAppDataRef]);
 
+  // Use the active provider's keyColumn for `rowIdField` and its
+  // saved columnDefinitions for the grid layout. Both are read from
+  // the saved DataProviderConfig — never authored at the blotter
+  // level (see CLAUDE history: "Could not find row id" errors when
+  // those drift).
+  const rowIdField = activeRow.cfg
+    ? (activeCfg as { keyColumn?: string } | null)?.keyColumn ?? null
+    : null;
+
   // Imperative grid handles + row pump.
   const apiRef = useRef<GridApi<TData> | null>(null);
   const onReady = useCallback((handle: MarketsGridHandle) => {
@@ -141,11 +150,46 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     onReadyProp?.(handle);
   }, [onReadyProp]);
 
+  // Snapshot vs. delta dispatch.
+  //
+  //   • `replace: true`  → `setGridOption('rowData', ...)`. Resets the
+  //     grid to the supplied set in one go. Used for the first emit on
+  //     attach (Hub replays its cache) and on `provider.restart()`.
+  //
+  //   • `replace: false` → keyed upserts via `applyTransactionAsync`.
+  //     AG Grid's transaction API distinguishes `add` (row id NOT in
+  //     the grid) from `update` (row id IS in the grid). Sending a row
+  //     to `update` whose id the grid doesn't know about throws AG Grid
+  //     error #4 ("Could not find row id ..."). We split the incoming
+  //     batch by querying `api.getRowNode(id)` per row and routing
+  //     accordingly. New rows that arrive after the snapshot (e.g. a
+  //     freshly opened position on a STOMP feed) take the `add` branch;
+  //     ticks on rows we already have take `update`.
   const stream = useProviderStream<TData>(activeId, activeCfg, {
     onDelta: (rows, replace) => {
       const api = apiRef.current; if (!api) return;
-      if (replace) api.setGridOption('rowData', rows.slice());
-      else if (rows.length > 0) api.applyTransactionAsync({ update: rows.slice() });
+      if (replace) {
+        api.setGridOption('rowData', rows.slice());
+        return;
+      }
+      if (rows.length === 0) return;
+      // Without a key column we can't distinguish add vs update; fall
+      // back to update-only and let AG Grid surface error #4 for any
+      // rows it can't match. This shouldn't happen in practice — the
+      // editor enforces a non-empty keyColumn before save.
+      if (!rowIdField) {
+        api.applyTransactionAsync({ update: rows.slice() });
+        return;
+      }
+      const adds: TData[] = [];
+      const updates: TData[] = [];
+      for (const row of rows) {
+        const raw = (row as Record<string, unknown>)[rowIdField];
+        const id = raw === null || raw === undefined ? null : String(raw);
+        if (id !== null && api.getRowNode(id)) updates.push(row);
+        else adds.push(row);
+      }
+      api.applyTransactionAsync({ add: adds, update: updates });
     },
     onStatus: (_status, error) => {
       if (error) (onError ?? defaultOnError)(new Error(error));
@@ -160,15 +204,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       stream.refresh();
     }
   }, [activeId, mode, asOfDate, stream]);
-
-  // Use the active provider's keyColumn for `rowIdField` and its
-  // saved columnDefinitions for the grid layout. Both are read from
-  // the saved DataProviderConfig — never authored at the blotter
-  // level (see CLAUDE history: "Could not find row id" errors when
-  // those drift).
-  const rowIdField = activeRow.cfg
-    ? (activeCfg as { keyColumn?: string } | null)?.keyColumn ?? null
-    : null;
   const columnDefs = useMemo<ColDef<TData>[] | null>(() => {
     const defs = (activeCfg as { columnDefinitions?: ColDef<TData>[] } | null)?.columnDefinitions;
     return defs && defs.length > 0 ? defs : null;
