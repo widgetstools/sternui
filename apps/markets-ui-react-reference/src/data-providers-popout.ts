@@ -54,8 +54,31 @@ function isOpenFin(): boolean {
   return typeof (globalThis as { fin?: unknown }).fin !== 'undefined';
 }
 
+// Loose surface for the bits we touch on `fin`. The ambient `fin`
+// global ships from `src/types/fin.d.ts` (typed via `@openfin/core`),
+// but pinning to that type drags the whole OpenFin type surface
+// across release boundaries — opt for a minimal hand-rolled subset
+// instead so the helper stays version-tolerant.
+interface FinWindowHandle {
+  isShowing(): Promise<boolean>;
+  bringToFront(): Promise<unknown>;
+  focus(): Promise<unknown>;
+  show(): Promise<unknown>;
+  navigate(url: string): Promise<unknown>;
+}
+interface FinSurface {
+  me: { identity: { uuid: string } };
+  Window: {
+    wrap(id: { uuid: string; name: string }): Promise<FinWindowHandle>;
+    create(opts: Record<string, unknown>): Promise<unknown>;
+  };
+}
+
 async function openInOpenFin(url: string): Promise<void> {
-  const fin = (globalThis as { fin?: typeof window.fin }).fin;
+  // `fin` is a true global (declared as `const fin` in fin.d.ts —
+  // not a property on `window`). Reach through `globalThis` so the
+  // ambient declaration isn't strictly required at type-check time.
+  const fin = (globalThis as unknown as { fin?: FinSurface }).fin;
   if (!fin) {
     openInBrowser(url);
     return;
@@ -78,9 +101,7 @@ async function openInOpenFin(url: string): Promise<void> {
     await existing.bringToFront();
   } catch {
     try {
-      // Cast is intentional — `fin.Window.create`'s typings differ
-      // slightly between @openfin/core minor releases.
-      await (fin.Window.create as (o: Record<string, unknown>) => Promise<unknown>)({
+      await fin.Window.create({
         name: POPOUT_NAME,
         url,
         defaultWidth: POPOUT_WIDTH,
