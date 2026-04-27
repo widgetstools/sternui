@@ -258,27 +258,22 @@ function ComponentForm({
     onChange({ singleton: next });
   };
 
-  // When componentType / componentSubType change, re-derive BOTH the
-  // entry's `id` AND its `configId` from the canonical template
-  // configId formula (`${type}-${subtype}` lowercase). This is the
-  // contract the user spelled out:
+  // Type / subtype edits are pure field writes — we deliberately do
+  // NOT re-derive `id` on every keystroke, because the parent tracks
+  // the inspector selection by `entryId`. Rewriting `entry.id` from
+  // a half-typed type ("b" while the user is typing "blotter") would
+  // immediately invalidate the selection, unmount the input, and
+  // make typing impossible.
   //
-  //   • the registry-entry id IS the template configId
-  //   • templates have one row keyed by `${type}-${subtype}`
-  //   • per-instance rows derive from the template; their `configId`
-  //     is a separate UUID at launch time, not authored here
-  //
-  // Empty strings while the user is mid-typing are tolerated (the
-  // derived id collapses to `-` or `foo-`, validated downstream).
+  // The canonical id derivation lives at SAVE time:
+  //   • The Components-pane Save handler (and the Workspace Setup
+  //     reducer's UPSERT_ENTRY action) re-derives `id` and `configId`
+  //     from the final componentType + componentSubType right before
+  //     persisting.
+  //   • The "id" preview field below shows the live derivation so
+  //     the user sees what id their entry will land with.
   const handleTypeChange = (field: "componentType" | "componentSubType", value: string) => {
-    const t = field === "componentType" ? value : entry.componentType;
-    const s = field === "componentSubType" ? value : entry.componentSubType;
-    const derivedId = deriveTemplateConfigId(t, s);
-    onChange({
-      [field]: value,
-      id: derivedId,
-      configId: derivedId,
-    } as Partial<RegistryEntry>);
+    onChange({ [field]: value } as Partial<RegistryEntry>);
   };
 
   return (

@@ -132,7 +132,24 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
   const buildConfig = useCallback((): RegistryEditorConfig => {
     return {
       version: REGISTRY_CONFIG_VERSION,
-      entries: stateRef.current.entries,
+      // Normalise every entry so the persisted shape ALWAYS satisfies
+      // the registry contract:
+      //   id        === ${componentType}-${componentSubType} (lowercase)
+      //   configId  === same as id
+      // This catches:
+      //   - draft entries created with a temp UUID id (Workspace
+      //     Setup's `newDraftEntry`) — replaced with the canonical id.
+      //   - legacy rows with stale UUID ids — auto-corrected on next save.
+      //   - any future code path that forgets to derive the id —
+      //     it can't slip a UUID through this filter.
+      // Entries with empty type/subtype (genuinely incomplete drafts)
+      // pass through unchanged; the editor's validation rejects those
+      // before save in any case.
+      entries: stateRef.current.entries.map((e) => {
+        if (!e.componentType || !e.componentSubType) return e;
+        const derived = deriveTemplateConfigId(e.componentType, e.componentSubType);
+        return { ...e, id: derived, configId: derived };
+      }),
     };
   }, []);
 
@@ -150,7 +167,12 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
     const config = buildConfig();
     await saveRegistryConfig(config, scope);
     await publishConfig(config);
-    dispatch({ type: "SET_DIRTY", dirty: false });
+    // Sync state with what just hit disk. `buildConfig` may have
+    // rewritten ids (draft UUIDs → canonical `${type}-${subtype}`),
+    // and we want the UI to reflect that on the next render —
+    // otherwise selection-by-id, dock-config references, and the
+    // Components-pane row keys all stay pinned to the temp ids.
+    dispatch({ type: "SET_ENTRIES", entries: config.entries });
     console.log("Registry config saved.");
   }, [buildConfig, publishConfig, scope]);
 

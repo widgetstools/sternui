@@ -22,23 +22,23 @@ export type ComponentFilter = 'all' | 'in-dock' | 'not-in-dock' | 'singleton';
 /**
  * A blank registry entry suitable for "+ New".
  *
- * The `id` and `configId` start as empty strings — they get
- * computed from `componentType` + `componentSubType` via
- * `deriveTemplateConfigId` as soon as the user types either of
- * those fields in the Inspector pane (see InspectorPane's
- * `handleTypeChange`). The user CANNOT save with empty type/subtype
- * (validation rejects it), so by the time the entry is persisted
- * the id is always the canonical `${componentType}-${componentSubType}`.
+ * The draft starts with a temporary UUID `id` so the parent's
+ * `EditorSelection` (which tracks the inspected entry by id) has a
+ * stable handle while the user is typing — without it, every
+ * keystroke that touched type/subtype unmounted the input.
  *
- * Why not seed a UUID up front and let it be overwritten on first
- * typeChange? Because if the user never changes type/subtype (rare,
- * but possible in QA workflows), the UUID would silently survive
- * into the persisted entry — which is the bug we kept hitting.
- * Empty strings make the broken state visible.
+ * The temp id is REPLACED on save (see `useRegistryEditor.save` →
+ * `normalizeEntries`) with the canonical
+ * `${componentType}-${componentSubType}` lowercase. Same goes for
+ * `configId`. So nothing UUID-shaped ever lands on disk for a
+ * registry entry — the temp id only exists for the duration of the
+ * editing session.
  */
 export function newDraftEntry(env: { appId: string; configServiceUrl: string }): RegistryEntry {
   return {
-    id: '',
+    id: typeof crypto !== 'undefined' && crypto.randomUUID
+      ? `draft-${crypto.randomUUID()}`
+      : `draft-${Date.now()}`,
     hostUrl: '',
     iconId: '',
     componentType: '',

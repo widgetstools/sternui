@@ -24,6 +24,7 @@ import {
   ACTION_LAUNCH_COMPONENT,
   readHostEnv,
   setPlatformDefaultScope,
+  deriveTemplateConfigId,
   type ConfigScope,
   type RegistryEntry,
   type DockButtonConfig,
@@ -273,10 +274,42 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
     [dock, selection],
   );
 
-  // Save — writes BOTH registry and dock if dirty. Saves run in series
-  // (registry first, dock second) so an IAB consumer that listens to dock
-  // updates and re-reads the registry sees the freshest registry payload.
+  // Save — writes BOTH registry and dock if dirty.
+  //
+  // ID-rename atomicity: the registry's `save()` will normalise every
+  // entry's `id` and `configId` to `${componentType}-${componentSubType}`
+  // (lowercase). Drafts that came in with a temp UUID get rewritten.
+  // Before that happens we walk every dock item and rewrite its
+  // `customData.registryEntryId` so it points at the canonical id —
+  // otherwise the dock would persist a dangling reference to the temp
+  // UUID and clicking the button at runtime wouldn't find the entry.
+  //
+  // Order of operations:
+  //   1. Build the old-id → new-id map from the current registry state.
+  //   2. Walk dock buttons + dropdown items + menu items and dispatch
+  //      ID-rewrite UPDATE actions for any that reference an entry
+  //      whose id is about to change.
+  //   3. registry.save() (writes the canonical-ids version to disk).
+  //   4. dock.save()     (writes the rewritten references to disk).
+  // Both reads happen against the SAME state snapshot, so the rename
+  // is atomic from the user's perspective.
   const handleSaveAll = useCallback(async () => {
+    if (registry.isDirty || dock.isDirty) {
+      // 1. Build the id-rename map.
+      const renameMap = new Map<string, string>();
+      for (const e of registry.entries) {
+        if (!e.componentType || !e.componentSubType) continue;
+        const canonical = deriveTemplateConfigId(e.componentType, e.componentSubType);
+        if (canonical && canonical !== e.id) renameMap.set(e.id, canonical);
+      }
+
+      // 2. Rewrite dock references in-place via dock dispatch. The
+      //    dock reducer's UPDATE_BUTTON / UPDATE_OPTION / UPDATE_MENU_ITEM
+      //    actions handle deep replacements; we patch the customData.
+      if (renameMap.size > 0) {
+        rewriteDockRegistryEntryIds(dock.buttons, dock.dispatch, renameMap);
+      }
+    }
     if (registry.isDirty) await registry.save();
     if (dock.isDirty) await dock.save();
   }, [registry, dock]);
@@ -461,6 +494,77 @@ function collectMenuItemRemovals(
     }
     if (item.options?.length) {
       collectMenuItemRemovals(item.options, buttonId, item.id, entryId, acc);
+    }
+  }
+}
+
+// ─── ID-rename cascade helper ───────────────────────────────────────
+//
+// Sister of `pruneDockReferencesTo`: walks the dock tree and rewrites
+// every `customData.registryEntryId` whose value appears as a key in
+// the rename map. Used at save time to keep dock references aligned
+// with the registry's just-normalised entry ids (`temp-uuid` →
+// `${componentType}-${componentSubType}`).
+
+function rewriteDockRegistryEntryIds(
+  buttons: DockButtonConfig[],
+  dispatch: DockEditorDispatch,
+  renameMap: Map<string, string>,
+): void {
+  for (const btn of buttons) {
+    if (btn.type === "ActionButton") {
+      const cd = btn.customData as { registryEntryId?: string; asWindow?: boolean } | undefined;
+      const oldId = cd?.registryEntryId;
+      const newId = oldId ? renameMap.get(oldId) : undefined;
+      if (newId) {
+        dispatch({
+          type: "UPDATE_BUTTON",
+          id: btn.id,
+          button: { ...btn, customData: { ...(cd ?? {}), registryEntryId: newId } },
+        });
+      }
+      continue;
+    }
+    // DropdownButton — walk options, dispatch UPDATE_MENU_ITEM for each match.
+    const dropdown = btn as DockDropdownButtonConfig;
+    const renames: Array<{ buttonId: string; itemId: string; parentItemId?: string; nextItem: DockMenuItemConfig }> = [];
+    collectMenuItemRenames(dropdown.options ?? [], dropdown.id, undefined, renameMap, renames);
+    for (const r of renames) {
+      dispatch({
+        type: "UPDATE_MENU_ITEM",
+        buttonId: r.buttonId,
+        itemId: r.itemId,
+        parentItemId: r.parentItemId,
+        item: r.nextItem,
+      });
+    }
+  }
+}
+
+function collectMenuItemRenames(
+  items: DockMenuItemConfig[],
+  buttonId: string,
+  parentItemId: string | undefined,
+  renameMap: Map<string, string>,
+  acc: Array<{ buttonId: string; itemId: string; parentItemId?: string; nextItem: DockMenuItemConfig }>,
+): void {
+  for (const item of items) {
+    const cd = item.customData as { registryEntryId?: string; asWindow?: boolean } | undefined;
+    const oldId = cd?.registryEntryId;
+    const newId = oldId ? renameMap.get(oldId) : undefined;
+    if (newId) {
+      acc.push({
+        buttonId,
+        itemId: item.id,
+        parentItemId,
+        nextItem: {
+          ...item,
+          customData: { ...(cd ?? {}), registryEntryId: newId },
+        },
+      });
+    }
+    if (item.options?.length) {
+      collectMenuItemRenames(item.options, buttonId, item.id, renameMap, acc);
     }
   }
 }
