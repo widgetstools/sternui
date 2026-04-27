@@ -108,21 +108,45 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
     if (!providerId) return;
 
+    // Breadcrumbs aid debugging when nothing seems to happen — a
+    // common failure mode is the configure path silently throwing.
+    // Tag the lines so they're easy to filter in devtools.
+    const tag = `[MarketsGridContainer:${providerId}]`;
+    console.info(`${tag} resolving config + configuring worker`);
+
     (async () => {
       const cfg = await dataProviderConfigService.getById(providerId);
       if (cancelled) return;
       if (!cfg) {
-        throw new Error(`DataProvider not found: ${providerId}`);
+        throw new Error(
+          `DataProvider not found in storage: ${providerId}. ` +
+          `Re-create / re-pick the provider in the editor.`,
+        );
       }
+      console.info(`${tag} config loaded`, {
+        providerType: cfg.providerType,
+        name: cfg.name,
+      });
       // The DataProviderConfig wrapper carries a typed inner `config`
       // (StompProviderConfig | RestProviderConfig | …). The worker's
       // factory dispatches on `providerType` to build the right
       // provider instance.
       await client.configure(providerId, cfg.config);
-      if (!cancelled) setProviderReady(true);
+      if (cancelled) return;
+      console.info(`${tag} worker configured; mounting subscriber`);
+      setProviderReady(true);
     })().catch((err: unknown) => {
       if (cancelled) return;
-      onErrorRef.current?.(err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      // Surface to the explicit handler if the consumer wired one;
+      // otherwise log so the user can see what went wrong instead of
+      // staring at an empty grid. Suppressing both is what was making
+      // the "doesn't even try to connect" failure mode invisible.
+      if (onErrorRef.current) {
+        onErrorRef.current(error);
+      } else {
+        console.error(`${tag} configure failed`, error);
+      }
     });
 
     return () => { cancelled = true; };
@@ -163,7 +187,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       }
     },
     onError: (err) => {
-      onErrorRef.current?.(err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      if (onErrorRef.current) {
+        onErrorRef.current(error);
+      } else {
+        console.error('[MarketsGridContainer] stream error', error);
+      }
     },
   }), [applyAdds, applyUpdates]);
 

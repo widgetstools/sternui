@@ -132,6 +132,16 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
     if (this.client?.connected) return;
     const cfg = this.config;
 
+    // Visibility for "did the worker even try to connect?" — surfaces
+    // in the OpenFin window's devtools console.
+    // eslint-disable-next-line no-console
+    console.info(`[StompStreamProvider:${this.id}] activating`, {
+      websocketUrl: cfg.websocketUrl,
+      listenerTopic: cfg.listenerTopic,
+      requestMessage: cfg.requestMessage,
+      requestBodyLength: (cfg.requestBody ?? '').length,
+    });
+
     return new Promise((resolve, reject) => {
       const client = this.createClient({
         brokerURL: cfg.websocketUrl,
@@ -166,6 +176,8 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
 
       client.onConnect = () => {
         clearTimeout(timer);
+        // eslint-disable-next-line no-console
+        console.info(`[StompStreamProvider:${this.id}] connected; subscribing + publishing trigger`);
         this.reportConnected();
         this.subscribeToTopic();
         this.publishTrigger();
@@ -214,12 +226,16 @@ export class StompStreamProvider extends StreamProviderBase<StompProviderConfig,
   }
 
   private publishTrigger(): void {
-    if (!this.client || !this.config?.requestMessage) return;
+    if (!this.client || !this.config?.requestMessage) {
+      // eslint-disable-next-line no-console
+      console.info(`[StompStreamProvider:${this.id}] no requestMessage configured — skipping trigger`);
+      return;
+    }
     const destination = this.resolveTemplate(this.config.requestMessage);
-    this.client.publish({
-      destination,
-      body: this.config.requestBody ?? '',
-    });
+    const body = this.config.requestBody ?? '';
+    // eslint-disable-next-line no-console
+    console.info(`[StompStreamProvider:${this.id}] publishing trigger`, { destination, bodyLength: body.length });
+    this.client.publish({ destination, body });
   }
 
   private handleMessage(body: string): void {
