@@ -297,6 +297,16 @@ export interface DataProviderConfig {
   tags?: string[];
   isDefault?: boolean;
   userId: string;
+  /**
+   * Visibility:
+   *   true  → row is saved with userId='system' (visible to everyone
+   *           sharing the appId).
+   *   false / undefined → row is saved with the active userId
+   *           (visible only to the author).
+   *
+   * The configurator surfaces this as a single "Public" toggle.
+   */
+  public?: boolean;
 }
 
 /**
