@@ -11,6 +11,7 @@
 export {
   MarketsGridContainer,
   type MarketsGridContainerProps,
+  type ProviderSelection,
 } from './MarketsGridContainer.js';
 export { ProviderToolbar, type ProviderMode, type ProviderToolbarProps } from './ProviderToolbar.js';
 export { DatePicker, type DatePickerProps } from './DatePicker.js';

@@ -23,7 +23,7 @@
  * remounts via the `key` prop.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@marketsui/markets-grid';
 import type { MarketsGridProps, MarketsGridHandle } from '@marketsui/markets-grid';
@@ -65,6 +65,22 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
   onEditProvider?(providerId: string): void;
   /** Surface stream errors. Defaults to console.error. */
   onError?(error: Error): void;
+  /**
+   * Called whenever the user mutates the provider selection (live id,
+   * historical id, or mode). Fires on change only — never on the
+   * initial sync from the `initial*` props. Consumers persist this
+   * payload so the grid restores the same selection on next mount.
+   * `asOfDate` lives in AppData (driven by `historicalDateAppDataRef`)
+   * and is intentionally NOT included here.
+   */
+  onSelectionChange?(selection: ProviderSelection): void;
+}
+
+/** Persisted picker state — what `onSelectionChange` carries. */
+export interface ProviderSelection {
+  liveProviderId: string | null;
+  historicalProviderId: string | null;
+  mode: ProviderMode;
 }
 
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
@@ -77,6 +93,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     initialMode = 'live',
     onEditProvider,
     onError,
+    onSelectionChange,
     onReady: onReadyProp,
     ...marketsGridProps
   } = props;
@@ -90,6 +107,47 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [historicalId, setHistoricalId] = useState<string | null>(initialHistoricalProviderId);
   const [mode, setMode] = useState<ProviderMode>(initialMode);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
+
+  // Persistence: notify the consumer whenever the selection differs
+  // from what we last sent. We compare against a `lastSaved` ref
+  // (seeded from the `initial*` props) instead of "skip the first
+  // run", which would mis-fire under React StrictMode's double-effect
+  // — refs survive the simulated unmount/remount, so a flag-based
+  // guard ends up emitting on the second setup with the initial
+  // values.
+  //
+  // Comparing against `lastSaved` also handles "user reverts to
+  // original value" correctly: the round-trip A → B → A still emits
+  // both transitions because each one differs from the previous
+  // saved snapshot.
+  //
+  // We intentionally do NOT include `asOfDate` here: it's mirrored
+  // into AppData via `historicalDateAppDataRef` and persists through
+  // that channel. Including it would force two writes per date pick.
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
+  const lastSavedRef = useRef<ProviderSelection>({
+    liveProviderId: initialLiveProviderId,
+    historicalProviderId: initialHistoricalProviderId,
+    mode: initialMode,
+  });
+  useEffect(() => {
+    const last = lastSavedRef.current;
+    if (
+      liveId === last.liveProviderId &&
+      historicalId === last.historicalProviderId &&
+      mode === last.mode
+    ) {
+      return;
+    }
+    const next: ProviderSelection = {
+      liveProviderId: liveId,
+      historicalProviderId: historicalId,
+      mode,
+    };
+    lastSavedRef.current = next;
+    onSelectionChangeRef.current?.(next);
+  }, [liveId, historicalId, mode]);
 
   // List of available providers per slot. Subtype filter could be
   // tightened (live=stomp, historical=rest) but keeping it open is
