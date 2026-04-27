@@ -32,11 +32,12 @@
  * static data continue to work unchanged. The container is additive.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@marketsui/markets-grid';
 import type { MarketsGridProps, MarketsGridHandle } from '@marketsui/markets-grid';
 import { useDataPlaneRowStream, useDataPlaneRestart } from '@marketsui/data-plane-react';
+import type { StreamListener } from '@marketsui/data-plane/client';
 
 export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
   extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField'> {
@@ -81,7 +82,6 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const gridApiRef = useRef<GridApi<TData> | null>(null);
   const snapshotBufferRef = useRef<TData[]>([]);
   const snapshotCompleteRef = useRef(false);
-  const [, forceRerender] = useState(0);
 
   // ── Imperative apply helpers ─────────────────────────────────────
   const applyAdds = useCallback((rows: readonly TData[]) => {
@@ -96,39 +96,50 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     api.applyTransactionAsync({ update: rows.slice() });
   }, []);
 
-  // ── Subscribe to the data plane in onEvent mode (no buffering) ───
+  // ── Stable onEvent listener ──────────────────────────────────────
+  //
+  // The data-plane row-stream hook depends on `opts.onEvent` identity
+  // for its subscribe/unsubscribe effect. If we passed a fresh object
+  // literal on every render, the effect would re-run, re-subscribe,
+  // and the worker's per-late-joiner snapshot replay would fire again
+  // — producing an unbounded re-subscribe / replay / re-render loop.
+  //
+  // Keep the listener object identity stable for the component's
+  // lifetime and read fresh callbacks via a ref. This is the standard
+  // "always-fresh callback through a stable wrapper" idiom.
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+
+  const stableOnEvent = useMemo<StreamListener<TData>>(() => ({
+    onSnapshotBatch: (batch) => {
+      if (gridApiRef.current && snapshotCompleteRef.current === false) {
+        applyAdds(batch.rows);
+      } else if (!gridApiRef.current) {
+        // Grid not ready yet — buffer until onReady drains.
+        snapshotBufferRef.current.push(...(batch.rows as TData[]));
+      } else {
+        // Realtime-phase batch (rare but possible after restart).
+        // Treat as upsert.
+        applyUpdates(batch.rows);
+      }
+    },
+    onSnapshotComplete: () => {
+      snapshotCompleteRef.current = true;
+    },
+    onRowUpdate: (update) => {
+      if (gridApiRef.current) {
+        applyUpdates(update.rows);
+      }
+    },
+    onError: (err) => {
+      onErrorRef.current?.(err instanceof Error ? err : new Error(String(err)));
+    },
+  }), [applyAdds, applyUpdates]);
+
+  // Subscribe to the data plane in onEvent mode (no React buffering).
   useDataPlaneRowStream<TData>(providerId, {
     keyColumn: rowIdField,
-    onEvent: {
-      onSnapshotBatch: (batch) => {
-        if (gridApiRef.current && snapshotCompleteRef.current === false) {
-          // Stream snapshot batches straight into the grid — keeps
-          // memory steady on large snapshots since we never hold the
-          // whole snapshot in JS at once.
-          applyAdds(batch.rows);
-        } else if (!gridApiRef.current) {
-          // Grid not ready yet — buffer until onReady drains.
-          snapshotBufferRef.current.push(...(batch.rows as TData[]));
-        } else {
-          // Realtime-phase batch (rare but possible if a provider
-          // re-issues a partial snapshot after restart). Treat as
-          // upsert — AG-Grid's add becomes an update for existing ids.
-          applyUpdates(batch.rows);
-        }
-      },
-      onSnapshotComplete: () => {
-        snapshotCompleteRef.current = true;
-        forceRerender((n) => n + 1);
-      },
-      onRowUpdate: (update) => {
-        if (gridApiRef.current) {
-          applyUpdates(update.rows);
-        }
-      },
-      onError: (err) => {
-        onError?.(err instanceof Error ? err : new Error(String(err)));
-      },
-    },
+    onEvent: stableOnEvent,
   });
 
   // ── Capture grid api on ready, drain any buffered snapshot ───────
