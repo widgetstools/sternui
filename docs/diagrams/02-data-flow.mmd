@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant BS as BlotterShell
+    participant CM as ConfigManager
+    participant MGC as MarketsGridContainer
+    participant DP as DataPlane
+    participant Hub as Hub<br/>(SharedWorker)
+    participant P as STOMP Provider
+    participant Grid as AG-Grid
+
+    BS->>CM: getConfig("marketsgrid-view-state::<id>")
+    CM-->>BS: { liveProviderId, historicalProviderId, mode }
+    BS->>MGC: render with initial* props
+    MGC->>DP: client.attach(activeId, cfg, listener)
+    DP->>Hub: { kind: 'attach', subId, providerId, cfg }
+
+    alt First attach for this provider
+        Hub->>P: startStomp(cfg, emit)
+        P-->>P: connect WS, subscribe, publish trigger
+        loop snapshot phase
+            P-->>P: buffer rows (in-memory)
+        end
+        P-->>Hub: emit({rows: [...all], replace: true})
+        Hub->>Hub: cache.clear() + cache.upsert(...rows)
+        P-->>Hub: emit({status: 'ready'})
+    else Late joiner
+        Hub-->>DP: { kind: 'delta', rows: [...cache], replace: true }
+    end
+
+    Hub-->>DP: { kind: 'delta', rows, replace: true }
+    DP-->>MGC: onDelta(rows, replace=true)
+    MGC->>Grid: setGridOption('rowData', rows)
+
+    loop live phase
+        P-->>Hub: emit({ rows: [tick] })
+        Hub->>Hub: cache.upsert(tick)
+        Hub-->>DP: { kind: 'delta', rows: [tick], replace: false }
+        DP-->>MGC: onDelta([tick], replace=false)
+        alt id exists in grid
+            MGC->>Grid: applyTransactionAsync({ update: [tick] })
+        else new id
+            MGC->>Grid: applyTransactionAsync({ add: [tick] })
+        end
+    end
+
+    U->>MGC: setLiveId(newId)
+    MGC->>BS: onSelectionChange({ liveProviderId, historicalProviderId, mode })
+    BS->>CM: saveConfig({ configId: "marketsgrid-view-state::<id>", payload })
+    MGC->>DP: client.detach(oldSub) + client.attach(newId, newCfg, listener)

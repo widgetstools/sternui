@@ -1,0 +1,19 @@
+flowchart TD
+    Route["/blotters/marketsgrid"]:::route
+    Route --> BMG["BlottersMarketsGrid<br/><i>reference-app</i>"]
+    BMG --> HC["HostedComponent<br/>resolves identity from OpenFin customData<br/>(instanceId, appId, userId, configManager)"]
+    HC -->|"render-prop(ctx)"| BS["BlotterShell<br/>loads + saves view-state row<br/>via configManager"]
+    BS --> DPP["DataPlaneProvider<br/>builds context: client, appData, configStore"]
+    DPP --> MGC["MarketsGridContainer<br/><b>@marketsui/widgets-react/v2</b><br/>picker state + Alt+Shift+P + row pump"]
+    MGC --> PT["ProviderToolbar<br/>pickers, mode toggle, date, refresh, edit"]
+    MGC --> MG["MarketsGrid<br/><b>@marketsui/markets-grid</b><br/>AG-Grid wrapper, profiles, settings"]
+    MG --> AG["AG-Grid Enterprise"]
+
+    classDef app fill:#1f3a5f,stroke:#3b82f6,color:#eaecef
+    classDef pkg fill:#2d4a2d,stroke:#10b981,color:#eaecef
+    classDef route fill:#1a1a1a,stroke:#666,color:#fff
+    classDef extlib fill:#3a1f3a,stroke:#a855f7,color:#eaecef
+
+    class BMG,BS,HC,DPP app
+    class MGC,MG,PT pkg
+    class AG extlib
