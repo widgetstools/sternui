@@ -38,10 +38,11 @@ import { dataPlaneClient } from '../data-plane-client';
 // hasn't been authored yet, so the grid still has *something* to show.
 // They're field-only — no synthetic data.
 
-const defaultColumnDefs: ColDef[] = [
-  { field: 'id', headerName: 'ID', initialWidth: 120, pinned: 'left', filter: 'agTextColumnFilter' },
-];
-
+// columnDefs are now driven by the DataProvider's columnDefinitions.
+// MarketsGridContainer reads them from the saved config and passes
+// them to MarketsGrid. This `defaultColDef` (note: lowercase, NOT
+// columnDefs) is the per-column-default base AG-Grid applies on top
+// of every column — sane filter / sort / resize behaviour.
 const defaultColDef: ColDef = {
   floatingFilter: true,
   filter: true,
@@ -111,21 +112,11 @@ function saveProviderId(instanceId: string, providerId: string | null) {
   }
 }
 
-function loadRowIdField(instanceId: string): string {
-  try {
-    return localStorage.getItem(`mkt-blotter:${instanceId}:rowIdField`) || 'id';
-  } catch {
-    return 'id';
-  }
-}
-
-function saveRowIdField(instanceId: string, field: string) {
-  try {
-    localStorage.setItem(`mkt-blotter:${instanceId}:rowIdField`, field);
-  } catch {
-    /* noop */
-  }
-}
+// rowIdField used to be authored here per blotter instance. It now
+// flows through the DataProviderConfig's `keyColumn` field (set in
+// the editor's Connection tab → "Key Column"). The container reads
+// it directly. Keeping a per-instance override here would only
+// drift from the saved config and produce duplicate-id errors.
 
 // ─── React Query client (one per route mount) ────────────────────────
 const queryClient = new QueryClient({
@@ -185,13 +176,10 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
   const navigate = useNavigate();
 
   const [providerId, setProviderIdState] = useState<string | null>(() => loadProviderId(instanceId));
-  const [rowIdField, setRowIdFieldState] = useState<string>(() => loadRowIdField(instanceId));
 
   // Hand off authoring to /dataproviders. We pass the picker's current
   // intent (`new` or the providerId being edited) as a query param so
-  // a future enhancement can deep-link straight to the right row; the
-  // editor ignores unknown params today and just lands on its empty
-  // state, which is acceptable for the round-trip.
+  // a future enhancement can deep-link straight to the right row.
   const goToEditor = useCallback(
     (intent: 'new' | string) => {
       const qs = intent === 'new' ? '?intent=new' : `?intent=edit&providerId=${encodeURIComponent(intent)}`;
@@ -208,14 +196,6 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
     [instanceId],
   );
 
-  const setRowIdField = useCallback(
-    (next: string) => {
-      setRowIdFieldState(next);
-      saveRowIdField(instanceId, next);
-    },
-    [instanceId],
-  );
-
   return (
     <DataPlaneProvider client={dataPlaneClient}>
       {/* Outer flex column so the picker strip stays its natural height
@@ -225,10 +205,9 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
           MarketsGrid's `height: 100%` resolves against an unsized div
           and the toolbar / settings chrome get clipped to 0. */}
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        {/* Top strip — provider picker + row-id override. Always
-            present so the user can swap providers without leaving
-            the view. flex-shrink-0 stops it ever giving up space
-            when the grid is hungry. */}
+        {/* Top strip — provider picker only. Row-id field and column
+            defs come from the saved DataProviderConfig (keyColumn +
+            columnDefinitions, both authored in the editor). */}
         <div className="flex items-center gap-3 px-3 py-2 border-b border-border bg-card/50 flex-shrink-0">
           <div className="flex-1 min-w-0">
             <DataProviderSelector
@@ -240,25 +219,14 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
               onEdit={(p) => goToEditor(p.providerId ?? 'new')}
             />
           </div>
-          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span>Row id field:</span>
-            <input
-              value={rowIdField}
-              onChange={(e) => setRowIdField(e.target.value)}
-              className="h-7 w-24 rounded border border-border bg-background px-2 text-xs"
-              placeholder="id"
-            />
-          </label>
         </div>
 
         <div style={{ flex: 1, minHeight: 0 }}>
           {providerId ? (
             <MarketsGridContainer
               providerId={providerId}
-              rowIdField={rowIdField}
               gridId={instanceId}
               instanceId={instanceId}
-              columnDefs={defaultColumnDefs}
               defaultColDef={defaultColDef}
               theme={agTheme}
               storage={storage as never}

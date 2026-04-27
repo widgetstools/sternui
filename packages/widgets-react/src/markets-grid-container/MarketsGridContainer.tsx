@@ -30,7 +30,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GridApi } from 'ag-grid-community';
+import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@marketsui/markets-grid';
 import type { MarketsGridProps, MarketsGridHandle } from '@marketsui/markets-grid';
 import {
@@ -40,18 +40,28 @@ import {
 } from '@marketsui/data-plane-react';
 import type { StreamListener } from '@marketsui/data-plane/client';
 import { dataProviderConfigService } from '@marketsui/data-plane';
+import type { ColumnDefinition } from '@marketsui/shared-types';
 
 export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
-  extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField'> {
+  extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField' | 'columnDefs'> {
   /** Worker-registered providerId to subscribe to. */
   providerId: string;
   /**
-   * Field on each row that uniquely identifies it. Drives both
-   * AG-Grid's `getRowId` and the worker-side row-cache key. Required
-   * — without it, applyTransaction-update can't map a delta to its
-   * existing row.
+   * Optional override for column defs. Normally the container derives
+   * these from the saved DataProvider's `columnDefinitions` (authored
+   * in the editor's Columns tab). Pass this only as a last-resort
+   * override; it short-circuits the provider-driven defs.
    */
-  rowIdField: string;
+  columnDefs?: ColDef<TData>[];
+  /**
+   * Optional override for the row-id field. By default the container
+   * reads `keyColumn` from the loaded DataProviderConfig — that's the
+   * value the user authored in the editor's Row Identity callout.
+   * Apps should rarely need to override; pass this only if the saved
+   * config carries the wrong field for some reason and you want a
+   * per-instance escape hatch.
+   */
+  rowIdField?: string;
   /**
    * Optional historical-mode overlay. When set, the container calls
    * `restart({ asOfDate: <value> })` whenever this changes — typical
@@ -73,7 +83,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 ): React.ReactElement {
   const {
     providerId,
-    rowIdField,
+    rowIdField: rowIdFieldOverride,
+    columnDefs: columnDefsOverride,
     asOfDate,
     onRequestRestart,
     onError,
@@ -97,12 +108,23 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // we have to look up the saved DataProviderConfig (REST or local
   // Dexie) and call `client.configure()` to register it. Router's
   // getOrCreate is idempotent — repeat calls for the same id are safe.
+  //
+  // We also capture the resolved `rowIdField` here. AG-Grid's
+  // `getRowId` is an INITIAL property — once the grid mounts, the
+  // value can't be changed. So the grid is gated on configResolved
+  // and remounts via key={providerId} when the user swaps providers,
+  // ensuring the correct getRowId comes from the new provider's
+  // keyColumn.
   const client = useDataPlaneClient();
   const [providerReady, setProviderReady] = useState(false);
+  const [resolvedRowIdField, setResolvedRowIdField] = useState<string | null>(null);
+  const [resolvedColumnDefs, setResolvedColumnDefs] = useState<ColDef<TData>[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setProviderReady(false);
+    setResolvedRowIdField(null);
+    setResolvedColumnDefs(null);
     snapshotCompleteRef.current = false;
     snapshotBufferRef.current = [];
 
@@ -123,9 +145,38 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           `Re-create / re-pick the provider in the editor.`,
         );
       }
+      // Resolve the row-id field. The user's explicit prop override
+      // wins, but normally the keyColumn from the saved DataProvider
+      // config is the source of truth. Without one, getRowId returns
+      // undefined and AG-Grid logs "Duplicate node id 'undefined'"
+      // for every incoming row.
+      const cfgKeyColumn = (cfg.config as { keyColumn?: string }).keyColumn;
+      const effectiveRowIdField = rowIdFieldOverride || cfgKeyColumn;
+      if (!effectiveRowIdField) {
+        throw new Error(
+          `DataProvider '${cfg.name}' has no keyColumn configured. ` +
+          `Open it in the editor → Connection tab → Key Column, set the ` +
+          `unique-id field for your rows (e.g. 'positionId'), and save.`,
+        );
+      }
+      // Resolve column defs. Provider-driven (from
+      // cfg.config.columnDefinitions, which the editor's Columns tab
+      // authors) is the source of truth. Override prop wins only when
+      // explicitly set. Falls back to a single keyColumn-based
+      // placeholder so the grid still mounts when the user hasn't
+      // authored any columns yet.
+      const cfgColumnDefinitions = (cfg.config as { columnDefinitions?: ColumnDefinition[] }).columnDefinitions;
+      const effectiveColumnDefs: ColDef<TData>[] = columnDefsOverride
+        ? columnDefsOverride
+        : cfgColumnDefinitions && cfgColumnDefinitions.length > 0
+          ? (cfgColumnDefinitions as unknown as ColDef<TData>[])
+          : [{ field: effectiveRowIdField as keyof TData & string, headerName: effectiveRowIdField, filter: true } as ColDef<TData>];
+
       console.info(`${tag} config loaded`, {
         providerType: cfg.providerType,
         name: cfg.name,
+        rowIdField: effectiveRowIdField,
+        columnCount: effectiveColumnDefs.length,
       });
       // The DataProviderConfig wrapper carries a typed inner `config`
       // (StompProviderConfig | RestProviderConfig | …). The worker's
@@ -134,6 +185,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       await client.configure(providerId, cfg.config);
       if (cancelled) return;
       console.info(`${tag} worker configured; mounting subscriber`);
+      setResolvedRowIdField(effectiveRowIdField);
+      setResolvedColumnDefs(effectiveColumnDefs);
       setProviderReady(true);
     })().catch((err: unknown) => {
       if (cancelled) return;
@@ -150,7 +203,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     });
 
     return () => { cancelled = true; };
-  }, [providerId, client]);
+  }, [providerId, client, rowIdFieldOverride, columnDefsOverride]);
 
   // ── Imperative apply helpers ─────────────────────────────────────
   const applyAdds = useCallback((rows: readonly TData[]) => {
@@ -233,19 +286,28 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   return (
     <>
-      {providerReady && (
+      {providerReady && resolvedRowIdField && (
         <StreamSubscriber<TData>
           providerId={providerId}
-          keyColumn={rowIdField}
+          keyColumn={resolvedRowIdField}
           onEvent={stableOnEvent}
         />
       )}
-      <MarketsGrid<TData>
-        {...(marketsGridProps as MarketsGridProps<TData>)}
-        rowData={emptyRows}
-        rowIdField={rowIdField}
-        onReady={onReady}
-      />
+      {/* AG-Grid's getRowId is INITIAL — fixed at mount time and
+          can't be changed. Gate the grid on `resolvedRowIdField` so
+          the first mount has the correct id callback, and key on
+          `providerId + rowIdField` so swapping providers (potentially
+          with a different keyColumn) cleanly remounts the grid. */}
+      {resolvedRowIdField && resolvedColumnDefs ? (
+        <MarketsGrid<TData>
+          {...(marketsGridProps as MarketsGridProps<TData>)}
+          key={`${providerId}::${resolvedRowIdField}`}
+          rowData={emptyRows}
+          rowIdField={resolvedRowIdField}
+          columnDefs={resolvedColumnDefs}
+          onReady={onReady}
+        />
+      ) : null}
     </>
   );
 }
