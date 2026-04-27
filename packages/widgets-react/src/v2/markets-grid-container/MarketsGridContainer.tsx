@@ -100,8 +100,16 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // Hotkey: toggle the toolbar globally while the container is mounted.
   // The listener attaches to document so it fires regardless of focus
   // (the grid often has focus and we don't want it to swallow the chord).
+  //
+  // Chord choice: Alt+Shift+P. The original plan called for
+  // Ctrl+Shift+P but every major browser binds that to "open
+  // incognito / private window" — Chromium intercepts it before the
+  // page-level keydown listener runs, so the toolbar never reveals
+  // in plain browser AND in OpenFin (Chromium under the hood). Alt+
+  // Shift+P is unbound in Chrome / Firefox / Edge / Safari / OpenFin
+  // and is mnemonic for "Provider".
   const toggleToolbar = useCallback(() => setPickerVisible((v) => !v), []);
-  useChordHotkey('Shift+Ctrl+P', (e) => {
+  useChordHotkey('Alt+Shift+P', (e) => {
     e.preventDefault();
     toggleToolbar();
   });
@@ -219,7 +227,7 @@ function EmptyState({ onReveal }: { onReveal: () => void }) {
       <div className="max-w-md">
         <div className="text-sm font-medium mb-1">No data provider selected</div>
         <div className="text-xs text-muted-foreground mb-3">
-          Press <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Shift</kbd>+<kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Ctrl</kbd>+<kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">P</kbd> to reveal the provider toolbar, then pick a Live (and optionally Historical) provider.
+          Press <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Alt</kbd>+<kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">Shift</kbd>+<kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">P</kbd> to reveal the provider toolbar, then pick a Live (and optionally Historical) provider.
         </div>
         <button
           type="button"
