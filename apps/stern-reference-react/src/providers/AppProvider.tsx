@@ -1,17 +1,17 @@
 import React from 'react';
 import { WidgetHost, BrowserAdapter, WidgetRegistry } from '@marketsui/widget-sdk';
 import { BlotterProvider } from '@marketsui/widgets-react';
-import { dataProviderConfigService } from '@marketsui/data-plane';
 import type { IBlotterDataProvider, IActionRegistry } from '@marketsui/widgets-react';
 import { MockDataProvider } from '../data/MockDataProvider.js';
 import { widgetRegistry } from '../registry/widgetRegistry.js';
 
+// Note: provider authoring lives in markets-ui-react-reference (v2 data
+// plane). This shell only hosts the Simple Blotter widgets, so it
+// doesn't wire the data plane at all.
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const API_URL = `${API_BASE_URL}/api/v1`;
 const USER_ID = 'default-user';
-
-// Configure the data provider config service with the resolved API URL
-dataProviderConfigService.configure({ apiUrl: API_BASE_URL });
 
 /**
  * Create the platform adapter — uses BrowserAdapter for development,

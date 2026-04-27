@@ -54,7 +54,7 @@
  */
 
 import type { ProviderType } from '@marketsui/shared-types';
-import { RowCache, type RowCacheOpts } from '../worker/rowCache';
+import { RowCache, type RowCacheOpts } from './rowCache.js';
 
 export interface StreamProviderListener<TRow = Record<string, unknown>> {
   onSnapshotBatch?(rows: readonly TRow[]): void;

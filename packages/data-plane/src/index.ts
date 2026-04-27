@@ -1,86 +1,38 @@
 /**
  * @marketsui/data-plane — public entry.
  *
- * Week-1 surface: protocol types, cache primitives, provider base + built-in
- * providers (Mock, AppData). The SharedWorker entry and DataPlaneClient
- * land in Week 2 and will extend this barrel without breaking existing
- * consumers.
+ * The v2 data plane is the live surface. The root entry re-exports
+ * v2 types so `@marketsui/data-plane` continues to give consumers a
+ * usable barrel. For specific entry points use the subpath exports:
+ *
+ *   `@marketsui/data-plane/v2`           — protocol types + main-thread helpers
+ *   `@marketsui/data-plane/v2/client`    — the `DataPlane` client class
+ *   `@marketsui/data-plane/v2/worker`    — `installWorker` + Hub
+ *
+ * `StompDataProvider` and `DataProviderConfigService` survive at the
+ * root for the @marketsui/angular package (which has its own data-
+ * plane integration). They are scheduled for removal once Angular
+ * gets its v2 cutover.
  */
 
-// Wire protocol — safe for both client and worker sides to import.
-export * from './protocol';
+// v2 surface — main-thread types + helpers.
+export * from './v2/index.js';
 
-// Cache primitives — used by the worker-side router (Week 2) and by
-// tests. Exposed so advanced consumers can instantiate their own
-// router (e.g. in-page fallback mode from `fallbacks.ts`).
-//
-// Two cache shapes coexist:
-//   • ProviderCache — generic per-key LRU + TTL (AppData, future
-//     REST-per-endpoint, per-ticker price). Good when each key is
-//     an independent resource.
-//   • RowCache — row-upsert keyed by a single `keyColumn`. Good for
-//     streaming row-sets (STOMP blotters, WebSocket stream of
-//     tick rows). Direct port of stern-1's proven CacheManager.
+// Surviving v1 modules — kept until Angular cuts over.
 export {
-  ProviderCache,
-  CacheState,
-  isExpired,
-  singleFlight,
-  type CacheEntry,
-  type ProviderCacheOpts,
-} from './worker/cache';
-export {
-  RowCache,
-  type RowCacheOpts,
-  type UpsertResult,
-} from './worker/rowCache';
-
-// Built-in providers. Import from `@marketsui/data-plane/providers`
-// for tree-shaking; this re-export is for ergonomics.
-export {
-  ProviderBase,
-  MockProvider,
-  AppDataProvider,
-  StreamProviderBase,
   StompDataProvider,
-  RestDataProvider,
-  type Unsubscribe as ProviderUnsubscribe,
-  type ProviderEmitter,
-  type MockRow,
-  type MockSnapshot,
-  type StreamProviderListener,
-  type StreamStatistics,
+  StreamProviderBase,
+  ProviderBase,
   type StompConnectionConfig,
   type StompConnectionResult,
-  type RestFetchFn,
-  type RestProviderOpts,
-} from './providers';
+  type ProviderEmitter,
+  type Unsubscribe as ProviderUnsubscribe,
+  type StreamProviderListener,
+  type StreamStatistics,
+} from './providers/index.js';
 
-// Framework-agnostic services for managing data-provider configuration
-// (CRUD over the unified-config REST API or an injected local backend).
 export {
   DataProviderConfigService,
   dataProviderConfigService,
   type DataProviderLocalBackend,
-} from './services';
-
-// Main-thread SDK — the vast majority of app consumers only need this
-// surface. Import from `@marketsui/data-plane/client` to avoid pulling
-// the Router (and its provider factory) into the main bundle.
-export {
-  DataPlaneClient,
-  DataPlaneClientError,
-  connect,
-  connectSharedWorker,
-  connectDedicatedWorker,
-  connectInPage,
-  buildSharedWorkerName,
-  hasSharedWorker,
-  hasDedicatedWorker,
-  type KeyedUpdateEvent,
-  type StreamListener,
-  type Unsubscribe,
-  type ConnectOpts,
-  type ConnectedClient,
-  type TransportMode,
-} from './client';
+} from './services/index.js';

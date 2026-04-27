@@ -12,10 +12,6 @@
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./markets-grid-container": {
-      "import": "./dist/markets-grid-container/index.js",
-      "types": "./dist/markets-grid-container/index.d.ts"
-    },
     "./v2/markets-grid-container": {
       "import": "./dist/v2/markets-grid-container/index.js",
       "types": "./dist/v2/markets-grid-container/index.d.ts"

@@ -1,28 +1,15 @@
 /**
- * @marketsui/data-plane-react — React bindings for @marketsui/data-plane.
+ * @marketsui/data-plane-react — React bindings.
  *
- * One context provider + three hooks:
- *   • `<DataPlaneProvider client={...}>` — mount near the app root.
- *   • `useDataPlaneClient()` — escape hatch to the underlying client.
- *   • `useDataPlaneValue(providerId, key)` — keyed-resource value, auto-updates.
- *   • `useDataPlaneAppData(providerId, key)` — AppData k/v with `setValue`.
- *   • `useDataPlaneRowStream(providerId)` — row-stream subscription with
- *     buffered + `onEvent` (unbuffered) modes.
+ * The v2 data-plane is the live surface; the v1 React hooks and the
+ * v1 context provider are gone. New consumers import from the v2
+ * subpath:
  *
- * Framework dependency lives here alone; `@marketsui/data-plane` stays
- * React-free.
+ *   import { DataPlaneProvider, useProviderStream, useResolvedCfg, ... }
+ *     from '@marketsui/data-plane-react/v2';
+ *
+ * The root export re-exports the v2 surface for convenience so
+ * `@marketsui/data-plane-react` continues to be a usable barrel.
  */
-export { DataPlaneProvider, useDataPlaneClient, type DataPlaneProviderProps } from './context';
-export { useDataPlaneValue, type UseValueOpts, type UseValueResult } from './useDataPlaneValue';
-export {
-  useDataPlaneAppData,
-  type SetAppDataValue,
-  type UseAppDataResult,
-} from './useDataPlaneAppData';
-export {
-  useDataPlaneRowStream,
-  type UseRowStreamOpts,
-  type UseRowStreamResult,
-} from './useDataPlaneRowStream';
-export { useDataPlaneRestart, type UseRestartResult } from './useDataPlaneRestart';
-export { useDataPlaneResolve, type UseResolveResult } from './useDataPlaneResolve';
+
+export * from './v2/index.js';

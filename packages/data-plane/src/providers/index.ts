@@ -1,28 +1,20 @@
 /**
- * Providers barrel. Consumers constructing a worker-side `Router`
- * import concrete providers from here; the public client SDK does
- * NOT re-export these (client code talks to the worker by wire
- * protocol only).
+ * Providers barrel — v1-survival surface.
+ *
+ * Only modules still consumed by `@marketsui/angular` survive the v2
+ * cutover. The worker-side router + factories are gone (replaced by
+ * v2's Hub + provider registry). When Angular gets a v2 cutover this
+ * barrel disappears.
  */
-export { ProviderBase, type Unsubscribe, type ProviderEmitter } from './ProviderBase';
-export { MockProvider, type MockRow, type MockSnapshot } from './MockProvider';
-export { AppDataProvider, type AppDataPersistenceHooks } from './AppDataProvider';
+
+export { ProviderBase, type Unsubscribe, type ProviderEmitter } from './ProviderBase.js';
 export {
   StreamProviderBase,
   type StreamProviderListener,
   type StreamStatistics,
-} from './StreamProviderBase';
-export {
-  StompStreamProvider,
-  type StompClientConfig,
-  type StompClientFactory,
-  type StompClientLike,
-  type StompProviderOpts,
-  type StompRow,
-} from './StompStreamProvider';
+} from './StreamProviderBase.js';
 export {
   StompDataProvider,
   type StompConnectionConfig,
   type StompConnectionResult,
-} from './StompDataProvider';
-export { RestDataProvider, type RestFetchFn, type RestProviderOpts } from './RestDataProvider';
+} from './StompDataProvider.js';

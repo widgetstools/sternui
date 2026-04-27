@@ -6,7 +6,11 @@ import { OrdersBlotter } from './widgets/OrdersBlotter.js';
 import { FillsBlotter } from './widgets/FillsBlotter.js';
 import { SimpleBlotter } from '@marketsui/widgets-react';
 import { widgetRoutes } from './registry/widgetRoutes.js';
-import { DataProviderEditor } from '@marketsui/widgets-react';
+
+// DataProvider authoring moved to the markets-ui-react-reference app
+// (the v2 DataProviderEditor requires a `<DataPlaneProvider>` which
+// stern-reference-react's stack doesn't wire). Launch the editor
+// from that app or via the OpenFin dock if you need it.
 
 /**
  * BlotterPage — renders a blotter widget using the configId from URL search params.
@@ -62,23 +66,6 @@ function HomePage() {
           ))}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-border">
-          <h2 className="text-lg font-semibold mb-4">Administration</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Link
-              to="/dataproviders"
-              className="block p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors"
-            >
-              <h3 className="font-semibold mb-1">Data Providers</h3>
-              <p className="text-sm text-muted-foreground">
-                Configure STOMP, REST, WebSocket, and Mock data sources
-              </p>
-              <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
-                Configuration
-              </span>
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -95,14 +82,6 @@ export function App() {
         <Route path="/blotter/orders" element={<BlotterPage Widget={OrdersBlotter} />} />
         <Route path="/blotter/fills" element={<BlotterPage Widget={FillsBlotter} />} />
         <Route path="/blotter/:type" element={<BlotterPage Widget={SimpleBlotter} />} />
-        <Route
-          path="/dataproviders"
-          element={
-            <div className="h-screen w-screen">
-              <DataProviderEditor />
-            </div>
-          }
-        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppProvider>

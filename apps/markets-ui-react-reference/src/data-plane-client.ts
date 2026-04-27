@@ -1,38 +1,30 @@
 /**
- * data-plane-client.ts — owns the SharedWorker and the DataPlaneClient
- * that talks to it.
+ * data-plane-client.ts — owns the SharedWorker and the v2 DataPlane
+ * client that talks to it.
  *
  * Why this lives in the APP (and not via @marketsui/data-plane's
- * `connectSharedWorker`): Vite's worker plugin needs to see
+ * public surface): Vite's worker plugin needs to see
  *   `new SharedWorker(new URL('./worker.ts', import.meta.url), { type: 'module' })`
  * as ONE literal expression at build time so it can emit a separate
- * worker chunk and rewrite the URL. When you instead build a `URL`
- * here and pass it to a `new SharedWorker(url)` call inside another
- * package, Vite has no way to trace the URL back to a worker source
- * file — it serves the .ts as a plain asset, the browser fails to
- * execute it, and every RPC times out with PROVIDER_NOT_CONFIGURED
- * never coming back.
+ * worker chunk and rewrite the URL. Routing the construction through
+ * a helper in another package defeats the static analysis — the
+ * .ts gets served as a plain asset and the worker fails to boot.
  *
- * So the construction is colocated with the URL literal here, and
- * the rest of the app reads `dataPlaneClient` (and the matching
+ * The construction stays here, colocated with the URL literal. The
+ * rest of the app reads `dataPlaneClient` (and the matching
  * `<DataPlaneProvider client={...}>`) from this module.
  */
 
-import { DataPlaneClient, buildSharedWorkerName } from '@marketsui/data-plane';
+import { DataPlane } from '@marketsui/data-plane/v2/client';
 
-// ── Resolve the per-app worker name ───────────────────────────────
-//
-// The worker is keyed `sharedworker_<origin>_<appId>` (matches what
-// `buildSharedWorkerName` does). We don't have the resolved appId at
-// module-eval time (it comes from OpenFin customData async), so use
-// the same fallback HostedComponent uses — `'TestApp'`. Multiple
-// blotter views in the same app all attach to the same worker
-// instance, which is the whole point of using a SharedWorker.
+// SharedWorker name is keyed off the appId so different MarketsUI
+// apps running in the same browser don't share a worker by accident.
+// The reference app uses a single appId everywhere; multiple blotter
+// views in the same app SHOULD share the worker (that's the whole
+// point of using a SharedWorker).
 const APP_ID = 'TestApp';
-const sharedWorkerName = buildSharedWorkerName(APP_ID);
+const sharedWorkerName = `mkt-data-plane-v2:${APP_ID}`;
 
-// ── Construct the SharedWorker — Vite-visible literal ─────────────
-//
 // Both `new URL(...)` and `new SharedWorker(...)` appear together in
 // this expression so Vite's worker plugin picks it up.
 const worker = new SharedWorker(
@@ -47,7 +39,7 @@ worker.addEventListener('error', (ev) => {
   console.error('[data-plane SharedWorker] error event', ev);
 });
 
-// Build the client. The constructor calls `port.start()` internally,
-// so the channel is live as soon as the worker accepts the connect
-// event.
-export const dataPlaneClient = new DataPlaneClient(worker.port);
+// v2's DataPlane takes a MessagePort. The constructor calls
+// `port.start()` internally so the channel is live as soon as the
+// worker accepts the connect event.
+export const dataPlaneClient = new DataPlane(worker.port);
