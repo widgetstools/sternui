@@ -11,6 +11,10 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./markets-grid-container": {
+      "import": "./dist/markets-grid-container/index.js",
+      "types": "./dist/markets-grid-container/index.d.ts"
     }
   },
   "scripts": {
@@ -28,10 +32,15 @@
     "@tanstack/react-query": "^5.0.0",
     "lucide-react": ">=0.300.0",
     "@openfin/workspace": "23.0.20",
-    "@openfin/workspace-platform": "23.0.20"
+    "@openfin/workspace-platform": "23.0.20",
+    "@marketsui/markets-grid": "*"
+  },
+  "peerDependenciesMeta": {
+    "@marketsui/markets-grid": { "optional": true }
   },
   "dependencies": {
     "@marketsui/data-plane": "*",
+    "@marketsui/data-plane-react": "*",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/widget-sdk": "1.0.0",
