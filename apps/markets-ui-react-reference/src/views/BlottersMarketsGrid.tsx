@@ -14,12 +14,10 @@
  * profile schema gains `liveProviderId` / `historicalProviderId`.
  */
 
-import { useEffect, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { DataPlaneProvider } from '@marketsui/data-plane-react/v2';
 import { MarketsGridContainer } from '@marketsui/widgets-react/v2/markets-grid-container';
-import { getConfigManager, readHostEnv } from '@marketsui/openfin-platform/config';
 import type { ConfigManager } from '@marketsui/config-service';
 import { useTheme } from '../context/ThemeContext';
 import { HostedComponent } from '../components/HostedComponent';
@@ -90,11 +88,11 @@ function BlottersMarketsGrid() {
       documentTitle="MarketsGrid · Blotter"
       withStorage
     >
-      {({ instanceId, storage }) =>
-        instanceId == null || storage == null ? (
+      {({ instanceId, storage, configManager, userId }) =>
+        instanceId == null || storage == null || configManager == null ? (
           <LoadingState message="Connecting to ConfigService…" />
         ) : (
-          <BlotterShell instanceId={instanceId} />
+          <BlotterShell instanceId={instanceId} configManager={configManager} userId={userId} />
         )
       }
     </HostedComponent>
@@ -103,37 +101,22 @@ function BlottersMarketsGrid() {
 
 interface BlotterShellProps {
   instanceId: string;
+  configManager: ConfigManager;
+  userId: string;
 }
 
-function BlotterShell({ instanceId }: BlotterShellProps) {
+function BlotterShell({ instanceId, configManager, userId }: BlotterShellProps) {
   const { isDark } = useTheme();
   const agTheme = isDark ? darkTheme : lightTheme;
 
-  // Resolve the platform's ConfigManager + the active userId. Both
-  // are async on first call (Dexie open + OpenFin customData read);
-  // until they resolve we render a loading state.
-  const [cm, setCm] = useState<ConfigManager | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      getConfigManager(),
-      readHostEnv().catch(() => ({ userId: undefined })),
-    ]).then(([manager, env]) => {
-      if (cancelled) return;
-      setCm(manager);
-      setUserId(env.userId ?? 'dev1');
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  if (!cm || !userId) {
-    return <LoadingState message="Resolving config service…" />;
-  }
+  // ConfigManager + userId are resolved by HostedComponent and passed
+  // through the render-prop context. No duplicate resolution here —
+  // HostedComponent's `resolveUserId()` already handles the empty-
+  // customData case by falling back to DEFAULT_USER_ID, so the value
+  // we receive is always a non-empty string.
 
   return (
-    <DataPlaneProvider client={dataPlaneClient} configManager={cm} userId={userId}>
+    <DataPlaneProvider client={dataPlaneClient} configManager={configManager} userId={userId}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
         <div style={{ flex: 1, minHeight: 0 }}>
           <MarketsGridContainer
