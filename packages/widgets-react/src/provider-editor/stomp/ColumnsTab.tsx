@@ -29,7 +29,14 @@ import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { AgGridReact } from 'ag-grid-react';
 import { useAgGridTheme } from '../../theme/index.js';
 import { Plus, Trash2, Key, AlertTriangle } from 'lucide-react';
-import type { FieldNode, StompProviderConfig } from '@marketsui/shared-types';
+import type { FieldNode } from '@marketsui/shared-types';
+
+/**
+ * Minimal slice of provider config the Columns tab reads. Both STOMP
+ * and REST configs expose `keyColumn`, so typing this loosely lets the
+ * tab serve both transports without per-flavour duplication.
+ */
+type ConfigWithKeyColumn = { keyColumn?: string };
 import type { ColumnDefinition } from '@marketsui/shared-types';
 
 // Register AG-Grid Enterprise modules
@@ -81,7 +88,7 @@ interface ColumnsTabProps {
   onFieldColumnOverridesChange: (overrides: Record<string, Partial<ColumnDefinition>>) => void;
   onClearAll: () => void;
   /** Provider config — needed for the Row Identity callout. */
-  config?: StompProviderConfig;
+  config?: ConfigWithKeyColumn;
   /** Threaded through so the callout's "change" affordance can update keyColumn. */
   onConfigChange?: (field: string, value: unknown) => void;
 }

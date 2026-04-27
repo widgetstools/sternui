@@ -40,6 +40,7 @@ import type {
 import { PROVIDER_TYPES } from '@marketsui/shared-types';
 import { KeyValueEditor } from './KeyValueEditor.js';
 import { StompConfigurationForm } from './stomp/StompConfigurationForm.js';
+import { RestConfigurationForm } from './rest/RestConfigurationForm.js';
 
 const SYSTEM_USER_ID = 'System';
 
@@ -140,6 +141,24 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({
     );
   }
 
+  // REST uses the same 4-tab shell, with a transport-specific Connection
+  // and Behaviour tab. Fields + Columns tabs are shared with STOMP.
+  if (formData.providerType === PROVIDER_TYPES.REST) {
+    return (
+      <RestConfigurationForm
+        name={formData.name}
+        config={formData.config as RestProviderConfig}
+        isPublic={Boolean(formData.public)}
+        onPublicChange={(next: boolean) => handleFieldChange('public', next)}
+        onChange={handleConfigChange}
+        onNameChange={(name: string) => handleFieldChange('name', name)}
+        onSave={handleSave}
+        onCancel={onClose}
+        isEditMode={isEditMode}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Name header */}
@@ -210,9 +229,6 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({
                 </TabsList>
 
                 <TabsContent value="connection" className="space-y-4 mt-4">
-                  {formData.providerType === PROVIDER_TYPES.REST && (
-                    <RestConfigForm config={formData.config as RestProviderConfig} onChange={handleConfigChange} />
-                  )}
                   {formData.providerType === PROVIDER_TYPES.WEBSOCKET && (
                     <WebSocketConfigForm config={formData.config as WebSocketProviderConfig} onChange={handleConfigChange} />
                   )}
@@ -225,9 +241,6 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({
                 </TabsContent>
 
                 <TabsContent value="advanced" className="space-y-4 mt-4">
-                  {formData.providerType === PROVIDER_TYPES.REST && (
-                    <RestAdvancedForm config={formData.config as RestProviderConfig} onChange={handleConfigChange} />
-                  )}
                   {formData.providerType === PROVIDER_TYPES.WEBSOCKET && (
                     <WebSocketAdvancedForm config={formData.config as WebSocketProviderConfig} onChange={handleConfigChange} />
                   )}
@@ -264,144 +277,6 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({
     </div>
   );
 };
-
-// ─── REST Configuration Form ────────────────────────────────────────────────────
-
-const RestConfigForm: React.FC<{
-  config: RestProviderConfig;
-  onChange: (field: string, value: unknown) => void;
-}> = ({ config, onChange }) => (
-  <div className="space-y-4">
-    <div className="space-y-1.5">
-      <Label htmlFor="baseUrl" className="text-xs font-medium text-muted-foreground">Base URL *</Label>
-      <Input
-        id="baseUrl"
-        value={config.baseUrl || ''}
-        onChange={e => onChange('baseUrl', e.target.value)}
-        placeholder="https://api.example.com"
-        className="h-8 text-sm"
-      />
-    </div>
-    <div className="space-y-1.5">
-      <Label htmlFor="endpoint" className="text-xs font-medium text-muted-foreground">Endpoint *</Label>
-      <Input
-        id="endpoint"
-        value={config.endpoint || ''}
-        onChange={e => onChange('endpoint', e.target.value)}
-        placeholder="/v1/positions"
-        className="h-8 text-sm"
-      />
-    </div>
-    <div className="space-y-1.5">
-      <Label htmlFor="method" className="text-xs font-medium text-muted-foreground">HTTP Method</Label>
-      <Select value={config.method} onValueChange={v => onChange('method', v)}>
-        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="GET">GET</SelectItem>
-          <SelectItem value="POST">POST</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    <Separator />
-    <KeyValueEditor
-      label="Query Parameters"
-      description="URL query string parameters (e.g., symbol, limit, filter)"
-      value={config.queryParams || {}}
-      onChange={v => onChange('queryParams', v)}
-      keyPlaceholder="Parameter name"
-      valuePlaceholder="Parameter value"
-    />
-    {config.method === 'POST' && (
-      <>
-        <Separator />
-        <div className="space-y-1.5">
-          <Label htmlFor="body" className="text-xs font-medium text-muted-foreground">Request Body (JSON)</Label>
-          <Textarea
-            id="body"
-            value={config.body || ''}
-            onChange={e => onChange('body', e.target.value)}
-            placeholder='{"filter": "active", "sort": "desc"}'
-            rows={6}
-            className="font-mono text-xs"
-          />
-          <p className="text-[11px] text-muted-foreground">Enter valid JSON for the POST request body</p>
-        </div>
-      </>
-    )}
-    <Separator />
-    <div className="space-y-1.5">
-      <Label htmlFor="pollInterval" className="text-xs font-medium text-muted-foreground">Poll Interval (ms)</Label>
-      <Input
-        id="pollInterval"
-        type="number"
-        value={config.pollInterval || 5000}
-        onChange={e => onChange('pollInterval', parseInt(e.target.value))}
-        className="h-8 text-sm"
-      />
-      <p className="text-[11px] text-muted-foreground">How often to poll the API for updates</p>
-    </div>
-  </div>
-);
-
-// ─── REST Advanced Form ─────────────────────────────────────────────────────────
-
-const RestAdvancedForm: React.FC<{
-  config: RestProviderConfig;
-  onChange: (field: string, value: unknown) => void;
-}> = ({ config, onChange }) => (
-  <div className="space-y-4">
-    <KeyValueEditor
-      label="Custom Headers"
-      description="HTTP headers to include with each request"
-      value={config.headers || {}}
-      onChange={v => onChange('headers', v)}
-      keyPlaceholder="Header name"
-      valuePlaceholder="Header value"
-    />
-    <Separator />
-    <div className="space-y-1.5">
-      <Label htmlFor="timeout" className="text-xs font-medium text-muted-foreground">Request Timeout (ms)</Label>
-      <Input
-        id="timeout"
-        type="number"
-        value={config.timeout || 30000}
-        onChange={e => onChange('timeout', parseInt(e.target.value))}
-        className="h-8 text-sm"
-      />
-      <p className="text-[11px] text-muted-foreground">Maximum time to wait for a response</p>
-    </div>
-    <Separator />
-    <div className="space-y-1.5">
-      <Label htmlFor="paginationMode" className="text-xs font-medium text-muted-foreground">Pagination Mode</Label>
-      <Select value={config.paginationMode || 'offset'} onValueChange={v => onChange('paginationMode', v)}>
-        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="offset">Offset-based</SelectItem>
-          <SelectItem value="cursor">Cursor-based</SelectItem>
-          <SelectItem value="page">Page-based</SelectItem>
-        </SelectContent>
-      </Select>
-      <p className="text-[11px] text-muted-foreground">Strategy for paginating through large datasets</p>
-    </div>
-    <div className="space-y-1.5">
-      <Label htmlFor="pageSize" className="text-xs font-medium text-muted-foreground">Page Size</Label>
-      <Input
-        id="pageSize"
-        type="number"
-        value={config.pageSize || 100}
-        onChange={e => onChange('pageSize', parseInt(e.target.value))}
-        className="h-8 text-sm"
-      />
-      <p className="text-[11px] text-muted-foreground">Number of records to fetch per page</p>
-    </div>
-    <Alert>
-      <Info className="h-3.5 w-3.5" />
-      <AlertDescription className="text-[11px]">
-        Common headers: Content-Type, Accept, Authorization, X-API-Key
-      </AlertDescription>
-    </Alert>
-  </div>
-);
 
 // ─── WebSocket Configuration Form ───────────────────────────────────────────────
 

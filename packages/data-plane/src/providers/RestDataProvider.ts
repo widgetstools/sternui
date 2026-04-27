@@ -202,4 +202,30 @@ export class RestDataProvider extends StreamProviderBase<RestProviderConfig, Res
     if (!Array.isArray(cursor)) return [];
     return cursor.filter((r): r is RestRow => typeof r === 'object' && r !== null);
   }
+
+  /**
+   * One-shot snapshot fetch for the configurator. Builds a temporary
+   * provider, runs start() to populate the cache, then returns the
+   * rows + error info. Used by the REST configurator's Test
+   * Connection + Infer Fields buttons; does NOT register with the
+   * worker or hold resources after returning.
+   */
+  static async fetchSnapshot(
+    config: RestProviderConfig,
+    opts?: { fetchImpl?: RestFetchFn },
+  ): Promise<{ success: boolean; data?: RestRow[]; error?: string }> {
+    const p = new RestDataProvider('__configurator-probe__', { fetchImpl: opts?.fetchImpl });
+    try {
+      // configure() validates the required fields; surface errors
+      // verbatim so the configurator can show them in its diagnostics.
+      await p.configure(config);
+      await p.start();
+      return { success: true, data: [...p.getCache()] as RestRow[] };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
 }
