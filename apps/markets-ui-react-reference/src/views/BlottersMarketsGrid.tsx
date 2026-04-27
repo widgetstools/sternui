@@ -31,18 +31,13 @@ import { dataPlaneClient } from '../data-plane-client';
 // holds CRUD until the ConfigManager resolves — no per-view
 // bootstrapping or "ready" flags needed.
 
-// ─── Default columns ──────────────────────────────────────────────────
+// ─── AG-Grid per-column defaults ──────────────────────────────────────
 //
-// The container drives column shape via the provider's `columnDefinitions`
-// (when present); these defaults only render when the provider's schema
-// hasn't been authored yet, so the grid still has *something* to show.
-// They're field-only — no synthetic data.
-
-// columnDefs are now driven by the DataProvider's columnDefinitions.
-// MarketsGridContainer reads them from the saved config and passes
-// them to MarketsGrid. This `defaultColDef` (note: lowercase, NOT
-// columnDefs) is the per-column-default base AG-Grid applies on top
-// of every column — sane filter / sort / resize behaviour.
+// The actual column list comes from the DataProvider's
+// `columnDefinitions` — MarketsGridContainer reads them from the saved
+// config and passes to MarketsGrid. This `defaultColDef` (note:
+// lowercase, NOT columnDefs) is just the per-column base AG-Grid
+// applies on top of every column — filter / sort / resize behaviour.
 const defaultColDef: ColDef = {
   floatingFilter: true,
   filter: true,
