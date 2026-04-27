@@ -230,49 +230,59 @@ function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps)
 
   return (
     <DataPlaneProvider connect={connectArgs}>
-      {/* Top strip — provider picker + row-id override. Always present
-          so the user can swap providers without leaving the view. */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-border bg-card/50">
-        <div className="flex-1 min-w-0">
-          <DataProviderSelector
-            userId={userId}
-            value={providerId}
-            onChange={setProviderId}
-            placeholder="Pick a data provider…"
-            onCreate={() => goToEditor('new')}
-            onEdit={(p) => goToEditor(p.providerId ?? 'new')}
-          />
+      {/* Outer flex column so the picker strip stays its natural height
+          and the grid below claims everything else. HostedComponent's
+          content area is a flex *item* (not a flex *container*), so we
+          have to be the flex container ourselves — otherwise
+          MarketsGrid's `height: 100%` resolves against an unsized div
+          and the toolbar / settings chrome get clipped to 0. */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        {/* Top strip — provider picker + row-id override. Always
+            present so the user can swap providers without leaving
+            the view. flex-shrink-0 stops it ever giving up space
+            when the grid is hungry. */}
+        <div className="flex items-center gap-3 px-3 py-2 border-b border-border bg-card/50 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <DataProviderSelector
+              userId={userId}
+              value={providerId}
+              onChange={setProviderId}
+              placeholder="Pick a data provider…"
+              onCreate={() => goToEditor('new')}
+              onEdit={(p) => goToEditor(p.providerId ?? 'new')}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span>Row id field:</span>
+            <input
+              value={rowIdField}
+              onChange={(e) => setRowIdField(e.target.value)}
+              className="h-7 w-24 rounded border border-border bg-background px-2 text-xs"
+              placeholder="id"
+            />
+          </label>
         </div>
-        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>Row id field:</span>
-          <input
-            value={rowIdField}
-            onChange={(e) => setRowIdField(e.target.value)}
-            className="h-7 w-24 rounded border border-border bg-background px-2 text-xs"
-            placeholder="id"
-          />
-        </label>
-      </div>
 
-      <div className="flex-1 min-h-0">
-        {providerId ? (
-          <MarketsGridContainer
-            providerId={providerId}
-            rowIdField={rowIdField}
-            gridId={instanceId}
-            instanceId={instanceId}
-            columnDefs={defaultColumnDefs}
-            defaultColDef={defaultColDef}
-            theme={agTheme}
-            storage={storage as never}
-            appId={appId}
-            userId={userId}
-            showFiltersToolbar
-            showFormattingToolbar
-          />
-        ) : (
-          <EmptyState />
-        )}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {providerId ? (
+            <MarketsGridContainer
+              providerId={providerId}
+              rowIdField={rowIdField}
+              gridId={instanceId}
+              instanceId={instanceId}
+              columnDefs={defaultColumnDefs}
+              defaultColDef={defaultColDef}
+              theme={agTheme}
+              storage={storage as never}
+              appId={appId}
+              userId={userId}
+              showFiltersToolbar
+              showFormattingToolbar
+            />
+          ) : (
+            <EmptyState />
+          )}
+        </div>
       </div>
     </DataPlaneProvider>
   );
