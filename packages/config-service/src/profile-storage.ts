@@ -217,17 +217,65 @@ export function createConfigServiceStorage(
 
     const rowId = instanceId;
 
+    // Template configId for this registered (componentType,
+    // componentSubType) pair — used by the seed-from-template path
+    // below. Same canonical formula the registry editor uses for the
+    // entry id; one row per (componentType, componentSubType).
+    const templateConfigId = identity?.componentType
+      ? `${identity.componentType}-${identity.componentSubType ?? ''}`.toLowerCase()
+      : null;
+
+    // Has the seed-from-template attempt fired already? Limited to
+    // once per adapter lifetime so we don't re-clone on every
+    // listProfiles / loadProfile / loadGridLevelData call. The
+    // attempt sets the flag whether or not it succeeded — a missing
+    // template means "no template to seed from"; subsequent loads
+    // legitimately return null.
+    let seedAttempted = false;
+
     // Load the bundled row for this instance; returns null when no
-    // profiles have been written yet. Filters defensively against
-    // rows that happen to share the configId but belong to a
-    // different owner (should never happen in practice — configId
-    // is the ConfigService primary key — but this keeps the boundary
-    // explicit).
+    // profiles have been written yet AND no template exists to seed
+    // from. Filters defensively against rows that happen to share
+    // the configId but belong to a different owner (configId is the
+    // ConfigService primary key, so this is paranoia — but it keeps
+    // the cross-user boundary explicit).
+    //
+    // SEED FROM TEMPLATE: when the row doesn't exist AND identity
+    // says we're a per-instance row (not the template itself —
+    // detected by `rowId !== templateConfigId`) AND a template row
+    // exists at the canonical configId, we EAGERLY clone the
+    // template's payload onto this instance row. The first load of
+    // a freshly-launched non-singleton component thus returns the
+    // template's profiles + gridLevelData, and the new instance is
+    // independent from the template going forward (no live link —
+    // template edits don't propagate to existing instances).
     const loadSet = async (): Promise<ProfileSetPayload | null> => {
       const row = await configManager.getConfig(rowId);
-      if (!row) return null;
-      if (!isProfileSetRow(row, appId, userId)) return null;
-      return normalizePayload(row.payload);
+      if (isProfileSetRow(row, appId, userId)) {
+        return normalizePayload(row.payload);
+      }
+
+      // No row for this instance yet. Try seed-from-template once.
+      if (
+        !seedAttempted
+        && identity
+        && identity.isTemplate !== true   // we're an instance, not the template itself
+        && templateConfigId
+        && templateConfigId !== rowId      // not a singleton (which IS the template)
+      ) {
+        seedAttempted = true;
+        const templateRow = await configManager.getConfig(templateConfigId);
+        if (isProfileSetRow(templateRow, appId, userId)) {
+          const templatePayload = normalizePayload(templateRow.payload);
+          // Write the seeded payload to the new instance row using
+          // the same identity-stamping path as a normal save. Sets
+          // version=1 (template's version is irrelevant — the new
+          // row starts at 1 just like any first write).
+          await saveSet({ ...templatePayload, version: 0 }, 0);
+          return templatePayload;
+        }
+      }
+      return null;
     };
 
     /**

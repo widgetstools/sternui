@@ -161,6 +161,160 @@ describe('createConfigServiceStorage — back-compat (NO identity supplied)', ()
   });
 });
 
+// ─── Seed-from-template (non-singleton dock launch) ─────────────────
+
+describe('Seed-from-template — new dock-launched instance inherits template config', () => {
+  let cm: FakeManager;
+  beforeEach(() => { cm = makeFakeConfigManager(); });
+
+  it('first load of a NEW non-singleton instance row clones the template payload', async () => {
+    // Step 1: simulate a previous test-launch that authored the
+    // template (a row at configId="blotter-positions" with isTemplate=true).
+    const templateFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const templateAdapter = templateFactory({
+      instanceId: 'blotter-positions',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
+    });
+    await templateAdapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await templateAdapter.saveGridLevelData?.('blotter-positions', { liveProviderId: 'dp-xyz', mode: 'live' });
+    expect(cm.rows.size).toBe(1);
+
+    // Step 2: dock-launch a new non-singleton instance — its
+    // instanceId is a fresh UUID, NOT the template configId.
+    const instFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const instAdapter = instFactory({
+      instanceId: 'inst-uuid-7f3a',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+
+    // First load — should seed from the template eagerly.
+    const profiles = await instAdapter.listProfiles('inst-uuid-7f3a');
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].name).toBe('Default');
+
+    // Instance row was written with the seeded payload.
+    expect(cm.rows.size).toBe(2);
+    const instRow = cm.rows.get('inst-uuid-7f3a')!;
+    expect(instRow.componentType).toBe('blotter');
+    expect(instRow.componentSubType).toBe('positions');
+    expect(instRow.isTemplate).toBe(false);                 // INSTANCE, not template
+
+    // gridLevelData also came across.
+    const gld = await instAdapter.loadGridLevelData?.('inst-uuid-7f3a');
+    expect(gld).toEqual({ liveProviderId: 'dp-xyz', mode: 'live' });
+  });
+
+  it('does NOT seed when launched as a SINGLETON (instanceId === templateId)', async () => {
+    // Singleton: the launcher uses templateId AS the instanceId.
+    // Loading should hit the template row directly — no seed step needed.
+    const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapter = factory({
+      instanceId: 'blotter-positions',                          // === templateConfigId
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: true },
+    });
+    await adapter.saveProfile(snapshot('Default', 'blotter-positions'));
+
+    expect(cm.rows.size).toBe(1);
+    const profiles = await adapter.listProfiles('blotter-positions');
+    expect(profiles).toHaveLength(1);
+    expect(cm.rows.size).toBe(1);                              // no extra row created
+  });
+
+  it('does NOT seed when no template exists for this (componentType, componentSubType)', async () => {
+    // Cold launch — no template row in storage yet. The new
+    // instance load returns null (no profiles to show), and no row
+    // is written until the user saves something.
+    const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapter = factory({
+      instanceId: 'inst-no-template',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+
+    const profiles = await adapter.listProfiles('inst-no-template');
+    expect(profiles).toEqual([]);
+    expect(cm.rows.size).toBe(0);                             // no eager write
+  });
+
+  it('does NOT re-seed when the row already exists (a fresh adapter on an existing row reads it as-is)', async () => {
+    // Seed the template
+    const tFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    await tFactory({
+      instanceId: 'blotter-positions',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
+    }).saveProfile(snapshot('TemplateProfile', 'blotter-positions'));
+
+    // First adapter: triggers eager seed (row didn't exist) and then
+    // the user customises by renaming the seeded profile.
+    const firstFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const first = firstFactory({
+      instanceId: 'inst-already-saved',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+    await first.listProfiles('inst-already-saved'); // seeds row from template
+    // User renames the seeded profile to 'My Layout' (saveProfile with the
+    // same id updates in place, so the row still has exactly one profile).
+    await first.saveProfile({ ...snapshot('TemplateProfile', 'inst-already-saved'), name: 'My Layout' });
+    expect((await first.listProfiles('inst-already-saved')).map((p) => p.name)).toEqual(['My Layout']);
+
+    // SECOND adapter on the SAME row — this is the key check: a fresh
+    // factory + fresh adapter (closure-flag is false again) must NOT
+    // re-seed, because the row already exists.
+    const secondFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const second = secondFactory({
+      instanceId: 'inst-already-saved',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+    const profiles = await second.listProfiles('inst-already-saved');
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].name).toBe('My Layout');                // not 'TemplateProfile'
+  });
+
+  it('seeded instance is INDEPENDENT — later template edits do NOT propagate', async () => {
+    // Author template
+    const tFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const tAdapter = tFactory({
+      instanceId: 'blotter-positions',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
+    });
+    await tAdapter.saveProfile(snapshot('Default', 'blotter-positions'));
+
+    // Spawn instance — seeds from template
+    const iFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const iAdapter = iFactory({
+      instanceId: 'inst-1',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+    await iAdapter.listProfiles('inst-1'); // triggers seed
+
+    // Now author a SECOND template profile
+    await tAdapter.saveProfile({ ...snapshot('Aggressive', 'blotter-positions') });
+    expect((await tAdapter.listProfiles('blotter-positions')).length).toBe(2);
+
+    // Instance still has only the originally-seeded profile.
+    const instProfiles = await iAdapter.listProfiles('inst-1');
+    expect(instProfiles).toHaveLength(1);
+    expect(instProfiles[0].name).toBe('Default');
+  });
+});
+
 // ─── Smoke: replay the user-reported broken state ───────────────────
 
 describe('Smoke: a test-launched blotter saves its profile-set with the correct identity', () => {
