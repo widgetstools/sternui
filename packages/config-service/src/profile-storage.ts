@@ -134,11 +134,38 @@ export interface ConfigServiceStorageOptions {
   displayTextPrefix?: string;
 }
 
+/**
+ * Identity of the registered component this MarketsGrid instance is
+ * persisting state for — propagated onto the saved AppConfigRow so
+ * its `componentType` / `componentSubType` / `isTemplate` /
+ * `singleton` fields reflect the registered entry, not a hardcoded
+ * "markets-grid-profile-set" placeholder.
+ *
+ * When omitted (e.g. legacy callers or unit tests that don't model a
+ * registered component), the row falls back to the legacy
+ * `componentType: 'markets-grid-profile-set'`, `componentSubType: ''`,
+ * `isTemplate: false` defaults.
+ */
+export interface RegisteredComponentIdentity {
+  componentType: string;
+  componentSubType: string;
+  isTemplate?: boolean;
+  singleton?: boolean;
+}
+
 /** Options the factory receives from MarketsGrid at call time. */
 export interface ProfileStorageFactoryOpts {
   instanceId: string;
   appId?: string;
   userId?: string;
+  /**
+   * Identity of the registered component. When provided, the saver
+   * writes `componentType`, `componentSubType`, `isTemplate`, and
+   * `singleton` from this object onto every persisted row — ENFORCED
+   * on every write, so a stale row from before identity-aware saves
+   * gets corrected on the next save.
+   */
+  registeredIdentity?: RegisteredComponentIdentity;
 }
 
 /** Factory type — matches `StorageAdapterFactory` in @marketsui/markets-grid. */
@@ -177,6 +204,7 @@ export function createConfigServiceStorage(
     const instanceId = factoryOpts.instanceId;
     const appId = factoryOpts.appId ?? closureAppId;
     const userId = factoryOpts.userId ?? closureUserId;
+    const identity = factoryOpts.registeredIdentity;
 
     if (!appId || !userId) {
       throw new Error(
@@ -238,14 +266,31 @@ export function createConfigServiceStorage(
         ? (existing?.creationTime ?? now)
         : now;
 
+      // Identity-bound fields: when the consumer (typically
+      // BlottersMarketsGrid via component-host customData) supplies
+      // a registered identity, the row carries the REGISTERED
+      // component's type/subtype/isTemplate/singleton — exactly
+      // matching the Registry Editor entry. Without identity we
+      // fall back to the legacy "markets-grid-profile-set"
+      // discriminator so unit tests + non-registered consumers
+      // keep working.
+      const componentType = identity?.componentType ?? MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
+      const componentSubType = identity?.componentSubType ?? '';
+      const isTemplate = identity?.isTemplate === true;
+      const singleton = identity?.singleton === true;
+
       const row: AppConfigRow = {
         configId: rowId,
         appId,
         userId,
         displayText: `${displayTextPrefix}: ${instanceId}`,
-        componentType: MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
-        componentSubType: '',
-        isTemplate: false,
+        componentType,
+        componentSubType,
+        isTemplate,
+        singleton,
+        // Back-compat alias kept aligned with isTemplate while the
+        // field is still on the schema.
+        isRegisteredComponent: isTemplate,
         payload: { ...set, version: expectedVersion + 1 },
         createdBy: userId,
         updatedBy: userId,
@@ -329,17 +374,34 @@ export function createConfigServiceStorage(
 
 /** Guard: does this row belong to a markets-grid profile-set owned
  *  by `(appId, userId)`? */
+/**
+ * Recognise a profile-set row owned by `(appId, userId)`.
+ *
+ * Identification is by **payload shape** — specifically, the presence
+ * of a `profiles` array on the payload — NOT the row's
+ * `componentType`. The latter is now identity-bound (see
+ * `RegisteredComponentIdentity` above): a row written for a
+ * registered "blotter / positions" component carries
+ * `componentType: 'blotter'`, not the legacy
+ * `'markets-grid-profile-set'` placeholder.
+ *
+ * Legacy rows (pre-identity-aware writes) still have
+ * `componentType === 'markets-grid-profile-set'` and a `profiles`
+ * payload — both checks pass, so they continue to load. The next
+ * save corrects the row to identity-bound form.
+ */
 function isProfileSetRow(
   row: AppConfigRow | null | undefined,
   appId: string,
   userId: string,
 ): row is AppConfigRow {
   if (!row) return false;
-  return (
-    row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE
-    && row.appId === appId
-    && row.userId === userId
-  );
+  if (row.appId !== appId || row.userId !== userId) return false;
+  // Identity-bound rows or legacy rows both produce a `profiles`
+  // array in payload — that's the discriminator.
+  const payload = row.payload as { profiles?: unknown } | null | undefined;
+  return Array.isArray(payload?.profiles)
+    || row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
 }
 
 /** Defensively normalize the persisted payload back into a
