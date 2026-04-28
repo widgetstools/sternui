@@ -76,10 +76,18 @@ export const MARKETS_GRID_PROFILE_COMPONENT_TYPE = MARKETS_GRID_PROFILE_SET_COMP
  *  another tab / device: on save we read the current row's version,
  *  write `expected + 1`, and throw `ProfileSetVersionConflictError` if
  *  the row's version has moved on. Rows predating the version field
- *  are treated as version 0 and self-heal on the first save. */
+ *  are treated as version 0 and self-heal on the first save.
+ *
+ *  `gridLevelData` is an opaque, top-level field used for state that
+ *  needs to survive profile switches (e.g. the v2 data-provider
+ *  selection — `{ liveProviderId, historicalProviderId, mode }`). It's
+ *  optional so older rows written before the field existed continue to
+ *  load cleanly. The adapter never inspects the value; consumers own
+ *  its type via `<MarketsGrid gridLevelData={...}>`. */
 interface ProfileSetPayload {
   version: number;
   profiles: ProfileSnapshot[];
+  gridLevelData?: unknown;
 }
 
 /**
@@ -126,11 +134,38 @@ export interface ConfigServiceStorageOptions {
   displayTextPrefix?: string;
 }
 
+/**
+ * Identity of the registered component this MarketsGrid instance is
+ * persisting state for — propagated onto the saved AppConfigRow so
+ * its `componentType` / `componentSubType` / `isTemplate` /
+ * `singleton` fields reflect the registered entry, not a hardcoded
+ * "markets-grid-profile-set" placeholder.
+ *
+ * When omitted (e.g. legacy callers or unit tests that don't model a
+ * registered component), the row falls back to the legacy
+ * `componentType: 'markets-grid-profile-set'`, `componentSubType: ''`,
+ * `isTemplate: false` defaults.
+ */
+export interface RegisteredComponentIdentity {
+  componentType: string;
+  componentSubType: string;
+  isTemplate?: boolean;
+  singleton?: boolean;
+}
+
 /** Options the factory receives from MarketsGrid at call time. */
 export interface ProfileStorageFactoryOpts {
   instanceId: string;
   appId?: string;
   userId?: string;
+  /**
+   * Identity of the registered component. When provided, the saver
+   * writes `componentType`, `componentSubType`, `isTemplate`, and
+   * `singleton` from this object onto every persisted row — ENFORCED
+   * on every write, so a stale row from before identity-aware saves
+   * gets corrected on the next save.
+   */
+  registeredIdentity?: RegisteredComponentIdentity;
 }
 
 /** Factory type — matches `StorageAdapterFactory` in @marketsui/markets-grid. */
@@ -169,6 +204,7 @@ export function createConfigServiceStorage(
     const instanceId = factoryOpts.instanceId;
     const appId = factoryOpts.appId ?? closureAppId;
     const userId = factoryOpts.userId ?? closureUserId;
+    const identity = factoryOpts.registeredIdentity;
 
     if (!appId || !userId) {
       throw new Error(
@@ -181,17 +217,65 @@ export function createConfigServiceStorage(
 
     const rowId = instanceId;
 
+    // Template configId for this registered (componentType,
+    // componentSubType) pair — used by the seed-from-template path
+    // below. Same canonical formula the registry editor uses for the
+    // entry id; one row per (componentType, componentSubType).
+    const templateConfigId = identity?.componentType
+      ? `${identity.componentType}-${identity.componentSubType ?? ''}`.toLowerCase()
+      : null;
+
+    // Has the seed-from-template attempt fired already? Limited to
+    // once per adapter lifetime so we don't re-clone on every
+    // listProfiles / loadProfile / loadGridLevelData call. The
+    // attempt sets the flag whether or not it succeeded — a missing
+    // template means "no template to seed from"; subsequent loads
+    // legitimately return null.
+    let seedAttempted = false;
+
     // Load the bundled row for this instance; returns null when no
-    // profiles have been written yet. Filters defensively against
-    // rows that happen to share the configId but belong to a
-    // different owner (should never happen in practice — configId
-    // is the ConfigService primary key — but this keeps the boundary
-    // explicit).
+    // profiles have been written yet AND no template exists to seed
+    // from. Filters defensively against rows that happen to share
+    // the configId but belong to a different owner (configId is the
+    // ConfigService primary key, so this is paranoia — but it keeps
+    // the cross-user boundary explicit).
+    //
+    // SEED FROM TEMPLATE: when the row doesn't exist AND identity
+    // says we're a per-instance row (not the template itself —
+    // detected by `rowId !== templateConfigId`) AND a template row
+    // exists at the canonical configId, we EAGERLY clone the
+    // template's payload onto this instance row. The first load of
+    // a freshly-launched non-singleton component thus returns the
+    // template's profiles + gridLevelData, and the new instance is
+    // independent from the template going forward (no live link —
+    // template edits don't propagate to existing instances).
     const loadSet = async (): Promise<ProfileSetPayload | null> => {
       const row = await configManager.getConfig(rowId);
-      if (!row) return null;
-      if (!isProfileSetRow(row, appId, userId)) return null;
-      return normalizePayload(row.payload);
+      if (isProfileSetRow(row, appId, userId)) {
+        return normalizePayload(row.payload);
+      }
+
+      // No row for this instance yet. Try seed-from-template once.
+      if (
+        !seedAttempted
+        && identity
+        && identity.isTemplate !== true   // we're an instance, not the template itself
+        && templateConfigId
+        && templateConfigId !== rowId      // not a singleton (which IS the template)
+      ) {
+        seedAttempted = true;
+        const templateRow = await configManager.getConfig(templateConfigId);
+        if (isProfileSetRow(templateRow, appId, userId)) {
+          const templatePayload = normalizePayload(templateRow.payload);
+          // Write the seeded payload to the new instance row using
+          // the same identity-stamping path as a normal save. Sets
+          // version=1 (template's version is irrelevant — the new
+          // row starts at 1 just like any first write).
+          await saveSet({ ...templatePayload, version: 0 }, 0);
+          return templatePayload;
+        }
+      }
+      return null;
     };
 
     /**
@@ -230,14 +314,31 @@ export function createConfigServiceStorage(
         ? (existing?.creationTime ?? now)
         : now;
 
+      // Identity-bound fields: when the consumer (typically
+      // BlottersMarketsGrid via component-host customData) supplies
+      // a registered identity, the row carries the REGISTERED
+      // component's type/subtype/isTemplate/singleton — exactly
+      // matching the Registry Editor entry. Without identity we
+      // fall back to the legacy "markets-grid-profile-set"
+      // discriminator so unit tests + non-registered consumers
+      // keep working.
+      const componentType = identity?.componentType ?? MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
+      const componentSubType = identity?.componentSubType ?? '';
+      const isTemplate = identity?.isTemplate === true;
+      const singleton = identity?.singleton === true;
+
       const row: AppConfigRow = {
         configId: rowId,
         appId,
         userId,
         displayText: `${displayTextPrefix}: ${instanceId}`,
-        componentType: MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
-        componentSubType: '',
-        isTemplate: false,
+        componentType,
+        componentSubType,
+        isTemplate,
+        singleton,
+        // Back-compat alias kept aligned with isTemplate while the
+        // field is still on the schema.
+        isRegisteredComponent: isTemplate,
         payload: { ...set, version: expectedVersion + 1 },
         createdBy: userId,
         updatedBy: userId,
@@ -259,7 +360,8 @@ export function createConfigServiceStorage(
         // Load the existing bundle, then upsert the snapshot and
         // write back. The expected-version from the load is threaded
         // into saveSet so a second writer that landed in between
-        // gets caught on the version-compare.
+        // gets caught on the version-compare. `gridLevelData` is
+        // preserved verbatim — saving a profile must not clobber it.
         const loaded = await loadSet();
         const expectedVersion = loaded?.version ?? 0;
         const profiles = loaded?.profiles ?? [];
@@ -269,7 +371,10 @@ export function createConfigServiceStorage(
         } else {
           profiles.push(snapshot);
         }
-        await saveSet({ version: expectedVersion, profiles }, expectedVersion);
+        await saveSet(
+          { version: expectedVersion, profiles, gridLevelData: loaded?.gridLevelData },
+          expectedVersion,
+        );
       },
 
       async deleteProfile(gridId: string, profileId: string): Promise<void> {
@@ -278,7 +383,10 @@ export function createConfigServiceStorage(
         if (!loaded) return;
         const filtered = loaded.profiles.filter((p) => p.id !== profileId);
         if (filtered.length === loaded.profiles.length) return; // not found; no-op
-        await saveSet({ version: loaded.version, profiles: filtered }, loaded.version);
+        await saveSet(
+          { version: loaded.version, profiles: filtered, gridLevelData: loaded.gridLevelData },
+          loaded.version,
+        );
       },
 
       async listProfiles(gridId: string): Promise<ProfileSnapshot[]> {
@@ -286,23 +394,62 @@ export function createConfigServiceStorage(
         const set = await loadSet();
         return set?.profiles ?? [];
       },
+
+      async loadGridLevelData(gridId: string): Promise<unknown | null> {
+        void gridId;
+        const set = await loadSet();
+        return set?.gridLevelData ?? null;
+      },
+
+      async saveGridLevelData(gridId: string, data: unknown): Promise<void> {
+        void gridId;
+        // Read-modify-write the same bundled row. Keep profiles and
+        // version intact — only the `gridLevelData` field changes.
+        const loaded = await loadSet();
+        const expectedVersion = loaded?.version ?? 0;
+        await saveSet(
+          {
+            version: expectedVersion,
+            profiles: loaded?.profiles ?? [],
+            gridLevelData: data,
+          },
+          expectedVersion,
+        );
+      },
     };
   };
 }
 
 /** Guard: does this row belong to a markets-grid profile-set owned
  *  by `(appId, userId)`? */
+/**
+ * Recognise a profile-set row owned by `(appId, userId)`.
+ *
+ * Identification is by **payload shape** — specifically, the presence
+ * of a `profiles` array on the payload — NOT the row's
+ * `componentType`. The latter is now identity-bound (see
+ * `RegisteredComponentIdentity` above): a row written for a
+ * registered "blotter / positions" component carries
+ * `componentType: 'blotter'`, not the legacy
+ * `'markets-grid-profile-set'` placeholder.
+ *
+ * Legacy rows (pre-identity-aware writes) still have
+ * `componentType === 'markets-grid-profile-set'` and a `profiles`
+ * payload — both checks pass, so they continue to load. The next
+ * save corrects the row to identity-bound form.
+ */
 function isProfileSetRow(
   row: AppConfigRow | null | undefined,
   appId: string,
   userId: string,
 ): row is AppConfigRow {
   if (!row) return false;
-  return (
-    row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE
-    && row.appId === appId
-    && row.userId === userId
-  );
+  if (row.appId !== appId || row.userId !== userId) return false;
+  // Identity-bound rows or legacy rows both produce a `profiles`
+  // array in payload — that's the discriminator.
+  const payload = row.payload as { profiles?: unknown } | null | undefined;
+  return Array.isArray(payload?.profiles)
+    || row.componentType === MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE;
 }
 
 /** Defensively normalize the persisted payload back into a
@@ -313,14 +460,17 @@ function isProfileSetRow(
  *  adapter writes a proper version field. No explicit migration
  *  pass required. */
 function normalizePayload(payload: unknown): ProfileSetPayload {
-  const p = payload as { profiles?: unknown; version?: unknown } | null | undefined;
+  const p = payload as { profiles?: unknown; version?: unknown; gridLevelData?: unknown } | null | undefined;
   const arr = Array.isArray(p?.profiles) ? p.profiles : [];
   const profiles: ProfileSnapshot[] = [];
   for (const raw of arr) {
     const snap = normalizeSnapshot(raw);
     if (snap) profiles.push(snap);
   }
-  return { version: readVersion(p), profiles };
+  // `gridLevelData` is intentionally opaque — pass through whatever the
+  // row carried (or undefined). Pre-`gridLevelData` rows omit the field
+  // and self-heal on the next saveGridLevelData call.
+  return { version: readVersion(p), profiles, gridLevelData: p?.gridLevelData };
 }
 
 /** Pull the `version` number out of a payload, tolerating the pre-

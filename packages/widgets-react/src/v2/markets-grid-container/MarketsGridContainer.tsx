@@ -1,0 +1,528 @@
+/**
+ * MarketsGridContainer — v2.
+ *
+ *   - Two providers in the picker, ONE active at a time.
+ *   - Picker toolbar is mounted INSIDE MarketsGrid via the
+ *     `headerExtras` slot — it lives inside the grid's own chrome,
+ *     not as a separate strip above it.
+ *   - Toolbar visibility is dev-only, gated by Alt+Shift+P. The
+ *     chord, the toolbar, and the very existence of the picker are
+ *     intentionally NOT documented in the UI: end users see only the
+ *     configured grid; support staff toggle the toolbar to reconfigure.
+ *   - Provider selection persists at the GRID level (not per-profile)
+ *     in the SAME storage row MarketsGrid uses for its profile-set,
+ *     via the StorageAdapter's `loadGridLevelData / saveGridLevelData`
+ *     methods. Profile switches preserve the selection because it's
+ *     not stored in any individual profile.
+ *
+ *   Persistence flow:
+ *     - Container resolves the storage adapter from
+ *       `props.storage({ instanceId, appId, userId })` once on mount.
+ *     - Reads `loadGridLevelData(gridId)`; while pending, renders a
+ *       small loading state. This guarantees MarketsGrid mounts
+ *       exactly once with the correct rowIdField for the persisted
+ *       provider — no remount-on-load loop.
+ *     - On every selection mutation, calls `saveGridLevelData(gridId,
+ *       selection)`. The adapter writes back to the same bundled row
+ *       that holds the profile-set (top-level field, not nested in a
+ *       profile).
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ColDef, GridApi } from 'ag-grid-community';
+import { MarketsGrid } from '@marketsui/markets-grid';
+import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@marketsui/markets-grid';
+import type { StorageAdapter } from '@marketsui/core';
+import {
+  useDataProviderConfig,
+  useResolvedCfg,
+  useDataProvidersList,
+  useAppDataStore,
+  useDataPlane,
+} from '@marketsui/data-plane-react/v2';
+import type { ProviderConfig } from '@marketsui/shared-types';
+import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
+import { useChordHotkey } from './useChordHotkey.js';
+
+const EMPTY: never[] = [];
+
+export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
+  extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField' | 'columnDefs' | 'gridLevelData' | 'onGridLevelDataLoad' | 'headerExtras'> {
+  /**
+   * Where to write the historical date when the user picks one.
+   * Format: `'appDataProviderName.key'` — e.g. `'positions.asOfDate'`.
+   * The historical provider's cfg should reference this entry via
+   * `{{positions.asOfDate}}` so the value flows through.
+   * Required when a historical provider is supplied.
+   */
+  historicalDateAppDataRef?: string;
+  /**
+   * Called when the user clicks the toolbar's Edit button. The
+   * consumer is expected to open the editor (typically as a popout
+   * window via `data-plane-popout.ts`'s helper).
+   */
+  onEditProvider?(providerId: string): void;
+  /** Surface stream errors. Defaults to console.error. */
+  onError?(error: Error): void;
+}
+
+/** Persisted picker state. Stored as MarketsGrid's `gridLevelData`. */
+export interface ProviderSelection {
+  liveProviderId: string | null;
+  historicalProviderId: string | null;
+  mode: ProviderMode;
+}
+
+const DEFAULT_SELECTION: ProviderSelection = {
+  liveProviderId: null,
+  historicalProviderId: null,
+  mode: 'live',
+};
+
+function normalizeSelection(raw: unknown): ProviderSelection {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_SELECTION };
+  const v = raw as Partial<ProviderSelection>;
+  return {
+    liveProviderId: typeof v.liveProviderId === 'string' ? v.liveProviderId : null,
+    historicalProviderId: typeof v.historicalProviderId === 'string' ? v.historicalProviderId : null,
+    mode: v.mode === 'historical' ? 'historical' : 'live',
+  };
+}
+
+export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
+  props: MarketsGridContainerProps<TData>,
+) {
+  const {
+    historicalDateAppDataRef,
+    onEditProvider,
+    onError,
+    onReady: onReadyProp,
+    ...marketsGridProps
+  } = props;
+
+  const dp = useDataPlane();
+  const dpClient = dp.client;
+  const appData = useAppDataStore();
+
+  // ── Storage adapter ──────────────────────────────────────────────
+  //
+  // Same factory MarketsGrid uses for profile persistence; we resolve
+  // a copy here to read/write the grid-level-data field of the same
+  // row. Memoised on the identity-affecting tuple so a userId swap
+  // (rare) rebuilds the adapter cleanly.
+  const storageFactory = (props as { storage?: StorageAdapterFactory }).storage;
+  const adapter = useMemo<StorageAdapter | null>(() => {
+    if (!storageFactory) return null;
+    const instanceId = props.instanceId ?? props.gridId;
+    return storageFactory({
+      instanceId,
+      appId: props.appId,
+      userId: props.userId,
+    });
+  }, [storageFactory, props.instanceId, props.gridId, props.appId, props.userId]);
+
+  // ── Picker state ──────────────────────────────────────────────────
+  //
+  // `loaded === false` while we wait for the first load. Once it
+  // flips, MarketsGrid mounts with the persisted selection in place
+  // — no second mount required when the load resolves.
+  const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
+  const [loaded, setLoaded] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [asOfDate, setAsOfDate] = useState<string | null>(null);
+
+  // Initial load. If the adapter doesn't implement grid-level data
+  // (older third-party adapters), or there's no adapter at all, we
+  // fall through to the default selection and mark as loaded.
+  useEffect(() => {
+    let cancelled = false;
+    if (!adapter?.loadGridLevelData) {
+      setLoaded(true);
+      return;
+    }
+    void adapter
+      .loadGridLevelData(props.gridId)
+      .then((raw) => {
+        if (cancelled) return;
+        setSelection(normalizeSelection(raw));
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSelection({ ...DEFAULT_SELECTION });
+        setLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [adapter, props.gridId]);
+
+  // Persist on mutation. `lastSavedRef` skips the initial sync when
+  // `loaded` flips (selection just came FROM disk; saving back would
+  // be a no-op write) AND handles React StrictMode's double-effect
+  // correctly across remounts.
+  const lastSavedRef = useRef<ProviderSelection | null>(null);
+  useEffect(() => {
+    if (!loaded) return;
+    // First post-load run: seed lastSaved with whatever just loaded
+    // and bail out — no need to write the value we just read.
+    if (lastSavedRef.current === null) {
+      lastSavedRef.current = selection;
+      return;
+    }
+    if (
+      lastSavedRef.current.liveProviderId === selection.liveProviderId
+      && lastSavedRef.current.historicalProviderId === selection.historicalProviderId
+      && lastSavedRef.current.mode === selection.mode
+    ) {
+      return;
+    }
+    lastSavedRef.current = selection;
+    if (adapter?.saveGridLevelData) {
+      void adapter.saveGridLevelData(props.gridId, selection);
+    }
+  }, [selection, loaded, adapter, props.gridId]);
+
+  const setLiveId = useCallback((id: string | null) => {
+    setSelection((s) => ({ ...s, liveProviderId: id }));
+  }, []);
+  const setHistoricalId = useCallback((id: string | null) => {
+    setSelection((s) => ({ ...s, historicalProviderId: id }));
+  }, []);
+  const setMode = useCallback((mode: ProviderMode) => {
+    setSelection((s) => ({ ...s, mode }));
+  }, []);
+
+  // ── Hotkey ────────────────────────────────────────────────────────
+  //
+  // Alt+Shift+P toggles the picker. Intentionally undocumented in the
+  // UI — the empty state shows nothing actionable so end users don't
+  // discover the toolbar accidentally. Support staff and developers
+  // know the chord; that's the audience.
+  //
+  // Chord choice: Alt+Shift+P. The original plan called for
+  // Ctrl+Shift+P but every major browser binds that to "open
+  // incognito / private window" — Chromium intercepts it before the
+  // page-level keydown listener runs. Alt+Shift+P is unbound in
+  // Chrome / Firefox / Edge / Safari / OpenFin and is mnemonic for
+  // "Provider".
+  const toggleToolbar = useCallback(() => setPickerVisible((v) => !v), []);
+  useChordHotkey('Alt+Shift+P', (e) => {
+    e.preventDefault();
+    toggleToolbar();
+  });
+
+  // ── Active provider resolution ────────────────────────────────────
+  const activeId = selection.mode === 'live' ? selection.liveProviderId : selection.historicalProviderId;
+  const activeRow = useDataProviderConfig(activeId);
+  const activeCfg = useResolvedCfg(activeRow.cfg?.config ?? null);
+
+  // List of available providers per slot. Subtype filter could be
+  // tightened (live=stomp, historical=rest) but keeping it open is
+  // friendlier — the user might want a Mock for either slot in dev.
+  const liveList = useDataProvidersList();
+  const histList = useDataProvidersList();
+
+  // Date picker writes through to AppData; the next render's
+  // `useResolvedCfg` produces a fresh cfg → useProviderStream
+  // re-attaches → Hub turns it into a restart.
+  const setAsOfDateAndPersist = useCallback((next: string | null) => {
+    setAsOfDate(next);
+    if (next && historicalDateAppDataRef) {
+      const dot = historicalDateAppDataRef.indexOf('.');
+      if (dot > 0) {
+        const name = historicalDateAppDataRef.slice(0, dot);
+        const key = historicalDateAppDataRef.slice(dot + 1);
+        void appData.store.set(name, key, next);
+      }
+    }
+  }, [appData.store, historicalDateAppDataRef]);
+
+  const rowIdField = activeRow.cfg
+    ? (activeCfg as { keyColumn?: string } | null)?.keyColumn ?? null
+    : null;
+
+  const columnDefs = useMemo<ColDef<TData>[] | null>(() => {
+    const defs = (activeCfg as { columnDefinitions?: ColDef<TData>[] } | null)?.columnDefinitions;
+    return defs && defs.length > 0 ? defs : null;
+  }, [activeCfg]);
+
+  // ── Grid lifecycle: capture the gridApi when AG-Grid is ready ────
+  //
+  // The grid mounts twice across a normal session:
+  //   1. The "no provider" placeholder grid (empty cols, sentinel
+  //      rowIdField). Reachable via Alt+Shift+P so support staff can
+  //      pick a provider from the empty state.
+  //   2. The real data-attached grid, mounted with a key that includes
+  //      the provider id and key column.
+  //
+  // We only care about the api from mount #2. To distinguish the two
+  // we stamp the captured api with the `key` it was created for; the
+  // subscribe effect below only fires when the stamped key matches
+  // the current `expectedKey`. An onReady from the placeholder grid
+  // (where `expectedKey === null`) is a no-op stamp.
+  const expectedKey = (activeId && !activeRow.loading && rowIdField && columnDefs)
+    ? `${activeId}::${rowIdField}`
+    : null;
+
+  const [stamped, setStamped] = useState<{ key: string; api: GridApi<TData> } | null>(null);
+
+  const expectedKeyRef = useRef(expectedKey);
+  useEffect(() => { expectedKeyRef.current = expectedKey; }, [expectedKey]);
+
+  const onReady = useCallback((handle: MarketsGridHandle) => {
+    const k = expectedKeyRef.current;
+    if (k) {
+      setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
+    }
+    onReadyProp?.(handle);
+  }, [onReadyProp]);
+
+  const liveApi = stamped && stamped.key === expectedKey ? stamped.api : null;
+
+  // ── Two-phase data flow ──────────────────────────────────────────
+  //
+  // The flow matches the natural reload-time sequence:
+  //
+  //   1. App reloads → connect to (or create) the SharedWorker.
+  //   2. Grid requests the snapshot from the worker.
+  //   3. Worker delivers it — either from its cache (hot reload), or
+  //      by starting the provider and waiting for its snapshot phase
+  //      to finish (cold reload / first load).
+  //   4. Grid applies the snapshot via setGridOption('rowData', ...).
+  //   5. Grid subscribes for live updates.
+  //
+  // `client.subscribe` returns a handle with both phases unbundled:
+  //   • `await handle.snapshot` — step 3.
+  //   • `handle.onUpdate(cb)` — step 5.
+  //
+  // Updates that arrive between snapshot resolution and onUpdate
+  // registration are buffered by the client and flushed in order on
+  // registration, so nothing is dropped.
+  //
+  // Refresh is implemented as: re-subscribe with `extra: {asOfDate}`
+  // for historical mode, or `extra: {__refresh: ts}` for live. The
+  // worker turns either into provider.restart(extra), which clears
+  // the cache and resets to 'loading' until the new snapshot arrives.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const refreshExtraRef = useRef<Record<string, unknown> | undefined>(undefined);
+
+  // Render-time log of the gating inputs so you can see WHY the
+  // subscribe effect isn't firing yet (or that it IS gated correctly
+  // and waiting for the missing piece). Logs every render — fine,
+  // grids don't render hundreds of times on their own.
+  // eslint-disable-next-line no-console
+  console.log(
+    `[v2/grid] render gate: loaded=%s liveApi=%s activeId=%s rowIdField=%s columnDefs=%s cfgLoaded=%s pickerVisible=%s`,
+    loaded, Boolean(liveApi), activeId, rowIdField, Boolean(columnDefs), Boolean(activeCfg), pickerVisible,
+  );
+
+  useEffect(() => {
+    if (!liveApi || !activeId || !activeCfg) {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/grid]   subscribe effect skipped: liveApi=%s activeId=%s activeCfg=%s`,
+        Boolean(liveApi), activeId, Boolean(activeCfg));
+      return;
+    }
+
+    const extra = refreshExtraRef.current;
+    refreshExtraRef.current = undefined;
+    const t0 = performance.now();
+    // eslint-disable-next-line no-console
+    console.log(
+      `[v2/grid] %csubscribe%c provider=%s%s rowIdField=%s gridReady=%s`,
+      'color:#3b82f6;font-weight:bold', '',
+      activeId,
+      extra ? ` extra=${JSON.stringify(extra)}` : '',
+      rowIdField,
+      Boolean(liveApi),
+    );
+    const handle = dpClient.subscribe<TData>(activeId, activeCfg, extra ? { extra } : {});
+    let cancelled = false;
+
+    // Track ids we've handed to AG-Grid as `add` but whose transaction
+    // hasn't been applied yet. Without this, two live ticks for the
+    // SAME new id arriving in the same frame both observe
+    // `getRowNode(id) === null` (because applyTransactionAsync is
+    // async — transactions queue and flush together at the next
+    // animation frame), classify both as `add`, and AG-Grid emits
+    // warning #2 ("Duplicate node id detected"). Server-side fan-out
+    // with multiple ticks per row makes this hit constantly.
+    const pendingAddIds = new Set<string>();
+
+    handle.onStatus((s, err) => {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[v2/grid] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms)`,
+        'color:#a855f7', '', s,
+      );
+      if (err && !cancelled) (onError ?? defaultOnError)(new Error(err));
+    });
+
+    handle.snapshot
+      .then((rows) => {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2/grid] %csnapshot ✓%c %d rows received (+${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#10b981;font-weight:bold', '',
+          rows.length,
+        );
+        if (cancelled) {
+          // eslint-disable-next-line no-console
+          console.log('[v2/grid]   …but the subscription was cancelled before snapshot landed; skipping setGridOption');
+          return;
+        }
+        // Phase 1 done: apply the snapshot in a single setRowData.
+        liveApi.setGridOption('rowData', rows.slice());
+        // eslint-disable-next-line no-console
+        console.log(`[v2/grid]   setGridOption('rowData', %d rows) applied`, rows.length);
+        // Phase 2: live updates. Add vs update is decided per-row.
+        // A row is treated as `update` if EITHER:
+        //   - `getRowNode(id)` finds it (already committed to grid), OR
+        //   - it's in `pendingAddIds` (we queued an add for it
+        //     earlier in this same frame and AG-Grid hasn't flushed
+        //     yet).
+        let updateBatchCount = 0;
+        handle.onUpdate((updateRows) => {
+          if (cancelled || updateRows.length === 0) return;
+          updateBatchCount += 1;
+          if (!rowIdField) {
+            // eslint-disable-next-line no-console
+            console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
+            liveApi.applyTransactionAsync({ update: updateRows.slice() });
+            return;
+          }
+          const adds: TData[] = [];
+          const updates: TData[] = [];
+          for (const row of updateRows) {
+            const raw = (row as Record<string, unknown>)[rowIdField];
+            const id = raw === null || raw === undefined ? null : String(raw);
+            if (id === null) continue;
+            if (liveApi.getRowNode(id) || pendingAddIds.has(id)) {
+              updates.push(row);
+            } else {
+              adds.push(row);
+              pendingAddIds.add(id);
+            }
+          }
+          // Only log every 50th batch to avoid flooding the console
+          // under a high-rate feed. The first few are useful for
+          // confirming the grid is healthy after the snapshot.
+          if (updateBatchCount <= 5 || updateBatchCount % 50 === 0) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[v2/grid] %cupdate#%d%c %d rows → %d add, %d update (pendingAdds=%d)`,
+              'color:#f59e0b', '', updateBatchCount,
+              updateRows.length, adds.length, updates.length, pendingAddIds.size,
+            );
+          }
+          liveApi.applyTransactionAsync({ add: adds, update: updates }, (result) => {
+            // Transaction has now been applied — those ids are real
+            // grid rows now, so getRowNode will find them on the
+            // next batch. Clear them from the pending set.
+            for (const node of result.add) {
+              const nodeId = node.id;
+              if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
+            }
+          });
+        });
+        // eslint-disable-next-line no-console
+        console.log(`[v2/grid]   onUpdate handler registered`);
+      })
+      .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[v2/grid] %csnapshot ✗%c rejected: %s (+${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#ef4444;font-weight:bold', '',
+          err instanceof Error ? err.message : String(err),
+        );
+        if (cancelled) return;
+        (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
+      });
+
+    return () => {
+      cancelled = true;
+      // eslint-disable-next-line no-console
+      console.log(`[v2/grid] %cunsubscribe%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
+        'color:#6b7280', '', activeId);
+      handle.unsubscribe();
+    };
+    // `refreshTick` is a deliberate trigger: bumping it tears down
+    // the current handle and re-subscribes with whatever
+    // `refreshExtraRef.current` was set to before the bump.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveApi, activeId, activeCfg, rowIdField, dpClient, onError, refreshTick]);
+
+  const refresh = useCallback(() => {
+    if (!activeId) return;
+    refreshExtraRef.current = (selection.mode === 'historical' && asOfDate)
+      ? { asOfDate }
+      : { __refresh: Date.now() };
+    setRefreshTick((t) => t + 1);
+  }, [activeId, selection.mode, asOfDate]);
+
+  // ── Toolbar slot content ──────────────────────────────────────────
+  //
+  // Always pass via `headerExtras`; the slot is hidden when the
+  // picker is closed. End users never see this; only Alt+Shift+P
+  // surfaces it, and that chord is intentionally undocumented in
+  // the UI.
+  const headerExtras = pickerVisible ? (
+    <ProviderToolbar
+      liveProviders={liveList.configs}
+      historicalProviders={histList.configs}
+      liveProviderId={selection.liveProviderId}
+      historicalProviderId={selection.historicalProviderId}
+      mode={selection.mode}
+      asOfDate={asOfDate}
+      onLiveChange={setLiveId}
+      onHistoricalChange={setHistoricalId}
+      onModeChange={setMode}
+      onAsOfDateChange={setAsOfDateAndPersist}
+      onRefresh={refresh}
+      onEdit={(id) => onEditProvider?.(id)}
+    />
+  ) : null;
+
+  // ── Render ────────────────────────────────────────────────────────
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  // Provider selected and cfg loaded → full data-attached grid.
+  if (activeId && !activeRow.loading && rowIdField && columnDefs) {
+    return (
+      <MarketsGrid<TData>
+        {...(marketsGridProps as MarketsGridProps<TData>)}
+        key={`${activeId}::${rowIdField}`}
+        rowData={EMPTY as TData[]}
+        rowIdField={rowIdField}
+        columnDefs={columnDefs}
+        onReady={onReady}
+        headerExtras={headerExtras}
+      />
+    );
+  }
+
+  // No provider selected (or cfg still resolving): mount MarketsGrid
+  // with a sentinel rowIdField so the toolbar slot is reachable. End
+  // users see an empty grid; support staff press Alt+Shift+P to pick
+  // a provider. No keyboard hint is shown — the chord is dev-only.
+  return (
+    <MarketsGrid<TData>
+      {...(marketsGridProps as MarketsGridProps<TData>)}
+      key="__no_provider__"
+      rowData={EMPTY as TData[]}
+      rowIdField="__none__"
+      columnDefs={EMPTY as unknown as ColDef<TData>[]}
+      headerExtras={headerExtras}
+    />
+  );
+}
+
+function defaultOnError(err: Error): void {
+  // eslint-disable-next-line no-console
+  console.error('[MarketsGridContainer]', err);
+}

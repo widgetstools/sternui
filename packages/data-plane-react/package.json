@@ -1,7 +1,7 @@
 {
   "name": "@marketsui/data-plane-react",
   "version": "0.1.0",
-  "description": "React hooks for @marketsui/data-plane \u2014 context provider + useDataPlaneValue / useDataPlaneAppData / useDataPlaneRowStream",
+  "description": "React hooks for @marketsui/data-plane v2 \u2014 DataPlaneProvider + useProviderStream / useProviderStats / useResolvedCfg / useAppDataStore / useDataProvidersList",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./v2": {
+      "import": "./dist/v2/index.js",
+      "types": "./dist/v2/index.d.ts"
     }
   },
   "scripts": {
@@ -22,7 +26,13 @@
     "@marketsui/shared-types": "*"
   },
   "peerDependencies": {
-    "react": ">=19.0.0"
+    "react": ">=19.0.0",
+    "@marketsui/config-service": "*"
+  },
+  "peerDependenciesMeta": {
+    "@marketsui/config-service": {
+      "optional": false
+    }
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

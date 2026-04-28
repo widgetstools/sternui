@@ -14,6 +14,7 @@
     },
     "./themes/fi-dark.css": "./src/themes/fi-dark.css",
     "./themes/fi-light.css": "./src/themes/fi-light.css",
+    "./themes/scrollbars.css": "./src/themes/scrollbars.css",
     "./tokens/primitives": {
       "types": "./dist/tokens/primitives.d.ts",
       "import": "./dist/tokens/primitives.js"

@@ -35,8 +35,9 @@ export type { ConfigScope } from './db';
 
 // ─── Registry config types ──────────────────────────────────────────
 export {
-  generateTemplateConfigId,
-  deriveSingletonConfigId,
+  deriveTemplateConfigId,
+  generateTemplateConfigId,    // deprecated alias of deriveTemplateConfigId
+  deriveSingletonConfigId,     // deprecated alias of deriveTemplateConfigId
   REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,

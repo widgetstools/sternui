@@ -3,17 +3,12 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import App from "./App";
 import { ThemeProvider } from "./context/ThemeContext";
-import { ensureDataProvidersLocalBackend } from "./data-providers-local";
 import "./index.css";
 
-// Boot-time wiring: route DataProvider persistence through the
-// platform's ConfigManager (Dexie/IndexedDB) so saves don't try to
-// hit a non-existent http://localhost:3001 config server. Fires
-// synchronously — `expectLocalBackend()` immediately tells the
-// service to hold any CRUD until the async manager resolution
-// completes, so views never have to gate themselves on a "ready"
-// flag. Apps that prefer a REST backend simply skip this call.
-ensureDataProvidersLocalBackend();
+// DataProvider persistence in v2 routes through `<DataPlaneProvider>`
+// (which wires the v2 `DataProviderConfigStore` against the platform's
+// `ConfigManager`). No boot-time gate needed — views resolve their
+// own `getConfigManager()` and mount the provider when ready.
 
 // ─── Lazy-loaded route components ────────────────────────────────────
 // React.lazy() loads each component only when its route is first visited.

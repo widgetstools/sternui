@@ -3,6 +3,7 @@ import type { ProfileSnapshot, StorageAdapter } from './StorageAdapter';
 /** In-memory storage. Tests and hosts that don't need durability. */
 export class MemoryAdapter implements StorageAdapter {
   private profiles = new Map<string, ProfileSnapshot>();
+  private gridLevelData = new Map<string, unknown>();
 
   private key(gridId: string, id: string): string {
     return `${gridId}::${id}`;
@@ -27,5 +28,13 @@ export class MemoryAdapter implements StorageAdapter {
       if (k.startsWith(prefix)) out.push(v);
     }
     return out;
+  }
+
+  async loadGridLevelData(gridId: string): Promise<unknown | null> {
+    return this.gridLevelData.has(gridId) ? this.gridLevelData.get(gridId) : null;
+  }
+
+  async saveGridLevelData(gridId: string, data: unknown): Promise<void> {
+    this.gridLevelData.set(gridId, data);
   }
 }

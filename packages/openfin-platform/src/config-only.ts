@@ -89,8 +89,9 @@ export {
   encodeHostEnvForQueryString,
 } from './registry-host-env';
 export {
-  generateTemplateConfigId,
-  deriveSingletonConfigId,
+  deriveTemplateConfigId,
+  generateTemplateConfigId,    // deprecated alias of deriveTemplateConfigId
+  deriveSingletonConfigId,     // deprecated alias of deriveTemplateConfigId
   REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,

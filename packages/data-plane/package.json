@@ -11,21 +11,17 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./protocol": {
-      "import": "./dist/protocol.js",
-      "types": "./dist/protocol.d.ts"
+    "./v2": {
+      "import": "./dist/v2/index.js",
+      "types": "./dist/v2/index.d.ts"
     },
-    "./providers": {
-      "import": "./dist/providers/index.js",
-      "types": "./dist/providers/index.d.ts"
+    "./v2/worker": {
+      "import": "./dist/v2/worker/index.js",
+      "types": "./dist/v2/worker/index.d.ts"
     },
-    "./client": {
-      "import": "./dist/client/index.js",
-      "types": "./dist/client/index.d.ts"
-    },
-    "./worker": {
-      "import": "./dist/worker/index.js",
-      "types": "./dist/worker/index.d.ts"
+    "./v2/client": {
+      "import": "./dist/v2/client/index.js",
+      "types": "./dist/v2/client/index.d.ts"
     }
   },
   "scripts": {
@@ -37,10 +33,14 @@
     "@marketsui/shared-types": "*"
   },
   "peerDependencies": {
-    "@stomp/stompjs": "^7.3.0"
+    "@stomp/stompjs": "^7.3.0",
+    "@marketsui/config-service": "*"
   },
   "peerDependenciesMeta": {
     "@stomp/stompjs": {
+      "optional": true
+    },
+    "@marketsui/config-service": {
       "optional": true
     }
   },

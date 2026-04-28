@@ -97,18 +97,14 @@ export class ComponentHostService<T = unknown> implements OnDestroy {
       // Step 3: Read current theme
       const currentTheme = await getCurrentTheme(options?.defaultTheme);
 
-      // Step 4: Create debounced saver. When this is a singleton
-      // launch, mark the persisted row as a registered-component
-      // config so workspace GC keeps it across launches even when no
-      // saved workspace references it.
+      // Step 4: Create debounced saver. The saver enforces
+      // componentType + componentSubType + isTemplate from identity
+      // on every persisted row (see createDebouncedSaver doc).
       this.saver = createDebouncedSaver<T>(
-        identity.instanceId,
+        identity,
         configManager,
         () => this.row,
-        {
-          debounceMs: options?.debounceMs ?? 300,
-          isRegisteredComponent: identity.singleton === true,
-        },
+        { debounceMs: options?.debounceMs ?? 300 },
       );
 
       // Step 5: Subscribe to theme changes via IAB
@@ -136,13 +132,18 @@ export class ComponentHostService<T = unknown> implements OnDestroy {
    * Updates the local signal immediately for optimistic UI.
    */
   saveConfig(partial: Partial<T>): void {
-    if (!this.saver || !this.row) return;
+    if (!this.saver) return;
 
-    // Merge into row so the saver has the latest state
-    this.row = {
-      ...this.row,
-      payload: { ...(this.row.payload as Record<string, unknown>), ...partial },
-    };
+    // Merge into row when one exists. When `this.row` is null
+    // (first-save of a never-before-persisted config — the
+    // test-launch case), the saver materialises a fresh
+    // AppConfigRow from identity, so we don't construct one here.
+    if (this.row) {
+      this.row = {
+        ...this.row,
+        payload: { ...(this.row.payload as Record<string, unknown>), ...partial },
+      };
+    }
 
     // Optimistic signal update — template reflects change immediately
     this.config.update((c) => (c ? { ...c, ...partial } : (partial as T)));

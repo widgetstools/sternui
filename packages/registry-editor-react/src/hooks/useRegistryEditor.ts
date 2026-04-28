@@ -7,7 +7,7 @@ import {
   saveRegistryConfig,
   clearRegistryConfig,
   IAB_REGISTRY_CONFIG_UPDATE,
-  generateTemplateConfigId,
+  deriveTemplateConfigId,
   migrateRegistryToV2,
   readHostEnv,
   resolveHostUrl,
@@ -132,7 +132,24 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
   const buildConfig = useCallback((): RegistryEditorConfig => {
     return {
       version: REGISTRY_CONFIG_VERSION,
-      entries: stateRef.current.entries,
+      // Normalise every entry so the persisted shape ALWAYS satisfies
+      // the registry contract:
+      //   id        === ${componentType}-${componentSubType} (lowercase)
+      //   configId  === same as id
+      // This catches:
+      //   - draft entries created with a temp UUID id (Workspace
+      //     Setup's `newDraftEntry`) — replaced with the canonical id.
+      //   - legacy rows with stale UUID ids — auto-corrected on next save.
+      //   - any future code path that forgets to derive the id —
+      //     it can't slip a UUID through this filter.
+      // Entries with empty type/subtype (genuinely incomplete drafts)
+      // pass through unchanged; the editor's validation rejects those
+      // before save in any case.
+      entries: stateRef.current.entries.map((e) => {
+        if (!e.componentType || !e.componentSubType) return e;
+        const derived = deriveTemplateConfigId(e.componentType, e.componentSubType);
+        return { ...e, id: derived, configId: derived };
+      }),
     };
   }, []);
 
@@ -150,7 +167,12 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
     const config = buildConfig();
     await saveRegistryConfig(config, scope);
     await publishConfig(config);
-    dispatch({ type: "SET_DIRTY", dirty: false });
+    // Sync state with what just hit disk. `buildConfig` may have
+    // rewritten ids (draft UUIDs → canonical `${type}-${subtype}`),
+    // and we want the UI to reflect that on the next render —
+    // otherwise selection-by-id, dock-config references, and the
+    // Components-pane row keys all stay pinned to the temp ids.
+    dispatch({ type: "SET_ENTRIES", entries: config.entries });
     console.log("Registry config saved.");
   }, [buildConfig, publishConfig, scope]);
 
@@ -185,11 +207,25 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
         return;
       }
 
-      const instanceId = crypto.randomUUID();
-      const templateId = entry.configId || generateTemplateConfigId(
+      // Test launch policy: the spawned view operates DIRECTLY on the
+      // template row. Pass the template configId AS the `instanceId`
+      // so when the user saves, the write lands on
+      // `${componentType}-${componentSubType}` (the canonical
+      // template id) — overwriting initial settings rather than
+      // creating a per-launch UUID-keyed clone.
+      //
+      // The `isTemplate: true` flag on customData tells the
+      // component-host saver to mark the resulting AppConfigRow as
+      // a template (and to set `singleton` from the entry).
+      //
+      // Non-test launches (dock menu) use a different flow — a fresh
+      // UUID instanceId, then component-host clones the template
+      // payload into that UUID-keyed row, with isTemplate=false.
+      const templateId = entry.configId || deriveTemplateConfigId(
         entry.componentType,
         entry.componentSubType,
       );
+      const instanceId = templateId;
 
       const platform = openFinApi.Platform.getCurrentSync();
       await platform.createView({
@@ -199,11 +235,21 @@ export function useRegistryEditor(opts: UseRegistryEditorOptions = {}): UseRegis
           templateId,
           componentType: entry.componentType,
           componentSubType: entry.componentSubType,
+          // Test-launch marker: tells component-host that any save
+          // from this view is the template/initial-settings save.
+          isTemplate: true,
+          singleton: entry.singleton,
           // v2: forward the appId + configServiceUrl the component will
           // target. For usesHostConfig === true this equals hostEnv; for
           // external entries it equals the entry's own values.
           appId: entry.appId,
           configServiceUrl: entry.configServiceUrl,
+          // userId is taken from the editor's hostEnv (set by the
+          // parent OpenFin provider via customData.userId on the
+          // editor window). Component-host's saver needs it to
+          // populate `userId` / `createdBy` / `updatedBy` on a
+          // freshly-built AppConfigRow when no prior template exists.
+          userId: hostEnv.userId,
         },
       });
     } catch (err) {

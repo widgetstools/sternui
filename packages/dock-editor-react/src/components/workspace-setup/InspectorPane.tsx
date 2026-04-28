@@ -25,8 +25,7 @@ import type {
   DockMenuItemConfig,
 } from "@marketsui/openfin-platform/config";
 import {
-  deriveSingletonConfigId,
-  generateTemplateConfigId,
+  deriveTemplateConfigId,
   ACTION_LAUNCH_COMPONENT,
 } from "@marketsui/openfin-platform/config";
 import type { EditorSelection } from "./types";
@@ -252,25 +251,29 @@ function ComponentForm({
     return clash ? clash.displayName : null;
   }, [entry.id, entry.componentType, entry.componentSubType, entries]);
 
-  // When singleton flag flips on, re-derive configId. When subtype/type
-  // change AND singleton is on, also re-derive. Forms-of-defaults pattern.
+  // Singleton-toggle is now a pure flag flip — `id` and `configId`
+  // are both bound to `${componentType}-${componentSubType}` whether
+  // singleton is on or off, so toggling no longer changes the id.
   const handleSingletonToggle = (next: boolean) => {
-    onChange({
-      singleton: next,
-      configId: next
-        ? deriveSingletonConfigId(entry.componentType, entry.componentSubType)
-        : entry.configId || generateTemplateConfigId(entry.componentType, entry.componentSubType),
-    });
+    onChange({ singleton: next });
   };
 
+  // Type / subtype edits are pure field writes — we deliberately do
+  // NOT re-derive `id` on every keystroke, because the parent tracks
+  // the inspector selection by `entryId`. Rewriting `entry.id` from
+  // a half-typed type ("b" while the user is typing "blotter") would
+  // immediately invalidate the selection, unmount the input, and
+  // make typing impossible.
+  //
+  // The canonical id derivation lives at SAVE time:
+  //   • The Components-pane Save handler (and the Workspace Setup
+  //     reducer's UPSERT_ENTRY action) re-derives `id` and `configId`
+  //     from the final componentType + componentSubType right before
+  //     persisting.
+  //   • The "id" preview field below shows the live derivation so
+  //     the user sees what id their entry will land with.
   const handleTypeChange = (field: "componentType" | "componentSubType", value: string) => {
-    const patch: Partial<RegistryEntry> = { [field]: value } as Partial<RegistryEntry>;
-    if (entry.singleton) {
-      const t = field === "componentType" ? value : entry.componentType;
-      const s = field === "componentSubType" ? value : entry.componentSubType;
-      patch.configId = deriveSingletonConfigId(t, s);
-    }
-    onChange(patch);
+    onChange({ [field]: value } as Partial<RegistryEntry>);
   };
 
   return (
@@ -403,7 +406,7 @@ function ComponentForm({
             border: "1px solid var(--bn-border)",
             color: "var(--bn-t1)",
           }}>
-            {entry.configId || generateTemplateConfigId(entry.componentType, entry.componentSubType) || "—"}
+            {entry.configId || deriveTemplateConfigId(entry.componentType, entry.componentSubType) || "—"}
           </div>
         </Field>
 

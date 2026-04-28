@@ -1,43 +1,40 @@
 /**
- * BlottersMarketsGrid — hosts `<MarketsGridContainer>` at `/blotters/marketsgrid`.
+ * BlottersMarketsGrid — hosts the v2 `<MarketsGridContainer>` at
+ * `/blotters/marketsgrid`.
  *
- * Pre-Phase D this view shipped its own `generateOrders(500)` synthetic
- * data. Now the local generator is gone — the grid receives rows from
- * the data plane via `<MarketsGridContainer>`, which subscribes to the
- * provider the user picks via `<DataProviderSelector>` and feeds AG-Grid
- * imperatively (snapshot batches → applyTransactionAsync({ add }),
- * realtime updates → applyTransactionAsync({ update })).
+ * The v2 container owns its own picker (revealed via Alt+Shift+P)
+ * and manages the live + historical providers, mode toggle, refresh,
+ * and AppData-driven historical date binding. This view's job is to:
+ *   - mount the data-plane provider with the resolved userId.
+ *   - hand the container a popout-launching `onEditProvider`.
+ *   - thread the storage factory through so MarketsGrid persists
+ *     both profiles AND the data-provider selection in one row.
  *
- * Provider selection is persisted per `instanceId` in localStorage, so
- * each blotter window remembers what it was bound to. When no provider
- * is selected the grid renders an inline empty state with a picker —
- * no synthetic rows, ever.
+ * Persistence: the data-provider selection is persisted at the GRID
+ * LEVEL (top-level field on MarketsGrid's profile-set row, NOT inside
+ * any individual profile) via the StorageAdapter's grid-level-data
+ * methods. Profile switches preserve the selection because the
+ * selection isn't carried by any profile.
  */
 
-import { useCallback, useState } from 'react';
+import { useEffect } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { useNavigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DataPlaneProvider } from '@marketsui/data-plane-react';
-import { DataProviderSelector } from '@marketsui/widgets-react';
-import { MarketsGridContainer } from '@marketsui/widgets-react/markets-grid-container';
+import { DataPlaneProvider } from '@marketsui/data-plane-react/v2';
+import { MarketsGridContainer } from '@marketsui/widgets-react/v2/markets-grid-container';
+import type { ConfigManager } from '@marketsui/config-service';
+import type { StorageAdapterFactory } from '@marketsui/markets-grid';
 import { useTheme } from '../context/ThemeContext';
 import { HostedComponent } from '../components/HostedComponent';
 import { dataPlaneClient } from '../data-plane-client';
+import { openProviderEditorPopout } from '../data-providers-popout';
 
-// Note: DataProvider storage is wired in main.tsx via
-// ensureDataProvidersLocalBackend(). The service's internal gate
-// holds CRUD until the ConfigManager resolves — no per-view
-// bootstrapping or "ready" flags needed.
-
-// ─── AG-Grid per-column defaults ──────────────────────────────────────
+// ─── AG-Grid per-column defaults ──────────────────────────────────
 //
-// The actual column list comes from the DataProvider's
-// `columnDefinitions` — MarketsGridContainer reads them from the saved
-// config and passes to MarketsGrid. This `defaultColDef` (note:
-// lowercase, NOT columnDefs) is just the per-column base AG-Grid
-// applies on top of every column — filter / sort / resize behaviour.
+// Column list, headers, types come from the active DataProviderConfig's
+// `columnDefinitions` (authored in the editor's Fields → Columns tabs).
+// `defaultColDef` is the per-column base AG-Grid applies on top:
+// floating-filter / sort / resize behaviour.
 const defaultColDef: ColDef = {
   floatingFilter: true,
   filter: true,
@@ -45,7 +42,7 @@ const defaultColDef: ColDef = {
   resizable: true,
 };
 
-// ─── AG-Grid theme variants ───────────────────────────────────────────
+// ─── AG-Grid theme variants ───────────────────────────────────────
 
 const sharedThemeParams = {
   fontFamily: "'JetBrains Mono', monospace",
@@ -84,155 +81,75 @@ const lightTheme = themeQuartz.withParams({
   borderColor: '#e5e5e5',
 });
 
-// ─── Per-instance provider-id persistence ─────────────────────────────
-
-function loadProviderId(instanceId: string): string | null {
-  try {
-    return localStorage.getItem(`mkt-blotter:${instanceId}:providerId`);
-  } catch {
-    return null;
-  }
-}
-
-function saveProviderId(instanceId: string, providerId: string | null) {
-  try {
-    if (providerId === null) {
-      localStorage.removeItem(`mkt-blotter:${instanceId}:providerId`);
-    } else {
-      localStorage.setItem(`mkt-blotter:${instanceId}:providerId`, providerId);
-    }
-  } catch {
-    // localStorage unavailable (private mode etc.) — selection is
-    // session-scoped only.
-  }
-}
-
-// rowIdField used to be authored here per blotter instance. It now
-// flows through the DataProviderConfig's `keyColumn` field (set in
-// the editor's Connection tab → "Key Column"). The container reads
-// it directly. Keeping a per-instance override here would only
-// drift from the saved config and produce duplicate-id errors.
-
-// ─── React Query client (one per route mount) ────────────────────────
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
-});
-
-// The DataPlane SharedWorker + client are constructed once at module
-// load in `../data-plane-client.ts`. Vite needs the `new SharedWorker(
-// new URL(...))` literal pair to live in the app's own source so it
-// can emit a worker chunk; routing through @marketsui/data-plane's
-// connect() helper would defeat that static analysis.
-
-// ─── View ─────────────────────────────────────────────────────────────
+// ─── View ─────────────────────────────────────────────────────────
 
 const DEFAULT_INSTANCE_ID = 'markets-ui-reference-blotter';
 
 function BlottersMarketsGrid() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <HostedComponent
-        componentName="MarketsGrid"
-        defaultInstanceId={DEFAULT_INSTANCE_ID}
-        documentTitle="MarketsGrid · Blotter"
-        withStorage
-      >
-        {({ instanceId, storage, appId, userId }) =>
-          instanceId == null || storage == null ? (
-            <LoadingState message="Connecting to ConfigService…" />
-          ) : (
-            <BlotterShell
-              instanceId={instanceId}
-              storage={storage}
-              appId={appId}
-              userId={userId}
-            />
-          )
-        }
-      </HostedComponent>
-    </QueryClientProvider>
+    <HostedComponent
+      componentName="MarketsGrid"
+      defaultInstanceId={DEFAULT_INSTANCE_ID}
+      documentTitle="MarketsGrid · Blotter"
+      withStorage
+    >
+      {({ instanceId, storage, configManager, userId, appId }) =>
+        instanceId == null || storage == null || configManager == null ? (
+          <LoadingState message="Connecting to ConfigService…" />
+        ) : (
+          <BlotterShell
+            instanceId={instanceId}
+            storage={storage}
+            configManager={configManager}
+            userId={userId}
+            appId={appId}
+          />
+        )
+      }
+    </HostedComponent>
   );
 }
-
-// ─── Inner shell — split out so DataPlaneProvider only mounts once
-//     instanceId/storage are known. Keeping it inside HostedComponent's
-//     children would re-instantiate the worker on every render. ───────
 
 interface BlotterShellProps {
   instanceId: string;
-  storage: unknown;
-  appId: string;
+  storage: StorageAdapterFactory;
+  configManager: ConfigManager;
   userId: string;
+  appId: string;
 }
 
-function BlotterShell({ instanceId, storage, appId, userId }: BlotterShellProps) {
+function BlotterShell({ instanceId, storage, configManager, userId, appId }: BlotterShellProps) {
   const { isDark } = useTheme();
   const agTheme = isDark ? darkTheme : lightTheme;
-  const navigate = useNavigate();
 
-  const [providerId, setProviderIdState] = useState<string | null>(() => loadProviderId(instanceId));
-
-  // Hand off authoring to /dataproviders. We pass the picker's current
-  // intent (`new` or the providerId being edited) as a query param so
-  // a future enhancement can deep-link straight to the right row.
-  const goToEditor = useCallback(
-    (intent: 'new' | string) => {
-      const qs = intent === 'new' ? '?intent=new' : `?intent=edit&providerId=${encodeURIComponent(intent)}`;
-      navigate(`/dataproviders${qs}`);
-    },
-    [navigate],
-  );
-
-  const setProviderId = useCallback(
-    (next: string | null) => {
-      setProviderIdState(next);
-      saveProviderId(instanceId, next);
-    },
-    [instanceId],
-  );
+  // One-shot cleanup of the stale `marketsgrid-view-state::*` row
+  // that older revisions of this view wrote. Persistence has moved
+  // INTO MarketsGrid's profile-set row (at the grid level, alongside
+  // `profiles`); the standalone view-state row is no longer used.
+  // Best-effort: if the row isn't there, nothing happens.
+  useEffect(() => {
+    void configManager.deleteConfig(`marketsgrid-view-state::${instanceId}`).catch(() => {
+      // No row to clean up — fine.
+    });
+  }, [configManager, instanceId]);
 
   return (
-    <DataPlaneProvider client={dataPlaneClient}>
-      {/* Outer flex column so the picker strip stays its natural height
-          and the grid below claims everything else. HostedComponent's
-          content area is a flex *item* (not a flex *container*), so we
-          have to be the flex container ourselves — otherwise
-          MarketsGrid's `height: 100%` resolves against an unsized div
-          and the toolbar / settings chrome get clipped to 0. */}
+    <DataPlaneProvider client={dataPlaneClient} configManager={configManager} userId={userId}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        {/* Top strip — provider picker only. Row-id field and column
-            defs come from the saved DataProviderConfig (keyColumn +
-            columnDefinitions, both authored in the editor). */}
-        <div className="flex items-center gap-3 px-3 py-2 border-b border-border bg-card/50 flex-shrink-0">
-          <div className="flex-1 min-w-0">
-            <DataProviderSelector
-              userId={userId}
-              value={providerId}
-              onChange={setProviderId}
-              placeholder="Pick a data provider…"
-              onCreate={() => goToEditor('new')}
-              onEdit={(p) => goToEditor(p.providerId ?? 'new')}
-            />
-          </div>
-        </div>
-
         <div style={{ flex: 1, minHeight: 0 }}>
-          {providerId ? (
-            <MarketsGridContainer
-              providerId={providerId}
-              gridId={instanceId}
-              instanceId={instanceId}
-              defaultColDef={defaultColDef}
-              theme={agTheme}
-              storage={storage as never}
-              appId={appId}
-              userId={userId}
-              showFiltersToolbar
-              showFormattingToolbar
-            />
-          ) : (
-            <EmptyState />
-          )}
+          <MarketsGridContainer
+            gridId={instanceId}
+            instanceId={instanceId}
+            appId={appId}
+            userId={userId}
+            storage={storage}
+            defaultColDef={defaultColDef}
+            theme={agTheme}
+            onEditProvider={(providerId) => openProviderEditorPopout({ providerId })}
+            historicalDateAppDataRef="positions.asOfDate"
+            showFiltersToolbar
+            showFormattingToolbar
+          />
         </div>
       </div>
     </DataPlaneProvider>
@@ -252,21 +169,6 @@ function LoadingState({ message }: { message: string }) {
       }}
     >
       {message}
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex items-center justify-center h-full p-6">
-      <div className="text-center max-w-sm">
-        <div className="text-sm font-medium mb-1">No data provider selected</div>
-        <div className="text-xs text-muted-foreground">
-          Pick a saved provider above, or create one from the Workspace
-          Setup window. The blotter no longer ships synthetic data — every
-          row comes from the data plane.
-        </div>
-      </div>
     </div>
   );
 }

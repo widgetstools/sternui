@@ -126,15 +126,15 @@ describe('Rule 1 — workspace rows', () => {
 
 describe('Rule 2 — isTemplate', () => {
   it('preserves rows with isTemplate=true', async () => {
-    cm.rows.set('templateComponentGRIDCREDIT', row({
-      configId: 'templateComponentGRIDCREDIT',
+    cm.rows.set('grid-credit', row({
+      configId: 'grid-credit',
       isTemplate: true,
     }));
 
     const r = await gcOrphanedConfigs({ cm: cm as unknown as ConfigManager, appId: APP_ID, userId: USER_ID });
     expect(r.preservedTemplate).toBe(1);
     expect(r.deleted).toBe(0);
-    expect(cm.rows.has('templateComponentGRIDCREDIT')).toBe(true);
+    expect(cm.rows.has('grid-credit')).toBe(true);
   });
 });
 

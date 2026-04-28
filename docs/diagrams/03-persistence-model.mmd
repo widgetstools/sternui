@@ -1,0 +1,30 @@
+erDiagram
+    APP_CONFIG_TABLE ||--o{ MARKETS_GRID_PROFILE_SET : "one per gridId"
+    APP_CONFIG_TABLE ||--o{ VIEW_STATE : "one per (appId, userId, instanceId)"
+    APP_CONFIG_TABLE ||--o{ DATA_PROVIDER : "many per user"
+    APP_CONFIG_TABLE ||--o{ APPDATA : "many per user"
+
+    MARKETS_GRID_PROFILE_SET {
+        string configId "instanceId"
+        string componentType "markets-grid-profile-set"
+        json payload "active+saved profiles, columns, filters"
+    }
+
+    VIEW_STATE {
+        string configId "marketsgrid-view-state::<instanceId>"
+        string componentType "marketsgrid-view-state"
+        json payload "{ liveProviderId, historicalProviderId, mode }"
+    }
+
+    DATA_PROVIDER {
+        string configId "providerId"
+        string componentType "DATA_PROVIDER"
+        string componentSubType "stomp | rest | mock | appdata"
+        json payload "DataProviderConfig (cfg + columns + name)"
+    }
+
+    APPDATA {
+        string configId "name (e.g. positions)"
+        string componentType "APPDATA"
+        json payload "Record<key, unknown>"
+    }

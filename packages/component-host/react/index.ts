@@ -79,18 +79,15 @@ export function useComponentHost<T = unknown>(
         // Step 3: Read current theme
         const currentTheme = await getCurrentTheme(options?.defaultTheme);
 
-        // Step 4: Create debounced saver. When this is a singleton
-        // launch, mark the persisted row as a registered-component
-        // config so workspace GC keeps it across launches even when no
-        // saved workspace references it.
+        // Step 4: Create debounced saver. The saver enforces
+        // componentType + componentSubType + isTemplate from identity
+        // on every persisted row — see createDebouncedSaver doc for
+        // the contract.
         saverRef.current = createDebouncedSaver<T>(
-          identity.instanceId,
+          identity,
           configManager,
           () => rowRef.current,
-          {
-            debounceMs: options?.debounceMs ?? 300,
-            isRegisteredComponent: identity.singleton === true,
-          },
+          { debounceMs: options?.debounceMs ?? 300 },
         );
 
         // Step 5: Subscribe to theme changes via IAB
@@ -148,7 +145,7 @@ export function useComponentHost<T = unknown>(
    * unnecessary re-renders.
    */
   const saveConfig = useCallback((partial: Partial<T>) => {
-    if (!saverRef.current || !rowRef.current) return;
+    if (!saverRef.current) return;
 
     // Optimistic local state update — UI reflects change immediately
     setState((s) => ({
@@ -157,11 +154,16 @@ export function useComponentHost<T = unknown>(
       isSaved: true,
     }));
 
-    // Merge into row ref so the saver always has the latest
-    rowRef.current = {
-      ...rowRef.current,
-      payload: { ...(rowRef.current.payload as Record<string, unknown>), ...partial },
-    };
+    // Merge into rowRef when one exists. When rowRef.current is null
+    // (first-save of a never-before-persisted config — the test-launch
+    // case), the saver materialises a fresh AppConfigRow from
+    // identity, so we don't need to construct one here.
+    if (rowRef.current) {
+      rowRef.current = {
+        ...rowRef.current,
+        payload: { ...(rowRef.current.payload as Record<string, unknown>), ...partial },
+      };
+    }
 
     // Queue the debounced write
     saverRef.current.save(partial);

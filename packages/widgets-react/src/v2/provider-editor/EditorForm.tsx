@@ -1,0 +1,277 @@
+/**
+ * EditorForm — the four-tab provider editor body.
+ *
+ * Tabs:
+ *   1. Connection   — per-transport fields + Test Connection
+ *   2. Fields       — Infer + checkbox tree → ColumnDefinition[]
+ *   3. Columns      — review + edit selected columns
+ *   4. Behaviour    — per-transport behaviour knobs
+ *   5. Diagnostics  — only when editing an already-saved provider
+ *
+ * Owns:
+ *   - the working DataProviderConfig (cfg + name + description + public)
+ *   - probe state (Test + Infer share one hook)
+ *   - save state (saving / saved / error) and the relabel from
+ *     "Create" → "Update" once a providerId exists.
+ *
+ * Layout contract: the outer container has `overflow: hidden`. The
+ * tab list never scrolls; only individual tab bodies own internal
+ * scrolling where the content legitimately overflows.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Button, Input, Label, Switch, Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
+} from '@marketsui/ui';
+import { CheckCircle2, Loader2, X } from 'lucide-react';
+import type { ColumnDefinition, DataProviderConfig, ProviderConfig } from '@marketsui/shared-types';
+import { useDataPlane } from '@marketsui/data-plane-react/v2';
+import { useProviderProbe } from './useProviderProbe.js';
+import { ConnectionTab } from './tabs/ConnectionTab.js';
+import { FieldsTab } from './tabs/FieldsTab.js';
+import { ColumnsTab } from './tabs/ColumnsTab.js';
+import { DiagnosticsTab } from './tabs/DiagnosticsTab.js';
+import { BehaviourFields } from './transports/BehaviourFields.js';
+
+const SAVING_PULSE_MS = 1200;
+
+export interface EditorFormProps {
+  /** Initial DataProviderConfig — `providerId` is null for "new". */
+  initial: DataProviderConfig;
+  /** Active user — drives row ownership for non-public saves. */
+  userId: string;
+  /** Called on cancel (e.g. close popout). */
+  onCancel?: () => void;
+  /** Called after a successful save. The form stays open and the saved
+   *  config (now with a stable providerId) is passed back. */
+  onSaved?: (saved: DataProviderConfig) => void;
+}
+
+export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormProps) {
+  const { configStore } = useDataPlane();
+  const [provider, setProvider] = useState<DataProviderConfig>(initial);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Reset working state when the editor target changes (e.g. user
+  // picks a different row in the list).
+  useEffect(() => {
+    setProvider(initial);
+    setSavedAt(null);
+    setSaveError(null);
+  }, [initial.providerId]);
+
+  // Hide the "Saved" pulse after a moment.
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(null), SAVING_PULSE_MS);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
+  const probe = useProviderProbe(provider.config);
+
+  // FieldsTab → onColumnsChange writes ColumnDefinition[] into cfg.
+  const updateCfg = (patch: Partial<ProviderConfig>) => {
+    setProvider((p) => ({ ...p, config: { ...p.config, ...patch } as ProviderConfig }));
+  };
+
+  const updateColumns = (cols: ColumnDefinition[]) => {
+    updateCfg({ columnDefinitions: cols } as unknown as Partial<ProviderConfig>);
+  };
+
+  const currentColumns = readColumns(provider.config);
+
+  const onSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Persist the inferred field tree alongside the cfg so the next
+      // open of the editor sees the same FieldsTab tree without
+      // re-probing.
+      const next: DataProviderConfig = {
+        ...provider,
+        userId: provider.public ? 'system' : userId,
+      };
+      const saved = await configStore.save(next, userId);
+      setProvider(saved);
+      setSavedAt(Date.now());
+      onSaved?.(saved);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isExisting = Boolean(provider.providerId);
+  const saveLabel = isExisting ? 'Update DataProvider' : 'Create DataProvider';
+
+  // Pull selected column field-paths out of the cfg for FieldsTab.
+  const selectedColumnFields = useMemo<readonly string[]>(
+    () => currentColumns.map((c) => c.field),
+    [currentColumns],
+  );
+
+  // Sample size lives outside the cfg so FieldsTab can change it
+  // without dirtying the saved provider.
+  const [sampleSize, setSampleSize] = useState(200);
+
+  return (
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <Header
+        provider={provider}
+        onNameChange={(name) => setProvider((p) => ({ ...p, name }))}
+        onDescriptionChange={(description) => setProvider((p) => ({ ...p, description }))}
+        onPublicChange={(public_) => setProvider((p) => ({ ...p, public: public_ }))}
+      />
+
+      <Tabs defaultValue="connection" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <TabsList className="h-9 mx-4 mt-3 flex-shrink-0 self-start">
+          <TabsTrigger value="connection" className="text-xs">Connection</TabsTrigger>
+          <TabsTrigger value="fields" className="text-xs">Fields</TabsTrigger>
+          <TabsTrigger value="columns" className="text-xs">Columns</TabsTrigger>
+          <TabsTrigger value="behaviour" className="text-xs">Behaviour</TabsTrigger>
+          {isExisting && <TabsTrigger value="diagnostics" className="text-xs">Diagnostics</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="connection" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+          <ConnectionTab cfg={provider.config} onCfgChange={updateCfg} probe={probe} />
+        </TabsContent>
+
+        <TabsContent value="fields" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+          <FieldsTab
+            cfg={provider.config}
+            inferredFields={probe.inferredFields}
+            inferenceSummary={probe.inferenceSummary}
+            inferring={probe.inferring}
+            inferenceError={probe.inferenceError}
+            sampleSize={sampleSize}
+            onSampleSizeChange={setSampleSize}
+            onInfer={() => probe.infer({ sampleSize })}
+            onColumnsChange={updateColumns}
+            selectedColumnFields={selectedColumnFields}
+          />
+        </TabsContent>
+
+        <TabsContent value="columns" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+          <ColumnsTab columns={currentColumns} onChange={updateColumns} />
+        </TabsContent>
+
+        <TabsContent value="behaviour" className="flex-1 min-h-0 overflow-auto scrollbar-thin m-0 mt-3 p-4">
+          <BehaviourFields cfg={provider.config} onChange={updateCfg} />
+        </TabsContent>
+
+        {isExisting && (
+          <TabsContent value="diagnostics" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+            <DiagnosticsTab providerId={provider.providerId ?? null} />
+          </TabsContent>
+        )}
+      </Tabs>
+
+      <Footer
+        saveLabel={saveLabel}
+        saving={saving}
+        savedAt={savedAt}
+        saveError={saveError}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
+    </div>
+  );
+}
+
+// ─── Header — name / description / public ─────────────────────────
+
+function Header({
+  provider, onNameChange, onDescriptionChange, onPublicChange,
+}: {
+  provider: DataProviderConfig;
+  onNameChange(name: string): void;
+  onDescriptionChange(description: string): void;
+  onPublicChange(public_: boolean): void;
+}) {
+  return (
+    <header className="px-4 py-3 border-b border-border bg-muted/30 space-y-2.5 flex-shrink-0">
+      <div className="flex items-end gap-3">
+        <div className="flex-1 space-y-1.5">
+          <Label className="text-[11px] font-medium text-muted-foreground">Name *</Label>
+          <Input
+            className="h-8 text-sm"
+            value={provider.name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="positions-live"
+          />
+        </div>
+        <div className="flex items-center gap-2 pb-2">
+          <Switch
+            id="public-toggle"
+            checked={Boolean(provider.public)}
+            onCheckedChange={onPublicChange}
+          />
+          <Label htmlFor="public-toggle" className="text-xs font-medium text-muted-foreground cursor-pointer">
+            Public
+          </Label>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-medium text-muted-foreground">Description</Label>
+        <Textarea
+          className="text-xs min-h-0 scrollbar-thin"
+          rows={1}
+          value={provider.description ?? ''}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          placeholder="What this provider streams (optional)"
+        />
+      </div>
+    </header>
+  );
+}
+
+// ─── Footer — save controls ───────────────────────────────────────
+
+// Stomp + Rest carry columnDefinitions on the cfg. The other transports
+// (websocket / socketio / mock / appdata) don't — but the editor still
+// needs a uniform read path. Cast through `unknown` and shape-check.
+function readColumns(cfg: ProviderConfig): ColumnDefinition[] {
+  const maybe = (cfg as unknown as { columnDefinitions?: ColumnDefinition[] }).columnDefinitions;
+  return Array.isArray(maybe) ? maybe : [];
+}
+
+function Footer({
+  saveLabel, saving, savedAt, saveError, onSave, onCancel,
+}: {
+  saveLabel: string;
+  saving: boolean;
+  savedAt: number | null;
+  saveError: string | null;
+  onSave(): void;
+  onCancel?(): void;
+}) {
+  return (
+    <footer className="px-4 py-3 border-t border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
+      <div className="text-xs">
+        {saveError ? (
+          <span className="text-destructive inline-flex items-center gap-1.5">
+            <X className="h-3.5 w-3.5" /> {saveError}
+          </span>
+        ) : savedAt ? (
+          <span className="text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Unsaved changes are kept locally until you click {saveLabel}.</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {onCancel && (
+          <Button size="sm" variant="ghost" onClick={onCancel} className="h-8 text-xs">Cancel</Button>
+        )}
+        <Button size="sm" onClick={onSave} disabled={saving} className="h-8 text-xs min-w-[180px]">
+          {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+          {saving ? 'Saving…' : saveLabel}
+        </Button>
+      </div>
+    </footer>
+  );
+}

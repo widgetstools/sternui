@@ -148,6 +148,44 @@ async function resolveUserId(fallback: string): Promise<string> {
   return fallback;
 }
 
+/**
+ * Resolve the **registered component identity** from OpenFin
+ * customData — `componentType`, `componentSubType`, `isTemplate`,
+ * `singleton`. These are stamped onto every AppConfigRow this view
+ * persists (via the storage factory's `registeredIdentity` opt) so
+ * the row reflects the registry entry that launched it.
+ *
+ * Returns `null` outside OpenFin — non-OpenFin callers don't have a
+ * "registered component" identity and the storage factory falls
+ * back to its legacy hardcoded discriminator ("markets-grid-profile-set").
+ */
+async function resolveRegisteredIdentity(): Promise<{
+  componentType: string;
+  componentSubType: string;
+  isTemplate: boolean;
+  singleton: boolean;
+} | null> {
+  if (typeof fin === 'undefined') return null;
+  try {
+    const options = await fin.me.getOptions();
+    const cd = (options as { customData?: {
+      componentType?: string;
+      componentSubType?: string;
+      isTemplate?: boolean;
+      singleton?: boolean;
+    } })?.customData;
+    if (!cd?.componentType) return null;
+    return {
+      componentType: cd.componentType,
+      componentSubType: cd.componentSubType ?? '',
+      isTemplate: cd.isTemplate === true,
+      singleton: cd.singleton === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Defaults — match seed-config.json's primary appRegistry/userProfile rows ──
 const DEFAULT_APP_ID = 'TestApp';
 const DEFAULT_USER_ID = 'dev1';
@@ -166,22 +204,29 @@ export function HostedComponent({
   const [appId, setAppId] = useState<string>(DEFAULT_APP_ID);
   const [userId, setUserId] = useState<string>(DEFAULT_USER_ID);
   const [configManager, setConfigManager] = useState<ConfigManager | null>(null);
+  const [registeredIdentity, setRegisteredIdentity] = useState<{
+    componentType: string;
+    componentSubType: string;
+    isTemplate: boolean;
+    singleton: boolean;
+  } | null>(null);
 
-  // Resolve identity on mount. All three lookups race-safe via the
-  // `cancelled` flag so a fast unmount doesn't write to a torn-down
-  // setState.
+  // Resolve identity on mount. Lookups race-safe via the `cancelled`
+  // flag so a fast unmount doesn't write to a torn-down setState.
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       resolveHostInstanceId(defaultInstanceId),
       resolveAppId(DEFAULT_APP_ID),
       resolveUserId(DEFAULT_USER_ID),
+      resolveRegisteredIdentity(),
     ])
-      .then(([id, app, user]) => {
+      .then(([id, app, user, regIdentity]) => {
         if (cancelled) return;
         setInstanceId(id);
         setAppId(app);
         setUserId(user);
+        setRegisteredIdentity(regIdentity);
       })
       .catch((err) => {
         console.error('[HostedComponent] identity resolution failed:', err);
@@ -202,13 +247,31 @@ export function HostedComponent({
     return () => { cancelled = true; };
   }, []);
 
-  // Build the storage factory only if the caller asked for it. Memo on
-  // `configManager` so the closure is stable and inner components don't
-  // re-create their storage adapter on every render.
-  const storage = useMemo<StorageAdapterFactory | null>(
-    () => (withStorage && configManager ? createConfigServiceStorage({ configManager }) : null),
-    [withStorage, configManager],
-  );
+  // Build the storage factory only if the caller asked for it. The
+  // factory is wrapped so every adapter call automatically carries
+  // the registered-component identity (componentType,
+  // componentSubType, isTemplate, singleton) read from OpenFin
+  // customData. The CONSUMING component (e.g. MarketsGrid) doesn't
+  // need to know about identity — it just calls
+  // `storage({ instanceId, appId, userId })` and the resulting
+  // adapter writes rows whose componentType / componentSubType /
+  // isTemplate match the Registry Editor entry that launched this
+  // view. Configuration stays a hosting concern.
+  //
+  // Memo on `configManager` + `registeredIdentity` so a userId or
+  // identity swap (rare) rebuilds the factory with the right
+  // closure values; otherwise reused.
+  const storage = useMemo<StorageAdapterFactory | null>(() => {
+    if (!withStorage || !configManager) return null;
+    const innerFactory = createConfigServiceStorage({ configManager });
+    if (!registeredIdentity) {
+      // Outside OpenFin or launched without a registered-component
+      // customData — fall back to the legacy hardcoded discriminator.
+      return innerFactory;
+    }
+    // Wrap: every factory call gets `registeredIdentity` injected.
+    return (opts) => innerFactory({ ...opts, registeredIdentity });
+  }, [withStorage, configManager, registeredIdentity]);
 
   // Document title — restored on unmount so the home page / other
   // routes get their own title back when the user navigates away.

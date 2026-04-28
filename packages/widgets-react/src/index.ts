@@ -39,11 +39,12 @@ export type { IBlotterDataProvider, IActionRegistry } from './interfaces.js';
 // ─── AG Grid Theme ───────────────────────────────
 export { sternDarkTheme, sternLightTheme, useAgGridTheme } from './theme/index.js';
 
-// ─── Provider Editor ────────────────────────────
-export * from './provider-editor/index.js';
-
-// ─── Data Provider Selector ──────────────────────
-export * from './data-provider-selector/index.js';
+// ─── Provider Editor (v2) and Data Provider Selector (v2) ─────────
+// The v1 mirrored editor/selector are gone; consumers import the
+// v2 surfaces directly via subpath:
+//   import { DataProviderEditor } from '@marketsui/widgets-react/v2/provider-editor';
+//   import { DataProviderSelector } from '@marketsui/widgets-react/v2/data-provider-selector';
+//   import { MarketsGridContainer } from '@marketsui/widgets-react/v2/markets-grid-container';
 
 // ─── Dock Configurator ───────────────────────────
 export { DockConfigurator } from './dock/DockConfigurator.js';
