@@ -283,6 +283,57 @@ describe('Seed-from-template — new dock-launched instance inherits template co
     expect(profiles[0].name).toBe('My Layout');                // not 'TemplateProfile'
   });
 
+  it('two concurrent adapters racing to seed do NOT throw VersionConflict — both return the same payload', async () => {
+    // Reproduces the production-observed race: a single hosted MarketsGrid
+    // builds two adapters from the same factory (one for gridLevelData in
+    // MarketsGridContainer, one for profiles in the inner <MarketsGrid>'s
+    // ProfileManager). Each has its own seedAttempted flag, so both
+    // attempt the seed in parallel against the empty instance row.
+    // Without the conflict-recovery branch the loser of the race throws
+    // ProfileSetVersionConflictError and ProfileManager.boot fails.
+
+    // Author template with profiles + gridLevelData
+    const tFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const tAdapter = tFactory({
+      instanceId: 'blotter-positions',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
+    });
+    await tAdapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await tAdapter.saveGridLevelData?.('blotter-positions', { liveProviderId: 'dp-xyz', mode: 'live' });
+
+    // Two SEPARATE adapters on the SAME instance row — mirrors the
+    // dual-adapter pattern in MarketsGridContainer + <MarketsGrid>.
+    const factoryA = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapterA = factoryA({
+      instanceId: 'inst-race',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+    const factoryB = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapterB = factoryB({
+      instanceId: 'inst-race',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+
+    // Race them in parallel — Promise.all surfaces any rejection.
+    const [profilesA, gldB] = await Promise.all([
+      adapterA.listProfiles('inst-race'),
+      adapterB.loadGridLevelData?.('inst-race'),
+    ]);
+
+    // Both succeeded; both saw the seeded data.
+    expect(profilesA).toHaveLength(1);
+    expect(profilesA[0].name).toBe('Default');
+    expect(gldB).toEqual({ liveProviderId: 'dp-xyz', mode: 'live' });
+    // Exactly one row was written for the instance (no duplicates).
+    expect(cm.rows.has('inst-race')).toBe(true);
+  });
+
   it('seeded instance is INDEPENDENT — later template edits do NOT propagate', async () => {
     // Author template
     const tFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });

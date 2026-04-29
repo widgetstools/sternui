@@ -192,6 +192,14 @@ export type ProfileStorageFactory = (opts: ProfileStorageFactoryOpts) => Storage
  * pass `appId`/`userId` to `createConfigServiceStorage({...})` as
  * closure fallbacks; MarketsGrid's props override them.
  */
+// Diagnostic gate for the seed-from-template path. Flip to `true`
+// to print the EXACT decision the seed code took at every branch
+// (existing-row hit / template fetch / write / concurrent-loser
+// fallback / skip-conditions). Used during the dual-adapter race
+// investigation; left in place so future debugging can flip it on
+// without re-instrumenting.
+const DEBUG_SEED = false;
+
 export function createConfigServiceStorage(
   opts: ConfigServiceStorageOptions,
 ): ProfileStorageFactory {
@@ -252,10 +260,25 @@ export function createConfigServiceStorage(
     const loadSet = async (): Promise<ProfileSetPayload | null> => {
       const row = await configManager.getConfig(rowId);
       if (isProfileSetRow(row, appId, userId)) {
+        if (DEBUG_SEED && !seedAttempted) {
+          // eslint-disable-next-line no-console
+          console.log(
+            '[seed] hit existing row → no seed needed. rowId=%s appId=%s userId=%s gridLevelData=%o',
+            rowId, appId, userId, (row.payload as { gridLevelData?: unknown })?.gridLevelData,
+          );
+          seedAttempted = true; // suppress repeat logs from later loads
+        }
         return normalizePayload(row.payload);
       }
 
       // No row for this instance yet. Try seed-from-template once.
+      if (DEBUG_SEED && !seedAttempted) {
+        // eslint-disable-next-line no-console
+        console.log(
+          '[seed] no instance row at rowId=%s — evaluating seed: identity=%o templateConfigId=%s rowId===templateConfigId=%s',
+          rowId, identity, templateConfigId, templateConfigId === rowId,
+        );
+      }
       if (
         !seedAttempted
         && identity
@@ -265,15 +288,72 @@ export function createConfigServiceStorage(
       ) {
         seedAttempted = true;
         const templateRow = await configManager.getConfig(templateConfigId);
+        if (DEBUG_SEED) {
+          // eslint-disable-next-line no-console
+          console.log(
+            '[seed] fetched templateRow at configId=%s → exists=%s ownerMatch=%s payloadHasProfiles=%s gridLevelData=%o',
+            templateConfigId,
+            Boolean(templateRow),
+            templateRow ? (templateRow.appId === appId && templateRow.userId === userId) : null,
+            templateRow ? Array.isArray((templateRow.payload as { profiles?: unknown })?.profiles) : null,
+            templateRow ? (templateRow.payload as { gridLevelData?: unknown })?.gridLevelData : null,
+          );
+        }
         if (isProfileSetRow(templateRow, appId, userId)) {
           const templatePayload = normalizePayload(templateRow.payload);
           // Write the seeded payload to the new instance row using
           // the same identity-stamping path as a normal save. Sets
           // version=1 (template's version is irrelevant — the new
           // row starts at 1 just like any first write).
-          await saveSet({ ...templatePayload, version: 0 }, 0);
+          //
+          // Concurrent-seed handling: a single hosted MarketsGrid
+          // builds TWO adapters from the same factory (one in
+          // MarketsGridContainer for gridLevelData, one inside
+          // <MarketsGrid> for profiles via ProfileManager). Each has
+          // its own seedAttempted flag, so both can race to seed.
+          // The loser would otherwise throw VersionConflict — but
+          // both racers compute the SAME templatePayload from the
+          // SAME template row, so the winner's write is byte-equivalent
+          // to what we were about to write. Catch the conflict, re-read
+          // the now-seeded row, and return it.
+          try {
+            await saveSet({ ...templatePayload, version: 0 }, 0);
+          } catch (err) {
+            if (err instanceof ProfileSetVersionConflictError) {
+              const seeded = await configManager.getConfig(rowId);
+              if (isProfileSetRow(seeded, appId, userId)) {
+                if (DEBUG_SEED) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    '[seed] ✓ concurrent seeder won — re-reading existing row. rowId=%s',
+                    rowId,
+                  );
+                }
+                return normalizePayload(seeded.payload);
+              }
+            }
+            throw err;
+          }
+          if (DEBUG_SEED) {
+            // eslint-disable-next-line no-console
+            console.log(
+              '[seed] ✓ wrote seeded payload to instance row. rowId=%s profiles=%d gridLevelData=%o',
+              rowId, templatePayload.profiles.length, templatePayload.gridLevelData,
+            );
+          }
           return templatePayload;
         }
+        if (DEBUG_SEED) {
+          // eslint-disable-next-line no-console
+          console.log('[seed] ✗ template row not seedable (missing/owner-mismatch/empty payload) — instance starts empty');
+        }
+      } else if (DEBUG_SEED && !seedAttempted) {
+        // eslint-disable-next-line no-console
+        console.log(
+          '[seed] ✗ skipped — conditions not met. seedAttempted=%s identity?%s isTemplate=%s templateConfigId=%s sameAsRowId=%s',
+          seedAttempted, Boolean(identity), identity?.isTemplate, templateConfigId, templateConfigId === rowId,
+        );
+        seedAttempted = true; // don't repeat the skip log on every call
       }
       return null;
     };
