@@ -198,6 +198,29 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase Y-1 — Clone-at-launch replaces seed-from-template (2026-04-29)
+**Verification:** `npx turbo typecheck test` → 66/66 successful. 10/10 profile-storage identity tests pass.
+
+Replaces the lazy seed-from-template mechanism that previously lived inside `createConfigServiceStorage`'s `loadSet` with an EAGER clone done at view-launch time, BEFORE the view opens. Same end-state (instance row carries the template's profiles + gridLevelData), simpler code, no race.
+
+**The bug this replaces:** a hosted MarketsGrid built TWO storage adapters (one in `MarketsGridContainer` for `gridLevelData`, one inside `<MarketsGrid>` for profiles via `ProfileManager`). Each had its own `seedAttempted` closure flag, so both tried to seed the new instance row in parallel. Whichever's optimistic-version write landed first won; the loser threw `ProfileSetVersionConflictError` and `ProfileManager.boot` crashed, leaving the instance with no profiles AND no dataProvider info — even though the template had both. A first patch (race-recovery in seed) fixed the crash but the design pivot below is cleaner.
+
+**What landed:**
+- `packages/openfin-platform/src/launch.ts` — new `cloneTemplateRowForInstance(templateConfigId, instanceId, entry)` helper. `createComponentInstance` calls it before `platform.createView` / `fin.Window.create` whenever the launch is non-singleton. Uses the existing `ConfigManager.getConfig` + `saveConfig` (no new ConfigClient API). The clone flips `isTemplate: false`, `isRegisteredComponent: false`, `singleton: false` on the new row so workspace-gc treats it as a regular instance row. Best-effort: a missing template or a write failure doesn't block the launch.
+- `packages/config-service/src/profile-storage.ts` — `loadSet` shrinks from ~140 LOC of seed + race-recovery + diagnostic logging to a 5-line "read by id, return null if missing". `seedAttempted` flag, `templateConfigId` derivation, `DEBUG_SEED` gate all gone.
+- `packages/config-service/src/profile-storage.identity.test.ts` — replaced the 5 seed-flow tests with 4 read-contract tests: returns null when no row, reads pre-cloned row verbatim, two adapters race-free on existing row, instance independent of template.
+- `packages/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx` — diagnostic `[gridcontainer]` logs added during the investigation reverted (never committed).
+
+**Net code:** −103 LOC (mostly the deleted seed branch).
+
+**Why eager beats lazy here:**
+- Single canonical write happens in the launcher; no per-consumer race.
+- Read path is plain `getConfig(rowId)` — no special branches.
+- Schema knowledge stays out of the launcher (it copies an opaque AppConfigRow, doesn't inspect the payload shape).
+- Orphan rows (dock-launches the user closes immediately) are reaped by the existing workspace-gc rules, since cloned rows have `isTemplate: false` and `isRegisteredComponent: false` so they're not protected by the template/singleton preservation rules.
+
+**Singleton + Test-Component paths are unchanged.** Singleton launches use `instanceId === templateConfigId`, no clone. Registry-editor's "Test Component" launches with `isTemplate: true` to author/edit the template directly.
+
 ### Phase X-2 — Angular HostService (2026-04-29)
 **Verification:** `npx turbo typecheck test` → 66/66 tasks successful. `ng build` for `markets-ui-angular-reference` → bundle generated cleanly (initial 581 kB; budget warning is pre-existing).
 
