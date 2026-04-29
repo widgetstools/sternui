@@ -149,6 +149,13 @@ export class BrowserRuntime implements RuntimePort {
     return () => {};
   }
 
+  onWorkspaceSave(_fn: () => void | Promise<void>): Unsubscribe {
+    // No-op in plain browser — there's no workspace concept. Per-
+    // component persistence happens through `configManager` directly.
+    void _fn;
+    return () => {};
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

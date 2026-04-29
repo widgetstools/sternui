@@ -23,6 +23,7 @@ class FakeRuntime implements RuntimePort {
   private shownListeners = new Set<() => void>();
   private closingListeners = new Set<() => void>();
   private customDataListeners = new Set<(cd: Readonly<Record<string, unknown>>) => void>();
+  private workspaceSaveListeners = new Set<() => void | Promise<void>>();
   private disposed = false;
 
   resolveIdentity(): IdentitySnapshot {
@@ -77,6 +78,10 @@ class FakeRuntime implements RuntimePort {
     for (const fn of this.customDataListeners) fn(cd);
   }
 
+  emitWorkspaceSaveForTest(): void {
+    for (const fn of this.workspaceSaveListeners) void fn();
+  }
+
   onThemeChanged(fn: (t: Theme) => void): Unsubscribe {
     this.themeListeners.add(fn);
     return () => this.themeListeners.delete(fn);
@@ -97,12 +102,18 @@ class FakeRuntime implements RuntimePort {
     return () => this.customDataListeners.delete(fn);
   }
 
+  onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe {
+    this.workspaceSaveListeners.add(fn);
+    return () => this.workspaceSaveListeners.delete(fn);
+  }
+
   dispose(): void {
     this.disposed = true;
     this.themeListeners.clear();
     this.shownListeners.clear();
     this.closingListeners.clear();
     this.customDataListeners.clear();
+    this.workspaceSaveListeners.clear();
   }
 
   isDisposed(): boolean {
@@ -169,5 +180,16 @@ describe('RuntimePort interface', () => {
     handle.onClosed(() => closed++);
     handle.close();
     expect(closed).toBe(1);
+  });
+
+  it('onWorkspaceSave fires handlers and unsubscribe respects cleanup', () => {
+    const port = new FakeRuntime();
+    let saves = 0;
+    const unsub = port.onWorkspaceSave(() => { saves++; });
+    port.emitWorkspaceSaveForTest();
+    port.emitWorkspaceSaveForTest();
+    unsub();
+    port.emitWorkspaceSaveForTest();
+    expect(saves).toBe(2);
   });
 });

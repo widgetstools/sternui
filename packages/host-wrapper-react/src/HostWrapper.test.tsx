@@ -21,6 +21,7 @@ class FakeRuntime implements RuntimePort {
   private shownListeners = new Set<() => void>();
   private closingListeners = new Set<() => void>();
   private customDataListeners = new Set<(cd: Readonly<Record<string, unknown>>) => void>();
+  private workspaceSaveListeners = new Set<() => void | Promise<void>>();
 
   constructor(private readonly identity: IdentitySnapshot) {}
 
@@ -70,11 +71,17 @@ class FakeRuntime implements RuntimePort {
     return () => this.customDataListeners.delete(fn);
   }
 
+  onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe {
+    this.workspaceSaveListeners.add(fn);
+    return () => this.workspaceSaveListeners.delete(fn);
+  }
+
   dispose(): void {
     this.themeListeners.clear();
     this.shownListeners.clear();
     this.closingListeners.clear();
     this.customDataListeners.clear();
+    this.workspaceSaveListeners.clear();
   }
 }
 

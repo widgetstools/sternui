@@ -117,6 +117,7 @@ export function HostWrapper({
       onThemeChanged: runtime.onThemeChanged.bind(runtime),
       onWindowShown: runtime.onWindowShown.bind(runtime),
       onWindowClosing: runtime.onWindowClosing.bind(runtime),
+      onWorkspaceSave: runtime.onWorkspaceSave.bind(runtime),
       onCustomDataChanged: runtime.onCustomDataChanged.bind(runtime),
     };
   }, [resolved, identity, theme, configUrl]);

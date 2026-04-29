@@ -47,6 +47,14 @@ export interface HostContextValue extends IdentitySnapshot {
 
   /** Subscribe to runtime-driven customData updates. */
   onCustomDataChanged(fn: (customData: Readonly<Record<string, unknown>>) => void): Unsubscribe;
+
+  /**
+   * Subscribe to "the OpenFin platform's workspace just saved." Hosted
+   * components use this as a flush-to-disk hook: persist any
+   * in-memory state the user expects to survive a workspace reload.
+   * In the browser this never fires (no workspace concept).
+   */
+  onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe;
 }
 
 export const HostContext = createContext<HostContextValue | null>(null);
