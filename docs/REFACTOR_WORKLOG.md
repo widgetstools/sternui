@@ -198,6 +198,33 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase C-2 — split ColumnSettingsEditorInner (412 LOC) (2026-04-29)
+**Verification:** `npx turbo typecheck test` → 62/62 successful (force-rebuilt core: 3/3, full repo: 62/62).
+
+The 412-LOC `ColumnSettingsEditorInner` function in `packages/core/src/modules/column-customization/ColumnSettingsPanel.tsx` was a 5× violation of the 80-LOC function ceiling. Extract-function refactor into 11 sub-modules under the existing `editors/` subdirectory:
+- `editors/ColumnEditorHeader.tsx` (62 LOC) — title input + Reset/Save buttons
+- `editors/ColumnMetaStrip.tsx` (39 LOC) — COL ID / TYPE / OVERRIDES / TEMPLATES meta cells
+- `editors/HeaderBand.tsx` (45 LOC) — Band 01: header name + tooltip
+- `editors/LayoutBand.tsx` (108 LOC) — Band 02: width / pin / hide / sortable / resizable
+- `editors/TemplatesBand.tsx` (122 LOC) — Band 03: applied chips + picker
+- `editors/CellStyleBand.tsx` (24 LOC) — Band 04
+- `editors/HeaderStyleBand.tsx` (25 LOC) — Band 05
+- `editors/ValueFormatBand.tsx` (27 LOC) — Band 06
+- `editors/TriStateToggle.tsx` (39 LOC) — relocated; used by LayoutBand
+- `editors/TemplatePicker.tsx` (52 LOC) — relocated; used by TemplatesBand
+- `editors/styleAdapter.ts` (95 LOC) — `toStyleEditorValue` / `fromStyleEditorValue` / `pruneUndefined` / `pickBorders` / `isEmptyAssignment` / `countOverrides` (all relocated)
+
+`ColumnSettingsEditorInner` is now a ~75-LOC orchestrator. Filter and RowGrouping editors stay in their existing un-Banded shape — wrapped in tiny `FilterBandWrapper` / `RowGroupingBandWrapper` (Bands 07/08) inline.
+
+Behavior preserved:
+- Markup unchanged. Every `cols-*` data-testid carried through.
+- Same draft / save / discard semantics via `useModuleDraft`.
+- Same auto-prune of empty assignments via `isEmptyAssignment` in the commit path.
+- Same tri-state toggle for `sortable` / `resizable`.
+- Same template-picker empty states.
+
+Parent file `ColumnSettingsPanel.tsx` shrank from **792 LOC to 422 LOC** (under the 800-LOC ceiling).
+
 ### Phase C-1 — split RuleEditor (395 LOC) (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 62/62 successful.
 
