@@ -198,6 +198,22 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase 3C — openfinDock moved into the stern shell (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
+
+Closes the architecture violation where shell-layer code (importing from `@openfin/workspace` and `@openfin/workspace-platform`) lived in two app workspaces. The two copies (`apps/stern-reference-react/src/openfin/openfinDock.ts` and `apps/stern-reference-angular/src/app/openfin/openfinDock.ts`, both 577 LOC) were byte-identical.
+
+- New file: `packages/openfin-platform-stern/src/dock/openfinDock.ts` — same content; cross-package imports rewritten as relative imports inside the shell:
+  - `@marketsui/openfin-platform-stern` → `../utils/urlHelper.js`, `../types/openfinEvents.js`, `../platform/menuLauncher.js`, `../utils/defaultIcons.js`
+- New barrel: `packages/openfin-platform-stern/src/dock/index.ts` re-exports `*` from `./openfinDock.js`.
+- New subpath export in `packages/openfin-platform-stern/package.json`: `"./dock"` → `./dist/dock/index.js`. Required adding the `exports` field; preserved the existing `main`/`types` for backward compatibility.
+- Apps updated:
+  - `apps/stern-reference-react/src/openfin/OpenfinProvider.tsx:5` — `import * as dock from './openfinDock.js'` → `import * as dock from '@marketsui/openfin-platform-stern/dock'`
+  - `apps/stern-reference-angular/src/app/openfin/openfin-provider.component.ts:18` — same change without the `.js` extension
+- Deleted: both apps' local `openfinDock.ts` files (-1,154 LOC duplication).
+- Behavior: identical. Same exports (`register`, `deregister`, `isQuitting`, `setQuitting`, `isDockAvailable`, etc.) consumed via namespace import.
+- The earlier `bootstrap.ts` injected-`dockActions` design remains in place; this move just relocates the dock module so any future caller (including the shell itself) can import it without crossing back through an app workspace.
+
 ### Phase 2G — chart subpath export; Phase 2H skipped (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
 
@@ -245,6 +261,11 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Key decisions
 
+- **2026-04-28** — Phase 3 revision: cross-app dedup is more nuanced than the audit suggested. Verified deeper:
+  - `apps/demo-angular` has its own `app.config.ts` (basic providers, no PrimeNG theming), distinct `package.json` with corporate-artifactory dependency notes, distinct `tsconfig.json` and `styles.scss`. Deleting it would lose a deliberately barebones reference. Only the source files (`widgets/`, `services/`, `app.ts`) are byte-identical with `fi-trading-reference-angular`.
+  - `apps/demo-configservice-react` is a meaningfully different demo (ConfigService persistence + user-switcher + ConfigBrowser popout). Has a unique `ConfigBrowserPopout.tsx` and depends on `@marketsui/config-service`, `@marketsui/config-browser`, `@marketsui/openfin-platform`. Only the showcase content (`MarketDepth.tsx`, `marketDepthData.ts`, `showcaseProfile.ts`, `data.ts`, `custom-scrollbar.ts`) is byte-identical with `apps/demo-react`.
+  - **Decision:** defer 3A (delete demo-angular) and 3B (merge configservice into demo-react) to Path C, where the architecture pivots to a single `apps/reference-{react,angular}` and these apps go away. Doing the extraction now would be throwaway work plus risks losing the demonstrably distinct demo purposes.
+  - **Phase 3C still proceeds**: `openfinDock.ts` (577 LOC, byte-identical between stern apps) belongs in the stern shell anyway — moving it is architecturally meaningful and survives Path C.
 - **2026-04-28** — Use a single long-lived branch `chore/audit-cleanup-architectural-alignment` rather than per-phase branches. Each phase becomes 1+ commit; PR happens at the end.
 - **2026-04-28** — Preserve the user's uncommitted `docs/ARCHITECTURE.md` rewrite. Do NOT touch this file. The aspirational architecture it describes will guide later phases pending user direction.
 - **2026-04-28** — Phase 1 is "delete-only + comment-update" — verifiable safe under any architectural direction.

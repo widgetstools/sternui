@@ -22,12 +22,10 @@ import {
   type CustomActionPayload,
   type CustomActionsMap,
 } from '@openfin/workspace-platform';
-import {
-  buildUrl,
-  OpenFinCustomEvents,
-  launchMenuItem,
-} from '@marketsui/openfin-platform-stern';
-import { getDefaultMenuIcon } from '@marketsui/openfin-platform-stern';
+import { buildUrl } from '../utils/urlHelper.js';
+import { OpenFinCustomEvents } from '../types/openfinEvents.js';
+import { launchMenuItem } from '../platform/menuLauncher.js';
+import { getDefaultMenuIcon } from '../utils/defaultIcons.js';
 import type { DockMenuItem } from '@marketsui/shared-types';
 
 // ============================================================================
