@@ -1,18 +1,26 @@
 /**
- * OpenFin global types — parallel to the declaration in
- * @marketsui/openfin-platform-stern. Duplicated here so widgets-react
- * doesn't pull openfin-platform-stern in purely for a type-side-effect.
+ * OpenFin global type — minimal structural declaration.
+ *
+ * Previously imported `@openfin/core` for precise types, but per
+ * `docs/ARCHITECTURE.md`'s import-boundary rules `widgets-react`
+ * (a framework-adapter layer) shouldn't depend on the OpenFin SDK
+ * directly — only `runtime-openfin` and `apps/*` should. We drop the
+ * precise type for an `any`-typed global so the few `fin.*` calls in
+ * `widgets-react/src/hooks/openfin/` keep compiling without pulling
+ * `@openfin/core` into the framework layer.
+ *
+ * The same shape lives at `packages/runtime-openfin/src/fin.d.ts`. If
+ * widgets-react ever needs richer types, the right move is to import
+ * a typed wrapper from a future `@marketsui/runtime-port`-shaped
+ * package, not to add `@openfin/core` back.
  */
 
-/// <reference types="@openfin/core" />
-
-import type * as OpenFin from '@openfin/core';
-
 declare global {
-  const fin: typeof OpenFin.fin;
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fin: any;
   interface Window {
-    fin: typeof OpenFin.fin;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fin: any;
   }
 }
 
