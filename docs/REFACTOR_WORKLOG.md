@@ -198,6 +198,22 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase X-2 — Angular HostService (2026-04-29)
+**Verification:** `npx turbo typecheck test` → 66/66 tasks successful. `ng build` for `markets-ui-angular-reference` → bundle generated cleanly (initial 581 kB; budget warning is pre-existing).
+
+Closes Path C Phase X-2. Angular components hosted on the OpenFin platform now have the same DI-based seam React components got from `HostWrapper` / `useHost()`. No `@openfin/core` imports needed in component code; runtime + configManager + lifecycle events are injected.
+
+- New package `@marketsui/host-wrapper-angular` (`packages/host-wrapper-angular/`).
+  - `src/HostTokens.ts` — `HOST_RUNTIME`, `HOST_CONFIG_MANAGER`, `HOST_CONFIG_URL` `InjectionToken`s.
+  - `src/HostService.ts` — `@Injectable({ providedIn: 'root' })` singleton. `runtime`, `configManager`, `identity` (+ identity getters), `themeSignal: Signal<Theme>` and `theme$: Observable<Theme>` (dual-emit), and `windowShown$` / `windowClosing$` / `customData$` / `workspaceSave$` Observables bridged from `runtime.onThemeChanged` / `onWindowShown` / `onWindowClosing` / `onCustomDataChanged` / `onWorkspaceSave`. `dispose()` tears down listeners and completes Subjects; called automatically via `DestroyRef`.
+  - `src/provider.ts` — `provideHostWrapper({ runtime, configManager, configUrl? })` factory. Mirrors React's `<HostWrapper runtime configManager>`.
+  - `ng-package.json` + `tsconfig.json` — built via `ng-packagr`. Outputs `dist/` with FESM2022 + `.d.ts`. The package's `exports` map includes `types` so the Angular compiler resolves declarations.
+- Wired into `apps/markets-ui-angular-reference`:
+  - `package.json` — added `@marketsui/host-wrapper-angular`, `@marketsui/config-service`, `@marketsui/runtime-browser`, `@marketsui/runtime-openfin`, `@marketsui/runtime-port`.
+  - `src/app/app.config.ts` — replaced static `appConfig` with `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async). Selects `OpenFinRuntime` if `isOpenFin()` else `BrowserRuntime`, builds `configManager`, spreads `provideHostWrapper(...)` into providers.
+  - `src/main.ts` — bootstraps via `buildAppConfig().then((cfg) => bootstrapApplication(AppComponent, cfg))`.
+- Mirrors `@marketsui/host-wrapper-react` 1:1 in capability — Angular components inject `HostService` to read identity / configManager / theme / lifecycle, no platform imports.
+
 ### Phase C-3 REVERT — restore the inlined Host (2026-04-29)
 **Verification:** e2e comparison run on both `main` and the work branch. Main: 195 passed / 23 failed / 218 total. Work branch BEFORE this revert: 178 passed / 40 failed / 218 total — **17 new failures, 16 of them in profile-* specs** that traced back to the C-3 split. User reported "the application now has become very slow" which corroborated the test signal. Reverting `3a7407b` restores `MarketsGrid.tsx` to the 920-LOC version with the inlined Host. The 8 hook + internal/ files added by C-3 are removed. Function-size ceiling on `Host` (611 LOC) intentionally regresses — correctness > ceiling. Lesson recorded: any future split of `Host` must run the e2e suite (especially profile-stress) AS PART of the verification, not just unit tests.
 
@@ -278,7 +294,7 @@ This is Seam #2 from `docs/ARCHITECTURE.md`. Adds the React host wrapper *additi
 - Theme tracking: pulls initial value from `runtime.getTheme()` and re-renders consumers via `runtime.onThemeChanged`. The memoized context value's identity changes only on theme flips.
 - 5 jsdom tests (loading state, identity exposure, theme reactivity, useHost-outside-wrapper error, runtime delegate flow).
 
-**Phase D-4b (Angular HostService) — DEFERRED** to a follow-up commit. ng-packagr setup adds noise to this commit; the React wrapper covers Path B's primary surface for now and Angular consumers can adopt later.
+**Phase D-4b (Angular HostService) — DEFERRED** to a follow-up commit. ng-packagr setup adds noise to this commit; the React wrapper covers Path B's primary surface for now and Angular consumers can adopt later. *(Shipped as Path C Phase X-2 on 2026-04-29 — see entry below.)*
 
 **Phase D-5 (LocalStorage / Memory ConfigManagers) — DEFERRED to Path C.** Reason: implementing two full new backends of the existing `ConfigClient` interface (~30 methods across 5 sub-domains: AppConfig, AppRegistry, UserProfiles, Roles, Permissions) is ~400 LOC for an interface Path C plans to retire and replace with a smaller `ConfigManager`. Better to do the redesign + 4 backends together in Path C than ship throwaway backends now. Existing `LocalConfigClient` (Dexie) + `RestConfigClient` continue to satisfy all current apps.
 
