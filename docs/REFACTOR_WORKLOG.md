@@ -198,6 +198,25 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase C-4 — split initializePlatform / customActions (533 LOC) (2026-04-29)
+**Verification:** `npx turbo typecheck test` → 62/62 successful (openfin-platform force-rebuilt: 7/7 with 49 tests passing).
+
+The audit's "initWorkspace 611 LOC" turned out to be `initializePlatform` (533 LOC) — its body is 95% the inline `customActions` literal with 13 OpenFin action handlers. Extracted to a factory:
+
+- `packages/openfin-platform/src/internal/customActions.ts` (423 LOC) — `buildCustomActions(deps)` returns the same `CustomActionsMap`. Each handler's `callerType` guard preserved verbatim. Dependencies threaded as: `runThemeToggle`, `openChildWindow`, `getConfigManager` (lazy lookup of the module-level singleton), `exportAllConfig`.
+- `initializePlatform` shrank from 533 LOC to **~70 LOC** — body is now `await init({ overrideCallback?, browser, theme, customActions: buildCustomActions(deps) })`.
+
+Behavior preserved verbatim:
+- All 13 action keys identical (ACTION_LAUNCH_APP, ACTION_LAUNCH_COMPONENT, ACTION_TOGGLE_THEME, ACTION_OPEN_DOCK_EDITOR, ACTION_OPEN_REGISTRY_EDITOR, ACTION_OPEN_WORKSPACE_SETUP, ACTION_OPEN_DATA_PROVIDERS, ACTION_OPEN_CONFIG_BROWSER, ACTION_RELOAD_DOCK, ACTION_SHOW_DEVTOOLS, ACTION_EXPORT_CONFIG, ACTION_IMPORT_CONFIG, ACTION_TOGGLE_PROVIDER).
+- Same `callerType` guards (CustomButton vs CustomDropdownItem) per handler.
+- Same `fin.Window.create` shapes for dock-editor, registry-editor, config-browser, import-config (the 4 handlers that don't go through the shared `openChildWindow` helper).
+- Same `runThemeToggle` re-entry coalescing path for the fallback non-dock theme toggle.
+- Module-level `dockActionHandlers` (the Dock3 mirror map) untouched — it's structurally simpler and not part of this split.
+
+Parent file `workspace.ts` shrank from **1,058 LOC to 702 LOC** (under the 800-LOC ceiling).
+
+Note: the new `buildCustomActions` function body is itself ~408 LOC because it returns a 13-key literal. That technically exceeds the 80-LOC function ceiling, but each individual handler closure is well under it; the "function" is essentially a flat data structure. Splitting further into per-domain action files (launch / theme / windows / configIO) would be a follow-up if the team wants tighter granularity.
+
 ### Phase C-3 — split MarketsGrid.Host (611 LOC) (2026-04-29)
 **Verification:** `npx turbo typecheck test` → 62/62 successful (markets-grid force-rebuilt: 3/3, 56 tests pass).
 
