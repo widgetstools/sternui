@@ -3,7 +3,7 @@ declare const fin: any;
 import type OpenFin from "@openfin/core";
 import type { App } from "@openfin/workspace";
 import { AppManifestType, getCurrentSync } from "@openfin/workspace-platform";
-import { loadRegistryConfig } from "./db";
+import { getConfigManager, loadRegistryConfig } from "./db";
 import { generateTemplateConfigId, type RegistryEntry } from "./registry-config-types";
 import { resolveHostUrl } from "./host-url";
 
@@ -203,6 +203,61 @@ export async function launchRegisteredComponent(
 }
 
 /**
+ * Eagerly clone the template's config row onto a fresh per-instance
+ * row at `instanceId`, BEFORE the view opens. The view then reads its
+ * own row directly — no lazy seed-from-template inside the storage
+ * adapter, no dual-adapter race.
+ *
+ * Why eager: a single hosted MarketsGrid builds two storage adapters
+ * (one in MarketsGridContainer for gridLevelData, one in <MarketsGrid>
+ * for profiles). With lazy seeding both adapters would race the seed
+ * write and the loser threw VersionConflict. Cloning at launch makes
+ * the row exist before any consumer reads it — read paths simplify to
+ * "getConfig by id" and the race vanishes.
+ *
+ * Behavior:
+ *   - Best-effort: if the template row doesn't exist or the write
+ *     fails, the launch still proceeds. The view gets an empty row
+ *     (same as a first-ever launch), the user authors state, the
+ *     normal save path persists it.
+ *   - Identity flip: the cloned row carries `isTemplate: false`,
+ *     `isRegisteredComponent: false`, `singleton: false`. Workspace
+ *     GC's existing rules then dispose the row when the view isn't
+ *     referenced by any saved workspace, so dock-launches the user
+ *     immediately closes don't accumulate.
+ *   - Display text: marks the row as "<template-display>: <short-id>"
+ *     so Config Browser shows clearly which template it descended from.
+ */
+async function cloneTemplateRowForInstance(
+  templateConfigId: string,
+  instanceId: string,
+  entry: RegistryEntry,
+): Promise<void> {
+  try {
+    const cm = await getConfigManager();
+    const src = await cm.getConfig(templateConfigId);
+    if (!src) return; // no template row yet — nothing to clone
+    const now = new Date().toISOString();
+    const shortId = instanceId.slice(0, 8);
+    await cm.saveConfig({
+      ...src,
+      configId: instanceId,
+      displayText: `${src.displayText || entry.displayName || entry.componentType}: ${shortId}`,
+      isTemplate: false,
+      isRegisteredComponent: false,
+      singleton: false,
+      creationTime: now,
+      updatedTime: now,
+    });
+  } catch (err) {
+    console.warn(
+      `[launch] template clone failed for ${templateConfigId} → ${instanceId} — view will start empty:`,
+      err,
+    );
+  }
+}
+
+/**
  * Create the actual View or Window for a registry entry. Extracted from
  * launchRegisteredComponent so the singleton path can both reuse it AND
  * register the resulting promise in the singletons Map.
@@ -210,7 +265,9 @@ export async function launchRegisteredComponent(
  * When `singletonId` is provided, customData.instanceId === customData.templateId
  * === singletonId. component-host's `resolveInstanceId()` then loads the
  * existing config row at that id (case 1: workspace-restore-style). For
- * non-singleton callers the instanceId is a fresh UUID.
+ * non-singleton callers the instanceId is a fresh UUID, and the
+ * template's config row is eagerly cloned onto that UUID before the
+ * view opens — see `cloneTemplateRowForInstance`.
  */
 async function createComponentInstance(
   entry: RegistryEntry,
@@ -222,11 +279,20 @@ async function createComponentInstance(
       ? crypto.randomUUID()
       : `inst-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
+  const templateId = entry.configId ||
+    generateTemplateConfigId(entry.componentType, entry.componentSubType);
+
+  // Non-singleton launch: clone the template's row onto the fresh
+  // instanceId BEFORE opening the view, so the view's storage reads
+  // hit a populated row directly. Singletons skip this — instanceId
+  // === templateId, the view IS the template.
+  if (!singletonId) {
+    await cloneTemplateRowForInstance(templateId, instanceId, entry);
+  }
+
   const customData = {
     instanceId,
-    templateId:
-      entry.configId ||
-      generateTemplateConfigId(entry.componentType, entry.componentSubType),
+    templateId,
     componentType: entry.componentType,
     componentSubType: entry.componentSubType,
     appId: entry.appId,

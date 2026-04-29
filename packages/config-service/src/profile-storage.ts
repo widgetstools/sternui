@@ -192,14 +192,6 @@ export type ProfileStorageFactory = (opts: ProfileStorageFactoryOpts) => Storage
  * pass `appId`/`userId` to `createConfigServiceStorage({...})` as
  * closure fallbacks; MarketsGrid's props override them.
  */
-// Diagnostic gate for the seed-from-template path. Flip to `true`
-// to print the EXACT decision the seed code took at every branch
-// (existing-row hit / template fetch / write / concurrent-loser
-// fallback / skip-conditions). Used during the dual-adapter race
-// investigation; left in place so future debugging can flip it on
-// without re-instrumenting.
-const DEBUG_SEED = false;
-
 export function createConfigServiceStorage(
   opts: ConfigServiceStorageOptions,
 ): ProfileStorageFactory {
@@ -225,135 +217,21 @@ export function createConfigServiceStorage(
 
     const rowId = instanceId;
 
-    // Template configId for this registered (componentType,
-    // componentSubType) pair — used by the seed-from-template path
-    // below. Same canonical formula the registry editor uses for the
-    // entry id; one row per (componentType, componentSubType).
-    const templateConfigId = identity?.componentType
-      ? `${identity.componentType}-${identity.componentSubType ?? ''}`.toLowerCase()
-      : null;
-
-    // Has the seed-from-template attempt fired already? Limited to
-    // once per adapter lifetime so we don't re-clone on every
-    // listProfiles / loadProfile / loadGridLevelData call. The
-    // attempt sets the flag whether or not it succeeded — a missing
-    // template means "no template to seed from"; subsequent loads
-    // legitimately return null.
-    let seedAttempted = false;
-
-    // Load the bundled row for this instance; returns null when no
-    // profiles have been written yet AND no template exists to seed
-    // from. Filters defensively against rows that happen to share
-    // the configId but belong to a different owner (configId is the
-    // ConfigService primary key, so this is paranoia — but it keeps
-    // the cross-user boundary explicit).
+    // Read the bundled row for this instance. Returns null when no
+    // row exists yet — the consumer treats null as "first launch,
+    // start empty". Filters defensively against rows that happen to
+    // share the configId but belong to a different owner.
     //
-    // SEED FROM TEMPLATE: when the row doesn't exist AND identity
-    // says we're a per-instance row (not the template itself —
-    // detected by `rowId !== templateConfigId`) AND a template row
-    // exists at the canonical configId, we EAGERLY clone the
-    // template's payload onto this instance row. The first load of
-    // a freshly-launched non-singleton component thus returns the
-    // template's profiles + gridLevelData, and the new instance is
-    // independent from the template going forward (no live link —
-    // template edits don't propagate to existing instances).
+    // Template-to-instance copy is NOT done here. The launcher
+    // (`createComponentInstance` in @marketsui/openfin-platform) clones
+    // the template row onto the new instanceId BEFORE the view opens,
+    // so reads from a freshly-launched instance hit a populated row
+    // directly. This eliminated the dual-adapter seed race that
+    // previously lived in this function.
     const loadSet = async (): Promise<ProfileSetPayload | null> => {
       const row = await configManager.getConfig(rowId);
       if (isProfileSetRow(row, appId, userId)) {
-        if (DEBUG_SEED && !seedAttempted) {
-          // eslint-disable-next-line no-console
-          console.log(
-            '[seed] hit existing row → no seed needed. rowId=%s appId=%s userId=%s gridLevelData=%o',
-            rowId, appId, userId, (row.payload as { gridLevelData?: unknown })?.gridLevelData,
-          );
-          seedAttempted = true; // suppress repeat logs from later loads
-        }
         return normalizePayload(row.payload);
-      }
-
-      // No row for this instance yet. Try seed-from-template once.
-      if (DEBUG_SEED && !seedAttempted) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[seed] no instance row at rowId=%s — evaluating seed: identity=%o templateConfigId=%s rowId===templateConfigId=%s',
-          rowId, identity, templateConfigId, templateConfigId === rowId,
-        );
-      }
-      if (
-        !seedAttempted
-        && identity
-        && identity.isTemplate !== true   // we're an instance, not the template itself
-        && templateConfigId
-        && templateConfigId !== rowId      // not a singleton (which IS the template)
-      ) {
-        seedAttempted = true;
-        const templateRow = await configManager.getConfig(templateConfigId);
-        if (DEBUG_SEED) {
-          // eslint-disable-next-line no-console
-          console.log(
-            '[seed] fetched templateRow at configId=%s → exists=%s ownerMatch=%s payloadHasProfiles=%s gridLevelData=%o',
-            templateConfigId,
-            Boolean(templateRow),
-            templateRow ? (templateRow.appId === appId && templateRow.userId === userId) : null,
-            templateRow ? Array.isArray((templateRow.payload as { profiles?: unknown })?.profiles) : null,
-            templateRow ? (templateRow.payload as { gridLevelData?: unknown })?.gridLevelData : null,
-          );
-        }
-        if (isProfileSetRow(templateRow, appId, userId)) {
-          const templatePayload = normalizePayload(templateRow.payload);
-          // Write the seeded payload to the new instance row using
-          // the same identity-stamping path as a normal save. Sets
-          // version=1 (template's version is irrelevant — the new
-          // row starts at 1 just like any first write).
-          //
-          // Concurrent-seed handling: a single hosted MarketsGrid
-          // builds TWO adapters from the same factory (one in
-          // MarketsGridContainer for gridLevelData, one inside
-          // <MarketsGrid> for profiles via ProfileManager). Each has
-          // its own seedAttempted flag, so both can race to seed.
-          // The loser would otherwise throw VersionConflict — but
-          // both racers compute the SAME templatePayload from the
-          // SAME template row, so the winner's write is byte-equivalent
-          // to what we were about to write. Catch the conflict, re-read
-          // the now-seeded row, and return it.
-          try {
-            await saveSet({ ...templatePayload, version: 0 }, 0);
-          } catch (err) {
-            if (err instanceof ProfileSetVersionConflictError) {
-              const seeded = await configManager.getConfig(rowId);
-              if (isProfileSetRow(seeded, appId, userId)) {
-                if (DEBUG_SEED) {
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    '[seed] ✓ concurrent seeder won — re-reading existing row. rowId=%s',
-                    rowId,
-                  );
-                }
-                return normalizePayload(seeded.payload);
-              }
-            }
-            throw err;
-          }
-          if (DEBUG_SEED) {
-            // eslint-disable-next-line no-console
-            console.log(
-              '[seed] ✓ wrote seeded payload to instance row. rowId=%s profiles=%d gridLevelData=%o',
-              rowId, templatePayload.profiles.length, templatePayload.gridLevelData,
-            );
-          }
-          return templatePayload;
-        }
-        if (DEBUG_SEED) {
-          // eslint-disable-next-line no-console
-          console.log('[seed] ✗ template row not seedable (missing/owner-mismatch/empty payload) — instance starts empty');
-        }
-      } else if (DEBUG_SEED && !seedAttempted) {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[seed] ✗ skipped — conditions not met. seedAttempted=%s identity?%s isTemplate=%s templateConfigId=%s sameAsRowId=%s',
-          seedAttempted, Boolean(identity), identity?.isTemplate, templateConfigId, templateConfigId === rowId,
-        );
-        seedAttempted = true; // don't repeat the skip log on every call
       }
       return null;
     };
