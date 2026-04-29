@@ -117,12 +117,22 @@ export function useWidget(configId: string): WidgetContext {
   }, []);
 
   // ─── Lifecycle ─────────────────────────────────────
+  // Both return an unsubscribe so callers can release the handler when their
+  // effect tears down — without this, a useEffect that re-runs on every prop
+  // change appends a fresh closure every time and leaks for the lifetime of
+  // the widget.
   const onSave = useCallback((handler: () => Promise<void> | void) => {
     saveHandlersRef.current.push(handler);
+    return () => {
+      saveHandlersRef.current = saveHandlersRef.current.filter(h => h !== handler);
+    };
   }, []);
 
   const onDestroy = useCallback((handler: () => void) => {
     destroyHandlersRef.current.push(handler);
+    return () => {
+      destroyHandlersRef.current = destroyHandlersRef.current.filter(h => h !== handler);
+    };
   }, []);
 
   // ─── Communication ─────────────────────────────────

@@ -198,6 +198,20 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase 2A-D — leak fixes + hot-path log gating (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 52/52 tasks successful (242 core tests + 56 markets-grid tests passed).
+- **Phase 2A** — `packages/widget-sdk/src/hooks/useWidget.ts` `onSave`/`onDestroy` now return an unsubscribe `() => void` (was `void`). Type signatures in `packages/widget-sdk/src/types/widget.ts` updated to match.
+- **Phase 2B** — `packages/widgets-react/src/blotter/SimpleBlotter.tsx`:
+  - Extracted the `selectionChanged` listener into a separate `useEffect` keyed on `gridApi`, with `removeEventListener` in cleanup. Was leaking on every grid remount.
+  - The `widget.onSave(...)` call inside the lifecycle effect now stores its returned unsubscribe and calls it in cleanup. Was accumulating closures every effect re-run (definite memory leak).
+- **Phase 2C** — `packages/widget-sdk/src/adapters/BrowserAdapter.ts` `beforeunload` listener stored as a class field; removed in `dispose()`. Adapter recreations during HMR/route changes no longer leak window listeners.
+- **Phase 2D** — Hot-path `console.log` calls gated behind a per-file `const DEBUG = false`:
+  - `packages/data-plane/src/v2/worker/Hub.ts` — 7 logs (provider attach, late-joiner replay, broadcast fan-out)
+  - `packages/data-plane/src/v2/client/DataPlane.ts` — 4 logs (subscribe, delta, status, buffered)
+  - `packages/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx` — 11 logs (per-render gate, subscribe, snapshot, status, update batches, unsubscribe)
+- All log calls preserved structurally — flip `DEBUG = true` per file to re-enable. Eliminates measurable CPU cost at 1000+ msg/s without removing the diagnostic capability.
+- Behavior preserved: error-path `console.warn` and `console.error` calls left untouched. AG-Grid selection and platform-save behavior unchanged.
+
 ### Phase 1 — orphan + stale-comment sweep (2026-04-28)
 **Verification:** `npx turbo typecheck` → 45/45 tasks successful (full repo build + typecheck).
 - Deleted `agGridStateManager.ts` (root, 235 LOC) — superseded by `packages/core/src/modules/grid-state/`.
@@ -215,3 +229,7 @@ Phases 3+ depend on user's answer to the scope question.
 - **2026-04-28** — Use a single long-lived branch `chore/audit-cleanup-architectural-alignment` rather than per-phase branches. Each phase becomes 1+ commit; PR happens at the end.
 - **2026-04-28** — Preserve the user's uncommitted `docs/ARCHITECTURE.md` rewrite. Do NOT touch this file. The aspirational architecture it describes will guide later phases pending user direction.
 - **2026-04-28** — Phase 1 is "delete-only + comment-update" — verifiable safe under any architectural direction.
+- **2026-04-28** — User chose **Path B then Path C**:
+  - Path B (1 wk): audit cleanup + add architectural seams *additively* (`RuntimePort`, `HostWrapper`, additional `ConfigManager` backends) without breaking existing code.
+  - Path C (multi-wk, follows B): full migration — restructure component pkgs, possibly rename namespace `@marketsui/*` → `@starui/*`, replace reference apps, rewrite data-plane.
+  - **Constraint:** zero loss of UI features, functions, behaviors. Verify each phase with `npx turbo typecheck` + `build` + `test`. Add behavior-pinning tests before any destructive Path C moves.

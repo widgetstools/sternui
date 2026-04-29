@@ -13,6 +13,7 @@ export class BrowserAdapter implements PlatformAdapter {
   private saveHandlers: Array<() => Promise<void>> = [];
   private destroyHandlers: Array<() => void> = [];
   private settingsResultHandlers: Array<(result: unknown) => void> = [];
+  private beforeUnloadHandler: () => void;
 
   constructor(private baseUrl: string = '') {
     this.instanceId = crypto.randomUUID();
@@ -27,12 +28,15 @@ export class BrowserAdapter implements PlatformAdapter {
       }
     };
 
-    // Handle page unload
-    window.addEventListener('beforeunload', () => {
+    // Handle page unload — stored so dispose() can remove it. Without this,
+    // adapters created during HMR / route changes leak one window listener
+    // each.
+    this.beforeUnloadHandler = () => {
       for (const handler of this.destroyHandlers) {
         handler();
       }
-    });
+    };
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
   }
 
   async openWidget(type: string, data?: Record<string, unknown>): Promise<string> {
@@ -142,5 +146,6 @@ export class BrowserAdapter implements PlatformAdapter {
 
   dispose(): void {
     this.channel.close();
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
   }
 }
