@@ -31,6 +31,13 @@ import type {
 import { isEvent } from '../protocol.js';
 import type { ProviderConfig } from '@marketsui/shared-types';
 
+/**
+ * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
+ * the worker handshake — the per-delta `console.log` measurably hurts CPU
+ * at high message rates even with DevTools closed.
+ */
+const DEBUG = false;
+
 export type SubId = string;
 
 export interface DataListener<T = unknown> {
@@ -157,11 +164,13 @@ export class DataPlane {
     if (this.closed) throw new Error('[DataPlane] client is closed');
 
     const subId = this.generateSubId();
-    // eslint-disable-next-line no-console
-    console.log(
-      `[v2/client] %csubscribe→worker%c subId=%s provider=%s cfgPassed=%s${opts.extra ? ' extra=' + JSON.stringify(opts.extra) : ''}`,
-      'color:#3b82f6', '', subId, providerId, Boolean(cfg),
-    );
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[v2/client] %csubscribe→worker%c subId=%s provider=%s cfgPassed=%s${opts.extra ? ' extra=' + JSON.stringify(opts.extra) : ''}`,
+        'color:#3b82f6', '', subId, providerId, Boolean(cfg),
+      );
+    }
 
     let snapshotResolve!: (rows: readonly T[]) => void;
     let snapshotReject!: (err: Error) => void;
@@ -217,12 +226,14 @@ export class DataPlane {
 
     const listener: DataListener<T> = {
       onDelta: (rows, replace) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[v2/client] %cdelta←worker%c subId=%s rows=%d replace=%s settled=%s`,
-          replace ? 'color:#10b981' : 'color:#f59e0b', '',
-          subId, rows.length, replace, snapshotSettled,
-        );
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[v2/client] %cdelta←worker%c subId=%s rows=%d replace=%s settled=%s`,
+            replace ? 'color:#10b981' : 'color:#f59e0b', '',
+            subId, rows.length, replace, snapshotSettled,
+          );
+        }
         if (replace) {
           latestSnapshotRows = rows;
           trySettleSnapshot();
@@ -237,16 +248,20 @@ export class DataPlane {
           updateCb(rows);
         } else {
           bufferedUpdates.push(rows);
-          // eslint-disable-next-line no-console
-          console.log(`[v2/client]   …buffered (no onUpdate handler yet); pending=%d`, bufferedUpdates.length);
+          if (DEBUG) {
+            // eslint-disable-next-line no-console
+            console.log(`[v2/client]   …buffered (no onUpdate handler yet); pending=%d`, bufferedUpdates.length);
+          }
         }
       },
       onStatus: (status, error) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[v2/client] %cstatus←worker%c subId=%s status=%s%s`,
-          'color:#a855f7', '', subId, status, error ? ` error=${JSON.stringify(error)}` : '',
-        );
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[v2/client] %cstatus←worker%c subId=%s status=%s%s`,
+            'color:#a855f7', '', subId, status, error ? ` error=${JSON.stringify(error)}` : '',
+          );
+        }
         currentStatus = status;
         currentError = error;
         trySettleSnapshot();

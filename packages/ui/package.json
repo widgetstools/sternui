@@ -12,6 +12,11 @@
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./chart": {
+      "import": "./dist/components/chart.js",
+      "require": "./dist/components/chart.js",
+      "types": "./dist/components/chart.d.ts"
+    },
     "./styles": "./src/styles/stern-theme.css",
     "./tailwind-config": "./tailwind.config.js"
   },

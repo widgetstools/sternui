@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { buildUrl, bootstrapPlatform } from '@marketsui/openfin-platform-stern';
 import { type DockMenuItem, createMenuItem } from '@marketsui/shared-types';
 import { DockConfigurator } from '@marketsui/widgets-react';
-import * as dock from './openfinDock.js';
+import * as dock from '@marketsui/openfin-platform-stern/dock';
 
 function getDefaultMenuItems(): DockMenuItem[] {
   return [

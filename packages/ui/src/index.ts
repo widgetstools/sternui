@@ -56,7 +56,9 @@ export * from './components/avatar.js';
 export * from './components/badge.js';
 export * from './components/calendar.js';
 export * from './components/carousel.js';
-export * from './components/chart.js';
+// chart.js is intentionally NOT re-exported here — it pulls in recharts
+// (a multi-MB peer) which every consumer of @marketsui/ui would otherwise
+// inherit. Import directly from `@marketsui/ui/chart` when needed.
 export * from './components/progress.js';
 export * from './components/skeleton.js';
 export * from './components/table.js';

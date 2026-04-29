@@ -41,8 +41,8 @@ export interface WidgetContext {
   setActiveLayout: (layoutId: string) => void;
 
   // ─── Lifecycle ────────────────────────────────────────
-  onSave: (handler: () => Promise<void> | void) => void;
-  onDestroy: (handler: () => void) => void;
+  onSave: (handler: () => Promise<void> | void) => () => void;
+  onDestroy: (handler: () => void) => () => void;
 
   // ─── Communication ────────────────────────────────────
   open: (widgetType: string, data?: Record<string, unknown>) => Promise<void>;

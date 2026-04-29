@@ -12,7 +12,7 @@
  * redesign explicitly chose a single chord for the toolbar reveal).
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ParsedChord {
   shift: boolean;
@@ -38,6 +38,12 @@ export function useChordHotkey(
   handler: (e: KeyboardEvent) => void,
   opts: { target?: HTMLElement | Document | null; enabled?: boolean } = {},
 ): void {
+  // Hold the latest handler in a ref so callers can pass an inline
+  // arrow without forcing the effect to re-run (and thereby remove +
+  // re-add the keydown listener) on every render of the parent.
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
   useEffect(() => {
     if (opts.enabled === false) return;
     const target = opts.target ?? (typeof document !== 'undefined' ? document : null);
@@ -51,9 +57,9 @@ export function useChordHotkey(
       if (ev.altKey !== parsed.alt) return;
       if (ev.metaKey !== parsed.meta) return;
       if (ev.key.toLowerCase() !== parsed.key) return;
-      handler(ev);
+      handlerRef.current(ev);
     };
     target.addEventListener('keydown', listener);
     return () => target.removeEventListener('keydown', listener);
-  }, [chord, handler, opts.target, opts.enabled]);
+  }, [chord, opts.target, opts.enabled]);
 }

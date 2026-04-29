@@ -15,7 +15,7 @@ import { CommonModule } from '@angular/common';
 import { bootstrapPlatform, buildUrl } from '@marketsui/openfin-platform-stern';
 import { createMenuItem, type DockMenuItem } from '@marketsui/shared-types';
 import { DockConfiguratorComponent } from '@marketsui/angular';
-import * as dock from './openfinDock';
+import * as dock from '@marketsui/openfin-platform-stern/dock';
 
 declare const fin: any;
 

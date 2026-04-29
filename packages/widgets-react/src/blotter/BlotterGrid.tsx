@@ -44,6 +44,24 @@ export const BlotterGrid: React.FC<BlotterGridProps> = ({
     ],
   }), []);
 
+  // Stable references — fresh literals here would force AG-Grid to
+  // re-evaluate selection/sidebar config on every render.
+  const rowSelection = useMemo(
+    () => ({ mode: 'multiRow' as const, checkboxes: false }),
+    [],
+  );
+
+  const sideBar = useMemo(
+    () => ({
+      toolPanels: [
+        { id: 'columns', labelDefault: 'Columns', labelKey: 'columns', iconKey: 'columns', toolPanel: 'agColumnsToolPanel' },
+        { id: 'filters', labelDefault: 'Filters', labelKey: 'filters', iconKey: 'filter', toolPanel: 'agFiltersToolPanel' },
+      ],
+      defaultToolPanel: '',
+    }),
+    [],
+  );
+
   const handleGridReady = useCallback((event: GridReadyEvent) => {
     gridApiRef.current = event.api;
     onGridReady(event.api);
@@ -65,18 +83,12 @@ export const BlotterGrid: React.FC<BlotterGridProps> = ({
         statusBar={statusBar}
         onGridReady={handleGridReady}
         getRowId={getRowId}
-        rowSelection={{ mode: 'multiRow', checkboxes: false }}
+        rowSelection={rowSelection}
         animateRows={false}
         rowBuffer={20}
         suppressColumnVirtualisation={false}
         suppressRowVirtualisation={false}
-        sideBar={{
-          toolPanels: [
-            { id: 'columns', labelDefault: 'Columns', labelKey: 'columns', iconKey: 'columns', toolPanel: 'agColumnsToolPanel' },
-            { id: 'filters', labelDefault: 'Filters', labelKey: 'filters', iconKey: 'filter', toolPanel: 'agFiltersToolPanel' },
-          ],
-          defaultToolPanel: '',
-        }}
+        sideBar={sideBar}
       />
     </div>
   );

@@ -83,14 +83,20 @@ export const SimpleBlotter: React.FC<SimpleBlotterProps> = ({
   // ─── Grid ready handler ────────────────────────────
   const handleGridReady = useCallback((api: GridApi) => {
     setGridApi(api);
-
-    // Track row selection
-    api.addEventListener('selectionChanged', () => {
-      setSelectedRows(api.getSelectedRows());
-    });
-
     onReady?.();
   }, [onReady]);
+
+  // Track row selection — registered separately so the listener can be torn
+  // down when the grid api changes (e.g., remount), which avoids leaking
+  // closures that retain the old api.
+  useEffect(() => {
+    if (!gridApi) return;
+    const onSelectionChanged = () => setSelectedRows(gridApi.getSelectedRows());
+    gridApi.addEventListener('selectionChanged', onSelectionChanged);
+    return () => {
+      gridApi.removeEventListener('selectionChanged', onSelectionChanged);
+    };
+  }, [gridApi]);
 
   // ─── Layout operations ─────────────────────────────
   const handleSelectLayout = useCallback(async (layoutId: string) => {
@@ -121,12 +127,13 @@ export const SimpleBlotter: React.FC<SimpleBlotterProps> = ({
 
   // ─── Lifecycle: save grid state on platform save ───
   useEffect(() => {
-    widget.onSave(() => {
+    const unsubscribe = widget.onSave(() => {
       if (gridApi && widget.activeLayout) {
         const state = captureGridState();
         widget.saveLayout(widget.activeLayout.name, state);
       }
     });
+    return unsubscribe;
   }, [widget, gridApi, captureGridState]);
 
   // ─── Error forwarding ──────────────────────────────

@@ -1,0 +1,46 @@
+{
+  "name": "@marketsui/host-wrapper-react",
+  "version": "0.1.0",
+  "description": "React HostWrapper component + HostContext + useHost hook. The single component-side seam that exposes identity, configManager, theme, and runtime lifecycle to hosted components. See docs/ARCHITECTURE.md (Seam #2).",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@marketsui/runtime-port": "0.1.0"
+  },
+  "peerDependencies": {
+    "@marketsui/config-service": "1.0.0",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "devDependencies": {
+    "@marketsui/config-service": "*",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "~16.2.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.2",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5",
+    "rimraf": "^5.0.5",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "license": "MIT"
+}

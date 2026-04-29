@@ -46,6 +46,14 @@ import { useChordHotkey } from './useChordHotkey.js';
 
 const EMPTY: never[] = [];
 
+/**
+ * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
+ * subscribe / update / unsubscribe behavior. The render-time log fires on
+ * every render of the container; the update-batch logs fire per delta.
+ * Both are off by default to avoid measurable CPU cost on busy providers.
+ */
+const DEBUG = false;
+
 export interface MarketsGridContainerProps<TData extends Record<string, unknown> = Record<string, unknown>>
   extends Omit<MarketsGridProps<TData>, 'rowData' | 'rowIdField' | 'columnDefs' | 'gridLevelData' | 'onGridLevelDataLoad' | 'headerExtras'> {
   /**
@@ -307,34 +315,41 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // Render-time log of the gating inputs so you can see WHY the
   // subscribe effect isn't firing yet (or that it IS gated correctly
-  // and waiting for the missing piece). Logs every render — fine,
-  // grids don't render hundreds of times on their own.
-  // eslint-disable-next-line no-console
-  console.log(
-    `[v2/grid] render gate: loaded=%s liveApi=%s activeId=%s rowIdField=%s columnDefs=%s cfgLoaded=%s pickerVisible=%s`,
-    loaded, Boolean(liveApi), activeId, rowIdField, Boolean(columnDefs), Boolean(activeCfg), pickerVisible,
-  );
+  // and waiting for the missing piece). Gated by `DEBUG` because this
+  // fires on every render and the container does re-render frequently
+  // when status/refreshTick/selection mutate.
+  if (DEBUG) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[v2/grid] render gate: loaded=%s liveApi=%s activeId=%s rowIdField=%s columnDefs=%s cfgLoaded=%s pickerVisible=%s`,
+      loaded, Boolean(liveApi), activeId, rowIdField, Boolean(columnDefs), Boolean(activeCfg), pickerVisible,
+    );
+  }
 
   useEffect(() => {
     if (!liveApi || !activeId || !activeCfg) {
-      // eslint-disable-next-line no-console
-      console.log(`[v2/grid]   subscribe effect skipped: liveApi=%s activeId=%s activeCfg=%s`,
-        Boolean(liveApi), activeId, Boolean(activeCfg));
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.log(`[v2/grid]   subscribe effect skipped: liveApi=%s activeId=%s activeCfg=%s`,
+          Boolean(liveApi), activeId, Boolean(activeCfg));
+      }
       return;
     }
 
     const extra = refreshExtraRef.current;
     refreshExtraRef.current = undefined;
     const t0 = performance.now();
-    // eslint-disable-next-line no-console
-    console.log(
-      `[v2/grid] %csubscribe%c provider=%s%s rowIdField=%s gridReady=%s`,
-      'color:#3b82f6;font-weight:bold', '',
-      activeId,
-      extra ? ` extra=${JSON.stringify(extra)}` : '',
-      rowIdField,
-      Boolean(liveApi),
-    );
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[v2/grid] %csubscribe%c provider=%s%s rowIdField=%s gridReady=%s`,
+        'color:#3b82f6;font-weight:bold', '',
+        activeId,
+        extra ? ` extra=${JSON.stringify(extra)}` : '',
+        rowIdField,
+        Boolean(liveApi),
+      );
+    }
     const handle = dpClient.subscribe<TData>(activeId, activeCfg, extra ? { extra } : {});
     let cancelled = false;
 
@@ -349,31 +364,39 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     const pendingAddIds = new Set<string>();
 
     handle.onStatus((s, err) => {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[v2/grid] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms)`,
-        'color:#a855f7', '', s,
-      );
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[v2/grid] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#a855f7', '', s,
+        );
+      }
       if (err && !cancelled) (onError ?? defaultOnError)(new Error(err));
     });
 
     handle.snapshot
       .then((rows) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[v2/grid] %csnapshot ✓%c %d rows received (+${(performance.now() - t0).toFixed(0)}ms)`,
-          'color:#10b981;font-weight:bold', '',
-          rows.length,
-        );
-        if (cancelled) {
+        if (DEBUG) {
           // eslint-disable-next-line no-console
-          console.log('[v2/grid]   …but the subscription was cancelled before snapshot landed; skipping setGridOption');
+          console.log(
+            `[v2/grid] %csnapshot ✓%c %d rows received (+${(performance.now() - t0).toFixed(0)}ms)`,
+            'color:#10b981;font-weight:bold', '',
+            rows.length,
+          );
+        }
+        if (cancelled) {
+          if (DEBUG) {
+            // eslint-disable-next-line no-console
+            console.log('[v2/grid]   …but the subscription was cancelled before snapshot landed; skipping setGridOption');
+          }
           return;
         }
         // Phase 1 done: apply the snapshot in a single setRowData.
         liveApi.setGridOption('rowData', rows.slice());
-        // eslint-disable-next-line no-console
-        console.log(`[v2/grid]   setGridOption('rowData', %d rows) applied`, rows.length);
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(`[v2/grid]   setGridOption('rowData', %d rows) applied`, rows.length);
+        }
         // Phase 2: live updates. Add vs update is decided per-row.
         // A row is treated as `update` if EITHER:
         //   - `getRowNode(id)` finds it (already committed to grid), OR
@@ -385,8 +408,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           if (cancelled || updateRows.length === 0) return;
           updateBatchCount += 1;
           if (!rowIdField) {
-            // eslint-disable-next-line no-console
-            console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
+            if (DEBUG) {
+              // eslint-disable-next-line no-console
+              console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
+            }
             liveApi.applyTransactionAsync({ update: updateRows.slice() });
             return;
           }
@@ -405,8 +430,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           }
           // Only log every 50th batch to avoid flooding the console
           // under a high-rate feed. The first few are useful for
-          // confirming the grid is healthy after the snapshot.
-          if (updateBatchCount <= 5 || updateBatchCount % 50 === 0) {
+          // confirming the grid is healthy after the snapshot. Gated
+          // by `DEBUG` so the throttled `%` calculation is also skipped
+          // in production.
+          if (DEBUG && (updateBatchCount <= 5 || updateBatchCount % 50 === 0)) {
             // eslint-disable-next-line no-console
             console.log(
               `[v2/grid] %cupdate#%d%c %d rows → %d add, %d update (pendingAdds=%d)`,
@@ -424,8 +451,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             }
           });
         });
-        // eslint-disable-next-line no-console
-        console.log(`[v2/grid]   onUpdate handler registered`);
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(`[v2/grid]   onUpdate handler registered`);
+        }
       })
       .catch((err: unknown) => {
         // eslint-disable-next-line no-console
@@ -440,9 +469,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
     return () => {
       cancelled = true;
-      // eslint-disable-next-line no-console
-      console.log(`[v2/grid] %cunsubscribe%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
-        'color:#6b7280', '', activeId);
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.log(`[v2/grid] %cunsubscribe%c provider=%s (effect cleanup, +${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#6b7280', '', activeId);
+      }
       handle.unsubscribe();
     };
     // `refreshTick` is a deliberate trigger: bumping it tears down
