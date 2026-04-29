@@ -45,15 +45,14 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
   priority: 15,
 
   getInitialState: () => ({
-    // Demo seed — one virtual column so the feature is visible on first
-    // load. Users can delete it via the settings panel.
-    virtualColumns: [{
-      colId: 'grossPnl',
-      headerName: 'Gross P&L',
-      expression: '[price] * [quantity] / 1000',
-      position: 20,
-      initialWidth: 120,
-    }],
+    // No seed by default — production grids ship with zero virtual
+    // columns; the user adds them through the Calculated Columns
+    // panel. (Earlier the module shipped a `grossPnl` demo seed; that
+    // surfaced as an unwanted "Gross P&L" column in every grid that
+    // didn't explicitly override it. Apps that want a fixture demo
+    // column should seed it through their showcase profile, not via
+    // this module's initial state.)
+    virtualColumns: [],
   }),
 
   /**

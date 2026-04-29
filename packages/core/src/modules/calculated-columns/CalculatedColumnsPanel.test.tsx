@@ -25,7 +25,22 @@ import { calculatedColumnsModule } from './index';
 import type { CalculatedColumnsState } from './state';
 
 function makePlatform() {
-  return new GridPlatform({ gridId: 'test-grid', modules: [calculatedColumnsModule] });
+  const platform = new GridPlatform({ gridId: 'test-grid', modules: [calculatedColumnsModule] });
+  // The module no longer ships a `grossPnl` seed by default — production
+  // grids start with zero virtual columns. The tests below were written
+  // against the old seed so we re-introduce it as a TEST FIXTURE here.
+  // Each test still exercises the same UI semantics; only the source of
+  // the seed moved from prod code to test setup.
+  platform.store.setModuleState<CalculatedColumnsState>('calculated-columns', () => ({
+    virtualColumns: [{
+      colId: 'grossPnl',
+      headerName: 'Gross P&L',
+      expression: '[price] * [quantity] / 1000',
+      position: 20,
+      initialWidth: 120,
+    }],
+  }));
+  return platform;
 }
 
 function MasterDetail({ platform }: { platform: GridPlatform }) {

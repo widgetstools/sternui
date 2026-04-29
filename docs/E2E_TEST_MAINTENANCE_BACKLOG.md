@@ -101,6 +101,47 @@ to first navigate the showcase to the page that mounts a grid.
 
 **Effort:** ~30 min once you know the demo's structure.
 
+### 3b. `v2-calculated-columns.spec.ts` — entire spec needs reseed pattern
+
+**Status:** added to this backlog 2026-04-29 alongside the
+`calculatedColumnsModule.getInitialState` change that removed the
+default `grossPnl` virtual column from production code.
+
+**Symptom (after the seed-removal change):** every test in
+`e2e/v2-calculated-columns.spec.ts` that references
+`SEED_COL_ID = 'grossPnl'` will fail — the production module no
+longer seeds it, so a fresh demo profile has zero virtual columns
+where the spec expects one.
+
+**Root cause:** the spec was written assuming the module's
+`getInitialState` seeded a demo `grossPnl` virtual column. That seed
+has been moved to the unit test as a fixture (see
+`CalculatedColumnsPanel.test.tsx::makePlatform`). The e2e spec needs
+the same treatment — seed grossPnl as a fixture in `beforeEach`
+rather than relying on the module default.
+
+**Fix shape:** rewrite the spec's `beforeEach` to programmatically
+add a virtual column matching the old seed shape (use the existing
+`addVirtualColumn` helper, then rename the resulting colId via the
+header input + save). Or: add a test-only query param like
+`?seedTestVirtualColumn=grossPnl` that the demo respects, simpler if
+the spec is dense.
+
+Affected tests:
+- `fresh profile seeds the demo grossPnl virtual column in the panel`
+  — DELETE (the behavior it tests is gone by design)
+- `seed column carries its expression in the editor` — DELETE (no seed)
+- `adding a virtual column creates a new item alongside the seed`,
+  `renaming the seed column persists after save + re-select`,
+  `value-formatter picker mounts in the editor`,
+  `deleting the seed column removes it from the panel`,
+  `rename persists across reload` — REWRITE to seed first
+- `changing a new column colId persists in committed state`,
+  `deleting a user-added column removes it from the panel`,
+  `SAVE pill gated on dirty state` — likely unchanged
+
+**Effort:** ~2-3 h (helper + per-test reseed setup).
+
 ### 4. `v2-column-templates.spec.ts` — 9 tests (PRE-EXISTING)
 
 Already documented in `docs/E2E_STATUS.md`. Tests reference
