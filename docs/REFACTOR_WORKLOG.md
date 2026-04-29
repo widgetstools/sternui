@@ -198,6 +198,22 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase D-4 — HostWrapper + HostContext + useHost in @marketsui/host-wrapper-react (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 62/62 successful (was 60 before D-4 — +2 from new package tasks). 5 new tests.
+
+This is Seam #2 from `docs/ARCHITECTURE.md`. Adds the React host wrapper *additively* — no existing component uses it yet; existing `WidgetHost` / `WidgetHostContext` in `@marketsui/widget-sdk` continues to work for current consumers.
+
+**`@marketsui/host-wrapper-react`**
+- `HostContext` React context exposing `HostContextValue` — extends `IdentitySnapshot` and adds `runtime`, `configManager`, `theme`, `configUrl`, plus runtime-event delegates (`onThemeChanged`, `onWindowShown`, `onWindowClosing`, `onCustomDataChanged`).
+- `useHost()` hook — throws a clear error when used outside a wrapper (intentional — silent fallback would mask integration bugs).
+- `<HostWrapper runtime configManager>` — accepts instances OR Promises (so `await OpenFinRuntime.create()` plays naturally). Renders the `loading` slot until both resolve, then mounts children with the resolved context.
+- Theme tracking: pulls initial value from `runtime.getTheme()` and re-renders consumers via `runtime.onThemeChanged`. The memoized context value's identity changes only on theme flips.
+- 5 jsdom tests (loading state, identity exposure, theme reactivity, useHost-outside-wrapper error, runtime delegate flow).
+
+**Phase D-4b (Angular HostService) — DEFERRED** to a follow-up commit. ng-packagr setup adds noise to this commit; the React wrapper covers Path B's primary surface for now and Angular consumers can adopt later.
+
+**Phase D-5 (LocalStorage / Memory ConfigManagers) — DEFERRED to Path C.** Reason: implementing two full new backends of the existing `ConfigClient` interface (~30 methods across 5 sub-domains: AppConfig, AppRegistry, UserProfiles, Roles, Permissions) is ~400 LOC for an interface Path C plans to retire and replace with a smaller `ConfigManager`. Better to do the redesign + 4 backends together in Path C than ship throwaway backends now. Existing `LocalConfigClient` (Dexie) + `RestConfigClient` continue to satisfy all current apps.
+
 ### Phase D-1/D-2/D-3 — Runtime port + browser/openfin implementations (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 60/60 tasks successful (was 52 before D, +8 from new pkg tasks). 40 new tests across the 3 packages.
 
