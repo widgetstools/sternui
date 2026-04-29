@@ -8,6 +8,9 @@ import { createRoot } from 'react-dom/client';
 import '@marketsui/design-system/themes/fi-dark.css';
 import '@marketsui/design-system/themes/fi-light.css';
 import './globals.css';
+import { HostWrapper } from '@marketsui/host-wrapper-react';
+import { BrowserRuntime } from '@marketsui/runtime-browser';
+import { createConfigClient } from '@marketsui/config-service';
 import { App } from './App';
 import { ConfigBrowserPopout } from './ConfigBrowserPopout';
 
@@ -26,8 +29,39 @@ import { ConfigBrowserPopout } from './ConfigBrowserPopout';
 const params = new URLSearchParams(window.location.search);
 const isConfigBrowserPopup = params.get('configBrowser') === '1';
 
+// ─── Path C Phase X-3 (ConfigService demo) — root-level HostWrapper ──
+//
+// HostWrapper is the contract a 3rd-party component reads when dropped
+// into a workspace view: identity (instanceId / appId / userId / etc.)
+// flows from `customData` (OpenFin) or URL/mount-prop fallbacks
+// (browser), and runtime events (theme change, window-shown,
+// window-closing, customData updates) propagate via subscribe hooks.
+//
+// Both surfaces below (the App and the ConfigBrowser popup) get the
+// wrapper so any future leaf consumer reads identical context. This is
+// the third app to consume the seam (after demo-react and
+// markets-ui-react-reference). Plain browser flavor — BrowserRuntime
+// is the only choice; OpenFin lives elsewhere.
+//
+// At this stage no leaf component reads `useHost()` yet — the seam is
+// passive. Future commits can migrate App.tsx's identity threading
+// onto it: today App.tsx maintains `appId`/`userId` in React state and
+// passes them as MarketsGrid props; once leaves consume `useHost()`,
+// that plumbing collapses.
+const runtime = new BrowserRuntime({
+  identity: {
+    appId: 'demo-configservice-react',
+    userId: 'dev-user',
+    instanceId: 'demo-blotter-v2',
+    componentType: 'MarketsGrid',
+  },
+});
+const configManager = createConfigClient({});
+
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {isConfigBrowserPopup ? <ConfigBrowserPopout /> : <App />}
+    <HostWrapper runtime={runtime} configManager={configManager}>
+      {isConfigBrowserPopup ? <ConfigBrowserPopout /> : <App />}
+    </HostWrapper>
   </React.StrictMode>,
 );
