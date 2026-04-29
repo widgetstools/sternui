@@ -9,9 +9,13 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@marketsui/config-service": "*",
     "@marketsui/core": "*",
     "@marketsui/design-system": "*",
+    "@marketsui/host-wrapper-react": "*",
     "@marketsui/markets-grid": "*",
+    "@marketsui/runtime-browser": "*",
+    "@marketsui/runtime-port": "*",
     "@marketsui/tokens-primeng": "*",
     "react": "~19.2.5",
     "react-dom": "~19.2.5",
