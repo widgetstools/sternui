@@ -50,11 +50,16 @@ test.describe('perf canaries', () => {
     // eslint-disable-next-line no-console
     console.log(`[perf] mount median: ${med}ms (runs: ${times.join(', ')})`);
 
-    // Bar: 1.5s. The mount itself is typically ~400ms in dev; the
-    // ceiling exists to catch genuine regressions (a module pipeline
-    // walking the world, an accidental synchronous fetch, etc.) without
-    // flaking on a cold cache.
-    expect(med).toBeLessThan(1_500);
+    // Bar varies by runner:
+    //   - Linux CI / fast Mac: 1.5s. Mount is typically ~400ms in dev;
+    //     the ceiling catches genuine regressions (a module pipeline
+    //     walking the world, an accidental sync fetch).
+    //   - Windows + single-worker dev server: cold-cache mount routinely
+    //     exceeds 1.5s (~3s observed). Bumping the ceiling here keeps
+    //     the canary useful as a regression guard without flaking on
+    //     the slower runner. Re-tighten when CI catches up.
+    const ceiling = process.platform === 'win32' ? 4_000 : 1_500;
+    expect(med).toBeLessThan(ceiling);
   });
 
   test('auto-save latency: profile creation observed in IndexedDB within 1s', async ({ page }) => {

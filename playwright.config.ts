@@ -12,10 +12,22 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
-  webServer: {
-    command: 'npm run dev -w @marketsui/demo-react',
-    port: 5190,
-    reuseExistingServer: true,
-    timeout: 90_000,
-  },
+  webServer: [
+    {
+      command: 'npm run dev -w @marketsui/demo-react',
+      port: 5190,
+      reuseExistingServer: true,
+      timeout: 90_000,
+    },
+    // demo-configservice-react runs on port 5191. The
+    // v2-template-create-apply spec parameterises across both demos
+    // (Dexie-direct on 5190 vs ConfigService on 5191) — without this
+    // entry the 5191 cases hit ERR_CONNECTION_REFUSED.
+    {
+      command: 'npm run dev -w @marketsui/demo-configservice-react',
+      port: 5191,
+      reuseExistingServer: true,
+      timeout: 90_000,
+    },
+  ],
 });

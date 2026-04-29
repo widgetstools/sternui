@@ -93,10 +93,19 @@ test.describe('v2 popout — design-system parity', () => {
       };
     });
 
-    // Valid hex colors, not HSL triplets.
+    // `--gc-surface` is the cockpit-design-system token meant to be
+    // consumed as a hex color. fi-dark.css sets `--bn-bg1: #121820`
+    // and cockpit.ts sets `--gc-surface: var(--bn-bg1, #161a1e)`, so
+    // the resolved value must be hex.
     expect(bodyTokens.gcSurface).toMatch(/^#[0-9a-fA-F]{3,8}$/);
-    expect(bodyTokens.card).toMatch(/^#[0-9a-fA-F]{3,8}$/);
-    expect(bodyTokens.popover).toMatch(/^#[0-9a-fA-F]{3,8}$/);
+    // `--card` and `--popover` are shadcn HSL-triplet tokens by design
+    // (consumed via `hsl(var(--card))`), so they're NOT hex — assert
+    // the HSL-triplet shape instead. The popover-transparency
+    // regression this spec guards against is captured by the popover
+    // bg-color tests below, which look at the FINAL computed
+    // `backgroundColor` (the resolved color, not the raw token).
+    expect(bodyTokens.card).toMatch(/^\d+\s+\d+%\s+\d+%$/);
+    expect(bodyTokens.popover).toMatch(/^\d+\s+\d+%\s+\d+%$/);
     // Body bg renders a real color.
     expect(bodyTokens.bgColor).not.toBe('rgba(0, 0, 0, 0)');
     // data-theme is on html, NOT on body (that's the fix).
@@ -112,8 +121,9 @@ test.describe('v2 popout — design-system parity', () => {
     expect(result.computedBg).not.toBe('transparent');
     // Should be a valid opaque rgb() — no leaky alpha.
     expect(result.computedBg).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
-    // Dark-theme surface is expected to be #161a1e = rgb(22, 26, 30).
-    expect(result.computedBg).toBe('rgb(22, 26, 30)');
+    // Dark-theme surface resolves to fi-dark.css's `--bn-bg1: #121820`
+    // = rgb(18, 24, 32) via `--gc-surface: var(--bn-bg1, …)`.
+    expect(result.computedBg).toBe('rgb(18, 24, 32)');
   });
 
   test('popover bg flips correctly to light theme (no !important needed)', async ({ page, context }) => {
