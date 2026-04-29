@@ -123,5 +123,52 @@ describe('OpenFinRuntime', () => {
       expect(removeCalls.sort()).toEqual(['destroyed', 'shown']);
       rt = null; // already disposed
     });
+
+    it('platform "workspace-saved" event fans out to onWorkspaceSave listeners', async () => {
+      let workspaceSavedHandler: (() => void) | undefined;
+      const fakeView = {
+        identity: { name: 'v' },
+        getOptions: async () => ({}),
+        on: () => {},
+        removeListener: () => {},
+      };
+      const fakePlatform = {
+        on: (event: string, fn: () => void) => {
+          if (event === 'workspace-saved') workspaceSavedHandler = fn;
+        },
+        removeListener: () => {},
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).fin = {
+        View: { getCurrentSync: () => fakeView },
+        Platform: { getCurrentSync: () => fakePlatform },
+      };
+      rt = await OpenFinRuntime.create();
+      let saves = 0;
+      const unsub = rt.onWorkspaceSave(() => { saves++; });
+      workspaceSavedHandler?.();
+      workspaceSavedHandler?.();
+      unsub();
+      workspaceSavedHandler?.();
+      expect(saves).toBe(2);
+    });
+
+    it('onWorkspaceSave is a no-op when fin.Platform is missing (older runtimes)', async () => {
+      const fakeView = {
+        identity: { name: 'v' },
+        getOptions: async () => ({}),
+        on: () => {},
+        removeListener: () => {},
+      };
+      // No fin.Platform — bridge should silently skip without throwing.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).fin = { View: { getCurrentSync: () => fakeView } };
+      rt = await OpenFinRuntime.create();
+      // Subscribing should still work (just never fires) and the
+      // returned unsubscribe should be callable without error.
+      const unsub = rt.onWorkspaceSave(() => {});
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
   });
 });

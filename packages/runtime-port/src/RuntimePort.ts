@@ -81,6 +81,24 @@ export interface RuntimePort {
   onCustomDataChanged(fn: (customData: Readonly<Record<string, unknown>>) => void): Unsubscribe;
 
   /**
+   * "The OpenFin platform's workspace just saved." Hosted components
+   * use this as a flush-to-disk hook: persist any in-memory state
+   * the user expects to survive a workspace reload.
+   *
+   * - OpenFin: bridges to the platform's `'workspace-saved'` event
+   *   (fired by `WorkspacePlatform` when `Storage.saveWorkspace()`
+   *   resolves, or when an auto-save triggers).
+   * - Browser: emits no events (returns a no-op unsubscribe). Plain
+   *   browsers don't have a workspace concept; per-component
+   *   persistence happens through `configManager` directly.
+   *
+   * Handlers may be async; the runtime fires them in parallel and
+   * does NOT await individual handlers (workspace-saved is a
+   * notification, not a coordination primitive).
+   */
+  onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe;
+
+  /**
    * Tear down all listeners and any cached state. After `dispose()`
    * the port is unusable; subsequent calls should be no-ops or throw.
    */

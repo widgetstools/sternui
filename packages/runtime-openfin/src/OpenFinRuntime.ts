@@ -76,6 +76,7 @@ export class OpenFinRuntime implements RuntimePort {
   private readonly shownListeners = new Set<() => void>();
   private readonly closingListeners = new Set<() => void>();
   private readonly customDataListeners = new Set<(cd: Readonly<Record<string, unknown>>) => void>();
+  private readonly workspaceSaveListeners = new Set<() => void | Promise<void>>();
   private readonly disposers: Array<() => void> = [];
   private currentTheme: Theme;
   private lastCustomData: Readonly<Record<string, unknown>>;
@@ -92,6 +93,7 @@ export class OpenFinRuntime implements RuntimePort {
     }
     if (isOpenFin()) {
       this.attachViewWatchers();
+      this.attachPlatformWorkspaceWatcher();
     }
   }
 
@@ -156,6 +158,13 @@ export class OpenFinRuntime implements RuntimePort {
     };
   }
 
+  onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe {
+    this.workspaceSaveListeners.add(fn);
+    return () => {
+      this.workspaceSaveListeners.delete(fn);
+    };
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -169,6 +178,7 @@ export class OpenFinRuntime implements RuntimePort {
     this.shownListeners.clear();
     this.closingListeners.clear();
     this.customDataListeners.clear();
+    this.workspaceSaveListeners.clear();
   }
 
   // ─── internals ───────────────────────────────────────────────────────
@@ -253,6 +263,58 @@ export class OpenFinRuntime implements RuntimePort {
       })();
     }, intervalMs);
     this.disposers.push(() => clearInterval(timer));
+  }
+
+  /**
+   * Bridge OpenFin's `'workspace-saved'` platform event to the local
+   * onWorkspaceSave subscribers. The platform handle is reachable via
+   * `fin.Platform.getCurrentSync()` — `.on('workspace-saved', fn)`
+   * registers the listener.
+   *
+   * Best-effort: if the platform handle isn't reachable (e.g., this
+   * view is loaded before the platform finished init, or the runtime
+   * is constructed in a non-platform context), the bridge silently
+   * skips. Once the platform exists in subsequent OpenFin runtime
+   * versions the listener will start firing on its own.
+   */
+  private attachPlatformWorkspaceWatcher(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finGlobal = (globalThis as any).fin;
+    if (!finGlobal?.Platform?.getCurrentSync) return;
+
+    let platform: { on?: (event: string, fn: () => void) => void; removeListener?: (event: string, fn: () => void) => void } | null = null;
+    try {
+      platform = finGlobal.Platform.getCurrentSync();
+    } catch {
+      return;
+    }
+    if (!platform || typeof platform.on !== 'function') return;
+
+    const handler = () => {
+      for (const fn of this.workspaceSaveListeners) {
+        try {
+          // Fire and don't await — workspace-saved is a notification.
+          // Handlers may be async; the runtime doesn't coordinate on
+          // their completion.
+          void fn();
+        } catch {
+          // Swallow — one buggy listener can't break the others.
+        }
+      }
+    };
+
+    try {
+      platform.on('workspace-saved', handler);
+      if (typeof platform.removeListener === 'function') {
+        this.disposers.push(() => {
+          try { platform!.removeListener!('workspace-saved', handler); } catch { /* swallow */ }
+        });
+      }
+    } catch {
+      // Older fin versions may not have `workspace-saved` — degrade
+      // silently. Apps can still emit on a custom IAB topic and bridge
+      // it themselves until they upgrade.
+    }
   }
 }
 
