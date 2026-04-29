@@ -198,6 +198,40 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase D-1/D-2/D-3 — Runtime port + browser/openfin implementations (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 60/60 tasks successful (was 52 before D, +8 from new pkg tasks). 40 new tests across the 3 packages.
+
+This is the first concrete piece of Path B — the new `RuntimePort` seam from `docs/ARCHITECTURE.md` is now scaffolded **additively** alongside the existing `openfin-platform*` shells. Nothing in the existing codebase imports the new packages yet; that integration follows.
+
+**Phase D-1 — `@marketsui/runtime-port` (foundation layer)**
+- `packages/runtime-port/` — pure TS, no runtime imports.
+- `RuntimePort` interface: `name`, `resolveIdentity`, `openSurface`, `getTheme`, `onThemeChanged`, `onWindowShown`, `onWindowClosing`, `onCustomDataChanged`, `dispose`.
+- Types: `IdentitySnapshot`, `SurfaceKind`, `SurfaceSpec`, `SurfaceHandle`, `Theme`, `Unsubscribe`.
+- 6 smoke tests using a `FakeRuntime` in-test class — confirms the interface is implementable and lifecycle semantics round-trip.
+
+**Phase D-2 — `@marketsui/runtime-browser`**
+- `packages/runtime-browser/` — implements `RuntimePort` against DOM APIs.
+- Identity: URL search params + mount-prop overrides + `crypto.randomUUID()` fallback.
+- Theme: `[data-theme]` attribute on `<html>` first, `prefers-color-scheme` second; live updates via MutationObserver + matchMedia listener.
+- Lifecycle: `visibilitychange` → `onWindowShown` (with initial-fire on mount); `beforeunload` → `onWindowClosing`.
+- Surfaces: `popout` via `window.open()` (with `?data=...` base64 customData); `modal` aliased to `popout`; `inpage` delegates to a registered handler.
+- 19 tests under jsdom: identity (7) + BrowserRuntime (12).
+
+**Phase D-3 — `@marketsui/runtime-openfin`**
+- `packages/runtime-openfin/` — implements `RuntimePort` against `fin.*`.
+- Async factory `OpenFinRuntime.create()` because OpenFin view options are read via promise.
+- Identity priority: view `customData` > URL params > overrides > UUID. View `identity.name` is the canonical `instanceId`.
+- Theme: `[data-theme]` (apps already wire this during workspace init); MutationObserver tracks updates.
+- Lifecycle: bridges view `'shown'` and `'destroyed'` events.
+- `customData` polling (500ms interval) — OpenFin doesn't broadcast options-updated events; polling stops when no listeners are attached or when disposed.
+- `openSurface` for popout/modal currently throws an explanatory error — apps still using `@marketsui/openfin-platform-stern`'s `PlatformAdapter.openWidget` are unaffected. Real `createView` wiring follows in a later phase.
+- Allows `allowMissingFin: true` for tests / non-fin environments.
+- 15 tests under jsdom: identity (7) + OpenFinRuntime (8).
+
+**Architecture compliance**
+- New packages match the layer model: `runtime-port` is foundation (no runtime imports); `runtime-browser` and `runtime-openfin` only depend on `runtime-port` (+ runtime-browser for openfin's identity helper) + their respective platforms (`@openfin/core` is an OPTIONAL peer for `runtime-openfin`).
+- ARCHITECTURE.md still lists `tokens-primeng` and `icons-svg` as foundations — those stay as-is. The new packages slot in alongside.
+
 ### Phase 3C — openfinDock moved into the stern shell (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
 

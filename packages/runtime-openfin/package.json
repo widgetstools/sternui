@@ -1,0 +1,43 @@
+{
+  "name": "@marketsui/runtime-openfin",
+  "version": "0.1.0",
+  "description": "OpenFin implementation of @marketsui/runtime-port. Reads identity from view customData, bridges fin.* lifecycle events.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@marketsui/runtime-port": "0.1.0",
+    "@marketsui/runtime-browser": "0.1.0"
+  },
+  "peerDependencies": {
+    "@openfin/core": "43.101.4"
+  },
+  "peerDependenciesMeta": {
+    "@openfin/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@openfin/core": "43.101.4",
+    "rimraf": "^5.0.5",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "license": "MIT"
+}
