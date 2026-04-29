@@ -198,6 +198,12 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase 2E-F — hot-path memoization (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
+- **Phase 2E** — `packages/widgets-react/src/blotter/BlotterGrid.tsx` extracted inline `rowSelection` and `sideBar` literals into `useMemo`s. AG-Grid no longer sees fresh option objects on every parent re-render.
+- **Phase 2F** — `packages/widgets-react/src/v2/markets-grid-container/useChordHotkey.ts` internalized a `handlerRef` so the keydown effect no longer takes the user-provided `handler` as a dep. Inline arrow callers (e.g., `MarketsGridContainer.tsx:216`) no longer cause the document keydown listener to be removed and re-added on every render. Listener firing reads the latest handler via the ref.
+- Behavior preserved: same `rowSelection`/`sideBar` config; same chord matching semantics.
+
 ### Phase 2A-D — leak fixes + hot-path log gating (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 52/52 tasks successful (242 core tests + 56 markets-grid tests passed).
 - **Phase 2A** — `packages/widget-sdk/src/hooks/useWidget.ts` `onSave`/`onDestroy` now return an unsubscribe `() => void` (was `void`). Type signatures in `packages/widget-sdk/src/types/widget.ts` updated to match.
