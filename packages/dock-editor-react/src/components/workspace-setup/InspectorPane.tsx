@@ -420,7 +420,7 @@ function ComponentForm({
               className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
               style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
             >
-              <PlayCircle className="w-3 h-3" /> Test Launch
+              <PlayCircle className="w-3 h-3" /> Configure Component
             </button>
             {!isInDock && (
               <button

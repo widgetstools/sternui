@@ -154,7 +154,7 @@ export function ComponentsPane({
               </div>
               <div className="flex flex-col items-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <RowAction
-                  title="Test launch"
+                  title="Configure component"
                   onClick={(e) => { e.stopPropagation(); void onTest(entry); }}
                 >
                   <PlayCircle className="w-3 h-3" />
