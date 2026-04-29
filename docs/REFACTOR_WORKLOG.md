@@ -198,6 +198,19 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase 2G — chart subpath export; Phase 2H skipped (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
+
+**Phase 2G — recharts off the @marketsui/ui main barrel:**
+- `packages/ui/src/index.ts` — removed `export * from './components/chart.js'` from the data-display section. Comment block explains the rationale.
+- `packages/ui/package.json` — added `./chart` subpath export pointing at `./dist/components/chart.js`. Future consumers import as `import { ChartContainer } from '@marketsui/ui/chart'`.
+- Verified zero internal consumers: no `import {Chart…} from '@marketsui/ui'` anywhere in `packages/` or `apps/`. fi-trading-reference uses `recharts` directly. So this change is non-breaking.
+- Outcome: any future consumer of `@marketsui/ui` no longer pulls recharts through the main barrel.
+
+**Phase 2H — SKIPPED:**
+- The audit recommended moving Monaco's `ExpressionEditor` to a subpath, but inspection of `packages/core/src/ui/ExpressionEditor/ExpressionEditor.tsx:15` shows Monaco is already code-split via `const LazyInner = lazy(() => import('./ExpressionEditorInner'))`. The wrapper exported from `core/index.ts:148` doesn't load Monaco eagerly — only the lightweight Suspense + FallbackInput shell. The audit finding was stale; no change needed.
+- Worklog flag: this is the first audit item we've found to be incorrect on inspection. Be similarly skeptical when reviewing the remaining items.
+
 ### Phase 2E-F — hot-path memoization (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
 - **Phase 2E** — `packages/widgets-react/src/blotter/BlotterGrid.tsx` extracted inline `rowSelection` and `sideBar` literals into `useMemo`s. AG-Grid no longer sees fresh option objects on every parent re-render.
