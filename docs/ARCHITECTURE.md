@@ -1,188 +1,217 @@
-# MarketsUI platform architecture
+# Architecture
 
-This document describes the layer model, the 18-package monorepo layout, and
-the import-boundary rules. For the full narrative design authority (component
-registry, dock protocol, config lifecycle, identity resolver), read
-[MARKETSUI_DESIGN.md](./MARKETSUI_DESIGN.md). This file is the quick-
-reference map: "what lives where, and what is allowed to import what."
+## Principle
 
-## Layer model
+**Every component is an app.** It joins a larger app by sharing
+`appId`. It must run identically across:
+
+|     | React | Angular |
+|---|---|---|
+| OpenFin runtime | ✓ | ✓ |
+| Browser runtime (standalone) | ✓ | ✓ |
+
+across persistence backends:
+
+- REST `ConfigManager` (config-service-server)
+- IndexedDB `ConfigManager` (single-machine)
+- localStorage `ConfigManager` (zero-backend / standalone)
+- Memory `ConfigManager` (tests)
+
+The component code is identical across every combination. Adapters
+inject the differences.
+
+## Layered model
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  APPS (apps/*)                                                      │
-│                                                                     │
-│  demo-react · demo-angular · config-service-server                  │
-│  fi-trading-reference · markets-ui-{react,angular}-reference        │
-│  stern-reference-{react,angular}                                    │
-└──────────────────────────────▲──────────────────────────────────────┘
-                               │ imports
-┌──────────────────────────────┴──────────────────────────────────────┐
-│  PLATFORM SHELLS                                                    │
-│                                                                     │
-│  openfin-platform            (markets-ui flavor)                    │
-│  openfin-platform-stern      (stern-2 flavor)                       │
-└──────────────────────────────▲──────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴──────────────────────────────────────┐
-│  FRAMEWORK ADAPTERS                                                 │
-│                                                                     │
-│  angular           — Angular adapters + DI bridge                   │
-│  widgets-react     — React blotter / chart / heatmap widgets        │
-│  dock-editor-{react,angular}                                        │
-│  registry-editor-{react,angular}                                    │
-└──────────────────────────────▲──────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴──────────────────────────────────────┐
-│  APPLICATION DOMAIN                                                 │
-│                                                                     │
-│  markets-grid      — MarketsGrid host + toolbars + SettingsSheet    │
-│  config-service    — Dexie + REST dual-mode config storage          │
-│  component-host    — Identity resolver, debounced saver             │
-│  widget-sdk        — Widget registry, launch spec, WidgetContext    │
-└──────────────────────────────▲──────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴──────────────────────────────────────┐
-│  CORE                                                               │
-│                                                                     │
-│  core              — module system, ProfileManager,                 │
-│                      ExpressionEngine, shadcn primitives, Poppable  │
-│  ui                — low-level shadcn-ui components                 │
-└──────────────────────────────▲──────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴──────────────────────────────────────┐
-│  FOUNDATION                                                         │
-│                                                                     │
-│  shared-types      — pure TS interfaces (no runtime imports)        │
-│  design-system     — Tailwind config, tokens, terminal palette      │
-│  tokens-primeng    — PrimeNG theme bridge                           │
-│  icons-svg         — shared icon bundle                             │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Layer 5  Runtime adapter:  OpenFin shell  |  Browser shell  │  swappable
+├──────────────────────────────────────────────────────────────┤
+│  Layer 4  Framework adapter:  React        |  Angular        │  swappable
+├──────────────────────────────────────────────────────────────┤
+│  Layer 3  Component domain:                                  │
+│            MarketsGrid, DataProvider, Profile,               │
+│            ConfigBrowser, DataProviderEditor, DockEditor,    │  agnostic
+│            RegistryEditor, WorkspaceSetup                    │
+├──────────────────────────────────────────────────────────────┤
+│  Layer 2  Platform helpers:                                  │
+│            ConfigManager (4 backends), HostWrapper identity, │
+│            fieldInference, templateResolver, AppDataStore,   │  agnostic
+│            RuntimePort                                       │
+├──────────────────────────────────────────────────────────────┤
+│  Layer 1  Foundations:                                       │
+│            design-system (tokens), ui (shadcn primitives),   │  agnostic
+│            icons, shared-types, widget-sdk                   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Import rules
+Layers 1–3 are runtime-agnostic and (with framework-specific shells
+in Layer 4) framework-agnostic.
 
-Every package declares `@marketsui/*` dependencies as workspace packages
-(via npm workspaces' internal linking — no explicit `workspace:` protocol
-needed since npm resolves by the workspace name + `"*"` range).
+## The two seams
 
-### Allowed
+Two thin adapter layers concentrate every cross-cutting concern:
 
-- Up the stack: any package may import from packages *below* it in the
-  diagram.
-- Sideways within a layer: OK (e.g., `markets-grid` → `config-service`).
-- `shared-types` is imported by everyone and imports nothing (other than
-  `.d.ts` stubs it ships).
+### Seam #1 — `RuntimePort`
 
-### Forbidden
+```typescript
+interface RuntimePort {
+  resolveIdentity(): IdentitySnapshot;        // from customData OR URL OR mount props
+  openSurface(spec: SurfaceSpec): Promise<SurfaceHandle>;  // popout | modal | inpage
+  onThemeChanged(fn): Unsubscribe;
+  onWindowShown(fn): Unsubscribe;
+  onWindowClosing(fn): Unsubscribe;
+  onCustomDataChanged(fn): Unsubscribe;
+}
 
-- **Foundation must not import from Core or above.** `shared-types`,
-  `design-system`, `tokens-primeng`, `icons-svg` are leaves. Breaking this
-  will introduce cycles the moment core pulls in shared-types.
-- **Core must not import from Framework Adapters.** `core` is
-  React-agnostic in intent (it currently targets React 19, but Angular
-  consumers go through `@marketsui/angular` which wraps core's imperative
-  API, never the other way around).
-- **`angular` must not import from `widgets-react`.** Framework layers
-  are siblings, not consumers of each other.
-- **Platform Shells are the only packages allowed to import from**
-  `@openfin/core`. Everything below the shells treats OpenFin as a
-  runtime side-effect injected via DI / context.
-- **Apps import from packages, never the reverse.** No package may import
-  from `apps/*`.
+class OpenFinRuntime implements RuntimePort { /* fin.* */ }
+class BrowserRuntime implements RuntimePort { /* URL params, prefers-color-scheme, window.open / in-page modal */ }
+```
 
-### Circular-dependency red flag
+Component code never imports `@openfin/core` directly.
 
-`openfin-platform-stern` used to import `dataProviderConfigService` from
-`widgets-react`, creating a shell↔framework cycle Turborepo (correctly)
-rejected. The current workaround is a commented-out import in
-`openfin-platform-stern/src/bootstrap.ts` with a TODO to move
-`dataProviderConfigService` down to `component-host` or `shared-types` so
-shells can depend on it without crossing back through the framework
-layer. See the TODO in `bootstrap.ts` for context.
+### Seam #2 — `HostWrapper` (the only component-side seam)
 
-## Build orchestration
+The single component that lives between the runtime and the hosted
+component. Resolves identity + platform services from the
+`RuntimePort`, exposes via context, renders the hosted component.
 
-Turborepo drives the pipeline. `turbo.json` defines:
+```typescript
+function HostWrapper({ children }: { children: ReactNode }) {
+  const ctx = useResolvedHostContext();   // pulls identity, configManager, theme, runtime events
+  return <HostContext.Provider value={ctx}>{children}</HostContext.Provider>;
+}
 
-| Task | DependsOn | Cache | Outputs |
-|---|---|---|---|
-| `build` | `^build` | yes | `dist/**` |
-| `typecheck` | `^build` | yes | (none) |
-| `test` | `^build` | yes | `coverage/**` |
-| `dev` | — | no | (persistent) |
-| `e2e` | `build` | no | `playwright-report/**`, `test-results/**` |
+interface HostContext {
+  // Identity (resolved by RuntimePort)
+  instanceId: string;
+  appId: string;
+  userId: string;
+  componentType: string;
+  componentSubType: string;
+  isTemplate: boolean;
+  singleton: boolean;
+  roles: string[];
+  permissions: string[];
 
-`^build` means "build my dependencies before me." This is why `core` is
-the slowest path on a cold run — `markets-grid` and every framework
-package waits on it.
+  // Platform services
+  configManager: ConfigManager;     // any backend
+  theme: 'light' | 'dark';
+  configUrl?: string;
 
-Every library package uses `"build": "rimraf dist && tsc"` (or
-`ng-packagr` for Angular libs). The `rimraf` prefix defeats a TS5055
-"cannot overwrite input file" bug that surfaces when Turbo restores a
-cached `dist/` and tsc reads stale `.d.ts` as inputs on the next run.
+  // Runtime delegations
+  onThemeChanged(fn): Unsubscribe;
+  onWindowShown(fn): Unsubscribe;
+  onWindowClosing(fn): Unsubscribe;
+  onCustomDataChanged(fn): Unsubscribe;
+}
+```
 
-## Test orchestration
+Hosted components consume `useHost()` (React) or
+`inject(HostService)` (Angular) — never `fin`, `localStorage`,
+or routing directly.
 
-- **Vitest 4** drives unit tests. 298 tests at HEAD.
-- **Playwright 1.59** drives the e2e suite in `e2e/` against
-  `apps/demo-react`. `playwright.config.ts` at the root spawns Vite via
-  `npm run dev -w @marketsui/demo-react` on port 5190.
-- CI matrix (`.github/workflows/ci.yml`) runs typecheck, build, test in
-  parallel jobs. The e2e job is separate (`e2e.yml`) because it needs
-  `playwright install --with-deps chromium`.
+## Modular component shape
 
-## Dep standard
+Every major component (MarketsGrid, DataProviderEditor, ConfigBrowser,
+DockEditor, RegistryEditor, WorkspaceSetup) follows the same shape:
 
-All version pinning lives in [`DEPS_STANDARD.md`](./DEPS_STANDARD.md).
-In short:
+```
+@starui/<thing>                     ← agnostic logic (TS only)
+  ├ src/core/                       ← orchestrator + shared state
+  ├ src/modules/<module>/           ← per-module agnostic logic
+  └ subpath exports per module
 
-- React 19.2.5 / React DOM 19.2.5 exact
-- TypeScript 5.9.3 exact
-- Vite 7.3.2 exact
-- Tailwind 3.4.1 exact (**NOT** v4)
-- AG-Grid 35.1.0 exact
-- OpenFin 42.103.x (Core / Workspace / Dock-Manager)
-- Angular 21.1.0 exact
-- Vitest 4, jsdom 29
+@starui/<thing>-react               ← React shell + UI panels
+  ├ src/<Thing>.tsx                 ← main component
+  ├ src/modules/<module>/           ← React panel for that module
+  └ subpath exports
 
-Bundled `.tgz` packages (`lucide-react`, `@widgetstools/dock-manager`,
-`@primeng/themes`) live in the repo and ship peer-dep declarations that
-conflict with React 19 / Angular 21 on first read. Install with
-`--legacy-peer-deps` — this is permanent, not a workaround.
+@starui/<thing>-angular             ← Angular shell (placeholder until React parity)
+```
 
-## Packages at a glance
+Subpath exports per module mean a panel imports its own logic from
+`@starui/markets-grid/modules/conditional-styling` — *not* a separate
+package per module. Discipline via convention; less ceremony.
 
-| Layer | Package | Lines | Owner |
-|---|---|---|---|
-| Foundation | `shared-types` | ~600 | platform |
-| Foundation | `design-system` | ~200 tokens + CSS | platform |
-| Foundation | `tokens-primeng` | ~150 | platform |
-| Foundation | `icons-svg` | ~80 assets | design |
-| Core | `core` | ~16k | platform |
-| Core | `ui` | ~1k | platform |
-| Domain | `markets-grid` | ~10k | grid |
-| Domain | `config-service` | ~1.5k | platform |
-| Domain | `component-host` | ~1k | platform |
-| Domain | `widget-sdk` | ~600 | widgets |
-| Framework | `widgets-react` | ~3k | widgets |
-| Framework | `angular` | ~1.5k | angular |
-| Framework | `dock-editor-react` | ~800 | platform |
-| Framework | `dock-editor-angular` | ~800 | angular |
-| Framework | `registry-editor-react` | ~600 | platform |
-| Framework | `registry-editor-angular` | ~600 | angular |
-| Shell | `openfin-platform` | ~500 | platform |
-| Shell | `openfin-platform-stern` | ~900 | platform |
+## Data plane (Sweep #4 architecture)
 
-## Further reading
+Reshape of the v2 data plane. The `DataProvider<T>` is a domain
+object with a simple, classical API:
 
-- [**MARKETSUI_DESIGN.md**](./MARKETSUI_DESIGN.md) — the long-form design
-  spec (1033 lines). Component registry, launch spec, dock protocol,
-  identity resolver, config lifecycle.
-- [**V3_ARCHITECTURE.md**](./V3_ARCHITECTURE.md) — module-system
-  architecture for the grid.
-- [**V4_REBUILD_PLAN.md**](./V4_REBUILD_PLAN.md) — forward-looking
-  rebuild plan (superseded by this consolidation for structural work;
-  feature-work sections still current).
-- [**ROADMAP.md**](./ROADMAP.md) — feature roadmap, including
-  AG-Grid / Adaptable parity gaps.
+```typescript
+interface DataProvider<TRow = unknown> {
+  setConfig(cfg: ProviderConfig): void;
+  getColumnDefs(): ColumnDefinition[];
+
+  start(): void;
+  stop(): void;
+  restart(): void;
+
+  getSnapshot(): Promise<readonly TRow[]>;
+  getStats(): ProviderStats;
+
+  onSnapshot(fn): Unsubscribe;
+  onUpdate(fn): Unsubscribe;
+  onStats(fn): Unsubscribe;
+  onStatus(fn): Unsubscribe;
+}
+```
+
+Two implementations of the interface:
+
+- `InProcessStompDataProvider`, `…RestDataProvider`,
+  `…MockDataProvider`, `…AppDataProvider` — for single-window apps and
+  tests.
+- `SharedDataProvider` — proxy to a shared instance running in a
+  SharedWorker (multi-window socket sharing).
+
+Same interface; consumer code is identical. The platform's value-add
+(SharedWorker hosting, cache, late-joiner replay, stats sampler,
+template resolver) lives **around** the provider, not inside it.
+
+## Persistence (Sweep #3 architecture)
+
+```
+ConfigManager (interface)            ← what every component consumes
+   ├─ RestConfigManager              ← config-service-server
+   ├─ IndexedDbConfigManager         ← Dexie
+   ├─ LocalStorageConfigManager      ← zero-backend
+   └─ MemoryConfigManager            ← tests
+```
+
+`HostWrapper` accepts an optional `configManager` prop overriding the
+context default — a third-party widget can bring its own scoped
+manager.
+
+## Opinionated route table
+
+Every app uses the canonical mapping:
+
+```
+/c/<componentType>[/<subType>]   →   <HostWrapper><Component /></HostWrapper>
+```
+
+Routes derive from registry data (no second source of truth). Every
+route file is ~5 lines.
+
+## Import boundary rules
+
+- Foundation packages (`design-system`, `ui`, `icons`, `tokens-primeng`,
+  `shared-types`) import only from each other.
+- `runtime-port` is foundational; runtime implementations
+  (`runtime-openfin`, `runtime-browser`) only import `runtime-port` +
+  their respective platform.
+- Only `runtime-openfin` and `apps/*` may import `@openfin/core`.
+- Component domain packages (`markets-grid`, `data-provider`, etc.)
+  do NOT import their `-react` siblings, and vice versa.
+- `*-react` packages only import their own agnostic core +
+  foundation + helpers.
+
+ESLint enforcement is a follow-up; convention enforcement comes first.
+
+## Reference apps
+
+`apps/reference-react` and (later) `apps/reference-angular` are the
+canonical scaffolder targets. Each has exactly one `HostWrapper`,
+one route table at `/c/...`, one runtime adapter selection, one
+persistence selection. See [`REFERENCE_APP_LAYOUT.md`](./REFERENCE_APP_LAYOUT.md).
