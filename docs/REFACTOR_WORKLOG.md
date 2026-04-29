@@ -198,6 +198,22 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase C-1 — split RuleEditor (395 LOC) (2026-04-28)
+**Verification:** `npx turbo typecheck test` → 62/62 successful.
+
+The 395-LOC `RuleEditor` function in `packages/core/src/modules/conditional-styling/ConditionalStylingPanel.tsx` was extracted into 6 focused sub-components plus `ColumnPickerMulti` (already inlined in the same file). All sub-components live under a new `editor/` subdirectory:
+- `editor/RuleEditorHeader.tsx` (53 LOC) — title input + save/delete buttons
+- `editor/RuleMetaStrip.tsx` (103 LOC) — STATUS / SCOPE / PRIORITY / APPLIED meta cells
+- `editor/ExpressionBand.tsx` (81 LOC) — expression editor + validation
+- `editor/TargetColumnsBand.tsx` (17 LOC) — wrapper around `ColumnPickerMulti`
+- `editor/FlashBand.tsx` (109 LOC) — flash on match config
+- `editor/ValueFormatterBand.tsx` (51 LOC) — per-rule value formatter
+- `editor/ColumnPickerMulti.tsx` (103 LOC) — relocated from parent file
+
+`RuleEditor` is now a ~110-LOC orchestrator that builds the prop graph and renders these in order. Markup, behavior, and every `cs-*` testId are preserved verbatim. Each sub-component is `memo`-wrapped so the orchestrator's per-band re-renders only fire when that band's slice of `draft` changes.
+
+Parent file `ConditionalStylingPanel.tsx` shrank from 1,036 LOC to **681 LOC** (under the 800-LOC ceiling for the first time). The IndicatorPicker (~290 LOC) stays inline because it's a single self-contained sub-tree with no extracted bands of its own.
+
 ### Phase D-4 — HostWrapper + HostContext + useHost in @marketsui/host-wrapper-react (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 62/62 successful (was 60 before D-4 — +2 from new package tasks). 5 new tests.
 
