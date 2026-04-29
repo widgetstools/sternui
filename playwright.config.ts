@@ -4,6 +4,13 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
   retries: 0,
+  // Parallelize across 4 workers. Default is 1 on a single project,
+  // which made the suite run serially in ~12-19 min on Windows.
+  // Playwright workers each get an isolated browser context, so tests
+  // don't share state. Tests that mutate document.documentElement
+  // theme can interleave inside the same context — those are the
+  // ones to watch for parallelism-induced flakes.
+  workers: 4,
   use: {
     baseURL: 'http://localhost:5190',
     headless: true,
