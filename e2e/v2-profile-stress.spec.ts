@@ -130,6 +130,13 @@ async function addVirtual(page: Page): Promise<string> {
 
 // ─── Tests ─────────────────────────────────────────────────────────
 
+// Stress specs do many rapid CRUD ops per test. The default 30s
+// per-test timeout is tight on Windows + single-worker runs where
+// the dev server's cold-start `bootCleanDemo` alone can take 5-10s.
+// Bump per-test timeout for this whole file so beforeEach + test
+// body share a more realistic budget.
+test.describe.configure({ timeout: 60_000 });
+
 test.describe('v2 profile stress — rapid CRUD cycles', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 

@@ -76,12 +76,13 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     );
     expect(calls.length).toBeGreaterThanOrEqual(1);
     expect(calls[0].name).toBe('gc-popout-toolbar-demo-blotter-v2');
-    // 400×620 is the properties-panel popout dim (confirmed with
-    // user 2026-04-20). The old 900×120 compact-toolbar window is
-    // gone; popping out now shows the vertical-stack properties
-    // panel instead.
-    expect(calls[0].features).toMatch(/width=400/);
-    expect(calls[0].features).toMatch(/height=620/);
+    // 560×680 is the current properties-panel popout dim (set in
+    // FormattingToolbar.tsx, commit 1a292bd0 on 2026-04-26 — bumped
+    // from the previous 400×620 because the band layout grew). The
+    // old 900×120 compact-toolbar window is gone; popping out now
+    // shows the vertical-stack properties panel instead.
+    expect(calls[0].features).toMatch(/width=560/);
+    expect(calls[0].features).toMatch(/height=680/);
   });
 
   test('popped toolbar renders the properties panel (not the compact toolbar)', async ({ page }) => {
