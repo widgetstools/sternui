@@ -6,8 +6,12 @@
  * between local (Dexie) and remote (REST) storage is driven entirely by
  * the `config.baseUrl` in the manifest's customData — no code changes.
  *
- * The dock module (openfinDock.ts) lives in the reference app to avoid a
- * circular package dependency. Callers inject it via opts.dockActions.
+ * The dock module (openfinDock.ts) is currently duplicated in the
+ * reference apps (`apps/stern-reference-{react,angular}`). Callers inject
+ * it via `opts.dockActions`. A planned cleanup will hoist it into this
+ * package — the original circular-dep justification is no longer valid
+ * since `dataProviderConfigService` already moved out of widgets-react
+ * into `@marketsui/data-plane`.
  */
 
 import { init } from '@openfin/workspace-platform';
@@ -63,10 +67,10 @@ const ConfigId = {
 } as const;
 // Note: stern-2's original bootstrap imported `dataProviderConfigService`
 // from `@marketsui/widgets-react` and called `.configure({ apiUrl })`.
-// That creates a workspace cycle (widgets-react imports openfin hooks
-// from this package). Turbo rejects build cycles. Consumer apps must
-// now configure the data-provider service themselves after importing
-// widgets-react.
+// `dataProviderConfigService` has since moved to `@marketsui/data-plane`,
+// so the historical cycle no longer exists. Consumer apps still configure
+// the data-provider service themselves; this can be re-internalized in
+// a future cleanup.
 import { THEME_PALETTES } from './platform/openfinThemePalettes.js';
 import { buildUrl } from './utils/urlHelper.js';
 import { registerConfigLookupCallback } from './platform/menuLauncher.js';
