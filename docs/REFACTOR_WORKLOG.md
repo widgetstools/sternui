@@ -198,6 +198,35 @@ Phases 3+ depend on user's answer to the scope question.
 
 ## Done log (most recent first — append on each commit)
 
+### Phase C-3 — split MarketsGrid.Host (611 LOC) (2026-04-29)
+**Verification:** `npx turbo typecheck test` → 62/62 successful (markets-grid force-rebuilt: 3/3, 56 tests pass).
+
+The 611-LOC `Host` function inside `packages/markets-grid/src/MarketsGrid.tsx` was the platform's marquee component and the worst function-size violation outside `initWorkspace`. Extract-function refactor across 4 lifecycle hooks + 4 component modules:
+
+**`hooks/`**
+- `useGridLevelDataPersistence.ts` (95 LOC) — load-on-mount + save-on-prop-change for gridLevelData. Encapsulates the StrictMode-double-effect-safe `lastPersistedRef` comparison verbatim.
+- `useUnsavedChangesGuard.ts` (23 LOC) — `beforeunload` listener while `isDirty`.
+- `useImperativeMarketsGridHandle.ts` (51 LOC) — `forwardRef` plumbing + one-shot `onReady` fire when the api lands.
+- `useProfileSwitchGuard.ts` (93 LOC) — pendingSwitch state + `requestLoadProfile` / `confirmSwitchSave` / `confirmSwitchDiscard` / `cancelSwitch`.
+
+**`internal/`**
+- `AdminActionButtons.tsx` (80 LOC) — relocated; carries the lucide icon map and resolver.
+- `ProfileSelectorBlock.tsx` (90 LOC) — encapsulates the giant onClone/onExport/onImport closures around `ProfileSelector`.
+- `MarketsGridToolbar.tsx` (141 LOC) — the entire primary toolbar row (filters carousel + action cluster + profile selector + save + settings + admin actions).
+- `ProfileSwitchDialog.tsx` (71 LOC) — the unsaved-changes AlertDialog.
+
+`Host` is now a ~120-LOC orchestrator: prop destructure, adapter ref, hook calls, save handler, settings/toolbar UI state, and a thin render that composes the internal/ components.
+
+Behavior preserved verbatim:
+- All `data-testid` carried through (`save-all-btn`, `save-all-dirty`, `style-toolbar-toggle`, `v2-settings-open-btn`, `profile-switch-confirm`, `profile-switch-cancel`, `profile-switch-discard`, `profile-switch-save`, `admin-action-${id}`).
+- Same render order (header extras → primary toolbar → optional pinned formatting toolbar → AG-Grid → settings sheet → switch dialog).
+- Same StrictMode-safe gridLevelData round-trip (the moved hook copies the comment + ref logic verbatim).
+- Same one-shot `onReady` semantics (handleRef + readyFiredRef inside the new hook).
+- Same captureGridStateInto-then-saveActiveProfile sequence in `handleSaveAll`.
+- Same Save-and-Switch / Discard-and-Switch ordering in the dialog handlers.
+
+Parent file `MarketsGrid.tsx` shrank from **920 LOC to 516 LOC** (under the 800-LOC ceiling).
+
 ### Phase C-2 — split ColumnSettingsEditorInner (412 LOC) (2026-04-29)
 **Verification:** `npx turbo typecheck test` → 62/62 successful (force-rebuilt core: 3/3, full repo: 62/62).
 

@@ -2,7 +2,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -14,15 +13,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  DirtyDot,
   GridProvider,
   MemoryAdapter,
   calculatedColumnsModule,
@@ -43,31 +33,20 @@ import {
   type AnyModule,
   type StorageAdapter,
 } from '@marketsui/core';
-import {
-  Save, Check, Settings as SettingsIcon, Brush,
-  Wrench,
-  Database,
-  FileText,
-  ListChecks,
-  Activity,
-  BarChart3,
-  ShieldCheck,
-  Users,
-  Terminal,
-  Eye,
-  type LucideIcon,
-} from 'lucide-react';
 import type {
   AdminAction,
   MarketsGridHandle,
   MarketsGridProps,
-  StorageAdapterFactory,
 } from './types';
 import { useGridHost } from './useGridHost';
-import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
 import { SettingsSheet, type SettingsSheetHandle } from './SettingsSheet';
-import { ProfileSelector } from './ProfileSelector';
+import { useGridLevelDataPersistence } from './hooks/useGridLevelDataPersistence';
+import { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard';
+import { useImperativeMarketsGridHandle } from './hooks/useImperativeMarketsGridHandle';
+import { useProfileSwitchGuard } from './hooks/useProfileSwitchGuard';
+import { MarketsGridToolbar } from './internal/MarketsGridToolbar';
+import { ProfileSwitchDialog } from './internal/ProfileSwitchDialog';
 
 let _agRegistered = false;
 function ensureAgGridRegistered() {
@@ -330,74 +309,13 @@ function Host<TData>({
   const adapterRef = useRef<StorageAdapter | null>(null);
   if (!adapterRef.current) adapterRef.current = storageAdapter ?? new MemoryAdapter();
 
-  // ── Grid-level data persistence ───────────────────────────────────
-  //
-  // Read once on mount, hand the loaded value back to the consumer via
-  // `onGridLevelDataLoad`, then watch the `gridLevelData` prop for
-  // changes and write them through the adapter. Optional adapter
-  // method (`loadGridLevelData?`) — when missing, we silently no-op
-  // both reads and writes so older third-party adapters keep working.
-  //
-  // The `lastPersistedRef` comparison handles two edge cases:
-  //   1. React StrictMode's double-effect fires the persist effect on
-  //      the second setup with the just-loaded value still in the
-  //      prop. Without the comparison we'd write that value back to
-  //      disk on mount.
-  //   2. Round-trips A → B → A still emit, because each transition
-  //      differs from the previously-persisted snapshot.
-  const onGridLevelDataLoadRef = useRef(onGridLevelDataLoad);
-  useEffect(() => { onGridLevelDataLoadRef.current = onGridLevelDataLoad; }, [onGridLevelDataLoad]);
-  const lastPersistedRef = useRef<unknown>(undefined);
-  const initialLoadRef = useRef(false);
-  useEffect(() => {
-    if (initialLoadRef.current) return;
-    initialLoadRef.current = true;
-    const adapter = adapterRef.current;
-    if (!adapter?.loadGridLevelData) {
-      // eslint-disable-next-line no-console
-      console.log(`[v2/markets-grid] gridLevelData: adapter has no loadGridLevelData method (using null)`);
-      lastPersistedRef.current = null;
-      onGridLevelDataLoadRef.current?.(null);
-      return;
-    }
-    // eslint-disable-next-line no-console
-    console.log(`[v2/markets-grid] gridLevelData: load → adapter.loadGridLevelData(%s)`, gridId);
-    let cancelled = false;
-    void adapter
-      .loadGridLevelData(gridId)
-      .then((loaded) => {
-        if (cancelled) return;
-        // eslint-disable-next-line no-console
-        console.log(`[v2/markets-grid] gridLevelData: loaded`, loaded);
-        lastPersistedRef.current = loaded;
-        onGridLevelDataLoadRef.current?.(loaded);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        // eslint-disable-next-line no-console
-        console.warn(`[v2/markets-grid] gridLevelData: load failed`, err);
-        lastPersistedRef.current = null;
-        onGridLevelDataLoadRef.current?.(null);
-      });
-    return () => { cancelled = true; };
-    // gridId is stable per-mount; we deliberately don't depend on the
-    // prop or the load-callback (both captured via refs).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    // Skip until the initial load has resolved — otherwise the first
-    // render's `gridLevelData` prop (typically `null`/`undefined`)
-    // would race the load and clobber persisted state.
-    if (!initialLoadRef.current) return;
-    if (lastPersistedRef.current === gridLevelData) return;
-    const adapter = adapterRef.current;
-    if (!adapter?.saveGridLevelData) return;
-    // eslint-disable-next-line no-console
-    console.log(`[v2/markets-grid] gridLevelData: save`, gridLevelData);
-    lastPersistedRef.current = gridLevelData;
-    void adapter.saveGridLevelData(gridId, gridLevelData);
-  }, [gridLevelData, gridId]);
+  // Grid-level data persistence (load on mount; save on prop change).
+  useGridLevelDataPersistence({
+    gridId,
+    gridLevelData,
+    onGridLevelDataLoad,
+    adapter: adapterRef.current,
+  });
 
   // Profiles are explicit-save-only. Auto-save used to debounce every
   // keystroke into the active profile; that was confusing in practice —
@@ -414,30 +332,8 @@ function Host<TData>({
   const platform = useGridPlatform();
   const api = useGridApi();
 
-  // ── Imperative handle ─────────────────────────────────────────────
-  // Populated once AG-Grid's onGridReady has fired (api becomes non-null)
-  // which in turn has already let GridPlatform run the module pipeline,
-  // including the active profile apply. Consumers reading `ref.current`
-  // before this see `null` (React ref semantics); after this see the
-  // stable handle. `onReady` fires exactly once per mount.
-  const handleRef = useRef<MarketsGridHandle | null>(null);
-  handleRef.current = api ? { gridApi: api, platform, profiles } : null;
-
-  useImperativeHandle(
-    forwardedRef,
-    () => handleRef.current as MarketsGridHandle,
-    [api, platform, profiles],
-  );
-
-  const readyFiredRef = useRef(false);
-  useEffect(() => {
-    if (!readyFiredRef.current && handleRef.current) {
-      readyFiredRef.current = true;
-      // eslint-disable-next-line no-console
-      console.log(`[v2/markets-grid] handle delivered to onReady (gridApi alive — consumer can now subscribe)`);
-      onReady?.(handleRef.current);
-    }
-  }, [api, onReady]);
+  // Imperative handle exposed via forwardRef + onReady (one-shot).
+  useImperativeMarketsGridHandle({ forwardedRef, api, platform, profiles, onReady });
 
   const [saveFlash, setSaveFlash] = useState(false);
   const saveFlashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -452,10 +348,6 @@ function Host<TData>({
 
   // Settings sheet — the Cockpit popout drawer.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Imperative handle into the SettingsSheet so the settings-icon
-  // click handler can raise a buried popout window to front instead
-  // of no-op-opening an already-open sheet. See handleOpenSettings
-  // below for the full policy.
   const sheetRef = useRef<SettingsSheetHandle>(null);
 
   const handleOpenSettings = useCallback(() => {
@@ -472,9 +364,6 @@ function Host<TData>({
   // controls whether the feature is available (i.e. whether the Brush
   // pill + floating panel exist); it doesn't pre-open the toolbar.
   const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
-  // Imperative handle into the FormattingToolbar — same pattern as
-  // sheetRef. The brush button uses `focusIfPopped()` to raise a
-  // buried popout window before falling through to toggle.
   const toolbarRef = useRef<FormattingToolbarHandle>(null);
 
   const handleToggleStyleToolbar = useCallback(() => {
@@ -510,76 +399,12 @@ function Host<TData>({
   // the profile-switch AlertDialog, and the beforeunload warning.
   const isDirty = profiles.isDirty;
 
-  // Warn the user if they try to close / reload the tab while their
-  // active profile has unsaved edits. The `returnValue` string is
-  // ignored by every modern browser (they show a generic message) but
-  // it's required for the prompt to appear at all.
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
+  // Browser tab-close warning when the active profile is dirty.
+  useUnsavedChangesGuard(isDirty);
 
-  // Profile-switch unsaved-changes prompt state. When the user picks a
-  // different profile from the switcher AND there are unsaved edits,
-  // we stash the target id here and open an AlertDialog offering
-  // Save / Discard / Cancel. The Dialog's action handlers finalise the
-  // switch; with no dirty edits the switch goes through directly.
-  const [pendingSwitch, setPendingSwitch] = useState<null | { id: string }>(null);
-
-  const requestLoadProfile = useCallback(
-    (id: string) => {
-      if (id === profiles.activeProfileId) return;
-      if (profiles.isDirty) {
-        setPendingSwitch({ id });
-        return;
-      }
-      void profiles.loadProfile(id);
-    },
-    [profiles],
-  );
-
-  const confirmSwitchSave = useCallback(async () => {
-    if (!pendingSwitch) return;
-    const targetId = pendingSwitch.id;
-    setPendingSwitch(null);
-    try {
-      // Route through the same Save-button path so AG-Grid native state
-      // (column widths / sort / filters / pagination) is captured before
-      // the snapshot lands — otherwise a Save-then-Switch would persist
-      // stale grid-state.
-      await handleSaveAll();
-      await profiles.loadProfile(targetId);
-    } catch (err) {
-      console.warn('[markets-grid] save-and-switch failed:', err);
-    }
-  }, [pendingSwitch, handleSaveAll, profiles]);
-
-  const confirmSwitchDiscard = useCallback(async () => {
-    if (!pendingSwitch) return;
-    const targetId = pendingSwitch.id;
-    setPendingSwitch(null);
-    try {
-      // Discard in-memory edits (reverts to the last-saved snapshot of
-      // the outgoing profile) BEFORE loading the new one. The discard
-      // is technically optional since load() also replaces state, but
-      // it keeps semantics clean: dirty=false is observable in between.
-      await profiles.discardActiveProfile();
-      await profiles.loadProfile(targetId);
-    } catch (err) {
-      console.warn('[markets-grid] discard-and-switch failed:', err);
-    }
-  }, [pendingSwitch, profiles]);
-
-  // NOTE: the `coreShim` (minimal `{ gridId, getGridApi }` handle) is
-  // gone as of the toolbar refactor's step 7. FormattingToolbar + its
-  // hooks now read everything they need directly from the platform
-  // context, so there's nothing for this host to thread through.
+  // Profile-switch unsaved-changes guard. Routes the dialog through
+  // handleSaveAll so AG-Grid native state lands before the snapshot.
+  const switchGuard = useProfileSwitchGuard(profiles, handleSaveAll);
 
   return (
     <div
@@ -602,165 +427,29 @@ function Host<TData>({
         </div>
       ) : null}
       {showToolbar && (
-        <div className="gc-toolbar-primary gc-primary-row">
-          {/* LEFT — filters carousel (flex:1, collapses/expands via its
-               own chevron; formatter-toolbar toggle no longer lives
-               inside it). */}
-          <div className="gc-primary-filters">
-            {showFiltersToolbar ? (
-              <FiltersToolbar />
-            ) : (
-              <div className="gc-primary-filters-empty" />
-            )}
-          </div>
-
-          {/* RIGHT — action cluster. A single thin divider leads the
-               group (instead of a full-height border on every button),
-               then evenly-spaced icon buttons with matching chrome. */}
-          <div className="gc-primary-actions">
-            {showFormattingToolbar && (
-              <button
-                type="button"
-                className="gc-primary-action"
-                onClick={handleToggleStyleToolbar}
-                title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
-                data-testid="style-toolbar-toggle"
-                data-active={styleToolbarOpen ? 'true' : 'false'}
-                aria-pressed={styleToolbarOpen}
-              >
-                <Brush size={14} strokeWidth={2} />
-              </button>
-            )}
-
-            {showProfileSelector && (
-              <>
-                {showFormattingToolbar && <span className="gc-primary-divider" aria-hidden />}
-                <ProfileSelector
-                  profiles={profiles.profiles}
-                  activeProfileId={profiles.activeProfileId ?? ''}
-                  isDirty={isDirty}
-                  onCreate={(name) => profiles.createProfile(name)}
-                  onLoad={(id) => requestLoadProfile(id)}
-                  onDelete={(id) => profiles.deleteProfile(id)}
-                  onClone={async (id) => {
-                    // Compose a unique " (copy)" name, de-duping against
-                    // existing profiles so consecutive clones produce
-                    // "…(copy)", "…(copy 2)", "…(copy 3)". The manager
-                    // throws on id collision, so we also suffix the id
-                    // deterministically via the default slug; if it
-                    // still collides (edge case: user already made a
-                    // "<foo>-copy"), bump the suffix until it's free.
-                    try {
-                      const src = profiles.profiles.find((p) => p.id === id);
-                      if (!src) return;
-                      const existingNames = new Set(profiles.profiles.map((p) => p.name));
-                      let candidate = `${src.name} (copy)`;
-                      let n = 2;
-                      while (existingNames.has(candidate)) {
-                        candidate = `${src.name} (copy ${n})`;
-                        n++;
-                      }
-                      await profiles.cloneProfile(id, candidate);
-                    } catch (err) {
-                      console.warn('[markets-grid] profile clone failed:', err);
-                      window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
-                    }
-                  }}
-                  onExport={async (id) => {
-                    try {
-                      const payload = await profiles.exportProfile(id);
-                      const fileStem = (payload.profile.name || id)
-                        .toLowerCase()
-                        .replace(/[^a-z0-9-]+/g, '-')
-                        .replace(/^-+|-+$/g, '')
-                        .slice(0, 60) || 'profile';
-                      const json = JSON.stringify(payload, null, 2);
-                      const blob = new Blob([json], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `gc-profile-${fileStem}.json`;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      // Release the object-url on the next tick so the
-                      // browser has a frame to initiate the download.
-                      setTimeout(() => URL.revokeObjectURL(url), 1000);
-                    } catch (err) {
-                      console.warn('[markets-grid] profile export failed:', err);
-                      window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
-                    }
-                  }}
-                  onImport={async (file) => {
-                    try {
-                      const text = await file.text();
-                      const payload = JSON.parse(text);
-                      await profiles.importProfile(payload);
-                    } catch (err) {
-                      console.warn('[markets-grid] profile import failed:', err);
-                      window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
-                    }
-                  }}
-                />
-              </>
-            )}
-
-            {showSaveButton && (
-              <>
-                <span className="gc-primary-divider" aria-hidden />
-                <button
-                  type="button"
-                  className="gc-primary-action gc-primary-save"
-                  onClick={handleSaveAll}
-                  title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
-                  data-testid="save-all-btn"
-                  data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
-                >
-                  {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
-                  {/* Dirty indicator — small pulsed teal dot top-right of
-                      the icon. Shown only when unsaved and NOT actively
-                      flashing (to avoid stacking indicators during the
-                      600ms post-save flash). */}
-                  {isDirty && !saveFlash && (
-                    <span className="gc-primary-save-dirty" data-testid="save-all-dirty">
-                      <DirtyDot title="Unsaved changes" />
-                    </span>
-                  )}
-                </button>
-              </>
-            )}
-
-            {showSettingsButton && (
-              <>
-                <span className="gc-primary-divider" aria-hidden />
-                <button
-                  type="button"
-                  className="gc-primary-action"
-                  onClick={handleOpenSettings}
-                  title="Open settings"
-                  data-testid="v2-settings-open-btn"
-                >
-                  <SettingsIcon size={14} strokeWidth={2} />
-                </button>
-              </>
-            )}
-
-            {/* Admin actions — rendered at the far right edge of the
-                primary row. Each visible action becomes a single icon
-                button with tooltip = label + description. The leading
-                divider only renders when there's something to show; end-
-                user grids (no adminActions) see zero extra chrome. */}
-            <AdminActionButtons actions={adminActions} />
-          </div>
-        </div>
+        <MarketsGridToolbar
+          showFiltersToolbar={showFiltersToolbar}
+          showFormattingToolbar={showFormattingToolbar}
+          styleToolbarOpen={styleToolbarOpen}
+          onToggleStyleToolbar={handleToggleStyleToolbar}
+          showProfileSelector={showProfileSelector}
+          profiles={profiles}
+          isDirty={isDirty}
+          requestLoadProfile={switchGuard.requestLoadProfile}
+          showSaveButton={showSaveButton}
+          saveFlash={saveFlash}
+          onSaveAll={handleSaveAll}
+          showSettingsButton={showSettingsButton}
+          onOpenSettings={handleOpenSettings}
+          adminActions={adminActions}
+        />
       )}
 
       {/* FormattingToolbar — pinned as a second toolbar row directly
            beneath the FiltersToolbar. Visibility is bound to the
-           existing Brush toggle in the FiltersToolbar
-           (`styleToolbarOpen`). When the viewport is narrow the
-           toolbar's flex-wrap kicks in and the row grows vertically
-           (1 row → 2 rows) so no content is clipped.
+           Brush toggle in the toolbar above. When the viewport is
+           narrow the toolbar's flex-wrap kicks in and the row grows
+           vertically (1 row → 2 rows) so no content is clipped.
 
            DraggableFloat was replaced in favour of this pinned row —
            the float-style drag-to-reposition UX made the toolbar
@@ -811,110 +500,17 @@ function Host<TData>({
         initialModuleId="conditional-styling"
       />
 
-      {/* Unsaved-changes prompt fired by the profile switcher when the
-          user picks a different profile while the active one is dirty.
-          Three explicit actions — we never silently drop edits. */}
-      <AlertDialog
-        open={pendingSwitch !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingSwitch(null);
-        }}
-      >
-        <AlertDialogContent data-testid="profile-switch-confirm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes in the current profile. What do you want to
-              do before switching?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="profile-switch-cancel">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              data-testid="profile-switch-discard"
-              onClick={(e) => {
-                e.preventDefault();
-                void confirmSwitchDiscard();
-              }}
-            >
-              Discard changes
-            </AlertDialogAction>
-            <AlertDialogAction
-              data-testid="profile-switch-save"
-              onClick={(e) => {
-                e.preventDefault();
-                void confirmSwitchSave();
-              }}
-            >
-              Save &amp; switch
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ProfileSwitchDialog
+        open={switchGuard.pendingSwitch !== null}
+        onCancel={switchGuard.cancelSwitch}
+        onDiscard={() => void switchGuard.confirmSwitchDiscard()}
+        onSave={() => void switchGuard.confirmSwitchSave()}
+      />
     </div>
   );
 }
 
-// ─── Admin action rendering ────────────────────────────────────────
-//
-// `adminActions` on <MarketsGrid> is surfaced as one icon button per
-// action on the right edge of the primary toolbar row. Consumers get
-// immediate, one-click access without opening the settings sheet.
-// When no visible actions are passed, the divider + buttons are all
-// omitted so end-user grids carry zero extra chrome.
-
-/** Map of `"lucide:<name>"` to the concrete lucide-react icon component.
- *  Kept inline (rather than dynamic `lucide-react/dist/esm/icons`) to
- *  avoid bundling all 1500+ lucide icons. New entries land here as
- *  needed — `icon: "lucide:<unknown>"` falls back to Wrench. */
-const ADMIN_ACTION_ICONS: Record<string, LucideIcon> = {
-  'lucide:database':     Database,
-  'lucide:file-text':    FileText,
-  'lucide:list-checks':  ListChecks,
-  'lucide:activity':     Activity,
-  'lucide:bar-chart-3':  BarChart3,
-  'lucide:shield-check': ShieldCheck,
-  'lucide:users':        Users,
-  'lucide:terminal':     Terminal,
-  'lucide:eye':          Eye,
-  'lucide:wrench':       Wrench,
-};
-
-function resolveAdminActionIcon(ref: string | undefined): LucideIcon {
-  if (!ref) return Wrench;
-  return ADMIN_ACTION_ICONS[ref] ?? Wrench;
-}
-
-function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined }) {
-  const visible = (actions ?? []).filter((a) => a.visible !== false);
-  if (visible.length === 0) return null;
-
-  return (
-    <>
-      <span className="gc-primary-divider" aria-hidden />
-      {visible.map((action) => {
-        const Icon = resolveAdminActionIcon(action.icon);
-        // Tooltip shows label and description stacked. Native `title`
-        // keeps it accessible without portaling a shadcn Tooltip in.
-        const title = action.description
-          ? `${action.label}\n${action.description}`
-          : action.label;
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className="gc-primary-action"
-            onClick={() => { void action.onClick(); }}
-            title={title}
-            aria-label={action.label}
-            data-testid={`admin-action-${action.id}`}
-          >
-            <Icon size={14} strokeWidth={2} />
-          </button>
-        );
-      })}
-    </>
-  );
-}
+// AdminActionButtons + ADMIN_ACTION_ICONS were extracted into
+// ./internal/AdminActionButtons.tsx during Phase C-3.
+// MarketsGridToolbar / ProfileSwitchDialog / ProfileSelectorBlock live
+// under ./internal/ and the lifecycle hooks under ./hooks/.
