@@ -1,0 +1,41 @@
+{
+  "name": "@marketsui/host-wrapper-angular",
+  "version": "0.1.0",
+  "description": "Angular HostService — Seam #2 (Angular flavor) from docs/ARCHITECTURE.md. Mirrors @marketsui/host-wrapper-react: hosted Angular components inject HostService to read identity, configManager, theme, and runtime lifecycle events.",
+  "type": "module",
+  "main": "dist/fesm2022/marketsui-host-wrapper-angular.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/fesm2022/marketsui-host-wrapper-angular.mjs",
+      "default": "./dist/fesm2022/marketsui-host-wrapper-angular.mjs"
+    }
+  },
+  "scripts": {
+    "build": "ng-packagr -p ng-package.json",
+    "watch": "ng-packagr -p ng-package.json --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=21.0.0",
+    "@angular/core": ">=21.0.0",
+    "@marketsui/config-service": "1.0.0",
+    "@marketsui/runtime-port": "0.1.0",
+    "rxjs": ">=7.0.0"
+  },
+  "devDependencies": {
+    "@angular/common": "21.1.0",
+    "@angular/compiler": "21.1.0",
+    "@angular/compiler-cli": "21.1.0",
+    "@angular/core": "21.1.0",
+    "@marketsui/config-service": "*",
+    "@marketsui/runtime-port": "*",
+    "ng-packagr": "^17.3.0",
+    "rimraf": "^5.0.5",
+    "rxjs": "~7.8.2",
+    "typescript": "~5.9.3"
+  },
+  "license": "MIT"
+}

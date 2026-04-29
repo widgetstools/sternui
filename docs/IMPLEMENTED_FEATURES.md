@@ -1524,6 +1524,31 @@ import { DataProviderSelector } from '@marketsui/widgets-react/v2/data-provider-
 
 ---
 
+## 1.T HostWrapper — runtime-port-driven hosting seam (Seam #2)
+
+Apps render hosted components without those components knowing whether they live in OpenFin or a plain browser. Both the React and Angular flavors now ship.
+
+### React (`@marketsui/host-wrapper-react`)
+
+`<HostWrapper runtime={runtime} configManager={configManager}>` provides a `HostContext` that hosted components consume via `useHost()`. Reads identity, current theme, configManager, and lifecycle events (`onWindowShown`, `onWindowClosing`, `onCustomDataChanged`, `onWorkspaceSave`) without importing `@openfin/core`. Wired into `apps/demo-react`, `apps/demo-configservice-react`, and `apps/markets-ui-react-reference` (with an `Outlet` layout pattern that excludes the `/platform/provider` route).
+
+### Angular (`@marketsui/host-wrapper-angular`)
+
+`provideHostWrapper({ runtime, configManager })` registers three `InjectionToken`s (`HOST_RUNTIME`, `HOST_CONFIG_MANAGER`, `HOST_CONFIG_URL`). Hosted Angular components inject `HostService`, the DI mirror of `useHost()`:
+
+- Identity getters (`instanceId`, `appId`, `userId`, `componentType`, `roles`, `permissions`, `customData`).
+- Theme as **both** `themeSignal: Signal<Theme>` and `theme$: Observable<Theme>` so consumers pick whichever fits their template flavor.
+- `windowShown$`, `windowClosing$`, `customData$`, `workspaceSave$` Observables bridged from the underlying `RuntimePort`.
+- `dispose()` tears down listener subscriptions and completes every Subject. Wired automatically through `DestroyRef` so the singleton cleans itself up when the root injector tears down.
+
+Built via `ng-packagr` (FESM2022 + `.d.ts`). Wired into `apps/markets-ui-angular-reference`: `app.config.ts` exports `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async), selects `OpenFinRuntime` when `isOpenFin()` else `BrowserRuntime`, and spreads `provideHostWrapper(...)` into the providers list. `main.ts` awaits `buildAppConfig()` before `bootstrapApplication`.
+
+### Workspace-save event
+
+The new `RuntimePort.onWorkspaceSave(fn)` method completes the lifecycle surface for both flavors. `OpenFinRuntime` bridges `fin.Platform.getCurrentSync().on('workspace-saved', …)`; `BrowserRuntime` is a no-op (no workspace concept in the browser). React's `HostContext` exposes it as `onWorkspaceSave`; Angular's `HostService` exposes it as `workspaceSave$`. Hosted components use this as a flush-to-disk hook.
+
+---
+
 ## 2. Summary Statistics
 
 | Category | Count |
