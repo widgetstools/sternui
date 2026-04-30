@@ -10,110 +10,123 @@
  * `apps/markets-ui-react-reference/launch.mjs`; generalized so the
  * default URL is the demo-react manifest.
  *
- * OpenFin only runs on Windows — exits cleanly (code 0) on other platforms
- * so `concurrently` dev scripts don't error on macOS/Linux developer machines.
+ * OpenFin only runs on Windows — on non-Windows platforms, the process
+ * stays alive indefinitely so `concurrently` doesn't kill the dev server.
  */
 import { setDefaultResultOrder } from 'node:dns';
 
-if (process.platform !== 'win32') {
-  console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
-  console.warn('[openfin] dev server will continue running. Press Ctrl+C to exit.');
-  // Keep the process alive so concurrently doesn't kill the dev server.
-  // Use setInterval to prevent Node from exiting.
-  process.on('SIGINT', () => {
-    console.log('[openfin] Ctrl+C');
-    process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    process.exit(0);
-  });
-  // Keep process alive indefinitely with a dummy interval
-  setInterval(() => {}, 1000);
-}
-
-// Dynamic import keeps the module resolvable even when @openfin/node-adapter
-// is absent (it is declared as an optionalDependency).
-const { connect, launch } = await import('@openfin/node-adapter').catch((err) => {
-  console.error('[openfin] @openfin/node-adapter not installed:', err.message);
-  process.exit(1);
-});
-
-const DEFAULT_MANIFEST = 'http://localhost:5190/openfin/manifest.json';
-
-async function launchFromNode(manifestUrl) {
-  console.log(`[openfin] launching manifest: ${manifestUrl}`);
-  try {
-    const port = await launch({ manifestUrl });
-    const fin = await connect({
-      uuid: `mui-dev-${Date.now()}`,
-      address: `ws://127.0.0.1:${port}`,
-      nonPersistent: true,
+// On non-Windows platforms, keep the launcher alive indefinitely so concurrently
+// doesn't kill the dev server when this script runs.
+async function main() {
+  if (process.platform !== 'win32') {
+    console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
+    console.warn('[openfin] dev server will continue running. Press Ctrl+C to exit.');
+    // Set up signal handlers for graceful termination
+    process.on('SIGINT', () => {
+      console.log('[openfin] Ctrl+C');
+      process.exit(0);
     });
-    fin.once('disconnected', () => {
-      console.log('[openfin] platform disconnected — exiting');
-      process.exit();
+    process.on('SIGTERM', () => {
+      process.exit(0);
     });
-    return fin;
-  } catch (e) {
-    console.error('[openfin] failed to launch manifest');
-    console.error(e?.message ?? e);
-    if (String(e?.message ?? '').includes('Could not locate')) {
-      console.error('[openfin] is the dev server up and the manifest JSON valid?');
+    // Keep the process alive indefinitely. setInterval with refCount=0 keeps Node alive.
+    setInterval(() => {}, 60_000);  // Check every minute to stay alive
+    // Block forever — we never return from this
+    return new Promise(() => {});
+  }
+
+  // Windows-only code below ─────────────────────────────────────────
+
+  // Dynamic import keeps the module resolvable even when @openfin/node-adapter
+  // is absent (it is declared as an optionalDependency).
+  const { connect, launch } = await import('@openfin/node-adapter').catch((err) => {
+    console.error('[openfin] @openfin/node-adapter not installed:', err.message);
+    process.exit(1);
+  });
+
+  const DEFAULT_MANIFEST = 'http://localhost:5190/openfin/manifest.json';
+
+  async function launchFromNode(manifestUrl) {
+    console.log(`[openfin] launching manifest: ${manifestUrl}`);
+    try {
+      const port = await launch({ manifestUrl });
+      const fin = await connect({
+        uuid: `mui-dev-${Date.now()}`,
+        address: `ws://127.0.0.1:${port}`,
+        nonPersistent: true,
+      });
+      fin.once('disconnected', () => {
+        console.log('[openfin] platform disconnected — exiting');
+        process.exit();
+      });
+      return fin;
+    } catch (e) {
+      console.error('[openfin] failed to launch manifest');
+      console.error(e?.message ?? e);
+      if (String(e?.message ?? '').includes('Could not locate')) {
+        console.error('[openfin] is the dev server up and the manifest JSON valid?');
+      }
+      throw e;
     }
-    throw e;
-  }
-}
-
-async function run(manifestUrl) {
-  let quitRequested = false;
-  let quit = async () => {};
-
-  const fin = await launchFromNode(manifestUrl);
-  if (!fin) return;
-
-  const manifest = await fin.System.fetchManifest(manifestUrl);
-
-  if (manifest.platform?.uuid) {
-    const uuid = manifest.platform.uuid;
-    console.log(`[openfin] wrapped platform: ${uuid}`);
-    quit = async () => {
-      if (quitRequested) return;
-      quitRequested = true;
-      try {
-        const platform = fin.Platform.wrapSync({ uuid });
-        await platform.quit();
-      } catch (err) {
-        if (String(err).includes('no longer connected')) process.exit();
-        else console.error('[openfin] quit error:', err);
-      }
-    };
-  } else {
-    const uuid = manifest.startup_app.uuid;
-    console.log(`[openfin] wrapped classic app: ${uuid}`);
-    quit = async () => {
-      if (quitRequested) return;
-      quitRequested = true;
-      try {
-        const app = fin.Application.wrapSync({ uuid });
-        await app.quit();
-      } catch (err) {
-        console.error('[openfin] quit error:', err);
-      }
-    };
   }
 
-  process.on('exit', () => { void quit(); });
-  process.on('SIGINT', () => { console.log('[openfin] Ctrl+C'); void quit(); });
-  process.on('SIGTERM', () => { void quit(); });
+  async function run(manifestUrl) {
+    let quitRequested = false;
+    let quit = async () => {};
 
-  console.log(`[openfin] connected — press Ctrl+C to exit`);
+    const fin = await launchFromNode(manifestUrl);
+    if (!fin) return;
+
+    const manifest = await fin.System.fetchManifest(manifestUrl);
+
+    if (manifest.platform?.uuid) {
+      const uuid = manifest.platform.uuid;
+      console.log(`[openfin] wrapped platform: ${uuid}`);
+      quit = async () => {
+        if (quitRequested) return;
+        quitRequested = true;
+        try {
+          const platform = fin.Platform.wrapSync({ uuid });
+          await platform.quit();
+        } catch (err) {
+          if (String(err).includes('no longer connected')) process.exit();
+          else console.error('[openfin] quit error:', err);
+        }
+      };
+    } else {
+      const uuid = manifest.startup_app.uuid;
+      console.log(`[openfin] wrapped classic app: ${uuid}`);
+      quit = async () => {
+        if (quitRequested) return;
+        quitRequested = true;
+        try {
+          const app = fin.Application.wrapSync({ uuid });
+          await app.quit();
+        } catch (err) {
+          console.error('[openfin] quit error:', err);
+        }
+      };
+    }
+
+    process.on('exit', () => { void quit(); });
+    process.on('SIGINT', () => { console.log('[openfin] Ctrl+C'); void quit(); });
+    process.on('SIGTERM', () => { void quit(); });
+
+    console.log(`[openfin] connected — press Ctrl+C to exit`);
+  }
+
+  // ── Entry ───────────────────────────────────────────────────────────
+  try { setDefaultResultOrder('ipv4first'); } catch { /* old node */ }
+
+  const manifestUrl = process.argv[2] ?? DEFAULT_MANIFEST;
+  await run(manifestUrl).catch((err) => {
+    console.error('[openfin]', err?.message ?? err);
+    process.exit(1);
+  });
 }
 
-// ── Entry ───────────────────────────────────────────────────────────
-try { setDefaultResultOrder('ipv4first'); } catch { /* old node */ }
-
-const manifestUrl = process.argv[2] ?? DEFAULT_MANIFEST;
-run(manifestUrl).catch((err) => {
-  console.error('[openfin]', err?.message ?? err);
+// Start the main entry point
+main().catch((err) => {
+  console.error('[openfin] fatal error:', err);
   process.exit(1);
 });

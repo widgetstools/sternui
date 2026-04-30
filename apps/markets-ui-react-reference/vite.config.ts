@@ -41,6 +41,12 @@ export default defineConfig({
     react(),
     svgr(),   // Enables: import Icon from 'path/to/icon.svg?react'
   ],
+  optimizeDeps: {
+    // Exclude @stomp/stompjs from pre-bundling so the resolve alias below
+    // (which forces the ESM6 entry) can take effect. Pre-bundling would
+    // pick the UMD version first, breaking dynamic imports in the worker.
+    exclude: ['@stomp/stompjs'],
+  },
   resolve: {
     // Prefer `.tsx`/`.ts` over `.js`/`.mjs` so source files always win
     // when imports omit the extension. This guards against a recurring
