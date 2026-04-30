@@ -14,7 +14,7 @@
  */
 
 import fs from 'node:fs';
-import { execSync } from 'node:child_process';
+import path from 'node:path';
 
 const STANDARD = {
   // React core
@@ -35,11 +35,11 @@ const STANDARD = {
   'ag-grid-react': '35.1.0',
   'ag-grid-angular': '35.1.0',
 
-  // OpenFin (42.x family per user decision)
-  '@openfin/core': '~42.103.4',
-  '@openfin/node-adapter': '^42.103.4',
-  '@openfin/workspace': '~42.103.4',
-  '@openfin/workspace-platform': '~42.103.4',
+  // OpenFin (43.x family)
+  '@openfin/core': '~43.101.4',
+  '@openfin/node-adapter': '~43.101.2',
+  '@openfin/workspace': '~43.101.4',
+  '@openfin/workspace-platform': '~43.101.4',
 
   // Testing
   'vitest': '^4.1.4',
@@ -93,16 +93,30 @@ const PEER_STANDARD = {
   'ag-grid-angular': '>=35.0.0',
 };
 
-const files = execSync(
-  'find apps packages -maxdepth 3 -name package.json -not -path "*/node_modules/*"',
-  { encoding: 'utf8' }
-).trim().split('\n').filter(Boolean);
+function findPackageJsons(root, maxDepth = 3) {
+  const results = [];
+  function walk(dir, depth) {
+    if (depth > maxDepth) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (entry.name === 'node_modules') continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full, depth + 1);
+      else if (entry.name === 'package.json') results.push(full);
+    }
+  }
+  walk(root, 0);
+  return results;
+}
+
+const files = [...findPackageJsons('apps'), ...findPackageJsons('packages')];
 
 let filesChanged = 0;
 let changes = 0;
 
-for (const path of files) {
-  const raw = fs.readFileSync(path, 'utf8');
+for (const filePath of files) {
+  const raw = fs.readFileSync(filePath, 'utf8');
   const p = JSON.parse(raw);
   let localChanges = 0;
 
@@ -125,8 +139,8 @@ for (const path of files) {
   }
 
   if (localChanges > 0) {
-    fs.writeFileSync(path, JSON.stringify(p, null, 2) + '\n');
-    console.log(`  ${path}: ${localChanges} version(s) normalized`);
+    fs.writeFileSync(filePath, JSON.stringify(p, null, 2) + '\n');
+    console.log(`  ${filePath}: ${localChanges} version(s) normalized`);
     filesChanged++;
     changes += localChanges;
   }

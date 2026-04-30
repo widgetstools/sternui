@@ -10,13 +10,22 @@
  * `apps/markets-ui-react-reference/launch.mjs`; generalized so the
  * default URL is the demo-react manifest.
  *
- * Requires `@openfin/node-adapter` to be resolvable from cwd. npm
- * hoists it to root node_modules because multiple workspace apps
- * depend on it; this script is declared as a root devDep for
- * robustness.
+ * OpenFin only runs on Windows — exits cleanly (code 0) on other platforms
+ * so `concurrently` dev scripts don't error on macOS/Linux developer machines.
  */
-import { connect, launch } from '@openfin/node-adapter';
 import { setDefaultResultOrder } from 'node:dns';
+
+if (process.platform !== 'win32') {
+  console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
+  process.exit(0);
+}
+
+// Dynamic import keeps the module resolvable even when @openfin/node-adapter
+// is absent (it is declared as an optionalDependency).
+const { connect, launch } = await import('@openfin/node-adapter').catch((err) => {
+  console.error('[openfin] @openfin/node-adapter not installed:', err.message);
+  process.exit(1);
+});
 
 const DEFAULT_MANIFEST = 'http://localhost:5190/openfin/manifest.json';
 

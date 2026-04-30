@@ -86,3 +86,30 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: Turbo test
         run: npx turbo test
+
+  cross-platform:
+    name: Build + typecheck (${{ matrix.os }})
+    # Runs independently so it doesn't block the fast Ubuntu path.
+    # Verifies that npm install, tsc, and turbo build complete cleanly
+    # on macOS (arm64 runners) and Windows x64/arm64.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: npm ci (legacy peer deps)
+        run: npm ci --legacy-peer-deps
+
+      - name: Turbo typecheck + build
+        run: npx turbo typecheck build

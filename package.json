@@ -30,8 +30,10 @@
     "test:e2e:openfin": "npm run test:e2e -w @marketsui/e2e-openfin",
     "clean": "rimraf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist .turbo"
   },
+  "optionalDependencies": {
+    "@openfin/node-adapter": "43.101.2"
+  },
   "devDependencies": {
-    "@openfin/node-adapter": "43.101.2",
     "@playwright/test": "^1.59.1",
     "autoprefixer": "^10.4.27",
     "concurrently": "^9.0.0",
