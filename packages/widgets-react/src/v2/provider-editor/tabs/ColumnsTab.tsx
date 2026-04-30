@@ -20,13 +20,45 @@ import type {
   ICellRendererParams,
   RowDragEndEvent,
 } from 'ag-grid-community';
-import { AllCommunityModule } from 'ag-grid-community';
-import { Button, Label } from '@marketsui/ui';
+import { AllCommunityModule, themeQuartz } from 'ag-grid-community';
+import { Button, Label, useTheme } from '@marketsui/ui';
 import { Trash2 } from 'lucide-react';
 import type { ColumnDefinition } from '@marketsui/shared-types';
 import { normalizeKeyColumns } from '@marketsui/shared-types';
 import { MultiSelect } from '../MultiSelect.js';
-import { useAgGridTheme } from '../../../theme/useAgGridTheme.js';
+
+// Panel-integrated AG-Grid themes: pull colours from the shadcn design-system
+// CSS variables so the grid blends with the editor panel in both modes.
+// Defined at module level (stable object references — no re-creation per render).
+const EDITOR_THEME_DARK = themeQuartz.withParams({
+  accentColor: 'hsl(var(--primary))',
+  backgroundColor: 'hsl(var(--card))',
+  borderColor: 'hsl(var(--border))',
+  borderRadius: 2,
+  browserColorScheme: 'dark',
+  columnBorder: false,
+  foregroundColor: 'hsl(var(--foreground))',
+  headerBackgroundColor: 'hsl(var(--muted))',
+  oddRowBackgroundColor: 'hsl(var(--card))',
+  rowHoverColor: 'hsl(var(--accent))',
+  spacing: 5,
+  wrapperBorderRadius: 4,
+});
+
+const EDITOR_THEME_LIGHT = themeQuartz.withParams({
+  accentColor: 'hsl(var(--primary))',
+  backgroundColor: 'hsl(var(--card))',
+  borderColor: 'hsl(var(--border))',
+  borderRadius: 2,
+  browserColorScheme: 'light',
+  columnBorder: false,
+  foregroundColor: 'hsl(var(--foreground))',
+  headerBackgroundColor: 'hsl(var(--muted))',
+  oddRowBackgroundColor: 'hsl(var(--card))',
+  rowHoverColor: 'hsl(var(--accent))',
+  spacing: 5,
+  wrapperBorderRadius: 4,
+});
 
 const CELL_TYPES: ReadonlyArray<NonNullable<ColumnDefinition['cellDataType']>> = [
   'text', 'number', 'boolean', 'date', 'dateString', 'object',
@@ -50,7 +82,8 @@ export interface ColumnsTabProps {
 }
 
 export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: ColumnsTabProps) {
-  const { theme } = useAgGridTheme();
+  const { resolvedTheme } = useTheme();
+  const gridTheme = resolvedTheme === 'light' ? EDITOR_THEME_LIGHT : EDITOR_THEME_DARK;
 
   // Enrich with a stable row id so AG-Grid tracks rows across
   // parent-driven re-renders. field+idx handles duplicate field names.
@@ -168,13 +201,6 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-4 py-2.5 border-b border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
-        <span className="text-xs text-muted-foreground">
-          <strong className="text-foreground">{columns.length}</strong>{' '}
-          column{columns.length === 1 ? '' : 's'}
-        </span>
-      </div>
-
       <div className="flex-1 min-h-0 flex flex-col p-3 gap-3 overflow-hidden">
         <KeyColumnPicker
           columns={columns}
@@ -184,7 +210,7 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
 
         <div className="flex-1 min-h-0">
           <AgGridReact<RowData>
-            theme={theme}
+            theme={gridTheme}
             modules={[AllCommunityModule]}
             rowData={rowData}
             columnDefs={colDefs}
