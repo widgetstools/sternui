@@ -208,29 +208,24 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
         </div>
 
         <div className="flex-1 min-h-0">
-          {rowData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-              No variables yet. Add one using the form above.
-            </div>
-          ) : (
-            <AgGridReact<RowData>
-              theme={gridTheme}
-              modules={[AllCommunityModule]}
-              rowData={rowData}
-              columnDefs={colDefs}
-              getRowId={getRowId}
-              singleClickEdit
-              onCellValueChanged={onCellValueChanged}
-              headerHeight={28}
-              rowHeight={32}
-              defaultColDef={{
-                resizable: true,
-                sortable: false,
-                suppressHeaderMenuButton: true,
-              }}
-              suppressContextMenu
-            />
-          )}
+          <AgGridReact<RowData>
+            theme={gridTheme}
+            modules={[AllCommunityModule]}
+            rowData={rowData}
+            columnDefs={colDefs}
+            getRowId={getRowId}
+            singleClickEdit
+            onCellValueChanged={onCellValueChanged}
+            headerHeight={28}
+            rowHeight={32}
+            defaultColDef={{
+              resizable: true,
+              sortable: false,
+              suppressHeaderMenuButton: true,
+            }}
+            suppressContextMenu
+            overlayNoRowsTemplate='<span class="text-xs text-muted-foreground">No variables yet. Add one using the form above.</span>'
+          />
         </div>
       </div>
     </div>

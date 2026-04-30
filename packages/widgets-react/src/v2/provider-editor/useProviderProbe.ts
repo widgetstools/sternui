@@ -11,6 +11,8 @@
 
 import { useCallback, useState } from 'react';
 import { probeStomp, probeRest, inferFields } from '@marketsui/data-plane/v2/worker';
+import { resolveCfg } from '@marketsui/data-plane/v2';
+import { useAppDataStore } from '@marketsui/data-plane-react/v2';
 import type { ProviderConfig, FieldNode } from '@marketsui/shared-types';
 
 export interface ProbeState {
@@ -26,6 +28,7 @@ export interface ProbeState {
 }
 
 export function useProviderProbe(cfg: ProviderConfig | null): ProbeState {
+  const { store: appDataStore } = useAppDataStore();
   const [state, setState] = useState<Omit<ProbeState, 'test' | 'infer' | 'reset'>>({
     testing: false,
     testResult: null,
@@ -35,11 +38,22 @@ export function useProviderProbe(cfg: ProviderConfig | null): ProbeState {
     inferenceError: null,
   });
 
+  const resolveAppDataTokens = useCallback(
+    (input: ProviderConfig): ProviderConfig => {
+      // Probe path bypasses the React useResolvedCfg pipeline, so we
+      // expand `{{name.key}}` against the AppData snapshot here.
+      // `[bracket]` tokens are still resolved inside probeStomp.
+      return resolveCfg(input, (name, key) => appDataStore.get(name, key));
+    },
+    [appDataStore],
+  );
+
   const test = useCallback(async () => {
     if (!cfg) return;
     setState((s) => ({ ...s, testing: true, testResult: null }));
     try {
-      const result = await probeOnce(cfg, { maxRows: 5, timeoutMs: 10_000 });
+      await appDataStore.ready();
+      const result = await probeOnce(resolveAppDataTokens(cfg), { maxRows: 5, timeoutMs: 10_000 });
       setState((s) => ({
         ...s,
         testing: false,
@@ -54,15 +68,16 @@ export function useProviderProbe(cfg: ProviderConfig | null): ProbeState {
         testResult: { success: false, error: err instanceof Error ? err.message : String(err) },
       }));
     }
-  }, [cfg]);
+  }, [cfg, appDataStore, resolveAppDataTokens]);
 
   const infer = useCallback(async (opts: { sampleSize?: number } = {}) => {
     if (!cfg) return;
     const sampleSize = opts.sampleSize ?? 200;
     setState((s) => ({ ...s, inferring: true, inferenceError: null }));
     try {
+      await appDataStore.ready();
       const fetchSize = Math.min(Math.max(sampleSize * 2, sampleSize + 50), 1000);
-      const result = await probeOnce(cfg, { maxRows: fetchSize, timeoutMs: 30_000 });
+      const result = await probeOnce(resolveAppDataTokens(cfg), { maxRows: fetchSize, timeoutMs: 30_000 });
       if (!result.ok) {
         setState((s) => ({ ...s, inferring: false, inferenceError: result.error ?? 'probe failed' }));
         return;
@@ -81,7 +96,7 @@ export function useProviderProbe(cfg: ProviderConfig | null): ProbeState {
         inferenceError: err instanceof Error ? err.message : String(err),
       }));
     }
-  }, [cfg]);
+  }, [cfg, appDataStore, resolveAppDataTokens]);
 
   const reset = useCallback(() => {
     setState({

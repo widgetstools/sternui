@@ -123,6 +123,69 @@ export function useAppDataStore(): AppDataView {
   return { store: appData, version, loaded };
 }
 
+// ─── Hook 2b: scoped AppData hook for a single provider ─────────
+//
+// Reactive, name-scoped view of one AppData provider's variables.
+// Consumers anywhere in the tree can read + mutate values without
+// touching the store directly:
+//
+//   const { values, get, set } = useAppData('positions');
+//   await set('asOfDate', '2026-04-30');
+//   const dt = get('asOfDate');
+//
+// Updates fire whenever any key on this named provider changes.
+// `set()` writes through `AppDataStore.set()`, which honours
+// ConfigManager persistence (durability semantics live there).
+
+export interface AppDataHandle {
+  /** Current key→value map. Empty until the store has loaded. */
+  values: Record<string, unknown>;
+  /** Whether `AppDataStore.ready()` has resolved at least once. */
+  loaded: boolean;
+  /** Sync read. Returns undefined for unknown keys or pre-load. */
+  get(key: string): unknown;
+  /** Write a single key. Creates the AppData row on first set if it
+   *  doesn't already exist (with the active user as owner, not public). */
+  set(key: string, value: unknown): Promise<void>;
+  /** Replace the entire variable map for this provider in one round-trip. */
+  setMany(values: Record<string, unknown>): Promise<void>;
+}
+
+export function useAppData(providerName: string): AppDataHandle {
+  const { store, version, loaded } = useAppDataStore();
+
+  const values = useMemo<Record<string, unknown>>(() => {
+    const row = store.list().find((r) => r.name === providerName);
+    return row ? { ...row.values } : {};
+    // version drives re-computation on every AppData mutation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerName, store, version, loaded]);
+
+  const get = useCallback((key: string) => store.get(providerName, key), [store, providerName]);
+
+  const set = useCallback(
+    (key: string, value: unknown) => store.set(providerName, key, value),
+    [store, providerName],
+  );
+
+  const setMany = useCallback(
+    async (next: Record<string, unknown>) => {
+      const existing = store.list().find((r) => r.name === providerName);
+      await store.upsertConfig({
+        configId: existing?.configId ?? '',
+        name: providerName,
+        description: existing?.description,
+        isPublic: existing?.isPublic ?? false,
+        values: next,
+        userId: existing?.userId ?? '',
+      });
+    },
+    [store, providerName],
+  );
+
+  return { values, loaded, get, set, setMany };
+}
+
 // ─── Hook 3: single DataProviderConfig row ───────────────────────
 
 export interface DataProviderConfigView {

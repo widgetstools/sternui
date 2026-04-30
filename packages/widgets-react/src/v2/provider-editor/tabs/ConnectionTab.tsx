@@ -25,14 +25,23 @@ export interface ConnectionTabProps {
 
 export function ConnectionTab({ cfg, onCfgChange, probe }: ConnectionTabProps) {
   const showTest = cfg.providerType === 'stomp' || cfg.providerType === 'rest';
+  // AppData owns its own internal layout (form + AG-Grid that fills height),
+  // so it must not be wrapped in a ScrollArea — that collapses the grid to 0.
+  const isAppData = cfg.providerType === 'appdata';
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="p-4 space-y-4">
+      {isAppData ? (
+        <div className="flex-1 min-h-0">
           <Fields cfg={cfg} onChange={onCfgChange} />
         </div>
-      </ScrollArea>
+      ) : (
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-4 space-y-4">
+            <Fields cfg={cfg} onChange={onCfgChange} />
+          </div>
+        </ScrollArea>
+      )}
 
       {showTest && (
         <div className="px-4 py-2.5 border-t border-border bg-muted/30 flex items-center justify-between flex-shrink-0">

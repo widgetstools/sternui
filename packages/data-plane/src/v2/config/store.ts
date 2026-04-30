@@ -121,10 +121,19 @@ export class AppDataConfigStore {
     const seen = new Set<string>();
     const out: AppDataConfig[] = [];
     for (const row of [...pub, ...own]) {
-      if (row.componentType !== COMPONENT_TYPE_APPDATA) continue;
+      // Two shapes co-exist:
+      //   - legacy standalone AppData rows (componentType: 'appdata')
+      //   - new DataProvider rows authored via the unified editor
+      //     (componentType: 'data-provider', componentSubType: 'appdata')
+      // Both surface here so `{{name.key}}` resolution sees them either way.
+      const isLegacy = row.componentType === COMPONENT_TYPE_APPDATA;
+      const isProviderShape =
+        row.componentType === COMPONENT_TYPE_DATA_PROVIDER &&
+        row.componentSubType === 'appdata';
+      if (!isLegacy && !isProviderShape) continue;
       if (seen.has(row.configId)) continue;
       seen.add(row.configId);
-      out.push(rowToAppData(row));
+      out.push(isLegacy ? rowToAppData(row) : rowToAppDataFromProvider(row));
     }
     return out;
   }
@@ -204,6 +213,37 @@ function rowToAppData(row: AppConfigRow): AppDataConfig {
     description: payload.description as string | undefined,
     isPublic: row.userId === PUBLIC_USER_ID,
     values: (payload.values as Record<string, unknown>) ?? {},
+    userId: row.userId,
+  };
+}
+
+/**
+ * Convert a DataProvider-shaped row (componentType='data-provider',
+ * componentSubType='appdata') into the flat AppDataConfig shape that
+ * `{{name.key}}` template resolution expects.
+ *
+ * The unified editor saves AppData providers using `providerToPayload`,
+ * which writes the cfg's `variables: Record<string, AppDataVariable>`
+ * into the payload alongside `__providerMeta`. We unwrap each variable
+ * to its `.value` so a template lookup of `{{App1Data.userId}}` returns
+ * the scalar, not the variable wrapper object.
+ */
+function rowToAppDataFromProvider(row: AppConfigRow): AppDataConfig {
+  const payload = (row.payload ?? {}) as Record<string, unknown>;
+  const meta = (payload.__providerMeta ?? {}) as Record<string, unknown>;
+  const variables = (payload.variables ?? {}) as Record<string, { value?: unknown }>;
+  const values: Record<string, unknown> = {};
+  for (const [key, variable] of Object.entries(variables)) {
+    values[key] = variable && typeof variable === 'object' && 'value' in variable
+      ? variable.value
+      : variable;
+  }
+  return {
+    configId: row.configId,
+    name: row.displayText,
+    description: (meta.description as string | undefined) ?? undefined,
+    isPublic: row.userId === PUBLIC_USER_ID,
+    values,
     userId: row.userId,
   };
 }
