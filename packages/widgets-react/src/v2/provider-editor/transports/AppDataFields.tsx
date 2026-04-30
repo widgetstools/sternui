@@ -37,7 +37,18 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 
-  const variables = cfg.variables ?? {};
+  const variables = useMemo(() => {
+    const vars = cfg.variables ?? {};
+    // Clean up any old temp entries from previous editor versions
+    const cleaned: Record<string, AppDataVariable> = {};
+    for (const [key, v] of Object.entries(vars)) {
+      if (!key.startsWith('__editing_')) {
+        cleaned[key] = v;
+      }
+    }
+    return cleaned;
+  }, [cfg.variables]);
+
   const existingKeys = useMemo(() => new Set(Object.keys(variables)), [variables]);
 
   const handleAddPair = useCallback(() => {
@@ -63,10 +74,12 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
 
   const rowData = useMemo<RowData[]>(
     () =>
-      Object.entries(variables).map(([key, v], idx) => ({
-        ...v,
-        _rowId: `${key}-${idx}`,
-      })),
+      Object.entries(variables)
+        .filter(([key]) => !key.startsWith('__editing_')) // Filter out incomplete temp entries
+        .map(([key, v], idx) => ({
+          ...v,
+          _rowId: `${key}-${idx}`,
+        })),
     [variables],
   );
 
@@ -81,6 +94,8 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
       onChange({
         variables: Object.entries(variables).reduce(
           (acc, [key, v]) => {
+            // Skip temp entries
+            if (key.startsWith('__editing_')) return acc;
             if (v.key === originalKey) {
               acc[newKey] = { ...v, [e.colDef.field as string]: e.newValue };
             } else {
@@ -103,9 +118,9 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
       onChange({
         variables: Object.entries(variables).reduce(
           (acc, [key, v]) => {
-            if (v.key !== keyToDelete) {
-              acc[key] = v;
-            }
+            // Skip temp entries and the one being deleted
+            if (key.startsWith('__editing_') || v.key === keyToDelete) return acc;
+            acc[key] = v;
             return acc;
           },
           {} as Record<string, AppDataVariable>,
