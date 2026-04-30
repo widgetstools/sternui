@@ -96,6 +96,12 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
     list.refresh();
   };
 
+  const onFormCancel = () => {
+    setCreating(null);
+    setSelectedId(null);
+    onClose?.();
+  };
+
   const onDelete = async (cfg: DataProviderConfig) => {
     if (!cfg.providerId) return;
     await configStore.remove(cfg.providerId);
@@ -123,7 +129,7 @@ export function DataProviderEditor({ userId, initialProviderId = null, onClose }
           <EditorForm
             initial={selected}
             userId={userId}
-            onCancel={onClose}
+            onCancel={onFormCancel}
             onSaved={onSaved}
           />
         ) : (
