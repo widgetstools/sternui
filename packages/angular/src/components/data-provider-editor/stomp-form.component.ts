@@ -57,6 +57,10 @@ ModuleRegistry.registerModules([AllEnterpriseModule]);
                 <label class="text-xs font-medium text-muted-foreground">WebSocket URL *</label>
                 <input formControlName="websocketUrl" placeholder="ws://localhost:15674/ws"
                   class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                <p class="text-[11px] text-muted-foreground">
+                  Supports <code class="bg-muted px-1 rounded text-[10px]">{{'{{appData.key}}'}</code> (deterministic)
+                  and <code class="bg-muted px-1 rounded text-[10px]">[name]</code> (session-unique ID).
+                </p>
               </div>
             </section>
 
@@ -66,16 +70,26 @@ ModuleRegistry.registerModules([AllEnterpriseModule]);
                 <label class="text-xs font-medium text-muted-foreground">Listener Topic *</label>
                 <input formControlName="listenerTopic" placeholder="/topic/orders"
                   class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                <p class="text-[11px] text-muted-foreground">
+                  Use <code class="bg-muted px-1 rounded text-[10px]">[name]</code> for
+                  a session-unique ID — same <code class="bg-muted px-1 rounded text-[10px]">[name]</code> in different fields resolve to the same value.
+                </p>
               </div>
               <div class="space-y-1.5">
                 <label class="text-xs font-medium text-muted-foreground">Request Topic</label>
                 <input formControlName="requestMessage" placeholder="/queue/request"
                   class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                <p class="text-[11px] text-muted-foreground">
+                  Supports <code class="bg-muted px-1 rounded text-[10px]">[name]</code> tokens for session-unique identifiers.
+                </p>
               </div>
               <div class="space-y-1.5">
                 <label class="text-xs font-medium text-muted-foreground">Request Body</label>
                 <input formControlName="requestBody" placeholder="START"
                   class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                <p class="text-[11px] text-muted-foreground">
+                  Supports <code class="bg-muted px-1 rounded text-[10px]">[name]</code> tokens for correlation IDs and session-unique identifiers.
+                </p>
               </div>
             </section>
           </div>

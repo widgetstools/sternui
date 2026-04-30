@@ -26,6 +26,10 @@ export function StompFields({ cfg, onChange }: StompFieldsProps) {
             onChange={(e) => onChange({ websocketUrl: e.target.value })}
             placeholder="ws://localhost:8080"
           />
+          <Help>
+            Supports <code className="bg-muted px-1 rounded text-[10px]">{'{{appData.key}}'}</code> (deterministic)
+            and <code className="bg-muted px-1 rounded text-[10px]">[name]</code> (session-unique ID).
+          </Help>
         </Field>
         <Field label="Listener Topic" required>
           <Input
@@ -34,7 +38,11 @@ export function StompFields({ cfg, onChange }: StompFieldsProps) {
             onChange={(e) => onChange({ listenerTopic: e.target.value })}
             placeholder="/snapshot/positions/TRADER001"
           />
-          <Help>The topic the worker SUBSCRIBEs to.</Help>
+          <Help>
+            The topic the worker SUBSCRIBEs to. Use <code className="bg-muted px-1 rounded text-[10px]">[name]</code> for
+            a session-unique ID — same <code className="bg-muted px-1 rounded text-[10px]">[name]</code> in different fields resolve to the same value
+            (e.g., <code className="bg-muted px-1 rounded text-[10px]">[clientTag]</code> here and in Trigger Body will match).
+          </Help>
         </Field>
       </Card>
 
@@ -46,9 +54,11 @@ export function StompFields({ cfg, onChange }: StompFieldsProps) {
             onChange={(e) => onChange({ requestMessage: e.target.value })}
             placeholder="/snapshot/positions/TRADER001/1000"
           />
-          <Help>SEND destination after subscribing. The bundled stomp-server encodes
+          <Help>
+            SEND destination after subscribing. The bundled stomp-server encodes
             <code className="bg-muted px-1 rounded mx-1 text-[10px]">.../{'{rate}'}</code>
-            in the URL itself.</Help>
+            in the URL itself. Supports <code className="bg-muted px-1 rounded text-[10px]">[name]</code> tokens.
+          </Help>
         </Field>
         <Field label="Trigger Body">
           <Input
@@ -57,9 +67,12 @@ export function StompFields({ cfg, onChange }: StompFieldsProps) {
             onChange={(e) => onChange({ requestBody: e.target.value })}
             placeholder="(empty — rate in destination)"
           />
-          <Help>Leave empty when destination encodes everything. Some servers expect
+          <Help>
+            Leave empty when destination encodes everything. Some servers expect
             <code className="bg-muted px-1 rounded mx-1 text-[10px]">START</code>
-            or a JSON envelope.</Help>
+            or a JSON envelope. Supports <code className="bg-muted px-1 rounded text-[10px]">[name]</code> tokens for correlation IDs
+            and session-unique identifiers.
+          </Help>
         </Field>
         <Field label="Snapshot End Token">
           <Input
