@@ -214,9 +214,9 @@ function Header({
   onPublicChange(public_: boolean): void;
 }) {
   return (
-    <header className="px-4 py-3 border-b border-border bg-muted/30 space-y-2.5 flex-shrink-0">
+    <header className="px-4 py-2 border-b border-border bg-muted/30 flex-shrink-0">
       <div className="flex items-end gap-3">
-        <div className="flex-1 space-y-1.5">
+        <div className="w-52 shrink-0 space-y-1">
           <Label className="text-[11px] font-medium text-muted-foreground">Name *</Label>
           <Input
             className="h-8 text-sm"
@@ -225,7 +225,17 @@ function Header({
             placeholder="positions-live"
           />
         </div>
-        <div className="flex items-center gap-2 pb-2">
+        <div className="flex-1 space-y-1">
+          <Label className="text-[11px] font-medium text-muted-foreground">Description</Label>
+          <Textarea
+            className="text-xs min-h-0 scrollbar-thin"
+            rows={1}
+            value={provider.description ?? ''}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder="What this provider streams (optional)"
+          />
+        </div>
+        <div className="flex items-center gap-2 pb-1.5 shrink-0">
           <Switch
             id="public-toggle"
             checked={Boolean(provider.public)}
@@ -235,16 +245,6 @@ function Header({
             Public
           </Label>
         </div>
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-[11px] font-medium text-muted-foreground">Description</Label>
-        <Textarea
-          className="text-xs min-h-0 scrollbar-thin"
-          rows={1}
-          value={provider.description ?? ''}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="What this provider streams (optional)"
-        />
       </div>
     </header>
   );
