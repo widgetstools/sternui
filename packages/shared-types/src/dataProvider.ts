@@ -97,7 +97,13 @@ export interface StompProviderConfig {
   requestMessage?: string;
   requestBody?: string;
   snapshotEndToken?: string;
-  keyColumn?: string;
+  /**
+   * Unique-row identity. A SINGLE column name keys rows by that one
+   * field; an array of column names keys rows by the joined values
+   * (separator: `-`) — used for datasets with composite primary keys.
+   * Drives both the worker-side cache (Hub) and AG-Grid's `getRowId`.
+   */
+  keyColumn?: string | readonly string[];
   snapshotTimeoutMs?: number;
   manualTopics?: boolean;
   dataType?: 'positions' | 'trades' | 'orders' | 'custom';
@@ -167,9 +173,10 @@ export interface RestProviderConfig {
   /**
    * Required for streaming consumers (MarketsGrid). The column whose
    * value uniquely identifies a row — drives RowCache upsert + AG-Grid
-   * `getRowId`.
+   * `getRowId`. Accepts an array of column names for composite keys
+   * (joined with `-`).
    */
-  keyColumn?: string;
+  keyColumn?: string | readonly string[];
   /**
    * Path inside the JSON response that holds the rows array.
    * Dot notation; e.g. `data.results`. Default: response is the
@@ -480,4 +487,62 @@ export function validateProviderConfig(config: ProviderConfig): ProviderValidati
     errors,
     warnings: warnings.length > 0 ? warnings : undefined
   };
+}
+
+// ─── Row-id derivation ────────────────────────────────────────────────
+
+/** Separator used when composing row ids from multiple key columns. */
+export const COMPOSITE_KEY_SEPARATOR = '-';
+
+/**
+ * Normalize a `keyColumn` config value (single string OR array) into a
+ * readonly array of column names. Empty / whitespace-only entries are
+ * dropped. Returns `null` when no usable column is configured.
+ */
+export function normalizeKeyColumns(
+  keyColumn: string | readonly string[] | null | undefined,
+): readonly string[] | null {
+  if (keyColumn == null) return null;
+  const arr = Array.isArray(keyColumn) ? keyColumn : [keyColumn];
+  const cleaned = arr
+    .filter((c): c is string => typeof c === 'string')
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+/**
+ * Compose a unique row id from one or more configured key columns.
+ *
+ * - **Single column**: returns the row's value at that column, stringified.
+ * - **Composite (≥ 2 columns)**: joins each column's stringified value
+ *   with `-`, e.g. `col1=A, col2=B, col3=42` → `"A-B-42"`.
+ * - **Missing values**: if ANY configured column is null/undefined on the
+ *   row, returns `null` — the caller treats the row as un-keyable.
+ *   Surfacing a row whose composite key is partially-defined would silently
+ *   conflate distinct rows under a sentinel like `"A--42"`.
+ *
+ * Used by both the worker-side Hub cache and AG-Grid's `getRowId` so the
+ * cache key and the grid row id stay byte-identical (required for live
+ * updates to find the right rendered row).
+ */
+export function composeRowId(
+  row: unknown,
+  keyColumn: string | readonly string[] | null | undefined,
+): string | null {
+  const cols = normalizeKeyColumns(keyColumn);
+  if (!cols || !row || typeof row !== 'object') return null;
+  const obj = row as Record<string, unknown>;
+  if (cols.length === 1) {
+    const v = obj[cols[0]];
+    if (v === null || v === undefined) return null;
+    return String(v);
+  }
+  const parts: string[] = [];
+  for (const col of cols) {
+    const v = obj[col];
+    if (v === null || v === undefined) return null;
+    parts.push(String(v));
+  }
+  return parts.join(COMPOSITE_KEY_SEPARATOR);
 }

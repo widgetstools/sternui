@@ -36,15 +36,6 @@ export function StompFields({ cfg, onChange }: StompFieldsProps) {
           />
           <Help>The topic the worker SUBSCRIBEs to.</Help>
         </Field>
-        <Field label="Key Column" required>
-          <Input
-            className="h-8 text-sm font-mono"
-            value={cfg.keyColumn ?? ''}
-            onChange={(e) => onChange({ keyColumn: e.target.value })}
-            placeholder="positionId"
-          />
-          <Help>Unique-row field. Drives AG-Grid getRowId + the worker-side cache key.</Help>
-        </Field>
       </Card>
 
       <Card title="Trigger">

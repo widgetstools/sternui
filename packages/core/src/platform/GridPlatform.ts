@@ -1,4 +1,5 @@
 import type { GridApi, GridOptions, GetRowIdParams } from 'ag-grid-community';
+import { composeRowId } from '@marketsui/shared-types';
 import { createGridStore } from '../store/createGridStore';
 import { ApiHub } from './ApiHub';
 import { EventBus } from './EventBus';
@@ -18,8 +19,14 @@ import type {
 export interface GridPlatformOptions {
   gridId: string;
   modules: readonly AnyModule[];
-  /** Field on each row that uniquely identifies it. Defaults to `'id'`. */
-  rowIdField?: string;
+  /**
+   * Field(s) on each row that uniquely identify it. Defaults to `'id'`.
+   * Pass a single string for a one-column key, or an array of column
+   * names for a composite key — the values are joined with `-` to form
+   * the row id (matches the worker-side cache key produced by the
+   * data-plane Hub).
+   */
+  rowIdField?: string | readonly string[];
 }
 
 /**
@@ -42,7 +49,7 @@ export class GridPlatform {
 
   private readonly pipeline: PipelineRunner;
   private readonly modules: AnyModule[];
-  private readonly rowIdField: string;
+  private readonly rowIdField: string | readonly string[];
   private readonly activeDisposers: Array<() => void> = [];
   private mountedGrid = false;
   private destroyed = false;
@@ -104,7 +111,7 @@ export class GridPlatform {
     if (!withGetRowId.getRowId) {
       const field = this.rowIdField;
       withGetRowId.getRowId = (params: GetRowIdParams) =>
-        String((params.data as Record<string, unknown>)[field]);
+        composeRowId(params.data, field) ?? '';
     }
     return this.pipeline.runGridOptions(this.modules, withGetRowId, this.transformContext());
   }
@@ -165,7 +172,7 @@ export class GridPlatform {
     return {
       gridId: this.gridId,
       getRowId: (params: GetRowIdParams) =>
-        String((params.data as Record<string, unknown>)[field]),
+        composeRowId(params.data, field) ?? '',
       getModuleState: (id) => this.store.getModuleState(id),
       resources: this.resources,
       api: this.api.api,

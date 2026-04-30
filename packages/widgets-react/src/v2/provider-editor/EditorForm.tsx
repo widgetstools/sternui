@@ -80,7 +80,24 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
     updateCfg({ columnDefinitions: cols } as unknown as Partial<ProviderConfig>);
   };
 
+  /**
+   * Persist the row-key configuration. Keep storage shape canonical:
+   *   - 0 columns selected → omit the field (`undefined`)
+   *   - 1 column          → store as a plain string (legacy shape)
+   *   - 2+ columns        → store as an array (composite key)
+   * Reads via `composeRowId` accept all three shapes, so this just
+   * keeps the on-disk JSON tidy and stays back-compatible.
+   */
+  const updateKeyColumn = (next: readonly string[]) => {
+    let value: string | string[] | undefined;
+    if (next.length === 0) value = undefined;
+    else if (next.length === 1) value = next[0];
+    else value = [...next];
+    updateCfg({ keyColumn: value } as unknown as Partial<ProviderConfig>);
+  };
+
   const currentColumns = readColumns(provider.config);
+  const currentKeyColumn = readKeyColumn(provider.config);
 
   const onSave = async () => {
     setSaving(true);
@@ -155,7 +172,12 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
         </TabsContent>
 
         <TabsContent value="columns" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
-          <ColumnsTab columns={currentColumns} onChange={updateColumns} />
+          <ColumnsTab
+            columns={currentColumns}
+            onChange={updateColumns}
+            keyColumn={currentKeyColumn}
+            onKeyColumnChange={updateKeyColumn}
+          />
         </TabsContent>
 
         <TabsContent value="behaviour" className="flex-1 min-h-0 overflow-auto scrollbar-thin m-0 mt-3 p-4">
@@ -236,6 +258,15 @@ function Header({
 function readColumns(cfg: ProviderConfig): ColumnDefinition[] {
   const maybe = (cfg as unknown as { columnDefinitions?: ColumnDefinition[] }).columnDefinitions;
   return Array.isArray(maybe) ? maybe : [];
+}
+
+// Same uniform-read pattern for the row-key configuration. Stomp + Rest
+// expose `keyColumn` (single string OR array of column names); other
+// transports don't carry it.
+function readKeyColumn(cfg: ProviderConfig): string | readonly string[] | undefined {
+  const maybe = (cfg as unknown as { keyColumn?: string | readonly string[] }).keyColumn;
+  if (typeof maybe === 'string') return maybe;
+  return Array.isArray(maybe) ? maybe : undefined;
 }
 
 function Footer({

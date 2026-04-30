@@ -34,7 +34,7 @@
  *      - Self-disabling when no stats listeners exist anywhere.
  */
 
-import type { ProviderConfig } from '@marketsui/shared-types';
+import { composeRowId, type ProviderConfig } from '@marketsui/shared-types';
 import type {
   AttachRequest,
   DetachRequest,
@@ -99,12 +99,14 @@ export interface HubOpts {
  * lacking the field (or with null/undefined values) are skipped —
  * surfacing them as cached entries with stringified `null` would
  * silently corrupt the cache.
+ *
+ * `keyColumn` may be a single string (one column) OR an array of
+ * column names (composite key, joined with `-`). Delegates to
+ * `composeRowId` so the cache key matches AG-Grid's `getRowId`
+ * byte-for-byte.
  */
-function keyOf(row: unknown, keyColumn: string | undefined): string | null {
-  if (!keyColumn || !row || typeof row !== 'object') return null;
-  const v = (row as Record<string, unknown>)[keyColumn];
-  if (v === null || v === undefined) return null;
-  return String(v);
+function keyOf(row: unknown, keyColumn: string | readonly string[] | undefined): string | null {
+  return composeRowId(row, keyColumn);
 }
 
 export class Hub {
@@ -257,7 +259,7 @@ export class Hub {
 
   private applyEmit(providerId: string, slot: ProviderSlot, event: ProviderEmitEvent): void {
     if ('rows' in event) {
-      const keyColumn = (slot.cfg as { keyColumn?: string }).keyColumn;
+      const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
       if (event.replace) slot.cache.clear();
       // Build a per-batch dedup map IN PARALLEL with the cache update.
       // Both consume `event.rows` in order, so the last-write-wins

@@ -27,7 +27,7 @@ export function useGridHost(opts: {
   gridId: string;
   modules: AnyModule[];
   baseColumnDefs: AnyColDef[];
-  rowIdField?: string;
+  rowIdField?: string | readonly string[];
 }) {
   const platformRef = useRef<GridPlatform | null>(null);
   if (!platformRef.current) {

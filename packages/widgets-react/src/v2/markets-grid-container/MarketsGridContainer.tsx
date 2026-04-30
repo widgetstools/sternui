@@ -40,7 +40,7 @@ import {
   useAppDataStore,
   useDataPlane,
 } from '@marketsui/data-plane-react/v2';
-import type { ProviderConfig } from '@marketsui/shared-types';
+import { composeRowId, type ProviderConfig } from '@marketsui/shared-types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { useChordHotkey } from './useChordHotkey.js';
 
@@ -244,9 +244,19 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     }
   }, [appData.store, historicalDateAppDataRef]);
 
+  // `keyColumn` may be a single column name OR an array of column
+  // names (composite key — values joined with `-`, see
+  // `composeRowId` in @marketsui/shared-types). We pass the raw shape
+  // through to MarketsGrid + use it for the live-update add/update
+  // dispatch below so the cache key matches AG-Grid's getRowId
+  // byte-for-byte.
   const rowIdField = activeRow.cfg
-    ? (activeCfg as { keyColumn?: string } | null)?.keyColumn ?? null
+    ? (activeCfg as { keyColumn?: string | readonly string[] } | null)?.keyColumn ?? null
     : null;
+  // Stable string representation for keys / log output. For arrays,
+  // joining is fine — colon separator avoids collision with the data
+  // separator (`-`).
+  const rowIdFieldKey = Array.isArray(rowIdField) ? rowIdField.join(':') : rowIdField;
 
   const columnDefs = useMemo<ColDef<TData>[] | null>(() => {
     const defs = (activeCfg as { columnDefinitions?: ColDef<TData>[] } | null)?.columnDefinitions;
@@ -268,7 +278,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // the current `expectedKey`. An onReady from the placeholder grid
   // (where `expectedKey === null`) is a no-op stamp.
   const expectedKey = (activeId && !activeRow.loading && rowIdField && columnDefs)
-    ? `${activeId}::${rowIdField}`
+    ? `${activeId}::${rowIdFieldKey}`
     : null;
 
   const [stamped, setStamped] = useState<{ key: string; api: GridApi<TData> } | null>(null);
@@ -418,8 +428,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           const adds: TData[] = [];
           const updates: TData[] = [];
           for (const row of updateRows) {
-            const raw = (row as Record<string, unknown>)[rowIdField];
-            const id = raw === null || raw === undefined ? null : String(raw);
+            const id = composeRowId(row, rowIdField);
             if (id === null) continue;
             if (liveApi.getRowNode(id) || pendingAddIds.has(id)) {
               updates.push(row);
@@ -479,8 +488,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     // `refreshTick` is a deliberate trigger: bumping it tears down
     // the current handle and re-subscribes with whatever
     // `refreshExtraRef.current` was set to before the bump.
+    //
+    // `rowIdFieldKey` (the stable string form of `rowIdField`) is the
+    // dependency rather than `rowIdField` itself — the latter is a
+    // composite-key array that gets a fresh reference per render even
+    // when the contents are identical, which would tear down +
+    // re-subscribe needlessly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveApi, activeId, activeCfg, rowIdField, dpClient, onError, refreshTick]);
+  }, [liveApi, activeId, activeCfg, rowIdFieldKey, dpClient, onError, refreshTick]);
 
   const refresh = useCallback(() => {
     if (!activeId) return;
@@ -527,7 +542,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     return (
       <MarketsGrid<TData>
         {...(marketsGridProps as MarketsGridProps<TData>)}
-        key={`${activeId}::${rowIdField}`}
+        key={`${activeId}::${rowIdFieldKey}`}
         rowData={EMPTY as TData[]}
         rowIdField={rowIdField}
         columnDefs={columnDefs}

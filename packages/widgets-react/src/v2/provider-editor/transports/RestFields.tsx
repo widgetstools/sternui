@@ -54,14 +54,6 @@ export function RestFields({ cfg, onChange }: RestFieldsProps) {
           />
           <Help>Dot path into the JSON response. Empty if response IS the array.</Help>
         </Field>
-        <Field label="Key Column" required>
-          <Input
-            className="h-8 text-sm font-mono"
-            value={cfg.keyColumn ?? ''}
-            onChange={(e) => onChange({ keyColumn: e.target.value })}
-            placeholder="id"
-          />
-        </Field>
       </Card>
 
       <Card title="Payload">
