@@ -30,17 +30,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@marketsui/shared-types": "*"
+    "@marketsui/shared-types": "*",
+    "@marketsui/config-service": "*"
   },
   "peerDependencies": {
-    "@stomp/stompjs": "^7.3.0",
-    "@marketsui/config-service": "*"
+    "@stomp/stompjs": "^7.3.0"
   },
   "peerDependenciesMeta": {
     "@stomp/stompjs": {
-      "optional": true
-    },
-    "@marketsui/config-service": {
       "optional": true
     }
   },

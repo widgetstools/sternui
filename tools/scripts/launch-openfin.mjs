@@ -17,7 +17,9 @@ import { setDefaultResultOrder } from 'node:dns';
 
 if (process.platform !== 'win32') {
   console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
-  process.exit(0);
+  console.warn('[openfin] dev server will continue running. Press Ctrl+C to exit.');
+  // Keep the process alive so concurrently doesn't kill the dev server
+  await new Promise(() => {});
 }
 
 // Dynamic import keeps the module resolvable even when @openfin/node-adapter
