@@ -11,7 +11,7 @@
  *   - Key Column picker (single or composite)
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type {
   ColDef,
@@ -21,8 +21,8 @@ import type {
   RowDragEndEvent,
 } from 'ag-grid-community';
 import { AllCommunityModule, themeQuartz } from 'ag-grid-community';
-import { Button, Label, useTheme } from '@marketsui/ui';
-import { Trash2 } from 'lucide-react';
+import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useTheme } from '@marketsui/ui';
+import { Plus, Trash2 } from 'lucide-react';
 import type { ColumnDefinition } from '@marketsui/shared-types';
 import { normalizeKeyColumns } from '@marketsui/shared-types';
 import { agGridLightParams, agGridDarkParams } from '@marketsui/design-system/adapters/ag-grid';
@@ -55,6 +55,29 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
   const gridTheme = themeQuartz.withParams(
     resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams,
   );
+
+  // Form state for adding new columns
+  const [newFieldName, setNewFieldName] = useState('');
+  const [newHeaderName, setNewHeaderName] = useState('');
+  const [newDataType, setNewDataType] = useState<NonNullable<ColumnDefinition['cellDataType']>>('text');
+
+  const fieldNames = useMemo(() => new Set(columns.map((c) => c.field)), [columns]);
+
+  const handleAddColumn = useCallback(() => {
+    if (!newFieldName.trim()) return;
+    if (fieldNames.has(newFieldName)) return;
+
+    const newColumn: ColumnDefinition = {
+      field: newFieldName,
+      headerName: newHeaderName || newFieldName,
+      cellDataType: newDataType,
+    };
+
+    onChange([...columns, newColumn]);
+    setNewFieldName('');
+    setNewHeaderName('');
+    setNewDataType('text');
+  }, [newFieldName, newHeaderName, newDataType, columns, onChange, fieldNames]);
 
   // Enrich with a stable row id so AG-Grid tracks rows across
   // parent-driven re-renders. field+idx handles duplicate field names.
@@ -179,6 +202,18 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
           onChange={onKeyColumnChange}
         />
 
+        <AddColumnForm
+          newFieldName={newFieldName}
+          newHeaderName={newHeaderName}
+          newDataType={newDataType}
+          onFieldNameChange={setNewFieldName}
+          onHeaderNameChange={setNewHeaderName}
+          onDataTypeChange={setNewDataType}
+          onAddColumn={handleAddColumn}
+          fieldNameExists={fieldNames.has(newFieldName)}
+          fieldNameEmpty={!newFieldName.trim()}
+        />
+
         <div className="flex-1 min-h-0">
           <AgGridReact<RowData>
             theme={gridTheme}
@@ -200,6 +235,96 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
             suppressContextMenu
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Add column form ───────────────────────────────────────────────
+//
+// Compact form to add custom columns to the grid. Field name is
+// required and must be unique. Header name defaults to field name.
+
+function AddColumnForm({
+  newFieldName,
+  newHeaderName,
+  newDataType,
+  onFieldNameChange,
+  onHeaderNameChange,
+  onDataTypeChange,
+  onAddColumn,
+  fieldNameExists,
+  fieldNameEmpty,
+}: {
+  newFieldName: string;
+  newHeaderName: string;
+  newDataType: NonNullable<ColumnDefinition['cellDataType']>;
+  onFieldNameChange(v: string): void;
+  onHeaderNameChange(v: string): void;
+  onDataTypeChange(v: NonNullable<ColumnDefinition['cellDataType']>): void;
+  onAddColumn(): void;
+  fieldNameExists: boolean;
+  fieldNameEmpty: boolean;
+}) {
+  const canAdd = !fieldNameEmpty && !fieldNameExists;
+
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2.5 flex-shrink-0">
+      <Label className="text-[11px] font-medium text-muted-foreground block mb-2">
+        Add Custom Column
+      </Label>
+      <div className="flex items-end gap-2">
+        <div className="flex-1 min-w-0 space-y-1">
+          <label className="text-[10px] font-medium text-muted-foreground">
+            Field Name *
+          </label>
+          <Input
+            placeholder="e.g., trade_id"
+            value={newFieldName}
+            onChange={(e) => onFieldNameChange(e.target.value)}
+            className="h-8 text-xs"
+          />
+          {fieldNameExists && (
+            <p className="text-[10px] text-destructive">Field already exists</p>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 space-y-1">
+          <label className="text-[10px] font-medium text-muted-foreground">Header</label>
+          <Input
+            placeholder="(defaults to field name)"
+            value={newHeaderName}
+            onChange={(e) => onHeaderNameChange(e.target.value)}
+            className="h-8 text-xs"
+          />
+        </div>
+
+        <div className="w-32 space-y-1">
+          <label className="text-[10px] font-medium text-muted-foreground">Type</label>
+          <Select value={newDataType} onValueChange={onDataTypeChange}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CELL_TYPES.map((type) => (
+                <SelectItem key={type} value={type} className="text-xs">
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={onAddColumn}
+          disabled={!canAdd}
+          className="h-8"
+          title={fieldNameEmpty ? 'Enter a field name' : fieldNameExists ? 'Field already exists' : 'Add column'}
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Add
+        </Button>
       </div>
     </div>
   );
