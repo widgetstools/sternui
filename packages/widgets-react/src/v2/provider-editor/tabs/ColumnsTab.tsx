@@ -25,40 +25,9 @@ import { Button, Label, useTheme } from '@marketsui/ui';
 import { Trash2 } from 'lucide-react';
 import type { ColumnDefinition } from '@marketsui/shared-types';
 import { normalizeKeyColumns } from '@marketsui/shared-types';
+import { agGridLightParams, agGridDarkParams } from '@marketsui/design-system/adapters/ag-grid';
 import { MultiSelect } from '../MultiSelect.js';
 
-// Panel-integrated AG-Grid themes: pull colours from the shadcn design-system
-// CSS variables so the grid blends with the editor panel in both modes.
-// Defined at module level (stable object references — no re-creation per render).
-const EDITOR_THEME_DARK = themeQuartz.withParams({
-  accentColor: 'hsl(var(--primary))',
-  backgroundColor: 'hsl(var(--card))',
-  borderColor: 'hsl(var(--border))',
-  borderRadius: 2,
-  browserColorScheme: 'dark',
-  columnBorder: false,
-  foregroundColor: 'hsl(var(--foreground))',
-  headerBackgroundColor: 'hsl(var(--muted))',
-  oddRowBackgroundColor: 'hsl(var(--card))',
-  rowHoverColor: 'hsl(var(--accent))',
-  spacing: 5,
-  wrapperBorderRadius: 4,
-});
-
-const EDITOR_THEME_LIGHT = themeQuartz.withParams({
-  accentColor: 'hsl(var(--primary))',
-  backgroundColor: 'hsl(var(--card))',
-  borderColor: 'hsl(var(--border))',
-  borderRadius: 2,
-  browserColorScheme: 'light',
-  columnBorder: false,
-  foregroundColor: 'hsl(var(--foreground))',
-  headerBackgroundColor: 'hsl(var(--muted))',
-  oddRowBackgroundColor: 'hsl(var(--card))',
-  rowHoverColor: 'hsl(var(--accent))',
-  spacing: 5,
-  wrapperBorderRadius: 4,
-});
 
 const CELL_TYPES: ReadonlyArray<NonNullable<ColumnDefinition['cellDataType']>> = [
   'text', 'number', 'boolean', 'date', 'dateString', 'object',
@@ -83,7 +52,9 @@ export interface ColumnsTabProps {
 
 export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: ColumnsTabProps) {
   const { resolvedTheme } = useTheme();
-  const gridTheme = resolvedTheme === 'light' ? EDITOR_THEME_LIGHT : EDITOR_THEME_DARK;
+  const gridTheme = themeQuartz.withParams(
+    resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams,
+  );
 
   // Enrich with a stable row id so AG-Grid tracks rows across
   // parent-driven re-renders. field+idx handles duplicate field names.
