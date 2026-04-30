@@ -134,6 +134,9 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
   // without dirtying the saved provider.
   const [sampleSize, setSampleSize] = useState(200);
 
+  // AppData providers only show the connection tab (key/value pairs)
+  const isAppData = provider.config.providerType === 'appdata';
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <Header
@@ -143,53 +146,59 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
         onPublicChange={(public_) => setProvider((p) => ({ ...p, public: public_ }))}
       />
 
-      <Tabs defaultValue="connection" className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <TabsList className="h-9 mx-4 mt-3 flex-shrink-0 self-start">
-          <TabsTrigger value="connection" className="text-xs">Connection</TabsTrigger>
-          <TabsTrigger value="fields" className="text-xs">Fields</TabsTrigger>
-          <TabsTrigger value="columns" className="text-xs">Columns</TabsTrigger>
-          <TabsTrigger value="behaviour" className="text-xs">Behaviour</TabsTrigger>
-          {isExisting && <TabsTrigger value="diagnostics" className="text-xs">Diagnostics</TabsTrigger>}
-        </TabsList>
-
-        <TabsContent value="connection" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+      {isAppData ? (
+        <div className="flex-1 min-h-0 overflow-hidden">
           <ConnectionTab cfg={provider.config} onCfgChange={updateCfg} probe={probe} />
-        </TabsContent>
+        </div>
+      ) : (
+        <Tabs defaultValue="connection" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <TabsList className="h-9 mx-4 mt-3 flex-shrink-0 self-start">
+            <TabsTrigger value="connection" className="text-xs">Connection</TabsTrigger>
+            <TabsTrigger value="fields" className="text-xs">Fields</TabsTrigger>
+            <TabsTrigger value="columns" className="text-xs">Columns</TabsTrigger>
+            <TabsTrigger value="behaviour" className="text-xs">Behaviour</TabsTrigger>
+            {isExisting && <TabsTrigger value="diagnostics" className="text-xs">Diagnostics</TabsTrigger>}
+          </TabsList>
 
-        <TabsContent value="fields" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
-          <FieldsTab
-            cfg={provider.config}
-            inferredFields={probe.inferredFields}
-            inferenceSummary={probe.inferenceSummary}
-            inferring={probe.inferring}
-            inferenceError={probe.inferenceError}
-            sampleSize={sampleSize}
-            onSampleSizeChange={setSampleSize}
-            onInfer={() => probe.infer({ sampleSize })}
-            onColumnsChange={updateColumns}
-            selectedColumnFields={selectedColumnFields}
-          />
-        </TabsContent>
-
-        <TabsContent value="columns" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
-          <ColumnsTab
-            columns={currentColumns}
-            onChange={updateColumns}
-            keyColumn={currentKeyColumn}
-            onKeyColumnChange={updateKeyColumn}
-          />
-        </TabsContent>
-
-        <TabsContent value="behaviour" className="flex-1 min-h-0 overflow-auto scrollbar-thin m-0 mt-3 p-4">
-          <BehaviourFields cfg={provider.config} onChange={updateCfg} />
-        </TabsContent>
-
-        {isExisting && (
-          <TabsContent value="diagnostics" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
-            <DiagnosticsTab providerId={provider.providerId ?? null} />
+          <TabsContent value="connection" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+            <ConnectionTab cfg={provider.config} onCfgChange={updateCfg} probe={probe} />
           </TabsContent>
-        )}
-      </Tabs>
+
+          <TabsContent value="fields" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+            <FieldsTab
+              cfg={provider.config}
+              inferredFields={probe.inferredFields}
+              inferenceSummary={probe.inferenceSummary}
+              inferring={probe.inferring}
+              inferenceError={probe.inferenceError}
+              sampleSize={sampleSize}
+              onSampleSizeChange={setSampleSize}
+              onInfer={() => probe.infer({ sampleSize })}
+              onColumnsChange={updateColumns}
+              selectedColumnFields={selectedColumnFields}
+            />
+          </TabsContent>
+
+          <TabsContent value="columns" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+            <ColumnsTab
+              columns={currentColumns}
+              onChange={updateColumns}
+              keyColumn={currentKeyColumn}
+              onKeyColumnChange={updateKeyColumn}
+            />
+          </TabsContent>
+
+          <TabsContent value="behaviour" className="flex-1 min-h-0 overflow-auto scrollbar-thin m-0 mt-3 p-4">
+            <BehaviourFields cfg={provider.config} onChange={updateCfg} />
+          </TabsContent>
+
+          {isExisting && (
+            <TabsContent value="diagnostics" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
+              <DiagnosticsTab providerId={provider.providerId ?? null} />
+            </TabsContent>
+          )}
+        </Tabs>
+      )}
 
       <Footer
         saveLabel={saveLabel}

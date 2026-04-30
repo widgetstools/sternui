@@ -9,137 +9,203 @@
  *   - `auth.token`        — bearer token shared across REST cfgs
  *
  * Values are stored as JSON-typed primitives (string / number /
- * boolean) — the editor surfaces a simple type chip per row so the
- * resolver knows how to render them when interpolated.
+ * boolean / json) — the editor surfaces a simple type chip per row
+ * so the resolver knows how to render them when interpolated.
+ *
+ * Optional: mark sensitive (hide in UI) or set durability
+ * (volatile = memory-only; persisted = ConfigService).
  */
 
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@marketsui/ui';
+import React, { useState } from 'react';
+import { Button, Checkbox, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@marketsui/ui';
 import { Plus, Trash2 } from 'lucide-react';
+import type { AppDataVariable, AppDataProviderConfig } from '@marketsui/shared-types';
 
-type Primitive = string | number | boolean;
-type ValueType = 'string' | 'number' | 'boolean';
-
-export interface AppDataFieldsCfg {
-  /** Plain object of values keyed by the AppData key string. */
-  values?: Record<string, Primitive>;
-}
+type ValueType = 'string' | 'number' | 'boolean' | 'json';
 
 export interface AppDataFieldsProps {
-  cfg: AppDataFieldsCfg;
-  onChange(next: Partial<AppDataFieldsCfg>): void;
+  cfg: AppDataProviderConfig;
+  onChange(next: Partial<AppDataProviderConfig>): void;
 }
 
 interface Row {
   key: string;
-  value: string;          // raw editor input — coerced on save
+  value: string;               // raw editor input — coerced on save
   type: ValueType;
+  description?: string;
+  sensitive?: boolean;
+  durability?: 'volatile' | 'persisted';
 }
 
 export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
-  const rows = toRows(cfg.values ?? {});
+  const rows = toRows(cfg.variables ?? {});
 
-  const update = (next: Row[]) => onChange({ values: fromRows(next) });
+  const update = (next: Row[]) => onChange({ variables: fromRows(next) });
 
   return (
-    <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key / Value Pairs</h3>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs"
-          onClick={() => update([...rows, { key: '', value: '', type: 'string' }])}
-        >
-          <Plus className="h-3 w-3 mr-1" /> Add row
-        </Button>
-      </div>
+    <div className="flex flex-col h-full min-h-0 overflow-auto">
+      <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-3 m-4 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Variables</h3>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => update([...rows, { key: '', value: '', type: 'string' }])}
+          >
+            <Plus className="h-3 w-3 mr-1" /> Add
+          </Button>
+        </div>
 
-      {rows.length === 0 ? (
-        <div className="text-xs text-muted-foreground py-2">
-          No entries yet. Add a row, e.g. <code className="bg-muted px-1 rounded">asOfDate</code> = <code className="bg-muted px-1 rounded">2024-01-15</code>.
-        </div>
-      ) : (
-        <div className="grid grid-cols-[1fr_auto_2fr_auto] gap-2 items-center text-xs">
-          <Label className="text-[11px] font-medium text-muted-foreground">Key</Label>
-          <Label className="text-[11px] font-medium text-muted-foreground">Type</Label>
-          <Label className="text-[11px] font-medium text-muted-foreground">Value</Label>
-          <span />
-          {rows.map((row, idx) => (
-            <RowInputs
-              key={idx}
-              row={row}
-              onChange={(next) => {
-                const copy = rows.slice();
-                copy[idx] = next;
-                update(copy);
-              }}
-              onRemove={() => update(rows.filter((_, i) => i !== idx))}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+        {rows.length === 0 ? (
+          <div className="text-xs text-muted-foreground py-2">
+            No entries yet. Add a key/value pair, e.g. <code className="bg-muted px-1 rounded">asOfDate</code> = <code className="bg-muted px-1 rounded">2024-01-15</code>.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row, idx) => (
+              <RowInputs
+                key={idx}
+                row={row}
+                onChange={(next) => {
+                  const copy = rows.slice();
+                  copy[idx] = next;
+                  update(copy);
+                }}
+                onRemove={() => update(rows.filter((_, i) => i !== idx))}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
 function RowInputs({ row, onChange, onRemove }: { row: Row; onChange(r: Row): void; onRemove(): void }) {
+  const [expanded, setExpanded] = React.useState(false);
+
   return (
-    <>
-      <Input
-        className="h-8 text-xs font-mono"
-        value={row.key}
-        onChange={(e) => onChange({ ...row, key: e.target.value })}
-        placeholder="key"
-      />
-      <Select value={row.type} onValueChange={(v) => onChange({ ...row, type: v as ValueType })}>
-        <SelectTrigger className="h-8 text-xs w-24"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="string">string</SelectItem>
-          <SelectItem value="number">number</SelectItem>
-          <SelectItem value="boolean">boolean</SelectItem>
-        </SelectContent>
-      </Select>
-      <Input
-        className="h-8 text-xs font-mono"
-        value={row.value}
-        onChange={(e) => onChange({ ...row, value: e.target.value })}
-        placeholder={row.type === 'boolean' ? 'true | false' : 'value'}
-      />
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 w-7 p-0"
-        onClick={onRemove}
-        title="Remove row"
-      >
-        <Trash2 className="h-3 w-3" />
-      </Button>
-    </>
+    <div className="border border-border rounded-md bg-card p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-muted-foreground hover:text-foreground text-xs font-medium"
+          title={expanded ? 'Collapse' : 'Expand'}
+        >
+          {expanded ? '▼' : '▶'}
+        </button>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <Input
+            className="h-7 text-xs font-mono flex-1"
+            value={row.key}
+            onChange={(e) => onChange({ ...row, key: e.target.value })}
+            placeholder="key"
+          />
+          <Select value={row.type} onValueChange={(v) => onChange({ ...row, type: v as ValueType })}>
+            <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="string">string</SelectItem>
+              <SelectItem value="number">number</SelectItem>
+              <SelectItem value="boolean">boolean</SelectItem>
+              <SelectItem value="json">json</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            className="h-7 text-xs font-mono flex-1"
+            value={row.value}
+            onChange={(e) => onChange({ ...row, value: e.target.value })}
+            placeholder={row.type === 'boolean' ? 'true | false' : 'value'}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 flex-shrink-0"
+            onClick={onRemove}
+            title="Remove"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="pl-6 space-y-2 border-t border-border/50 pt-2">
+          <div className="space-y-1">
+            <label className="text-[10px] font-medium text-muted-foreground block">Description</label>
+            <Input
+              className="h-7 text-xs"
+              value={row.description ?? ''}
+              onChange={(e) => onChange({ ...row, description: e.target.value || undefined })}
+              placeholder="Optional notes"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={row.sensitive ?? false}
+                onCheckedChange={(checked) => onChange({ ...row, sensitive: checked ? true : undefined })}
+              />
+              <span className="text-xs font-medium text-muted-foreground">Sensitive (hide in UI)</span>
+            </label>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-medium text-muted-foreground block">Durability</label>
+            <Select value={row.durability ?? 'volatile'} onValueChange={(v) => onChange({ ...row, durability: v as 'volatile' | 'persisted' })}>
+              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="volatile" className="text-xs">volatile (memory-only)</SelectItem>
+                <SelectItem value="persisted" className="text-xs">persisted (saved to config)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-function toRows(values: Record<string, Primitive>): Row[] {
-  return Object.entries(values).map(([key, value]) => {
-    if (typeof value === 'number') return { key, value: String(value), type: 'number' as ValueType };
-    if (typeof value === 'boolean') return { key, value: String(value), type: 'boolean' as ValueType };
-    return { key, value: String(value), type: 'string' as ValueType };
-  });
+function toRows(variables: Record<string, AppDataVariable>): Row[] {
+  return Object.entries(variables).map(([_key, variable]) => ({
+    key: variable.key,
+    value: String(variable.value),
+    type: variable.type,
+    description: variable.description,
+    sensitive: variable.sensitive,
+    durability: variable.durability,
+  }));
 }
 
-function fromRows(rows: Row[]): Record<string, Primitive> {
-  const out: Record<string, Primitive> = {};
+function fromRows(rows: Row[]): Record<string, AppDataVariable> {
+  const out: Record<string, AppDataVariable> = {};
   for (const r of rows) {
     if (!r.key) continue;
-    out[r.key] = coerce(r.value, r.type);
+    out[r.key] = {
+      key: r.key,
+      value: coerce(r.value, r.type),
+      type: r.type,
+      description: r.description,
+      sensitive: r.sensitive,
+      durability: r.durability ?? 'volatile',
+    };
   }
   return out;
 }
 
-function coerce(v: string, type: ValueType): Primitive {
+function coerce(v: string, type: ValueType): string | number | boolean | object {
   if (type === 'number') {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }
   if (type === 'boolean') return v.trim().toLowerCase() === 'true';
+  if (type === 'json') {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }
   return v;
 }

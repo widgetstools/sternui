@@ -56,7 +56,7 @@ function Fields({ cfg, onChange }: { cfg: ProviderConfig; onChange(next: Partial
     case 'mock':
       return <MockFields cfg={cfg as MockProviderConfig} onChange={onChange as (n: Partial<MockProviderConfig>) => void} />;
     case 'appdata':
-      return <AppDataFields cfg={cfg as unknown as { values?: Record<string, string | number | boolean> }} onChange={onChange as (n: { values?: Record<string, string | number | boolean> }) => void} />;
+      return <AppDataFields cfg={cfg as AppDataProviderConfig} onChange={onChange as (n: Partial<AppDataProviderConfig>) => void} />;
     default:
       return (
         <section className="rounded-lg border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
