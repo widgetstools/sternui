@@ -21,8 +21,6 @@ import { Button, Checkbox, Input, Label, Select, SelectContent, SelectItem, Sele
 import { Plus, Trash2 } from 'lucide-react';
 import type { AppDataVariable, AppDataProviderConfig } from '@marketsui/shared-types';
 
-type ValueType = 'string' | 'json';
-
 export interface AppDataFieldsProps {
   cfg: AppDataProviderConfig;
   onChange(next: Partial<AppDataProviderConfig>): void;
@@ -30,8 +28,7 @@ export interface AppDataFieldsProps {
 
 interface Row {
   key: string;
-  value: string;               // raw editor input
-  type: ValueType;
+  value: string;
   description?: string;
   sensitive?: boolean;
   durability?: 'volatile' | 'persisted';
@@ -51,7 +48,7 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
             size="sm"
             variant="outline"
             className="h-7 text-xs"
-            onClick={() => update([...rows, { key: '', value: '', type: 'string' }])}
+            onClick={() => update([...rows, { key: '', value: '' }])}
           >
             <Plus className="h-3 w-3 mr-1" /> Add
           </Button>
@@ -102,18 +99,11 @@ function RowInputs({ row, onChange, onRemove }: { row: Row; onChange(r: Row): vo
             onChange={(e) => onChange({ ...row, key: e.target.value })}
             placeholder="key"
           />
-          <Select value={row.type} onValueChange={(v) => onChange({ ...row, type: v as ValueType })}>
-            <SelectTrigger className="h-7 text-xs w-20"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="string">string</SelectItem>
-              <SelectItem value="json">json</SelectItem>
-            </SelectContent>
-          </Select>
           <Input
             className="h-7 text-xs font-mono flex-1"
             value={row.value}
             onChange={(e) => onChange({ ...row, value: e.target.value })}
-            placeholder={row.type === 'json' ? '{"key":"value"}' : 'value'}
+            placeholder="value"
           />
           <Button
             size="sm"
@@ -166,23 +156,13 @@ function RowInputs({ row, onChange, onRemove }: { row: Row; onChange(r: Row): vo
 }
 
 function toRows(variables: Record<string, AppDataVariable>): Row[] {
-  return Object.entries(variables).map(([_key, variable]) => {
-    // Reconstruct value as string for editing
-    let value: string;
-    if (variable.type === 'json' && typeof variable.value === 'object') {
-      value = JSON.stringify(variable.value, null, 2);
-    } else {
-      value = String(variable.value);
-    }
-    return {
-      key: variable.key,
-      value,
-      type: variable.type as ValueType,
-      description: variable.description,
-      sensitive: variable.sensitive,
-      durability: variable.durability,
-    };
-  });
+  return Object.entries(variables).map(([_key, variable]) => ({
+    key: variable.key,
+    value: String(variable.value),
+    description: variable.description,
+    sensitive: variable.sensitive,
+    durability: variable.durability,
+  }));
 }
 
 function fromRows(rows: Row[]): Record<string, AppDataVariable> {
@@ -194,8 +174,8 @@ function fromRows(rows: Row[]): Record<string, AppDataVariable> {
     const key = r.key || `__editing_${i}`;
     out[key] = {
       key: r.key, // Store actual key (empty if not filled yet)
-      value: coerce(r.value, r.type),
-      type: r.type,
+      value: r.value,
+      type: 'string',
       description: r.description,
       sensitive: r.sensitive,
       durability: r.durability ?? 'volatile',
@@ -204,13 +184,3 @@ function fromRows(rows: Row[]): Record<string, AppDataVariable> {
   return out;
 }
 
-function coerce(v: string, type: ValueType): string | object {
-  if (type === 'json') {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return v;
-    }
-  }
-  return v;
-}
