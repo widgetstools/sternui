@@ -180,10 +180,13 @@ function toRows(variables: Record<string, AppDataVariable>): Row[] {
 
 function fromRows(rows: Row[]): Record<string, AppDataVariable> {
   const out: Record<string, AppDataVariable> = {};
-  for (const r of rows) {
-    if (!r.key) continue;
-    out[r.key] = {
-      key: r.key,
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    // Use index-based temp key for empty rows so they appear in UI while editing.
+    // These temp entries won't persist to config (empty key = incomplete entry).
+    const key = r.key || `__editing_${i}`;
+    out[key] = {
+      key: r.key, // Store actual key (empty if not filled yet)
       value: coerce(r.value, r.type),
       type: r.type,
       description: r.description,
