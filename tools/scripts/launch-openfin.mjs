@@ -18,8 +18,17 @@ import { setDefaultResultOrder } from 'node:dns';
 if (process.platform !== 'win32') {
   console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
   console.warn('[openfin] dev server will continue running. Press Ctrl+C to exit.');
-  // Keep the process alive so concurrently doesn't kill the dev server
-  await new Promise(() => {});
+  // Keep the process alive so concurrently doesn't kill the dev server.
+  // Use setInterval to prevent Node from exiting.
+  process.on('SIGINT', () => {
+    console.log('[openfin] Ctrl+C');
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    process.exit(0);
+  });
+  // Keep process alive indefinitely with a dummy interval
+  setInterval(() => {}, 1000);
 }
 
 // Dynamic import keeps the module resolvable even when @openfin/node-adapter
