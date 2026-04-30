@@ -1190,6 +1190,67 @@ function PositionsBlotter() {
 
 ---
 
+## 1.O.X — Bracket-token resolver (`[xyz]` → per-attach unique IDs)
+
+Companion to the `{{name.key}}` AppData resolver. Where `{{name.key}}` pulls deterministic values out of AppData, `[identifier]` MINTS a fresh per-attach short ID and reuses it for every occurrence of the same token name across the same provider config — so `[clientTag]` in `listenerTopic` and `[clientTag]` in `requestBody` line up to the same value, while a different token like `[corr]` gets a different value. The two systems coexist (different syntaxes, different timing) and work on the same provider configs.
+
+### Why it exists
+
+STOMP (and likely future REST) configs frequently need a session-unique correlation/client tag that appears in two or more string fields and must match. Today users would either (a) hand-edit both fields with the same magic string, or (b) publish a value to AppData first and use `{{appData.tag}}` in both places. Bracket tokens collapse both workarounds into one ergonomic syntax: `[clientTag]` anywhere → same generated ID everywhere within one provider attach.
+
+### Token grammar
+
+Regex: `/\[([A-Za-z_][A-Za-z0-9_-]*)\]/g`. Must start with a letter or underscore; body may contain letters, digits, underscores, hyphens. Anything that doesn't match (e.g. `[]`, `[1abc]`, `[a b]`, `[a.b]`, JSON `[1,2,3]`) is left in place verbatim — same fail-safe debug affordance as the brace resolver.
+
+### Files
+
+| File | What it is |
+|---|---|
+| `packages/data-plane/src/v2/template/bracket-resolver.ts` | New module. Exports `BracketCache = Map<string, string>`, `resolveBracketString(input, cache)`, and `resolveBracketCfg<T>(cfg, cache): T` that deep-walks objects/arrays mirroring the existing `resolveCfg` shape. The cache parameter is REQUIRED (no defaulting) so lifetime is explicit at the call site. |
+| `packages/data-plane/src/v2/template/bracket-resolver.test.ts` | 10 unit tests: same-token-same-value, different-token-different-value, fresh-cache-fresh-values, grammar-rejection, JSON-array non-collision, identifier-body characters, deep walk through nested arrays/objects, non-string leaves preserved, cross-call cache sharing. |
+| `packages/data-plane/src/v2/providers/registry.ts` | `startProvider` now mints a fresh `BracketCache` and runs `resolveBracketCfg(cfg, cache)` immediately before dispatching to the provider-specific factory. One insertion gives every provider type the feature (mock / stomp / rest today). |
+
+### Unique-value generator
+
+12-char alphanumeric IDs from `crypto.getRandomValues` over a 62-char alphabet (`0-9A-Za-z`) → ~71 bits of entropy. No external dep. Works in the SharedWorker, browser main thread, and Node 18+ (where `crypto` is global).
+
+### Cache lifetime
+
+Per `startProvider` call. Same `[name]` resolves identically across all string fields of one config; auto-reconnects within the same attach reuse the cache because the resolved cfg is captured in the factory closure; on stop + re-attach a fresh `BracketCache` mints fresh values. The cache is not persisted, not shared across providers, and not shared across user-registered factories' independent calls.
+
+### Coexistence with `{{name.key}}`
+
+The brace resolver runs upstream in the React hook `useResolvedCfg` (in `data-plane-react`) before the cfg crosses into the worker. By the time `startProvider` runs, only bracket tokens remain. Mixing `{{appData.userId}}` and `[sessionTag]` in the same field works correctly: the brace resolver fills `{{...}}` first, then the bracket resolver fills `[...]`.
+
+### Tests + verification
+
+- **10 new tests** on bracket-resolver (Vitest)
+- **18 tests total** across `packages/data-plane/src/v2/template/` (8 brace + 10 bracket)
+- **78 tests total** across `@marketsui/data-plane`: green
+- `npm run typecheck --workspace=@marketsui/data-plane`: clean
+- `npm run build --workspace=@marketsui/data-plane`: clean
+- `npx turbo build --filter='...@marketsui/data-plane'`: 24/24 dependents build clean
+
+### Consumer usage example
+
+In a STOMP provider editor:
+
+```
+listenerTopic:  /topic/events/[clientTag]
+requestMessage: /app/subscribe/[clientTag]
+requestBody:    {"client":"[clientTag]","corr":"[corr]"}
+```
+
+At attach time, all three `[clientTag]` occurrences become the same 12-char ID (e.g. `aB3kLm9PqRsT`); `[corr]` becomes a different 12-char ID. On disconnect + re-attach, fresh values are minted.
+
+### What's NOT here yet
+
+- Editor-side help text under STOMP form fields explaining the syntax — deferred as a small UX polish PR (the engine works without it).
+- Reserved well-known tokens (`[uuid]`, `[timestamp]`, etc.) — out of scope; every token is "stable random" within an attach.
+- UI preview of resolved values inside the editor before save — out of scope; resolution is runtime-only.
+
+---
+
 ## 1.P DockEditor + Component Registry — ConfigService alignment
 
 DockEditor and Component Registry now save through the same canonical path as MarketsGrid profiles: generic `ConfigManager.saveConfig(AppConfigRow)` with kebab-case `componentType`, a scope-aware `configId`, and an optional `(appId, userId)` scope parameter.
@@ -1546,6 +1607,36 @@ Built via `ng-packagr` (FESM2022 + `.d.ts`). Wired into `apps/markets-ui-angular
 ### Workspace-save event
 
 The new `RuntimePort.onWorkspaceSave(fn)` method completes the lifecycle surface for both flavors. `OpenFinRuntime` bridges `fin.Platform.getCurrentSync().on('workspace-saved', …)`; `BrowserRuntime` is a no-op (no workspace concept in the browser). React's `HostContext` exposes it as `onWorkspaceSave`; Angular's `HostService` exposes it as `workspaceSave$`. Hosted components use this as a flush-to-disk hook.
+
+### 1.P Universal `<HostedFeatureView>` wrapper for OpenFin route views
+
+Consolidates boilerplate across all feature route views (MarketsGrid, Charts, TradeTickets, Analytics Playground, etc.) into a single reusable component.
+
+**Problem:** Every route view (BlottersMarketsGrid, DataProviders, etc.) was repeating the same pattern — wrapping with `HostedComponent` to resolve OpenFin identity + ConfigManager, then wrapping with `DataPlaneProvider`, then handling loading states and layout. This introduced duplication and a misleading naming convention (e.g., "BlottersMarketsGrid" reads like a grid-specific view, but most of it is generic infrastructure).
+
+**Solution:** New `<HostedFeatureView>` component at `apps/markets-ui-react-reference/src/components/HostedFeatureView.tsx` that:
+- Accepts a feature component as a **child** (either ReactNode or render-prop callback for context access)
+- Wraps internally with `HostedComponent` (identity + storage factory + debug overlay)
+- Mounts `DataPlaneProvider` automatically
+- Handles loading states while ConfigManager resolves
+- Exposes full `HostedContext` to children via render-prop so views can access `instanceId`, `storage`, `configManager`, `userId`, `appId`
+
+**Result:** Route views become lean. Example refactoring of `BlottersMarketsGrid`:
+- **Before:** 177 LOC (HostedComponent + DataPlaneProvider + BlotterShell + LoadingState sub-component)
+- **After:** 120 LOC (HostedFeatureView wrapper + BlotterGrid sub-component), with identical functionality
+- The component name is now honest — `BlottersMarketsGrid` is just the MarketsGrid feature mounted inside the generic wrapper
+
+**Architecture:**
+- `HostedFeatureView` lives at the app level since `HostedComponent` is app-specific (it knows about routes, theme context, data-providers popout, etc.)
+- Scales to all feature views: Charts, TradeTickets, Analytics, Playground, etc. — any new view gets the boilerplate for free
+- Maintains render-prop flexibility so views that need advanced context (storage, custom identity handling) can still access it
+- No changes to the underlying `HostedComponent` or `HostedComponent` behavior — just a clean abstraction over the existing pattern
+
+**Status:**
+- New component created
+- `BlottersMarketsGrid` refactored and tested
+- All tests pass (build, typecheck, full suite: 298+ tests green)
+- Design reusable for all future feature views in the same app
 
 ---
 
