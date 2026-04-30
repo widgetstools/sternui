@@ -3,14 +3,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const fin: any;
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DynamicIcon as Icon } from "@marketsui/icons-svg/react";
 import { useConfigBrowser } from "./hooks/useConfigBrowser";
 import { TableSidebar } from "./components/TableSidebar";
 import { Toolbar } from "./components/Toolbar";
 import { DataGrid } from "./components/DataGrid";
 import { RowDrawer } from "./components/RowDrawer";
+import { ImportPreviewDialog } from "./components/ImportPreviewDialog";
+import { DeleteAllDialog } from "./components/DeleteAllDialog";
 import { injectEditorStyles } from "./editor-styles";
+import type { ImportMode, ImportPreview } from "./hooks/useConfigBrowser";
 
 // ─── Main Component ──────────────────────────────────────────────────
 
@@ -25,7 +28,14 @@ export function ConfigBrowserPanel() {
     refresh,
     saveRow,
     deleteRow,
+    previewImport,
+    importRows,
+    deleteAllRows,
   } = useConfigBrowser();
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
 
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [quickFilter, setQuickFilter] = useState("");
@@ -112,6 +122,57 @@ export function ConfigBrowserPanel() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    // Reset the input value immediately so picking the same file twice
+    // in a row still fires onChange the second time.
+    input.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        alert(
+          "Import failed: expected a JSON array of rows (the same shape produced by Export JSON). " +
+            "Got " + (parsed === null ? "null" : typeof parsed) + ".",
+        );
+        return;
+      }
+      // Hand off to the preview dialog — the actual save happens in
+      // handleConfirmImport when the user picks a mode.
+      setImportPreview(previewImport(parsed));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert("Import failed: " + msg);
+    }
+  };
+
+  const handleConfirmImport = async (mode: ImportMode) => {
+    if (!importPreview) return;
+    const rowsToImport = importPreview.rows;
+    setImportPreview(null);
+    const result = await importRows(rowsToImport, mode);
+    const summary =
+      `Imported ${result.imported} row${result.imported === 1 ? "" : "s"} into ${selected.label}.` +
+      (result.skipped > 0 ? `\nSkipped ${result.skipped} existing.` : "") +
+      (result.failed > 0 ? `\nFailed ${result.failed}:\n` + result.errors.slice(0, 10).join("\n") : "");
+    alert(summary);
+  };
+
+  const handleConfirmDeleteAll = async () => {
+    setDeleteAllOpen(false);
+    const result = await deleteAllRows();
+    const summary =
+      `Deleted ${result.deleted} row${result.deleted === 1 ? "" : "s"} from ${selected.label}.` +
+      (result.failed > 0 ? `\nFailed ${result.failed}:\n` + result.errors.slice(0, 10).join("\n") : "");
+    alert(summary);
   };
 
   return (
@@ -209,6 +270,15 @@ export function ConfigBrowserPanel() {
             onRefresh={refresh}
             onNew={openCreate}
             onExport={handleExport}
+            onImport={handleImportClick}
+            onDeleteAll={() => setDeleteAllOpen(true)}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportFile}
+            style={{ display: "none" }}
           />
 
           <div
@@ -292,6 +362,27 @@ export function ConfigBrowserPanel() {
           />
         </div>
       </div>
+
+      {importPreview && (
+        <ImportPreviewDialog
+          preview={importPreview}
+          tableLabel={selected.label}
+          primaryKey={selected.primaryKey}
+          onCancel={() => setImportPreview(null)}
+          onConfirm={handleConfirmImport}
+        />
+      )}
+
+      {deleteAllOpen && (
+        <DeleteAllDialog
+          tableLabel={selected.label}
+          rowCount={rows.length}
+          scope={selected.scopable && hostEnv.appId ? `appId = ${hostEnv.appId}` : null}
+          onCancel={() => setDeleteAllOpen(false)}
+          onDownloadBackup={handleExport}
+          onConfirm={handleConfirmDeleteAll}
+        />
+      )}
 
       {/* Footer */}
       <div
