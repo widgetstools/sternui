@@ -8,9 +8,9 @@
  *   - `positions.clientId` — the user's account scope token
  *   - `auth.token`        — bearer token shared across REST cfgs
  *
- * Values are stored as JSON-typed primitives (string / number /
- * boolean / json) — the editor surfaces a simple type chip per row
- * so the resolver knows how to render them when interpolated.
+ * Values are stored as strings (for simple text) or JSON strings
+ * (for complex data). The editor keeps it simple: just type the value
+ * and optionally mark it as JSON if it's structured data.
  *
  * Optional: mark sensitive (hide in UI) or set durability
  * (volatile = memory-only; persisted = ConfigService).
@@ -21,7 +21,7 @@ import { Button, Checkbox, Input, Label, Select, SelectContent, SelectItem, Sele
 import { Plus, Trash2 } from 'lucide-react';
 import type { AppDataVariable, AppDataProviderConfig } from '@marketsui/shared-types';
 
-type ValueType = 'string' | 'number' | 'boolean' | 'json';
+type ValueType = 'string' | 'json';
 
 export interface AppDataFieldsProps {
   cfg: AppDataProviderConfig;
@@ -30,7 +30,7 @@ export interface AppDataFieldsProps {
 
 interface Row {
   key: string;
-  value: string;               // raw editor input — coerced on save
+  value: string;               // raw editor input
   type: ValueType;
   description?: string;
   sensitive?: boolean;
@@ -103,11 +103,9 @@ function RowInputs({ row, onChange, onRemove }: { row: Row; onChange(r: Row): vo
             placeholder="key"
           />
           <Select value={row.type} onValueChange={(v) => onChange({ ...row, type: v as ValueType })}>
-            <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-7 text-xs w-20"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="string">string</SelectItem>
-              <SelectItem value="number">number</SelectItem>
-              <SelectItem value="boolean">boolean</SelectItem>
               <SelectItem value="json">json</SelectItem>
             </SelectContent>
           </Select>
@@ -115,7 +113,7 @@ function RowInputs({ row, onChange, onRemove }: { row: Row; onChange(r: Row): vo
             className="h-7 text-xs font-mono flex-1"
             value={row.value}
             onChange={(e) => onChange({ ...row, value: e.target.value })}
-            placeholder={row.type === 'boolean' ? 'true | false' : 'value'}
+            placeholder={row.type === 'json' ? '{"key":"value"}' : 'value'}
           />
           <Button
             size="sm"
@@ -168,14 +166,23 @@ function RowInputs({ row, onChange, onRemove }: { row: Row; onChange(r: Row): vo
 }
 
 function toRows(variables: Record<string, AppDataVariable>): Row[] {
-  return Object.entries(variables).map(([_key, variable]) => ({
-    key: variable.key,
-    value: String(variable.value),
-    type: variable.type,
-    description: variable.description,
-    sensitive: variable.sensitive,
-    durability: variable.durability,
-  }));
+  return Object.entries(variables).map(([_key, variable]) => {
+    // Reconstruct value as string for editing
+    let value: string;
+    if (variable.type === 'json' && typeof variable.value === 'object') {
+      value = JSON.stringify(variable.value, null, 2);
+    } else {
+      value = String(variable.value);
+    }
+    return {
+      key: variable.key,
+      value,
+      type: variable.type as ValueType,
+      description: variable.description,
+      sensitive: variable.sensitive,
+      durability: variable.durability,
+    };
+  });
 }
 
 function fromRows(rows: Row[]): Record<string, AppDataVariable> {
@@ -197,12 +204,7 @@ function fromRows(rows: Row[]): Record<string, AppDataVariable> {
   return out;
 }
 
-function coerce(v: string, type: ValueType): string | number | boolean | object {
-  if (type === 'number') {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-  if (type === 'boolean') return v.trim().toLowerCase() === 'true';
+function coerce(v: string, type: ValueType): string | object {
   if (type === 'json') {
     try {
       return JSON.parse(v);
