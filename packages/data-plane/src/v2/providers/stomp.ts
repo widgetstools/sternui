@@ -46,6 +46,7 @@
 
 import type { StompProviderConfig } from '@marketsui/shared-types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
+import { resolveBracketCfg } from '../template/bracket-resolver.js';
 
 // ─── Minimal structural type for the stompjs Client we use ────────
 
@@ -303,6 +304,10 @@ export async function probeStomp(
   cfg: StompProviderConfig,
   opts: ProbeOpts = {},
 ): Promise<ProbeResult> {
+  // Resolve [bracket] tokens before probing — same as startProvider does
+  // for the live path. Without this, tokens like [sid] reach the server
+  // as literal strings instead of session-unique IDs.
+  const resolvedCfg = resolveBracketCfg(cfg, new Map());
   const max = opts.maxRows ?? 200;
   const timeoutMs = opts.timeoutMs ?? 15_000;
   const collected: unknown[] = [];
@@ -318,7 +323,7 @@ export async function probeStomp(
 
     const timer = setTimeout(() => finish({ ok: false, error: `Probe timed out after ${timeoutMs}ms` }), timeoutMs);
 
-    const handle = startStomp(cfg, (event) => {
+    const handle = startStomp(resolvedCfg, (event) => {
       if ('rows' in event && event.rows) {
         for (const r of event.rows) {
           collected.push(r);
