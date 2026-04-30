@@ -1243,9 +1243,18 @@ requestBody:    {"client":"[clientTag]","corr":"[corr]"}
 
 At attach time, all three `[clientTag]` occurrences become the same 12-char ID (e.g. `aB3kLm9PqRsT`); `[corr]` becomes a different 12-char ID. On disconnect + re-attach, fresh values are minted.
 
+### UX Polish — Help text
+
+Editor-side help text has been added under all STOMP form fields that support the syntax:
+- **WebSocket URL** — explains both `{{appData.key}}` and `[name]` syntax
+- **Listener Topic** — explains session-unique ID behavior and cross-field sharing
+- **Trigger Destination** — explains `[name]` token support
+- **Trigger Body** — explains `[name]` tokens for correlation IDs and session-unique values
+
+Help text is consistent across both React (`packages/widgets-react/src/v2/provider-editor/transports/StompFields.tsx`) and Angular (`packages/angular/src/components/data-provider-editor/stomp-form.component.ts`) implementations.
+
 ### What's NOT here yet
 
-- Editor-side help text under STOMP form fields explaining the syntax — deferred as a small UX polish PR (the engine works without it).
 - Reserved well-known tokens (`[uuid]`, `[timestamp]`, etc.) — out of scope; every token is "stable random" within an attach.
 - UI preview of resolved values inside the editor before save — out of scope; resolution is runtime-only.
 
