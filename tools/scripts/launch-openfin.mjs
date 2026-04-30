@@ -21,6 +21,7 @@ async function main() {
   if (process.platform !== 'win32') {
     console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
     console.warn('[openfin] dev server will continue running. Press Ctrl+C to exit.');
+
     // Set up signal handlers for graceful termination
     process.on('SIGINT', () => {
       console.log('[openfin] Ctrl+C');
@@ -29,10 +30,11 @@ async function main() {
     process.on('SIGTERM', () => {
       process.exit(0);
     });
-    // Keep the process alive indefinitely. setInterval with refCount=0 keeps Node alive.
-    setInterval(() => {}, 60_000);  // Check every minute to stay alive
-    // Block forever — we never return from this
-    return new Promise(() => {});
+
+    // Block forever with an infinite loop
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 60000));
+    }
   }
 
   // Windows-only code below ─────────────────────────────────────────
@@ -126,7 +128,11 @@ async function main() {
 }
 
 // Start the main entry point
-main().catch((err) => {
-  console.error('[openfin] fatal error:', err);
-  process.exit(1);
-});
+(async () => {
+  try {
+    await main();
+  } catch (err) {
+    console.error('[openfin] fatal error:', err?.message ?? err);
+    process.exit(1);
+  }
+})();
