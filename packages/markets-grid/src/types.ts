@@ -28,8 +28,14 @@ export interface MarketsGridProps<TData = unknown> {
   modules?: AnyModule[];
   /** AG-Grid theme object. */
   theme?: Theme;
-  /** Field on each row that uniquely identifies it. Defaults to `'id'`. */
-  rowIdField?: string;
+  /**
+   * Field(s) on each row that uniquely identify it. Defaults to `'id'`.
+   * A single column name keys rows by that field; an array of column
+   * names produces a composite key (joined with `-`). Used by the
+   * platform's `getRowId` and must match the worker-side cache key
+   * produced by the data-plane Hub.
+   */
+  rowIdField?: string | readonly string[];
   /** Shown above the grid. Defaults to `true`. */
   showToolbar?: boolean;
   /** Filter pill toolbar. Defaults to `false`. */

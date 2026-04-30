@@ -217,6 +217,36 @@ describe('Hub — attach lifecycle', () => {
     expect(delta.rows).toHaveLength(2);
     expect(delta.rows.every((r) => r.id !== undefined)).toBe(true);
   });
+
+  it('dedupes by COMPOSITE keyColumn (array form — values joined with `-`)', () => {
+    // Composite key: keyColumn = ['region', 'desk', 'instrumentId']
+    // → row id = `${region}-${desk}-${instrumentId}`. Two rows that
+    // share all three values are treated as the same logical row;
+    // the latest write wins. Rows differing in ANY component are
+    // distinct rows.
+    const hub = new Hub();
+    const port = makePort();
+    const compositeCfg = ({ providerType: 'mock', __testKey: 'composite', keyColumn: ['region', 'desk', 'instrumentId'] } as unknown as ProviderConfig);
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p1', mode: 'data', cfg: compositeCfg });
+    const ctrl = controllers.get('composite')!;
+    port.messages.length = 0;
+
+    ctrl.emit({
+      rows: [
+        { region: 'EMEA', desk: 'CRD', instrumentId: 'IBM',  qty: 100 }, // (A)
+        { region: 'EMEA', desk: 'CRD', instrumentId: 'IBM',  qty: 250 }, // (A) — last-write-wins
+        { region: 'EMEA', desk: 'CRD', instrumentId: 'AAPL', qty:  10 }, // (B)
+        { region: 'AMER', desk: 'CRD', instrumentId: 'IBM',  qty:  50 }, // (C)
+        { region: 'EMEA', desk: 'CRD',                       qty: 999 }, // missing component → dropped
+      ],
+    });
+
+    const delta = port.messages.find((m) => m.kind === 'delta' && !(m as { replace?: boolean }).replace) as Event & { rows: Array<Record<string, unknown>> };
+    expect(delta.rows).toHaveLength(3);              // 4 distinct rows minus the orphan → 3
+    expect(delta.rows[0]).toEqual({ region: 'EMEA', desk: 'CRD', instrumentId: 'IBM', qty: 250 });
+    expect(delta.rows[1]).toEqual({ region: 'EMEA', desk: 'CRD', instrumentId: 'AAPL', qty: 10 });
+    expect(delta.rows[2]).toEqual({ region: 'AMER', desk: 'CRD', instrumentId: 'IBM', qty: 50 });
+  });
 });
 
 describe('Hub — no auto-teardown', () => {

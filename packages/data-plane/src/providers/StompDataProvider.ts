@@ -13,7 +13,7 @@
  */
 
 import { Client, type IMessage } from '@stomp/stompjs';
-import type { FieldInfo } from '@marketsui/shared-types';
+import { composeRowId, type FieldInfo } from '@marketsui/shared-types';
 
 export interface StompConnectionConfig {
   websocketUrl: string;
@@ -21,7 +21,12 @@ export interface StompConnectionConfig {
   requestMessage?: string;
   requestBody?: string;
   snapshotEndToken?: string;
-  keyColumn?: string;
+  /**
+   * Single column name OR an array of column names (composite key).
+   * Used for de-duplication during snapshot collection — composite
+   * keys join the column values with `-` (see `composeRowId`).
+   */
+  keyColumn?: string | readonly string[];
   messageRate?: number;
   snapshotTimeoutMs?: number;
   dataType?: 'positions' | 'trades' | 'orders' | 'custom';
@@ -130,9 +135,9 @@ export class StompDataProvider {
                 if (rows.length > 0) {
                   if (keyColumn) {
                     rows.forEach((row: any) => {
-                      const key = row[keyColumn];
-                      if (key !== undefined && key !== null) {
-                        dataMap.set(String(key), row);
+                      const key = composeRowId(row, keyColumn);
+                      if (key !== null) {
+                        dataMap.set(key, row);
                       } else {
                         receivedData.push(row);
                       }
