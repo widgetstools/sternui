@@ -55,6 +55,15 @@ import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../provide
  */
 const DEBUG = false;
 
+/**
+ * Maximum rows shipped in a single late-join replay `postMessage`.
+ * Same rationale as `SNAPSHOT_CHUNK_SIZE` in `providers/stomp.ts` —
+ * keeps each main-thread message handler under Chromium's 50ms
+ * long-task threshold. Late-joiners (popouts, hot reloads) hit this
+ * path; without chunking they receive the entire cache in one frame.
+ */
+const LATE_JOIN_CHUNK_SIZE = 500;
+
 export interface PortLike {
   postMessage(message: unknown): void;
 }
@@ -342,15 +351,34 @@ export class Hub {
     this.dataListeners.set(providerId, set);
 
     // Guaranteed first emit: full cache + current status.
+    //
+    // Chunk the cache replay so a single late-join postMessage doesn't
+    // ship thousands of rows at once. The first chunk carries
+    // `replace: true` (so the consumer treats it as the snapshot);
+    // subsequent chunks ride as `replace: false` deltas which the
+    // client buffers until onUpdate is wired and then flushes as
+    // live updates. For empty caches we still send one replace=true
+    // frame so the snapshot promise has something to settle on.
     const cacheRows = [...slot.cache.values()];
     // eslint-disable-next-line no-console
-    if (DEBUG) console.log(`[v2/hub] → subId=${subId}: replay delta(replace=true) rows=${cacheRows.length}, status=${slot.status} (totalListeners=${set.size})`);
-    port.postMessage({
-      subId,
-      kind: 'delta',
-      rows: cacheRows,
-      replace: true,
-    } satisfies Event);
+    if (DEBUG) console.log(
+      `[v2/hub] → subId=${subId}: replay rows=${cacheRows.length} in ${
+        Math.max(1, Math.ceil(cacheRows.length / LATE_JOIN_CHUNK_SIZE))
+      } chunk(s), status=${slot.status} (totalListeners=${set.size})`,
+    );
+    if (cacheRows.length === 0) {
+      port.postMessage({ subId, kind: 'delta', rows: [], replace: true } satisfies Event);
+    } else {
+      for (let offset = 0; offset < cacheRows.length; offset += LATE_JOIN_CHUNK_SIZE) {
+        const chunk = cacheRows.slice(offset, offset + LATE_JOIN_CHUNK_SIZE);
+        port.postMessage({
+          subId,
+          kind: 'delta',
+          rows: chunk,
+          replace: offset === 0,
+        } satisfies Event);
+      }
+    }
     port.postMessage({
       subId,
       kind: 'status',

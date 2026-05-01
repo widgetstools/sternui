@@ -55,6 +55,7 @@ import {
   Users,
   Terminal,
   Eye,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
 import type {
@@ -806,6 +807,13 @@ function Host<TData>({
           // Belt-and-suspenders: blank the template too in case the
           // option name is renamed in a future AG-Grid version.
           overlayNoRowsTemplate=" "
+          // Coalesce live-update transactions every 100ms instead of
+          // AG-Grid's 60ms default. Higher value → fewer main-thread
+          // tasks under fast feeds (each task processes more rows but
+          // they fire less often), reducing the rate of >50ms
+          // "message handler" violations. 100ms is comfortably under
+          // human-perceivable lag (~150ms threshold).
+          asyncTransactionWaitMillis={100}
           onGridReady={handleGridReady}
           onGridPreDestroyed={onGridPreDestroyed}
         />
@@ -888,6 +896,7 @@ const ADMIN_ACTION_ICONS: Record<string, LucideIcon> = {
   'lucide:terminal':     Terminal,
   'lucide:eye':          Eye,
   'lucide:wrench':       Wrench,
+  'lucide:refresh-cw':   RefreshCw,
 };
 
 function resolveAdminActionIcon(ref: string | undefined): LucideIcon {

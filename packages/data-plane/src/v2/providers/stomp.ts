@@ -45,8 +45,22 @@
  */
 
 import type { StompProviderConfig } from '@marketsui/shared-types';
+import { composeRowId } from '@marketsui/shared-types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
 import { resolveBracketCfg } from '../template/bracket-resolver.js';
+
+/**
+ * Maximum rows to ship in a single `postMessage` from the worker.
+ * Larger snapshots are split into multiple replace+delta frames so
+ * the receiving main-thread `message` handler completes inside
+ * Chromium's 50ms long-task budget (the source of the
+ * "[Violation] 'message' handler took 266ms" advisories).
+ *
+ * 500 is a balance: empirically a 500-row structured-clone of
+ * typical position rows takes ~10–25ms; halving it makes no
+ * material difference but doubles the round-trips.
+ */
+const SNAPSHOT_CHUNK_SIZE = 500;
 
 // ─── Minimal structural type for the stompjs Client we use ────────
 
@@ -128,14 +142,43 @@ export function startStomp(
   };
 
   const flushSnapshot = () => {
-    // Always emit a replace=true frame at the end of the snapshot
-    // phase — even if zero rows arrived. That gives consumers a
-    // deterministic "the snapshot is now this set" signal and lets
-    // the Hub clear any stale cache entries from a prior session.
-    // eslint-disable-next-line no-console
-    console.log(`[v2/stomp] flushSnapshot: emit replace=true with ${state.snapshotBuffer.length} buffered rows`);
-    emit({ rows: state.snapshotBuffer, replace: true });
+    // Stream the snapshot in chunks so each `postMessage` across the
+    // worker→main boundary stays small enough that the receiving
+    // `message` handler completes under Chromium's 50ms long-task
+    // threshold. The first chunk carries `replace: true` so the Hub
+    // resets its cache and the consumer's snapshot promise can
+    // resolve; subsequent chunks ride as `replace: false` deltas
+    // (the Hub merges them into its cache, the client buffers them
+    // until `onUpdate` is registered, then they flush as live
+    // updates). A zero-row snapshot still emits one replace=true
+    // frame so consumers see the deterministic snapshot-complete
+    // signal.
+    // Dedupe by keyColumn before chunking so the same row id doesn't
+    // appear in two different chunks. Non-chunked snapshots used to
+    // ride a single replace=true broadcast which the Hub deduped via
+    // its cache; with chunking, chunks 1..N broadcast their own batch
+    // values, so an id appearing in both chunk0 (set in cache) and
+    // chunk1 (set in cache again) would be sent twice — once via
+    // replace=true cache snapshot, once via replace=false batch — and
+    // the consumer would see a duplicate. Last-write-wins ordering is
+    // preserved by Map's insertion semantics.
+    const keyColumn = (cfg as { keyColumn?: string | readonly string[] }).keyColumn;
+    const buffer = dedupSnapshotBuffer(state.snapshotBuffer, keyColumn);
     state.snapshotBuffer = [];
+    // eslint-disable-next-line no-console
+    console.log(
+      `[v2/stomp] flushSnapshot: ${buffer.length} rows in ${
+        Math.max(1, Math.ceil(buffer.length / SNAPSHOT_CHUNK_SIZE))
+      } chunk(s) of ${SNAPSHOT_CHUNK_SIZE}`,
+    );
+    if (buffer.length === 0) {
+      emit({ rows: [], replace: true });
+      return;
+    }
+    for (let offset = 0; offset < buffer.length; offset += SNAPSHOT_CHUNK_SIZE) {
+      const chunk = buffer.slice(offset, offset + SNAPSHOT_CHUNK_SIZE);
+      emit({ rows: chunk, replace: offset === 0 });
+    }
   };
 
   const handleFrame = (body: string) => {
@@ -359,6 +402,36 @@ export async function probeStomp(
 function matchesEndToken(body: string, token: string | undefined): boolean {
   if (!token) return false;
   return body.toLowerCase().includes(token.toLowerCase());
+}
+
+/**
+ * Deduplicate a snapshot buffer by keyColumn, preserving last-write-
+ * wins ordering. Rows without a resolvable key fall through unchanged
+ * (we can't dedup them, and dropping them would lose data). When the
+ * cfg has no keyColumn, the buffer is returned as-is — the consumer
+ * must already accept arbitrary duplicates in that mode.
+ */
+function dedupSnapshotBuffer(
+  rows: readonly unknown[],
+  keyColumn: string | readonly string[] | undefined,
+): unknown[] {
+  if (!keyColumn || rows.length === 0) return rows.slice();
+  const byKey = new Map<string, unknown>();
+  const noKey: unknown[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') {
+      noKey.push(row);
+      continue;
+    }
+    const id = composeRowId(row as Record<string, unknown>, keyColumn);
+    if (id === null) {
+      noKey.push(row);
+      continue;
+    }
+    byKey.set(id, row);
+  }
+  // Keyed rows first (last-write-wins per key), then keyless tail.
+  return [...byKey.values(), ...noKey];
 }
 
 function extractRows(parsed: unknown): unknown[] {

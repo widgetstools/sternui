@@ -335,7 +335,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     activeId && rowIdField ? `${activeId}::${rowIdFieldKey}::${refreshTick}` : null;
   const [resolvedSubKey, setResolvedSubKey] = useState<string | null>(null);
   const [loadRowCount, setLoadRowCount] = useState<number | undefined>(undefined);
+  // True while the provider is in the 'loading' phase of a peer-
+  // triggered re-snapshot. Driven by the worker's status events, which
+  // every subscriber receives — so all connected windows show the
+  // overlay together, not just the one that pressed the refresh button.
+  const [isRefetching, setIsRefetching] = useState(false);
   const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
+  const showLoadingOverlay = isLoadingSnapshot || isRefetching;
 
   // Render-time log of the gating inputs so you can see WHY the
   // subscribe effect isn't firing yet (or that it IS gated correctly
@@ -372,17 +378,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     const extra = refreshExtraRef.current;
     refreshExtraRef.current = undefined;
     const t0 = performance.now();
-    if (DEBUG) {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[v2/grid] %csubscribe%c provider=%s%s rowIdField=%s gridReady=%s`,
-        'color:#3b82f6;font-weight:bold', '',
-        activeId,
-        extra ? ` extra=${JSON.stringify(extra)}` : '',
-        rowIdField,
-        Boolean(liveApi),
-      );
-    }
+    // eslint-disable-next-line no-console
+    console.log(
+      '[refresh] %c5. subscribe useEffect fired%c provider=%s extra=%s',
+      'color:#ec4899', '', activeId,
+      extra ? JSON.stringify(extra) : '(none — initial mount)',
+    );
     const handle = dpClient.subscribe<TData>(activeId, activeCfg, extra ? { extra } : {});
     let cancelled = false;
 
@@ -396,33 +397,83 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     // with multiple ticks per row makes this hit constantly.
     const pendingAddIds = new Set<string>();
 
+    // Tracks the worker's most recent status so onUpdate can route
+    // deltas correctly: while 'loading', the rows are chunks of a
+    // refreshing snapshot and must be applied as adds-only (the
+    // worker buffers true live frames during the snapshot phase, so
+    // any replace=false delta in this window IS a snapshot chunk).
+    // While 'ready', deltas are real live ticks and go through the
+    // add/update classifier.
+    const providerStatusRef = { current: 'loading' as 'loading' | 'ready' | 'error' };
+
     handle.onStatus((s, err) => {
-      if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[refresh] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms) — pendingAdds=${pendingAddIds.size}`,
+        'color:#a855f7;font-weight:bold', '', s,
+      );
+      if (cancelled) return;
+      // On the loading→ready transition, drain any queued add
+      // transactions BEFORE we flip the routing flag.
+      if (s === 'ready' && providerStatusRef.current === 'loading') {
         // eslint-disable-next-line no-console
         console.log(
-          `[v2/grid] %cstatus%c %s${err ? ' error=' + JSON.stringify(err) : ''} (+${(performance.now() - t0).toFixed(0)}ms)`,
-          'color:#a855f7', '', s,
+          '[refresh] %cflushAsyncTransactions BEFORE%c pendingAdds=%d gridRows=%d',
+          'color:#f97316;font-weight:bold', '',
+          pendingAddIds.size, liveApi.getDisplayedRowCount(),
+        );
+        try { liveApi.flushAsyncTransactions(); } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('[refresh]    flushAsyncTransactions threw:', e);
+        }
+        // eslint-disable-next-line no-console
+        console.log(
+          '[refresh] %cflushAsyncTransactions AFTER%c pendingAdds=%d gridRows=%d',
+          'color:#f97316;font-weight:bold', '',
+          pendingAddIds.size, liveApi.getDisplayedRowCount(),
         );
       }
-      if (cancelled) return;
+      providerStatusRef.current = s;
+      // Track 'loading' so the overlay re-shows during a peer-triggered
+      // re-snapshot (when the worker restart clears the cache and
+      // emits status: 'loading' to all subscribers, including this one
+      // if it didn't initiate the refresh). Clear on 'ready'.
+      if (s === 'loading') setIsRefetching(true);
+      else if (s === 'ready') setIsRefetching(false);
       if (err) {
         // Tear down the overlay on error so the user sees the empty
         // grid (or the error toast surfaced via onError).
         setResolvedSubKey(thisSubKey);
+        setIsRefetching(false);
         (onError ?? defaultOnError)(new Error(err));
       }
     });
 
+    // Re-snapshot listener — fires when a `replace: true` delta arrives
+    // AFTER the initial snapshot has settled. Triggered by a peer
+    // subscriber clicking refresh, or any path that calls
+    // `provider.restart`. Clears the grid + applies the fresh chunk0;
+    // subsequent chunks ride in via the regular onUpdate path as adds.
+    handle.onReset((rows) => {
+      if (cancelled) return;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[refresh] %conReset%c %d rows (replace=true mid-subscription) pendingAdds(before)=%d`,
+        'color:#ec4899;font-weight:bold', '', rows.length, pendingAddIds.size,
+      );
+      pendingAddIds.clear();
+      liveApi.setGridOption('rowData', rows.slice());
+      setLoadRowCount(rows.length);
+    });
+
     handle.snapshot
       .then((rows) => {
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[v2/grid] %csnapshot ✓%c %d rows received (+${(performance.now() - t0).toFixed(0)}ms)`,
-            'color:#10b981;font-weight:bold', '',
-            rows.length,
-          );
-        }
+        // eslint-disable-next-line no-console
+        console.log(
+          `[refresh] %csnapshot ✓%c %d rows (+${(performance.now() - t0).toFixed(0)}ms)`,
+          'color:#10b981;font-weight:bold', '',
+          rows.length,
+        );
         if (cancelled) {
           if (DEBUG) {
             // eslint-disable-next-line no-console
@@ -451,6 +502,36 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         handle.onUpdate((updateRows) => {
           if (cancelled || updateRows.length === 0) return;
           updateBatchCount += 1;
+
+          // While the worker is in 'loading' (a peer-triggered or
+          // self-triggered re-snapshot in progress), replace=false
+          // deltas are chunks of the new snapshot — the worker buffers
+          // true live ticks during the snapshot phase and only emits
+          // them after status='ready'. Route those chunks as
+          // adds-only with a skip-if-already-present guard.
+          if (providerStatusRef.current === 'loading') {
+            if (!rowIdField) {
+              liveApi.applyTransactionAsync({ add: updateRows.slice() });
+              return;
+            }
+            const chunkAdds: TData[] = [];
+            for (const row of updateRows) {
+              const id = composeRowId(row, rowIdField);
+              if (id === null) continue;
+              if (liveApi.getRowNode(id) || pendingAddIds.has(id)) continue;
+              chunkAdds.push(row);
+              pendingAddIds.add(id);
+            }
+            if (chunkAdds.length === 0) return;
+            liveApi.applyTransactionAsync({ add: chunkAdds }, (result) => {
+              for (const node of result.add) {
+                const nodeId = node.id;
+                if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
+              }
+            });
+            return;
+          }
+
           if (!rowIdField) {
             if (DEBUG) {
               // eslint-disable-next-line no-console
@@ -461,27 +542,41 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           }
           const adds: TData[] = [];
           const updates: TData[] = [];
+          let droppedPending = 0;
           for (const row of updateRows) {
             const id = composeRowId(row, rowIdField);
             if (id === null) continue;
-            if (liveApi.getRowNode(id) || pendingAddIds.has(id)) {
+            // Order matters here: check `getRowNode` FIRST.
+            //
+            // After `flushAsyncTransactions` runs (e.g., on the
+            // loading→ready transition, or on refresh-button entry),
+            // AG-Grid HAS the row internally, but our `pendingAddIds`
+            // bookkeeping can't be cleaned up yet — AG-Grid dispatches
+            // the per-transaction callback on next tick (setTimeout),
+            // not synchronously inside the flush. So `pendingAddIds`
+            // may still hold stale ids for rows that ARE already in
+            // the grid. Checking `getRowNode` first means we correctly
+            // route those ticks to `updates`. Only when the row is
+            // genuinely not in the grid AND we've queued an add for
+            // it do we drop the live tick.
+            if (liveApi.getRowNode(id)) {
               updates.push(row);
-            } else {
-              adds.push(row);
-              pendingAddIds.add(id);
+              continue;
             }
+            if (pendingAddIds.has(id)) {
+              droppedPending++;
+              continue;
+            }
+            adds.push(row);
+            pendingAddIds.add(id);
           }
-          // Only log every 50th batch to avoid flooding the console
-          // under a high-rate feed. The first few are useful for
-          // confirming the grid is healthy after the snapshot. Gated
-          // by `DEBUG` so the throttled `%` calculation is also skipped
-          // in production.
-          if (DEBUG && (updateBatchCount <= 5 || updateBatchCount % 50 === 0)) {
+          // Log only when something is dropped (silent in steady state).
+          if (droppedPending > 0) {
             // eslint-disable-next-line no-console
             console.log(
-              `[v2/grid] %cupdate#%d%c %d rows → %d add, %d update (pendingAdds=%d)`,
-              'color:#f59e0b', '', updateBatchCount,
-              updateRows.length, adds.length, updates.length, pendingAddIds.size,
+              '[refresh]   %clive split (rows dropped due to pending adds)%c add=%d update=%d droppedPending=%d',
+              'color:#f97316', '',
+              adds.length, updates.length, droppedPending,
             );
           }
           liveApi.applyTransactionAsync({ add: adds, update: updates }, (result) => {
@@ -536,11 +631,52 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const refresh = useCallback(() => {
     if (!activeId) return;
+    // eslint-disable-next-line no-console
+    console.log('[refresh] %c1. Refresh button clicked%c provider=%s mode=%s asOfDate=%s',
+      'color:#ec4899;font-weight:bold', '',
+      activeId, selection.mode, asOfDate ?? '—');
     refreshExtraRef.current = (selection.mode === 'historical' && asOfDate)
       ? { asOfDate }
       : { __refresh: Date.now() };
-    setRefreshTick((t) => t + 1);
-  }, [activeId, selection.mode, asOfDate]);
+    // eslint-disable-next-line no-console
+    console.log('[refresh] %c2. extra payload set%c', 'color:#ec4899', '', refreshExtraRef.current);
+    // Clear the grid immediately so the user who pressed refresh sees
+    // an empty + spinner state, not stale rows under the overlay.
+    // Other connected subscribers get the same effect via `onReset`
+    // when the worker's `replace: true` empty broadcast lands.
+    if (liveApi) {
+      try {
+        // CRITICAL: drain any async transactions queued by the old
+        // subscription's live ticks BEFORE clearing the grid. If we
+        // clear first, those queued transactions reach AG-Grid's
+        // 100ms flush boundary AFTER the rowData was wiped — they
+        // try to update rows that no longer exist and AG-Grid logs
+        // error #4 for every one of them.
+        const beforeFlush = liveApi.getDisplayedRowCount();
+        liveApi.flushAsyncTransactions();
+        const afterFlush = liveApi.getDisplayedRowCount();
+        // eslint-disable-next-line no-console
+        console.log(
+          '[refresh] %c3a. flushAsyncTransactions drained old queue%c rows %d → %d',
+          'color:#ec4899', '', beforeFlush, afterFlush,
+        );
+        liveApi.setGridOption('rowData', []);
+        // eslint-disable-next-line no-console
+        console.log('[refresh] %c3b. Grid cleared (setGridOption rowData=[])%c', 'color:#ec4899', '');
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('[refresh]    Grid clear failed:', e);
+      }
+    }
+    setIsRefetching(true);
+    setLoadRowCount(undefined);
+    setRefreshTick((t) => {
+      // eslint-disable-next-line no-console
+      console.log('[refresh] %c4. refreshTick++%c %d → %d (will trigger subscribe useEffect)',
+        'color:#ec4899', '', t, t + 1);
+      return t + 1;
+    });
+  }, [activeId, selection.mode, asOfDate, liveApi]);
 
   // ── Toolbar slot content ──────────────────────────────────────────
   //
@@ -580,6 +716,25 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       liveList.configs.find((c) => c.providerId === activeId)?.name
       ?? histList.configs.find((c) => c.providerId === activeId)?.name
       ?? undefined;
+    // Prepend a "Refresh" admin action so end users (not just the
+    // hidden Alt+Shift+P picker) can restart the live provider. The
+    // action reuses the same `refresh()` callback the picker's button
+    // wires to, so behaviour is identical: re-attach with a fresh
+    // `extra` payload, the worker turns it into provider.restart, and
+    // the loading overlay re-shows until the next snapshot lands.
+    const userAdminActions = (marketsGridProps as { adminActions?: import('@marketsui/markets-grid').AdminAction[] }).adminActions ?? [];
+    const adminActionsWithRefresh: import('@marketsui/markets-grid').AdminAction[] = [
+      {
+        id: 'refresh-provider',
+        label: 'Refresh',
+        description: activeProviderName
+          ? `Restart ${activeProviderName} and re-fetch the snapshot`
+          : 'Restart the active provider and re-fetch the snapshot',
+        icon: 'lucide:refresh-cw',
+        onClick: refresh,
+      },
+      ...userAdminActions,
+    ];
     return (
       <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
         <MarketsGrid<TData>
@@ -590,8 +745,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           columnDefs={columnDefs}
           onReady={onReady}
           headerExtras={headerExtras}
+          adminActions={adminActionsWithRefresh}
         />
-        {isLoadingSnapshot && (
+        {showLoadingOverlay && (
           <MarketsGridLoadingOverlay
             title={activeProviderName ? `Loading ${activeProviderName}` : 'Loading market data'}
             rowCount={loadRowCount}

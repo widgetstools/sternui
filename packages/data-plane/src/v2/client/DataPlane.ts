@@ -70,10 +70,19 @@ export interface AttachOpts {
  * Updates that arrive between the snapshot resolving and `onUpdate`
  * being registered are buffered, then flushed in order on
  * registration — nothing is silently dropped.
+ *
+ * `onReset` fires when a `replace: true` delta arrives AFTER the
+ * initial snapshot has settled — i.e. the provider re-snapshotted
+ * (typically because a peer subscriber clicked "refresh", which
+ * makes the worker call `provider.restart` and clears the Hub
+ * cache). All connected subscribers receive this signal so every
+ * grid wipes + repopulates with the fresh snapshot rather than
+ * keeping stale rows on screen.
  */
 export interface SubscribeHandle<T = unknown> {
   snapshot: Promise<readonly T[]>;
   onUpdate(cb: (rows: readonly T[]) => void): void;
+  onReset(cb: (rows: readonly T[]) => void): void;
   onStatus(cb: (status: ProviderStatus, error?: string) => void): void;
   unsubscribe(): void;
 }
@@ -181,8 +190,14 @@ export class DataPlane {
 
     let snapshotSettled = false; // true after resolve OR reject
     let updateCb: ((rows: readonly T[]) => void) | null = null;
+    let resetCb: ((rows: readonly T[]) => void) | null = null;
     let statusCb: ((status: ProviderStatus, error?: string) => void) | null = null;
     const bufferedUpdates: ReadonlyArray<T>[] = [];
+    /** Replace=true deltas that arrived after the snapshot settled but
+     *  before the consumer registered `onReset`. Flushed in order on
+     *  registration (last one wins for the visible state, but firing
+     *  each lets observability hooks see the full sequence). */
+    const bufferedResets: ReadonlyArray<T>[] = [];
 
     // Snapshot is "the cache state at the moment the provider becomes
     // ready". The Hub's wire protocol sends:
@@ -236,7 +251,18 @@ export class DataPlane {
         }
         if (replace) {
           latestSnapshotRows = rows;
-          trySettleSnapshot();
+          if (snapshotSettled) {
+            // Re-snapshot — the provider restarted (worker called
+            // provider.restart, cache was cleared and is repopulating).
+            // Fire onReset so the consumer wipes + replaces its
+            // rendered state. The Promise has already resolved; it
+            // can't fire again, but onReset acts as the post-settle
+            // equivalent.
+            if (resetCb) resetCb(rows);
+            else bufferedResets.push(rows);
+          } else {
+            trySettleSnapshot();
+          }
           return;
         }
         // Non-replace delta. Pre-snapshot deltas shouldn't happen
@@ -284,6 +310,13 @@ export class DataPlane {
       onUpdate: (cb) => {
         updateCb = cb;
         flushBuffered();
+      },
+      onReset: (cb) => {
+        resetCb = cb;
+        while (bufferedResets.length > 0) {
+          const rows = bufferedResets.shift()!;
+          cb(rows);
+        }
       },
       onStatus: (cb) => {
         statusCb = cb;
