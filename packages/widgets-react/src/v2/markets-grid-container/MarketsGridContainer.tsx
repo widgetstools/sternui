@@ -43,6 +43,7 @@ import {
 import { composeRowId, type ProviderConfig } from '@marketsui/shared-types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { useChordHotkey } from './useChordHotkey.js';
+import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
 
 const EMPTY: never[] = [];
 
@@ -323,6 +324,19 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [refreshTick, setRefreshTick] = useState(0);
   const refreshExtraRef = useRef<Record<string, unknown> | undefined>(undefined);
 
+  // Loading-overlay state — derived synchronously from a "subscription
+  // key" so the overlay appears on the SAME render that mounts the
+  // grid. If we used a useState+useEffect pair, AG-Grid would briefly
+  // flash its built-in "No Rows To Show" overlay between mount and
+  // the first useEffect tick. We track which subscription key has had
+  // its snapshot resolved, and the overlay shows whenever the current
+  // subscription key !== the resolved key.
+  const subscriptionKey =
+    activeId && rowIdField ? `${activeId}::${rowIdFieldKey}::${refreshTick}` : null;
+  const [resolvedSubKey, setResolvedSubKey] = useState<string | null>(null);
+  const [loadRowCount, setLoadRowCount] = useState<number | undefined>(undefined);
+  const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
+
   // Render-time log of the gating inputs so you can see WHY the
   // subscribe effect isn't firing yet (or that it IS gated correctly
   // and waiting for the missing piece). Gated by `DEBUG` because this
@@ -345,6 +359,15 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       }
       return;
     }
+    // Subscribe starting / restarting — clear the row count display so
+    // the next snapshot's count appears fresh. The overlay's
+    // visibility is already true via the derived isLoadingSnapshot
+    // flag (subscriptionKey changed → resolvedSubKey is stale).
+    setLoadRowCount(undefined);
+    // Capture the key that's loading right now so async callbacks
+    // mark the right subscription resolved (in case the user picks a
+    // different provider before this one's snapshot arrives).
+    const thisSubKey = subscriptionKey ?? `${activeId}::${rowIdFieldKey}::${refreshTick}`;
 
     const extra = refreshExtraRef.current;
     refreshExtraRef.current = undefined;
@@ -381,7 +404,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           'color:#a855f7', '', s,
         );
       }
-      if (err && !cancelled) (onError ?? defaultOnError)(new Error(err));
+      if (cancelled) return;
+      if (err) {
+        // Tear down the overlay on error so the user sees the empty
+        // grid (or the error toast surfaced via onError).
+        setResolvedSubKey(thisSubKey);
+        (onError ?? defaultOnError)(new Error(err));
+      }
     });
 
     handle.snapshot
@@ -403,6 +432,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         }
         // Phase 1 done: apply the snapshot in a single setRowData.
         liveApi.setGridOption('rowData', rows.slice());
+        // Snapshot landed → mark this subscription resolved so the
+        // overlay tears down. AG-Grid's built-in "No Rows To Show"
+        // overlay will surface naturally if `rows.length === 0`.
+        setLoadRowCount(rows.length);
+        setResolvedSubKey(thisSubKey);
         if (DEBUG) {
           // eslint-disable-next-line no-console
           console.log(`[v2/grid]   setGridOption('rowData', %d rows) applied`, rows.length);
@@ -473,6 +507,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           err instanceof Error ? err.message : String(err),
         );
         if (cancelled) return;
+        // Tear the overlay down so the user sees the empty grid /
+        // their onError toast rather than a perpetual spinner.
+        setResolvedSubKey(thisSubKey);
         (onError ?? defaultOnError)(err instanceof Error ? err : new Error(String(err)));
       });
 
@@ -539,16 +576,28 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // Provider selected and cfg loaded → full data-attached grid.
   if (activeId && !activeRow.loading && rowIdField && columnDefs) {
+    const activeProviderName =
+      liveList.configs.find((c) => c.providerId === activeId)?.name
+      ?? histList.configs.find((c) => c.providerId === activeId)?.name
+      ?? undefined;
     return (
-      <MarketsGrid<TData>
-        {...(marketsGridProps as MarketsGridProps<TData>)}
-        key={`${activeId}::${rowIdFieldKey}`}
-        rowData={EMPTY as TData[]}
-        rowIdField={rowIdField}
-        columnDefs={columnDefs}
-        onReady={onReady}
-        headerExtras={headerExtras}
-      />
+      <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
+        <MarketsGrid<TData>
+          {...(marketsGridProps as MarketsGridProps<TData>)}
+          key={`${activeId}::${rowIdFieldKey}`}
+          rowData={EMPTY as TData[]}
+          rowIdField={rowIdField}
+          columnDefs={columnDefs}
+          onReady={onReady}
+          headerExtras={headerExtras}
+        />
+        {isLoadingSnapshot && (
+          <MarketsGridLoadingOverlay
+            title={activeProviderName ? `Loading ${activeProviderName}` : 'Loading market data'}
+            rowCount={loadRowCount}
+          />
+        )}
+      </div>
     );
   }
 

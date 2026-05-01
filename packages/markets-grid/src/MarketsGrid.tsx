@@ -798,6 +798,14 @@ function Host<TData>({
           sideBar={sideBar}
           statusBar={statusBar}
           defaultColDef={defaultColDef}
+          // Suppress AG-Grid's built-in "No Rows To Show" overlay —
+          // the container's own loading overlay covers the empty
+          // state during snapshot fetch, and consumers handle the
+          // truly-empty case themselves.
+          suppressNoRowsOverlay={true}
+          // Belt-and-suspenders: blank the template too in case the
+          // option name is renamed in a future AG-Grid version.
+          overlayNoRowsTemplate=" "
           onGridReady={handleGridReady}
           onGridPreDestroyed={onGridPreDestroyed}
         />
