@@ -22,7 +22,8 @@
     "ag-grid-react": ">=35.0.0"
   },
   "dependencies": {
-    "@marketsui/core": "*"
+    "@marketsui/core": "*",
+    "lucide-react": "^0.544.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
