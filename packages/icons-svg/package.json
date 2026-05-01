@@ -15,9 +15,14 @@
     "./all-icons": "./all-icons.ts",
     "./svg/*": "./svg/*"
   },
-  "files": ["svg/**/*.svg", "index.ts", "react/**/*", "angular/**/*"],
+  "files": [
+    "svg/**/*.svg",
+    "index.ts",
+    "react/**/*",
+    "angular/**/*"
+  ],
   "dependencies": {
-    "lucide-react": "^0.544.0",
+    "lucide-react": "^0.554.0",
     "lucide-angular": "^1.0.0"
   },
   "peerDependencies": {
@@ -26,8 +31,14 @@
     "@angular/core": ">=21.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "@angular/common": { "optional": true },
-    "@angular/core": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "@angular/common": {
+      "optional": true
+    },
+    "@angular/core": {
+      "optional": true
+    }
   }
 }

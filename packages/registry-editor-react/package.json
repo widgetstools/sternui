@@ -13,8 +13,8 @@
     "@marketsui/openfin-platform": "*",
     "@marketsui/icons-svg": "*",
     "@marketsui/ui": "*",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "tailwind-merge": "^3.5.0"
   },
   "peerDependencies": {
