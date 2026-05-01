@@ -3,6 +3,38 @@ import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
 import { GridPlatform, type AnyColDef, type AnyModule } from '@marketsui/core';
 
 /**
+ * AG-Grid options that can ONLY be set at construction time. Calling
+ * `api.setGridOption(key, ...)` for any of these after init logs the
+ * warning: "AG Grid: warning #22 <key> is an initial property and
+ * cannot be updated."
+ *
+ * AG-Grid doesn't export this list, so we mirror it from the docs
+ * (https://www.ag-grid.com/react-data-grid/grid-options/#reference-misc).
+ * Add new entries here when AG-Grid surfaces additional warning #22s.
+ *
+ * The pipeline still emits these as part of `gridOptions` so the FIRST
+ * mount picks them up via the `{...gridOptions}` spread on AgGridReact;
+ * we just skip the post-mount push.
+ */
+const INITIAL_ONLY_GRID_OPTIONS: ReadonlySet<string> = new Set([
+  'suppressGroupRowsSticky',
+  'groupLockGroupColumns',
+  'stopEditingWhenCellsLoseFocus',
+  'undoRedoCellEditing',
+  'undoRedoCellEditingLimit',
+  'tooltipShowMode',
+  'suppressColumnVirtualisation',
+  'suppressMaxRenderedRowRestriction',
+  'suppressAnimationFrame',
+  'debounceVerticalScrollbar',
+  'enableRtl',
+  'rowModelType',
+  'debug',
+  'getRowId',
+  'pivotPanelShow',
+]);
+
+/**
  * Binds a `GridPlatform` instance to the React lifecycle:
  *   - Constructs once per MarketsGrid instance. Shared across renders.
  *   - Subscribes to the store and bumps a tick so `columnDefs` / `gridOptions`
@@ -59,10 +91,15 @@ export function useGridHost(opts: {
 
   // AG-Grid's React adapter doesn't reactively forward grid-option-shaped
   // props after mount — push via setGridOption when a key actually changes.
+  // Initial-only options (see INITIAL_ONLY_GRID_OPTIONS) are skipped here:
+  // their first-mount value rides through the AgGridReact prop spread, and
+  // any later change can't be applied anyway — pushing them just spams
+  // AG-Grid warning #22.
   const lastSynced = useRef<Record<string, string>>({});
   useEffect(() => {
     const api = platform.api.api;
     if (!api) return;
+    if ((api as unknown as { isDestroyed?: () => boolean }).isDestroyed?.()) return;
     const prev = lastSynced.current;
     const next: Record<string, string> = {};
     let dirty = false;
@@ -70,6 +107,7 @@ export function useGridHost(opts: {
       const json = JSON.stringify(value) ?? 'undefined';
       next[key] = json;
       if (prev[key] === json) continue;
+      if (INITIAL_ONLY_GRID_OPTIONS.has(key)) continue;
       dirty = true;
       (api.setGridOption as (k: string, v: unknown) => void)(key, value);
     }

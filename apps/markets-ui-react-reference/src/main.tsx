@@ -107,7 +107,12 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 root.render(
   <React.StrictMode>
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
           {/* OpenFin platform provider — runs in a hidden window on
               startup. Does its own bootstrap; NOT wrapped in

@@ -64,6 +64,11 @@ export class ApiHub implements IApiHub {
         /* api mid-teardown / event unsupported — degrade silently */
       }
       return () => {
+        // AG-Grid v35 logs warning #26 if removeEventListener is called
+        // on an already-destroyed grid, even when wrapped in try/catch.
+        // Skip the call when the api reports itself destroyed.
+        const maybeDestroyed = (api as unknown as { isDestroyed?: () => boolean }).isDestroyed;
+        if (typeof maybeDestroyed === 'function' && maybeDestroyed.call(api)) return;
         try {
           (api.removeEventListener as (e: string, f: () => void) => void)(evt, fn);
         } catch { /* ignore */ }
