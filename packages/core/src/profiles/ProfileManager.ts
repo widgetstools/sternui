@@ -213,7 +213,7 @@ export class ProfileManager {
       }
       this.updateState({ activeId: resolvedId, isDirty: false });
       writeActiveId(gridId, resolvedId);
-      void this.writeSourceId(resolvedId);
+      await this.writeSourceId(resolvedId);
       this.platform.events.emit('profile:loaded', { gridId, profileId: resolvedId });
 
       // Refresh profile list.
@@ -317,7 +317,7 @@ export class ProfileManager {
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
-    void this.writeSourceId(id);
+    await this.writeSourceId(id);
     // Suppress dirty-marking through resetAll + deserializeAll — we're
     // hydrating from disk, not editing.
     this.dirtySuppressDepth++;
@@ -398,7 +398,7 @@ export class ProfileManager {
     // snapshot. Same shape as `load()`.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
-    void this.writeSourceId(id);
+    await this.writeSourceId(id);
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();
@@ -442,7 +442,7 @@ export class ProfileManager {
       // Default (always exists) rather than the doomed id.
       this.updateState({ activeId: RESERVED_DEFAULT_PROFILE_ID });
       writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
-      void this.writeSourceId(RESERVED_DEFAULT_PROFILE_ID);
+      await this.writeSourceId(RESERVED_DEFAULT_PROFILE_ID);
     }
     this.autoSave?.cancelScheduled();
 
@@ -567,7 +567,7 @@ export class ProfileManager {
     // shape as create()'s activation step.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
-    void this.writeSourceId(id);
+    await this.writeSourceId(id);
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();

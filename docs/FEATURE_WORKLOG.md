@@ -16,7 +16,8 @@ feature land as an atomic commit.
 
 ## Feature 1 — Per-view active-profile override on OpenFin (MarketsGrid)
 
-**Status:** shipped → commit `824623a`.
+**Status:** shipped → commits `824623a` (initial) + `<pending>` (cross-session
+persistence fix; see Iteration 2).
 
 ### Goal
 
@@ -121,6 +122,60 @@ Browser smoke (negates regression):
 - `ProfileManager` knows nothing about OpenFin — the abstraction stays
   in `core`. Other hosts can plug in their own sources (URL hash,
   query string, postMessage from a parent shell, etc.).
+
+### Iteration 2 — cross-session persistence fix
+
+User-reported regression after iteration 1: per-view active profile
+worked across in-session workspace switches but reset to a single
+shared profile after a real platform restart. All duplicates of a
+MarketsGrid view ended up showing the same profile after restart, even
+though they had been on different profiles when the workspace was
+saved.
+
+Two probable culprits, fixed defensively in one pass:
+
+1. **Write race in `ProfileManager`.** `void this.writeSourceId(...)`
+   was fire-and-forget at five commit points (`boot`, `load`,
+   `create`, `clone`, `import`, `remove-active`). If the user changed
+   profile and saved the workspace immediately, the customData write
+   could still be in flight when `Platform.getSnapshot()` ran.
+   Changed all five sites to `await this.writeSourceId(...)` so
+   subsequent operations (and any user-initiated workspace save) see
+   the settled state. The source's own write swallows errors, so
+   awaiting is safe.
+
+2. **Snapshot may lag live customData.** Even with awaited writes,
+   `Platform.getSnapshot()` reading view options is at OpenFin's
+   discretion — there's no contract that mid-session
+   `View.updateOptions({customData})` writes are flushed into the
+   snapshot. Added `augmentSnapshotWithLiveCustomData(snapshot)` in
+   [`packages/openfin-platform/src/workspace-persistence.ts`](../packages/openfin-platform/src/workspace-persistence.ts):
+   walks the snapshot, re-reads each view's live `customData` via
+   `fin.View.wrapSync({uuid, name}).getOptions()`, and merges it back
+   into the snapshot's view definitions before saving. Live wins.
+
+Same fix benefits `savedTitle` (Feature 2) and any future per-view
+state stored on `customData`.
+
+### Files touched (iteration 2)
+
+- [`packages/core/src/profiles/ProfileManager.ts`](../packages/core/src/profiles/ProfileManager.ts)
+  — `void writeSourceId` → `await writeSourceId` at five commit points.
+- [`packages/openfin-platform/src/workspace-persistence.ts`](../packages/openfin-platform/src/workspace-persistence.ts)
+  — new `augmentSnapshotWithLiveCustomData()` helper, called from
+  `createSavedWorkspace` and `updateSavedWorkspace` before the snapshot
+  is persisted.
+
+### Verification
+
+Manual test plan:
+
+1. Open MarketsGrid view, duplicate it.
+2. In view A select profile X; in view B (duplicate) select profile Y.
+3. Save the workspace.
+4. **Quit the platform completely.**
+5. Restart the platform, load the workspace.
+6. View A should restore on profile X; view B on profile Y.
 
 ---
 
