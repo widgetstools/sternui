@@ -90,10 +90,33 @@ export class OpenFinRuntime implements RuntimePort {
     this.lastCustomData = identityCache.customData;
     if (typeof document !== 'undefined') {
       this.attachThemeWatcher();
+      this.applySavedViewTitle();
     }
     if (isOpenFin()) {
       this.attachViewWatchers();
       this.attachPlatformWorkspaceWatcher();
+    }
+  }
+
+  /**
+   * Reapply a workspace-persisted view title (set via the "Save Tab As…"
+   * action) to `document.title` on view boot. The action stores the
+   * user's chosen title on the view's `customData.savedTitle`, which
+   * rides through the workspace snapshot. Without this hook the rename
+   * would be lost on every workspace reload because the view boots
+   * fresh and the page's own default `<title>` takes over.
+   *
+   * Best-effort: silently no-ops when `customData` lacks a savedTitle,
+   * when document is unavailable, or when the value is anything other
+   * than a non-empty string.
+   */
+  private applySavedViewTitle(): void {
+    const t = (this.identityCache.customData as { savedTitle?: unknown } | undefined)?.savedTitle;
+    if (typeof t !== 'string' || !t) return;
+    try {
+      document.title = t;
+    } catch {
+      /* best-effort */
     }
   }
 

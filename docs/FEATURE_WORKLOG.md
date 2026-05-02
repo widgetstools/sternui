@@ -121,3 +121,63 @@ Browser smoke (negates regression):
 - `ProfileManager` knows nothing about OpenFin — the abstraction stays
   in `core`. Other hosts can plug in their own sources (URL hash,
   query string, postMessage from a parent shell, etc.).
+
+---
+
+## Feature 2 — "Save Tab As…" rename now persists across workspace sessions
+
+**Status:** shipped → commit `<pending>` (this commit).
+
+### Problem before
+
+The rename (commit `98ec87b`) only ran `document.title = "..."` in the
+target view via `executeJavaScript`. That's a runtime-only DOM
+mutation; the workspace snapshot has nothing to capture. On the next
+workspace load the view booted fresh, the page set its own default
+title, and the user-chosen tab name was gone.
+
+### Design
+
+Same shape as Feature 1 — small piece of state on `customData`,
+captured by the snapshot for free, reapplied by the runtime on boot.
+
+- **RenameViewTab popout** ([apps/markets-ui-react-reference/src/views/RenameViewTab.tsx](../apps/markets-ui-react-reference/src/views/RenameViewTab.tsx))
+  on confirm now does two things: (1) `executeJavaScript('document.title = "..."')`
+  for the immediate tabstrip update, and (2)
+  `view.updateOptions({ customData: { ..., savedTitle } })` so the
+  title rides through the workspace snapshot.
+- **OpenFinRuntime** ([packages/runtime-openfin/src/OpenFinRuntime.ts](../packages/runtime-openfin/src/OpenFinRuntime.ts))
+  gains `applySavedViewTitle()` — reads `customData.savedTitle` during
+  construction and reapplies to `document.title`. Best-effort
+  no-op when the key is absent or `document` is unavailable.
+
+### Why no platform-side changes
+
+`Platform.getSnapshot()` reads from the same view options that
+`updateOptions({ customData })` mutates, so the saved title is
+captured automatically — workspace-persistence.ts needed no edits.
+This is the same property that made Feature 1 a small change.
+
+### Files touched
+
+- [`apps/markets-ui-react-reference/src/views/RenameViewTab.tsx`](../apps/markets-ui-react-reference/src/views/RenameViewTab.tsx)
+  — write `customData.savedTitle` after the `executeJavaScript` call.
+- [`packages/runtime-openfin/src/OpenFinRuntime.ts`](../packages/runtime-openfin/src/OpenFinRuntime.ts)
+  — `applySavedViewTitle()` helper called from the constructor.
+- [`docs/IMPLEMENTED_FEATURES.md`](IMPLEMENTED_FEATURES.md) — corrected
+  the §1.O.VTR description (the previous text claimed the rename used
+  `view.updateOptions({ title, titlePriority: 'options' })` which is
+  the design that was abandoned during implementation — `title` lives
+  on the create-time `ViewOptions` shape only, so the call is silently
+  dropped at runtime).
+
+### Verification
+
+Manual test plan:
+
+1. Right-click a view tab → "Save Tab As…" → enter a new name → Save.
+2. Confirm the tab caption updates immediately.
+3. Save the workspace.
+4. Close the platform / re-open the workspace.
+5. Confirm the renamed tab restores with the user's chosen caption,
+   not the page's default `<title>`.

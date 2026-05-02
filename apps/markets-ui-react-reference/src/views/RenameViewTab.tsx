@@ -70,11 +70,30 @@ export default function RenameViewTab() {
     if (!next || !view || saving) return;
     setSaving(true);
     try {
-      // Drive the tabstrip via document.title (default titlePriority is
-      // 'document'). Encoded via JSON.stringify so quotes/backslashes in
-      // the user's input don't break out of the JS string literal.
+      const target = fin.View.wrapSync(view);
+
+      // Drive the tabstrip immediately via document.title (default
+      // titlePriority is 'document'). Encoded via JSON.stringify so
+      // quotes/backslashes in the user's input don't break out of the
+      // JS string literal.
       const safe = JSON.stringify(next);
-      await fin.View.wrapSync(view).executeJavaScript(`document.title = ${safe};`);
+      await target.executeJavaScript(`document.title = ${safe};`);
+
+      // Persist into the target view's customData so the rename survives
+      // a workspace save/restore round-trip. Platform.getSnapshot() reads
+      // from these same options, so the chosen title rides through the
+      // workspace JSON for free. On the next boot, OpenFinRuntime reads
+      // customData.savedTitle and reapplies it to document.title before
+      // the page would set its own default.
+      try {
+        const opts = await target.getOptions();
+        const cd = (opts?.customData ?? {}) as Record<string, unknown>;
+        if (cd.savedTitle !== next) {
+          await target.updateOptions({ customData: { ...cd, savedTitle: next } });
+        }
+      } catch (err) {
+        console.warn('[rename-view-tab] customData persistence failed', err);
+      }
     } catch (err) {
       console.error('[rename-view-tab] executeJavaScript failed', err);
     } finally {
