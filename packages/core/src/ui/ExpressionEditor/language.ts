@@ -49,11 +49,14 @@ export function registerLanguage(monaco: typeof MonacoNS): void {
 
     tokenizer: {
       root: [
-        // Column reference (new syntax): `[identifier]`
-        [/\[[A-Za-z_][A-Za-z0-9_]*\]/, 'variable.predefined'],
+        // Column reference (new syntax): `[identifier(.identifier)*]` — dots
+        // allowed so nested fields like `[pricing.bid]` highlight as a
+        // single token rather than splintering into bracket/dot/identifier.
+        [/\[[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\]/, 'variable.predefined'],
         // Column reference (deprecated): `{identifier}` — highlighted in a
-        // muted style via theme mapping below.
-        [/\{[A-Za-z_][A-Za-z0-9_]*\}/, 'variable.deprecated'],
+        // muted style via theme mapping below. Dots permitted so the
+        // legacy `{ratings.sp}` form still highlights cleanly.
+        [/\{[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\}/, 'variable.deprecated'],
 
         // Function call vs identifier — peek ahead for `(`.
         [/[A-Za-z_][A-Za-z0-9_]*(?=\s*\()/, 'support.function'],
