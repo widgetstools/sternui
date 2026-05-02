@@ -126,7 +126,7 @@ Browser smoke (negates regression):
 
 ## Feature 2 — "Save Tab As…" rename now persists across workspace sessions
 
-**Status:** shipped → commit `<pending>` (this commit).
+**Status:** shipped → commit `0ab52a6`.
 
 ### Problem before
 
