@@ -46,19 +46,16 @@ test.describe('v2 — calculated columns referencing nested fields', () => {
     const text = await readCellText(page, 'N-00007', 'calc_dv01PctTotal');
     expect(text).not.toBeNull();
     expect(text!).not.toBe('');
-    // Format `0.00"%"` — ends with %.
     expect(text!).toMatch(/%$/);
-    // Numeric value ≥ 0. The strict "totals to 100" assertion is
-    // intentionally not enforced here — AG-Grid's column-virtualisation
-    // races with the lazy aggregate snapshot make per-cell aggregate
-    // values non-deterministic across the rendered viewport. Coverage
-    // of the aggregate dot-walk path is still meaningful: a
-    // regression that returned `null` for `getValueByPath(row,
-    // 'risk.dv01')` inside the aggregate branch would make every cell
-    // render empty, and this assertion would fail.
     const pct = parseFloat(text!.replace('%', ''));
     expect(Number.isFinite(pct)).toBe(true);
-    expect(pct).toBeGreaterThanOrEqual(0);
+    // Strict assertion: a per-row share of the total cannot be 100%
+    // unless there is exactly one row contributing — which is not the
+    // fixture state. A regression that makes `SUM([risk.dv01])` return
+    // the per-row scalar (because `[risk.dv01]` parsed as an array
+    // literal instead of a columnRef) yields exactly 100.00% here.
+    expect(pct).toBeGreaterThan(0);
+    expect(pct).toBeLessThan(100);
   });
 
   test('mixed flat+nested expression renders integer value', async ({ page }) => {

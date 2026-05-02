@@ -176,19 +176,40 @@ export class Parser {
       return { type: 'columnRef', columnId: token.value };
     }
 
-    // `[identifier]` — column reference (Excel/Tableau-style). Peek one and
-    // two tokens ahead: only LBRACKET + IDENTIFIER + RBRACKET (no comma, no
-    // operator inside) gets disambiguated as a column ref. Everything else
-    // — `[1, 2]`, `[x > 0]`, `[price, qty]`, the `IN [...]` RHS — falls
-    // through to the array-literal branch below, so existing expressions
-    // keep parsing identically.
-    if (token.type === 'LBRACKET'
-      && this.tokens[this.pos + 1]?.type === 'IDENTIFIER'
-      && this.tokens[this.pos + 2]?.type === 'RBRACKET') {
-      this.advance(); // [
-      const id = this.advance(); // identifier
-      this.advance(); // ]
-      return { type: 'columnRef', columnId: id.value };
+    // `[identifier(.identifier)*]` — column reference (Excel/Tableau-style),
+    // optionally dotted to address nested fields (`[risk.dv01]`,
+    // `[ratings.sp]`). Lookahead scans IDENTIFIER (DOT IDENTIFIER)* RBRACKET
+    // — anything else (`[1, 2]`, `[x > 0]`, `[price, qty]`, the `IN [...]`
+    // RHS) falls through to the array-literal branch below, so existing
+    // expressions keep parsing identically. The columnId is the joined
+    // dotted path; the evaluator's `getValueByPath` resolves it against
+    // either a literal flat key (`row['risk.dv01']`) or a nested object
+    // walk (`row.risk.dv01`).
+    if (token.type === 'LBRACKET' && this.tokens[this.pos + 1]?.type === 'IDENTIFIER') {
+      let scan = this.pos + 1;
+      const parts: string[] = [];
+      let matched = false;
+      while (true) {
+        const id = this.tokens[scan];
+        if (id?.type !== 'IDENTIFIER') break;
+        parts.push(id.value);
+        scan++;
+        const next = this.tokens[scan];
+        if (next?.type === 'RBRACKET') {
+          scan++;
+          matched = true;
+          break;
+        }
+        if (next?.type === 'DOT') {
+          scan++;
+          continue;
+        }
+        break;
+      }
+      if (matched) {
+        this.pos = scan;
+        return { type: 'columnRef', columnId: parts.join('.') };
+      }
     }
 
     // Array literal

@@ -33,7 +33,59 @@ atomic commit.
 
 ## Bug 3 — SUM aggregate over nested fields returns per-row value (do this first)
 
-**Status:** pending
+**Status:** fixed → parser dotted-columnRef lookahead (this session)
+
+### Root cause
+
+The expression parser's `[IDENTIFIER]`-as-columnRef disambiguation was
+hardcoded to a 3-token lookahead (LBRACKET + IDENTIFIER + RBRACKET).
+For `[risk.dv01]` the token stream is LBRACKET, IDENTIFIER(`risk`),
+DOT, IDENTIFIER(`dv01`), RBRACKET — five tokens — so the lookahead
+missed and the input fell through to the **array-literal** branch,
+parsing `[risk.dv01]` as `array([member(risk, dv01)])` instead of
+`columnRef('risk.dv01')`.
+
+Downstream consequences in
+`[risk.dv01] / SUM([risk.dv01]) * 100`:
+
+- The **numerator** `[risk.dv01]` evaluated to a 1-element array
+  containing the per-row dv01 scalar. JS coerced the array to its
+  numeric value during `/`, so `(arr) / number` worked accidentally.
+- The **SUM** argument was an `array` AST node, not a `columnRef`,
+  so the aggregate branch in `evaluateCall`
+  ([evaluator.ts:165](../packages/core/src/expression/evaluator.ts#L165))
+  never triggered (the branch only inspects `columnRef` children).
+  SUM received `args = [[currentRowDv01]]`, sum = currentRowDv01.
+- Result: scalar / scalar × 100 = exactly 100.00% on every row.
+
+This same parse defect explains Bug 2 (`[ratings.sp] == 'AAA'`):
+strict equality compares an array `[scalar]` against the string
+`'AAA'`, never true.
+
+### Fix
+
+[`packages/core/src/expression/parser.ts`](../packages/core/src/expression/parser.ts)
+— extended the columnRef lookahead to scan
+`IDENTIFIER (DOT IDENTIFIER)* RBRACKET`, joining the identifiers with
+`.` to form the columnId. Anything else (`[1, 2]`, `[x > 0]`,
+`IN [...]` RHS) still falls through to array-literal parsing. The
+`getValueByPath` resolver in the evaluator already handles both
+literal-flat-key (`row['risk.dv01']`) and dot-walk (`row.risk.dv01`)
+access shapes, so no evaluator change was needed.
+
+### Verification
+
+Strict assertion restored in
+[`e2e/v2-nested-calculated-columns.spec.ts:44`](../e2e/v2-nested-calculated-columns.spec.ts#L44)
+— `pct > 0 && pct < 100`. Existing flat showcase calc cols
+(`[notional] / SUM([notional])`) keep their 3-token fast path
+unchanged.
+
+---
+
+### Original analysis (preserved for context)
+
+
 **Severity:** high — silent correctness bug. Calculated columns using SUM/AVG/MIN/MAX/etc. over a nested field produce **wrong** values without any visible error. Anyone using nested-field aggregates in production today is getting bad numbers.
 
 ### Symptom
@@ -234,3 +286,4 @@ Not a set of fixes, but a triage doc: one short paragraph per finding with sever
 Append a one-liner each session so we can see at a glance what was done and when.
 
 - **2026-05-02 (this session):** worklog created; three bugs scoped with reproduction steps, file pointers, and hypotheses; deep-dive section stubbed. Scheduled remote agent (`trig_01BCBti7Gy7vDtxuV3EpWJwo`) was disabled — we'll do this work ourselves session-by-session.
+- **2026-05-02 (Bug 3 session):** Bug 3 fixed in the expression parser — extended the `[IDENTIFIER]` columnRef lookahead to accept dotted paths (`[risk.dv01]`). Strict assertion restored in `e2e/v2-nested-calculated-columns.spec.ts`. Same parser defect is the likely root cause of Bug 2 (string-equality on nested cells); leaving Bug 2's section pending until that's verified.
