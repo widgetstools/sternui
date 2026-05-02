@@ -663,6 +663,18 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
   `applyEditableReducer` → `colDef.editable` in
   `column-customization/transforms.ts`. Tooltip is the entire UI —
   no eyebrow label needed.
+- **Clear-selected button (formatter toolbar + popout)** — second
+  destructive action in the Clear module that resets only the
+  currently-targeted column(s) instead of the whole profile. Wired
+  to `clearAllStylesReducer(colIds)` so it drops cell + header
+  styling, value formatter, borders, filter, and template references
+  for the selected columns; saved templates and other columns are
+  untouched. Confirms via a scoped AlertDialog that names the
+  affected columns ("Clear styles for column \"price\"?" / "Clear
+  styles for 3 columns?"). Disabled when no cell/column is selected.
+  Renders icon-only (Eraser) in the horizontal in-grid toolbar and
+  full label in the popped vertical panel footer, alongside the
+  existing profile-wide "Clear all styles" button.
 - **Section-eyebrow strip removal in the in-grid toolbar** — the
   `02 · TYPE`, `03 · PAINT`, `04 · FORMAT`, etc. eyebrow chips are
   hidden in horizontal mode (`.fx-shell--horizontal .fx-eyebrow {

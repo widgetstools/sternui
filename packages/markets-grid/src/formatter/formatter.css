@@ -646,6 +646,14 @@
   background: color-mix(in srgb, var(--fx-danger) 12%, transparent);
   border-color: var(--fx-danger);
 }
+.fx-destruct:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fx-destruct:disabled:hover {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--fx-danger) 35%, transparent);
+}
 .fx-destruct[data-confirmed='true'] {
   color: var(--fx-accent);
   border-color: var(--fx-accent-line);

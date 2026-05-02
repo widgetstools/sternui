@@ -23,6 +23,7 @@ import {
 } from '@marketsui/core';
 import {
   ClearAllDialog,
+  ClearSelectedDialog,
   FormatterPanel,
   FormatterToolbar,
   useFormatter,
@@ -80,6 +81,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
               return (
                 <>
                   <ClearAllDialog state={state} actions={actions} />
+                  <ClearSelectedDialog state={state} actions={actions} />
                   <FormatterPanel
                     state={state}
                     actions={actions}
@@ -93,6 +95,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
             return (
               <>
                 <ClearAllDialog state={state} actions={actions} />
+                <ClearSelectedDialog state={state} actions={actions} />
                 <FormatterToolbar
                   state={state}
                   actions={actions}
