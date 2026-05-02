@@ -73,22 +73,21 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
     expect(has).toBe(false);
   });
 
-  test('string-equality rule on nested ratings.sp registers cellClassRules entry', async ({ page }) => {
-    // The AAA rule's runtime evaluation can be deferred by AG-Grid
-    // (it's a string-equality predicate that doesn't fire on initial
-    // render in some scenarios). What matters for the dot-encoding
-    // fix is that the rule's encoded key landed in cellClassRules so
-    // AG-Grid CAN add the class when the predicate fires. We verify
-    // that by triggering a redraw + checking the predicate matches at
-    // least one cell across the rendered viewport, OR (acceptable
-    // tolerance) that the rule's selector landed in the document's
-    // <style> tag injected by reinjectAllRules.
-    const ruleAttached = await page.evaluate(() => {
-      // Look for the rule's CSS rule in any module's <style> tag.
-      return Array.from(document.querySelectorAll('style'))
-        .some((s) => (s.textContent ?? '').includes('gc-rule-rule-rating-aaa'));
-    });
-    expect(ruleAttached).toBe(true);
+  test('string-equality rule on nested ratings.sp lands on AAA cells', async ({ page }) => {
+    // EDGE-NULL-PRICING.ratings.sp === 'AAA' (per nestedData.ts edge
+    // row). With `[ratings.sp]` correctly parsed as a dotted columnRef
+    // (not an array literal), the predicate evaluates the per-row
+    // scalar against 'AAA' and the gc-rule-rule-rating-aaa class lands
+    // on the cell. Pre-fix this asserted only that the CSS selector
+    // landed in a <style> tag — too lax: the rule attached but never
+    // fired because `[scalar] === 'AAA'` is always false.
+    const has = await cellHasClassMatching(
+      page,
+      'EDGE-NULL-PRICING',
+      'ratings.sp',
+      /^gc-rule-rule-rating-aaa$/,
+    );
+    expect(has).toBe(true);
   });
 
   // ─── Edge cases ─────────────────────────────────────────────────

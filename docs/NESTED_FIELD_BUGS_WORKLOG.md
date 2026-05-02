@@ -198,7 +198,44 @@ The relaxed assertion lives in [`e2e/v2-nested-formatter.spec.ts`](../e2e/v2-nes
 
 ## Bug 2 — String-equality cellClassRule doesn't fire on nested-field cells
 
-**Status:** pending
+**Status:** fixed → parser dotted-columnRef lookahead (this session, same fix as Bug 3)
+
+### Root cause
+
+Same parser defect described under Bug 3. `[ratings.sp]` parsed as an
+array literal `array([member(ratings, sp)])` instead of
+`columnRef('ratings.sp')`. The evaluator's `==` operator uses strict
+equality (`left === right`), and an array `[scalar]` is never strictly
+equal to a string `'AAA'` — so the predicate returned `false` for
+every cell, every render, and the class never landed.
+
+Numeric rules like `[pricing.bid] > 100` and `[pricing.bid] >
+[pricing.ask]` worked accidentally because JS coerces a 1-element
+array to a number for relational operators (`[100.5] > 100` →
+`"100.5" > 100` → `100.5 > 100` → `true`). Strict equality has no such
+coercion, which is why string-equality rules failed and relational
+rules silently kept passing.
+
+### Fix
+
+The parser fix landed for Bug 3 (extending the columnRef lookahead to
+accept dotted paths) resolves this case as well. With `[ratings.sp]`
+parsed as `columnRef('ratings.sp')`, the evaluator's columnRef branch
+returns the per-row scalar via `getValueByPath`, and `scalar === 'AAA'`
+matches correctly.
+
+### Verification
+
+Strict assertion restored in
+[`e2e/v2-nested-conditional-styling.spec.ts`](../e2e/v2-nested-conditional-styling.spec.ts)
+— `cellHasClassMatching('EDGE-NULL-PRICING', 'ratings.sp',
+/^gc-rule-rule-rating-aaa$/)` returns `true`.
+
+---
+
+### Original analysis (preserved for context)
+
+
 **Severity:** medium — cell rules with `==` comparisons don't apply for nested fields. Cell rules with `>`, `<`, etc. on nested fields work.
 
 ### Symptom
@@ -287,3 +324,4 @@ Append a one-liner each session so we can see at a glance what was done and when
 
 - **2026-05-02 (this session):** worklog created; three bugs scoped with reproduction steps, file pointers, and hypotheses; deep-dive section stubbed. Scheduled remote agent (`trig_01BCBti7Gy7vDtxuV3EpWJwo`) was disabled — we'll do this work ourselves session-by-session.
 - **2026-05-02 (Bug 3 session):** Bug 3 fixed in the expression parser — extended the `[IDENTIFIER]` columnRef lookahead to accept dotted paths (`[risk.dv01]`). Strict assertion restored in `e2e/v2-nested-calculated-columns.spec.ts`. Same parser defect is the likely root cause of Bug 2 (string-equality on nested cells); leaving Bug 2's section pending until that's verified.
+- **2026-05-02 (Bug 2 session):** Bug 2 confirmed as a downstream of the same parser fix — `[ratings.sp]` now parses as columnRef so `scalar === 'AAA'` matches correctly. Strict assertion restored in `e2e/v2-nested-conditional-styling.spec.ts`. Bug 2 marked fixed.
