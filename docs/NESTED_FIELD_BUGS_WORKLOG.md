@@ -33,7 +33,7 @@ atomic commit.
 
 ## Bug 3 — SUM aggregate over nested fields returns per-row value (do this first)
 
-**Status:** fixed → parser dotted-columnRef lookahead (this session)
+**Status:** fixed → commit `4055ff1` (parser dotted-columnRef lookahead). All 24/24 nested-fields Playwright tests green, including the restored strict `0 < pct < 100` assertion.
 
 ### Root cause
 
@@ -198,7 +198,7 @@ The relaxed assertion lives in [`e2e/v2-nested-formatter.spec.ts`](../e2e/v2-nes
 
 ## Bug 2 — String-equality cellClassRule doesn't fire on nested-field cells
 
-**Status:** fixed → parser dotted-columnRef lookahead (this session, same fix as Bug 3)
+**Status:** fixed → commit `4055ff1` (parser fix, same as Bug 3) + commit `03390f5` (strict e2e assertion). All 24/24 nested-fields Playwright tests green, including the restored `cellHasClassMatching('EDGE-NULL-PRICING', 'ratings.sp', /^gc-rule-rule-rating-aaa$/)` assertion.
 
 ### Root cause
 
@@ -323,5 +323,5 @@ Not a set of fixes, but a triage doc: one short paragraph per finding with sever
 Append a one-liner each session so we can see at a glance what was done and when.
 
 - **2026-05-02 (this session):** worklog created; three bugs scoped with reproduction steps, file pointers, and hypotheses; deep-dive section stubbed. Scheduled remote agent (`trig_01BCBti7Gy7vDtxuV3EpWJwo`) was disabled — we'll do this work ourselves session-by-session.
-- **2026-05-02 (Bug 3 session):** Bug 3 fixed in the expression parser — extended the `[IDENTIFIER]` columnRef lookahead to accept dotted paths (`[risk.dv01]`). Strict assertion restored in `e2e/v2-nested-calculated-columns.spec.ts`. Same parser defect is the likely root cause of Bug 2 (string-equality on nested cells); leaving Bug 2's section pending until that's verified.
-- **2026-05-02 (Bug 2 session):** Bug 2 confirmed as a downstream of the same parser fix — `[ratings.sp]` now parses as columnRef so `scalar === 'AAA'` matches correctly. Strict assertion restored in `e2e/v2-nested-conditional-styling.spec.ts`. Bug 2 marked fixed.
+- **2026-05-02 (Bug 3 session):** Bug 3 fixed in the expression parser — extended the `[IDENTIFIER]` columnRef lookahead to accept dotted paths (`[risk.dv01]`). Committed as `4055ff1`. Strict assertion restored in `e2e/v2-nested-calculated-columns.spec.ts`.
+- **2026-05-02 (Bug 2 session):** Bug 2 confirmed as a downstream of the same parser fix — `[ratings.sp]` now parses as columnRef so `scalar === 'AAA'` matches correctly. Strict assertion restored in `e2e/v2-nested-conditional-styling.spec.ts`. Committed as `03390f5`. Both fixes verified by full nested-fields Playwright run: 24/24 green.
