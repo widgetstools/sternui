@@ -152,7 +152,55 @@ The relaxed assertion lives in [`e2e/v2-nested-calculated-columns.spec.ts:44`](.
 
 ## Bug 1 — Excel format arrow glyph not rendering on nested-field cells
 
-**Status:** pending
+**Status:** fixed → SSF format-string sanitizer in `excelFormatter`. All 51/51 nested-fields Playwright tests green, including the strict `^[▲▼—]\s\d` arrow assertion on the happy path and `^▲\s99\.50$` on the partial-pricing edge row.
+
+### Root cause
+
+Not a nested-field issue at all — the worklog premise was wrong. The SSF
+(SheetJS format) library used by `excelFormatter` rejects any character
+outside its hard-coded allow-list with `unrecognized character X in
+<fmt>`. The format string `[Green]▲ #,##0.00;[Red]▼ #,##0.00;[Blue]— 0.00`
+contains three rejected glyphs (`▲`, `▼`, `—`), so SSF threw on every
+section. The per-cell render path's `try { SSF.format(...) } catch {
+return String(value); }` swallowed the error and rendered the raw
+number. This affected BOTH the showcase grid and the nested-field
+fixtures — flat-cell rendering was just as broken; nobody had asserted
+on the arrow glyph there either, so the regression went unnoticed.
+
+Excel's spec requires literal characters to be quoted (`"▲ "#,##0.00`),
+but format strings authored by hand or pasted from Excel UI commonly
+omit the quotes — Excel's own renderer is forgiving where SSF isn't.
+
+### Fix
+
+[`packages/core/src/colDef/adapters/excelFormatter.ts`](../packages/core/src/colDef/adapters/excelFormatter.ts)
+— added `sanitizeFormatForSSF`: a try-and-quote loop that probes the
+format with positive / negative / zero / text values (so each section
+gets walked) and, when SSF reports `unrecognized character X`, wraps
+every top-level (outside `"..."` and `[...]`) occurrence of `X` in
+quotes, then retries. Bracket / quoted-string content is left alone, so
+`[Green]` color tags and `"existing literals"` survive intact. The
+sanitized format is used for both the validation probe and per-cell
+`SSF.format` calls; date-code detection runs against the sanitized
+string too.
+
+`buildColorResolver` operates on the sanitized format — bracket
+extraction is unaffected by the inserted quotes (they only appear
+between brackets in pathological inputs the sanitizer doesn't touch),
+so the color tags still resolve.
+
+### Verification
+
+Strict assertions restored in
+[`e2e/v2-nested-formatter.spec.ts`](../e2e/v2-nested-formatter.spec.ts)
+— happy path now requires `^[▲▼—]\s\d`, partial-pricing edge row now
+requires `^▲\s99\.50$`. Full nested-fields gauntlet (51 tests) green.
+`npx turbo typecheck build test` green (71/71 tasks).
+
+---
+
+### Original analysis (preserved for context)
+
 **Severity:** medium — presentation bug. Format applies cleanly on flat cells; just the leading literal text (the `▲ ` glyph + space) doesn't render on nested-field cells.
 
 ### Symptom
@@ -325,3 +373,4 @@ Append a one-liner each session so we can see at a glance what was done and when
 - **2026-05-02 (this session):** worklog created; three bugs scoped with reproduction steps, file pointers, and hypotheses; deep-dive section stubbed. Scheduled remote agent (`trig_01BCBti7Gy7vDtxuV3EpWJwo`) was disabled — we'll do this work ourselves session-by-session.
 - **2026-05-02 (Bug 3 session):** Bug 3 fixed in the expression parser — extended the `[IDENTIFIER]` columnRef lookahead to accept dotted paths (`[risk.dv01]`). Committed as `4055ff1`. Strict assertion restored in `e2e/v2-nested-calculated-columns.spec.ts`.
 - **2026-05-02 (Bug 2 session):** Bug 2 confirmed as a downstream of the same parser fix — `[ratings.sp]` now parses as columnRef so `scalar === 'AAA'` matches correctly. Strict assertion restored in `e2e/v2-nested-conditional-styling.spec.ts`. Committed as `03390f5`. Both fixes verified by full nested-fields Playwright run: 24/24 green.
+- **2026-05-02 (Bug 1 session):** Bug 1 root-caused as an SSF format-string issue, not a nested-field issue. SSF rejects unquoted unicode literals like `▲ ▼ —`; both showcase and fixture grids were silently falling back to `String(value)`. Added `sanitizeFormatForSSF` in `excelFormatter.ts` — try-and-quote loop that probes positive/negative/zero/text values to surface every section's tokens, then wraps unrecognized top-level chars in quotes. Strict arrow-glyph assertions restored in `e2e/v2-nested-formatter.spec.ts`. Full nested-fields gauntlet 51/51 green; `npx turbo typecheck build test` green (71/71).
