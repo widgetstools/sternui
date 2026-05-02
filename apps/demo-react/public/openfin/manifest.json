@@ -4,7 +4,7 @@
   "licenseKey": "openfin-demo",
   "runtime": {
     "version": "stable",
-    "arguments": "--v=1"
+    "arguments": "--v=1 --remote-debugging-port=9090"
   },
 
   "startup_app": {
@@ -41,6 +41,6 @@
     "target": ["desktop", "start-menu"]
   },
 
-  "$comment-devtools": "Enable --remote-debugging-port=9090 via runtime.arguments for devtools from Chrome at localhost:9090. Kept off by default; uncomment if you're debugging OpenFin-specific issues.",
+  "$comment-devtools": "devtools_port + --remote-debugging-port=9090 together expose the OpenFin runtime to Chrome DevTools — including SharedWorkers (data-plane v2). Open chrome://inspect#devices in a separate Chrome, add 'localhost:9090' in Configure..., the SharedWorker appears under 'Other'. See docs/DEBUGGING_SHARED_WORKER.md for full steps.",
   "devtools_port": 9090
 }

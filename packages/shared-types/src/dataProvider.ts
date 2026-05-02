@@ -512,13 +512,49 @@ export function normalizeKeyColumns(
 }
 
 /**
+ * Resolve a value at a dot-separated path on a row.
+ *
+ * Behaviour:
+ *   1. If the row carries a literal flat key matching the FULL path
+ *      (e.g. `row['weird.key']`), that wins. This handles the rare
+ *      case where source data legitimately encodes dots in keys.
+ *   2. Otherwise, split on `.` and walk nested objects:
+ *      `getValueByPath({a:{b:{c:1}}}, 'a.b.c') === 1`.
+ *   3. Returns `undefined` for any missing segment along the way.
+ *
+ * Mirrors what AG-Grid's auto-dot-walk does, with the literal-key
+ * priority added so consumers don't accidentally lose data on weird
+ * upstream feeds.
+ */
+export function getValueByPath(row: unknown, path: string): unknown {
+  if (row == null || typeof row !== 'object') return undefined;
+  const obj = row as Record<string, unknown>;
+  // Step 1 — literal flat key wins (handles `{"weird.key": …}`).
+  if (Object.prototype.hasOwnProperty.call(obj, path)) return obj[path];
+  // Step 2 — dot-walk nested objects.
+  if (!path.includes('.')) return undefined;
+  let cursor: unknown = obj;
+  for (const seg of path.split('.')) {
+    if (cursor == null || typeof cursor !== 'object') return undefined;
+    cursor = (cursor as Record<string, unknown>)[seg];
+  }
+  return cursor;
+}
+
+/**
  * Compose a unique row id from one or more configured key columns.
  *
  * - **Single column**: returns the row's value at that column, stringified.
  * - **Composite (≥ 2 columns)**: joins each column's stringified value
  *   with `-`, e.g. `col1=A, col2=B, col3=42` → `"A-B-42"`.
- * - **Missing values**: if ANY configured column is null/undefined on the
- *   row, returns `null` — the caller treats the row as un-keyable.
+ * - **Nested key columns**: dot-separated paths (e.g. `position.id`) are
+ *   resolved via `getValueByPath`, which dot-walks nested objects with
+ *   a literal-flat-key fallback. Required because feeds frequently
+ *   surface row identity inside a nested envelope (e.g.
+ *   `{ meta: { id: 'POS-42' }, … }`) and the FieldsTab tree exposes
+ *   those paths as candidate key columns directly.
+ * - **Missing values**: if ANY configured column resolves to null/undefined,
+ *   returns `null` — the caller treats the row as un-keyable.
  *   Surfacing a row whose composite key is partially-defined would silently
  *   conflate distinct rows under a sentinel like `"A--42"`.
  *
@@ -532,15 +568,14 @@ export function composeRowId(
 ): string | null {
   const cols = normalizeKeyColumns(keyColumn);
   if (!cols || !row || typeof row !== 'object') return null;
-  const obj = row as Record<string, unknown>;
   if (cols.length === 1) {
-    const v = obj[cols[0]];
+    const v = getValueByPath(row, cols[0]);
     if (v === null || v === undefined) return null;
     return String(v);
   }
   const parts: string[] = [];
   for (const col of cols) {
-    const v = obj[col];
+    const v = getValueByPath(row, col);
     if (v === null || v === undefined) return null;
     parts.push(String(v));
   }

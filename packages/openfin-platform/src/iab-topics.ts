@@ -25,6 +25,15 @@ export const ACTION_TOGGLE_THEME         = "toggle-theme";
 export const ACTION_OPEN_DOCK_EDITOR     = "open-dock-editor";
 export const ACTION_RELOAD_DOCK          = "reload-dock";
 export const ACTION_SHOW_DEVTOOLS        = "show-devtools";
+/**
+ * Dock action to open Chromium DevTools scoped to the data-plane
+ * SharedWorker. Iterates through Application.getViews() and calls
+ * `view.inspectSharedWorker()` on the first one that has a worker
+ * attached — useful because the standalone `chrome://inspect`
+ * "Other → inspect" path 404s in OpenFin runtimes whose Chromium
+ * revision isn't cached at chrome-devtools-frontend.appspot.com.
+ */
+export const ACTION_INSPECT_SHARED_WORKER = "inspect-shared-worker";
 export const ACTION_EXPORT_CONFIG        = "export-config";
 export const ACTION_IMPORT_CONFIG        = "import-config";
 export const ACTION_TOGGLE_PROVIDER      = "toggle-provider-window";
