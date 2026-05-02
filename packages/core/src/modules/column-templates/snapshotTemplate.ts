@@ -86,8 +86,9 @@ export function snapshotTemplate(
     !!resolved.headerStyleOverrides &&
     Object.keys(resolved.headerStyleOverrides).length > 0;
   const vft = resolved.valueFormatterTemplate;
+  const hasEditable = typeof resolved.editable === 'boolean';
 
-  if (!hasCell && !hasHeader && !vft) return undefined;
+  if (!hasCell && !hasHeader && !vft && !hasEditable) return undefined;
 
   const now = (deps?.now ?? Date.now)();
   const suffix =
@@ -103,6 +104,7 @@ export function snapshotTemplate(
     ...(hasCell ? { cellStyleOverrides: resolved.cellStyleOverrides } : {}),
     ...(hasHeader ? { headerStyleOverrides: resolved.headerStyleOverrides } : {}),
     ...(vft ? { valueFormatterTemplate: vft } : {}),
+    ...(hasEditable ? { editable: resolved.editable } : {}),
   };
   return tpl;
 }

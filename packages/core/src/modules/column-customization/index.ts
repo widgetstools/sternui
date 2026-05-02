@@ -139,6 +139,8 @@ export {
   applyAlignmentReducer,
   applyBordersReducer,
   clearAllBordersReducer,
+  applyHeaderNameReducer,
+  applyEditableReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
   removeTemplateRefFromAssignmentsReducer,

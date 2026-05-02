@@ -649,6 +649,28 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
   (`headerStyleOverrides → cellStyleOverrides`) + header-class
   attachment whenever either is set.
 
+- **Inline column-caption rename** — when exactly one column is
+  selected, the column-label chip in the formatter's context module
+  becomes click-to-edit (Pencil hint on hover). Enter / blur commits
+  the new caption through `applyHeaderNameReducer`, Escape cancels.
+  Empty input clears the override so the host's original `headerName`
+  takes back over. Multi-column selections fall back to the read-only
+  pill — renaming N columns to one name doesn't make sense.
+- **Cells-editable toggle** — small Pencil/Lock pill next to the
+  column-label chip. Active = cells in the selected column(s) are
+  editable, inactive = explicitly locked (writes `editable: false`,
+  overriding any host default). Wired through
+  `applyEditableReducer` → `colDef.editable` in
+  `column-customization/transforms.ts`. Tooltip is the entire UI —
+  no eyebrow label needed.
+- **Section-eyebrow strip removal in the in-grid toolbar** — the
+  `02 · TYPE`, `03 · PAINT`, `04 · FORMAT`, etc. eyebrow chips are
+  hidden in horizontal mode (`.fx-shell--horizontal .fx-eyebrow {
+  display: none }`). Tooltips on every action already self-document
+  the toolbar; the eyebrows competed with the data grid for row
+  real estate. The popped vertical panel keeps the eyebrows as
+  section headers — the surface area is there.
+
 ### 1.12b Floating / draggable Formatting Toolbar
 
 - **Floating panel** — the Formatting Toolbar is no longer pinned
@@ -1740,6 +1762,7 @@ spec).
 | `toolbar-visibility` — Layout memory | §1.8e | — | — | ❌ |
 | `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
 | Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
+| Inline column-caption rename + cell-editable toggle | §1.12 | — | (covered indirectly via `applyHeaderNameReducer` / `applyEditableReducer` in `formattingActions`) | — |
 
 **Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · **8 with meaningful behavioural e2e** (formatting toolbar, filters toolbar, column-customization, column-groups, conditional-styling, calculated-columns, column-templates, general-settings) + 2 non-UI surfaces (toolbar-visibility no-op, grid-state indirectly via autosave spec).
 

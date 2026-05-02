@@ -18,7 +18,9 @@ import {
   applyAlignmentReducer,
   applyBordersReducer,
   applyColorsReducer,
+  applyEditableReducer,
   applyFormatterReducer,
+  applyHeaderNameReducer,
   applyTemplateToColumnsReducer,
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
@@ -85,6 +87,12 @@ export interface FormatterState {
   /** Undo / redo affordances bound to column-customization. */
   canUndo: boolean;
   canRedo: boolean;
+  /** True only when exactly one column is selected — gates the
+   *  inline column-caption rename UI. */
+  singleColumnSelected: boolean;
+  /** True when the resolved assignment forces cells to be editable.
+   *  Drives the editable-toggle pill's active state. */
+  cellsEditable: boolean;
 }
 
 export interface FormatterActions {
@@ -115,6 +123,12 @@ export interface FormatterActions {
   confirmClearAll: () => void;
   undo: () => void;
   redo: () => void;
+  /** Rename the single targeted column's display caption. Empty / blank
+   *  clears the override so the host's original headerName takes over. */
+  setHeaderName: (name: string) => void;
+  /** Toggle the `editable` override on every targeted column. Active
+   *  state writes `true`, inactive writes `false` (explicit lock). */
+  toggleEditable: () => void;
 }
 
 export interface UseFormatterResult {
@@ -275,6 +289,17 @@ export function useFormatter(): UseFormatterResult {
 
   const requestClearAll = useCallback(() => setClearDialogOpen(true), []);
 
+  const setHeaderName = useCallback((name: string) => {
+    if (colIdsRef.current.length !== 1) return;
+    setCustStateWithHistory(applyHeaderNameReducer(colIdsRef.current, name));
+  }, [setCustStateWithHistory]);
+
+  const toggleEditable = useCallback(() => {
+    if (!colIdsRef.current.length) return;
+    const current = !!fmt.editable;
+    setCustStateWithHistory(applyEditableReducer(colIdsRef.current, !current));
+  }, [setCustStateWithHistory, fmt.editable]);
+
   // Decimals — read the live state so consecutive clicks compound on
   // the latest committed formatter.
   const getCurrentDecimals = useCallback((): number => {
@@ -391,6 +416,8 @@ export function useFormatter(): UseFormatterResult {
       clearDialogOpen,
       canUndo: undoRedo.canUndo,
       canRedo: undoRedo.canRedo,
+      singleColumnSelected: colIds.length === 1,
+      cellsEditable: !!fmt.editable,
     },
     actions: {
       setTarget,
@@ -415,6 +442,8 @@ export function useFormatter(): UseFormatterResult {
       confirmClearAll,
       undo: undoRedo.undo,
       redo: undoRedo.redo,
+      setHeaderName,
+      toggleEditable,
     },
   };
 }

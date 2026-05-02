@@ -29,6 +29,7 @@ export interface ColumnTemplate {
   sortable?: boolean;
   filterable?: boolean;
   resizable?: boolean;
+  editable?: boolean;
   // Cell editor + renderer (component registry keys)
   cellEditorName?: string;
   cellEditorParams?: Record<string, unknown>;

@@ -358,6 +358,7 @@ export function applyAssignments(
     if (resolved.sortable !== undefined) merged.sortable = resolved.sortable;
     if (resolved.filterable !== undefined) merged.filter = resolved.filterable;
     if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
+    if (resolved.editable !== undefined) merged.editable = resolved.editable;
 
     // Rich filter config — takes precedence over `filterable`.
     if (resolved.filter !== undefined) {
