@@ -623,6 +623,15 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
   literals (`"£"` etc.) because SSF rejects bare non-dollar/euro
   currency glyphs. Fixed a round-trip bug where INR failed
   `isValidExcelFormat` on the second click.
+- **SSF format auto-sanitizer** — `excelFormatter` runs every format
+  through a try-and-quote loop before SSF.format: probes positive /
+  negative / zero / text values to walk every section, and on
+  `unrecognized character X` wraps each top-level occurrence of X in
+  quotes (leaving `[Color]` tags and existing quoted literals
+  untouched). Lets format strings authored with bare unicode glyphs
+  (`▲ ▼ — ± °`) render correctly without hand-quoting — Excel itself
+  is forgiving where SSF isn't, so unquoted glyphs survive copy-paste
+  from Excel UI / docs / legacy profiles.
 - **ISO date coercion** — Date objects + ISO-8601 strings (starts with
   `yyyy-mm-dd`) get parsed to Date before being handed to SSF so date
   formats like `dd-mm-yyyy` render, not raw ISO text.

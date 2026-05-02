@@ -30,12 +30,14 @@ test.describe('v2 — static formatter on nested fields', () => {
     await bootFixture(page, 'formatter');
   });
 
-  test('happy-path nested numeric cell renders a non-empty value', async ({ page }) => {
+  test('happy-path nested numeric cell renders a non-empty value with arrow glyph', async ({ page }) => {
     const text = await readCellText(page, 'N-00007', 'pricing.bid');
     expect(text).not.toBeNull();
     expect(text!).not.toBe('');
-    // Cell text should contain at least one digit (formatted or raw).
-    expect(text!).toMatch(/\d/);
+    // Excel format `[Green]▲ #,##0.00;[Red]▼ #,##0.00;[Blue]— 0.00`
+    // emits a leading arrow + space before the number. Bid values in the
+    // generator are always > 0, so we expect the up-arrow section.
+    expect(text!).toMatch(/^[▲▼—]\s\d/);
   });
 
   test('cell style override (bold) applies to nested numeric column via injected CSS', async ({ page }) => {
@@ -101,7 +103,8 @@ test.describe('v2 — static formatter on nested fields', () => {
     const bidText = await readCellText(page, 'EDGE-PARTIAL', 'pricing.bid');
     expect(bidText).not.toBeNull();
     expect(bidText!).not.toBe('');
-    expect(bidText!).toMatch(/99\.5/);
+    // Formatted: `▲ 99.50` (positive value → up-arrow section).
+    expect(bidText!).toMatch(/^▲\s99\.50$/);
   });
 
   test('edge: null ratings — sp cell renders empty but still carries customization class', async ({ page }) => {
