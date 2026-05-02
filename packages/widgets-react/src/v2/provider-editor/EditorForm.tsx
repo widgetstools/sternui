@@ -23,7 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button, Input, Label, Switch, Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
 } from '@marketsui/ui';
-import { CheckCircle2, Loader2, X } from 'lucide-react';
+import { CheckCircle2, Columns3, Loader2, X } from 'lucide-react';
 import type { ColumnDefinition, DataProviderConfig, ProviderConfig } from '@marketsui/shared-types';
 import { useDataPlane } from '@marketsui/data-plane-react/v2';
 import { useProviderProbe } from './useProviderProbe.js';
@@ -71,14 +71,55 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
 
   const probe = useProviderProbe(provider.config);
 
-  // FieldsTab → onColumnsChange writes ColumnDefinition[] into cfg.
+  // FieldsTab now BUFFERS its selection here instead of writing
+  // straight into cfg. The user has to click "Update Columns" in the
+  // footer to commit the draft into ColumnsTab — gives them room to
+  // toggle individual fields (filtered or not) without churning the
+  // committed column list.
+  const [pendingFieldsCols, setPendingFieldsCols] = useState<ColumnDefinition[] | null>(null);
+
   const updateCfg = (patch: Partial<ProviderConfig>) => {
     setProvider((p) => ({ ...p, config: { ...p.config, ...patch } as ProviderConfig }));
   };
 
+  // Direct column updates from ColumnsTab (rename, reorder, delete,
+  // manual add) — no buffering for those.
   const updateColumns = (cols: ColumnDefinition[]) => {
     updateCfg({ columnDefinitions: cols } as unknown as Partial<ProviderConfig>);
   };
+
+  /**
+   * Commit the FieldsTab draft into the column list. Merge semantics
+   * are union-by-`field`:
+   *   - Every existing column is kept as-is (preserves user-edited
+   *     header names, types, widths from the Columns tab).
+   *   - Every field newly selected in FieldsTab that doesn't already
+   *     have a column definition is appended.
+   * No column is removed by this action — to drop columns, the user
+   * works in the Columns tab directly.
+   */
+  const applyPendingFieldsCols = () => {
+    if (!pendingFieldsCols) return;
+    const existing = readColumns(provider.config);
+    const existingByField = new Map(existing.map((c) => [c.field, c]));
+    const merged = [...existing];
+    for (const incoming of pendingFieldsCols) {
+      if (!existingByField.has(incoming.field)) merged.push(incoming);
+    }
+    updateColumns(merged);
+    setPendingFieldsCols(null);
+  };
+
+  /**
+   * Detect whether the FieldsTab draft would actually change the
+   * committed columns when applied. The button is disabled otherwise.
+   */
+  const hasPendingFieldsChanges = useMemo(() => {
+    if (!pendingFieldsCols) return false;
+    const existing = readColumns(provider.config);
+    const existingFields = new Set(existing.map((c) => c.field));
+    return pendingFieldsCols.some((c) => !existingFields.has(c.field));
+  }, [pendingFieldsCols, provider.config]);
 
   /**
    * Persist the row-key configuration. Keep storage shape canonical:
@@ -174,7 +215,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
               sampleSize={sampleSize}
               onSampleSizeChange={setSampleSize}
               onInfer={() => probe.infer({ sampleSize })}
-              onColumnsChange={updateColumns}
+              onColumnsChange={setPendingFieldsCols}
               selectedColumnFields={selectedColumnFields}
             />
           </TabsContent>
@@ -207,6 +248,8 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
         saveError={saveError}
         onSave={onSave}
         onCancel={onCancel}
+        onUpdateColumns={isAppData ? undefined : applyPendingFieldsCols}
+        canUpdateColumns={hasPendingFieldsChanges}
       />
     </div>
   );
@@ -280,6 +323,7 @@ function readKeyColumn(cfg: ProviderConfig): string | readonly string[] | undefi
 
 function Footer({
   saveLabel, saving, savedAt, saveError, onSave, onCancel,
+  onUpdateColumns, canUpdateColumns,
 }: {
   saveLabel: string;
   saving: boolean;
@@ -287,6 +331,11 @@ function Footer({
   saveError: string | null;
   onSave(): void;
   onCancel?(): void;
+  /** Apply the FieldsTab draft to the column list. Omitted for
+   *  AppData providers (no fields tab). */
+  onUpdateColumns?(): void;
+  /** Disables the Update Columns button when there's nothing to apply. */
+  canUpdateColumns?: boolean;
 }) {
   return (
     <footer className="px-4 py-3 border-t border-border bg-muted/30 flex items-center justify-between flex-shrink-0">
@@ -306,6 +355,23 @@ function Footer({
       <div className="flex items-center gap-2">
         {onCancel && (
           <Button size="sm" variant="ghost" onClick={onCancel} className="h-8 text-xs">Cancel</Button>
+        )}
+        {onUpdateColumns && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onUpdateColumns}
+            disabled={!canUpdateColumns}
+            className="h-8 text-xs"
+            title={
+              canUpdateColumns
+                ? 'Merge the Fields-tab selection into the Columns tab (existing columns kept; new fields appended).'
+                : 'No new fields selected in the Fields tab.'
+            }
+          >
+            <Columns3 className="h-3.5 w-3.5 mr-1.5" />
+            Update Columns
+          </Button>
         )}
         <Button size="sm" onClick={onSave} disabled={saving} className="h-8 text-xs min-w-[180px]">
           {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
