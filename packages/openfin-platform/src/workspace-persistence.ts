@@ -24,9 +24,13 @@ declare const fin: any;
  * referenced by some saved workspace.
  */
 
-import type { WorkspacePlatformOverrideCallback } from '@openfin/workspace-platform';
+import type {
+  OpenViewTabContextMenuPayload,
+  WorkspacePlatformOverrideCallback,
+} from '@openfin/workspace-platform';
 import type { ConfigManager, AppConfigRow } from '@marketsui/config-service';
 import { COMPONENT_TYPES } from '@marketsui/shared-types';
+import { injectRenameMenuItem } from './internal/viewTabRename';
 
 const WS_PREFIX = 'WS_';
 const SNAPSHOT_SUBTYPE = 'SNAPSHOT';
@@ -247,6 +251,16 @@ export function createWorkspacePersistenceOverride(
       async deleteSavedWorkspace(id: string): Promise<void> {
         await cm.deleteConfig(workspaceConfigId(id));
         await fireChange();
+      }
+
+      // Inject "Save Tab As…" at the top of the view-tab right-click menu.
+      // The custom action id is dispatched to the rename handler registered
+      // in `customActions` (see internal/viewTabRename.ts).
+      async openViewTabContextMenu(
+        req: OpenViewTabContextMenuPayload,
+        callerIdentity: any,
+      ): Promise<void> {
+        return super.openViewTabContextMenu(injectRenameMenuItem(req), callerIdentity);
       }
     }
 

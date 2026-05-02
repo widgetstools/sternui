@@ -27,6 +27,7 @@ const View2       = React.lazy(() => import("./views/View2"));
 const DockEditor      = React.lazy(() => import("./views/DockEditor"));
 const RegistryEditor  = React.lazy(() => import("./views/RegistryEditor"));
 const ConfigBrowser   = React.lazy(() => import("./views/ConfigBrowser"));
+const RenameViewTab   = React.lazy(() => import("./views/RenameViewTab"));
 // MarketsGrid blotter — hosted at /blotters/marketsgrid. Lazy so the
 // AG-Grid bundle (~1 MB) stays out of the shell's initial load.
 const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid"));
@@ -158,6 +159,7 @@ root.render(
             <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
             <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
             <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
+            <Route path="/rename-view-tab"  element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
           </Route>
         </Routes>
       </BrowserRouter>

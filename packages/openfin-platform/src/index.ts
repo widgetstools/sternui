@@ -1,3 +1,13 @@
+// ─── View-tab rename ("Save Tab As…") ───────────────────────────────
+// Shared between every WorkspacePlatformOverrideCallback in the repo so
+// the menu wiring + action handler aren't duplicated per shell.
+export {
+  ACTION_RENAME_VIEW_TAB,
+  RENAME_VIEW_TAB_WINDOW_NAME,
+  injectRenameMenuItem,
+  createRenameViewTabAction,
+} from './internal/viewTabRename';
+
 // ─── Workspace initialization ────────────────────────────────────────
 export { initWorkspace } from './workspace';
 export { launchApp, launchRegisteredComponent } from './launch';

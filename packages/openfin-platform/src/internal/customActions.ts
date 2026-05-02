@@ -29,6 +29,7 @@ import {
 } from '../dock';
 import { launchApp, launchRegisteredComponent } from '../launch';
 import { getPlatformDefaultScope } from '../db';
+import { createRenameViewTabAction } from './viewTabRename';
 
 export interface CustomActionDeps {
   /** Coalescing wrapper around the dark/light theme flip. */
@@ -61,6 +62,12 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
   const { runThemeToggle, openChildWindow, getConfigManager, exportAllConfig } = deps;
 
   return {
+    // ── Rename the active view tab ("Save Tab As…") ──
+    // Wired into the view-tab right-click menu via the platform override's
+    // `openViewTabContextMenu`. Defined first so the spread below preserves
+    // its key alongside every other action.
+    ...createRenameViewTabAction(openChildWindow),
+
     // ── Launch an app from a dock button or dropdown menu item ──
     // Note: computed property syntax [CONSTANT] is used throughout so
     // the action IDs are defined once in dock.ts and shared here.

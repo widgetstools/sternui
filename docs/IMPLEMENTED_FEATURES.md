@@ -1626,6 +1626,28 @@ Built via `ng-packagr` (FESM2022 + `.d.ts`). Wired into `apps/markets-ui-angular
 
 The new `RuntimePort.onWorkspaceSave(fn)` method completes the lifecycle surface for both flavors. `OpenFinRuntime` bridges `fin.Platform.getCurrentSync().on('workspace-saved', …)`; `BrowserRuntime` is a no-op (no workspace concept in the browser). React's `HostContext` exposes it as `onWorkspaceSave`; Angular's `HostService` exposes it as `workspaceSave$`. Hosted components use this as a flush-to-disk hook.
 
+### 1.O.VTR View-tab "Save Tab As…" rename + window-title binding
+
+Two small platform additions that make OpenFin browser windows and view tabs honour user-facing names instead of internal-generated identifiers.
+
+**Window title bound to active page.** `BrowserWorkspacePlatformWindowOptions.title` is set to `{ type: 'page-title' }` in both shell init paths so the OS taskbar entry tracks the current page name (no more `internal-generated-window-…`). Wired in [packages/openfin-platform/src/workspace.ts](../packages/openfin-platform/src/workspace.ts) and [packages/openfin-platform-stern/src/bootstrap.ts](../packages/openfin-platform-stern/src/bootstrap.ts).
+
+**View-tab rename via right-click → "Save Tab As…".** Adds a custom item to the top of the view-tab context menu in both shells, mirroring the platform's "Save Page As" UX. Selecting it opens a small frameless popout window (a route in the reference app) prompting for a new tab name; on confirm the action calls `view.updateOptions({ title, titlePriority: 'options' })` so the rename sticks against any subsequent `document.title` updates from the embedded page and serializes into the workspace snapshot for free.
+
+| File | Change |
+|---|---|
+| `packages/openfin-platform/src/internal/viewTabRename.ts` | New. Exports `ACTION_RENAME_VIEW_TAB`, `RENAME_VIEW_TAB_WINDOW_NAME`, `injectRenameMenuItem(payload)` (template helper that's a no-op when `selectedViews.length !== 1`), and `createRenameViewTabAction(openChildWindow)` (CustomActionsMap factory guarded on `CustomActionCallerType.ViewTabContextMenu`). |
+| `packages/openfin-platform/src/internal/customActions.ts` | Spreads `createRenameViewTabAction(openChildWindow)` into the returned `CustomActionsMap`. |
+| `packages/openfin-platform/src/workspace-persistence.ts` | `MarketsUIWorkspaceProvider.openViewTabContextMenu` injects the rename item before delegating to `super`. |
+| `packages/openfin-platform/src/index.ts` | Re-exports the four rename helpers from the main barrel. |
+| `packages/openfin-platform-stern/src/internal/viewTabRename.ts` | New. Self-contained Stern copy — Stern is a parallel shell that intentionally doesn't depend on `@marketsui/openfin-platform`. |
+| `packages/openfin-platform-stern/src/dock/openfinDock.ts` | `dockGetCustomActions()` spreads `createRenameViewTabAction(openSternChildWindow)`; new local helper `openSternChildWindow` wraps `fin.Window.create` with the platform's `buildUrl()`. |
+| `packages/openfin-platform-stern/src/bootstrap.ts` | `SternPlatformProvider.openViewTabContextMenu` injects the rename item. `defaultWindowOptions.workspacePlatform.title` set to `{ type: 'page-title' }`. |
+| `apps/markets-ui-react-reference/src/views/RenameViewTab.tsx` | New. Frameless popout that reads `view` + `currentTitle` from `fin.me.getOptions().customData`, renders a card matching the "Save Page As" layout (header icon + title row + single shadcn `Input` + Cancel/Save row), auto-focuses + selects on mount, Enter submits / Esc cancels, calls `view.updateOptions({ title, titlePriority: 'options' })` on confirm, then closes itself. Theme-sensitive via the ambient `<ThemeProvider>` — `bg-background`/`text-foreground`/`bg-primary` Tailwind tokens flip with `[data-theme]`. |
+| `apps/markets-ui-react-reference/src/main.tsx` | New `/rename-view-tab` route (lazy). |
+
+Verified green: `npx turbo typecheck --filter=@marketsui/openfin-platform --filter=@marketsui/openfin-platform-stern --filter=@marketsui/markets-ui-react-reference` (22 tasks); `npx turbo test --filter=@marketsui/openfin-platform` (49 tests).
+
 ### 1.P Universal `<HostedFeatureView>` wrapper for OpenFin route views
 
 Consolidates boilerplate across all feature route views (MarketsGrid, Charts, TradeTickets, Analytics Playground, etc.) into a single reusable component.

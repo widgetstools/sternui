@@ -388,6 +388,7 @@ async function initializePlatform(
         workspacePlatform: {
           pages: [],
           favicon: platformSettings.icon,
+          title: { type: 'page-title' },
         },
       },
     },

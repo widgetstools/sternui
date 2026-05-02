@@ -27,6 +27,7 @@ import { OpenFinCustomEvents } from '../types/openfinEvents.js';
 import { launchMenuItem } from '../platform/menuLauncher.js';
 import { getDefaultMenuIcon } from '../utils/defaultIcons.js';
 import type { DockMenuItem } from '@marketsui/shared-types';
+import { createRenameViewTabAction } from '../internal/viewTabRename.js';
 
 // ============================================================================
 // Module State
@@ -219,8 +220,48 @@ async function updateAllDockIcons(): Promise<void> {
 // Custom Actions — MUST be registered before dock in platform init()
 // ============================================================================
 
+/**
+ * Open (or foreground) a child window in the Stern shell. Mirrors the
+ * pattern used by `launchMenuItem` for dock-launched windows: builds the
+ * URL via `buildUrl()` so the popout shares the platform's host origin,
+ * tries to wrap-and-foreground an existing window first, and forwards
+ * `customData` through to the React route.
+ */
+async function openSternChildWindow(
+  name: string,
+  path: string,
+  width: number,
+  height: number,
+  extraOptions?: Record<string, unknown>,
+): Promise<void> {
+  const fin = (window as unknown as { fin: any }).fin;
+  try {
+    const existing = fin.Window.wrapSync({ uuid: fin.me.identity.uuid, name });
+    await existing.setAsForeground();
+    return;
+  } catch { /* not open — fall through to create */ }
+  await fin.Window.create({
+    name,
+    url: buildUrl(path),
+    defaultWidth: width,
+    defaultHeight: height,
+    defaultCentered: true,
+    autoShow: true,
+    frame: true,
+    resizable: true,
+    saveWindowState: false,
+    contextMenu: false,
+    ...extraOptions,
+  });
+}
+
 export function dockGetCustomActions(): CustomActionsMap {
   return {
+    // ── Rename the active view tab ("Save Tab As…") ──
+    // Wired into the view-tab right-click menu via the SternPlatformProvider's
+    // `openViewTabContextMenu` override (see bootstrap.ts).
+    ...createRenameViewTabAction(openSternChildWindow),
+
     'launch-component': async (payload: CustomActionPayload): Promise<void> => {
       if (
         payload.callerType === CustomActionCallerType.CustomButton ||
