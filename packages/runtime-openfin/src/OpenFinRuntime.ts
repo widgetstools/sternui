@@ -80,6 +80,11 @@ export class OpenFinRuntime implements RuntimePort {
   private readonly disposers: Array<() => void> = [];
   private currentTheme: Theme;
   private lastCustomData: Readonly<Record<string, unknown>>;
+  /** Last savedTitle we wrote to document.title — guards
+   *  applyTitleFromCustomData against re-applying on every customData
+   *  change (e.g. activeProfileId updates) and clobbering legitimate
+   *  dynamic titles (notification badges etc.). */
+  private lastAppliedSavedTitle: string | null = null;
   private disposed = false;
 
   private constructor(
@@ -100,24 +105,87 @@ export class OpenFinRuntime implements RuntimePort {
 
   /**
    * Reapply a workspace-persisted view title (set via the "Save Tab As…"
-   * action) to `document.title` on view boot. The action stores the
-   * user's chosen title on the view's `customData.savedTitle`, which
-   * rides through the workspace snapshot. Without this hook the rename
-   * would be lost on every workspace reload because the view boots
-   * fresh and the page's own default `<title>` takes over.
+   * action) to `document.title` on view boot, and PIN it against
+   * subsequent overwrites by the page's own React tree.
    *
-   * Best-effort: silently no-ops when `customData` lacks a savedTitle,
-   * when document is unavailable, or when the value is anything other
-   * than a non-empty string.
+   * Why pinning is necessary. The constructor-time set alone is not
+   * enough: most route views run a useEffect that does
+   * `document.title = ...` on mount (see `HostedComponent.tsx`,
+   * `DataProviders.tsx`, etc.), which fires after the runtime is
+   * constructed and clobbers the restored title. A `MutationObserver`
+   * on the `<title>` element resets the title back to `savedTitle`
+   * whenever anything mutates it, so the user's chosen tab caption
+   * always wins. The single source of truth is `customData.savedTitle`
+   * — when that key changes (via the customData poll), the observer's
+   * pinned value follows automatically because it reads through
+   * `lastCustomData` on every firing.
+   *
+   * Best-effort: no-ops when `document` / `MutationObserver` is
+   * unavailable, when `<title>` is missing, when `savedTitle` is
+   * absent, or when the value is anything other than a non-empty
+   * string.
    */
   private applySavedViewTitle(): void {
-    const t = (this.identityCache.customData as { savedTitle?: unknown } | undefined)?.savedTitle;
-    if (typeof t !== 'string' || !t) return;
+    this.applyTitleFromCustomData(this.identityCache.customData);
+    this.attachTitlePinObserver();
+  }
+
+  /** Read `savedTitle` from a customData payload, return null when
+   *  absent, non-string, or empty. */
+  private readSavedTitle(cd: Readonly<Record<string, unknown>>): string | null {
+    const t = (cd as { savedTitle?: unknown }).savedTitle;
+    return typeof t === 'string' && t ? t : null;
+  }
+
+  /** Set `document.title` to the customData's `savedTitle` when the
+   *  saved value has actually changed since the last apply. The
+   *  changed-only guard matters because the customData poll fires for
+   *  ANY customData mutation (including unrelated keys like
+   *  `activeProfileId`); without it, every profile switch would clobber
+   *  whatever dynamic title the page is currently showing. */
+  private applyTitleFromCustomData(cd: Readonly<Record<string, unknown>>): void {
+    const saved = this.readSavedTitle(cd);
+    if (!saved || saved === this.lastAppliedSavedTitle) return;
+    this.lastAppliedSavedTitle = saved;
+    if (typeof document === 'undefined' || document.title === saved) return;
     try {
-      document.title = t;
+      document.title = saved;
     } catch {
       /* best-effort */
     }
+  }
+
+  /** Watch `<title>` mutations during a short post-boot window and
+   *  reset to `customData.savedTitle` whenever the page's React tree
+   *  clobbers it. The window is needed because most route views run
+   *  `document.title = ...` in a mount `useEffect`, which fires AFTER
+   *  the runtime's constructor-time apply. After the window expires
+   *  the observer disconnects so live rename + dynamic title updates
+   *  (notification badges, unread counts, etc.) work freely. */
+  private attachTitlePinObserver(): void {
+    if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+    const titleEl = document.querySelector('title');
+    if (!titleEl) return;
+    const observer = new MutationObserver(() => {
+      const saved = this.readSavedTitle(this.lastCustomData);
+      if (!saved || document.title === saved) return;
+      try {
+        document.title = saved;
+      } catch {
+        /* best-effort */
+      }
+    });
+    observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
+    // Pin window long enough to cover initial React mount + first
+    // useEffect title set in slow boot scenarios. After this, the page
+    // owns document.title — live renames go through the popout's
+    // executeJavaScript path and customData write, not the observer.
+    const PIN_WINDOW_MS = 3000;
+    const timer = setTimeout(() => observer.disconnect(), PIN_WINDOW_MS);
+    this.disposers.push(() => {
+      clearTimeout(timer);
+      observer.disconnect();
+    });
   }
 
   resolveIdentity(): IdentitySnapshot {
@@ -276,6 +344,9 @@ export class OpenFinRuntime implements RuntimePort {
           if (!cd || typeof cd !== 'object' || Array.isArray(cd)) return;
           if (sameShallow(cd as Record<string, unknown>, this.lastCustomData)) return;
           this.lastCustomData = cd as Readonly<Record<string, unknown>>;
+          // Live rename: when the popout writes a new savedTitle into
+          // this view's customData, reflect it in document.title.
+          this.applyTitleFromCustomData(this.lastCustomData);
           for (const fn of this.customDataListeners) {
             try { fn(this.lastCustomData); } catch { /* swallow */ }
           }

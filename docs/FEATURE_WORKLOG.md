@@ -126,7 +126,8 @@ Browser smoke (negates regression):
 
 ## Feature 2 — "Save Tab As…" rename now persists across workspace sessions
 
-**Status:** shipped → commit `0ab52a6`.
+**Status:** shipped → commits `0ab52a6` (initial) + `<pending>` (title-pin
+follow-up; see Iteration 2 below).
 
 ### Problem before
 
@@ -181,3 +182,30 @@ Manual test plan:
 4. Close the platform / re-open the workspace.
 5. Confirm the renamed tab restores with the user's chosen caption,
    not the page's default `<title>`.
+
+### Iteration 2 — pin against page's mount-time `useEffect`
+
+User-reported regression after iteration 1: tab restores with the
+saved name briefly, then flips back to the page's default once the
+component finishes loading. Root cause: route views run
+`document.title = ...` in a mount `useEffect` (e.g.
+`apps/markets-ui-react-reference/src/components/HostedComponent.tsx:280`
+and `apps/markets-ui-react-reference/src/views/DataProviders.tsx:57`),
+which fires after `OpenFinRuntime`'s constructor-time apply.
+
+Fix: `attachTitlePinObserver()` watches the `<title>` element via
+`MutationObserver` for a 3 s post-boot window and resets the title
+back to `customData.savedTitle` whenever anything else changes it.
+After the window expires the observer disconnects so dynamic title
+updates (notification counts, react-helmet, live rename via the
+popout) work freely. A `lastAppliedSavedTitle` field guards the
+customData poll's re-apply path so unrelated customData mutations
+(e.g. `activeProfileId` updates from Feature 1) don't clobber
+dynamic titles.
+
+Known minor edge case: a live re-rename within the first 3 s of view
+boot may briefly flicker (~500 ms) because the runtime's
+`lastCustomData` lags by one poll tick behind the popout's
+`updateOptions` write. Self-corrects automatically. Not worth a
+chunkier IAB-based "kick" mechanism for the rare case of renaming
+during initial boot.
