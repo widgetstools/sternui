@@ -152,7 +152,7 @@ The relaxed assertion lives in [`e2e/v2-nested-calculated-columns.spec.ts:44`](.
 
 ## Bug 1 — Excel format arrow glyph not rendering on nested-field cells
 
-**Status:** fixed → SSF format-string sanitizer in `excelFormatter`. All 51/51 nested-fields Playwright tests green, including the strict `^[▲▼—]\s\d` arrow assertion on the happy path and `^▲\s99\.50$` on the partial-pricing edge row.
+**Status:** fixed → commit `62251f8` (SSF format-string sanitizer in `excelFormatter`). All 51/51 nested-fields Playwright tests green, including the strict `^[▲▼—]\s\d` arrow assertion on the happy path and `^▲\s99\.50$` on the partial-pricing edge row.
 
 ### Root cause
 
