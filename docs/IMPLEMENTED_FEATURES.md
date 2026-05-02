@@ -1755,6 +1755,36 @@ Ordered by risk × churn, highest first. Strike-throughs mark completed.
 
 Each item follows the `e2e/README.md` write-alongside policy: don't backfill in one pass; add tests as the surfaces get touched. The list above is the priority order when they do.
 
+### 1.13 Per-view active-profile override (OpenFin)
+
+Lets traders duplicate a MarketsGrid view in OpenFin and view a *different*
+profile of the same grid instance in each duplicate, surviving workspace
+save/restore.
+
+- **`ActiveIdSource`** — pluggable pointer source on `ProfileManager`
+  (`packages/core/src/profiles/ProfileManager.ts`). Read at `boot()`
+  before localStorage; written through on every active-id commit
+  (`boot`/`load`/`create`/`clone`/`import`/`remove-active`). Errors
+  swallowed — best-effort, never blocks the manager. Exported from
+  `@marketsui/core`.
+- **OpenFin source** — `createOpenFinViewProfileSource()` in
+  `packages/markets-grid/src/openfinViewProfile.ts`. Reads/writes
+  `activeProfileId` on `fin.me.getOptions().customData`. Returns `null`
+  when `fin` is unavailable, so non-OpenFin hosts (browser, Electron,
+  tests) keep their existing localStorage behaviour.
+- **Workspace round-trip** — `Platform.getSnapshot()` reads from the
+  same view options that `updateOptions({ customData })` mutates, so
+  the per-view active id is captured into the workspace JSON
+  automatically. `packages/openfin-platform/src/workspace-persistence.ts`
+  needed no changes.
+- **Read priority** — OpenFin override → localStorage → reserved
+  Default. Each layer falls through if its candidate row no longer
+  exists on disk.
+- **Duplicate semantics** — duplicates inherit the source view's
+  `customData` (OpenFin's behaviour), then diverge as each user makes
+  a switch. Exactly the desired UX.
+- Worklog entry: `docs/FEATURE_WORKLOG.md` — Feature 1.
+
 ### Known gaps documented but not blocking
 
 - **Toolbar Visibility wiring** (§1.8e) — module state ships in every profile but concrete toolbar-toggle bindings aren't routed through it yet. Non-blocking; current host chrome uses local React state. Wiring pass is a known follow-up.

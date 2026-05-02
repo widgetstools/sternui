@@ -66,6 +66,7 @@ export {
 // ─── Profile manager ────────────────────────────────────────────────────────
 export { ProfileManager } from './profiles';
 export type {
+  ActiveIdSource,
   ProfileManagerOptions,
   ProfileManagerState,
   ProfileMeta,

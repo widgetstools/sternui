@@ -69,6 +69,7 @@ import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
 import { SettingsSheet, type SettingsSheetHandle } from './SettingsSheet';
 import { ProfileSelector } from './ProfileSelector';
+import { createOpenFinViewProfileSource } from './openfinViewProfile';
 
 let _agRegistered = false;
 function ensureAgGridRegistered() {
@@ -406,10 +407,19 @@ function Host<TData>({
   // `disableAutoSave`, the ProfileManager instead tracks a dirty flag
   // the Save button consumes (and the profile-switch / beforeunload
   // guards below consult).
+  // Per-view active-profile override for OpenFin. When the host runs
+  // inside OpenFin (`fin.me` reachable), each view stores its own
+  // `activeProfileId` on `customData` — duplicated views can show
+  // different profiles of the same grid instance, and the workspace
+  // snapshot round-trips the override automatically. Outside OpenFin
+  // the factory returns `null` and the manager falls back to its
+  // localStorage pointer as before.
+  const openfinSourceRef = useRef(createOpenFinViewProfileSource());
   const profiles = useProfileManager({
     adapter: adapterRef.current,
     autoSaveDebounceMs,
     disableAutoSave: true,
+    activeIdSource: openfinSourceRef.current ?? undefined,
   });
 
   const platform = useGridPlatform();

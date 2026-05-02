@@ -15,12 +15,38 @@ import {
 } from '../security/expressionPolicy';
 import type { ExportedProfilePayload, ProfileMeta } from './types';
 
+/**
+ * Pluggable source for the "which profile is active?" pointer.
+ *
+ * The default behaviour stores the active id in `localStorage` (one key
+ * per `gridId`). A host can layer a higher-priority source on top — read
+ * before localStorage during boot, written-through whenever the manager
+ * commits a new active id.
+ *
+ * The intended use case is OpenFin: the markets-grid host injects a
+ * source that reads/writes `activeProfileId` on the current view's
+ * `customData`, so duplicated views can show different profiles of the
+ * same grid instance and survive a workspace save/restore round-trip.
+ *
+ * Read-only sources are supported (return `null` from `read()`, no-op
+ * `write()`). When `read()` returns `null` the manager falls through to
+ * localStorage as if no source were configured.
+ */
+export interface ActiveIdSource {
+  /** Override read at boot. `null` means "no override, fall through". */
+  read(): Promise<string | null> | string | null;
+  /** Mirror writes after the manager commits a new active id. */
+  write(id: string): Promise<void> | void;
+}
+
 export interface ProfileManagerOptions {
   platform: GridPlatform;
   adapter: StorageAdapter;
   autoSaveDebounceMs?: number;
   /** Pass `true` to skip wiring the auto-save engine. Tests opt in. */
   disableAutoSave?: boolean;
+  /** Optional higher-priority pointer source — see `ActiveIdSource`. */
+  activeIdSource?: ActiveIdSource;
 }
 
 export interface ProfileManagerState {
@@ -58,6 +84,7 @@ export class ProfileManager {
   private autoSave: AutoSaveHandle | null = null;
   private readonly autoSaveDebounceMs: number;
   private readonly disableAutoSave: boolean;
+  private readonly activeIdSource: ActiveIdSource | null;
   private disposed = false;
   private booted = false;
   /** Unsubscribe handle for the store listener that tracks dirty state.
@@ -77,6 +104,30 @@ export class ProfileManager {
     this.adapter = opts.adapter;
     this.autoSaveDebounceMs = opts.autoSaveDebounceMs ?? 300;
     this.disableAutoSave = opts.disableAutoSave ?? false;
+    this.activeIdSource = opts.activeIdSource ?? null;
+  }
+
+  /** Resolve the override id from the configured `activeIdSource`, if any.
+   *  Errors are swallowed to a `null` result — the source is best-effort
+   *  and must never block boot. */
+  private async readSourceId(): Promise<string | null> {
+    if (!this.activeIdSource) return null;
+    try {
+      const v = await this.activeIdSource.read();
+      return typeof v === 'string' && v ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Mirror an active-id commit to the configured source. Errors swallowed. */
+  private async writeSourceId(id: string): Promise<void> {
+    if (!this.activeIdSource) return;
+    try {
+      await this.activeIdSource.write(id);
+    } catch {
+      /* swallow — source is best-effort, never blocks the manager */
+    }
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────
@@ -125,19 +176,29 @@ export class ProfileManager {
         if (this.disposed) return;
       }
 
-      // Resolve the id to load.
+      // Resolve the id to load. Priority: activeIdSource (e.g. OpenFin
+      // view customData) → localStorage → Default. Each layer falls
+      // through to the next when it has no value or points at a row
+      // that no longer exists on disk.
+      const sourceId = await this.readSourceId();
+      if (this.disposed) return;
       const lsId = readActiveId(gridId);
+      const candidates: string[] = [];
+      if (sourceId && sourceId !== RESERVED_DEFAULT_PROFILE_ID) candidates.push(sourceId);
+      if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID && lsId !== sourceId) candidates.push(lsId);
       let resolvedId = RESERVED_DEFAULT_PROFILE_ID;
       let snapshot: ProfileSnapshot = def;
-      if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID) {
-        const candidate = await this.adapter.loadProfile(gridId, lsId);
+      for (const cand of candidates) {
+        const row = await this.adapter.loadProfile(gridId, cand);
         if (this.disposed) return;
-        if (candidate) {
-          resolvedId = lsId;
-          snapshot = candidate;
-        } else {
-          writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
+        if (row) {
+          resolvedId = cand;
+          snapshot = row;
+          break;
         }
+      }
+      if (resolvedId === RESERVED_DEFAULT_PROFILE_ID) {
+        writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
       }
 
       // Apply state + announce. Suppress dirty-marking while the store
@@ -152,6 +213,7 @@ export class ProfileManager {
       }
       this.updateState({ activeId: resolvedId, isDirty: false });
       writeActiveId(gridId, resolvedId);
+      void this.writeSourceId(resolvedId);
       this.platform.events.emit('profile:loaded', { gridId, profileId: resolvedId });
 
       // Refresh profile list.
@@ -255,6 +317,7 @@ export class ProfileManager {
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
+    void this.writeSourceId(id);
     // Suppress dirty-marking through resetAll + deserializeAll — we're
     // hydrating from disk, not editing.
     this.dirtySuppressDepth++;
@@ -335,6 +398,7 @@ export class ProfileManager {
     // snapshot. Same shape as `load()`.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
+    void this.writeSourceId(id);
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();
@@ -378,6 +442,7 @@ export class ProfileManager {
       // Default (always exists) rather than the doomed id.
       this.updateState({ activeId: RESERVED_DEFAULT_PROFILE_ID });
       writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
+      void this.writeSourceId(RESERVED_DEFAULT_PROFILE_ID);
     }
     this.autoSave?.cancelScheduled();
 
@@ -502,6 +567,7 @@ export class ProfileManager {
     // shape as create()'s activation step.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
+    void this.writeSourceId(id);
     this.dirtySuppressDepth++;
     try {
       this.platform.resetAll();
