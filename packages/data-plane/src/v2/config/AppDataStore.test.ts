@@ -19,6 +19,9 @@ function makeStubConfigManager(): ConfigManager & { _rows: Map<string, AppConfig
     async getConfigsByUser(userId: string) {
       return [...rows.values()].filter((r) => r.userId === userId);
     },
+    // DataProviderConfigStore + AppDataConfigStore now read all rows
+    // (DataProviders are global to the platform, not per-user).
+    async getAllConfigs() { return [...rows.values()]; },
     async getConfig(id: string) { return rows.get(id); },
     async saveConfig(row: AppConfigRow) { rows.set(row.configId, row); },
     async deleteConfig(id: string) { rows.delete(id); },

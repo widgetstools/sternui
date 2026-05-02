@@ -31,7 +31,12 @@ export interface HostEnv {
 
 const DEV_FALLBACK: HostEnv = {
   appId: 'dev-host',
-  userId: 'dev-user',
+  // 'dev1' matches seed-config.json's userProfile + the OpenFin
+  // Platform's resolveDefaultPlatformScope fallback in workspace.ts.
+  // Keeping the same string in every fallback path ensures that
+  // browser-mode dev and OpenFin-mode dev write/read the SAME user
+  // scope — no orphaned configs when switching between them.
+  userId: 'dev1',
   configServiceUrl: 'http://localhost:0000',
 };
 

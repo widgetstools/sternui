@@ -83,7 +83,7 @@ async function createRuntimeForViews(): Promise<RuntimePort> {
   return new BrowserRuntime({
     identity: {
       appId: "markets-ui-react-reference",
-      userId: "dev-user",
+      userId: "dev1",
       componentType: "MarketsUIReactReference",
     },
   });
