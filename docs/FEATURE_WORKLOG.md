@@ -16,7 +16,7 @@ feature land as an atomic commit.
 
 ## Feature 1 — Per-view active-profile override on OpenFin (MarketsGrid)
 
-**Status:** shipped → commit `<pending>` (this commit).
+**Status:** shipped → commit `824623a`.
 
 ### Goal
 
