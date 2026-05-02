@@ -127,6 +127,7 @@ export { INITIAL_COLUMN_CUSTOMIZATION };
 export {
   applyFilterConfigToColDef,
   applyRowGroupingConfigToColDef,
+  cssEscapeColId,
 } from './transforms';
 export {
   overrideKey,

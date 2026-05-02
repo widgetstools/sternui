@@ -12,6 +12,7 @@ import type {
 } from 'ag-grid-community';
 import type { AnyColDef, CssHandle, ExpressionEngineLike } from '../../platform/types';
 import { valueFormatterFromTemplate } from '../../colDef';
+import { cssEscapeColId } from '../column-customization/transforms';
 import type {
   CellStyleProperties,
   ConditionalRule,
@@ -105,7 +106,11 @@ export function buildCssText(
   pulse: { enabled: boolean; scope: 'cell' | 'row'; target: FlashTarget } | null,
   indicator: RuleIndicator | undefined,
 ): string {
-  const cls = `.gc-rule-${ruleId}`;
+  // Encode rule id with the same helper column-customization uses so a
+  // future rule.id with chars outside [A-Za-z0-9_-] still produces a
+  // matching class + selector pair. base36 generateId() is currently
+  // safe but defense-in-depth for legacy snapshots / future id schemes.
+  const cls = `.gc-rule-${cssEscapeColId(ruleId)}`;
   const lightProps = styleToCSS(light);
   const darkProps = styleToCSS(dark);
   const lines: string[] = [];
@@ -244,7 +249,9 @@ export function applyCellRulesToDefs(
     } as NonNullable<ColDef['cellClassRules']>;
 
     for (const rule of applicable) {
-      (cellClassRules as Record<string, unknown>)[`gc-rule-${rule.id}`] = buildCellClassPredicate(engine, rule);
+      // The KEY of cellClassRules is what AG-Grid stamps on the cell
+      // DOM — must match the encoded selector emitted by buildCssText.
+      (cellClassRules as Record<string, unknown>)[`gc-rule-${cssEscapeColId(rule.id)}`] = buildCellClassPredicate(engine, rule);
     }
 
     // Per-rule value formatters — highest priority wins.

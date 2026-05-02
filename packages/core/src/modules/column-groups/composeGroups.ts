@@ -1,6 +1,7 @@
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
 import type { AnyColDef } from '../../platform/types';
 import type { ColumnGroupChild, ColumnGroupNode, GroupHeaderStyle } from './state';
+import { cssEscapeColId } from '../column-customization/transforms';
 
 /**
  * True when any facet of the style object is defined. Used to decide whether
@@ -174,7 +175,12 @@ export function composeGroups(
     // is only attached when the style object has anything set, so unstyled
     // groups render at theme default.
     if (hasHeaderStyle(node.headerStyle)) {
-      group.headerClass = `gc-hdr-grp-${node.groupId}`;
+      // Encode groupId with the shared CSS-safe helper. Today's
+      // generateGroupId only emits [a-z0-9_], so the encoding is a
+      // no-op in practice — but defense-in-depth for snapshots loaded
+      // from older code paths and parity with column-customization /
+      // conditional-styling.
+      group.headerClass = `gc-hdr-grp-${cssEscapeColId(node.groupId)}`;
     }
     return group;
   };
