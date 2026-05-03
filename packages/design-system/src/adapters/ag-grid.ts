@@ -44,3 +44,52 @@ export const agGridDarkParams: Record<string, unknown> = {
   wrapperBorder:              false,
   columnBorder:               false,
 };
+
+// ─── Blotter preset ────────────────────────────────────────────
+//
+// Trading-blotter variant of the base preset. Distinct visual
+// identity: TEAL row selection (matches the buy/positive accent),
+// column borders ON, slightly tighter spacing, no rounded corners,
+// 10px header font, 11px body font.
+//
+// This is the canonical theme for `<HostedMarketsGrid>` and any
+// other blotter-style grid. Consumers wrap it once with
+// `themeQuartz.withParams(...)`. Update colors / spacing here and
+// every blotter picks the change up — no per-grid overrides.
+
+const blotterSharedParams = {
+  fontFamily:                 shared.typography.fontFamily.mono,
+  fontSize:                   11,
+  headerFontSize:             10,
+  iconSize:                   10,
+  cellHorizontalPaddingScale: 0.6,
+  wrapperBorder:              false,
+  columnBorder:               true,
+  spacing:                    6,
+  borderRadius:               0,
+  wrapperBorderRadius:        0,
+};
+
+export const agGridBlotterDarkParams: Record<string, unknown> = {
+  ...blotterSharedParams,
+  backgroundColor:            '#161a1e',
+  foregroundColor:            '#eaecef',
+  headerBackgroundColor:      '#1e2329',
+  headerTextColor:            '#a0a8b4',
+  oddRowBackgroundColor:      '#161a1e',
+  rowHoverColor:              '#1e2329',
+  selectedRowBackgroundColor: '#14b8a614',  // teal-500 @ ~8% — matches buy/positive accent
+  borderColor:                '#313944',
+};
+
+export const agGridBlotterLightParams: Record<string, unknown> = {
+  ...blotterSharedParams,
+  backgroundColor:            '#ffffff',
+  foregroundColor:            '#3b3b3b',
+  headerBackgroundColor:      '#f3f3f3',
+  headerTextColor:            '#616161',
+  oddRowBackgroundColor:      '#fafafa',
+  rowHoverColor:              '#f3f3f3',
+  selectedRowBackgroundColor: '#0d948814',  // teal-600 @ ~8%
+  borderColor:                '#e5e5e5',
+};
