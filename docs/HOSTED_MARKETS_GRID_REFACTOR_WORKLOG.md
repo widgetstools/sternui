@@ -547,3 +547,4 @@ Append one line per completed session: `<sha> | session N | one-line summary`.
 - `e0040b2` | session 0 | theme-drift audit + agGridBlotter{Light,Dark}Params preset (preparatory; before session structure)
 - `ccfd95a` | session 1 | public types in widgets-react/hosted (HostedContext, RegisteredComponentMetadata, ConfigManager + StorageAdapterFactory re-exports)
 - `9289fe3` | session 2 | useHostedIdentity + tests (OpenFin/browser dual path, storage-factory metadata wrap; vitest scaffolding added to @marketsui/widgets-react)
+- `f3004f4` | session 3 | useAgGridTheme + tests (consumes design-system blotter preset; reacts to [data-theme] via MutationObserver)
