@@ -129,6 +129,29 @@ describe('doesRowMatchFilterModel', () => {
   it('empty model matches everything', () => {
     expect(doesRowMatchFilterModel({ a: 1 }, {})).toBe(true);
   });
+
+  it('resolves dot-notation column ids against nested row objects', () => {
+    const model = {
+      'quote.bid': { filterType: 'number', type: 'greaterThan', filter: 100 },
+      'meta.side': { filterType: 'set', values: ['BUY'] },
+    };
+    expect(
+      doesRowMatchFilterModel({ quote: { bid: 120 }, meta: { side: 'BUY' } }, model),
+    ).toBe(true);
+    expect(
+      doesRowMatchFilterModel({ quote: { bid: 90 }, meta: { side: 'BUY' } }, model),
+    ).toBe(false);
+    expect(
+      doesRowMatchFilterModel({ quote: { bid: 120 }, meta: { side: 'SELL' } }, model),
+    ).toBe(false);
+  });
+
+  it('literal flat key with dots wins over dot-walk', () => {
+    const model = {
+      'a.b': { filterType: 'number', type: 'equals', filter: 1 },
+    };
+    expect(doesRowMatchFilterModel({ 'a.b': 1, a: { b: 2 } }, model)).toBe(true);
+  });
 });
 
 describe('filterModelsEqual', () => {
