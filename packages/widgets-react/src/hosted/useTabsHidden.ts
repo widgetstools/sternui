@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-declare const fin: any;
-
 import { useEffect, useState } from 'react';
+import { subscribeWindowOptions } from './windowOptionsSubscription.js';
 
 /**
  * Source-of-truth field path for tab visibility (live OpenFin
@@ -34,10 +33,6 @@ export function deriveTabsHidden(opts: unknown): boolean {
   return false;
 }
 
-function isOpenFin(): boolean {
-  return typeof fin !== 'undefined' && fin?.me?.getCurrentWindow;
-}
-
 /**
  * React state mirror of the parent OpenFin window's tab-strip
  * visibility. Reads the initial value from `window.getOptions()` and
@@ -46,50 +41,19 @@ function isOpenFin(): boolean {
  * Outside an OpenFin runtime returns `false` and attaches no listeners.
  * Consumers are expected to render their own caption/header — this hook
  * is a passthrough event source, not a UI component.
+ *
+ * Internally subscribes via the shared `windowOptionsSubscription`
+ * manager so multiple hooks reading window options (e.g. this one and
+ * `useColorLinking`) all share a single `options-changed` listener.
  */
 export function useTabsHidden(): boolean {
   const [tabsHidden, setTabsHidden] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!isOpenFin()) return;
-
-    let cancelled = false;
-    let win: any | null = null;
-    let handler: ((evt: unknown) => void) | null = null;
-
-    (async () => {
-      try {
-        win = await fin.me.getCurrentWindow();
-        if (cancelled) return;
-        const opts = await win.getOptions();
-        if (cancelled) return;
-        setTabsHidden(deriveTabsHidden(opts));
-
-        handler = async () => {
-          try {
-            const next = await win.getOptions();
-            if (cancelled) return;
-            setTabsHidden(deriveTabsHidden(next));
-          } catch (err) {
-            console.warn('[useTabsHidden] options re-read failed:', err);
-          }
-        };
-        win.on('options-changed', handler);
-      } catch (err) {
-        console.warn('[useTabsHidden] init failed:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (win && handler) {
-        try {
-          win.removeListener('options-changed', handler);
-        } catch (err) {
-          console.warn('[useTabsHidden] removeListener failed:', err);
-        }
-      }
-    };
+    const unsubscribe = subscribeWindowOptions((opts) => {
+      setTabsHidden(deriveTabsHidden(opts));
+    });
+    return unsubscribe;
   }, []);
 
   return tabsHidden;

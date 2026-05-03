@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook, act, waitFor } from '@testing-library/react';
 import { deriveTabsHidden, useTabsHidden } from '../useTabsHidden.js';
+import { __resetWindowOptionsSubscriptionForTests } from '../windowOptionsSubscription.js';
 
 interface FakeWindow {
   getOptions: ReturnType<typeof vi.fn>;
@@ -29,6 +30,7 @@ function installFin(initialOpts: unknown): FakeWindow {
 
 afterEach(() => {
   cleanup();
+  __resetWindowOptionsSubscriptionForTests();
   delete (globalThis as any).fin;
   vi.restoreAllMocks();
 });

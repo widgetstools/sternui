@@ -41,6 +41,16 @@ export type {
 
 export { useTabsHidden, deriveTabsHidden } from './useTabsHidden.js';
 
+export { useColorLinking, deriveColorLinking } from './useColorLinking.js';
+export type { ColorLinkingState } from './useColorLinking.js';
+
+export { useFdc3Channel } from './useFdc3Channel.js';
+export type {
+  Fdc3Context,
+  Fdc3ContextHandler,
+  UseFdc3ChannelResult,
+} from './useFdc3Channel.js';
+
 export { useWorkspaceSaveEvent } from './useWorkspaceSaveEvent.js';
 export type {
   WorkspaceSaveCallback,
