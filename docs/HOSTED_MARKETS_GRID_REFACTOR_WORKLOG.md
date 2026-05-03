@@ -552,5 +552,93 @@ Append one line per completed session: `<sha> | session N | one-line summary`.
 - `c41943d` | session 5 | parity tests (10 new specs under packages/widgets-react/src/hosted/__tests__ covering rows 5-10, 13-15, 16, 17-20, 21; vitest 27 passing in widgets-react)
 - `1705d01` | session 6 | e2e spec (e2e/hosted-markets-grid.spec.ts — 5 tests covering grid mount, profile lifecycle, Alt+Shift+P picker, info popover, theme flip; reference app webServer added to playwright.config.ts on port 5174; all 5 green pre-migration)
 - `f1d60a5` | session 7 | reference-app migrated (BlottersMarketsGrid.tsx 163 → 38 LOC; sole call site is `<HostedMarketsGrid>`. dataPlaneClient threaded through as a prop since the wrapper only mounts `<DataPlaneProvider>` when one is supplied. typecheck/build/test all green; 5/5 hosted-markets-grid e2e specs green post-migration. Manual OpenFin parity walkthrough deferred to session 10's verification pass — browser parity confirmed via the existing e2e suite.)
-- `9fc4625` | session 9 | docs (added packages/widgets-react/src/hosted/README.md with overview, MVP usage, full props table for wrapper-owned + inherited fields, OpenFin/browser auto-detection, theming → design-system blotter preset, persistence model, parity matrix with test references; appended §1.14 HostedMarketsGrid (consolidated hosting wrapper) to docs/IMPLEMENTED_FEATURES.md describing what was added/removed across sessions 1–8 with cross-link to the new README. MEMORY.md already indexes this worklog via reference_hosted_markets_grid_refactor.md — no change needed.)
+- `62ffce1` | session 10 | refactor complete; PR draft to be opened at https://github.com/widgetstools/marketsui-platform/compare/main...refactor/hosted-markets-grid-unify?expand=1&template=&draft=1 (gh CLI unavailable on the local box; branch pushed to origin and the reviewer can open the draft PR via that URL — body proposal in this session log entry)
+
+---
+
+## Refactor complete
+
+**Branch HEAD:** `62ffce1264a402e7ae9906b92ca31615ba12e8dc`
+**Lines vs `main`:** 38 files changed, **+2,759 / -888** (per `git diff main..HEAD --shortstat`).
+
+### Final verification (session 10 step 1)
+
+| Command | Result |
+|---|---|
+| `npx turbo typecheck` | 52/52 successful (50 cached, 2 fresh) |
+| `npx turbo build` | 32/32 successful (31 cached, 1 fresh) |
+| `npx turbo test` | 36/36 successful — `@marketsui/widgets-react` ran 16 test files / 27 tests, all green |
+| `npx playwright test hosted-markets-grid` | 5/5 green against the migrated reference app |
+| `npx turbo e2e` (whole-monorepo) | Fails only on the pre-existing `@marketsui/demo-react#e2e` "No tests found" config error — unchanged by this branch, documented at session 8 |
+
+### Manual checks (session 10 steps 2–3) — deferred to reviewer
+
+Both require running the reference app in OpenFin / a live dev server, which isn't possible from the agent shell. They are listed in the PR's test-plan checklist as deferred:
+
+1. **Theme-source verification** — temporarily change `headerBackgroundColor` in `agGridBlotterDarkParams` (`packages/design-system/src/adapters/ag-grid.ts`), rebuild, observe header re-color in the running app, revert.
+2. **Multi-window OpenFin storage isolation** — launch the reference app in OpenFin, open two MarketsGrid windows, change profile in one, confirm the other window is unaffected.
+
+The browser-side parity walk is fully covered by `e2e/hosted-markets-grid.spec.ts` (5/5 green) and the 27 Vitest specs under `packages/widgets-react/src/hosted/__tests__/`.
+
+### Final parity matrix
+
+| # | Feature | Status | Test |
+|---|---|---|---|
+| 1 | OpenFin identity via `fin.me.getOptions()` | ✓ | `useHostedIdentity.openfin.test.tsx` |
+| 2 | Browser fallback (URL param + props) | ✓ | `useHostedIdentity.browser.test.tsx` |
+| 3 | Registered-component fields surfaced from OpenFin | ✓ | `useHostedIdentity.storage-wrap.test.tsx` |
+| 4 | Storage factory auto-injects registered metadata | ✓ | `useHostedIdentity.storage-wrap.test.tsx` |
+| 5 | ConfigManager singleton resolution + memoization | ✓ | `config-manager.test.tsx` |
+| 6 | `withStorage` opt-in to ConfigService adapter | ✓ | `with-storage.test.tsx` |
+| 7 | Document title set on mount, restored on unmount | ✓ | `document-title.test.tsx` |
+| 8 | Full-bleed fixed layout | ✓ | `full-bleed.test.tsx` |
+| 9 | DataPlane provider mount | ✓ | `data-plane-mount.test.tsx` |
+| 10 | ConfigManager loading-state guard | ✓ | `config-manager.test.tsx` |
+| 11 | AG-Grid blotter theme | ✓ | `useAgGridTheme.test.tsx` |
+| 12 | Theme switching driven by `[data-theme]` | ✓ | `useAgGridTheme.test.tsx` |
+| 13 | `showFiltersToolbar` / `showFormattingToolbar` flags | ✓ | `toolbar-flags.test.tsx` |
+| 14 | `onEditProvider` callback | ✓ | `on-edit-provider.test.tsx` |
+| 15 | Legacy `marketsgrid-view-state::*` cleanup | ✓ | `legacy-cleanup.test.tsx` |
+| 16 | Provider picker (Alt+Shift+P, ProviderToolbar) | ✓ | `provider-picker.test.tsx` (+ MGC) |
+| 17 | Snapshot + live-update subscription lifecycle | ✓ inherited | `inherited-features.test.tsx` (+ MGC) |
+| 18 | Grid-level provider persistence | ✓ inherited | `inherited-features.test.tsx` (+ MGC) |
+| 19 | Profile manager / settings sheet / dirty dot | ✓ inherited | `inherited-features.test.tsx` (+ MG) |
+| 20 | Admin actions, headerExtras, gridLevelData passthrough | ✓ inherited | `inherited-features.test.tsx` |
+| 21 | Toolbar ⓘ popover surfaces componentName | ✓ (relocated by `1fc5a01`) | `grid-info-popover.test.tsx` |
+
+### PR draft body (paste into GitHub when opening the draft PR)
+
+```
+## Summary
+
+- Collapses the previous six-deep BlottersMarketsGrid → HostedFeatureView →
+  HostedComponent → BlotterGrid → MarketsGridContainer → MarketsGrid stack
+  into a single <HostedMarketsGrid> exported from @marketsui/widgets-react/hosted.
+- The wrapper owns identity resolution (OpenFin + browser fallback),
+  ConfigService-backed storage with auto-injected registered-component
+  metadata, AG-Grid blotter theme (single source from @marketsui/design-system
+  adapter), DataPlane mount, full-bleed layout, ConfigManager loading guard,
+  document title, and a one-shot legacy view-state cleanup. Flat props per
+  refactor decision D7.
+- Reference app's BlottersMarketsGrid.tsx collapses from 163 LOC to a 38-LOC
+  single-call wrapper. Net repo change: 38 files, +2,759 / -888.
+
+Worklog: docs/HOSTED_MARKETS_GRID_REFACTOR_WORKLOG.md
+Module README: packages/widgets-react/src/hosted/README.md
+
+## Verification
+
+- npx turbo typecheck — 52/52 green
+- npx turbo build — 32/32 green
+- npx turbo test — 36/36 green; 27 hosted-grid specs pass
+- npx playwright test hosted-markets-grid — 5/5 green
+- Pre-existing @marketsui/demo-react#e2e "No tests found" config error
+  unchanged (documented at session 8).
+
+## Test plan
+
+- [ ] Theme-source live verification (deferred — needs running app).
+- [ ] Multi-window OpenFin storage isolation (deferred — needs OpenFin).
+- [x] Browser parity covered by e2e/hosted-markets-grid.spec.ts.
+``` (added packages/widgets-react/src/hosted/README.md with overview, MVP usage, full props table for wrapper-owned + inherited fields, OpenFin/browser auto-detection, theming → design-system blotter preset, persistence model, parity matrix with test references; appended §1.14 HostedMarketsGrid (consolidated hosting wrapper) to docs/IMPLEMENTED_FEATURES.md describing what was added/removed across sessions 1–8 with cross-link to the new README. MEMORY.md already indexes this worklog via reference_hosted_markets_grid_refactor.md — no change needed.)
 - `344d691` | session 8 | obsolete layers deleted (removed HostedComponent.tsx, HostedFeatureView.tsx, packages/widgets-react/src/blotter/SimpleBlotter.tsx, packages/widgets-react/src/blotter/BlotterGrid.tsx — 727 LOC removed. Pre-deletion grep confirmed every remaining hit was in docs / comments / Angular-side code (intentionally left, separate framework). index.ts dropped SimpleBlotter / BlotterGrid exports; widgets-react package description refreshed. typecheck + build + 27/27 widgets-react vitest + 5/5 hosted-markets-grid e2e all green. The pre-existing `@marketsui/demo-react#e2e "No tests found"` config error is unchanged by this session.)
