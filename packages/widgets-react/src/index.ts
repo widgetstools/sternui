@@ -1,12 +1,6 @@
 // @marketsui/widgets — Stern Widget Components
 
-// ─── SimpleBlotter ────────────────────────────────
-export { SimpleBlotter } from './blotter/SimpleBlotter.js';
-export type { SimpleBlotterProps } from './blotter/SimpleBlotter.js';
-
-export { BlotterGrid } from './blotter/BlotterGrid.js';
-export type { BlotterGridProps } from './blotter/BlotterGrid.js';
-
+// ─── Blotter primitives ──────────────────────────
 export { BlotterToolbar } from './blotter/BlotterToolbar.js';
 export type { BlotterToolbarProps } from './blotter/BlotterToolbar.js';
 

@@ -1,7 +1,7 @@
 {
   "name": "@marketsui/widgets-react",
   "version": "1.0.0",
-  "description": "Stern Widgets — SimpleBlotter and future trading widgets",
+  "description": "MarketsUI React widgets — HostedMarketsGrid and trading primitives",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
