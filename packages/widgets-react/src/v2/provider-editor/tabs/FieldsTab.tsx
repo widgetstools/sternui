@@ -14,13 +14,23 @@
  * simple; the long tail of features can come back if missed.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Button, Checkbox, Input, ScrollArea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge, Label } from '@marketsui/ui';
 import { Database, Loader2, Search, RefreshCw, X } from 'lucide-react';
 import type { FieldNode, ProviderConfig, ColumnDefinition } from '@marketsui/shared-types';
 import { collectNonObjectLeaves, filterFields } from '@marketsui/shared-types';
 
 const SAMPLE_SIZES = [50, 100, 200, 500] as const;
+
+// Inline windowing — STOMP field trees can reach 4k+ nodes when a payload
+// exposes a wide nested schema. Mirrors the pattern in
+// packages/core/src/modules/column-customization/ColumnSettingsPanel.tsx
+// (no new dep): walk to the scrolling ancestor, slice rows to its visible
+// range plus an overscan. Falls back to full render when no scroll parent
+// is found (jsdom, edge containers).
+const ROW_HEIGHT = 28;
+const VIRTUAL_THRESHOLD = 100;
+const OVERSCAN = 8;
 
 export interface FieldsTabProps {
   cfg: ProviderConfig;
@@ -61,6 +71,22 @@ export function FieldsTab(props: FieldsTabProps) {
   }, [inferredFields]);
 
   const filtered = useMemo(() => filterFields(inferredFields, search), [inferredFields, search]);
+
+  // Flatten the filtered tree into a 1-D array of { node, depth } rows so
+  // the visible slice maps cleanly onto the DOM. Walks in pre-order so
+  // children appear directly under their parent — same visual order as
+  // the recursive render.
+  const flatRows = useMemo(() => {
+    const out: Array<{ node: FieldNode; depth: number }> = [];
+    const walk = (nodes: FieldNode[], depth: number) => {
+      for (const n of nodes) {
+        out.push({ node: n, depth });
+        if (n.children && n.children.length > 0) walk(n.children, depth + 1);
+      }
+    };
+    walk(filtered, 0);
+    return out;
+  }, [filtered]);
 
   // Visible-leaf paths for "Select All" — when a search filter is active
   // it only operates on the filtered subset so the user can mass-select
@@ -177,12 +203,74 @@ export function FieldsTab(props: FieldsTabProps) {
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-2">
-          <FieldList nodes={filtered} selected={selected} onToggle={toggleField} />
-        </div>
+        <VirtualizedFieldList rows={flatRows} selected={selected} onToggle={toggleField} />
       </ScrollArea>
     </div>
   );
+}
+
+// ─── Scroll-parent windowing ──────────────────────────────────────
+//
+// The list does not own its scroll container — Radix `ScrollArea`'s
+// viewport does. We walk up to find the first scrolling ancestor and
+// observe its scrollTop / clientHeight. If none is found, we render
+// everything (jsdom, edge cases).
+function findScrollParent(node: HTMLElement | null): HTMLElement | null {
+  let cur: HTMLElement | null = node?.parentElement ?? null;
+  while (cur && cur !== document.body) {
+    const oy = getComputedStyle(cur).overflowY;
+    if (oy === 'auto' || oy === 'scroll') return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+interface Range { start: number; end: number; }
+
+function useWindowedRange(
+  innerRef: RefObject<HTMLElement | null>,
+  count: number,
+  rowHeight: number,
+  enabled: boolean,
+): Range {
+  const [range, setRange] = useState<Range>({ start: 0, end: count });
+  useLayoutEffect(() => {
+    if (!enabled) {
+      setRange({ start: 0, end: count });
+      return;
+    }
+    const inner = innerRef.current;
+    if (!inner) return;
+    const scroller = findScrollParent(inner);
+    if (!scroller) {
+      setRange({ start: 0, end: count });
+      return;
+    }
+    const recompute = () => {
+      const innerTop = inner.getBoundingClientRect().top;
+      const scrollerTop = scroller.getBoundingClientRect().top;
+      const offset = innerTop - scrollerTop + scroller.scrollTop;
+      const viewportTop = Math.max(0, scroller.scrollTop - offset);
+      const viewportH = scroller.clientHeight || 0;
+      if (viewportH === 0) {
+        setRange({ start: 0, end: count });
+        return;
+      }
+      const start = Math.max(0, Math.floor(viewportTop / rowHeight) - OVERSCAN);
+      const visible = Math.ceil(viewportH / rowHeight) + OVERSCAN * 2;
+      const end = Math.min(count, start + visible);
+      setRange((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+    };
+    recompute();
+    scroller.addEventListener('scroll', recompute, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(recompute) : null;
+    ro?.observe(scroller);
+    return () => {
+      scroller.removeEventListener('scroll', recompute);
+      ro?.disconnect();
+    };
+  }, [innerRef, count, rowHeight, enabled]);
+  return range;
 }
 
 // ─── helpers ──────────────────────────────────────────────────────
@@ -232,44 +320,77 @@ function mapType(t: FieldNode['type']): ColumnDefinition['cellDataType'] {
   return 'text';
 }
 
-// ─── nested view ──────────────────────────────────────────────────
+// ─── flat windowed view ───────────────────────────────────────────
 
-function FieldList({ nodes, selected, onToggle, depth = 0 }: { nodes: FieldNode[]; selected: Set<string>; onToggle(p: string): void; depth?: number }) {
+interface FlatRow { node: FieldNode; depth: number; }
+
+function VirtualizedFieldList({
+  rows,
+  selected,
+  onToggle,
+}: {
+  rows: FlatRow[];
+  selected: Set<string>;
+  onToggle(p: string): void;
+}) {
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const virtualize = rows.length > VIRTUAL_THRESHOLD;
+  const range = useWindowedRange(innerRef, rows.length, ROW_HEIGHT, virtualize);
+  const visible = virtualize ? rows.slice(range.start, range.end) : rows;
+  const padTop = virtualize ? range.start * ROW_HEIGHT : 0;
+  const padBottom = virtualize ? Math.max(0, (rows.length - range.end) * ROW_HEIGHT) : 0;
+
   return (
-    <ul className="space-y-0.5">
-      {nodes.map((node) => {
-        // Per-node selection: the checkbox state reflects ONLY whether
-        // this node's path is in the selection set. For parents we
-        // ALSO surface an indeterminate state when any descendant
-        // (excluding self) is selected — visual cue only; clicking
-        // the checkbox still toggles just this node.
-        const ownChecked = selected.has(node.path);
-        const descendantPaths = node.children ? collectNonObjectLeaves(node) : [];
-        const someDescendantsSelected = descendantPaths.some((p) => selected.has(p));
-        const checkedState: boolean | 'indeterminate' =
-          ownChecked
-            ? true
-            : someDescendantsSelected
-              ? 'indeterminate'
-              : false;
-        return (
-          <li key={node.path}>
-            <div className="flex items-center gap-2 py-1 hover:bg-accent/40 rounded px-1.5" style={{ paddingLeft: `${depth * 16 + 6}px` }}>
-              <Checkbox
-                checked={checkedState}
-                onCheckedChange={() => onToggle(node.path)}
-              />
-              <span className="text-[13px] font-mono">{node.name}</span>
-              <span className="text-[10px] text-muted-foreground">{node.type}</span>
-              {node.children && <span className="text-[10px] text-muted-foreground">({node.children.length})</span>}
-            </div>
-            {node.children && node.children.length > 0 && (
-              <FieldList nodes={node.children} selected={selected} onToggle={onToggle} depth={depth + 1} />
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <div ref={innerRef} className="p-2">
+      {padTop > 0 && <div aria-hidden style={{ height: padTop }} />}
+      {visible.map(({ node, depth }) => (
+        <FieldRow
+          key={node.path}
+          node={node}
+          depth={depth}
+          selected={selected}
+          onToggle={onToggle}
+        />
+      ))}
+      {padBottom > 0 && <div aria-hidden style={{ height: padBottom }} />}
+    </div>
+  );
+}
+
+function FieldRow({
+  node,
+  depth,
+  selected,
+  onToggle,
+}: {
+  node: FieldNode;
+  depth: number;
+  selected: Set<string>;
+  onToggle(p: string): void;
+}) {
+  // Per-node selection: the checkbox reflects ONLY whether this node's
+  // path is in the selection set. For parents we surface an indeterminate
+  // state when any descendant is selected — visual cue only; clicking
+  // toggles just this node. `collectNonObjectLeaves` only runs for rows
+  // currently in the visible slice.
+  const ownChecked = selected.has(node.path);
+  const descendantPaths = node.children ? collectNonObjectLeaves(node) : [];
+  const someDescendantsSelected = descendantPaths.some((p) => selected.has(p));
+  const checkedState: boolean | 'indeterminate' =
+    ownChecked ? true : someDescendantsSelected ? 'indeterminate' : false;
+
+  return (
+    <div
+      className="flex items-center gap-2 hover:bg-accent/40 rounded"
+      style={{ height: ROW_HEIGHT, paddingLeft: `${depth * 16 + 6}px`, paddingRight: 6 }}
+    >
+      <Checkbox checked={checkedState} onCheckedChange={() => onToggle(node.path)} />
+      <span className="text-[13px] font-mono truncate">{node.name}</span>
+      <span className="text-[10px] text-muted-foreground">{node.type}</span>
+      {node.children && (
+        <span className="text-[10px] text-muted-foreground">({node.children.length})</span>
+      )}
+    </div>
   );
 }
 

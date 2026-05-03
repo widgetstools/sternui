@@ -1635,7 +1635,7 @@ type Evt =
 | `packages/widgets-react/src/v2/markets-grid-container/{ProviderToolbar,DatePicker}.tsx` | Toolbar (selectors + mode + date) and shadcn Calendar+Popover date picker |
 | `packages/widgets-react/src/v2/provider-editor/DataProviderEditor.tsx` | Outer list + form shell — popout-ready, viewport-fit (no outer scrollbars) |
 | `packages/widgets-react/src/v2/provider-editor/EditorForm.tsx` | 4-tab form (Connection · Fields · Columns · Behaviour) + Diagnostics when editing existing |
-| `packages/widgets-react/src/v2/provider-editor/tabs/{Connection,Fields,Columns,Diagnostics}Tab.tsx` | Tab bodies — Diagnostics surfaces live stats + Restart + Stop |
+| `packages/widgets-react/src/v2/provider-editor/tabs/{Connection,Fields,Columns,Diagnostics}Tab.tsx` | Tab bodies — Diagnostics surfaces live stats + Restart + Stop. FieldsTab flattens the inferred field tree and slices to the scroll viewport (inline windowing, no new dep) past 100 rows so wide STOMP payloads with thousands of nested fields stay nimble — same pattern as `ColumnSettingsPanel`. |
 | `packages/widgets-react/src/v2/provider-editor/transports/{Stomp,Rest,Mock,AppData,Behaviour}Fields.tsx` | Per-transport Connection / Behaviour inputs (all shadcn primitives) |
 | `packages/widgets-react/src/v2/data-provider-selector/DataProviderSelector.tsx` | Picker (dropdown / list); reads `useDataProvidersList`, no React Query |
 | `packages/design-system/src/themes/scrollbars.css` | `.scrollbar-themed` + `.scrollbar-thin` reading the theme-flipping `--scrollbar-thumb` token |
