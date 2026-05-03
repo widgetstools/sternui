@@ -200,6 +200,27 @@ export interface MarketsGridProps<TData = unknown> {
    * (a developer/support affordance, not surfaced to end users).
    */
   headerExtras?: import('react').ReactNode;
+
+  /**
+   * Optional caption rendered top-left, ABOVE the primary toolbar row,
+   * but only when `tabsHidden` is also true. The intent: in the OpenFin
+   * shell, when the user hides the view-tab strip the view loses its
+   * built-in title affordance, so the host (`<HostedMarketsGrid>`)
+   * passes its `componentName` (or an explicit `caption` override) down
+   * here so the grid can re-surface the label inline.
+   *
+   * No new design-system primitive — rendered as a single styled span
+   * using the existing token palette. When either prop is missing /
+   * false, nothing renders and layout is byte-identical to today.
+   */
+  caption?: string;
+
+  /**
+   * Companion to `caption`. When true, the caption is rendered;
+   * otherwise it is suppressed even if `caption` is set. Sourced from
+   * `useTabsHidden()` upstream. Defaults to `false`.
+   */
+  tabsHidden?: boolean;
 }
 
 /**

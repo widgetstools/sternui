@@ -154,6 +154,8 @@ function MarketsGridInner<TData = unknown>(
     onGridLevelDataLoad,
     headerExtras,
     componentName,
+    caption,
+    tabsHidden,
   } = props;
 
   ensureAgGridRegistered();
@@ -253,6 +255,8 @@ function MarketsGridInner<TData = unknown>(
         instanceId={instanceId}
         appId={appId}
         userId={userId}
+        caption={caption}
+        tabsHidden={tabsHidden}
       />
     </GridProvider>
   );
@@ -305,6 +309,8 @@ function Host<TData>({
   instanceId,
   appId,
   userId,
+  caption,
+  tabsHidden,
 }: {
   rowData: TData[];
   columnDefs: unknown[];
@@ -341,6 +347,8 @@ function Host<TData>({
   instanceId: string | undefined;
   appId: string | undefined;
   userId: string | undefined;
+  caption: string | undefined;
+  tabsHidden: boolean | undefined;
 }) {
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
@@ -615,6 +623,30 @@ function Host<TData>({
       style={rootStyle}
       data-grid-id={gridId}
     >
+      {/* Tabs-hidden caption — rendered top-left ABOVE every other
+           toolbar row when both `tabsHidden` and `caption` are set.
+           The host (`<HostedMarketsGrid>`) wires this from
+           `useTabsHidden()` + the `caption ?? componentName` fallback,
+           so the view's label is still visible after the user collapses
+           the OpenFin tab strip. No new design-system primitive — a
+           single styled span using the existing token palette. */}
+      {tabsHidden && caption ? (
+        <div
+          data-grid-caption
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '4px 8px',
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--bn-t1)',
+            background: 'var(--bn-bg)',
+            borderBottom: '1px solid var(--bn-border)',
+          }}
+        >
+          <span>{caption}</span>
+        </div>
+      ) : null}
       {/* Header extras — slot for consumer-supplied chrome that needs
            to live INSIDE the grid's frame but ABOVE the filters/format
            toolbars. The v2 data-plane container uses this for the

@@ -207,18 +207,11 @@ export function HostedMarketsGrid<
       return <div style={LOADING_STYLE}>Connecting to ConfigService…</div>;
     }
     const headerCaption = tabsHidden ? (caption ?? componentName) : undefined;
-    // `caption` and `tabsHidden` are forwarded as additional props so
-    // session 7's MarketsGrid changes can pick them up directly. They
-    // are not yet declared on `MarketsGridContainerProps`; the cast is
-    // intentional and removed once session 7 lands.
-    const extraProps = {
-      caption: headerCaption,
-      tabsHidden,
-    } as Partial<MarketsGridContainerProps<TData>>;
     return (
       <MarketsGridContainer<TData>
         {...(containerProps as MarketsGridContainerProps<TData>)}
-        {...extraProps}
+        caption={headerCaption}
+        tabsHidden={tabsHidden}
         instanceId={identity.instanceId}
         appId={identity.appId}
         userId={identity.userId}
