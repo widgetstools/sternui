@@ -44,9 +44,9 @@
   --filter-active-bg: rgba(34, 211, 238, 0.30);
   --filter-active-text: #ffffff;
   --filter-active-border: rgba(34, 211, 238, 0.55);
-  --filter-inactive-bg: transparent;
-  --filter-inactive-text: rgba(255, 255, 255, 0.70);
-  --filter-inactive-border: rgba(255, 255, 255, 0.22);
+  --filter-inactive-bg: rgba(139, 92, 246, 0.32);
+  --filter-inactive-text: rgba(237, 233, 254, 1);
+  --filter-inactive-border: rgba(167, 139, 250, 0.70);
   --filter-label-color: #22d3ee;
 }
 
@@ -54,9 +54,9 @@
   --filter-active-bg: rgba(8, 145, 178, 0.20);
   --filter-active-text: #0e3a4a;
   --filter-active-border: rgba(8, 145, 178, 0.50);
-  --filter-inactive-bg: transparent;
-  --filter-inactive-text: rgba(0, 0, 0, 0.55);
-  --filter-inactive-border: rgba(0, 0, 0, 0.18);
+  --filter-inactive-bg: rgba(124, 58, 237, 0.22);
+  --filter-inactive-text: rgba(59, 7, 100, 1);
+  --filter-inactive-border: rgba(124, 58, 237, 0.60);
   --filter-label-color: #0891b2;
 }
 
