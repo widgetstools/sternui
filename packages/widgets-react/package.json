@@ -55,6 +55,7 @@
   "dependencies": {
     "@marketsui/config-service": "*",
     "@marketsui/data-plane": "*",
+    "@marketsui/design-system": "*",
     "@marketsui/data-plane-react": "*",
     "@marketsui/openfin-platform-stern": "1.0.0",
     "@marketsui/shared-types": "1.0.0",

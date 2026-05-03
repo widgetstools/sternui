@@ -19,3 +19,6 @@ export type {
   UseHostedIdentityArgs,
   UseHostedIdentityResult,
 } from './useHostedIdentity.js';
+
+export { useAgGridTheme } from './useAgGridTheme.js';
+export type { AgGridThemeMode } from './useAgGridTheme.js';
