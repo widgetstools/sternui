@@ -10,6 +10,7 @@ import {
 import { createConfigServiceStorage, type ConfigManager } from '@marketsui/config-service';
 import type { StorageAdapterFactory } from '@marketsui/markets-grid';
 import { getConfigManager } from '@marketsui/openfin-platform/config';
+import type { HostedContext } from '@marketsui/widgets-react/hosted';
 
 /**
  * HostedComponent — generic shell for any component this app hosts as a
@@ -50,21 +51,6 @@ import { getConfigManager } from '@marketsui/openfin-platform/config';
  * Routes typically host one HostedComponent per route — see the
  * markets-ui-react-reference app's main.tsx for the canonical pattern.
  */
-
-export interface HostedContext {
-  /** Per-instance identity. `null` while the host environment is being
-   *  resolved on first mount. */
-  instanceId: string | null;
-  /** App identity used as part of the ConfigService scope key. */
-  appId: string;
-  /** User identity used as part of the ConfigService scope key. */
-  userId: string;
-  /** The host ConfigManager singleton. `null` until resolved. */
-  configManager: ConfigManager | null;
-  /** ConfigService-backed StorageAdapterFactory. Only populated when the
-   *  caller passed `withStorage`; otherwise `null`. */
-  storage: StorageAdapterFactory | null;
-}
 
 export interface HostedComponentProps {
   /** Logical name shown in the debug overlay's title. */

@@ -17,7 +17,7 @@ import { useEffect, type ReactNode } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { MarketsGridContainer } from '@marketsui/widgets-react/v2/markets-grid-container';
-import type { HostedContext } from '../components/HostedComponent';
+import type { HostedContext } from '@marketsui/widgets-react/hosted';
 import { HostedFeatureView } from '../components/HostedFeatureView';
 import { useTheme } from '../context/ThemeContext';
 import { openProviderEditorPopout } from '../data-providers-popout';

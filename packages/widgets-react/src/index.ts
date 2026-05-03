@@ -50,6 +50,17 @@ export { sternDarkTheme, sternLightTheme, useAgGridTheme } from './theme/index.j
 export { DockConfigurator } from './dock/DockConfigurator.js';
 export type { DockConfiguratorProps } from './dock/DockConfigurator.js';
 
+// ─── Hosted-feature wrappers (public API) ────────
+// Subpath: '@marketsui/widgets-react/hosted'
+// Re-exported here for convenience; new consumers should prefer the
+// subpath import for treeshakability.
+export type {
+  HostedContext,
+  RegisteredComponentMetadata,
+  ConfigManager,
+  StorageAdapterFactory,
+} from './hosted/index.js';
+
 // ─── OpenFin Hooks ───────────────────────────────
 export { useOpenfinTheme } from './hooks/openfin/useOpenfinTheme.js';
 export { useViewManager } from './hooks/openfin/useViewManager.js';

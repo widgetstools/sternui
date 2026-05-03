@@ -42,7 +42,8 @@
 
 import type { ReactNode } from 'react';
 import { DataPlaneProvider } from '@marketsui/data-plane-react/v2';
-import { HostedComponent, type HostedContext } from './HostedComponent';
+import { HostedComponent } from './HostedComponent';
+import type { HostedContext } from '@marketsui/widgets-react/hosted';
 import { dataPlaneClient } from '../data-plane-client';
 
 export interface HostedFeatureViewProps {

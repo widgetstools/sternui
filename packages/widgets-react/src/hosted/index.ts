@@ -1,0 +1,15 @@
+/**
+ * Public surface for hosted-feature wrappers.
+ *
+ * Today: the type contract used by `<HostedMarketsGrid>` and the
+ * underlying identity / storage primitives. Future sessions of the
+ * HostedMarketsGrid refactor add the hooks and the wrapper component
+ * itself to this barrel.
+ */
+
+export type {
+  HostedContext,
+  RegisteredComponentMetadata,
+  ConfigManager,
+  StorageAdapterFactory,
+} from './types.js';

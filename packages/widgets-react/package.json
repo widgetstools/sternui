@@ -23,6 +23,10 @@
     "./v2/data-provider-selector": {
       "import": "./dist/v2/data-provider-selector/index.js",
       "types": "./dist/v2/data-provider-selector/index.d.ts"
+    },
+    "./hosted": {
+      "import": "./dist/hosted/index.js",
+      "types": "./dist/hosted/index.d.ts"
     }
   },
   "scripts": {
@@ -47,6 +51,7 @@
     "@marketsui/markets-grid": { "optional": true }
   },
   "dependencies": {
+    "@marketsui/config-service": "*",
     "@marketsui/data-plane": "*",
     "@marketsui/data-plane-react": "*",
     "@marketsui/openfin-platform-stern": "1.0.0",
