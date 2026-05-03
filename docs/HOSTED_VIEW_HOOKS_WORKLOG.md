@@ -428,7 +428,7 @@ Append one row per session as it completes:
 4c58f9f | session 1 | useIab + useOpenFinChannel (14 new specs; 41 widgets-react / 72 repo-wide green)
 425d414 | session 2 | useTabsHidden + deriveTabsHidden helper (11 new specs; 52 widgets-react green; live-opt-shape comment pending real-OpenFin verification)
 3b714fe | session 3 | workspace-save Channel + useWorkspaceSaveEvent (6 platform + 7 widgets-react specs; 59 widgets-react / 55 openfin-platform tests green; live-OpenFin smoke pending real-runtime check)
-<sha>    | session 4 | linking hooks (color + FDC3) + shared windowOptionsSubscription manager; 9 useColorLinking + 8 useFdc3Channel specs; 76 widgets-react tests green; live-OpenFin field-path verification pending for color link
+e0d0442 | session 4 | linking hooks (color + FDC3) + shared windowOptionsSubscription manager; 9 useColorLinking + 8 useFdc3Channel specs; 76 widgets-react tests green; live-OpenFin field-path verification pending for color link
 <sha>    | session 5 | useHostedView + barrel + README
 <sha>    | session 6 | HostedMarketsGrid → useHostedView + caption + workspace-save wiring
 <sha>    | session 7 | MarketsGrid caption + verification + docs (PR-ready)
