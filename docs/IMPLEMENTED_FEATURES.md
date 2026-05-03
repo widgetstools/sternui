@@ -315,6 +315,26 @@ from the draft and lights the SAVE pill.
     `data-testid` is preserved character-for-character (`cols-item-`,
     `cs-rule-card-`, `cs-rules-list`, `cg-group-`, `cc-virtual-`).
 
+- **Column Settings list-rail perf pass** — `ColumnSettingsList` now
+  scales cleanly to grids with hundreds of columns. Three changes
+  layered on top of the shared `<CockpitList>` migration; zero
+  behavior change, all 7 panel tests still pass:
+  1. Override badge — `Object.keys(...).some(...)` recomputed per row
+     on every render, replaced with a single `useMemo`-built
+     `Set<colId>` keyed on `state.assignments`.
+  2. Dirty LED — N `useDirty(key)` subscriptions (one per column) →
+     a single `useDirtyColIds()` subscription against the platform
+     DirtyBus that yields a `Set<colId>` filtered by the
+     `column-customization:` prefix. Stable identity via shallow set
+     equality so unrelated bus traffic doesn't re-render the rail.
+  3. Inline windowing — when `columns.length > 60`, the rail walks
+     up to the first scrolling ancestor (`.gc-popout-list` or the
+     legacy `<aside>`) and slices to the visible range +
+     8-row overscan (fixed `ROW_HEIGHT = 36`). Padding spacers above
+     and below the visible window keep the scrollbar honest. Falls
+     through to full render when no scroll parent is found (jsdom
+     tests, edge containers).
+
 - **Column Settings v4 panel rewrite (phase 3e)** — the last of the five
   settings panels. Same three shared antipatterns removed:
   `dirtyRegistry + window.dispatchEvent('gc-dirty-change')` →
