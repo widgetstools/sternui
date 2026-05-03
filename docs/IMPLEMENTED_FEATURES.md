@@ -1869,6 +1869,62 @@ save/restore.
   a switch. Exactly the desired UX.
 - Worklog entry: `docs/FEATURE_WORKLOG.md` — Feature 1.
 
+### 1.14 HostedMarketsGrid (consolidated hosting wrapper)
+
+Single component that collapses the previous six-deep
+`BlottersMarketsGrid → HostedFeatureView → HostedComponent →
+BlotterGrid → MarketsGridContainer → MarketsGrid` stack into one call
+site. Lives at
+[`packages/widgets-react/src/hosted/HostedMarketsGrid.tsx`](../packages/widgets-react/src/hosted/HostedMarketsGrid.tsx);
+the module's own README is the source of truth for the prop contract:
+[`packages/widgets-react/src/hosted/README.md`](../packages/widgets-react/src/hosted/README.md).
+
+**Added:**
+
+- `<HostedMarketsGrid>` exported from `@marketsui/widgets-react/hosted`
+  and the package root. Owns identity resolution (OpenFin +
+  browser-fallback), ConfigService-backed storage with auto-injected
+  registered-component metadata, the AG-Grid blotter theme, the
+  DataPlane mount, the full-bleed layout, the ConfigManager loading
+  guard, the document title, and a one-shot legacy view-state
+  cleanup. Flat props per refactor decision D7 — no `gridProps`
+  escape hatch.
+- Public types `HostedContext`, `RegisteredComponentMetadata`,
+  `ConfigManager`, and `StorageAdapterFactory` re-exported from
+  `@marketsui/widgets-react/hosted` so external consumers have a
+  documented integration contract.
+- Public hooks `useHostedIdentity` and `useAgGridTheme` exported from
+  the same module for consumers that want to compose their own hosted
+  wrapper.
+- Reference app's `BlottersMarketsGrid.tsx` collapsed from 163 LOC to
+  a single `<HostedMarketsGrid>` call (38 LOC).
+- 27 Vitest specs in `packages/widgets-react/src/hosted/__tests__/`
+  covering every parity-matrix row at the wrapper boundary; 5
+  Playwright specs in
+  [`e2e/hosted-markets-grid.spec.ts`](../e2e/hosted-markets-grid.spec.ts)
+  covering grid mount, profile lifecycle, Alt+Shift+P provider picker,
+  toolbar info popover, and theme flip.
+
+**Removed:**
+
+- `apps/markets-ui-react-reference/src/components/HostedComponent.tsx`
+- `apps/markets-ui-react-reference/src/components/HostedFeatureView.tsx`
+- `packages/widgets-react/src/blotter/SimpleBlotter.tsx`
+- `packages/widgets-react/src/blotter/BlotterGrid.tsx` (the
+  package-level component — the empty `blotter/` directory was deleted
+  with it)
+- `SimpleBlotter` / `BlotterGrid` exports from
+  `packages/widgets-react/src/index.ts`
+
+Net change: 727 LOC removed across the four deleted files, replaced by
+~225 LOC of wrapper + hooks. Updating
+`agGridBlotter{Light,Dark}Params` in
+`packages/design-system/src/adapters/ag-grid.ts` re-themes every
+hosted blotter at once.
+
+Worklog entry:
+[`docs/HOSTED_MARKETS_GRID_REFACTOR_WORKLOG.md`](./HOSTED_MARKETS_GRID_REFACTOR_WORKLOG.md).
+
 ### Known gaps documented but not blocking
 
 - **Toolbar Visibility wiring** (§1.8e) — module state ships in every profile but concrete toolbar-toggle bindings aren't routed through it yet. Non-blocking; current host chrome uses local React state. Wiring pass is a known follow-up.
