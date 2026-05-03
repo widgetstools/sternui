@@ -841,6 +841,26 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
   `useProfileManager().exportProfile(id?)` →
   `Promise<ExportedProfilePayload>`, and `.importProfile(payload,
   options)` → `Promise<ProfileMeta>`.
+- **Inline rename in the profile selector** — every non-Default row
+  exposes a hover-revealed `Pencil` button (testid
+  `profile-rename-{id}`) that swaps the row's name into an editable
+  input seeded with the current value. Enter / blur commit, Escape /
+  the trailing `X` cancel; empty or unchanged values cancel quietly
+  rather than firing a no-op write. The reserved Default profile
+  stays locked (the lock icon replaces all per-row actions). Wires
+  through `useProfileManager().renameProfile(id, name)` →
+  `ProfileManager.rename(...)`, which rejects the reserved id.
+  ProfileSelector adds a new optional `onRename` callback prop;
+  omitting it hides the affordance entirely.
+- **Icon visibility bump in the profile popover** — every per-row
+  action icon (rename, clone, export, delete, lock) was raised from
+  the muted `--bn-t2` text tier to the standard secondary `--bn-t1`
+  tier and the stroke weight from `1.75` → `2.25`. The same shift
+  applies to the popover's labels and the disabled "Save" button
+  text. Visibility — not opacity — was the actual problem (the
+  buttons already animated to `opacity:1` on row hover); they read
+  cleanly under both `[data-theme="dark"]` and
+  `[data-theme="light"]` now.
 
 ### 1.16 SettingsSheet chrome cleanup
 

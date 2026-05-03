@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy } from 'lucide-react';
+import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy, Pencil, X } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@marketsui/core';
 // Static-layout styles — AUDIT i5 partial migration. State-dependent
 // styles stay inline (see ProfileSelector.css for rationale).
@@ -33,6 +33,13 @@ export interface ProfileSelectorProps {
    */
   onClone?: (id: string) => void | Promise<unknown>;
   /**
+   * Optional: called when the user finishes inline-renaming a profile
+   * row. Receives the profile id and the trimmed new name. Implementations
+   * should dispatch `renameProfile(id, name)`. Omit to hide the rename
+   * affordance. The reserved Default profile is never renameable.
+   */
+  onRename?: (id: string, name: string) => void | Promise<unknown>;
+  /**
    * Optional: called per-profile from the row's download button AND from the
    * footer "Export active" action. Implementations should download a JSON
    * file. Omit to hide the export affordances.
@@ -59,6 +66,7 @@ export function ProfileSelector({
   onLoad,
   onDelete,
   onClone,
+  onRename,
   onExport,
   onImport,
 }: ProfileSelectorProps) {
@@ -66,6 +74,8 @@ export function ProfileSelector({
   const [newName, setNewName] = useState('');
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Pending-delete drives the shadcn AlertDialog. We track the FULL row
   // (not just the id) so the dialog can render the profile's display name
@@ -82,6 +92,27 @@ export function ProfileSelector({
     await onCreate(newName.trim());
     setNewName('');
     setOpen(false);
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameDraft('');
+  };
+
+  const commitRename = async () => {
+    if (!renamingId || !onRename) return cancelRename();
+    const target = profiles.find((p) => p.id === renamingId);
+    const next = renameDraft.trim();
+    // No-op when blank or unchanged — quietly cancel rather than fire a
+    // pointless write.
+    if (!next || (target && next === target.name)) return cancelRename();
+    const id = renamingId;
+    cancelRename();
+    try {
+      await onRename(id, next);
+    } catch (err) {
+      console.warn('[markets-grid] profile rename failed:', err);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -174,6 +205,7 @@ export function ProfileSelector({
               const isActive = p.id === activeProfileId;
               const isReserved = p.id === RESERVED_DEFAULT_PROFILE_ID;
               const isHovered = hoverId === p.id;
+              const isRenaming = renamingId === p.id;
               return (
                 <div
                   key={p.id}
@@ -182,8 +214,8 @@ export function ProfileSelector({
                   data-testid={`profile-row-${p.id}`}
                   onMouseEnter={() => setHoverId(p.id)}
                   onMouseLeave={() => setHoverId((h) => (h === p.id ? null : h))}
-                  onClick={() => { onLoad(p.id); setOpen(false); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { onLoad(p.id); setOpen(false); } }}
+                  onClick={() => { if (!isRenaming) { onLoad(p.id); setOpen(false); } }}
+                  onKeyDown={(e) => { if (!isRenaming && e.key === 'Enter') { onLoad(p.id); setOpen(false); } }}
                   style={{
                     position: 'relative',
                     display: 'flex', alignItems: 'center', gap: 10,
@@ -219,15 +251,43 @@ export function ProfileSelector({
                     )}
                   </span>
 
-                  {/* Name */}
-                  <span style={{
-                    flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    fontWeight: isActive ? 600 : 450,
-                    color: isActive ? 'var(--bn-t0, #eaecef)' : 'var(--bn-t0, #d7dde5)',
-                    letterSpacing: 0.1,
-                  }}>
-                    {p.name}
-                  </span>
+                  {/* Name — switches to inline input while renaming */}
+                  {isRenaming ? (
+                    <input
+                      type="text"
+                      value={renameDraft}
+                      autoFocus
+                      data-testid={`profile-rename-input-${p.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') { e.preventDefault(); void commitRename(); }
+                        else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                      }}
+                      onBlur={() => { void commitRename(); }}
+                      style={{
+                        flex: 1, minWidth: 0, height: 22, padding: '0 6px',
+                        background: 'var(--bn-bg, #0b0e11)',
+                        border: '1px solid color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))',
+                        borderRadius: 4,
+                        color: 'var(--bn-t0, #eaecef)',
+                        fontSize: 11,
+                        fontWeight: isActive ? 600 : 450,
+                        letterSpacing: 0.1,
+                        outline: 'none',
+                      }}
+                    />
+                  ) : (
+                    <span style={{
+                      flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      fontWeight: isActive ? 600 : 450,
+                      color: isActive ? 'var(--bn-t0, #eaecef)' : 'var(--bn-t0, #d7dde5)',
+                      letterSpacing: 0.1,
+                    }}>
+                      {p.name}
+                    </span>
+                  )}
 
                   {/* Dirty dot beside active row name */}
                   {isActive && isDirty && (
@@ -242,10 +302,76 @@ export function ProfileSelector({
                     />
                   )}
 
+                  {/* Per-row rename button — switches the row into
+                      inline-edit mode. Hidden for the reserved Default
+                      profile (renaming would break the lookup contract). */}
+                  {onRename && !isReserved && !isRenaming && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenamingId(p.id);
+                        setRenameDraft(p.name);
+                      }}
+                      title={`Rename "${p.name}"`}
+                      aria-label={`Rename profile ${p.name}`}
+                      data-testid={`profile-rename-${p.id}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 22, height: 22,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--bn-t1, #a7b0bd)',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        opacity: isHovered ? 1 : 0,
+                        transition: 'opacity 120ms, background 120ms, color 120ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)';
+                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
+                      }}
+                    >
+                      <Pencil size={12} strokeWidth={2.25} />
+                    </button>
+                  )}
+
+                  {/* Cancel-rename button — only rendered while this row
+                      is in edit mode. Mousedown (not click) so it fires
+                      before the input's blur-commits handler. */}
+                  {isRenaming && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        cancelRename();
+                      }}
+                      title="Cancel rename"
+                      aria-label="Cancel rename"
+                      data-testid={`profile-rename-cancel-${p.id}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 22, height: 22,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--bn-t1, #a7b0bd)',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <X size={12} strokeWidth={2.25} />
+                    </button>
+                  )}
+
                   {/* Per-row clone button — duplicates the profile with
                       a "(copy)" suffix and activates it. Revealed on
                       hover just like export/delete. */}
-                  {onClone && (
+                  {onClone && !isRenaming && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -261,7 +387,7 @@ export function ProfileSelector({
                         width: 22, height: 22,
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--bn-t2, #8b93a1)',
+                        color: 'var(--bn-t1, #a7b0bd)',
                         borderRadius: 4,
                         cursor: 'pointer',
                         opacity: isHovered ? 1 : 0,
@@ -273,15 +399,15 @@ export function ProfileSelector({
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t2, #8b93a1)';
+                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
                       }}
                     >
-                      <Copy size={11} strokeWidth={1.75} />
+                      <Copy size={12} strokeWidth={2.25} />
                     </button>
                   )}
 
                   {/* Per-row export button — revealed on hover next to delete */}
-                  {onExport && (
+                  {onExport && !isRenaming && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -296,7 +422,7 @@ export function ProfileSelector({
                         width: 22, height: 22,
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--bn-t2, #8b93a1)',
+                        color: 'var(--bn-t1, #a7b0bd)',
                         borderRadius: 4,
                         cursor: 'pointer',
                         opacity: isHovered ? 1 : 0,
@@ -308,25 +434,26 @@ export function ProfileSelector({
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t2, #8b93a1)';
+                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
                       }}
                     >
-                      <Download size={11} strokeWidth={1.75} />
+                      <Download size={12} strokeWidth={2.25} />
                     </button>
                   )}
 
-                  {/* Trailing affordance */}
-                  {isReserved ? (
+                  {/* Trailing affordance — suppressed while renaming so
+                      the input owns the row's right edge. */}
+                  {isRenaming ? null : isReserved ? (
                     <span
                       title="Built-in default profile"
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 22, height: 22,
-                        color: 'var(--bn-t2, #8b93a1)',
+                        color: 'var(--bn-t1, #a7b0bd)',
                         opacity: 0.55,
                       }}
                     >
-                      <Lock size={11} strokeWidth={1.75} />
+                      <Lock size={12} strokeWidth={2.25} />
                     </span>
                   ) : (
                     <button
@@ -347,7 +474,7 @@ export function ProfileSelector({
                         width: 22, height: 22,
                         border: 'none',
                         background: 'transparent',
-                        color: 'var(--bn-t2, #8b93a1)',
+                        color: 'var(--bn-t1, #a7b0bd)',
                         borderRadius: 4,
                         cursor: 'pointer',
                         opacity: isHovered ? 1 : 0,
@@ -359,10 +486,10 @@ export function ProfileSelector({
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t2, #8b93a1)';
+                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
                       }}
                     >
-                      <Trash2 size={11} strokeWidth={1.75} />
+                      <Trash2 size={12} strokeWidth={2.25} />
                     </button>
                   )}
                 </div>
@@ -381,7 +508,7 @@ export function ProfileSelector({
             <div style={{
               fontSize: 10, fontWeight: 600, letterSpacing: 0.6,
               textTransform: 'uppercase',
-              color: 'var(--bn-t2, #8b93a1)',
+              color: 'var(--bn-t1, #a7b0bd)',
               marginBottom: 6,
             }}>
               Save current as
