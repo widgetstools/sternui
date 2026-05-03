@@ -545,3 +545,4 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 Append one line per completed session: `<sha> | session N | one-line summary`.
 
 - `e0040b2` | session 0 | theme-drift audit + agGridBlotter{Light,Dark}Params preset (preparatory; before session structure)
+- `ccfd95a` | session 1 | public types in widgets-react/hosted (HostedContext, RegisteredComponentMetadata, ConfigManager + StorageAdapterFactory re-exports)
