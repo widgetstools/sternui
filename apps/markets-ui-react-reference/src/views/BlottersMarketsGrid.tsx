@@ -146,6 +146,7 @@ function BlotterGrid({ instanceId, storage, configManager, userId, appId }: Blot
           instanceId={instanceId}
           appId={appId}
           userId={userId}
+          componentName="MarketsGrid"
           storage={storage}
           defaultColDef={defaultColDef}
           theme={agTheme}

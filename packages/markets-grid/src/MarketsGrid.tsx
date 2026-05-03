@@ -25,6 +25,9 @@ import {
   DirtyDot,
   GridProvider,
   MemoryAdapter,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   calculatedColumnsModule,
   captureGridStateInto,
   columnCustomizationModule,
@@ -56,6 +59,7 @@ import {
   Terminal,
   Eye,
   RefreshCw,
+  Info,
   type LucideIcon,
 } from 'lucide-react';
 import type {
@@ -149,6 +153,7 @@ function MarketsGridInner<TData = unknown>(
     gridLevelData,
     onGridLevelDataLoad,
     headerExtras,
+    componentName,
   } = props;
 
   ensureAgGridRegistered();
@@ -244,6 +249,10 @@ function MarketsGridInner<TData = unknown>(
         gridLevelData={gridLevelData}
         onGridLevelDataLoad={onGridLevelDataLoad}
         headerExtras={headerExtras}
+        componentName={componentName}
+        instanceId={instanceId}
+        appId={appId}
+        userId={userId}
       />
     </GridProvider>
   );
@@ -292,6 +301,10 @@ function Host<TData>({
   gridLevelData,
   onGridLevelDataLoad,
   headerExtras,
+  componentName,
+  instanceId,
+  appId,
+  userId,
 }: {
   rowData: TData[];
   columnDefs: unknown[];
@@ -324,6 +337,10 @@ function Host<TData>({
   gridLevelData: unknown;
   onGridLevelDataLoad: ((data: unknown) => void) | undefined;
   headerExtras: import('react').ReactNode;
+  componentName: string | undefined;
+  instanceId: string | undefined;
+  appId: string | undefined;
+  userId: string | undefined;
 }) {
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
@@ -762,6 +779,18 @@ function Host<TData>({
                 divider only renders when there's something to show; end-
                 user grids (no adminActions) see zero extra chrome. */}
             <AdminActionButtons actions={adminActions} />
+
+            {/* Grid-info popover — small ⓘ button that surfaces
+                identity (path, instanceId, appId, userId, gridId) for
+                support / debugging. Replaces the legacy hover-to-
+                reveal overlay that used to live in the host shell. */}
+            <GridInfoButton
+              componentName={componentName}
+              gridId={gridId}
+              instanceId={instanceId}
+              appId={appId}
+              userId={userId}
+            />
           </div>
         </div>
       )}
@@ -912,6 +941,105 @@ const ADMIN_ACTION_ICONS: Record<string, LucideIcon> = {
 function resolveAdminActionIcon(ref: string | undefined): LucideIcon {
   if (!ref) return Wrench;
   return ADMIN_ACTION_ICONS[ref] ?? Wrench;
+}
+
+// ─── Grid-info popover ──────────────────────────────────────────────
+//
+// Small ⓘ button rendered immediately after the admin-action cluster.
+// Click reveals a popover with the identity tuple — replaces the older
+// auto-hide hover overlay that lived on the host shell. shadcn Popover
+// from @marketsui/core, all colors via design-system CSS variables so
+// dark/light theme switching is automatic.
+
+function GridInfoButton({
+  componentName,
+  gridId,
+  instanceId,
+  appId,
+  userId,
+}: {
+  componentName: string | undefined;
+  gridId: string;
+  instanceId: string | undefined;
+  appId: string | undefined;
+  userId: string | undefined;
+}) {
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
+  const resolvedInstanceId = instanceId ?? gridId;
+  return (
+    <>
+      <span className="gc-primary-divider" aria-hidden />
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="gc-primary-action"
+            title="Grid info"
+            aria-label="Grid info"
+            data-testid="grid-info-btn"
+          >
+            <Info size={14} strokeWidth={2} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={6}
+          className="w-[360px] p-0 text-xs"
+          data-gc-settings
+        >
+          {componentName && (
+            <div
+              className="px-3 py-2 border-b text-[13px] font-semibold"
+              style={{
+                color: 'var(--bn-t0)',
+                borderColor: 'var(--bn-border)',
+              }}
+            >
+              {componentName}
+            </div>
+          )}
+          <div className="px-3 py-2 flex flex-col gap-1.5">
+            <InfoRow label="path"        value={path}                mono />
+            <InfoRow label="instanceId"  value={resolvedInstanceId}  mono />
+            <InfoRow label="gridId"      value={gridId}              mono />
+            <InfoRow label="appId"       value={appId ?? '—'} />
+            <InfoRow label="userId"      value={userId ?? '—'} />
+          </div>
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+}
+
+function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-2 min-w-0">
+      <span
+        className="shrink-0"
+        style={{
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: 0.6,
+          textTransform: 'uppercase',
+          color: 'var(--bn-t3, var(--muted-foreground))',
+          width: 80,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        className="min-w-0 truncate"
+        title={value}
+        style={{
+          color: 'var(--bn-t0, var(--foreground))',
+          fontFamily: mono ? "'JetBrains Mono', 'IBM Plex Mono', monospace" : 'inherit',
+          fontSize: 12,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
 }
 
 function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined }) {

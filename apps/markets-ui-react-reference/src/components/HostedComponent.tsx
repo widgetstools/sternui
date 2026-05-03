@@ -2,10 +2,8 @@
 declare const fin: any;
 
 import {
-  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -75,9 +73,6 @@ export interface HostedComponentProps {
    *  URL `?instanceId=` query param resolves one. Required so first-run
    *  / refresh scenarios converge on a stable id. */
   defaultInstanceId: string;
-  /** Override the path label shown in the debug chip. Defaults to
-   *  `window.location.pathname` so users see the current route. */
-  pathLabel?: string;
   /** When true, resolve a ConfigService-backed StorageAdapterFactory and
    *  pass it through `ctx.storage`. Internal components that read/write
    *  the host's ConfigService should set this; external components that
@@ -195,7 +190,6 @@ const DEFAULT_USER_ID = 'dev1';
 export function HostedComponent({
   componentName,
   defaultInstanceId,
-  pathLabel,
   withStorage = false,
   documentTitle,
   children,
@@ -281,36 +275,10 @@ export function HostedComponent({
     return () => { document.title = prev; };
   }, [componentName, documentTitle]);
 
-  // ─── Auto-hide debug overlay ───────────────────────────────────
-  // Hidden by default. Slides down when the cursor approaches the top
-  // edge (8px hover strip), stays visible while the cursor is over the
-  // strip OR the header itself, hides 250ms after both lose hover.
-  const [debugVisible, setDebugVisible] = useState(false);
-  const hideTimerRef = useRef<number | null>(null);
-  const showHeader = useCallback(() => {
-    if (hideTimerRef.current !== null) {
-      clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    setDebugVisible(true);
-  }, []);
-  const scheduleHide = useCallback(() => {
-    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = window.setTimeout(() => {
-      setDebugVisible(false);
-      hideTimerRef.current = null;
-    }, 250);
-  }, []);
-  useEffect(() => () => {
-    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
-  }, []);
-
   const ctx: HostedContext = useMemo(
     () => ({ instanceId, appId, userId, configManager, storage }),
     [instanceId, appId, userId, configManager, storage],
   );
-
-  const resolvedPath = pathLabel ?? (typeof window !== 'undefined' ? window.location.pathname : '');
 
   return (
     <>
@@ -336,120 +304,13 @@ export function HostedComponent({
           overflow: 'hidden',
         }}
       >
-        {/* 8px hover strip — invisible. Captures the mouseenter that
-            triggers the header reveal. zIndex 10 so it sits above the
-            grid chrome but below the expanded header. */}
-        <div
-          aria-hidden="true"
-          onMouseEnter={showHeader}
-          style={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0,
-            height: 8,
-            zIndex: 10,
-          }}
-        />
-
-        {/* Debug overlay — slides down from the top, NEVER pushes
-            content. The grid below keeps its full height. */}
-        <header
-          onMouseEnter={showHeader}
-          onMouseLeave={scheduleHide}
-          style={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0,
-            zIndex: 20,
-            padding: '10px 16px',
-            background: 'color-mix(in srgb, var(--bn-bg1, #161a1e) 92%, transparent)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            borderBottom: '1px solid var(--bn-border, #313944)',
-            boxShadow: debugVisible ? '0 4px 16px rgba(0,0,0,0.35)' : 'none',
-            transform: debugVisible ? 'translateY(0)' : 'translateY(-100%)',
-            opacity: debugVisible ? 1 : 0,
-            pointerEvents: debugVisible ? 'auto' : 'none',
-            transition: 'transform 160ms ease-out, opacity 160ms ease-out, box-shadow 160ms ease-out',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--bn-t0)',
-                letterSpacing: 0.2,
-              }}
-            >
-              {componentName}
-            </span>
-            <span style={{ color: 'var(--bn-t3, #5a6472)', fontSize: 12 }}>·</span>
-            <DebugChip label="path" value={resolvedPath} mono />
-            <DebugChip label="instanceId" value={instanceId ?? '…'} mono truncate />
-            <DebugChip label="appId" value={appId} />
-            <DebugChip label="user" value={userId} />
-          </div>
-        </header>
-
-        {/* Hosted content. Takes the full container; the debug overlay
-            floats above without displacing it. */}
+        {/* Hosted content takes the full container. Identity (path,
+            instanceId, appId, userId) is now surfaced via the grid's
+            own toolbar info popover instead of a hover overlay. */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           {children(ctx)}
         </div>
       </div>
     </>
-  );
-}
-
-// ─── Debug chip ──────────────────────────────────────────────────────
-
-function DebugChip({
-  label,
-  value,
-  mono = false,
-  truncate = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  truncate?: boolean;
-}) {
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '3px 9px',
-        background: 'var(--bn-bg2, #1e2329)',
-        border: '1px solid var(--bn-border, #313944)',
-        borderRadius: 4,
-        maxWidth: truncate ? 280 : undefined,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 9,
-          fontWeight: 600,
-          letterSpacing: 0.6,
-          textTransform: 'uppercase',
-          color: 'var(--bn-t3, #5a6472)',
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 12,
-          color: 'var(--bn-t0, #eaecef)',
-          fontFamily: mono ? "'JetBrains Mono', 'IBM Plex Mono', monospace" : 'inherit',
-          whiteSpace: 'nowrap',
-          overflow: truncate ? 'hidden' : 'visible',
-          textOverflow: truncate ? 'ellipsis' : 'clip',
-        }}
-        title={truncate ? value : undefined}
-      >
-        {value}
-      </span>
-    </span>
   );
 }

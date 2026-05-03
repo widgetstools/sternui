@@ -1739,7 +1739,7 @@ Consolidates boilerplate across all feature route views (MarketsGrid, Charts, Tr
 
 **Solution:** New `<HostedFeatureView>` component at `apps/markets-ui-react-reference/src/components/HostedFeatureView.tsx` that:
 - Accepts a feature component as a **child** (either ReactNode or render-prop callback for context access)
-- Wraps internally with `HostedComponent` (identity + storage factory + debug overlay)
+- Wraps internally with `HostedComponent` (identity + storage factory). Identity (path, instanceId, appId, userId) is surfaced by the grid itself via the new toolbar ⓘ info popover — see `MarketsGrid` `componentName` prop.
 - Mounts `DataPlaneProvider` automatically
 - Handles loading states while ConfigManager resolves
 - Exposes full `HostedContext` to children via render-prop so views can access `instanceId`, `storage`, `configManager`, `userId`, `appId`

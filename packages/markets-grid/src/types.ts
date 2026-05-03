@@ -178,6 +178,16 @@ export interface MarketsGridProps<TData = unknown> {
   onGridLevelDataLoad?: (data: unknown) => void;
 
   /**
+   * Logical component name shown in the toolbar's grid-info popover
+   * (the small ⓘ button next to the admin actions). Optional — when
+   * omitted the popover still renders identity (path, instanceId,
+   * appId, userId, gridId) without a heading. Set by hosting shells
+   * that already know the route's display name (e.g. "MarketsGrid",
+   * "FX Blotter").
+   */
+  componentName?: string;
+
+  /**
    * Slot rendered in the grid's primary toolbar row, BEFORE the
    * filters/formatting toolbars. Used by `<MarketsGridContainer>` to
    * mount the data-provider toolbar (live/historical pickers, mode

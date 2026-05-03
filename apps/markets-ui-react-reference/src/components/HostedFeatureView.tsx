@@ -52,9 +52,6 @@ export interface HostedFeatureViewProps {
   /** Default instanceId (fallback for identity resolution). */
   defaultInstanceId: string;
 
-  /** Override the path label shown in the debug chip. */
-  pathLabel?: string;
-
   /** When true, resolve ConfigService storage adapter for this feature. */
   withStorage?: boolean;
 
@@ -68,7 +65,6 @@ export interface HostedFeatureViewProps {
 export function HostedFeatureView({
   componentName,
   defaultInstanceId,
-  pathLabel,
   withStorage = false,
   documentTitle,
   children,
@@ -77,7 +73,6 @@ export function HostedFeatureView({
     <HostedComponent
       componentName={componentName}
       defaultInstanceId={defaultInstanceId}
-      pathLabel={pathLabel}
       withStorage={withStorage}
       documentTitle={documentTitle}
     >
