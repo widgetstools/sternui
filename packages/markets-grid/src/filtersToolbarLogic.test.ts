@@ -3,6 +3,7 @@ import {
   doesRowMatchFilterModel,
   doesValueMatchFilter,
   filterModelsEqual,
+  formatFilterModel,
   generateLabel,
   isNewFilter,
   mergeFilterModels,
@@ -144,6 +145,42 @@ describe('doesRowMatchFilterModel', () => {
     expect(
       doesRowMatchFilterModel({ quote: { bid: 120 }, meta: { side: 'SELL' } }, model),
     ).toBe(false);
+  });
+
+  it('formatFilterModel renders set/text/number and composites', () => {
+    expect(formatFilterModel(null)).toBe('(empty filter)');
+    expect(formatFilterModel({})).toBe('(empty filter)');
+    expect(
+      formatFilterModel({ side: { filterType: 'set', values: ['BUY', 'SELL'] } }),
+    ).toBe('side IN (BUY, SELL)');
+    expect(
+      formatFilterModel({
+        price: { filterType: 'number', type: 'greaterThan', filter: 100 },
+      }),
+    ).toBe('price > 100');
+    expect(
+      formatFilterModel({
+        name: { filterType: 'text', type: 'contains', filter: 'foo' },
+      }),
+    ).toBe('name contains "foo"');
+    expect(
+      formatFilterModel({
+        x: {
+          filterType: 'number',
+          operator: 'OR',
+          conditions: [
+            { type: 'greaterThan', filter: 1 },
+            { type: 'lessThan', filter: 0 },
+          ],
+        },
+      }),
+    ).toBe('(x > 1 OR x < 0)');
+    expect(
+      formatFilterModel({
+        side: { filterType: 'set', values: ['BUY'] },
+        price: { filterType: 'number', type: 'inRange', filter: 1, filterTo: 5 },
+      }),
+    ).toBe('side IN (BUY) AND price between 1 and 5');
   });
 
   it('literal flat key with dots wins over dot-walk', () => {
