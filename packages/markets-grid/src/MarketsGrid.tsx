@@ -159,6 +159,7 @@ function MarketsGridInner<TData = unknown>(
     caption,
     tabsHidden,
     onCaptionChange,
+    onSavingChange,
   } = props;
 
   ensureAgGridRegistered();
@@ -261,6 +262,7 @@ function MarketsGridInner<TData = unknown>(
         caption={caption}
         tabsHidden={tabsHidden}
         onCaptionChange={onCaptionChange}
+        onSavingChange={onSavingChange}
       />
     </GridProvider>
   );
@@ -316,6 +318,7 @@ function Host<TData>({
   caption,
   tabsHidden,
   onCaptionChange,
+  onSavingChange,
 }: {
   rowData: TData[];
   columnDefs: unknown[];
@@ -355,6 +358,7 @@ function Host<TData>({
   caption: string | undefined;
   tabsHidden: boolean | undefined;
   onCaptionChange: ((next: string) => void) | undefined;
+  onSavingChange: ((saving: boolean) => void) | undefined;
 }) {
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
@@ -463,7 +467,13 @@ function Host<TData>({
   // before this see `null` (React ref semantics); after this see the
   // stable handle. `onReady` fires exactly once per mount.
   const handleRef = useRef<MarketsGridHandle | null>(null);
-  handleRef.current = api ? { gridApi: api, platform, profiles } : null;
+  // Ref-bridge to handleSaveAll, defined further down. We expose
+  // `saveAll` on the imperative handle so external save triggers
+  // (OpenFin "Save Workspace") run the same path as the toolbar Save
+  // button — including the busy-overlay flip via `onSavingChange`.
+  const saveAllRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const saveAll = useCallback(() => saveAllRef.current(), []);
+  handleRef.current = api ? { gridApi: api, platform, profiles, saveAll } : null;
 
   useImperativeHandle(
     forwardedRef,
@@ -537,16 +547,22 @@ function Host<TData>({
       try { captureGridStateInto(platform.store, api); }
       catch (err) { console.warn('[markets-grid] captureGridStateInto failed:', err); }
     }
+    onSavingChange?.(true);
     try {
       await profiles.saveActiveProfile();
     } catch (err) {
       console.warn('[markets-grid] saveActiveProfile failed:', err);
+      onSavingChange?.(false);
       return;
     }
+    onSavingChange?.(false);
     setSaveFlash(true);
     if (saveFlashTimer.current) clearTimeout(saveFlashTimer.current);
     saveFlashTimer.current = setTimeout(() => setSaveFlash(false), 600);
-  }, [profiles, api, platform]);
+  }, [profiles, api, platform, onSavingChange]);
+
+  // Keep the handle's saveAll bridge pointed at the latest closure.
+  saveAllRef.current = handleSaveAll;
 
   // Active profile dirty state — wired to the Save button indicator,
   // the profile-switch AlertDialog, and the beforeunload warning.
