@@ -1967,10 +1967,14 @@ follows successful `cm.saveConfig`.
   `MarketsGridHandle.profiles.saveActiveProfile()` — the same code path
   the toolbar Save button calls.
 - New optional `caption?: string` prop. When the OpenFin shell hides
-  the view-tab strip (`tabsHidden === true`), a top-left styled span is
-  rendered via `MarketsGrid`'s new `caption` + `tabsHidden` props
-  (design-system tokens, no new primitive). Caption falls back to
-  `componentName` when omitted.
+  the view-tab strip (`tabsHidden === true`), an editable label is
+  rendered at the **left edge of the primary toolbar row** (not as a
+  separate strip) via `MarketsGrid`'s new `caption` + `tabsHidden`
+  props. The label seeds from `caption` (falling back to
+  `componentName`); hovering reveals an inline pencil that swaps the
+  label for a shadcn `<Input>` — Enter or blur commits, Escape
+  cancels. Committed edits fire the optional `onCaptionChange(next)`
+  callback so the host can persist the override.
 - Existing call sites untouched — every new prop is additive.
 
 Worklog entry:

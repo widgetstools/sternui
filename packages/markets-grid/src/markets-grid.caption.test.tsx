@@ -1,9 +1,6 @@
 /**
- * MarketsGrid — top-left caption rendering when the host's tab strip
- * is hidden. Three cases:
- *   1. tabsHidden=false, caption='X' → no caption rendered
- *   2. tabsHidden=true,  caption=undefined → no caption rendered
- *   3. tabsHidden=true,  caption='X' → caption rendered, top-of-grid
+ * MarketsGrid — left-edge caption rendering and in-place editing when
+ * the host's OpenFin tab strip is hidden.
  *
  * AG-Grid + the design-system module bundle are heavy to mount in
  * jsdom, so we stub the AG-Grid React wrapper to a minimal element and
@@ -14,7 +11,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 
 vi.mock('ag-grid-react', () => ({
   AgGridReact: React.forwardRef<unknown, any>(() => (
@@ -54,6 +51,9 @@ vi.mock('@marketsui/core', async () => {
     cockpitCSS: '',
     COCKPIT_STYLE_ID: 'gc-cockpit-styles',
     DirtyDot: () => null,
+    Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
+      <input ref={ref} {...p} />
+    )),
     Popover: ({ children }: any) => <>{children}</>,
     PopoverTrigger: ({ children }: any) => <>{children}</>,
     PopoverContent: ({ children }: any) => <>{children}</>,
@@ -117,16 +117,64 @@ describe('MarketsGrid — tabs-hidden caption', () => {
     expect(container.querySelector('[data-grid-caption]')).toBeNull();
   });
 
-  it('renders the caption top-left when tabsHidden and caption are both set', () => {
-    const { container } = render(
+  it('renders the caption at the left edge of the primary toolbar row', () => {
+    const { container, getByTestId } = render(
       <MarketsGrid {...baseProps} tabsHidden caption="Markets Blotter" />,
     );
     const node = container.querySelector('[data-grid-caption]');
     expect(node).not.toBeNull();
-    expect(node?.textContent).toBe('Markets Blotter');
-    // The caption must be the FIRST child of the grid root so it lands
-    // top-left, above the headerExtras / primary toolbar rows.
-    const root = container.querySelector('[data-grid-id="caption-test"]');
-    expect(root?.firstElementChild).toBe(node);
+    expect(getByTestId('grid-caption-text').textContent).toBe('Markets Blotter');
+    // The caption must be the FIRST child of the primary toolbar row
+    // so it lands at the left edge, before the filters carousel.
+    const toolbar = container.querySelector(
+      '[data-grid-id="caption-test"] > .gc-toolbar-primary',
+    );
+    expect(toolbar?.firstElementChild).toBe(node);
+  });
+
+  it('reveals an inline input when the edit button is clicked, commits on Enter, and fires onCaptionChange', () => {
+    const onCaptionChange = vi.fn();
+    const { getByTestId, queryByTestId } = render(
+      <MarketsGrid
+        {...baseProps}
+        tabsHidden
+        caption="Markets"
+        onCaptionChange={onCaptionChange}
+      />,
+    );
+    // Click the pencil icon to enter edit mode.
+    fireEvent.click(getByTestId('grid-caption-edit-btn'));
+    const input = getByTestId('grid-caption-input') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe('Markets');
+
+    // Type a new value and press Enter to commit.
+    fireEvent.change(input, { target: { value: 'FX Blotter' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onCaptionChange).toHaveBeenCalledTimes(1);
+    expect(onCaptionChange).toHaveBeenCalledWith('FX Blotter');
+    // Edit mode tears down; label reflects the new value.
+    expect(queryByTestId('grid-caption-input')).toBeNull();
+    expect(getByTestId('grid-caption-text').textContent).toBe('FX Blotter');
+  });
+
+  it('cancels the edit on Escape without firing onCaptionChange', () => {
+    const onCaptionChange = vi.fn();
+    const { getByTestId, queryByTestId } = render(
+      <MarketsGrid
+        {...baseProps}
+        tabsHidden
+        caption="Markets"
+        onCaptionChange={onCaptionChange}
+      />,
+    );
+    fireEvent.click(getByTestId('grid-caption-edit-btn'));
+    const input = getByTestId('grid-caption-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'FX Blotter' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(onCaptionChange).not.toHaveBeenCalled();
+    expect(queryByTestId('grid-caption-input')).toBeNull();
+    expect(getByTestId('grid-caption-text').textContent).toBe('Markets');
   });
 });

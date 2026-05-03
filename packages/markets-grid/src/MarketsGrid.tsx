@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   DirtyDot,
   GridProvider,
+  Input,
   MemoryAdapter,
   Popover,
   PopoverContent,
@@ -60,6 +61,7 @@ import {
   Eye,
   RefreshCw,
   Info,
+  Pencil,
   type LucideIcon,
 } from 'lucide-react';
 import type {
@@ -156,6 +158,7 @@ function MarketsGridInner<TData = unknown>(
     componentName,
     caption,
     tabsHidden,
+    onCaptionChange,
   } = props;
 
   ensureAgGridRegistered();
@@ -257,6 +260,7 @@ function MarketsGridInner<TData = unknown>(
         userId={userId}
         caption={caption}
         tabsHidden={tabsHidden}
+        onCaptionChange={onCaptionChange}
       />
     </GridProvider>
   );
@@ -311,6 +315,7 @@ function Host<TData>({
   userId,
   caption,
   tabsHidden,
+  onCaptionChange,
 }: {
   rowData: TData[];
   columnDefs: unknown[];
@@ -349,6 +354,7 @@ function Host<TData>({
   userId: string | undefined;
   caption: string | undefined;
   tabsHidden: boolean | undefined;
+  onCaptionChange: ((next: string) => void) | undefined;
 }) {
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
@@ -623,30 +629,6 @@ function Host<TData>({
       style={rootStyle}
       data-grid-id={gridId}
     >
-      {/* Tabs-hidden caption — rendered top-left ABOVE every other
-           toolbar row when both `tabsHidden` and `caption` are set.
-           The host (`<HostedMarketsGrid>`) wires this from
-           `useTabsHidden()` + the `caption ?? componentName` fallback,
-           so the view's label is still visible after the user collapses
-           the OpenFin tab strip. No new design-system primitive — a
-           single styled span using the existing token palette. */}
-      {tabsHidden && caption ? (
-        <div
-          data-grid-caption
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '4px 8px',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--bn-t1)',
-            background: 'var(--bn-bg)',
-            borderBottom: '1px solid var(--bn-border)',
-          }}
-        >
-          <span>{caption}</span>
-        </div>
-      ) : null}
       {/* Header extras — slot for consumer-supplied chrome that needs
            to live INSIDE the grid's frame but ABOVE the filters/format
            toolbars. The v2 data-plane container uses this for the
@@ -663,6 +645,17 @@ function Host<TData>({
       ) : null}
       {showToolbar && (
         <div className="gc-toolbar-primary gc-primary-row">
+          {/* LEFT-MOST — editable caption surfaced when the host's
+               OpenFin tab strip is hidden. Click reveals an inline edit
+               icon; clicking the icon swaps the label for an input.
+               The control persists committed edits via
+               `onCaptionChange` when supplied. */}
+          {tabsHidden && caption ? (
+            <EditableCaption
+              caption={caption}
+              onCaptionChange={onCaptionChange}
+            />
+          ) : null}
           {/* LEFT — filters carousel (flex:1, collapses/expands via its
                own chevron; formatter-toolbar toggle no longer lives
                inside it). */}
@@ -1103,5 +1096,144 @@ function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined })
         );
       })}
     </>
+  );
+}
+
+// ─── Editable caption ──────────────────────────────────────────────
+//
+// Inline label rendered at the left edge of the primary toolbar row
+// when the host OpenFin window has hidden its tab strip. The default
+// value comes from the `caption` prop (typically the host component
+// name); clicking the pencil icon — only visible on hover — swaps the
+// label for an input. Enter or blur commits; Escape cancels. Edits
+// are held as local state and propagated upward via `onCaptionChange`
+// so the host can persist them (e.g. as `gridLevelData`).
+
+function EditableCaption({
+  caption,
+  onCaptionChange,
+}: {
+  caption: string;
+  onCaptionChange: ((next: string) => void) | undefined;
+}) {
+  // `value` seeds from the prop on mount and every time the prop
+  // changes (e.g. host swaps `componentName`). User edits update the
+  // local state and fire `onCaptionChange` on commit; if the host
+  // doesn't echo the new value back via the prop, the local state
+  // still wins on subsequent renders thanks to the second-arg gate.
+  const [value, setValue] = useState(caption);
+  const lastPropRef = useRef(caption);
+  useEffect(() => {
+    if (lastPropRef.current !== caption) {
+      lastPropRef.current = caption;
+      setValue(caption);
+    }
+  }, [caption]);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(caption);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const startEdit = useCallback(() => {
+    setDraft(value);
+    setEditing(true);
+  }, [value]);
+
+  const commit = useCallback(() => {
+    const next = draft.trim();
+    setEditing(false);
+    if (!next || next === value) return;
+    setValue(next);
+    onCaptionChange?.(next);
+  }, [draft, value, onCaptionChange]);
+
+  const cancel = useCallback(() => {
+    setDraft(value);
+    setEditing(false);
+  }, [value]);
+
+  // Auto-focus + select-all when entering edit mode so the user can
+  // either overwrite immediately or click to position the caret.
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <div
+        data-grid-caption
+        data-editing="true"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginLeft: 8,
+          marginRight: 8,
+        }}
+      >
+        <Input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              cancel();
+            }
+          }}
+          style={{ width: 160, height: 22, fontSize: 12, fontWeight: 600 }}
+          data-testid="grid-caption-input"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-grid-caption
+      className="group"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        marginLeft: 8,
+        marginRight: 8,
+        fontSize: 12,
+        fontWeight: 600,
+        color: 'var(--bn-t1)',
+      }}
+    >
+      <span data-testid="grid-caption-text">{value}</span>
+      <button
+        type="button"
+        onClick={startEdit}
+        title="Rename"
+        aria-label="Rename caption"
+        data-testid="grid-caption-edit-btn"
+        // The pencil only appears on hover of the caption cluster;
+        // tab-key focus also reveals it for keyboard users.
+        className="opacity-0 group-hover:opacity-100 focus:opacity-100"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 18,
+          height: 18,
+          padding: 0,
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--bn-t2, #7a8494)',
+          cursor: 'pointer',
+        }}
+      >
+        <Pencil size={12} strokeWidth={2} />
+      </button>
+    </div>
   );
 }

@@ -221,6 +221,16 @@ export interface MarketsGridProps<TData = unknown> {
    * `useTabsHidden()` upstream. Defaults to `false`.
    */
   tabsHidden?: boolean;
+
+  /**
+   * Fired when the user commits an in-place edit of the caption (Enter
+   * blur, or focus loss with non-empty content). The grid maintains
+   * the editable value as local state seeded from the `caption` prop;
+   * supplying this callback lets the host persist the override (e.g.
+   * via `gridLevelData` or a profile field). When omitted, edits are
+   * still applied locally but won't survive a remount.
+   */
+  onCaptionChange?: (next: string) => void;
 }
 
 /**
