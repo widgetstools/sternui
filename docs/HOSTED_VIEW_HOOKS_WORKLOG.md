@@ -430,6 +430,6 @@ Append one row per session as it completes:
 3b714fe | session 3 | workspace-save Channel + useWorkspaceSaveEvent (6 platform + 7 widgets-react specs; 59 widgets-react / 55 openfin-platform tests green; live-OpenFin smoke pending real-runtime check)
 e0d0442 | session 4 | linking hooks (color + FDC3) + shared windowOptionsSubscription manager; 9 useColorLinking + 8 useFdc3Channel specs; 76 widgets-react tests green; live-OpenFin field-path verification pending for color link
 e294041 | session 5 | useHostedView + barrel + README (6 new specs; 82 widgets-react tests green)
-<sha>    | session 6 | HostedMarketsGrid → useHostedView + caption + workspace-save wiring
+ef007e4 | session 6 | HostedMarketsGrid → useHostedView + caption + workspace-save wiring (5 new specs; 87 widgets-react tests green)
 <sha>    | session 7 | MarketsGrid caption + verification + docs (PR-ready)
 ```
