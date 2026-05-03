@@ -13,3 +13,9 @@ export type {
   ConfigManager,
   StorageAdapterFactory,
 } from './types.js';
+
+export { useHostedIdentity } from './useHostedIdentity.js';
+export type {
+  UseHostedIdentityArgs,
+  UseHostedIdentityResult,
+} from './useHostedIdentity.js';
