@@ -22,3 +22,6 @@ export type {
 
 export { useAgGridTheme } from './useAgGridTheme.js';
 export type { AgGridThemeMode } from './useAgGridTheme.js';
+
+export { HostedMarketsGrid } from './HostedMarketsGrid.js';
+export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';

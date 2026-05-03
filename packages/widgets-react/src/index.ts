@@ -59,7 +59,9 @@ export type {
   RegisteredComponentMetadata,
   ConfigManager,
   StorageAdapterFactory,
+  HostedMarketsGridProps,
 } from './hosted/index.js';
+export { HostedMarketsGrid } from './hosted/index.js';
 
 // ─── OpenFin Hooks ───────────────────────────────
 export { useOpenfinTheme } from './hooks/openfin/useOpenfinTheme.js';
