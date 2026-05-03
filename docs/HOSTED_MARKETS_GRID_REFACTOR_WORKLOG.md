@@ -23,29 +23,29 @@
 
 ### Parity matrix (every row must survive — except row 21 which D2 already relocated)
 
-| # | Feature | New home |
-|---|---|---|
-| 1 | OpenFin identity via `fin.me.getOptions()` | `useHostedIdentity` |
-| 2 | Browser fallback (URL param + props) | `useHostedIdentity` |
-| 3 | `componentType` / `componentSubType` / `isTemplate` / `singleton` from registry | `useHostedIdentity` |
-| 4 | Storage factory auto-injects registered metadata | `useHostedIdentity` |
-| 5 | ConfigManager singleton resolution + memoization | `HostedMarketsGrid` |
-| 6 | `withStorage` opt-in to ConfigService adapter | `HostedMarketsGrid` prop |
-| 7 | Document title set on mount, restored on unmount | `HostedMarketsGrid` effect |
-| 8 | Full-bleed fixed layout (padding reset, flex column) | `HostedMarketsGrid` JSX |
-| 9 | DataPlane provider mount | `HostedMarketsGrid` wraps `<DataPlaneProvider>` |
-|10 | ConfigManager loading-state guard | `HostedMarketsGrid` |
-|11 | AG-Grid blotter theme (teal selection, mono, etc.) | `useAgGridTheme` → `agGridBlotter*` |
-|12 | Theme switching driven by `useTheme()` | `useAgGridTheme` |
-|13 | `showFiltersToolbar` / `showFormattingToolbar` flags | `HostedMarketsGrid` props |
-|14 | `openProviderEditorPopout` callback | `HostedMarketsGrid.onEditProvider` |
-|15 | Legacy `marketsgrid-view-state::*` cleanup | One-shot effect inside wrapper |
-|16 | Provider picker (Alt+Shift+P, ProviderToolbar) | Inherited via `MarketsGridContainer` |
-|17 | Snapshot + live-update subscription lifecycle | Inherited |
-|18 | Grid-level provider persistence | Inherited |
-|19 | Profile manager / settings sheet / dirty dot | Inherited |
-|20 | Admin actions, headerExtras, gridLevelData passthrough | `HostedMarketsGrid` flat props |
-|21 | Debug header chips | **Already relocated** in commit `1fc5a01` (toolbar ⓘ popover) |
+| # | Feature | New home | Test |
+|---|---|---|---|
+| 1 | OpenFin identity via `fin.me.getOptions()` | `useHostedIdentity` | `useHostedIdentity.openfin.test.tsx` |
+| 2 | Browser fallback (URL param + props) | `useHostedIdentity` | `useHostedIdentity.browser.test.tsx` |
+| 3 | `componentType` / `componentSubType` / `isTemplate` / `singleton` from registry | `useHostedIdentity` | `useHostedIdentity.storage-wrap.test.tsx` |
+| 4 | Storage factory auto-injects registered metadata | `useHostedIdentity` | `useHostedIdentity.storage-wrap.test.tsx` |
+| 5 | ConfigManager singleton resolution + memoization | `HostedMarketsGrid` | `config-manager.test.tsx` |
+| 6 | `withStorage` opt-in to ConfigService adapter | `HostedMarketsGrid` prop | `with-storage.test.tsx` |
+| 7 | Document title set on mount, restored on unmount | `HostedMarketsGrid` effect | `document-title.test.tsx` (+ smoke) |
+| 8 | Full-bleed fixed layout (padding reset, flex column) | `HostedMarketsGrid` JSX | `full-bleed.test.tsx` |
+| 9 | DataPlane provider mount | `HostedMarketsGrid` wraps `<DataPlaneProvider>` | `data-plane-mount.test.tsx` |
+|10 | ConfigManager loading-state guard | `HostedMarketsGrid` | `config-manager.test.tsx` |
+|11 | AG-Grid blotter theme (teal selection, mono, etc.) | `useAgGridTheme` → `agGridBlotter*` | `useAgGridTheme.test.tsx` |
+|12 | Theme switching driven by `useTheme()` | `useAgGridTheme` | `useAgGridTheme.test.tsx` |
+|13 | `showFiltersToolbar` / `showFormattingToolbar` flags | `HostedMarketsGrid` props | `toolbar-flags.test.tsx` |
+|14 | `openProviderEditorPopout` callback | `HostedMarketsGrid.onEditProvider` | `on-edit-provider.test.tsx` |
+|15 | Legacy `marketsgrid-view-state::*` cleanup | One-shot effect inside wrapper | `legacy-cleanup.test.tsx` |
+|16 | Provider picker (Alt+Shift+P, ProviderToolbar) | Inherited via `MarketsGridContainer` | `provider-picker.test.tsx` (+ MGC's own) |
+|17 | Snapshot + live-update subscription lifecycle | Inherited | `inherited-features.test.tsx` (+ MGC's own) |
+|18 | Grid-level provider persistence | Inherited | `inherited-features.test.tsx` (+ MGC's own) |
+|19 | Profile manager / settings sheet / dirty dot | Inherited | `inherited-features.test.tsx` (+ MG's own) |
+|20 | Admin actions, headerExtras, gridLevelData passthrough | `HostedMarketsGrid` flat props | `inherited-features.test.tsx` |
+|21 | Debug header chips | **Already relocated** in commit `1fc5a01` (toolbar ⓘ popover) | `grid-info-popover.test.tsx` |
 
 ### Reference files (current implementations being collapsed)
 
