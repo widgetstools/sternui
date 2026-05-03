@@ -66,6 +66,76 @@ const EXCEL_COLOR_MAP: Record<string, string> = {
   YELLOW:  'var(--bn-yellow, #f0b90b)',
 };
 
+/**
+ * SSF rejects any character outside its known token set with `unrecognized
+ * character X in <fmt>` — including ordinary Unicode literals like `▲`,
+ * `▼`, `—`, `±`, `°`. Excel itself requires these to be wrapped in quotes
+ * (`"▲ "#,##0.00`), but format strings authored by humans / pasted from
+ * Excel docs / saved in old profiles often skip the quotes. Rather than
+ * forcing every author to quote-escape, we walk the format and quote any
+ * top-level (outside `"..."` and `[...]`) character SSF rejects.
+ *
+ * Implementation is a try-and-quote loop: SSF's error message tells us
+ * which character it choked on, we wrap that character in quotes
+ * everywhere it appears at the top level, and retry. Bounded iteration
+ * count guards against pathological inputs.
+ */
+function quoteCharOutsideStringsAndBrackets(format: string, ch: string): string {
+  let out = '';
+  let inString = false;
+  let bracketDepth = 0;
+  for (let i = 0; i < format.length; i++) {
+    const c = format[i];
+    if (c === '"' && format[i - 1] !== '\\') {
+      inString = !inString;
+      out += c;
+      continue;
+    }
+    if (!inString) {
+      if (c === '[') bracketDepth++;
+      else if (c === ']' && bracketDepth > 0) bracketDepth--;
+    }
+    if (!inString && bracketDepth === 0 && c === ch) {
+      out += `"${c}"`;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+function sanitizeFormatForSSF(format: string): string {
+  // SSF parses sections lazily — `SSF.format(fmt, 0)` only walks the
+  // section that applies to value 0, so unrecognized chars in other
+  // sections aren't surfaced. Probe each numeric region (positive,
+  // negative, zero) plus a text value so the try-and-quote loop sees
+  // every section's tokens.
+  const probes: unknown[] = [1, -1, 0, 'x'];
+  let current = format;
+  for (let i = 0; i < 64; i++) {
+    let bad: string | null = null;
+    for (const p of probes) {
+      try {
+        SSF.format(current, p as number);
+      } catch (err) {
+        const msg = (err as { message?: string } | null)?.message ?? '';
+        const m = /unrecognized character (.+?) in /.exec(msg);
+        if (m && m[1] && m[1].length === 1) {
+          bad = m[1];
+          break;
+        }
+        // Non-"unrecognized character" error — sanitizer can't help; bail.
+        return current;
+      }
+    }
+    if (bad === null) return current;
+    const next = quoteCharOutsideStringsAndBrackets(current, bad);
+    if (next === current) return current;
+    current = next;
+  }
+  return current;
+}
+
 function splitFormatSections(format: string): string[] {
   const sections: string[] = [];
   let current = '';
@@ -151,11 +221,18 @@ export function excelFormatter(format: string): Formatter {
   const hit = _cache.get(format);
   if (hit) return hit;
 
+  // Pre-sanitize so SSF doesn't choke on Unicode literals (`▲`, `▼`,
+  // `—`, etc.) authored unquoted. Excel itself requires quoting, but
+  // legacy profiles + docs commonly omit it. The sanitizer wraps any
+  // unrecognized top-level character in quotes; bracket / quote content
+  // is left alone.
+  const sanitized = sanitizeFormatForSSF(format);
+
   // Pre-validate by attempting a format once against a neutral value. SSF
   // throws on malformed inputs; we catch here so the per-cell path doesn't
   // repeatedly pay that cost.
   let valid = true;
-  try { SSF.format(format, 0); }
+  try { SSF.format(sanitized, 0); }
   catch {
     valid = false;
     // Warn once per bad format — repeated identical warnings get deduped by
@@ -163,14 +240,14 @@ export function excelFormatter(format: string): Formatter {
     console.warn('[excel-format] invalid Excel format string:', format);
   }
 
-  const { resolver, hasColors } = valid ? buildColorResolver(format) : { resolver: undefined, hasColors: false };
+  const { resolver, hasColors } = valid ? buildColorResolver(sanitized) : { resolver: undefined, hasColors: false };
 
   // Detect whether the format string uses date codes — `yyyy`, `mm`, `dd`,
   // `hh`, `h`, `ss`, `yy`, `mmm`, `mmmm`. When it does, the formatter
   // needs a real Date (or Excel serial) as input; string values like
   // `"2026-04-17T05:37:16.092Z"` otherwise get fed directly to SSF which
   // treats them as text and renders the raw ISO string.
-  const isDateFormat = /\b(yyyy|yy|mmmm|mmm|mm|m|dd|d|hh|h|ss|s|AM\/PM|am\/pm)\b/.test(format);
+  const isDateFormat = /\b(yyyy|yy|mmmm|mmm|mm|m|dd|d|hh|h|ss|s|AM\/PM|am\/pm)\b/.test(sanitized);
 
   /**
    * Coerce an incoming cell value into something SSF can format:
@@ -199,7 +276,7 @@ export function excelFormatter(format: string): Formatter {
         if (value == null || value === '') return '';
         const target = coerceValue(value);
         try {
-          return SSF.format(format, target as number);
+          return SSF.format(sanitized, target as number);
         } catch {
           return String(value);
         }
@@ -240,7 +317,7 @@ export function isValidExcelFormat(format: string): boolean {
   // Fast path: if already cached, reuse the validity flag.
   const hit = _cache.get(format);
   if (hit) return hit.isValid;
-  try { SSF.format(format, 0); return true; }
+  try { SSF.format(sanitizeFormatForSSF(format), 0); return true; }
   catch { return false; }
 }
 

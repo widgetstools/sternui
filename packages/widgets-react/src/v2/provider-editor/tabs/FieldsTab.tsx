@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, Input, ScrollArea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge, Label } from '@marketsui/ui';
-import { Database, Loader2, Search, RefreshCw } from 'lucide-react';
+import { Database, Loader2, Search, RefreshCw, X } from 'lucide-react';
 import type { FieldNode, ProviderConfig, ColumnDefinition } from '@marketsui/shared-types';
 import { collectNonObjectLeaves, filterFields } from '@marketsui/shared-types';
 
@@ -62,33 +62,56 @@ export function FieldsTab(props: FieldsTabProps) {
 
   const filtered = useMemo(() => filterFields(inferredFields, search), [inferredFields, search]);
 
+  // Visible-leaf paths for "Select All" — when a search filter is active
+  // it only operates on the filtered subset so the user can mass-select
+  // a tightly-scoped query without affecting hidden nodes.
+  const visibleLeaves = useMemo(() => {
+    const leaves: string[] = [];
+    for (const f of filtered) leaves.push(...collectNonObjectLeaves(f));
+    return leaves;
+  }, [filtered]);
+
   const commit = (next: Set<string>) => {
     setSelected(next);
     const cols = buildColumns(inferredFields, [...next]);
     onColumnsChange(cols);
   };
 
+  /**
+   * Per-node toggle. Clicking a checkbox toggles ONLY that node's path
+   * — no cascade to descendants, no propagation to siblings. A parent
+   * checkbox shows an indeterminate state computed from its descendants
+   * (purely visual), but the click only flips the parent's own
+   * membership in the selection set. This is the behaviour expected by
+   * users picking individual nested columns from a filtered view; the
+   * old cascade had the side-effect of pulling in unrelated leaves.
+   */
   const toggleField = (path: string) => {
-    const node = findNode(inferredFields, path);
     const next = new Set(selected);
-    if (node && node.children) {
-      const leaves = collectNonObjectLeaves(node);
-      const allOn = leaves.every((l) => next.has(l));
-      if (allOn) leaves.forEach((l) => next.delete(l));
-      else leaves.forEach((l) => next.add(l));
-    } else {
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-    }
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
     commit(next);
   };
 
   const selectAll = (checked: boolean) => {
-    commit(new Set(checked ? allLeaves : []));
+    // When unfiltered, mirrors the old behaviour (every leaf in the
+    // tree). When a filter is active, only the visible filtered leaves
+    // are toggled so off-screen selections survive.
+    if (!checked) {
+      // De-select every leaf currently visible.
+      const next = new Set(selected);
+      for (const p of visibleLeaves) next.delete(p);
+      commit(next);
+      return;
+    }
+    const next = new Set(selected);
+    for (const p of visibleLeaves) next.add(p);
+    commit(next);
   };
 
-  const allSelected = allLeaves.length > 0 && allLeaves.every((l) => selected.has(l));
-  const someSelected = !allSelected && allLeaves.some((l) => selected.has(l));
+  const allSelected = visibleLeaves.length > 0 && visibleLeaves.every((l) => selected.has(l));
+  const someSelected = !allSelected && visibleLeaves.some((l) => selected.has(l));
+  void allLeaves; // retained for future use; selection state is now scoped to visibleLeaves
 
   if (inferredFields.length === 0) {
     return <EmptyInference cfg={cfg} sampleSize={sampleSize} onSampleSizeChange={onSampleSizeChange} onInfer={onInfer} inferring={inferring} error={inferenceError} />;
@@ -119,13 +142,24 @@ export function FieldsTab(props: FieldsTabProps) {
 
       <div className="px-4 py-3 border-b border-border space-y-3 flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Search fields…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-8 text-sm"
+            className="pl-9 pr-8 h-8 text-sm"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              title="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
@@ -204,14 +238,25 @@ function FieldList({ nodes, selected, onToggle, depth = 0 }: { nodes: FieldNode[
   return (
     <ul className="space-y-0.5">
       {nodes.map((node) => {
-        const leaves = node.children ? collectNonObjectLeaves(node) : [node.path];
-        const checkedAll = leaves.every((l) => selected.has(l));
-        const checkedSome = !checkedAll && leaves.some((l) => selected.has(l));
+        // Per-node selection: the checkbox state reflects ONLY whether
+        // this node's path is in the selection set. For parents we
+        // ALSO surface an indeterminate state when any descendant
+        // (excluding self) is selected — visual cue only; clicking
+        // the checkbox still toggles just this node.
+        const ownChecked = selected.has(node.path);
+        const descendantPaths = node.children ? collectNonObjectLeaves(node) : [];
+        const someDescendantsSelected = descendantPaths.some((p) => selected.has(p));
+        const checkedState: boolean | 'indeterminate' =
+          ownChecked
+            ? true
+            : someDescendantsSelected
+              ? 'indeterminate'
+              : false;
         return (
           <li key={node.path}>
             <div className="flex items-center gap-2 py-1 hover:bg-accent/40 rounded px-1.5" style={{ paddingLeft: `${depth * 16 + 6}px` }}>
               <Checkbox
-                checked={checkedSome ? 'indeterminate' : checkedAll}
+                checked={checkedState}
                 onCheckedChange={() => onToggle(node.path)}
               />
               <span className="text-[13px] font-mono">{node.name}</span>

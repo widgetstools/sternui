@@ -1,9 +1,11 @@
 {
   "licenseKey": "openfin-demo-license-key",
   "runtime": {
-    "arguments": "--enable-mesh --security-realm=angular-workspace-starter",
+    "arguments": "--enable-mesh --security-realm=angular-workspace-starter --remote-debugging-port=9090",
     "version": "43.142.101.2"
   },
+  "$comment-devtools": "devtools_port + --remote-debugging-port together expose the OpenFin runtime to Chrome DevTools. Open chrome://inspect#devices in a separate Chrome window and click 'Configure...' → add 'localhost:9090', then SharedWorkers (data-plane v2) appear under 'Other'. See docs/DEBUGGING_SHARED_WORKER.md.",
+  "devtools_port": 9090,
   "platform": {
     "uuid": "angular-workspace-starter",
     "icon": "http://localhost:4200/dock-provider.png",

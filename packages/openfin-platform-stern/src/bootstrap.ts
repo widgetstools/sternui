@@ -15,7 +15,11 @@
  */
 
 import { init } from '@openfin/workspace-platform';
-import type { WorkspacePlatformOverrideCallback } from '@openfin/workspace-platform';
+import type {
+  OpenViewTabContextMenuPayload,
+  WorkspacePlatformOverrideCallback,
+} from '@openfin/workspace-platform';
+import { injectRenameMenuItem } from './internal/viewTabRename.js';
 import {
   createConfigClient,
   type ConfigClient,
@@ -452,6 +456,16 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
           } catch { /* fall through */ }
           return super.getSavedWorkspace(id);
         }
+
+        // Inject "Save Tab As…" at the top of the view-tab right-click menu.
+        // Routes to the rename-view-tab custom action registered in
+        // dockGetCustomActions().
+        async openViewTabContextMenu(
+          req: OpenViewTabContextMenuPayload,
+          callerIdentity: any,
+        ) {
+          return super.openViewTabContextMenu(injectRenameMenuItem(req), callerIdentity);
+        }
       }
       return new SternPlatformProvider();
     };
@@ -461,7 +475,7 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
         browser: {
           defaultWindowOptions: {
             icon: opts.dock.icon,
-            workspacePlatform: { pages: [], favicon: opts.dock.icon },
+            workspacePlatform: { pages: [], favicon: opts.dock.icon, title: { type: 'page-title' } },
           },
         },
         theme: [{ label: 'Stern Theme', default: 'dark', palettes: THEME_PALETTES as any }],

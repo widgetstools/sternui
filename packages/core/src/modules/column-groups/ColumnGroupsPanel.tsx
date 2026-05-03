@@ -41,6 +41,8 @@ import { useGridColumns, type GridColumnInfo } from '../../hooks/useGridColumns'
 import {
   Band,
   Caps,
+  CockpitList,
+  CockpitListItem,
   LedBar,
   MetaCell,
   Mono,
@@ -214,38 +216,36 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
           <Plus size={11} strokeWidth={2.5} />
         </button>
       </div>
-      <ul className="gc-popout-list-items">
+      <CockpitList>
         {flat.map((fg) => {
           const active = fg.node.groupId === selectedId;
           return (
-            <li key={fg.node.groupId}>
-              <button
-                type="button"
-                className="gc-popout-list-item"
-                aria-selected={active}
-                onClick={() => onSelect(fg.node.groupId)}
-                data-testid={`cg-group-${fg.node.groupId}`}
-                style={{ paddingLeft: 10 + fg.depth * 18 }}
+            <CockpitListItem
+              key={fg.node.groupId}
+              value={fg.node.groupId}
+              active={active}
+              onSelect={() => onSelect(fg.node.groupId)}
+              data-testid={`cg-group-${fg.node.groupId}`}
+              style={{ paddingLeft: 10 + fg.depth * 18 }}
+            >
+              <span style={{ width: 2, display: 'inline-flex' }}>
+                <DirtyListLed groupId={fg.node.groupId} />
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
               >
-                <span style={{ width: 2, display: 'inline-flex' }}>
-                  <DirtyListLed groupId={fg.node.groupId} />
-                </span>
-                <span
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {fg.node.headerName}
-                </span>
-              </button>
-            </li>
+                {fg.node.headerName}
+              </span>
+            </CockpitListItem>
           );
         })}
-      </ul>
+      </CockpitList>
     </>
   );
 }

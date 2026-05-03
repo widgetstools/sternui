@@ -370,6 +370,68 @@ describe('FormattingToolbar — templates', () => {
   });
 });
 
+describe('FormattingToolbar — clear flows', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  it('Clear all → confirm wipes every column assignment', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    // Apply something so there's state to clear.
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+
+    // Open clear-all dialog from the toolbar.
+    act(() => {
+      fireEvent.click(screen.getByTestId('formatting-clear-all'));
+    });
+    // Confirm.
+    await waitFor(() => screen.getByTestId('formatting-clear-all-confirm-btn'));
+    act(() => {
+      fireEvent.click(screen.getByTestId('formatting-clear-all-confirm-btn'));
+    });
+
+    expect(getCustState(platform).assignments).toEqual({});
+  });
+
+  it('Clear selected → confirm wipes only the targeted column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    // Style price.
+    act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
+    // Style quantity directly via the store so we have a second column to compare.
+    platform.store.setModuleState<ColumnCustomizationState>('column-customization', (prev) => ({
+      ...(prev ?? { assignments: {} }),
+      assignments: {
+        ...(prev?.assignments ?? {}),
+        quantity: { colId: 'quantity', cellStyleOverrides: { typography: { bold: true } } },
+      },
+    }));
+
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.typography?.bold).toBe(true);
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('formatting-clear-selected'));
+    });
+    await waitFor(() => screen.getByTestId('formatting-clear-selected-confirm-btn'));
+    act(() => {
+      fireEvent.click(screen.getByTestId('formatting-clear-selected-confirm-btn'));
+    });
+
+    expect(getAssignment(platform, 'price')).toEqual({ colId: 'price' });
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.typography?.bold).toBe(true);
+  });
+});
+
 describe('FormattingToolbar — disabled state', () => {
   let platform: GridPlatform;
   beforeEach(() => { platform = makePlatform(); });

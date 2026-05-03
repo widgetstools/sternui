@@ -32,6 +32,8 @@ import { useGridColumns } from '../../hooks/useGridColumns';
 import {
   Band,
   Caps,
+  CockpitList,
+  CockpitListItem,
   IconInput,
   LedBar,
   MetaCell,
@@ -120,37 +122,35 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
           <Plus size={11} strokeWidth={2.5} />
         </button>
       </div>
-      <ul className="gc-popout-list-items">
+      <CockpitList>
         {state.virtualColumns.map((v) => {
           const active = v.colId === selectedId;
           return (
-            <li key={v.colId}>
-              <button
-                type="button"
-                className="gc-popout-list-item"
-                aria-selected={active}
-                onClick={() => onSelect(v.colId)}
-                data-testid={`cc-virtual-${v.colId}`}
+            <CockpitListItem
+              key={v.colId}
+              value={v.colId}
+              active={active}
+              onSelect={() => onSelect(v.colId)}
+              data-testid={`cc-virtual-${v.colId}`}
+            >
+              <span style={{ width: 2, display: 'inline-flex' }}>
+                <DirtyListLed colId={v.colId} />
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
               >
-                <span style={{ width: 2, display: 'inline-flex' }}>
-                  <DirtyListLed colId={v.colId} />
-                </span>
-                <span
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {v.headerName || '(unnamed)'}
-                </span>
-              </button>
-            </li>
+                {v.headerName || '(unnamed)'}
+              </span>
+            </CockpitListItem>
           );
         })}
-      </ul>
+      </CockpitList>
     </>
   );
 }

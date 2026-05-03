@@ -20,6 +20,7 @@ import {
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_RELOAD_DOCK,
   ACTION_SHOW_DEVTOOLS,
+  ACTION_INSPECT_SHARED_WORKER,
   ACTION_TOGGLE_PROVIDER,
   ACTION_TOGGLE_THEME,
   IAB_THEME_CHANGED,
@@ -28,6 +29,7 @@ import {
 } from '../dock';
 import { launchApp, launchRegisteredComponent } from '../launch';
 import { getPlatformDefaultScope } from '../db';
+import { createRenameViewTabAction } from './viewTabRename';
 
 export interface CustomActionDeps {
   /** Coalescing wrapper around the dark/light theme flip. */
@@ -60,6 +62,12 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
   const { runThemeToggle, openChildWindow, getConfigManager, exportAllConfig } = deps;
 
   return {
+    // ── Rename the active view tab ("Save Tab As…") ──
+    // Wired into the view-tab right-click menu via the platform override's
+    // `openViewTabContextMenu`. Defined first so the spread below preserves
+    // its key alongside every other action.
+    ...createRenameViewTabAction(openChildWindow),
+
     // ── Launch an app from a dock button or dropdown menu item ──
     // Note: computed property syntax [CONSTANT] is used throughout so
     // the action IDs are defined once in dock.ts and shared here.
@@ -335,6 +343,52 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         await providerWindow.showDeveloperTools();
       } catch (error) {
         console.error('Failed to open developer tools.', error);
+      }
+    },
+
+    // ── Open Chromium DevTools scoped to the data-plane SharedWorker ──
+    //
+    // OpenFin's `View.inspectSharedWorker()` is the only reliable way
+    // to inspect a SharedWorker in the embedded runtime — chrome://
+    // inspect's "Other → inspect" flow tries to fetch a DevTools
+    // front-end revision from Google's CDN that often isn't cached
+    // for OpenFin's Chromium builds (404). This action enumerates
+    // every running view, tries each one until one of them has a
+    // worker connected (the call throws otherwise), and pops the
+    // bundled DevTools window. See docs/DEBUGGING_SHARED_WORKER.md.
+    [ACTION_INSPECT_SHARED_WORKER]: async (e): Promise<void> => {
+      if (e.callerType !== CustomActionCallerType.CustomDropdownItem) {
+        return;
+      }
+      try {
+        // Walk every view in the current app. `Application.getViews()`
+        // is stable across the OpenFin versions we support (43+);
+        // `fin.System.getAllViews()` only landed in newer runtimes.
+        const app = fin.Application.getCurrentSync();
+        const views: any[] = await app.getViews();
+        if (!views.length) {
+          console.warn(
+            '[inspect-shared-worker] No views are open — open a window that uses ' +
+            'the data plane (e.g. a MarketsGrid blotter) and try again.',
+          );
+          return;
+        }
+        let lastErr: unknown = null;
+        for (const view of views) {
+          try {
+            await view.inspectSharedWorker();
+            return; // first success wins
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+        console.error(
+          '[inspect-shared-worker] No view has a SharedWorker connected. ' +
+          'Open a blotter or another data-plane consumer first.',
+          lastErr,
+        );
+      } catch (error) {
+        console.error('Failed to inspect shared worker.', error);
       }
     },
 

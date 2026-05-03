@@ -18,10 +18,13 @@ import {
   applyAlignmentReducer,
   applyBordersReducer,
   applyColorsReducer,
+  applyEditableReducer,
   applyFormatterReducer,
+  applyHeaderNameReducer,
   applyTemplateToColumnsReducer,
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
+  clearAllStylesReducer,
   removeTemplateRefFromAssignmentsReducer,
   removeTemplateReducer,
   resolveTemplates,
@@ -82,9 +85,18 @@ export interface FormatterState {
   /** Clear-all flash + dialog open flag. */
   clearConfirmed: boolean;
   clearDialogOpen: boolean;
+  /** Clear-selected (current column scope) flash + dialog open flag. */
+  clearSelectedConfirmed: boolean;
+  clearSelectedDialogOpen: boolean;
   /** Undo / redo affordances bound to column-customization. */
   canUndo: boolean;
   canRedo: boolean;
+  /** True only when exactly one column is selected — gates the
+   *  inline column-caption rename UI. */
+  singleColumnSelected: boolean;
+  /** True when the resolved assignment forces cells to be editable.
+   *  Drives the editable-toggle pill's active state. */
+  cellsEditable: boolean;
 }
 
 export interface FormatterActions {
@@ -113,8 +125,20 @@ export interface FormatterActions {
   setClearDialogOpen: (open: boolean) => void;
   /** Actually clear — wired to the AlertDialog's Confirm action. */
   confirmClearAll: () => void;
+  /** Open the destructive confirm dialog for the currently-targeted
+   *  columns only. No-op when nothing is selected. */
+  requestClearSelected: () => void;
+  setClearSelectedDialogOpen: (open: boolean) => void;
+  /** Reset every targeted column's assignment to a bare `{ colId }`. */
+  confirmClearSelected: () => void;
   undo: () => void;
   redo: () => void;
+  /** Rename the single targeted column's display caption. Empty / blank
+   *  clears the override so the host's original headerName takes over. */
+  setHeaderName: (name: string) => void;
+  /** Toggle the `editable` override on every targeted column. Active
+   *  state writes `true`, inactive writes `false` (explicit lock). */
+  toggleEditable: () => void;
 }
 
 export interface UseFormatterResult {
@@ -144,6 +168,8 @@ export function useFormatter(): UseFormatterResult {
 
   const [clearConfirmed, flashClear] = useFlashConfirm();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [clearSelectedConfirmed, flashClearSelected] = useFlashConfirm();
+  const [clearSelectedDialogOpen, setClearSelectedDialogOpen] = useState(false);
   const [saveAsTplConfirmed, flashSaveAsTpl] = useFlashConfirm();
   const [saveAsTplName, setSaveAsTplName] = useState('');
 
@@ -275,6 +301,28 @@ export function useFormatter(): UseFormatterResult {
 
   const requestClearAll = useCallback(() => setClearDialogOpen(true), []);
 
+  const requestClearSelected = useCallback(() => {
+    if (!colIdsRef.current.length) return;
+    setClearSelectedDialogOpen(true);
+  }, []);
+
+  const confirmClearSelected = useCallback(() => {
+    if (!colIdsRef.current.length) return;
+    setCustStateWithHistory(clearAllStylesReducer(colIdsRef.current));
+    flashClearSelected();
+  }, [setCustStateWithHistory, flashClearSelected]);
+
+  const setHeaderName = useCallback((name: string) => {
+    if (colIdsRef.current.length !== 1) return;
+    setCustStateWithHistory(applyHeaderNameReducer(colIdsRef.current, name));
+  }, [setCustStateWithHistory]);
+
+  const toggleEditable = useCallback(() => {
+    if (!colIdsRef.current.length) return;
+    const current = !!fmt.editable;
+    setCustStateWithHistory(applyEditableReducer(colIdsRef.current, !current));
+  }, [setCustStateWithHistory, fmt.editable]);
+
   // Decimals — read the live state so consecutive clicks compound on
   // the latest committed formatter.
   const getCurrentDecimals = useCallback((): number => {
@@ -389,8 +437,12 @@ export function useFormatter(): UseFormatterResult {
       saveAsTplConfirmed,
       clearConfirmed,
       clearDialogOpen,
+      clearSelectedConfirmed,
+      clearSelectedDialogOpen,
       canUndo: undoRedo.canUndo,
       canRedo: undoRedo.canRedo,
+      singleColumnSelected: colIds.length === 1,
+      cellsEditable: !!fmt.editable,
     },
     actions: {
       setTarget,
@@ -413,8 +465,13 @@ export function useFormatter(): UseFormatterResult {
       requestClearAll,
       setClearDialogOpen,
       confirmClearAll,
+      requestClearSelected,
+      setClearSelectedDialogOpen,
+      confirmClearSelected,
       undo: undoRedo.undo,
       redo: undoRedo.redo,
+      setHeaderName,
+      toggleEditable,
     },
   };
 }

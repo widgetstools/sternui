@@ -159,6 +159,10 @@ export interface ResolvedFormatting {
     bottom?: BorderSpec;
     left?: BorderSpec;
   };
+  /** Resolved header caption override (assignment + template chain). */
+  headerName?: string;
+  /** Resolved `editable` override. `undefined` means inherit colDef. */
+  editable?: boolean;
 }
 
 export function useColumnFormatting(colIds: string[], target: TargetKind): ResolvedFormatting {
@@ -201,6 +205,8 @@ export function useColumnFormatting(colIds: string[], target: TargetKind): Resol
         bottom: style?.borders?.bottom,
         left: style?.borders?.left,
       },
+      headerName: resolved.headerName,
+      editable: resolved.editable,
     };
   }, [cust, tpls, colIds, target, platform]);
 }

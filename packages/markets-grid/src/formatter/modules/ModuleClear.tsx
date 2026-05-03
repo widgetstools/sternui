@@ -9,7 +9,7 @@
  * as a full destructive button in vertical mode (matches the panel's
  * footer affordance).
  */
-import { Check, Trash2 } from 'lucide-react';
+import { Check, Eraser, Trash2 } from 'lucide-react';
 import { Tooltip } from '@marketsui/core';
 import type { Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
@@ -23,7 +23,31 @@ export function ModuleClear({
   actions: FormatterActions;
   orientation: Orientation;
 }) {
-  const Btn = (
+  const selectedTitle = state.disabled
+    ? 'Select a cell or column to clear its styles'
+    : state.colIds.length === 1
+      ? `Clear styling, value formatter, borders, filter, and template references for "${state.colLabel}"`
+      : `Clear styling, value formatter, borders, filter, and template references for ${state.colIds.length} selected columns`;
+
+  const SelBtn = (
+    <button
+      type="button"
+      onClick={actions.requestClearSelected}
+      disabled={state.disabled}
+      data-testid={orientation === 'horizontal' ? 'formatting-clear-selected' : 'fmt-panel-clear-selected'}
+      className="fx-destruct"
+      data-confirmed={state.clearSelectedConfirmed ? 'true' : undefined}
+      title={selectedTitle}
+      aria-label="Clear styles for selected column(s)"
+    >
+      {state.clearSelectedConfirmed
+        ? <Check size={13} strokeWidth={2.5} />
+        : <Eraser size={13} strokeWidth={1.75} />}
+      <span className="fx-destruct__lbl">Clear selected</span>
+    </button>
+  );
+
+  const AllBtn = (
     <button
       type="button"
       onClick={actions.requestClearAll}
@@ -41,7 +65,17 @@ export function ModuleClear({
   );
 
   if (orientation === 'horizontal') {
-    return <Tooltip content="Clear all styles in this profile">{Btn}</Tooltip>;
+    return (
+      <>
+        <Tooltip content={selectedTitle}>{SelBtn}</Tooltip>
+        <Tooltip content="Clear all styles in this profile">{AllBtn}</Tooltip>
+      </>
+    );
   }
-  return Btn;
+  return (
+    <>
+      {SelBtn}
+      {AllBtn}
+    </>
+  );
 }

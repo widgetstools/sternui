@@ -43,7 +43,7 @@ export async function buildAppConfig(): Promise<ApplicationConfig> {
     : new BrowserRuntime({
         identity: {
           appId: 'markets-ui-angular-reference',
-          userId: 'dev-user',
+          userId: 'dev1',
           componentType: 'MarketsUIAngularReference',
         },
       });

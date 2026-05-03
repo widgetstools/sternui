@@ -28,6 +28,7 @@ import {
   hasHeaderStyle,
 } from './composeGroups';
 import type { CssHandle } from '../../platform/types';
+import { cssEscapeColId } from '../column-customization/transforms';
 import {
   ColumnGroupsEditor,
   ColumnGroupsList,
@@ -45,17 +46,22 @@ function reinjectHeaderCSS(css: CssHandle, groups: ColumnGroupNode[]): void {
   const visit = (node: ColumnGroupNode) => {
     if (hasHeaderStyle(node.headerStyle)) {
       const body = groupHeaderStyleToCSS(node.headerStyle);
+      // Selector and the headerClass on the DOM (set in composeGroups)
+      // both go through cssEscapeColId — they always match regardless
+      // of the groupId's shape.
+      const safeId = cssEscapeColId(node.groupId);
+      const cls = `gc-hdr-grp-${safeId}`;
       if (body) {
         // Target both the header cell AND the inner label container so
         // background + color reach the right element (AG-Grid renders the
         // label inside an inner span; `color` applies there).
-        const rule = `.gc-hdr-grp-${node.groupId}, .gc-hdr-grp-${node.groupId} .ag-header-group-cell-label { ${body} }`;
+        const rule = `.${cls}, .${cls} .ag-header-group-cell-label { ${body} }`;
         css.addRule(`grp-${node.groupId}`, rule);
       }
       // Border overlay as its own rule so the pseudo-element's
       // `position: absolute` doesn't fight the body declarations.
       if (hasHeaderBorders(node.headerStyle)) {
-        const border = groupHeaderBorderOverlayCSS(`.gc-hdr-grp-${node.groupId}`, node.headerStyle);
+        const border = groupHeaderBorderOverlayCSS(`.${cls}`, node.headerStyle);
         if (border) css.addRule(`grp-border-${node.groupId}`, border);
       }
     }

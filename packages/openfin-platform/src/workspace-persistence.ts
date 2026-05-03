@@ -24,9 +24,13 @@ declare const fin: any;
  * referenced by some saved workspace.
  */
 
-import type { WorkspacePlatformOverrideCallback } from '@openfin/workspace-platform';
+import type {
+  OpenViewTabContextMenuPayload,
+  WorkspacePlatformOverrideCallback,
+} from '@openfin/workspace-platform';
 import type { ConfigManager, AppConfigRow } from '@marketsui/config-service';
 import { COMPONENT_TYPES } from '@marketsui/shared-types';
+import { injectRenameMenuItem } from './internal/viewTabRename';
 
 const WS_PREFIX = 'WS_';
 const SNAPSHOT_SUBTYPE = 'SNAPSHOT';
@@ -93,6 +97,74 @@ export function instanceIdsFromSnapshot(snapshot: any): string[] {
   for (const w of (snapshot.windows ?? [])) collectInstanceIds(w, ids);
   // De-dupe while preserving order
   return Array.from(new Set(ids));
+}
+
+/**
+ * Walk the snapshot tree and collect every node that looks like a view
+ * (has both a `name` and a `url`). The OpenFin snapshot shape is a
+ * windows → (layout|views|children) tree, so we recurse on any container
+ * key that might hold descendants.
+ */
+function collectViewNodes(node: any, acc: any[]): void {
+  if (!node || typeof node !== 'object') return;
+  // A node is a view if it has both a stable name and a url. View names
+  // are stable across platform restarts (they're persisted in the
+  // snapshot and reused on applySnapshot).
+  if (typeof node.name === 'string' && typeof node.url === 'string') {
+    acc.push(node);
+  }
+  for (const v of (node.views ?? [])) collectViewNodes(v, acc);
+  for (const w of (node.windows ?? [])) collectViewNodes(w, acc);
+  for (const c of (node.children ?? [])) collectViewNodes(c, acc);
+  // OpenFin's golden-layout snapshots also nest under `layout.content`
+  // (recursive content arrays).
+  if (node.layout && typeof node.layout === 'object') {
+    collectViewNodes(node.layout, acc);
+  }
+  for (const c of (node.content ?? [])) collectViewNodes(c, acc);
+}
+
+/**
+ * Re-read live `customData` from every view in the snapshot and merge
+ * it into the snapshot view definitions. Defensive: even if
+ * `Platform.getSnapshot()` somehow lags behind a recent
+ * `View.updateOptions({ customData })` (timing race, missed update,
+ * future OpenFin behaviour change), this guarantees the saved snapshot
+ * carries the latest per-view customData. Critical for features that
+ * persist per-view state on `customData` (`activeProfileId`,
+ * `savedTitle`, etc.).
+ *
+ * Mutates the snapshot in place. Best-effort per view — a view that
+ * can't be wrapped or whose options can't be read is left as-is.
+ */
+async function augmentSnapshotWithLiveCustomData(snapshot: any): Promise<void> {
+  if (!snapshot) return;
+  const views: any[] = [];
+  for (const w of (snapshot.windows ?? [])) collectViewNodes(w, views);
+  if (views.length === 0) return;
+
+  // Provider's own uuid is the platform uuid — view identities share it.
+  let platformUuid: string | undefined;
+  try {
+    platformUuid = fin?.me?.identity?.uuid;
+  } catch {
+    /* ignore */
+  }
+  if (!platformUuid) return;
+
+  await Promise.all(views.map(async (view) => {
+    try {
+      const handle = fin.View.wrapSync({ uuid: platformUuid, name: view.name });
+      const liveOpts = await handle.getOptions();
+      const liveCd = (liveOpts?.customData ?? {}) as Record<string, unknown>;
+      const snapCd = (view.customData ?? {}) as Record<string, unknown>;
+      // Merge live wins so newly-set keys (activeProfileId, savedTitle)
+      // overwrite anything the snapshot may have captured stale.
+      view.customData = { ...snapCd, ...liveCd };
+    } catch {
+      /* best-effort — leave view unchanged */
+    }
+  }));
 }
 
 function buildWorkspaceRow(opts: {
@@ -165,6 +237,12 @@ export function createWorkspacePersistenceOverride(
           ? null
           : await fin.Platform.getCurrentSync().getSnapshot();
         const snapshot = ws.snapshot ?? liveSnapshot;
+        // Re-read live customData for every view in the snapshot. Defends
+        // against any case where `Platform.getSnapshot()` lags behind
+        // recent `View.updateOptions({customData})` writes — critical for
+        // per-view state (activeProfileId, savedTitle) to round-trip
+        // through workspace save/restore.
+        await augmentSnapshotWithLiveCustomData(snapshot);
         const instanceIds = instanceIdsFromSnapshot(snapshot);
 
         const configId = workspaceConfigId(ws.workspaceId);
@@ -198,6 +276,8 @@ export function createWorkspacePersistenceOverride(
           ? null
           : await fin.Platform.getCurrentSync().getSnapshot();
         const snapshot = ws.snapshot ?? liveSnapshot;
+        // See createSavedWorkspace — defensive re-read of live customData.
+        await augmentSnapshotWithLiveCustomData(snapshot);
         const instanceIds = instanceIdsFromSnapshot(snapshot);
 
         const payload: WorkspacePayload = {
@@ -247,6 +327,16 @@ export function createWorkspacePersistenceOverride(
       async deleteSavedWorkspace(id: string): Promise<void> {
         await cm.deleteConfig(workspaceConfigId(id));
         await fireChange();
+      }
+
+      // Inject "Save Tab As…" at the top of the view-tab right-click menu.
+      // The custom action id is dispatched to the rename handler registered
+      // in `customActions` (see internal/viewTabRename.ts).
+      async openViewTabContextMenu(
+        req: OpenViewTabContextMenuPayload,
+        callerIdentity: any,
+      ): Promise<void> {
+        return super.openViewTabContextMenu(injectRenameMenuItem(req), callerIdentity);
       }
     }
 

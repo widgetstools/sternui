@@ -10,8 +10,10 @@ import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
 import { MarketDepth } from './MarketDepth';
 import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
+import { Fixture } from './Fixture';
+import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
 
-type View = 'single' | 'dashboard' | 'depth';
+type View = 'single' | 'dashboard' | 'depth' | 'fixture';
 
 /**
  * Initial view comes from `?view=...` (falls back to single).
@@ -25,7 +27,15 @@ function initialView(): View {
   const v = q.get('view');
   if (v === 'dashboard') return 'dashboard';
   if (v === 'depth') return 'depth';
+  if (v === 'fixture') return 'fixture';
   return 'single';
+}
+
+/** Fixture name from `?f=<name>`. Only valid when view === 'fixture'. */
+function initialFixtureName(): FixtureName | null {
+  if (typeof window === 'undefined') return null;
+  const f = new URLSearchParams(window.location.search).get('f');
+  return isFixtureName(f) ? f : null;
 }
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
@@ -169,6 +179,7 @@ function AppInner() {
     catch { return true; }
   });
   const [view, setView] = useState<View>(initialView);
+  const [fixtureName] = useState<FixtureName | null>(initialFixtureName);
   // Grid API captured via onGridReady — used to stream tick updates
   // through applyTransactionAsync without replacing rowData.
   const gridApiRef = useRef<GridApi<Order> | null>(null);
@@ -199,6 +210,7 @@ function AppInner() {
     const q = new URLSearchParams(window.location.search);
     if (view === 'dashboard') q.set('view', 'dashboard');
     else if (view === 'depth') q.set('view', 'depth');
+    else if (view === 'fixture') q.set('view', 'fixture');
     else q.delete('view');
     const next = `${window.location.pathname}${q.toString() ? `?${q}` : ''}`;
     window.history.replaceState(null, '', next);
@@ -343,6 +355,23 @@ function AppInner() {
           textTransform: 'uppercase',
         }}>
           Loading showcase…
+        </div>
+      ) : view === 'fixture' && fixtureName ? (
+        <Fixture
+          fixture={FIXTURES[fixtureName]}
+          theme={theme}
+          storageAdapter={storageAdapter}
+        />
+      ) : view === 'fixture' ? (
+        <div
+          data-testid="fixture-missing"
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--muted-foreground)', fontSize: 11,
+          }}
+        >
+          Pass <code>?view=fixture&amp;f=&lt;name&gt;</code> with one of:&nbsp;
+          {Object.keys(FIXTURES).join(', ')}.
         </div>
       ) : view === 'single' ? (
         <div style={{ flex: 1 }}>

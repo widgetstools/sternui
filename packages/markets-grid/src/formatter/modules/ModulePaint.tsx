@@ -28,18 +28,20 @@ export function ModulePaint({
       <ColorPickerPopover
         disabled={disabled}
         value={fmt.color}
-        icon={<Type size={11} strokeWidth={2} />}
+        icon={<Type size={13} strokeWidth={2.25} />}
         onChange={(c) => actions.setTextColor(c)}
         compact
         title="Text color"
+        triggerClassName="fx-pill"
       />
       <ColorPickerPopover
         disabled={disabled}
         value={fmt.background}
-        icon={<PaintBucket size={11} strokeWidth={1.5} />}
+        icon={<PaintBucket size={13} strokeWidth={1.75} />}
         onChange={(c) => actions.setBgColor(c)}
         compact
         title="Fill color"
+        triggerClassName="fx-pill"
       />
 
       <Hair />

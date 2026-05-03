@@ -110,6 +110,11 @@ export interface ColorPickerPopoverProps {
    *  generic "Pick a color" — callers should pass a specific label
    *  (e.g. "Text color", "Fill color") for disambiguation. */
   title?: string;
+  /** Override the trigger's className. When provided, REPLACES the
+   *  default `gc-tbtn` chrome so callers can opt into their own
+   *  toolbar button styling (e.g. the formatter's `.fx-pill`). The
+   *  size + disabled-opacity utilities are preserved either way. */
+  triggerClassName?: string;
 }
 
 /**
@@ -121,7 +126,7 @@ export interface ColorPickerPopoverProps {
  * clicks, hue slider, hex typing) — it only closes when the user clicks
  * outside every open popover.
  */
-export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear = true, title = 'Pick a color' }: ColorPickerPopoverProps) {
+export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear = true, title = 'Pick a color', triggerClassName }: ColorPickerPopoverProps) {
   return (
     <FormatPopover
       trigger={
@@ -130,7 +135,7 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
           title={title}
           aria-label={title}
           className={cn(
-            'shrink-0 rounded-[4px] gc-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
+            triggerClassName ?? 'shrink-0 rounded-[4px] gc-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
             disabled && 'opacity-25 pointer-events-none',
           )}
         >

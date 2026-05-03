@@ -51,7 +51,7 @@ const isConfigBrowserPopup = params.get('configBrowser') === '1';
 const runtime = new BrowserRuntime({
   identity: {
     appId: 'demo-configservice-react',
-    userId: 'dev-user',
+    userId: 'dev1',
     instanceId: 'demo-blotter-v2',
     componentType: 'MarketsGrid',
   },

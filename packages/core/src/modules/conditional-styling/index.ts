@@ -22,6 +22,7 @@ import {
   buildRowClassPredicate,
   reinjectAllRules,
 } from './transforms';
+import { cssEscapeColId } from '../column-customization/transforms';
 import {
   ConditionalStylingEditor,
   ConditionalStylingList,
@@ -121,9 +122,10 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         });
       }
       for (const [ruleId, cols] of indicatorCols) {
+        const safeRuleId = cssEscapeColId(ruleId);
         for (const colId of cols) {
           document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
-            el.classList.add(`gc-rule-${ruleId}`);
+            el.classList.add(`gc-rule-${safeRuleId}`);
           });
         }
       }
@@ -170,7 +172,9 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       ...((opts.rowClassRules as Record<string, unknown>) ?? {}),
     } as NonNullable<typeof opts.rowClassRules>;
     for (const rule of rowRules) {
-      (rowClassRules as Record<string, unknown>)[`gc-rule-${rule.id}`] = buildRowClassPredicate(engine, rule);
+      // KEY must match the encoded selector emitted by buildCssText —
+      // see cssEscapeColId in column-customization for the rationale.
+      (rowClassRules as Record<string, unknown>)[`gc-rule-${cssEscapeColId(rule.id)}`] = buildRowClassPredicate(engine, rule);
     }
     return { ...opts, rowClassRules };
   },

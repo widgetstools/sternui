@@ -99,6 +99,7 @@ export interface ColumnAssignment {
   sortable?: boolean;
   filterable?: boolean;
   resizable?: boolean;
+  editable?: boolean;
 
   // Appearance + formatting (merged per-field by column-templates)
   cellStyleOverrides?: CellStyleOverrides;

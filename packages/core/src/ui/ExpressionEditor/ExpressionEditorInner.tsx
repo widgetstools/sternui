@@ -159,6 +159,14 @@ export default function ExpressionEditorInner(
       overflowWidgetsDomNode: getMonacoOverflowHost(),
       suggest: { showStatusBar: false, preview: false, insertMode: 'replace' },
       quickSuggestions: { other: true, comments: false, strings: false },
+      // Force the legacy hidden-textarea (`.inputarea`) input path. Monaco
+      // ≥ 0.50 enables the new EditContext-API input by default; in our
+      // settings sheet (Style Rules / Calculated Columns), that path
+      // never registers an EditContext, so NO `.inputarea` element is
+      // created and the editor has no way to receive keystrokes — typing,
+      // Backspace, Delete, and the suggest widget all silently no-op.
+      // The textarea path is rock-solid in every browser we ship to.
+      editContext: false,
     });
     editorRef.current = editor;
 

@@ -32,6 +32,34 @@ export function cellDataTypeToDomain(value: unknown): ColumnDataType | undefined
   return undefined;
 }
 
+/**
+ * Encode a colId so it's safe to use as a CSS class name AND inside a
+ * CSS selector without further escaping.
+ *
+ * The walker derives column identity from `colDef.colId ?? colDef.field`
+ * — for nested fields the field is `'a.b.c'` style and AG-Grid uses
+ * that as the colId. Without encoding, the cellClass `gc-col-c-a.b.c`
+ * becomes the selector `.gc-col-c-a.b.c` which CSS parses as three
+ * chained class matches (`.gc-col-c-a` AND `.b` AND `.c`) — so the
+ * rule never matches and the formatter has no visible effect.
+ *
+ * Rule: replace every char outside `[A-Za-z0-9_-]` with `_xx` where
+ * `xx` is the two-digit lowercase hex of the char code. Idempotent on
+ * already-safe ids; collision-free vs raw ids because raw ids never
+ * contain `_<hex>` for the chars we encode.
+ *
+ * Examples:
+ *   'price'              → 'price'              (no change)
+ *   'ratings.sp'         → 'ratings_2esp'
+ *   'position[0].qty'    → 'position_5b0_5d_2eqty'
+ *   'field with spaces'  → 'field_20with_20spaces'
+ */
+export function cssEscapeColId(colId: string): string {
+  return colId.replace(/[^A-Za-z0-9_-]/g, (c) =>
+    `_${c.charCodeAt(0).toString(16).padStart(2, '0')}`,
+  );
+}
+
 // ─── CSS generation ────────────────────────────────────────────────────────
 
 /** Structured CellStyleOverrides → CSS declaration text (no borders). */
@@ -130,6 +158,7 @@ export function reinjectCSS(
   // Iterate assignments keyed by colId — not `defs` — so virtual columns
   // still get their cellStyleOverrides injected.
   for (const colId of Object.keys(assignments)) {
+    if (!colId) continue; // empty key is meaningless; skip defensively
     const a = assignments[colId];
     if (!a) continue;
     const resolved = resolveTemplates(
@@ -137,17 +166,21 @@ export function reinjectCSS(
       templatesState,
       cellDataTypeToDomain(dataTypeByColId.get(colId)),
     );
-    const cellCls = `gc-col-c-${colId}`;
-    const hdrCls = `gc-hdr-c-${colId}`;
+    // Both the class on the DOM and the selector go through the same
+    // encoder — they always match regardless of the source colId's
+    // shape (dots, brackets, spaces, …).
+    const safeId = cssEscapeColId(colId);
+    const cellCls = `gc-col-c-${safeId}`;
+    const hdrCls = `gc-hdr-c-${safeId}`;
 
-    if (resolved.cellStyleOverrides) {
+    if (resolved?.cellStyleOverrides) {
       const css = styleOverridesToCSS(resolved.cellStyleOverrides);
       if (css) cells.addRule(`cell-${colId}`, `.${cellCls} { ${css} }`);
       const border = borderOverlayFromOverrides(`.${cellCls}`, resolved.cellStyleOverrides);
       if (border) cells.addRule(`cell-bo-${colId}`, border);
     }
 
-    if (resolved.headerStyleOverrides) {
+    if (resolved?.headerStyleOverrides) {
       const css = styleOverridesToCSS(resolved.headerStyleOverrides);
       if (css) headers.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
       const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
@@ -158,8 +191,8 @@ export function reinjectCSS(
     // this the header-align class has nothing to target when the user
     // only aligned the cell.
     const effectiveHeaderAlign =
-      resolved.headerStyleOverrides?.alignment?.horizontal ??
-      resolved.cellStyleOverrides?.alignment?.horizontal;
+      resolved?.headerStyleOverrides?.alignment?.horizontal ??
+      resolved?.cellStyleOverrides?.alignment?.horizontal;
     if (effectiveHeaderAlign) {
       headers.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, effectiveHeaderAlign));
     }
@@ -325,6 +358,7 @@ export function applyAssignments(
     if (resolved.sortable !== undefined) merged.sortable = resolved.sortable;
     if (resolved.filterable !== undefined) merged.filter = resolved.filterable;
     if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
+    if (resolved.editable !== undefined) merged.editable = resolved.editable;
 
     // Rich filter config — takes precedence over `filterable`.
     if (resolved.filter !== undefined) {
@@ -379,13 +413,19 @@ export function applyAssignments(
     if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
 
     // Styling via CSS class injection (NOT cellStyle/headerStyle — we save
-    // those for color-resolver above, which is a per-row compute).
-    if (resolved.cellStyleOverrides !== undefined) {
-      const cls = `gc-col-c-${colId}`;
+    // those for color-resolver above, which is a per-row compute). The
+    // class string written to the DOM is encoded with the SAME helper
+    // `reinjectCSS` uses to build its selectors, so dotted/bracketed
+    // colIds work correctly.
+    const safeId = cssEscapeColId(colId);
+    if (resolved?.cellStyleOverrides !== undefined) {
+      const cls = `gc-col-c-${safeId}`;
       const existing = colDef.cellClass;
       merged.cellClass = Array.isArray(existing)
         ? [...existing, cls]
-        : typeof existing === 'string' ? [existing, cls] : cls;
+        : typeof existing === 'string'
+          ? [existing, cls]
+          : cls;
     }
 
     // Header class: emit whenever we'll inject a header rule — either the
@@ -393,14 +433,16 @@ export function applyAssignments(
     // inherits by default). Without this the header-align rule has no
     // target on the DOM.
     const needsHeaderClass =
-      resolved.headerStyleOverrides !== undefined ||
-      resolved.cellStyleOverrides?.alignment?.horizontal !== undefined;
+      resolved?.headerStyleOverrides !== undefined ||
+      resolved?.cellStyleOverrides?.alignment?.horizontal !== undefined;
     if (needsHeaderClass) {
-      const cls = `gc-hdr-c-${colId}`;
+      const cls = `gc-hdr-c-${safeId}`;
       const existing = colDef.headerClass;
       merged.headerClass = Array.isArray(existing)
         ? [...existing, cls]
-        : typeof existing === 'string' ? [existing, cls] : cls;
+        : typeof existing === 'string'
+          ? [existing, cls]
+          : cls;
     }
 
     return merged;

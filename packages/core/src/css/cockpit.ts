@@ -592,11 +592,22 @@ export const cockpitCSS = `
   cursor: pointer;
   transition: background 100ms;
 }
-.gc-popout-list-item[aria-selected='true'] {
+/* Persistent "this card is open in the editor" — set by panel code via
+ * data-active="true". Distinct from cmdk's transient aria-selected
+ * (keyboard / hover highlight) so the green border-left only marks the
+ * actively-edited row. */
+.gc-popout-list-item[data-active='true'] {
   background: var(--ck-surface);
   border-left-color: var(--ck-green);
 }
-.gc-popout-list-item:hover:not([aria-selected='true']) {
+/* cmdk's keyboard / mouse highlight — same surface tint as :hover so
+ * keyboard navigation is discoverable on rows that aren't the active
+ * card. Excluded when the row is also the active card so the green
+ * border keeps its emphasis. */
+.gc-popout-list-item[aria-selected='true']:not([data-active='true']) {
+  background: var(--ck-surface);
+}
+.gc-popout-list-item:hover:not([data-active='true']) {
   background: var(--ck-surface);
 }
 .gc-popout-list-item[data-muted='true'] { color: var(--ck-t2); }

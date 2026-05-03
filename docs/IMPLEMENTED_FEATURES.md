@@ -289,6 +289,52 @@ from the draft and lights the SAVE pill.
     `useModuleDraft` file-level header drops its "vs the v3 shim"
     framing now that the shim is gone.
 
+- **Cockpit list rail unified on shadcn / cmdk Command** — the four
+  master-detail settings panels (Column Settings, Conditional
+  Styling, Column Groups, Calculated Columns) used to hand-roll the
+  same `<ul><li><button>` rail. Replaced with a shared
+  `<CockpitList>` / `<CockpitListItem>` primitive in
+  `packages/core/src/ui/SettingsPanel/CockpitList.tsx` that wraps
+  `cmdk` directly (the same primitive shadcn's Command is built on,
+  used un-styled so the `gc-popout-list-item` cockpit theme stays
+  the single source of truth). Wins:
+  - Free keyboard navigation (Up/Down/Enter), `role="listbox"` /
+    `role="option"` semantics, and ARIA wiring without per-panel
+    bookkeeping.
+  - One markup pattern for all four panels — future panels just use
+    the same primitive.
+  - Selection model split: cmdk's transient `aria-selected`
+    (keyboard / hover highlight) is now visually distinct from the
+    persistent `data-active="true"` attribute that marks the card
+    open in the editor. The cockpit CSS keys the green left-border
+    on `data-active` only; `aria-selected` falls back to a softer
+    surface tint so keyboard nav stays discoverable.
+  - jsdom test environment learned `ResizeObserver` and
+    `Element.prototype.scrollIntoView` shims so cmdk mounts cleanly
+    under Vitest. All 242 core unit tests still pass; every panel's
+    `data-testid` is preserved character-for-character (`cols-item-`,
+    `cs-rule-card-`, `cs-rules-list`, `cg-group-`, `cc-virtual-`).
+
+- **Column Settings list-rail perf pass** — `ColumnSettingsList` now
+  scales cleanly to grids with hundreds of columns. Three changes
+  layered on top of the shared `<CockpitList>` migration; zero
+  behavior change, all 7 panel tests still pass:
+  1. Override badge — `Object.keys(...).some(...)` recomputed per row
+     on every render, replaced with a single `useMemo`-built
+     `Set<colId>` keyed on `state.assignments`.
+  2. Dirty LED — N `useDirty(key)` subscriptions (one per column) →
+     a single `useDirtyColIds()` subscription against the platform
+     DirtyBus that yields a `Set<colId>` filtered by the
+     `column-customization:` prefix. Stable identity via shallow set
+     equality so unrelated bus traffic doesn't re-render the rail.
+  3. Inline windowing — when `columns.length > 60`, the rail walks
+     up to the first scrolling ancestor (`.gc-popout-list` or the
+     legacy `<aside>`) and slices to the visible range +
+     8-row overscan (fixed `ROW_HEIGHT = 36`). Padding spacers above
+     and below the visible window keep the scrollbar honest. Falls
+     through to full render when no scroll parent is found (jsdom
+     tests, edge containers).
+
 - **Column Settings v4 panel rewrite (phase 3e)** — the last of the five
   settings panels. Same three shared antipatterns removed:
   `dirtyRegistry + window.dispatchEvent('gc-dirty-change')` →
@@ -623,6 +669,15 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
   literals (`"£"` etc.) because SSF rejects bare non-dollar/euro
   currency glyphs. Fixed a round-trip bug where INR failed
   `isValidExcelFormat` on the second click.
+- **SSF format auto-sanitizer** — `excelFormatter` runs every format
+  through a try-and-quote loop before SSF.format: probes positive /
+  negative / zero / text values to walk every section, and on
+  `unrecognized character X` wraps each top-level occurrence of X in
+  quotes (leaving `[Color]` tags and existing quoted literals
+  untouched). Lets format strings authored with bare unicode glyphs
+  (`▲ ▼ — ± °`) render correctly without hand-quoting — Excel itself
+  is forgiving where SSF isn't, so unquoted glyphs survive copy-paste
+  from Excel UI / docs / legacy profiles.
 - **ISO date coercion** — Date objects + ISO-8601 strings (starts with
   `yyyy-mm-dd`) get parsed to Date before being handed to SSF so date
   formats like `dd-mm-yyyy` render, not raw ISO text.
@@ -639,6 +694,40 @@ v2 used; tests cover all seven field kinds (bool / num / optNum / text
   toolbar. Implementation: a fallback chain in `reinjectCSS`
   (`headerStyleOverrides → cellStyleOverrides`) + header-class
   attachment whenever either is set.
+
+- **Inline column-caption rename** — when exactly one column is
+  selected, the column-label chip in the formatter's context module
+  becomes click-to-edit (Pencil hint on hover). Enter / blur commits
+  the new caption through `applyHeaderNameReducer`, Escape cancels.
+  Empty input clears the override so the host's original `headerName`
+  takes back over. Multi-column selections fall back to the read-only
+  pill — renaming N columns to one name doesn't make sense.
+- **Cells-editable toggle** — small Pencil/Lock pill next to the
+  column-label chip. Active = cells in the selected column(s) are
+  editable, inactive = explicitly locked (writes `editable: false`,
+  overriding any host default). Wired through
+  `applyEditableReducer` → `colDef.editable` in
+  `column-customization/transforms.ts`. Tooltip is the entire UI —
+  no eyebrow label needed.
+- **Clear-selected button (formatter toolbar + popout)** — second
+  destructive action in the Clear module that resets only the
+  currently-targeted column(s) instead of the whole profile. Wired
+  to `clearAllStylesReducer(colIds)` so it drops cell + header
+  styling, value formatter, borders, filter, and template references
+  for the selected columns; saved templates and other columns are
+  untouched. Confirms via a scoped AlertDialog that names the
+  affected columns ("Clear styles for column \"price\"?" / "Clear
+  styles for 3 columns?"). Disabled when no cell/column is selected.
+  Renders icon-only (Eraser) in the horizontal in-grid toolbar and
+  full label in the popped vertical panel footer, alongside the
+  existing profile-wide "Clear all styles" button.
+- **Section-eyebrow strip removal in the in-grid toolbar** — the
+  `02 · TYPE`, `03 · PAINT`, `04 · FORMAT`, etc. eyebrow chips are
+  hidden in horizontal mode (`.fx-shell--horizontal .fx-eyebrow {
+  display: none }`). Tooltips on every action already self-document
+  the toolbar; the eyebrows competed with the data grid for row
+  real estate. The popped vertical panel keeps the eyebrows as
+  section headers — the surface area is there.
 
 ### 1.12b Floating / draggable Formatting Toolbar
 
@@ -1617,6 +1706,31 @@ Built via `ng-packagr` (FESM2022 + `.d.ts`). Wired into `apps/markets-ui-angular
 
 The new `RuntimePort.onWorkspaceSave(fn)` method completes the lifecycle surface for both flavors. `OpenFinRuntime` bridges `fin.Platform.getCurrentSync().on('workspace-saved', …)`; `BrowserRuntime` is a no-op (no workspace concept in the browser). React's `HostContext` exposes it as `onWorkspaceSave`; Angular's `HostService` exposes it as `workspaceSave$`. Hosted components use this as a flush-to-disk hook.
 
+### 1.O.VTR View-tab "Save Tab As…" rename + window-title binding
+
+Two small platform additions that make OpenFin browser windows and view tabs honour user-facing names instead of internal-generated identifiers.
+
+**Window title bound to active page.** `BrowserWorkspacePlatformWindowOptions.title` is set to `{ type: 'page-title' }` in both shell init paths so the OS taskbar entry tracks the current page name (no more `internal-generated-window-…`). Wired in [packages/openfin-platform/src/workspace.ts](../packages/openfin-platform/src/workspace.ts) and [packages/openfin-platform-stern/src/bootstrap.ts](../packages/openfin-platform-stern/src/bootstrap.ts).
+
+**View-tab rename via right-click → "Save Tab As…".** Adds a custom item to the top of the view-tab context menu in both shells, mirroring the platform's "Save Page As" UX. Selecting it opens a small frameless popout window (a route in the reference app) prompting for a new tab name. On confirm the action does two things in the target view: (1) runs `document.title = "..."` via `executeJavaScript` so the workspace tabstrip mirrors the rename immediately (default `titlePriority: 'document'`), and (2) writes the new title to `customData.savedTitle` via `view.updateOptions(...)` so the rename rides through the workspace snapshot. `View.updateOptions({ title })` is intentionally NOT used: `title` lives on the create-time `ViewOptions` shape, not on `MutableViewOptions`, and is silently dropped at runtime.
+
+**Persistence on workspace restore.** On the next workspace load, `OpenFinRuntime` reads `customData.savedTitle` from the resolved view options during construction and reapplies it to `document.title`. A `MutationObserver` on the `<title>` element pins the title back to `savedTitle` for a 3 s post-boot window, defeating the page's mount-time `document.title = ...` `useEffect` (used by `HostedComponent.tsx`, `DataProviders.tsx`, etc.) which would otherwise clobber the restored title. The observer disconnects after the window so live rename, notification badges, and other dynamic title updates work freely. The customData poll re-applies `savedTitle` on actual changes (guarded by `lastAppliedSavedTitle` so unrelated customData mutations like `activeProfileId` don't clobber dynamic titles).
+
+| File | Change |
+|---|---|
+| `packages/openfin-platform/src/internal/viewTabRename.ts` | New. Exports `ACTION_RENAME_VIEW_TAB`, `RENAME_VIEW_TAB_WINDOW_NAME`, `injectRenameMenuItem(payload)` (template helper that's a no-op when `selectedViews.length !== 1`), and `createRenameViewTabAction(openChildWindow)` (CustomActionsMap factory guarded on `CustomActionCallerType.ViewTabContextMenu`). |
+| `packages/openfin-platform/src/internal/customActions.ts` | Spreads `createRenameViewTabAction(openChildWindow)` into the returned `CustomActionsMap`. |
+| `packages/openfin-platform/src/workspace-persistence.ts` | `MarketsUIWorkspaceProvider.openViewTabContextMenu` injects the rename item before delegating to `super`. |
+| `packages/openfin-platform/src/index.ts` | Re-exports the four rename helpers from the main barrel. |
+| `packages/openfin-platform-stern/src/internal/viewTabRename.ts` | New. Self-contained Stern copy — Stern is a parallel shell that intentionally doesn't depend on `@marketsui/openfin-platform`. |
+| `packages/openfin-platform-stern/src/dock/openfinDock.ts` | `dockGetCustomActions()` spreads `createRenameViewTabAction(openSternChildWindow)`; new local helper `openSternChildWindow` wraps `fin.Window.create` with the platform's `buildUrl()`. |
+| `packages/openfin-platform-stern/src/bootstrap.ts` | `SternPlatformProvider.openViewTabContextMenu` injects the rename item. `defaultWindowOptions.workspacePlatform.title` set to `{ type: 'page-title' }`. |
+| `apps/markets-ui-react-reference/src/views/RenameViewTab.tsx` | Frameless popout that reads `view` + `currentTitle` from `fin.me.getOptions().customData`, renders a card matching the "Save Page As" layout (header icon + title row + single shadcn `Input` + Cancel/Save row), auto-focuses + selects on mount, Enter submits / Esc cancels. On confirm, runs `document.title = "..."` in the target view via `executeJavaScript` for the immediate tabstrip update, then calls `view.updateOptions({ customData: { ..., savedTitle } })` so the rename round-trips through the workspace snapshot. Theme-sensitive via the ambient `<ThemeProvider>`. |
+| `packages/runtime-openfin/src/OpenFinRuntime.ts` | `applySavedViewTitle()` — reads `customData.savedTitle` during construction and reapplies it to `document.title`. The hook closes the persistence loop: without it, the rename would be lost on every workspace reload because `document.title` is a runtime-only DOM mutation that the snapshot never captures. |
+| `apps/markets-ui-react-reference/src/main.tsx` | New `/rename-view-tab` route (lazy). |
+
+Verified green: `npx turbo typecheck --filter=@marketsui/openfin-platform --filter=@marketsui/openfin-platform-stern --filter=@marketsui/markets-ui-react-reference` (22 tasks); `npx turbo test --filter=@marketsui/openfin-platform` (49 tests).
+
 ### 1.P Universal `<HostedFeatureView>` wrapper for OpenFin route views
 
 Consolidates boilerplate across all feature route views (MarketsGrid, Charts, TradeTickets, Analytics Playground, etc.) into a single reusable component.
@@ -1706,6 +1820,7 @@ spec).
 | `toolbar-visibility` — Layout memory | §1.8e | — | — | ❌ |
 | `grid-state` — Native state capture | §1.10 | — | — | ◐ via `v2-autosave.spec.ts` |
 | Formatting Toolbar (host chrome) | §1.12 | ✅ formatter presets in-line | ✅ `FormattingToolbar.test.tsx` (15) | ✅ 10 tests in `v2-formatting-toolbar.spec.ts` |
+| Inline column-caption rename + cell-editable toggle | §1.12 | — | (covered indirectly via `applyHeaderNameReducer` / `applyEditableReducer` in `formattingActions`) | — |
 
 **Totals:** 10 surfaces · 5 with pure-logic coverage · 6 with panel unit coverage · **8 with meaningful behavioural e2e** (formatting toolbar, filters toolbar, column-customization, column-groups, conditional-styling, calculated-columns, column-templates, general-settings) + 2 non-UI surfaces (toolbar-visibility no-op, grid-state indirectly via autosave spec).
 
@@ -1723,6 +1838,36 @@ Ordered by risk × churn, highest first. Strike-throughs mark completed.
 6. ~~**`general-settings`** — toggle representative options.~~ ✅ Done (`v2-general-settings.spec.ts`, 9 tests: panel mount / SAVE gating / row-height reflects in `.ag-row` inline height / animate-rows toggle + OVERRIDES counter / row-selection Select round-trip / quick-filter narrows grid to zero rows on no-match / pagination toggle reveals `.ag-paging-panel` / discard reverts / persist across reload).
 
 Each item follows the `e2e/README.md` write-alongside policy: don't backfill in one pass; add tests as the surfaces get touched. The list above is the priority order when they do.
+
+### 1.13 Per-view active-profile override (OpenFin)
+
+Lets traders duplicate a MarketsGrid view in OpenFin and view a *different*
+profile of the same grid instance in each duplicate, surviving workspace
+save/restore.
+
+- **`ActiveIdSource`** — pluggable pointer source on `ProfileManager`
+  (`packages/core/src/profiles/ProfileManager.ts`). Read at `boot()`
+  before localStorage; written through on every active-id commit
+  (`boot`/`load`/`create`/`clone`/`import`/`remove-active`). Errors
+  swallowed — best-effort, never blocks the manager. Exported from
+  `@marketsui/core`.
+- **OpenFin source** — `createOpenFinViewProfileSource()` in
+  `packages/markets-grid/src/openfinViewProfile.ts`. Reads/writes
+  `activeProfileId` on `fin.me.getOptions().customData`. Returns `null`
+  when `fin` is unavailable, so non-OpenFin hosts (browser, Electron,
+  tests) keep their existing localStorage behaviour.
+- **Workspace round-trip** — `Platform.getSnapshot()` reads from the
+  same view options that `updateOptions({ customData })` mutates, so
+  the per-view active id is captured into the workspace JSON
+  automatically. `packages/openfin-platform/src/workspace-persistence.ts`
+  needed no changes.
+- **Read priority** — OpenFin override → localStorage → reserved
+  Default. Each layer falls through if its candidate row no longer
+  exists on disk.
+- **Duplicate semantics** — duplicates inherit the source view's
+  `customData` (OpenFin's behaviour), then diverge as each user makes
+  a switch. Exactly the desired UX.
+- Worklog entry: `docs/FEATURE_WORKLOG.md` — Feature 1.
 
 ### Known gaps documented but not blocking
 

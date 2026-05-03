@@ -19,6 +19,7 @@ import {
   ACTION_OPEN_DOCK_EDITOR,
   ACTION_RELOAD_DOCK,
   ACTION_SHOW_DEVTOOLS,
+  ACTION_INSPECT_SHARED_WORKER,
   ACTION_EXPORT_CONFIG,
   ACTION_IMPORT_CONFIG,
   ACTION_TOGGLE_PROVIDER,
@@ -387,6 +388,7 @@ async function initializePlatform(
         workspacePlatform: {
           pages: [],
           favicon: platformSettings.icon,
+          title: { type: 'page-title' },
         },
       },
     },
@@ -509,6 +511,42 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
       await providerWindow.showDeveloperTools();
     } catch (error) {
       console.error("Failed to open developer tools.", error);
+    }
+  },
+
+  // Mirrors the customActions handler — opens DevTools scoped to the
+  // data-plane SharedWorker by walking views until one accepts the
+  // call. See iab-topics.ts:ACTION_INSPECT_SHARED_WORKER for context.
+  [ACTION_INSPECT_SHARED_WORKER]: async () => {
+    try {
+      // Walk every view in the current app. `Application.getViews()`
+      // is stable across the OpenFin versions we support (43+);
+      // `fin.System.getAllViews()` only landed in newer runtimes.
+      const app = fin.Application.getCurrentSync();
+      const views: any[] = await app.getViews();
+      if (!views.length) {
+        console.warn(
+          "[inspect-shared-worker] No views are open — open a window that uses " +
+          "the data plane (e.g. a MarketsGrid blotter) and try again.",
+        );
+        return;
+      }
+      let lastErr: unknown = null;
+      for (const view of views) {
+        try {
+          await view.inspectSharedWorker();
+          return;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      console.error(
+        "[inspect-shared-worker] No view has a SharedWorker connected. " +
+        "Open a blotter or another data-plane consumer first.",
+        lastErr,
+      );
+    } catch (error) {
+      console.error("Failed to inspect shared worker.", error);
     }
   },
 

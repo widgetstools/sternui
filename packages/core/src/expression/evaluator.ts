@@ -1,3 +1,4 @@
+import { getValueByPath } from '@marketsui/shared-types';
 import type { ExpressionNode, EvaluationContext, FunctionDefinition } from './types';
 
 export class Evaluator {
@@ -15,8 +16,17 @@ export class Evaluator {
       case 'variable':
         return this.resolveVariable(node.name, ctx);
 
-      case 'columnRef':
-        return ctx.columns[node.columnId] ?? ctx.data[node.columnId] ?? null;
+      case 'columnRef': {
+        // Dot-walk so column refs targeting nested fields like
+        // `[ratings.sp]` resolve via row.ratings.sp instead of
+        // returning null for the missing flat key. Literal flat keys
+        // still win first inside getValueByPath, preserving feeds
+        // that legitimately encode dots in keys.
+        const fromColumns = getValueByPath(ctx.columns, node.columnId);
+        if (fromColumns !== undefined && fromColumns !== null) return fromColumns;
+        const fromData = getValueByPath(ctx.data, node.columnId);
+        return fromData ?? null;
+      }
 
       case 'member': {
         const obj = this.evaluate(node.object, ctx);
@@ -155,7 +165,10 @@ export class Evaluator {
       fn.aggregateColumnRefs && ctx.allRows
         ? argNodes.map((arg) => {
             if (arg.type === 'columnRef') {
-              return ctx.allRows!.map((row) => row[arg.columnId] ?? null);
+              // Dot-walk per row so `SUM([ratings.sp])` works on
+              // nested fields. Same helper the per-cell columnRef
+              // case uses — flat literal keys still win first.
+              return ctx.allRows!.map((row) => getValueByPath(row, arg.columnId) ?? null);
             }
             return this.evaluate(arg, ctx);
           })

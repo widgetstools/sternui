@@ -77,6 +77,7 @@ function applyOver(
     'sortable',
     'filterable',
     'resizable',
+    'editable',
     'cellEditorName',
     'cellEditorParams',
     'cellRendererName',

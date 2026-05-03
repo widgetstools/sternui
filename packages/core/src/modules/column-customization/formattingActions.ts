@@ -185,6 +185,59 @@ export function clearAllBordersReducer(
   );
 }
 
+/**
+ * Set (or clear with `headerName: undefined`) the column's display caption.
+ * Lives on the assignment root and writes through to AG-Grid's
+ * `colDef.headerName` via the column-customization transform.
+ */
+export function applyHeaderNameReducer(
+  colIds: readonly string[],
+  headerName: string | undefined,
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (colIds.length === 0) return base;
+
+    const trimmed = headerName?.trim();
+    const value = trimmed && trimmed.length > 0 ? trimmed : undefined;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a: ColumnAssignment = assignments[colId] ?? { colId };
+      const next: ColumnAssignment = { ...a };
+      if (value === undefined) delete next.headerName;
+      else next.headerName = value;
+      assignments[colId] = next;
+    }
+    return { ...base, assignments };
+  };
+}
+
+/**
+ * Set (or clear with `editable: undefined`) the column's `editable` flag.
+ * Maps directly to AG-Grid's `colDef.editable` so cells in the targeted
+ * columns become editable / locked.
+ */
+export function applyEditableReducer(
+  colIds: readonly string[],
+  editable: boolean | undefined,
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (colIds.length === 0) return base;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a: ColumnAssignment = assignments[colId] ?? { colId };
+      const next: ColumnAssignment = { ...a };
+      if (editable === undefined) delete next.editable;
+      else next.editable = editable;
+      assignments[colId] = next;
+    }
+    return { ...base, assignments };
+  };
+}
+
 // ─── Writers: formatter + templates + reset ───────────────────────────
 
 /**

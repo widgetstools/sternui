@@ -69,6 +69,49 @@ export function ClearAllDialog({
   );
 }
 
+export function ClearSelectedDialog({
+  state,
+  actions,
+}: {
+  state: FormatterState;
+  actions: FormatterActions;
+}) {
+  const count = state.colIds.length;
+  const scopeLabel = count === 0
+    ? 'no columns'
+    : count === 1
+      ? `column "${state.colLabel}"`
+      : `${count} columns`;
+  return (
+    <AlertDialog
+      open={state.clearSelectedDialogOpen}
+      onOpenChange={actions.setClearSelectedDialogOpen}
+    >
+      <AlertDialogContent data-testid="formatting-clear-selected-confirm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Clear styles for {scopeLabel}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This removes the cell + header styling, value formatter,
+            border overrides, filter config, and template references
+            from {scopeLabel} in the active profile. Saved templates
+            and other columns are not affected. This action cannot be
+            undone (use Undo if you change your mind).
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={actions.confirmClearSelected}
+            data-testid="formatting-clear-selected-confirm-btn"
+          >
+            Clear styles
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ─── Horizontal — in-grid toolbar ─────────────────────────────────
 
 export function FormatterToolbar({

@@ -6,7 +6,8 @@
  * the context strip between an inline row (toolbar) and a sticky
  * header (panel) via the stylesheet.
  */
-import { Undo2, Redo2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Pencil, Lock, Undo2, Redo2 } from 'lucide-react';
 import { Tooltip } from '@marketsui/core';
 import {
   ColumnLabel,
@@ -19,6 +20,81 @@ import type { FormatterActions, FormatterState } from '../state';
 interface Props {
   state: FormatterState;
   actions: FormatterActions;
+}
+
+function InlineColumnLabel({
+  colLabel,
+  disabled,
+  onCommit,
+}: {
+  colLabel: string;
+  disabled?: boolean;
+  onCommit: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(colLabel);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(colLabel);
+  }, [colLabel, editing]);
+
+  useEffect(() => {
+    if (editing) {
+      // Defer focus until after Radix popovers / portals settle so the
+      // input keeps the caret instead of having focus stolen back to
+      // whatever previously had it.
+      const id = window.setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [editing]);
+
+  if (editing) {
+    const commit = () => {
+      const trimmed = draft.trim();
+      // Only fire onCommit when the value actually changed — avoids a
+      // no-op undo entry when the user opens then dismisses the editor.
+      if (trimmed && trimmed !== colLabel) onCommit(trimmed);
+      else if (!trimmed) onCommit('');
+      setEditing(false);
+    };
+    return (
+      <input
+        ref={inputRef}
+        className="fx-col-input"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') { e.preventDefault(); setDraft(colLabel); setEditing(false); }
+        }}
+        onBlur={commit}
+        data-testid="formatting-col-label-input"
+        aria-label="Rename column"
+      />
+    );
+  }
+
+  return (
+    <Tooltip content={disabled ? 'Select a single column to rename' : 'Click to rename column'}>
+      <button
+        type="button"
+        className="fx-col fx-col--editable"
+        data-disabled={disabled ? 'true' : undefined}
+        data-testid="formatting-col-label"
+        disabled={disabled}
+        onClick={() => { if (!disabled) setEditing(true); }}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        <span className="fx-col__dot" aria-hidden />
+        <span className="fx-col__name">{colLabel}</span>
+        <Pencil size={10} strokeWidth={1.75} className="fx-col__edit" aria-hidden />
+      </button>
+    </Tooltip>
+  );
 }
 
 export function ModuleContext({ state, actions }: Props) {
@@ -64,15 +140,38 @@ export function ModuleContext({ state, actions }: Props) {
         }}
       />
 
-      <Tooltip content={state.colIds.length > 0 ? state.colIds.join(', ') : 'Click a cell or header to pick a column'}>
-        <div>
-          <ColumnLabel
-            colLabel={state.colLabel}
-            disabled={state.disabled}
-            testId="formatting-col-label"
-          />
-        </div>
-      </Tooltip>
+      {state.singleColumnSelected ? (
+        <InlineColumnLabel
+          colLabel={state.colLabel}
+          disabled={state.disabled}
+          onCommit={actions.setHeaderName}
+        />
+      ) : (
+        <Tooltip content={state.colIds.length > 0 ? state.colIds.join(', ') : 'Click a cell or header to pick a column'}>
+          <div>
+            <ColumnLabel
+              colLabel={state.colLabel}
+              disabled={state.disabled}
+              testId="formatting-col-label"
+            />
+          </div>
+        </Tooltip>
+      )}
+
+      <Pill
+        tooltip={state.cellsEditable ? 'Cells editable — click to lock' : 'Cells locked — click to allow editing'}
+        disabled={state.disabled}
+        active={state.cellsEditable}
+        onClick={actions.toggleEditable}
+        data-testid="formatting-toggle-editable"
+        aria-label="Toggle cell editing"
+      >
+        {state.cellsEditable ? (
+          <Pencil size={12} strokeWidth={1.75} />
+        ) : (
+          <Lock size={12} strokeWidth={1.75} />
+        )}
+      </Pill>
 
       <div style={{ display: 'inline-flex', gap: 4 }}>
         <Pill

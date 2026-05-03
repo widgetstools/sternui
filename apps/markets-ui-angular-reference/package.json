@@ -47,8 +47,8 @@
     "@angular/cli": "21.1.0",
     "@angular/compiler-cli": "21.1.0",
     "@openfin/node-adapter": "43.101.2",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
     "tailwindcss": "3.4.1",
     "typescript": "~5.9.3"
   }

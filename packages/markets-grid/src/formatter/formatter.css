@@ -162,11 +162,14 @@
   opacity: 0.6;
 }
 
-/* Horizontal eyebrow — vertical chip on the left of each module. */
+/* In the in-grid horizontal toolbar the section eyebrows (`02 · TYPE`,
+ * `03 · PAINT`, …) duplicate information already conveyed by the
+ * tooltips on every action — and they crowd a strip that competes for
+ * row real estate with the data grid below. Hide them in horizontal
+ * mode only; the popped vertical panel still uses them as section
+ * headers where the extra surface area exists. */
 .fx-shell--horizontal .fx-eyebrow {
-  border-right: 1px solid var(--fx-line);
-  padding-right: 8px;
-  margin-right: 2px;
+  display: none;
 }
 
 /* Vertical eyebrow — bigger, becomes the section header. */
@@ -212,7 +215,12 @@
   background: transparent;
   border: 1px solid var(--fx-line);
   border-radius: var(--fx-radius);
-  color: var(--fx-ink-soft);
+  /* High-contrast resting state — the previous `--fx-ink-soft` washed
+   * the icon glyphs into the surrounding chrome. Toolbar actions are
+   * the primary thing the eye should land on, so we bump default ink
+   * to `--fx-ink` (the brightest) and lean on the active phosphor-teal
+   * + amber accents for state. Disabled state still drops opacity. */
+  color: var(--fx-ink);
   font-family: var(--fx-font-sans);
   font-size: 11px;
   cursor: pointer;
@@ -221,10 +229,11 @@
   position: relative;
 }
 .fx-pill:hover:not(:disabled) {
-  color: var(--fx-ink);
-  border-color: var(--fx-line-strong);
+  color: var(--fx-accent);
+  border-color: var(--fx-accent-line);
   background: var(--fx-bg-soft);
 }
+
 .fx-pill:active:not(:disabled) {
   transform: scale(0.96);
 }
@@ -361,6 +370,57 @@
 .fx-col__name {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Editable column-label chip — same dimensions as `.fx-col`, but
+ * rendered as a button so a single click commits the user into the
+ * inline rename input. The edit pencil is muted until hover so the
+ * chip stays clean when the user is just reading the active column. */
+.fx-col--editable {
+  border: 1px solid var(--fx-line);
+  cursor: text;
+  padding-right: 8px;
+  transition: border-color 120ms, background 120ms;
+}
+.fx-col--editable:hover:not(:disabled) {
+  border-color: var(--fx-accent-line);
+  background: color-mix(in srgb, var(--fx-bg-sunken) 60%, var(--fx-accent-soft));
+}
+.fx-col--editable:disabled {
+  cursor: not-allowed;
+}
+.fx-col__edit {
+  color: var(--fx-ink-faint);
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition: color 120ms, opacity 120ms;
+}
+.fx-col--editable:hover:not(:disabled) .fx-col__edit {
+  color: var(--fx-accent);
+  opacity: 1;
+}
+
+/* Inline rename editor — visually replaces the column-label chip in
+ * place so the user's mental model of "click the chip, type the new
+ * name" stays uninterrupted. Same height + radius + monospace font as
+ * the chip; differs only in the focus ring + transparent background. */
+.fx-col-input {
+  height: var(--fx-pill-h);
+  min-width: 160px;
+  max-width: 200px;
+  padding: 0 10px;
+  border-radius: var(--fx-radius);
+  background: var(--fx-bg);
+  border: 1px solid var(--fx-accent-line);
+  color: var(--fx-ink);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-readout-fs);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--fx-accent-line);
+}
+.fx-col-input:focus {
+  border-color: var(--fx-accent);
+  box-shadow: 0 0 0 2px var(--fx-accent-soft);
 }
 
 @keyframes fxLivePulse {
@@ -585,6 +645,14 @@
 .fx-destruct:hover {
   background: color-mix(in srgb, var(--fx-danger) 12%, transparent);
   border-color: var(--fx-danger);
+}
+.fx-destruct:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fx-destruct:disabled:hover {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--fx-danger) 35%, transparent);
 }
 .fx-destruct[data-confirmed='true'] {
   color: var(--fx-accent);

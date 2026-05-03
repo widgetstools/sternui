@@ -51,20 +51,21 @@ export class DataProviderConfigStore {
   constructor(private readonly cm: ConfigManager) {}
 
   async list(userId: string, opts: ListOptions = {}): Promise<DataProviderConfig[]> {
-    const [own, pub] = await Promise.all([
-      userId === PUBLIC_USER_ID
-        ? Promise.resolve([] as AppConfigRow[])
-        : this.cm.getConfigsByUser(userId),
-      this.cm.getConfigsByUser(PUBLIC_USER_ID),
-    ]);
-
-    const seen = new Set<string>();
+    // DataProviders are GLOBAL to the platform: every registered
+    // component (and every instance) can pick from the same provider
+    // catalogue regardless of which user authored the row. Ownership
+    // is still recorded on save (the row's `userId` reflects the
+    // creator), but discovery via list() ignores user scope. This
+    // matches the user-facing model where DataProviders are a
+    // platform-level resource (a STOMP feed configured by one trader
+    // is selectable by every other trader's blotters).
+    void userId;
+    const all = await this.cm.getAllConfigs();
     const out: DataProviderConfig[] = [];
-    for (const row of [...pub, ...own]) {
+    for (const row of all) {
       if (row.componentType !== COMPONENT_TYPE_DATA_PROVIDER) continue;
+      if (row.componentSubType === 'appdata') continue; // AppData rows live in AppDataConfigStore
       if (opts.subtype && row.componentSubType !== opts.subtype) continue;
-      if (seen.has(row.configId)) continue;
-      seen.add(row.configId);
       out.push(rowToProvider(row));
     }
     return out;
@@ -112,15 +113,15 @@ export class AppDataConfigStore {
   constructor(private readonly cm: ConfigManager) {}
 
   async list(userId: string): Promise<AppDataConfig[]> {
-    const [own, pub] = await Promise.all([
-      userId === PUBLIC_USER_ID
-        ? Promise.resolve([] as AppConfigRow[])
-        : this.cm.getConfigsByUser(userId),
-      this.cm.getConfigsByUser(PUBLIC_USER_ID),
-    ]);
+    // AppData providers are GLOBAL like their sibling DataProviders —
+    // see DataProviderConfigStore.list() for the rationale. The
+    // userId param is retained on the API for back-compat, but no
+    // longer narrows the result.
+    void userId;
+    const all = await this.cm.getAllConfigs();
     const seen = new Set<string>();
     const out: AppDataConfig[] = [];
-    for (const row of [...pub, ...own]) {
+    for (const row of all) {
       // Two shapes co-exist:
       //   - legacy standalone AppData rows (componentType: 'appdata')
       //   - new DataProvider rows authored via the unified editor

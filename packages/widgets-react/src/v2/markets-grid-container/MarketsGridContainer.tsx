@@ -40,7 +40,7 @@ import {
   useAppDataStore,
   useDataPlane,
 } from '@marketsui/data-plane-react/v2';
-import { composeRowId, type ProviderConfig } from '@marketsui/shared-types';
+import { composeRowId, getValueByPath, type ProviderConfig } from '@marketsui/shared-types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { useChordHotkey } from './useChordHotkey.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
@@ -261,7 +261,26 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   const columnDefs = useMemo<ColDef<TData>[] | null>(() => {
     const defs = (activeCfg as { columnDefinitions?: ColDef<TData>[] } | null)?.columnDefinitions;
-    return defs && defs.length > 0 ? defs : null;
+    if (!defs || defs.length === 0) return null;
+    // Inject a `valueGetter` for any column whose `field` contains a
+    // dot. AG-Grid's built-in dot-walk handles nested objects fine
+    // (`field: 'a.b.c'` → `row.a.b.c`), but it CAN'T tell apart the
+    // nested case from a literal-dot key (`row['a.b.c']`). Our shared
+    // helper does both: literal flat key first, dot-walk fallback. We
+    // wrap it in a getter only when the field has a dot — flat fields
+    // get AG-Grid's native fast path untouched. Stripping field +
+    // adding valueGetter also signals to AG-Grid that this column is
+    // computed (no implicit field binding); we keep `colId` so AG-
+    // Grid still references it stably.
+    return defs.map((d) => {
+      if (typeof d.field !== 'string' || !d.field.includes('.')) return d;
+      const path = d.field;
+      return {
+        ...d,
+        colId: d.colId ?? path,
+        valueGetter: (params) => getValueByPath(params.data, path),
+      };
+    });
   }, [activeCfg]);
 
   // ── Grid lifecycle: capture the gridApi when AG-Grid is ready ────

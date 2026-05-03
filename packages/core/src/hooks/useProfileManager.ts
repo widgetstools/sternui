@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { StorageAdapter } from '../persistence/StorageAdapter';
 import {
   ProfileManager,
+  type ActiveIdSource,
   type ProfileManagerOptions,
   type ProfileManagerState,
 } from '../profiles/ProfileManager';
@@ -80,6 +81,9 @@ export function useProfileManager(opts: {
   adapter: StorageAdapter;
   autoSaveDebounceMs?: number;
   disableAutoSave?: boolean;
+  /** Optional higher-priority active-id pointer (e.g. OpenFin view
+   *  customData). See `ActiveIdSource` in `@marketsui/core`. */
+  activeIdSource?: ActiveIdSource;
 }): UseProfileManagerResult {
   const platform = useGridPlatform();
 
@@ -92,6 +96,7 @@ export function useProfileManager(opts: {
     adapter: optsRef.current.adapter,
     autoSaveDebounceMs: optsRef.current.autoSaveDebounceMs,
     disableAutoSave: optsRef.current.disableAutoSave,
+    activeIdSource: optsRef.current.activeIdSource,
   });
 
   // Subscribe via useSyncExternalStore for tear-free concurrent reads. The

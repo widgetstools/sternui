@@ -40,6 +40,8 @@ import { useGridColumns } from '../../hooks/useGridColumns';
 import {
   Band,
   Caps,
+  CockpitList,
+  CockpitListItem,
   IconInput,
   LedBar,
   Mono,
@@ -137,7 +139,7 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
           <Plus size={11} strokeWidth={2.5} />
         </button>
       </div>
-      <ul className="gc-popout-list-items" data-testid="cs-rules-list">
+      <CockpitList listTestId="cs-rules-list">
         {state.rules.map((r) => (
           <RuleRow
             key={r.id}
@@ -146,7 +148,7 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
             onSelect={() => onSelect(r.id)}
           />
         ))}
-      </ul>
+      </CockpitList>
     </>
   );
 }
@@ -166,31 +168,28 @@ const RuleRow = memo(function RuleRow({
   onSelect: () => void;
 }) {
   return (
-    <li>
-      <button
-        type="button"
-        className="gc-popout-list-item"
-        aria-selected={active}
-        data-muted={rule.enabled ? 'false' : 'true'}
-        onClick={onSelect}
-        data-testid={`cs-rule-card-${rule.id}`}
+    <CockpitListItem
+      value={rule.id}
+      active={active}
+      muted={!rule.enabled}
+      onSelect={onSelect}
+      data-testid={`cs-rule-card-${rule.id}`}
+    >
+      <span style={{ width: 2, display: 'inline-flex' }}>
+        <DirtyListLed ruleId={rule.id} />
+      </span>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
       >
-        <span style={{ width: 2, display: 'inline-flex' }}>
-          <DirtyListLed ruleId={rule.id} />
-        </span>
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {rule.name}
-        </span>
-      </button>
-    </li>
+        {rule.name}
+      </span>
+    </CockpitListItem>
   );
 });
 

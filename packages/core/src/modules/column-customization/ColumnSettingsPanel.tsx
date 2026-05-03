@@ -1,10 +1,19 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import type { EditorPaneProps, ListPaneProps } from '../../platform/types';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
-import { useDirty } from '../../hooks/useDirty';
+import { useGridPlatform } from '../../hooks/GridProvider';
 import { useGridColumns, type GridColumnInfo } from '../../hooks/useGridColumns';
-import { Caps, LedBar, Mono } from '../../ui/SettingsPanel';
+import { Caps, CockpitList, CockpitListItem, LedBar, Mono } from '../../ui/SettingsPanel';
 import type { StyleEditorValue } from '../../ui/StyleEditor';
 import type {
   ColumnAssignment,
@@ -68,19 +77,113 @@ import {
 
 type ColumnInfo = GridColumnInfo;
 
-// ─── Dirty LED for the list rail ───────────────────────────────────────
-//
-// Reads against the per-platform `DirtyBus` via `useDirty(key)`.
-// `useModuleDraft` auto-registers `column-customization:<colId>` for the
-// active editor card, so the LED lights / clears without any manual
-// `window.dispatchEvent` bookkeeping.
-
 const MODULE_ID = 'column-customization';
+const DIRTY_PREFIX = `${MODULE_ID}:`;
 
-function DirtyListLed({ colId }: { colId: string }) {
-  const { isDirty } = useDirty(`${MODULE_ID}:${colId}`);
-  if (!isDirty) return null;
-  return <LedBar amber on title="Unsaved changes" />;
+// Row height matches `.gc-popout-list-item` (9px + 13px line + 9px ≈ 36).
+// Used for windowed layout math when the column count crosses the threshold.
+const ROW_HEIGHT = 36;
+// Below this column count, every row renders — windowing is pure overhead.
+// Above it, we slice the visible range based on the scroll-parent's scrollTop.
+const VIRTUAL_THRESHOLD = 60;
+const OVERSCAN = 8;
+
+// ─── Bulk dirty-keys subscription ──────────────────────────────────────
+//
+// Replaces N `useDirty(key)` calls (one per row) with a single
+// subscription that maintains a `Set<string>` of dirty column ids. The
+// list rail then reads from the set per row — O(1) lookup, no per-row
+// store hooks, and no unwanted work for clean rows when an unrelated
+// dirty key flips.
+function useDirtyColIds(): Set<string> {
+  const platform = useGridPlatform();
+  const bus = platform.resources.dirty();
+  const compute = useCallback((): Set<string> => {
+    const out = new Set<string>();
+    for (const k of bus.keys()) {
+      if (k.startsWith(DIRTY_PREFIX)) out.add(k.slice(DIRTY_PREFIX.length));
+    }
+    return out;
+  }, [bus]);
+  const [ids, setIds] = useState<Set<string>>(compute);
+  useEffect(() => {
+    setIds(compute());
+    return bus.subscribe(() => {
+      const next = compute();
+      setIds((prev) => {
+        if (prev.size !== next.size) return next;
+        for (const k of next) if (!prev.has(k)) return next;
+        return prev;
+      });
+    });
+  }, [bus, compute]);
+  return ids;
+}
+
+// ─── Scroll-parent windowing ───────────────────────────────────────────
+//
+// The list rail does not own its scroll container — `.gc-popout-list`
+// (and the legacy panel's `<aside>`) own it. We walk up to find the
+// first scrolling ancestor and observe its scrollTop / clientHeight to
+// compute which rows to render. If no scroll parent is found (e.g.
+// during jsdom tests where computed overflow isn't honored), we fall
+// back to rendering everything — preserves test determinism.
+function findScrollParent(node: HTMLElement | null): HTMLElement | null {
+  let cur: HTMLElement | null = node?.parentElement ?? null;
+  while (cur && cur !== document.body) {
+    const oy = getComputedStyle(cur).overflowY;
+    if (oy === 'auto' || oy === 'scroll') return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+interface Range { start: number; end: number; }
+
+function useWindowedRange(
+  innerRef: RefObject<HTMLElement | null>,
+  count: number,
+  rowHeight: number,
+  enabled: boolean,
+): Range {
+  const [range, setRange] = useState<Range>({ start: 0, end: count });
+  useLayoutEffect(() => {
+    if (!enabled) {
+      setRange({ start: 0, end: count });
+      return;
+    }
+    const inner = innerRef.current;
+    if (!inner) return;
+    const scroller = findScrollParent(inner);
+    if (!scroller) {
+      setRange({ start: 0, end: count });
+      return;
+    }
+    const recompute = () => {
+      const innerTop = inner.getBoundingClientRect().top;
+      const scrollerTop = scroller.getBoundingClientRect().top;
+      const offset = innerTop - scrollerTop + scroller.scrollTop;
+      const viewportTop = Math.max(0, scroller.scrollTop - offset);
+      const viewportH = scroller.clientHeight || 0;
+      if (viewportH === 0) {
+        setRange({ start: 0, end: count });
+        return;
+      }
+      const start = Math.max(0, Math.floor(viewportTop / rowHeight) - OVERSCAN);
+      const visible = Math.ceil(viewportH / rowHeight) + OVERSCAN * 2;
+      const end = Math.min(count, start + visible);
+      setRange((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+    };
+    recompute();
+    scroller.addEventListener('scroll', recompute, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(recompute) : null;
+    ro?.observe(scroller);
+    return () => {
+      scroller.removeEventListener('scroll', recompute);
+      ro?.disconnect();
+    };
+  }, [innerRef, count, rowHeight, enabled]);
+  return range;
 }
 
 // ─── List pane ───────────────────────────────────────────────────────────────
@@ -88,6 +191,7 @@ function DirtyListLed({ colId }: { colId: string }) {
 export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
   const columns = useGridColumns();
   const [state] = useModuleState<ColumnCustomizationState>(MODULE_ID);
+  const dirtyIds = useDirtyColIds();
 
   // Auto-select the first column when the panel opens and nothing is
   // selected yet.
@@ -97,15 +201,33 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
     }
   }, [selectedId, columns, onSelect]);
 
-  const hasOverride = useCallback(
-    (colId: string) => {
-      const a = state.assignments[colId];
-      if (!a) return false;
-      // A bare `{ colId }` doesn't count as an override.
-      return Object.keys(a).some((k) => k !== 'colId' && a[k as keyof ColumnAssignment] !== undefined);
-    },
-    [state.assignments],
-  );
+  // Precompute the override set once per assignments change. Replaces
+  // an `Object.keys(...).some(...)` walk that ran for every list row on
+  // every render.
+  const overriddenIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const [colId, a] of Object.entries(state.assignments)) {
+      if (!a) continue;
+      for (const k of Object.keys(a)) {
+        if (k !== 'colId' && a[k as keyof ColumnAssignment] !== undefined) {
+          set.add(colId);
+          break;
+        }
+      }
+    }
+    return set;
+  }, [state.assignments]);
+
+  // CockpitList renders a cmdk Command (a `<div>`); the windowing hook
+  // walks up from this ref to find the scrolling ancestor.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const virtualize = columns.length > VIRTUAL_THRESHOLD;
+  const range = useWindowedRange(listRef, columns.length, ROW_HEIGHT, virtualize);
+  const visible = virtualize ? columns.slice(range.start, range.end) : columns;
+  const padTop = virtualize ? range.start * ROW_HEIGHT : 0;
+  const padBottom = virtualize
+    ? Math.max(0, (columns.length - range.end) * ROW_HEIGHT)
+    : 0;
 
   return (
     <>
@@ -115,55 +237,58 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
           {String(columns.length).padStart(2, '0')}
         </Mono>
       </div>
-      <ul className="gc-popout-list-items">
-        {columns.map((c) => {
+      <CockpitList ref={listRef}>
+        {padTop > 0 && <div aria-hidden style={{ height: padTop }} />}
+        {visible.map((c) => {
           const active = c.colId === selectedId;
+          const isDirty = dirtyIds.has(c.colId);
+          const overridden = overriddenIds.has(c.colId);
           return (
-            <li key={c.colId}>
-              <button
-                type="button"
-                className="gc-popout-list-item"
-                aria-selected={active}
-                onClick={() => onSelect(c.colId)}
-                data-testid={`cols-item-${c.colId}`}
+            <CockpitListItem
+              key={c.colId}
+              value={c.colId}
+              active={active}
+              onSelect={() => onSelect(c.colId)}
+              data-testid={`cols-item-${c.colId}`}
+              style={virtualize ? { height: ROW_HEIGHT } : undefined}
+            >
+              <span style={{ width: 2, display: 'inline-flex' }}>
+                {isDirty && <LedBar amber on title="Unsaved changes" />}
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
               >
-                <span style={{ width: 2, display: 'inline-flex' }}>
-                  <DirtyListLed colId={c.colId} />
-                </span>
+                {c.headerName || c.colId}
+              </span>
+              {overridden && (
                 <span
+                  title="Has overrides"
                   style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    fontSize: 9,
+                    color: 'var(--ck-green)',
+                    letterSpacing: '0.08em',
+                    fontFamily: 'var(--ck-font-mono)',
                   }}
                 >
-                  {c.headerName || c.colId}
+                  •
                 </span>
-                {hasOverride(c.colId) && (
-                  <span
-                    title="Has overrides"
-                    style={{
-                      fontSize: 9,
-                      color: 'var(--ck-green)',
-                      letterSpacing: '0.08em',
-                      fontFamily: 'var(--ck-font-mono)',
-                    }}
-                  >
-                    •
-                  </span>
-                )}
-              </button>
-            </li>
+              )}
+            </CockpitListItem>
           );
         })}
+        {padBottom > 0 && <div aria-hidden style={{ height: padBottom }} />}
         {columns.length === 0 && (
-          <li style={{ padding: '16px 12px', fontSize: 11, color: 'var(--ck-t3)' }}>
+          <div style={{ padding: '16px 12px', fontSize: 11, color: 'var(--ck-t3)' }}>
             No columns available yet.
-          </li>
+          </div>
         )}
-      </ul>
+      </CockpitList>
     </>
   );
 }
