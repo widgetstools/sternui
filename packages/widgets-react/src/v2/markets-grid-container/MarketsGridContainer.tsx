@@ -383,8 +383,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // every subscriber receives — so all connected windows show the
   // overlay together, not just the one that pressed the refresh button.
   const [isRefetching, setIsRefetching] = useState(false);
+  // Bubbled up from MarketsGrid whenever the active profile is being
+  // persisted (Save button or save-on-switch). We reuse the same
+  // snapshot loading overlay component for visual consistency, just
+  // with a "Saving…" caption.
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
-  const showLoadingOverlay = isLoadingSnapshot || isRefetching;
+  const showLoadingOverlay = isLoadingSnapshot || isRefetching || isSavingProfile;
 
   // Render-time log of the gating inputs so you can see WHY the
   // subscribe effect isn't firing yet (or that it IS gated correctly
@@ -791,11 +796,19 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           adminActions={adminActionsWithRefresh}
           caption={effectiveCaption}
           onCaptionChange={handleCaptionChange}
+          onSavingChange={setIsSavingProfile}
         />
         {showLoadingOverlay && (
           <MarketsGridLoadingOverlay
-            title={activeProviderName ? `Loading ${activeProviderName}` : 'Loading market data'}
-            rowCount={loadRowCount}
+            title={
+              isSavingProfile
+                ? 'Saving…'
+                : activeProviderName
+                  ? `Loading ${activeProviderName}`
+                  : 'Loading market data'
+            }
+            message={isSavingProfile ? 'Persisting profile' : undefined}
+            rowCount={isSavingProfile ? undefined : loadRowCount}
           />
         )}
       </div>

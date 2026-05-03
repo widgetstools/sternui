@@ -231,6 +231,14 @@ export interface MarketsGridProps<TData = unknown> {
    * still applied locally but won't survive a remount.
    */
   onCaptionChange?: (next: string) => void;
+
+  /**
+   * Fires `true` when the grid begins persisting the active profile
+   * (Save button click or save-on-switch flow) and `false` once the
+   * write resolves or rejects. Container shells use this to overlay a
+   * busy indicator that mirrors the snapshot-loading overlay.
+   */
+  onSavingChange?: (saving: boolean) => void;
 }
 
 /**
@@ -276,6 +284,15 @@ export interface MarketsGridHandle {
    *  than the raw ProfileManager class — matches how consumers already
    *  interact with profiles via the useProfileManager hook. */
   profiles: UseProfileManagerResult;
+  /**
+   * Same code path the toolbar Save button uses — captures native AG-Grid
+   * state into the grid-state module slice, then flushes the active
+   * profile via `profiles.saveActiveProfile()`, then plays the post-save
+   * UI flash. Hosts (e.g. OpenFin "Save Workspace") should prefer this
+   * over calling `profiles.saveActiveProfile()` directly so the busy
+   * overlay and grid-state capture both run.
+   */
+  saveAll: () => Promise<void>;
 }
 
 /**

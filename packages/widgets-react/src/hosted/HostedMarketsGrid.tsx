@@ -149,9 +149,18 @@ export function HostedMarketsGrid<
   );
 
   const onWorkspaceSave = useCallback(async () => {
-    const profiles = gridRef.current?.profiles;
-    if (!profiles?.saveActiveProfile) return;
-    await profiles.saveActiveProfile();
+    const handle = gridRef.current;
+    console.log('Saving workspace…', { hasHandle: !!handle });
+    // Prefer `saveAll` — same path as the toolbar Save button, so the
+    // container's busy overlay and grid-state capture both run. Fall
+    // back to `profiles.saveActiveProfile` for older handle shapes.
+    if (handle?.saveAll) {
+      await handle.saveAll();
+      return;
+    }
+    if (handle?.profiles?.saveActiveProfile) {
+      await handle.profiles.saveActiveProfile();
+    }
   }, []);
 
   const { identity, agTheme, tabsHidden } = useHostedView({
