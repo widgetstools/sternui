@@ -39,5 +39,7 @@ export type {
   UseOpenFinChannelResult,
 } from './useOpenFinChannel.js';
 
+export { useTabsHidden, deriveTabsHidden } from './useTabsHidden.js';
+
 export { HostedMarketsGrid } from './HostedMarketsGrid.js';
 export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';
