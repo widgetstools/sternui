@@ -58,5 +58,8 @@ export type {
   UseWorkspaceSaveEventOptions,
 } from './useWorkspaceSaveEvent.js';
 
+export { useHostedView } from './useHostedView.js';
+export type { UseHostedViewArgs, UseHostedViewResult } from './useHostedView.js';
+
 export { HostedMarketsGrid } from './HostedMarketsGrid.js';
 export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';

@@ -180,3 +180,65 @@ at the wrapper boundary, with inherited rows additionally covered by
 
 End-to-end coverage is in
 [`e2e/hosted-markets-grid.spec.ts`](../../../../../e2e/hosted-markets-grid.spec.ts).
+
+## Hooks
+
+`<HostedMarketsGrid>` is the integrated entry point, but every primitive
+it composes is also exported standalone so any hosted feature — not
+just MarketsGrid — can pick the slice it needs. Each hook degrades
+safely when the OpenFin (or FDC3) runtime isn't present, so the same
+call site works inside the OpenFin browser and inside `apps/demo-react`.
+
+| Hook | Purpose |
+|---|---|
+| [`useHostedIdentity`](./useHostedIdentity.ts) | Resolve `instanceId` / `appId` / `userId` and (optionally) a wrapped `StorageAdapterFactory` from OpenFin customData with browser fallback. |
+| [`useAgGridTheme`](./useAgGridTheme.ts) | AG-Grid `Theme` reactive to the host's `[data-theme]` attribute. |
+| [`useTabsHidden`](./useTabsHidden.ts) | Boolean state mirroring the parent OpenFin window's tab-strip visibility. |
+| [`useColorLinking`](./useColorLinking.ts) | `{ color, linked }` mirror of the workspace browser's color-link button. |
+| [`useFdc3Channel`](./useFdc3Channel.ts) | Thin wrapper over `window.fdc3` user channels: `current`, `join`, `leave`, `addContextListener`, `broadcast`. |
+| [`useIab`](./useIab.ts) | Generic OpenFin Inter-Application Bus pub/sub: `{ subscribe, publish }`. |
+| [`useOpenFinChannel`](./useOpenFinChannel.ts) | OpenFin Channel API factory: `{ createProvider, connect }` with auto-teardown on unmount. |
+| [`useWorkspaceSaveEvent`](./useWorkspaceSaveEvent.ts) | Register an awaited flush callback that runs before the platform captures a workspace snapshot, plus an optional post-save listener. |
+| [`useHostedView`](./useHostedView.ts) | Single composing hook that wires every hook above. Use this when you want everything; otherwise compose à-la-carte. |
+
+### `useHostedView` example
+
+```tsx
+import { useRef } from 'react';
+import { useHostedView } from '@marketsui/widgets-react/hosted';
+import { MarketsGridContainer, type MarketsGridHandle } from '@marketsui/markets-grid';
+
+export function HostedBlotter() {
+  const gridRef = useRef<MarketsGridHandle>(null);
+
+  const { identity, ready, agTheme, tabsHidden, linking } = useHostedView({
+    componentName: 'MyBlotter',
+    defaultInstanceId: 'my-blotter',
+    withStorage: true,
+    theme: 'auto',
+    onWorkspaceSave: async () => {
+      await gridRef.current?.profiles.saveActiveProfile();
+    },
+  });
+
+  if (!ready) return null;
+
+  return (
+    <MarketsGridContainer
+      ref={gridRef}
+      gridId="my-blotter"
+      instanceId={identity.instanceId!}
+      appId={identity.appId}
+      userId={identity.userId}
+      storage={identity.storage ?? undefined}
+      theme={agTheme}
+      // Render your own caption when the OpenFin browser hides tabs.
+      caption={tabsHidden ? 'My Blotter' : undefined}
+    />
+  );
+}
+```
+
+`linking.color`, `linking.fdc3`, and `linking.channel` give you the same
+state and helpers `useColorLinking()` / `useFdc3Channel()` /
+`useOpenFinChannel()` would return — bundled here for convenience.
