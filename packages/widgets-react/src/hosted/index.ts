@@ -23,5 +23,21 @@ export type {
 export { useAgGridTheme } from './useAgGridTheme.js';
 export type { AgGridThemeMode } from './useAgGridTheme.js';
 
+export { useIab } from './useIab.js';
+export type {
+  IabSender,
+  IabSource,
+  IabHandler,
+  UseIabResult,
+} from './useIab.js';
+
+export { useOpenFinChannel } from './useOpenFinChannel.js';
+export type {
+  ChannelActionFn,
+  ChannelProviderHandle,
+  ChannelClientHandle,
+  UseOpenFinChannelResult,
+} from './useOpenFinChannel.js';
+
 export { HostedMarketsGrid } from './HostedMarketsGrid.js';
 export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';
