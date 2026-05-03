@@ -35,6 +35,90 @@ import { injectRenameMenuItem } from './internal/viewTabRename';
 const WS_PREFIX = 'WS_';
 const SNAPSHOT_SUBTYPE = 'SNAPSHOT';
 
+/**
+ * Channel name used by the awaited workspace-save fan-out. Hosted views
+ * connect to this channel via `useWorkspaceSaveEvent` and register an
+ * async `workspace-saving` handler. The platform-side provider
+ * `dispatch`es to each connection and awaits the returned promise — this
+ * lets every view flush its state before the OpenFin snapshot is
+ * captured. Post-save, the provider fire-and-forget `publish`es a
+ * `workspace-saved` notification.
+ */
+export const WORKSPACE_SAVE_CHANNEL = 'marketsui-workspace-save-channel';
+
+interface SaveChannelProvider {
+  connections: Array<{ uuid: string; name?: string }>;
+  dispatch: (
+    target: { uuid: string; name?: string },
+    action: string,
+    payload: unknown,
+  ) => Promise<unknown>;
+  publish: (action: string, payload: unknown) => Promise<unknown[]>;
+  destroy?: () => Promise<void>;
+}
+
+let saveChannelProviderPromise: Promise<SaveChannelProvider | null> | null = null;
+
+function getSaveChannelProvider(): Promise<SaveChannelProvider | null> {
+  if (typeof fin === 'undefined' || !fin?.InterApplicationBus?.Channel?.create) {
+    return Promise.resolve(null);
+  }
+  if (!saveChannelProviderPromise) {
+    saveChannelProviderPromise = Promise.resolve(
+      fin.InterApplicationBus.Channel.create(WORKSPACE_SAVE_CHANNEL),
+    ).catch((err: unknown) => {
+      console.warn('[workspace-persistence] failed to create save channel provider:', err);
+      saveChannelProviderPromise = null;
+      return null;
+    });
+  }
+  return saveChannelProviderPromise;
+}
+
+/**
+ * Awaited fan-out: dispatch `workspace-saving` to every connected hosted
+ * view and wait for each handler's promise to settle before returning.
+ * Best-effort — a failing dispatch must not fail the workspace save.
+ */
+async function dispatchWorkspaceSaving(workspaceId: string): Promise<void> {
+  try {
+    const provider = await getSaveChannelProvider();
+    if (!provider) return;
+    const conns = provider.connections ?? [];
+    await Promise.allSettled(
+      conns.map((c) => provider.dispatch(c, 'workspace-saving', { workspaceId })),
+    );
+  } catch (err) {
+    console.warn('[workspace-persistence] pre-save dispatch failed:', err);
+  }
+}
+
+/**
+ * Fire-and-forget post-save broadcast. Hosted views can listen for the
+ * `workspace-saved` action to refresh derived state.
+ */
+function publishWorkspaceSaved(workspaceId: string): void {
+  void getSaveChannelProvider()
+    .then((provider) => {
+      if (!provider) return;
+      void provider.publish('workspace-saved', { workspaceId }).catch(() => {
+        /* best-effort */
+      });
+    })
+    .catch(() => {
+      /* best-effort */
+    });
+}
+
+/**
+ * Test-only: drop the cached singleton so the next call re-creates it
+ * against whatever `fin` mock is currently installed. Not part of the
+ * public runtime contract.
+ */
+export function __resetWorkspaceSaveChannelForTests(): void {
+  saveChannelProviderPromise = null;
+}
+
 export interface WorkspacePayload {
   name: string;
   openfinSnapshot: any;
@@ -233,6 +317,11 @@ export function createWorkspacePersistenceOverride(
         // The platform's `req.workspace.snapshot` is what was captured at
         // dialog-time. Fall back to a live snapshot if the caller didn't
         // pre-capture one (rare — the OpenFin Save dialog always provides it).
+        // Awaited fan-out so every hosted view flushes its state to its
+        // own `customData` before we capture the snapshot. Best-effort —
+        // never fails the workspace save.
+        await dispatchWorkspaceSaving(ws.workspaceId);
+
         const liveSnapshot = ws.snapshot
           ? null
           : await fin.Platform.getCurrentSync().getSnapshot();
@@ -260,6 +349,7 @@ export function createWorkspacePersistenceOverride(
           payload,
         }));
 
+        publishWorkspaceSaved(ws.workspaceId);
         await fireChange();
       }
 
@@ -271,6 +361,10 @@ export function createWorkspacePersistenceOverride(
 
         const configId = workspaceConfigId(ws.workspaceId);
         const existing = await cm.getConfig(configId);
+
+        // See createSavedWorkspace — awaited fan-out before snapshot
+        // capture so hosted views can flush their state.
+        await dispatchWorkspaceSaving(ws.workspaceId);
 
         const liveSnapshot = ws.snapshot
           ? null
@@ -295,6 +389,7 @@ export function createWorkspacePersistenceOverride(
           existing,
         }));
 
+        publishWorkspaceSaved(ws.workspaceId);
         await fireChange();
       }
 

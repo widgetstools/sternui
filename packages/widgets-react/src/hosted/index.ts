@@ -41,5 +41,12 @@ export type {
 
 export { useTabsHidden, deriveTabsHidden } from './useTabsHidden.js';
 
+export { useWorkspaceSaveEvent } from './useWorkspaceSaveEvent.js';
+export type {
+  WorkspaceSaveCallback,
+  WorkspaceSavedCallback,
+  UseWorkspaceSaveEventOptions,
+} from './useWorkspaceSaveEvent.js';
+
 export { HostedMarketsGrid } from './HostedMarketsGrid.js';
 export type { HostedMarketsGridProps } from './HostedMarketsGrid.js';
