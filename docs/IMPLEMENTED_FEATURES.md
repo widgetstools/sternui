@@ -289,6 +289,32 @@ from the draft and lights the SAVE pill.
     `useModuleDraft` file-level header drops its "vs the v3 shim"
     framing now that the shim is gone.
 
+- **Cockpit list rail unified on shadcn / cmdk Command** — the four
+  master-detail settings panels (Column Settings, Conditional
+  Styling, Column Groups, Calculated Columns) used to hand-roll the
+  same `<ul><li><button>` rail. Replaced with a shared
+  `<CockpitList>` / `<CockpitListItem>` primitive in
+  `packages/core/src/ui/SettingsPanel/CockpitList.tsx` that wraps
+  `cmdk` directly (the same primitive shadcn's Command is built on,
+  used un-styled so the `gc-popout-list-item` cockpit theme stays
+  the single source of truth). Wins:
+  - Free keyboard navigation (Up/Down/Enter), `role="listbox"` /
+    `role="option"` semantics, and ARIA wiring without per-panel
+    bookkeeping.
+  - One markup pattern for all four panels — future panels just use
+    the same primitive.
+  - Selection model split: cmdk's transient `aria-selected`
+    (keyboard / hover highlight) is now visually distinct from the
+    persistent `data-active="true"` attribute that marks the card
+    open in the editor. The cockpit CSS keys the green left-border
+    on `data-active` only; `aria-selected` falls back to a softer
+    surface tint so keyboard nav stays discoverable.
+  - jsdom test environment learned `ResizeObserver` and
+    `Element.prototype.scrollIntoView` shims so cmdk mounts cleanly
+    under Vitest. All 242 core unit tests still pass; every panel's
+    `data-testid` is preserved character-for-character (`cols-item-`,
+    `cs-rule-card-`, `cs-rules-list`, `cg-group-`, `cc-virtual-`).
+
 - **Column Settings v4 panel rewrite (phase 3e)** — the last of the five
   settings panels. Same three shared antipatterns removed:
   `dirtyRegistry + window.dispatchEvent('gc-dirty-change')` →

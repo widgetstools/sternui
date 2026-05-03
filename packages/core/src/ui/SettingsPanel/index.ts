@@ -28,6 +28,12 @@ export { TitleInput, type TitleInputProps } from './TitleInput';
 export { PanelChrome, type PanelChromeProps } from './PanelChrome';
 export { TabStrip, type TabStripProps, type TabItem } from './TabStrip';
 export {
+  CockpitList,
+  CockpitListItem,
+  type CockpitListProps,
+  type CockpitListItemProps,
+} from './CockpitList';
+export {
   Caps,
   Mono,
   SharpBtn,

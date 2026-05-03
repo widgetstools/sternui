@@ -4,7 +4,7 @@ import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useDirty } from '../../hooks/useDirty';
 import { useGridColumns, type GridColumnInfo } from '../../hooks/useGridColumns';
-import { Caps, LedBar, Mono } from '../../ui/SettingsPanel';
+import { Caps, CockpitList, CockpitListItem, LedBar, Mono } from '../../ui/SettingsPanel';
 import type { StyleEditorValue } from '../../ui/StyleEditor';
 import type {
   ColumnAssignment,
@@ -115,55 +115,53 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
           {String(columns.length).padStart(2, '0')}
         </Mono>
       </div>
-      <ul className="gc-popout-list-items">
+      <CockpitList>
         {columns.map((c) => {
           const active = c.colId === selectedId;
           return (
-            <li key={c.colId}>
-              <button
-                type="button"
-                className="gc-popout-list-item"
-                aria-selected={active}
-                onClick={() => onSelect(c.colId)}
-                data-testid={`cols-item-${c.colId}`}
+            <CockpitListItem
+              key={c.colId}
+              value={c.colId}
+              active={active}
+              onSelect={() => onSelect(c.colId)}
+              data-testid={`cols-item-${c.colId}`}
+            >
+              <span style={{ width: 2, display: 'inline-flex' }}>
+                <DirtyListLed colId={c.colId} />
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
               >
-                <span style={{ width: 2, display: 'inline-flex' }}>
-                  <DirtyListLed colId={c.colId} />
-                </span>
+                {c.headerName || c.colId}
+              </span>
+              {hasOverride(c.colId) && (
                 <span
+                  title="Has overrides"
                   style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    fontSize: 9,
+                    color: 'var(--ck-green)',
+                    letterSpacing: '0.08em',
+                    fontFamily: 'var(--ck-font-mono)',
                   }}
                 >
-                  {c.headerName || c.colId}
+                  •
                 </span>
-                {hasOverride(c.colId) && (
-                  <span
-                    title="Has overrides"
-                    style={{
-                      fontSize: 9,
-                      color: 'var(--ck-green)',
-                      letterSpacing: '0.08em',
-                      fontFamily: 'var(--ck-font-mono)',
-                    }}
-                  >
-                    •
-                  </span>
-                )}
-              </button>
-            </li>
+              )}
+            </CockpitListItem>
           );
         })}
         {columns.length === 0 && (
-          <li style={{ padding: '16px 12px', fontSize: 11, color: 'var(--ck-t3)' }}>
+          <div style={{ padding: '16px 12px', fontSize: 11, color: 'var(--ck-t3)' }}>
             No columns available yet.
-          </li>
+          </div>
         )}
-      </ul>
+      </CockpitList>
     </>
   );
 }
