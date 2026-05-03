@@ -3,6 +3,11 @@ import {
   useGridApi,
   useGridPlatform,
   useModuleState,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Button,
+  Textarea,
   type SavedFiltersState,
 } from '@marketsui/core';
 import {
@@ -14,6 +19,7 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
+  MoreVertical,
 } from 'lucide-react';
 import type { SavedFilter } from './types';
 
@@ -92,6 +98,19 @@ export function FiltersToolbar() {
   );
 
   const [renameId, setRenameId] = useState<string | null>(null);
+  // Pill whose details/edit popover is currently open. Controlled so the
+  // "Save" button can close the popover programmatically after a successful
+  // commit.
+  const [openDetailsId, setOpenDetailsId] = useState<string | null>(null);
+
+  const handleEditFilterModel = useCallback(
+    (id: string, nextModel: Record<string, unknown>) => {
+      setFilters((prev) =>
+        prev.map((f) => (f.id === id ? { ...f, filterModel: nextModel } : f)),
+      );
+    },
+    [setFilters],
+  );
 
   // ─── Per-pill row counts ──────────────────────────────────────────────
   //
@@ -426,6 +445,40 @@ export function FiltersToolbar() {
                   <Trash2 size={9} strokeWidth={1.75} />
                 </button>
               </span>
+              <Popover
+                open={openDetailsId === f.id}
+                onOpenChange={(o) => setOpenDetailsId(o ? f.id : null)}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="gc-filter-pill-menu"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Edit saved filter"
+                    data-testid={`filter-pill-menu-${f.id}`}
+                  >
+                    <MoreVertical size={11} strokeWidth={2} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  className="w-[360px] p-0 text-xs"
+                  data-testid={`filter-pill-details-${f.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <FilterModelEditor
+                    label={f.label}
+                    filterModel={f.filterModel as Record<string, unknown>}
+                    onSave={(model) => {
+                      handleEditFilterModel(f.id, model);
+                      setOpenDetailsId(null);
+                    }}
+                    onCancel={() => setOpenDetailsId(null)}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           );
         })}
@@ -481,6 +534,84 @@ export function FiltersToolbar() {
         >
           <FunnelPlus size={16} strokeWidth={2.75} />
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Inline JSON editor for a saved filter's `filterModel`. Lives inside
+ * the per-pill PopoverContent. PopoverContent unmounts on close, so the
+ * draft state here resets each time the popover is reopened.
+ *
+ * Validates JSON.parse on every keystroke and only enables Save when the
+ * draft both parses AND yields a non-array object. AG-Grid filter models
+ * are always plain objects keyed by colId.
+ */
+interface FilterModelEditorProps {
+  label: string;
+  filterModel: Record<string, unknown>;
+  onSave: (model: Record<string, unknown>) => void;
+  onCancel: () => void;
+}
+function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModelEditorProps) {
+  const initial = useMemo(() => JSON.stringify(filterModel, null, 2), [filterModel]);
+  const [draft, setDraft] = useState(initial);
+
+  const parsed = useMemo(() => {
+    try {
+      const value = JSON.parse(draft);
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        return { ok: false as const, error: 'Filter model must be a JSON object' };
+      }
+      return { ok: true as const, value: value as Record<string, unknown> };
+    } catch (err) {
+      return { ok: false as const, error: err instanceof Error ? err.message : 'Invalid JSON' };
+    }
+  }, [draft]);
+
+  const dirty = draft !== initial;
+  const canSave = parsed.ok && dirty;
+
+  return (
+    <div className="flex flex-col">
+      <div
+        className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider opacity-60"
+        style={{ borderColor: 'var(--bn-border)' }}
+      >
+        {label}
+      </div>
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        spellCheck={false}
+        rows={10}
+        className="font-mono text-[11px] leading-snug rounded-none border-0 border-b resize-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[280px]"
+        style={{ borderColor: 'var(--bn-border)' }}
+        data-testid="filter-pill-details-textarea"
+      />
+      {!parsed.ok && (
+        <div
+          className="px-3 py-1.5 text-[10px] font-medium border-b"
+          style={{ color: 'var(--bn-red, #f87171)', borderColor: 'var(--bn-border)' }}
+          data-testid="filter-pill-details-error"
+        >
+          {parsed.error}
+        </div>
+      )}
+      <div className="flex items-center justify-end gap-2 px-3 py-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!canSave}
+          onClick={() => parsed.ok && onSave(parsed.value)}
+          data-testid="filter-pill-details-save"
+        >
+          Save
+        </Button>
       </div>
     </div>
   );

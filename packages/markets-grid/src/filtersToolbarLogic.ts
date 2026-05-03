@@ -48,6 +48,88 @@ export function generateLabel(
   return `${keys[0]} + ${keys.length - 1} more`;
 }
 
+// ─── Filter-model pretty-printer ────────────────────────────────────────
+//
+// Renders an AG-Grid filter model into a one-line human-readable string
+// suitable for showing the user "what was actually saved" in this pill.
+// Cross-column joins use AND. Within a column, a `set` filter renders as
+// `col IN (a, b)`, single text/number conditions as `col <op> value`,
+// and AND/OR composites as `(a <op> v1 OR a <op> v2)`. Unknown shapes
+// fall through to a JSON snippet so nothing is silently dropped.
+
+const TEXT_OP: Record<string, string> = {
+  contains: 'contains',
+  notContains: 'not contains',
+  equals: '=',
+  notEqual: '!=',
+  startsWith: 'starts with',
+  endsWith: 'ends with',
+  blank: 'is blank',
+  notBlank: 'is not blank',
+};
+const NUM_OP: Record<string, string> = {
+  equals: '=',
+  notEqual: '!=',
+  greaterThan: '>',
+  greaterThanOrEqual: '>=',
+  lessThan: '<',
+  lessThanOrEqual: '<=',
+  inRange: 'between',
+  blank: 'is blank',
+  notBlank: 'is not blank',
+};
+
+function formatCondition(
+  col: string,
+  filterType: string,
+  cond: Record<string, unknown>,
+): string {
+  const type = String(cond.type ?? '');
+  const val = cond.filter;
+  const to = cond.filterTo;
+  if (filterType === 'text') {
+    const op = TEXT_OP[type] ?? type;
+    if (type === 'blank' || type === 'notBlank') return `${col} ${op}`;
+    return `${col} ${op} "${val ?? ''}"`;
+  }
+  if (filterType === 'number') {
+    const op = NUM_OP[type] ?? type;
+    if (type === 'blank' || type === 'notBlank') return `${col} ${op}`;
+    if (type === 'inRange') return `${col} ${op} ${val} and ${to}`;
+    return `${col} ${op} ${val}`;
+  }
+  return `${col} ${type} ${val ?? ''}`.trim();
+}
+
+export function formatFilterModel(
+  filterModel: Record<string, unknown> | null | undefined,
+): string {
+  if (!filterModel || Object.keys(filterModel).length === 0) return '(empty filter)';
+  const parts: string[] = [];
+  for (const [col, raw] of Object.entries(filterModel)) {
+    const f = raw as Record<string, unknown>;
+    const filterType = String(f?.filterType ?? '');
+    if (filterType === 'set') {
+      const vals = (f.values as unknown[] | undefined) ?? [];
+      parts.push(`${col} IN (${vals.map((v) => (v == null ? 'null' : String(v))).join(', ')})`);
+      continue;
+    }
+    if ((filterType === 'text' || filterType === 'number') && Array.isArray(f.conditions) && f.operator) {
+      const inner = (f.conditions as Record<string, unknown>[])
+        .map((c) => formatCondition(col, filterType, c))
+        .join(` ${String(f.operator)} `);
+      parts.push(`(${inner})`);
+      continue;
+    }
+    if (filterType === 'text' || filterType === 'number') {
+      parts.push(formatCondition(col, filterType, f));
+      continue;
+    }
+    parts.push(`${col}: ${JSON.stringify(f)}`);
+  }
+  return parts.join(' AND ');
+}
+
 // ─── Row-match helpers ──────────────────────────────────────────────────
 //
 // Mirrors AG-Grid's filter semantics for set / text / number filters so
@@ -124,9 +206,23 @@ export function doesRowMatchFilterModel(
   filterModel: Record<string, unknown>,
 ): boolean {
   for (const [col, filter] of Object.entries(filterModel)) {
-    if (!doesValueMatchFilter(rowData[col], filter as Record<string, unknown>)) return false;
+    if (!doesValueMatchFilter(getByPath(rowData, col), filter as Record<string, unknown>)) return false;
   }
   return true;
+}
+
+// Read a value out of a row by AG-Grid column id. Column ids are often
+// dot-paths into nested row objects (e.g. `quote.bid`). A literal flat
+// key still wins first so rows with `{ "weird.key": … }` keep working.
+function getByPath(row: Record<string, unknown>, path: string): unknown {
+  if (Object.prototype.hasOwnProperty.call(row, path)) return row[path];
+  if (!path.includes('.')) return undefined;
+  let cursor: unknown = row;
+  for (const seg of path.split('.')) {
+    if (cursor == null || typeof cursor !== 'object') return undefined;
+    cursor = (cursor as Record<string, unknown>)[seg];
+  }
+  return cursor;
 }
 
 // ─── Filter-model equality ──────────────────────────────────────────────

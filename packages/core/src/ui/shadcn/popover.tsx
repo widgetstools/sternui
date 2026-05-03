@@ -65,10 +65,14 @@ const PopoverContent = React.forwardRef<
       )}
       onMouseDown={(e) => {
         // Prevent focus-steal from inputs; stop propagation so parent
-        // click handlers don't close anything.
+        // click handlers don't close anything. Form controls keep their
+        // native mousedown so cursor positioning, option selection, etc.
+        // continue to work.
         e.stopPropagation();
         const tag = (e.target as HTMLElement).tagName;
-        if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
+        if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION' && tag !== 'TEXTAREA') {
+          e.preventDefault();
+        }
       }}
       // Token-backed opaque background — inline (load-bearing over
       // the Tailwind arbitrary-value class above) so it always wins.
