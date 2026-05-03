@@ -57,6 +57,20 @@ namespacing).
 | `configManager` | `ConfigManager?` | resolved lazily from `@marketsui/openfin-platform/config` | Explicit override. Use in tests or in non-OpenFin runtimes that supply their own ConfigManager. |
 | `theme` | `'auto' \| 'dark' \| 'light'` | `'auto'` | AG-Grid blotter theme mode. `'auto'` follows the host's `[data-theme]` attribute on `<html>` via a MutationObserver. |
 | `dataPlaneClient` | `DataPlane?` | — | Optional DataPlane client. When provided, the wrapper mounts a `<DataPlaneProvider>`. Omit when an ancestor already provides DataPlane context. |
+| `caption` | `string?` | `componentName` | Caption forwarded to `MarketsGridContainer` *only when the host OpenFin window has hidden its tab strip*. When tabs are visible nothing is forwarded; when hidden and `caption` is omitted, `componentName` is used as the fallback. The wrapper does not render the caption itself — it forwards both the resolved string and the `tabsHidden` flag, leaving the layout decision to the grid. |
+
+## Workspace save
+
+When mounted inside an OpenFin workspace, `<HostedMarketsGrid>` connects
+to the platform-side `marketsui-workspace-save-channel` (see
+[`useWorkspaceSaveEvent`](./useWorkspaceSaveEvent.ts)) and registers an
+awaited flush callback. The callback runs the same code path the
+toolbar **Save** button uses — `MarketsGridHandle.profiles.saveActiveProfile()`
+— so any column / filter / formatting edits that haven't been saved
+explicitly still round-trip through OpenFin's *Save Workspace*. The
+platform `dispatch` blocks on each connected view's promise before
+capturing the snapshot, so flushes complete before serialization. The
+hook is a no-op outside OpenFin.
 
 ### Inherited from `MarketsGridContainer`
 

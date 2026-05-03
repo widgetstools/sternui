@@ -16,12 +16,13 @@
  * Props are flat (no `gridProps` namespacing) per refactor decision D7.
  */
 
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { DataPlane } from '@marketsui/data-plane/v2/client';
 import { DataPlaneProvider } from '@marketsui/data-plane-react/v2';
+import type { MarketsGridHandle } from '@marketsui/markets-grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../v2/markets-grid-container/index.js';
-import { useHostedIdentity } from './useHostedIdentity.js';
-import { useAgGridTheme, type AgGridThemeMode } from './useAgGridTheme.js';
+import { useHostedView } from './useHostedView.js';
+import type { AgGridThemeMode } from './useAgGridTheme.js';
 import type { ConfigManager } from './types.js';
 
 const LEGACY_CLEANUP_SENTINEL = 'hosted-mg.legacy-cleanup';
@@ -42,6 +43,11 @@ type ContainerOwnedKeys =
 export interface HostedMarketsGridProps<
   TData extends Record<string, unknown> = Record<string, unknown>,
 > extends Omit<MarketsGridContainerProps<TData>, ContainerOwnedKeys> {
+  /** Caption rendered top-left when the host OpenFin window has hidden
+   *  its tab strip. Falls back to `componentName`. The actual rendering
+   *  decision is made downstream in `MarketsGrid` (session 7); here we
+   *  forward both the caption and the `tabsHidden` flag verbatim. */
+  caption?: string;
   /** Logical component name — surfaces in the toolbar info popover and
    *  is used for diagnostic identifiers. */
   componentName: string;
@@ -121,19 +127,43 @@ export function HostedMarketsGrid<
     configManager,
     theme = 'auto',
     dataPlaneClient,
+    caption,
     ...containerProps
   } = props;
 
-  const { identity } = useHostedIdentity({
+  // Imperative handle to the underlying MarketsGrid — captured via
+  // `onReady` because MarketsGridContainer is a plain function
+  // component, not a forwardRef. The workspace-save callback reads it
+  // through the ref so the same `saveActiveProfile` code path the
+  // toolbar Save button calls runs on `Save Workspace`.
+  const gridRef = useRef<MarketsGridHandle | null>(null);
+
+  // Chain any caller-supplied onReady so we don't shadow it.
+  const callerOnReady = (containerProps as { onReady?: (h: MarketsGridHandle) => void }).onReady;
+  const handleReady = useCallback(
+    (handle: MarketsGridHandle) => {
+      gridRef.current = handle;
+      callerOnReady?.(handle);
+    },
+    [callerOnReady],
+  );
+
+  const onWorkspaceSave = useCallback(async () => {
+    const profiles = gridRef.current?.profiles;
+    if (!profiles?.saveActiveProfile) return;
+    await profiles.saveActiveProfile();
+  }, []);
+
+  const { identity, agTheme, tabsHidden } = useHostedView({
     defaultInstanceId,
     defaultAppId,
     defaultUserId,
     withStorage,
     configManager,
     componentName,
+    theme,
+    onWorkspaceSave,
   });
-
-  const agTheme = useAgGridTheme(theme);
 
   // Document title — restored on unmount.
   useEffect(() => {
@@ -176,15 +206,26 @@ export function HostedMarketsGrid<
     if (withStorage && !identity.storage) {
       return <div style={LOADING_STYLE}>Connecting to ConfigService…</div>;
     }
+    const headerCaption = tabsHidden ? (caption ?? componentName) : undefined;
+    // `caption` and `tabsHidden` are forwarded as additional props so
+    // session 7's MarketsGrid changes can pick them up directly. They
+    // are not yet declared on `MarketsGridContainerProps`; the cast is
+    // intentional and removed once session 7 lands.
+    const extraProps = {
+      caption: headerCaption,
+      tabsHidden,
+    } as Partial<MarketsGridContainerProps<TData>>;
     return (
       <MarketsGridContainer<TData>
         {...(containerProps as MarketsGridContainerProps<TData>)}
+        {...extraProps}
         instanceId={identity.instanceId}
         appId={identity.appId}
         userId={identity.userId}
         componentName={componentName}
         storage={identity.storage ?? undefined}
         theme={agTheme}
+        onReady={handleReady}
       />
     );
     // containerProps changes per render; spread is shallow so we depend
@@ -200,6 +241,9 @@ export function HostedMarketsGrid<
     componentName,
     agTheme,
     containerProps,
+    caption,
+    tabsHidden,
+    handleReady,
   ]);
 
   const dataPlaneWrapped = dataPlaneClient && identity.configManager
