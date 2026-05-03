@@ -549,3 +549,4 @@ Append one line per completed session: `<sha> | session N | one-line summary`.
 - `9289fe3` | session 2 | useHostedIdentity + tests (OpenFin/browser dual path, storage-factory metadata wrap; vitest scaffolding added to @marketsui/widgets-react)
 - `f3004f4` | session 3 | useAgGridTheme + tests (consumes design-system blotter preset; reacts to [data-theme] via MutationObserver)
 - `ac69ef6` | session 4 | HostedMarketsGrid wrapper + smoke test (composes hooks + DataPlaneProvider + full-bleed layout + loading guard + MarketsGridContainer; flat props per D7; legacy view-state cleanup gated by localStorage sentinel)
+- `c41943d` | session 5 | parity tests (10 new specs under packages/widgets-react/src/hosted/__tests__ covering rows 5-10, 13-15, 16, 17-20, 21; vitest 27 passing in widgets-react)
