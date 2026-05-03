@@ -36,5 +36,16 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 90_000,
     },
+    // markets-ui-react-reference runs on port 5174 (vite default).
+    // The hosted-markets-grid spec exercises BlottersMarketsGrid at
+    // /blotters/marketsgrid against the real reference app — both
+    // pre-migration (HostedFeatureView chain) and post-migration
+    // (HostedMarketsGrid wrapper) must keep this spec green.
+    {
+      command: 'npm run dev -w @marketsui/markets-ui-react-reference',
+      port: 5174,
+      reuseExistingServer: true,
+      timeout: 90_000,
+    },
   ],
 });
