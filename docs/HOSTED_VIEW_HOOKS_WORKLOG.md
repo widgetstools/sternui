@@ -425,7 +425,7 @@ Append one row per session as it completes:
 
 ```
 (no sha) | session 0 | branch cut from d0549a2; baseline 52/52 typecheck, 32/32 build, 36/36 test
-<sha>    | session 1 | useIab + useOpenFinChannel
+4c58f9f | session 1 | useIab + useOpenFinChannel (14 new specs; 41 widgets-react / 72 repo-wide green)
 <sha>    | session 2 | useTabsHidden + live-opt-shape note
 <sha>    | session 3 | workspace-save Channel end-to-end (smoke: dispatch fires)
 <sha>    | session 4 | linking hooks (color + FDC3)
