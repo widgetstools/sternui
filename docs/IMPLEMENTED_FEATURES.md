@@ -1925,6 +1925,57 @@ hosted blotter at once.
 Worklog entry:
 [`docs/HOSTED_MARKETS_GRID_REFACTOR_WORKLOG.md`](./HOSTED_MARKETS_GRID_REFACTOR_WORKLOG.md).
 
+### 1.15 Hosted-view hooks (`useHostedView` + sub-hooks)
+
+Hook-based public API exposing OpenFin runtime events to any feature
+hosted inside the OpenFin shell. All live under
+[`packages/widgets-react/src/hosted/`](../packages/widgets-react/src/hosted/)
+and degrade safely outside OpenFin (subscriptions noop, state defaults).
+
+**New hooks:**
+
+- `useIab()` — `{ subscribe, publish }` over `fin.InterApplicationBus`,
+  with auto-cleanup of every subscription on unmount.
+- `useOpenFinChannel()` — `{ createProvider, connect }` Channel-API
+  factory with provider/client teardown on unmount.
+- `useTabsHidden()` — boolean tracking the parent OpenFin window's
+  tab-strip visibility via the shared `options-changed` listener.
+- `useWorkspaceSaveEvent(cb)` — connects to the platform-side Channel
+  provider and registers an awaited flush handler so the workspace
+  snapshot includes the latest in-memory state.
+- `useColorLinking()` — `{ color, linked }` from the parent window's
+  workspace-platform color/link state.
+- `useFdc3Channel()` — `{ current, join, leave, addContextListener,
+  broadcast }` thin wrapper over `window.fdc3` user channels.
+- `useHostedView(args)` — composing entry point that calls every
+  sub-hook above plus the existing `useHostedIdentity` and
+  `useAgGridTheme`. Single result bag with stable identity-keyed
+  callbacks.
+
+**Platform-side fan-out:**
+[`packages/openfin-platform/src/workspace-persistence.ts`](../packages/openfin-platform/src/workspace-persistence.ts)
+creates a singleton Channel provider named
+`marketsui-workspace-save-channel` and dispatches `'workspace-saving'`
+to every connected client *before* `augmentSnapshotWithLiveCustomData`,
+awaiting `Promise.allSettled` so async flushes complete before the
+snapshot is captured. A fire-and-forget `'workspace-saved'` publish
+follows successful `cm.saveConfig`.
+
+**HostedMarketsGrid integration:**
+
+- Now consumes `useHostedView` and forwards `onWorkspaceSave` to
+  `MarketsGridHandle.profiles.saveActiveProfile()` — the same code path
+  the toolbar Save button calls.
+- New optional `caption?: string` prop. When the OpenFin shell hides
+  the view-tab strip (`tabsHidden === true`), a top-left styled span is
+  rendered via `MarketsGrid`'s new `caption` + `tabsHidden` props
+  (design-system tokens, no new primitive). Caption falls back to
+  `componentName` when omitted.
+- Existing call sites untouched — every new prop is additive.
+
+Worklog entry:
+[`docs/HOSTED_VIEW_HOOKS_WORKLOG.md`](./HOSTED_VIEW_HOOKS_WORKLOG.md).
+
 ### Known gaps documented but not blocking
 
 - **Toolbar Visibility wiring** (§1.8e) — module state ships in every profile but concrete toolbar-toggle bindings aren't routed through it yet. Non-blocking; current host chrome uses local React state. Wiring pass is a known follow-up.

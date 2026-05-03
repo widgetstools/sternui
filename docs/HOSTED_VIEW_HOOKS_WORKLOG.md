@@ -431,5 +431,5 @@ Append one row per session as it completes:
 e0d0442 | session 4 | linking hooks (color + FDC3) + shared windowOptionsSubscription manager; 9 useColorLinking + 8 useFdc3Channel specs; 76 widgets-react tests green; live-OpenFin field-path verification pending for color link
 e294041 | session 5 | useHostedView + barrel + README (6 new specs; 82 widgets-react tests green)
 ef007e4 | session 6 | HostedMarketsGrid → useHostedView + caption + workspace-save wiring (5 new specs; 87 widgets-react tests green)
-<sha>    | session 7 | MarketsGrid caption + verification + docs (PR-ready)
+<sha>    | session 7 | MarketsGrid caption + tabsHidden props (3 new specs; 61 markets-grid / 87 widgets-react / 36 turbo test tasks all green); IMPLEMENTED_FEATURES.md updated; live-OpenFin smoke pending real-runtime check; PR-ready
 ```
