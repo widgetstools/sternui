@@ -388,6 +388,53 @@ export function FieldRenderer({
   }
 }
 
+/**
+ * Filter a band's schema by a free-text query. Matches band title,
+ * subsection title, field label, or field hint (case-insensitive). A
+ * matching container surfaces all of its children; a non-matching
+ * container surfaces only matching descendants. Conditional groups are
+ * preserved so the renderer's `show(state)` predicate still applies.
+ * Returns `null` when nothing in the band matches.
+ */
+export function filterBand(band: BandSchema, query: string): BandSchema | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return band;
+  if (band.title.toLowerCase().includes(q)) return band;
+  const fields = filterFields(band.fields, q);
+  return fields.length ? { ...band, fields } : null;
+}
+
+function filterFields(fields: ReadonlyArray<Field>, q: string): Field[] {
+  const out: Field[] = [];
+  for (const f of fields) {
+    const kept = filterField(f, q);
+    if (kept) out.push(kept);
+  }
+  return out;
+}
+
+function filterField(field: Field, q: string): Field | null {
+  switch (field.kind) {
+    case 'subsection': {
+      if (field.title.toLowerCase().includes(q)) return field;
+      const inner = filterFields(field.fields, q);
+      return inner.length ? { ...field, fields: inner } : null;
+    }
+    case 'conditional': {
+      const inner = filterFields(field.fields, q);
+      return inner.length ? { ...field, fields: inner } : null;
+    }
+    default: {
+      const label = field.label.toLowerCase();
+      const hint = field.hint?.toLowerCase() ?? '';
+      const key = 'key' in field ? String(field.key).toLowerCase() : '';
+      return label.includes(q) || hint.includes(q) || key.includes(q)
+        ? field
+        : null;
+    }
+  }
+}
+
 export function BandRenderer({
   band,
   state,

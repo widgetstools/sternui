@@ -10,16 +10,17 @@
  * conditional-styling, column-groups): local draft + explicit SAVE /
  * RESET, dirty LED in the header, OVERRIDES count in the meta strip.
  */
-import { memo } from 'react';
-import { RotateCcw, Save } from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
+import { RotateCcw, Save, Search, X } from 'lucide-react';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import {
+  IconInput,
   MetaCell,
   Mono,
   ObjectTitleRow,
   SharpBtn,
 } from '../../ui/SettingsPanel';
-import { BandRenderer } from './fieldSchema';
+import { BandRenderer, filterBand } from './fieldSchema';
 import { GRID_OPTIONS_SCHEMA } from './gridOptionsSchema';
 import { INITIAL_GENERAL_SETTINGS, type GeneralSettingsState } from './state';
 
@@ -68,6 +69,16 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
 
   // `missing` can't really happen for the singleton state slice, but
   // the guard protects against a misconfigured store.
+  const [query, setQuery] = useState('');
+
+  const filteredBands = useMemo(
+    () =>
+      GRID_OPTIONS_SCHEMA.map((b) => filterBand(b, query)).filter(
+        (b): b is (typeof GRID_OPTIONS_SCHEMA)[number] => b != null,
+      ),
+    [query],
+  );
+
   if (missing) return null;
 
   const overrides = countNonDefault(draft);
@@ -105,6 +116,40 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
         />
       </div>
 
+      <div
+        className="gc-editor-search"
+        style={{
+          flexShrink: 0,
+          padding: '8px 16px',
+          background: 'var(--ck-bg)',
+          borderBottom: '1px solid var(--ck-border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <IconInput
+          value={query}
+          onChange={setQuery}
+          onCommit={setQuery}
+          icon={<Search size={12} strokeWidth={2} />}
+          placeholder="Filter options…"
+          aria-label="Filter grid options"
+          data-testid="go-filter-input"
+          style={{ flex: 1 }}
+        />
+        {query && (
+          <SharpBtn
+            variant="ghost"
+            onClick={() => setQuery('')}
+            data-testid="go-filter-clear"
+            title="Clear filter"
+          >
+            <X size={12} strokeWidth={2} />
+          </SharpBtn>
+        )}
+      </div>
+
       <div className="gc-editor-scroll">
         <div className="gc-meta-grid">
           <MetaCell label="SCHEMA" value={<Mono color="var(--ck-t0)">v2</Mono>} />
@@ -123,9 +168,25 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
           />
         </div>
 
-        {GRID_OPTIONS_SCHEMA.map((band) => (
-          <BandRenderer key={band.index} band={band} state={draft} update={update} />
-        ))}
+        {filteredBands.length === 0 ? (
+          <div
+            data-testid="go-filter-empty"
+            style={{
+              padding: '24px 16px',
+              fontSize: 11,
+              color: 'var(--ck-t3)',
+              textAlign: 'center',
+              letterSpacing: 0.12,
+              textTransform: 'uppercase',
+            }}
+          >
+            No options match "{query}"
+          </div>
+        ) : (
+          filteredBands.map((band) => (
+            <BandRenderer key={band.index} band={band} state={draft} update={update} />
+          ))
+        )}
       </div>
     </div>
   );
