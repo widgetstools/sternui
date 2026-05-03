@@ -112,9 +112,14 @@ describe('MarketsGrid — tabs-hidden caption', () => {
     expect(container.querySelector('[data-grid-caption]')).toBeNull();
   });
 
-  it('does not render the caption when caption is omitted', () => {
-    const { container } = render(<MarketsGrid {...baseProps} tabsHidden />);
-    expect(container.querySelector('[data-grid-caption]')).toBeNull();
+  it('falls back to "MarketsGrid" when caption is omitted or blank', () => {
+    const omitted = render(<MarketsGrid {...baseProps} tabsHidden />);
+    expect(omitted.container.querySelector('[data-grid-caption]')).not.toBeNull();
+    expect(omitted.getByTestId('grid-caption-text').textContent).toBe('MarketsGrid');
+    omitted.unmount();
+
+    const blank = render(<MarketsGrid {...baseProps} tabsHidden caption="   " />);
+    expect(blank.getByTestId('grid-caption-text').textContent).toBe('MarketsGrid');
   });
 
   it('renders the caption at the left edge of the primary toolbar row', () => {

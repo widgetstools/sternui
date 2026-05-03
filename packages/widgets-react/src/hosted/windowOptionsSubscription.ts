@@ -28,8 +28,9 @@ declare const fin: any;
 type OptionsCallback = (opts: unknown) => void;
 
 const callbacks = new Set<OptionsCallback>();
-let active: { win: any; handler: () => Promise<void> } | null = null;
+let active: { win: any; handler: (evt: unknown) => void; lastOpts: unknown } | null = null;
 let initPromise: Promise<void> | null = null;
+let probedEventShape = false;
 
 function isOpenFin(): boolean {
   return typeof fin !== 'undefined' && fin?.me?.getCurrentWindow;
@@ -45,6 +46,28 @@ function fireAll(opts: unknown): void {
   }
 }
 
+/**
+ * The `options-changed` event in OpenFin Workspace carries the new
+ * options on the event object itself — typical shapes seen in the wild
+ * include `{ options, diff }` or `{ newOptions }` or `{ options:
+ * { ... } }`. Probing each candidate avoids an IPC round-trip back to
+ * `getOptions()` on every event.
+ *
+ * Returns the new options if a usable shape is found, otherwise `null`
+ * to signal the caller should fall back to `win.getOptions()`.
+ */
+function extractOptionsFromEvent(evt: unknown): unknown {
+  if (!evt || typeof evt !== 'object') return null;
+  const e = evt as any;
+  // Most common: event.options is the full new options.
+  if (e.options && typeof e.options === 'object' && e.options.workspacePlatform) return e.options;
+  if (e.newOptions && typeof e.newOptions === 'object' && e.newOptions.workspacePlatform) return e.newOptions;
+  // Sometimes the event IS the new options (older runtime) — check for
+  // the workspacePlatform marker directly on the event.
+  if (e.workspacePlatform) return e;
+  return null;
+}
+
 function ensureListener(): Promise<void> {
   if (active) return Promise.resolve();
   if (initPromise) return initPromise;
@@ -53,22 +76,47 @@ function ensureListener(): Promise<void> {
   initPromise = (async () => {
     try {
       const win = await fin.me.getCurrentWindow();
-      const handler = async () => {
-        try {
-          const opts = await win.getOptions();
-          fireAll(opts);
-        } catch (err) {
-          console.warn('[windowOptionsSubscription] options re-read failed:', err);
+      const handler = (evt: unknown) => {
+        // One-shot probe so we can confirm the event payload shape per
+        // runtime. Removes itself after the first event.
+        if (!probedEventShape) {
+          probedEventShape = true;
+          const e = evt as any;
+          // eslint-disable-next-line no-console
+          console.log('[windowOptionsSubscription] options-changed event shape:', {
+            keys: e && typeof e === 'object' ? Object.keys(e) : null,
+            hasOptions: Boolean(e?.options),
+            hasNewOptions: Boolean(e?.newOptions),
+            hasDirectWorkspacePlatform: Boolean(e?.workspacePlatform),
+          });
         }
+        const direct = extractOptionsFromEvent(evt);
+        if (direct) {
+          if (active) active.lastOpts = direct;
+          fireAll(direct);
+          return;
+        }
+        // Fallback for runtimes that don't include the new options on
+        // the event payload — pay the IPC round-trip.
+        void (async () => {
+          try {
+            const opts = await win.getOptions();
+            if (active) active.lastOpts = opts;
+            fireAll(opts);
+          } catch (err) {
+            console.warn('[windowOptionsSubscription] options re-read failed:', err);
+          }
+        })();
       };
       try {
         win.on('options-changed', handler);
       } catch (err) {
         console.warn('[windowOptionsSubscription] win.on failed:', err);
       }
-      active = { win, handler };
+      active = { win, handler, lastOpts: undefined };
       try {
         const opts = await win.getOptions();
+        active.lastOpts = opts;
         fireAll(opts);
       } catch (err) {
         console.warn('[windowOptionsSubscription] initial getOptions failed:', err);
@@ -97,17 +145,19 @@ export function subscribeWindowOptions(cb: OptionsCallback): () => void {
   callbacks.add(cb);
 
   if (active) {
-    // Listener already up — fire current options for this new
-    // subscriber so it doesn't have to wait for the next event.
-    const win = active.win;
-    void (async () => {
+    // Listener already up — fire the cached `lastOpts` for this new
+    // subscriber synchronously so it doesn't have to wait for the next
+    // event AND doesn't pay an IPC round-trip just to re-read what we
+    // already have. If the cache hasn't been seeded yet (init still
+    // in flight), the in-flight initial getOptions() will fan out to
+    // this subscriber once it resolves.
+    if (active.lastOpts !== undefined) {
       try {
-        const opts = await win.getOptions();
-        if (callbacks.has(cb)) cb(opts);
+        cb(active.lastOpts);
       } catch (err) {
-        console.warn('[windowOptionsSubscription] late initial fire failed:', err);
+        console.warn('[windowOptionsSubscription] cached fire threw:', err);
       }
-    })();
+    }
   } else {
     void ensureListener();
   }
@@ -141,4 +191,5 @@ export function __resetWindowOptionsSubscriptionForTests(): void {
   callbacks.clear();
   active = null;
   initPromise = null;
+  probedEventShape = false;
 }

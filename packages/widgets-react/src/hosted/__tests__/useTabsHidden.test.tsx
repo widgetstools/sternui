@@ -32,6 +32,7 @@ afterEach(() => {
   cleanup();
   __resetWindowOptionsSubscriptionForTests();
   delete (globalThis as any).fin;
+  try { window.sessionStorage.removeItem('marketsui.tabsHidden'); } catch { /* ignore */ }
   vi.restoreAllMocks();
 });
 
@@ -79,6 +80,45 @@ describe('deriveTabsHidden', () => {
     expect(
       deriveTabsHidden({ workspacePlatform: { toolbarOptions: {} } }),
     ).toBe(false);
+  });
+
+  it('reads layout.settings.hasHeaders from the active page (GoldenLayout shape)', () => {
+    const opts = {
+      workspacePlatform: {
+        pages: [
+          { pageId: 'p1', isActive: false, layout: { settings: { hasHeaders: true } } },
+          { pageId: 'p2', isActive: true, layout: { settings: { hasHeaders: false } } },
+        ],
+      },
+    };
+    expect(deriveTabsHidden(opts)).toBe(true);
+  });
+
+  it('reads layout.settings.hasHeaders from the first page when no isActive flag', () => {
+    const opts = {
+      workspacePlatform: {
+        pages: [{ pageId: 'p1', layout: { settings: { hasHeaders: false } } }],
+      },
+    };
+    expect(deriveTabsHidden(opts)).toBe(true);
+  });
+
+  it('falls back to layout.dimensions.headerHeight === 0 when hasHeaders is missing', () => {
+    const opts = {
+      workspacePlatform: {
+        pages: [{ pageId: 'p1', isActive: true, layout: { dimensions: { headerHeight: 0 } } }],
+      },
+    };
+    expect(deriveTabsHidden(opts)).toBe(true);
+  });
+
+  it('returns false when layout.settings.hasHeaders is true', () => {
+    const opts = {
+      workspacePlatform: {
+        pages: [{ pageId: 'p1', isActive: true, layout: { settings: { hasHeaders: true } } }],
+      },
+    };
+    expect(deriveTabsHidden(opts)).toBe(false);
   });
 });
 
@@ -130,6 +170,26 @@ describe('useTabsHidden — OpenFin runtime', () => {
       await win._handler!({});
     });
     expect(result.current).toBe(false);
+  });
+
+  it('uses options carried on the event payload directly without re-reading getOptions()', async () => {
+    const { result } = renderHook(() => useTabsHidden());
+    await waitFor(() => expect(win._handler).toBeTruthy());
+    expect(result.current).toBe(false);
+
+    // Reset the call counter so we can prove the fast path skips IPC.
+    win.getOptions.mockClear();
+
+    // Event payload carries the new options under `event.options`.
+    await act(async () => {
+      await win._handler!({
+        options: {
+          workspacePlatform: { toolbarOptions: { visible: false } },
+        },
+      });
+    });
+    expect(result.current).toBe(true);
+    expect(win.getOptions).not.toHaveBeenCalled();
   });
 
   it('removes the options-changed listener on unmount', async () => {

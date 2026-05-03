@@ -650,9 +650,9 @@ function Host<TData>({
                icon; clicking the icon swaps the label for an input.
                The control persists committed edits via
                `onCaptionChange` when supplied. */}
-          {tabsHidden && caption ? (
+          {tabsHidden ? (
             <EditableCaption
-              caption={caption}
+              caption={caption && caption.trim() ? caption : 'MarketsGrid'}
               onCaptionChange={onCaptionChange}
             />
           ) : null}
@@ -1206,7 +1206,7 @@ function EditableCaption({
         marginRight: 8,
         fontSize: 12,
         fontWeight: 600,
-        color: 'var(--bn-t1)',
+        color: 'var(--bn-t0, #d8dee9)',
       }}
     >
       <span data-testid="grid-caption-text">{value}</span>

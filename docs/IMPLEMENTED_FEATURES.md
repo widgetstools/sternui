@@ -1975,6 +1975,15 @@ follows successful `cm.saveConfig`.
   label for a shadcn `<Input>` — Enter or blur commits, Escape
   cancels. Committed edits fire the optional `onCaptionChange(next)`
   callback so the host can persist the override.
+- **Caption persistence** (`MarketsGridContainer`): the persisted
+  caption is stored alongside the picker `ProviderSelection` in the
+  same `gridLevelData` row used for grid-level state — keyed by
+  `instanceId` via the StorageAdapter, ConfigService-backed. Hydrates
+  on mount; user edits (via the inline pencil) flow through
+  `onCaptionChange`, update local state, and trigger a debounced save
+  on the same write path that already handles provider-selection
+  changes. The persisted value takes precedence over the prop on
+  hydration, so the prop becomes a first-run / fallback value.
 - Existing call sites untouched — every new prop is additive.
 
 Worklog entry:

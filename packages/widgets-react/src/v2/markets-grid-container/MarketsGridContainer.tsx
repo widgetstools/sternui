@@ -98,6 +98,12 @@ function normalizeSelection(raw: unknown): ProviderSelection {
   };
 }
 
+function extractPersistedCaption(raw: unknown): string | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const c = (raw as { caption?: unknown }).caption;
+  return typeof c === 'string' ? c : undefined;
+}
+
 export function MarketsGridContainer<TData extends Record<string, unknown> = Record<string, unknown>>(
   props: MarketsGridContainerProps<TData>,
 ) {
@@ -136,6 +142,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // flips, MarketsGrid mounts with the persisted selection in place
   // — no second mount required when the load resolves.
   const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
+  const [persistedCaption, setPersistedCaption] = useState<string | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
@@ -154,41 +161,58 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       .then((raw) => {
         if (cancelled) return;
         setSelection(normalizeSelection(raw));
+        setPersistedCaption(extractPersistedCaption(raw));
         setLoaded(true);
       })
       .catch(() => {
         if (cancelled) return;
         setSelection({ ...DEFAULT_SELECTION });
+        setPersistedCaption(undefined);
         setLoaded(true);
       });
     return () => { cancelled = true; };
   }, [adapter, props.gridId]);
 
   // Persist on mutation. `lastSavedRef` skips the initial sync when
-  // `loaded` flips (selection just came FROM disk; saving back would
-  // be a no-op write) AND handles React StrictMode's double-effect
-  // correctly across remounts.
-  const lastSavedRef = useRef<ProviderSelection | null>(null);
+  // `loaded` flips (state just came FROM disk; saving back would be a
+  // no-op write) AND handles React StrictMode's double-effect correctly
+  // across remounts. Tracks both the picker selection and the persisted
+  // caption — they share the same gridLevelData blob.
+  const lastSavedRef = useRef<{ selection: ProviderSelection; caption: string | undefined } | null>(null);
   useEffect(() => {
     if (!loaded) return;
-    // First post-load run: seed lastSaved with whatever just loaded
-    // and bail out — no need to write the value we just read.
     if (lastSavedRef.current === null) {
-      lastSavedRef.current = selection;
+      lastSavedRef.current = { selection, caption: persistedCaption };
       return;
     }
+    const prev = lastSavedRef.current;
     if (
-      lastSavedRef.current.liveProviderId === selection.liveProviderId
-      && lastSavedRef.current.historicalProviderId === selection.historicalProviderId
-      && lastSavedRef.current.mode === selection.mode
+      prev.selection.liveProviderId === selection.liveProviderId
+      && prev.selection.historicalProviderId === selection.historicalProviderId
+      && prev.selection.mode === selection.mode
+      && prev.caption === persistedCaption
     ) {
       return;
     }
-    lastSavedRef.current = selection;
+    lastSavedRef.current = { selection, caption: persistedCaption };
     if (adapter?.saveGridLevelData) {
-      void adapter.saveGridLevelData(props.gridId, selection);
+      void adapter.saveGridLevelData(props.gridId, { ...selection, caption: persistedCaption });
     }
-  }, [selection, loaded, adapter, props.gridId]);
+  }, [selection, persistedCaption, loaded, adapter, props.gridId]);
+
+  // Caller may also want to observe caption edits — chain.
+  const callerOnCaptionChange = (marketsGridProps as { onCaptionChange?: (next: string) => void }).onCaptionChange;
+  const handleCaptionChange = useCallback((next: string) => {
+    setPersistedCaption(next);
+    callerOnCaptionChange?.(next);
+  }, [callerOnCaptionChange]);
+
+  // Effective caption: persisted value (once loaded) wins over the
+  // prop, which is treated as the initial / fallback. The downstream
+  // MarketsGrid still gates RENDER on `tabsHidden` — this just decides
+  // WHAT to show when render is allowed.
+  const propCaption = (marketsGridProps as { caption?: string }).caption;
+  const effectiveCaption = persistedCaption ?? propCaption;
 
   const setLiveId = useCallback((id: string | null) => {
     setSelection((s) => ({ ...s, liveProviderId: id }));
@@ -765,6 +789,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           onReady={onReady}
           headerExtras={headerExtras}
           adminActions={adminActionsWithRefresh}
+          caption={effectiveCaption}
+          onCaptionChange={handleCaptionChange}
         />
         {showLoadingOverlay && (
           <MarketsGridLoadingOverlay
@@ -788,6 +814,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       rowIdField="__none__"
       columnDefs={EMPTY as unknown as ColDef<TData>[]}
       headerExtras={headerExtras}
+      caption={effectiveCaption}
+      onCaptionChange={handleCaptionChange}
     />
   );
 }
