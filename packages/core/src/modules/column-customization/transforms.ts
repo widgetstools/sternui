@@ -216,8 +216,27 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
     return;
   }
 
-  if (cfg.kind) merged.filter = cfg.kind;
+  // Synthetic 'streamSafeMulti*ColumnFilter' kinds aren't real AG-Grid
+  // filter types — they're opt-in markers for `agMultiColumnFilter`
+  // with our custom column-level floating filter (streamSafeText for
+  // text columns, streamSafeNumber for number columns). Flatten to
+  // the real AG-Grid kind for emission; the floating-filter component
+  // gets planted further down in the multi-filter branch.
+  const isStreamSafeMultiText = cfg.kind === 'streamSafeMultiColumnFilter';
+  const isStreamSafeMultiNumber = cfg.kind === 'streamSafeMultiNumberColumnFilter';
+  const isStreamSafeMulti = isStreamSafeMultiText || isStreamSafeMultiNumber;
+  if (cfg.kind) merged.filter = isStreamSafeMulti ? 'agMultiColumnFilter' : cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
+
+  // AG-Grid Enterprise resolves `filter: true` to `agSetColumnFilter`, whose
+  // floating filter is read-only by design (it just mirrors the active
+  // selection from the popup). When the user opted into a floating filter
+  // without picking an explicit kind, that's a usability trap — they
+  // expect a typeable input. Coerce the boolean default to a text filter
+  // ONLY when floating is on; popup-only set-filter usage is unaffected.
+  if (merged.floatingFilter === true && merged.filter === true) {
+    merged.filter = 'agTextColumnFilter';
+  }
 
   const params: Record<string, unknown> = {};
   if (cfg.buttons && cfg.buttons.length > 0) params.buttons = cfg.buttons;
@@ -233,13 +252,44 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
     if (s.defaultToNothingSelected !== undefined) params.defaultToNothingSelected = s.defaultToNothingSelected;
   }
 
-  if (cfg.kind === 'agMultiColumnFilter' && cfg.multiFilters && cfg.multiFilters.length > 0) {
+  const isMultiKind =
+    cfg.kind === 'agMultiColumnFilter' ||
+    cfg.kind === 'streamSafeMultiColumnFilter' ||
+    cfg.kind === 'streamSafeMultiNumberColumnFilter';
+  if (isMultiKind && cfg.multiFilters && cfg.multiFilters.length > 0) {
     params.filters = cfg.multiFilters.map((mf) => {
       const entry: Record<string, unknown> = { filter: mf.filter };
       if (mf.display) entry.display = mf.display;
       if (mf.title) entry.title = mf.title;
+      // Lift the compound-text condition cap so the streamSafeText
+      // fallback path (multi-filter without a set sub-filter) can emit
+      // arbitrary token counts. Default is 2 → drops 3rd+ with warn #78.
+      if (mf.filter === 'agTextColumnFilter' || mf.filter === 'agNumberColumnFilter') {
+        entry.filterParams = {
+          ...((entry.filterParams as Record<string, unknown> | undefined) ?? {}),
+          maxNumConditions: 100,
+        };
+      }
       return entry;
     });
+  }
+
+  // Register streamSafeText at the COLUMN level only when the user
+  // explicitly picked the synthetic 'streamSafeMultiColumnFilter' kind
+  // in the column-settings dropdown. Column-level floatingFilterComponent
+  // overrides the multi-filter's auto-rotation behaviour: by default
+  // the multi-filter shows the floating filter of whichever sub-filter
+  // has the active model — so when our code applies a set-filter values
+  // list, the multi rotates to the set sub-filter's read-only floating
+  // display ((N) val1,val2,...) and replaces our component. With
+  // column-level wiring our floating filter stays put and we drive the
+  // model through api.setColumnFilterModel regardless of which
+  // sub-filter is "active". Plain agMultiColumnFilter keeps AG-Grid's
+  // default behaviour — no opinion imposed.
+  if (isStreamSafeMulti && cfg.floatingFilter !== false) {
+    merged.floatingFilterComponent = (
+      isStreamSafeMultiNumber ? 'streamSafeNumber' : 'streamSafeText'
+    ) as never;
   }
 
   if (Object.keys(params).length > 0) {
