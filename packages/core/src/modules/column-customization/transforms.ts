@@ -219,6 +219,16 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
   if (cfg.kind) merged.filter = cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
 
+  // AG-Grid Enterprise resolves `filter: true` to `agSetColumnFilter`, whose
+  // floating filter is read-only by design (it just mirrors the active
+  // selection from the popup). When the user opted into a floating filter
+  // without picking an explicit kind, that's a usability trap — they
+  // expect a typeable input. Coerce the boolean default to a text filter
+  // ONLY when floating is on; popup-only set-filter usage is unaffected.
+  if (merged.floatingFilter === true && merged.filter === true) {
+    merged.filter = 'agTextColumnFilter';
+  }
+
   const params: Record<string, unknown> = {};
   if (cfg.buttons && cfg.buttons.length > 0) params.buttons = cfg.buttons;
   if (cfg.closeOnApply !== undefined) params.closeOnApply = cfg.closeOnApply;
@@ -238,6 +248,20 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
       const entry: Record<string, unknown> = { filter: mf.filter };
       if (mf.display) entry.display = mf.display;
       if (mf.title) entry.title = mf.title;
+      // When a set sub-filter sits inside a multi-filter on a column with
+      // streaming row data, AG-Grid's syncAfterDataChange recomputes the
+      // set's available values on every applyTransactionAsync tick, which
+      // dispatches onModelAsStringChange → onParentModelChanged on the
+      // multi's floating-filter component → setValue(model) on the inner
+      // text input. Net effect: a user typing into the floating filter
+      // gets their input clobbered back to the applied model on every
+      // data tick. Auto-defaulting refreshValuesOnOpenOnly: true scopes
+      // the values recompute to popup-open events only, killing the
+      // clobber while keeping auto-discovery (next time the user opens
+      // the set sub-filter popup, fresh values appear).
+      if (mf.filter === 'agSetColumnFilter') {
+        entry.filterParams = { refreshValuesOnOpenOnly: true };
+      }
       return entry;
     });
   }

@@ -54,6 +54,37 @@ import {
  */
 
 /**
+ * Drop per-column entries whose shape would crash AG-Grid v35's filter
+ * handlers. The known landmine: `agSetColumnFilter` handler's
+ * `validateModel` iterates `entry.values` and throws `TypeError: model.values
+ * is not iterable` when `values` isn't an array — taking down the whole
+ * `<FiltersToolbar>` subtree mid-render and leaving the grid in a corrupt
+ * filter state where floating-filter inputs no longer accept keystrokes.
+ * Logs the dropped colId + entry so the user can identify the stale pill.
+ */
+function sanitizeFilterModel(
+  model: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (model == null) return null;
+  const out: Record<string, unknown> = {};
+  for (const [colId, entry] of Object.entries(model)) {
+    if (entry && typeof entry === 'object') {
+      const e = entry as { filterType?: string; values?: unknown };
+      if (e.filterType === 'set' && !Array.isArray(e.values)) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[FiltersToolbar] dropping malformed set-filter entry for col "${colId}" — \`values\` is not an array; this would crash AG-Grid validateModel.`,
+          entry,
+        );
+        continue;
+      }
+    }
+    out[colId] = entry;
+  }
+  return out;
+}
+
+/**
  * FiltersToolbar accepts no props — formatter-toolbar visibility is
  * handled by its own button in the primary row (MarketsGrid), decoupled
  * from the filter pill carousel.
@@ -174,12 +205,27 @@ export function FiltersToolbar() {
   useEffect(() => {
     if (!api) return;
     const active = filters.filter((f) => f.active);
+    // Guard: AG-Grid v35's SetFilterHandler.validateModel iterates `model.values`
+    // and crashes uncaught if it isn't an array. A malformed saved filter pill
+    // (most often a set-filter entry whose `values` got serialized as
+    // undefined / object / string) takes down the whole grid mount when we
+    // push it through. Wrap the call so a corrupt pill logs + skips instead
+    // of crashing the React tree.
+    const safeSet = (model: Record<string, unknown> | null) => {
+      try {
+        const sanitized = sanitizeFilterModel(model);
+        api.setFilterModel(sanitized);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[FiltersToolbar] setFilterModel threw — ignoring this push so the grid stays usable.', { model, err });
+      }
+    };
     if (active.length === 0) {
-      api.setFilterModel(null);
+      safeSet(null);
     } else if (active.length === 1) {
-      api.setFilterModel(active[0].filterModel);
+      safeSet(active[0].filterModel);
     } else {
-      api.setFilterModel(mergeFilterModels(active.map((f) => f.filterModel)));
+      safeSet(mergeFilterModels(active.map((f) => f.filterModel)));
     }
     // Whenever we push the active saved-filters' model INTO AG-Grid, by
     // definition the live model now matches — clear the "new filter" flag
