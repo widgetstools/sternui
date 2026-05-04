@@ -52,7 +52,7 @@
     "ag-grid-community": ">=35.0.0"
   },
   "devDependencies": {
-    "ag-grid-community": "35.1.0",
+    "ag-grid-community": "35.2.1",
     "rimraf": "^5.0.5",
     "typescript": "~5.9.3"
   },
