@@ -60,15 +60,17 @@ interface TextFilterModel {
   filter?: string | null;
 }
 
-/** Minimal interface we lean on from the parent filter instance. */
+/** Minimal interface we lean on from the parent multi-filter
+ *  instance. We deliberately call `setModel` on the PARENT (not on a
+ *  child via `getChildFilterInstance`) — calling setModel on the child
+ *  updates only the child's internal state and the multi-filter's
+ *  aggregated `getModel()` keeps returning the stale shape, so the
+ *  row model never re-evaluates against the new criterion. Going
+ *  through the parent's setModel distributes to children AND updates
+ *  the aggregate. */
 interface MultiFilterInstance {
-  /** AG-Grid 35: returns the child filter at index `idx`, or undefined. */
-  getChildFilterInstance?: (idx: number) => unknown;
-}
-
-/** Minimal interface we lean on from the child text filter instance. */
-interface TextFilterInstance {
-  setModel?: (model: TextFilterModel | null) => void | Promise<unknown>;
+  setModel?: (model: MultiFilterModel | null) => void | Promise<unknown>;
+  getModel?: () => MultiFilterModel | null;
 }
 
 /** Read the child text filter's current model from the multi-filter
@@ -115,36 +117,50 @@ export const MultiTextFloatingFilter = forwardRef<IFloatingFilter, IFloatingFilt
         const next = e.target.value;
         setValue(next);
 
-        // Reach into the multi-filter and update the first child
-        // (text filter) model directly. Skipping AG-Grid's broken
-        // wrapper means we have to call onFilterChanged ourselves so
-        // the row model re-evaluates.
+        // Build the next multi-filter model, preserving the SECOND
+        // child's (set filter) current selection so the user doesn't
+        // lose what they had picked there. Then push via the parent
+        // multi-filter's `setModel` so it re-aggregates and the row
+        // model actually re-evaluates against the new criterion.
+        //
+        // Calling `setModel` on a single child (via
+        // `getChildFilterInstance(0).setModel(…)`) was the obvious-
+        // looking path but doesn't work: AG-Grid's multi-filter caches
+        // its aggregated model and direct child writes don't
+        // invalidate that cache, so `getModel()` returns the stale
+        // shape and AG-Grid filters rows against the OLD criterion.
+        // Going through the parent fixes that.
         props.parentFilterInstance((instance) => {
           const multi = instance as unknown as MultiFilterInstance;
-          const child = multi.getChildFilterInstance?.(0);
-          if (!child) return;
-          const text = child as TextFilterInstance;
-          if (next === '') {
-            // Empty string clears the text filter. Pass null so
-            // AG-Grid drops the model entry entirely (matches what
-            // the built-in floating filter does on full clear).
-            text.setModel?.(null);
+          if (typeof multi.setModel !== 'function') return;
+          // Read the current aggregated model so we don't clobber
+          // any other child's state. Defensive: returns `null` when
+          // no filter is currently applied.
+          const current = multi.getModel?.() ?? null;
+          const setChild = current?.filterModels?.[1] ?? null;
+          const textChild: TextFilterModel | null =
+            next === '' ? null : { filterType: 'text', type: 'contains', filter: next };
+
+          // Multi-filter is collapsed entirely when both children
+          // are null. Returning `null` here drops the column from
+          // the filter model — same shape the built-in floating
+          // filter produces on a full clear.
+          const nextModel: MultiFilterModel | null =
+            textChild === null && setChild === null
+              ? null
+              : { filterType: 'multi', filterModels: [textChild, setChild] };
+
+          // setModel returns a Promise in AG-Grid 35; we don't await
+          // it because AG-Grid fires onFilterChanged internally once
+          // the model lands. Calling it again here is redundant but
+          // harmless and keeps the row model fresh on the very next
+          // tick if AG-Grid skipped its internal call (defensive).
+          const result = multi.setModel(nextModel);
+          if (result && typeof (result as Promise<unknown>).then === 'function') {
+            (result as Promise<unknown>).then(() => apiRef.current.onFilterChanged());
           } else {
-            text.setModel?.({
-              filterType: 'text',
-              // Keep `type: 'contains'` here — the multi-filter's
-              // text child defaults to contains semantics in
-              // AG-Grid 35; preserving it across keystrokes keeps
-              // the popup filter UI in sync. If the user changes
-              // the text filter's `type` from the popup, our next
-              // `onParentModelChanged` will refresh and subsequent
-              // edits will keep using the configured type by way
-              // of the popup's own model update flow.
-              type: 'contains',
-              filter: next,
-            });
+            apiRef.current.onFilterChanged();
           }
-          apiRef.current.onFilterChanged();
         });
       },
       [props],
