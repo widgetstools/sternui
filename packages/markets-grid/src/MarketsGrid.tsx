@@ -735,6 +735,14 @@ function Host<TData>({
                       window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
                     }
                   }}
+                  onRename={async (id, name) => {
+                    try {
+                      await profiles.renameProfile(id, name);
+                    } catch (err) {
+                      console.warn('[markets-grid] profile rename failed:', err);
+                      window.alert(`Could not rename profile: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                  }}
                   onExport={async (id) => {
                     try {
                       const payload = await profiles.exportProfile(id);
