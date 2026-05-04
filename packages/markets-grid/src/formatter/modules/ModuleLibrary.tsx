@@ -51,7 +51,14 @@ export function ModuleLibrary({
           actions.flashSaveAsTpl();
         }
       }}
-      onApply={actions.applyTemplate}
+      onApply={(id) => {
+        // Apply to the selected columns AND close the popover so the
+        // toolbar gets out of the user's way once their pick has
+        // landed. In vertical/panel orientation the popover doesn't
+        // exist, but `setOpen(false)` is a harmless no-op there.
+        actions.applyTemplate(id);
+        setOpen(false);
+      }}
       onDelete={actions.deleteTemplate}
       onUpdate={(id) => {
         // Re-snapshot the current column into an existing template.
