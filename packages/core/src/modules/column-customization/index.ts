@@ -128,7 +128,6 @@ export {
   applyFilterConfigToColDef,
   applyRowGroupingConfigToColDef,
   cssEscapeColId,
-  __resetFilterParamsCacheForTests,
 } from './transforms';
 export {
   overrideKey,
