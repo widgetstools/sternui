@@ -70,3 +70,11 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--bn-t2, #6b7280) 45%, transparent);
 }
+
+/* Inactive-row hover tint — kept in CSS so the row can serve as the
+   `data-row-hover-target` for nested GhostIconButtons without each
+   button needing its own React hover state. The active row owns its
+   own (stronger) background via inline `data-active` styling. */
+.gc-ps-row:not([data-active='true']):hover {
+  background: color-mix(in srgb, var(--bn-t0, #eaecef) 5%, transparent) !important;
+}

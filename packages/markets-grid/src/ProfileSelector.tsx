@@ -16,6 +16,7 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
+  GhostIconButton,
 } from '@marketsui/core';
 
 export interface ProfileSelectorProps {
@@ -72,7 +73,6 @@ export function ProfileSelector({
 }: ProfileSelectorProps) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
-  const [hoverId, setHoverId] = useState<string | null>(null);
   const [inputFocused, setInputFocused] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -204,7 +204,6 @@ export function ProfileSelector({
             ) : profiles.map((p) => {
               const isActive = p.id === activeProfileId;
               const isReserved = p.id === RESERVED_DEFAULT_PROFILE_ID;
-              const isHovered = hoverId === p.id;
               const isRenaming = renamingId === p.id;
               return (
                 <div
@@ -212,8 +211,9 @@ export function ProfileSelector({
                   role="button"
                   tabIndex={0}
                   data-testid={`profile-row-${p.id}`}
-                  onMouseEnter={() => setHoverId(p.id)}
-                  onMouseLeave={() => setHoverId((h) => (h === p.id ? null : h))}
+                  data-row-hover-target=""
+                  className="gc-ps-row"
+                  data-active={isActive ? 'true' : undefined}
                   onClick={() => { if (!isRenaming) { onLoad(p.id); setOpen(false); } }}
                   onKeyDown={(e) => { if (!isRenaming && e.key === 'Enter') { onLoad(p.id); setOpen(false); } }}
                   style={{
@@ -224,9 +224,7 @@ export function ProfileSelector({
                     cursor: 'pointer',
                     background: isActive
                       ? 'color-mix(in srgb, var(--bn-blue, #14b8a6) 8%, transparent)'
-                      : isHovered
-                        ? 'color-mix(in srgb, var(--bn-t0, #eaecef) 5%, transparent)'
-                        : 'transparent',
+                      : 'transparent',
                     color: 'var(--bn-t0, #eaecef)',
                     fontSize: 11,
                     transition: 'background 120ms',
@@ -306,8 +304,8 @@ export function ProfileSelector({
                       inline-edit mode. Hidden for the reserved Default
                       profile (renaming would break the lookup contract). */}
                   {onRename && !isReserved && !isRenaming && (
-                    <button
-                      type="button"
+                    <GhostIconButton
+                      reveal="on-row-hover"
                       onClick={(e) => {
                         e.stopPropagation();
                         setRenamingId(p.id);
@@ -316,36 +314,16 @@ export function ProfileSelector({
                       title={`Rename "${p.name}"`}
                       aria-label={`Rename profile ${p.name}`}
                       data-testid={`profile-rename-${p.id}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--bn-t1, #a7b0bd)',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        opacity: isHovered ? 1 : 0,
-                        transition: 'opacity 120ms, background 120ms, color 120ms',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
-                      }}
                     >
                       <Pencil size={12} strokeWidth={2.25} />
-                    </button>
+                    </GhostIconButton>
                   )}
 
                   {/* Cancel-rename button — only rendered while this row
                       is in edit mode. Mousedown (not click) so it fires
                       before the input's blur-commits handler. */}
                   {isRenaming && (
-                    <button
-                      type="button"
+                    <GhostIconButton
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -354,26 +332,17 @@ export function ProfileSelector({
                       title="Cancel rename"
                       aria-label="Cancel rename"
                       data-testid={`profile-rename-cancel-${p.id}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--bn-t1, #a7b0bd)',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                      }}
                     >
                       <X size={12} strokeWidth={2.25} />
-                    </button>
+                    </GhostIconButton>
                   )}
 
                   {/* Per-row clone button — duplicates the profile with
                       a "(copy)" suffix and activates it. Revealed on
                       hover just like export/delete. */}
                   {onClone && !isRenaming && (
-                    <button
-                      type="button"
+                    <GhostIconButton
+                      reveal="on-row-hover"
                       onClick={(e) => {
                         e.stopPropagation();
                         onClone(p.id);
@@ -382,34 +351,15 @@ export function ProfileSelector({
                       title={`Clone "${p.name}"`}
                       aria-label={`Clone profile ${p.name}`}
                       data-testid={`profile-clone-${p.id}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--bn-t1, #a7b0bd)',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        opacity: isHovered ? 1 : 0,
-                        transition: 'opacity 120ms, background 120ms, color 120ms',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
-                      }}
                     >
                       <Copy size={12} strokeWidth={2.25} />
-                    </button>
+                    </GhostIconButton>
                   )}
 
                   {/* Per-row export button — revealed on hover next to delete */}
                   {onExport && !isRenaming && (
-                    <button
-                      type="button"
+                    <GhostIconButton
+                      reveal="on-row-hover"
                       onClick={(e) => {
                         e.stopPropagation();
                         onExport(p.id);
@@ -417,28 +367,9 @@ export function ProfileSelector({
                       title={`Export "${p.name}" as JSON`}
                       aria-label={`Export profile ${p.name}`}
                       data-testid={`profile-export-${p.id}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--bn-t1, #a7b0bd)',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        opacity: isHovered ? 1 : 0,
-                        transition: 'opacity 120ms, background 120ms, color 120ms',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
-                      }}
                     >
                       <Download size={12} strokeWidth={2.25} />
-                    </button>
+                    </GhostIconButton>
                   )}
 
                   {/* Trailing affordance — suppressed while renaming so
@@ -456,8 +387,9 @@ export function ProfileSelector({
                       <Lock size={12} strokeWidth={2.25} />
                     </span>
                   ) : (
-                    <button
-                      type="button"
+                    <GhostIconButton
+                      variant="destructive"
+                      reveal="on-row-hover"
                       onClick={(e) => {
                         e.stopPropagation();
                         // Close the profile popover as we open the confirm
@@ -469,28 +401,9 @@ export function ProfileSelector({
                       }}
                       title="Delete profile"
                       aria-label={`Delete profile ${p.name}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--bn-t1, #a7b0bd)',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        opacity: isHovered ? 1 : 0,
-                        transition: 'opacity 120ms, background 120ms, color 120ms',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-red, #ef4444) 14%, transparent)';
-                        e.currentTarget.style.color = 'var(--bn-red, #ef4444)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--bn-t1, #a7b0bd)';
-                      }}
                     >
                       <Trash2 size={12} strokeWidth={2.25} />
-                    </button>
+                    </GhostIconButton>
                   )}
                 </div>
               );
