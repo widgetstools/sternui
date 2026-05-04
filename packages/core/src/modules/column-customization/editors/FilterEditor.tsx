@@ -101,7 +101,17 @@ export function FilterEditor({
                 value={kind ?? ''}
                 onChange={(e) => {
                   const v = e.target.value as FilterKind | '';
-                  update({ kind: v || undefined });
+                  // 'streamSafeMultiColumnFilter' only does anything
+                  // useful with floatingFilter: true (the whole point
+                  // is the typeable floating filter). Auto-enable it
+                  // when the user picks the kind, unless they had
+                  // explicitly disabled it. They can still toggle the
+                  // switch off afterwards if they really want to.
+                  const patch: Partial<ColumnFilterConfig> = { kind: v || undefined };
+                  if (v === 'streamSafeMultiColumnFilter' && cfg.floatingFilter !== false) {
+                    patch.floatingFilter = true;
+                  }
+                  update(patch);
                 }}
                 data-testid={`cols-${colId}-filter-kind`}
                 style={{ maxWidth: 220 }}
