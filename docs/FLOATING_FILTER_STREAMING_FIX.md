@@ -15,16 +15,23 @@ on branch `feat/floating-filter-clear-and-multi-token`:
 - **Clear (✕) button** appears on the input's right edge whenever the
   input has a value; clicking clears both the input and the underlying
   filter.
-- **Comma-token OR matching with EXACT match.** Typing `aaa,bb` filters
-  rows whose value equals `aaa` OR equals `bb` exactly (compound model
-  with `operator: 'OR'`). Multi-token = exact-match per token; the
-  comma is the user's signal that they want a curated set of discrete
-  values, not a fuzzy search. Single-token typing keeps the default
-  `contains` semantics (substring search) so casual filtering still
-  works as expected. Whitespace around tokens is trimmed; empty tokens
-  (e.g. trailing comma) are dropped. Number filters use `equals` for
-  both single and multi paths since number filter has no `contains`;
-  non-numeric tokens in a number-filter column are dropped.
+- **Comma-token routing.** The number of tokens decides which sub-filter
+  consumes them:
+
+  | Tokens | Sub-filter | Model | Popup behaviour |
+  |---|---|---|---|
+  | 0 | (none) | all slots cleared | empty |
+  | 1 | text/number | `contains` (text) / `equals` (number) | shows the single substring/value |
+  | 2+ | **set** (when present in the multi) | `{filterType: 'set', values: tokens}` | clean checkbox list of selected values |
+  | 2+ (no set sub-filter) | text fallback | compound `{operator: 'OR', conditions: [...]}` with `maxNumConditions` lifted in transforms | one row per condition |
+
+  Why 2+ goes to the set sub-filter: the popup UI for compound text
+  conditions ("equals aaa OR equals bb OR equals cc …") becomes
+  unwieldy beyond 2-3 tokens. Set-filter naturally renders a checkbox
+  list of selected values — same applied behaviour, much cleaner UX.
+
+  Whitespace around tokens is trimmed; empty tokens (trailing comma)
+  are dropped.
 
 Standalone reproduction + side-by-side fixed/broken comparison lives in
 [`../agg-floating-filter-repro`](../../agg-floating-filter-repro)

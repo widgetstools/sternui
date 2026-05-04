@@ -263,6 +263,15 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
       // a different refresh path that isn't on the data-change branch.
       if (mf.filter === 'agTextColumnFilter' || mf.filter === 'agNumberColumnFilter') {
         entry.floatingFilterComponent = 'streamSafeText';
+        // streamSafeText supports comma-separated token lists, each
+        // becoming an OR'd condition in the compound model. AG-Grid's
+        // default `maxNumConditions: 2` silently drops the 3rd+ token
+        // with warning #78. Lift the cap so the floating filter can
+        // emit as many tokens as the user types.
+        entry.filterParams = {
+          ...((entry.filterParams as Record<string, unknown> | undefined) ?? {}),
+          maxNumConditions: 100,
+        };
       }
       return entry;
     });

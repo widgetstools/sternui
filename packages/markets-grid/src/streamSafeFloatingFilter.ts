@@ -160,10 +160,23 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
   }
 
   /**
-   * Push the user's typed value into the parent filter. Tokenize on
-   * comma; build a compound OR model for 2+ tokens. Single-token /
-   * empty paths use AG-Grid's `onFloatingFilterChanged` so the simple
-   * popup filter UI stays in sync.
+   * Push the user's typed value into the parent filter.
+   *
+   *   0 tokens     → clear all sub-filter slots (no filter applied)
+   *   1 token      → text sub-filter `contains` (fuzzy substring search)
+   *   2+ tokens    → set sub-filter `values: [...]` (exact-match list)
+   *
+   * Why set-filter for multi-token. The popup UI for compound text
+   * conditions ("equals aaa OR equals bb OR equals cc …") gets unwieldy
+   * at 3+ values. Set-filter naturally renders a checkbox list of
+   * selected values — same applied behaviour, much cleaner popup. When
+   * the column's multi-filter doesn't include a set sub-filter, fall
+   * back to compound text (capped at `maxNumConditions` from the
+   * filter's params; we lift that cap in the column-customization
+   * transform layer).
+   *
+   * For standalone (non-multi) text columns, multi-token still uses
+   * compound text — there's no set sub-filter to delegate to.
    */
   private applyValue(rawValue: string): void {
     const tokens = rawValue
@@ -171,81 +184,157 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
       .map((t) => t.trim())
       .filter((t) => t !== '');
 
-    this.params.parentFilterInstance((parent) => {
-      const p = parent as unknown as {
-        getFilterType?: () => string;
-        onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
-        setModel?: (m: unknown) => void;
+    const col = (this.params as unknown as {
+      column?: {
+        getColId?: () => string;
+        getColDef?: () => {
+          filter?: unknown;
+          filterParams?: { filters?: Array<{ filter?: string }> };
+        };
       };
-      const filterType = (typeof p.getFilterType === 'function' ? p.getFilterType() : 'text') ?? 'text';
-      const isNumber = filterType === 'number';
+    }).column;
+    const colId = col?.getColId?.();
+    const colDef = col?.getColDef?.();
+    const colFilter = colDef?.filter;
+    const isInsideMulti = colFilter === 'agMultiColumnFilter';
+    const subFilters = colDef?.filterParams?.filters ?? [];
+    const setIdx = isInsideMulti
+      ? subFilters.findIndex((f) => f?.filter === 'agSetColumnFilter')
+      : -1;
+    const textIdxInDef = isInsideMulti
+      ? subFilters.findIndex(
+          (f) => f?.filter === 'agTextColumnFilter' || f?.filter === 'agNumberColumnFilter',
+        )
+      : -1;
+    const hasSetSubFilter = setIdx >= 0;
 
-      // Operator semantics:
-      //   - Single token: substring match (`contains` for text, `equals`
-      //     for number — number filter has no `contains`).
-      //   - Multiple comma-separated tokens: exact match per token,
-      //     OR'd together. The comma is the user's signal that they
-      //     want a curated set of values, not a fuzzy search.
-      const singleOp = isNumber ? 'equals' : 'contains';
-      const multiOp = 'equals';
+    const api = (this.params as unknown as {
+      api?: {
+        setColumnFilterModel?: (col: string, model: unknown) => Promise<void> | void;
+        getColumnFilterModel?: <T = unknown>(col: string) => T | null | undefined;
+        onFilterChanged?: () => void;
+      };
+    }).api;
 
-      // Empty → clear
-      if (tokens.length === 0) {
-        if (typeof p.onFloatingFilterChanged === 'function') {
-          p.onFloatingFilterChanged(null, null);
-        } else {
-          p.setModel?.(null);
-        }
-        return;
-      }
-
-      // Single token → simple model, keeps popup filter UI in sync.
-      if (tokens.length === 1) {
-        const v = tokens[0];
-        if (typeof p.onFloatingFilterChanged === 'function') {
-          // For numbers, AG-Grid coerces the value internally.
-          p.onFloatingFilterChanged(singleOp, v);
-        } else {
-          p.setModel?.({
-            filterType,
-            type: singleOp,
-            filter: isNumber ? this.toNumber(v) : v,
-          });
-        }
-        return;
-      }
-
-      // Multi-token → compound OR with EXACT match per token. For
-      // numbers, drop tokens that don't parse as finite numbers (typing
-      // a list of mixed values shouldn't crash the filter; just ignore
-      // the non-numeric ones).
-      const usableTokens = isNumber
-        ? tokens.filter((t) => Number.isFinite(this.toNumber(t)))
-        : tokens;
-      if (usableTokens.length === 0) {
-        p.setModel?.(null);
-        return;
-      }
-      if (usableTokens.length === 1) {
-        const v = usableTokens[0];
-        p.setModel?.({
-          filterType,
-          type: multiOp,
-          filter: isNumber ? this.toNumber(v) : v,
+    // Helper: push a fully-built column-level model via the
+    // recommended v34+ api and trigger filterChanged.
+    const pushColumnModel = (model: unknown) => {
+      if (!api?.setColumnFilterModel || !colId) {
+        // Last-resort fallback to the deprecated path so older grids
+        // still work — should never run in our v35 stack.
+        this.params.parentFilterInstance((parent) => {
+          (parent as unknown as { setModel?: (m: unknown) => void }).setModel?.(model);
         });
         return;
       }
-      const conditions = usableTokens.map((t) => ({
-        filterType,
-        type: multiOp,
-        filter: isNumber ? this.toNumber(t) : t,
+      const result = api.setColumnFilterModel(colId, model);
+      const trigger = () => api.onFilterChanged?.();
+      if (result && typeof (result as Promise<unknown>).then === 'function') {
+        (result as Promise<unknown>).then(trigger);
+      } else {
+        trigger();
+      }
+    };
+
+    // Build a multi-filter envelope with sub-filter slots set per the
+    // colDef order. Slots not provided are left null (= no filter).
+    const buildMultiEnvelope = (entries: Record<number, unknown>): unknown => {
+      const filterModels: unknown[] = [];
+      for (let i = 0; i < subFilters.length; i++) {
+        filterModels[i] = entries[i] ?? null;
+      }
+      return { filterType: 'multi', filterModels };
+    };
+
+    // ── 0 tokens → clear everything ───────────────────────────────
+    if (tokens.length === 0) {
+      if (isInsideMulti) {
+        pushColumnModel(buildMultiEnvelope({}));
+      } else {
+        this.params.parentFilterInstance((parent) => {
+          const p = parent as unknown as {
+            onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
+            setModel?: (m: unknown) => void;
+          };
+          if (typeof p.onFloatingFilterChanged === 'function') {
+            p.onFloatingFilterChanged(null, null);
+          } else {
+            p.setModel?.(null);
+          }
+        });
+      }
+      return;
+    }
+
+    // ── 1 token → text/number sub-filter `contains`/`equals` ──────
+    if (tokens.length === 1) {
+      const v = tokens[0];
+      if (isInsideMulti) {
+        // Determine text vs number from the colDef sub-filter slot.
+        const textSubFilter = textIdxInDef >= 0 ? subFilters[textIdxInDef] : undefined;
+        const isNumberSub = textSubFilter?.filter === 'agNumberColumnFilter';
+        const filterTypeStr = isNumberSub ? 'number' : 'text';
+        const op = isNumberSub ? 'equals' : 'contains';
+        const filterValue = isNumberSub ? this.toNumber(v) : v;
+        const slotModel = { filterType: filterTypeStr, type: op, filter: filterValue };
+        // Clear set slot, plant text/number slot.
+        pushColumnModel(buildMultiEnvelope({
+          [textIdxInDef >= 0 ? textIdxInDef : 0]: slotModel,
+        }));
+      } else {
+        this.params.parentFilterInstance((parent) => {
+          const p = parent as unknown as {
+            getFilterType?: () => string;
+            onFloatingFilterChanged?: (type: string | null, value: string | null) => void;
+            setModel?: (m: unknown) => void;
+          };
+          const filterType = (typeof p.getFilterType === 'function' ? p.getFilterType() : 'text') ?? 'text';
+          const singleOp = filterType === 'number' ? 'equals' : 'contains';
+          if (typeof p.onFloatingFilterChanged === 'function') {
+            p.onFloatingFilterChanged(singleOp, v);
+          } else {
+            p.setModel?.({
+              filterType,
+              type: singleOp,
+              filter: filterType === 'number' ? this.toNumber(v) : v,
+            });
+          }
+        });
+      }
+      return;
+    }
+
+    // ── 2+ tokens ─────────────────────────────────────────────────
+    // Preferred path: set sub-filter `values: [...]`. Cleaner popup,
+    // no maxNumConditions cap, exact-match semantics built in.
+    if (isInsideMulti && hasSetSubFilter) {
+      const setModel = { filterType: 'set', values: tokens };
+      // Plant set slot, clear text slot (so the popup doesn't show
+      // a stale text condition while the set is the active filter).
+      pushColumnModel(buildMultiEnvelope({ [setIdx]: setModel }));
+      return;
+    }
+
+    // Fallback: compound text. Used when the multi has no set sub-
+    // filter, or when the column is a standalone text filter (no
+    // multi wrapper). maxNumConditions auto-lifted in transforms.
+    const conditions = tokens.map((t) => ({
+      filterType: 'text' as const,
+      type: 'equals' as const,
+      filter: t,
+    }));
+    const compoundTextModel: Record<string, unknown> = {
+      filterType: 'text',
+      operator: 'OR',
+      conditions,
+    };
+    if (isInsideMulti) {
+      pushColumnModel(buildMultiEnvelope({
+        [textIdxInDef >= 0 ? textIdxInDef : 0]: compoundTextModel,
       }));
-      p.setModel?.({
-        filterType,
-        operator: 'OR',
-        conditions,
-      });
-    });
+    } else {
+      pushColumnModel(compoundTextModel);
+    }
   }
 
   private toNumber(s: string): number {
