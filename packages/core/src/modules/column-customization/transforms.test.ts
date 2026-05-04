@@ -256,6 +256,127 @@ describe('applyFilterConfigToColDef — filterParams reference stability', () =>
   });
 });
 
+// AG-Grid 35.2.x bug: agMultiColumnFloatingFilter mishandles backspace
+// when the column id contains a dot. We bypass the wrapper by routing
+// the floating filter to `agTextColumnFloatingFilter` directly when the
+// first sub-filter is text and the column id is dotted.
+describe('applyFilterConfigToColDef — nested-field multi-filter floating bypass', () => {
+  afterEach(() => __resetFilterParamsCacheForTests());
+
+  it('routes floating filter to agTextColumnFloatingFilter when id is dotted + text first', () => {
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      floatingFilter: true,
+      multiFilters: [
+        { filter: 'agTextColumnFilter' },
+        { filter: 'agSetColumnFilter' },
+      ],
+    };
+    const colDef: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg, 'quote.bid');
+    expect(colDef.floatingFilterComponent).toBe('agTextColumnFloatingFilter');
+    // The multi-filter itself stays as the column filter — only the
+    // floating row's component is overridden. The popup still shows
+    // both children.
+    expect(colDef.filter).toBe('agMultiColumnFilter');
+  });
+
+  it('does NOT override when the col id is flat (no dot) — flat-id case has no bug', () => {
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [
+        { filter: 'agTextColumnFilter' },
+        { filter: 'agSetColumnFilter' },
+      ],
+    };
+    const colDef: ColDef = { colId: 'price' };
+    applyFilterConfigToColDef(colDef, cfg, 'price');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('does NOT override when the first sub-filter is NOT text', () => {
+    // Set first, text second: floating filter would represent set's
+    // mini-search, which we don't have a clean bypass for. Leave AG-
+    // Grid's default in place.
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [
+        { filter: 'agSetColumnFilter' },
+        { filter: 'agTextColumnFilter' },
+      ],
+    };
+    const colDef: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg, 'quote.bid');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('does NOT override for a non-multi filter even on a dotted id', () => {
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agTextColumnFilter',
+    };
+    const colDef: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg, 'quote.bid');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('falls back to merged.field when no explicit colId arg is provided', () => {
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [{ filter: 'agTextColumnFilter' }],
+    };
+    const colDef: ColDef = { field: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg);
+    expect(colDef.floatingFilterComponent).toBe('agTextColumnFloatingFilter');
+  });
+
+  it('clears a previously-set bypass when the config changes to a non-bypass case', () => {
+    // First run — bypass applied.
+    const cfgWithBypass: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [{ filter: 'agTextColumnFilter' }],
+    };
+    const colDef1: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef1, cfgWithBypass, 'quote.bid');
+    expect(colDef1.floatingFilterComponent).toBe('agTextColumnFloatingFilter');
+
+    // Second run — same colId, but the user has switched to a single
+    // text filter. The colDef passed in carries the prior bypass (as
+    // would happen if a host kept a reference) — we must clear it.
+    const colDef2: ColDef = {
+      colId: 'quote.bid',
+      floatingFilterComponent: 'agTextColumnFloatingFilter',
+    };
+    const cfgPlain: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agTextColumnFilter',
+    };
+    applyFilterConfigToColDef(colDef2, cfgPlain, 'quote.bid');
+    expect(colDef2.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('does NOT clobber a host-provided floatingFilterComponent we did not set', () => {
+    // Host explicitly registered their own custom floating filter — we
+    // must not stomp on it. Detection: only clear when the value
+    // matches our own bypass ('agTextColumnFloatingFilter').
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agTextColumnFilter',
+    };
+    const colDef: ColDef = {
+      colId: 'price',
+      floatingFilterComponent: 'myCustomFloatingFilter' as unknown as ColDef['floatingFilterComponent'],
+    };
+    applyFilterConfigToColDef(colDef, cfg, 'price');
+    expect(colDef.floatingFilterComponent).toBe('myCustomFloatingFilter');
+  });
+});
+
 describe('applyAssignments — filter reference stability through the walker', () => {
   afterEach(() => __resetFilterParamsCacheForTests());
 

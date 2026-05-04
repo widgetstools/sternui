@@ -270,6 +270,41 @@ export function applyFilterConfigToColDef(
   if (cfg.kind) merged.filter = cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
 
+  // Workaround for an AG-Grid 35.2.x bug: the `agMultiColumnFloatingFilter`
+  // wrapper that delegates keystrokes to the first child filter mishandles
+  // backspace when the column id contains a dot (nested-field paths like
+  // `quote.bid`). Symptom: typing then backspace appears to "snap back" to
+  // the prior value because the wrapper fails to forward the cleared
+  // model to the inner text filter — the input briefly empties, then
+  // re-reads the stale model on the next render.
+  //
+  // When the first child is `agTextColumnFilter`, we can sidestep the
+  // wrapper entirely by routing the column's floating filter to the
+  // plain text floating filter component. AG-Grid still uses the
+  // multi-filter for the popup, so the user keeps both children's
+  // search affordances. The bypass only fires when needed:
+  //   - kind is multi
+  //   - first sub-filter is text
+  //   - the effective col id contains a dot
+  // Any other combination falls through to AG-Grid's defaults.
+  const idHasDot = (colId ?? merged.colId ?? merged.field ?? '').includes('.');
+  if (
+    cfg.kind === 'agMultiColumnFilter' &&
+    cfg.multiFilters?.[0]?.filter === 'agTextColumnFilter' &&
+    idHasDot
+  ) {
+    merged.floatingFilterComponent = 'agTextColumnFloatingFilter';
+  } else {
+    // Make sure a stale override from a prior config doesn't leak in.
+    // `merged` is a shallow copy of the host colDef so any
+    // `floatingFilterComponent` set explicitly by the host should
+    // survive — we only clear when WE set one previously and the cfg
+    // no longer warrants it.
+    if (merged.floatingFilterComponent === 'agTextColumnFloatingFilter') {
+      merged.floatingFilterComponent = undefined;
+    }
+  }
+
   const hostParams = merged.filterParams as Record<string, unknown> | undefined;
 
   // Reference-stable fast path — same cfg + same host base ⇒ reuse the
