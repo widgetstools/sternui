@@ -13,6 +13,7 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
+import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -902,6 +903,12 @@ function Host<TData>({
           // "message handler" violations. 100ms is comfortably under
           // human-perceivable lag (~150ms threshold).
           asyncTransactionWaitMillis={100}
+          // Register custom AG-Grid component types referenced by name
+          // from colDef. `streamSafeText` is our focus-aware floating
+          // filter that ignores onParentModelChanged while the input
+          // has focus — defends against the multi-filter set-sub-filter
+          // mid-typing input clobber on streaming-data grids.
+          components={{ streamSafeText: StreamSafeTextFloatingFilter }}
           onGridReady={handleGridReady}
           onGridPreDestroyed={onGridPreDestroyed}
         />

@@ -248,19 +248,21 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
       const entry: Record<string, unknown> = { filter: mf.filter };
       if (mf.display) entry.display = mf.display;
       if (mf.title) entry.title = mf.title;
-      // When a set sub-filter sits inside a multi-filter on a column with
-      // streaming row data, AG-Grid's syncAfterDataChange recomputes the
-      // set's available values on every applyTransactionAsync tick, which
-      // dispatches onModelAsStringChange → onParentModelChanged on the
-      // multi's floating-filter component → setValue(model) on the inner
-      // text input. Net effect: a user typing into the floating filter
-      // gets their input clobbered back to the applied model on every
-      // data tick. Auto-defaulting refreshValuesOnOpenOnly: true scopes
-      // the values recompute to popup-open events only, killing the
-      // clobber while keeping auto-discovery (next time the user opens
-      // the set sub-filter popup, fresh values appear).
-      if (mf.filter === 'agSetColumnFilter') {
-        entry.filterParams = { refreshValuesOnOpenOnly: true };
+      // Streaming-data clobber defense. AG-Grid Enterprise's set
+      // sub-filter dispatches `onModelAsStringChange` from its
+      // `syncAfterDataChange → updateAvailableKeys` path on every
+      // `applyTransactionAsync` tick, even when the *applied* model
+      // didn't change — only the discoverable values list. The multi-
+      // filter's floating-filter delegate forwards that to the first
+      // sub-filter's floating filter, whose default `setValue(model)`
+      // clobbers any user input mid-typing. Swapping the text/number
+      // sub-filter's floating-filter for `streamSafeText` (registered
+      // in MarketsGrid.tsx via `components={...}`) makes the floating
+      // filter ignore parent-model writes while its input has focus.
+      // `refreshValuesOnOpenOnly` doesn't help here — that param gates
+      // a different refresh path that isn't on the data-change branch.
+      if (mf.filter === 'agTextColumnFilter' || mf.filter === 'agNumberColumnFilter') {
+        entry.floatingFilterComponent = 'streamSafeText';
       }
       return entry;
     });
