@@ -271,43 +271,40 @@ export function applyFilterConfigToColDef(
   if (cfg.kind) merged.filter = cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
 
-  // AG-Grid 35.2.x bug: agMultiColumnFloatingFilter mishandles
-  // backspace when the column id contains a dot (nested-field paths
-  // like `quote.bid`). The wrapper fails to forward the cleared
-  // keystroke to its inner text filter — typed text "snaps back" from
-  // the stale model on the next render and the underlying filter
-  // remains applied.
+  // AG-Grid 35.2.x's `agMultiColumnFloatingFilter` wrapper is broken
+  // in ways that surface differently across column ids:
   //
-  // Setting `floatingFilterComponent: 'agTextColumnFloatingFilter'`
-  // (string registry name) doesn't fix it either — AG-Grid either
-  // ignores the override on multi-filter columns, or the plain text
-  // floating filter has the same nested-id bug.
+  //   - Dotted ids (nested-field paths like `quote.bid`) lose the
+  //     ENTIRE input on backspace — typed text snaps back from a
+  //     stale model on every render.
+  //   - Flat ids appear to type and backspace correctly, but the
+  //     filter never actually re-evaluates because the wrapper
+  //     doesn't propagate child writes through the multi-filter's
+  //     aggregated model cache.
   //
-  // Workaround: install our own React component
-  // (`MultiTextFloatingFilter`) which owns its input value in React
-  // state and forwards directly to the multi-filter's first child via
-  // `parentFilterInstance.getChildFilterInstance(0).setModel(...)`.
-  // No reliance on AG-Grid's controlled-input synchronisation, so the
-  // dotted-id path can't break us.
+  // Both failures share a root cause: AG-Grid's wrapper takes
+  // partial ownership of the input + model bridge in ways that don't
+  // hold up consistently. Our `MultiTextFloatingFilter` owns the
+  // input value in React state directly and writes back through
+  // `parent.setModel(...)` (full multi-shape) — no AG-Grid wrapper
+  // in the way, no flat-vs-dotted divergence, no aggregated-cache
+  // staleness.
   //
-  // Gated tightly:
+  // Gated to:
   //   - kind === 'agMultiColumnFilter'
   //   - first sub-filter === 'agTextColumnFilter'
-  //   - effective col id contains a dot
-  // Other shapes fall through to AG-Grid's defaults so we don't
-  // surprise users on the working code path.
-  const idHasDot = (colId ?? merged.colId ?? merged.field ?? '').includes('.');
+  // We don't touch any other filter combination.
   if (
     cfg.kind === 'agMultiColumnFilter' &&
-    cfg.multiFilters?.[0]?.filter === 'agTextColumnFilter' &&
-    idHasDot
+    cfg.multiFilters?.[0]?.filter === 'agTextColumnFilter'
   ) {
     merged.floatingFilterComponent = MultiTextFloatingFilter as ColDef['floatingFilterComponent'];
   } else if (merged.floatingFilterComponent === MultiTextFloatingFilter) {
-    // Cfg changed away from the bypass case — strip our injection so
-    // a stale reference can't outlast the config that warranted it.
-    // Host-provided custom components survive because we only clear
-    // when the value matches our own injected component reference.
+    // Cfg changed away from the bypass case — strip our injection
+    // so a stale reference can't outlast the config that warranted
+    // it. Host-provided custom components survive because we only
+    // clear when the value matches our own injected component
+    // reference.
     merged.floatingFilterComponent = undefined;
   }
 

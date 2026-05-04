@@ -261,7 +261,7 @@ describe('applyFilterConfigToColDef — filterParams reference stability', () =>
 describe('applyFilterConfigToColDef — MultiTextFloatingFilter bypass', () => {
   afterEach(() => __resetFilterParamsCacheForTests());
 
-  it('installs MultiTextFloatingFilter when id is dotted + multi + first child text', async () => {
+  it('installs MultiTextFloatingFilter on dotted ids (multi + first child text)', async () => {
     const { MultiTextFloatingFilter } = await import('./MultiTextFloatingFilter');
     const cfg: ColumnFilterConfig = {
       enabled: true,
@@ -279,7 +279,14 @@ describe('applyFilterConfigToColDef — MultiTextFloatingFilter bypass', () => {
     expect(colDef.floatingFilterComponent).toBe(MultiTextFloatingFilter);
   });
 
-  it('does NOT install the component on flat ids (no bug to work around)', () => {
+  it('also installs the component on flat ids — wrapper bug surfaces there as a no-op filter, not just on dotted ids', async () => {
+    // Originally this case was excluded under the assumption that
+    // AG-Grid's wrapper worked correctly on flat ids. In practice
+    // the same wrapper fails to propagate child writes through the
+    // multi-filter's aggregated `getModel()` cache regardless of
+    // id shape — typing appears to update the input but rows never
+    // re-filter. The custom component fixes both modes uniformly.
+    const { MultiTextFloatingFilter } = await import('./MultiTextFloatingFilter');
     const cfg: ColumnFilterConfig = {
       enabled: true,
       kind: 'agMultiColumnFilter',
@@ -287,7 +294,7 @@ describe('applyFilterConfigToColDef — MultiTextFloatingFilter bypass', () => {
     };
     const colDef: ColDef = { colId: 'price' };
     applyFilterConfigToColDef(colDef, cfg, 'price');
-    expect(colDef.floatingFilterComponent).toBeUndefined();
+    expect(colDef.floatingFilterComponent).toBe(MultiTextFloatingFilter);
   });
 
   it('does NOT install on non-multi filters even with dotted id', () => {
