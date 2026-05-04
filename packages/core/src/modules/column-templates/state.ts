@@ -6,15 +6,39 @@
  * Field semantics:
  *  - `cellStyleOverrides` / `headerStyleOverrides` merge per-field across the chain.
  *  - Every other field is last-writer-wins.
- *  - `cellEditorParams` is opaque — a later template's params object replaces
- *    the earlier one wholesale (no deep merge).
+ *  - `cellEditorParams` / `filter` / `rowGrouping` are opaque — a later
+ *    template's value replaces the earlier one wholesale (no deep merge).
  *  - `cellEditorName` / `cellRendererName` are AG-Grid component-registry keys.
+ *
+ * Excluded by design:
+ *  - Identity (`colId`, `headerName`, `headerTooltip`) — column-unique.
+ *  - Per-column layout state (`initialWidth`, `initialPinned`, `initialHide`)
+ *    — see "settings unique to a column" rule.
+ *  - Self-referential `templateIds` — would create circular template-on-
+ *    template chains.
+ *  - Live row-grouping state (`rowGroup` / `rowGroupIndex` / `pivot` /
+ *    `pivotIndex`) — represents "this column is currently the 3rd group",
+ *    not a portable trait. Capability flags (`enableRowGroup`, `aggFunc`,
+ *    …) are kept; see `RowGroupingTemplate`.
  */
 import type {
   CellStyleOverrides,
   ColumnDataType,
   ValueFormatterTemplate,
 } from '../../colDef';
+import type {
+  ColumnFilterConfig,
+  RowGroupingConfig,
+} from '../column-customization/state';
+
+/** Capability-only subset of `RowGroupingConfig` — drops the live-state
+ *  fields that name a specific column instance ("currently grouped at
+ *  index 2", "actively pivoting") so a template applied to another column
+ *  doesn't try to claim a spot in the grid's group/pivot layout. */
+export type RowGroupingTemplate = Omit<
+  RowGroupingConfig,
+  'rowGroup' | 'rowGroupIndex' | 'pivot' | 'pivotIndex'
+>;
 
 export interface ColumnTemplate {
   readonly id: string;
@@ -34,6 +58,9 @@ export interface ColumnTemplate {
   cellEditorName?: string;
   cellEditorParams?: Record<string, unknown>;
   cellRendererName?: string;
+  // Filter + grouping configuration (opaque last-writer-wins blobs)
+  filter?: ColumnFilterConfig;
+  rowGrouping?: RowGroupingTemplate;
   // Audit
   createdAt: number;
   updatedAt: number;

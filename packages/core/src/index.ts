@@ -308,10 +308,15 @@ export {
   INITIAL_COLUMN_TEMPLATES,
   resolveTemplates,
   snapshotTemplate,
+  snapshotTemplateUpdate,
+  pickTemplateFields,
   addTemplateReducer,
   removeTemplateReducer,
+  updateTemplateReducer,
+  renameTemplateReducer,
   type ColumnTemplate,
   type ColumnTemplatesState,
+  type RowGroupingTemplate,
   type SnapshotTemplateDeps,
 } from './modules/column-templates';
 export {

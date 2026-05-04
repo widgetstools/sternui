@@ -506,11 +506,48 @@ Module `column-templates` (priority 5 — runs BEFORE column-customization so it
   3. `cellEditorParams` — opaque, no deep merge; last template's params object replaces earlier.
   4. If `assignment.templateIds` is undefined AND the column has a `dataType`, the `typeDefaults[dataType]` template folds in at the bottom of the chain. An explicit empty `templateIds: []` opts out of the typeDefault.
 
-- **20-test `snapshotTemplate.test.ts`** covers: extracting bold / italic / color / borders from a styled column; stripping fields that equal the typeDefault; round-trip through add/remove reducers; null-safe empty-assignment paths.
+- **44-test `snapshotTemplate.test.ts`** covers: capture / round-trip on every eligible field, behavior-flag passthrough, empty-cellEditorParams elision, full filter blob (incl. floating-filter), rowGrouping live-state stripping, identity-field exclusion, the update + rename reducers (preserves identity, bumps `updatedAt`, no-op on unknown id, rejects empty rename), null-safe empty-assignment paths.
 
 - **No `SettingsPanel` / no `transformColumnDefs`** — column-templates is a passive state holder. `column-customization.transformColumnDefs` reads it via `ctx.getModuleState<ColumnTemplatesState>('column-templates')` and folds the chain through `resolveTemplates` before emitting the final per-column AG-Grid ColDef.
 
-Testids (interaction surfaces, not direct state): `templates-menu-trigger`, `templates-menu`, `templates-menu-item-{tplId}`, `save-tpl-input`, `save-tpl-btn`, `cols-{colId}-templates`, `cols-{colId}-template-{tplId}`, `cols-{colId}-template-remove-{tplId}`, `cols-{colId}-template-picker`.
+Testids (interaction surfaces, not direct state): `templates-menu-trigger`, `templates-menu`, `tb-tpl-row-{tplId}` / `fmt-panel-tpl-row-{tplId}` (apply on click), `tb-tpl-row-{tplId}-update` (re-snapshot into existing template), `tb-tpl-row-{tplId}-rename` + `tb-tpl-row-{tplId}-rename-input`, `tb-tpl-row-{tplId}-delete` (mousedown to arm, click `tb-tpl-row-{tplId}-delete-confirm` to commit), `tb-tpl-save-input`, `tb-tpl-save-btn`, `tb-tpl-capture-hint`, `cols-{colId}-templates`, `cols-{colId}-template-{tplId}`, `cols-{colId}-template-remove-{tplId}`, `cols-{colId}-template-picker`.
+
+### 1.8c.1 Column Templates UX redesign + expanded scope (2026-05-03)
+
+The original Templates popover was a 220px Select dropdown + name input + plus / trash row. Two limitations drove a redesign:
+
+1. **No way to add settings to an existing template** — every save was a new template, leading to duplicate clutter.
+2. **Snapshot scope was style-only** — only `cellStyleOverrides` / `headerStyleOverrides` / `valueFormatterTemplate` / `editable` were captured; everything else authored through the Column Settings dialog (filter config, row-grouping capabilities, editor / renderer registry keys, behavior flags) had to be re-authored on every column.
+
+**Expanded snapshot scope** — `pickTemplateFields(resolved)` is the new single source of truth for "what does a template carry". It captures every ColumnAssignment field except those bound to a specific column instance:
+
+| Captured | Excluded (column-unique) |
+|---|---|
+| `cellStyleOverrides`, `headerStyleOverrides` | `colId`, `headerName`, `headerTooltip` |
+| `valueFormatterTemplate` | `initialWidth`, `initialPinned`, `initialHide` |
+| `editable`, `sortable`, `filterable`, `resizable` | `templateIds` (would create circular template-on-template refs) |
+| `cellEditorName`, `cellEditorParams`, `cellRendererName` | `rowGrouping.rowGroup` / `.rowGroupIndex` / `.pivot` / `.pivotIndex` (live grouping state) |
+| `filter` (full blob, incl. `floatingFilter`, `debounceMs`, `closeOnApply`, `buttons`, `setFilterOptions`, `multiFilters`) | |
+| `rowGrouping` (capability subset: `enableRowGroup`, `enableValue`, `enablePivot`, `aggFunc`, `customAggExpression`, `allowedAggFuncs`) | |
+
+`ColumnTemplate.filter` and `.rowGrouping` are imported as the narrowed shapes from `column-customization/state.ts` (was: relied on the base `unknown` from `colDef/types`). `applyOver` in `resolveTemplates` accepts a loose union of both shapes so the existing precedence rules (per-field merge for styles, last-writer-wins everywhere else, opaque wholesale-replace for `filter` / `rowGrouping` / `cellEditorParams`) keep working unchanged.
+
+**Update existing template** — new `updateTemplateReducer(id, snapshot)` replaces an existing template's data fields with a fresh snapshot of the active column. Identity (`id`, `name`, `description`, `createdAt`) is preserved; `updatedAt` bumps. Replace-not-merge: if the column has lost a setting since the template was first saved, that setting drops from the template too — matches the user's mental model "save the column as it is now". Caller-side accidental id / name / createdAt overrides are stripped at the reducer boundary.
+
+`snapshotTemplateUpdate(cust, tpls, colId, dataType)` is the sibling of `snapshotTemplate` — returns the picked field set ready for the update reducer (without minting an id), or `undefined` when the column has nothing eligible (so the UI can short-circuit).
+
+**Rename existing template** — `renameTemplateReducer(id, name)` writes a new `name` (trimmed, empty rejected) and bumps `updatedAt`. Unknown id / no-op rename / blank-name are all no-ops returning the same state reference (cheap subscriber early-out).
+
+**TemplateManager UX** — replaced the cramped `<Select>` + plus / trash row with a per-row list:
+
+- Each row: leading active-check / dot, template name, hover-revealed `[Update] [Rename] [Delete]` buttons. Row-click applies (matches the ProfileSelector pattern). The Update icon is `RotateCw`; rename is `Pencil`; delete is `Trash2`.
+- Inline rename: click pencil → name swaps to an input seeded with the current name. Enter / blur commits, Escape / X cancels. Empty / unchanged values silently cancel.
+- Two-step delete: click trash to arm a per-row red `DELETE` button; click that to commit. Auto-disarms after 3s OR when the template list shape changes (so a stale arm can't target a different row).
+- Save-as footer: name input + `[+]`. Compact mode bumped from 220px to 320px.
+- "Will save: …" caption beneath the save row lists the categories the active column has authored (Cell style · Header style · Formatter · Behavior · Editor · Renderer · Filter · Grouping). Sourced from `state.capturableFields`, which runs `pickTemplateFields` on the active column's resolved assignment and maps populated keys to friendly labels. Hidden when the column has nothing template-eligible.
+- Empty state (no templates yet) shows an inline hint instead of a disabled Select + tooltip.
+
+**Formatter-state additions** — `actions.updateTemplate(id) → boolean`, `actions.renameTemplate(id, name) → boolean`, `state.capturableFields: ReadonlyArray<string>`. Both new actions return `false` on no-op so the host can treat that as "nothing to do" rather than a write — currently the ModuleLibrary host doesn't surface a toast since the Will-save caption already tells the user the column is empty.
 
 ### 1.8d Saved Filters — opaque state holder
 

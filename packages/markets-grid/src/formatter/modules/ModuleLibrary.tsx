@@ -53,6 +53,16 @@ export function ModuleLibrary({
       }}
       onApply={actions.applyTemplate}
       onDelete={actions.deleteTemplate}
+      onUpdate={(id) => {
+        // Re-snapshot the current column into an existing template.
+        // Silently no-ops when the column has nothing template-eligible
+        // (the action returns false in that case); we don't surface an
+        // error toast because the popover's "Will save: …" hint already
+        // tells the user there's nothing to capture.
+        actions.updateTemplate(id);
+      }}
+      onRename={actions.renameTemplate}
+      capturableFields={state.capturableFields}
       variant={orientation === 'horizontal' ? 'compact' : 'panel'}
       testIdPrefix={orientation === 'horizontal' ? 'tb-tpl' : 'fmt-panel-tpl'}
     />

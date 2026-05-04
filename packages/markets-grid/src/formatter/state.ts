@@ -25,10 +25,14 @@ import {
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
   clearAllStylesReducer,
+  pickTemplateFields,
   removeTemplateRefFromAssignmentsReducer,
   removeTemplateReducer,
+  renameTemplateReducer,
   resolveTemplates,
   snapshotTemplate,
+  snapshotTemplateUpdate,
+  updateTemplateReducer,
   useGridPlatform,
   useModuleState,
   useUndoRedo,
@@ -97,6 +101,12 @@ export interface FormatterState {
   /** True when the resolved assignment forces cells to be editable.
    *  Drives the editable-toggle pill's active state. */
   cellsEditable: boolean;
+  /** Human-readable list of template categories the active column has
+   *  authored that would be captured if "Save as new" / "Update" fired
+   *  right now (e.g. `['Cell style', 'Formatter', 'Filter']`). Drives
+   *  the TemplateManager's "what will be saved" hint. Empty when the
+   *  column has nothing template-eligible. */
+  capturableFields: ReadonlyArray<string>;
 }
 
 export interface FormatterActions {
@@ -116,6 +126,15 @@ export interface FormatterActions {
   increaseDecimals: () => void;
   applyTemplate: (tplId: string) => void;
   saveAsTemplate: (name: string) => string | undefined;
+  /** Re-snapshot the active column and overwrite an existing template's
+   *  data fields. Identity (id, name, description, createdAt) is
+   *  preserved; updatedAt bumps. Returns true on a successful write,
+   *  false when the column has nothing template-eligible to capture. */
+  updateTemplate: (tplId: string) => boolean;
+  /** Rename an existing template. Empty / whitespace-only names are
+   *  rejected (returns false). Unknown id is also a no-op (returns
+   *  false). */
+  renameTemplate: (tplId: string, name: string) => boolean;
   deleteTemplate: (tplId: string) => void;
   setSaveAsTplName: (v: string) => void;
   flashSaveAsTpl: () => void;
@@ -199,6 +218,47 @@ export function useFormatter(): UseFormatterResult {
   const activeTemplateId = colIds.length > 0
     ? custState?.assignments?.[colIds[0]]?.templateIds?.[0]
     : undefined;
+
+  // Resolve the active column's effective state once, then map the
+  // populated template categories into human-readable labels for the
+  // TemplateManager's "what will be saved" hint.
+  const capturableFields = useMemo<ReadonlyArray<string>>(() => {
+    if (colIds.length === 0) return [];
+    const colId = colIds[0];
+    const assignment = custState?.assignments?.[colId];
+    if (!assignment) return [];
+    const tpls = tplState ?? { templates: {}, typeDefaults: {} };
+    const t = readCellDataType(platform.api.api, colId);
+    const dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined =
+      t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean' ? t : undefined;
+    const resolved = resolveTemplates(assignment, tpls, dataType);
+    // Cast: resolveTemplates returns the base shape; values flowed
+    // through unchanged from the narrowed source — same boundary cast
+    // pattern snapshotTemplate uses.
+    const fields = pickTemplateFields(
+      resolved as unknown as Parameters<typeof pickTemplateFields>[0],
+    );
+
+    const labels: string[] = [];
+    if (fields.cellStyleOverrides) labels.push('Cell style');
+    if (fields.headerStyleOverrides) labels.push('Header style');
+    if (fields.valueFormatterTemplate) labels.push('Formatter');
+    // Behavior flags collapse into one bucket regardless of which
+    // subset is set — the user doesn't need to know the granularity.
+    if (
+      typeof fields.editable === 'boolean' ||
+      typeof fields.sortable === 'boolean' ||
+      typeof fields.filterable === 'boolean' ||
+      typeof fields.resizable === 'boolean'
+    ) {
+      labels.push('Behavior');
+    }
+    if (fields.cellEditorName || fields.cellEditorParams) labels.push('Editor');
+    if (fields.cellRendererName) labels.push('Renderer');
+    if (fields.filter) labels.push('Filter');
+    if (fields.rowGrouping) labels.push('Grouping');
+    return labels;
+  }, [colIds, custState, tplState, platform]);
 
   const colLabel = useMemo(() => {
     if (colIds.length === 0) return 'Select a cell';
@@ -288,6 +348,29 @@ export function useFormatter(): UseFormatterResult {
     setTplState(addTemplateReducer(tpl));
     return tpl.id;
   }, [platform, custState, tplState, setTplState]);
+
+  const updateTemplate = useCallback((tplId: string): boolean => {
+    const ids = colIdsRef.current;
+    if (!ids.length) return false;
+    const colId = ids[0];
+    const t = readCellDataType(platform.api.api, colId);
+    const dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined =
+      t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean' ? t : undefined;
+    const fields = snapshotTemplateUpdate(custState, tplState, colId, dataType);
+    if (!fields) return false;
+    setTplState(updateTemplateReducer(tplId, fields));
+    return true;
+  }, [platform, custState, tplState, setTplState]);
+
+  const renameTemplate = useCallback((tplId: string, name: string): boolean => {
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+    const existing = tplState?.templates?.[tplId];
+    if (!existing) return false;
+    if (existing.name === trimmed) return false;
+    setTplState(renameTemplateReducer(tplId, trimmed));
+    return true;
+  }, [tplState, setTplState]);
 
   const deleteTemplate = useCallback((tplId: string) => {
     setTplState(removeTemplateReducer(tplId));
@@ -443,6 +526,7 @@ export function useFormatter(): UseFormatterResult {
       canRedo: undoRedo.canRedo,
       singleColumnSelected: colIds.length === 1,
       cellsEditable: !!fmt.editable,
+      capturableFields,
     },
     actions: {
       setTarget,
@@ -459,6 +543,8 @@ export function useFormatter(): UseFormatterResult {
       increaseDecimals,
       applyTemplate,
       saveAsTemplate,
+      updateTemplate,
+      renameTemplate,
       deleteTemplate,
       setSaveAsTplName,
       flashSaveAsTpl,

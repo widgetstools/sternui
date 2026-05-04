@@ -3,22 +3,31 @@
  * the in-grid FormattingToolbar's template popover AND the popped-out
  * FormattingPropertiesPanel's Templates section.
  *
- * Shape (per user request — kept simple):
- *   Row 1: <Select> dropdown listing templates. Picking one applies.
- *   Row 2: save-as name input + [+] save button + [🗑] delete button.
+ * UX (redesigned 2026-05-03):
+ *   ┌────────────────────────────────────────┐
+ *   │  Bold              [✏] [⟳] [🗑]        │ ← rows; click body = apply,
+ *   │ ✓ Currency         [✏] [⟳] [🗑]        │   actions hover-revealed
+ *   │  …                                      │
+ *   ├────────────────────────────────────────┤
+ *   │  Save current as: [name…]      [+]     │
+ *   ├────────────────────────────────────────┤
+ *   │  Will save: Styles · Formatter · Filter │ ← "what's in the snapshot" hint
+ *   └────────────────────────────────────────┘
  *
- * Delete uses a two-step confirm (pill swap) so a single misclick can't
- * nuke a template. Delete targets the currently-selected template
- * (`activeTemplateId`); disabled when nothing is selected.
+ * The per-row UPDATE button lets users re-snapshot the active column
+ * INTO an existing template — the user-requested "save additional
+ * settings to an existing template" affordance. RENAME swaps the row
+ * label into an inline input. DELETE uses a two-step confirm
+ * (mousedown-to-arm, click-to-commit) to defeat single-misclick
+ * destruction.
  *
- * Single implementation powers both surfaces via a `variant` prop that
- * only tweaks width (compact popover vs panel section). Behavior,
- * test-ids, and chrome are otherwise identical.
+ * One implementation powers both surfaces via `variant`:
+ *   - `compact`  — toolbar popover (~320px, denser rows)
+ *   - `panel`    — popped-out properties panel (full-width)
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, Check } from 'lucide-react';
-import { Select } from '@marketsui/core';
+import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
 
 export interface TemplateManagerProps {
   templates: ReadonlyArray<{ id: string; name: string }>;
@@ -34,14 +43,315 @@ export interface TemplateManagerProps {
   onApply: (id: string) => void;
   onDelete: (id: string) => void;
 
-  /** Layout variant. "compact" = popover inside toolbar
-   *  (220px, tighter spacing); "panel" = full-width Section inside
-   *  the popped-out Properties panel. */
+  /** Re-snapshot the active column and overwrite an existing template.
+   *  Omit to hide the per-row Update affordance. */
+  onUpdate?: (id: string) => void;
+  /** Rename an existing template inline. Omit to hide the per-row
+   *  Rename affordance. Implementations should call the formatter's
+   *  `renameTemplate(id, newName)` action. */
+  onRename?: (id: string, name: string) => void;
+
+  /**
+   * Optional human-readable list of template categories the active
+   * column can currently save (e.g. `['Styles', 'Formatter', 'Filter']`).
+   * Renders as a small caption beneath the save row so users know
+   * what the snapshot will capture BEFORE clicking save. Empty array
+   * => the column has nothing template-eligible.
+   */
+  capturableFields?: ReadonlyArray<string>;
+
+  /** Layout variant. `compact` = popover inside toolbar (320px,
+   *  tighter spacing); `panel` = full-width Section inside the
+   *  popped-out Properties panel. */
   variant?: 'compact' | 'panel';
 
   /** Optional test-id prefix applied to interactive elements so E2E
    *  can assert on the same primitive regardless of variant. */
   testIdPrefix?: string;
+}
+
+interface RowProps {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isRenaming: boolean;
+  renameDraft: string;
+  pendingDeleteId: string | null;
+  disabled: boolean;
+  hasUpdate: boolean;
+  hasRename: boolean;
+  onApply: () => void;
+  onUpdate: () => void;
+  onStartRename: () => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+  onRenameDraftChange: (v: string) => void;
+  onArmDelete: () => void;
+  onConfirmDelete: () => void;
+  testId: string;
+}
+
+function TemplateRow({
+  id,
+  name,
+  isActive,
+  isRenaming,
+  renameDraft,
+  pendingDeleteId,
+  disabled,
+  hasUpdate,
+  hasRename,
+  onApply,
+  onUpdate,
+  onStartRename,
+  onCommitRename,
+  onCancelRename,
+  onRenameDraftChange,
+  onArmDelete,
+  onConfirmDelete,
+  testId,
+}: RowProps) {
+  const [hovered, setHovered] = useState(false);
+  const isPendingDelete = pendingDeleteId === id;
+
+  return (
+    <div
+      data-testid={testId}
+      role="button"
+      tabIndex={isRenaming ? -1 : 0}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => { if (!isRenaming && !isPendingDelete && !disabled) onApply(); }}
+      onKeyDown={(e) => {
+        if (isRenaming) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!disabled) onApply();
+        }
+      }}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        height: 30,
+        padding: '0 6px 0 10px',
+        borderRadius: 4,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        background: isActive
+          ? 'color-mix(in srgb, var(--bn-blue) 10%, transparent)'
+          : hovered
+            ? 'color-mix(in srgb, var(--bn-t0) 5%, transparent)'
+            : 'transparent',
+        opacity: disabled ? 0.5 : 1,
+        transition: 'background 120ms',
+        outline: 'none',
+      }}
+    >
+      {/* Active accent bar */}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute', left: 2, top: 6, bottom: 6,
+          width: 2, borderRadius: 2,
+          background: isActive ? 'var(--bn-blue)' : 'transparent',
+        }}
+      />
+
+      {/* Leading check / dot */}
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 12, height: 12, flexShrink: 0,
+      }}>
+        {isActive ? (
+          <Check size={11} strokeWidth={2.5} style={{ color: 'var(--bn-blue)' }} />
+        ) : (
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%',
+            background: 'color-mix(in srgb, var(--bn-t2) 50%, transparent)',
+          }} />
+        )}
+      </span>
+
+      {/* Name — switches to input while renaming */}
+      {isRenaming ? (
+        <input
+          type="text"
+          value={renameDraft}
+          autoFocus
+          data-testid={`${testId}-rename-input`}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => onRenameDraftChange(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); onCommitRename(); }
+            else if (e.key === 'Escape') { e.preventDefault(); onCancelRename(); }
+          }}
+          onBlur={onCommitRename}
+          style={{
+            flex: 1, minWidth: 0, height: 22, padding: '0 6px',
+            background: 'var(--bn-bg)',
+            border: '1px solid color-mix(in srgb, var(--bn-blue) 55%, var(--bn-border))',
+            borderRadius: 3,
+            color: 'var(--bn-t0)',
+            fontSize: 11,
+            fontWeight: isActive ? 600 : 450,
+            outline: 'none',
+          }}
+        />
+      ) : (
+        <span style={{
+          flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontSize: 11,
+          fontWeight: isActive ? 600 : 450,
+          color: 'var(--bn-t0)',
+          letterSpacing: 0.1,
+        }}>
+          {name}
+        </span>
+      )}
+
+      {/* Action buttons — hover-revealed (always visible while renaming
+          or pending-delete so the user can complete the action). */}
+      {!isRenaming && (
+        <>
+          {hasUpdate && (
+            <RowAction
+              hovered={hovered || isPendingDelete}
+              title={`Update "${name}" with the current column's settings`}
+              ariaLabel={`Update template ${name}`}
+              testId={`${testId}-update`}
+              variant="accent"
+              onClick={(e) => { e.stopPropagation(); onUpdate(); }}
+            >
+              <RotateCw size={11} strokeWidth={2} />
+            </RowAction>
+          )}
+          {hasRename && (
+            <RowAction
+              hovered={hovered || isPendingDelete}
+              title={`Rename "${name}"`}
+              ariaLabel={`Rename template ${name}`}
+              testId={`${testId}-rename`}
+              variant="accent"
+              onClick={(e) => { e.stopPropagation(); onStartRename(); }}
+            >
+              <Pencil size={11} strokeWidth={2} />
+            </RowAction>
+          )}
+          {isPendingDelete ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onConfirmDelete(); }}
+              onMouseDown={(e) => e.preventDefault()}
+              data-testid={`${testId}-delete-confirm`}
+              title="Click to confirm delete"
+              aria-label="Confirm delete template"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                height: 22, padding: '0 8px',
+                border: '1px solid var(--bn-red)',
+                borderRadius: 3,
+                background: 'color-mix(in srgb, var(--bn-red) 18%, transparent)',
+                color: 'var(--bn-red)',
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <Trash2 size={10} strokeWidth={2.25} />
+              <span>Delete</span>
+            </button>
+          ) : (
+            <RowAction
+              hovered={hovered}
+              title={`Delete "${name}"`}
+              ariaLabel={`Delete template ${name}`}
+              testId={`${testId}-delete`}
+              variant="destructive"
+              onClick={(e) => { e.stopPropagation(); onArmDelete(); }}
+            >
+              <Trash2 size={11} strokeWidth={2} />
+            </RowAction>
+          )}
+        </>
+      )}
+
+      {/* Cancel-rename — mousedown so it fires before the input's
+          blur-commits handler. */}
+      {isRenaming && (
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCancelRename();
+          }}
+          data-testid={`${testId}-rename-cancel`}
+          title="Cancel rename"
+          aria-label="Cancel rename"
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 22, height: 22,
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--bn-t1)',
+            borderRadius: 3,
+            cursor: 'pointer',
+          }}
+        >
+          <X size={11} strokeWidth={2} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface RowActionProps {
+  hovered: boolean;
+  title: string;
+  ariaLabel: string;
+  testId: string;
+  variant: 'accent' | 'destructive';
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  children: React.ReactNode;
+}
+
+function RowAction({
+  hovered, title, ariaLabel, testId, variant, onClick, children,
+}: RowActionProps) {
+  const [hover, setHover] = useState(false);
+  const accent = variant === 'destructive' ? 'var(--bn-red)' : 'var(--bn-blue)';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title={title}
+      aria-label={ariaLabel}
+      data-testid={testId}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 22, height: 22,
+        border: 'none',
+        background: hover
+          ? `color-mix(in srgb, ${accent} 14%, transparent)`
+          : 'transparent',
+        color: hover ? accent : 'var(--bn-t1)',
+        borderRadius: 3,
+        cursor: 'pointer',
+        opacity: hovered ? 1 : 0,
+        transition: 'opacity 120ms, background 120ms, color 120ms',
+        flexShrink: 0,
+        padding: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function TemplateManager({
@@ -54,33 +364,71 @@ export function TemplateManager({
   onSave,
   onApply,
   onDelete,
+  onUpdate,
+  onRename,
+  capturableFields,
   variant = 'panel',
   testIdPrefix = 'tpl',
 }: TemplateManagerProps) {
-  // Two-step delete confirm — arms the trash button for 3s.
-  const [confirmArmed, setConfirmArmed] = useState(false);
-  const confirmTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const disarm = () => {
-    setConfirmArmed(false);
-    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-  };
-  const armDelete = () => {
-    setConfirmArmed(true);
-    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-    confirmTimerRef.current = setTimeout(() => setConfirmArmed(false), 3000);
-  };
-  useEffect(() => () => { if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current); }, []);
-
-  // Disarm the delete confirm whenever the active template changes —
-  // otherwise switching templates mid-arm leaves a stale confirm state
-  // pointing at a different row than the one the user was looking at.
-  useEffect(() => { disarm(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTemplateId]);
-
   const isCompact = variant === 'compact';
-  const rowHeight = 28;
-
   const isEmpty = templates.length === 0;
-  const deleteDisabled = disabled || !activeTemplateId;
+
+  // Inline rename state — at most one row in edit mode at a time.
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+
+  // Two-step delete state — armed-row id, auto-disarmed after 3s OR
+  // when the template list changes.
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const armTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const disarmDelete = () => {
+    setPendingDeleteId(null);
+    if (armTimerRef.current) clearTimeout(armTimerRef.current);
+  };
+  const armDelete = (id: string) => {
+    setPendingDeleteId(id);
+    if (armTimerRef.current) clearTimeout(armTimerRef.current);
+    armTimerRef.current = setTimeout(() => setPendingDeleteId(null), 3000);
+  };
+  useEffect(() => () => { if (armTimerRef.current) clearTimeout(armTimerRef.current); }, []);
+
+  // Disarm delete + cancel any in-flight rename whenever the template
+  // list shape changes — otherwise stale state can target a row that
+  // no longer exists.
+  useEffect(() => {
+    disarmDelete();
+    if (renamingId && !templates.some((t) => t.id === renamingId)) {
+      setRenamingId(null);
+      setRenameDraft('');
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [templates.length]);
+
+  const startRename = (id: string, currentName: string) => {
+    disarmDelete();
+    setRenamingId(id);
+    setRenameDraft(currentName);
+  };
+  const commitRename = () => {
+    const id = renamingId;
+    if (!id) return;
+    const trimmed = renameDraft.trim();
+    const tpl = templates.find((t) => t.id === id);
+    setRenamingId(null);
+    setRenameDraft('');
+    if (!trimmed || !tpl || tpl.name === trimmed) return;
+    onRename?.(id, trimmed);
+  };
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameDraft('');
+  };
+
+  const confirmDelete = (id: string) => {
+    disarmDelete();
+    onDelete(id);
+  };
 
   return (
     <div
@@ -88,190 +436,151 @@ export function TemplateManager({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        minWidth: isCompact ? 220 : undefined,
+        gap: 6,
+        minWidth: isCompact ? 320 : undefined,
         width: isCompact ? undefined : '100%',
       }}
     >
-      {/* Select — the "apply" surface. Only rendered when we actually
-          have templates to choose from. When empty, we skip the select
-          entirely and show an inline hint below the save row (see
-          the helper caption further down) — this avoids a disabled
-          greyed-out control + a native title tooltip that was
-          obscuring the save/delete action row right below it.
-
-          First empty option is a placeholder; the `value=""` path is
-          a no-op (no reducer dispatched) to avoid an accidental "clear
-          template" when the user re-opens the select and taps it. */}
+      {/* List of templates */}
       {!isEmpty && (
-        <Select
-          value={activeTemplateId ?? ''}
-          disabled={disabled}
-          data-testid={`${testIdPrefix}-select`}
-          aria-label="Apply saved template"
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v) onApply(v);
+        <div
+          data-testid={`${testIdPrefix}-list`}
+          style={{
+            display: 'flex', flexDirection: 'column', gap: 1,
+            maxHeight: 240, overflowY: 'auto',
+            paddingRight: 2,
           }}
-          className="h-7"
         >
-          <option value="" disabled>Choose a template…</option>
           {templates.map((tpl) => (
-            <option key={tpl.id} value={tpl.id}>
-              {tpl.name}
-            </option>
+            <TemplateRow
+              key={tpl.id}
+              id={tpl.id}
+              name={tpl.name}
+              isActive={tpl.id === activeTemplateId}
+              isRenaming={renamingId === tpl.id}
+              renameDraft={renameDraft}
+              pendingDeleteId={pendingDeleteId}
+              disabled={!!disabled}
+              hasUpdate={!!onUpdate}
+              hasRename={!!onRename}
+              onApply={() => onApply(tpl.id)}
+              onUpdate={() => onUpdate?.(tpl.id)}
+              onStartRename={() => startRename(tpl.id, tpl.name)}
+              onCommitRename={commitRename}
+              onCancelRename={cancelRename}
+              onRenameDraftChange={setRenameDraft}
+              onArmDelete={() => armDelete(tpl.id)}
+              onConfirmDelete={() => confirmDelete(tpl.id)}
+              testId={`${testIdPrefix}-row-${tpl.id}`}
+            />
           ))}
-        </Select>
+        </div>
       )}
 
-      {/* Save-as input + [+] save + [🗑] delete active.
-          Delete only renders when there's a template to delete —
-          cleaner empty state, fewer disabled controls. */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <input
-          type="text"
-          value={saveName}
-          onChange={(e) => onSaveNameChange(e.target.value)}
-          placeholder={isEmpty ? 'Save your first template…' : 'Save current style as…'}
-          disabled={disabled}
-          data-testid={`${testIdPrefix}-save-input`}
-          aria-label="New template name"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && saveName.trim()) onSave();
-          }}
-          style={{
-            flex: 1,
-            height: rowHeight,
-            padding: '0 10px',
-            border: '1px solid var(--bn-border)',
-            borderRadius: 3,
-            background: 'var(--bn-bg, var(--bn-bg))',
-            color: 'var(--bn-t0)',
-            fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
-            fontSize: 11,
-            outline: 'none',
-            minWidth: 0,
-          }}
-        />
+      {/* Separator — only when both list and footer have content. */}
+      {!isEmpty && (
+        <div style={{
+          height: 1,
+          background: 'color-mix(in srgb, var(--bn-border) 60%, transparent)',
+          margin: '2px 0',
+        }} />
+      )}
 
-        {/* Save new */}
-        <button
-          type="button"
-          disabled={disabled || !saveName.trim()}
-          onClick={onSave}
-          onMouseDown={(e) => e.preventDefault()}
-          data-testid={`${testIdPrefix}-save-btn`}
-          title="Save current style as template"
-          aria-label="Save current style as template"
-          style={{
-            width: rowHeight,
-            height: rowHeight,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: `1px solid ${saveConfirmed
-              ? 'color-mix(in srgb, var(--bn-blue) 40%, transparent)'
-              : 'var(--bn-border)'}`,
-            borderRadius: 3,
-            background: saveConfirmed
-              ? 'color-mix(in srgb, var(--bn-blue) 14%, transparent)'
-              : 'transparent',
-            color: saveConfirmed ? 'var(--bn-blue)' : 'var(--bn-t2)',
-            cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
-            opacity: disabled || !saveName.trim() ? 0.3 : 1,
-            transition: 'all 120ms',
-            padding: 0,
-            flexShrink: 0,
-          }}
-        >
-          {saveConfirmed ? <Check size={14} strokeWidth={2.5} /> : <Plus size={14} strokeWidth={2} />}
-        </button>
-
-        {/* Delete currently-selected template — two-step confirm.
-            First click arms (button widens, turns destructive red);
-            second click commits. Auto-disarms after 3s OR when the
-            active selection changes.
-
-            Hidden entirely when the library is empty (nothing to
-            delete → don't render a permanently-disabled trash can). */}
-        {!isEmpty && (
+      {/* Save-as footer */}
+      <div>
+        <div style={{
+          fontSize: 9, fontWeight: 600, letterSpacing: 0.6,
+          textTransform: 'uppercase',
+          color: 'var(--bn-t2)',
+          marginBottom: 4,
+        }}>
+          Save current as new
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            type="text"
+            value={saveName}
+            onChange={(e) => onSaveNameChange(e.target.value)}
+            placeholder={isEmpty ? 'Save your first template…' : 'Template name…'}
+            disabled={disabled}
+            data-testid={`${testIdPrefix}-save-input`}
+            aria-label="New template name"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && saveName.trim()) onSave();
+            }}
+            style={{
+              flex: 1, minWidth: 0, height: 28, padding: '0 10px',
+              border: '1px solid var(--bn-border)',
+              borderRadius: 3,
+              background: 'var(--bn-bg)',
+              color: 'var(--bn-t0)',
+              fontSize: 11,
+              outline: 'none',
+            }}
+          />
           <button
             type="button"
-            disabled={deleteDisabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!activeTemplateId) return;
-              if (confirmArmed) {
-                onDelete(activeTemplateId);
-                disarm();
-              } else {
-                armDelete();
-              }
-            }}
+            disabled={disabled || !saveName.trim()}
+            onClick={onSave}
             onMouseDown={(e) => e.preventDefault()}
-            data-testid={`${testIdPrefix}-delete-btn`}
-            title={
-              deleteDisabled
-                ? 'Pick a template to delete'
-                : confirmArmed
-                  ? 'Click again to delete'
-                  : 'Delete selected template'
-            }
-            aria-label={confirmArmed ? 'Confirm delete template' : 'Delete selected template'}
+            data-testid={`${testIdPrefix}-save-btn`}
+            title="Save current state as new template"
+            aria-label="Save current state as new template"
             style={{
-              width: confirmArmed ? 70 : rowHeight,
-              height: rowHeight,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              padding: 0,
-              border: `1px solid ${confirmArmed
-                ? 'var(--bn-red)'
+              width: 28, height: 28,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              border: `1px solid ${saveConfirmed
+                ? 'color-mix(in srgb, var(--bn-blue) 40%, transparent)'
                 : 'var(--bn-border)'}`,
               borderRadius: 3,
-              background: confirmArmed
-                ? 'color-mix(in srgb, var(--bn-red) 18%, transparent)'
+              background: saveConfirmed
+                ? 'color-mix(in srgb, var(--bn-blue) 14%, transparent)'
                 : 'transparent',
-              color: confirmArmed ? 'var(--bn-red)' : 'var(--bn-t2)',
-              fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: deleteDisabled ? 'not-allowed' : 'pointer',
-              opacity: deleteDisabled ? 0.3 : 1,
-              transition: 'width 120ms, background 120ms, color 120ms, border-color 120ms',
+              color: saveConfirmed ? 'var(--bn-blue)' : 'var(--bn-t1)',
+              cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
+              opacity: disabled || !saveName.trim() ? 0.3 : 1,
+              transition: 'all 120ms',
+              padding: 0,
               flexShrink: 0,
             }}
           >
-            {confirmArmed ? (
-              <>
-                <Trash2 size={11} strokeWidth={2} />
-                <span>DELETE</span>
-              </>
-            ) : (
-              <Trash2 size={13} strokeWidth={1.75} />
-            )}
+            {saveConfirmed ? <Check size={13} strokeWidth={2.5} /> : <Plus size={13} strokeWidth={2} />}
           </button>
-        )}
+        </div>
       </div>
 
-      {/* Empty-state hint — only shown when there are no templates yet.
-          Inline caption (not a tooltip) so it can't obscure anything. */}
+      {/* "What will be saved" hint — surfaces the captured-fields
+          summary so the user knows what the snapshot includes BEFORE
+          clicking save. Hidden when nothing is capturable (empty
+          column) or the host didn't pass the prop. */}
+      {capturableFields && capturableFields.length > 0 && (
+        <div
+          data-testid={`${testIdPrefix}-capture-hint`}
+          style={{
+            fontSize: 10,
+            color: 'var(--bn-t2)',
+            lineHeight: 1.4,
+            paddingTop: 2,
+          }}
+        >
+          Will save: <span style={{ color: 'var(--bn-t1)', fontWeight: 500 }}>
+            {capturableFields.join(' · ')}
+          </span>
+        </div>
+      )}
+
+      {/* Empty-state hint — shown when no templates exist yet. */}
       {isEmpty && (
         <div
           data-testid={`${testIdPrefix}-empty-hint`}
           style={{
             fontSize: 10,
             color: 'var(--bn-t2)',
-            fontFamily: "'Geist', 'IBM Plex Sans', -apple-system, sans-serif",
             lineHeight: 1.4,
             paddingTop: 2,
           }}
         >
-          Name a style, then click <span style={{ fontWeight: 600 }}>+</span> to save your
-          first template. Applied templates will appear as a dropdown here.
+          Name a style, then click <span style={{ fontWeight: 600, color: 'var(--bn-t1)' }}>+</span> to save your first template.
         </div>
       )}
     </div>

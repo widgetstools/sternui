@@ -60,9 +60,19 @@ export function resolveTemplates(
  * field merge for styling; last-writer-wins for everything else; opaque
  * wholesale-replace for `cellEditorParams` / `filter` / `rowGrouping`.
  */
+// Loose source shape — accepts both `ColumnTemplate` (with narrowed
+// `filter` / `rowGrouping`) and base `ColumnAssignment` (with `unknown`
+// for those same fields). Mirrors the runtime contract: every caller
+// passes one of the two and the merge logic doesn't care which.
+type ApplyOverSource = Partial<Omit<ColumnTemplate, 'filter' | 'rowGrouping'>> &
+  Partial<Omit<ColumnAssignment, 'filter' | 'rowGrouping'>> & {
+    filter?: unknown;
+    rowGrouping?: unknown;
+  };
+
 function applyOver(
   target: ColumnAssignment,
-  source: Partial<ColumnTemplate> & Partial<ColumnAssignment>,
+  source: ApplyOverSource,
 ): ColumnAssignment {
   // Per-field merge for styling.
   if (source.cellStyleOverrides !== undefined) {

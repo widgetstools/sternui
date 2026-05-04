@@ -25,15 +25,46 @@
  * timestamps without touching `Date.now()` / `Math.random()`.
  */
 import type {
-  ColumnAssignment,
+  ColumnAssignment as NarrowedAssignment,
   ColumnCustomizationState,
+  RowGroupingConfig,
 } from '../column-customization/state';
+// `resolveTemplates` returns the base shape (filter / rowGrouping typed
+// as unknown). At runtime both flow through unchanged from the narrowed
+// source on column-customization, so we type-cast at the boundary.
 import type {
   ColumnDataType,
   ColumnTemplate,
   ColumnTemplatesState,
+  RowGroupingTemplate,
 } from './state';
 import { resolveTemplates } from './resolveTemplates';
+
+/** Strip the live-state fields from a RowGroupingConfig so the template
+ *  carries capability flags + agg config only. Returns `undefined` when
+ *  nothing meaningful remains (so the caller can omit the field entirely
+ *  rather than persist `{}`). */
+function pickRowGroupingTemplate(
+  rg: RowGroupingConfig | undefined,
+): RowGroupingTemplate | undefined {
+  if (!rg) return undefined;
+  const {
+    rowGroup: _rowGroup,
+    rowGroupIndex: _rowGroupIndex,
+    pivot: _pivot,
+    pivotIndex: _pivotIndex,
+    ...rest
+  } = rg;
+  // Treat all-undefined as "nothing to save" — the spread above keeps
+  // explicit-undefined keys, which would otherwise serialize as
+  // `"enableRowGroup": undefined` and survive a round-trip as `null`.
+  for (const k of Object.keys(rest)) {
+    if ((rest as Record<string, unknown>)[k] === undefined) {
+      delete (rest as Record<string, unknown>)[k];
+    }
+  }
+  return Object.keys(rest).length > 0 ? (rest as RowGroupingTemplate) : undefined;
+}
 
 export interface SnapshotTemplateDeps {
   /** Override for `Date.now()`. Default uses real wall-clock. */
@@ -67,7 +98,7 @@ export function snapshotTemplate(
 ): ColumnTemplate | undefined {
   if (!colId || !name.trim()) return undefined;
 
-  const assignment: ColumnAssignment | undefined = cust?.assignments?.[colId];
+  const assignment: NarrowedAssignment | undefined = cust?.assignments?.[colId];
   if (!assignment) return undefined;
 
   const templatesState: ColumnTemplatesState = tpls ?? {
@@ -75,38 +106,93 @@ export function snapshotTemplate(
     typeDefaults: {},
   };
 
-  // Resolve so the saved template captures the EFFECTIVE appearance
+  // Resolve so the saved template captures the EFFECTIVE state
   // (templates + typeDefault + this column's own overrides).
   const resolved = resolveTemplates(assignment, templatesState, dataType);
 
-  const hasCell =
-    !!resolved.cellStyleOverrides &&
-    Object.keys(resolved.cellStyleOverrides).length > 0;
-  const hasHeader =
-    !!resolved.headerStyleOverrides &&
-    Object.keys(resolved.headerStyleOverrides).length > 0;
-  const vft = resolved.valueFormatterTemplate;
-  const hasEditable = typeof resolved.editable === 'boolean';
+  const fields = pickTemplateFields(resolved as unknown as NarrowedAssignment);
 
-  if (!hasCell && !hasHeader && !vft && !hasEditable) return undefined;
+  // "Nothing to save" guard — the snapshot must carry at least one
+  // template-eligible field, otherwise a click on Save would mint an
+  // empty template the user could never tell apart from another empty.
+  if (Object.keys(fields).length === 0) return undefined;
 
   const now = (deps?.now ?? Date.now)();
   const suffix =
     (deps?.idSuffix ?? (() => Math.random().toString(36).slice(2, 6)))();
   const id = `tpl_${now}_${suffix}`;
 
-  const tpl: ColumnTemplate = {
+  return {
     id,
     name: name.trim(),
     description: `Saved from ${colId}`,
     createdAt: now,
     updatedAt: now,
-    ...(hasCell ? { cellStyleOverrides: resolved.cellStyleOverrides } : {}),
-    ...(hasHeader ? { headerStyleOverrides: resolved.headerStyleOverrides } : {}),
-    ...(vft ? { valueFormatterTemplate: vft } : {}),
-    ...(hasEditable ? { editable: resolved.editable } : {}),
+    ...fields,
   };
-  return tpl;
+}
+
+/**
+ * Pure projection from a (resolved) ColumnAssignment to the fields
+ * eligible for capture in a template. Single source of truth for "what
+ * does a template carry" — used by both `snapshotTemplate` (mint new)
+ * and `updateTemplateReducer` (re-snapshot existing).
+ *
+ * Returns only fields that have a meaningful, non-empty value so the
+ * caller can spread the result without polluting the template with
+ * empty objects or explicit-`undefined` keys.
+ */
+export function pickTemplateFields(
+  resolved: NarrowedAssignment,
+): Partial<ColumnTemplate> {
+  const out: Partial<ColumnTemplate> = {};
+
+  if (
+    resolved.cellStyleOverrides &&
+    Object.keys(resolved.cellStyleOverrides).length > 0
+  ) {
+    out.cellStyleOverrides = resolved.cellStyleOverrides;
+  }
+  if (
+    resolved.headerStyleOverrides &&
+    Object.keys(resolved.headerStyleOverrides).length > 0
+  ) {
+    out.headerStyleOverrides = resolved.headerStyleOverrides;
+  }
+  if (resolved.valueFormatterTemplate) {
+    out.valueFormatterTemplate = resolved.valueFormatterTemplate;
+  }
+
+  // Behavior flags — captured only when explicitly set on the assignment
+  // (boolean), so an `undefined` doesn't shadow a higher-precedence
+  // template's flag during apply.
+  if (typeof resolved.editable === 'boolean') out.editable = resolved.editable;
+  if (typeof resolved.sortable === 'boolean') out.sortable = resolved.sortable;
+  if (typeof resolved.filterable === 'boolean') out.filterable = resolved.filterable;
+  if (typeof resolved.resizable === 'boolean') out.resizable = resolved.resizable;
+
+  // Editor + renderer registry keys.
+  if (resolved.cellEditorName) out.cellEditorName = resolved.cellEditorName;
+  if (resolved.cellEditorParams && Object.keys(resolved.cellEditorParams).length > 0) {
+    out.cellEditorParams = resolved.cellEditorParams;
+  }
+  if (resolved.cellRendererName) out.cellRendererName = resolved.cellRendererName;
+
+  // Filter — opaque blob, captured wholesale (incl. floating-filter
+  // settings, debounce, button set, multi-filter children, set-filter
+  // options). Skip when the assignment's filter is empty `{}` because
+  // that wouldn't represent a meaningful template trait.
+  if (resolved.filter && Object.keys(resolved.filter).length > 0) {
+    out.filter = resolved.filter;
+  }
+
+  // Row grouping — drop the live-state fields (rowGroup / rowGroupIndex
+  // / pivot / pivotIndex) so the template carries only capability +
+  // aggregation config.
+  const rg = pickRowGroupingTemplate(resolved.rowGrouping);
+  if (rg) out.rowGrouping = rg;
+
+  return out;
 }
 
 /**
@@ -129,6 +215,127 @@ export function addTemplateReducer(
     return {
       ...base,
       templates: { ...base.templates, [tpl.id]: tpl },
+    };
+  };
+}
+
+/**
+ * Compute a fresh field-set for an EXISTING template by re-snapshotting
+ * the current column. Returns `undefined` when the column has nothing
+ * to capture — callers should treat that as "no change" rather than
+ * "wipe the template clean".
+ *
+ * Identity (`id`, `name`, `description`, `createdAt`) is preserved by
+ * `updateTemplateReducer` — this helper only computes the data half.
+ */
+export function snapshotTemplateUpdate(
+  cust: ColumnCustomizationState | undefined,
+  tpls: ColumnTemplatesState | undefined,
+  colId: string,
+  dataType: ColumnDataType | undefined,
+): Partial<ColumnTemplate> | undefined {
+  if (!colId) return undefined;
+  const assignment = cust?.assignments?.[colId];
+  if (!assignment) return undefined;
+  const templatesState: ColumnTemplatesState = tpls ?? {
+    templates: {},
+    typeDefaults: {},
+  };
+  const resolved = resolveTemplates(assignment, templatesState, dataType);
+  const fields = pickTemplateFields(resolved as unknown as NarrowedAssignment);
+  return Object.keys(fields).length > 0 ? fields : undefined;
+}
+
+/**
+ * Reducer that overwrites an existing template's data fields with a
+ * fresh snapshot, preserving `id` / `name` / `description` /
+ * `createdAt` and bumping `updatedAt`.
+ *
+ * Replace-not-merge: if the column has lost a setting since the
+ * template was first saved, that setting is removed from the template.
+ * Matches the user's mental model "save the column as it is now"
+ * rather than "accumulate every setting I've ever added". Callers who
+ * want additive behavior should compose externally (apply + edit +
+ * update).
+ *
+ * Unknown id is a no-op so a stale UI clicking Update on a since-
+ * deleted template can't resurrect it.
+ *
+ * `now` is injected for testability — defaults to wall-clock.
+ */
+export function updateTemplateReducer(
+  templateId: string,
+  fields: Partial<ColumnTemplate>,
+  deps?: { now?: () => number },
+): (prev: ColumnTemplatesState | undefined) => ColumnTemplatesState {
+  return (prev) => {
+    const base: ColumnTemplatesState = prev ?? {
+      templates: {},
+      typeDefaults: {},
+    };
+    const existing = base.templates[templateId];
+    if (!existing) return base;
+
+    const now = (deps?.now ?? Date.now)();
+
+    // Strip out identity / audit keys from `fields` if a caller
+    // accidentally passed a full ColumnTemplate — this reducer ALWAYS
+    // preserves the existing identity.
+    const {
+      id: _id,
+      name: _name,
+      description: _description,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...dataFields
+    } = fields as ColumnTemplate;
+
+    const next: ColumnTemplate = {
+      id: existing.id,
+      name: existing.name,
+      description: existing.description,
+      createdAt: existing.createdAt,
+      updatedAt: now,
+      ...dataFields,
+    };
+
+    return {
+      ...base,
+      templates: { ...base.templates, [templateId]: next },
+    };
+  };
+}
+
+/**
+ * Reducer that renames an existing template. `id`, all data fields,
+ * and `createdAt` are preserved; `updatedAt` bumps. Unknown id is a
+ * no-op. Empty / whitespace-only names are rejected (no-op) so the
+ * UI can't accidentally blank a template's name via an unguarded
+ * input.
+ */
+export function renameTemplateReducer(
+  templateId: string,
+  name: string,
+  deps?: { now?: () => number },
+): (prev: ColumnTemplatesState | undefined) => ColumnTemplatesState {
+  return (prev) => {
+    const base: ColumnTemplatesState = prev ?? {
+      templates: {},
+      typeDefaults: {},
+    };
+    const existing = base.templates[templateId];
+    if (!existing) return base;
+    const trimmed = name.trim();
+    if (!trimmed) return base;
+    if (trimmed === existing.name) return base;
+
+    const now = (deps?.now ?? Date.now)();
+    return {
+      ...base,
+      templates: {
+        ...base.templates,
+        [templateId]: { ...existing, name: trimmed, updatedAt: now },
+      },
     };
   };
 }
