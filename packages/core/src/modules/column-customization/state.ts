@@ -26,7 +26,15 @@ export type FilterKind =
   | 'agNumberColumnFilter'
   | 'agDateColumnFilter'
   | 'agSetColumnFilter'
-  | 'agMultiColumnFilter';
+  | 'agMultiColumnFilter'
+  // Synthetic kind: AG-Grid agMultiColumnFilter with our streamSafeText
+  // custom floating filter wired in at the column level. Behaves
+  // identically to agMultiColumnFilter for the popup; the floating
+  // filter row gets a typeable input with clear button + comma-token
+  // routing (single token → text contains, multi token → set values).
+  // Not a real AG-Grid filter type — transforms map it to
+  // agMultiColumnFilter at colDef-emission time.
+  | 'streamSafeMultiColumnFilter';
 
 /** AG-Grid set-filter params we expose in the UI. */
 export interface SetFilterOptions {

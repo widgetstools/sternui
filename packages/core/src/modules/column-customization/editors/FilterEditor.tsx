@@ -29,6 +29,9 @@ export const FILTER_KIND_OPTIONS: Array<{ value: FilterKind; label: string }> = 
   { value: 'agDateColumnFilter', label: 'Date' },
   { value: 'agSetColumnFilter', label: 'Set (Enterprise)' },
   { value: 'agMultiColumnFilter', label: 'Multi (Enterprise)' },
+  // Synthetic — emits agMultiColumnFilter + column-level streamSafeText
+  // floating filter (typeable input, clear button, comma-token routing).
+  { value: 'streamSafeMultiColumnFilter', label: 'Multi + Stream-Safe Floating Filter' },
 ];
 
 const BUTTONS_ALL = ['apply', 'clear', 'reset', 'cancel'] as const;
@@ -216,7 +219,7 @@ export function FilterEditor({
             />
           )}
 
-          {kind === 'agMultiColumnFilter' && (
+          {(kind === 'agMultiColumnFilter' || kind === 'streamSafeMultiColumnFilter') && (
             <MultiFilterEditor
               colId={colId}
               value={cfg.multiFilters}
@@ -357,7 +360,7 @@ function MultiFilterEditor({
                   data-testid={`cols-${colId}-multi-${idx}-kind`}
                   style={{ flex: 1, minWidth: 0 }}
                 >
-                  {FILTER_KIND_OPTIONS.filter((o) => o.value !== 'agMultiColumnFilter').map((o) => (
+                  {FILTER_KIND_OPTIONS.filter((o) => o.value !== 'agMultiColumnFilter' && o.value !== 'streamSafeMultiColumnFilter').map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
@@ -410,7 +413,7 @@ function MultiFilterEditor({
               style={{ maxWidth: 280 }}
             >
               <option value="">Add sub-filter…</option>
-              {FILTER_KIND_OPTIONS.filter((o) => o.value !== 'agMultiColumnFilter').map((o) => (
+              {FILTER_KIND_OPTIONS.filter((o) => o.value !== 'agMultiColumnFilter' && o.value !== 'streamSafeMultiColumnFilter').map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>

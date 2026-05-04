@@ -77,7 +77,7 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
     this.input.style.width = '100%';
     this.input.style.height = '100%';
     this.input.style.boxSizing = 'border-box';
-    this.input.style.paddingRight = '20px'; // room for the clear button
+    this.input.style.paddingRight = '24px'; // room for the clear button
     this.input.addEventListener('input', this.onInput);
     wrapper.appendChild(this.input);
 
@@ -90,21 +90,31 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
     this.clearBtn.textContent = '✕';
     this.clearBtn.style.display = 'none';
     this.clearBtn.style.position = 'absolute';
-    this.clearBtn.style.right = '4px';
+    this.clearBtn.style.right = '3px';
     this.clearBtn.style.top = '50%';
     this.clearBtn.style.transform = 'translateY(-50%)';
     this.clearBtn.style.padding = '0';
-    this.clearBtn.style.width = '14px';
-    this.clearBtn.style.height = '14px';
-    this.clearBtn.style.lineHeight = '14px';
-    this.clearBtn.style.fontSize = '11px';
+    this.clearBtn.style.width = '18px';
+    this.clearBtn.style.height = '18px';
+    this.clearBtn.style.lineHeight = '18px';
+    this.clearBtn.style.fontSize = '14px';
+    this.clearBtn.style.fontWeight = '600';
+    this.clearBtn.style.borderRadius = '3px';
     this.clearBtn.style.background = 'transparent';
     this.clearBtn.style.border = 'none';
     this.clearBtn.style.color = 'currentColor';
-    this.clearBtn.style.opacity = '0.55';
+    this.clearBtn.style.opacity = '0.75';
     this.clearBtn.style.cursor = 'pointer';
-    this.clearBtn.addEventListener('mouseenter', () => { this.clearBtn.style.opacity = '1'; });
-    this.clearBtn.addEventListener('mouseleave', () => { this.clearBtn.style.opacity = '0.55'; });
+    this.clearBtn.addEventListener('mouseenter', () => {
+      this.clearBtn.style.opacity = '1';
+      // Subtle hover background — works against any AG-Grid theme by
+      // using currentColor with low alpha. Theme-neutral.
+      this.clearBtn.style.background = 'rgba(127, 127, 127, 0.18)';
+    });
+    this.clearBtn.addEventListener('mouseleave', () => {
+      this.clearBtn.style.opacity = '0.75';
+      this.clearBtn.style.background = 'transparent';
+    });
     // Use mousedown so focus doesn't leave the input before our handler
     // runs — keeps the focus-aware-clobber-skip in onParentModelChanged
     // consistent if the clear triggers a model change while focused.
@@ -344,18 +354,34 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
   /**
    * Best-effort string rendering of the current applied model — for
    * displaying the active filter when the input doesn't have focus.
-   * Compound models stringify back to their token list so a user re-
-   * focusing sees what they typed.
+   * Handles the column-level multi shape (`{filterType: 'multi',
+   * filterModels: [...]}`) by walking sub-filter slots and rendering
+   * the first non-null one. Set sub-filter values render as a token
+   * list so re-focusing the input shows what the user originally
+   * typed; text/number conditions render the same way.
    */
   private stringifyModel(model: unknown): string {
     if (typeof model === 'string') return model;
     if (model && typeof model === 'object') {
       const m = model as {
+        filterType?: string;
+        filterModels?: unknown[];
         filter?: unknown;
         operator?: string;
         conditions?: Array<{ filter?: unknown }>;
         values?: unknown[];
       };
+      // Column-level mounting on agMultiColumnFilter: walk sub-filter
+      // slots and render the first non-null model.
+      if (m.filterType === 'multi' && Array.isArray(m.filterModels)) {
+        for (const sub of m.filterModels) {
+          if (sub == null) continue;
+          const s = this.stringifyModel(sub);
+          if (s) return s;
+        }
+        return '';
+      }
+      if (Array.isArray(m.values)) return m.values.join(', ');
       if (Array.isArray(m.conditions) && m.conditions.length > 0) {
         return m.conditions
           .map((c) => (c.filter == null ? '' : String(c.filter)))
@@ -364,7 +390,6 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
       }
       if (typeof m.filter === 'string') return m.filter;
       if (typeof m.filter === 'number') return String(m.filter);
-      if (Array.isArray(m.values)) return m.values.join(', ');
     }
     return '';
   }

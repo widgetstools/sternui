@@ -9,8 +9,12 @@ set-filter handler and the multi-filter's floating-filter delegate — not
 a bug in our code, but a sharp edge in AG-Grid Enterprise's wiring that
 needed a custom floating filter component to defuse.
 
-Initial fix landed in commit `b688f3a` on `main`. Two enhancements landed
-on branch `feat/floating-filter-clear-and-multi-token`:
+Initial fix landed in commit `b688f3a` on `main`. The streamSafeText
+component is now an **opt-in filter kind** ("Multi + Stream-Safe
+Floating Filter") in the column-settings filter-type dropdown — no
+longer auto-applied to every `agMultiColumnFilter`. Plain multi-filter
+columns keep AG-Grid's default floating filter behaviour. Several
+enhancements landed on branch `feat/floating-filter-clear-and-multi-token`:
 
 - **Clear (✕) button** appears on the input's right edge whenever the
   input has a value; clicking clears both the input and the underlying
