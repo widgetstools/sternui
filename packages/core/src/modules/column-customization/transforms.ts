@@ -216,13 +216,15 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
     return;
   }
 
-  // The synthetic 'streamSafeMultiColumnFilter' kind isn't a real
-  // AG-Grid filter — it's our opt-in marker to use `agMultiColumnFilter`
-  // with the `streamSafeText` column-level floating filter (typeable
-  // input, clear button, comma-token routing). Flatten to the real
-  // AG-Grid kind here; the floating-filter wiring happens in the
-  // multi-filter branch below.
-  const isStreamSafeMulti = cfg.kind === 'streamSafeMultiColumnFilter';
+  // Synthetic 'streamSafeMulti*ColumnFilter' kinds aren't real AG-Grid
+  // filter types — they're opt-in markers for `agMultiColumnFilter`
+  // with our custom column-level floating filter (streamSafeText for
+  // text columns, streamSafeNumber for number columns). Flatten to
+  // the real AG-Grid kind for emission; the floating-filter component
+  // gets planted further down in the multi-filter branch.
+  const isStreamSafeMultiText = cfg.kind === 'streamSafeMultiColumnFilter';
+  const isStreamSafeMultiNumber = cfg.kind === 'streamSafeMultiNumberColumnFilter';
+  const isStreamSafeMulti = isStreamSafeMultiText || isStreamSafeMultiNumber;
   if (cfg.kind) merged.filter = isStreamSafeMulti ? 'agMultiColumnFilter' : cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
 
@@ -250,7 +252,10 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
     if (s.defaultToNothingSelected !== undefined) params.defaultToNothingSelected = s.defaultToNothingSelected;
   }
 
-  const isMultiKind = cfg.kind === 'agMultiColumnFilter' || cfg.kind === 'streamSafeMultiColumnFilter';
+  const isMultiKind =
+    cfg.kind === 'agMultiColumnFilter' ||
+    cfg.kind === 'streamSafeMultiColumnFilter' ||
+    cfg.kind === 'streamSafeMultiNumberColumnFilter';
   if (isMultiKind && cfg.multiFilters && cfg.multiFilters.length > 0) {
     params.filters = cfg.multiFilters.map((mf) => {
       const entry: Record<string, unknown> = { filter: mf.filter };
@@ -282,7 +287,9 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
   // sub-filter is "active". Plain agMultiColumnFilter keeps AG-Grid's
   // default behaviour — no opinion imposed.
   if (isStreamSafeMulti && cfg.floatingFilter !== false) {
-    merged.floatingFilterComponent = 'streamSafeText' as never;
+    merged.floatingFilterComponent = (
+      isStreamSafeMultiNumber ? 'streamSafeNumber' : 'streamSafeText'
+    ) as never;
   }
 
   if (Object.keys(params).length > 0) {

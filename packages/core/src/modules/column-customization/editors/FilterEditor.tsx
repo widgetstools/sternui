@@ -31,7 +31,10 @@ export const FILTER_KIND_OPTIONS: Array<{ value: FilterKind; label: string }> = 
   { value: 'agMultiColumnFilter', label: 'Multi (Enterprise)' },
   // Synthetic — emits agMultiColumnFilter + column-level streamSafeText
   // floating filter (typeable input, clear button, comma-token routing).
-  { value: 'streamSafeMultiColumnFilter', label: 'Multi + Stream-Safe Floating Filter' },
+  { value: 'streamSafeMultiColumnFilter', label: 'Multi + Stream-Safe Floating Filter (Text)' },
+  // Same idea, number-flavoured — operator parser (>100, 100-150,
+  // >0 and <50, =100 or =200) plus CSV-as-set-values routing.
+  { value: 'streamSafeMultiNumberColumnFilter', label: 'Multi + Stream-Safe Floating Filter (Number)' },
 ];
 
 const BUTTONS_ALL = ['apply', 'clear', 'reset', 'cancel'] as const;
@@ -101,14 +104,16 @@ export function FilterEditor({
                 value={kind ?? ''}
                 onChange={(e) => {
                   const v = e.target.value as FilterKind | '';
-                  // 'streamSafeMultiColumnFilter' only does anything
-                  // useful with floatingFilter: true (the whole point
-                  // is the typeable floating filter). Auto-enable it
-                  // when the user picks the kind, unless they had
-                  // explicitly disabled it. They can still toggle the
-                  // switch off afterwards if they really want to.
+                  // 'streamSafeMulti…ColumnFilter' kinds only do
+                  // anything useful with floatingFilter: true (the
+                  // whole point is the typeable floating filter).
+                  // Auto-enable when the user picks either kind,
+                  // unless they had previously disabled the switch.
                   const patch: Partial<ColumnFilterConfig> = { kind: v || undefined };
-                  if (v === 'streamSafeMultiColumnFilter' && cfg.floatingFilter !== false) {
+                  if (
+                    (v === 'streamSafeMultiColumnFilter' || v === 'streamSafeMultiNumberColumnFilter') &&
+                    cfg.floatingFilter !== false
+                  ) {
                     patch.floatingFilter = true;
                   }
                   update(patch);
@@ -229,7 +234,11 @@ export function FilterEditor({
             />
           )}
 
-          {(kind === 'agMultiColumnFilter' || kind === 'streamSafeMultiColumnFilter') && (
+          {(
+            kind === 'agMultiColumnFilter' ||
+            kind === 'streamSafeMultiColumnFilter' ||
+            kind === 'streamSafeMultiNumberColumnFilter'
+          ) && (
             <MultiFilterEditor
               colId={colId}
               value={cfg.multiFilters}
@@ -370,7 +379,11 @@ function MultiFilterEditor({
                   data-testid={`cols-${colId}-multi-${idx}-kind`}
                   style={{ flex: 1, minWidth: 0 }}
                 >
-                  {FILTER_KIND_OPTIONS.filter((o) => o.value !== 'agMultiColumnFilter' && o.value !== 'streamSafeMultiColumnFilter').map((o) => (
+                  {FILTER_KIND_OPTIONS.filter((o) =>
+  o.value !== 'agMultiColumnFilter' &&
+  o.value !== 'streamSafeMultiColumnFilter' &&
+  o.value !== 'streamSafeMultiNumberColumnFilter'
+).map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
@@ -423,7 +436,11 @@ function MultiFilterEditor({
               style={{ maxWidth: 280 }}
             >
               <option value="">Add sub-filter…</option>
-              {FILTER_KIND_OPTIONS.filter((o) => o.value !== 'agMultiColumnFilter' && o.value !== 'streamSafeMultiColumnFilter').map((o) => (
+              {FILTER_KIND_OPTIONS.filter((o) =>
+  o.value !== 'agMultiColumnFilter' &&
+  o.value !== 'streamSafeMultiColumnFilter' &&
+  o.value !== 'streamSafeMultiNumberColumnFilter'
+).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>

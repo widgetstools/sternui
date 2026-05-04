@@ -2,6 +2,7 @@ import type {
   IFloatingFilterComp,
   IFloatingFilterParams,
 } from 'ag-grid-community';
+import { buildFloatingFilterDom } from './streamSafeFloatingFilterDom';
 
 /**
  * Focus-aware floating filter with clear-button + comma-token OR matching.
@@ -51,77 +52,20 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
   private params!: IFloatingFilterParams;
   private debounceMs = 250;
   private debounceHandle: ReturnType<typeof setTimeout> | null = null;
+  private syncClearVisibilityFn!: () => void;
 
   init(params: IFloatingFilterParams): void {
     this.params = params;
     this.debounceMs = ((params as unknown as { debounceMs?: number }).debounceMs) ?? 250;
-
-    // Outer container — AG-Grid styles `.ag-floating-filter-input` to fill
-    // the floating-filter cell. Adding `.ag-text-field` + `.ag-input-field`
-    // pulls in the same border/padding/typography as the default.
-    this.eGui = document.createElement('div');
-    this.eGui.className = 'ag-floating-filter-input ag-text-field ag-input-field';
-
-    // Inner wrapper hosts the input + clear button. Position relative so
-    // the clear button can position absolutely against it.
-    const wrapper = document.createElement('div');
-    wrapper.className = 'ag-wrapper ag-input-wrapper ag-text-field-input-wrapper';
-    wrapper.style.position = 'relative';
-    wrapper.style.width = '100%';
-    wrapper.style.height = '100%';
-
-    this.input = document.createElement('input');
-    this.input.type = 'text';
-    this.input.placeholder = 'Filter (comma-separated)...';
-    this.input.className = 'ag-input-field-input ag-text-field-input';
-    this.input.style.width = '100%';
-    this.input.style.height = '100%';
-    this.input.style.boxSizing = 'border-box';
-    this.input.style.paddingRight = '24px'; // room for the clear button
-    this.input.addEventListener('input', this.onInput);
-    wrapper.appendChild(this.input);
-
-    // Clear button — pure unicode glyph, theme-neutral. Hidden until the
-    // input has a value. Sits flush with the input's right edge.
-    this.clearBtn = document.createElement('button');
-    this.clearBtn.type = 'button';
-    this.clearBtn.setAttribute('aria-label', 'Clear filter');
-    this.clearBtn.title = 'Clear filter';
-    this.clearBtn.textContent = '✕';
-    this.clearBtn.style.display = 'none';
-    this.clearBtn.style.position = 'absolute';
-    this.clearBtn.style.right = '3px';
-    this.clearBtn.style.top = '50%';
-    this.clearBtn.style.transform = 'translateY(-50%)';
-    this.clearBtn.style.padding = '0';
-    this.clearBtn.style.width = '18px';
-    this.clearBtn.style.height = '18px';
-    this.clearBtn.style.lineHeight = '18px';
-    this.clearBtn.style.fontSize = '14px';
-    this.clearBtn.style.fontWeight = '600';
-    this.clearBtn.style.borderRadius = '3px';
-    this.clearBtn.style.background = 'transparent';
-    this.clearBtn.style.border = 'none';
-    this.clearBtn.style.color = 'currentColor';
-    this.clearBtn.style.opacity = '0.75';
-    this.clearBtn.style.cursor = 'pointer';
-    this.clearBtn.addEventListener('mouseenter', () => {
-      this.clearBtn.style.opacity = '1';
-      // Subtle hover background — works against any AG-Grid theme by
-      // using currentColor with low alpha. Theme-neutral.
-      this.clearBtn.style.background = 'rgba(127, 127, 127, 0.18)';
+    const dom = buildFloatingFilterDom({
+      placeholder: 'Filter (comma-separated)...',
+      onInput: this.onInput,
+      onClearMouseDown: this.onClearMouseDown,
     });
-    this.clearBtn.addEventListener('mouseleave', () => {
-      this.clearBtn.style.opacity = '0.75';
-      this.clearBtn.style.background = 'transparent';
-    });
-    // Use mousedown so focus doesn't leave the input before our handler
-    // runs — keeps the focus-aware-clobber-skip in onParentModelChanged
-    // consistent if the clear triggers a model change while focused.
-    this.clearBtn.addEventListener('mousedown', this.onClearMouseDown);
-    wrapper.appendChild(this.clearBtn);
-
-    this.eGui.appendChild(wrapper);
+    this.eGui = dom.eGui;
+    this.input = dom.input;
+    this.clearBtn = dom.clearBtn;
+    this.syncClearVisibilityFn = dom.syncClearVisibility;
   }
 
   /**
@@ -133,7 +77,7 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
   onParentModelChanged(parentModel: unknown): void {
     if (document.activeElement === this.input) return;
     this.input.value = parentModel == null ? '' : this.stringifyModel(parentModel);
-    this.syncClearVisibility();
+    this.syncClearVisibilityFn();
   }
 
   getGui(): HTMLElement {
@@ -147,7 +91,7 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
   }
 
   private onInput = (): void => {
-    this.syncClearVisibility();
+    this.syncClearVisibilityFn();
     if (this.debounceHandle) clearTimeout(this.debounceHandle);
     this.debounceHandle = setTimeout(() => {
       this.applyValue(this.input.value);
@@ -160,14 +104,10 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
     e.preventDefault();
     if (this.debounceHandle) clearTimeout(this.debounceHandle);
     this.input.value = '';
-    this.syncClearVisibility();
+    this.syncClearVisibilityFn();
     this.applyValue('');
     this.input.focus();
   };
-
-  private syncClearVisibility(): void {
-    this.clearBtn.style.display = this.input.value === '' ? 'none' : 'inline-block';
-  }
 
   /**
    * Push the user's typed value into the parent filter.
