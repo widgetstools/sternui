@@ -179,7 +179,15 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
       };
       const filterType = (typeof p.getFilterType === 'function' ? p.getFilterType() : 'text') ?? 'text';
       const isNumber = filterType === 'number';
-      const op = isNumber ? 'equals' : 'contains';
+
+      // Operator semantics:
+      //   - Single token: substring match (`contains` for text, `equals`
+      //     for number — number filter has no `contains`).
+      //   - Multiple comma-separated tokens: exact match per token,
+      //     OR'd together. The comma is the user's signal that they
+      //     want a curated set of values, not a fuzzy search.
+      const singleOp = isNumber ? 'equals' : 'contains';
+      const multiOp = 'equals';
 
       // Empty → clear
       if (tokens.length === 0) {
@@ -196,20 +204,21 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
         const v = tokens[0];
         if (typeof p.onFloatingFilterChanged === 'function') {
           // For numbers, AG-Grid coerces the value internally.
-          p.onFloatingFilterChanged(op, v);
+          p.onFloatingFilterChanged(singleOp, v);
         } else {
           p.setModel?.({
             filterType,
-            type: op,
+            type: singleOp,
             filter: isNumber ? this.toNumber(v) : v,
           });
         }
         return;
       }
 
-      // Multi-token → compound OR. For numbers, drop tokens that don't
-      // parse as finite numbers (typing a list of mixed values shouldn't
-      // crash the filter; just ignore the non-numeric ones).
+      // Multi-token → compound OR with EXACT match per token. For
+      // numbers, drop tokens that don't parse as finite numbers (typing
+      // a list of mixed values shouldn't crash the filter; just ignore
+      // the non-numeric ones).
       const usableTokens = isNumber
         ? tokens.filter((t) => Number.isFinite(this.toNumber(t)))
         : tokens;
@@ -221,14 +230,14 @@ export class StreamSafeTextFloatingFilter implements IFloatingFilterComp {
         const v = usableTokens[0];
         p.setModel?.({
           filterType,
-          type: op,
+          type: multiOp,
           filter: isNumber ? this.toNumber(v) : v,
         });
         return;
       }
       const conditions = usableTokens.map((t) => ({
         filterType,
-        type: op,
+        type: multiOp,
         filter: isNumber ? this.toNumber(t) : t,
       }));
       p.setModel?.({

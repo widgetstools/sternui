@@ -15,12 +15,16 @@ on branch `feat/floating-filter-clear-and-multi-token`:
 - **Clear (✕) button** appears on the input's right edge whenever the
   input has a value; clicking clears both the input and the underlying
   filter.
-- **Comma-token OR matching.** Typing `aaa,bbb,ccc` filters rows that
-  contain ANY of those tokens (compound model with `operator: 'OR'`).
-  Single-token typing keeps the simple model so the popup filter UI
-  stays in sync. Whitespace around tokens is trimmed; empty tokens
-  (e.g. trailing comma) are dropped. Numeric filters auto-coerce
-  tokens; non-numeric tokens in a number-filter column are dropped.
+- **Comma-token OR matching with EXACT match.** Typing `aaa,bb` filters
+  rows whose value equals `aaa` OR equals `bb` exactly (compound model
+  with `operator: 'OR'`). Multi-token = exact-match per token; the
+  comma is the user's signal that they want a curated set of discrete
+  values, not a fuzzy search. Single-token typing keeps the default
+  `contains` semantics (substring search) so casual filtering still
+  works as expected. Whitespace around tokens is trimmed; empty tokens
+  (e.g. trailing comma) are dropped. Number filters use `equals` for
+  both single and multi paths since number filter has no `contains`;
+  non-numeric tokens in a number-filter column are dropped.
 
 Standalone reproduction + side-by-side fixed/broken comparison lives in
 [`../agg-floating-filter-repro`](../../agg-floating-filter-repro)
