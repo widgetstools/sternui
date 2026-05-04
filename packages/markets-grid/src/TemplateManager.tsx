@@ -28,6 +28,24 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
+import { GhostIconButton } from '@marketsui/core';
+
+// Inactive-row hover tint. Co-located here (instead of marketsGrid.css)
+// so the row + its buttons stay self-contained — the row also serves
+// as `data-row-hover-target` for the GhostIconButton reveal, so its
+// hover feedback is part of the same primitive's behaviour. Idempotent
+// + SSR-safe per the same pattern GhostIconButton uses.
+const ROW_STYLE_ID = 'gc-tpl-row-styles';
+if (typeof document !== 'undefined' && !document.getElementById(ROW_STYLE_ID)) {
+  const style = document.createElement('style');
+  style.id = ROW_STYLE_ID;
+  style.textContent = `
+    .gc-tpl-row:not([data-active='true']):hover {
+      background: color-mix(in srgb, var(--bn-t0) 5%, transparent) !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 export interface TemplateManagerProps {
   templates: ReadonlyArray<{ id: string; name: string }>;
@@ -111,16 +129,16 @@ function TemplateRow({
   onConfirmDelete,
   testId,
 }: RowProps) {
-  const [hovered, setHovered] = useState(false);
   const isPendingDelete = pendingDeleteId === id;
 
   return (
     <div
       data-testid={testId}
+      data-row-hover-target=""
+      data-active={isActive ? 'true' : undefined}
+      className="gc-tpl-row"
       role="button"
       tabIndex={isRenaming ? -1 : 0}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onClick={() => { if (!isRenaming && !isPendingDelete && !disabled) onApply(); }}
       onKeyDown={(e) => {
         if (isRenaming) return;
@@ -140,9 +158,7 @@ function TemplateRow({
         cursor: disabled ? 'not-allowed' : 'pointer',
         background: isActive
           ? 'color-mix(in srgb, var(--bn-blue) 10%, transparent)'
-          : hovered
-            ? 'color-mix(in srgb, var(--bn-t0) 5%, transparent)'
-            : 'transparent',
+          : 'transparent',
         opacity: disabled ? 0.5 : 1,
         transition: 'background 120ms',
         outline: 'none',
@@ -211,33 +227,39 @@ function TemplateRow({
         </span>
       )}
 
-      {/* Action buttons — hover-revealed (always visible while renaming
-          or pending-delete so the user can complete the action). */}
+      {/* Action buttons — hover-revealed via GhostIconButton's
+          `reveal="on-row-hover"` (the row sets `data-row-hover-target`).
+          The pending-delete + renaming branches force `revealed` so
+          actions stay visible while a multi-step flow is in progress. */}
       {!isRenaming && (
         <>
           {hasUpdate && (
-            <RowAction
-              hovered={hovered || isPendingDelete}
-              title={`Update "${name}" with the current column's settings`}
-              ariaLabel={`Update template ${name}`}
-              testId={`${testId}-update`}
+            <GhostIconButton
+              reveal="on-row-hover"
+              revealed={isPendingDelete}
               variant="accent"
               onClick={(e) => { e.stopPropagation(); onUpdate(); }}
+              onMouseDown={(e) => e.preventDefault()}
+              title={`Update "${name}" with the current column's settings`}
+              aria-label={`Update template ${name}`}
+              data-testid={`${testId}-update`}
             >
               <RotateCw size={11} strokeWidth={2} />
-            </RowAction>
+            </GhostIconButton>
           )}
           {hasRename && (
-            <RowAction
-              hovered={hovered || isPendingDelete}
-              title={`Rename "${name}"`}
-              ariaLabel={`Rename template ${name}`}
-              testId={`${testId}-rename`}
+            <GhostIconButton
+              reveal="on-row-hover"
+              revealed={isPendingDelete}
               variant="accent"
               onClick={(e) => { e.stopPropagation(); onStartRename(); }}
+              onMouseDown={(e) => e.preventDefault()}
+              title={`Rename "${name}"`}
+              aria-label={`Rename template ${name}`}
+              data-testid={`${testId}-rename`}
             >
               <Pencil size={11} strokeWidth={2} />
-            </RowAction>
+            </GhostIconButton>
           )}
           {isPendingDelete ? (
             <button
@@ -264,25 +286,26 @@ function TemplateRow({
               <span>Delete</span>
             </button>
           ) : (
-            <RowAction
-              hovered={hovered}
-              title={`Delete "${name}"`}
-              ariaLabel={`Delete template ${name}`}
-              testId={`${testId}-delete`}
+            <GhostIconButton
+              reveal="on-row-hover"
               variant="destructive"
               onClick={(e) => { e.stopPropagation(); onArmDelete(); }}
+              onMouseDown={(e) => e.preventDefault()}
+              title={`Delete "${name}"`}
+              aria-label={`Delete template ${name}`}
+              data-testid={`${testId}-delete`}
             >
               <Trash2 size={11} strokeWidth={2} />
-            </RowAction>
+            </GhostIconButton>
           )}
         </>
       )}
 
       {/* Cancel-rename — mousedown so it fires before the input's
-          blur-commits handler. */}
+          blur-commits handler. Always-visible (the input owns the
+          row's left edge; this button needs to stay reachable). */}
       {isRenaming && (
-        <button
-          type="button"
+        <GhostIconButton
           onMouseDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -291,66 +314,11 @@ function TemplateRow({
           data-testid={`${testId}-rename-cancel`}
           title="Cancel rename"
           aria-label="Cancel rename"
-          style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 22, height: 22,
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--bn-t1)',
-            borderRadius: 3,
-            cursor: 'pointer',
-          }}
         >
           <X size={11} strokeWidth={2} />
-        </button>
+        </GhostIconButton>
       )}
     </div>
-  );
-}
-
-interface RowActionProps {
-  hovered: boolean;
-  title: string;
-  ariaLabel: string;
-  testId: string;
-  variant: 'accent' | 'destructive';
-  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  children: React.ReactNode;
-}
-
-function RowAction({
-  hovered, title, ariaLabel, testId, variant, onClick, children,
-}: RowActionProps) {
-  const [hover, setHover] = useState(false);
-  const accent = variant === 'destructive' ? 'var(--bn-red)' : 'var(--bn-blue)';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseDown={(e) => e.preventDefault()}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      title={title}
-      aria-label={ariaLabel}
-      data-testid={testId}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 22, height: 22,
-        border: 'none',
-        background: hover
-          ? `color-mix(in srgb, ${accent} 14%, transparent)`
-          : 'transparent',
-        color: hover ? accent : 'var(--bn-t1)',
-        borderRadius: 3,
-        cursor: 'pointer',
-        opacity: hovered ? 1 : 0,
-        transition: 'opacity 120ms, background 120ms, color 120ms',
-        flexShrink: 0,
-        padding: 0,
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
