@@ -312,11 +312,11 @@ describe('FormattingToolbar — templates', () => {
       expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
     );
 
-    // Open the templates popover, then change the Select to the
-    // seeded `tpl-red` template. TemplateManager applies on `change`.
+    // Open the templates popover and click the seeded `tpl-red` row —
+    // TemplateManager applies the template on row click.
     act(() => fireEvent.click(screen.getByTestId('templates-menu-trigger')));
-    const select = await screen.findByTestId('tb-tpl-select');
-    act(() => fireEvent.change(select, { target: { value: 'tpl-red' } }));
+    const row = await screen.findByTestId('tb-tpl-row-tpl-red');
+    act(() => fireEvent.click(row));
 
     expect(getAssignment(platform, 'price')?.templateIds).toEqual(['tpl-red']);
   });

@@ -51,8 +51,25 @@ export function ModuleLibrary({
           actions.flashSaveAsTpl();
         }
       }}
-      onApply={actions.applyTemplate}
+      onApply={(id) => {
+        // Apply to the selected columns AND close the popover so the
+        // toolbar gets out of the user's way once their pick has
+        // landed. In vertical/panel orientation the popover doesn't
+        // exist, but `setOpen(false)` is a harmless no-op there.
+        actions.applyTemplate(id);
+        setOpen(false);
+      }}
       onDelete={actions.deleteTemplate}
+      onUpdate={(id) => {
+        // Re-snapshot the current column into an existing template.
+        // Silently no-ops when the column has nothing template-eligible
+        // (the action returns false in that case); we don't surface an
+        // error toast because the popover's "Will save: …" hint already
+        // tells the user there's nothing to capture.
+        actions.updateTemplate(id);
+      }}
+      onRename={actions.renameTemplate}
+      capturableFields={state.capturableFields}
       variant={orientation === 'horizontal' ? 'compact' : 'panel'}
       testIdPrefix={orientation === 'horizontal' ? 'tb-tpl' : 'fmt-panel-tpl'}
     />

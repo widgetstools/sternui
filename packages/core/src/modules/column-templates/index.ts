@@ -50,8 +50,17 @@ export { INITIAL_COLUMN_TEMPLATES };
 export { resolveTemplates } from './resolveTemplates';
 export {
   snapshotTemplate,
+  snapshotTemplateUpdate,
+  pickTemplateFields,
   addTemplateReducer,
   removeTemplateReducer,
+  updateTemplateReducer,
+  renameTemplateReducer,
   type SnapshotTemplateDeps,
 } from './snapshotTemplate';
-export type { ColumnTemplate, ColumnTemplatesState, ColumnDataType };
+export type {
+  ColumnTemplate,
+  ColumnTemplatesState,
+  ColumnDataType,
+  RowGroupingTemplate,
+} from './state';
