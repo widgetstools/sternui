@@ -125,6 +125,22 @@ export function formatFilterModel(
       parts.push(formatCondition(col, filterType, f));
       continue;
     }
+    if (filterType === 'multi') {
+      // Walk sub-filter slots and inline-format each non-null one,
+      // joined with AND (matches the runtime semantics — multi-filter
+      // ANDs its sub-filters). Single non-null slot reads naturally;
+      // multiple slots get parenthesised so the AND scope is clear.
+      const subs = (f.filterModels as Array<Record<string, unknown> | null> | undefined) ?? [];
+      const subParts: string[] = [];
+      for (const sub of subs) {
+        if (sub == null) continue;
+        subParts.push(formatFilterModel({ [col]: sub }));
+      }
+      if (subParts.length === 0) parts.push(`${col} (multi: empty)`);
+      else if (subParts.length === 1) parts.push(subParts[0]);
+      else parts.push(`(${subParts.join(' AND ')})`);
+      continue;
+    }
     parts.push(`${col}: ${JSON.stringify(f)}`);
   }
   return parts.join(' AND ');
@@ -142,6 +158,22 @@ export function doesValueMatchFilter(
 ): boolean {
   if (!filter || typeof filter !== 'object' || !filter.filterType) return true;
   const filterType = filter.filterType as string;
+
+  // Multi-filter envelope (agMultiColumnFilter and our synthetic
+  // streamSafeMulti* kinds): combine sub-filter slot models with AND
+  // semantics — same as AG-Grid's runtime. Null slots are skipped (no
+  // condition imposed). All non-null slots must match for the row to
+  // pass. Without this branch the matcher fell through to `return true`
+  // for every row, so per-pill count badges always showed the total
+  // row count instead of the matched count.
+  if (filterType === 'multi') {
+    const subModels = (filter.filterModels as unknown[] | undefined) ?? [];
+    for (const sub of subModels) {
+      if (sub == null) continue;
+      if (!doesValueMatchFilter(value, sub as Record<string, unknown>)) return false;
+    }
+    return true;
+  }
 
   if (filterType === 'set') {
     const vals = (filter.values as unknown[] | undefined) ?? [];
