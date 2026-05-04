@@ -256,6 +256,85 @@ describe('applyFilterConfigToColDef — filterParams reference stability', () =>
   });
 });
 
+// Custom React component bypass for AG-Grid 35.2.x's broken
+// agMultiColumnFloatingFilter on dotted-id columns.
+describe('applyFilterConfigToColDef — MultiTextFloatingFilter bypass', () => {
+  afterEach(() => __resetFilterParamsCacheForTests());
+
+  it('installs MultiTextFloatingFilter when id is dotted + multi + first child text', async () => {
+    const { MultiTextFloatingFilter } = await import('./MultiTextFloatingFilter');
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [
+        { filter: 'agTextColumnFilter' },
+        { filter: 'agSetColumnFilter' },
+      ],
+    };
+    const colDef: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg, 'quote.bid');
+    // Component reference (not a string registry name) — AG-Grid
+    // React picks this up directly without requiring a `components`
+    // map registration.
+    expect(colDef.floatingFilterComponent).toBe(MultiTextFloatingFilter);
+  });
+
+  it('does NOT install the component on flat ids (no bug to work around)', () => {
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [{ filter: 'agTextColumnFilter' }],
+    };
+    const colDef: ColDef = { colId: 'price' };
+    applyFilterConfigToColDef(colDef, cfg, 'price');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('does NOT install on non-multi filters even with dotted id', () => {
+    const cfg: ColumnFilterConfig = { enabled: true, kind: 'agTextColumnFilter' };
+    const colDef: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg, 'quote.bid');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('does NOT install when first child is set filter (not text)', () => {
+    const cfg: ColumnFilterConfig = {
+      enabled: true,
+      kind: 'agMultiColumnFilter',
+      multiFilters: [
+        { filter: 'agSetColumnFilter' },
+        { filter: 'agTextColumnFilter' },
+      ],
+    };
+    const colDef: ColDef = { colId: 'quote.bid' };
+    applyFilterConfigToColDef(colDef, cfg, 'quote.bid');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('clears its own injection when cfg changes back to a non-bypass shape', async () => {
+    const { MultiTextFloatingFilter } = await import('./MultiTextFloatingFilter');
+    // Start with the bypass-shape — colDef carries our injected ref.
+    const colDef: ColDef = {
+      colId: 'quote.bid',
+      floatingFilterComponent: MultiTextFloatingFilter as ColDef['floatingFilterComponent'],
+    };
+    const cfgPlain: ColumnFilterConfig = { enabled: true, kind: 'agTextColumnFilter' };
+    applyFilterConfigToColDef(colDef, cfgPlain, 'quote.bid');
+    expect(colDef.floatingFilterComponent).toBeUndefined();
+  });
+
+  it('preserves a host-provided floatingFilterComponent (only clears OUR injection)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const HostCustom = ((() => null) as any);
+    const colDef: ColDef = {
+      colId: 'price',
+      floatingFilterComponent: HostCustom,
+    };
+    applyFilterConfigToColDef(colDef, { enabled: true, kind: 'agTextColumnFilter' }, 'price');
+    expect(colDef.floatingFilterComponent).toBe(HostCustom);
+  });
+});
+
 describe('applyAssignments — filter reference stability through the walker', () => {
   afterEach(() => __resetFilterParamsCacheForTests());
 

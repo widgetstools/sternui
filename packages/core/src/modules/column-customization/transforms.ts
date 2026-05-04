@@ -22,6 +22,7 @@ import {
   excelFormatColorResolver,
 } from '../../colDef';
 import type { CssHandle, ExpressionEngineLike } from '../../platform/types';
+import { MultiTextFloatingFilter } from './MultiTextFloatingFilter';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -269,6 +270,46 @@ export function applyFilterConfigToColDef(
 
   if (cfg.kind) merged.filter = cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
+
+  // AG-Grid 35.2.x bug: agMultiColumnFloatingFilter mishandles
+  // backspace when the column id contains a dot (nested-field paths
+  // like `quote.bid`). The wrapper fails to forward the cleared
+  // keystroke to its inner text filter — typed text "snaps back" from
+  // the stale model on the next render and the underlying filter
+  // remains applied.
+  //
+  // Setting `floatingFilterComponent: 'agTextColumnFloatingFilter'`
+  // (string registry name) doesn't fix it either — AG-Grid either
+  // ignores the override on multi-filter columns, or the plain text
+  // floating filter has the same nested-id bug.
+  //
+  // Workaround: install our own React component
+  // (`MultiTextFloatingFilter`) which owns its input value in React
+  // state and forwards directly to the multi-filter's first child via
+  // `parentFilterInstance.getChildFilterInstance(0).setModel(...)`.
+  // No reliance on AG-Grid's controlled-input synchronisation, so the
+  // dotted-id path can't break us.
+  //
+  // Gated tightly:
+  //   - kind === 'agMultiColumnFilter'
+  //   - first sub-filter === 'agTextColumnFilter'
+  //   - effective col id contains a dot
+  // Other shapes fall through to AG-Grid's defaults so we don't
+  // surprise users on the working code path.
+  const idHasDot = (colId ?? merged.colId ?? merged.field ?? '').includes('.');
+  if (
+    cfg.kind === 'agMultiColumnFilter' &&
+    cfg.multiFilters?.[0]?.filter === 'agTextColumnFilter' &&
+    idHasDot
+  ) {
+    merged.floatingFilterComponent = MultiTextFloatingFilter as ColDef['floatingFilterComponent'];
+  } else if (merged.floatingFilterComponent === MultiTextFloatingFilter) {
+    // Cfg changed away from the bypass case — strip our injection so
+    // a stale reference can't outlast the config that warranted it.
+    // Host-provided custom components survive because we only clear
+    // when the value matches our own injected component reference.
+    merged.floatingFilterComponent = undefined;
+  }
 
   const hostParams = merged.filterParams as Record<string, unknown> | undefined;
 
