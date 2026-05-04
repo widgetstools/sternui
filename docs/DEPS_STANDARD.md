@@ -57,17 +57,12 @@ These packages are NOT on corporate artifactory. They are vendored as `.tgz` fil
 
 | Package | Version | Source |
 |---|---|---|
-| `ag-grid-community` | `35.2.1` | fi-trading (exact — no caret) |
-| `ag-grid-enterprise` | `35.2.1` | fi-trading (exact) |
-| `ag-grid-react` | `35.2.1` | fi-trading (exact) |
-| `ag-grid-angular` | `35.2.1` | fi-trading angular-app (exact) |
+| `ag-grid-community` | `35.1.0` | fi-trading (exact — no caret) |
+| `ag-grid-enterprise` | `35.1.0` | fi-trading (exact) |
+| `ag-grid-react` | `35.1.0` | fi-trading (exact) |
+| `ag-grid-angular` | `35.1.0` | fi-trading angular-app (exact) |
 
-> Bumped 2026-05-03 from 35.1.0 → 35.2.1 to fix the floating-filter
-> backspace bug under `agMultiColumnFilter` (text + set children) — the
-> wrapper's keystroke-forwarding to the first child was broken in
-> 35.1.0 and reverted typed text from the model on every render. The
-> earlier "corporate registry doesn't yet mirror 35.2.x" note is
-> resolved per the FI platform team.
+> Note: fi-trading-terminal's readme explicitly pins these — "corporate registry does not yet mirror 35.2.x".
 
 ## TypeScript + Build tooling
 
@@ -246,7 +241,7 @@ Every `@angular/*` package pins to `21.1.0` exact. No caret, no tilde. Corporate
 | `@primeng/themes` | `file:libs/primeng-themes-20.3.0.tgz` | bundled locally |
 | `@primeuix/themes` | `2.0.3` (override) | |
 | `chart.js` | `~4.4.9` | |
-| `ag-grid-angular` | `35.2.1` | exact |
+| `ag-grid-angular` | `35.1.0` | exact |
 
 ## ESLint
 

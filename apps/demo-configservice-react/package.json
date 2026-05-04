@@ -22,9 +22,9 @@
     "@marketsui/tokens-primeng": "*",
     "react": "~19.2.5",
     "react-dom": "~19.2.5",
-    "ag-grid-community": "35.2.1",
-    "ag-grid-enterprise": "35.2.1",
-    "ag-grid-react": "35.2.1"
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "ag-grid-react": "35.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

@@ -154,9 +154,7 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       }
 
       if (assignment.filter !== undefined) {
-        // Pass colId so filterParams stays reference-stable across
-        // transforms — see notes in applyFilterConfigToColDef.
-        applyFilterConfigToColDef(layered, assignment.filter as ColumnFilterConfig, v.colId);
+        applyFilterConfigToColDef(layered, assignment.filter as ColumnFilterConfig);
       }
       if (assignment.rowGrouping !== undefined) {
         applyRowGroupingConfigToColDef(

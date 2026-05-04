@@ -22,7 +22,6 @@ import {
   excelFormatColorResolver,
 } from '../../colDef';
 import type { CssHandle, ExpressionEngineLike } from '../../platform/types';
-import { MultiTextFloatingFilter } from './MultiTextFloatingFilter';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -209,141 +208,17 @@ export function reinjectCSS(
  * Exported — consumed by calculated-columns / column-groups when they
  * need to layer filter config onto their own ColDefs.
  */
-/**
- * Per-colId memo for the `filterParams` object emitted by
- * `applyFilterConfigToColDef`. Keyed by colId, valued by `(cfgKey,
- * params)` where `cfgKey` is the JSON serialization of the input
- * `ColumnFilterConfig` plus the `merged.filterParams` it was layered
- * onto.
- *
- * Why this exists: AG-Grid's React adapter re-instantiates a column's
- * filter component (incl. `agMultiColumnFilter`'s nested children)
- * whenever the column's `filterParams` reference changes — even when
- * the values inside are identical. Building a fresh `params` object on
- * every transform run produced a new reference each call, which under
- * agMultiColumnFilter caused the floating-filter mini-input to reset
- * mid-keystroke ("backspace can't clear, text reappears"). Returning
- * the SAME reference when the config hasn't deep-changed keeps the
- * filter component stable across transforms.
- *
- * Bounded by # of columns × distinct configs the user produces — in
- * practice tiny, no eviction needed.
- */
-const FILTER_PARAMS_CACHE = new Map<string, { cfgKey: string; params: Record<string, unknown> }>();
-
-/** Build a stable key for the cfg + the host's pre-existing
- *  `filterParams`. We include the host's params because we layer on
- *  top of them (`{ ...existing, ...params }`) — different host
- *  defaults must produce different cache entries. */
-function buildFilterParamsCacheKey(
-  cfg: ColumnFilterConfig,
-  hostParams: Record<string, unknown> | undefined,
-): string {
-  // JSON.stringify is deterministic for our shapes (no functions, no
-  // class instances, no circular refs). Sub-key ordering inside the
-  // input shape is consistent because callers always build cfg from
-  // the same TypeScript interface.
-  return JSON.stringify({ cfg, hostParams: hostParams ?? null });
-}
-
-/**
- * Apply a `ColumnFilterConfig` onto a working `ColDef`. Mutates
- * `merged` in place.
- *
- * Reference stability: when `colId` is provided AND the config + host
- * `filterParams` haven't deep-changed since the last call, the SAME
- * `merged.filterParams` object reference is reused — see
- * `FILTER_PARAMS_CACHE` for why this matters.
- */
-export function applyFilterConfigToColDef(
-  merged: ColDef,
-  cfg: ColumnFilterConfig,
-  colId?: string,
-): void {
+export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfig): void {
   if (cfg.enabled === false) {
     merged.filter = false;
     merged.filterParams = undefined;
     if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
-    if (colId) FILTER_PARAMS_CACHE.delete(colId);
     return;
   }
 
   if (cfg.kind) merged.filter = cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
 
-  // AG-Grid 35.2.x's `agMultiColumnFloatingFilter` wrapper is broken
-  // in ways that surface differently across column ids:
-  //
-  //   - Dotted ids (nested-field paths like `quote.bid`) lose the
-  //     ENTIRE input on backspace — typed text snaps back from a
-  //     stale model on every render.
-  //   - Flat ids appear to type and backspace correctly, but the
-  //     filter never actually re-evaluates because the wrapper
-  //     doesn't propagate child writes through the multi-filter's
-  //     aggregated model cache.
-  //
-  // Both failures share a root cause: AG-Grid's wrapper takes
-  // partial ownership of the input + model bridge in ways that don't
-  // hold up consistently. Our `MultiTextFloatingFilter` owns the
-  // input value in React state directly and writes back through
-  // `parent.setModel(...)` (full multi-shape) — no AG-Grid wrapper
-  // in the way, no flat-vs-dotted divergence, no aggregated-cache
-  // staleness.
-  //
-  // Gated to:
-  //   - kind === 'agMultiColumnFilter'
-  //   - first sub-filter === 'agTextColumnFilter'
-  // We don't touch any other filter combination.
-  if (
-    cfg.kind === 'agMultiColumnFilter' &&
-    cfg.multiFilters?.[0]?.filter === 'agTextColumnFilter'
-  ) {
-    merged.floatingFilterComponent = MultiTextFloatingFilter as ColDef['floatingFilterComponent'];
-  } else if (merged.floatingFilterComponent === MultiTextFloatingFilter) {
-    // Cfg changed away from the bypass case — strip our injection
-    // so a stale reference can't outlast the config that warranted
-    // it. Host-provided custom components survive because we only
-    // clear when the value matches our own injected component
-    // reference.
-    merged.floatingFilterComponent = undefined;
-  }
-
-  const hostParams = merged.filterParams as Record<string, unknown> | undefined;
-
-  // Reference-stable fast path — same cfg + same host base ⇒ reuse the
-  // exact same params object. Skipping the rebuild also skips the
-  // .map() over multiFilters, which is the most ref-volatile part of
-  // the structure.
-  if (colId) {
-    const cached = FILTER_PARAMS_CACHE.get(colId);
-    const cacheKey = buildFilterParamsCacheKey(cfg, hostParams);
-    if (cached && cached.cfgKey === cacheKey) {
-      merged.filterParams = cached.params;
-      return;
-    }
-    const params = computeFilterParams(cfg, hostParams);
-    if (params !== undefined) {
-      FILTER_PARAMS_CACHE.set(colId, { cfgKey: cacheKey, params });
-      merged.filterParams = params;
-    }
-    return;
-  }
-
-  // No-colId path — used by callers that opt out of caching. Behaves
-  // exactly like the pre-cache implementation: builds a fresh params
-  // object every call.
-  const params = computeFilterParams(cfg, hostParams);
-  if (params !== undefined) merged.filterParams = params;
-}
-
-/** Pure helper: assemble the `filterParams` object from a
- *  `ColumnFilterConfig`, layering it on top of any host-provided base.
- *  Returns `undefined` when there's nothing to write so the caller can
- *  preserve `merged.filterParams` as-is. */
-function computeFilterParams(
-  cfg: ColumnFilterConfig,
-  hostParams: Record<string, unknown> | undefined,
-): Record<string, unknown> | undefined {
   const params: Record<string, unknown> = {};
   if (cfg.buttons && cfg.buttons.length > 0) params.buttons = cfg.buttons;
   if (cfg.closeOnApply !== undefined) params.closeOnApply = cfg.closeOnApply;
@@ -367,15 +242,12 @@ function computeFilterParams(
     });
   }
 
-  if (Object.keys(params).length === 0 && !hostParams) return undefined;
-  return { ...(hostParams ?? {}), ...params };
-}
-
-/** Test hook — forget every cached filterParams so tests start from a
- *  clean slate. Not part of the public API; exported via the module
- *  barrel solely for use in tests. */
-export function __resetFilterParamsCacheForTests(): void {
-  FILTER_PARAMS_CACHE.clear();
+  if (Object.keys(params).length > 0) {
+    merged.filterParams = {
+      ...(merged.filterParams as Record<string, unknown> | undefined),
+      ...params,
+    };
+  }
 }
 
 // ─── Row-grouping / aggregation / pivot ────────────────────────────────────
@@ -488,12 +360,9 @@ export function applyAssignments(
     if (resolved.resizable !== undefined) merged.resizable = resolved.resizable;
     if (resolved.editable !== undefined) merged.editable = resolved.editable;
 
-    // Rich filter config — takes precedence over `filterable`. Passing
-    // `colId` enables the per-column filterParams reference cache so
-    // AG-Grid doesn't see a "new" filter on every transform run (which
-    // would re-instantiate `agMultiColumnFilter` children mid-keystroke).
+    // Rich filter config — takes precedence over `filterable`.
     if (resolved.filter !== undefined) {
-      applyFilterConfigToColDef(merged, resolved.filter as ColumnFilterConfig, colId);
+      applyFilterConfigToColDef(merged, resolved.filter as ColumnFilterConfig);
     }
 
     // Row-grouping / aggregation / pivot.
