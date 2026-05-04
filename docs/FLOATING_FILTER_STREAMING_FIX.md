@@ -9,8 +9,20 @@ set-filter handler and the multi-filter's floating-filter delegate — not
 a bug in our code, but a sharp edge in AG-Grid Enterprise's wiring that
 needed a custom floating filter component to defuse.
 
-Fix landed in commit `b688f3a` on `main`. Standalone reproduction +
-side-by-side fixed/broken comparison lives in
+Initial fix landed in commit `b688f3a` on `main`. Two enhancements landed
+on branch `feat/floating-filter-clear-and-multi-token`:
+
+- **Clear (✕) button** appears on the input's right edge whenever the
+  input has a value; clicking clears both the input and the underlying
+  filter.
+- **Comma-token OR matching.** Typing `aaa,bbb,ccc` filters rows that
+  contain ANY of those tokens (compound model with `operator: 'OR'`).
+  Single-token typing keeps the simple model so the popup filter UI
+  stays in sync. Whitespace around tokens is trimmed; empty tokens
+  (e.g. trailing comma) are dropped. Numeric filters auto-coerce
+  tokens; non-numeric tokens in a number-filter column are dropped.
+
+Standalone reproduction + side-by-side fixed/broken comparison lives in
 [`../agg-floating-filter-repro`](../../agg-floating-filter-repro)
 (sibling to this monorepo).
 
