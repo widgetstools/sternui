@@ -83,6 +83,44 @@ All primitives consume the `--ck-*` token system scoped to `.gc-sheet-v2`:
 --ck-font-mono`. Dark is the default; a `[data-theme='light']` variant remaps
 everything.
 
+### 1.2b GhostIconButton — shared row-action primitive
+
+`packages/core/src/ui/shadcn/ghost-icon-button.tsx` exports the
+ghost-icon-button pattern as a token-driven primitive so callers
+stop hand-rolling 30 lines of inline-styled `<button>` boilerplate
+each time they need a hover/reveal action button.
+
+- **Variants** — `default` / `accent` (info-blue hover tint) and
+  `destructive` (negative-red hover tint). Resting color sits at
+  the `--bn-t1` secondary text tier; hover swaps to the matching
+  accent token, theme-aware automatically.
+- **Sizes** — `sm` (22×22, the default for row actions) and `md`
+  (28×28, toolbar tier).
+- **Reveal modes** — `always` keeps the button visible (toolbar
+  use); `on-row-hover` keeps the button at `opacity:0` until any
+  ancestor with `data-row-hover-target` is hovered, with the
+  button itself focus-visible as a fallback for keyboard users.
+  A `revealed` boolean prop force-shows during edit-mode states.
+- **Self-contained styles** — the stylesheet is injected once at
+  module load via a `<style>` tag (id `gc-ghost-icon-button-styles`),
+  not imported as a separate CSS file. tsc preserves CSS imports
+  in emitted .js but downstream bundlers may not resolve them; the
+  inline injection makes the primitive work in every consumer
+  without build-config changes. SSR-safe (no-op without `document`)
+  and idempotent under StrictMode's double-render.
+- **First migration** — `ProfileSelector` per-row buttons (rename,
+  clone, export, delete, cancel-rename) all moved to the primitive.
+  The component shed `hoverId` React state entirely (CSS owns the
+  reveal now) and lost ~80 lines of duplicated inline-style
+  configuration. Coverage: 10 unit tests in
+  `ghost-icon-button.test.tsx` covering variant/size/reveal
+  forwarding, ref forwarding, disabled-state click suppression,
+  and className composition.
+- **Follow-up** — `FiltersToolbar` filter-pill action buttons,
+  conditional-styling rule rows, and column-template rows still
+  use bespoke inline-styled buttons; migrating them is a cosmetic
+  cleanup best done as those files are touched.
+
 ### 1.3 Unified `<StyleEditor>` (shared across every panel)
 
 One component edits the style of any AG-Grid element (cell, header, group

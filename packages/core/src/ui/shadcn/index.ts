@@ -1,5 +1,12 @@
 export { cn } from './utils';
 export { Button, buttonVariants, type ButtonProps } from './button';
+export {
+  GhostIconButton,
+  type GhostIconButtonProps,
+  type GhostIconButtonVariant,
+  type GhostIconButtonSize,
+  type GhostIconButtonReveal,
+} from './ghost-icon-button';
 export { Input, type InputProps } from './input';
 export { Textarea, type TextareaProps } from './textarea';
 export { Select } from './select';

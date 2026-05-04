@@ -229,6 +229,13 @@ export type {
 // ─── shadcn primitives ──────────────────────────────────────────────────────
 export { Button, buttonVariants } from './ui/shadcn/button';
 export type { ButtonProps } from './ui/shadcn/button';
+export { GhostIconButton } from './ui/shadcn/ghost-icon-button';
+export type {
+  GhostIconButtonProps,
+  GhostIconButtonVariant,
+  GhostIconButtonSize,
+  GhostIconButtonReveal,
+} from './ui/shadcn/ghost-icon-button';
 export { Input } from './ui/shadcn/input';
 export { Textarea, type TextareaProps } from './ui/shadcn/textarea';
 export type { InputProps } from './ui/shadcn/input';
