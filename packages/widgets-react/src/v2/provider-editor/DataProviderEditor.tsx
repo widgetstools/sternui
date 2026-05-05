@@ -45,7 +45,11 @@ export interface DataProviderEditorProps {
 
 export function DataProviderEditor({ userId, initialProviderId = null, onClose }: DataProviderEditorProps) {
   const { configStore } = useDataPlane();
-  const list = useDataProvidersList();
+  // Editor sidebar lists EVERY kind of provider — including AppData
+  // rows that the live-stream picker filters out. The user's mental
+  // model is that anything they create here should be visible here
+  // for editing later.
+  const list = useDataProvidersList({ includeAppData: true });
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(initialProviderId);
   const [creating, setCreating] = useState<DataProviderConfig | null>(null);

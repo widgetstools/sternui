@@ -230,7 +230,9 @@ export interface DataProvidersListView {
   refresh(): void;
 }
 
-export function useDataProvidersList(opts: { subtype?: ProviderConfig['providerType'] } = {}): DataProvidersListView {
+export function useDataProvidersList(
+  opts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {},
+): DataProvidersListView {
   const { configStore } = useDataPlaneContext();
   const userId = useUserIdFromContext();
   const [view, setView] = useState<{ configs: readonly DataProviderConfig[]; loading: boolean; error?: string }>(
@@ -242,13 +244,16 @@ export function useDataProvidersList(opts: { subtype?: ProviderConfig['providerT
   useEffect(() => {
     let cancelled = false;
     setView((v) => ({ ...v, loading: true }));
-    configStore.list(userId, opts.subtype ? { subtype: opts.subtype } : {})
+    const listOpts: { subtype?: ProviderConfig['providerType']; includeAppData?: boolean } = {};
+    if (opts.subtype) listOpts.subtype = opts.subtype;
+    if (opts.includeAppData) listOpts.includeAppData = true;
+    configStore.list(userId, listOpts)
       .then((rows) => { if (!cancelled) setView({ configs: rows, loading: false }); })
       .catch((err: unknown) => {
         if (!cancelled) setView({ configs: [], loading: false, error: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
-  }, [configStore, userId, opts.subtype, tick]);
+  }, [configStore, userId, opts.subtype, opts.includeAppData, tick]);
 
   return { ...view, refresh };
 }

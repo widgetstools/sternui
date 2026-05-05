@@ -43,6 +43,15 @@ export interface ListOptions {
    * MarketsGrid live-provider picker to STOMP-only, etc.).
    */
   subtype?: ProviderConfig['providerType'];
+  /**
+   * Include AppData rows (`componentSubType: 'appdata'`) in the
+   * result. Default `false` — the live-stream picker shouldn't show
+   * AppData entries because they're a key/value store, not a stream
+   * source. The DataProviderEditor's own sidebar passes `true` so
+   * users can list / select / edit their AppData providers from the
+   * same authoring surface where they create them.
+   */
+  includeAppData?: boolean;
 }
 
 // ─── DataProvider CRUD ─────────────────────────────────────────────
@@ -64,7 +73,13 @@ export class DataProviderConfigStore {
     const out: DataProviderConfig[] = [];
     for (const row of all) {
       if (row.componentType !== COMPONENT_TYPE_DATA_PROVIDER) continue;
-      if (row.componentSubType === 'appdata') continue; // AppData rows live in AppDataConfigStore
+      // AppData rows are routinely consumed via AppDataConfigStore for
+      // {{name.key}} resolution. By default we hide them here so the
+      // live-stream picker doesn't surface them as attachable streams
+      // (they're not — they're a key/value store). The editor sidebar
+      // overrides with `includeAppData: true` so authoring stays in
+      // one unified list.
+      if (row.componentSubType === 'appdata' && !opts.includeAppData) continue;
       if (opts.subtype && row.componentSubType !== opts.subtype) continue;
       out.push(rowToProvider(row));
     }
