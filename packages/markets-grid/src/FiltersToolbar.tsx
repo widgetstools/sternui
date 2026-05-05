@@ -17,8 +17,6 @@ import {
   FunnelX,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   MoreVertical,
 } from 'lucide-react';
 import type { SavedFilter } from './types';
@@ -62,24 +60,80 @@ import {
  * filter state where floating-filter inputs no longer accept keystrokes.
  * Logs the dropped colId + entry so the user can identify the stale pill.
  */
+/**
+ * Walk a single column-entry and clean up shapes that would crash
+ * AG-Grid's filter handlers. Returns either the (possibly repaired)
+ * entry, or `null` if the entry is unsalvageable and must be dropped.
+ *
+ * Handled cases:
+ *   - top-level set filter w/ non-array `values` → drop
+ *   - bare object with `values` that isn't an array (no filterType
+ *     declared, but quacks like a set filter) → drop
+ *   - multi-filter envelope (`filterType:'multi'`, `filterModels:[...]`)
+ *     → recurse into each child; if every child gets dropped, drop the
+ *     envelope. Otherwise return the envelope with surviving children.
+ */
+function sanitizeFilterEntry(colId: string, entry: unknown): unknown | null {
+  if (!entry || typeof entry !== 'object') return entry;
+  const e = entry as { filterType?: string; values?: unknown; filterModels?: unknown[] };
+
+  // Multi-filter envelope — recurse into nested handlers.
+  if (e.filterType === 'multi' && Array.isArray(e.filterModels)) {
+    const cleaned: unknown[] = [];
+    let dropped = false;
+    for (const child of e.filterModels) {
+      const sane = sanitizeFilterEntry(colId, child);
+      if (sane == null && child != null) {
+        dropped = true;
+        continue;
+      }
+      cleaned.push(sane);
+    }
+    // AG-Grid keeps slot positions for multi-filter children; missing
+    // slots become `null` which AG-Grid tolerates. We rebuild with the
+    // same length so indices line up with column-defs.
+    if (dropped) {
+      const rebuilt = e.filterModels.map((child) => sanitizeFilterEntry(colId, child));
+      return { ...e, filterModels: rebuilt };
+    }
+    return { ...e, filterModels: cleaned };
+  }
+
+  // Set filter — explicit OR implied (object with `values` key).
+  // Repair (don't drop) entries with malformed `values`: coerce to an
+  // array so AG-Grid's `validateModel` can iterate without throwing.
+  // If `values` is an object with numeric keys (a serialized array),
+  // recover the array; otherwise default to []. Keeping the pill
+  // effective is preferable to silently disabling it — the user
+  // can rename/edit/remove via pill actions.
+  const looksLikeSet = e.filterType === 'set' || (e.values !== undefined && e.filterType == null);
+  if (looksLikeSet && !Array.isArray(e.values)) {
+    let recovered: unknown[] = [];
+    if (e.values && typeof e.values === 'object') {
+      const vs = e.values as Record<string, unknown>;
+      const numericKeys = Object.keys(vs).every((k) => /^\d+$/.test(k));
+      if (numericKeys) recovered = Object.values(vs);
+    }
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[FiltersToolbar] repairing malformed set-filter entry for col "${colId}" — coerced \`values\` to array (${recovered.length} item${recovered.length === 1 ? '' : 's'}).`,
+      { original: entry, recovered },
+    );
+    return { ...e, values: recovered };
+  }
+
+  return entry;
+}
+
 function sanitizeFilterModel(
   model: Record<string, unknown> | null,
 ): Record<string, unknown> | null {
   if (model == null) return null;
   const out: Record<string, unknown> = {};
   for (const [colId, entry] of Object.entries(model)) {
-    if (entry && typeof entry === 'object') {
-      const e = entry as { filterType?: string; values?: unknown };
-      if (e.filterType === 'set' && !Array.isArray(e.values)) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[FiltersToolbar] dropping malformed set-filter entry for col "${colId}" — \`values\` is not an array; this would crash AG-Grid validateModel.`,
-          entry,
-        );
-        continue;
-      }
-    }
-    out[colId] = entry;
+    const sane = sanitizeFilterEntry(colId, entry);
+    if (sane == null) continue;
+    out[colId] = sane;
   }
   return out;
 }
@@ -380,9 +434,9 @@ export function FiltersToolbar() {
         data-testid="filters-collapse-toggle"
       >
         {expanded ? (
-          <ChevronUp size={13} strokeWidth={2.25} />
+          <ChevronLeft size={16} strokeWidth={2.5} />
         ) : (
-          <ChevronDown size={13} strokeWidth={2.25} />
+          <ChevronRight size={16} strokeWidth={2.5} />
         )}
       </button>
 

@@ -115,8 +115,8 @@
   --fi-red: var(--bn-red);
   --fi-blue: var(--bn-blue);
   --fi-amber: var(--bn-amber);
-  --fi-yellow: var(--bn-amber);
-  --bn-yellow: var(--bn-amber);
+  --bn-yellow: #facc15;        /* true yellow — bright accent, distinct from amber/warning */
+  --fi-yellow: var(--bn-yellow);
   --fi-cyan: var(--bn-cyan);
   --fi-purple: var(--bn-purple);
   --fi-title: var(--bn-t0);

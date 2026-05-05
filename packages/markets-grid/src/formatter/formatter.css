@@ -85,12 +85,16 @@
   isolation: isolate;
 }
 
-/* Toolbar variant — single horizontal row, dense. */
+/* Toolbar variant — single horizontal row, dense.
+   Height matches the primary toolbar row (48px) so stacked rows share
+   the same rhythm. flex-wrap kept for narrow viewports — when the
+   row wraps, height becomes a min-height implicitly. */
 .fx-shell--horizontal {
   display: flex;
   align-items: center;
   gap: var(--fx-px-comfy);
-  padding: 6px 12px;
+  padding: 0 12px;
+  min-height: 48px;
   border-bottom: 1px solid var(--fx-line);
   flex-wrap: wrap;
   width: max-content;
