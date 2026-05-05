@@ -14,6 +14,61 @@ import {
 } from './state';
 
 /**
+ * Strip filter-model entries that would crash AG-Grid's per-handler
+ * validateModel. The known landmine is `agSetColumnFilter` —
+ * SetFilterHandler.validateModel iterates `model.values` without a null
+ * check, so an entry whose `values` is anything other than an array
+ * blows up the whole api.setState call. We drop just that entry, log
+ * which colId was bad, and let the rest of the profile restore cleanly.
+ *
+ * Recurses into multi-filter envelopes so a malformed set sub-filter
+ * inside a multi-filter is dropped too. Returns a fresh object —
+ * doesn't mutate the input.
+ */
+function sanitizeGridState(state: unknown): unknown {
+  if (!state || typeof state !== 'object') return state;
+  const cloned = JSON.parse(JSON.stringify(state)) as {
+    filter?: { filterModel?: Record<string, unknown> };
+  };
+  const fm = cloned.filter?.filterModel;
+  if (fm && typeof fm === 'object') {
+    cloned.filter!.filterModel = sanitizeFilterModel(fm);
+  }
+  return cloned;
+}
+
+function sanitizeFilterModel(
+  model: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [colId, raw] of Object.entries(model)) {
+    const sanitized = sanitizeFilterEntry(raw, colId);
+    if (sanitized !== undefined) out[colId] = sanitized;
+  }
+  return out;
+}
+
+function sanitizeFilterEntry(entry: unknown, colId: string): unknown {
+  if (!entry || typeof entry !== 'object') return entry;
+  const e = entry as { filterType?: string; values?: unknown; filterModels?: unknown[] };
+  if (e.filterType === 'set' && !Array.isArray(e.values)) {
+    console.warn(
+      `[grid-state] dropping malformed set-filter entry for col "${colId}" — \`values\` is not an array; would crash AG-Grid validateModel.`,
+      entry,
+    );
+    return undefined;
+  }
+  if (e.filterType === 'multi' && Array.isArray(e.filterModels)) {
+    // Recurse into sub-filter slots; drop bad ones (replace with null).
+    const cleanedSubs = e.filterModels.map((sub, i) =>
+      sanitizeFilterEntry(sub, `${colId}.sub${i}`) ?? null,
+    );
+    return { ...e, filterModels: cleanedSubs };
+  }
+  return entry;
+}
+
+/**
  * Read the current grid state off a live api. Safe to call any time after
  * `onGridReady`. Never throws — on API shape drift returns a minimal
  * snapshot with empty gridState so the caller can still persist *something*.
@@ -80,8 +135,17 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
     );
   }
 
+  // Sanitise the filter slice before handing to setState. AG-Grid 35.1's
+  // SetFilterHandler.validateModel iterates `model.values` without a null
+  // check — a malformed pill (set-filter entry whose `values` got
+  // serialized as undefined / non-array) crashes the entire restore and
+  // takes the rest of the saved state down with it. Strip the bad
+  // entries so the rest of the profile loads cleanly. Same defensive
+  // shape as FiltersToolbar's sanitizeFilterModel.
+  const cleanedState = sanitizeGridState(saved.gridState);
+
   try {
-    api.setState(saved.gridState);
+    api.setState(cleanedState as Parameters<typeof api.setState>[0]);
   } catch (err) {
     console.warn('[grid-state] api.setState failed:', err);
   }

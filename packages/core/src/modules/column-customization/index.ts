@@ -40,9 +40,16 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     // Intra-v2 schema evolution:
     //   - schemaVersion 4 added optional `filter` per-assignment
     //   - schemaVersion 5 added optional `rowGrouping`
-    // Both are additive so schemaVersion 1..4 snapshots roundtrip
-    // unchanged; we accept them and let the deserializer sanitise.
-    if (fromVersion >= 1 && fromVersion <= 4) {
+    //   - schemaVersion 6 (parked column_settings branch) introduced
+    //     synthetic FilterKinds 'streamSafeMultiColumnFilter' and
+    //     'streamSafeMultiNumberColumnFilter' + a `floatingFilterStyle`
+    //     field. main never shipped those, so a v6 profile arriving
+    //     here gets the synthetic kinds rewritten back to plain
+    //     'agMultiColumnFilter' (and the floatingFilterStyle field is
+    //     dropped — main has no place to honour it). This rescues the
+    //     user's other settings instead of nuking the profile when
+    //     they switch between branches.
+    if (fromVersion >= 1 && fromVersion <= 6) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           '[column-customization]',
@@ -50,7 +57,25 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
         );
         return { ...INITIAL_COLUMN_CUSTOMIZATION };
       }
-      return raw as ColumnCustomizationState;
+      const cloned = JSON.parse(JSON.stringify(raw)) as {
+        assignments?: Record<string, { filter?: { kind?: string; floatingFilterStyle?: string } }>;
+      };
+      if (fromVersion === 6 && cloned.assignments && typeof cloned.assignments === 'object') {
+        for (const colId of Object.keys(cloned.assignments)) {
+          const a = cloned.assignments[colId];
+          const filter = a?.filter as { kind?: string; floatingFilterStyle?: string } | undefined;
+          if (!filter || typeof filter !== 'object') continue;
+          const k = filter.kind;
+          if (k === 'streamSafeMultiColumnFilter' || k === 'streamSafeMultiNumberColumnFilter') {
+            filter.kind = 'agMultiColumnFilter';
+          }
+          // floatingFilterStyle is unknown to v5 — drop it. delete is fine
+          // on the optional field; downstream readers ignore unknown keys
+          // anyway but stripping keeps the snapshot clean.
+          if ('floatingFilterStyle' in filter) delete (filter as { floatingFilterStyle?: unknown }).floatingFilterStyle;
+        }
+      }
+      return cloned as ColumnCustomizationState;
     }
     console.warn(
       '[column-customization]',

@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { IconInput } from '../../../ui/SettingsPanel';
 import { Select } from '../../../ui/shadcn';
 import { useGridPlatform } from '../../../hooks/GridProvider';
@@ -487,31 +487,51 @@ function useAppDataLookup(): AppDataLookup | undefined {
   return platform.resources.appData?.();
 }
 
-/** Reactive snapshot of provider names. Subscribes to AppData changes
- *  when the lookup exposes `subscribe`. */
+/** Reactive snapshot of provider names. Uses useState+useEffect rather
+ *  than useSyncExternalStore because `lookup.listProviders()` returns a
+ *  fresh array each call — useSyncExternalStore requires getSnapshot to
+ *  return a stable reference for unchanged state, which we can't
+ *  guarantee through a pure-fn boundary. The store-fed pattern below
+ *  caches the array in component state and only updates it when the
+ *  subscribe-notify fires. */
 function useAppDataProviders(lookup: AppDataLookup | undefined): string[] {
-  return useSyncExternalStore(
-    (notify) => {
-      if (!lookup?.subscribe) return () => {};
-      return lookup.subscribe(notify);
-    },
-    () => (lookup?.listProviders ? lookup.listProviders() : []),
-    () => [],
+  const [providers, setProviders] = useState<string[]>(() =>
+    lookup?.listProviders ? lookup.listProviders() : [],
   );
+  useEffect(() => {
+    if (!lookup) {
+      setProviders([]);
+      return;
+    }
+    const refresh = () => {
+      setProviders(lookup.listProviders ? lookup.listProviders() : []);
+    };
+    refresh();
+    return lookup.subscribe?.(refresh);
+  }, [lookup]);
+  return providers;
 }
 
 /** Reactive snapshot of available keys for a given provider. Empty
  *  array when the provider name is undefined or the lookup doesn't
- *  expose `keysOf`. */
+ *  expose `keysOf`. Same useState+useEffect pattern as
+ *  useAppDataProviders for the same reason. */
 function useAppDataKeys(lookup: AppDataLookup | undefined, providerName: string | undefined): string[] {
-  return useSyncExternalStore(
-    (notify) => {
-      if (!lookup?.subscribe) return () => {};
-      return lookup.subscribe(notify);
-    },
-    () => (lookup?.keysOf && providerName ? lookup.keysOf(providerName) : []),
-    () => [],
+  const [keys, setKeys] = useState<string[]>(() =>
+    lookup?.keysOf && providerName ? lookup.keysOf(providerName) : [],
   );
+  useEffect(() => {
+    if (!lookup || !providerName) {
+      setKeys([]);
+      return;
+    }
+    const refresh = () => {
+      setKeys(lookup.keysOf && providerName ? lookup.keysOf(providerName) : []);
+    };
+    refresh();
+    return lookup.subscribe?.(refresh);
+  }, [lookup, providerName]);
+  return keys;
 }
 
 // ─── Source-string parsing ─────────────────────────────────────────────────
