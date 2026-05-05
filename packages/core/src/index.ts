@@ -30,6 +30,7 @@ export type {
   AnyColDef,
   AnyModule,
   ApiEventName,
+  AppDataLookup,
   CssHandle,
   EditorPaneProps,
   ExpressionEngineLike,

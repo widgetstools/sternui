@@ -21,7 +21,7 @@ import {
   valueFormatterFromTemplate,
   excelFormatColorResolver,
 } from '../../colDef';
-import type { CssHandle, ExpressionEngineLike } from '../../platform/types';
+import type { AppDataLookup, CssHandle, ExpressionEngineLike } from '../../platform/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -369,6 +369,49 @@ function buildCustomAggFn(
   };
 }
 
+/**
+ * Build a function getter for `agSelectCellEditor` / `agRichSelectCellEditor`'s
+ * `cellEditorParams.values` from a `{{providerName.key}}` source string.
+ * Resolved at edit time via `AppDataLookup.get(name, key)` so AppData
+ * mutations are reflected on the next editor open without re-emitting
+ * colDefs.
+ *
+ * Coercion rules:
+ *   - resolved value is an array → returned as-is (caller is trusted to
+ *     have stored an array of strings/numbers in AppData)
+ *   - resolved value is a string → split on `,` (CSV stored as a single
+ *     value is the most common shape we've seen in AppData providers)
+ *   - resolved value is null / undefined → empty array (editor still
+ *     opens, just shows no options)
+ *   - anything else → empty array (defensive — won't crash the editor)
+ *
+ * Returns a thunk so callers don't have to special-case the lookup-
+ * absent case (function returns `[]`).
+ */
+function buildValuesGetter(
+  source: string,
+  appData: AppDataLookup | undefined,
+): () => Array<string | number> {
+  // Pre-parse the {{name.key}} token once so the per-edit invocation is
+  // a synchronous map lookup. The token must match — anything else
+  // returns a thunk that always yields [].
+  const match = /^\s*\{\{\s*([^.{}]+?)\s*\.\s*([^{}]+?)\s*\}\}\s*$/.exec(source);
+  if (!match || !appData) return () => [];
+  const providerName = match[1];
+  const key = match[2];
+  return () => {
+    const raw = appData.get(providerName, key);
+    if (Array.isArray(raw)) return raw as Array<string | number>;
+    if (typeof raw === 'string') {
+      return raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s !== '');
+    }
+    return [];
+  };
+}
+
 // ─── Walker: merge assignments into ColDefs ────────────────────────────────
 
 export function applyAssignments(
@@ -376,10 +419,11 @@ export function applyAssignments(
   assignments: Record<string, ColumnAssignment>,
   templatesState: ColumnTemplatesState,
   engine: ExpressionEngineLike,
+  appData?: AppDataLookup,
 ): AnyColDef[] {
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
-      const next = applyAssignments(def.children, assignments, templatesState, engine);
+      const next = applyAssignments(def.children, assignments, templatesState, engine, appData);
       const unchanged =
         next.length === def.children.length && next.every((c, i) => c === def.children[i]);
       return unchanged ? def : { ...def, children: next };
@@ -461,6 +505,31 @@ export function applyAssignments(
     if (resolved.cellEditorName !== undefined) merged.cellEditor = resolved.cellEditorName;
     if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;
     if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
+
+    // Structured cell-editor config — applied AFTER the column-templates
+    // resolver path so user-authored assignments win over template defaults.
+    // For select-style editors with a `valuesSource` ({{name.key}}), plant
+    // a function getter on `cellEditorParams.values` that resolves through
+    // the platform's AppData lookup at edit time.
+    const cellEditor = a.cellEditor;
+    if (cellEditor && cellEditor.kind) {
+      merged.cellEditor = cellEditor.kind;
+      const ep: Record<string, unknown> = {
+        ...((merged.cellEditorParams as Record<string, unknown> | undefined) ?? {}),
+        ...(cellEditor.params ?? {}),
+      };
+      const isSelectKind =
+        cellEditor.kind === 'agSelectCellEditor' ||
+        cellEditor.kind === 'agRichSelectCellEditor';
+      if (isSelectKind) {
+        if (cellEditor.valuesSource && cellEditor.valuesSource.trim()) {
+          ep.values = buildValuesGetter(cellEditor.valuesSource, appData);
+        } else if (Array.isArray(cellEditor.values)) {
+          ep.values = cellEditor.values;
+        }
+      }
+      merged.cellEditorParams = ep;
+    }
 
     // Styling via CSS class injection (NOT cellStyle/headerStyle — we save
     // those for color-resolver above, which is a per-row compute). The

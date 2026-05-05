@@ -13,6 +13,7 @@ export type {
   AnyModule,
   ApiEventName,
   ApiHub as IApiHub,
+  AppDataLookup,
   CssHandle,
   DirtyBus as IDirtyBus,
   EditorPaneProps,

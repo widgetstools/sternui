@@ -1,5 +1,5 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type { AnyModule, GridPlatform, UseProfileManagerResult } from '@marketsui/core';
+import type { AnyModule, AppDataLookup, GridPlatform, UseProfileManagerResult } from '@marketsui/core';
 import type { StorageAdapter } from '@marketsui/core';
 
 /**
@@ -36,6 +36,14 @@ export interface MarketsGridProps<TData = unknown> {
    * produced by the data-plane Hub.
    */
   rowIdField?: string | readonly string[];
+  /**
+   * Optional adapter over the host application's named-data registry
+   * (e.g. data-plane's AppDataStore). When supplied, column-customization's
+   * cell-editor `valuesSource` bindings (`{{providerName.key}}`) resolve
+   * at edit time. The grid container typically constructs this from
+   * `useAppDataStore()` and forwards it through.
+   */
+  appData?: AppDataLookup;
   /** Shown above the grid. Defaults to `true`. */
   showToolbar?: boolean;
   /** Filter pill toolbar. Defaults to `false`. */

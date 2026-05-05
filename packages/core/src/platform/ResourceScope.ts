@@ -2,6 +2,7 @@ import { ExpressionEngine } from '../expression';
 import { CssInjector } from './CssInjector';
 import { DirtyBus } from './DirtyBus';
 import type {
+  AppDataLookup,
   CssHandle,
   DirtyBus as IDirtyBus,
   ExpressionEngineLike,
@@ -21,8 +22,11 @@ export class ResourceScope implements IResourceScope {
   private caches = new Map<string, WeakMap<object, unknown>>();
   private dirtyBus: DirtyBus | null = null;
   private disposed = false;
+  private appDataLookup: AppDataLookup | undefined;
 
-  constructor(private readonly gridId: string) {}
+  constructor(private readonly gridId: string, opts?: { appData?: AppDataLookup }) {
+    this.appDataLookup = opts?.appData;
+  }
 
   css(moduleId: string): CssHandle {
     this.assertLive();
@@ -54,6 +58,11 @@ export class ResourceScope implements IResourceScope {
     this.assertLive();
     if (!this.dirtyBus) this.dirtyBus = new DirtyBus();
     return this.dirtyBus;
+  }
+
+  appData(): AppDataLookup | undefined {
+    this.assertLive();
+    return this.appDataLookup;
   }
 
   dispose(): void {

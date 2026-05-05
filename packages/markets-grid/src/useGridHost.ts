@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GridOptions, GridReadyEvent } from 'ag-grid-community';
-import { GridPlatform, type AnyColDef, type AnyModule } from '@marketsui/core';
+import { GridPlatform, type AnyColDef, type AnyModule, type AppDataLookup } from '@marketsui/core';
 
 /**
  * AG-Grid options that can ONLY be set at construction time. Calling
@@ -60,6 +60,7 @@ export function useGridHost(opts: {
   modules: AnyModule[];
   baseColumnDefs: AnyColDef[];
   rowIdField?: string | readonly string[];
+  appData?: AppDataLookup;
 }) {
   const platformRef = useRef<GridPlatform | null>(null);
   if (!platformRef.current) {
@@ -67,6 +68,7 @@ export function useGridHost(opts: {
       gridId: opts.gridId,
       modules: opts.modules,
       rowIdField: opts.rowIdField,
+      appData: opts.appData,
     });
   }
   const platform = platformRef.current;

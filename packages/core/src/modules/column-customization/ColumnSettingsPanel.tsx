@@ -22,6 +22,7 @@ import type {
 import type { ColumnTemplate, ColumnTemplatesState } from '../column-templates';
 // Extracted sub-editors — see editors/* for the per-facet implementations
 // that were lifted out of this file during the AUDIT M3 + Phase C-2 splits.
+import { CellEditorEditor } from './editors/CellEditorEditor';
 import { FilterEditor } from './editors/FilterEditor';
 import { RowGroupingEditor } from './editors/RowGroupingEditor';
 import { ColumnEditorHeader } from './editors/ColumnEditorHeader';
@@ -476,6 +477,13 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
           onChange={(next) => setDraft({ rowGrouping: next })}
         />
 
+        {/* ── 09 CELL EDITOR ─────────────────────────────────────────────── */}
+        <CellEditorBandWrapper
+          colId={col.colId}
+          value={draft.cellEditor}
+          onChange={(next) => setDraft({ cellEditor: next })}
+        />
+
         <div style={{ height: 20 }} />
       </div>
     </div>
@@ -499,6 +507,22 @@ function FilterBandWrapper({
   return (
     <Band index="07" title="FILTER">
       <FilterEditor colId={colId} value={value} onChange={onChange} />
+    </Band>
+  );
+}
+
+function CellEditorBandWrapper({
+  colId,
+  value,
+  onChange,
+}: {
+  colId: string;
+  value: _ColumnAssignment['cellEditor'];
+  onChange: (next: _ColumnAssignment['cellEditor']) => void;
+}) {
+  return (
+    <Band index="09" title="CELL EDITOR">
+      <CellEditorEditor colId={colId} value={value} onChange={onChange} />
     </Band>
   );
 }

@@ -32,7 +32,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi } from 'ag-grid-community';
 import { MarketsGrid } from '@marketsui/markets-grid';
 import type { MarketsGridProps, MarketsGridHandle, StorageAdapterFactory } from '@marketsui/markets-grid';
-import type { StorageAdapter } from '@marketsui/core';
+import type { AppDataLookup, StorageAdapter } from '@marketsui/core';
 import {
   useDataProviderConfig,
   useResolvedCfg,
@@ -118,6 +118,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const dp = useDataPlane();
   const dpClient = dp.client;
   const appData = useAppDataStore();
+
+  // Adapt AppDataStore → AppDataLookup for the platform's
+  // resources.appData(). Plumbed into MarketsGrid so column-customization's
+  // cell-editor `valuesSource` ({{name.key}}) bindings resolve at edit
+  // time. Stable across re-renders unless the underlying store ref flips
+  // (typically only on user-id swap).
+  const appDataLookup = useMemo<AppDataLookup>(() => ({
+    get: (name, key) => appData.store.get(name, key),
+    listProviders: () => appData.store.list().map((row) => row.name),
+    keysOf: (name) => {
+      const row = appData.store.list().find((r) => r.name === name);
+      return row ? Object.keys(row.values) : [];
+    },
+    subscribe: (fn) => appData.store.subscribe(fn),
+  }), [appData.store]);
 
   // ── Storage adapter ──────────────────────────────────────────────
   //
@@ -791,6 +806,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           rowData={EMPTY as TData[]}
           rowIdField={rowIdField}
           columnDefs={columnDefs}
+          appData={appDataLookup}
           onReady={onReady}
           headerExtras={headerExtras}
           adminActions={adminActionsWithRefresh}
@@ -826,6 +842,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       rowData={EMPTY as TData[]}
       rowIdField="__none__"
       columnDefs={EMPTY as unknown as ColDef<TData>[]}
+      appData={appDataLookup}
       headerExtras={headerExtras}
       caption={effectiveCaption}
       onCaptionChange={handleCaptionChange}

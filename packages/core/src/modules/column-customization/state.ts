@@ -111,11 +111,62 @@ export interface RowGroupingConfig {
   allowedAggFuncs?: string[];
 }
 
+// ─── Cell-editor config ────────────────────────────────────────────────────
+
+/**
+ * AG-Grid built-in cell editors we expose in the column-settings UI.
+ * Custom registered editors can still ride through `cellEditorName` on
+ * the base assignment — this enum just covers the ones the structured
+ * editor knows how to author params for.
+ */
+export type CellEditorKind =
+  | 'agTextCellEditor'
+  | 'agNumberCellEditor'
+  | 'agSelectCellEditor'
+  | 'agRichSelectCellEditor'
+  | 'agLargeTextCellEditor'
+  | 'agDateCellEditor'
+  | 'agCheckboxCellEditor';
+
+export interface ColumnCellEditorConfig {
+  kind: CellEditorKind;
+  /**
+   * Static value list for `agSelectCellEditor` / `agRichSelectCellEditor`.
+   * Ignored when `valuesSource` is set (dynamic source wins).
+   */
+  values?: Array<string | number>;
+  /**
+   * Dynamic values reference. Format: `{{providerName.key}}`. Resolved at
+   * EDIT TIME via `platform.resources.appData()` — the transform plants
+   * a function getter on `cellEditorParams.values`, AG-Grid invokes it
+   * each time the editor opens, so AppData mutations are reflected
+   * without re-emitting colDefs. The resolved value is coerced to an
+   * array of strings (numbers are stringified, single scalars become a
+   * one-element array, anything else becomes empty).
+   */
+  valuesSource?: string;
+  /**
+   * Pass-through editor-specific params (max length, min/max, etc.).
+   * Merged into the emitted `cellEditorParams`. Editor-specific schema
+   * is enforced by the editor UI, not the type — keeps the schema lean.
+   */
+  params?: Record<string, unknown>;
+}
+
 // ─── Column assignment (narrowed) ──────────────────────────────────────────
 
 export type ColumnAssignment = Omit<BaseAssignment, 'filter' | 'rowGrouping'> & {
   filter?: ColumnFilterConfig;
   rowGrouping?: RowGroupingConfig;
+  /**
+   * Structured cell-editor configuration. When set, the transform
+   * resolves it into `cellEditor` + `cellEditorParams` on the colDef
+   * (overriding any template-resolved values). When unset, the column
+   * inherits whatever the column-templates resolver produced — the raw
+   * `cellEditorName` / `cellEditorParams` pass-through path is still
+   * honoured for non-structured callers.
+   */
+  cellEditor?: ColumnCellEditorConfig;
 };
 
 // ─── Module state ──────────────────────────────────────────────────────────

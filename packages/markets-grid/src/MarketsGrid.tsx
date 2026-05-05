@@ -129,6 +129,7 @@ function MarketsGridInner<TData = unknown>(
     theme,
     gridId,
     rowIdField = 'id',
+    appData,
     modules = DEFAULT_MODULES,
     rowHeight = 36,
     headerHeight = 32,
@@ -174,6 +175,7 @@ function MarketsGridInner<TData = unknown>(
     rowIdField,
     modules,
     baseColumnDefs: baseColumnDefs as never,
+    appData,
   });
 
   const handleGridReady = useCallback(

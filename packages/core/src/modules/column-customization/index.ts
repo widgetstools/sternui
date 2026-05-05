@@ -81,7 +81,13 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     // Fast-path: skip the walker when there's nothing to merge — `defs`
     // is returned as-is, same reference, so AG-Grid sees no change.
     if (Object.keys(state.assignments).length === 0) return defs;
-    return applyAssignments(defs, state.assignments, templatesState, ctx.resources.expression());
+    return applyAssignments(
+      defs,
+      state.assignments,
+      templatesState,
+      ctx.resources.expression(),
+      ctx.resources.appData?.(),
+    );
   },
 
   serialize: (state) => state,

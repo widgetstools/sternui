@@ -9,6 +9,7 @@ import { topoSortModules } from './topoSort';
 import type {
   AnyColDef,
   AnyModule,
+  AppDataLookup,
   PlatformEventMap,
   PlatformHandle,
   SerializedState,
@@ -27,6 +28,14 @@ export interface GridPlatformOptions {
    * data-plane Hub).
    */
   rowIdField?: string | readonly string[];
+  /**
+   * Optional adapter over the host application's named-data registry
+   * (e.g. data-plane's AppDataStore). Plumbed through to `resources.appData()`
+   * so cell-editor `valuesSource: '{{name.key}}'` bindings can resolve at
+   * edit time. When omitted, dynamic value-source bindings degrade to
+   * empty value lists — features tied to AppData simply don't render.
+   */
+  appData?: AppDataLookup;
 }
 
 /**
@@ -61,7 +70,7 @@ export class GridPlatform {
     this.store = createGridStore({ gridId: opts.gridId, modules: this.modules });
     this.events = new EventBus<PlatformEventMap>();
     this.api = new ApiHub();
-    this.resources = new ResourceScope(opts.gridId);
+    this.resources = new ResourceScope(opts.gridId, { appData: opts.appData });
     this.pipeline = new PipelineRunner();
 
     for (const m of this.modules) {

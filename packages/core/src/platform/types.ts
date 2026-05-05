@@ -111,6 +111,38 @@ export interface ExpressionEngineLike {
   validate(source: string): { valid: boolean; errors: Array<{ message: string; position: number; length: number }> };
 }
 
+/**
+ * Read-only adapter over the host application's named-data registry.
+ * Mirrors the shape data-plane's `AppDataStore` exposes, but typed in
+ * core so the column-customization transform / cell-editor wiring
+ * doesn't need a hard dep on data-plane. Concrete implementations live
+ * upstream (typically `widgets-react`'s grid container plumbs an
+ * AppDataStore into the platform constructor as this interface).
+ *
+ * Used by:
+ *   - `cellEditorParams.values` for select-style cell editors with a
+ *     `valuesSource: '{{providerName.key}}'` binding — the transform
+ *     plants a function getter that calls `get(name, key)` at edit time.
+ *   - the column-settings cell-editor panel's structured picker —
+ *     `listProviders()` + `keysOf(name)` populate the dropdowns so the
+ *     user can compose a binding without hand-typing the syntax.
+ *   - `subscribe(fn)` for hot-reload UX: when an AppData provider's
+ *     values change, callers can refresh whatever computed state
+ *     depends on the lookup (e.g. dropdown previews in the editor UI).
+ */
+export interface AppDataLookup {
+  /** Synchronous lookup of a single value. Returns undefined when
+   *  the provider name or key isn't known. */
+  get(name: string, key: string): unknown;
+  /** Snapshot of provider names. Optional — picker UI degrades to a
+   *  free-text input if absent. */
+  listProviders?(): string[];
+  /** Snapshot of available keys on a named provider. Optional. */
+  keysOf?(name: string): string[];
+  /** Notify on provider/value changes. Returns a disposer. Optional. */
+  subscribe?(fn: () => void): () => void;
+}
+
 export interface ResourceScope {
   /** Get (or create) a scoped CssInjector for a module. Idempotent per module id. */
   css(moduleId: string): CssHandle;
@@ -125,6 +157,12 @@ export interface ResourceScope {
    *  file-level `dirtyRegistry = new Set()` + `window.dispatchEvent` pattern
    *  so dirty state NEVER bleeds between grids on the same page. */
   dirty(): DirtyBus;
+  /** Optional AppData lookup. Returns undefined when the platform was
+   *  constructed without an `appData` option (e.g. unit tests, demos
+   *  that don't run the full data-plane). Consumers MUST handle the
+   *  undefined case — typically by falling back to a static value list
+   *  or skipping the dynamic features entirely. */
+  appData?(): AppDataLookup | undefined;
 }
 
 /**
