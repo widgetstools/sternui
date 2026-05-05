@@ -41,23 +41,31 @@
 /* ─── Filter pill colour variables ─────────────────────────────────── */
 
 :root {
-  --filter-active-bg: rgba(34, 211, 238, 0.30);
-  --filter-active-text: #ffffff;
-  --filter-active-border: rgba(34, 211, 238, 0.55);
-  --filter-inactive-bg: rgba(139, 92, 246, 0.32);
-  --filter-inactive-text: rgba(237, 233, 254, 1);
-  --filter-inactive-border: rgba(167, 139, 250, 0.70);
-  --filter-label-color: #22d3ee;
+  /* Active = brand-blue accent on tinted surface; inactive = neutral
+     muted token chip. Both resolve through design-system tokens so
+     dark/light flip cleanly when [data-theme] changes. */
+  --filter-active-bg: color-mix(in srgb, var(--bn-yellow, #facc15) 22%, transparent);
+  --filter-active-text: var(--bn-yellow, #facc15);
+  --filter-active-border: color-mix(in srgb, var(--bn-yellow, #facc15) 70%, transparent);
+  --filter-active-glow: 0 0 0 1px color-mix(in srgb, var(--bn-yellow, #facc15) 35%, transparent),
+                        0 0 8px color-mix(in srgb, var(--bn-yellow, #facc15) 45%, transparent),
+                        0 0 16px color-mix(in srgb, var(--bn-yellow, #facc15) 25%, transparent);
+  --filter-inactive-bg: var(--bn-bg3, #242c38);
+  --filter-inactive-text: var(--bn-t1, #a7b0bd);
+  --filter-inactive-border: var(--bn-border2, #323b49);
+  --filter-label-color: var(--bn-blue, #3b82f6);
 }
 
 [data-theme="light"] {
-  --filter-active-bg: rgba(8, 145, 178, 0.20);
-  --filter-active-text: #0e3a4a;
-  --filter-active-border: rgba(8, 145, 178, 0.50);
-  --filter-inactive-bg: rgba(124, 58, 237, 0.22);
-  --filter-inactive-text: rgba(59, 7, 100, 1);
-  --filter-inactive-border: rgba(124, 58, 237, 0.60);
-  --filter-label-color: #0891b2;
+  --filter-active-bg: color-mix(in srgb, var(--bn-yellow, #ca8a04) 18%, transparent);
+  --filter-active-text: var(--bn-yellow, #ca8a04);
+  --filter-active-border: color-mix(in srgb, var(--bn-yellow, #ca8a04) 60%, transparent);
+  --filter-active-glow: 0 0 0 1px color-mix(in srgb, var(--bn-yellow, #ca8a04) 30%, transparent),
+                        0 0 6px color-mix(in srgb, var(--bn-yellow, #ca8a04) 35%, transparent);
+  --filter-inactive-bg: var(--bn-bg3, #e4e8ee);
+  --filter-inactive-text: var(--bn-t1, #4a5568);
+  --filter-inactive-border: var(--bn-border2, #c0c7d1);
+  --filter-label-color: var(--bn-blue, #2563eb);
 }
 
 /* ─── Toolbar button theme styles (wrapped in @layer so Tailwind's
@@ -193,7 +201,7 @@
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
-  height: 44px;
+  height: 48px;
   background: var(--bn-bg1, #161a1e);
   border-bottom: 1px solid var(--bn-border, #313944);
 }
@@ -224,21 +232,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--bn-t2, #a0a8b4);
+  border-radius: 6px;
+  color: var(--bn-t0, #eaecef);
+  opacity: 0.78;
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
 .gc-primary-action:hover {
-  color: var(--bn-t0, #eaecef);
-  background: var(--bn-bg3, rgba(255, 255, 255, 0.04));
-  border-color: var(--bn-border, #313944);
+  color: var(--bn-blue, #3b82f6);
+  opacity: 1;
+  background: color-mix(in srgb, var(--bn-blue, #3b82f6) 12%, transparent);
+  border-color: color-mix(in srgb, var(--bn-blue, #3b82f6) 35%, transparent);
 }
 .gc-primary-action[aria-pressed='true'],
 .gc-primary-action[data-active='true'] {
@@ -282,7 +292,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 44px;
+  height: 48px;
   padding: 0 10px 0 6px;
   background: transparent;
   overflow: hidden;
@@ -293,19 +303,23 @@
   align-items: center;
   justify-content: center;
   width: 24px;
-  height: 24px;
+  height: 32px;
   padding: 0;
-  background: transparent;
-  border: none;
-  color: var(--bn-t2, #a0a8b4);
+  background: var(--bn-bg2, #1a212b);
+  border: 1px solid var(--bn-border, #2e3744);
+  color: var(--bn-t0, #eaecef);
+  opacity: 0.85;
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 3px;
-  transition: color 100ms ease, background 100ms ease;
+  border-radius: 6px;
+  margin-right: 4px;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
 .gc-filters-collapse:hover {
-  color: var(--bn-t0, #eaecef);
-  background: var(--bn-bg3, rgba(255, 255, 255, 0.04));
+  color: var(--bn-blue, #3b82f6);
+  opacity: 1;
+  background: color-mix(in srgb, var(--bn-blue, #3b82f6) 14%, transparent);
+  border-color: color-mix(in srgb, var(--bn-blue, #3b82f6) 45%, transparent);
 }
 
 /* Summary chip (collapsed state) */
@@ -313,7 +327,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
   background: var(--bn-bg3, #1e2329);
   border: 1px solid var(--bn-border, #313944);
@@ -353,8 +367,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   background: none;
   border: none;
@@ -373,8 +387,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   background: none;
   border: none;
@@ -408,16 +422,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
-  padding: 0 6px 0 18px;
-  border-radius: 12px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 6px;
   border: 1px solid;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   font-family: var(--fi-sans, 'Geist', sans-serif);
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
   cursor: default;
 }
 
@@ -425,9 +440,12 @@
   background: var(--filter-active-bg);
   color: var(--filter-active-text);
   border-color: var(--filter-active-border);
+  box-shadow: var(--filter-active-glow);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--bn-yellow, #facc15) 50%, transparent);
 }
 .gc-filter-active:hover {
-  filter: brightness(1.12);
+  background: color-mix(in srgb, var(--bn-yellow, #facc15) 32%, transparent);
+  border-color: color-mix(in srgb, var(--bn-yellow, #facc15) 85%, transparent);
 }
 
 .gc-filter-inactive {
@@ -436,7 +454,9 @@
   border-color: var(--filter-inactive-border);
 }
 .gc-filter-inactive:hover {
-  background: color-mix(in srgb, var(--filter-inactive-border) 15%, transparent);
+  color: var(--bn-t0, #e6e9ef);
+  background: color-mix(in srgb, var(--bn-t0, #e6e9ef) 6%, var(--bn-bg3, #242c38));
+  border-color: color-mix(in srgb, var(--bn-t0, #e6e9ef) 22%, var(--bn-border2, #323b49));
 }
 
 .gc-filter-pill-btn {
@@ -458,24 +478,31 @@
 
 .gc-filter-pill-count {
   flex-shrink: 0;
-  margin-left: 6px;
-  padding: 0 5px;
+  margin-left: 7px;
+  padding: 0 6px;
   height: 16px;
-  min-width: 16px;
+  min-width: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  font-size: 9px;
-  font-weight: 700;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 600;
   line-height: 1;
-  background: rgba(255, 255, 255, 0.12);
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, currentColor 14%, transparent);
   color: inherit;
-  opacity: 0.7;
+  opacity: 0.9;
 }
 .gc-filter-active .gc-filter-pill-count {
-  background: rgba(255, 255, 255, 0.18);
-  opacity: 0.85;
+  background: color-mix(in srgb, var(--bn-yellow, #facc15) 25%, transparent);
+  color: var(--bn-yellow, #facc15);
+  opacity: 1;
+}
+.gc-filter-inactive .gc-filter-pill-count {
+  background: color-mix(in srgb, var(--bn-t0, #e6e9ef) 10%, transparent);
+  color: var(--bn-t0, #e6e9ef);
+  opacity: 0.95;
 }
 
 .gc-filter-pill-actions {

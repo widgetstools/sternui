@@ -1,5 +1,5 @@
 /**
- * 01 · CONTEXT — column label + scope toggle + undo/redo + preview.
+ * 01 · CONTEXT — column label + scope toggle + undo/redo.
  *
  * Renders identical content in both surfaces. The shell's
  * `.fx-shell--horizontal` / `.fx-shell--vertical` parent class switches
@@ -12,7 +12,6 @@ import { Tooltip } from '@marketsui/core';
 import {
   ColumnLabel,
   Pill,
-  PreviewReadout,
   ScopeToggle,
 } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
@@ -190,10 +189,6 @@ export function ModuleContext({ state, actions }: Props) {
         >
           <Redo2 size={12} strokeWidth={1.75} />
         </Pill>
-      </div>
-
-      <div style={{ marginLeft: 'auto' }}>
-        <PreviewReadout value={state.previewText} testId="fmt-preview-chip" />
       </div>
     </div>
   );
