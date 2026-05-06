@@ -29,14 +29,18 @@ export interface HostEnv {
   configServiceUrl: string;
 }
 
+/**
+ * Canonical default user id used everywhere a `userId` is needed but
+ * the host environment hasn't supplied a non-empty value. Centralised
+ * so OpenFin / query-string / dev-fallback all converge on the same
+ * string — preventing the "Mac wrote 'dev-user-X', Windows wrote 'dev1'"
+ * divergence that orphaned configs across machines.
+ */
+export const DEFAULT_USER_ID = 'dev1';
+
 const DEV_FALLBACK: HostEnv = {
   appId: 'dev-host',
-  // 'dev1' matches seed-config.json's userProfile + the OpenFin
-  // Platform's resolveDefaultPlatformScope fallback in workspace.ts.
-  // Keeping the same string in every fallback path ensures that
-  // browser-mode dev and OpenFin-mode dev write/read the SAME user
-  // scope — no orphaned configs when switching between them.
-  userId: 'dev1',
+  userId: DEFAULT_USER_ID,
   configServiceUrl: 'http://localhost:0000',
 };
 
@@ -46,16 +50,19 @@ const DEV_FALLBACK: HostEnv = {
  *
  * NEVER throws — the editor's job is to render even in degraded envs.
  * If host env is genuinely missing in OpenFin, the returned object
- * carries empty strings and the editor's UI can detect + surface that
- * case via `isHostEnvMissing()`.
+ * carries empty strings (for appId / configServiceUrl) and `DEFAULT_USER_ID`
+ * for userId, and the editor's UI can detect + surface the missing
+ * appId/url case via `isHostEnvMissing()`.
  *
  * Resolution priority:
  *   1. OpenFin `fin.me.customData.{appId, configServiceUrl}` — real
- *      launches inside a workspace window
+ *      launches inside a workspace window. Empty / missing `userId`
+ *      falls through to `DEFAULT_USER_ID` so we never persist rows
+ *      under an empty-string userId.
  *   2. URL query param `?hostEnv=<base64(json)>` — used by popups spawned
  *      from non-OpenFin demo apps that need to pass host identity
- *      without a framework
- *   3. DEV_FALLBACK — only applies when nothing else is available
+ *      without a framework. Same userId fallback as path (1).
+ *   3. DEV_FALLBACK — only applies when nothing else is available.
  */
 export async function readHostEnv(): Promise<HostEnv> {
   // 1. OpenFin — customData wins
@@ -64,11 +71,11 @@ export async function readHostEnv(): Promise<HostEnv> {
       const opts = await fin.me.getOptions();
       const cd = opts?.customData;
       const appId = typeof cd?.appId === 'string' ? cd.appId : '';
-      const userId = typeof cd?.userId === 'string' ? cd.userId : '';
+      const userId = typeof cd?.userId === 'string' && cd.userId.length > 0 ? cd.userId : DEFAULT_USER_ID;
       const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
       return { appId, userId, configServiceUrl };
     } catch {
-      return { appId: '', userId: '', configServiceUrl: '' };
+      return { appId: '', userId: DEFAULT_USER_ID, configServiceUrl: '' };
     }
   }
 
@@ -90,9 +97,9 @@ function readHostEnvFromQueryString(): HostEnv | null {
     if (!raw) return null;
     const decoded = JSON.parse(atob(raw)) as Partial<HostEnv>;
     const appId = typeof decoded.appId === 'string' ? decoded.appId : '';
-    const userId = typeof decoded.userId === 'string' ? decoded.userId : '';
+    const userId = typeof decoded.userId === 'string' && decoded.userId.length > 0 ? decoded.userId : DEFAULT_USER_ID;
     const configServiceUrl = typeof decoded.configServiceUrl === 'string' ? decoded.configServiceUrl : '';
-    if (!appId && !userId && !configServiceUrl) return null;
+    if (!appId && !configServiceUrl) return null;
     return { appId, userId, configServiceUrl };
   } catch {
     return null;
