@@ -10,37 +10,15 @@
  * `apps/markets-ui-react-reference/launch.mjs`; generalized so the
  * default URL is the demo-react manifest.
  *
- * OpenFin only runs on Windows — on non-Windows platforms, the process
- * stays alive indefinitely so `concurrently` doesn't kill the dev server.
+ * Runs on every platform OpenFin supports (Windows + macOS). The
+ * @openfin/node-adapter is a regular devDependency on the root —
+ * `npm ci` installs it everywhere — so the import below is dynamic
+ * only to surface a clear, actionable error if a developer ran the
+ * install with --no-optional or otherwise pruned it.
  */
 import { setDefaultResultOrder } from 'node:dns';
 
-// On non-Windows platforms, keep the launcher alive indefinitely so concurrently
-// doesn't kill the dev server when this script runs.
 async function main() {
-  if (process.platform !== 'win32') {
-    console.warn('[openfin] OpenFin requires Windows. Skipping launch on', process.platform);
-    console.warn('[openfin] dev server will continue running. Press Ctrl+C to exit.');
-
-    // Set up signal handlers for graceful termination
-    process.on('SIGINT', () => {
-      console.log('[openfin] Ctrl+C');
-      process.exit(0);
-    });
-    process.on('SIGTERM', () => {
-      process.exit(0);
-    });
-
-    // Block forever with an infinite loop
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 60000));
-    }
-  }
-
-  // Windows-only code below ─────────────────────────────────────────
-
-  // Dynamic import keeps the module resolvable even when @openfin/node-adapter
-  // is absent (it is declared as an optionalDependency).
   const { connect, launch } = await import('@openfin/node-adapter').catch((err) => {
     console.error('[openfin] @openfin/node-adapter not installed:', err.message);
     process.exit(1);
