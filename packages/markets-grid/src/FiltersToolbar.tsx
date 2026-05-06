@@ -167,19 +167,57 @@ export function FiltersToolbar() {
   // through `useModuleState` is the ONLY channel — no refs, no events. The
   // auto-save engine picks up changes and persists them on a debounce.
   const [filtersState, setFiltersState] = useModuleState<SavedFiltersState>('saved-filters');
-  const filters = useMemo(() => (filtersState?.filters ?? []) as SavedFilter[], [filtersState]);
+
+  // Normalize a raw record off the store: coerce `active`, default
+  // missing `filterModel`, and run AG-Grid-shape repair so a stale
+  // pill from an older profile (set-filter `values` serialized as
+  // `{0:..,1:..}` or undefined, multi-filter children with malformed
+  // children, etc.) doesn't crash AG-Grid mid-render. Idempotent —
+  // safe to run on every render and on every write back.
+  const normalizeFilter = useCallback((raw: unknown): SavedFilter | null => {
+    if (!raw || typeof raw !== 'object') return null;
+    const r = raw as Partial<SavedFilter> & Record<string, unknown>;
+    if (typeof r.id !== 'string' || r.id.length === 0) return null;
+    if (typeof r.label !== 'string' || r.label.length === 0) return null;
+    const rawModel = (r.filterModel ?? {}) as Record<string, unknown> | null;
+    const cleanModel = sanitizeFilterModel(rawModel) ?? {};
+    return {
+      id: r.id,
+      label: r.label,
+      active: Boolean(r.active),
+      filterModel: cleanModel,
+    };
+  }, []);
+
+  const filters = useMemo<SavedFilter[]>(() => {
+    const raw = (filtersState?.filters ?? []) as unknown[];
+    const out: SavedFilter[] = [];
+    for (const item of raw) {
+      const f = normalizeFilter(item);
+      if (f) out.push(f);
+    }
+    return out;
+  }, [filtersState, normalizeFilter]);
 
   const setFilters = useCallback(
     (next: SavedFilter[] | ((prev: SavedFilter[]) => SavedFilter[])) => {
       setFiltersState((prev) => {
-        const prevList = (prev?.filters ?? []) as SavedFilter[];
+        // Normalize prev before handing it to functional updaters so
+        // toggle/remove/rename always operate on clean records, even
+        // when the store still holds legacy entries from before the
+        // module's v1→v2 migration ran.
+        const prevList: SavedFilter[] = [];
+        for (const item of (prev?.filters ?? []) as unknown[]) {
+          const f = normalizeFilter(item);
+          if (f) prevList.push(f);
+        }
         const resolved = typeof next === 'function'
           ? (next as (p: SavedFilter[]) => SavedFilter[])(prevList)
           : next;
         return { ...prev, filters: resolved };
       });
     },
-    [setFiltersState],
+    [setFiltersState, normalizeFilter],
   );
 
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -255,38 +293,77 @@ export function FiltersToolbar() {
   // filter(s) into a new pill.
   const [hasNewFilter, setHasNewFilter] = useState(false);
 
+  // Latest filters captured in a ref so platform-level listeners
+  // (profile:loaded, firstDataRendered) can reach the freshest list
+  // without re-registering on every change.
+  const filtersRef = useRef(filters);
+  useEffect(() => { filtersRef.current = filters; }, [filters]);
+
+  // Compute and push the merged active filter model into a live api.
+  // Centralised so the React effect, profile:loaded listener, and
+  // firstDataRendered listener all use the exact same code path.
+  const pushActiveFilterModel = useCallback((liveApi: import('ag-grid-community').GridApi) => {
+    const list = filtersRef.current;
+    const active = list.filter((f) => f.active);
+    let model: Record<string, unknown> | null;
+    if (active.length === 0) model = null;
+    else if (active.length === 1) model = active[0].filterModel;
+    else model = mergeFilterModels(active.map((f) => f.filterModel));
+    try {
+      // Guard: AG-Grid v35's SetFilterHandler.validateModel iterates
+      // `model.values` and crashes uncaught if it isn't an array. A
+      // malformed pill (set-filter entry whose `values` got serialized
+      // as undefined / object / string) would take down the whole grid
+      // mount. Sanitize first; on throw, log and skip so the grid stays
+      // usable.
+      liveApi.setFilterModel(sanitizeFilterModel(model));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[FiltersToolbar] setFilterModel threw — ignoring this push so the grid stays usable.', { model, err });
+    }
+    setHasNewFilter(false);
+  }, []);
+
   // ─── Push the merged filter into AG-Grid whenever the active set changes ─
+  // Handles in-session edits (toggle, add, remove, rename, edit-model).
   useEffect(() => {
     if (!api) return;
-    const active = filters.filter((f) => f.active);
-    // Guard: AG-Grid v35's SetFilterHandler.validateModel iterates `model.values`
-    // and crashes uncaught if it isn't an array. A malformed saved filter pill
-    // (most often a set-filter entry whose `values` got serialized as
-    // undefined / object / string) takes down the whole grid mount when we
-    // push it through. Wrap the call so a corrupt pill logs + skips instead
-    // of crashing the React tree.
-    const safeSet = (model: Record<string, unknown> | null) => {
-      try {
-        const sanitized = sanitizeFilterModel(model);
-        api.setFilterModel(sanitized);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[FiltersToolbar] setFilterModel threw — ignoring this push so the grid stays usable.', { model, err });
-      }
-    };
-    if (active.length === 0) {
-      safeSet(null);
-    } else if (active.length === 1) {
-      safeSet(active[0].filterModel);
-    } else {
-      safeSet(mergeFilterModels(active.map((f) => f.filterModel)));
-    }
-    // Whenever we push the active saved-filters' model INTO AG-Grid, by
-    // definition the live model now matches — clear the "new filter" flag
-    // so the + button drops back to disabled until the user touches a
-    // column filter themselves.
-    setHasNewFilter(false);
-  }, [api, filters]);
+    pushActiveFilterModel(api);
+  }, [api, filters, pushActiveFilterModel]);
+
+  // ─── Re-push on profile:loaded ──────────────────────────────────────────
+  // The `grid-state` module restores AG-Grid's *native* filter model via
+  // `api.setState(savedGridState)` on `profile:loaded`. When the loaded
+  // profile has no captured grid-state (state.saved === null), grid-state
+  // calls `api.setState({})` which CLEARS the filter — so the saved-filter
+  // pills' active set must be re-pushed AFTER that runs. Listener
+  // registration here happens after `grid-state.activate()` (modules
+  // activate before child components mount), and the event bus fires
+  // listeners in registration order — so this listener runs after
+  // grid-state's, guaranteeing the saved-filter model wins.
+  useEffect(() => {
+    return platform.events.on('profile:loaded', () => {
+      const liveApi = platform.api.api;
+      if (liveApi) pushActiveFilterModel(liveApi);
+    });
+  }, [platform, pushActiveFilterModel]);
+
+  // ─── Re-push once on firstDataRendered ──────────────────────────────────
+  // Cold-mount safety net: at first profile-load, setFilterModel may run
+  // before AG-Grid has fully registered its columns (column transforms
+  // can race with profile deserialize). Re-applying once after AG-Grid
+  // signals firstDataRendered ensures the active pill's filter is live
+  // by the time the user sees rows.
+  useEffect(() => {
+    let fired = false;
+    const dispose = platform.api.on('firstDataRendered', () => {
+      if (fired) return;
+      fired = true;
+      const liveApi = platform.api.api;
+      if (liveApi) pushActiveFilterModel(liveApi);
+    });
+    return dispose;
+  }, [platform, pushActiveFilterModel]);
 
   // ─── Watch AG-Grid for user-initiated filter edits ──────────────────────
   //
