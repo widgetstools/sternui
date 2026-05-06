@@ -326,6 +326,10 @@ export {
   INITIAL_COLUMN_CUSTOMIZATION,
   applyFilterConfigToColDef,
   applyRowGroupingConfigToColDef,
+  useAppDataLookup,
+  useAppDataProviders,
+  useAppDataKeys,
+  parseValuesSource,
   // Pure reducers over ColumnCustomizationState. The
   // FormattingToolbar (and any future toolbar / preset service)
   // dispatches these through `setModuleState` — no store closure
@@ -341,6 +345,10 @@ export {
   clearAllBordersReducer,
   applyHeaderNameReducer,
   applyEditableReducer,
+  applyCellEditorKindReducer,
+  applyCellEditorValuesReducer,
+  applyFilterPrimaryKindReducer,
+  applyFloatingFilterReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
   removeTemplateRefFromAssignmentsReducer,
@@ -356,6 +364,8 @@ export {
   type ColumnFilterConfig,
   type RowGroupingConfig,
   type FilterKind,
+  type CellEditorKind,
+  type ColumnCellEditorConfig,
   type AggFuncName,
   type SetFilterOptions,
   type MultiFilterEntry,

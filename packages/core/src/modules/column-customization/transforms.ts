@@ -379,8 +379,11 @@ function buildCustomAggFn(
  * Coercion rules:
  *   - resolved value is an array → returned as-is (caller is trusted to
  *     have stored an array of strings/numbers in AppData)
- *   - resolved value is a string → split on `,` (CSV stored as a single
- *     value is the most common shape we've seen in AppData providers)
+ *   - resolved value is a string starting with `[` → attempt JSON.parse
+ *     first (handles JSON-encoded array strings like
+ *     `'["BUY","SELL"]'`); on success, returned as-is
+ *   - resolved value is a string → split on `,` (plain CSV is the most
+ *     common shape we've seen in AppData providers)
  *   - resolved value is null / undefined → empty array (editor still
  *     opens, just shows no options)
  *   - anything else → empty array (defensive — won't crash the editor)
@@ -403,7 +406,26 @@ function buildValuesGetter(
     const raw = appData.get(providerName, key);
     if (Array.isArray(raw)) return raw as Array<string | number>;
     if (typeof raw === 'string') {
-      return raw
+      const trimmed = raw.trim();
+      // JSON-encoded array — try this first when the string looks like
+      // one, so users storing `'["BUY","SELL"]'` don't get split on the
+      // inner quotes by the CSV fallback below.
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.filter(
+              (v) => typeof v === 'string' || typeof v === 'number',
+            ) as Array<string | number>;
+          }
+          // Parsed but not an array — fall through to CSV split (the
+          // raw string is unusual but we can still try to make sense
+          // of it).
+        } catch {
+          // Not valid JSON — fall through to CSV split.
+        }
+      }
+      return trimmed
         .split(',')
         .map((s) => s.trim())
         .filter((s) => s !== '');
@@ -506,12 +528,20 @@ export function applyAssignments(
     if (resolved.cellEditorParams !== undefined) merged.cellEditorParams = resolved.cellEditorParams;
     if (resolved.cellRendererName !== undefined) merged.cellRenderer = resolved.cellRendererName;
 
-    // Structured cell-editor config — applied AFTER the column-templates
-    // resolver path so user-authored assignments win over template defaults.
-    // For select-style editors with a `valuesSource` ({{name.key}}), plant
-    // a function getter on `cellEditorParams.values` that resolves through
-    // the platform's AppData lookup at edit time.
-    const cellEditor = a.cellEditor;
+    // Structured cell-editor config — read from the resolved chain
+    // (template + assignment folded together) so a `cellEditor`
+    // carried by a column template propagates to every column that
+    // applies that template. Resolver precedence already gives
+    // assignment-direct values priority over template values, so a
+    // column that explicitly authors its own editor still wins.
+    // For select-style editors with a `valuesSource` ({{name.key}}),
+    // plant a function getter on `cellEditorParams.values` that
+    // resolves through the platform's AppData lookup at edit time.
+    // resolveTemplates returns the base assignment shape; the narrowed
+    // `cellEditor` field rides through unchanged so we cast at the
+    // boundary rather than threading the narrow type through the
+    // resolver signature.
+    const cellEditor = (resolved as ColumnAssignment).cellEditor;
     if (cellEditor && cellEditor.kind) {
       merged.cellEditor = cellEditor.kind;
       const ep: Record<string, unknown> = {
@@ -523,7 +553,19 @@ export function applyAssignments(
         cellEditor.kind === 'agRichSelectCellEditor';
       if (isSelectKind) {
         if (cellEditor.valuesSource && cellEditor.valuesSource.trim()) {
-          ep.values = buildValuesGetter(cellEditor.valuesSource, appData);
+          // agSelectCellEditor's `initialiseEditor` calls
+          // `values.forEach(...)` synchronously and crashes on a
+          // function getter — only agRichSelectCellEditor accepts the
+          // function/promise form. So for agSelectCellEditor, resolve
+          // the binding eagerly to an array; AppData mutations will
+          // propagate the next time colDefs re-emit (good enough for
+          // the simple-select editor's static-list semantics).
+          if (cellEditor.kind === 'agSelectCellEditor') {
+            const getter = buildValuesGetter(cellEditor.valuesSource, appData);
+            ep.values = getter();
+          } else {
+            ep.values = buildValuesGetter(cellEditor.valuesSource, appData);
+          }
         } else if (Array.isArray(cellEditor.values)) {
           ep.values = cellEditor.values;
         }

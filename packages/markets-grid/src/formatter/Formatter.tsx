@@ -26,6 +26,7 @@ import {
 } from '@marketsui/core';
 import { ModuleClear } from './modules/ModuleClear';
 import { ModuleContext } from './modules/ModuleContext';
+import { ModuleEditorFilter } from './modules/ModuleEditorFilter';
 import { ModuleFormat } from './modules/ModuleFormat';
 import { ModuleLibrary } from './modules/ModuleLibrary';
 import { ModulePaint } from './modules/ModulePaint';
@@ -142,6 +143,8 @@ export function FormatterToolbar({
       <ModuleDivider />
       <ModuleFormat state={state} actions={actions} />
       <ModuleDivider />
+      <ModuleEditorFilter state={state} actions={actions} />
+      <ModuleDivider />
       <ModuleLibrary state={state} actions={actions} orientation="horizontal" colLabel={state.colLabel} />
       <ModuleDivider />
       <ModuleClear state={state} actions={actions} orientation="horizontal" />
@@ -183,6 +186,7 @@ export function FormatterPanel({
         <ModuleType state={state} actions={actions} />
         <ModulePaint state={state} actions={actions} />
         <ModuleFormat state={state} actions={actions} />
+        <ModuleEditorFilter state={state} actions={actions} />
         <ModuleLibrary state={state} actions={actions} orientation="vertical" colLabel={state.colLabel} />
       </div>
 

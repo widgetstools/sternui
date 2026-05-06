@@ -178,6 +178,15 @@ export function pickTemplateFields(
   }
   if (resolved.cellRendererName) out.cellRendererName = resolved.cellRendererName;
 
+  // Structured cell-editor config — kind / values / valuesSource /
+  // params. Captured wholesale (opaque last-writer-wins blob, same
+  // policy as filter / rowGrouping). Skip when no kind is set,
+  // because the resolver only emits cellEditor when kind is present
+  // — a kindless config wouldn't change colDef behavior.
+  if (resolved.cellEditor && resolved.cellEditor.kind) {
+    out.cellEditor = resolved.cellEditor;
+  }
+
   // Filter — opaque blob, captured wholesale (incl. floating-filter
   // settings, debounce, button set, multi-filter children, set-filter
   // options). Skip when the assignment's filter is empty `{}` because
