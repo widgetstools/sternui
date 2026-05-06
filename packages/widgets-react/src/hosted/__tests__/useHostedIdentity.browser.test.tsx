@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import { useHostedIdentity } from '../useHostedIdentity.js';
 
 afterEach(() => {
@@ -27,7 +28,9 @@ describe('useHostedIdentity — browser path', () => {
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.identity.instanceId).toBe('B-FROM-URL');
     expect(result.current.identity.appId).toBe('browser-app');
-    expect(result.current.identity.userId).toBe('browser-user');
+    // userId is single-user-pinned to LOGGED_IN_USER_ID; defaultUserId
+    // is accepted on the public API but ignored at runtime.
+    expect(result.current.identity.userId).toBe(LOGGED_IN_USER_ID);
   });
 
   it('falls back to defaultInstanceId when no fin runtime and no URL param', async () => {

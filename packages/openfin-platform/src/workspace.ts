@@ -38,6 +38,7 @@ import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types'
 import { createWorkspacePersistenceOverride } from './workspace-persistence';
 import { gcOrphanedConfigs } from './workspace-gc';
 import { buildCustomActions } from './internal/customActions';
+import { DEFAULT_APP_ID, DEFAULT_USER_ID } from './registry-host-env';
 
 /**
  * Read the current theme from this window's documentElement.
@@ -112,37 +113,26 @@ function applyLocalDataTheme(isDark: boolean): void {
  * Resolve the canonical `(appId, userId)` to use as the platform's
  * default scope for every implicit-scope save/load.
  *
- * Strategy: read the seeded `appRegistry` + `userProfile` tables and
- * pick the first row of each. This keeps the choice data-driven —
- * editing `seed-config.json` to add a different default user / app
- * automatically takes effect on next boot without a code change.
+ * Both fields are pinned to constants and never read from the
+ * `appRegistry` / `userProfile` tables. Reading from those tables
+ * sounds data-driven but in practice it lets a stale/imported row
+ * (e.g. a Windows export with `userId='dev-user-001'`, or an old
+ * `appRegistry[0].appId='react-workspace-starter'`) become the
+ * platform scope, which `realignAllConfigsToPlatformScope` then
+ * propagates onto every appConfig row — diverging the realign-time
+ * `(appId, userId)` from the runtime caller's `(appId, userId)` and
+ * silently breaking the strict-equality ownership check in
+ * `isProfileSetRow`. Pinning matches every other resolution site
+ * (runtime-port, registry-host-env, useHostedIdentity).
  *
- * Hard fallbacks (`'TestApp'` / `'dev1'`) match the values currently
- * shipped in `apps/markets-ui-react-reference/public/seed-config.json`
- * and are used only when the tables are empty (e.g. the seed failed to
- * load, or the user has manually emptied them).
+ * Replace the literals when real multi-app + SSO support actually
+ * lands; until then the `(TestApp, dev1)` constant is the contract.
  */
 async function resolveDefaultPlatformScope(
-  cm: ConfigManager,
+  _cm: ConfigManager,
 ): Promise<{ appId: string; userId: string }> {
-  let appId = 'TestApp';
-  let userId = 'dev1';
-  try {
-    const apps = await cm.getAllApps();
-    if (apps.length > 0 && apps[0].appId) appId = apps[0].appId;
-  } catch (err) {
-    console.warn('[initWorkspace] Could not read appRegistry; falling back to TestApp.', err);
-  }
-  try {
-    const profiles = await cm.getAllUserProfiles();
-    // Prefer a profile that's already scoped to the resolved appId — so
-    // multi-app seeds pick the right user automatically.
-    const match = profiles.find((p) => p.appId === appId) ?? profiles[0];
-    if (match?.userId) userId = match.userId;
-  } catch (err) {
-    console.warn('[initWorkspace] Could not read userProfile; falling back to dev1.', err);
-  }
-  return { appId, userId };
+  void _cm;
+  return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID };
 }
 
 /**

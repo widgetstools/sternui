@@ -8,10 +8,12 @@ import {
   clearRegistryConfig,
   IAB_REGISTRY_CONFIG_UPDATE,
   generateTemplateConfigId,
+  mintRegisteredInstanceId,
   migrateRegistryToV2,
   readHostEnv,
   resolveHostUrl,
   REGISTRY_CONFIG_VERSION,
+  DEFAULT_USER_ID,
   type ConfigScope,
   type RegistryEditorConfig,
   type RegistryEntry,
@@ -102,7 +104,11 @@ export class RegistryEditorService {
         return;
       }
 
-      const instanceId = crypto.randomUUID();
+      const instanceId = mintRegisteredInstanceId(
+        DEFAULT_USER_ID,
+        entry.componentType,
+        entry.componentSubType,
+      );
       const templateId = entry.configId || generateTemplateConfigId(
         entry.componentType,
         entry.componentSubType,

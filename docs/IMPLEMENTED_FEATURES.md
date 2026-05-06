@@ -2088,3 +2088,114 @@ Worklog entry:
 
 - **Toolbar Visibility wiring** (§1.8e) — module state ships in every profile but concrete toolbar-toggle bindings aren't routed through it yet. Non-blocking; current host chrome uses local React state. Wiring pass is a known follow-up.
 - **Column Templates standalone panel** — today templates are authored indirectly (save-from-toolbar, remove-via-Column-Settings-chip). A dedicated Templates panel with rename / description / duplicate affordances would be additive, not required.
+
+## 1.U Registered-component `instanceId` format
+
+When a non-singleton registered component spawns a new instance, its
+`instanceId` now follows a deterministic, scan-friendly format instead
+of an opaque UUID:
+
+```
+${userId}${componentType}-${componentSubType}-${Date.now()}
+```
+
+Example: `dev1blotter-markets-1714999999999`. Singletons are unchanged
+— they continue to use their templateId so all callers share one row.
+
+Why this format:
+- **Per-user prefix** clusters every row owned by a given user under
+  the same Config Browser visual block; `startsWith()` finds them all.
+- **Type-scoped middle** (`componentType-componentSubType`, casing
+  preserved) makes the template id a strict prefix of every instance
+  spawned from it after the userId portion.
+- **Monotonic suffix** — `Date.now()` (long ms-since-epoch) makes ids
+  sortable by creation time. Sufficient uniqueness for human-paced
+  launches; the launcher already guards against duplicate configIds at
+  save time so a 1-ms double-click can't clobber.
+
+| File | Change |
+|------|--------|
+| `packages/openfin-platform/src/registry-config-types.ts` | New `mintRegisteredInstanceId(userId, componentType, componentSubType)` helper alongside the existing `deriveTemplateConfigId` / `deriveSingletonConfigId` family. |
+| `packages/openfin-platform/src/launch.ts` | `createComponentInstance()` non-singleton branch now calls the helper instead of `crypto.randomUUID()`. Singleton branch unchanged. |
+| `packages/openfin-platform/src/config-only.ts` + `index.ts` | Re-exports `mintRegisteredInstanceId` and `DEFAULT_USER_ID` so other launchers can stay aligned. |
+| `packages/registry-editor-angular/.../registry-editor.service.ts` | Test-launch path replaces `crypto.randomUUID()` with the helper so admin "Test Launch" produces an instance with the same shape. |
+| `packages/openfin-platform/src/mint-registered-instance-id.test.ts` (new) | 5 invariants pinning the exact format, casing preservation, empty-subtype handling, and monotonic ordering. |
+
+The React registry-editor's "Test Launch" path is intentionally NOT
+changed — it sets `instanceId === templateId` so saves overwrite the
+template directly (per the existing test-launch design). The helper
+applies only to genuine instance spawns, not template edits.
+
+## 1.T Single-user pin — `userId` always `'dev1'`
+
+The codebase intentionally runs single-user (no SSO yet). A long-tail
+divergence had crept back in where some resolution paths produced
+`'dev1'`, others produced `''` (empty), and a few honoured
+`customData.userId` / URL `?userId=` overrides. Mixed userIds across
+machines and views silently orphaned config rows: a workspace saved
+under one userId became unreadable under another.
+
+**Fix:** introduce a single canonical constant and hard-pin every
+client-side userId resolution to it.
+
+| File | Change |
+|------|--------|
+| `packages/runtime-port/src/types.ts` | Adds `export const LOGGED_IN_USER_ID = 'dev1'` — single source of truth, foundation-layer (zero-dep types package). |
+| `packages/runtime-port/src/index.ts` | Re-exports the constant from the package barrel. |
+| `packages/runtime-browser/src/identity.ts` | `userId` is now hard-pinned in `resolveBrowserIdentity()` — URL `?userId=` and override `userId` are intentionally ignored. |
+| `packages/runtime-openfin/src/identity.ts` | `userId` is hard-pinned in `resolveOpenFinIdentity()` — `customData.userId` is intentionally ignored. |
+| `packages/openfin-platform/src/registry-host-env.ts` | All three `readHostEnv()` resolution paths (OpenFin customData, `?hostEnv=` decode, dev fallback) collapse onto `DEFAULT_USER_ID`. The local constant is now documented as the same value as `LOGGED_IN_USER_ID`. |
+| `packages/widgets-react/src/hosted/useHostedIdentity.ts` | Drops the `customData.userId` read; `userId` initialises directly from `LOGGED_IN_USER_ID`. The hook's `defaultUserId` arg is preserved on the public API for back-compat but is now ignored at runtime. New dep: `@marketsui/runtime-port`. |
+| `packages/component-host/src/resolve-identity.ts` | `readCustomData()` now hard-pins `userId` regardless of what the launcher's customData carried. |
+| `packages/component-host/src/save-config.ts` | Build-fresh fallback uses `LOGGED_IN_USER_ID` instead of `""` so a row never lands with `userId=''`. New dep: `@marketsui/runtime-port`. |
+| `packages/data-plane-react/src/v2/index.tsx` | `useAppData().setMany()` falls back to `LOGGED_IN_USER_ID` (was `''`) for the user-owner field on a freshly-created AppData config row. New dep: `@marketsui/runtime-port`. |
+| `apps/markets-ui-react-reference/src/views/DataProviders.tsx` | Removes the `VITE_DEFAULT_USER_ID` env override and the `readHostEnv()`-based userId pickup; `userId` is now `LOGGED_IN_USER_ID` directly. |
+| `apps/markets-ui-angular-reference/src/app/components/hosted-component/hosted-component.component.ts` | `resolveUserId()` collapses to `return LOGGED_IN_USER_ID` — `customData.userId` is ignored. |
+| Tests in `runtime-browser`, `runtime-openfin`, `widgets-react`, `component-host` | Updated to assert the new pin (`expect(id.userId).toBe(LOGGED_IN_USER_ID)`) where they previously verified URL/override/customData propagation for `userId`. |
+
+Result: every client write to the config service lands under
+`(appId, userId='dev1')`. No code path auto-generates a `userId`, and
+no inbound `customData` / URL parameter / env variable can drift the
+runtime userId off the canonical value. Replace the literal in
+`runtime-port/types.ts` (and the matching `DEFAULT_USER_ID` literal in
+`registry-host-env.ts`) the day SSO lands.
+
+## 1.S Import Config — full-bundle import (cross-machine workflow)
+
+The Import Config dialog used by the dock previously persisted **only the
+`dock-config` row** from an exported JSON file, silently dropping every
+other section. That broke import-from-Windows workflows because saved
+workspaces, the component registry, and the per-instance
+`markets-grid-profile-set` rows that carry `gridLevelData` (i.e. the
+data-provider selection) never made it across machines: the workspace
+restored, the grid mounted, but the live/historical provider always
+came back unset.
+
+**Fix:** [`packages/openfin-platform/src/config-import.ts`](../packages/openfin-platform/src/config-import.ts) —
+new `importConfigBundle(bundle, opts?)` helper that ingests the full
+export shape (`appConfig`, `appRegistry`, `roles`, `permissions`) into
+the local ConfigManager. Each `appConfig` row is run through a re-own
+pass that rewrites `appId` / `userId` to the local hostEnv values
+(matching the existing per-row reown in the Config Browser), so the
+imported rows become readable under the local `(appId, userId)` scope.
+Sentinel values `userId === 'system'` and `appId === ''` are preserved
+unchanged so public/global rows and pre-scoped legacy rows continue to
+resolve via their existing back-compat fallbacks. `userProfile` rows
+are intentionally NOT imported — `userId` IS the row's primary key, so
+auto-importing would silently clobber local user records; replicating
+users remains a per-row Config Browser action.
+
+| File | Change |
+|------|--------|
+| `packages/openfin-platform/src/config-import.ts` (new) | `importConfigBundle()` + per-table `ImportTableResult` + aggregate `ImportConfigBundleResult`. Modes: `overwrite` (default), `skip-existing`. |
+| `packages/openfin-platform/src/config-only.ts` | Re-exports the new helper + types from the side-effect-free `/config` subpath. |
+| `packages/openfin-platform/src/index.ts` | Same re-exports from the main barrel. |
+| `packages/dock-editor-react/src/ImportConfig.tsx` | Replaces the `dock-config`-only loop with a single `importConfigBundle(importData)` call. Status message reports per-section counts. Fires both `IAB_RELOAD_AFTER_IMPORT` (dock) and `IAB_REGISTRY_CONFIG_UPDATE` (registry editor / launchers) so other windows pick up the new state. |
+| `packages/dock-editor-angular/src/import-config/import-config.component.ts` | Same change for the Angular twin. |
+| `packages/openfin-platform/src/config-import.test.ts` (new) | 8 unit tests: reown happy path, `userId === 'system'` preservation, empty-`appId` preservation, registry/roles/permissions import, skip-existing mode, invalid-row handling, userProfile exclusion, aggregate totals. |
+
+Result: importing a Windows-exported config on Mac (or vice versa)
+brings in the full bundle — workspaces, registry, blotter
+profile-sets, and `gridLevelData` — so opening a saved workspace on the
+new machine restores the same data-provider selection it had on the
+source machine.

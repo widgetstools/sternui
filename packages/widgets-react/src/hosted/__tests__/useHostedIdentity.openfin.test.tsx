@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@marketsui/config-service';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import { useHostedIdentity } from '../useHostedIdentity.js';
 
 afterEach(() => {
@@ -43,7 +44,8 @@ describe('useHostedIdentity — OpenFin path', () => {
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.identity.instanceId).toBe('OF-INSTANCE');
     expect(result.current.identity.appId).toBe('OF-APP');
-    expect(result.current.identity.userId).toBe('OF-USER');
+    // userId is single-user-pinned — customData.userId is ignored.
+    expect(result.current.identity.userId).toBe(LOGGED_IN_USER_ID);
     expect(result.current.identity.configManager).toBe(fakeConfigManager);
   });
 });

@@ -5,10 +5,7 @@
  *   - Picker toolbar is mounted INSIDE MarketsGrid via the
  *     `headerExtras` slot — it lives inside the grid's own chrome,
  *     not as a separate strip above it.
- *   - Toolbar visibility is dev-only, gated by Alt+Shift+P. The
- *     chord, the toolbar, and the very existence of the picker are
- *     intentionally NOT documented in the UI: end users see only the
- *     configured grid; support staff toggle the toolbar to reconfigure.
+ *   - Toolbar is visible by default. Alt+Shift+P toggles it off/on.
  *   - Provider selection persists at the GRID level (not per-profile)
  *     in the SAME storage row MarketsGrid uses for its profile-set,
  *     via the StorageAdapter's `loadGridLevelData / saveGridLevelData`
@@ -159,7 +156,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
   const [persistedCaption, setPersistedCaption] = useState<string | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
-  const [pickerVisible, setPickerVisible] = useState(false);
+  // Provider toolbar starts visible — Alt+Shift+P toggles it off/on.
+  const [pickerVisible, setPickerVisible] = useState(true);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
 
   // Initial load. If the adapter doesn't implement grid-level data
@@ -241,10 +239,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // ── Hotkey ────────────────────────────────────────────────────────
   //
-  // Alt+Shift+P toggles the picker. Intentionally undocumented in the
-  // UI — the empty state shows nothing actionable so end users don't
-  // discover the toolbar accidentally. Support staff and developers
-  // know the chord; that's the audience.
+  // Alt+Shift+P toggles the provider toolbar. The toolbar is visible
+  // by default; the chord lets users hide it (and re-show it) without
+  // a config flag.
   //
   // Chord choice: Alt+Shift+P. The original plan called for
   // Ctrl+Shift+P but every major browser binds that to "open
@@ -268,6 +265,21 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // friendlier — the user might want a Mock for either slot in dev.
   const liveList = useDataProvidersList();
   const histList = useDataProvidersList();
+
+  // Log active provider name on change so it's easy to confirm which
+  // provider a given grid is bound to at runtime.
+  const activeProviderName = activeRow.cfg?.name ?? null;
+  useEffect(() => {
+    if (activeRow.loading) return;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[markets-grid] gridId=%s mode=%s providerId=%s providerName=%s`,
+      props.gridId,
+      selection.mode,
+      activeId ?? '(none)',
+      activeProviderName ?? '(none)',
+    );
+  }, [props.gridId, selection.mode, activeId, activeProviderName, activeRow.loading]);
 
   // Date picker writes through to AppData; the next render's
   // `useResolvedCfg` produces a fresh cfg → useProviderStream
@@ -326,8 +338,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   //
   // The grid mounts twice across a normal session:
   //   1. The "no provider" placeholder grid (empty cols, sentinel
-  //      rowIdField). Reachable via Alt+Shift+P so support staff can
-  //      pick a provider from the empty state.
+  //      rowIdField). The toolbar is visible by default so the user
+  //      can pick a provider from the empty state.
   //   2. The real data-attached grid, mounted with a key that includes
   //      the provider id and key column.
   //
@@ -743,10 +755,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // ── Toolbar slot content ──────────────────────────────────────────
   //
-  // Always pass via `headerExtras`; the slot is hidden when the
-  // picker is closed. End users never see this; only Alt+Shift+P
-  // surfaces it, and that chord is intentionally undocumented in
-  // the UI.
+  // Passed via `headerExtras`; null when the user has toggled the
+  // toolbar off via Alt+Shift+P.
   const headerExtras = pickerVisible ? (
     <ProviderToolbar
       liveProviders={liveList.configs}
@@ -775,13 +785,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // Provider selected and cfg loaded → full data-attached grid.
   if (activeId && !activeRow.loading && rowIdField && columnDefs) {
-    const activeProviderName =
-      liveList.configs.find((c) => c.providerId === activeId)?.name
-      ?? histList.configs.find((c) => c.providerId === activeId)?.name
-      ?? undefined;
-    // Prepend a "Refresh" admin action so end users (not just the
-    // hidden Alt+Shift+P picker) can restart the live provider. The
-    // action reuses the same `refresh()` callback the picker's button
+    // Prepend a "Refresh" admin action so users can restart the live
+    // provider without opening the toolbar. The action reuses the
+    // same `refresh()` callback the picker's button
     // wires to, so behaviour is identical: re-attach with a fresh
     // `extra` payload, the worker turns it into provider.restart, and
     // the loading overlay re-shows until the next snapshot lands.
@@ -832,9 +838,9 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   }
 
   // No provider selected (or cfg still resolving): mount MarketsGrid
-  // with a sentinel rowIdField so the toolbar slot is reachable. End
-  // users see an empty grid; support staff press Alt+Shift+P to pick
-  // a provider. No keyboard hint is shown — the chord is dev-only.
+  // with a sentinel rowIdField so the toolbar slot is reachable. The
+  // toolbar is visible by default so the user can pick a provider;
+  // Alt+Shift+P toggles it.
   return (
     <MarketsGrid<TData>
       {...(marketsGridProps as MarketsGridProps<TData>)}
