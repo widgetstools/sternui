@@ -107,7 +107,7 @@ export class AppContext {
       AppContext.instance = {
         appId:  customData.appId  ?? 'stern-platform',
         env:    customData.env    ?? 'development',
-        userId: customData.userId ?? 'default-user',
+        userId: customData.userId ?? 'dev1',
         config: {
           enabled: customData.config?.enabled ?? false,
           baseUrl: customData.config?.baseUrl,
@@ -117,7 +117,7 @@ export class AppContext {
       AppContext.instance = {
         appId:  'stern-platform',
         env:    'development',
-        userId: 'default-user',
+        userId: 'dev1',
         config: { enabled: false },
       };
     }
@@ -196,8 +196,8 @@ export async function resolveInstanceId(): Promise<string> {
     if (windowName === urlId) return urlId;
 
     // Clone detected — create new instance from source
-    const inst = AppContext.instance ?? { appId: 'stern-platform', userId: 'default-user' };
-    const userId = inst.userId ?? 'default-user';
+    const inst = AppContext.instance ?? { appId: 'stern-platform', userId: 'dev1' };
+    const userId = inst.userId ?? 'dev1';
     const client = createConfigClient({}); // local Dexie mode for the view
     await client.init();
     const { componentType, componentSubType } = ConfigId.parse(urlId);
@@ -362,7 +362,7 @@ export async function bootstrapPlatform(opts: BootstrapPlatformOptions): Promise
   try {
     await AppContext.init();
     const cfg = AppContext.instance;
-    const userId = cfg.userId ?? 'default-user';
+    const userId = cfg.userId ?? 'dev1';
 
     const apiUrl = await getManifestApiUrl();
 

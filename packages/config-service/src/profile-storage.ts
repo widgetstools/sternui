@@ -298,7 +298,7 @@ export function createConfigServiceStorage(
         // field is still on the schema.
         isRegisteredComponent: isTemplate,
         payload: { ...set, version: expectedVersion + 1 },
-        createdBy: userId,
+        createdBy: existing?.createdBy ?? userId,
         updatedBy: userId,
         creationTime,
         updatedTime: now,
