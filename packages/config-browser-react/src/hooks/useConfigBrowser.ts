@@ -266,6 +266,43 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
    * Rows missing a primary key are always counted as `failed` regardless
    * of mode.
    */
+  /**
+   * Re-own a single appConfig row to the current host environment so
+   * imports from another machine become USABLE under the local
+   * (appId, userId) scope. Without this, profile-set / dock /
+   * workspace lookups silently miss because they require
+   * `row.userId === currentUserId` (and same for appId), and the
+   * blotter renders empty even though the row is on disk.
+   *
+   * Audit fields (`createdBy`, `updatedBy`) are intentionally
+   * preserved verbatim — they are NOT used for access control, only
+   * for showing provenance in the Config Browser.
+   *
+   * Sentinel values that must NOT be re-owned:
+   *   - `userId === 'system'` — public/global rows (registry, public
+   *     data-providers). Re-owning would break their visibility rule.
+   *   - `appId === ''` — pre-scoped legacy rows; leave them alone so
+   *     the existing back-compat fallbacks still find them.
+   *
+   * userProfile rows are not re-owned: their `userId` IS the primary
+   * key, so re-owning would collide with whatever the active user
+   * already has on disk and silently drop profiles. Importing
+   * userProfiles is a "replicate the user list" action, not a
+   * "make this mine" action.
+   */
+  const reownForImport = useCallback((row: any): any => {
+    if (!row || typeof row !== 'object') return row;
+    if (selectedKey !== 'appConfig') return row;
+    const next = { ...row };
+    if (typeof row.userId === 'string' && row.userId !== '' && row.userId !== 'system') {
+      next.userId = hostEnv.userId ?? row.userId;
+    }
+    if (typeof row.appId === 'string' && row.appId !== '') {
+      next.appId = hostEnv.appId || row.appId;
+    }
+    return next;
+  }, [selectedKey, hostEnv.appId, hostEnv.userId]);
+
   const importRows = useCallback(
     async (incoming: any[], mode: ImportMode): Promise<ImportResult> => {
       const manager = managerRef.current;
@@ -281,7 +318,7 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
       let imported = 0;
       const errors: string[] = [];
       for (let i = 0; i < toImport.length; i++) {
-        const row = toImport[i];
+        const row = reownForImport(toImport[i]);
         try {
           switch (selectedKey) {
             case 'appConfig':   await manager.saveConfig(row); break;
@@ -309,7 +346,7 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
         errors,
       };
     },
-    [selectedKey, refresh, previewImport],
+    [selectedKey, refresh, previewImport, reownForImport],
   );
 
   /**
