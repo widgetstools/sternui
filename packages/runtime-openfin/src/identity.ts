@@ -1,4 +1,4 @@
-import type { IdentitySnapshot } from '@marketsui/runtime-port';
+import { LOGGED_IN_USER_ID, type IdentitySnapshot } from '@marketsui/runtime-port';
 import { resolveBrowserIdentity, type IdentityOverrides } from '@marketsui/runtime-browser';
 
 /**
@@ -94,7 +94,9 @@ export async function resolveOpenFinIdentity(
   const merged: IdentitySnapshot = {
     instanceId: stringFrom(customData, 'instanceId') ?? viewName ?? base.instanceId,
     appId: stringFrom(customData, 'appId') ?? base.appId,
-    userId: stringFrom(customData, 'userId') ?? base.userId,
+    // userId is single-user-pinned to LOGGED_IN_USER_ID — customData is
+    // ignored on purpose. See runtime-port/types.ts for why.
+    userId: LOGGED_IN_USER_ID,
     componentType: stringFrom(customData, 'componentType') ?? base.componentType,
     componentSubType: stringFrom(customData, 'componentSubType') ?? base.componentSubType,
     isTemplate: boolFrom(customData, 'isTemplate') ?? base.isTemplate,

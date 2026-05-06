@@ -8,6 +8,7 @@
  */
 
 import type { ConfigManager, AppConfigRow } from "@marketsui/config-service";
+import { LOGGED_IN_USER_ID } from "@marketsui/runtime-port";
 import type { ComponentIdentity } from "./types";
 
 /** The saver interface returned by createDebouncedSaver. */
@@ -120,7 +121,11 @@ export function createDebouncedSaver<T>(
       // config path, hit by the test-launch scenario when no
       // template existed yet for this (componentType, componentSubType).
       const appId = identity.appId ?? "";
-      const userId = identity.userId ?? "";
+      // userId is single-user-pinned across the codebase. The fallback
+      // here guards against an upstream bug that strips the identity's
+      // userId — landing on LOGGED_IN_USER_ID keeps persistence under
+      // the same scope as every other writer.
+      const userId = identity.userId ?? LOGGED_IN_USER_ID;
       updated = {
         ...enforced,
         appId,

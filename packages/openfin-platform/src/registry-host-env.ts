@@ -30,16 +30,32 @@ export interface HostEnv {
 }
 
 /**
- * Canonical default user id used everywhere a `userId` is needed but
- * the host environment hasn't supplied a non-empty value. Centralised
- * so OpenFin / query-string / dev-fallback all converge on the same
- * string — preventing the "Mac wrote 'dev-user-X', Windows wrote 'dev1'"
- * divergence that orphaned configs across machines.
+ * Canonical user id. Single-user-pinned everywhere — see
+ * `LOGGED_IN_USER_ID` in `@marketsui/runtime-port` (this constant must
+ * match it, kept as a literal here to avoid pulling runtime-port into
+ * openfin-platform's dep graph). The codebase intentionally does NOT
+ * auto-generate user ids ("dev-user-001"-style randoms) and
+ * customData / URL `userId` overrides are ignored at every resolution
+ * site so persistence always lands under the same `(appId, userId)`
+ * scope. Replace this literal the day SSO is wired in.
  */
 export const DEFAULT_USER_ID = 'dev1';
 
+/**
+ * Canonical app id. Single-app-pinned alongside `DEFAULT_USER_ID` so
+ * every persistence site lands under the same `(appId, userId)` scope.
+ * customData / URL `appId` overrides are ignored at every resolution
+ * site for the same reason userId overrides are: cross-machine imports
+ * and legacy rows otherwise diverge the appId between the runtime
+ * caller and the realign sweep, breaking the strict-equality ownership
+ * check in `isProfileSetRow`. Replace this literal when multi-app
+ * support actually lands (until then, treating it as a constant
+ * eliminates a whole class of "row exists but invisible" bugs).
+ */
+export const DEFAULT_APP_ID = 'TestApp';
+
 const DEV_FALLBACK: HostEnv = {
-  appId: 'dev-host',
+  appId: DEFAULT_APP_ID,
   userId: DEFAULT_USER_ID,
   configServiceUrl: 'http://localhost:0000',
 };
@@ -65,24 +81,24 @@ const DEV_FALLBACK: HostEnv = {
  *   3. DEV_FALLBACK — only applies when nothing else is available.
  */
 export async function readHostEnv(): Promise<HostEnv> {
-  // 1. OpenFin — customData wins
+  // 1. OpenFin — customData wins for configServiceUrl. appId / userId
+  //    are pinned to DEFAULT_APP_ID / DEFAULT_USER_ID; customData
+  //    overrides for those two are intentionally ignored.
   if (typeof fin !== 'undefined') {
     try {
       const opts = await fin.me.getOptions();
       const cd = opts?.customData;
-      const appId = typeof cd?.appId === 'string' ? cd.appId : '';
-      const userId = typeof cd?.userId === 'string' && cd.userId.length > 0 ? cd.userId : DEFAULT_USER_ID;
       const configServiceUrl = typeof cd?.configServiceUrl === 'string' ? cd.configServiceUrl : '';
-      return { appId, userId, configServiceUrl };
+      return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID, configServiceUrl };
     } catch {
-      return { appId: '', userId: DEFAULT_USER_ID, configServiceUrl: '' };
+      return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID, configServiceUrl: '' };
     }
   }
 
   // 2. Query string override — for standalone-browser popups spawned
   //    by a parent demo/dev app. Shape:
-  //      ?hostEnv=<base64(JSON.stringify({ appId, configServiceUrl }))>
-  //    Base64 keeps the URL tidy and forgiving of special chars.
+  //      ?hostEnv=<base64(JSON.stringify({ configServiceUrl }))>
+  //    appId / userId are pinned and not honoured from the query.
   const qsEnv = readHostEnvFromQueryString();
   if (qsEnv) return qsEnv;
 
@@ -96,11 +112,11 @@ function readHostEnvFromQueryString(): HostEnv | null {
     const raw = new URLSearchParams(window.location.search).get('hostEnv');
     if (!raw) return null;
     const decoded = JSON.parse(atob(raw)) as Partial<HostEnv>;
-    const appId = typeof decoded.appId === 'string' ? decoded.appId : '';
-    const userId = typeof decoded.userId === 'string' && decoded.userId.length > 0 ? decoded.userId : DEFAULT_USER_ID;
+    // appId / userId are pinned — decoded values for them are
+    // intentionally ignored (same reason as the OpenFin path).
     const configServiceUrl = typeof decoded.configServiceUrl === 'string' ? decoded.configServiceUrl : '';
-    if (!appId && !configServiceUrl) return null;
-    return { appId, userId, configServiceUrl };
+    if (!configServiceUrl) return null;
+    return { appId: DEFAULT_APP_ID, userId: DEFAULT_USER_ID, configServiceUrl };
   } catch {
     return null;
   }

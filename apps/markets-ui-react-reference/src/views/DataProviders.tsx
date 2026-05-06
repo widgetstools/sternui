@@ -20,33 +20,25 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { DataPlaneProvider } from '@marketsui/data-plane-react/v2';
 import { DataProviderEditor } from '@marketsui/widgets-react/v2/provider-editor';
-import { getConfigManager, readHostEnv } from '@marketsui/openfin-platform/config';
+import { getConfigManager } from '@marketsui/openfin-platform/config';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import type { ConfigManager } from '@marketsui/config-service';
 import { dataPlaneClient } from '../data-plane-client';
 
-const viteEnv = (import.meta as unknown as {
-  env?: { VITE_DEFAULT_USER_ID?: string };
-}).env;
-
-const DEV_USER_ID = viteEnv?.VITE_DEFAULT_USER_ID || 'dev1';
+// userId is single-user-pinned across the codebase — no env override,
+// no customData/URL pickup. See LOGGED_IN_USER_ID in runtime-port.
+const userId = LOGGED_IN_USER_ID;
 
 function DataProviders() {
   const [params] = useSearchParams();
   const initialProviderId = useMemo(() => params.get('id'), [params]);
 
-  const [userId, setUserId] = useState<string>(DEV_USER_ID);
   const [cm, setCm] = useState<ConfigManager | null>(null);
 
-  // Resolve userId + ConfigManager. Both async — render a thin
-  // "Connecting…" until they land so we don't flash an empty editor.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      readHostEnv().catch(() => ({ userId: undefined })),
-      getConfigManager(),
-    ]).then(([env, manager]) => {
+    getConfigManager().then((manager) => {
       if (cancelled) return;
-      if (env.userId) setUserId(env.userId);
       setCm(manager);
     });
     return () => { cancelled = true; };

@@ -15,4 +15,6 @@ export type {
   Unsubscribe,
 } from './types.js';
 
+export { LOGGED_IN_USER_ID } from './types.js';
+
 export type { RuntimePort } from './RuntimePort.js';

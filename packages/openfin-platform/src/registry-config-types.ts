@@ -132,3 +132,39 @@ export function generateTemplateConfigId(componentType: string, componentSubType
 export function deriveSingletonConfigId(componentType: string, componentSubType: string): string {
   return deriveTemplateConfigId(componentType, componentSubType);
 }
+
+/**
+ * Mint a fresh `instanceId` for a non-singleton registered-component
+ * launch. Format:
+ *
+ *   `${userId}${componentType}-${componentSubType}-${Date.now()}`
+ *
+ * Example: `dev1blotter-markets-1714999999999`.
+ *
+ * Properties this gives us:
+ *   • Per-user prefix — every row owned by a given user starts with
+ *     their userId, so a Config Browser scan visually clusters them
+ *     together and a `startsWith()` match finds all of one user's
+ *     instances.
+ *   • Type-scoped middle — `componentType-componentSubType` matches
+ *     the same lower-cased shape used by `deriveTemplateConfigId`,
+ *     so the template id is a strict prefix of every instance id
+ *     spawned from it (after the userId portion).
+ *   • Monotonically increasing suffix — `Date.now()` (long ms-since-
+ *     epoch) makes the id sortable by creation time and gives enough
+ *     uniqueness for human-paced launches. Two near-simultaneous
+ *     launches in the same millisecond would collide; the launcher
+ *     guards against that by rejecting duplicate configIds at save
+ *     time, but real users don't double-click within 1 ms.
+ *
+ * Singleton launches DO NOT use this helper — singleton instanceId
+ * equals its templateId so all callers share one stable row. Only the
+ * non-singleton path mints fresh ids.
+ */
+export function mintRegisteredInstanceId(
+  userId: string,
+  componentType: string,
+  componentSubType: string,
+): string {
+  return `${userId}${componentType}-${componentSubType}-${Date.now()}`;
+}

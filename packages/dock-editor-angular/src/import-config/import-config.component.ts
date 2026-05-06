@@ -9,7 +9,12 @@
 import { Component, signal, ChangeDetectionStrategy, DestroyRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
-import { saveDockConfig, IAB_RELOAD_AFTER_IMPORT } from '@marketsui/openfin-platform';
+import {
+  importConfigBundle,
+  IAB_RELOAD_AFTER_IMPORT,
+  IAB_REGISTRY_CONFIG_UPDATE,
+  type ImportConfigBundleResult,
+} from '@marketsui/openfin-platform';
 
 type ImportStatus = 'idle' | 'success' | 'error';
 
@@ -116,26 +121,30 @@ export class ImportConfigComponent {
         return;
       }
 
-      let dockConfigFound = false;
-      for (const row of importData.appConfig) {
-        if (row.configId === 'dock-config' && row.config) {
-          await saveDockConfig(row.config);
-          dockConfigFound = true;
-        }
-      }
+      // Bulk-import every supported section. The helper re-owns appConfig
+      // rows (rewrites appId/userId to the local host environment) so
+      // workspaces, registries, and per-instance markets-grid-profile-set
+      // rows — including the `gridLevelData` that carries data-provider
+      // selection — become readable on this machine. userProfile rows are
+      // intentionally excluded from auto-import.
+      const result = await importConfigBundle(importData);
 
-      if (!dockConfigFound) {
+      if (result.totalImported === 0) {
         this.status.set('error');
-        this.message.set('No dock configuration found in this file.');
+        this.message.set('No importable rows found in this file.');
         return;
       }
 
       if (isInOpenFin) {
-        await (window as any).fin.InterApplicationBus.publish(IAB_RELOAD_AFTER_IMPORT, {});
+        const iab = (window as any).fin.InterApplicationBus;
+        await iab.publish(IAB_RELOAD_AFTER_IMPORT, {});
+        if (result.appConfig.imported > 0) {
+          await iab.publish(IAB_REGISTRY_CONFIG_UPDATE, {});
+        }
       }
 
       this.status.set('success');
-      this.message.set('Config imported successfully. The dock has been reloaded.');
+      this.message.set(this.formatSuccessMessage(result));
 
       this.closeTimer = setTimeout(() => this.close(), 1500);
     } catch (err) {
@@ -149,5 +158,17 @@ export class ImportConfigComponent {
     if (isInOpenFin) {
       (window as any).fin.Window.getCurrentSync().close();
     }
+  }
+
+  private formatSuccessMessage(r: ImportConfigBundleResult): string {
+    const parts: string[] = [];
+    if (r.appConfig.imported)   parts.push(`${r.appConfig.imported} config row${r.appConfig.imported === 1 ? '' : 's'}`);
+    if (r.appRegistry.imported) parts.push(`${r.appRegistry.imported} app${r.appRegistry.imported === 1 ? '' : 's'}`);
+    if (r.roles.imported)       parts.push(`${r.roles.imported} role${r.roles.imported === 1 ? '' : 's'}`);
+    if (r.permissions.imported) parts.push(`${r.permissions.imported} permission${r.permissions.imported === 1 ? '' : 's'}`);
+    const summary = parts.length > 0 ? `Imported ${parts.join(', ')}.` : 'Import complete.';
+    return r.totalFailed > 0
+      ? `${summary} ${r.totalFailed} row${r.totalFailed === 1 ? '' : 's'} failed — see console for details.`
+      : summary;
   }
 }

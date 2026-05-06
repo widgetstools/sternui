@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import { resolveOpenFinIdentity, isOpenFin, getCurrentView } from './identity.js';
 
 /**
@@ -27,7 +28,8 @@ describe('resolveOpenFinIdentity', () => {
       overrides: { userId: 'u-default' },
     });
     expect(id.appId).toBe('app-from-url');
-    expect(id.userId).toBe('u-default');
+    // userId is single-user-pinned regardless of overrides.
+    expect(id.userId).toBe(LOGGED_IN_USER_ID);
     expect(id.instanceId).toMatch(/^browser-/);
   });
 
@@ -53,7 +55,9 @@ describe('resolveOpenFinIdentity', () => {
     });
 
     expect(id.appId).toBe('app-from-cd');
-    expect(id.userId).toBe('u-from-cd');
+    // userId is single-user-pinned — customData.userId is intentionally
+    // ignored (see runtime-port/types.ts).
+    expect(id.userId).toBe(LOGGED_IN_USER_ID);
     expect(id.componentType).toBe('MarketsGrid');
     expect(id.isTemplate).toBe(true);
     expect(id.singleton).toBe(false);
@@ -101,7 +105,8 @@ describe('resolveOpenFinIdentity', () => {
       overrides: { userId: 'u-override', isTemplate: false },
     });
     expect(id.appId).toBe('app-x');
-    expect(id.userId).toBe('u-override');
+    // userId is single-user-pinned — overrides are intentionally ignored.
+    expect(id.userId).toBe(LOGGED_IN_USER_ID);
     expect(id.isTemplate).toBe(false);
     expect(id.roles).toEqual([]);
   });
