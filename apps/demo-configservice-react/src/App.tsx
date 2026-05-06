@@ -290,13 +290,20 @@ function AppInner() {
 
   const theme = isDark ? darkTheme : lightTheme;
 
-  // Init ConfigManager once on mount. Dexie-only (no REST endpoint
-  // in the demo). `seedConfigUrl` points at public/seed-config.json
-  // which ConfigManager fetches ONCE on first boot — when the Dexie
-  // tables (appRegistry, userProfiles, roles, permissions) are empty
-  // — and uses to populate them. Subsequent boots skip the fetch
-  // because `appCount > 0`. That's how 'TestApp' + 'dev1' + the role
-  // graph appear in the Config Browser without any manual seeding.
+  // Init ConfigManager once on mount. Mode is env-driven:
+  //
+  //   VITE_CONFIG_SERVICE_URL unset (or empty) → Dexie-only. All reads
+  //     and writes hit IndexedDB. Default for local dev.
+  //
+  //   VITE_CONFIG_SERVICE_URL set → REST mode. Writes go to the REST
+  //     backend first, then mirror to Dexie; reads still come from
+  //     Dexie for speed. Failed writes queue in PENDING_SYNC and retry
+  //     every 10s. See packages/config-service/src/config-manager.ts.
+  //
+  // `seedConfigUrl` points at public/seed-config.json which
+  // ConfigManager fetches ONCE on first boot (Dexie tables empty) and
+  // uses to populate appRegistry / userProfiles / roles / permissions.
+  // Subsequent boots skip the fetch.
   //
   // Awaiting init gates the storage factory behind a loaded
   // configuration — MarketsGrid's first listProfiles call doesn't
@@ -304,15 +311,15 @@ function AppInner() {
   //
   // Also publish the instance to @marketsui/openfin-platform's shared
   // singleton so `<ConfigBrowserPanel>` (which reads via
-  // getConfigManager()) sees the same ConfigManager. Without this,
-  // the browser's fallback path would create a second manager
-  // against the same Dexie DB — functional but wasteful.
+  // getConfigManager()) sees the same ConfigManager.
   useEffect(() => {
     let alive = true;
     const mgr = createConfigManager({
       // Resolved against the current origin — works under Vite's
       // `/` root, and a subpath deployment can override via BASE_URL.
       seedConfigUrl: new URL('seed-config.json', document.baseURI).toString(),
+      // Empty string → undefined → Dexie-only mode.
+      configServiceRestUrl: import.meta.env.VITE_CONFIG_SERVICE_URL || undefined,
     });
     mgr.init()
       .then(() => {
@@ -355,10 +362,11 @@ function AppInner() {
         // 'dev-host') and its queries filter to our rows.
         const env = encodeHostEnvForQueryString({
           appId: APP_ID,
-          // Placeholder — everything is local Dexie in the demo. A
-          // real app would pass the REST url so the popout talks to
-          // the same backend.
-          configServiceUrl: 'local-dexie',
+          // Empty (Dexie-only) → 'local-dexie' marker so the popout's
+          // ConfigBrowser knows it's same-origin Dexie. With a REST
+          // backend configured, we pass the URL so the popout talks
+          // to the same server as the main window.
+          configServiceUrl: import.meta.env.VITE_CONFIG_SERVICE_URL || 'local-dexie',
         });
         const url = `${window.location.origin}${window.location.pathname}?configBrowser=1&hostEnv=${env}`;
         // Fixed window name = clicking the action a second time

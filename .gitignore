@@ -28,3 +28,7 @@ apps/*/.angular/
 # Config-service-server runtime artifacts
 apps/config-service-server/logs/
 apps/config-service-server/data/*.db
+
+# Local dotenv overrides — `.env.example` is the tracked template
+.env.local
+.env.*.local
