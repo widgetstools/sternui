@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@marketsui/core": ["../../packages/core/src"],
+      "@marketsui/markets-grid": ["../../packages/markets-grid/src"]
+    }
+  },
+  "include": [
+    "src",
+    "../../packages/core/src",
+    "../../packages/markets-grid/src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../../packages/core/src/**/*.test.*",
+    "../../packages/markets-grid/src/**/*.test.*"
+  ]
+}

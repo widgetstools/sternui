@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MarketsUI · Grid Edit Subsystem Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700;9..144,900&display=swap');
+
+  :root {
+    --bg: #0d1014;
+    --bg-elev: #14181f;
+    --bg-elev-2: #1c2230;
+    --rule: #2a3342;
+    --rule-soft: #1e2532;
+    --ink: #d8dee9;
+    --ink-mute: #8b95a7;
+    --ink-dim: #5a6376;
+    --accent: #ffb454;
+    --accent-soft: #ffb45422;
+    --pending: #facc15;
+    --pending-bg: #facc1518;
+    --commit: #4ade80;
+    --commit-bg: #4ade8018;
+    --danger: #f87171;
+    --danger-bg: #f8717118;
+    --link: #7dd3fc;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    font-feature-settings: 'ss01', 'ss02', 'cv11';
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(255,180,84,0.04) 0%, transparent 35%),
+      radial-gradient(circle at 88% 92%, rgba(125,211,252,0.03) 0%, transparent 40%);
+    min-height: 100vh;
+    padding: 56px 0 120px;
+  }
+
+  .frame {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 32px;
+    margin-bottom: 56px;
+  }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 28px;
+  }
+
+  .meta-row .doc-id {
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 44px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 14px;
+    font-variation-settings: 'opsz' 144;
+  }
+
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .subtitle {
+    color: var(--ink-mute);
+    font-size: 14px;
+    max-width: 720px;
+  }
+
+  /* Section structure */
+  section {
+    margin-bottom: 64px;
+    scroll-margin-top: 24px;
+  }
+
+  .section-marker {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  .section-marker .num {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    font-variation-settings: 'opsz' 96;
+  }
+
+  h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 32px 0 14px;
+  }
+
+  h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--ink);
+    margin: 24px 0 10px;
+  }
+
+  p {
+    margin-bottom: 16px;
+    color: var(--ink);
+    max-width: 800px;
+  }
+
+  p.lead {
+    color: var(--ink-mute);
+    font-size: 14px;
+    border-left: 2px solid var(--accent);
+    padding-left: 14px;
+    margin-bottom: 24px;
+    max-width: 800px;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--accent);
+    background: var(--bg-elev);
+    padding: 1px 5px;
+    border-radius: 2px;
+    border: 1px solid var(--rule-soft);
+  }
+
+  pre {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent);
+    padding: 18px 22px;
+    margin: 18px 0;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    border-radius: 2px;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  .kw  { color: #c792ea; }
+  .str { color: #c3e88d; }
+  .num { color: #f78c6c; }
+  .com { color: var(--ink-dim); font-style: italic; }
+  .typ { color: #82aaff; }
+  .fn  { color: #ffb454; }
+  .pun { color: var(--ink-mute); }
+
+  ul {
+    margin: 0 0 18px 0;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  ul li {
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 10px;
+    color: var(--ink);
+  }
+
+  ul li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* The diagram blocks */
+  .diagram {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    padding: 24px;
+    margin: 24px 0;
+    border-radius: 3px;
+    position: relative;
+  }
+
+  .diagram::before {
+    content: 'FIG ' attr(data-fig);
+    position: absolute;
+    top: -8px;
+    left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.15em;
+  }
+
+  /* Layered architecture diagram */
+  .arch-diagram {
+    display: grid;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .arch-layer {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .arch-layer .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+    text-align: right;
+    padding-right: 12px;
+    border-right: 1px solid var(--rule);
+  }
+
+  .arch-layer .nodes {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .arch-layer .node {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--rule);
+    padding: 8px 12px;
+    font-size: 11px;
+    border-radius: 2px;
+    color: var(--ink);
+  }
+
+  .arch-layer .node.primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .arch-layer .node.commit {
+    border-color: var(--commit);
+    color: var(--commit);
+    background: var(--commit-bg);
+  }
+
+  .arch-layer .node.pending {
+    border-color: var(--pending);
+    color: var(--pending);
+    background: var(--pending-bg);
+  }
+
+  .arch-layer .node small {
+    display: block;
+    color: var(--ink-dim);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+  }
+
+  .arch-divider {
+    border: none;
+    border-top: 1px dashed var(--rule);
+    margin: 0;
+  }
+
+  /* State table */
+  .state-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+    margin: 16px 0;
+  }
+
+  .state-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--bg-elev-2);
+    color: var(--ink-mute);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .state-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--ink);
+    vertical-align: top;
+  }
+
+  .state-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .state-table .col-narrow {
+    width: 110px;
+    color: var(--accent);
+  }
+
+  .state-table .col-mono {
+    color: var(--link);
+  }
+
+  /* Sequence diagram */
+  .seq {
+    display: grid;
+    grid-template-columns: 100px 1fr 90px;
+    column-gap: 18px;
+    row-gap: 6px;
+    font-size: 11.5px;
+    align-items: center;
+  }
+
+  .seq .actor {
+    color: var(--ink-mute);
+    text-align: right;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .seq .arrow {
+    background: var(--bg-elev-2);
+    border-left: 2px solid var(--accent);
+    padding: 8px 12px;
+    border-radius: 2px;
+    color: var(--ink);
+    position: relative;
+  }
+
+  .seq .arrow::after {
+    content: '↓';
+    position: absolute;
+    right: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-dim);
+  }
+
+  .seq .arrow.commit { border-left-color: var(--commit); }
+  .seq .arrow.pending { border-left-color: var(--pending); }
+  .seq .arrow.danger { border-left-color: var(--danger); }
+  .seq .arrow.link { border-left-color: var(--link); }
+
+  .seq .target {
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Trade-off cards */
+  .tradeoff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 18px 0;
+  }
+
+  .tradeoff {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    padding: 16px 18px;
+    border-radius: 2px;
+  }
+
+  .tradeoff .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+
+  .tradeoff .label.do { color: var(--commit); }
+  .tradeoff .label.dont { color: var(--danger); }
+
+  .tradeoff p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+
+  /* Pull quote / sidebar */
+  aside {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--link);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 2px;
+    font-size: 12.5px;
+  }
+
+  aside .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--link);
+    margin-bottom: 6px;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-dim);
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    padding: 20px 24px;
+    margin-bottom: 56px;
+    border-radius: 2px;
+  }
+
+  .toc-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-dim);
+    margin-bottom: 12px;
+  }
+
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+    padding: 0;
+    columns: 2;
+    column-gap: 32px;
+  }
+
+  .toc ol li {
+    counter-increment: toc;
+    padding: 4px 0;
+    color: var(--ink-mute);
+    break-inside: avoid;
+    padding-left: 0;
+  }
+
+  .toc ol li::before {
+    content: counter(toc, decimal-leading-zero) '  ';
+    color: var(--accent);
+    font-size: 10.5px;
+  }
+
+  .toc a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .toc a:hover {
+    color: var(--accent);
+  }
+
+  /* Pending edit visualization */
+  .grid-mock {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    margin: 16px 0;
+    overflow: hidden;
+    font-size: 11.5px;
+  }
+
+  .grid-mock-header {
+    display: grid;
+    grid-template-columns: 90px 80px 80px 80px 90px 1fr;
+    background: var(--bg-elev-2);
+    color: var(--ink-mute);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .grid-mock-header > div { padding: 8px 12px; }
+
+  .grid-mock-row {
+    display: grid;
+    grid-template-columns: 90px 80px 80px 80px 90px 1fr;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  .grid-mock-row > div {
+    padding: 8px 12px;
+    color: var(--ink);
+  }
+
+  .grid-mock-row .pending-cell {
+    background: var(--pending-bg);
+    color: var(--pending);
+    border-left: 2px solid var(--pending);
+    margin-left: -2px;
+    padding-left: 10px;
+    position: relative;
+  }
+
+  .grid-mock-row .pending-cell::after {
+    content: '◆';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 7px;
+    color: var(--pending);
+  }
+
+  .grid-mock-row .commit-cell {
+    color: var(--commit);
+  }
+
+  .grid-mock-status {
+    display: flex;
+    justify-content: space-between;
+    background: var(--bg-elev-2);
+    padding: 8px 12px;
+    border-top: 1px solid var(--rule);
+    font-size: 10.5px;
+    color: var(--ink-mute);
+  }
+
+  .grid-mock-status .pending-count { color: var(--pending); }
+  .grid-mock-status .actions span { 
+    margin-left: 12px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Product card grid */
+  .product-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin: 24px 0;
+  }
+
+  .product-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .product-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--bg-elev-2);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .product-card-header h4 {
+    margin: 0;
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--ink);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .product-card-header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: var(--accent-soft);
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+
+  .product-card-body {
+    padding: 18px 20px;
+  }
+
+  .product-card .summary {
+    color: var(--ink-mute);
+    font-size: 12.5px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+
+  .product-spec {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 8px 20px;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .product-spec dt {
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    padding-top: 2px;
+  }
+
+  .product-spec dd {
+    margin: 0;
+    color: var(--ink);
+  }
+
+  .product-spec dd code {
+    font-size: 11.5px;
+  }
+
+  .product-card .gotcha {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--danger-bg);
+    border-left: 2px solid var(--danger);
+    font-size: 12px;
+    color: var(--ink);
+    border-radius: 2px;
+  }
+
+  .product-card .gotcha strong {
+    color: var(--danger);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* Config matrix table */
+  .config-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin: 18px 0;
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+  }
+
+  .config-matrix th {
+    background: var(--bg-elev-2);
+    color: var(--ink-mute);
+    padding: 10px 10px;
+    text-align: left;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 9.5px;
+    border-bottom: 1px solid var(--rule);
+    border-right: 1px solid var(--rule-soft);
+    vertical-align: bottom;
+  }
+
+  .config-matrix th:first-child {
+    color: var(--accent);
+  }
+
+  .config-matrix th:last-child { border-right: none; }
+
+  .config-matrix td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--rule-soft);
+    border-right: 1px solid var(--rule-soft);
+    color: var(--ink);
+    font-size: 11px;
+    vertical-align: top;
+  }
+
+  .config-matrix td:first-child {
+    color: var(--accent);
+    font-weight: 500;
+    background: rgba(255, 180, 84, 0.04);
+  }
+
+  .config-matrix td:last-child { border-right: none; }
+  .config-matrix tr:last-child td { border-bottom: none; }
+
+  .config-matrix .mono { color: var(--link); font-size: 10.5px; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <header>
+      <div class="meta-row">
+        <span>MarketsUI · Capital Markets Platform</span>
+        <span class="doc-id">DOC-MUI-GRID-001 · v0.1 DRAFT</span>
+      </div>
+      <h1>Grid Edit Subsystem</h1>
+      <p class="subtitle">
+        Unified architecture for batch staging, paired tick adjustment, and an undo stack
+        that survives the messy reality of a sell-side blotter — sort, filter, group, and
+        async server commits — across rates, FX, corporates, credit, and munis.
+      </p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">Contents</div>
+      <ol>
+        <li><a href="#why">Why one design, not three</a></li>
+        <li><a href="#model">The shared mental model</a></li>
+        <li><a href="#layers">Layered architecture</a></li>
+        <li><a href="#state">State machine for an edit</a></li>
+        <li><a href="#paired">Paired tick adjustment</a></li>
+        <li><a href="#undo">Undo stack design</a></li>
+        <li><a href="#commit">Commit pipeline</a></li>
+        <li><a href="#viewserver">ViewServer interaction</a></li>
+        <li><a href="#api">Public API surface</a></li>
+        <li><a href="#products">Per-product configuration</a></li>
+        <li><a href="#cross-product">Cross-product workflows</a></li>
+        <li><a href="#pitfalls">Known pitfalls</a></li>
+      </ol>
+    </div>
+
+    <!-- ========================================================== -->
+    <section id="why">
+      <div class="section-marker">
+        <span class="num">§ 01</span>
+        <h2>Why one design, not three</h2>
+      </div>
+
+      <p class="lead">
+        Batch edit, paired tick, and undo all sit on top of the same primitive:
+        a buffer of pending edits keyed by <code>(rowId, colId)</code> that the
+        UI reads from, the user mutates, and the commit pipeline drains.
+        Build them apart and they will fight over that buffer.
+      </p>
+
+      <p>
+        AG-Grid's native batch edit gives us <code>startBatchEdit</code> / <code>commitBatchEdit</code> /
+        <code>cancelBatchEdit</code>, but it has no opinion on the two things we actually
+        need on a trading desk: <em>where edits come from</em> (keyboard, fill handle,
+        paired delta, paste from chat) and <em>what survives a commit failure</em>
+        (server-acknowledged is not the same as <code>commitBatchEdit</code> returning).
+      </p>
+
+      <p>
+        The design here treats the pending-edit buffer as the single source of truth
+        for in-flight changes. Paired tick is a <em>writer</em> against the buffer.
+        Undo is a <em>reader/writer</em> that also tracks committed history.
+        Batch edit is the <em>commit boundary</em> that flushes the buffer to the row data.
+      </p>
+
+      <div class="tradeoff-grid">
+        <div class="tradeoff">
+          <div class="label do">Decision</div>
+          <p>Single <code>PendingEditBuffer</code> owned by an edit-coordinator service. AG-Grid's batch state mirrors this buffer but is not authoritative.</p>
+        </div>
+        <div class="tradeoff">
+          <div class="label dont">Anti-pattern</div>
+          <p>Letting AG-Grid's <code>cellEditRequest</code> events drive three independent listeners. Race conditions on commit, no shared validation, undo loses paired context.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="model">
+      <div class="section-marker">
+        <span class="num">§ 02</span>
+        <h2>The shared mental model</h2>
+      </div>
+
+      <p>
+        Three ideas the trader needs to feel without reading documentation:
+      </p>
+
+      <ul>
+        <li><strong>Pending vs committed.</strong> A pending cell is yellow and dotted; the trader knows nothing has gone to the Street yet.</li>
+        <li><strong>Linkage is visible.</strong> When two columns are paired, a chain glyph sits in the column header. Edits to one preview-shift the other. The trader can see the relationship before the edit lands.</li>
+        <li><strong>Undo is for <em>my</em> edits.</strong> Sorts, filters, streaming ticks, and external feed updates are not in the undo stack. Only edits the trader made — including paired-tick fan-outs — can be reversed.</li>
+      </ul>
+
+      <aside>
+        <div class="label">Design principle</div>
+        Predictability beats power. Every interaction the trader makes either stages, commits, or reverses. A feature that does two of those things at once gets cut.
+      </aside>
+
+      <div class="diagram" data-fig="01">
+        <h4>Pending state visualization (mock)</h4>
+        <div class="grid-mock">
+          <div class="grid-mock-header">
+            <div>CUSIP</div><div>Side</div><div>Size</div><div>Bid</div><div>Spread</div><div>Note</div>
+          </div>
+          <div class="grid-mock-row">
+            <div>912828YK0</div><div>B</div><div>5MM</div>
+            <div class="pending-cell">99-14+</div>
+            <div class="pending-cell">+82</div>
+            <div>—</div>
+          </div>
+          <div class="grid-mock-row">
+            <div>912828X88</div><div>B</div><div>10MM</div>
+            <div class="pending-cell">99-22</div>
+            <div class="pending-cell">+85</div>
+            <div>linked tick · −2bp</div>
+          </div>
+          <div class="grid-mock-row">
+            <div>912828Y45</div><div>S</div><div>3MM</div>
+            <div class="commit-cell">100-08</div>
+            <div class="commit-cell">+78</div>
+            <div>—</div>
+          </div>
+          <div class="grid-mock-status">
+            <span class="pending-count">◆ 4 pending edits across 2 rows</span>
+            <span class="actions">
+              <span>commit (Ctrl+Enter)</span>
+              <span>discard (Esc)</span>
+              <span>preview diff (Ctrl+D)</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="layers">
+      <div class="section-marker">
+        <span class="num">§ 03</span>
+        <h2>Layered architecture</h2>
+      </div>
+
+      <p>
+        Five layers, each with one job. Read top to bottom: input devices on top,
+        durable state at the bottom.
+      </p>
+
+      <div class="diagram" data-fig="02">
+        <div class="arch-diagram">
+          <div class="arch-layer">
+            <div class="label">L1 · Input</div>
+            <div class="nodes">
+              <div class="node">Keyboard handler</div>
+              <div class="node">Fill handle</div>
+              <div class="node">Paste parser</div>
+              <div class="node">Cell editor</div>
+              <div class="node">Command palette</div>
+            </div>
+          </div>
+          <hr class="arch-divider">
+          <div class="arch-layer">
+            <div class="label">L2 · Intent</div>
+            <div class="nodes">
+              <div class="node primary">EditIntent</div>
+              <div class="node primary">TickIntent (±n)</div>
+              <div class="node primary">PairedTickIntent</div>
+              <div class="node primary">UndoIntent</div>
+            </div>
+          </div>
+          <hr class="arch-divider">
+          <div class="arch-layer">
+            <div class="label">L3 · Coordinator</div>
+            <div class="nodes">
+              <div class="node pending">EditCoordinator</div>
+              <div class="node">LinkageResolver</div>
+              <div class="node">Validator</div>
+              <div class="node">UndoStack</div>
+            </div>
+          </div>
+          <hr class="arch-divider">
+          <div class="arch-layer">
+            <div class="label">L4 · Buffer</div>
+            <div class="nodes">
+              <div class="node pending">PendingEditBuffer</div>
+              <div class="node">AG-Grid batch state (mirror)</div>
+            </div>
+          </div>
+          <hr class="arch-divider">
+          <div class="arch-layer">
+            <div class="label">L5 · Commit</div>
+            <div class="nodes">
+              <div class="node commit">CommitPipeline</div>
+              <div class="node commit">ViewServer publisher</div>
+              <div class="node commit">applyTransactionAsync</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Boundaries that matter</h3>
+
+      <h4>L1 → L2 normalization</h4>
+      <p>
+        Every input device produces an <code>Intent</code>. A trader hitting <code>Alt+↑</code>
+        on a range selection produces a <code>TickIntent</code> with <code>direction: 'up'</code>
+        and the column-aware tick size resolved later. A drag-fill produces a series of <code>EditIntent</code>s.
+        A paste produces <code>EditIntent</code>s with a <code>source: 'clipboard'</code> tag so the
+        validator can apply paste-specific rules. The intent layer is the place to tag origin.
+      </p>
+
+      <h4>L3 → L4 separation</h4>
+      <p>
+        The coordinator never writes to AG-Grid directly. It writes to the
+        <code>PendingEditBuffer</code>, then asks AG-Grid to refresh affected cells. Two reasons:
+        first, AG-Grid's batch API is one-way (you can't ask it for a structured diff cheaply);
+        second, this layer is what the undo stack reads, and undo needs a stable, queryable representation.
+      </p>
+
+      <h4>L4 → L5 boundary</h4>
+      <p>
+        Commit is the only place a pending edit becomes durable. ViewServer publish and
+        AG-Grid <code>applyTransactionAsync</code> both happen here. Critically, they are
+        <em>linked</em>: an edit is not removed from the pending buffer until ViewServer
+        acknowledges. We will come back to this in the commit pipeline section.
+      </p>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="state">
+      <div class="section-marker">
+        <span class="num">§ 04</span>
+        <h2>State machine for an edit</h2>
+      </div>
+
+      <p>
+        Each entry in the <code>PendingEditBuffer</code> moves through the states below.
+        The undo stack mirrors transitions for entries the trader caused.
+      </p>
+
+      <table class="state-table">
+        <thead>
+          <tr>
+            <th class="col-narrow">State</th>
+            <th>Meaning</th>
+            <th>Visible to trader</th>
+            <th>In undo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-narrow">DRAFT</td>
+            <td>Edit is in the buffer, not yet validated</td>
+            <td>Yellow, dotted border</td>
+            <td>No</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">VALID</td>
+            <td>Passed validation, eligible for commit</td>
+            <td>Yellow, solid border</td>
+            <td>Yes (after commit)</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">REJECTED</td>
+            <td>Validation failed; reason shown in tooltip</td>
+            <td>Red diagonal hatch</td>
+            <td>No</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">COMMITTING</td>
+            <td>Sent to ViewServer, awaiting ack</td>
+            <td>Pulsing yellow</td>
+            <td>No (locked)</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">COMMITTED</td>
+            <td>Server acknowledged; row data updated</td>
+            <td>Brief green flash, then normal</td>
+            <td>Yes (in committed history)</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">FAILED</td>
+            <td>Server rejected; edit returns to buffer as REJECTED</td>
+            <td>Red, with retry affordance</td>
+            <td>No</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">ABANDONED</td>
+            <td>Trader cancelled the batch</td>
+            <td>Reverts to underlying value</td>
+            <td>No</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Transitions: <code>DRAFT → VALID</code> on validator pass; <code>VALID → COMMITTING</code>
+        on <code>commitBatchEdit</code>; <code>COMMITTING → COMMITTED</code> on ViewServer ack;
+        <code>COMMITTING → FAILED</code> on ViewServer NACK or timeout. <code>VALID → ABANDONED</code>
+        on <code>cancelBatchEdit</code>.
+      </p>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="paired">
+      <div class="section-marker">
+        <span class="num">§ 05</span>
+        <h2>Paired tick adjustment</h2>
+      </div>
+
+      <p>
+        The trader selects a range, hits <code>Alt+↑</code> to shift bids by one tick.
+        For paired columns (Bid + Ask, or Spread + Price), one keystroke produces two
+        edits per affected row, both staged as pending.
+      </p>
+
+      <h3>Keyboard shortcut reference (Windows)</h3>
+
+      <table class="state-table">
+        <thead>
+          <tr>
+            <th class="col-narrow">Shortcut</th>
+            <th>Action</th>
+            <th>Scope</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-narrow">Alt+↑ / Alt+↓</td>
+            <td>Tick selected cells up / down by one column-aware tick</td>
+            <td>Range selection</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Alt+Shift+↑ / ↓</td>
+            <td>Tick by 5 ticks (configurable multiplier)</td>
+            <td>Range selection</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+Enter</td>
+            <td>Commit current batch (publishes pending edits)</td>
+            <td>Grid focus</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Esc</td>
+            <td>Discard pending batch (with confirm if &gt; N edits)</td>
+            <td>Grid focus, no editor open</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+D</td>
+            <td>Open diff preview before committing</td>
+            <td>Grid focus, pending &gt; 0</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+Z</td>
+            <td>Undo last edit frame (working or committed tier)</td>
+            <td>Grid focus</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+Y</td>
+            <td>Redo</td>
+            <td>Grid focus</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">F2 / Enter</td>
+            <td>Start editing focused cell</td>
+            <td>AG-Grid native</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+Enter <em>(in editor)</em></td>
+            <td>Apply edited value to all cells in current range (AG-Grid native)</td>
+            <td>Cell editor open</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+L</td>
+            <td>Toggle linkage on/off for the focused column group</td>
+            <td>Column header focus</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Ctrl+K</td>
+            <td>Open command palette</td>
+            <td>Anywhere in grid</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <aside>
+        <div class="label">Conflict note</div>
+        Ctrl+Enter is overloaded — outside an active cell editor it commits the batch; inside one it applies the edited value to the range (AG-Grid native). The coordinator routes based on <code>gridApi.getEditingCells().length</code>. Document this clearly in trader onboarding.
+      </aside>
+
+      <h3>The linkage configuration</h3>
+
+      <p>
+        Linkage is config-driven and lives in your hierarchical config system. A
+        <code>ColumnGroupLink</code> describes how columns relate when one is edited.
+      </p>
+
+      <pre><code><span class="kw">interface</span> <span class="typ">ColumnGroupLink</span> <span class="pun">{</span>
+  <span class="fn">id</span><span class="pun">:</span> <span class="typ">string</span><span class="pun">;</span>
+  <span class="fn">columns</span><span class="pun">:</span> <span class="typ">string</span><span class="pun">[];</span>            <span class="com">// e.g. ['bidPrice', 'askPrice']</span>
+  <span class="fn">strategy</span><span class="pun">:</span>                  <span class="com">// how to propagate</span>
+    <span class="pun">|</span> <span class="str">'preserve_spread'</span>      <span class="com">// move both by same delta</span>
+    <span class="pun">|</span> <span class="str">'preserve_ratio'</span>       <span class="com">// move proportionally</span>
+    <span class="pun">|</span> <span class="str">'derive_from_anchor'</span><span class="pun">;</span>  <span class="com">// recompute from formula</span>
+  <span class="fn">tickSize</span><span class="pun">:</span> <span class="typ">number</span> <span class="pun">|</span> <span class="typ">TickResolver</span><span class="pun">;</span>
+  <span class="fn">unit</span><span class="pun">:</span> <span class="str">'bps'</span> <span class="pun">|</span> <span class="str">'price32nd'</span> <span class="pun">|</span> <span class="str">'pctPar'</span> <span class="pun">|</span> <span class="str">'absolute'</span><span class="pun">;</span>
+  <span class="fn">enabled</span><span class="pun">:</span> <span class="typ">boolean</span><span class="pun">;</span>          <span class="com">// trader can toggle the link</span>
+  <span class="fn">formula</span><span class="pun">?:</span> <span class="pun">(</span><span class="fn">anchor</span><span class="pun">,</span> <span class="fn">row</span><span class="pun">) =&gt;</span> <span class="typ">Record</span><span class="pun">&lt;</span><span class="typ">string</span><span class="pun">,</span> <span class="typ">number</span><span class="pun">&gt;;</span>
+<span class="pun">}</span></code></pre>
+
+      <p>
+        On a <code>TickIntent</code>, the <code>LinkageResolver</code> walks the selection,
+        for each cell finds the linkage group that includes the edited column, applies the
+        strategy, and emits one <code>EditIntent</code> per affected cell. All emitted edits
+        share an <code>intentId</code> so undo treats them as a single unit.
+      </p>
+
+      <h3>Sequence: trader hits Alt+↑ on 30 selected bids</h3>
+
+      <div class="diagram" data-fig="03">
+        <div class="seq">
+          <div class="actor">Trader</div>
+          <div class="arrow">presses Alt+↑ with 30 cells in range selection</div>
+          <div class="target">L1 keyboard</div>
+
+          <div class="actor">L1 keyboard</div>
+          <div class="arrow link">emits TickIntent { range, direction: up, count: 1 }</div>
+          <div class="target">L3 coordinator</div>
+
+          <div class="actor">L3 coordinator</div>
+          <div class="arrow">resolves tickSize per column from config</div>
+          <div class="target">L3 LinkageResolver</div>
+
+          <div class="actor">L3 LinkageResolver</div>
+          <div class="arrow link">expands 30 cells → 60 EditIntents (paired)<br>shares intentId across all 60</div>
+          <div class="target">L3 Validator</div>
+
+          <div class="actor">L3 Validator</div>
+          <div class="arrow">checks limits, fat-finger thresholds</div>
+          <div class="target">L4 buffer</div>
+
+          <div class="actor">L4 buffer</div>
+          <div class="arrow pending">writes 60 pending entries, all VALID</div>
+          <div class="target">L3 UndoStack</div>
+
+          <div class="actor">L3 UndoStack</div>
+          <div class="arrow">pushes one undo frame containing 60 reverse-edits</div>
+          <div class="target">AG-Grid refresh</div>
+
+          <div class="actor">AG-Grid</div>
+          <div class="arrow pending">re-renders 60 cells with pending styling</div>
+          <div class="target">Trader sees</div>
+        </div>
+      </div>
+
+      <h3>Why the intentId matters</h3>
+      <p>
+        A trader hitting Alt+↑ once and then Ctrl+Z expects all 60 cells to revert,
+        not just the last one written. The undo frame must reference the intentId, not
+        individual cell positions, otherwise a 30-row tick takes 60 undos to reverse —
+        and the second undo would partially break linkage invariants.
+      </p>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="undo">
+      <div class="section-marker">
+        <span class="num">§ 06</span>
+        <h2>Undo stack design</h2>
+      </div>
+
+      <p class="lead">
+        AG-Grid's built-in undo clears on sort, filter, or group. That is fatal for a
+        blotter. Our undo is independent of AG-Grid's grid state and lives in L3.
+      </p>
+
+      <h3>Two-tier history</h3>
+
+      <p>
+        The undo subsystem tracks <em>two</em> stacks: a working stack (uncommitted) and
+        a committed history. Different rules apply.
+      </p>
+
+      <table class="state-table">
+        <thead>
+          <tr><th class="col-narrow">Stack</th><th>Contents</th><th>Reversible?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-narrow">Working</td>
+            <td>Pending edits not yet committed; undoable by buffer mutation only</td>
+            <td>Yes, freely</td>
+          </tr>
+          <tr>
+            <td class="col-narrow">Committed</td>
+            <td>Edits acked by ViewServer; undo emits a new <em>compensating</em> edit</td>
+            <td>Yes, but as a new edit (audit-trail preserved)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        The trader experiences a single <code>Ctrl+Z</code>. Internally the stack chooses:
+        if the top frame is in the working stack, revert the buffer. If the working stack
+        is empty, generate a compensating edit from the top of the committed history and
+        push it as a new pending edit. Compliance never sees data "disappear" — every
+        committed change has a forward and reverse audit record.
+      </p>
+
+      <h3>Frame structure</h3>
+
+      <pre><code><span class="kw">interface</span> <span class="typ">UndoFrame</span> <span class="pun">{</span>
+  <span class="fn">intentId</span><span class="pun">:</span> <span class="typ">string</span><span class="pun">;</span>          <span class="com">// groups paired-tick fan-outs</span>
+  <span class="fn">timestamp</span><span class="pun">:</span> <span class="typ">number</span><span class="pun">;</span>
+  <span class="fn">trader</span><span class="pun">:</span> <span class="typ">string</span><span class="pun">;</span>
+  <span class="fn">origin</span><span class="pun">:</span> <span class="str">'keyboard'</span> <span class="pun">|</span> <span class="str">'fill'</span> <span class="pun">|</span> <span class="str">'paste'</span>
+        <span class="pun">|</span> <span class="str">'pairedTick'</span> <span class="pun">|</span> <span class="str">'cellEditor'</span><span class="pun">;</span>
+  <span class="fn">tier</span><span class="pun">:</span> <span class="str">'working'</span> <span class="pun">|</span> <span class="str">'committed'</span><span class="pun">;</span>
+  <span class="fn">edits</span><span class="pun">:</span> <span class="typ">Array</span><span class="pun">&lt;{</span>
+    <span class="fn">rowId</span><span class="pun">:</span> <span class="typ">string</span><span class="pun">;</span>
+    <span class="fn">colId</span><span class="pun">:</span> <span class="typ">string</span><span class="pun">;</span>
+    <span class="fn">before</span><span class="pun">:</span> <span class="typ">CellValue</span><span class="pun">;</span>
+    <span class="fn">after</span><span class="pun">:</span> <span class="typ">CellValue</span><span class="pun">;</span>
+  <span class="pun">}&gt;;</span>
+<span class="pun">}</span></code></pre>
+
+      <h3>What does NOT enter the stack</h3>
+      <ul>
+        <li>Streaming ticks from ViewServer (someone else's edit, not the trader's)</li>
+        <li>Sort, filter, group, column reorder (these are view operations, AG-Grid handles their own undo if at all)</li>
+        <li>Edits from a paired tick that violate validation (REJECTED never enters)</li>
+        <li>Server-side enrichment writes (e.g., FV recomputation on benchmark move)</li>
+      </ul>
+
+      <h3>Per-row undo</h3>
+      <p>
+        Right-click a row → "Undo my last 3 edits to this CUSIP". Implemented as a filter
+        over the unified stack: walk frames newest-first, take only edits where
+        <code>rowId === target</code>, generate compensating frame. Order matters — undo
+        them in reverse-chronological order to preserve invariants.
+      </p>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="commit">
+      <div class="section-marker">
+        <span class="num">§ 07</span>
+        <h2>Commit pipeline</h2>
+      </div>
+
+      <p>
+        Commit is the dangerous moment. Multiple edits go from local pending state to
+        published axes on the Street, simultaneously, with the wrong-thing-published
+        cost measured in basis points of P&amp;L.
+      </p>
+
+      <h3>The three-phase commit</h3>
+
+      <div class="diagram" data-fig="04">
+        <div class="seq">
+          <div class="actor">Trader</div>
+          <div class="arrow commit">Ctrl+Enter to commit batch</div>
+          <div class="target">CommitPipeline</div>
+
+          <div class="actor">Phase 1</div>
+          <div class="arrow">freeze buffer · run final validation · compute diff envelope</div>
+          <div class="target">all VALID?</div>
+
+          <div class="actor">Phase 1</div>
+          <div class="arrow danger">if any REJECTED: abort entire batch, no partial commits</div>
+          <div class="target">trader notified</div>
+
+          <div class="actor">Phase 2</div>
+          <div class="arrow pending">mark all entries COMMITTING<br>send single envelope to ViewServer publisher</div>
+          <div class="target">ViewServer</div>
+
+          <div class="actor">ViewServer</div>
+          <div class="arrow">distributes to MarketAxess / Tradeweb / BBG ALLQ</div>
+          <div class="target">acks back</div>
+
+          <div class="actor">Phase 3</div>
+          <div class="arrow commit">on full ack: COMMITTED, applyTransactionAsync to grid<br>push frame to committed history<br>clear working undo stack</div>
+          <div class="target">trader sees green flash</div>
+
+          <div class="actor">Phase 3</div>
+          <div class="arrow danger">on partial / failed ack: reconciliation flow (see below)</div>
+          <div class="target">—</div>
+        </div>
+      </div>
+
+      <h3>Why all-or-nothing on Phase 1</h3>
+      <p>
+        If 28 of 30 paired-tick edits validate but two fail (e.g., spread outside fat-finger
+        threshold), do not commit the 28. Traders rely on the run being internally consistent —
+        a half-published axe set is worse than no publish. Reject the whole batch, surface the
+        two problem rows, let the trader fix or override.
+      </p>
+
+      <h3>Partial-ack reconciliation</h3>
+      <p>
+        ViewServer fans out to multiple venues; one venue may NACK while others ACK. The
+        envelope tracks per-venue acknowledgment. On partial:
+      </p>
+      <ul>
+        <li>Cells that committed everywhere → COMMITTED, normal flow</li>
+        <li>Cells that committed somewhere → COMMITTED with venue-mismatch warning glyph; trader resolves</li>
+        <li>Cells that committed nowhere → FAILED, return to buffer with error</li>
+      </ul>
+
+      <p>
+        The reconciliation row is a real UI surface — a small status bar entry that lets the
+        trader review per-venue state without leaving the grid.
+      </p>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="viewserver">
+      <div class="section-marker">
+        <span class="num">§ 08</span>
+        <h2>ViewServer interaction</h2>
+      </div>
+
+      <p>
+        Two flows touch ViewServer: <em>outbound</em> (commit → publish) and
+        <em>inbound</em> (subscription updates → grid refresh). They must not collide.
+      </p>
+
+      <h3>Inbound during pending state</h3>
+      <p>
+        Trader has a pending edit on <code>912828YK0.bidPrice</code>. ViewServer pushes a
+        delta on the same cell from a different source (e.g., automated peer-pricing
+        recomputation). What happens?
+      </p>
+
+      <ul>
+        <li>The underlying row data updates normally (committed value).</li>
+        <li>The pending overlay continues to show the trader's value — they retain control.</li>
+        <li>A small glyph appears on the cell: "underlying changed since you started editing".</li>
+        <li>On hover or expand, the trader sees both values and can choose to rebase or commit-as-is.</li>
+      </ul>
+
+      <p>
+        This is the same pattern Git uses for "your branch and origin have diverged".
+        Traders understand it once and never get surprised again.
+      </p>
+
+      <h3>Subscription suspension during commit</h3>
+      <p>
+        For the duration of a commit envelope (typically &lt; 200ms), the affected rows
+        suspend inbound delta processing for the columns being committed. Otherwise a
+        race between the COMMITTED ack and a stream tick can cause the cell to flicker
+        between values. Suspension is column-scoped, not row-scoped — other columns
+        continue to update.
+      </p>
+
+      <h3>Hooks into your existing SDK</h3>
+      <p>
+        The commit publisher is a thin wrapper around <code>ViewServerGateway</code>'s
+        publish path. The pending buffer integrates with <code>useSubscription</code> via
+        a transform: the hook returns rows where overlay values mask underlying values
+        when an entry exists in the buffer.
+      </p>
+
+      <pre><code><span class="kw">const</span> <span class="fn">rows</span> <span class="pun">=</span> <span class="fn">useSubscription</span><span class="pun">(</span><span class="str">'fi.axes.live'</span><span class="pun">, {</span>
+  <span class="fn">overlay</span><span class="pun">:</span> <span class="fn">pendingBuffer</span><span class="pun">,</span>
+  <span class="fn">conflictPolicy</span><span class="pun">:</span> <span class="str">'preserve-overlay-warn'</span><span class="pun">,</span>
+<span class="pun">});</span></code></pre>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="api">
+      <div class="section-marker">
+        <span class="num">§ 09</span>
+        <h2>Public API surface</h2>
+      </div>
+
+      <p>What grid consumers in <code>@marketsui/react</code> see. Angular mirrors this.</p>
+
+      <pre><code><span class="kw">const</span> <span class="pun">{</span>
+  <span class="com">// Buffer state</span>
+  <span class="fn">pendingEdits</span><span class="pun">,</span>
+  <span class="fn">hasPending</span><span class="pun">,</span>
+  <span class="fn">pendingCount</span><span class="pun">,</span>
+
+  <span class="com">// Lifecycle</span>
+  <span class="fn">startBatch</span><span class="pun">,</span>
+  <span class="fn">commitBatch</span><span class="pun">,</span>
+  <span class="fn">cancelBatch</span><span class="pun">,</span>
+
+  <span class="com">// Direct mutation (for non-AG-Grid editors)</span>
+  <span class="fn">stage</span><span class="pun">,</span>           <span class="com">// stage(rowId, colId, value)</span>
+  <span class="fn">stageRange</span><span class="pun">,</span>      <span class="com">// stageRange(cells[], valueFn)</span>
+
+  <span class="com">// Tick</span>
+  <span class="fn">tickRange</span><span class="pun">,</span>       <span class="com">// tickRange(range, direction, count)</span>
+
+  <span class="com">// Undo</span>
+  <span class="fn">undo</span><span class="pun">,</span>
+  <span class="fn">redo</span><span class="pun">,</span>
+  <span class="fn">undoForRow</span><span class="pun">,</span>      <span class="com">// undoForRow(rowId, n)</span>
+  <span class="fn">undoStackSize</span><span class="pun">,</span>
+
+  <span class="com">// Linkage</span>
+  <span class="fn">toggleLinkage</span><span class="pun">,</span>   <span class="com">// toggleLinkage(linkId)</span>
+  <span class="fn">linkageStatus</span><span class="pun">,</span>
+
+<span class="pun">} =</span> <span class="fn">useGridEditCoordinator</span><span class="pun">(</span><span class="fn">gridApi</span><span class="pun">, </span><span class="fn">config</span><span class="pun">);</span></code></pre>
+
+      <p>
+        <code>useGridEditCoordinator</code> is wired to a single AG-Grid instance and a single
+        ViewServer subscription topic. Multiple grids on a page each get their own coordinator.
+      </p>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="products">
+      <div class="section-marker">
+        <span class="num">§ 10</span>
+        <h2>Per-product configuration</h2>
+      </div>
+
+      <p class="lead">
+        The architecture is the same across all products. What changes is the
+        configuration that flows through it: tick size, quote convention, fat-finger
+        thresholds, linkage rules, lifecycle states, and the publish targets the commit
+        pipeline talks to. This section is the reference matrix.
+      </p>
+
+      <p>
+        Each product card below specifies the values needed to instantiate
+        <code>ColumnGroupLink</code>, <code>TickResolver</code>, and the validator
+        thresholds for that asset class. These belong in your hierarchical config
+        system as <code>edit-policy</code> artifacts that inherit from a desk-level
+        default, with per-product overrides.
+      </p>
+
+      <div class="product-grid">
+
+        <!-- ============= RATES ============= -->
+        <div class="product-card">
+          <div class="product-card-header">
+            <h4>Rates · US Treasuries, Agencies, Strips</h4>
+            <span class="tag">EXCHANGE-LIKE LIQUIDITY</span>
+          </div>
+          <div class="product-card-body">
+            <p class="summary">
+              Most liquid product on the desk. Tight spreads, fast tick, on-the-run vs off-the-run distinction matters. Quote convention is the legacy 32nds-with-plus that traders insist on keeping.
+            </p>
+
+            <dl class="product-spec">
+              <dt>Quote unit</dt>
+              <dd>32nds of a point, with <code>+</code> denoting +½ tick (= 1/64). Quarter-tick suffixes <code>2</code> / <code>+</code> / <code>6</code> for ¼, ½, ¾ of a 32nd. Example: <code>99-03+</code> = 99 + 3.5/32 = 99.109375.</dd>
+
+              <dt>Min tick</dt>
+              <dd><code>1/256</code> for cash actives (eighth of 32nd); <code>1/128</code> for older issues; <code>1/32</code> for off-the-runs. Configurable per CUSIP via reference data.</dd>
+
+              <dt>Tick keystroke</dt>
+              <dd><code>Alt+↑/↓</code> = 1 minimum tick · <code>Alt+Shift+↑/↓</code> = full 32nd · <code>Ctrl+Alt+↑/↓</code> = full point</dd>
+
+              <dt>Linkage</dt>
+              <dd><code>{ bid, ask }</code> with <code>preserve_spread</code>. Spread typically 1/256 for OTRs, 1/64 for OFRs. Yield column is derived (not directly editable) and updates on price tick.</dd>
+
+              <dt>Fat-finger</dt>
+              <dd>Reject edit if Δ &gt; 8/32 (¼ point) from current mid. Hard reject &gt; 1 full point.</dd>
+
+              <dt>Size convention</dt>
+              <dd>Notional in MM. Rounding to nearest <code>1MM</code> on edit. <code>Alt+Shift</code> tick on size = 5MM increment.</dd>
+
+              <dt>Publish targets</dt>
+              <dd>BrokerTec, Tradeweb, Bloomberg ALLQ, Dealerweb. Most have streaming axe support — use the streaming publisher, not RFQ-by-RFQ.</dd>
+
+              <dt>Editor component</dt>
+              <dd><code>TreasuryPriceEditor</code> — accepts <code>99-03+</code>, <code>99-032</code>, <code>99-03+2</code>, decimal <code>99.109375</code>; renders canonical 32nds form. Same parser handles paste from chat.</dd>
+            </dl>
+
+            <div class="gotcha">
+              <strong>Gotcha</strong>
+              When the trader pastes <code>99-03+</code> into a column configured as decimal, the parser must recognize the dash-and-plus signature and convert. Conversely, do not blindly format a decimal column as 32nds because the trader is "in rates" — yield columns are decimal even on a treasury blotter.
+            </div>
+          </div>
+        </div>
+
+        <!-- ============= FX ============= -->
+        <div class="product-card">
+          <div class="product-card-header">
+            <h4>FX · Spot, Forwards, Swaps, NDFs</h4>
+            <span class="tag">SUB-SECOND TICK</span>
+          </div>
+          <div class="product-card-body">
+            <p class="summary">
+              Fastest-moving product. Pip and pipette conventions; big-figure abbreviation in voice. Tiered pricing per client and per size band makes linkage non-trivial.
+            </p>
+
+            <dl class="product-spec">
+              <dt>Quote unit</dt>
+              <dd>Pip = 4th decimal for most pairs (<code>EUR/USD 1.1050</code>, pip = <code>0.0001</code>). For JPY pairs, pip = 2nd decimal (<code>USD/JPY 154.02</code>, pip = <code>0.01</code>). Pipette = 1/10 pip (5th decimal, or 3rd for JPY).</dd>
+
+              <dt>Min tick</dt>
+              <dd>1 pipette in major pairs. Wider in exotics — config table per pair.</dd>
+
+              <dt>Tick keystroke</dt>
+              <dd><code>Alt+↑/↓</code> = 1 pipette · <code>Alt+Shift+↑/↓</code> = 1 pip · <code>Ctrl+Alt+↑/↓</code> = 10 pips (big-fig adjustment)</dd>
+
+              <dt>Linkage</dt>
+              <dd>Three-way: <code>{ bid, ask, mid }</code> with <code>preserve_spread</code>. Mid is the anchor — editing mid moves both. Spread per pair from config (EUR/USD &lt; 1 pip, exotics 5–50 pips).</dd>
+
+              <dt>Tiering</dt>
+              <dd>Per-client, per-size-band overlay. Editing the base price cascades to all tiers using <code>derive_from_anchor</code>: each tier has a config-driven add-on. Trader edits base; sees pending preview of all 12 tier prices before commit.</dd>
+
+              <dt>Fat-finger</dt>
+              <dd>Reject if Δ &gt; 50 pips for majors, 200 pips for crosses. Hard cap: 2× normal day's range.</dd>
+
+              <dt>Big-fig handling</dt>
+              <dd>Voice paste <code>"09-14"</code> with no big-fig — editor pulls the big-fig from current market level and prompts trader to confirm if the inferred level is &gt; 5 pips from mid.</dd>
+
+              <dt>Publish targets</dt>
+              <dd>EBS, Refinitiv FXall, internal SDP, Bloomberg FXGO. Streaming pricing typical. Subscription suspension during commit is critical here — pricing fans out 10+ times/sec.</dd>
+            </dl>
+
+            <div class="gotcha">
+              <strong>Gotcha</strong>
+              JPY pair detection cannot be string-matched on "JPY". Use the reference-data <code>quotePrecision</code> attribute, because some crosses (e.g., <code>EUR/JPY</code>) flip pip conventions and the parser will silently mis-format prices if you hardcode currency strings.
+            </div>
+          </div>
+        </div>
+
+        <!-- ============= CORPORATES ============= -->
+        <div class="product-card">
+          <div class="product-card-header">
+            <h4>Corporates · IG, HY, EM</h4>
+            <span class="tag">SPREAD-LED</span>
+          </div>
+          <div class="product-card-body">
+            <p class="summary">
+              The product where spread-to-benchmark is the trader's primary view, with price as derived. Linkage is bidirectional — edit either spread or price, the other follows.
+            </p>
+
+            <dl class="product-spec">
+              <dt>Quote unit</dt>
+              <dd>Price as % of par to 1/8 or to 3 decimal places (<code>99.875</code> or <code>99-7</code>). Spread to benchmark in basis points (G-spread, T-spread, Z-spread, OAS depending on bond). Yield in % to 3 decimals.</dd>
+
+              <dt>Min tick</dt>
+              <dd>Price: 1/8 (legacy) or 0.001 (modern) — config per CUSIP. Spread: 0.5 bp. Yield: 0.001%.</dd>
+
+              <dt>Tick keystroke</dt>
+              <dd><code>Alt+↑/↓</code> on spread cell = 1 bp · <code>Alt+Shift+↑/↓</code> = 5 bp · on price cell defaults to spread tick (re-prices through curve)</dd>
+
+              <dt>Linkage</dt>
+              <dd>Triangular: <code>{ price, spread, yield }</code> with <code>derive_from_anchor</code>. Anchor depends on which cell trader edits. Re-pricing engine is server-side via ViewServer — pending state shows spinner glyph during round-trip (target: &lt; 50ms).</dd>
+
+              <dt>Benchmark linkage</dt>
+              <dd>Spread is anchored to a benchmark CUSIP. When the benchmark ticks, all spreads on that benchmark recompute prices automatically — but those are <em>system</em> updates, not trader edits, and do not enter the undo stack.</dd>
+
+              <dt>Fat-finger</dt>
+              <dd>Spread Δ &gt; 25 bp triggers warning, &gt; 50 bp hard reject. IG and HY use different thresholds (HY can move 50 bp in a session, IG cannot).</dd>
+
+              <dt>Workup discount</dt>
+              <dd>Some trades go through workup protocol — initial level then size discovery. Edit pattern: stage initial level, post, then receive workup pings as separate inquiries. Each ping is a fresh row, not an edit to the original.</dd>
+
+              <dt>Publish targets</dt>
+              <dd>MarketAxess, Tradeweb, Bloomberg ALLQ, Trumid. RFQ-driven — most edits stage axes, few stream live.</dd>
+            </dl>
+
+            <div class="gotcha">
+              <strong>Gotcha</strong>
+              When a trader edits a spread, the price round-trips through the server. Two pending entries appear (spread = entered, price = computed-pending). Both share the same <code>intentId</code> so undo reverts together. The trader sees one yellow cell on spread and a yellow-spinner cell on price.
+            </div>
+          </div>
+        </div>
+
+        <!-- ============= CREDIT (existing) ============= -->
+        <div class="product-card">
+          <div class="product-card-header">
+            <h4>Credit · CDS, Index Tranches, CLO</h4>
+            <span class="tag">PROTOCOL-HEAVY</span>
+          </div>
+          <div class="product-card-body">
+            <p class="summary">
+              CDS is a different beast — running spread vs upfront, ISDA conventions, points up-front for distressed names. Index products (CDX, iTraxx) trade like a single instrument but reference a basket.
+            </p>
+
+            <dl class="product-spec">
+              <dt>Quote unit</dt>
+              <dd>Single-name CDS: running spread (bp) or points-up-front (% of notional) for stressed names. Index: spread or price (depending on series convention). CLO tranches: discount margin (DM) in bp over benchmark.</dd>
+
+              <dt>Min tick</dt>
+              <dd>CDS spread: 0.5 bp for liquid names, 1 bp for off-the-run. PUF: 0.125 (= 1/8 point). Index: 0.25 bp.</dd>
+
+              <dt>Tick keystroke</dt>
+              <dd>Same as corporates. <code>Ctrl+Alt+↑/↓</code> on PUF cell jumps in 1-point increments.</dd>
+
+              <dt>Linkage</dt>
+              <dd><code>{ runningSpread, puf, cleanPrice }</code> all derivable from each other given coupon convention and curve. Anchor configurable per protocol — distressed names pin to PUF, performing names pin to spread.</dd>
+
+              <dt>Convention switch</dt>
+              <dd>Same CUSIP can flip from spread-quoted to PUF-quoted as it stresses. The grid surfaces the active convention as a column-header badge; trader can toggle, which restages the column anchor.</dd>
+
+              <dt>Fat-finger</dt>
+              <dd>Spread Δ &gt; 50 bp warning for performing IG, &gt; 200 bp for HY. PUF Δ &gt; 5 points = warning. The threshold table is per-rating-bucket.</dd>
+
+              <dt>Index roll</dt>
+              <dd>Twice yearly the on-the-run series rolls (e.g., CDX.NA.IG.41 → 42). Active-series flag in reference data; old series moves to off-the-run pricing rules. Edit policy follows the active series automatically.</dd>
+
+              <dt>Publish targets</dt>
+              <dd>MarkitWire, ICE Link for SEF-required products. Voice-still-dominant for some single-names.</dd>
+            </dl>
+
+            <div class="gotcha">
+              <strong>Gotcha</strong>
+              CDS notional is a face amount, but CDS P&L is based on PV01 (= price-value-of-1-bp). Size-related fat-finger thresholds must be expressed in PV01-equivalent, not raw notional, or a 100MM 5Y trade will look the same as a 100MM 30Y trade. Two very different risk transfers.
+            </div>
+          </div>
+        </div>
+
+        <!-- ============= MUNI ============= -->
+        <div class="product-card">
+          <div class="product-card-header">
+            <h4>Munis · Tax-Exempt GO &amp; Revenue, Taxable</h4>
+            <span class="tag">YIELD-QUOTED · BID-WANTED</span>
+          </div>
+          <div class="product-card-body">
+            <p class="summary">
+              Yield-quoted serial bonds, dollar-quoted term bonds, and a bid-wanted dominant secondary market mean the edit workflow is fundamentally different. Less streaming, more inquiry-driven, MSRB G-18 compliance recordkeeping baked in.
+            </p>
+
+            <dl class="product-spec">
+              <dt>Quote unit</dt>
+              <dd><strong>Serial bonds:</strong> yield-to-worst (basis quote), e.g., <code>4.75</code> meaning 4.75% YTW. <strong>Dollar bonds (term, revenue):</strong> price as % of par in 1/8ths, like corporates. Same blotter must support both.</dd>
+
+              <dt>Min tick</dt>
+              <dd>Yield: 0.01% (1 bp YTW). Dollar bonds: 1/8 of a point.</dd>
+
+              <dt>Tick keystroke</dt>
+              <dd>On yield cell: <code>Alt+↑</code> increases yield (which decreases price — this surprises new traders). Inverse-direction warning the first time per session, then suppressed. <code>Alt+Shift+↑/↓</code> = 5 bp.</dd>
+
+              <dt>Linkage</dt>
+              <dd>For yield-quoted: <code>{ yield, equivPrice }</code> with <code>derive_from_anchor</code> = yield. For dollar bonds: same linkage as corporates. Coupon, call schedule, and tax-exempt status drive the price/yield calc — the engine needs full reference data per CUSIP.</dd>
+
+              <dt>Bid-wanted protocol</dt>
+              <dd>Most muni inquiry is bid-wanted, not standing axes. The grid mode toggles: when in bid-wanted view, edits stage <em>responses</em> to specific inquiries, not standing prices. Commit publishes to the originating ATS (TMC, Bloomberg BWIC, MMD).</dd>
+
+              <dt>Fat-finger</dt>
+              <dd>Yield Δ &gt; 25 bp warning, &gt; 100 bp hard reject. Calibrated wider than IG corporates because muni curves move more on illiquid names.</dd>
+
+              <dt>MSRB G-18 capture</dt>
+              <dd>Every commit snapshots the comparables panel state (recent trades, dealer offers, model fair-value) into the audit log alongside the edit. Required for fair-pricing defense. The commit pipeline writes both.</dd>
+
+              <dt>Publish targets</dt>
+              <dd>ICE TMC, Bloomberg, Tradeweb Direct, MuniBrokers. Bid-wanteds also flow through the BWIC system with hard deadlines — commit pipeline must respect the BWIC cutoff time as a constraint.</dd>
+            </dl>
+
+            <div class="gotcha">
+              <strong>Gotcha</strong>
+              The same trader's blotter has yield-quoted serials in row 1 and dollar-quoted terms in row 2. The "Price" column header changes meaning per-row. Solution: use a virtual <code>marketLevel</code> column that displays per-row according to the bond's quote convention, with a small badge showing which convention applies. Do not have separate yield and price columns visible — clutter wins.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <h3>Compact configuration matrix</h3>
+
+      <p>
+        For implementation reference, the same data above flattened into a single matrix.
+        Engineers building the validator and tick resolver should read from this — not
+        from the prose cards above.
+      </p>
+
+      <table class="config-matrix">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Primary unit</th>
+            <th>Min tick</th>
+            <th>Linkage strategy</th>
+            <th>FF warn / reject</th>
+            <th>Anchor cell</th>
+            <th>Publish style</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Treasuries OTR</td>
+            <td class="mono">32nds + halves</td>
+            <td class="mono">1/256</td>
+            <td>preserve_spread</td>
+            <td>8/32 / 1pt</td>
+            <td>price</td>
+            <td>streaming axe</td>
+          </tr>
+          <tr>
+            <td>Treasuries OFR</td>
+            <td class="mono">32nds</td>
+            <td class="mono">1/32</td>
+            <td>preserve_spread</td>
+            <td>8/32 / 1pt</td>
+            <td>price</td>
+            <td>streaming axe</td>
+          </tr>
+          <tr>
+            <td>Agencies</td>
+            <td class="mono">spread bp</td>
+            <td class="mono">0.5 bp</td>
+            <td>derive_from_anchor</td>
+            <td>10 / 25 bp</td>
+            <td>spread</td>
+            <td>streaming axe</td>
+          </tr>
+          <tr>
+            <td>FX majors</td>
+            <td class="mono">pipette</td>
+            <td class="mono">0.00001</td>
+            <td>preserve_spread (3-way)</td>
+            <td>20 / 50 pips</td>
+            <td>mid</td>
+            <td>streaming + tier</td>
+          </tr>
+          <tr>
+            <td>FX crosses</td>
+            <td class="mono">pipette</td>
+            <td class="mono">0.00001</td>
+            <td>preserve_spread (3-way)</td>
+            <td>50 / 200 pips</td>
+            <td>mid</td>
+            <td>streaming + tier</td>
+          </tr>
+          <tr>
+            <td>FX exotics</td>
+            <td class="mono">pip</td>
+            <td class="mono">0.0001</td>
+            <td>preserve_spread (3-way)</td>
+            <td>per-pair table</td>
+            <td>mid</td>
+            <td>RFQ + tier</td>
+          </tr>
+          <tr>
+            <td>IG corporates</td>
+            <td class="mono">spread bp</td>
+            <td class="mono">0.5 bp</td>
+            <td>derive_from_anchor (3-way)</td>
+            <td>10 / 25 bp</td>
+            <td>spread</td>
+            <td>RFQ-driven axe</td>
+          </tr>
+          <tr>
+            <td>HY corporates</td>
+            <td class="mono">price 1/8</td>
+            <td class="mono">0.125</td>
+            <td>derive_from_anchor (3-way)</td>
+            <td>1 / 3 pts</td>
+            <td>price</td>
+            <td>RFQ-driven axe</td>
+          </tr>
+          <tr>
+            <td>EM corporates</td>
+            <td class="mono">price decimal</td>
+            <td class="mono">0.001</td>
+            <td>derive_from_anchor (3-way)</td>
+            <td>1 / 5 pts</td>
+            <td>price</td>
+            <td>RFQ + voice</td>
+          </tr>
+          <tr>
+            <td>CDS single-name (perf)</td>
+            <td class="mono">running bp</td>
+            <td class="mono">0.5 bp</td>
+            <td>derive_from_anchor</td>
+            <td>25 / 50 bp</td>
+            <td>spread</td>
+            <td>SEF / voice</td>
+          </tr>
+          <tr>
+            <td>CDS single-name (stressed)</td>
+            <td class="mono">PUF points</td>
+            <td class="mono">0.125</td>
+            <td>derive_from_anchor</td>
+            <td>2 / 5 pts</td>
+            <td>puf</td>
+            <td>SEF / voice</td>
+          </tr>
+          <tr>
+            <td>CDX / iTraxx</td>
+            <td class="mono">spread bp</td>
+            <td class="mono">0.25 bp</td>
+            <td>derive_from_anchor</td>
+            <td>5 / 15 bp</td>
+            <td>spread</td>
+            <td>SEF</td>
+          </tr>
+          <tr>
+            <td>CLO tranches</td>
+            <td class="mono">DM bp</td>
+            <td class="mono">5 bp</td>
+            <td>derive_from_anchor</td>
+            <td>50 / 150 bp</td>
+            <td>dm</td>
+            <td>BWIC / RFQ</td>
+          </tr>
+          <tr>
+            <td>Munis serial (TE)</td>
+            <td class="mono">YTW %</td>
+            <td class="mono">0.01%</td>
+            <td>derive_from_anchor</td>
+            <td>25 / 100 bp</td>
+            <td>yield</td>
+            <td>BWIC / TMC</td>
+          </tr>
+          <tr>
+            <td>Munis dollar / term</td>
+            <td class="mono">price 1/8</td>
+            <td class="mono">0.125</td>
+            <td>derive_from_anchor</td>
+            <td>1 / 5 pts</td>
+            <td>price</td>
+            <td>BWIC / TMC</td>
+          </tr>
+          <tr>
+            <td>Munis taxable</td>
+            <td class="mono">spread bp</td>
+            <td class="mono">0.5 bp</td>
+            <td>derive_from_anchor</td>
+            <td>15 / 50 bp</td>
+            <td>spread</td>
+            <td>BWIC / TMC</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <aside>
+        <div class="label">Reference-data dependency</div>
+        Every config-matrix row pulls additional per-CUSIP attributes from reference data: coupon, day-count, call schedule, benchmark, quote-convention flag, active-series flag for index products, tax-exempt status for munis, rating bucket for fat-finger lookups. The edit subsystem is downstream of reference data — a stale or missing reference record blocks editing on that row and surfaces a clear "missing reference data" cell state, not a silent fallback.
+      </aside>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="cross-product">
+      <div class="section-marker">
+        <span class="num">§ 11</span>
+        <h2>Cross-product workflows</h2>
+      </div>
+
+      <p class="lead">
+        Several real workflows span products. The architecture handles them via
+        the same <code>intentId</code> mechanism that groups paired-tick fan-outs —
+        a single intent can write across products and is committed atomically.
+      </p>
+
+      <h3>Hedge-linked edits (rates ↔ corporates)</h3>
+
+      <p>
+        A corporate trader buys 5MM IG corporate, hedges with 4MM 5Y treasury short.
+        On the blotter, the position rows are linked: editing the corporate's working
+        size proposes a paired edit on the hedge size using the configured hedge ratio
+        (DV01-matched, not notional-matched).
+      </p>
+
+      <ul>
+        <li>Hedge ratio is config per (corporate-CUSIP, treasury-CUSIP) pair, computed nightly from DV01s and refreshable on demand.</li>
+        <li>Edit on the corporate row stages a pending entry on the corporate row <em>and</em> on the linked treasury row, with shared <code>intentId</code>.</li>
+        <li>Trader sees both pending cells, with a small chain glyph between rows in the gutter. Either can be unlinked at edit time if the desk wants asymmetric exposure.</li>
+        <li>Commit publishes the corporate axe to MarketAxess and the treasury axe to BrokerTec — different venues, single envelope, all-or-nothing semantics.</li>
+      </ul>
+
+      <h3>Curve-shift bulk edit (rates)</h3>
+
+      <p>
+        Rate trader wants to mark the entire treasury curve up 1 bp in yield. Selects
+        the curve column, applies a <code>CurveShiftIntent</code>. The intent expands
+        to one EditIntent per CUSIP, each with the appropriate price delta computed
+        from that bond's duration. Single undo frame reverses the entire curve shift.
+      </p>
+
+      <h3>Basis trade staging (rates ↔ futures)</h3>
+
+      <p>
+        Cash treasury vs treasury futures basis trade. Two rows linked with a
+        conversion-factor-aware ratio. Editing the cash leg's size cascades to the
+        futures leg's contract count via <code>derive_from_anchor</code> with a
+        custom formula. Same intent, atomic commit, undo treats the pair as one.
+      </p>
+
+      <h3>Index roll (credit, FX-fwd)</h3>
+
+      <p>
+        Credit index roll twice a year, FX forward roll daily. Both involve
+        cancelling axes on the old series/tenor and re-staging on the new. Modeled
+        as a <code>RollIntent</code> that produces a paired (cancel, restage) edit
+        on each affected CUSIP. The cancel and restage share an intent and commit
+        as a single envelope; partial failure leaves nothing exposed.
+      </p>
+
+      <h3>Cross-product portfolio trade</h3>
+
+      <p>
+        Buy-side sends a 200-line portfolio trade across IG, HY, and EM. Sell-side
+        prices the basket. The grid loads all 200 rows with a shared
+        <code>basketId</code>. Tick adjustments apply within product (HY ticks in 1/8,
+        IG in 0.5 bp); commit envelopes are partitioned by venue (MarketAxess for IG/HY,
+        Trumid for HY portfolio protocol) but logically tied to one basketId.
+      </p>
+
+      <p>
+        The cross-product invariant: the trader sees one pending state for the basket;
+        the commit pipeline handles per-venue envelopes; the audit log records one
+        basket-level commit with venue-level acknowledgments rolled up.
+      </p>
+
+      <aside>
+        <div class="label">Implementation note</div>
+        Cross-product intents do not require new architecture — they are existing primitives composed via shared <code>intentId</code> and <code>basketId</code>. The work is in the linkage configuration (which rows are paired, with what ratio, expiring when) and in the venue-routing logic of the commit pipeline. Both are config-driven, not code paths.
+      </aside>
+    </section>
+
+    <!-- ========================================================== -->
+    <section id="pitfalls">
+      <div class="section-marker">
+        <span class="num">§ 12</span>
+        <h2>Known pitfalls</h2>
+      </div>
+
+      <p>
+        Things to plan for now, not after the first production incident.
+      </p>
+
+      <div class="tradeoff-grid">
+        <div class="tradeoff">
+          <div class="label dont">Pitfall · 1</div>
+          <p>Sorted/filtered grid + range selection. AG-Grid range selections are visual ranges, not row-id ranges. Resolve to row IDs at intent creation, not at commit, or the trader can sort mid-edit and apply the tick to the wrong rows.</p>
+        </div>
+
+        <div class="tradeoff">
+          <div class="label dont">Pitfall · 2</div>
+          <p>Undo across reconnect. WebSocket drops, trader reconnects. The undo stack must persist (sessionStorage or server-side per-trader) so a flaky network doesn't lose the morning's edits.</p>
+        </div>
+
+        <div class="tradeoff">
+          <div class="label dont">Pitfall · 3</div>
+          <p>Two traders, same desk, same row. Sell-side desks share books. Optimistic concurrency: stage edits include a <code>baseVersion</code>. Commit fails with a clear merge surface if a peer committed first.</p>
+        </div>
+
+        <div class="tradeoff">
+          <div class="label dont">Pitfall · 4</div>
+          <p>Performance with 600+ columns. Pending buffer keyed by (rowId, colId) Map. Don't iterate the buffer per render — emit cell-level subscriptions and re-render only affected cells via AG-Grid's <code>refreshCells({ rowNodes, columns })</code>.</p>
+        </div>
+
+        <div class="tradeoff">
+          <div class="label dont">Pitfall · 5</div>
+          <p>Tick size on derived columns. A trader ticks "yield" by 1bp; you compute price by re-pricing. The price column shows the derived pending value but does not enter the undo stack as a separate edit. Mark derived cells with a <code>derivedFrom</code> attribute and exclude them from undo frames.</p>
+        </div>
+
+        <div class="tradeoff">
+          <div class="label dont">Pitfall · 6</div>
+          <p>Read-only-edit mode. AG-Grid's read-only-edit emits cellEditRequest instead of writing. If you flip the grid into this mode, the entire flow above must route through that event. Pick one mode at coordinator init and stick to it.</p>
+        </div>
+      </div>
+
+      <h3>Open questions for the next iteration</h3>
+      <ul>
+        <li>Should paired-tick respect a per-trader fat-finger override (sales-trader vs head-of-desk)?</li>
+        <li>Per-row undo across the committed tier — surface in UI as "show audit trail" or hide it?</li>
+        <li>Bulk paste of a 100-row spreadsheet from chat — stage as one frame or one per row?</li>
+        <li>Does the linkage config belong in the column config or in a separate <code>edit-policy</code> config artifact? Affects how it's promoted dev → UAT → prod.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <span>MarketsUI · MUI-GRID-001</span>
+      <span>v0.1 draft · for review with credit/MBS desk leads</span>
+    </footer>
+  </div>
+</body>
+</html>
