@@ -11,7 +11,7 @@ showcase. **What's different:** profile persistence routes through
 ## Run
 
 ```bash
-# From monorepo root
+# From monorepo root — Dexie-only mode (default)
 npm run dev:demo-configservice-react
 # Vite at http://localhost:5191
 ```
@@ -25,6 +25,26 @@ npm run dev
 
 Port **5191** (5190 is owned by `demo-react`, the plain-`DexieAdapter`
 sibling). Both can run side-by-side for visual comparison.
+
+### REST-backed mode
+
+Bring up the REST backend and point the demo at it:
+
+```bash
+# Terminal 1 — REST server on :3001
+cd apps/config-service-server && npm run dev
+
+# Terminal 2 — demo wired to the server
+cd apps/demo-configservice-react
+cp .env.example .env.local
+# uncomment VITE_CONFIG_SERVICE_URL in .env.local
+npm run dev
+```
+
+Same client code; ConfigManager swaps `LocalConfigClient` for
+`RestConfigClient` based on the env flag. Writes mirror to REST and
+Dexie; reads still come from Dexie. Failed REST writes queue in
+`PENDING_SYNC` and retry every 10s.
 
 ## What the demo proves
 
@@ -81,12 +101,17 @@ bundle from ConfigService, filtered by `appId=TestApp` + `userId=<new>`
 ### 4. Profiles persist across reloads
 
 Reload the page — whatever profile was active per-user comes back.
-Dexie under the hood (this demo runs `createConfigManager({ seedConfigUrl })`
-in pure-Dexie mode — no `configServiceRestUrl`, so all writes land in
-IndexedDB). A production app would pass
-`configServiceRestUrl: 'https://…'` and the **same client code** would
-round-trip via the corporate ConfigService backend, no MarketsGrid
-changes needed.
+Backend depends on the env flag:
+
+- **`VITE_CONFIG_SERVICE_URL` unset** → Dexie-only. All writes land
+  in IndexedDB; nothing leaves the browser.
+- **`VITE_CONFIG_SERVICE_URL=http://localhost:3001/api/v1`** → REST
+  mode. Writes mirror to the server first, then Dexie. Failed writes
+  queue in `PENDING_SYNC` and retry every 10s.
+
+Same MarketsGrid code, same `createConfigServiceStorage` factory,
+same profile shapes — only the ConfigManager's `configServiceRestUrl`
+option flips.
 
 ### 5. Admin actions slot — Database icon on the right edge of the primary toolbar
 
@@ -135,7 +160,7 @@ lockstep.
 | User switching | n/a | dev1 / Alice / Bob tabs in the header |
 | Admin actions | not shown | Database icon on right edge of primary toolbar → Config Browser popup |
 | Seed data | none | `public/seed-config.json` loaded on first boot |
-| Production path | `DexieAdapter` is dev-only | Same code hits REST ConfigService with `configServiceRestUrl` |
+| Production path | `DexieAdapter` is dev-only | Set `VITE_CONFIG_SERVICE_URL` → same code hits REST ConfigService |
 
 Both run simultaneously and persist to different IndexedDB databases
 (`demo-react` → Grid Customizer profiles DB; this demo →
