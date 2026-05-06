@@ -68,6 +68,7 @@ type ApplyOverSource = Partial<Omit<ColumnTemplate, 'filter' | 'rowGrouping'>> &
   Partial<Omit<ColumnAssignment, 'filter' | 'rowGrouping'>> & {
     filter?: unknown;
     rowGrouping?: unknown;
+    cellEditor?: unknown;
   };
 
 function applyOver(
@@ -82,7 +83,11 @@ function applyOver(
     target.headerStyleOverrides = mergeStyle(target.headerStyleOverrides, source.headerStyleOverrides);
   }
   // Last-writer-wins for everything else.
-  const keys: (keyof ColumnAssignment)[] = [
+  // `cellEditor` lives on the narrowed ColumnAssignment from
+  // column-customization, not the base type imported here. List it as
+  // a string key alongside the typed ones; the for-loop reads off the
+  // loose `ApplyOverSource` shape so the lookup still works.
+  const keys: (keyof ColumnAssignment | 'cellEditor')[] = [
     'valueFormatterTemplate',
     'sortable',
     'filterable',
@@ -90,6 +95,7 @@ function applyOver(
     'editable',
     'cellEditorName',
     'cellEditorParams',
+    'cellEditor',
     'cellRendererName',
     'filter',
     'rowGrouping',
@@ -101,7 +107,7 @@ function applyOver(
     'templateIds',
   ];
   for (const k of keys) {
-    const v = (source as Partial<ColumnAssignment>)[k];
+    const v = (source as Record<string, unknown>)[k as string];
     if (v !== undefined) (target as unknown as Record<string, unknown>)[k as string] = v;
   }
   return target;

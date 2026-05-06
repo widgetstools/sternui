@@ -17,8 +17,12 @@ import {
   addTemplateReducer,
   applyAlignmentReducer,
   applyBordersReducer,
+  applyCellEditorKindReducer,
+  applyCellEditorValuesReducer,
   applyColorsReducer,
   applyEditableReducer,
+  applyFilterPrimaryKindReducer,
+  applyFloatingFilterReducer,
   applyFormatterReducer,
   applyHeaderNameReducer,
   applyTemplateToColumnsReducer,
@@ -37,8 +41,10 @@ import {
   useModuleState,
   useUndoRedo,
   type BorderSpec,
+  type CellEditorKind,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
+  type FilterKind,
   type ValueFormatterTemplate,
 } from '@marketsui/core';
 import {
@@ -101,6 +107,28 @@ export interface FormatterState {
   /** True when the resolved assignment forces cells to be editable.
    *  Drives the editable-toggle pill's active state. */
   cellsEditable: boolean;
+  /** Currently-configured cell editor kind on the active column.
+   *  Undefined when the column has no structured cellEditor override. */
+  cellEditorKind?: CellEditorKind;
+  /** Static value list used by select / rich-select editors. Undefined
+   *  when in AppData mode or when no values were authored. */
+  cellEditorValues?: ReadonlyArray<string | number>;
+  /** AppData binding for select / rich-select editor values. Format:
+   *  `{{providerName.key}}`. Undefined when in static-list mode. */
+  cellEditorValuesSource?: string;
+  /** "Primary" filter kind shown by the formatter dropdown — when the
+   *  column's filter is an `agMultiColumnFilter`, this is sub-1. When
+   *  it's a non-multi single kind, that kind is reflected directly.
+   *  Undefined when filtering is off / not configured. */
+  filterPrimaryKind?: FilterKind;
+  /** True when the active column has a non-quick-pickable filter
+   *  configuration (e.g. streamSafe wrappers, custom multiFilters list
+   *  with non-default sub-2). Drives a "Custom" badge on the dropdown
+   *  so the user knows the granular config lives in the settings panel
+   *  and the quick-pick would overwrite it. */
+  filterIsCustom: boolean;
+  /** Floating filter row visibility on the active column. */
+  floatingFilterOn: boolean;
   /** Human-readable list of template categories the active column has
    *  authored that would be captured if "Save as new" / "Update" fired
    *  right now (e.g. `['Cell style', 'Formatter', 'Filter']`). Drives
@@ -158,6 +186,22 @@ export interface FormatterActions {
   /** Toggle the `editable` override on every targeted column. Active
    *  state writes `true`, inactive writes `false` (explicit lock). */
   toggleEditable: () => void;
+  /** Set or clear the structured cellEditor kind on every targeted
+   *  column. Pass `undefined` to remove the override entirely. */
+  setCellEditorKind: (kind: CellEditorKind | undefined) => void;
+  /** Patch the static `values` and / or `valuesSource` on the targeted
+   *  columns' cellEditor config. No-op when no kind is set. Either
+   *  field can be cleared by passing `undefined`. */
+  setCellEditorValues: (
+    patch: { values?: Array<string | number> | undefined; valuesSource?: string | undefined },
+  ) => void;
+  /** Set or clear the primary filter kind. When set, writes an
+   *  `agMultiColumnFilter` envelope with the chosen kind as sub-1 and
+   *  `agSetColumnFilter` as the implicit sub-2. Pass `undefined` to
+   *  drop the filter config entirely. */
+  setFilterPrimaryKind: (kind: FilterKind | undefined) => void;
+  /** Toggle the floating-filter row on every targeted column. */
+  toggleFloatingFilter: () => void;
 }
 
 export interface UseFormatterResult {
@@ -253,7 +297,7 @@ export function useFormatter(): UseFormatterResult {
     ) {
       labels.push('Behavior');
     }
-    if (fields.cellEditorName || fields.cellEditorParams) labels.push('Editor');
+    if (fields.cellEditorName || fields.cellEditorParams || fields.cellEditor) labels.push('Editor');
     if (fields.cellRendererName) labels.push('Renderer');
     if (fields.filter) labels.push('Filter');
     if (fields.rowGrouping) labels.push('Grouping');
@@ -406,6 +450,72 @@ export function useFormatter(): UseFormatterResult {
     setCustStateWithHistory(applyEditableReducer(colIdsRef.current, !current));
   }, [setCustStateWithHistory, fmt.editable]);
 
+  // ─── Editor + filter quick-pick reads ────────────────────────────
+  //
+  // Filter dropdown shows the streamSafe wrappers as Text/Number. Any
+  // other kind (raw agText/agNumber/agDate, plain agMulti, custom
+  // multiFilters list) is surfaced as "Custom" so the dropdown won't
+  // silently overwrite tuned config when the user touches it — the
+  // column-settings panel stays the source of truth for those.
+  const editorAndFilter = useMemo(() => {
+    const colId = colIds[0];
+    const a = colId ? custState?.assignments?.[colId] : undefined;
+    const cellEditorKind = a?.cellEditor?.kind;
+    const cellEditorValues = a?.cellEditor?.values;
+    const cellEditorValuesSource = a?.cellEditor?.valuesSource;
+    const filter = a?.filter;
+    let filterPrimaryKind: FilterKind | undefined;
+    let filterIsCustom = false;
+    if (filter?.enabled === false) {
+      filterPrimaryKind = undefined;
+    } else if (filter?.kind === 'streamSafeMultiColumnFilter'
+            || filter?.kind === 'streamSafeMultiNumberColumnFilter') {
+      filterPrimaryKind = filter.kind;
+    } else if (filter?.kind) {
+      filterIsCustom = true;
+    }
+    const floatingFilterOn = filter?.floatingFilter === true;
+    return {
+      cellEditorKind,
+      cellEditorValues,
+      cellEditorValuesSource,
+      filterPrimaryKind,
+      filterIsCustom,
+      floatingFilterOn,
+    };
+  }, [colIds, custState]);
+
+  const setCellEditorKind = useCallback(
+    (kind: CellEditorKind | undefined) => {
+      if (!colIdsRef.current.length) return;
+      setCustStateWithHistory(applyCellEditorKindReducer(colIdsRef.current, kind));
+    },
+    [setCustStateWithHistory],
+  );
+
+  const setCellEditorValues = useCallback(
+    (patch: { values?: Array<string | number> | undefined; valuesSource?: string | undefined }) => {
+      if (!colIdsRef.current.length) return;
+      setCustStateWithHistory(applyCellEditorValuesReducer(colIdsRef.current, patch));
+    },
+    [setCustStateWithHistory],
+  );
+
+  const setFilterPrimaryKind = useCallback(
+    (kind: FilterKind | undefined) => {
+      if (!colIdsRef.current.length) return;
+      setCustStateWithHistory(applyFilterPrimaryKindReducer(colIdsRef.current, kind));
+    },
+    [setCustStateWithHistory],
+  );
+
+  const toggleFloatingFilter = useCallback(() => {
+    if (!colIdsRef.current.length) return;
+    setCustStateWithHistory(
+      applyFloatingFilterReducer(colIdsRef.current, !editorAndFilter.floatingFilterOn),
+    );
+  }, [setCustStateWithHistory, editorAndFilter.floatingFilterOn]);
+
   // Decimals — read the live state so consecutive clicks compound on
   // the latest committed formatter.
   const getCurrentDecimals = useCallback((): number => {
@@ -526,6 +636,12 @@ export function useFormatter(): UseFormatterResult {
       canRedo: undoRedo.canRedo,
       singleColumnSelected: colIds.length === 1,
       cellsEditable: !!fmt.editable,
+      cellEditorKind: editorAndFilter.cellEditorKind,
+      cellEditorValues: editorAndFilter.cellEditorValues,
+      cellEditorValuesSource: editorAndFilter.cellEditorValuesSource,
+      filterPrimaryKind: editorAndFilter.filterPrimaryKind,
+      filterIsCustom: editorAndFilter.filterIsCustom,
+      floatingFilterOn: editorAndFilter.floatingFilterOn,
       capturableFields,
     },
     actions: {
@@ -558,6 +674,10 @@ export function useFormatter(): UseFormatterResult {
       redo: undoRedo.redo,
       setHeaderName,
       toggleEditable,
+      setCellEditorKind,
+      setCellEditorValues,
+      setFilterPrimaryKind,
+      toggleFloatingFilter,
     },
   };
 }

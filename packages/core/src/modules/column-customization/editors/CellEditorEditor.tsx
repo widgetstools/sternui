@@ -482,7 +482,7 @@ function LargeTextParamsEditor({
 
 /** Read the platform's AppData adapter. May be undefined when the host
  *  didn't plumb one in — callers must handle that gracefully. */
-function useAppDataLookup(): AppDataLookup | undefined {
+export function useAppDataLookup(): AppDataLookup | undefined {
   const platform = useGridPlatform();
   return platform.resources.appData?.();
 }
@@ -494,7 +494,7 @@ function useAppDataLookup(): AppDataLookup | undefined {
  *  guarantee through a pure-fn boundary. The store-fed pattern below
  *  caches the array in component state and only updates it when the
  *  subscribe-notify fires. */
-function useAppDataProviders(lookup: AppDataLookup | undefined): string[] {
+export function useAppDataProviders(lookup: AppDataLookup | undefined): string[] {
   const [providers, setProviders] = useState<string[]>(() =>
     lookup?.listProviders ? lookup.listProviders() : [],
   );
@@ -516,7 +516,7 @@ function useAppDataProviders(lookup: AppDataLookup | undefined): string[] {
  *  array when the provider name is undefined or the lookup doesn't
  *  expose `keysOf`. Same useState+useEffect pattern as
  *  useAppDataProviders for the same reason. */
-function useAppDataKeys(lookup: AppDataLookup | undefined, providerName: string | undefined): string[] {
+export function useAppDataKeys(lookup: AppDataLookup | undefined, providerName: string | undefined): string[] {
   const [keys, setKeys] = useState<string[]>(() =>
     lookup?.keysOf && providerName ? lookup.keysOf(providerName) : [],
   );
@@ -536,7 +536,7 @@ function useAppDataKeys(lookup: AppDataLookup | undefined, providerName: string 
 
 // ─── Source-string parsing ─────────────────────────────────────────────────
 
-function parseValuesSource(source: string | undefined): { providerName: string | undefined; key: string | undefined } {
+export function parseValuesSource(source: string | undefined): { providerName: string | undefined; key: string | undefined } {
   if (!source) return { providerName: undefined, key: undefined };
   const m = /^\s*\{\{\s*([^.{}]+?)\s*\.\s*([^{}]*?)\s*\}\}\s*$/.exec(source);
   if (!m) return { providerName: undefined, key: undefined };

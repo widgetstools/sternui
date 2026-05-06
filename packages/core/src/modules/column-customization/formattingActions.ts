@@ -25,8 +25,11 @@
 import type {
   BorderSpec,
   CellStyleOverrides,
+  CellEditorKind,
   ColumnAssignment,
   ColumnCustomizationState,
+  ColumnFilterConfig,
+  FilterKind,
   ValueFormatterTemplate,
 } from './state';
 
@@ -232,6 +235,174 @@ export function applyEditableReducer(
       const next: ColumnAssignment = { ...a };
       if (editable === undefined) delete next.editable;
       else next.editable = editable;
+      assignments[colId] = next;
+    }
+    return { ...base, assignments };
+  };
+}
+
+// ─── Writers: cell editor + filter (formatter quick-pick surface) ─────
+
+/**
+ * Set or clear the structured `cellEditor` config on each column.
+ *
+ * Quick-pick surface — the formatter's editor dropdown writes the kind
+ * here. Existing `params` / `values` / `valuesSource` stay intact when
+ * the kind changes (preserves any tuning the user did from the column
+ * settings panel). Passing `undefined` removes the cellEditor entirely.
+ *
+ * Side effect: setting a kind also flips `editable: true` on the
+ * assignment so AG-Grid actually opens the editor — without that
+ * flag, picking an editor is a silent no-op (the user's reported
+ * confusion). Passing `undefined` leaves `editable` alone so the
+ * user can keep a column editable with the default text editor by
+ * clearing the kind without unlocking → re-locking.
+ */
+export function applyCellEditorKindReducer(
+  colIds: readonly string[],
+  kind: CellEditorKind | undefined,
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (colIds.length === 0) return base;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a: ColumnAssignment = assignments[colId] ?? { colId };
+      const next: ColumnAssignment = { ...a };
+      if (kind === undefined) {
+        delete next.cellEditor;
+      } else {
+        const existing = a.cellEditor;
+        next.cellEditor = existing
+          ? { ...existing, kind }
+          : { kind };
+        // Auto-enable editing — picking an editor is meaningless when
+        // the cell is locked. Only set explicitly when not already
+        // true so we don't bump a `false` that the user set on
+        // purpose to a `true` they didn't ask for; instead, force it
+        // to `true` (this matches user intent: "I picked an editor,
+        // so I want to edit").
+        next.editable = true;
+      }
+      assignments[colId] = next;
+    }
+    return { ...base, assignments };
+  };
+}
+
+/**
+ * Update the `values` / `valuesSource` of an existing structured
+ * `cellEditor` config. Only meaningful when the column already has
+ * `cellEditor.kind` set (otherwise the patch is a no-op — the
+ * resolver only emits values when a kind is present). Used by the
+ * formatter's "values source" popover for select / rich-select
+ * editors. Either field can be set independently — passing
+ * `undefined` clears that field. The other field is preserved so
+ * callers can flip modes without losing their work.
+ */
+export function applyCellEditorValuesReducer(
+  colIds: readonly string[],
+  patch: { values?: Array<string | number> | undefined; valuesSource?: string | undefined },
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (colIds.length === 0) return base;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a = assignments[colId];
+      if (!a?.cellEditor) continue;
+      const nextEditor = { ...a.cellEditor };
+      if ('values' in patch) {
+        if (patch.values === undefined) delete nextEditor.values;
+        else nextEditor.values = patch.values;
+      }
+      if ('valuesSource' in patch) {
+        if (patch.valuesSource === undefined) delete nextEditor.valuesSource;
+        else nextEditor.valuesSource = patch.valuesSource;
+      }
+      assignments[colId] = { ...a, cellEditor: nextEditor };
+    }
+    return { ...base, assignments };
+  };
+}
+
+/**
+ * Quick-pick filter writer.
+ *
+ * The formatter exposes a single "primary filter" dropdown — picking
+ * Text or Number writes one of the platform's streamSafe wrapper
+ * kinds (`streamSafeMultiColumnFilter` for text,
+ * `streamSafeMultiNumberColumnFilter` for number). Both wrappers
+ * already bundle an `agMultiColumnFilter` with the typed primary
+ * filter as sub-1 + `agSetColumnFilter` as sub-2, AND wire in the
+ * stream-safe floating filter input so the row stays typeable under
+ * live data updates. Granular tuning (debounce, sub-filter labels,
+ * set-filter options) stays in the column-settings panel.
+ *
+ * Passing `undefined` for `primary` clears the filter config entirely
+ * (column falls back to host defaults). Any `FilterKind` is accepted
+ * so power-users wiring this through templates aren't constrained to
+ * the quick-pick subset.
+ */
+export function applyFilterPrimaryKindReducer(
+  colIds: readonly string[],
+  primary: FilterKind | undefined,
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (colIds.length === 0) return base;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a: ColumnAssignment = assignments[colId] ?? { colId };
+      const next: ColumnAssignment = { ...a };
+      if (primary === undefined) {
+        delete next.filter;
+      } else {
+        const existing: ColumnFilterConfig = a.filter ?? {};
+        next.filter = {
+          ...existing,
+          enabled: true,
+          kind: primary,
+          // streamSafe wrappers carry their own internal multi+set
+          // composition — drop any prior multiFilters override that
+          // would otherwise force-cast back to a plain multi.
+          multiFilters: undefined,
+        };
+      }
+      assignments[colId] = next;
+    }
+    return { ...base, assignments };
+  };
+}
+
+/**
+ * Toggle the `floatingFilter` flag on each column's filter config. If
+ * the column has no filter config yet, an enabled multi+set default is
+ * created so the floating-filter row has something to render against.
+ */
+export function applyFloatingFilterReducer(
+  colIds: readonly string[],
+  on: boolean,
+): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
+  return (prev) => {
+    const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    if (colIds.length === 0) return base;
+
+    const assignments = { ...base.assignments };
+    for (const colId of colIds) {
+      const a: ColumnAssignment = assignments[colId] ?? { colId };
+      const existing: ColumnFilterConfig = a.filter ?? {};
+      const next: ColumnAssignment = {
+        ...a,
+        filter: {
+          ...existing,
+          enabled: existing.enabled ?? true,
+          floatingFilter: on,
+        },
+      };
       assignments[colId] = next;
     }
     return { ...base, assignments };

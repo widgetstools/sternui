@@ -150,6 +150,8 @@ export type {
   ColumnFilterConfig,
   RowGroupingConfig,
   FilterKind,
+  CellEditorKind,
+  ColumnCellEditorConfig,
   AggFuncName,
   SetFilterOptions,
   MultiFilterEntry,
@@ -160,6 +162,12 @@ export {
   applyRowGroupingConfigToColDef,
   cssEscapeColId,
 } from './transforms';
+export {
+  useAppDataLookup,
+  useAppDataProviders,
+  useAppDataKeys,
+  parseValuesSource,
+} from './editors/CellEditorEditor';
 export {
   overrideKey,
   stripUndefined,
@@ -172,6 +180,10 @@ export {
   clearAllBordersReducer,
   applyHeaderNameReducer,
   applyEditableReducer,
+  applyCellEditorKindReducer,
+  applyCellEditorValuesReducer,
+  applyFilterPrimaryKindReducer,
+  applyFloatingFilterReducer,
   applyFormatterReducer,
   applyTemplateToColumnsReducer,
   removeTemplateRefFromAssignmentsReducer,

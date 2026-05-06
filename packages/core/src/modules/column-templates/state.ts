@@ -27,6 +27,7 @@ import type {
   ValueFormatterTemplate,
 } from '../../colDef';
 import type {
+  ColumnCellEditorConfig,
   ColumnFilterConfig,
   RowGroupingConfig,
 } from '../column-customization/state';
@@ -58,6 +59,13 @@ export interface ColumnTemplate {
   cellEditorName?: string;
   cellEditorParams?: Record<string, unknown>;
   cellRendererName?: string;
+  // Structured cell-editor config — when set, overrides the registry
+  // keys above (the column-customization transform resolves it into
+  // `cellEditor` + `cellEditorParams` on the colDef). Captures kind,
+  // values, valuesSource ({{provider.key}}), and editor-specific
+  // params so a "Status code" template authored once via the
+  // formatter's quick-pick reproduces the dropdown across columns.
+  cellEditor?: ColumnCellEditorConfig;
   // Filter + grouping configuration (opaque last-writer-wins blobs)
   filter?: ColumnFilterConfig;
   rowGrouping?: RowGroupingTemplate;
