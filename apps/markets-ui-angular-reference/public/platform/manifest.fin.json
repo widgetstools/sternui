@@ -9,7 +9,7 @@
   "platform": {
     "uuid": "angular-workspace-starter",
     "icon": "http://localhost:4200/dock-provider.png",
-    "autoShow": true,
+    "autoShow": false,
     "providerUrl": "http://localhost:4200/platform/provider",
     "preventQuitOnLastWindowClosed": true
   },

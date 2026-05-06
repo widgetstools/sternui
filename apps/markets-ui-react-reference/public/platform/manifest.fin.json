@@ -9,7 +9,7 @@
   "platform": {
     "uuid": "react-workspace-starter",
     "icon": "http://localhost:5174/dock-provider.png",
-    "autoShow": true,
+    "autoShow": false,
     "providerUrl": "http://localhost:5174/platform/provider",
     "preventQuitOnLastWindowClosed": true
   },
