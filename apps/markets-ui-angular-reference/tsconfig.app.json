@@ -8,8 +8,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "../../node_modules/@marketsui/icons-svg/index.ts",
-    "../../node_modules/@marketsui/icons-svg/all-icons.ts"
+    "../../node_modules/@starui/icons-svg/index.ts",
+    "../../node_modules/@starui/icons-svg/allIcons.ts"
   ],
   "exclude": [
     "src/**/*.spec.ts"

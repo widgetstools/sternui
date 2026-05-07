@@ -2,12 +2,12 @@
  * WorkspaceSetupPageComponent
  *
  * Thin wrapper that renders the WorkspaceSetupComponent from
- * @marketsui/angular-dock-editor at the /workspace-setup route.
+ * @starui/angular-dock-editor at the /workspace-setup route.
  * Mirrors the dock-editor-page / registry-editor-page wrapper pattern.
  */
 
 import { Component } from '@angular/core';
-import { WorkspaceSetupComponent } from '@marketsui/angular-dock-editor';
+import { WorkspaceSetupComponent } from '@starui/angular-dock-editor';
 
 @Component({
   selector: 'app-workspace-setup-page',

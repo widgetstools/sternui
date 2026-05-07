@@ -2,7 +2,7 @@
  * ProviderComponent
  *
  * The OpenFin platform provider window — Angular equivalent of the
- * React Provider.tsx. Calls initWorkspace() from @marketsui/openfin-platform
+ * React Provider.tsx. Calls initWorkspace() from @starui/openfin-platform
  * to register the dock, set up custom actions, and initialise the
  * config service.
  *
@@ -12,7 +12,7 @@
 
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { initWorkspace } from '@marketsui/openfin-platform';
+import { initWorkspace } from '@starui/openfin-platform';
 
 @Component({
   selector: 'app-provider',

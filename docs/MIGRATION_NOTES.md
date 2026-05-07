@@ -15,21 +15,21 @@ original commits, not the merge commit.
 
 ## Namespace changes
 
-Every package was renamed to the `@marketsui/*` namespace during
+Every package was renamed to the `@starui/*` namespace during
 consolidation:
 
 | Old package | New package |
 |---|---|
-| `@grid-customizer/core` | `@marketsui/core` |
-| `@grid-customizer/markets-grid` | `@marketsui/markets-grid` |
-| `@stern/widget-sdk` | `@marketsui/widget-sdk` |
-| `@stern/widgets` | `@marketsui/widgets-react` |
-| markets-ui `packages/config-service` | `@marketsui/config-service` |
-| markets-ui `packages/component-host` | `@marketsui/component-host` |
-| markets-ui `packages/openfin-workspace` | `@marketsui/openfin-platform` |
-| stern-2 `packages/openfin-platform` | `@marketsui/openfin-platform-stern` |
+| `@grid-customizer/core` | `@starui/core` |
+| `@grid-customizer/markets-grid` | `@starui/markets-grid` |
+| `@stern/widget-sdk` | `@starui/widget-sdk` |
+| `@stern/widgets` | `@starui/widgets-react` |
+| markets-ui `packages/config-service` | `@starui/config-service` |
+| markets-ui `packages/component-host` | `@starui/component-host` |
+| markets-ui `packages/openfin-workspace` | `@starui/openfin-platform` |
+| stern-2 `packages/openfin-platform` | `@starui/openfin-platform-stern` |
 | markets-ui `packages/react-tools` + stern-2 React hooks | merged — see `packages/widgets-react` / `packages/dock-editor-react` / `packages/registry-editor-react` |
-| markets-ui `packages/angular-tools` | `@marketsui/angular` / `@marketsui/dock-editor-angular` / `@marketsui/registry-editor-angular` |
+| markets-ui `packages/angular-tools` | `@starui/angular` / `@starui/dock-editor-angular` / `@starui/registry-editor-angular` |
 
 ## Repo layout mapping (old → new)
 
@@ -89,7 +89,7 @@ If you had an open branch on one of the archived repos:
 
 1. Rebase the commits onto `main` here.
 2. Move files into the new target paths per the mapping table above.
-3. Rename any `@grid-customizer/*` / `@stern/*` imports to `@marketsui/*`.
+3. Rename any `@grid-customizer/*` / `@stern/*` imports to `@starui/*`.
 4. Open the PR.
 
 If you need help with the mechanical port, ping the platform team —
@@ -110,7 +110,7 @@ Consolidation happened across ten days on the `feat/consolidation`
 branch. See the commit graph for per-day checkpoints:
 
 - Day 1: audit + dep standard
-- Day 2: monorepo skeleton + `@marketsui/*` rename
+- Day 2: monorepo skeleton + `@starui/*` rename
 - Day 3: import `widgetstools/markets-ui` (history-preserving)
 - Day 4: import `widgetstools/fi-trading-terminal` + `widgetstools/stern-2`
 - Day 5a: cross-package dep standardization

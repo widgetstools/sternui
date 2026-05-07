@@ -31,12 +31,12 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
+import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 import { HostedComponentService } from './hosted-component.service';
 
 const DEFAULT_APP_ID = 'TestApp';
 // userId is single-user-pinned across the codebase. See
-// `LOGGED_IN_USER_ID` in `@marketsui/runtime-port`.
+// `LOGGED_IN_USER_ID` in `@starui/runtime-port`.
 const DEFAULT_USER_ID = LOGGED_IN_USER_ID;
 
 @Component({
@@ -294,7 +294,7 @@ async function resolveAppId(fallback: string): Promise<string> {
 
 async function resolveUserId(fallback: string): Promise<string> {
   // userId is single-user-pinned — customData.userId is intentionally
-  // ignored. See `LOGGED_IN_USER_ID` in `@marketsui/runtime-port`.
+  // ignored. See `LOGGED_IN_USER_ID` in `@starui/runtime-port`.
   void fallback;
   return LOGGED_IN_USER_ID;
 }

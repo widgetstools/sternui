@@ -4,15 +4,15 @@
 
 ## 1. Scope
 
-Port the React capabilities to Angular 21 with feature parity. Three new packages + flesh out existing `@marketsui/angular`.
+Port the React capabilities to Angular 21 with feature parity. Three new packages + flesh out existing `@starui/angular`.
 
 | Package | Status | LOC estimate | Effort |
 |---|---|---|---|
-| `@marketsui/angular` | exists, ~1.5k skeletal | will grow to ~4k | fill in (1 wk) |
-| `@marketsui/markets-grid-angular` | **NEW** | ~8-10k (parity with React ~10k) | 4 wk |
-| `@marketsui/widgets-angular` | **NEW** | ~3k (parity with React ~3k) | 2 wk |
-| `@marketsui/dock-editor-angular` | exists | minor updates | 0.5 wk |
-| `@marketsui/registry-editor-angular` | exists | minor updates | 0.5 wk |
+| `@starui/angular` | exists, ~1.5k skeletal | will grow to ~4k | fill in (1 wk) |
+| `@starui/markets-grid-angular` | **NEW** | ~8-10k (parity with React ~10k) | 4 wk |
+| `@starui/widgets-angular` | **NEW** | ~3k (parity with React ~3k) | 2 wk |
+| `@starui/dock-editor-angular` | exists | minor updates | 0.5 wk |
+| `@starui/registry-editor-angular` | exists | minor updates | 0.5 wk |
 
 **Total: 8 weeks** assuming one full-time Angular engineer, overlapping with React HOC refactor in Phase 3.
 
@@ -20,14 +20,14 @@ Port the React capabilities to Angular 21 with feature parity. Three new package
 
 These must hold or the port is pointless.
 
-1. **Zero duplication of business logic.** The module system, ProfileManager, ExpressionEngine, formatter, transform pipeline all live in `@marketsui/core` and stay React-free. Angular wraps them. If a PR adds logic to `markets-grid-angular` that isn't a thin Angular view over `core`, it's wrong.
+1. **Zero duplication of business logic.** The module system, ProfileManager, ExpressionEngine, formatter, transform pipeline all live in `@starui/core` and stay React-free. Angular wraps them. If a PR adds logic to `markets-grid-angular` that isn't a thin Angular view over `core`, it's wrong.
 2. **ConfigService REST contract identical.** Wire format is framework-agnostic JSON; Angular hits the same endpoints React does.
 3. **Registry JSON identical.** A registry entry created by the React editor is launchable by the Angular dock, and vice versa.
 4. **DataPlane protocol identical.** `DataPlaneClient` is pure TS; Angular just wraps it in a service.
 5. **OpenFinHostContext shape identical.** Angular's `OpenFinHostService` implements the same interface React's context provides.
 6. **Feature parity is mandatory, UX parity is aspirational.** Angular gets idiomatic Angular UX (Angular Material + custom) where it differs from shadcn; the feature set matches.
 
-## 3. New package: `@marketsui/markets-grid-angular`
+## 3. New package: `@starui/markets-grid-angular`
 
 The centrepiece.
 
@@ -51,7 +51,7 @@ packages/markets-grid-angular/
 │   │   ├── profile-selector/…
 │   │   ├── help-panel/…
 │   │   ├── services/
-│   │   │   ├── grid-platform.service.ts        wraps @marketsui/core GridPlatform
+│   │   │   ├── grid-platform.service.ts        wraps @starui/core GridPlatform
 │   │   │   ├── profile-manager.service.ts      wraps core ProfileManager
 │   │   │   ├── expression-engine.service.ts    wraps core ExpressionEngine
 │   │   │   └── formatter.service.ts            wraps core SSF formatter
@@ -73,7 +73,7 @@ Angular 21 defaults. No NgModules for new components; `@if` / `@for` / `@switch`
 import { Component, computed, input, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
 import { GridPlatformService } from './services/grid-platform.service';
-import { DATA_PLANE } from '@marketsui/angular';
+import { DATA_PLANE } from '@starui/angular';
 
 @Component({
   selector: 'mui-markets-grid',
@@ -143,9 +143,9 @@ export class MarketsGridComponent {
 
 `ag-grid-angular@35.1.0` (matches the React `ag-grid-react@35.1.0` in the monorepo). Enterprise modules wired in a separate `providers: [provideAgGridEnterprise()]` factory so tree-shaking works.
 
-## 4. New package: `@marketsui/widgets-angular`
+## 4. New package: `@starui/widgets-angular`
 
-Parity with `@marketsui/widgets-react` (blotter, chart, heatmap).
+Parity with `@starui/widgets-react` (blotter, chart, heatmap).
 
 ### Layout
 
@@ -165,7 +165,7 @@ packages/widgets-angular/
 │   │   └── stomp/
 │   │       └── stomp-configuration-form.component.ts
 │   └── services/
-│       └── theme.service.ts             bridges @marketsui/design-system tokens
+│       └── theme.service.ts             bridges @starui/design-system tokens
 └── public-api.ts
 ```
 
@@ -174,14 +174,14 @@ packages/widgets-angular/
 - Blotter reuses `<mui-markets-grid>` internally — it's a specialized preset, not a separate grid implementation.
 - Chart: port using existing chart lib (likely same as React) — or use `<ag-charts-angular>` if the React side already uses AG Charts.
 - Heatmap: custom SVG + signals. No Angular-specific library needed.
-- `DataProviderEditor` needs parity with React's version; reuses `data-provider-editor.component.ts` fields map to the same `ProviderConfig` types from `@marketsui/shared-types`.
+- `DataProviderEditor` needs parity with React's version; reuses `data-provider-editor.component.ts` fields map to the same `ProviderConfig` types from `@starui/shared-types`.
 
-## 5. Wrapper layer — `@marketsui/angular` fleshed out
+## 5. Wrapper layer — `@starui/angular` fleshed out
 
-Matches React's `@marketsui/react` (defined in SHELL_AND_REGISTRY.md §7). The shell implements `OpenFinHostContext` via DI:
+Matches React's `@starui/react` (defined in SHELL_AND_REGISTRY.md §7). The shell implements `OpenFinHostContext` via DI:
 
 ```typescript
-// @marketsui/angular/src/openfin-host.service.ts  — covered in SHELL_AND_REGISTRY §7
+// @starui/angular/src/openfin-host.service.ts  — covered in SHELL_AND_REGISTRY §7
 
 @Injectable({ providedIn: 'root' })
 export class OpenFinHostService implements OpenFinHostContext { /* … */ }
@@ -225,7 +225,7 @@ These packages exist as skeletons. Updates needed from SHELL_AND_REGISTRY.md §5
 - Live-instance banner
 - Deletion gate with soft-delete + audit
 
-Effort: ~3 days each. Shared form logic via `@marketsui/widget-sdk` zod schema = validation is framework-agnostic.
+Effort: ~3 days each. Shared form logic via `@starui/widget-sdk` zod schema = validation is framework-agnostic.
 
 ## 7. Testing strategy
 
@@ -242,7 +242,7 @@ Effort: ~3 days each. Shared form logic via `@marketsui/widget-sdk` zod schema =
 ## 8. Per-week plan
 
 **Week 1 — shell + DI + scaffold demo-angular**
-- Fill in `@marketsui/angular/src/openfin-host.service.ts`
+- Fill in `@starui/angular/src/openfin-host.service.ts`
 - `provideMarketsUi()` factory
 - DI tokens (DATA_PLANE, CONFIG_SERVICE, IAB_SERVICE, LINKING_SERVICE)
 - `apps/demo-angular/src/app/app.config.ts` uses `provideMarketsUi()`
@@ -303,7 +303,7 @@ Effort: ~3 days each. Shared form logic via `@marketsui/widget-sdk` zod schema =
 | AG-Grid Angular version mismatch | Verified: `ag-grid-angular@35.1.0` exists and matches `ag-grid-react@35.1.0`. Pin in DEPS_STANDARD.md update. |
 | Zone.js vs zoneless | Ship with zones for simplicity. Zoneless migration is a follow-up once standalone-component-only is proven. |
 | Jest + Angular 21 incompatibility | Angular's `@angular/build:jest` builder in 18+ works. Smoke test in Week 1. If broken, fall back to `jest-preset-angular@14`. |
-| Bundled `lucide-react` tgz has no Angular equivalent | Use `@fortawesome/angular-fontawesome` per `~/.claude/plans/twinkly-floating-trinket.md`. Icons differ visually; map in `@marketsui/icons-svg`. |
+| Bundled `lucide-react` tgz has no Angular equivalent | Use `@fortawesome/angular-fontawesome` per `~/.claude/plans/twinkly-floating-trinket.md`. Icons differ visually; map in `@starui/icons-svg`. |
 
 ## 10. Non-goals
 

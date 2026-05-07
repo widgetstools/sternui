@@ -5,7 +5,7 @@
 > **Two shape tweaks landed during implementation** (both documented inline where relevant):
 >
 > 1. **`handle.profiles` is `UseProfileManagerResult`**, not the raw `ProfileManager` class. Same semantic; more ergonomic call site (consumers already use the hook shape).
-> 2. **`storage` prop takes a `StorageAdapterFactory`** that returns the existing `@marketsui/core` `StorageAdapter` (per-profile CRUD at the interface boundary). Internally the ConfigService adapter implements load-modify-write against a **single bundled row per instance** (`{ profiles: ProfileSnapshot[] }` payload) — matching the original plan's "one row per instance carrying the whole profile set" design. ProfileManager and its 242-test suite never see the bundling; it happens behind the `StorageAdapter` API.
+> 2. **`storage` prop takes a `StorageAdapterFactory`** that returns the existing `@starui/core` `StorageAdapter` (per-profile CRUD at the interface boundary). Internally the ConfigService adapter implements load-modify-write against a **single bundled row per instance** (`{ profiles: ProfileSnapshot[] }` payload) — matching the original plan's "one row per instance carrying the whole profile set" design. ProfileManager and its 242-test suite never see the bundling; it happens behind the `StorageAdapter` API.
 
 ## Decision
 
@@ -30,7 +30,7 @@
 |---|---|
 | Compose with a data source | `dataBinding={{ providerId, key }}` prop (pending data-plane) |
 | Module preset bundles | `modules={[...]}` prop |
-| Context-aware wiring | Custom hook the consumer calls, or `OpenFinHostContext` via `@marketsui/react` |
+| Context-aware wiring | Custom hook the consumer calls, or `OpenFinHostContext` via `@starui/react` |
 
 No use case for `<MarketsGrid>` HOC survives scrutiny.
 
@@ -155,7 +155,7 @@ Same handle shape across frameworks → widgets that wrap `<MarketsGrid>` (blott
 
 - **No breaking change to existing props.** Ref + `onReady` are additive. Consumers on today's API keep working unchanged.
 - **No HOC.** Not shipped. Not a future option — closed decision.
-- **No handle-returned-from-hook pattern** (e.g., `useMarketsGrid(gridId)` returning the handle without rendering a grid). That's a different feature — "I want access to a grid's platform state from a sibling component" — and is solved today by the existing `useGridPlatform(gridId)` hook from `@marketsui/core`. Not in scope here.
+- **No handle-returned-from-hook pattern** (e.g., `useMarketsGrid(gridId)` returning the handle without rendering a grid). That's a different feature — "I want access to a grid's platform state from a sibling component" — and is solved today by the existing `useGridPlatform(gridId)` hook from `@starui/core`. Not in scope here.
 - **No imperative "re-initialize grid" method on the handle.** Reset behavior flows through props (`gridId` change) or existing ProfileManager methods. Keeps the handle surface small.
 
 ## Open questions
@@ -182,7 +182,7 @@ Same handle shape across frameworks → widgets that wrap `<MarketsGrid>` (blott
 
 | Decision | Value |
 |---|---|
-| Default persistence | `localStorage`-backed adapter shipped with `@marketsui/core` — behavior unchanged from today |
+| Default persistence | `localStorage`-backed adapter shipped with `@starui/core` — behavior unchanged from today |
 | Opt-in | Consumer passes a `storage` prop on `<MarketsGrid>` (both frameworks) |
 | Scope key | `(appId, userId, instanceId)` — all three required on ConfigService |
 | `instanceId` resolution | Priority: explicit `instanceId` prop → fallback to `gridId` |
@@ -201,18 +201,18 @@ Same handle shape across frameworks → widgets that wrap `<MarketsGrid>` (blott
    GridPlatform
        │
        ▼
-   ProfileManager  ──uses──▶  ProfileStorage (new interface in @marketsui/core)
+   ProfileManager  ──uses──▶  ProfileStorage (new interface in @starui/core)
                                  │
                                  ├─ createLocalStorage()        (default, ships with core)
-                                 └─ createConfigServiceStorage(…) (from @marketsui/config-service)
+                                 └─ createConfigServiceStorage(…) (from @starui/config-service)
 ```
 
-`@marketsui/core` owns the `ProfileStorage` interface + local default. `@marketsui/config-service` ships a factory conforming to that contract. **Core does not import config-service** — no layer violation.
+`@starui/core` owns the `ProfileStorage` interface + local default. `@starui/config-service` ships a factory conforming to that contract. **Core does not import config-service** — no layer violation.
 
 ## The interface
 
 ```typescript
-// @marketsui/core/src/profiles/storage.ts  (NEW)
+// @starui/core/src/profiles/storage.ts  (NEW)
 
 export interface ProfileSnapshot {
   id: string;                         // profile id (e.g., "default", "monday-layout")
@@ -334,7 +334,7 @@ Two deployment contexts both work without changes at the grid level:
 Widget code (the layer between MarketsGrid and the app):
 
 ```tsx
-// @marketsui/widgets-react/src/blotter/BondBlotter.tsx
+// @starui/widgets-react/src/blotter/BondBlotter.tsx
 function BondBlotter() {
   const host = useOpenFinHostOrNull();  // null when standalone
   return (
@@ -350,7 +350,7 @@ function BondBlotter() {
 ## The factory API
 
 ```typescript
-// @marketsui/config-service — new export
+// @starui/config-service — new export
 
 export interface ConfigServiceStorageOptions {
   baseUrl: string;
@@ -374,10 +374,10 @@ export function createConfigServiceStorage(
 Local default:
 
 ```typescript
-// @marketsui/core — new export
+// @starui/core — new export
 
 export function createLocalStorage(instanceId: string): ProfileStorage {
-  const key = `@marketsui/markets-grid/profiles/${instanceId}`;
+  const key = `@starui/markets-grid/profiles/${instanceId}`;
   return {
     async load()   { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; },
     async save(s)  { localStorage.setItem(key, JSON.stringify(s)); },
@@ -391,7 +391,7 @@ MarketsGrid constructs this internally when no `storage` prop is passed.
 ## Migration helper
 
 ```typescript
-// @marketsui/config-service
+// @starui/config-service
 
 export async function migrateProfilesToConfigService(params: {
   gridId: string;
@@ -401,7 +401,7 @@ export async function migrateProfilesToConfigService(params: {
   strategy?: 'skip-if-exists' | 'overwrite';  // default 'skip-if-exists'
 }): Promise<{ migrated: boolean; reason?: string }> {
   const effectiveInstanceId = params.instanceId ?? params.gridId;
-  const localKey = `@marketsui/markets-grid/profiles/${effectiveInstanceId}`;
+  const localKey = `@starui/markets-grid/profiles/${effectiveInstanceId}`;
   const localRaw = localStorage.getItem(localKey);
   if (!localRaw) return { migrated: false, reason: 'no-local-data' };
 
@@ -494,7 +494,7 @@ Three scenarios a team might be in:
 
 # §Admin Actions — extensible settings-sheet slot (ConfigBrowser + future tools)
 
-> **Problem.** When `<MarketsGrid>` persists via ConfigService, admins need a way to inspect + edit the raw config rows. The `@marketsui/config-browser` and `@marketsui/angular-config-browser` packages already provide that UI in both frameworks. MarketsGrid's settings sheet is the natural launch point, but MarketsGrid shouldn't take a hard dep on config-browser — that would entangle an end-user widget with admin tooling it shouldn't know about.
+> **Problem.** When `<MarketsGrid>` persists via ConfigService, admins need a way to inspect + edit the raw config rows. The `@starui/config-browser` and `@starui/angular-config-browser` packages already provide that UI in both frameworks. MarketsGrid's settings sheet is the natural launch point, but MarketsGrid shouldn't take a hard dep on config-browser — that would entangle an end-user widget with admin tooling it shouldn't know about.
 >
 > **Solution.** Generalized `adminActions` prop — MarketsGrid exposes a slot; consumer apps fill it. ConfigBrowser is one common entry; audit-log viewers, perf traces, etc., plug into the same slot.
 
@@ -508,12 +508,12 @@ Three scenarios a team might be in:
 | Visibility | Tools button hidden when `adminActions` is empty or every entry has `visible: false` |
 | Role gating | Consumer's concern — `visible: boolean` on each action |
 | Launch semantics | `onClick: () => void \| Promise<void>` — consumer decides route/window/modal |
-| Convenience helper | `createConfigBrowserAction(...)` exported from `@marketsui/config-browser` for the common case |
+| Convenience helper | `createConfigBrowserAction(...)` exported from `@starui/config-browser` for the common case |
 
 ## The interface
 
 ```typescript
-// @marketsui/markets-grid — new export
+// @starui/markets-grid — new export
 
 export interface AdminAction {
   /** Stable id. Used for React key + testid (`admin-action-${id}`). */
@@ -574,8 +574,8 @@ Click the Tools button → compact dropdown lists every visible action:
 ## Consumer wiring — React
 
 ```tsx
-import { ConfigBrowserPanel } from '@marketsui/config-browser';
-import { createConfigServiceStorage } from '@marketsui/config-service';
+import { ConfigBrowserPanel } from '@starui/config-browser';
+import { createConfigServiceStorage } from '@starui/config-service';
 import { useNavigate } from 'react-router-dom';
 
 function BondBlotter() {
@@ -619,7 +619,7 @@ function BondBlotter() {
 
 ```typescript
 // bond-blotter.component.ts
-import type { AdminAction } from '@marketsui/markets-grid';
+import type { AdminAction } from '@starui/markets-grid';
 import { Router } from '@angular/router';
 
 @Component({ selector: 'mkt-bond-blotter', ... })
@@ -674,8 +674,8 @@ Same `AdminAction` shape; only `onClick` differs. MarketsGrid stays agnostic.
 For apps that want the entry without hand-rolling it:
 
 ```typescript
-// @marketsui/config-browser — new export
-import type { AdminAction } from '@marketsui/markets-grid';
+// @starui/config-browser — new export
+import type { AdminAction } from '@starui/markets-grid';
 
 export function createConfigBrowserAction(opts: {
   /** Called when the user clicks the action. Consumer decides
@@ -715,7 +715,7 @@ Consumer:
 
 Both the raw `AdminAction` object and the helper work interchangeably.
 
-## Why MarketsGrid does NOT take a dep on `@marketsui/config-browser`
+## Why MarketsGrid does NOT take a dep on `@starui/config-browser`
 
 - **Layer cleanliness.** MarketsGrid is a widget primitive. ConfigBrowser is an admin tool. Pulling admin tooling into a user-facing widget inverts the dep direction that Architecture.md's layers prescribe.
 - **Bundle size.** ConfigBrowser pulls `ag-grid-community` + its own adapter UI + table schemas. Consumers who don't use it shouldn't pay for it. With the `adminActions` pattern, only apps that use Config Browser bundle it.

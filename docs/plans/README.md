@@ -46,7 +46,7 @@ Week 1   2   3   4   5   6   7   8   9   10  11  12
 
 All plans are **drafts.** They're grounded in the actual monorepo
 layout (`packages/*`, `apps/*`) and existing code (`StompDatasourceProvider`
-in `widgets-react`, skeletal `@marketsui/angular`, the existing
+in `widgets-react`, skeletal `@starui/angular`, the existing
 `shared-types/dataProvider.ts` enum, etc.) rather than invented from
 scratch. Edit freely — the point is that there's now a shared document
 per stream to argue over instead of tribal knowledge.

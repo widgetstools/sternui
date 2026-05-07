@@ -25,28 +25,56 @@ you followed a link from one of the archived repos.
 
 ## Monorepo layout
 
-### `packages/` — shared libraries (18)
+### `packages/` — shared libraries (27, grouped by framework)
 
-| Package | Publishes | What it does |
-|---|---|---|
-| `@marketsui/shared-types` | types | Cross-cutting interfaces (IDataProvider, WidgetContext, FieldNode…) |
-| `@marketsui/core` | React | Module system, ProfileManager, ExpressionEngine, shadcn primitives, Poppable |
-| `@marketsui/markets-grid` | React | MarketsGrid host, FormattingToolbar, FiltersToolbar, SettingsSheet |
-| `@marketsui/design-system` | CSS + tokens | Tailwind config, terminal palette, cockpit styles |
-| `@marketsui/ui` | React | Low-level shadcn-ui components (Button, Card, Badge…) |
-| `@marketsui/icons-svg` | SVG | Shared icon bundle |
-| `@marketsui/tokens-primeng` | CSS | PrimeNG theme bridge |
-| `@marketsui/config-service` | TS | Dexie + REST dual-mode config storage |
-| `@marketsui/component-host` | TS | Identity resolver + debounced saver |
-| `@marketsui/widget-sdk` | TS | Widget registry, launch spec, WidgetContext |
-| `@marketsui/widgets-react` | React | Blotter / chart / heatmap widgets |
-| `@marketsui/angular` | Angular | Angular adapters + DI integration |
-| `@marketsui/dock-editor-react` | React | Dock configurator UI (React) |
-| `@marketsui/dock-editor-angular` | Angular | Dock configurator UI (Angular) |
-| `@marketsui/registry-editor-react` | React | Widget-registry editor UI (React) |
-| `@marketsui/registry-editor-angular` | Angular | Widget-registry editor UI (Angular) |
-| `@marketsui/openfin-platform` | TS | markets-ui OpenFin workspace bootstrap |
-| `@marketsui/openfin-platform-stern` | TS | stern-2 OpenFin platform bootstrap |
+```
+packages/
+├── shared/      vanilla TS / framework-agnostic (12)
+├── react/       React-only packages (9)
+└── angular/     Angular-only packages (6)
+```
+
+#### `packages/shared/` (12)
+
+| Package | What it does |
+|---|---|
+| `@starui/shared-types` | Cross-cutting interfaces (IDataProvider, WidgetContext, FieldNode…) |
+| `@starui/core` | Module system, ProfileManager, ExpressionEngine, settings primitives |
+| `@starui/design-system` | Tailwind config, terminal palette, cockpit styles, tokens |
+| `@starui/icons-svg` | Shared icon bundle |
+| `@starui/config-service` | Dexie + REST dual-mode config storage |
+| `@starui/component-host` | Identity resolver + debounced saver (with `/react` + `/angular` subpaths) |
+| `@starui/data-plane` | DataProvider interface + InProcess/Shared implementations |
+| `@starui/runtime-port` | Runtime adapter interface |
+| `@starui/runtime-browser` | Browser runtime adapter |
+| `@starui/runtime-openfin` | OpenFin runtime adapter |
+| `@starui/openfin-platform` | markets-ui OpenFin workspace bootstrap |
+| `@starui/openfin-platform-stern` | stern-2 OpenFin platform bootstrap |
+
+#### `packages/react/` (9)
+
+| Package | What it does |
+|---|---|
+| `@starui/ui` | Low-level shadcn-ui components (Button, Card, Badge…) |
+| `@starui/markets-grid` | MarketsGrid host, FormattingToolbar, FiltersToolbar, SettingsSheet |
+| `@starui/widget-sdk` | Widget registry, launch spec, WidgetContext |
+| `@starui/widgets-react` | Blotter / chart / heatmap widgets |
+| `@starui/host-wrapper-react` | React HostWrapper + identity context |
+| `@starui/data-plane-react` | React hooks over `@starui/data-plane` |
+| `@starui/dock-editor` (`dock-editor-react`) | Dock configurator UI (React) |
+| `@starui/registry-editor` (`registry-editor-react`) | Widget-registry editor UI (React) |
+| `@starui/config-browser` (`config-browser-react`) | Config-row browser/editor (React) |
+
+#### `packages/angular/` (6)
+
+| Package | What it does |
+|---|---|
+| `@starui/angular` | Angular adapters + DI integration |
+| `@starui/host-wrapper-angular` | Angular HostWrapper + DI service |
+| `@starui/tokens-primeng` | PrimeNG theme bridge |
+| `@starui/angular-dock-editor` | Dock configurator UI (Angular) |
+| `@starui/angular-registry-editor` | Widget-registry editor UI (Angular) |
+| `@starui/angular-config-browser` | Config-row browser/editor (Angular) |
 
 ### `apps/` — runnable demos + reference apps (9)
 
@@ -67,7 +95,7 @@ you followed a link from one of the archived repos.
 - `tools/scripts/normalize-deps.mjs` — one-shot dep-pin normalizer per `docs/DEPS_STANDARD.md`
 - `tools/scripts/launch-openfin.mjs` — launch the demo inside OpenFin
 
-## Grid modules (9 shipped under `@marketsui/core`)
+## Grid modules (9 shipped under `@starui/core`)
 
 | Module | Priority | Purpose |
 |---|---|---|
@@ -112,8 +140,8 @@ npm run clean        # nuke all node_modules + dist + .turbo caches
 Package-scoped commands work with the `-w` flag:
 
 ```bash
-npm run build -w @marketsui/core
-npm test  -w @marketsui/markets-grid
+npm run build -w @starui/core
+npm test  -w @starui/markets-grid
 ```
 
 ## Hosting components in the reference apps
@@ -148,7 +176,7 @@ so each route's view file only owns its own content.
 ```tsx
 // apps/markets-ui-react-reference/src/views/MyView.tsx
 import { HostedComponent } from '../components/HostedComponent';
-import { MarketsGrid } from '@marketsui/markets-grid';
+import { MarketsGrid } from '@starui/markets-grid';
 
 export default function MyView() {
   return (
@@ -262,7 +290,7 @@ shows up identically in plain browser dev (same Dexie DB, same row).
 ## Key docs
 
 - [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md) — layer diagram + import
-  boundaries for the 18-package monorepo
+  boundaries for the 27-package monorepo
 - [**MIGRATION_NOTES.md**](./docs/MIGRATION_NOTES.md) — map from old repo
   URLs to new paths (for anyone following a link to an archived repo)
 - [**DEPS_STANDARD.md**](./docs/DEPS_STANDARD.md) — canonical dep versions

@@ -71,7 +71,7 @@ These packages are NOT on corporate artifactory. They are vendored as `.tgz` fil
 | `typescript` | `~5.9.3` | fi-trading (both react + angular) | Patch-level |
 | `vite` | `~7.3.2` | fi-trading react-app | Patch-level |
 | `@vitejs/plugin-react` | `~4.5.2` | fi-trading react-app | **DOWNGRADE** from current `^4.7.0` |
-| `vite-plugin-dts` | `^4.5.4` | extras list | Used by `packages/core` for .d.ts emission |
+| `vite-plugin-dts` | `^4.5.4` | extras list | Used by `packages/shared/core` for .d.ts emission |
 | `@tailwindcss/vite` | **REMOVED** | — | Not compatible with Tailwind 3.4.1 |
 | `@types/node` | `^22.19.17` | fi-trading react-app | |
 | `@types/react` | `^19.2.14` | fi-trading react-app | |
@@ -316,7 +316,7 @@ This section tracks every version change required when consolidating from the 4 
 
 | Package | Was | Now | Impact |
 |---|---|---|---|
-| Namespace | mixed (`@markets/*` + `@marketsui/*`) | unified `@marketsui/*` | Rename all `@markets/*` → `@marketsui/*`, update all imports |
+| Namespace | mixed (`@markets/*` + `@starui/*`) | unified `@starui/*` | Rename all `@markets/*` → `@starui/*`, update all imports |
 | `@primeng/themes` | (as-is) | `file:libs/primeng-themes-20.3.0.tgz` | Ensure bundled tgz travels with import |
 | AG-Grid | (not yet integrated) | `35.1.0` exact | Add to angular-tools when wiring grids |
 

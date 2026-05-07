@@ -9,7 +9,7 @@ import type {
   BulkUpdateRequest,
   BulkUpdateResult,
   CleanupResult,
-} from '@marketsui/shared-types';
+} from '@starui/shared-types';
 import { ValidationUtils } from '../utils/validation.js';
 import logger from '../utils/logger.js';
 

@@ -21,7 +21,7 @@ Each `tradingAppN/`:
 
 ```
 apps/tradingApp1/
-├── package.json                    "@marketsui/app-tradingApp1", workspace deps
+├── package.json                    "@starui/app-tradingApp1", workspace deps
 ├── openfin/
 │   ├── manifest.json               OpenFin manifest with customData (§2)
 │   ├── platform-provider.html      OpenFin platform provider shell
@@ -44,12 +44,12 @@ node tools/scripts/scaffold-app.mjs tradingApp1 --framework=react
 Behavior:
 
 1. `cp -r apps/markets-ui-react-reference apps/tradingApp1`
-2. Rewrite `package.json` name to `@marketsui/app-tradingApp1`
+2. Rewrite `package.json` name to `@starui/app-tradingApp1`
 3. Rewrite `openfin/manifest.json` → `customData.appId = "tradingApp1"`, new window title, fresh UUID
 4. Clear `src/registry.json` + `src/routes.ts` to empty templates
 5. Append to root `package.json` `workspaces` array (via AST rewrite to preserve ordering)
 6. `npm install --legacy-peer-deps` (ensures lockfile is valid)
-7. Print next-step hint: "Run `npm run dev -w @marketsui/app-tradingApp1`"
+7. Print next-step hint: "Run `npm run dev -w @starui/app-tradingApp1`"
 
 ```typescript
 // tools/scripts/scaffold-app.mjs  — sketch
@@ -67,7 +67,7 @@ const dst = `apps/${name}`;
 await fs.cp(src, dst, { recursive: true });
 
 const pkg = JSON.parse(await fs.readFile(`${dst}/package.json`, 'utf8'));
-pkg.name = `@marketsui/app-${name}`;
+pkg.name = `@starui/app-${name}`;
 await fs.writeFile(`${dst}/package.json`, JSON.stringify(pkg, null, 2));
 
 const manifest = JSON.parse(await fs.readFile(`${dst}/openfin/manifest.json`, 'utf8'));
@@ -102,7 +102,7 @@ Maintenance-free. Discoverable. No publishing story needed.
 }
 ```
 
-**Contract:** the wrapper reads `customData` at mount time via `fin.me.getOptions()`. Missing `appId` or `configServiceUrl` = fatal: render an error boundary with "app not configured". `schemaVersion` is checked — if the shell's expected version is higher than what the manifest declares, the shell runs migrators against the live `customData` before proceeding. Migrators live in `@marketsui/component-host/src/manifest-migrations/`.
+**Contract:** the wrapper reads `customData` at mount time via `fin.me.getOptions()`. Missing `appId` or `configServiceUrl` = fatal: render an error boundary with "app not configured". `schemaVersion` is checked — if the shell's expected version is higher than what the manifest declares, the shell runs migrators against the live `customData` before proceeding. Migrators live in `@starui/component-host/src/manifest-migrations/`.
 
 ## 3. Launch env — query string + customData duplication
 
@@ -128,7 +128,7 @@ Wrapper reads `customData` first; falls back to query string if `customData.inst
 
 ## 4. Registry schema v2
 
-Current `@marketsui/widget-sdk` has a thin `RegistryEntry`. Expand it:
+Current `@starui/widget-sdk` has a thin `RegistryEntry`. Expand it:
 
 ```typescript
 // packages/widget-sdk/src/registry/types.ts
@@ -153,7 +153,7 @@ export interface RegistryEntry {
   minSize?: { width: number; height: number };
 
   // ── Presentation ────────────────────────────────────────────
-  icon: string;                       // ref into @marketsui/icons-svg or URL
+  icon: string;                       // ref into @starui/icons-svg or URL
   category: string;                   // for dock grouping
   tags?: string[];
 
@@ -190,10 +190,10 @@ Existing "Name / Icon / Description / Category" fields stay.
 
 ## 6. Dock integration — launch contract
 
-`@marketsui/dock-editor-*` wires each menu item to a registry entry. Click behaviour:
+`@starui/dock-editor-*` wires each menu item to a registry entry. Click behaviour:
 
 ```typescript
-// simplified dispatcher — lives in @marketsui/component-host
+// simplified dispatcher — lives in @starui/component-host
 async function launch(entry: RegistryEntry, params: Record<string, unknown> = {}) {
   // 1. Permission gate
   const user = await configServiceClient.currentUser();
@@ -236,7 +236,7 @@ async function launch(entry: RegistryEntry, params: Record<string, unknown> = {}
 
 ## 7. The Shell — `OpenFinHostContext`
 
-Framework-agnostic contract lives in `@marketsui/component-host`:
+Framework-agnostic contract lives in `@starui/component-host`:
 
 ```typescript
 // packages/component-host/src/types.ts
@@ -267,7 +267,7 @@ export interface OpenFinHostContext {
   // ── Services — each usable independently ────────────────────
   readonly iab: IabService;
   readonly linking: LinkingService;       // FDC3 + custom channels
-  readonly dataPlane: DataPlaneClient;    // from @marketsui/data-plane
+  readonly dataPlane: DataPlaneClient;    // from @starui/data-plane
   readonly config: ConfigServiceClient;
 }
 
@@ -364,7 +364,7 @@ apps/config-service-server/
         └── README.md
 ```
 
-**Opt-in.** `SEED_DB=1 npm run start -w @marketsui/config-service-server`. Default = don't mutate. Prevents surprise overwrites when pointed at a real DB.
+**Opt-in.** `SEED_DB=1 npm run start -w @starui/config-service-server`. Default = don't mutate. Prevents surprise overwrites when pointed at a real DB.
 
 **Seed shape** (matches existing `AppUser / Role / Permission / ConfigRow`):
 

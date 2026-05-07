@@ -6,7 +6,7 @@ import type {
   BulkUpdateRequest,
   BulkUpdateResult,
   CleanupResult,
-} from '@marketsui/shared-types';
+} from '@starui/shared-types';
 
 /**
  * Universal storage interface for configuration management.

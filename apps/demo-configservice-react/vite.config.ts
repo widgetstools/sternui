@@ -13,8 +13,8 @@ export default defineConfig({
       // Alias core + markets-grid to source so Vite bundles them via
       // the consumer's tree (avoids the Monaco-worker resolution issue
       // that hits consumers reading core's prebuilt dist).
-      '@marketsui/core': resolve(__dirname, '../../packages/core/src'),
-      '@marketsui/markets-grid': resolve(__dirname, '../../packages/markets-grid/src'),
+      '@starui/core': resolve(__dirname, '../../packages/shared/core/src'),
+      '@starui/markets-grid': resolve(__dirname, '../../packages/react/markets-grid/src'),
     },
   },
   build: {
