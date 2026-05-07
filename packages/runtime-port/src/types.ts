@@ -2,6 +2,19 @@
  * Runtime-agnostic types. Foundation layer — no runtime imports.
  */
 
+/**
+ * Canonical logged-in user identifier.
+ *
+ * The codebase intentionally does NOT auto-generate user ids (no
+ * `dev-user-001` style randoms, no env-driven overrides) — every
+ * runtime/identity path resolves `userId` to this single value so
+ * persisted rows always land under the same `(appId, userId)` scope
+ * regardless of platform, view, or launch context. Replace the literal
+ * with the result of a real auth lookup the day SSO is wired in; until
+ * then this constant is the single source of truth.
+ */
+export const LOGGED_IN_USER_ID = 'dev1';
+
 export type Theme = 'light' | 'dark';
 
 export type Unsubscribe = () => void;

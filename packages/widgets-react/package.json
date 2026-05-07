@@ -58,6 +58,7 @@
     "@marketsui/design-system": "*",
     "@marketsui/data-plane-react": "*",
     "@marketsui/openfin-platform-stern": "1.0.0",
+    "@marketsui/runtime-port": "*",
     "@marketsui/shared-types": "1.0.0",
     "@marketsui/widget-sdk": "1.0.0",
     "@marketsui/ui": "1.0.0",

@@ -165,10 +165,15 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
   const isExisting = Boolean(provider.providerId);
   const saveLabel = isExisting ? 'Update DataProvider' : 'Create DataProvider';
 
-  // Pull selected column field-paths out of the cfg for FieldsTab.
+  // Pull selected column field-paths for FieldsTab. While the user is
+  // editing in FieldsTab the draft buffer (`pendingFieldsCols`) is the
+  // source of truth — sourcing this from `currentColumns` instead would
+  // cause FieldsTab's `selected` state to revert on every parent
+  // re-render (its sync-effect resets to the prop on every change),
+  // making checkbox clicks appear to do nothing.
   const selectedColumnFields = useMemo<readonly string[]>(
-    () => currentColumns.map((c) => c.field),
-    [currentColumns],
+    () => (pendingFieldsCols ?? currentColumns).map((c) => c.field),
+    [pendingFieldsCols, currentColumns],
   );
 
   // Sample size lives outside the cfg so FieldsTab can change it

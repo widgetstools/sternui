@@ -3,6 +3,7 @@ declare const fin: any;
 
 import { useEffect, useMemo, useState } from 'react';
 import { createConfigServiceStorage } from '@marketsui/config-service';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import type {
   ConfigManager,
   HostedContext,
@@ -59,8 +60,24 @@ export interface UseHostedIdentityResult {
   ready: boolean;
 }
 
-const DEFAULT_APP_ID = 'markets-ui-reference';
-const DEFAULT_USER_ID = 'dev1';
+/**
+ * `appId` is single-app-pinned across the entire codebase — same
+ * rationale as `userId` (see `LOGGED_IN_USER_ID`). The `defaultAppId`
+ * arg below is retained on the public API for back-compat but is
+ * ignored at runtime so persistence always lands under the same scope.
+ * Cross-machine imports and legacy rows otherwise diverge the appId
+ * between writers and readers, breaking the strict-equality ownership
+ * check in `isProfileSetRow`. Replace this literal when real multi-app
+ * support lands.
+ */
+const DEFAULT_APP_ID = 'TestApp';
+/**
+ * `userId` is single-user-pinned across the entire codebase — see
+ * `LOGGED_IN_USER_ID` in `@marketsui/runtime-port`. The `defaultUserId`
+ * arg below is retained on the public API for back-compat but is
+ * ignored at runtime so persistence always lands under the same scope.
+ */
+const DEFAULT_USER_ID = LOGGED_IN_USER_ID;
 
 // ─── Identity resolution helpers ─────────────────────────────────────
 
@@ -81,22 +98,6 @@ async function resolveHostInstanceId(defaultId: string): Promise<string> {
     /* SSR / no window — fall through */
   }
   return defaultId;
-}
-
-async function resolveCustomDataString(
-  field: 'appId' | 'userId',
-  fallback: string,
-): Promise<string> {
-  if (typeof fin !== 'undefined') {
-    try {
-      const options = await fin.me.getOptions();
-      const v = (options as { customData?: Record<string, unknown> })?.customData?.[field];
-      if (typeof v === 'string' && v.length > 0) return v;
-    } catch {
-      /* fall through */
-    }
-  }
-  return fallback;
 }
 
 async function resolveRegisteredIdentity(): Promise<RegisteredComponentMetadata | null> {
@@ -170,9 +171,15 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     componentName,
   } = args;
 
+  // appId / userId are pinned (see DEFAULT_APP_ID / DEFAULT_USER_ID
+  // notes above) — the args only document the seams for future SSO /
+  // multi-app work.
+  void defaultAppId;
+  void defaultUserId;
+
   const [instanceId, setInstanceId] = useState<string | null>(null);
-  const [appId, setAppId] = useState<string>(defaultAppId);
-  const [userId, setUserId] = useState<string>(defaultUserId);
+  const [appId] = useState<string>(DEFAULT_APP_ID);
+  const [userId] = useState<string>(LOGGED_IN_USER_ID);
   const [resolvedConfigManager, setResolvedConfigManager] = useState<ConfigManager | null>(
     configManagerOverride ?? null,
   );
@@ -180,20 +187,17 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     null,
   );
 
-  // Identity resolution.
+  // Identity resolution. appId is pinned — only instanceId and the
+  // registered-component identity are resolved from customData.
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       resolveHostInstanceId(defaultInstanceId),
-      resolveCustomDataString('appId', defaultAppId),
-      resolveCustomDataString('userId', defaultUserId),
       resolveRegisteredIdentity(),
     ])
-      .then(([id, app, user, reg]) => {
+      .then(([id, reg]) => {
         if (cancelled) return;
         setInstanceId(id);
-        setAppId(app);
-        setUserId(user);
         setRegisteredIdentity(reg);
       })
       .catch((err) => {
@@ -203,7 +207,7 @@ export function useHostedIdentity(args: UseHostedIdentityArgs): UseHostedIdentit
     return () => {
       cancelled = true;
     };
-  }, [defaultInstanceId, defaultAppId, defaultUserId, componentName]);
+  }, [defaultInstanceId, componentName]);
 
   // ConfigManager — explicit override wins; otherwise resolve the host
   // singleton lazily.

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@marketsui/config-service';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import { useHostedIdentity } from '../useHostedIdentity.js';
 
 afterEach(() => {
@@ -30,7 +31,7 @@ describe('useHostedIdentity — OpenFin path', () => {
     };
   });
 
-  it('reads identity from fin.me.getOptions().customData', async () => {
+  it('reads instanceId from fin.me.getOptions().customData; appId / userId are pinned', async () => {
     const { result } = renderHook(() =>
       useHostedIdentity({
         defaultInstanceId: 'fallback-instance',
@@ -42,8 +43,11 @@ describe('useHostedIdentity — OpenFin path', () => {
     );
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.identity.instanceId).toBe('OF-INSTANCE');
-    expect(result.current.identity.appId).toBe('OF-APP');
-    expect(result.current.identity.userId).toBe('OF-USER');
+    // appId / userId are single-user-pinned — customData values for
+    // them are intentionally ignored to keep persistence under one
+    // canonical (appId, userId) scope. See useHostedIdentity for why.
+    expect(result.current.identity.appId).toBe('TestApp');
+    expect(result.current.identity.userId).toBe(LOGGED_IN_USER_ID);
     expect(result.current.identity.configManager).toBe(fakeConfigManager);
   });
 });

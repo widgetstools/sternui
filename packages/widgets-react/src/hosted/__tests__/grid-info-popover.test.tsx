@@ -10,6 +10,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@marketsui/config-service';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 
 const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
@@ -46,8 +47,9 @@ describe('HostedMarketsGrid — info popover identity (row 21 / D2)', () => {
     const last = mgcProps[mgcProps.length - 1];
     expect(last.componentName).toBe('MarketsGrid');
     expect(last.instanceId).toBe('ip-instance');
-    expect(last.appId).toBe('ip-app');
-    expect(last.userId).toBe('ip-user');
+    // appId / userId are single-user-pinned regardless of prop defaults.
+    expect(last.appId).toBe('TestApp');
+    expect(last.userId).toBe(LOGGED_IN_USER_ID);
     expect(last.gridId).toBe('ip-1');
   });
 });
