@@ -31,7 +31,7 @@ import type {
 } from "@starui/openfin-platform/config";
 import { ACTION_LAUNCH_COMPONENT } from "@starui/openfin-platform/config";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
+import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 import type { EditorSelection } from "./types";
 
 // ─── Inline icon preview ─────────────────────────────────────────────

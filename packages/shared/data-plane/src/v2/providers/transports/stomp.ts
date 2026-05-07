@@ -46,8 +46,8 @@
 
 import type { StompProviderConfig } from '@starui/shared-types';
 import { composeRowId } from '@starui/shared-types';
-import type { ProviderEmit, ProviderHandle } from './Provider.js';
-import { resolveBracketCfg } from '../template/bracket-resolver.js';
+import type { ProviderEmit, ProviderHandle } from '../Provider.js';
+import { resolveBracketCfg } from '../../template/bracketResolver.js';
 
 /**
  * Maximum rows to ship in a single `postMessage` from the worker.

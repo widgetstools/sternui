@@ -9,8 +9,8 @@ export { cn } from './lib/utils.js';
 // ============================================================================
 // Theme
 // ============================================================================
-export { ThemeProvider, useTheme } from './providers/theme-provider.js';
-export type { Theme, ThemeProviderProps } from './providers/theme-provider.js';
+export { ThemeProvider, useTheme } from './providers/ThemeProvider.js';
+export type { Theme, ThemeProviderProps } from './providers/ThemeProvider.js';
 
 // ============================================================================
 // Components

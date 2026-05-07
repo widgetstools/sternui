@@ -70,7 +70,6 @@ import type {
   AdminAction,
   MarketsGridHandle,
   MarketsGridProps,
-  StorageAdapterFactory,
 } from './types';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';

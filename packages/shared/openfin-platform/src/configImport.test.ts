@@ -36,11 +36,11 @@ vi.mock('./db', () => ({
   getConfigManager: async () => cm as unknown as ConfigManager,
 }));
 
-vi.mock('./registry-host-env', () => ({
+vi.mock('./registryHostEnv', () => ({
   readHostEnv: async () => ({ appId: 'LocalApp', userId: 'localuser', configServiceUrl: '' }),
 }));
 
-const { importConfigBundle } = await import('./config-import');
+const { importConfigBundle } = await import('./configImport');
 
 beforeEach(() => {
   cm.configs.clear();

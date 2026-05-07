@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBracketString, resolveBracketCfg, type BracketCache } from './bracket-resolver';
+import { resolveBracketString, resolveBracketCfg, type BracketCache } from './bracketResolver';
 
 const ID_RE = /^[0-9A-Za-z]{12}$/;
 

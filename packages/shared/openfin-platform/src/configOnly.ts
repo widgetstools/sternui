@@ -51,7 +51,7 @@ export {
   type ImportConfigBundleResult,
   type ImportTableResult,
   type ImportMode,
-} from './config-import';
+} from './configImport';
 
 // ── IAB topic + action-ID constants (pure strings, no runtime deps) ──
 export {
@@ -70,7 +70,7 @@ export {
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_CONFIG_BROWSER,
   ACTION_LAUNCH_COMPONENT,
-} from './iab-topics';
+} from './iabTopics';
 
 // ── Dock config types (pure TS shapes; serializable) ────────────────
 export {
@@ -89,7 +89,7 @@ export {
   type ContentMenuEntryType,
   type ContentMenuItemEntry,
   type ContentMenuFolderEntry,
-} from './dock-config-types';
+} from './dockConfigTypes';
 
 // ── Host-env reader + registry schema utilities ─────────────────────
 // (all pure TS, no workspace-platform transitively)
@@ -98,7 +98,7 @@ export {
   isHostEnvMissing,
   encodeHostEnvForQueryString,
   DEFAULT_USER_ID,
-} from './registry-host-env';
+} from './registryHostEnv';
 export {
   deriveTemplateConfigId,
   generateTemplateConfigId,    // deprecated alias of deriveTemplateConfigId
@@ -107,18 +107,18 @@ export {
   REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,
-} from './registry-config-types';
+} from './registryConfigTypes';
 export {
   validateEntry,
   validateSingletonUniqueness,
   type ValidationError,
-} from './registry-validate';
+} from './registryValidate';
 export {
   migrateRegistryToV2,
   type RegistryEntryV1,
   type RegistryEditorConfigV1,
   type HostEnv,
-} from './registry-migrate';
+} from './registryMigrate';
 
 // ── Host URL normaliser (pure DOM, no workspace-platform) ───────────
-export { resolveHostUrl } from './host-url';
+export { resolveHostUrl } from './hostUrl';

@@ -275,17 +275,6 @@ function useWindowedRange(
 
 // ─── helpers ──────────────────────────────────────────────────────
 
-function findNode(fields: FieldNode[], path: string): FieldNode | undefined {
-  for (const f of fields) {
-    if (f.path === path) return f;
-    if (f.children) {
-      const found = findNode(f.children, path);
-      if (found) return found;
-    }
-  }
-  return undefined;
-}
-
 function buildColumns(fields: FieldNode[], selectedPaths: string[]): ColumnDefinition[] {
   const byPath = new Map<string, FieldNode>();
   const walk = (nodes: FieldNode[]) => {

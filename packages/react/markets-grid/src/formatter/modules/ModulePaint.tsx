@@ -10,7 +10,7 @@ import {
   PopoverTrigger as RadixPopoverTrigger,
 } from '@starui/core';
 import { BorderStyleEditor } from '@starui/core';
-import { Hair, Module, Pill } from '../primitives';
+import { Hair, Module } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 export function ModulePaint({

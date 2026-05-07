@@ -28,8 +28,8 @@
       "import": "./dist/tokens/components.js"
     },
     "./adapters/ag-grid": {
-      "types": "./dist/adapters/ag-grid.d.ts",
-      "import": "./dist/adapters/ag-grid.js"
+      "types": "./dist/adapters/agGrid.d.ts",
+      "import": "./dist/adapters/agGrid.js"
     },
     "./adapters/shadcn": {
       "types": "./dist/adapters/shadcn.d.ts",
@@ -40,8 +40,8 @@
       "import": "./dist/adapters/primeng.js"
     },
     "./cell-renderers": {
-      "types": "./dist/cell-renderers.d.ts",
-      "import": "./dist/cell-renderers.js"
+      "types": "./dist/cellRenderers.d.ts",
+      "import": "./dist/cellRenderers.js"
     }
   },
   "scripts": {

@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createDebouncedSaver } from './save-config';
+import { createDebouncedSaver } from './saveConfig';
 import type { ComponentIdentity } from './types';
 import { deriveTemplateConfigId } from '@starui/openfin-platform';
 import type { AppConfigRow, ConfigManager } from '@starui/config-service';

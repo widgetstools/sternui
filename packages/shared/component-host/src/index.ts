@@ -26,14 +26,14 @@ export {
   readCustomData,
   resolveInstanceId,
   buildFallbackIdentity,
-} from "./resolve-identity";
+} from "./resolveIdentity";
 
 export {
   subscribeToTheme,
   getCurrentTheme,
-} from "./theme-listener";
+} from "./themeListener";
 
 export { onCloseRequested } from "./lifecycle";
 
-export { createDebouncedSaver } from "./save-config";
-export type { DebouncedSaver, DebouncedSaverOptions } from "./save-config";
+export { createDebouncedSaver } from "./saveConfig";
+export type { DebouncedSaver, DebouncedSaverOptions } from "./saveConfig";

@@ -9,10 +9,10 @@
 
 import type { ProviderConfig } from '@starui/shared-types';
 import type { ProviderEmit, ProviderHandle } from './Provider.js';
-import { resolveBracketCfg, type BracketCache } from '../template/bracket-resolver.js';
-import { startMock } from './mock.js';
-import { startStomp } from './stomp.js';
-import { startRest } from './rest.js';
+import { resolveBracketCfg, type BracketCache } from '../template/bracketResolver.js';
+import { startMock } from './transports/mock.js';
+import { startStomp } from './transports/stomp.js';
+import { startRest } from './transports/rest.js';
 
 export type ProviderFactory<T extends ProviderConfig = ProviderConfig> = (
   cfg: T,

@@ -8,9 +8,9 @@ import {
   generateTemplateConfigId,
   mintRegisteredInstanceId,
   type RegistryEntry,
-} from "./registry-config-types";
-import { DEFAULT_USER_ID } from "./registry-host-env";
-import { resolveHostUrl } from "./host-url";
+} from "./registryConfigTypes";
+import { DEFAULT_USER_ID } from "./registryHostEnv";
+import { resolveHostUrl } from "./hostUrl";
 
 // ─── Singleton in-flight + opened registry ───────────────────────────
 //

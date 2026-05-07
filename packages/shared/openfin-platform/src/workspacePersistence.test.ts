@@ -21,7 +21,7 @@ import type { AppConfigRow, ConfigManager } from '@starui/config-service';
 import {
   createWorkspacePersistenceOverride,
   instanceIdsFromSnapshot,
-} from './workspace-persistence';
+} from './workspacePersistence';
 
 // ─── Test doubles ────────────────────────────────────────────────────
 

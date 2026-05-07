@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable, signal, computed } from '@angular/core';
 // /config subpath = workspace-platform-free entry; safe in non-OpenFin
-// contexts. See packages/openfin-platform/src/config-only.ts.
+// contexts. See packages/openfin-platform/src/configOnly.ts.
 import {
   getConfigManager,
   readHostEnv,

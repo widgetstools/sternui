@@ -7,7 +7,7 @@
 export { Hub, type HubOpts, type PortLike } from './Hub.js';
 export { installWorker, type InstallOpts, type InstalledWorker } from './entry.js';
 export { registerProvider, startProvider, type ProviderFactory } from '../providers/registry.js';
-export { startMock, type MockProviderOpts } from '../providers/mock.js';
+export { startMock, type MockProviderOpts } from '../providers/transports/mock.js';
 export {
   startStomp,
   probeStomp,
@@ -15,13 +15,13 @@ export {
   type StompClientFactory,
   type ProbeResult as StompProbeResult,
   type ProbeOpts,
-} from '../providers/stomp.js';
+} from '../providers/transports/stomp.js';
 export {
   startRest,
   probeRest,
   type RestFetchFn,
   type RestOpts,
   type ProbeResult as RestProbeResult,
-} from '../providers/rest.js';
+} from '../providers/transports/rest.js';
 export { inferFields, type InferOptions } from '../providers/inferFields.js';
 export type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';

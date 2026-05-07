@@ -14,7 +14,6 @@
  */
 import type { Module, PlatformHandle } from '../../platform/types';
 import {
-  INITIAL_COLUMN_GROUPS,
   isColumnGroupsState,
   type ColumnGroupNode,
   type ColumnGroupsState,

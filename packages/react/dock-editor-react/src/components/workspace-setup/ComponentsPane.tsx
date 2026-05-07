@@ -20,7 +20,7 @@
 import { useMemo, useState } from "react";
 import { Plus, PlayCircle, Trash2, Search, Box } from "lucide-react";
 import type { RegistryEntry } from "@starui/openfin-platform/config";
-import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
+import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 import type { EditorSelection, ComponentFilter } from "./types";
 
 interface ComponentsPaneProps {

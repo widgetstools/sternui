@@ -18,7 +18,7 @@
  */
 
 import type { RestProviderConfig } from '@starui/shared-types';
-import type { ProviderEmit, ProviderHandle } from './Provider.js';
+import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 
 export type RestFetchFn = (input: string, init: RequestInit) => Promise<Response>;
 

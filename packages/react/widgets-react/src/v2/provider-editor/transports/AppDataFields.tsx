@@ -87,7 +87,6 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
 
   const onCellValueChanged = useCallback(
     (e: CellValueChangedEvent<RowData>) => {
-      const id = e.data._rowId;
       const originalKey = e.data.key;
       const newKey = e.colDef.field === 'key' ? e.newValue : originalKey;
 

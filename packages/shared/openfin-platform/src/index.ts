@@ -12,7 +12,7 @@ export {
 export { initWorkspace } from './workspace';
 export { launchApp, launchRegisteredComponent } from './launch';
 export type { LaunchRegisteredComponentOptions } from './launch';
-export { resolveHostUrl } from './host-url';
+export { resolveHostUrl } from './hostUrl';
 
 // ─── Dock management ─────────────────────────────────────────────────
 export {
@@ -49,7 +49,7 @@ export {
   type ImportConfigBundleResult,
   type ImportTableResult,
   type ImportMode,
-} from './config-import';
+} from './configImport';
 
 // ─── Registry config types ──────────────────────────────────────────
 export {
@@ -60,27 +60,27 @@ export {
   REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,
-} from './registry-config-types';
+} from './registryConfigTypes';
 
 // ─── Registry v2 validators, migrator, host env reader ──────────────
 export {
   validateEntry,
   validateSingletonUniqueness,
   type ValidationError,
-} from './registry-validate';
+} from './registryValidate';
 
 export {
   migrateRegistryToV2,
   type RegistryEntryV1,
   type RegistryEditorConfigV1,
   type HostEnv,
-} from './registry-migrate';
+} from './registryMigrate';
 
 export {
   readHostEnv,
   isHostEnvMissing,
   DEFAULT_USER_ID,
-} from './registry-host-env';
+} from './registryHostEnv';
 
 // Re-export config service types for convenience
 export { createConfigManager, type ConfigManager } from "@starui/config-service";
@@ -108,7 +108,7 @@ export {
   type ContentMenuEntryType,
   type ContentMenuItemEntry,
   type ContentMenuFolderEntry,
-} from './dock-config-types';
+} from './dockConfigTypes';
 
 // ─── Icon library ────────────────────────────────────────────────────
 export {

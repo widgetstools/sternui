@@ -23,7 +23,7 @@ export async function registerHome(
     ...platformSettings,
     onUserInput: async (
       request: HomeSearchListenerRequest,
-      response: HomeSearchListenerResponse
+      _response: HomeSearchListenerResponse
     ): Promise<HomeSearchResponse> => {
       const queryLower = request.query.toLowerCase();
       if (queryLower.startsWith("/")) {

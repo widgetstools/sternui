@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import type { CellStyle, ColDef, GridOptions, RowClickedEvent } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
-import { agGridThemeFor } from "../ag-grid-theme";
+import { agGridThemeFor } from "../agGridTheme";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 

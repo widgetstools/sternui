@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { startRest, probeRest } from './rest';
-import type { ProviderEmitEvent } from './Provider';
+import type { ProviderEmitEvent } from '../Provider';
 import type { RestProviderConfig } from '@starui/shared-types';
 
 function cfg(overrides: Partial<RestProviderConfig> = {}): RestProviderConfig {

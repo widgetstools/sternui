@@ -15,7 +15,6 @@ import {
   type ConfigScope,
   type DockEditorConfig,
   type DockButtonConfig,
-  type DockActionButtonConfig,
   type DockDropdownButtonConfig,
   type DockMenuItemConfig,
   type RegistryEditorConfig,

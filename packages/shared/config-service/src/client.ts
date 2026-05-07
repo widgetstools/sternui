@@ -18,7 +18,7 @@
 // All 5 tables have full CRUD on both sides; swapping LocalConfigClient
 // for RestConfigClient is transparent.
 
-import { ConfigManager, createConfigManager } from './config-manager';
+import { ConfigManager, createConfigManager } from './ConfigManager';
 import type {
   AppConfigRow,
   AppRegistryRow,

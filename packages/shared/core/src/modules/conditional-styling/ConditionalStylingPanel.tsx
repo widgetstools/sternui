@@ -42,17 +42,12 @@ import {
   Caps,
   CockpitList,
   CockpitListItem,
-  IconInput,
   LedBar,
   Mono,
-  ObjectTitleRow,
   PillToggleBtn,
   PillToggleGroup,
-  SharpBtn,
   SubLabel,
-  TitleInput,
 } from '../../ui/SettingsPanel';
-import { Switch } from '../../ui/shadcn';
 import { StyleEditor } from '../../ui/StyleEditor';
 import type {
   ConditionalRule,

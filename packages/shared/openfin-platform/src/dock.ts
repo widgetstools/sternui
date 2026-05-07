@@ -10,9 +10,8 @@ import {
   type DockEditorConfig,
   type Dock3Entry,
   type ContentMenuEntryType,
-} from './dock-config-types';
+} from './dockConfigTypes';
 import {
-  TOOLS_SVG,
   SETTINGS_SVG,
   REFRESH_SVG,
   CODE_SVG,
@@ -31,7 +30,7 @@ const ICON_COLOR_DARK_THEME = "#ffffff";
 const ICON_COLOR_LIGHT_THEME = "#1a1a2e";
 
 // ─── IAB topics + action IDs ────────────────────────────────────────
-// Lifted into ./iab-topics.ts so non-OpenFin consumers (Config Browser
+// Lifted into ./iabTopics.ts so non-OpenFin consumers (Config Browser
 // rendered in a plain browser, dock-editor's import panel, etc.) can
 // import just the strings without pulling @openfin/workspace-platform
 // through this file. Re-exported here for back-compat.
@@ -54,7 +53,7 @@ import {
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_OPEN_DATA_PROVIDERS,
   ACTION_LAUNCH_COMPONENT,
-} from './iab-topics';
+} from './iabTopics';
 export {
   IAB_DOCK_CONFIG_UPDATE,
   IAB_RELOAD_AFTER_IMPORT,
@@ -89,9 +88,6 @@ let storedIcon: string | undefined;
 
 /** Last user-configured DockEditorConfig (for re-applying on theme change). */
 let lastEditorConfig: DockEditorConfig | undefined;
-
-/** Current icon color, updated when the theme is toggled. */
-let currentIconColor = ICON_COLOR_DARK_THEME;
 
 /** Tracks whether IAB subscriptions have been set up. */
 let iabSubscribed = false;
@@ -534,7 +530,6 @@ export async function registerDock(
  * own scheme dispatch when running on a properly-configured runtime.
  */
 export async function recolorDockIcons(isDark: boolean): Promise<void> {
-  currentIconColor = isDark ? ICON_COLOR_DARK_THEME : ICON_COLOR_LIGHT_THEME;
   console.log(`Recoloring dock icons for ${isDark ? "dark" : "light"} theme.`);
   await applyDock3Config();
 }
@@ -762,7 +757,6 @@ function buildDock3Override() {
             //   • IAB notify our content child windows (dock editor, etc.)
             try { document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light"); } catch { /* */ }
             try { localStorage.setItem("theme", isDark ? "dark" : "light"); } catch { /* */ }
-            currentIconColor = isDark ? ICON_COLOR_DARK_THEME : ICON_COLOR_LIGHT_THEME;
             await applyDock3Config();
             console.log(`[Dock3 theme] About to publish IAB '${IAB_THEME_CHANGED}' with { isDark: ${isDark} } from uuid='${fin.me?.identity?.uuid}'.`);
             try {
@@ -882,7 +876,6 @@ function resetDockState(): void {
   storedPlatformSettings = undefined;
   storedIcon = undefined;
   lastEditorConfig = undefined;
-  currentIconColor = ICON_COLOR_DARK_THEME;
   iabSubscribed = false;
   iabConfigHandler = null;
   iabReloadHandler = null;

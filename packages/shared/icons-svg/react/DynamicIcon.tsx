@@ -15,7 +15,7 @@
 
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { MARKET_ICON_SVGS } from '../all-icons';
+import { MARKET_ICON_SVGS } from '../allIcons';
 
 // Import all icons we use in the dock editor
 import {

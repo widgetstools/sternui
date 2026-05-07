@@ -5,8 +5,8 @@ import { DynamicIcon as Icon } from "@starui/icons-svg/react";
 import { useDockEditor } from "./hooks/useDockEditor";
 import { TreeItem, type TreeItemData } from "./components/dock-editor/TreeItem";
 import { ItemFormDialog, type ItemFormData } from "./components/dock-editor/ItemFormDialog";
-import { iconIdToSvgUrl, parseIconUrl } from "./components/dock-editor/icon-utils";
-import { injectEditorStyles } from "./components/dock-editor/editor-styles";
+import { iconIdToSvgUrl, parseIconUrl } from "./components/dock-editor/iconUtils";
+import { injectEditorStyles } from "./components/dock-editor/editorStyles";
 // Type-only import via /config subpath — avoids the workspace-platform
 // module-eval side effects that the main barrel triggers.
 import type {
@@ -63,7 +63,7 @@ function findMenuItemById(items: DockMenuItemConfig[], id: string): DockMenuItem
 // ─── Component ───────────────────────────────────────────────────────
 
 export function DockEditorPanel() {
-  const { buttons, isDirty, isLoading, dispatch, save, reset, registryEntries } = useDockEditor();
+  const { buttons, isDirty, isLoading, dispatch, save, registryEntries } = useDockEditor();
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addChildDialogOpen, setAddChildDialogOpen] = useState(false);

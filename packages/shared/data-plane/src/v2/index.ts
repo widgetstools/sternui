@@ -34,11 +34,13 @@ export {
 // Persistence helpers — main-thread, ConfigManager-backed.
 export {
   DataProviderConfigStore,
-  AppDataConfigStore,
   PUBLIC_USER_ID,
   COMPONENT_TYPE_DATA_PROVIDER,
-  COMPONENT_TYPE_APPDATA,
-  type AppDataConfig,
   type ListOptions,
 } from './config/store.js';
-export { AppDataStore } from './config/AppDataStore.js';
+export {
+  AppDataConfigStore,
+  AppDataStore,
+  COMPONENT_TYPE_APPDATA,
+  type AppDataConfig,
+} from './providers/appdata/index.js';

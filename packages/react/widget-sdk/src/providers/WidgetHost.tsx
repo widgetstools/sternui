@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createConfigClient, type ConfigClient } from '@starui/config-service';
 import type { PlatformAdapter } from '../types/platform.js';

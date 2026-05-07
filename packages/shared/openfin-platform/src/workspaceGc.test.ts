@@ -18,9 +18,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { COMPONENT_TYPES } from '@starui/shared-types';
 import type { AppConfigRow, ConfigManager } from '@starui/config-service';
-import { gcOrphanedConfigs } from './workspace-gc';
+import { gcOrphanedConfigs } from './workspaceGc';
 import { setConfigManager, setPlatformDefaultScope } from './db';
-import { deriveSingletonConfigId } from './registry-config-types';
+import { deriveSingletonConfigId } from './registryConfigTypes';
 
 // ─── Test fixtures ───────────────────────────────────────────────────
 
