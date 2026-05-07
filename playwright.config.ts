@@ -21,7 +21,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev -w @marketsui/demo-react',
+      command: 'npm run dev -w @starui/demo-react',
       port: 5190,
       reuseExistingServer: true,
       timeout: 90_000,
@@ -31,7 +31,7 @@ export default defineConfig({
     // (Dexie-direct on 5190 vs ConfigService on 5191) — without this
     // entry the 5191 cases hit ERR_CONNECTION_REFUSED.
     {
-      command: 'npm run dev -w @marketsui/demo-configservice-react',
+      command: 'npm run dev -w @starui/demo-configservice-react',
       port: 5191,
       reuseExistingServer: true,
       timeout: 90_000,
@@ -42,7 +42,7 @@ export default defineConfig({
     // pre-migration (HostedFeatureView chain) and post-migration
     // (HostedMarketsGrid wrapper) must keep this spec green.
     {
-      command: 'npm run dev -w @marketsui/markets-ui-react-reference',
+      command: 'npm run dev -w @starui/markets-ui-react-reference',
       port: 5174,
       reuseExistingServer: true,
       timeout: 90_000,

@@ -16,7 +16,7 @@ atomic commit.
 
 **Reproduction prerequisites (every session):**
 1. `npm ci --legacy-peer-deps` (the flag is permanent — see `CLAUDE.md`).
-2. `npm run dev -w @marketsui/demo-react` → http://localhost:5190/.
+2. `npm run dev -w @starui/demo-react` → http://localhost:5190/.
 3. Each fixture lives at `?view=fixture&f=<name>` where `<name>` is one of
    `formatter`, `cond-cell`, `cond-row`, `calc`, `groups`, `kitchen-sink`.
 4. Test gauntlet: `npx turbo typecheck build test` then

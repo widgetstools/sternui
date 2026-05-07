@@ -1,6 +1,6 @@
 # HostedMarketsGrid Refactor — Worklog
 
-**One-line goal:** consolidate the 6-deep `BlottersMarketsGrid → HostedFeatureView → HostedComponent → BlotterGrid → MarketsGridContainer → MarketsGrid` stack into a single `<HostedMarketsGrid>` exported from `@marketsui/widgets-react`, with zero behavior loss.
+**One-line goal:** consolidate the 6-deep `BlottersMarketsGrid → HostedFeatureView → HostedComponent → BlotterGrid → MarketsGridContainer → MarketsGrid` stack into a single `<HostedMarketsGrid>` exported from `@starui/widgets-react`, with zero behavior loss.
 
 **Branch:** `refactor/hosted-markets-grid-unify` (forked from `main` at `516ba7a`).
 **Plan file:** `C:/Users/develop/.claude/plans/after-nalyzing-the-react-shimmering-sprout.md` — read for full context if anything below is unclear.
@@ -18,7 +18,7 @@
 | D3 | Provider picker baked in (always wires `MarketsGridContainer`) | Matches every current usage |
 | D4 | Delete old layers when wrapper lands | `HostedComponent`, `HostedFeatureView`, app-inline `BlotterGrid`, and unused package-level `SimpleBlotter` + `BlotterGrid` |
 | D5 | Theme = `agGridBlotter{Light,Dark}Params` from design-system adapter | Single source — preset added in commit `e0040b2` |
-| D6 | Identity / registry types **become public API** of `@marketsui/widgets-react` | User decision — explicit contract for consumers |
+| D6 | Identity / registry types **become public API** of `@starui/widgets-react` | User decision — explicit contract for consumers |
 | D7 | Flat props (no `gridProps` escape-hatch nesting) | Recommended React-composition practice; explicit > namespaced |
 
 ### Parity matrix (every row must survive — except row 21 which D2 already relocated)
@@ -74,7 +74,7 @@ Each session is sized to ~30–90 minutes of focused work. Sessions are sequenti
 
 ### Session 1 — Promote identity / registry types to public API
 
-**Goal:** Move `HostedContext` and the registered-component metadata shape out of `apps/markets-ui-react-reference` and into a new public module of `@marketsui/widgets-react`. No behavior change yet — just type relocation, with the app re-importing from the new location.
+**Goal:** Move `HostedContext` and the registered-component metadata shape out of `apps/markets-ui-react-reference` and into a new public module of `@starui/widgets-react`. No behavior change yet — just type relocation, with the app re-importing from the new location.
 
 **Preconditions**
 - On branch `refactor/hosted-markets-grid-unify`
@@ -88,13 +88,13 @@ Each session is sized to ~30–90 minutes of focused work. Sessions are sequenti
    - `StorageAdapterFactory` re-export from wherever it currently lives in core (grep first; do not duplicate)
    - JSDoc on every member explaining what it represents and when it is `undefined`
 2. Create `packages/widgets-react/src/hosted/index.ts` re-exporting the types.
-3. Add a barrel entry to `packages/widgets-react/src/index.ts` for `./hosted` so consumers can import from `@marketsui/widgets-react/hosted`.
-4. Update `apps/markets-ui-react-reference/src/components/HostedComponent.tsx` to **import** `HostedContext` from `@marketsui/widgets-react/hosted` instead of redeclaring it (delete the local declaration).
-5. Update every other app file that imports `HostedContext` from `'../components/HostedComponent'` to import from `@marketsui/widgets-react/hosted`. Use Grep to find them all.
+3. Add a barrel entry to `packages/widgets-react/src/index.ts` for `./hosted` so consumers can import from `@starui/widgets-react/hosted`.
+4. Update `apps/markets-ui-react-reference/src/components/HostedComponent.tsx` to **import** `HostedContext` from `@starui/widgets-react/hosted` instead of redeclaring it (delete the local declaration).
+5. Update every other app file that imports `HostedContext` from `'../components/HostedComponent'` to import from `@starui/widgets-react/hosted`. Use Grep to find them all.
 
 **Acceptance criteria**
 - `npx turbo typecheck` green
-- `npx turbo build --filter=@marketsui/widgets-react` green
+- `npx turbo build --filter=@starui/widgets-react` green
 - `git grep "HostedContext" apps/markets-ui-react-reference/src` shows only imports, no declarations
 - The app behavior is unchanged (no runtime test needed yet — pure type move)
 
@@ -103,7 +103,7 @@ Each session is sized to ~30–90 minutes of focused work. Sessions are sequenti
 refactor(widgets-react): promote HostedContext and RegisteredComponentMetadata to public types
 
 Lifts the identity context shape out of the reference app into
-@marketsui/widgets-react/hosted so external consumers of the
+@starui/widgets-react/hosted so external consumers of the
 upcoming HostedMarketsGrid have a documented contract.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
@@ -115,11 +115,11 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ### Session 2 — Build `useHostedIdentity` hook
 
-**Goal:** Extract the identity resolution + storage factory wrapping (parity rows 1–4) from `HostedComponent.tsx` into a generic, tested hook in `@marketsui/widgets-react/hosted`.
+**Goal:** Extract the identity resolution + storage factory wrapping (parity rows 1–4) from `HostedComponent.tsx` into a generic, tested hook in `@starui/widgets-react/hosted`.
 
 **Preconditions**
 - Session 1 committed
-- `HostedContext` importable from `@marketsui/widgets-react/hosted`
+- `HostedContext` importable from `@starui/widgets-react/hosted`
 
 **Steps**
 1. Create `packages/widgets-react/src/hosted/useHostedIdentity.ts` with the signature:
@@ -152,7 +152,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 **Acceptance criteria**
 - All three Vitest files pass
 - `npx turbo typecheck build` green
-- The hook is exported from `@marketsui/widgets-react/hosted`
+- The hook is exported from `@starui/widgets-react/hosted`
 
 **Commit message template**
 ```
@@ -179,11 +179,11 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 **Preconditions**
 - Session 2 committed
-- `agGridBlotter{Light,Dark}Params` exported from `@marketsui/design-system` (commit `e0040b2`)
+- `agGridBlotter{Light,Dark}Params` exported from `@starui/design-system` (commit `e0040b2`)
 
 **Steps**
 1. Identify the project's React ThemeContext source. The reference app uses `useTheme()` from `apps/markets-ui-react-reference/src/context/ThemeContext.tsx`. **Do not** import the app's context inside a package. Two options — pick whichever already exists:
-   - If `@marketsui/widgets-react` (or `core`) already exports a theme hook (`useTheme`, `useResolvedTheme`, etc.) — use it. Grep first.
+   - If `@starui/widgets-react` (or `core`) already exports a theme hook (`useTheme`, `useResolvedTheme`, etc.) — use it. Grep first.
    - Otherwise, the helper takes a `theme: 'auto' | 'dark' | 'light'` prop and resolves `'auto'` by reading `document.documentElement.dataset.theme` with a `MutationObserver` fallback for live switching.
 2. Create `packages/widgets-react/src/hosted/useAgGridTheme.ts`:
    ```ts
@@ -204,7 +204,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 feat(widgets-react): add useAgGridTheme helper consuming blotter preset
 
 Single-source theme helper for HostedMarketsGrid. Consumes
-agGridBlotter{Light,Dark}Params from @marketsui/design-system and
+agGridBlotter{Light,Dark}Params from @starui/design-system and
 reacts to ThemeContext / data-theme attribute. No local color or
 font definitions; updating the design-system preset re-themes every
 blotter at once.
@@ -224,7 +224,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 **Preconditions**
 - Sessions 1–3 committed
-- `useHostedIdentity` and `useAgGridTheme` in `@marketsui/widgets-react/hosted`
+- `useHostedIdentity` and `useAgGridTheme` in `@starui/widgets-react/hosted`
 
 **Steps**
 1. Create `packages/widgets-react/src/hosted/HostedMarketsGrid.tsx`. Final prop shape (all flat; merge identity, theme, container, and grid passthrough props at top level):
@@ -274,7 +274,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
    ```
 3. Add `useDocumentTitle(documentTitle)` effect (parity row 7).
 4. Add the legacy `marketsgrid-view-state::*` cleanup effect (parity row 15) — gated by a sentinel (`localStorage.getItem('hosted-mg.legacy-cleanup') !== '1'`) so it only runs once ever per browser.
-5. Re-export `HostedMarketsGrid` from `@marketsui/widgets-react/hosted` and from the package root index.
+5. Re-export `HostedMarketsGrid` from `@starui/widgets-react/hosted` and from the package root index.
 6. Smoke test only this session — full parity matrix tests are session 5. One render test: mount `<HostedMarketsGrid gridId="t1" defaultInstanceId="t1" componentName="Test"/>` with mocked DataPlane + ConfigManager and assert it renders without throwing.
 
 **Acceptance criteria**
@@ -326,7 +326,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 **Acceptance criteria**
 - All new specs pass
-- `npx turbo test --filter=@marketsui/widgets-react` green
+- `npx turbo test --filter=@starui/widgets-react` green
 - Vitest baseline (was 298 pre-refactor) plus all new specs pass
 
 **Commit message template**
@@ -391,7 +391,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 **Steps**
 1. Rewrite `apps/markets-ui-react-reference/src/views/BlottersMarketsGrid.tsx` to:
    ```tsx
-   import { HostedMarketsGrid } from '@marketsui/widgets-react/hosted';
+   import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
    import { openProviderEditorPopout } from '../data-providers-popout';
 
    export default function BlottersMarketsGrid() {
@@ -426,7 +426,7 @@ refactor(markets-ui-react-reference): migrate BlottersMarketsGrid to HostedMarke
 
 Collapses the route view from 163 lines to a single wrapper call.
 All theme, identity, storage, data-plane, and provider-picker
-wiring is now owned by @marketsui/widgets-react/hosted.
+wiring is now owned by @starui/widgets-react/hosted.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
@@ -468,7 +468,7 @@ refactor(repo): remove obsolete hosted-grid layers
 
 Deletes HostedComponent, HostedFeatureView, SimpleBlotter, and the
 package-level BlotterGrid. All replaced by HostedMarketsGrid in
-@marketsui/widgets-react/hosted.
+@starui/widgets-react/hosted.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
@@ -546,7 +546,7 @@ Append one line per completed session: `<sha> | session N | one-line summary`.
 
 - `e0040b2` | session 0 | theme-drift audit + agGridBlotter{Light,Dark}Params preset (preparatory; before session structure)
 - `ccfd95a` | session 1 | public types in widgets-react/hosted (HostedContext, RegisteredComponentMetadata, ConfigManager + StorageAdapterFactory re-exports)
-- `9289fe3` | session 2 | useHostedIdentity + tests (OpenFin/browser dual path, storage-factory metadata wrap; vitest scaffolding added to @marketsui/widgets-react)
+- `9289fe3` | session 2 | useHostedIdentity + tests (OpenFin/browser dual path, storage-factory metadata wrap; vitest scaffolding added to @starui/widgets-react)
 - `f3004f4` | session 3 | useAgGridTheme + tests (consumes design-system blotter preset; reacts to [data-theme] via MutationObserver)
 - `ac69ef6` | session 4 | HostedMarketsGrid wrapper + smoke test (composes hooks + DataPlaneProvider + full-bleed layout + loading guard + MarketsGridContainer; flat props per D7; legacy view-state cleanup gated by localStorage sentinel)
 - `c41943d` | session 5 | parity tests (10 new specs under packages/widgets-react/src/hosted/__tests__ covering rows 5-10, 13-15, 16, 17-20, 21; vitest 27 passing in widgets-react)
@@ -567,9 +567,9 @@ Append one line per completed session: `<sha> | session N | one-line summary`.
 |---|---|
 | `npx turbo typecheck` | 52/52 successful (50 cached, 2 fresh) |
 | `npx turbo build` | 32/32 successful (31 cached, 1 fresh) |
-| `npx turbo test` | 36/36 successful — `@marketsui/widgets-react` ran 16 test files / 27 tests, all green |
+| `npx turbo test` | 36/36 successful — `@starui/widgets-react` ran 16 test files / 27 tests, all green |
 | `npx playwright test hosted-markets-grid` | 5/5 green against the migrated reference app |
-| `npx turbo e2e` (whole-monorepo) | Fails only on the pre-existing `@marketsui/demo-react#e2e` "No tests found" config error — unchanged by this branch, documented at session 8 |
+| `npx turbo e2e` (whole-monorepo) | Fails only on the pre-existing `@starui/demo-react#e2e` "No tests found" config error — unchanged by this branch, documented at session 8 |
 
 ### Manual checks (session 10 steps 2–3) — deferred to reviewer
 
@@ -613,10 +613,10 @@ The browser-side parity walk is fully covered by `e2e/hosted-markets-grid.spec.t
 
 - Collapses the previous six-deep BlottersMarketsGrid → HostedFeatureView →
   HostedComponent → BlotterGrid → MarketsGridContainer → MarketsGrid stack
-  into a single <HostedMarketsGrid> exported from @marketsui/widgets-react/hosted.
+  into a single <HostedMarketsGrid> exported from @starui/widgets-react/hosted.
 - The wrapper owns identity resolution (OpenFin + browser fallback),
   ConfigService-backed storage with auto-injected registered-component
-  metadata, AG-Grid blotter theme (single source from @marketsui/design-system
+  metadata, AG-Grid blotter theme (single source from @starui/design-system
   adapter), DataPlane mount, full-bleed layout, ConfigManager loading guard,
   document title, and a one-shot legacy view-state cleanup. Flat props per
   refactor decision D7.
@@ -632,7 +632,7 @@ Module README: packages/widgets-react/src/hosted/README.md
 - npx turbo build — 32/32 green
 - npx turbo test — 36/36 green; 27 hosted-grid specs pass
 - npx playwright test hosted-markets-grid — 5/5 green
-- Pre-existing @marketsui/demo-react#e2e "No tests found" config error
+- Pre-existing @starui/demo-react#e2e "No tests found" config error
   unchanged (documented at session 8).
 
 ## Test plan
@@ -641,4 +641,4 @@ Module README: packages/widgets-react/src/hosted/README.md
 - [ ] Multi-window OpenFin storage isolation (deferred — needs OpenFin).
 - [x] Browser parity covered by e2e/hosted-markets-grid.spec.ts.
 ``` (added packages/widgets-react/src/hosted/README.md with overview, MVP usage, full props table for wrapper-owned + inherited fields, OpenFin/browser auto-detection, theming → design-system blotter preset, persistence model, parity matrix with test references; appended §1.14 HostedMarketsGrid (consolidated hosting wrapper) to docs/IMPLEMENTED_FEATURES.md describing what was added/removed across sessions 1–8 with cross-link to the new README. MEMORY.md already indexes this worklog via reference_hosted_markets_grid_refactor.md — no change needed.)
-- `344d691` | session 8 | obsolete layers deleted (removed HostedComponent.tsx, HostedFeatureView.tsx, packages/widgets-react/src/blotter/SimpleBlotter.tsx, packages/widgets-react/src/blotter/BlotterGrid.tsx — 727 LOC removed. Pre-deletion grep confirmed every remaining hit was in docs / comments / Angular-side code (intentionally left, separate framework). index.ts dropped SimpleBlotter / BlotterGrid exports; widgets-react package description refreshed. typecheck + build + 27/27 widgets-react vitest + 5/5 hosted-markets-grid e2e all green. The pre-existing `@marketsui/demo-react#e2e "No tests found"` config error is unchanged by this session.)
+- `344d691` | session 8 | obsolete layers deleted (removed HostedComponent.tsx, HostedFeatureView.tsx, packages/widgets-react/src/blotter/SimpleBlotter.tsx, packages/widgets-react/src/blotter/BlotterGrid.tsx — 727 LOC removed. Pre-deletion grep confirmed every remaining hit was in docs / comments / Angular-side code (intentionally left, separate framework). index.ts dropped SimpleBlotter / BlotterGrid exports; widgets-react package description refreshed. typecheck + build + 27/27 widgets-react vitest + 5/5 hosted-markets-grid e2e all green. The pre-existing `@starui/demo-react#e2e "No tests found"` config error is unchanged by this session.)

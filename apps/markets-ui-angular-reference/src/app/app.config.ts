@@ -4,12 +4,12 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { providePrimeNG } from 'primeng/config';
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
-import { generatePrimeNGPreset } from '@marketsui/design-system/adapters/primeng';
-import { provideHostWrapper } from '@marketsui/host-wrapper-angular';
-import { BrowserRuntime } from '@marketsui/runtime-browser';
-import { OpenFinRuntime, isOpenFin } from '@marketsui/runtime-openfin';
-import { createConfigClient } from '@marketsui/config-service';
-import type { RuntimePort } from '@marketsui/runtime-port';
+import { generatePrimeNGPreset } from '@starui/design-system/adapters/primeng';
+import { provideHostWrapper } from '@starui/host-wrapper-angular';
+import { BrowserRuntime } from '@starui/runtime-browser';
+import { OpenFinRuntime, isOpenFin } from '@starui/runtime-openfin';
+import { createConfigClient } from '@starui/config-service';
+import type { RuntimePort } from '@starui/runtime-port';
 
 import { routes } from './app.routes';
 

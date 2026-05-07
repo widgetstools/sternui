@@ -5,11 +5,11 @@ import App from "./App";
 import { ThemeProvider } from "./context/ThemeContext";
 import "./index.css";
 
-import { HostWrapper } from "@marketsui/host-wrapper-react";
-import { BrowserRuntime } from "@marketsui/runtime-browser";
-import { OpenFinRuntime, isOpenFin } from "@marketsui/runtime-openfin";
-import { createConfigClient } from "@marketsui/config-service";
-import type { RuntimePort } from "@marketsui/runtime-port";
+import { HostWrapper } from "@starui/host-wrapper-react";
+import { BrowserRuntime } from "@starui/runtime-browser";
+import { OpenFinRuntime, isOpenFin } from "@starui/runtime-openfin";
+import { createConfigClient } from "@starui/config-service";
+import type { RuntimePort } from "@starui/runtime-port";
 
 // DataProvider persistence in v2 routes through `<DataPlaneProvider>`
 // (which wires the v2 `DataProviderConfigStore` against the platform's
@@ -36,18 +36,18 @@ const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid
 // React-Query + provider-editor bundle stays out of the shell.
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
 
-// ImportConfig lives in the @marketsui/dock-editor package (not a local view file).
+// ImportConfig lives in the @starui/dock-editor package (not a local view file).
 // The .then() unwraps the named export into the default export shape that
 // React.lazy() requires.
 const ImportConfig = React.lazy(() =>
-  import("@marketsui/dock-editor").then((m) => ({ default: m.ImportConfig })),
+  import("@starui/dock-editor").then((m) => ({ default: m.ImportConfig })),
 );
 
 // WorkspaceSetup — the unified Components + Dock + Inspector editor
 // (Phase 6). Same lazy-import pattern as ImportConfig. Hosts at
 // /workspace-setup; the dock launches it via ACTION_OPEN_WORKSPACE_SETUP.
 const WorkspaceSetup = React.lazy(() =>
-  import("@marketsui/dock-editor").then((m) => ({ default: m.WorkspaceSetup })),
+  import("@starui/dock-editor").then((m) => ({ default: m.WorkspaceSetup })),
 );
 
 // ─── Loading fallback ────────────────────────────────────────────────

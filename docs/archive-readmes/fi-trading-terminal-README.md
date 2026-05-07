@@ -9,7 +9,7 @@
 ## Where did everything go?
 
 The design-system tokens, Tailwind config, and terminal palette moved into
-a dedicated `@marketsui/design-system` package. The React + Angular
+a dedicated `@starui/design-system` package. The React + Angular
 cockpit reference apps are preserved under `apps/fi-trading-reference/`
 so the exact terminal UX stays runnable for regression.
 
@@ -19,7 +19,7 @@ here.
 
 | Old location (this repo) | New location |
 |---|---|
-| `react-app/src/design-system/` | [`packages/design-system/src/`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/design-system) — `@marketsui/design-system` |
+| `react-app/src/design-system/` | [`packages/design-system/src/`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/design-system) — `@starui/design-system` |
 | `react-app/` (cockpit reference) | [`apps/fi-trading-reference/`](https://github.com/widgetstools/marketsui-platform/tree/main/apps/fi-trading-reference) |
 | `angular-app/` (cockpit reference, Angular 21) | [`apps/fi-trading-reference-angular/`](https://github.com/widgetstools/marketsui-platform/tree/main/apps/fi-trading-reference-angular) |
 | `docs/` | Merged into [`docs/`](https://github.com/widgetstools/marketsui-platform/tree/main/docs) |
@@ -30,7 +30,7 @@ here.
 - **Tailwind 3.4.1** pinning (NOT v4) — enforced monorepo-wide via
   [`docs/DEPS_STANDARD.md`](https://github.com/widgetstools/marketsui-platform/blob/main/docs/DEPS_STANDARD.md)
 - **Cockpit styles** (dense trading surfaces) — live in the same
-  `@marketsui/design-system` package
+  `@starui/design-system` package
 
 ## If you have an open branch here
 

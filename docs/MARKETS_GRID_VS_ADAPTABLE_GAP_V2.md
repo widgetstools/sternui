@@ -1,6 +1,6 @@
 # MarketsGrid vs AdapTable for AG Grid — Gap Analysis V2
 
-> **Scope under review:** the `@marketsui/markets-grid` package only —
+> **Scope under review:** the `@starui/markets-grid` package only —
 > `packages/markets-grid/src/*.tsx`/`.ts` (~25 files, ~8.2 KLOC including
 > the `formatter/` subtree).
 > **Reference doc:** [`docs/ADAPTABLE_TOOLS_DEEP_ANALYSIS.md`](./ADAPTABLE_TOOLS_DEEP_ANALYSIS.md)
@@ -156,13 +156,13 @@ In order of pain for a trading-desk consumer today:
 
 ## 1. Executive summary + capability scorecard
 
-`@marketsui/markets-grid` remains a *thin* React-only wrapper around
+`@starui/markets-grid` remains a *thin* React-only wrapper around
 AG Grid Enterprise. End-to-end, the package's job is:
 
 1. Boot AG Grid with `AllEnterpriseModule` registered
    (`MarketsGrid.tsx:14, 75-79`).
 2. Mount a `GridProvider` and a `GridPlatform` (the latter from
-   `@marketsui/core`) that runs a *module pipeline* over the column
+   `@starui/core`) that runs a *module pipeline* over the column
    defs / grid options on every state change
    (`useGridHost.ts:38-131`, particularly the option-change pusher at
    lines 99-118).
@@ -170,7 +170,7 @@ AG Grid Enterprise. End-to-end, the package's job is:
    profile selector, save, settings, admin actions) and a pinned
    formatting-toolbar row beneath it (`MarketsGrid.tsx:595-787`).
 4. Persist the *active profile* (via `useProfileManager` from
-   `@marketsui/core`) plus an opaque "grid-level data" blob through a
+   `@starui/core`) plus an opaque "grid-level data" blob through a
    pluggable `StorageAdapter` (factory or instance). Now with an
    *optional per-view active-profile override* via OpenFin's
    `customData` (`openfinViewProfile.ts:29-57`,
@@ -187,15 +187,15 @@ templates, saved filters, grid-state capture/replay, design-system
 tokens, profile manager, undo-redo, expression evaluator, formatter
 primitives, `Poppable`, `BorderStyleEditor`, `FormatterPicker`,
 `Tooltip`, `Select`, `AlertDialog`, `Popover` — lives in
-`@marketsui/core` and sibling editor packages. The package itself is
+`@starui/core` and sibling editor packages. The package itself is
 shell + toolbars + sheet chrome + the OpenFin pointer adapter.
 
 That sets up the same comparison V1 used: AdapTable bundles
 *everything* (engine, expression language, ~30 modules, persistence,
 events, plugins) under one `Adaptable.init({...})` call. MarketsGrid's
 analogous boundary is the consumer's bootstrap code, which composes
-`@marketsui/core` modules + `@marketsui/markets-grid` shell +
-`@marketsui/config-service` storage. **🔵 delegated to sibling**
+`@starui/core` modules + `@starui/markets-grid` shell +
+`@starui/config-service` storage. **🔵 delegated to sibling**
 remains a real classification, not a hand-wave.
 
 ### 1.1 Capability scorecard
@@ -297,7 +297,7 @@ adaptableStateKey`. Migration helper for major-version bumps.
 **MarketsGrid.** No global Redux store at the markets-grid layer.
 Persistence is profile-shaped:
 
-- The `useProfileManager` hook (imported from `@marketsui/core` —
+- The `useProfileManager` hook (imported from `@starui/core` —
   `MarketsGrid.tsx:40, 418-423`, configured with
   `disableAutoSave: true`) owns active profile id, profile list,
   dirty flag, and CRUD ops (create / load / delete / clone / rename /
@@ -367,14 +367,14 @@ which profile is *active* per view, not where profiles are stored.
 #### 2.3.2 Sibling responsibility
 
 Module state inside the active profile is managed by
-`@marketsui/core`'s module pipeline. Each registered module owns a
+`@starui/core`'s module pipeline. Each registered module owns a
 slice (`conditional-styling`, `column-customization`,
 `column-templates`, `calculated-columns`, `column-groups`,
 `saved-filters`, `toolbar-visibility`, `grid-state`,
 `general-settings`). Modules expose `useModuleState<T>(moduleId)`
 hooks (`FiltersToolbar.tsx:78`, `formattingToolbarHooks.ts:173-174`,
 `formatter/state.ts:176-177`) — these mirror AdapTable's per-module
-state segmentation but are managed by `@marketsui/core`'s store
+state segmentation but are managed by `@starui/core`'s store
 rather than duplicated here.
 
 #### 2.3.3 Gap vs. AdapTable (unchanged)
@@ -408,7 +408,7 @@ This is the largest architectural gap and remains so.
 | Status Bar | AG Grid `statusBar` prop, forwarded as-is | 🔵 |
 | Column menu | AG Grid default | ❌ |
 | Context menu | AG Grid default | ❌ |
-| Theming | `ensureCockpitStyles()` injects cockpit CSS once per document. Tokens from `@marketsui/design-system`. Light/dark via `data-theme`. | 🔵 |
+| Theming | `ensureCockpitStyles()` injects cockpit CSS once per document. Tokens from `@starui/design-system`. Light/dark via `data-theme`. | 🔵 |
 
 The popouts (`SettingsSheet` and `FormattingToolbar`) both use the
 shared `Poppable` primitive (`SettingsSheet.tsx:11, 492-528`,
@@ -442,7 +442,7 @@ data-plane package feeds row updates via `applyTransaction` calls).
 
 **Unchanged from V1.** No package-level event bus. Internal listeners
 in `FiltersToolbar.tsx:138-141`, `formattingToolbarHooks.ts:124-130`,
-`formatter/state.ts:215-220` go through `@marketsui/core`'s `ApiHub`
+`formatter/state.ts:215-220` go through `@starui/core`'s `ApiHub`
 (internal). `onReady(handle)` and `onGridReady(event)` props
 (`types.ts:140, 73`) remain the only public callback hooks.
 
@@ -464,7 +464,7 @@ touchpoints are now:
 All three are *defensive* — each guards against `fin` being undefined
 and falls through gracefully. None imply a real FDC3 surface, and
 none change the V1 conclusion that real OpenFin/FDC3 work is fully
-delegated to `@marketsui/openfin-platform*`.
+delegated to `@starui/openfin-platform*`.
 
 ---
 
@@ -477,7 +477,7 @@ delegated to `@marketsui/openfin-platform*`.
 | React 19 wrapper | ✅ | — | `MarketsGrid.tsx`. peerDep pins React >= 19. |
 | React 18 compat | ✅ | — | `forwardRef`-based; should run on 18 too. |
 | Vanilla TS | ❌ | XL | Same. |
-| Angular adapter | ❌ | XL | Sibling `@marketsui/angular` does not mirror MarketsGrid. |
+| Angular adapter | ❌ | XL | Sibling `@starui/angular` does not mirror MarketsGrid. |
 | Vue adapter | ❌ | XL | Same. |
 | `Adaptable.init`-style async constructor | ⚪ | — | Not idiomatic React. |
 | License key | ⚪ | — | Not commercial. |
@@ -530,7 +530,7 @@ delegated to `@marketsui/openfin-platform*`.
 | Status Bar — Module Status Panels | ❌ | L | Same. |
 | Column menu customization | ❌ | M | Same. |
 | Context menu customization | ❌ | M | Same. |
-| Theming | ✅ | — | Cockpit CSS + `@marketsui/design-system` tokens. |
+| Theming | ✅ | — | Cockpit CSS + `@starui/design-system` tokens. |
 | Light/dark support | ✅ | — | `[data-theme="dark"]`. |
 | OS-following mode | 🟡 | S | Same. |
 | Custom themes | 🔵 | — | Design-system. |
@@ -888,7 +888,7 @@ ship as something better" margin.
 
 4. **AdapTable's plugin system + ipushpull / interop.io / OpenFin
    plugins.** ⚪. OpenFin and FDC3 are owned by
-   `@marketsui/openfin-platform*`; the new `openfinViewProfile.ts`
+   `@starui/openfin-platform*`; the new `openfinViewProfile.ts`
    is a *consumer* of the OpenFin runtime, not a *plugin host*.
    Ipushpull and interop.io aren't strategic. Workspace import
    boundaries replace the plugin registry.

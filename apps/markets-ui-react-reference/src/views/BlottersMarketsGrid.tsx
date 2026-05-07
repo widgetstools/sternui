@@ -5,9 +5,9 @@
  */
 
 import type { ReactNode } from 'react';
-import { HostedMarketsGrid } from '@marketsui/widgets-react/hosted';
-import { dataPlaneClient } from '../data-plane-client';
-import { openProviderEditorPopout } from '../data-providers-popout';
+import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { dataPlaneClient } from '../dataPlaneClient';
+import { openProviderEditorPopout } from '../dataProvidersPopout';
 
 const DEFAULT_COL_DEF = {
   floatingFilter: true,

@@ -1,6 +1,6 @@
 # Debugging the data-plane SharedWorker (OpenFin)
 
-The data-plane v2 runtime (`@marketsui/data-plane/v2`) lives in a SharedWorker so a single STOMP/REST connection can fan out to N consumers (windows, popouts, blotters) with no extra round-trips. That worker is invisible to the OpenFin window's own DevTools — you have to attach Chrome's external DevTools to inspect it.
+The data-plane v2 runtime (`@starui/data-plane/v2`) lives in a SharedWorker so a single STOMP/REST connection can fan out to N consumers (windows, popouts, blotters) with no extra round-trips. That worker is invisible to the OpenFin window's own DevTools — you have to attach Chrome's external DevTools to inspect it.
 
 ## TL;DR
 

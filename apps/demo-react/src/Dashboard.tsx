@@ -20,8 +20,8 @@
  */
 import { useMemo, useState } from 'react';
 import type { ColDef, Theme } from 'ag-grid-community';
-import { MarketsGrid } from '@marketsui/markets-grid';
-import { DexieAdapter } from '@marketsui/core';
+import { MarketsGrid } from '@starui/markets-grid';
+import { DexieAdapter } from '@starui/core';
 
 import { generateOrders, generateEquityOrders, type Order } from './data';
 

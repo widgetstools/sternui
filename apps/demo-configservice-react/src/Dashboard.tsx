@@ -24,7 +24,7 @@ import {
   MarketsGrid,
   type AdminAction,
   type StorageAdapterFactory,
-} from '@marketsui/markets-grid';
+} from '@starui/markets-grid';
 
 import { generateOrders, generateEquityOrders, type Order } from './data';
 

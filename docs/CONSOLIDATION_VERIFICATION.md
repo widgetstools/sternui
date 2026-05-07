@@ -21,7 +21,7 @@ Angular 21.
 npx turbo typecheck
 ```
 
-**Result:** 13/13 packages green. Zero unresolved `@marketsui/*` imports.
+**Result:** 13/13 packages green. Zero unresolved `@starui/*` imports.
 
 ## 3. Unit tests
 
@@ -29,8 +29,8 @@ npx turbo typecheck
 npx turbo test
 ```
 
-**Result:** 298 tests passing — 242 `@marketsui/core` + 56
-`@marketsui/markets-grid`. Matches the pre-consolidation baseline from
+**Result:** 298 tests passing — 242 `@starui/core` + 56
+`@starui/markets-grid`. Matches the pre-consolidation baseline from
 `widgetstools/widgets`. Zero regressions.
 
 ## 4. Production build
@@ -113,7 +113,7 @@ and path mapping that the archived-repo READMEs should link to.
 Consolidation is complete. The monorepo at
 `widgetstools/marketsui-platform` carries:
 
-- 18 packages under `@marketsui/*`
+- 18 packages under `@starui/*`
 - 8 apps (primary: `demo-react`; 7 others are reference/regression)
 - Unified Turborepo + npm-workspaces tooling
 - Preserved git history from all four source repos

@@ -1,4 +1,4 @@
-# Plan: `@marketsui/data-plane` — SharedWorker data provider runtime
+# Plan: `@starui/data-plane` — SharedWorker data provider runtime
 
 > **Status:** draft · **Owner:** platform · **Est:** 3 weeks (Phase 1 of the unblocked roadmap) · **Blocked by:** none · **Unblocks:** MarketsGrid HOC refactor, cross-component cache story, AppDataProvider template binding
 
@@ -22,7 +22,7 @@ New package:
 
 ```
 packages/data-plane/
-├── package.json                   @marketsui/data-plane
+├── package.json                   @starui/data-plane
 ├── src/
 │   ├── index.ts                   public API (client SDK only; worker is internal)
 │   ├── protocol.ts                wire-protocol types (shared with worker)
@@ -50,11 +50,11 @@ packages/data-plane/
 └── tsconfig.json / vitest.config.ts
 ```
 
-**Framework-agnostic.** Zero React / Angular imports. The client SDK is DOM-only; framework hooks live in `@marketsui/react` and `@marketsui/angular` and wrap `DataPlaneClient`.
+**Framework-agnostic.** Zero React / Angular imports. The client SDK is DOM-only; framework hooks live in `@starui/react` and `@starui/angular` and wrap `DataPlaneClient`.
 
 ## 3. Dependencies
 
-- `@marketsui/shared-types` — already has `ProviderType`, `WebSocketProviderConfig`, `SocketIOProviderConfig`, `MockProviderConfig`, etc. Extend with `AppDataProviderConfig` and the wire-protocol types.
+- `@starui/shared-types` — already has `ProviderType`, `WebSocketProviderConfig`, `SocketIOProviderConfig`, `MockProviderConfig`, etc. Extend with `AppDataProviderConfig` and the wire-protocol types.
 - No runtime deps beyond the stomp client (move from widgets-react).
 - `peerDependencies`: none. It's plain TS + browser APIs.
 
@@ -297,7 +297,7 @@ export function connect(workerURL: string | URL): DataPlaneClient {
 Reference implementation:
 
 ```typescript
-// @marketsui/react  — uses useSyncExternalStore
+// @starui/react  — uses useSyncExternalStore
 export function useDataPlaneValue<T>(providerId: string, key: string): T | undefined {
   const client = useContext(DataPlaneContext);
   return useSyncExternalStore(
@@ -312,7 +312,7 @@ export function useDataPlaneQuery<T>(providerId: string, key: string) {
 ```
 
 ```typescript
-// @marketsui/angular — uses signals + effect
+// @starui/angular — uses signals + effect
 @Injectable({ providedIn: 'root' })
 export class DataPlaneService {
   private cache = new Map<string, WritableSignal<unknown>>();
@@ -371,7 +371,7 @@ Migration steps:
 1. Create `packages/data-plane/` with skeleton (protocol, cache, client).
 2. Move `StompDatasourceProvider.ts` → `packages/data-plane/src/providers/StompProvider.ts`; wrap it in `ProviderBase` shape.
 3. `dataProviderConfigService` moves to `packages/component-host/` (it's really app-level config, not provider-level).
-4. `BlotterProvider.tsx` refactors to consume `useDataPlaneValue(providerId, blotterKey)` from `@marketsui/react` instead of owning its own STOMP instance.
+4. `BlotterProvider.tsx` refactors to consume `useDataPlaneValue(providerId, blotterKey)` from `@starui/react` instead of owning its own STOMP instance.
 5. Remove the commented-out circular-dep import in `openfin-platform-stern/src/bootstrap.ts` — it'll resolve once `dataProviderConfigService` lives in the right package.
 
 Each step is its own PR. Step 5 closes the circular-dep TODO carried over from Day 5 of consolidation.
@@ -416,6 +416,6 @@ Target coverage: 90%+ on `cache.ts`, `router.ts`, `dedup.ts`. The public client 
 ## 17. Non-goals
 
 - **Not a general-purpose state manager.** No Redux-style actions, no time-travel debug. It's a cache + pub/sub over a worker.
-- **Not a storage layer.** AppData is volatile; persistence goes through `@marketsui/config-service`.
+- **Not a storage layer.** AppData is volatile; persistence goes through `@starui/config-service`.
 - **Not cross-origin.** Same-origin is an invariant. Cross-app uses IAB through the worker.
 - **No query language / filtering in the worker.** The worker ships values unmodified. Widgets do their own derivation.

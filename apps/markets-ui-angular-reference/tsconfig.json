@@ -15,13 +15,13 @@
     "target": "ES2022",
     "module": "preserve",
     "paths": {
-      "@marketsui/angular-config-browser": ["../../packages/config-browser-angular/src/index.ts"],
-      "@marketsui/angular-dock-editor": ["../../packages/dock-editor-angular/src/index.ts"],
-      "@marketsui/angular-registry-editor": ["../../packages/registry-editor-angular/src/index.ts"],
-      "@marketsui/icons-svg": ["../../packages/icons-svg/index.ts"],
-      "@marketsui/icons-svg/*": ["../../packages/icons-svg/*"],
-      "@marketsui/tokens-primeng": ["../../packages/tokens-primeng/index.ts"],
-      "@marketsui/tokens-primeng/*": ["../../packages/tokens-primeng/*"]
+      "@starui/angular-config-browser": ["../../packages/angular/config-browser-angular/src/index.ts"],
+      "@starui/angular-dock-editor": ["../../packages/angular/dock-editor-angular/src/index.ts"],
+      "@starui/angular-registry-editor": ["../../packages/angular/registry-editor-angular/src/index.ts"],
+      "@starui/icons-svg": ["../../packages/shared/icons-svg/index.ts"],
+      "@starui/icons-svg/*": ["../../packages/shared/icons-svg/*"],
+      "@starui/tokens-primeng": ["../../packages/angular/tokens-primeng/index.ts"],
+      "@starui/tokens-primeng/*": ["../../packages/angular/tokens-primeng/*"]
     }
   },
   "angularCompilerOptions": {

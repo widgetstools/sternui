@@ -56,7 +56,7 @@ Four parallel investigation agents produced detailed reports. Summary:
 2. **Listener leak** — `SimpleBlotter.tsx:88` `api.addEventListener('selectionChanged',…)` no remove.
 3. **Listener leak** — `BrowserAdapter.ts:31` `window.addEventListener('beforeunload',…)` no remove in `dispose()`.
 4. **Hot-path `console.log`** in `data-plane/v2/worker/Hub.ts` and `client/DataPlane.ts` (per-message), and per-render in `MarketsGridContainer.tsx:313`.
-5. **Bundle bloat** — `@marketsui/ui` barrel eagerly exports recharts (`chart.tsx`); `@marketsui/core` barrel eagerly exports Monaco (`ExpressionEditor`). Both should be subpath exports.
+5. **Bundle bloat** — `@starui/ui` barrel eagerly exports recharts (`chart.tsx`); `@starui/core` barrel eagerly exports Monaco (`ExpressionEditor`). Both should be subpath exports.
 6. **Inline AG-Grid props** — `BlotterGrid.tsx:68,73-79` allocates new `rowSelection` / `sideBar` literals every render.
 7. **Re-binding listener** — `MarketsGridContainer.tsx:208-211` inline keydown handler rebinds `document` keydown every render.
 8. **Cross-app byte-identical duplication** — `apps/demo-angular/*` is 100% identical to `apps/fi-trading-reference-angular/*` (28 widgets + 4 services + app.ts); `apps/demo-configservice-react/MarketDepth.tsx` etc. byte-identical to `apps/demo-react/`; `openfinDock.ts` (577 LOC) duplicated between `stern-reference-react` and `stern-reference-angular`.
@@ -93,7 +93,7 @@ carried into this branch). The new architecture defines:
 - **`RuntimePort` seam** abstracting OpenFin vs Browser
 - **`HostWrapper` + `HostContext`** as the single component-side seam
 - **4 ConfigManager backends**: REST, IndexedDB, localStorage, Memory (currently only REST + IndexedDB exist)
-- **Modular component shape**: `@starui/<thing>` (agnostic) + `@starui/<thing>-react` (panels) — namespace also seems to be migrating from `@marketsui/*` → `@starui/*`
+- **Modular component shape**: `@starui/<thing>` (agnostic) + `@starui/<thing>-react` (panels) — namespace also seems to be migrating from `@starui/*` → `@starui/*`
 - **New `DataProvider<T>` interface** with `InProcessStompDataProvider`, `RestDataProvider`, `MockDataProvider`, `AppDataProvider`, `SharedDataProvider`
 - **Canonical `/c/<componentType>[/<subType>]` route table**
 - **Single `apps/reference-react` + `apps/reference-angular`** (replacing 6+ existing reference apps)
@@ -117,7 +117,7 @@ effort**. It's not a doc update or a few file moves. It involves:
 6. Implement `LocalStorageConfigManager` + `MemoryConfigManager`
 7. Refactor `data-plane` v1+v2 into the new `DataProvider<T>` interface
 8. Restructure component packages into `@starui/<thing>` + `@starui/<thing>-react` shape
-9. (Possibly) rename namespace `@marketsui/*` → `@starui/*` repo-wide
+9. (Possibly) rename namespace `@starui/*` → `@starui/*` repo-wide
 10. Build canonical `/c/<componentType>[/<subType>]` route table
 11. Create `apps/reference-react` + `apps/reference-angular`
 12. Migrate functionality from existing 8 reference apps; delete originals
@@ -149,13 +149,13 @@ Phases 3+ depend on user's answer to the scope question.
 - 2D. Strip hot-path `console.log` from `Hub.ts`, `DataPlane.ts`, `MarketsGridContainer.tsx`
 - 2E. Memoize inline AG-Grid props in `BlotterGrid.tsx` (`rowSelection`, `sideBar`)
 - 2F. `useCallback` keydown handler in `MarketsGridContainer.tsx`
-- 2G. Move `recharts` (`chart.tsx`) to subpath export `@marketsui/ui/chart`
-- 2H. Move `ExpressionEditor` (Monaco) to subpath export `@marketsui/core/expression-editor`
+- 2G. Move `recharts` (`chart.tsx`) to subpath export `@starui/ui/chart`
+- 2H. Move `ExpressionEditor` (Monaco) to subpath export `@starui/core/expression-editor`
 - Verify: typecheck + build + targeted unit tests
 - Commit per group
 
 ### Phase 3 — Cross-app dedup (depends on architectural decision)
-**If staying with current `@marketsui/*` architecture:**
+**If staying with current `@starui/*` architecture:**
 - 3A. Delete `apps/demo-angular` (byte-identical duplicate of `fi-trading-reference-angular`)
 - 3B. Merge `apps/demo-configservice-react` into `apps/demo-react` (gate ConfigService via env)
 - 3C. Move `openfinDock.ts` from both stern apps into `packages/openfin-platform-stern/src/dock/`
@@ -226,16 +226,16 @@ Replaces the lazy seed-from-template mechanism that previously lived inside `cre
 
 Closes Path C Phase X-2. Angular components hosted on the OpenFin platform now have the same DI-based seam React components got from `HostWrapper` / `useHost()`. No `@openfin/core` imports needed in component code; runtime + configManager + lifecycle events are injected.
 
-- New package `@marketsui/host-wrapper-angular` (`packages/host-wrapper-angular/`).
+- New package `@starui/host-wrapper-angular` (`packages/host-wrapper-angular/`).
   - `src/HostTokens.ts` — `HOST_RUNTIME`, `HOST_CONFIG_MANAGER`, `HOST_CONFIG_URL` `InjectionToken`s.
   - `src/HostService.ts` — `@Injectable({ providedIn: 'root' })` singleton. `runtime`, `configManager`, `identity` (+ identity getters), `themeSignal: Signal<Theme>` and `theme$: Observable<Theme>` (dual-emit), and `windowShown$` / `windowClosing$` / `customData$` / `workspaceSave$` Observables bridged from `runtime.onThemeChanged` / `onWindowShown` / `onWindowClosing` / `onCustomDataChanged` / `onWorkspaceSave`. `dispose()` tears down listeners and completes Subjects; called automatically via `DestroyRef`.
   - `src/provider.ts` — `provideHostWrapper({ runtime, configManager, configUrl? })` factory. Mirrors React's `<HostWrapper runtime configManager>`.
   - `ng-package.json` + `tsconfig.json` — built via `ng-packagr`. Outputs `dist/` with FESM2022 + `.d.ts`. The package's `exports` map includes `types` so the Angular compiler resolves declarations.
 - Wired into `apps/markets-ui-angular-reference`:
-  - `package.json` — added `@marketsui/host-wrapper-angular`, `@marketsui/config-service`, `@marketsui/runtime-browser`, `@marketsui/runtime-openfin`, `@marketsui/runtime-port`.
+  - `package.json` — added `@starui/host-wrapper-angular`, `@starui/config-service`, `@starui/runtime-browser`, `@starui/runtime-openfin`, `@starui/runtime-port`.
   - `src/app/app.config.ts` — replaced static `appConfig` with `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async). Selects `OpenFinRuntime` if `isOpenFin()` else `BrowserRuntime`, builds `configManager`, spreads `provideHostWrapper(...)` into providers.
   - `src/main.ts` — bootstraps via `buildAppConfig().then((cfg) => bootstrapApplication(AppComponent, cfg))`.
-- Mirrors `@marketsui/host-wrapper-react` 1:1 in capability — Angular components inject `HostService` to read identity / configManager / theme / lifecycle, no platform imports.
+- Mirrors `@starui/host-wrapper-react` 1:1 in capability — Angular components inject `HostService` to read identity / configManager / theme / lifecycle, no platform imports.
 
 ### Phase C-3 REVERT — restore the inlined Host (2026-04-29)
 **Verification:** e2e comparison run on both `main` and the work branch. Main: 195 passed / 23 failed / 218 total. Work branch BEFORE this revert: 178 passed / 40 failed / 218 total — **17 new failures, 16 of them in profile-* specs** that traced back to the C-3 split. User reported "the application now has become very slow" which corroborated the test signal. Reverting `3a7407b` restores `MarketsGrid.tsx` to the 920-LOC version with the inlined Host. The 8 hook + internal/ files added by C-3 are removed. Function-size ceiling on `Host` (611 LOC) intentionally regresses — correctness > ceiling. Lesson recorded: any future split of `Host` must run the e2e suite (especially profile-stress) AS PART of the verification, not just unit tests.
@@ -305,12 +305,12 @@ The 395-LOC `RuleEditor` function in `packages/core/src/modules/conditional-styl
 
 Parent file `ConditionalStylingPanel.tsx` shrank from 1,036 LOC to **681 LOC** (under the 800-LOC ceiling for the first time). The IndicatorPicker (~290 LOC) stays inline because it's a single self-contained sub-tree with no extracted bands of its own.
 
-### Phase D-4 — HostWrapper + HostContext + useHost in @marketsui/host-wrapper-react (2026-04-28)
+### Phase D-4 — HostWrapper + HostContext + useHost in @starui/host-wrapper-react (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 62/62 successful (was 60 before D-4 — +2 from new package tasks). 5 new tests.
 
-This is Seam #2 from `docs/ARCHITECTURE.md`. Adds the React host wrapper *additively* — no existing component uses it yet; existing `WidgetHost` / `WidgetHostContext` in `@marketsui/widget-sdk` continues to work for current consumers.
+This is Seam #2 from `docs/ARCHITECTURE.md`. Adds the React host wrapper *additively* — no existing component uses it yet; existing `WidgetHost` / `WidgetHostContext` in `@starui/widget-sdk` continues to work for current consumers.
 
-**`@marketsui/host-wrapper-react`**
+**`@starui/host-wrapper-react`**
 - `HostContext` React context exposing `HostContextValue` — extends `IdentitySnapshot` and adds `runtime`, `configManager`, `theme`, `configUrl`, plus runtime-event delegates (`onThemeChanged`, `onWindowShown`, `onWindowClosing`, `onCustomDataChanged`).
 - `useHost()` hook — throws a clear error when used outside a wrapper (intentional — silent fallback would mask integration bugs).
 - `<HostWrapper runtime configManager>` — accepts instances OR Promises (so `await OpenFinRuntime.create()` plays naturally). Renders the `loading` slot until both resolve, then mounts children with the resolved context.
@@ -326,13 +326,13 @@ This is Seam #2 from `docs/ARCHITECTURE.md`. Adds the React host wrapper *additi
 
 This is the first concrete piece of Path B — the new `RuntimePort` seam from `docs/ARCHITECTURE.md` is now scaffolded **additively** alongside the existing `openfin-platform*` shells. Nothing in the existing codebase imports the new packages yet; that integration follows.
 
-**Phase D-1 — `@marketsui/runtime-port` (foundation layer)**
+**Phase D-1 — `@starui/runtime-port` (foundation layer)**
 - `packages/runtime-port/` — pure TS, no runtime imports.
 - `RuntimePort` interface: `name`, `resolveIdentity`, `openSurface`, `getTheme`, `onThemeChanged`, `onWindowShown`, `onWindowClosing`, `onCustomDataChanged`, `dispose`.
 - Types: `IdentitySnapshot`, `SurfaceKind`, `SurfaceSpec`, `SurfaceHandle`, `Theme`, `Unsubscribe`.
 - 6 smoke tests using a `FakeRuntime` in-test class — confirms the interface is implementable and lifecycle semantics round-trip.
 
-**Phase D-2 — `@marketsui/runtime-browser`**
+**Phase D-2 — `@starui/runtime-browser`**
 - `packages/runtime-browser/` — implements `RuntimePort` against DOM APIs.
 - Identity: URL search params + mount-prop overrides + `crypto.randomUUID()` fallback.
 - Theme: `[data-theme]` attribute on `<html>` first, `prefers-color-scheme` second; live updates via MutationObserver + matchMedia listener.
@@ -340,14 +340,14 @@ This is the first concrete piece of Path B — the new `RuntimePort` seam from `
 - Surfaces: `popout` via `window.open()` (with `?data=...` base64 customData); `modal` aliased to `popout`; `inpage` delegates to a registered handler.
 - 19 tests under jsdom: identity (7) + BrowserRuntime (12).
 
-**Phase D-3 — `@marketsui/runtime-openfin`**
+**Phase D-3 — `@starui/runtime-openfin`**
 - `packages/runtime-openfin/` — implements `RuntimePort` against `fin.*`.
 - Async factory `OpenFinRuntime.create()` because OpenFin view options are read via promise.
 - Identity priority: view `customData` > URL params > overrides > UUID. View `identity.name` is the canonical `instanceId`.
 - Theme: `[data-theme]` (apps already wire this during workspace init); MutationObserver tracks updates.
 - Lifecycle: bridges view `'shown'` and `'destroyed'` events.
 - `customData` polling (500ms interval) — OpenFin doesn't broadcast options-updated events; polling stops when no listeners are attached or when disposed.
-- `openSurface` for popout/modal currently throws an explanatory error — apps still using `@marketsui/openfin-platform-stern`'s `PlatformAdapter.openWidget` are unaffected. Real `createView` wiring follows in a later phase.
+- `openSurface` for popout/modal currently throws an explanatory error — apps still using `@starui/openfin-platform-stern`'s `PlatformAdapter.openWidget` are unaffected. Real `createView` wiring follows in a later phase.
 - Allows `allowMissingFin: true` for tests / non-fin environments.
 - 15 tests under jsdom: identity (7) + OpenFinRuntime (8).
 
@@ -361,11 +361,11 @@ This is the first concrete piece of Path B — the new `RuntimePort` seam from `
 Closes the architecture violation where shell-layer code (importing from `@openfin/workspace` and `@openfin/workspace-platform`) lived in two app workspaces. The two copies (`apps/stern-reference-react/src/openfin/openfinDock.ts` and `apps/stern-reference-angular/src/app/openfin/openfinDock.ts`, both 577 LOC) were byte-identical.
 
 - New file: `packages/openfin-platform-stern/src/dock/openfinDock.ts` — same content; cross-package imports rewritten as relative imports inside the shell:
-  - `@marketsui/openfin-platform-stern` → `../utils/urlHelper.js`, `../types/openfinEvents.js`, `../platform/menuLauncher.js`, `../utils/defaultIcons.js`
+  - `@starui/openfin-platform-stern` → `../utils/urlHelper.js`, `../types/openfinEvents.js`, `../platform/menuLauncher.js`, `../utils/defaultIcons.js`
 - New barrel: `packages/openfin-platform-stern/src/dock/index.ts` re-exports `*` from `./openfinDock.js`.
 - New subpath export in `packages/openfin-platform-stern/package.json`: `"./dock"` → `./dist/dock/index.js`. Required adding the `exports` field; preserved the existing `main`/`types` for backward compatibility.
 - Apps updated:
-  - `apps/stern-reference-react/src/openfin/OpenfinProvider.tsx:5` — `import * as dock from './openfinDock.js'` → `import * as dock from '@marketsui/openfin-platform-stern/dock'`
+  - `apps/stern-reference-react/src/openfin/OpenfinProvider.tsx:5` — `import * as dock from './openfinDock.js'` → `import * as dock from '@starui/openfin-platform-stern/dock'`
   - `apps/stern-reference-angular/src/app/openfin/openfin-provider.component.ts:18` — same change without the `.js` extension
 - Deleted: both apps' local `openfinDock.ts` files (-1,154 LOC duplication).
 - Behavior: identical. Same exports (`register`, `deregister`, `isQuitting`, `setQuitting`, `isDockAvailable`, etc.) consumed via namespace import.
@@ -374,11 +374,11 @@ Closes the architecture violation where shell-layer code (importing from `@openf
 ### Phase 2G — chart subpath export; Phase 2H skipped (2026-04-28)
 **Verification:** `npx turbo typecheck test` → 52/52 tasks successful.
 
-**Phase 2G — recharts off the @marketsui/ui main barrel:**
+**Phase 2G — recharts off the @starui/ui main barrel:**
 - `packages/ui/src/index.ts` — removed `export * from './components/chart.js'` from the data-display section. Comment block explains the rationale.
-- `packages/ui/package.json` — added `./chart` subpath export pointing at `./dist/components/chart.js`. Future consumers import as `import { ChartContainer } from '@marketsui/ui/chart'`.
-- Verified zero internal consumers: no `import {Chart…} from '@marketsui/ui'` anywhere in `packages/` or `apps/`. fi-trading-reference uses `recharts` directly. So this change is non-breaking.
-- Outcome: any future consumer of `@marketsui/ui` no longer pulls recharts through the main barrel.
+- `packages/ui/package.json` — added `./chart` subpath export pointing at `./dist/components/chart.js`. Future consumers import as `import { ChartContainer } from '@starui/ui/chart'`.
+- Verified zero internal consumers: no `import {Chart…} from '@starui/ui'` anywhere in `packages/` or `apps/`. fi-trading-reference uses `recharts` directly. So this change is non-breaking.
+- Outcome: any future consumer of `@starui/ui` no longer pulls recharts through the main barrel.
 
 **Phase 2H — SKIPPED:**
 - The audit recommended moving Monaco's `ExpressionEditor` to a subpath, but inspection of `packages/core/src/ui/ExpressionEditor/ExpressionEditor.tsx:15` shows Monaco is already code-split via `const LazyInner = lazy(() => import('./ExpressionEditorInner'))`. The wrapper exported from `core/index.ts:148` doesn't load Monaco eagerly — only the lightweight Suspense + FallbackInput shell. The audit finding was stale; no change needed.
@@ -410,7 +410,7 @@ Closes the architecture violation where shell-layer code (importing from `@openf
 - Deleted `useAgGridKeyboardNavigation.tsx` (root, 372 LOC) — superseded by the same module.
 - Deleted `vite.demo.config.ts` (root) — pointed at non-existent `demo/` dir; not imported anywhere.
 - Removed broken `dev` script from `packages/core/package.json` (referenced the deleted vite config).
-- Updated stale docstring + inline comment in `packages/openfin-platform-stern/src/bootstrap.ts` — the cited circular-dep justification (`dataProviderConfigService` in `widgets-react`) no longer applies; the service moved to `@marketsui/data-plane` already.
+- Updated stale docstring + inline comment in `packages/openfin-platform-stern/src/bootstrap.ts` — the cited circular-dep justification (`dataProviderConfigService` in `widgets-react`) no longer applies; the service moved to `@starui/data-plane` already.
 - Created `docs/REFACTOR_WORKLOG.md` (this file).
 - Net: -700 LOC, no behavior change, 45/45 tasks pass.
 
@@ -420,7 +420,7 @@ Closes the architecture violation where shell-layer code (importing from `@openf
 
 - **2026-04-28** — Phase 3 revision: cross-app dedup is more nuanced than the audit suggested. Verified deeper:
   - `apps/demo-angular` has its own `app.config.ts` (basic providers, no PrimeNG theming), distinct `package.json` with corporate-artifactory dependency notes, distinct `tsconfig.json` and `styles.scss`. Deleting it would lose a deliberately barebones reference. Only the source files (`widgets/`, `services/`, `app.ts`) are byte-identical with `fi-trading-reference-angular`.
-  - `apps/demo-configservice-react` is a meaningfully different demo (ConfigService persistence + user-switcher + ConfigBrowser popout). Has a unique `ConfigBrowserPopout.tsx` and depends on `@marketsui/config-service`, `@marketsui/config-browser`, `@marketsui/openfin-platform`. Only the showcase content (`MarketDepth.tsx`, `marketDepthData.ts`, `showcaseProfile.ts`, `data.ts`, `custom-scrollbar.ts`) is byte-identical with `apps/demo-react`.
+  - `apps/demo-configservice-react` is a meaningfully different demo (ConfigService persistence + user-switcher + ConfigBrowser popout). Has a unique `ConfigBrowserPopout.tsx` and depends on `@starui/config-service`, `@starui/config-browser`, `@starui/openfin-platform`. Only the showcase content (`MarketDepth.tsx`, `marketDepthData.ts`, `showcaseProfile.ts`, `data.ts`, `custom-scrollbar.ts`) is byte-identical with `apps/demo-react`.
   - **Decision:** defer 3A (delete demo-angular) and 3B (merge configservice into demo-react) to Path C, where the architecture pivots to a single `apps/reference-{react,angular}` and these apps go away. Doing the extraction now would be throwaway work plus risks losing the demonstrably distinct demo purposes.
   - **Phase 3C still proceeds**: `openfinDock.ts` (577 LOC, byte-identical between stern apps) belongs in the stern shell anyway — moving it is architecturally meaningful and survives Path C.
 - **2026-04-28** — Use a single long-lived branch `chore/audit-cleanup-architectural-alignment` rather than per-phase branches. Each phase becomes 1+ commit; PR happens at the end.
@@ -428,5 +428,5 @@ Closes the architecture violation where shell-layer code (importing from `@openf
 - **2026-04-28** — Phase 1 is "delete-only + comment-update" — verifiable safe under any architectural direction.
 - **2026-04-28** — User chose **Path B then Path C**:
   - Path B (1 wk): audit cleanup + add architectural seams *additively* (`RuntimePort`, `HostWrapper`, additional `ConfigManager` backends) without breaking existing code.
-  - Path C (multi-wk, follows B): full migration — restructure component pkgs, possibly rename namespace `@marketsui/*` → `@starui/*`, replace reference apps, rewrite data-plane.
+  - Path C (multi-wk, follows B): full migration — restructure component pkgs, possibly rename namespace `@starui/*` → `@starui/*`, replace reference apps, rewrite data-plane.
   - **Constraint:** zero loss of UI features, functions, behaviors. Verify each phase with `npx turbo typecheck` + `build` + `test`. Add behavior-pinning tests before any destructive Path C moves.

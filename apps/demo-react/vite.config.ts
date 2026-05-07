@@ -7,8 +7,8 @@ export default defineConfig({
   server: { port: 5190, open: true },
   resolve: {
     alias: {
-      '@marketsui/core': resolve(__dirname, '../../packages/core/src'),
-      '@marketsui/markets-grid': resolve(__dirname, '../../packages/markets-grid/src'),
+      '@starui/core': resolve(__dirname, '../../packages/shared/core/src'),
+      '@starui/markets-grid': resolve(__dirname, '../../packages/react/markets-grid/src'),
     },
   },
   build: {

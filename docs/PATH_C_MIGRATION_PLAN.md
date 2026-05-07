@@ -22,7 +22,7 @@ logic + `@<ns>/<thing>-react` shell), an opinionated `/c/...` route
 table, and single canonical reference apps per framework.
 
 Today (Path B done):
-- ~15% implemented — the seams (`@marketsui/runtime-port`,
+- ~15% implemented — the seams (`@starui/runtime-port`,
   `runtime-browser`, `runtime-openfin`, `host-wrapper-react`).
 - Nothing in the existing codebase consumes the seams yet.
 - Existing components, data-plane, persistence, apps, and routing are
@@ -61,9 +61,9 @@ These bind every phase.
    separate commit clearly labelled.
 
 5. **Stern flavor is reference-only and going away.** Per user
-   directive (2026-04-29). Don't invest in `@marketsui/openfin-platform-stern`
+   directive (2026-04-29). Don't invest in `@starui/openfin-platform-stern`
    or `apps/stern-reference-*`. Path C effort targets the markets-ui
-   flavor (`@marketsui/openfin-platform`, `apps/markets-ui-{react,angular}-reference`,
+   flavor (`@starui/openfin-platform`, `apps/markets-ui-{react,angular}-reference`,
    `apps/fi-trading-reference{,-angular}`).
 
 6. **Demo apps stay** (per user directive 2026-04-28). Don't delete
@@ -87,7 +87,7 @@ phases.
 
 **Scope:**
 - **X-0a** Hoist `widgets-react/src/types/openfin.d.ts` into
-  `@marketsui/shared-types/src/openfin.d.ts`. Remove the type-only
+  `@starui/shared-types/src/openfin.d.ts`. Remove the type-only
   `@openfin/core` import from `widgets-react`. Re-export from
   `widgets-react/src/types/openfin.d.ts` if any internal file still
   references it; preferably delete that file outright once no
@@ -122,12 +122,12 @@ type.
 
 **Scope:**
 - **X-1a** Define a smaller `ConfigManager` interface in
-  `@marketsui/shared-types`. The minimum surface every component
+  `@starui/shared-types`. The minimum surface every component
   consumes: `getConfig(id)`, `upsertConfig(row)`, `deleteConfig(id)`,
   `queryConfigs(filter)`, `init()`, `dispose()`. (~7 methods vs the
   current 30.)
 - **X-1b** Make the existing `ConfigClient` interface in
-  `@marketsui/config-service` extend the new `ConfigManager`. No
+  `@starui/config-service` extend the new `ConfigManager`. No
   consumer change yet.
 - **X-1c** Add `MemoryConfigManager` (test-only). In-memory `Map<id, row>`,
   no persistence, dispose clears the map.
@@ -163,7 +163,7 @@ ConfigManager type to be settled).
 both framework-adapter slots are filled.
 
 **Scope:**
-- New package `@marketsui/host-wrapper-angular` (sibling of
+- New package `@starui/host-wrapper-angular` (sibling of
   `host-wrapper-react`).
 - Implements an Angular `HostService` injectable that resolves
   `IdentitySnapshot` from the `RuntimePort` and exposes the same
@@ -231,7 +231,7 @@ five implementations.
 
 **Scope:**
 - **X-4a** Define `DataProvider<T>` interface in a new
-  `@marketsui/data-provider` foundation package:
+  `@starui/data-provider` foundation package:
   ```typescript
   interface DataProvider<TRow = unknown> {
     setConfig(cfg: ProviderConfig): void;
@@ -272,7 +272,7 @@ five implementations.
 **Acceptance:**
 - 5 implementations exist; each has its own unit tests.
 - All consumers migrated.
-- `git grep "from '@marketsui/data-plane'"` returns only the new
+- `git grep "from '@starui/data-plane'"` returns only the new
   interface imports.
 - e2e suite at parity with pre-migration baseline.
 
@@ -292,28 +292,28 @@ commits, per-consumer commits.
 `@<ns>/<thing>-angular` (panels). Subpath exports per module.
 
 **Scope:**
-- **X-5a** Decision point: rename namespace `@marketsui/*` →
+- **X-5a** Decision point: rename namespace `@starui/*` →
   `@starui/*`? ARCHITECTURE.md uses `@starui` consistently.
-  Recommend: **stay on `@marketsui/*`** unless there's a branding
+  Recommend: **stay on `@starui/*`** unless there's a branding
   driver. Rename later if needed; the architectural shape works
   with either namespace. Document the decision.
 - **X-5b** Pick the best-shaped component as the template:
-  `@marketsui/dock-editor-{react,angular}` already follows the
+  `@starui/dock-editor-{react,angular}` already follows the
   framework-pair pattern. Extract its agnostic logic (state,
-  reducers, models) into `@marketsui/dock-editor-core`. The
+  reducers, models) into `@starui/dock-editor-core`. The
   `-react` and `-angular` packages depend on `-core`.
-- **X-5c** Repeat for `@marketsui/registry-editor-{react,angular}` →
-  `@marketsui/registry-editor-core`.
-- **X-5d** Repeat for `@marketsui/config-browser-{react,angular}` →
-  `@marketsui/config-browser-core`.
-- **X-5e** `@marketsui/markets-grid` is the heaviest: extract the
+- **X-5c** Repeat for `@starui/registry-editor-{react,angular}` →
+  `@starui/registry-editor-core`.
+- **X-5d** Repeat for `@starui/config-browser-{react,angular}` →
+  `@starui/config-browser-core`.
+- **X-5e** `@starui/markets-grid` is the heaviest: extract the
   module-pipeline + ProfileManager + ExpressionEngine + StyleEditor
-  state into `@marketsui/markets-grid-core` (mostly already there as
-  `@marketsui/core`). The `-react` shell becomes the panels +
-  toolbars. (`@marketsui/markets-grid-angular` would be a future
+  state into `@starui/markets-grid-core` (mostly already there as
+  `@starui/core`). The `-react` shell becomes the panels +
+  toolbars. (`@starui/markets-grid-angular` would be a future
   port; not in scope here unless the Angular reference apps need it.)
-- **X-5f** Subpath exports per module: `@marketsui/markets-grid/modules/conditional-styling`,
-  `@marketsui/markets-grid/modules/column-customization`, etc. Adjust
+- **X-5f** Subpath exports per module: `@starui/markets-grid/modules/conditional-styling`,
+  `@starui/markets-grid/modules/column-customization`, etc. Adjust
   TS `exports` map and update imports.
 
 **Acceptance:**
@@ -369,7 +369,7 @@ selection, one persistence selection." Build those.
 
 **Scope:**
 - **X-7a** New `apps/reference-react`. Imports `BrowserRuntime` from
-  `@marketsui/runtime-browser`. ConfigManager defaults to
+  `@starui/runtime-browser`. ConfigManager defaults to
   `IndexedDbConfigManager` (current `LocalConfigClient`). Route
   table at `/c/...`. HostWrapper at the root. ~5 files total.
 - **X-7b** New `apps/reference-angular`. Same shape using
@@ -430,7 +430,7 @@ violations the rules catch.
 **Goal:** delete what the new architecture replaced.
 
 **Scope:**
-- **X-9a** Delete `@marketsui/openfin-platform-stern` and
+- **X-9a** Delete `@starui/openfin-platform-stern` and
   `apps/stern-reference-{react,angular}` (per user "stern is
   reference only, will be removed").
 - **X-9b** Delete `data-plane/src/providers/*` and
@@ -443,7 +443,7 @@ violations the rules catch.
   KEEPING them; revisit only if the user asks.
 
 **Acceptance:**
-- `git grep '@marketsui/openfin-platform-stern'` returns 0.
+- `git grep '@starui/openfin-platform-stern'` returns 0.
 - `apps/stern-reference-*` directories don't exist.
 - `data-plane/src/providers/dataProviderConfigService.ts` and
   surrounding v1 surface gone.
@@ -551,8 +551,8 @@ fan out X-4 + X-5 + X-8.
 These need explicit answers before/during the relevant phase. Default
 position offered when one exists.
 
-1. **Namespace rename `@marketsui/*` → `@starui/*`?**
-   ARCHITECTURE.md uses `@starui`. Default: **keep `@marketsui/*`** —
+1. **Namespace rename `@starui/*` → `@starui/*`?**
+   ARCHITECTURE.md uses `@starui`. Default: **keep `@starui/*`** —
    the architectural shape works with either, and a rename is a
    massive churn event with no functional benefit. Adopt only if there
    is a branding/marketing driver.
