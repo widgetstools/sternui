@@ -3,19 +3,19 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "@marketsui/core": ["../../packages/core/src"],
-      "@marketsui/markets-grid": ["../../packages/markets-grid/src"]
+      "@starui/core": ["../../packages/shared/core/src"],
+      "@starui/markets-grid": ["../../packages/react/markets-grid/src"]
     }
   },
   "include": [
     "src",
-    "../../packages/core/src",
-    "../../packages/markets-grid/src"
+    "../../packages/shared/core/src",
+    "../../packages/react/markets-grid/src"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "../../packages/core/src/**/*.test.*",
-    "../../packages/markets-grid/src/**/*.test.*"
+    "../../packages/shared/core/src/**/*.test.*",
+    "../../packages/react/markets-grid/src/**/*.test.*"
   ]
 }

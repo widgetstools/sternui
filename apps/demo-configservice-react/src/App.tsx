@@ -1,21 +1,21 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@marketsui/markets-grid';
-import { activeProfileKey } from '@marketsui/core';
-import type { ProfileSnapshot } from '@marketsui/core';
+import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@starui/markets-grid';
+import { activeProfileKey } from '@starui/core';
+import type { ProfileSnapshot } from '@starui/core';
 import {
   createConfigManager,
   createConfigServiceStorage,
   type ConfigManager,
-} from '@marketsui/config-service';
+} from '@starui/config-service';
 // /config subpath avoids the @openfin/workspace-platform module-load
 // that would otherwise throw in this plain-browser dev harness.
 import {
   setConfigManager as publishSharedConfigManager,
   encodeHostEnvForQueryString,
-} from '@marketsui/openfin-platform/config';
-import { createConfigBrowserAction } from '@marketsui/config-browser';
+} from '@starui/openfin-platform/config';
+import { createConfigBrowserAction } from '@starui/config-browser';
 import { Sun, Moon, User, Database } from 'lucide-react';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
@@ -298,7 +298,7 @@ function AppInner() {
   //   VITE_CONFIG_SERVICE_URL set → REST mode. Writes go to the REST
   //     backend first, then mirror to Dexie; reads still come from
   //     Dexie for speed. Failed writes queue in PENDING_SYNC and retry
-  //     every 10s. See packages/config-service/src/config-manager.ts.
+  //     every 10s. See packages/config-service/src/ConfigManager.ts.
   //
   // `seedConfigUrl` points at public/seed-config.json which
   // ConfigManager fetches ONCE on first boot (Dexie tables empty) and
@@ -309,7 +309,7 @@ function AppInner() {
   // configuration — MarketsGrid's first listProfiles call doesn't
   // race a half-initialized Dexie table.
   //
-  // Also publish the instance to @marketsui/openfin-platform's shared
+  // Also publish the instance to @starui/openfin-platform's shared
   // singleton so `<ConfigBrowserPanel>` (which reads via
   // getConfigManager()) sees the same ConfigManager.
   useEffect(() => {
@@ -350,7 +350,7 @@ function AppInner() {
   }, [userId]);
 
   // Admin actions surfaced at the right edge of MarketsGrid's primary
-  // toolbar row. One entry: launch the real @marketsui/config-browser
+  // toolbar row. One entry: launch the real @starui/config-browser
   // in a popout browser window so the user can see the grid AND its
   // raw ConfigService rows side-by-side. Same-origin = Dexie is
   // shared → the popout sees writes from the main window on refresh.
@@ -482,7 +482,7 @@ function AppInner() {
           {/* ConfigService indicator — visual proof that profiles are
               being persisted through the factory, not a direct adapter. */}
           <span
-            title="Profiles persist via @marketsui/config-service — scoped by (appId, userId, instanceId)"
+            title="Profiles persist via @starui/config-service — scoped by (appId, userId, instanceId)"
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               height: 26, padding: '0 10px', borderRadius: 5,

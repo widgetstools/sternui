@@ -2,12 +2,12 @@
  * RegistryEditorPageComponent
  *
  * Thin wrapper that renders the RegistryEditorComponent from
- * the @marketsui/angular-registry-editor package.
+ * the @starui/angular-registry-editor package.
  * This is loaded at the /registry-editor route.
  */
 
 import { Component } from '@angular/core';
-import { RegistryEditorComponent } from '@marketsui/angular-registry-editor';
+import { RegistryEditorComponent } from '@starui/angular-registry-editor';
 
 @Component({
   selector: 'app-registry-editor-page',

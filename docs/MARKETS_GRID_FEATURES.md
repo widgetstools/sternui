@@ -458,7 +458,7 @@ Wired in priority order; each ships in every profile snapshot.
 - `MemoryAdapter` — ephemeral
 - `DexieAdapter` — IndexedDB
 - `StorageAdapterFactory` — `(opts: { instanceId, appId?, userId? }) => StorageAdapter`
-- ConfigService factory (separate package `@marketsui/config-service`) — bundles all profiles into one `AppConfigRow` with `componentType: 'markets-grid-profile-set'`
+- ConfigService factory (separate package `@starui/config-service`) — bundles all profiles into one `AppConfigRow` with `componentType: 'markets-grid-profile-set'`
 
 ---
 
@@ -484,7 +484,7 @@ Wired in priority order; each ships in every profile snapshot.
 
 ---
 
-## 22. Core platform exports (`@marketsui/core`)
+## 22. Core platform exports (`@starui/core`)
 
 ### Platform
 - `GridPlatform`, `EventBus`, `ApiHub`, `ResourceScope`, `CssInjector`, `PipelineRunner`, `topoSortModules`

@@ -3,7 +3,7 @@ import { RouterOutlet } from '@angular/router';
 
 type Theme = 'dark' | 'light';
 
-// IAB topic published by @marketsui/openfin-platform when the dock's
+// IAB topic published by @starui/openfin-platform when the dock's
 // theme toggle fires. Value must match IAB_THEME_CHANGED in
 // packages/openfin-platform/src/dock.ts. Kept as a string literal here
 // so this component doesn't need to import the OpenFin package

@@ -94,7 +94,7 @@ returns it, and `ProfileManager.boot()` loads that profile.
 
 Manual test plan (run after typecheck + unit tests are green):
 
-1. `npm run dev -w @marketsui/openfin-platform` (or the relevant
+1. `npm run dev -w @starui/openfin-platform` (or the relevant
    provider app) → launch a MarketsGrid view.
 2. Duplicate the view from OpenFin's tab menu.
 3. In view A, switch to profile X. View B should still show its

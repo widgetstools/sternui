@@ -196,18 +196,56 @@ route file is ~5 lines.
 
 ## Import boundary rules
 
-- Foundation packages (`design-system`, `ui`, `icons`, `tokens-primeng`,
+- Foundation packages (`design-system`, `ui`, `icons-svg`, `tokens-primeng`,
   `shared-types`) import only from each other.
 - `runtime-port` is foundational; runtime implementations
   (`runtime-openfin`, `runtime-browser`) only import `runtime-port` +
   their respective platform.
 - Only `runtime-openfin` and `apps/*` may import `@openfin/core`.
-- Component domain packages (`markets-grid`, `data-provider`, etc.)
+- Component domain packages (`markets-grid`, `data-plane`, etc.)
   do NOT import their `-react` siblings, and vice versa.
 - `*-react` packages only import their own agnostic core +
   foundation + helpers.
 
 ESLint enforcement is a follow-up; convention enforcement comes first.
+
+## Folder layout
+
+Packages are bucketed by framework:
+
+```
+packages/
+├── shared/        vanilla TS — framework-agnostic
+│   ├── shared-types/
+│   ├── design-system/
+│   ├── icons-svg/
+│   ├── core/
+│   ├── data-plane/
+│   ├── runtime-port/
+│   ├── runtime-browser/
+│   ├── runtime-openfin/
+│   ├── config-service/
+│   ├── component-host/
+│   ├── openfin-platform/
+│   └── openfin-platform-stern/
+├── react/         peer-depends on react/react-dom
+│   ├── ui/
+│   ├── markets-grid/
+│   ├── widget-sdk/
+│   ├── widgets-react/
+│   ├── host-wrapper-react/
+│   ├── data-plane-react/
+│   ├── dock-editor-react/
+│   ├── registry-editor-react/
+│   └── config-browser-react/
+└── angular/       peer-depends on @angular/core
+    ├── angular/
+    ├── host-wrapper-angular/
+    ├── tokens-primeng/
+    ├── dock-editor-angular/
+    ├── registry-editor-angular/
+    └── config-browser-angular/
+```
 
 ## Reference apps
 

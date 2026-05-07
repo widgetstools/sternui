@@ -2,7 +2,7 @@
 declare const fin: any;
 
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input } from '@marketsui/core';
+import { Button, Input } from '@starui/core';
 
 interface RenameCustomData {
   view: { uuid: string; name: string };

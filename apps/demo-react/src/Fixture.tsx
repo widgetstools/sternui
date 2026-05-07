@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Theme } from 'ag-grid-community';
-import { MarketsGrid } from '@marketsui/markets-grid';
-import { activeProfileKey } from '@marketsui/core';
-import type { ProfileSnapshot, StorageAdapter } from '@marketsui/core';
+import { MarketsGrid } from '@starui/markets-grid';
+import { activeProfileKey } from '@starui/core';
+import type { ProfileSnapshot, StorageAdapter } from '@starui/core';
 
 import { generateNestedOrders, nestedColumnDefs } from './nestedData';
 import type { FixtureSpec } from './nestedFixtures';

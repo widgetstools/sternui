@@ -5,12 +5,12 @@ import { createRoot } from 'react-dom/client';
 // over the design system's HSL-triplet shadcn vars — we keep the demo's
 // teal brand while still inheriting the design system's order-book /
 // trade-ticket overlay tokens and legacy --fi-* aliases.
-import '@marketsui/design-system/themes/fi-dark.css';
-import '@marketsui/design-system/themes/fi-light.css';
+import '@starui/design-system/themes/fi-dark.css';
+import '@starui/design-system/themes/fi-light.css';
 import './globals.css';
-import { HostWrapper } from '@marketsui/host-wrapper-react';
-import { BrowserRuntime } from '@marketsui/runtime-browser';
-import { createConfigClient } from '@marketsui/config-service';
+import { HostWrapper } from '@starui/host-wrapper-react';
+import { BrowserRuntime } from '@starui/runtime-browser';
+import { createConfigClient } from '@starui/config-service';
 import { App } from './App';
 import { ConfigBrowserPopout } from './ConfigBrowserPopout';
 
