@@ -40,9 +40,9 @@ flowchart TD
     BMG --> HC["HostedComponent<br/>resolves identity from OpenFin customData<br/>(instanceId, appId, userId, configManager)"]
     HC -->|"render-prop(ctx)"| BS["BlotterShell<br/>loads + saves view-state row<br/>via configManager"]
     BS --> DPP["DataPlaneProvider<br/>builds context: client, appData, configStore"]
-    DPP --> MGC["MarketsGridContainer<br/><b>@marketsui/widgets-react/v2</b><br/>picker state + Alt+Shift+P + row pump"]
+    DPP --> MGC["MarketsGridContainer<br/><b>@starui/widgets-react/v2</b><br/>picker state + Alt+Shift+P + row pump"]
     MGC --> PT["ProviderToolbar<br/>pickers, mode toggle, date, refresh, edit"]
-    MGC --> MG["MarketsGrid<br/><b>@marketsui/markets-grid</b><br/>AG-Grid wrapper, profiles, settings"]
+    MGC --> MG["MarketsGrid<br/><b>@starui/markets-grid</b><br/>AG-Grid wrapper, profiles, settings"]
     MG --> AG["AG-Grid Enterprise"]
 
     classDef app fill:#1f3a5f,stroke:#3b82f6,color:#eaecef

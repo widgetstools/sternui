@@ -10,7 +10,7 @@
  *   • Conditional styling   — sell rows tinted red, fat-finger spread cells
  *                             highlighted, ⚠ on bid > ask inversions
  *
- * Every reducer used here is exported from `@marketsui/core` —
+ * Every reducer used here is exported from `@starui/core` —
  * the same pure functions that the UI's FormattingToolbar dispatches.
  *
  * Usage (from App.tsx after onReady):
@@ -21,7 +21,7 @@
  * `profiles.saveActiveProfile()` persists it just like a user-built
  * profile.
  */
-import type { GridPlatform } from '@marketsui/core';
+import type { GridPlatform } from '@starui/core';
 import {
   // Column-customization reducers
   applyAlignmentReducer,
@@ -39,7 +39,7 @@ import {
   CONDITIONAL_STYLING_MODULE_ID,
   type ConditionalStylingState,
   type ConditionalRule,
-} from '@marketsui/core';
+} from '@starui/core';
 
 // ─── Column-customization ──────────────────────────────────────────────
 

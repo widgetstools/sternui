@@ -23,7 +23,7 @@ These specs are intentionally NOT part of the default `npm test` run — see
 1. **Markets-UI dev server reachable at `http://localhost:5174`.** In a
    separate terminal run:
    ```
-   npm run dev -w @marketsui/markets-ui-react-reference
+   npm run dev -w @starui/markets-ui-react-reference
    ```
    The dev server installs the test bridge (`apps/markets-ui-react-reference/src/test-bridge/install.ts`) only when `import.meta.env.DEV === true`, so this flow doesn't apply to production builds.
 
@@ -48,7 +48,7 @@ From the repo root:
 npm run test:e2e:openfin
 ```
 
-…which is shorthand for `npm test -w @marketsui/e2e-openfin`. To target a
+…which is shorthand for `npm test -w @starui/e2e-openfin`. To target a
 non-default manifest URL:
 
 ```
@@ -89,7 +89,7 @@ If you want to wire these into CI:
 - Use `windows-latest` (or macOS) runners with desktop session enabled
 - Install OpenFin runtime ahead of time (or accept the first-launch
   download cost in your CI time budget)
-- Spin up the markets-ui dev server (`npm run dev -w @marketsui/markets-ui-react-reference &`) and `wait-on http://localhost:5174`
+- Spin up the markets-ui dev server (`npm run dev -w @starui/markets-ui-react-reference &`) and `wait-on http://localhost:5174`
 - Then run `npm run test:e2e:openfin`
 - Expect 1–2 minute runtimes per spec file; cache the OpenFin runtime
   download between runs

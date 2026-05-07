@@ -18,7 +18,7 @@
  * consumes it directly.
  */
 
-import type { ExportedProfilePayload } from '@marketsui/core';
+import type { ExportedProfilePayload } from '@starui/core';
 
 export const SHOWCASE_PROFILE_ID_HINT = 'showcase';
 export const SHOWCASE_PROFILE_NAME = 'Showcase';

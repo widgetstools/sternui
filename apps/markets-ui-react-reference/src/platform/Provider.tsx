@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { initWorkspace } from "@marketsui/openfin-platform";
+import { initWorkspace } from "@starui/openfin-platform";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 
 /**

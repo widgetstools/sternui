@@ -15,7 +15,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 // IAB topic name. Kept as a local literal (rather than importing
-// @marketsui/openfin-platform) because this context has to work in
+// @starui/openfin-platform) because this context has to work in
 // every window — including windows that don't bundle the platform
 // package. Value must match IAB_THEME_CHANGED in dock.ts.
 const IAB_THEME_CHANGED = 'theme-changed';

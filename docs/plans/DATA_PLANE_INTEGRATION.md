@@ -1,10 +1,10 @@
 # Plan — DataProvider integration: runtime gaps, redesigned configurator, MarketsGrid wiring, local-data cleanup
 
 A follow-up to [DATA_PLANE.md](./DATA_PLANE.md). The runtime package
-(`@marketsui/data-plane`) shipped with the gaps mapped below; this plan
+(`@starui/data-plane`) shipped with the gaps mapped below; this plan
 closes those gaps, lifts the stern reference configurator into a
 robust, design-system-aligned authoring surface in
-`@marketsui/widgets-react`, wires MarketsGrid to consume DataProviders
+`@starui/widgets-react`, wires MarketsGrid to consume DataProviders
 end-to-end, and removes every local row-generator in the apps so
 MarketsGrid is data-plane-only.
 
@@ -12,7 +12,7 @@ MarketsGrid is data-plane-only.
 
 Three audits drive this plan:
 
-1. **Runtime gaps** in `@marketsui/data-plane` against
+1. **Runtime gaps** in `@starui/data-plane` against
    `MarketsUI DataProvider Architecture — Requirements`.
 2. **Stern reference configurator** patterns + Angular configurator —
    what's good, what's awkward, what to lift forward.
@@ -86,7 +86,7 @@ doc end-to-end. No UX changes.
 
 **A.3 — Per-key persistence policy on `AppDataProvider`**
 - Extend `AppDataProviderConfig` (`packages/shared-types/src/dataProvider.ts`) with `keys: Record<string, { initial?: unknown; durability: 'volatile' | 'persisted' }>`. Replaces the current `variables` seed; backward-compatible loader treats existing configs as all-volatile.
-- On `set(key, value)`: if `durability === 'persisted'`, write through to `@marketsui/config-service` under a dedicated app-data row keyed by `(appId, providerId, key)`. Use a single row per provider (one document, multiple keys) to keep round-trips predictable.
+- On `set(key, value)`: if `durability === 'persisted'`, write through to `@starui/config-service` under a dedicated app-data row keyed by `(appId, providerId, key)`. Use a single row per provider (one document, multiple keys) to keep round-trips predictable.
 - On worker startup: rehydrate persisted keys from config-service before any subscriber attaches.
 - Tests: a persisted key survives worker restart; a volatile key does not; a shape change between deploys doesn't crash on rehydrate.
 
@@ -138,7 +138,7 @@ doc end-to-end. No UX changes.
 - Both STOMP and REST providers can be designated as the **historical** slot in MarketsGrid; the grid's date picker drives `restart()` with `asOfDate` regardless of subtype.
 - Tests: GET + POST flows, header forwarding, template substitution in body, error path, date round-trip via `restart({ asOfDate })`.
 
-### Phase B — Redesigned configurator in `@marketsui/widgets-react`
+### Phase B — Redesigned configurator in `@starui/widgets-react`
 
 **Goal:** ship a robust, intuitive, design-system-compliant authoring
 surface for StompDataProvider (and the new HistoricalDataProvider).
@@ -155,7 +155,7 @@ Footer carries `Test Connection`, `Infer Fields`, `Cancel`, `Save / Update` acti
 
 Layout shell follows the [WorkspaceSetup pattern](../../packages/dock-editor-react/src/WorkspaceSetup.tsx): outer flex with `data-dock-editor` for design-token resolution; fixed header / scrollable body / fixed footer; `.bn-scrollbar` themed scrollbars; full dark/light parity.
 
-All form primitives use shadcn-style inputs from `@marketsui/ui` — no native HTML inputs (CLAUDE.md rule).
+All form primitives use shadcn-style inputs from `@starui/ui` — no native HTML inputs (CLAUDE.md rule).
 
 **B.2 — Connection tab redesign**
 
@@ -208,7 +208,7 @@ Same shell, same 4 tabs. Connection tab swaps to REST-specific fields (method, u
 
 **C.1 — DataProvider selector control**
 
-A new shared component `<DataProviderSelector />` in `@marketsui/widgets-react/data-provider-selector`. Props:
+A new shared component `<DataProviderSelector />` in `@starui/widgets-react/data-provider-selector`. Props:
 - `subtype: 'stomp' | 'historical' | 'appdata'`
 - `scopes?: Array<'system' | 'user'>` (default: both)
 - `value: string | null` (configId)

@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import type { UnifiedConfig, ConfigurationFilter } from '@marketsui/shared-types';
+import type { UnifiedConfig, ConfigurationFilter } from '@starui/shared-types';
 
 export const unifiedConfigSchema = Joi.object({
   configId: Joi.string().min(1).max(200).required(),

@@ -6,7 +6,9 @@
   "packageManager": "npm@10.9.0",
   "workspaces": [
     "apps/*",
-    "packages/*",
+    "packages/shared/*",
+    "packages/react/*",
+    "packages/angular/*",
     "e2e-openfin"
   ],
   "scripts": {
@@ -15,19 +17,19 @@
     "test": "turbo test",
     "test:watch": "turbo test:watch",
     "lint": "turbo lint",
-    "dev": "turbo dev --filter=@marketsui/demo-react",
-    "dev:demo-react": "turbo dev --filter=@marketsui/demo-react",
-    "dev:demo-configservice-react": "turbo dev --filter=@marketsui/demo-configservice-react",
-    "dev:demo-angular": "turbo dev --filter=@marketsui/demo-angular",
-    "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
-    "dev:openfin:markets-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @marketsui/markets-ui-react-reference -- --no-open\" \"wait-on http://localhost:5174 && node tools/scripts/launch-openfin.mjs http://localhost:5174/platform/manifest.fin.json\"",
-    "dev:openfin:markets-angular": "concurrently -k -n ng,openfin -c cyan,magenta \"npm run dev -w @marketsui/markets-ui-angular-reference\" \"wait-on http://localhost:4200 && node tools/scripts/launch-openfin.mjs http://localhost:4200/platform/manifest.fin.json\"",
+    "dev": "turbo dev --filter=@starui/demo-react",
+    "dev:demo-react": "turbo dev --filter=@starui/demo-react",
+    "dev:demo-configservice-react": "turbo dev --filter=@starui/demo-configservice-react",
+    "dev:demo-angular": "turbo dev --filter=@starui/demo-angular",
+    "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @starui/demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
+    "dev:openfin:markets-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @starui/markets-ui-react-reference -- --no-open\" \"wait-on http://localhost:5174 && node tools/scripts/launch-openfin.mjs http://localhost:5174/platform/manifest.fin.json\"",
+    "dev:openfin:markets-angular": "concurrently -k -n ng,openfin -c cyan,magenta \"npm run dev -w @starui/markets-ui-angular-reference\" \"wait-on http://localhost:4200 && node tools/scripts/launch-openfin.mjs http://localhost:4200/platform/manifest.fin.json\"",
     "launch:openfin": "node tools/scripts/launch-openfin.mjs",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
-    "test:e2e:openfin": "npm run test:e2e -w @marketsui/e2e-openfin",
-    "clean": "rimraf -g node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist .turbo"
+    "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
+    "clean": "rimraf -g node_modules apps/*/node_modules packages/*/*/node_modules apps/*/dist packages/*/*/dist .turbo"
   },
   "devDependencies": {
     "@openfin/node-adapter": "43.101.2",

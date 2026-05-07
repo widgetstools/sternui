@@ -2,12 +2,12 @@
  * ImportConfigPageComponent
  *
  * Thin wrapper that renders the ImportConfigComponent from
- * the @marketsui/angular-dock-editor package.
+ * the @starui/angular-dock-editor package.
  * This is loaded at the /import-config route.
  */
 
 import { Component } from '@angular/core';
-import { ImportConfigComponent } from '@marketsui/angular-dock-editor';
+import { ImportConfigComponent } from '@starui/angular-dock-editor';
 
 @Component({
   selector: 'app-import-config-page',

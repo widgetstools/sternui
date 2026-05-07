@@ -53,7 +53,7 @@ MarketsUI is a **configuration-driven UI framework** for capital markets trading
 ### 2.1 Three Repositories
 
 ```
-marketsui-packages/          → publishes @marketsui/* to Artifactory
+marketsui-packages/          → publishes @starui/* to Artifactory
 marketsui-reference-react/   → reference React app (read by MCP server)
 marketsui-reference-angular/ → reference Angular app (read by MCP server)
 marketsui-mcp/               → MCP server (published as npx marketsui-mcp)
@@ -66,20 +66,20 @@ marketsui-mcp/               → MCP server (published as npx marketsui-mcp)
 ```
 marketsui-packages/
 ├── packages/
-│   ├── tokens/                    @marketsui/tokens
-│   ├── config-schemas/            @marketsui/config-schemas
-│   ├── expression-engine/         @marketsui/expression-engine
-│   ├── data-providers/            @marketsui/data-providers
-│   ├── config-service/            @marketsui/config-service
-│   ├── user-service/              @marketsui/user-service
-│   ├── platform/                  @marketsui/platform
+│   ├── tokens/                    @starui/tokens
+│   ├── config-schemas/            @starui/config-schemas
+│   ├── expression-engine/         @starui/expression-engine
+│   ├── data-providers/            @starui/data-providers
+│   ├── config-service/            @starui/config-service
+│   ├── user-service/              @starui/user-service
+│   ├── platform/                  @starui/platform
 │   │   ├── src/bootstrap/         ← platform team only
 │   │   └── src/view/              ← content teams
-│   ├── core/                      @marketsui/core  (Lit primitives)
-│   ├── react/                     @marketsui/react
-│   ├── config-editor-react/       @marketsui/config-editor-react
-│   ├── angular/                   @marketsui/angular
-│   └── config-editor-angular/     @marketsui/config-editor-angular
+│   ├── core/                      @starui/core  (Lit primitives)
+│   ├── react/                     @starui/react
+│   ├── config-editor-react/       @starui/config-editor-react
+│   ├── angular/                   @starui/angular
+│   └── config-editor-angular/     @starui/config-editor-angular
 ├── apps/
 │   ├── platform-app/              OpenFin platform shell (one per env)
 │   └── admin/                     Lit admin tools
@@ -96,67 +96,67 @@ marketsui-packages/
 
 | Package | Layer | Key Exports | Used By |
 |---------|-------|-------------|---------|
-| `@marketsui/tokens` | CSS only | `mdl.css`, `dark.css`, `light.css`, trading semantic tokens | All packages and apps |
-| `@marketsui/config-schemas` | Shared TS | `BlotterConfig`, `ColumnGroupDef`, `StyleRule`, `ExpressionDef`, `ColumnGroupResolver`, `ConfigBindingResolver`, Zod schemas | Both frameworks |
-| `@marketsui/expression-engine` | Shared TS | `ExpressionEngine`, `parse()`, `evaluate()`, `validate()`, `getCompletions()`, 60+ functions | Both frameworks |
-| `@marketsui/data-providers` | Shared TS | `IDataProvider`, `DataProviderRegistry`, `SocketIOProvider`, `StompProvider`, `AMPSProvider`, `SolaceProvider`, `RestProvider`, `AppDataProvider` | Both frameworks |
-| `@marketsui/config-service` | Shared TS | `ConfigManager`, `DexieAdapter`, `RestAdapter`, all 5 DB tables, `PENDING_SYNC` queue | Via platform |
-| `@marketsui/user-service` | Shared TS | `UserService`, `PermissionsService`, `AppUser`, `Role`, `Permission` | Both frameworks |
-| `@marketsui/platform` | Shared TS | `/bootstrap`: `bootstrapPlatform`, `configManager`, `WorkspaceOverride`, `DockBuilder` — `/view`: `resolveInstanceId`, `AppContext`, `ThemeService` | Platforms + content teams |
+| `@starui/tokens` | CSS only | `mdl.css`, `dark.css`, `light.css`, trading semantic tokens | All packages and apps |
+| `@starui/config-schemas` | Shared TS | `BlotterConfig`, `ColumnGroupDef`, `StyleRule`, `ExpressionDef`, `ColumnGroupResolver`, `ConfigBindingResolver`, Zod schemas | Both frameworks |
+| `@starui/expression-engine` | Shared TS | `ExpressionEngine`, `parse()`, `evaluate()`, `validate()`, `getCompletions()`, 60+ functions | Both frameworks |
+| `@starui/data-providers` | Shared TS | `IDataProvider`, `DataProviderRegistry`, `SocketIOProvider`, `StompProvider`, `AMPSProvider`, `SolaceProvider`, `RestProvider`, `AppDataProvider` | Both frameworks |
+| `@starui/config-service` | Shared TS | `ConfigManager`, `DexieAdapter`, `RestAdapter`, all 5 DB tables, `PENDING_SYNC` queue | Via platform |
+| `@starui/user-service` | Shared TS | `UserService`, `PermissionsService`, `AppUser`, `Role`, `Permission` | Both frameworks |
+| `@starui/platform` | Shared TS | `/bootstrap`: `bootstrapPlatform`, `configManager`, `WorkspaceOverride`, `DockBuilder` — `/view`: `resolveInstanceId`, `AppContext`, `ThemeService` | Platforms + content teams |
 
 #### Framework-Specific Packages (4)
 
 | Package | Framework | Key Exports |
 |---------|-----------|-------------|
-| `@marketsui/react` | React | `useMarketsUI()`, `useComponentConfig()`, `useTheme()`, `useOpenFin()`, `useDataProvider()`, `usePermissions()`, `useSubscription()`, `useLiveQuery()`, `MarketsUIProvider`, `ComponentToolbar`, `BlotterComponent` |
-| `@marketsui/config-editor-react` | React | All 8 config editor panels, `ExpressionEditorReact` (Monaco), `ColumnGroupEditor` |
-| `@marketsui/angular` | Angular | `MarketsUIBase`, `MarketsUIService`, `ComponentConfigService`, `OpenFinService`, `ThemeService`, `DataProviderService`, `PermissionsService`, `ViewServerService`, `BlotterComponent`, `provideMarketsUI()` |
-| `@marketsui/config-editor-angular` | Angular | All 8 config editor panels (Angular templates), `ExpressionEditorAngular` (Monaco) |
+| `@starui/react` | React | `useMarketsUI()`, `useComponentConfig()`, `useTheme()`, `useOpenFin()`, `useDataProvider()`, `usePermissions()`, `useSubscription()`, `useLiveQuery()`, `MarketsUIProvider`, `ComponentToolbar`, `BlotterComponent` |
+| `@starui/config-editor-react` | React | All 8 config editor panels, `ExpressionEditorReact` (Monaco), `ColumnGroupEditor` |
+| `@starui/angular` | Angular | `MarketsUIBase`, `MarketsUIService`, `ComponentConfigService`, `OpenFinService`, `ThemeService`, `DataProviderService`, `PermissionsService`, `ViewServerService`, `BlotterComponent`, `provideMarketsUI()` |
+| `@starui/config-editor-angular` | Angular | All 8 config editor panels (Angular templates), `ExpressionEditorAngular` (Monaco) |
 
 #### Shared Lit Primitives (1)
 
 | Package | Contents | Constraint |
 |---------|----------|------------|
-| `@marketsui/core` | `<mui-button>`, `<mui-badge>`, `<mui-spinner>`, `<mui-status-dot>`, `<mui-pill>` | **String/boolean props only.** No complex objects. No framework-specific events. Complex config editor UI is always framework-native. |
+| `@starui/core` | `<mui-button>`, `<mui-badge>`, `<mui-spinner>`, `<mui-status-dot>`, `<mui-pill>` | **String/boolean props only.** No complex objects. No framework-specific events. Complex config editor UI is always framework-native. |
 
 > **Why not Lit for config editors?** React synthetic event system cannot listen to DOM events dispatched by Lit components. Angular's `CUSTOM_ELEMENTS_SCHEMA` opts out of all type checking for custom element names. Both are unacceptable for deeply stateful config editor panels passing complex objects.
 
 ### 3.2 Package Dependency Graph
 
 ```
-@marketsui/tokens                    (no deps — CSS only)
-    └── @marketsui/config-schemas    (tokens)
-            ├── @marketsui/expression-engine
-            ├── @marketsui/data-providers
-            └── @marketsui/config-service
-                    └── @marketsui/user-service
-                            └── @marketsui/platform
+@starui/tokens                    (no deps — CSS only)
+    └── @starui/config-schemas    (tokens)
+            ├── @starui/expression-engine
+            ├── @starui/data-providers
+            └── @starui/config-service
+                    └── @starui/user-service
+                            └── @starui/platform
                                     ├── /bootstrap  (platform team only)
                                     └── /view       (content teams)
 
-@marketsui/core                      (tokens)
+@starui/core                      (tokens)
 
-@marketsui/react                     (platform/view, data-providers, core)
-    └── @marketsui/config-editor-react  (react, expression-engine, config-schemas)
+@starui/react                     (platform/view, data-providers, core)
+    └── @starui/config-editor-react  (react, expression-engine, config-schemas)
 
-@marketsui/angular                   (platform/view, data-providers, core)
-    └── @marketsui/config-editor-angular (angular, expression-engine, config-schemas)
+@starui/angular                   (platform/view, data-providers, core)
+    └── @starui/config-editor-angular (angular, expression-engine, config-schemas)
 ```
 
 **Rules:** Dependencies flow strictly downward. No circular dependencies. Shared TS packages have no UI dependency and no framework dependency.
 
 ### 3.3 Import Boundary — Critical Rule
 
-`@marketsui/platform` has two entry points:
+`@starui/platform` has two entry points:
 
 ```typescript
 // /bootstrap — platform-app ONLY. Never import from a content view.
 import { bootstrapPlatform, configManager, WorkspaceOverride, DockBuilder }
-  from '@marketsui/platform/bootstrap';
+  from '@starui/platform/bootstrap';
 
 // /view — content teams (React and Angular views)
 import { resolveInstanceId, AppContext, ThemeService }
-  from '@marketsui/platform/view';
+  from '@starui/platform/view';
 ```
 
 The React and Angular starters' `package.json` never list `/bootstrap` as a dependency. The boundary is **enforced at npm module resolution** — not convention.
@@ -366,7 +366,7 @@ The `marketsui-mcp` server enables AI-assisted coding tools (Claude, Cursor, Cop
 
 | Tool | Description |
 |------|-------------|
-| `get_package_docs` | API reference for any `@marketsui/*` package — hook signatures, service methods, type definitions, usage examples |
+| `get_package_docs` | API reference for any `@starui/*` package — hook signatures, service methods, type definitions, usage examples |
 | `get_lifecycle_guide` | Component lifecycle — `resolveInstanceId`, fresh launch vs restore, `saveConfig` debounce, workspace save |
 | `get_config_schema` | Full TypeScript schema for any config type — `BlotterConfig`, `ColumnGroupDef`, `StyleRule`, `DataProviderConfig` |
 | `get_expression_functions` | Expression engine function library with signatures, descriptions, and examples by category |
@@ -386,7 +386,7 @@ interface ScaffoldProjectParams {
   components:            ComponentSpec[];     // [{ componentType, componentSubType, dataProvider }]
   dataProviders:         DataProviderSpec[];
   configServiceEnabled:  boolean;             // true = prod manifest, false = dev manifest
-  includeConfigEditor:   boolean;             // include @marketsui/config-editor-* package
+  includeConfigEditor:   boolean;             // include @starui/config-editor-* package
 }
 ```
 
@@ -414,7 +414,7 @@ marketsui-mcp/
 │   │   └── validate.ts              validate_blotter_config
 │   ├── readers/
 │   │   ├── ReferenceAppReader.ts    Reads reference app source files by feature
-│   │   ├── SchemaReader.ts          Reads @marketsui/config-schemas types
+│   │   ├── SchemaReader.ts          Reads @starui/config-schemas types
 │   │   └── FeatureIndex.ts          Indexes feature-index.md → file paths
 │   ├── assemblers/
 │   │   ├── ProjectAssembler.ts      Assembles scaffolded project from parts
@@ -448,7 +448,7 @@ class ReferenceAppReader {
 | "Show me how to configure nested column groups with conditional styling" | `get_column_group_guide` + `search_reference_code("conditional group styling")` — schema + reference app excerpt |
 | "Create a new MarketsUI Angular project for the MBS desk" | `scaffold_project(framework: 'angular')` — complete Angular project drawn from Angular reference app |
 | "Validate this BlotterConfig JSON" | `validate_blotter_config` — Zod validation, field-level errors with fix suggestions |
-| "What does useMarketsUI return?" | `get_package_docs("@marketsui/react")` — hook signature + return type + reference app usage |
+| "What does useMarketsUI return?" | `get_package_docs("@starui/react")` — hook signature + return type + reference app usage |
 
 ---
 
@@ -583,7 +583,7 @@ Any string field in a component config can bind to any AppDataProvider key:
 }
 ```
 
-The `ConfigBindingResolver` (in `@marketsui/config-schemas`) walks the config tree, finds `{{X.Y}}` patterns, resolves them against `DataProviderRegistry`, and subscribes to changes.
+The `ConfigBindingResolver` (in `@starui/config-schemas`) walks the config tree, finds `{{X.Y}}` patterns, resolves them against `DataProviderRegistry`, and subscribes to changes.
 
 #### Scope
 
@@ -845,30 +845,30 @@ export const appConfig: ApplicationConfig = {
 
 | Deliverable | Priority | Key Outputs |
 |------------|----------|------------|
-| `@marketsui/tokens` | P0 — day 1 | `mdl.css`, `dark.css`, `light.css`, trading semantic tokens |
-| `@marketsui/config-schemas` | P0 — week 1 | `BlotterConfig`, `ColumnGroupDef`, all types, Zod schemas, `ColumnGroupResolver`, `ConfigBindingResolver` |
-| `@marketsui/config-service` | P0 — week 1 | Dexie schema, 5 tables, dual-mode `ConfigManager`, `PENDING_SYNC` queue |
-| `@marketsui/data-providers` | P1 — week 2 | `IDataProvider`, `DataProviderRegistry`, `SocketIOProvider`, `StompProvider`, `AppDataProvider` |
-| `@marketsui/expression-engine` | P1 — week 2–3 | Parser, AST, evaluator, 60+ functions, autocomplete, validation |
-| `@marketsui/user-service` | P2 — week 3 | `UserService`, `PermissionsService`, all types |
-| `@marketsui/platform/view` | P2 — week 4 | `resolveInstanceId`, `AppContext`, `ThemeService`, `ComponentCustomData` |
+| `@starui/tokens` | P0 — day 1 | `mdl.css`, `dark.css`, `light.css`, trading semantic tokens |
+| `@starui/config-schemas` | P0 — week 1 | `BlotterConfig`, `ColumnGroupDef`, all types, Zod schemas, `ColumnGroupResolver`, `ConfigBindingResolver` |
+| `@starui/config-service` | P0 — week 1 | Dexie schema, 5 tables, dual-mode `ConfigManager`, `PENDING_SYNC` queue |
+| `@starui/data-providers` | P1 — week 2 | `IDataProvider`, `DataProviderRegistry`, `SocketIOProvider`, `StompProvider`, `AppDataProvider` |
+| `@starui/expression-engine` | P1 — week 2–3 | Parser, AST, evaluator, 60+ functions, autocomplete, validation |
+| `@starui/user-service` | P2 — week 3 | `UserService`, `PermissionsService`, all types |
+| `@starui/platform/view` | P2 — week 4 | `resolveInstanceId`, `AppContext`, `ThemeService`, `ComponentCustomData` |
 
 ### 11.3 Phase 2 — React Implementation
 
 | Deliverable | Timeline | Key Outputs |
 |------------|----------|------------|
-| `@marketsui/platform/bootstrap` | Week 5 | `bootstrapPlatform`, `WorkspaceOverride`, `DockBuilder`, `StorageSync` |
-| `@marketsui/react` — hooks | Week 5–6 | `useMarketsUI`, `useComponentConfig`, `useTheme`, `useOpenFin`, `useDataProvider`, `useSubscription`, `useLiveQuery` |
-| `@marketsui/react` — components | Week 6 | `MarketsUIProvider`, `ComponentToolbar`, `BlotterComponent` |
-| `@marketsui/config-editor-react` | Week 7–12 | All 8 config editor panels, `ColumnGroupEditor`, `ExpressionEditorReact` |
+| `@starui/platform/bootstrap` | Week 5 | `bootstrapPlatform`, `WorkspaceOverride`, `DockBuilder`, `StorageSync` |
+| `@starui/react` — hooks | Week 5–6 | `useMarketsUI`, `useComponentConfig`, `useTheme`, `useOpenFin`, `useDataProvider`, `useSubscription`, `useLiveQuery` |
+| `@starui/react` — components | Week 6 | `MarketsUIProvider`, `ComponentToolbar`, `BlotterComponent` |
+| `@starui/config-editor-react` | Week 7–12 | All 8 config editor panels, `ColumnGroupEditor`, `ExpressionEditorReact` |
 | `marketsui-reference-react` | Week 8–13 | Full reference app — all views, all providers, `feature-index.md` |
 
 ### 11.4 Phase 4 — Angular Port and MCP Server
 
 | Deliverable | Notes |
 |------------|-------|
-| `@marketsui/angular` | `MarketsUIBase`, all services — direct Angular translation of React hooks |
-| `@marketsui/config-editor-angular` | All 8 panels — same logic from shared TS, Angular template syntax |
+| `@starui/angular` | `MarketsUIBase`, all services — direct Angular translation of React hooks |
+| `@starui/config-editor-angular` | All 8 panels — same logic from shared TS, Angular template syntax |
 | `marketsui-reference-angular` | Full reference app — identical features to React reference |
 | `marketsui-mcp` | All 12 tools. Reads both reference apps as git submodules. Published as `npx marketsui-mcp`. |
 
@@ -937,7 +937,7 @@ export const appConfig: ApplicationConfig = {
 | D6 | Config written on every change, not on workspace save | Crash-safe from first launch. Workspace save is a pure OpenFin layout operation. |
 | D7 | `AppDataProvider` as shared state bus | `{{ProviderName.KeyName}}` syntax enables cross-component data sharing via config — no code-level coupling between components. |
 | D8 | Dexie as primary read path | Instant reads, offline-capable. REST is write target only. Zero code change between dev and prod modes. |
-| D9 | `@marketsui/platform` split `/bootstrap` and `/view` | Content teams cannot accidentally import platform bootstrap code. Boundary enforced at npm module resolution — not convention. |
+| D9 | `@starui/platform` split `/bootstrap` and `/view` | Content teams cannot accidentally import platform bootstrap code. Boundary enforced at npm module resolution — not convention. |
 | D10 | MCP server uses git submodules for reference apps | MCP always reads latest reference app code. No manual template synchronisation. Reference apps are the single source of truth. |
 
 ---
@@ -948,19 +948,19 @@ export const appConfig: ApplicationConfig = {
 
 | Package | Depends On | React | Angular |
 |---------|-----------|-------|---------|
-| `@marketsui/tokens` | nothing | yes | yes |
-| `@marketsui/config-schemas` | tokens | yes | yes |
-| `@marketsui/expression-engine` | config-schemas | yes | yes |
-| `@marketsui/data-providers` | config-schemas | yes | yes |
-| `@marketsui/config-service` | config-schemas | via platform | via platform |
-| `@marketsui/user-service` | config-service | yes | yes |
-| `@marketsui/platform/view` | config-service, user-service | yes | yes |
-| `@marketsui/platform/bootstrap` | platform/view | platform-app only | platform-app only |
-| `@marketsui/core` | tokens | direct JSX | CUSTOM_ELEMENTS_SCHEMA |
-| `@marketsui/react` | platform/view, data-providers, core | yes | no |
-| `@marketsui/config-editor-react` | react, expression-engine, config-schemas | yes | no |
-| `@marketsui/angular` | platform/view, data-providers, core | no | yes |
-| `@marketsui/config-editor-angular` | angular, expression-engine, config-schemas | no | yes |
+| `@starui/tokens` | nothing | yes | yes |
+| `@starui/config-schemas` | tokens | yes | yes |
+| `@starui/expression-engine` | config-schemas | yes | yes |
+| `@starui/data-providers` | config-schemas | yes | yes |
+| `@starui/config-service` | config-schemas | via platform | via platform |
+| `@starui/user-service` | config-service | yes | yes |
+| `@starui/platform/view` | config-service, user-service | yes | yes |
+| `@starui/platform/bootstrap` | platform/view | platform-app only | platform-app only |
+| `@starui/core` | tokens | direct JSX | CUSTOM_ELEMENTS_SCHEMA |
+| `@starui/react` | platform/view, data-providers, core | yes | no |
+| `@starui/config-editor-react` | react, expression-engine, config-schemas | yes | no |
+| `@starui/angular` | platform/view, data-providers, core | no | yes |
+| `@starui/config-editor-angular` | angular, expression-engine, config-schemas | no | yes |
 
 ### 14.2 MCP Tools Quick Reference
 
@@ -969,7 +969,7 @@ export const appConfig: ApplicationConfig = {
 | `scaffold_project` | write | Starting a new MarketsUI project from scratch |
 | `scaffold_component` | write | Adding a new component view to an existing project |
 | `scaffold_blotter_config` | write | Generate a `BlotterConfig` for a specific desk |
-| `get_package_docs` | read | API reference for any `@marketsui/*` package |
+| `get_package_docs` | read | API reference for any `@starui/*` package |
 | `get_config_schema` | read | TypeScript schema for any config type |
 | `get_expression_functions` | read | Expression engine function library |
 | `get_dataprovider_guide` | read | DataProvider configuration guide |
@@ -986,27 +986,27 @@ export const appConfig: ApplicationConfig = {
 ```json
 {
   "dependencies": {
-    "@marketsui/react": "latest",
-    "@marketsui/tokens": "latest",
-    "@marketsui/config-editor-react": "latest",
-    "@marketsui/data-providers": "latest",
-    "@marketsui/config-schemas": "latest"
+    "@starui/react": "latest",
+    "@starui/tokens": "latest",
+    "@starui/config-editor-react": "latest",
+    "@starui/data-providers": "latest",
+    "@starui/config-schemas": "latest"
   }
 }
 ```
 
-Note: `@marketsui/platform/view` is imported in code but resolved via `@marketsui/react` peer dependency. `@marketsui/platform/bootstrap` is **never** in a starter's dependencies.
+Note: `@starui/platform/view` is imported in code but resolved via `@starui/react` peer dependency. `@starui/platform/bootstrap` is **never** in a starter's dependencies.
 
 #### marketsui-angular-starter `package.json` dependencies
 
 ```json
 {
   "dependencies": {
-    "@marketsui/angular": "latest",
-    "@marketsui/tokens": "latest",
-    "@marketsui/config-editor-angular": "latest",
-    "@marketsui/data-providers": "latest",
-    "@marketsui/config-schemas": "latest"
+    "@starui/angular": "latest",
+    "@starui/tokens": "latest",
+    "@starui/config-editor-angular": "latest",
+    "@starui/data-providers": "latest",
+    "@starui/config-schemas": "latest"
   }
 }
 ```
@@ -1021,8 +1021,8 @@ Note: `@marketsui/platform/view` is imported in code but resolved via `@marketsu
 | `componentSubType` | Desk/product line e.g. `"CREDIT"`, `"RATES"`, `"MBS"`, `"CMBS"` |
 | `isSaved` | Derived boolean — `true` if `APP_CONFIG` row exists for this `instanceId` |
 | `AppDataProvider` | Special `IDataProvider` implementation that stores key-value application state reactively |
-| `ConfigBindingResolver` | Utility in `@marketsui/config-schemas` that resolves `{{X.Y}}` bindings in config JSON |
-| `ColumnGroupResolver` | Utility in `@marketsui/config-schemas` that merges flat `columnDefs` + `columnGroups` into AG-Grid nested `ColGroupDef` |
+| `ConfigBindingResolver` | Utility in `@starui/config-schemas` that resolves `{{X.Y}}` bindings in config JSON |
+| `ColumnGroupResolver` | Utility in `@starui/config-schemas` that merges flat `columnDefs` + `columnGroups` into AG-Grid nested `ColGroupDef` |
 | `PENDING_SYNC` | Dexie table that queues failed remote writes and drains to REST every 10 seconds |
 | `feature-index.md` | File in each reference app mapping feature names to source file paths — read by MCP server |
 | `ReferenceAppReader` | MCP server class that reads reference app source files by feature name |

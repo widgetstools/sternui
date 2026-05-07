@@ -18,12 +18,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { DataPlaneProvider } from '@marketsui/data-plane-react/v2';
-import { DataProviderEditor } from '@marketsui/widgets-react/v2/provider-editor';
-import { getConfigManager } from '@marketsui/openfin-platform/config';
-import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
-import type { ConfigManager } from '@marketsui/config-service';
-import { dataPlaneClient } from '../data-plane-client';
+import { DataPlaneProvider } from '@starui/data-plane-react/v2';
+import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
+import { getConfigManager } from '@starui/openfin-platform/config';
+import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
+import type { ConfigManager } from '@starui/config-service';
+import { dataPlaneClient } from '../dataPlaneClient';
 
 // userId is single-user-pinned across the codebase — no env override,
 // no customData/URL pickup. See LOGGED_IN_USER_ID in runtime-port.

@@ -16,7 +16,7 @@
 
 | Resolution | Meaning |
 |---|---|
-| **Rename** | Same code, new namespace (`@grid-customizer/*` / `@markets/*` / `@stern/*` → `@marketsui/*`) |
+| **Rename** | Same code, new namespace (`@grid-customizer/*` / `@markets/*` / `@stern/*` → `@starui/*`) |
 | **Relocate** | Move to a different path but same package boundary |
 | **Merge** | Combine with another source's package into a single target |
 | **Archive** | Not carried forward; preserved in old repo's history only |
@@ -26,9 +26,9 @@
 
 | Path | Name | Target path | Target name | Resolution |
 |---|---|---|---|---|
-| `packages/core` | `@grid-customizer/core` | `packages/core` | `@marketsui/core` | Rename |
-| `packages/design-system` | `@grid-customizer/design-system` | `packages/design-system` | `@marketsui/design-system` | Merge (see §2.1) |
-| `packages/markets-grid` | `@grid-customizer/markets-grid` | `packages/markets-grid` | `@marketsui/markets-grid` | Rename |
+| `packages/core` | `@grid-customizer/core` | `packages/core` | `@starui/core` | Rename |
+| `packages/design-system` | `@grid-customizer/design-system` | `packages/design-system` | `@starui/design-system` | Merge (see §2.1) |
+| `packages/markets-grid` | `@grid-customizer/markets-grid` | `packages/markets-grid` | `@starui/markets-grid` | Rename |
 | `apps/demo` | `@grid-customizer/demo` | `apps/demo-react` | — | Merge (see §2.3) |
 | `e2e/` | (no package) | `e2e/` | — | Relocate verbatim |
 | `openfin/` | (no package) | `apps/demo-react/openfin/` | — | Relocate under demo |
@@ -38,17 +38,17 @@
 
 | Path | Name | Target path | Target name | Resolution |
 |---|---|---|---|---|
-| `packages/component-host` | `@markets/component-host` | `packages/component-host` | `@marketsui/component-host` | Rename |
-| `packages/config-service` | `@marketsui/config-service` | `packages/config-service` | `@marketsui/config-service` | Relocate (name already correct) |
-| `packages/icons-svg` | `@markets/icons-svg` | `packages/icons-svg` | `@marketsui/icons-svg` | Rename |
-| `packages/openfin-workspace` | `@markets/openfin-workspace` | `packages/openfin-platform` | `@marketsui/openfin-platform` | Merge (see §2.2) |
-| `packages/tokens` | `@marketsui/tokens` | `packages/design-system/src/tokens` | — | Merge into design-system (see §2.1) |
-| `packages/react-tools/dock-editor` | `@markets/dock-editor` | `packages/dock-editor-react` | `@marketsui/dock-editor-react` | Rename |
-| `packages/react-tools/registry-editor` | `@markets/registry-editor` | `packages/registry-editor-react` | `@marketsui/registry-editor-react` | Rename |
-| `packages/angular-tools/dock-editor` | `@markets/angular-dock-editor` | `packages/dock-editor-angular` | `@marketsui/dock-editor-angular` | Rename |
-| `packages/angular-tools/registry-editor` | `@markets/angular-registry-editor` | `packages/registry-editor-angular` | `@marketsui/registry-editor-angular` | Rename |
-| `packages/widgets/ng` | (empty) | `packages/widgets-angular` | `@marketsui/widgets-angular` | Reserved |
-| `packages/widgets/react` | (empty) | `packages/widgets-react` | `@marketsui/widgets-react` | Reserved — populated from stern-2 (see §2.5) |
+| `packages/component-host` | `@markets/component-host` | `packages/component-host` | `@starui/component-host` | Rename |
+| `packages/config-service` | `@starui/config-service` | `packages/config-service` | `@starui/config-service` | Relocate (name already correct) |
+| `packages/icons-svg` | `@markets/icons-svg` | `packages/icons-svg` | `@starui/icons-svg` | Rename |
+| `packages/openfin-workspace` | `@markets/openfin-workspace` | `packages/openfin-platform` | `@starui/openfin-platform` | Merge (see §2.2) |
+| `packages/tokens` | `@starui/tokens` | `packages/design-system/src/tokens` | — | Merge into design-system (see §2.1) |
+| `packages/react-tools/dock-editor` | `@markets/dock-editor` | `packages/dock-editor-react` | `@starui/dock-editor-react` | Rename |
+| `packages/react-tools/registry-editor` | `@markets/registry-editor` | `packages/registry-editor-react` | `@starui/registry-editor-react` | Rename |
+| `packages/angular-tools/dock-editor` | `@markets/angular-dock-editor` | `packages/dock-editor-angular` | `@starui/dock-editor-angular` | Rename |
+| `packages/angular-tools/registry-editor` | `@markets/angular-registry-editor` | `packages/registry-editor-angular` | `@starui/registry-editor-angular` | Rename |
+| `packages/widgets/ng` | (empty) | `packages/widgets-angular` | `@starui/widgets-angular` | Reserved |
+| `packages/widgets/react` | (empty) | `packages/widgets-react` | `@starui/widgets-react` | Reserved — populated from stern-2 (see §2.5) |
 | `apps/react-reference-app` | `react-workspace-starter` | `apps/demo-react` | — | Merge (see §2.3) |
 | `apps/angular-reference-app` | `angular-reference-app` | `apps/demo-angular` | — | Merge (see §2.4) |
 | `apps/react-showcase` | `react-showcase` | (none) | — | **Archive** — functionality covered by demo-react |
@@ -59,15 +59,15 @@
 
 | Path | Name | Target path | Target name | Resolution |
 |---|---|---|---|---|
-| `packages/angular` | `@stern/angular` | `packages/angular` | `@marketsui/angular` | Merge (see §2.6) |
-| `packages/openfin-platform` | `@stern/openfin-platform` | `packages/openfin-platform` | `@marketsui/openfin-platform` | Merge (see §2.2) |
-| `packages/shared-types` | `@stern/shared-types` | `packages/shared-types` | `@marketsui/shared-types` | Rename |
+| `packages/angular` | `@stern/angular` | `packages/angular` | `@starui/angular` | Merge (see §2.6) |
+| `packages/openfin-platform` | `@stern/openfin-platform` | `packages/openfin-platform` | `@starui/openfin-platform` | Merge (see §2.2) |
+| `packages/shared-types` | `@stern/shared-types` | `packages/shared-types` | `@starui/shared-types` | Rename |
 | `packages/ui` | `@stern/ui` | `packages/design-system/src/ui` | — | Merge into design-system (see §2.1) |
-| `packages/widget-sdk` | `@stern/widget-sdk` | `packages/widget-sdk` | `@marketsui/widget-sdk` | Rename |
-| `packages/widgets` | `@stern/widgets` | `packages/widgets-react` | `@marketsui/widgets-react` | Relocate + rename |
+| `packages/widget-sdk` | `@stern/widget-sdk` | `packages/widget-sdk` | `@starui/widget-sdk` | Rename |
+| `packages/widgets` | `@stern/widgets` | `packages/widgets-react` | `@starui/widgets-react` | Relocate + rename |
 | `apps/reference-app` | `@stern/reference-app` | `apps/demo-react` | — | Merge (see §2.3) |
 | `apps/angular-reference-app` | `@stern/angular-reference-app` | `apps/demo-angular` | — | Merge (see §2.4) |
-| `apps/server` | `@stern/server` | `apps/config-service-server` | `@marketsui/config-service-server` | Rename |
+| `apps/server` | `@stern/server` | `apps/config-service-server` | `@starui/config-service-server` | Rename |
 | `docs/*` | — | `docs/archived/stern-2/` | — | Archive |
 
 ### Source: `widgetstools/fi-trading-terminal`
@@ -90,7 +90,7 @@
 **Sources merging here:**
 - `aggrid/packages/design-system` (thin — just tokens glue)
 - `fi-trading-terminal/design-system/` (adapters, cell-renderers, icons, themes, tokens)
-- `markets-ui/packages/tokens` (`@marketsui/tokens` — PrimeNG theme tokens)
+- `markets-ui/packages/tokens` (`@starui/tokens` — PrimeNG theme tokens)
 - `stern-2/packages/ui` (`@stern/ui` — shadcn wrappers over 47 Radix components)
 
 **Winner on visual authority:** fi-trading-terminal. Its design-system/ is the most complete (themes/, tokens/, adapters/, cell-renderers.ts all present) AND it's the visual reference for corporate branding.
@@ -106,7 +106,7 @@ packages/design-system/
 │   ├── cell-renderers.ts   (from fi-trading)
 │   ├── ui/                 (stern-2's shadcn/Radix wrappers — Button, Card, Dialog, etc.)
 │   └── index.ts
-├── package.json            (@marketsui/design-system)
+├── package.json            (@starui/design-system)
 └── libs/                   (bundled tgzs if any design-system deps require)
 ```
 
@@ -134,7 +134,7 @@ packages/openfin-platform/
 │   ├── identity.ts             (from stern-2 — PlatformAdapter identity + customData)
 │   ├── theme.ts                (from markets-ui — theme IAB channel)
 │   └── index.ts
-├── package.json                (@marketsui/openfin-platform)
+├── package.json                (@starui/openfin-platform)
 ```
 
 ### 2.3 — `apps/demo-react` (merges 4 sources)
@@ -200,15 +200,15 @@ All four demos share the consolidated `<MarketsUIShell>` root and feed off the s
 
 ## 4. Namespace migration
 
-Every package migrates to `@marketsui/*`. Full rename map:
+Every package migrates to `@starui/*`. Full rename map:
 
 | Old namespace | Count | New namespace |
 |---|---|---|
-| `@grid-customizer/*` | 4 packages | `@marketsui/*` |
-| `@markets/*` | 6 packages | `@marketsui/*` |
-| `@marketsui/*` (already) | 2 packages | `@marketsui/*` (no change) |
-| `@stern/*` | 8 packages | `@marketsui/*` |
-| (fi-trading unnamed packages) | 2 apps | `@marketsui/demo-react` / `@marketsui/demo-angular` |
+| `@grid-customizer/*` | 4 packages | `@starui/*` |
+| `@markets/*` | 6 packages | `@starui/*` |
+| `@starui/*` (already) | 2 packages | `@starui/*` (no change) |
+| `@stern/*` | 8 packages | `@starui/*` |
+| (fi-trading unnamed packages) | 2 apps | `@starui/demo-react` / `@starui/demo-angular` |
 
 Global find-and-replace during Day 5 of the consolidation.
 
@@ -236,7 +236,7 @@ These could not be resolved from the audit alone. If left undecided, consolidati
 
 4. **Archived showcase apps — true archive or keep in `docs/archived-apps/`?** Leaning toward archive (not in monorepo tree) since history is preserved in the git-filter-repo merge.
 
-5. **`packages/design-system` internal structure.** §2.1 proposes `src/tokens/`, `src/themes/`, `src/ui/`. Alternative: split into multiple sub-packages (`@marketsui/design-system-tokens`, `@marketsui/design-system-ui`) for tree-shakability. Single package is simpler; multiple is more professional. Default to single unless bundle-size pressure justifies the split.
+5. **`packages/design-system` internal structure.** §2.1 proposes `src/tokens/`, `src/themes/`, `src/ui/`. Alternative: split into multiple sub-packages (`@starui/design-system-tokens`, `@starui/design-system-ui`) for tree-shakability. Single package is simpler; multiple is more professional. Default to single unless bundle-size pressure justifies the split.
 
 ---
 

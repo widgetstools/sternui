@@ -14,6 +14,13 @@ FI Trading Terminal.
 > History for v1 is preserved on the backup tag taken prior to the
 > original removal.
 
+> **Repo reorganization (2026-05-06).** The 27 workspace packages were
+> regrouped under `packages/{shared,react,angular}/` buckets, and the
+> npm scope was renamed `@marketsui/*` → `@starui/*`. Older entries
+> below still reference the pre-reorg paths (e.g. `packages/core` is
+> now `packages/shared/core`); semantic content of the entries is
+> unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
+
 ---
 
 ## 1. Feature Catalog
@@ -1082,7 +1089,7 @@ only) keep working unchanged. Plan doc:
 
 ### ConfigService-backed persistence
 
-`@marketsui/config-service` ships `createConfigServiceStorage({ configManager, appId, userId })` — a `StorageAdapterFactory` that persists **one `AppConfigRow` per instance** with all profiles bundled in the payload:
+`@starui/config-service` ships `createConfigServiceStorage({ configManager, appId, userId })` — a `StorageAdapterFactory` that persists **one `AppConfigRow` per instance** with all profiles bundled in the payload:
 
 | Field | Value |
 |---|---|
@@ -1098,7 +1105,7 @@ Also exports `migrateProfilesToConfigService({ source, target, gridId, ... })` �
 
 ### ConfigBrowser integration
 
-`@marketsui/config-browser` ships `createConfigBrowserAction({ launch })` — returns an `AdminAction` with default id / label / icon / description. Consumer supplies just the launch callback (route, OpenFin window, overlay — whatever fits the app). Apps that don't use ConfigBrowser omit the dep; no forced coupling.
+`@starui/config-browser` ships `createConfigBrowserAction({ launch })` — returns an `AdminAction` with default id / label / icon / description. Consumer supplies just the launch callback (route, OpenFin window, overlay — whatever fits the app). Apps that don't use ConfigBrowser omit the dep; no forced coupling.
 
 ### Demo app
 
@@ -1113,14 +1120,14 @@ Run side-by-side with `apps/demo-react` on 5190 for A/B comparison (different In
 
 ### Layer cleanliness
 
-- `@marketsui/core`'s `StorageAdapter` interface unchanged — 242 existing tests untouched.
-- `@marketsui/config-service` declares `@marketsui/core` as an **optional** peerDependency (type-only).
-- `@marketsui/config-browser` declares `@marketsui/markets-grid` as an **optional** peerDependency (for the `AdminAction` type the helper returns).
-- `<MarketsGrid>` does NOT import anything from `@marketsui/config-browser` or `@marketsui/config-service` — the admin-actions slot is the integration seam. Composition, not coupling.
+- `@starui/core`'s `StorageAdapter` interface unchanged — 242 existing tests untouched.
+- `@starui/config-service` declares `@starui/core` as an **optional** peerDependency (type-only).
+- `@starui/config-browser` declares `@starui/markets-grid` as an **optional** peerDependency (for the `AdminAction` type the helper returns).
+- `<MarketsGrid>` does NOT import anything from `@starui/config-browser` or `@starui/config-service` — the admin-actions slot is the integration seam. Composition, not coupling.
 
 ### Angular mirror
 
-Deferred to ANGULAR_PORT Phase 4 (`docs/plans/ANGULAR_PORT.md`) — the plan's Angular selectors (`mkt-markets-grid` with `[adminActions]` and `(ready)`) ship together with `@marketsui/markets-grid-angular`. React API is the frozen reference shape.
+Deferred to ANGULAR_PORT Phase 4 (`docs/plans/ANGULAR_PORT.md`) — the plan's Angular selectors (`mkt-markets-grid` with `[adminActions]` and `(ready)`) ship together with `@starui/markets-grid-angular`. React API is the frozen reference shape.
 
 ### Tests + verification
 
@@ -1128,7 +1135,7 @@ Deferred to ANGULAR_PORT Phase 4 (`docs/plans/ANGULAR_PORT.md`) — the plan's A
 
 ---
 
-## 1.O `@marketsui/data-plane` — Week 1 + 1.5 (protocol + dual cache + dual provider bases)
+## 1.O `@starui/data-plane` — Week 1 + 1.5 (protocol + dual cache + dual provider bases)
 
 Per [`docs/plans/DATA_PLANE.md`](./plans/DATA_PLANE.md). Week 1 delivered protocol + cache + provider bases for keyed-resource mode; Week 1.5 adds the row-stream primitives that match stern-1's production architecture (`/Users/develop/Documents/projects/stern-1/client/src/workers/engine/`).
 
@@ -1145,9 +1152,9 @@ Both coexist in the same package and use the same wire protocol — the client p
 
 ### Package
 
-- `packages/data-plane/` — workspace `@marketsui/data-plane@0.1.0`
-- Depends only on `@marketsui/shared-types`.
-- Subpath exports: `@marketsui/data-plane` (full barrel), `@marketsui/data-plane/protocol`, `@marketsui/data-plane/providers`.
+- `packages/data-plane/` — workspace `@starui/data-plane@0.1.0`
+- Depends only on `@starui/shared-types`.
+- Subpath exports: `@starui/data-plane` (full barrel), `@starui/data-plane/protocol`, `@starui/data-plane/providers`.
 
 ### What landed
 
@@ -1175,11 +1182,11 @@ Both coexist in the same package and use the same wire protocol — the client p
 - **Late-joiner semantics ported 1:1 from stern-1.** A port subscribing during the snapshot phase is marked in `liveSnapshotPorts`. After `snapshot-complete`, `shouldReceiveCached(portId)` returns `false` for those ports — they already received the live data, sending cached rows would duplicate. Ports that subscribed after complete are not in the set, so they get the cached replay.
 - **Listener iteration is crash + mutation safe.** `StreamProviderBase.dispatch` snapshots the listener set and catches per-listener exceptions so one bad consumer doesn't kill the provider or break iteration for other listeners. Tested with a listener that removes itself mid-dispatch and one that throws.
 - **Existing `DataProviderEditor` UI stays put.** It persists through `dataProviderConfigService` → the shared-types `ProviderConfig` union. The data-plane consumes the same union verbatim at `configure()` time.
-- **Existing `IBlotterDataProvider` contract kept.** It lives in `@marketsui/widgets-react/interfaces.ts` and drives `useBlotterDataConnection`. Legacy per-widget adapter; `StreamProviderBase` is the new multiplexed contract. Both coexist during migration.
+- **Existing `IBlotterDataProvider` contract kept.** It lives in `@starui/widgets-react/interfaces.ts` and drives `useBlotterDataConnection`. Legacy per-widget adapter; `StreamProviderBase` is the new multiplexed contract. Both coexist during migration.
 
 ### Tests + verification
 
-- 97 tests in `@marketsui/data-plane`:
+- 97 tests in `@starui/data-plane`:
   - 46 protocol round-trip (keyed + row-stream opcodes)
   - 20 keyed-resource cache (LRU / TTL / dedup / isolation)
   - 10 row cache (upsert / skip / remove / clear)
@@ -1201,11 +1208,11 @@ Week 2 bolts the dispatch + transport surface onto the Week-1/1.5 primitives. No
 | `src/worker/providerFactory.ts` | `ProviderFactory` type + `defaultProviderFactory`. Returns a discriminated `{ shape: 'keyed' \| 'stream', provider }` so the router can branch safely. Wrap to add STOMP / WebSocket / SocketIO without touching router code. |
 | `src/worker/router.ts` + 14 tests | The dispatcher. Handles every opcode: `configure / get / put / subscribe / unsubscribe / invalidate / teardown / ping` (keyed-resource) AND `subscribe-stream / get-cached-rows` (row-stream). Owns: in-flight `ProviderCache` per keyed provider, single-flight dedup on `get`, monotonic per-provider `streamSeq` for row updates, port-id generation (`WeakMap<MessagePort, string>`), auto-teardown on idle — but ONLY for stream providers (keyed providers persist in-memory state and must not lose it when the last subscriber leaves). |
 | `src/worker/entry.ts` | `installWorker({ router })` — wires `self.onconnect` (SharedWorker) AND `self.onmessage` (dedicated Worker bootstrap) into the router. Periodic dead-port sweep at configurable interval (default 30s / 60s timeout, matching stern-1). |
-| `src/worker/index.ts` | Subpath barrel `@marketsui/data-plane/worker` for worker assets. |
+| `src/worker/index.ts` | Subpath barrel `@starui/data-plane/worker` for worker assets. |
 | `src/client/DataPlaneClient.ts` + 9 tests | Main-thread SDK. Typed async APIs for every one-shot op (`configure/get/put/invalidate/teardown/ping`) plus `subscribe(k, onUpdate)` / `subscribeStream(listener)` / `getCachedRows()`. `close()` rejects every pending request with `TRANSPORT_CLOSED`. Typed `DataPlaneClientError` (extends `Error`) for every failure so callers can `catch` and branch on `.code` / `.retryable`. |
 | `src/client/fallbacks.ts` | `hasSharedWorker` / `hasDedicatedWorker` probes + `TransportMode` type. |
 | `src/client/connect.ts` | Three entry points: `connectSharedWorker(url)` (production), `connectDedicatedWorker(url)` (fallback for environments without SharedWorker — Safari old / OpenFin view contexts), `connectInPage(router)` (last resort + test path). Auto-degrading `connect({ url, router? })` picks the best available. |
-| `src/client/index.ts` | Subpath barrel `@marketsui/data-plane/client` for main-thread code. |
+| `src/client/index.ts` | Subpath barrel `@starui/data-plane/client` for main-thread code. |
 | `package.json` exports | Added `./client` + `./worker` subpath exports so consumers can tree-shake. |
 
 ### Design decisions worth calling out
@@ -1221,8 +1228,8 @@ Week 2 bolts the dispatch + transport surface onto the Week-1/1.5 primitives. No
 
 ```ts
 // Main-thread consumer:
-import { connect, connectInPage, DataPlaneClient } from '@marketsui/data-plane/client';
-import type { AppDataProviderConfig } from '@marketsui/shared-types';
+import { connect, connectInPage, DataPlaneClient } from '@starui/data-plane/client';
+import type { AppDataProviderConfig } from '@starui/shared-types';
 
 const { client, close } = connect({
   url: new URL('./myDataWorker.ts', import.meta.url),
@@ -1243,7 +1250,7 @@ const unsub = await client.subscribeStream<Position>('bond-blotter', {
 
 ```ts
 // Worker side (Vite asset):
-import { installWorker, Router } from '@marketsui/data-plane/worker';
+import { installWorker, Router } from '@starui/data-plane/worker';
 
 const router = new Router({
   providerFactory: async (id, cfg) => {
@@ -1253,7 +1260,7 @@ const router = new Router({
       await p.configure(cfg);
       return { shape: 'stream', provider: p };
     }
-    const { defaultProviderFactory } = await import('@marketsui/data-plane/worker');
+    const { defaultProviderFactory } = await import('@starui/data-plane/worker');
     return defaultProviderFactory(id, cfg);
   },
 });
@@ -1262,7 +1269,7 @@ installWorker({ router });
 
 ### Tests + verification
 
-- 129 tests in `@marketsui/data-plane` (up from 97):
+- 129 tests in `@starui/data-plane` (up from 97):
   - 46 protocol round-trip (unchanged)
   - 20 keyed-resource cache (unchanged)
   - 10 row cache (unchanged)
@@ -1297,15 +1304,15 @@ Port of stern-1's `StompEngine` onto the Week-1.5 `StreamProviderBase`. Speaks t
 
 ---
 
-## 1.O.W4 — Week 4 (React bindings — new `@marketsui/data-plane-react` package)
+## 1.O.W4 — Week 4 (React bindings — new `@starui/data-plane-react` package)
 
-New workspace. Framework isolation per the plan: `@marketsui/data-plane` stays framework-agnostic; every React import lives in the companion package.
+New workspace. Framework isolation per the plan: `@starui/data-plane` stays framework-agnostic; every React import lives in the companion package.
 
 ### Package
 
-- `packages/data-plane-react/` — `@marketsui/data-plane-react@0.1.0`
+- `packages/data-plane-react/` — `@starui/data-plane-react@0.1.0`
 - peerDep: React `>=19.0.0`
-- Depends on `@marketsui/data-plane` + `@marketsui/shared-types`
+- Depends on `@starui/data-plane` + `@starui/shared-types`
 
 ### What landed
 
@@ -1326,7 +1333,7 @@ Row-stream providers can deliver 10k+ rows per snapshot. Pushing that into `useS
 
 - **18 tests** on STOMP provider (offline, via FakeClient)
 - **5 tests** on React hooks (jsdom + RTL + `connectInPage`)
-- **165 tests** total across `@marketsui/data-plane` (up from 129)
+- **165 tests** total across `@starui/data-plane` (up from 129)
 - `npx turbo typecheck build test` on both new packages: clean
 - Full monorepo sweep `npx turbo typecheck build test`: **61/61 tasks green** (up from 58 — new workspace adds typecheck/build/test)
 
@@ -1334,7 +1341,7 @@ Row-stream providers can deliver 10k+ rows per snapshot. Pushing that into `useS
 
 ```tsx
 // Near the app root:
-import { DataPlaneProvider } from '@marketsui/data-plane-react';
+import { DataPlaneProvider } from '@starui/data-plane-react';
 
 function App() {
   return (
@@ -1368,7 +1375,7 @@ function PositionsBlotter() {
 
 - `providers/RestStreamProvider.ts` / `WebSocketStreamProvider.ts` / `SocketIOStreamProvider.ts` — the STOMP pattern is trivially transposable to each, but each has quirks (REST polling backoff; WebSocket binary vs JSON; SocketIO event names). Defer until a consumer actually needs one.
 - `worker/iab-bridge.ts` — cross-app routing (stern-1's AppData + OpenFin IAB pattern). Deferred to the `SHELL_AND_REGISTRY.md` plan rather than pinned to this package.
-- Angular signal bindings (`@marketsui/data-plane-angular`) — analogous shape to the React package.
+- Angular signal bindings (`@starui/data-plane-angular`) — analogous shape to the React package.
 - `apps/demo-react` integration with a running STOMP server — requires `/Users/develop/Documents/projects/stomp-server` booted, so scoping as a local dev/e2e cycle rather than a CI artifact.
 - E2E: 4-widgets-one-STOMP-topic assertion that only one outbound WebSocket connects.
 
@@ -1410,10 +1417,10 @@ The brace resolver runs upstream in the React hook `useResolvedCfg` (in `data-pl
 
 - **10 new tests** on bracket-resolver (Vitest)
 - **18 tests total** across `packages/data-plane/src/v2/template/` (8 brace + 10 bracket)
-- **78 tests total** across `@marketsui/data-plane`: green
-- `npm run typecheck --workspace=@marketsui/data-plane`: clean
-- `npm run build --workspace=@marketsui/data-plane`: clean
-- `npx turbo build --filter='...@marketsui/data-plane'`: 24/24 dependents build clean
+- **78 tests total** across `@starui/data-plane`: green
+- `npm run typecheck --workspace=@starui/data-plane`: clean
+- `npm run build --workspace=@starui/data-plane`: clean
+- `npx turbo build --filter='...@starui/data-plane'`: 24/24 dependents build clean
 
 ### Consumer usage example
 
@@ -1654,7 +1661,7 @@ Schema already supported nested dropdowns (`DockDropdownButtonConfig.options: Do
 
 ### Tests
 
-Baseline preserved: 242 (`@marketsui/core`) + 56 (`@marketsui/markets-grid`) + 42 (`@marketsui/openfin-platform`) + 147 (`@marketsui/data-plane`) = 487 tests passing. No regressions; full `npx turbo typecheck test --force` is green across all 50 tasks.
+Baseline preserved: 242 (`@starui/core`) + 56 (`@starui/markets-grid`) + 42 (`@starui/openfin-platform`) + 147 (`@starui/data-plane`) = 487 tests passing. No regressions; full `npx turbo typecheck test --force` is green across all 50 tasks.
 
 ---
 
@@ -1740,35 +1747,35 @@ type Evt =
 
 ### What got deleted
 
-`packages/data-plane/src/{client/*, worker/{router,cache,bufferedDispatch,broadcastManager,providerFactory,rowCache,entry,index}.ts, protocol.ts}`, `packages/data-plane-react/src/{context.tsx, useDataPlane*.ts, hooks.test.tsx}`, `packages/widgets-react/src/{markets-grid-container, provider-editor, data-provider-selector}/*` (all v1), `apps/markets-ui-react-reference/src/data-providers-local.ts`. Three v1 modules survive at `packages/data-plane/src/{services, providers/{ProviderBase, StreamProviderBase, StompDataProvider, rowCache}}.ts` — only because `@marketsui/angular` still imports them; they retire on Angular's v2 cutover.
+`packages/data-plane/src/{client/*, worker/{router,cache,bufferedDispatch,broadcastManager,providerFactory,rowCache,entry,index}.ts, protocol.ts}`, `packages/data-plane-react/src/{context.tsx, useDataPlane*.ts, hooks.test.tsx}`, `packages/widgets-react/src/{markets-grid-container, provider-editor, data-provider-selector}/*` (all v1), `apps/markets-ui-react-reference/src/data-providers-local.ts`. Three v1 modules survive at `packages/data-plane/src/{services, providers/{ProviderBase, StreamProviderBase, StompDataProvider, rowCache}}.ts` — only because `@starui/angular` still imports them; they retire on Angular's v2 cutover.
 
 ### Subpath surface
 
 ```ts
 // Main-thread types + helpers
-import { resolveCfg, AppDataStore, type ProviderStats } from '@marketsui/data-plane/v2';
+import { resolveCfg, AppDataStore, type ProviderStats } from '@starui/data-plane/v2';
 // SharedWorker entry
-import { installWorker } from '@marketsui/data-plane/v2/worker';
+import { installWorker } from '@starui/data-plane/v2/worker';
 // Client
-import { DataPlane } from '@marketsui/data-plane/v2/client';
+import { DataPlane } from '@starui/data-plane/v2/client';
 
 // React bindings
 import {
   DataPlaneProvider, useProviderStream, useResolvedCfg, useDataProvidersList,
-} from '@marketsui/data-plane-react/v2';
+} from '@starui/data-plane-react/v2';
 
 // Widgets
-import { MarketsGridContainer } from '@marketsui/widgets-react/v2/markets-grid-container';
-import { DataProviderEditor }   from '@marketsui/widgets-react/v2/provider-editor';
-import { DataProviderSelector } from '@marketsui/widgets-react/v2/data-provider-selector';
+import { MarketsGridContainer } from '@starui/widgets-react/v2/markets-grid-container';
+import { DataProviderEditor }   from '@starui/widgets-react/v2/provider-editor';
+import { DataProviderSelector } from '@starui/widgets-react/v2/data-provider-selector';
 ```
 
 ### Tests
 
 | Package | Tests | Notes |
 |---|---|---|
-| `@marketsui/data-plane` | **59** v2 tests (Hub, STOMP, REST, Mock, inferFields, template resolver, AppDataStore, DataPlane client) + the surviving v1 `dataProviderConfigService.test.ts` (7) | Down from v1's ~175 tests because the v1 worker / client / providers are gone, not because of regression |
-| `@marketsui/data-plane-react` | **3** (jsdom + in-page wiring) | v1 hooks deleted |
+| `@starui/data-plane` | **59** v2 tests (Hub, STOMP, REST, Mock, inferFields, template resolver, AppDataStore, DataPlane client) + the surviving v1 `dataProviderConfigService.test.ts` (7) | Down from v1's ~175 tests because the v1 worker / client / providers are gone, not because of regression |
+| `@starui/data-plane-react` | **3** (jsdom + in-page wiring) | v1 hooks deleted |
 
 `npx turbo typecheck` covers all 45 packages with no regressions.
 
@@ -1782,11 +1789,11 @@ import { DataProviderSelector } from '@marketsui/widgets-react/v2/data-provider-
 
 Apps render hosted components without those components knowing whether they live in OpenFin or a plain browser. Both the React and Angular flavors now ship.
 
-### React (`@marketsui/host-wrapper-react`)
+### React (`@starui/host-wrapper-react`)
 
 `<HostWrapper runtime={runtime} configManager={configManager}>` provides a `HostContext` that hosted components consume via `useHost()`. Reads identity, current theme, configManager, and lifecycle events (`onWindowShown`, `onWindowClosing`, `onCustomDataChanged`, `onWorkspaceSave`) without importing `@openfin/core`. Wired into `apps/demo-react`, `apps/demo-configservice-react`, and `apps/markets-ui-react-reference` (with an `Outlet` layout pattern that excludes the `/platform/provider` route).
 
-### Angular (`@marketsui/host-wrapper-angular`)
+### Angular (`@starui/host-wrapper-angular`)
 
 `provideHostWrapper({ runtime, configManager })` registers three `InjectionToken`s (`HOST_RUNTIME`, `HOST_CONFIG_MANAGER`, `HOST_CONFIG_URL`). Hosted Angular components inject `HostService`, the DI mirror of `useHost()`:
 
@@ -1817,14 +1824,14 @@ Two small platform additions that make OpenFin browser windows and view tabs hon
 | `packages/openfin-platform/src/internal/customActions.ts` | Spreads `createRenameViewTabAction(openChildWindow)` into the returned `CustomActionsMap`. |
 | `packages/openfin-platform/src/workspace-persistence.ts` | `MarketsUIWorkspaceProvider.openViewTabContextMenu` injects the rename item before delegating to `super`. |
 | `packages/openfin-platform/src/index.ts` | Re-exports the four rename helpers from the main barrel. |
-| `packages/openfin-platform-stern/src/internal/viewTabRename.ts` | New. Self-contained Stern copy — Stern is a parallel shell that intentionally doesn't depend on `@marketsui/openfin-platform`. |
+| `packages/openfin-platform-stern/src/internal/viewTabRename.ts` | New. Self-contained Stern copy — Stern is a parallel shell that intentionally doesn't depend on `@starui/openfin-platform`. |
 | `packages/openfin-platform-stern/src/dock/openfinDock.ts` | `dockGetCustomActions()` spreads `createRenameViewTabAction(openSternChildWindow)`; new local helper `openSternChildWindow` wraps `fin.Window.create` with the platform's `buildUrl()`. |
 | `packages/openfin-platform-stern/src/bootstrap.ts` | `SternPlatformProvider.openViewTabContextMenu` injects the rename item. `defaultWindowOptions.workspacePlatform.title` set to `{ type: 'page-title' }`. |
 | `apps/markets-ui-react-reference/src/views/RenameViewTab.tsx` | Frameless popout that reads `view` + `currentTitle` from `fin.me.getOptions().customData`, renders a card matching the "Save Page As" layout (header icon + title row + single shadcn `Input` + Cancel/Save row), auto-focuses + selects on mount, Enter submits / Esc cancels. On confirm, runs `document.title = "..."` in the target view via `executeJavaScript` for the immediate tabstrip update, then calls `view.updateOptions({ customData: { ..., savedTitle } })` so the rename round-trips through the workspace snapshot. Theme-sensitive via the ambient `<ThemeProvider>`. |
 | `packages/runtime-openfin/src/OpenFinRuntime.ts` | `applySavedViewTitle()` — reads `customData.savedTitle` during construction and reapplies it to `document.title`. The hook closes the persistence loop: without it, the rename would be lost on every workspace reload because `document.title` is a runtime-only DOM mutation that the snapshot never captures. |
 | `apps/markets-ui-react-reference/src/main.tsx` | New `/rename-view-tab` route (lazy). |
 
-Verified green: `npx turbo typecheck --filter=@marketsui/openfin-platform --filter=@marketsui/openfin-platform-stern --filter=@marketsui/markets-ui-react-reference` (22 tasks); `npx turbo test --filter=@marketsui/openfin-platform` (49 tests).
+Verified green: `npx turbo typecheck --filter=@starui/openfin-platform --filter=@starui/openfin-platform-stern --filter=@starui/markets-ui-react-reference` (22 tasks); `npx turbo test --filter=@starui/openfin-platform` (49 tests).
 
 ### 1.P Universal `<HostedFeatureView>` wrapper for OpenFin route views
 
@@ -1945,7 +1952,7 @@ save/restore.
   before localStorage; written through on every active-id commit
   (`boot`/`load`/`create`/`clone`/`import`/`remove-active`). Errors
   swallowed — best-effort, never blocks the manager. Exported from
-  `@marketsui/core`.
+  `@starui/core`.
 - **OpenFin source** — `createOpenFinViewProfileSource()` in
   `packages/markets-grid/src/openfinViewProfile.ts`. Reads/writes
   `activeProfileId` on `fin.me.getOptions().customData`. Returns `null`
@@ -1976,7 +1983,7 @@ the module's own README is the source of truth for the prop contract:
 
 **Added:**
 
-- `<HostedMarketsGrid>` exported from `@marketsui/widgets-react/hosted`
+- `<HostedMarketsGrid>` exported from `@starui/widgets-react/hosted`
   and the package root. Owns identity resolution (OpenFin +
   browser-fallback), ConfigService-backed storage with auto-injected
   registered-component metadata, the AG-Grid blotter theme, the
@@ -1986,7 +1993,7 @@ the module's own README is the source of truth for the prop contract:
   escape hatch.
 - Public types `HostedContext`, `RegisteredComponentMetadata`,
   `ConfigManager`, and `StorageAdapterFactory` re-exported from
-  `@marketsui/widgets-react/hosted` so external consumers have a
+  `@starui/widgets-react/hosted` so external consumers have a
   documented integration contract.
 - Public hooks `useHostedIdentity` and `useAgGridTheme` exported from
   the same module for consumers that want to compose their own hosted
@@ -2145,10 +2152,10 @@ client-side userId resolution to it.
 | `packages/runtime-browser/src/identity.ts` | `userId` is now hard-pinned in `resolveBrowserIdentity()` — URL `?userId=` and override `userId` are intentionally ignored. |
 | `packages/runtime-openfin/src/identity.ts` | `userId` is hard-pinned in `resolveOpenFinIdentity()` — `customData.userId` is intentionally ignored. |
 | `packages/openfin-platform/src/registry-host-env.ts` | All three `readHostEnv()` resolution paths (OpenFin customData, `?hostEnv=` decode, dev fallback) collapse onto `DEFAULT_USER_ID`. The local constant is now documented as the same value as `LOGGED_IN_USER_ID`. |
-| `packages/widgets-react/src/hosted/useHostedIdentity.ts` | Drops the `customData.userId` read; `userId` initialises directly from `LOGGED_IN_USER_ID`. The hook's `defaultUserId` arg is preserved on the public API for back-compat but is now ignored at runtime. New dep: `@marketsui/runtime-port`. |
+| `packages/widgets-react/src/hosted/useHostedIdentity.ts` | Drops the `customData.userId` read; `userId` initialises directly from `LOGGED_IN_USER_ID`. The hook's `defaultUserId` arg is preserved on the public API for back-compat but is now ignored at runtime. New dep: `@starui/runtime-port`. |
 | `packages/component-host/src/resolve-identity.ts` | `readCustomData()` now hard-pins `userId` regardless of what the launcher's customData carried. |
-| `packages/component-host/src/save-config.ts` | Build-fresh fallback uses `LOGGED_IN_USER_ID` instead of `""` so a row never lands with `userId=''`. New dep: `@marketsui/runtime-port`. |
-| `packages/data-plane-react/src/v2/index.tsx` | `useAppData().setMany()` falls back to `LOGGED_IN_USER_ID` (was `''`) for the user-owner field on a freshly-created AppData config row. New dep: `@marketsui/runtime-port`. |
+| `packages/component-host/src/save-config.ts` | Build-fresh fallback uses `LOGGED_IN_USER_ID` instead of `""` so a row never lands with `userId=''`. New dep: `@starui/runtime-port`. |
+| `packages/data-plane-react/src/v2/index.tsx` | `useAppData().setMany()` falls back to `LOGGED_IN_USER_ID` (was `''`) for the user-owner field on a freshly-created AppData config row. New dep: `@starui/runtime-port`. |
 | `apps/markets-ui-react-reference/src/views/DataProviders.tsx` | Removes the `VITE_DEFAULT_USER_ID` env override and the `readHostEnv()`-based userId pickup; `userId` is now `LOGGED_IN_USER_ID` directly. |
 | `apps/markets-ui-angular-reference/src/app/components/hosted-component/hosted-component.component.ts` | `resolveUserId()` collapses to `return LOGGED_IN_USER_ID` — `customData.userId` is ignored. |
 | Tests in `runtime-browser`, `runtime-openfin`, `widgets-react`, `component-host` | Updated to assert the new pin (`expect(id.userId).toBe(LOGGED_IN_USER_ID)`) where they previously verified URL/override/customData propagation for `userId`. |

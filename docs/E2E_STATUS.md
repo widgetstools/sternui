@@ -89,7 +89,7 @@ consolidated monorepo as they did on the four source repos.
 # From the monorepo root:
 npm ci --legacy-peer-deps
 npx playwright install chromium
-npx turbo build --filter=@marketsui/demo-react...
+npx turbo build --filter=@starui/demo-react...
 npx playwright test
 ```
 

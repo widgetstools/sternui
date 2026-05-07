@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ConfigurationService } from '../services/ConfigurationService.js';
-import type { ConfigurationFilter } from '@marketsui/shared-types';
+import type { ConfigurationFilter } from '@starui/shared-types';
 import logger from '../utils/logger.js';
 
 /**

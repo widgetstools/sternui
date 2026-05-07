@@ -109,7 +109,7 @@ Each session is sized to ~30–90 minutes of focused work. Sessions are sequenti
 4. Add exports to [`packages/widgets-react/src/hosted/index.ts`](../packages/widgets-react/src/hosted/index.ts).
 
 **Acceptance criteria**
-- `npx turbo typecheck build test --filter=@marketsui/widgets-react` green.
+- `npx turbo typecheck build test --filter=@starui/widgets-react` green.
 - New specs pass.
 
 **Commit message template**
@@ -212,7 +212,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 **Acceptance criteria**
 - Specs green.
-- `npx turbo typecheck build` green for `@marketsui/openfin-platform` and `@marketsui/widgets-react`.
+- `npx turbo typecheck build` green for `@starui/openfin-platform` and `@starui/widgets-react`.
 - Live OpenFin: `dispatch('workspace-saving')` confirmed firing (temp log or breakpoint).
 
 **Commit message template**
@@ -298,7 +298,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 4. Refresh [`packages/widgets-react/src/hosted/README.md`](../packages/widgets-react/src/hosted/README.md) — append a *Hooks* section listing each hook with a one-line purpose and a small `useHostedView` example. Don't rewrite existing content.
 
 **Acceptance criteria**
-- `npx turbo typecheck build test --filter=@marketsui/widgets-react` green.
+- `npx turbo typecheck build test --filter=@starui/widgets-react` green.
 - README has the new section.
 
 **Commit message template**

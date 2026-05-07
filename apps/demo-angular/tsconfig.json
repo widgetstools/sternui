@@ -17,7 +17,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@design-system/*": ["../../packages/design-system/src/*"]
+      "@design-system/*": ["../../packages/shared/design-system/src/*"]
     }
   },
   "angularCompilerOptions": {

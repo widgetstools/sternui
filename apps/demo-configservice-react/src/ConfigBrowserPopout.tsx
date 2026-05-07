@@ -15,7 +15,7 @@
  *     and see none of the demo's rows.
  */
 import { useEffect } from 'react';
-import { ConfigBrowserPanel } from '@marketsui/config-browser';
+import { ConfigBrowserPanel } from '@starui/config-browser';
 import { X } from 'lucide-react';
 
 export function ConfigBrowserPopout() {

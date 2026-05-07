@@ -11,7 +11,7 @@ import type {
   BulkUpdateRequest,
   BulkUpdateResult,
   CleanupResult,
-} from '@marketsui/shared-types';
+} from '@starui/shared-types';
 
 /**
  * SQLite storage implementation using sql.js (pure JS, no native bindings).

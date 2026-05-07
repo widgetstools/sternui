@@ -1,4 +1,4 @@
-# `@marketsui/axe-blotter-demo`
+# `@starui/axe-blotter-demo`
 
 IG corporate axe blotter built on `<MarketsGrid>` — demonstrates the
 **programmatic API** path. No clicks through the Cockpit settings UI;
@@ -18,7 +18,7 @@ view is module-state, not column-def boilerplate.
 
 ```bash
 # From monorepo root
-npm run dev -w @marketsui/axe-blotter-demo
+npm run dev -w @starui/axe-blotter-demo
 # Vite at http://localhost:5192
 ```
 
@@ -58,7 +58,7 @@ The Cockpit settings sheet is one way to author a profile. This demo
 proves the same surface area is reachable in TypeScript:
 
 - Every reducer used in [buildAxeProfile.ts](src/buildAxeProfile.ts) is
-  exported from `@marketsui/core` — they're the SAME functions the
+  exported from `@starui/core` — they're the SAME functions the
   toolbar calls.
 - The conditional-styling rules are the same `ConditionalRule` shape
   the Cockpit's Style Rules panel produces.

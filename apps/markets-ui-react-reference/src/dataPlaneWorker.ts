@@ -10,7 +10,7 @@
  *       { name: '...' },
  *     )
  *
- * `installWorker` from `@marketsui/data-plane/v2/worker` wires the
+ * `installWorker` from `@starui/data-plane/v2/worker` wires the
  * SharedWorker's `onconnect` to the new Hub. The Hub owns the cache
  * + provider lifecycle + stats sampler; provider factories
  * (Mock / STOMP / REST) are registered at module init in v2's
@@ -27,7 +27,7 @@
 // eslint-disable-next-line no-console
 console.info('[dataPlaneWorker] script loaded');
 
-import { installWorker } from '@marketsui/data-plane/v2/worker';
+import { installWorker } from '@starui/data-plane/v2/worker';
 
 // eslint-disable-next-line no-console
 console.info('[dataPlaneWorker] imports resolved');

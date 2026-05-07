@@ -14,18 +14,18 @@
 
 <!-- Tick every package affected. Helps reviewers scope their read. -->
 
-- [ ] `@marketsui/core`
-- [ ] `@marketsui/markets-grid`
-- [ ] `@marketsui/design-system`
-- [ ] `@marketsui/shared-types`
-- [ ] `@marketsui/config-service`
-- [ ] `@marketsui/component-host`
-- [ ] `@marketsui/widget-sdk`
-- [ ] `@marketsui/openfin-platform` / `@marketsui/openfin-platform-stern`
-- [ ] `@marketsui/widgets-react`
-- [ ] `@marketsui/react-tools` / `@marketsui/angular-tools`
-- [ ] `@marketsui/dock-editor` / `@marketsui/angular-dock-editor`
-- [ ] `@marketsui/registry-editor` / `@marketsui/angular-registry-editor`
+- [ ] `@starui/core`
+- [ ] `@starui/markets-grid`
+- [ ] `@starui/design-system`
+- [ ] `@starui/shared-types`
+- [ ] `@starui/config-service`
+- [ ] `@starui/component-host`
+- [ ] `@starui/widget-sdk`
+- [ ] `@starui/openfin-platform` / `@starui/openfin-platform-stern`
+- [ ] `@starui/widgets-react`
+- [ ] `@starui/react-tools` / `@starui/angular-tools`
+- [ ] `@starui/dock-editor` / `@starui/angular-dock-editor`
+- [ ] `@starui/registry-editor` / `@starui/angular-registry-editor`
 - [ ] `apps/demo-react` / `apps/demo-angular`
 - [ ] Other: ___
 

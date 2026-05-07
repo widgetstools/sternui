@@ -8,15 +8,15 @@
 
 ## Where did everything go?
 
-Every package and app from this repo now lives under `@marketsui/*` in the
+Every package and app from this repo now lives under `@starui/*` in the
 consolidated monorepo. Git history is preserved via `git-filter-repo` —
 `git blame` on any file still points at its original commits here.
 
 | Old location (this repo) | New location |
 |---|---|
-| `packages/config-service` | [`packages/config-service`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/config-service) — `@marketsui/config-service` |
-| `packages/component-host` | [`packages/component-host`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/component-host) — `@marketsui/component-host` |
-| `packages/openfin-workspace` | [`packages/openfin-platform`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/openfin-platform) — `@marketsui/openfin-platform` |
+| `packages/config-service` | [`packages/config-service`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/config-service) — `@starui/config-service` |
+| `packages/component-host` | [`packages/component-host`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/component-host) — `@starui/component-host` |
+| `packages/openfin-workspace` | [`packages/openfin-platform`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/openfin-platform) — `@starui/openfin-platform` |
 | `packages/angular-tools` | Split across [`packages/angular`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/angular), [`dock-editor-angular`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/dock-editor-angular), [`registry-editor-angular`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/registry-editor-angular) |
 | `packages/react-tools` | Split across [`packages/dock-editor-react`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/dock-editor-react) + [`packages/registry-editor-react`](https://github.com/widgetstools/marketsui-platform/tree/main/packages/registry-editor-react) |
 | `apps/reference-react` | [`apps/markets-ui-react-reference`](https://github.com/widgetstools/marketsui-platform/tree/main/apps/markets-ui-react-reference) |
@@ -30,7 +30,7 @@ Don't push to it. Instead:
 1. Rebase your commits onto `main` in
    [`widgetstools/marketsui-platform`](https://github.com/widgetstools/marketsui-platform).
 2. Move files into the new paths per the table above.
-3. Rename imports: this repo's packages joined the `@marketsui/*` namespace.
+3. Rename imports: this repo's packages joined the `@starui/*` namespace.
 4. Open the PR against `widgetstools/marketsui-platform`.
 
 See [`docs/MIGRATION_NOTES.md`](https://github.com/widgetstools/marketsui-platform/blob/main/docs/MIGRATION_NOTES.md)

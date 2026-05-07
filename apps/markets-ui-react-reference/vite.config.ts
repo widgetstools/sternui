@@ -2,11 +2,11 @@ import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
 import { defineConfig } from "vite";
 import { resolve } from "path";
-import { buildPackageAliases } from "./vite-package-aliases";
+import { buildPackageAliases } from "./vitePackageAliases";
 
-// Auto-discover every `@marketsui/*` workspace package and produce
+// Auto-discover every `@starui/*` workspace package and produce
 // one alias entry per export (`.`, `./v2`, `./v2/client`, …) → its
-// source path. See `./vite-package-aliases.ts` for the algorithm.
+// source path. See `./vitePackageAliases.ts` for the algorithm.
 //
 // Why: source-side edits to any workspace package were only visible
 // after a full `turbo build` round-trip — the `package.json` `exports`
@@ -28,7 +28,7 @@ const workspaceAliases = buildPackageAliases({
 // Boot-time visibility — confirms the helper ran and shows what's
 // aliased before any browser request.
 // eslint-disable-next-line no-console
-console.log(`[vite] auto-discovered ${workspaceAliases.length} @marketsui/* source aliases:`);
+console.log(`[vite] auto-discovered ${workspaceAliases.length} @starui/* source aliases:`);
 for (const a of [...workspaceAliases].sort((x, y) => x.find.source.localeCompare(y.find.source))) {
   // eslint-disable-next-line no-console
   console.log(`  ${a.find.source.padEnd(70)} → ${a.replacement.replace(resolve(__dirname, "../.."), ".")}`);
@@ -59,11 +59,11 @@ export default defineConfig({
     // server resolve to source regardless.
     extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
     // Vite's alias **array form** — each entry's `find` is an
-    // anchored regex (^…$) so `@marketsui/foo` matches only the
-    // bare specifier and NOT `@marketsui/foo/bar` (which would
+    // anchored regex (^…$) so `@starui/foo` matches only the
+    // bare specifier and NOT `@starui/foo/bar` (which would
     // otherwise prefix-match and resolve to a wrong path).
     alias: [
-      // Auto-discovered @marketsui/* package aliases (one per
+      // Auto-discovered @starui/* package aliases (one per
       // declared export entrypoint, mapped to its source path).
       ...workspaceAliases,
       // Force the ESM6 entry for stompjs. Its `exports` map puts

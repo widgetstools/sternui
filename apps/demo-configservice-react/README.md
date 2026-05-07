@@ -1,4 +1,4 @@
-# `@marketsui/demo-configservice-react`
+# `@starui/demo-configservice-react`
 
 Integration demo for the **MarketsGrid × ConfigService** wiring shipped
 in `docs/plans/MARKETS_GRID_API.md` §Storage.
@@ -126,7 +126,7 @@ name). The popup:
 - Closes via the OS window close button; main window stays put
 
 The admin entry is built via `createConfigBrowserAction({ launch })`
-from `@marketsui/config-browser` — the same helper ships with the
+from `@starui/config-browser` — the same helper ships with the
 package for any consumer.
 
 ### 6. Cross-grid profile isolation under ConfigService

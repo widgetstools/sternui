@@ -1,4 +1,4 @@
-const marketsPreset = require('@marketsui/tokens-primeng/tailwind-preset');
+const marketsPreset = require('@starui/tokens-primeng/tailwind-preset');
 
 /** @type {import('tailwindcss').Config}
  *
@@ -12,7 +12,7 @@ module.exports = {
   content: [
     './index.html',
     './src/**/*.{ts,tsx}',
-    '../../packages/core/src/**/*.{ts,tsx}',
-    '../../packages/markets-grid/src/**/*.{ts,tsx}',
+    '../../packages/shared/core/src/**/*.{ts,tsx}',
+    '../../packages/react/markets-grid/src/**/*.{ts,tsx}',
   ],
 };

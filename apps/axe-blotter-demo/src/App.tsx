@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid, type MarketsGridHandle } from '@marketsui/markets-grid';
+import { MarketsGrid, type MarketsGridHandle } from '@starui/markets-grid';
 
 import { SEED_ROWS, type AxeRow } from './data';
 import { buildBaseColumns } from './columns';
