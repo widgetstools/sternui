@@ -12,7 +12,7 @@
     ".": "./index.ts",
     "./react": "./react/index.ts",
     "./angular": "./angular/index.ts",
-    "./all-icons": "./all-icons.ts",
+    "./all-icons": "./allIcons.ts",
     "./svg/*": "./svg/*"
   },
   "files": [

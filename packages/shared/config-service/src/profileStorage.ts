@@ -55,7 +55,7 @@
 // core; consumers naturally satisfy the peer by depending on both.
 import type { ProfileSnapshot, StorageAdapter } from '@starui/core';
 import type { AppConfigRow } from './types';
-import type { ConfigManager } from './config-manager';
+import type { ConfigManager } from './ConfigManager';
 
 export type { ProfileSnapshot, StorageAdapter };
 

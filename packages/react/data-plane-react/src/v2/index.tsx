@@ -34,7 +34,7 @@ import {
   DataProviderConfigStore,
   resolveCfg,
 } from '@starui/data-plane/v2';
-import type { ProviderStats, ProviderStatus } from '@starui/data-plane/v2';
+import type { ProviderStatus } from '@starui/data-plane/v2';
 import type { ConfigManager } from '@starui/config-service';
 import type { DataProviderConfig, ProviderConfig } from '@starui/shared-types';
 import { LOGGED_IN_USER_ID } from '@starui/runtime-port';

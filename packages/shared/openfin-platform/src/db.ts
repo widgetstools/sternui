@@ -4,7 +4,7 @@
 // registry-editor persistence. Both save as `AppConfigRow` rows
 // through the generic `ConfigManager.saveConfig()` API — mirroring
 // MarketsGrid's `createConfigServiceStorage(...)` pattern in
-// `packages/config-service/src/profile-storage.ts`.
+// `packages/config-service/src/profileStorage.ts`.
 //
 // Shared invariants with MarketsGrid profile rows:
 //   • `componentType` is a kebab-case domain discriminator
@@ -26,8 +26,8 @@
 import { createConfigManager, type ConfigManager } from "@starui/config-service";
 import type { AppConfigRow } from "@starui/config-service";
 import { COMPONENT_TYPES } from "@starui/shared-types";
-import type { DockEditorConfig } from './dock-config-types';
-import type { RegistryEditorConfig } from './registry-config-types';
+import type { DockEditorConfig } from './dockConfigTypes';
+import type { RegistryEditorConfig } from './registryConfigTypes';
 
 // ─── Singleton management ────────────────────────────────────────────
 

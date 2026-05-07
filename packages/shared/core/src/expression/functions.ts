@@ -1,4 +1,4 @@
-import type { FunctionDefinition, EvaluationContext } from './types';
+import type { FunctionDefinition } from './types';
 
 function toNum(v: unknown): number {
   if (typeof v === 'number') return v;
@@ -8,10 +8,6 @@ function toNum(v: unknown): number {
 
 function toStr(v: unknown): string {
   return v == null ? '' : String(v);
-}
-
-function toArr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
 }
 
 /** Falsy: null, undefined, false, 0, ''. Anything else truthy. Matches the

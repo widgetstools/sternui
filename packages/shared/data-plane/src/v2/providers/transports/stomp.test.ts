@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { startStomp, probeStomp } from './stomp';
-import type { ProviderEmitEvent } from './Provider';
+import type { ProviderEmitEvent } from '../Provider';
 import type { StompProviderConfig } from '@starui/shared-types';
 
 interface FakeClient {

@@ -31,7 +31,7 @@ import {
 import type { EditorSelection } from "./types";
 import { IconPicker } from "../IconPicker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { iconIdToSvgUrl } from "../dock-editor/icon-utils";
+import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 
 /**
  * Where in the dock a component is referenced. One DockPlacement per

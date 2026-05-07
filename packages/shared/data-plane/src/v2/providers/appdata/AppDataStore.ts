@@ -18,13 +18,12 @@
 
 import {
   AppDataConfigStore,
-  PUBLIC_USER_ID,
   type AppDataConfig,
 } from './store.js';
+import { PUBLIC_USER_ID } from '../../config/store.js';
 import type { ConfigManager } from '@starui/config-service';
 
 export class AppDataStore {
-  private readonly cm: ConfigManager;
   private readonly store: AppDataConfigStore;
   private readonly userId: string;
   private snapshot = new Map<string, AppDataConfig>();
@@ -34,7 +33,6 @@ export class AppDataStore {
   private loadPromise: Promise<void> | null = null;
 
   constructor(cm: ConfigManager, userId: string) {
-    this.cm = cm;
     this.store = new AppDataConfigStore(cm);
     this.userId = userId;
   }

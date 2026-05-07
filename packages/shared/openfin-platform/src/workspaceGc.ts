@@ -60,7 +60,7 @@ const DELETION_ENABLED = false;
 
 import type { ConfigManager, AppConfigRow } from '@starui/config-service';
 import { COMPONENT_TYPES } from '@starui/shared-types';
-import { deriveSingletonConfigId } from './registry-config-types';
+import { deriveSingletonConfigId } from './registryConfigTypes';
 import { loadRegistryConfig } from './db';
 
 interface RegistryEntryLite {

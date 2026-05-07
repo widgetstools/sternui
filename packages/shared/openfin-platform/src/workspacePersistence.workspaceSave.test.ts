@@ -15,7 +15,7 @@ import {
   createWorkspacePersistenceOverride,
   __resetWorkspaceSaveChannelForTests,
   WORKSPACE_SAVE_CHANNEL,
-} from './workspace-persistence';
+} from './workspacePersistence';
 
 class InMemoryConfigManager {
   rows = new Map<string, AppConfigRow>();

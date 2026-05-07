@@ -49,7 +49,7 @@ export type {
 // Exposed for consumers that need direct access to auth tables
 // (appRegistry / userProfile / roles / permissions) or to dock/snapshot
 // convenience methods. New feature code should prefer `ConfigClient`.
-export { createConfigManager, ConfigManager } from './config-manager';
+export { createConfigManager, ConfigManager } from './ConfigManager';
 
 // ─── Database (for advanced use cases only) ──────────────────────────
 export { ConfigDatabase } from './db';
@@ -82,4 +82,4 @@ export {
   type ProfileStorageFactoryOpts,
   type ProfileSnapshot,
   type StorageAdapter,
-} from './profile-storage';
+} from './profileStorage';

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import type { IBlotterDataProvider } from '../../interfaces.js';
 

@@ -1,4 +1,4 @@
-import type { ColDef, GridApi } from 'ag-grid-community';
+import type { GridApi } from 'ag-grid-community';
 import type { WidgetContext, SlotContent } from '@starui/widget-sdk';
 
 /**

@@ -35,10 +35,10 @@ import { launchApp, launchRegisteredComponent } from './launch';
 import { registerNotifications } from './notifications';
 import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
-import { createWorkspacePersistenceOverride } from './workspace-persistence';
-import { gcOrphanedConfigs } from './workspace-gc';
+import { createWorkspacePersistenceOverride } from './workspacePersistence';
+import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
-import { DEFAULT_APP_ID, DEFAULT_USER_ID } from './registry-host-env';
+import { DEFAULT_APP_ID, DEFAULT_USER_ID } from './registryHostEnv';
 
 /**
  * Read the current theme from this window's documentElement.

@@ -22,8 +22,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { readCustomData } from './resolve-identity';
-import { createDebouncedSaver } from './save-config';
+import { readCustomData } from './resolveIdentity';
+import { createDebouncedSaver } from './saveConfig';
 import { deriveTemplateConfigId } from '@starui/openfin-platform';
 import type { AppConfigRow, ConfigManager } from '@starui/config-service';
 

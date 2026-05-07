@@ -85,9 +85,7 @@ const colorStyles = {
 };
 
 export const CollapsibleToolbar: React.FC<CollapsibleToolbarProps> = ({
-  id,
   color = 'blue',
-  isCollapsed,
   isPinned,
   onCollapsedChange,
   onPinnedChange,

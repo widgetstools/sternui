@@ -40,7 +40,7 @@ import type {
   RoleRow,
 } from '@starui/config-service';
 import { getConfigManager } from './db';
-import { readHostEnv } from './registry-host-env';
+import { readHostEnv } from './registryHostEnv';
 
 /** Result of importing a single table. */
 export interface ImportTableResult {

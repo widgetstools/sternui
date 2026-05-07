@@ -37,7 +37,7 @@ import { InspectorPane } from "./components/workspace-setup/InspectorPane";
 import { DockPane } from "./components/workspace-setup/DockPane";
 import { newDraftEntry } from "./components/workspace-setup/types";
 import type { EditorSelection } from "./components/workspace-setup/types";
-import { injectEditorStyles } from "./components/dock-editor/editor-styles";
+import { injectEditorStyles } from "./components/dock-editor/editorStyles";
 
 // ─── Outer shell ─────────────────────────────────────────────────────
 // Reads the platform scope forwarded via OpenFin customData, primes

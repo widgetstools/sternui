@@ -10,8 +10,8 @@
  * on Zod, swap the body of `validateEntry()` for a `.safeParse()` call
  * against a schema — callers won't notice.
  */
-import type { RegistryEntry } from './registry-config-types';
-import { deriveSingletonConfigId } from './registry-config-types';
+import type { RegistryEntry } from './registryConfigTypes';
+import { deriveSingletonConfigId } from './registryConfigTypes';
 
 export interface ValidationError {
   /** Target field — used by the UI to place the error under the right input. */

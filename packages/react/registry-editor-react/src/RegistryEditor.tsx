@@ -9,7 +9,7 @@ import { dark } from "@starui/design-system/tokens/semantic";
 import { useRegistryEditor } from "./hooks/useRegistryEditor";
 import { RegistryItemRow } from "./components/RegistryItemRow";
 import { RegistryItemForm, type RegistryFormData } from "./components/RegistryItemForm";
-import { injectEditorStyles } from "./editor-styles";
+import { injectEditorStyles } from "./editorStyles";
 import { deriveTemplateConfigId, type RegistryEntry } from "@starui/openfin-platform";
 
 // Text color that pairs with the brand-accent CTA background.

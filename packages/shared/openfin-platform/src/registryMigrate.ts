@@ -16,8 +16,8 @@
  * re-derive singleton ids on migration (defaulting `singleton: false`
  * means the derived-id rule doesn't apply).
  */
-import type { RegistryEditorConfig, RegistryEntry } from './registry-config-types';
-import { REGISTRY_CONFIG_VERSION, deriveTemplateConfigId } from './registry-config-types';
+import type { RegistryEditorConfig, RegistryEntry } from './registryConfigTypes';
+import { REGISTRY_CONFIG_VERSION, deriveTemplateConfigId } from './registryConfigTypes';
 
 /** The v1 entry shape — same as v2 minus the new fields. */
 export interface RegistryEntryV1 {

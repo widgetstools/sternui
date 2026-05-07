@@ -12,7 +12,7 @@ import { DataGrid } from "./components/DataGrid";
 import { RowDrawer } from "./components/RowDrawer";
 import { ImportPreviewDialog } from "./components/ImportPreviewDialog";
 import { DeleteAllDialog } from "./components/DeleteAllDialog";
-import { injectEditorStyles } from "./editor-styles";
+import { injectEditorStyles } from "./editorStyles";
 import type { ImportMode, ImportPreview } from "./hooks/useConfigBrowser";
 
 // ─── Main Component ──────────────────────────────────────────────────

@@ -12,8 +12,8 @@
       "import": "./dist/index.js"
     },
     "./config": {
-      "types": "./dist/config-only.d.ts",
-      "import": "./dist/config-only.js"
+      "types": "./dist/configOnly.d.ts",
+      "import": "./dist/configOnly.js"
     }
   },
   "scripts": {

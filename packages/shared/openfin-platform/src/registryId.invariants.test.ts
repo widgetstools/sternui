@@ -22,9 +22,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { deriveTemplateConfigId } from './registry-config-types';
-import { migrateRegistryToV2 } from './registry-migrate';
-import type { RegistryEditorConfig } from './registry-config-types';
+import { deriveTemplateConfigId } from './registryConfigTypes';
+import { migrateRegistryToV2 } from './registryMigrate';
+import type { RegistryEditorConfig } from './registryConfigTypes';
 
 const HOST_ENV = { appId: 'TestApp', userId: 'dev1', configServiceUrl: 'http://localhost:8000' };
 

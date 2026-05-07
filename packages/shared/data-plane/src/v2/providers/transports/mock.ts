@@ -17,7 +17,7 @@
  */
 
 import type { MockProviderConfig } from '@starui/shared-types';
-import type { ProviderEmit, ProviderHandle } from './Provider.js';
+import type { ProviderEmit, ProviderHandle } from '../Provider.js';
 
 interface MockRow extends Record<string, unknown> {
   id: string;

@@ -5,7 +5,6 @@ import {
   IconInput,
   PillToggleBtn,
   PillToggleGroup,
-  SubLabel,
   TDivider,
 } from '../../SettingsPanel';
 import type {

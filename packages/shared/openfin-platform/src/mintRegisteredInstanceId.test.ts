@@ -7,7 +7,7 @@
  * Format: `${userId}${componentType}-${componentSubType}-${Date.now()}`
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mintRegisteredInstanceId } from './registry-config-types';
+import { mintRegisteredInstanceId } from './registryConfigTypes';
 
 describe('mintRegisteredInstanceId', () => {
   const FIXED_NOW = 1714999999999;

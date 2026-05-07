@@ -37,7 +37,7 @@ import {
   useAppDataStore,
   useDataPlane,
 } from '@starui/data-plane-react/v2';
-import { composeRowId, getValueByPath, type ProviderConfig } from '@starui/shared-types';
+import { composeRowId, getValueByPath } from '@starui/shared-types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { useChordHotkey } from './useChordHotkey.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';

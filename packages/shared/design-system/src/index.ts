@@ -23,7 +23,7 @@ export {
   agGridDarkParams,
   agGridBlotterLightParams,
   agGridBlotterDarkParams,
-} from './adapters/ag-grid';
+} from './adapters/agGrid';
 
 // Cell Renderers (vanilla TS — framework-agnostic)
 export {
@@ -32,4 +32,4 @@ export {
   RatingBadgeRenderer, PnlValueRenderer, FilledAmountRenderer,
   BookNameRenderer, ChangeValueRenderer, YtdValueRenderer,
   RfqStatusRenderer,
-} from './cell-renderers';
+} from './cellRenderers';

@@ -14,7 +14,7 @@
  *   - `singleton`      — true = focus-existing on launch; false = spawn-new
  *
  * Persisted v1 data is upgraded by `migrateRegistryV1ToV2()` in
- * `./registry-migrate.ts` on read — no consumer sees a v1 entry.
+ * `./registryMigrate.ts` on read — no consumer sees a v1 entry.
  */
 
 /** A single registered component entry. */
@@ -102,7 +102,7 @@ export const REGISTRY_CONFIG_VERSION = 2;
  * `componentType` + `componentSubType`.
  *
  * Uniqueness within a given appId is enforced by
- * `validateSingletonUniqueness()` in `./registry-validate.ts` — and
+ * `validateSingletonUniqueness()` in `./registryValidate.ts` — and
  * because the template id IS the registry-entry id, that validator
  * doubles as a duplicate-entry check for the registry as a whole.
  */

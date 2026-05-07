@@ -135,15 +135,36 @@ export function buildPackageAliases(opts: BuildAliasesOptions): AliasEntry[] {
   const skip = new Set(opts.skip ?? []);
   const map: Record<string, string> = {};
 
-  let pkgDirs: string[];
+  // Collect candidate package directories. The repo organises packages
+  // into framework buckets (`packages/{shared,react,angular}/<pkg>/`),
+  // but historically the layout was flat (`packages/<pkg>/`). Probe
+  // both shapes so this helper survives either.
+  const pkgPaths: string[] = [];
   try {
-    pkgDirs = readdirSync(opts.packagesRoot);
+    for (const top of readdirSync(opts.packagesRoot)) {
+      const topPath = join(opts.packagesRoot, top);
+      if (!statSync(topPath).isDirectory()) continue;
+      if (existsSync(join(topPath, 'package.json'))) {
+        pkgPaths.push(topPath);
+        continue;
+      }
+      // Bucket: descend one level.
+      try {
+        for (const child of readdirSync(topPath)) {
+          const childPath = join(topPath, child);
+          if (existsSync(join(childPath, 'package.json'))) {
+            pkgPaths.push(childPath);
+          }
+        }
+      } catch {
+        /* not a directory we can read; skip */
+      }
+    }
   } catch {
     return [];
   }
 
-  for (const dirName of pkgDirs) {
-    const pkgPath = join(opts.packagesRoot, dirName);
+  for (const pkgPath of pkgPaths) {
     const pkgJsonPath = join(pkgPath, 'package.json');
     const pkg = readPkgJson(pkgJsonPath);
     if (!pkg?.name || !pkg.name.startsWith(scope)) continue;

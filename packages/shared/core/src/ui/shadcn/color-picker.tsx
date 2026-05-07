@@ -1,73 +1,7 @@
-import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { X, Check, Pipette } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { cn } from './utils';
 import { FormatColorPicker } from '../format-editor/FormatColorPicker';
 import { FormatPopover } from '../format-editor/FormatPopover';
-
-// ─── Color Palette ──────────────────────────────────────────────────────────
-
-const GRAYSCALE = [
-  '#ffffff', '#e5e5e5', '#c4c4c4', '#a0a0a0', '#7a7a7a',
-  '#545454', '#333333', '#1f1f1f', '#141414', '#000000',
-];
-
-const HUE_GRID = [
-  // Row 0: vivid saturated
-  ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899'],
-  // Row 1: medium-dark
-  ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0d9488', '#0891b2', '#2563eb', '#4f46e5', '#9333ea', '#db2777'],
-  // Row 2: light tints
-  ['#fca5a5', '#fdba74', '#fde047', '#86efac', '#5eead4', '#67e8f9', '#93c5fd', '#a5b4fc', '#d8b4fe', '#f9a8d4'],
-  // Row 3: pastel
-  ['#fecaca', '#fed7aa', '#fef08a', '#bbf7d0', '#99f6e4', '#a5f3fc', '#bfdbfe', '#c7d2fe', '#e9d5ff', '#fbcfe8'],
-  // Row 4: very light
-  ['#fee2e2', '#ffedd5', '#fef9c3', '#dcfce7', '#ccfbf1', '#cffafe', '#dbeafe', '#e0e7ff', '#f3e8ff', '#fce7f3'],
-];
-
-const LS_KEY = 'gc-recent-colors';
-const MAX_RECENT = 10;
-
-function getRecentColors(): string[] {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]').slice(0, MAX_RECENT); }
-  catch { return []; }
-}
-
-function addRecentColor(color: string): void {
-  try {
-    const recent = getRecentColors().filter(c => c.toLowerCase() !== color.toLowerCase());
-    recent.unshift(color);
-    localStorage.setItem(LS_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
-  } catch { /* */ }
-}
-
-// ─── Swatch ─────────────────────────────────────────────────────────────────
-
-const SWATCH_SIZE = 20;   // spacing[5]
-const SWATCH_GAP = 2;     // spacing[0.5]
-const SWATCH_RADIUS = 3;  // radius.md
-
-function Swatch({ color, selected, onClick }: {
-  color: string; selected: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      onMouseDown={(e) => e.preventDefault()}
-      title={color}
-      className="cursor-pointer transition-all duration-100 shrink-0"
-      style={{
-        width: SWATCH_SIZE, height: SWATCH_SIZE,
-        borderRadius: SWATCH_RADIUS,
-        background: color,
-        outline: selected ? '2px solid var(--bn-blue)' : 'none',
-        outlineOffset: selected ? 1 : 0,
-        transform: selected ? 'scale(1.08)' : undefined,
-        zIndex: selected ? 10 : undefined,
-        position: selected ? 'relative' as const : undefined,
-      }}
-    />
-  );
-}
 
 // ─── ColorPicker ────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy, Pencil, X } from 'lucide-react';
 import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@starui/core';
 // Static-layout styles — AUDIT i5 partial migration. State-dependent

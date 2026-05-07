@@ -29,9 +29,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createConfigServiceStorage } from './profile-storage';
+import { createConfigServiceStorage } from './profileStorage';
 import type { AppConfigRow } from './types';
-import type { ConfigManager } from './config-manager';
+import type { ConfigManager } from './ConfigManager';
 import type { ProfileSnapshot } from '@starui/core';
 
 // ─── In-memory ConfigManager fake ───────────────────────────────────

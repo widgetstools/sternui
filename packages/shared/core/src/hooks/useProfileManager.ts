@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 import type { StorageAdapter } from '../persistence/StorageAdapter';
 import {
   ProfileManager,

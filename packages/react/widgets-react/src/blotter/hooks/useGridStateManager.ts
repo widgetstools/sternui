@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import type { GridApi } from 'ag-grid-community';
 import type { LayoutState } from '../types.js';
 

@@ -109,7 +109,7 @@ export function VirtualizedList<T>({
   }, [searchQuery, items.length, scrollToItem]);
 
   // Default key extractor
-  const defaultGetItemKey = useCallback((item: T, index: number) => {
+  const defaultGetItemKey = useCallback((_item: T, index: number) => {
     return index;
   }, []);
 
