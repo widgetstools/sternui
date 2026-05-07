@@ -27,9 +27,10 @@ describe('useHostedIdentity — browser path', () => {
     );
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.identity.instanceId).toBe('B-FROM-URL');
-    expect(result.current.identity.appId).toBe('browser-app');
-    // userId is single-user-pinned to LOGGED_IN_USER_ID; defaultUserId
-    // is accepted on the public API but ignored at runtime.
+    // appId / userId are single-user-pinned; the `default*` args are
+    // accepted on the public API for back-compat but ignored at
+    // runtime so persistence always lands under one canonical scope.
+    expect(result.current.identity.appId).toBe('TestApp');
     expect(result.current.identity.userId).toBe(LOGGED_IN_USER_ID);
   });
 

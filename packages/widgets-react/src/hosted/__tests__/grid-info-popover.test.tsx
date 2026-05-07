@@ -47,8 +47,8 @@ describe('HostedMarketsGrid — info popover identity (row 21 / D2)', () => {
     const last = mgcProps[mgcProps.length - 1];
     expect(last.componentName).toBe('MarketsGrid');
     expect(last.instanceId).toBe('ip-instance');
-    expect(last.appId).toBe('ip-app');
-    // userId is single-user-pinned regardless of the prop default.
+    // appId / userId are single-user-pinned regardless of prop defaults.
+    expect(last.appId).toBe('TestApp');
     expect(last.userId).toBe(LOGGED_IN_USER_ID);
     expect(last.gridId).toBe('ip-1');
   });

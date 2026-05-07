@@ -472,6 +472,14 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     // with multiple ticks per row makes this hit constantly.
     const pendingAddIds = new Set<string>();
 
+    // Snapshot accumulator. Chunks of the (re-)snapshot are buffered
+    // here while status='loading' and committed to AG-Grid in a single
+    // `setGridOption('rowData', ...)` call on the loading→ready
+    // transition. The running length feeds the busy-overlay caption so
+    // the user sees row count climbing while chunks stream in.
+    let snapshotBuf: TData[] = [];
+    let snapshotApplied = false;
+
     // Tracks the worker's most recent status so onUpdate can route
     // deltas correctly: while 'loading', the rows are chunks of a
     // refreshing snapshot and must be applied as adds-only (the
@@ -488,47 +496,91 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         'color:#a855f7;font-weight:bold', '', s,
       );
       if (cancelled) return;
-      // On the loading→ready transition, drain any queued add
-      // transactions BEFORE we flip the routing flag.
-      if (s === 'ready' && providerStatusRef.current === 'loading') {
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %cflushAsyncTransactions BEFORE%c pendingAdds=%d gridRows=%d',
-          'color:#f97316;font-weight:bold', '',
-          pendingAddIds.size, liveApi.getDisplayedRowCount(),
-        );
-        try { liveApi.flushAsyncTransactions(); } catch (e) {
-          // eslint-disable-next-line no-console
-          console.warn('[refresh]    flushAsyncTransactions threw:', e);
-        }
-        // eslint-disable-next-line no-console
-        console.log(
-          '[refresh] %cflushAsyncTransactions AFTER%c pendingAdds=%d gridRows=%d',
-          'color:#f97316;font-weight:bold', '',
-          pendingAddIds.size, liveApi.getDisplayedRowCount(),
-        );
-      }
-      providerStatusRef.current = s;
-      // Track 'loading' so the overlay re-shows during a peer-triggered
-      // re-snapshot (when the worker restart clears the cache and
-      // emits status: 'loading' to all subscribers, including this one
-      // if it didn't initiate the refresh). Clear on 'ready'.
+
+      // 'loading' enters the snapshot phase — show the overlay
+      // (relevant for peer-triggered re-snapshots; on initial mount
+      // the isLoadingSnapshot derived flag already handles this).
       if (s === 'loading') setIsRefetching(true);
-      else if (s === 'ready') setIsRefetching(false);
+
+      // Error path — tear down overlay immediately and surface to
+      // caller. Overrides the loading→ready commit path.
       if (err) {
-        // Tear down the overlay on error so the user sees the empty
-        // grid (or the error toast surfaced via onError).
+        providerStatusRef.current = s;
         setResolvedSubKey(thisSubKey);
         setIsRefetching(false);
         (onError ?? defaultOnError)(new Error(err));
+        return;
       }
+
+      // loading→ready: commit the accumulated snapshot buffer in a
+      // single setGridOption AND defer the providerStatusRef flip +
+      // overlay tear-down to the same microtask. The flip MUST happen
+      // inside the microtask (not synchronously here) because:
+      //
+      //   1. trySettleSnapshot() inside DataPlane.ts schedules a
+      //      microtask M_snap (the consumer's `handle.snapshot.then`).
+      //   2. This onStatus body runs synchronously and schedules
+      //      M_commit (below).
+      //   3. M_snap runs FIRST (FIFO microtask order). Inside it,
+      //      `handle.onUpdate(cb)` triggers DataPlane.ts's
+      //      `flushBuffered`, which synchronously replays every
+      //      `replace=false` chunk that arrived before onUpdate was
+      //      wired (i.e. chunks 1..N of the late-join cache replay).
+      //
+      // Each replayed chunk lands in the consumer's onUpdate. If
+      // providerStatusRef were already 'ready' at that point, those
+      // chunks would route to the live-tick `applyTransactionAsync`
+      // path instead of `snapshotBuf.push`. The commit's setGridOption
+      // would then overwrite those adds with chunk0 only — surfacing
+      // as "Rows: ~500 of 20000" or similar partial counts.
+      //
+      // Keeping the ref on 'loading' until inside M_commit means
+      // flushBuffered's onUpdate callbacks correctly buffer-append,
+      // and by the time M_commit reads `snapshotBuf` it has every row.
+      if (s === 'ready' && providerStatusRef.current === 'loading') {
+        Promise.resolve().then(() => {
+          if (cancelled) return;
+          // Drain any genuinely-queued live-tick transactions BEFORE
+          // setGridOption replaces rowData (rare path: ticks queued by
+          // an overlapping live phase). With the snapshot buffering in
+          // place during 'loading', this is typically a no-op.
+          // eslint-disable-next-line no-console
+          console.log(
+            '[refresh] %cflushAsyncTransactions BEFORE commit%c pendingAdds=%d gridRows=%d',
+            'color:#f97316;font-weight:bold', '',
+            pendingAddIds.size, liveApi.getDisplayedRowCount(),
+          );
+          try { liveApi.flushAsyncTransactions(); } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn('[refresh]    flushAsyncTransactions threw:', e);
+          }
+          if (!snapshotApplied) {
+            // eslint-disable-next-line no-console
+            console.log(
+              '[refresh] %csnapshot commit%c %d rows (single-shot apply on loading→ready)',
+              'color:#10b981;font-weight:bold', '', snapshotBuf.length,
+            );
+            liveApi.setGridOption('rowData', snapshotBuf.slice());
+            snapshotApplied = true;
+            setLoadRowCount(snapshotBuf.length);
+            setResolvedSubKey(thisSubKey);
+          }
+          setIsRefetching(false);
+          providerStatusRef.current = 'ready';
+        });
+        // Do NOT update providerStatusRef synchronously here — see
+        // multi-line comment above. The microtask above does it.
+        return;
+      }
+      providerStatusRef.current = s;
     });
 
     // Re-snapshot listener — fires when a `replace: true` delta arrives
-    // AFTER the initial snapshot has settled. Triggered by a peer
-    // subscriber clicking refresh, or any path that calls
-    // `provider.restart`. Clears the grid + applies the fresh chunk0;
-    // subsequent chunks ride in via the regular onUpdate path as adds.
+    // AFTER the initial snapshot has settled (peer-triggered refresh
+    // or any caller of `provider.restart`). Re-seeds the buffer with
+    // chunk0; subsequent chunks ride in via onUpdate during 'loading'
+    // and append to the same buffer. The grid stays untouched until
+    // the loading→ready transition does the single-shot commit.
     handle.onReset((rows) => {
       if (cancelled) return;
       // eslint-disable-next-line no-console
@@ -537,136 +589,127 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
         'color:#ec4899;font-weight:bold', '', rows.length, pendingAddIds.size,
       );
       pendingAddIds.clear();
-      liveApi.setGridOption('rowData', rows.slice());
-      setLoadRowCount(rows.length);
+      snapshotBuf = [...rows];
+      snapshotApplied = false;
+      setLoadRowCount(snapshotBuf.length);
     });
+
+    // Register onUpdate IMMEDIATELY (not inside snapshot.then) so
+    // each `replace=false` chunk of the late-join cache replay fires
+    // its own task tick. With the late registration, every chunk
+    // bypassed updateCb and accumulated in DataPlane's bufferedUpdates;
+    // the entire backlog then flushed synchronously when onUpdate was
+    // registered post-`status='ready'`, collapsing into a single React
+    // render and leaving the busy-overlay caption stuck at "0 rows
+    // received" until the commit. Registering early lets each chunk's
+    // setLoadRowCount land on its own task tick → React renders
+    // between them → user sees the count climb.
+    let updateBatchCount = 0;
+    handle.onUpdate((updateRows) => {
+      if (cancelled || updateRows.length === 0) return;
+      updateBatchCount += 1;
+
+      // While the worker is in 'loading', replace=false deltas are
+      // chunks 1..N of the (re-)snapshot — the worker buffers true
+      // live ticks during the snapshot phase and only emits them
+      // after status='ready'. Append to the snapshot buffer; the
+      // grid stays untouched until the loading→ready transition
+      // does the single-shot commit. The Hub's cache replay is
+      // already de-duped by keyColumn so we don't need to filter.
+      if (providerStatusRef.current === 'loading') {
+        snapshotBuf.push(...updateRows);
+        setLoadRowCount(snapshotBuf.length);
+        return;
+      }
+
+      if (!rowIdField) {
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
+        }
+        liveApi.applyTransactionAsync({ update: updateRows.slice() });
+        return;
+      }
+      const adds: TData[] = [];
+      const updates: TData[] = [];
+      let droppedPending = 0;
+      for (const row of updateRows) {
+        const id = composeRowId(row, rowIdField);
+        if (id === null) continue;
+        // Order matters here: check `getRowNode` FIRST.
+        //
+        // After `flushAsyncTransactions` runs (e.g., on the
+        // loading→ready transition, or on refresh-button entry),
+        // AG-Grid HAS the row internally, but our `pendingAddIds`
+        // bookkeeping can't be cleaned up yet — AG-Grid dispatches
+        // the per-transaction callback on next tick (setTimeout),
+        // not synchronously inside the flush. So `pendingAddIds`
+        // may still hold stale ids for rows that ARE already in
+        // the grid. Checking `getRowNode` first means we correctly
+        // route those ticks to `updates`. Only when the row is
+        // genuinely not in the grid AND we've queued an add for
+        // it do we drop the live tick.
+        if (liveApi.getRowNode(id)) {
+          updates.push(row);
+          continue;
+        }
+        if (pendingAddIds.has(id)) {
+          droppedPending++;
+          continue;
+        }
+        adds.push(row);
+        pendingAddIds.add(id);
+      }
+      // Log only when something is dropped (silent in steady state).
+      if (droppedPending > 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          '[refresh]   %clive split (rows dropped due to pending adds)%c add=%d update=%d droppedPending=%d',
+          'color:#f97316', '',
+          adds.length, updates.length, droppedPending,
+        );
+      }
+      liveApi.applyTransactionAsync({ add: adds, update: updates }, (result) => {
+        // Transaction has now been applied — those ids are real
+        // grid rows now, so getRowNode will find them on the
+        // next batch. Clear them from the pending set.
+        for (const node of result.add) {
+          const nodeId = node.id;
+          if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
+        }
+      });
+    });
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log(`[v2/grid]   onUpdate handler registered (early)`);
+    }
 
     handle.snapshot
       .then((rows) => {
         // eslint-disable-next-line no-console
         console.log(
-          `[refresh] %csnapshot ✓%c %d rows (+${(performance.now() - t0).toFixed(0)}ms)`,
+          `[refresh] %csnapshot ✓%c %d rows (chunk0 of buffered snapshot, +${(performance.now() - t0).toFixed(0)}ms)`,
           'color:#10b981;font-weight:bold', '',
           rows.length,
         );
         if (cancelled) {
           if (DEBUG) {
             // eslint-disable-next-line no-console
-            console.log('[v2/grid]   …but the subscription was cancelled before snapshot landed; skipping setGridOption');
+            console.log('[v2/grid]   …but the subscription was cancelled before snapshot chunk0 landed; skipping');
           }
           return;
         }
-        // Phase 1 done: apply the snapshot in a single setRowData.
-        liveApi.setGridOption('rowData', rows.slice());
-        // Snapshot landed → mark this subscription resolved so the
-        // overlay tears down. AG-Grid's built-in "No Rows To Show"
-        // overlay will surface naturally if `rows.length === 0`.
-        setLoadRowCount(rows.length);
-        setResolvedSubKey(thisSubKey);
+        // Prepend chunk0 to the buffer — chunks 1..N may already have
+        // accumulated via onUpdate during 'loading' (the late-join
+        // replay sends them as separate replace=false events between
+        // chunk0's replace=true and the final status='ready'). Keeping
+        // chunk0 first preserves the source order in case downstream
+        // consumers care.
+        snapshotBuf = [...rows, ...snapshotBuf];
+        setLoadRowCount(snapshotBuf.length);
         if (DEBUG) {
           // eslint-disable-next-line no-console
-          console.log(`[v2/grid]   setGridOption('rowData', %d rows) applied`, rows.length);
-        }
-        // Phase 2: live updates. Add vs update is decided per-row.
-        // A row is treated as `update` if EITHER:
-        //   - `getRowNode(id)` finds it (already committed to grid), OR
-        //   - it's in `pendingAddIds` (we queued an add for it
-        //     earlier in this same frame and AG-Grid hasn't flushed
-        //     yet).
-        let updateBatchCount = 0;
-        handle.onUpdate((updateRows) => {
-          if (cancelled || updateRows.length === 0) return;
-          updateBatchCount += 1;
-
-          // While the worker is in 'loading' (a peer-triggered or
-          // self-triggered re-snapshot in progress), replace=false
-          // deltas are chunks of the new snapshot — the worker buffers
-          // true live ticks during the snapshot phase and only emits
-          // them after status='ready'. Route those chunks as
-          // adds-only with a skip-if-already-present guard.
-          if (providerStatusRef.current === 'loading') {
-            if (!rowIdField) {
-              liveApi.applyTransactionAsync({ add: updateRows.slice() });
-              return;
-            }
-            const chunkAdds: TData[] = [];
-            for (const row of updateRows) {
-              const id = composeRowId(row, rowIdField);
-              if (id === null) continue;
-              if (liveApi.getRowNode(id) || pendingAddIds.has(id)) continue;
-              chunkAdds.push(row);
-              pendingAddIds.add(id);
-            }
-            if (chunkAdds.length === 0) return;
-            liveApi.applyTransactionAsync({ add: chunkAdds }, (result) => {
-              for (const node of result.add) {
-                const nodeId = node.id;
-                if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
-              }
-            });
-            return;
-          }
-
-          if (!rowIdField) {
-            if (DEBUG) {
-              // eslint-disable-next-line no-console
-              console.log(`[v2/grid] %cupdate#%d%c %d rows (no rowIdField → all update)`, 'color:#f59e0b', '', updateBatchCount, updateRows.length);
-            }
-            liveApi.applyTransactionAsync({ update: updateRows.slice() });
-            return;
-          }
-          const adds: TData[] = [];
-          const updates: TData[] = [];
-          let droppedPending = 0;
-          for (const row of updateRows) {
-            const id = composeRowId(row, rowIdField);
-            if (id === null) continue;
-            // Order matters here: check `getRowNode` FIRST.
-            //
-            // After `flushAsyncTransactions` runs (e.g., on the
-            // loading→ready transition, or on refresh-button entry),
-            // AG-Grid HAS the row internally, but our `pendingAddIds`
-            // bookkeeping can't be cleaned up yet — AG-Grid dispatches
-            // the per-transaction callback on next tick (setTimeout),
-            // not synchronously inside the flush. So `pendingAddIds`
-            // may still hold stale ids for rows that ARE already in
-            // the grid. Checking `getRowNode` first means we correctly
-            // route those ticks to `updates`. Only when the row is
-            // genuinely not in the grid AND we've queued an add for
-            // it do we drop the live tick.
-            if (liveApi.getRowNode(id)) {
-              updates.push(row);
-              continue;
-            }
-            if (pendingAddIds.has(id)) {
-              droppedPending++;
-              continue;
-            }
-            adds.push(row);
-            pendingAddIds.add(id);
-          }
-          // Log only when something is dropped (silent in steady state).
-          if (droppedPending > 0) {
-            // eslint-disable-next-line no-console
-            console.log(
-              '[refresh]   %clive split (rows dropped due to pending adds)%c add=%d update=%d droppedPending=%d',
-              'color:#f97316', '',
-              adds.length, updates.length, droppedPending,
-            );
-          }
-          liveApi.applyTransactionAsync({ add: adds, update: updates }, (result) => {
-            // Transaction has now been applied — those ids are real
-            // grid rows now, so getRowNode will find them on the
-            // next batch. Clear them from the pending set.
-            for (const node of result.add) {
-              const nodeId = node.id;
-              if (typeof nodeId === 'string') pendingAddIds.delete(nodeId);
-            }
-          });
-        });
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.log(`[v2/grid]   onUpdate handler registered`);
+          console.log(`[v2/grid]   snapshot buffer total after chunk0 prepend: %d rows`, snapshotBuf.length);
         }
       })
       .catch((err: unknown) => {
