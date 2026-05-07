@@ -37,6 +37,7 @@ import {
 import type { ProviderStats, ProviderStatus } from '@marketsui/data-plane/v2';
 import type { ConfigManager } from '@marketsui/config-service';
 import type { DataProviderConfig, ProviderConfig } from '@marketsui/shared-types';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 
 // ─── Context ──────────────────────────────────────────────────────
 
@@ -177,7 +178,10 @@ export function useAppData(providerName: string): AppDataHandle {
         description: existing?.description,
         isPublic: existing?.isPublic ?? false,
         values: next,
-        userId: existing?.userId ?? '',
+        // userId is single-user-pinned across the codebase. Preserve a
+        // public ('system') row's userId; otherwise land on the canonical
+        // logged-in user id so a fresh row never gets userId=''.
+        userId: existing?.userId ?? LOGGED_IN_USER_ID,
       });
     },
     [store, providerName],

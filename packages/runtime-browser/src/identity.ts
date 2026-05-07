@@ -1,4 +1,4 @@
-import type { IdentitySnapshot } from '@marketsui/runtime-port';
+import { LOGGED_IN_USER_ID, type IdentitySnapshot } from '@marketsui/runtime-port';
 
 /**
  * Identity-resolution helpers for the browser runtime. URL params are the
@@ -76,7 +76,10 @@ export function resolveBrowserIdentity(
     instanceId:
       params.get('instanceId') ?? overrides.instanceId ?? `browser-${randomUUID()}`,
     appId: params.get('appId') ?? overrides.appId ?? '',
-    userId: params.get('userId') ?? overrides.userId ?? '',
+    // userId is single-user-pinned to LOGGED_IN_USER_ID — URL params and
+    // overrides are ignored on purpose so persistence always lands under
+    // the same (appId, userId) scope. See runtime-port/types.ts for why.
+    userId: LOGGED_IN_USER_ID,
     componentType: params.get('componentType') ?? overrides.componentType ?? '',
     componentSubType: params.get('componentSubType') ?? overrides.componentSubType ?? '',
     isTemplate: params.get('isTemplate') === 'true' || overrides.isTemplate === true,

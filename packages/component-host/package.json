@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@marketsui/openfin-platform": "*",
-    "@marketsui/config-service": "*"
+    "@marketsui/config-service": "*",
+    "@marketsui/runtime-port": "*"
   },
   "peerDependencies": {
     "react": ">=19.0.0",

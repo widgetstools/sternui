@@ -25,7 +25,7 @@ export function MarketsGridLoadingOverlay({
 }: LoadingOverlayProps) {
   const subtitle =
     message ?? (typeof rowCount === 'number'
-      ? `Streaming snapshot · ${rowCount.toLocaleString()} row${rowCount === 1 ? '' : 's'}`
+      ? `Buffering snapshot · ${rowCount.toLocaleString()} row${rowCount === 1 ? '' : 's'} received`
       : 'Fetching snapshot…');
 
   return (

@@ -42,12 +42,21 @@ export {
   realignAllConfigsToPlatformScope,
 } from './db';
 export type { ConfigScope } from './db';
+export {
+  importConfigBundle,
+  type ImportBundle,
+  type ImportConfigBundleOptions,
+  type ImportConfigBundleResult,
+  type ImportTableResult,
+  type ImportMode,
+} from './config-import';
 
 // ─── Registry config types ──────────────────────────────────────────
 export {
   deriveTemplateConfigId,
   generateTemplateConfigId,    // deprecated alias of deriveTemplateConfigId
   deriveSingletonConfigId,     // deprecated alias of deriveTemplateConfigId
+  mintRegisteredInstanceId,
   REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,
@@ -70,6 +79,7 @@ export {
 export {
   readHostEnv,
   isHostEnvMissing,
+  DEFAULT_USER_ID,
 } from './registry-host-env';
 
 // Re-export config service types for convenience

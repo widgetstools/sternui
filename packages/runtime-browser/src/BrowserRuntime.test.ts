@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BrowserRuntime } from './BrowserRuntime.js';
-import type { Theme } from '@marketsui/runtime-port';
+import { LOGGED_IN_USER_ID, type Theme } from '@marketsui/runtime-port';
 
 /**
  * Tests run under jsdom (see vitest.config.ts). jsdom doesn't implement
@@ -19,24 +19,26 @@ describe('BrowserRuntime', () => {
   });
 
   describe('identity', () => {
-    it('parses identity from URL params via the constructor URL option', () => {
+    it('parses identity from URL params (userId stays pinned)', () => {
       rt = new BrowserRuntime({
         url: 'http://localhost/?appId=app1&userId=u1&instanceId=fixed',
       });
       const id = rt.resolveIdentity();
       expect(id.appId).toBe('app1');
-      expect(id.userId).toBe('u1');
+      // userId is single-user-pinned regardless of URL.
+      expect(id.userId).toBe(LOGGED_IN_USER_ID);
       expect(id.instanceId).toBe('fixed');
     });
 
-    it('falls back to mount-prop overrides', () => {
+    it('falls back to mount-prop overrides (userId stays pinned)', () => {
       rt = new BrowserRuntime({
         url: 'http://localhost/',
         identity: { appId: 'fallback-app', userId: 'fallback-user' },
       });
       const id = rt.resolveIdentity();
       expect(id.appId).toBe('fallback-app');
-      expect(id.userId).toBe('fallback-user');
+      // userId override is intentionally ignored.
+      expect(id.userId).toBe(LOGGED_IN_USER_ID);
     });
   });
 

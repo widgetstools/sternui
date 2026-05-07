@@ -4,7 +4,12 @@ import type OpenFin from "@openfin/core";
 import type { App } from "@openfin/workspace";
 import { AppManifestType, getCurrentSync } from "@openfin/workspace-platform";
 import { getConfigManager, loadRegistryConfig } from "./db";
-import { generateTemplateConfigId, type RegistryEntry } from "./registry-config-types";
+import {
+  generateTemplateConfigId,
+  mintRegisteredInstanceId,
+  type RegistryEntry,
+} from "./registry-config-types";
+import { DEFAULT_USER_ID } from "./registry-host-env";
 import { resolveHostUrl } from "./host-url";
 
 // ─── Singleton in-flight + opened registry ───────────────────────────
@@ -274,10 +279,15 @@ async function createComponentInstance(
   opts: LaunchRegisteredComponentOptions,
   singletonId?: string,
 ): Promise<SingletonOwner> {
-  const instanceId = singletonId ??
-    (typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `inst-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  // Singletons reuse their templateId as instanceId (all callers share
+  // one row). Non-singletons get a fresh id in the canonical format
+  // `${userId}${componentType}-${componentSubType}-${Date.now()}`. See
+  // `mintRegisteredInstanceId` for the format rationale.
+  const instanceId = singletonId ?? mintRegisteredInstanceId(
+    DEFAULT_USER_ID,
+    entry.componentType,
+    entry.componentSubType,
+  );
 
   const templateId = entry.configId ||
     generateTemplateConfigId(entry.componentType, entry.componentSubType);

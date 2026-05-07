@@ -104,7 +104,9 @@ describe('readCustomData — customData → ComponentIdentity invariants', () =>
     expect(id!.isTemplate).toBe(false);
     expect(id!.singleton).toBe(false);
     expect(id!.appId).toBeUndefined();
-    expect(id!.userId).toBeUndefined();
+    // userId is single-user-pinned to LOGGED_IN_USER_ID regardless of
+    // what customData carried (or didn't). See runtime-port/types.ts.
+    expect(id!.userId).toBe('dev1');
   });
 
   it('does NOT misread non-boolean isTemplate as truthy (only `=== true` qualifies)', async () => {

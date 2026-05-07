@@ -43,6 +43,16 @@ export {
 } from './db';
 export type { ConfigScope } from './db';
 
+// ── Bulk import of an exported config bundle ────────────────────────
+export {
+  importConfigBundle,
+  type ImportBundle,
+  type ImportConfigBundleOptions,
+  type ImportConfigBundleResult,
+  type ImportTableResult,
+  type ImportMode,
+} from './config-import';
+
 // ── IAB topic + action-ID constants (pure strings, no runtime deps) ──
 export {
   IAB_DOCK_CONFIG_UPDATE,
@@ -87,11 +97,13 @@ export {
   readHostEnv,
   isHostEnvMissing,
   encodeHostEnvForQueryString,
+  DEFAULT_USER_ID,
 } from './registry-host-env';
 export {
   deriveTemplateConfigId,
   generateTemplateConfigId,    // deprecated alias of deriveTemplateConfigId
   deriveSingletonConfigId,     // deprecated alias of deriveTemplateConfigId
+  mintRegisteredInstanceId,
   REGISTRY_CONFIG_VERSION,
   type RegistryEditorConfig,
   type RegistryEntry,

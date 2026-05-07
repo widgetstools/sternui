@@ -13,6 +13,7 @@ declare const fin: any;
 import type { ComponentIdentity, AppConfigRow } from "./types";
 import type { ConfigManager } from "@marketsui/config-service";
 import { deriveTemplateConfigId } from "@marketsui/openfin-platform";
+import { LOGGED_IN_USER_ID } from "@marketsui/runtime-port";
 
 // ─── Step 1: Read identity from OpenFin ─────────────────────────────
 
@@ -46,9 +47,11 @@ export async function readCustomData(): Promise<ComponentIdentity | null> {
       isTemplate: data.isTemplate === true,
       // appId / userId forwarded by the launcher so the saver can
       // build a fresh AppConfigRow from identity alone when no prior
-      // row exists — this is the first-ever-test-launch case.
+      // row exists — this is the first-ever-test-launch case. userId
+      // is single-user-pinned to LOGGED_IN_USER_ID; data.userId is
+      // intentionally ignored.
       appId: typeof data.appId === "string" ? data.appId : undefined,
-      userId: typeof data.userId === "string" ? data.userId : undefined,
+      userId: LOGGED_IN_USER_ID,
     };
   } catch {
     return null;

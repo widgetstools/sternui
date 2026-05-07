@@ -3,7 +3,12 @@ declare const fin: any;
 
 import { useState, useRef, useEffect } from "react";
 // /config subpath — side-effect-free; safe in plain-browser dev contexts.
-import { saveDockConfig, IAB_RELOAD_AFTER_IMPORT } from "@marketsui/openfin-platform/config";
+import {
+  importConfigBundle,
+  IAB_RELOAD_AFTER_IMPORT,
+  IAB_REGISTRY_CONFIG_UPDATE,
+  type ImportConfigBundleResult,
+} from "@marketsui/openfin-platform/config";
 import { UPLOAD_SVG } from "@marketsui/icons-svg/all-icons";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -73,33 +78,33 @@ export default function ImportConfig() {
         return;
       }
 
-      // Import dock config — look for the "dock-config" entry inside appConfig[].
-      // Each entry is an AppConfigRow with a `configId` and `payload` field.
-      // Tolerate legacy exports that still use the old `config` key.
-      let dockConfigFound = false;
-      for (const row of importData.appConfig) {
-        if (row.configId === "dock-config") {
-          const payload = row.payload ?? row.config;
-          if (payload) {
-            await saveDockConfig(payload);
-            dockConfigFound = true;
-          }
-        }
-      }
+      // Bulk-import every supported section. The helper re-owns appConfig
+      // rows (rewrites appId/userId to the local host environment) so
+      // workspaces, registries, and per-instance markets-grid-profile-set
+      // rows — including the `gridLevelData` that carries data-provider
+      // selection — become readable on this machine. userProfile rows are
+      // intentionally excluded from auto-import (see `importConfigBundle`).
+      const result = await importConfigBundle(importData);
 
-      if (!dockConfigFound) {
+      if (result.totalImported === 0) {
         setStatus("error");
-        setMessage("No dock configuration found in this file.");
+        setMessage("No importable rows found in this file.");
         return;
       }
 
-      // Tell the provider window to reload the dock buttons
+      // Notify other surfaces. IAB_RELOAD_AFTER_IMPORT prompts the dock
+      // provider window to reload its buttons; IAB_REGISTRY_CONFIG_UPDATE
+      // tells the registry editor / launchers to re-read the registry.
       if (isInOpenFin) {
-        await (window as any).fin.InterApplicationBus.publish(IAB_RELOAD_AFTER_IMPORT, {});
+        const iab = (window as any).fin.InterApplicationBus;
+        await iab.publish(IAB_RELOAD_AFTER_IMPORT, {});
+        if (result.appConfig.imported > 0) {
+          await iab.publish(IAB_REGISTRY_CONFIG_UPDATE, {});
+        }
       }
 
       setStatus("success");
-      setMessage("Config imported successfully. The dock has been reloaded.");
+      setMessage(formatSuccessMessage(result));
 
       // Auto-close after 1.5 s so the user can read the success message
       closeTimerRef.current = setTimeout(async () => {
@@ -112,6 +117,18 @@ export default function ImportConfig() {
       setStatus("error");
       setMessage("Failed to read the file. Make sure it is a valid config export.");
     }
+  }
+
+  function formatSuccessMessage(r: ImportConfigBundleResult): string {
+    const parts: string[] = [];
+    if (r.appConfig.imported)   parts.push(`${r.appConfig.imported} config row${r.appConfig.imported === 1 ? '' : 's'}`);
+    if (r.appRegistry.imported) parts.push(`${r.appRegistry.imported} app${r.appRegistry.imported === 1 ? '' : 's'}`);
+    if (r.roles.imported)       parts.push(`${r.roles.imported} role${r.roles.imported === 1 ? '' : 's'}`);
+    if (r.permissions.imported) parts.push(`${r.permissions.imported} permission${r.permissions.imported === 1 ? '' : 's'}`);
+    const summary = parts.length > 0 ? `Imported ${parts.join(', ')}.` : 'Import complete.';
+    return r.totalFailed > 0
+      ? `${summary} ${r.totalFailed} row${r.totalFailed === 1 ? '' : 's'} failed — see console for details.`
+      : summary;
   }
 
   // ── Render ───────────────────────────────────────────────────────

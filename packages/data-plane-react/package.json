@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@marketsui/data-plane": "*",
+    "@marketsui/runtime-port": "*",
     "@marketsui/shared-types": "*"
   },
   "peerDependencies": {

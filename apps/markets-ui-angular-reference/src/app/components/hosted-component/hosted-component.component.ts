@@ -31,10 +31,13 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import { HostedComponentService } from './hosted-component.service';
 
 const DEFAULT_APP_ID = 'TestApp';
-const DEFAULT_USER_ID = 'dev1';
+// userId is single-user-pinned across the codebase. See
+// `LOGGED_IN_USER_ID` in `@marketsui/runtime-port`.
+const DEFAULT_USER_ID = LOGGED_IN_USER_ID;
 
 @Component({
   selector: 'app-hosted-component',
@@ -48,11 +51,7 @@ const DEFAULT_USER_ID = 'dev1';
     <!-- Hover strip — invisible 8px row at the top edge. Mouse enters
          here → debug overlay slides down. Sits above grid chrome but
          below the expanded header. -->
-    <div
-      class="hc-hover-strip"
-      (mouseenter)="showHeader()"
-      aria-hidden="true"
-    ></div>
+    <div class="hc-hover-strip" (mouseenter)="showHeader()" aria-hidden="true"></div>
 
     <!-- Debug overlay — slides down from the top, NEVER pushes content.
          The hosted child below keeps its full height. -->
@@ -92,93 +91,102 @@ const DEFAULT_USER_ID = 'dev1';
       <ng-content />
     </div>
   `,
-  styles: [`
-    :host {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      background: var(--bn-bg);
-      color: var(--bn-t0);
-      overflow: hidden;
-    }
-    .hc-hover-strip {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 8px;
-      z-index: 10;
-    }
-    .hc-debug {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      z-index: 20;
-      padding: 10px 16px;
-      background: color-mix(in srgb, var(--bn-bg1, #161a1e) 92%, transparent);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--bn-border, #313944);
-      transform: translateY(-100%);
-      opacity: 0;
-      pointer-events: none;
-      transition: transform 160ms ease-out, opacity 160ms ease-out, box-shadow 160ms ease-out;
-    }
-    .hc-debug--visible {
-      transform: translateY(0);
-      opacity: 1;
-      pointer-events: auto;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-    }
-    .hc-debug-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .hc-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--bn-t0);
-      letter-spacing: 0.2px;
-    }
-    .hc-sep {
-      color: var(--bn-t3, #5a6472);
-      font-size: 12px;
-    }
-    .hc-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 9px;
-      background: var(--bn-bg2, #1e2329);
-      border: 1px solid var(--bn-border, #313944);
-      border-radius: 4px;
-    }
-    .hc-chip-label {
-      font-size: 9px;
-      font-weight: 600;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      color: var(--bn-t3, #5a6472);
-    }
-    .hc-chip-value {
-      font-size: 12px;
-      color: var(--bn-t0, #eaecef);
-      white-space: nowrap;
-    }
-    .hc-mono {
-      font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
-    }
-    .hc-truncate {
-      max-width: 280px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .hc-body {
-      flex: 1;
-      min-height: 0;
-      position: relative;
-    }
-  `],
+  styles: [
+    `
+      :host {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bn-bg);
+        color: var(--bn-t0);
+        overflow: hidden;
+      }
+      .hc-hover-strip {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        z-index: 10;
+      }
+      .hc-debug {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        padding: 10px 16px;
+        background: color-mix(in srgb, var(--bn-bg1, #161a1e) 92%, transparent);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--bn-border, #313944);
+        transform: translateY(-100%);
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          transform 160ms ease-out,
+          opacity 160ms ease-out,
+          box-shadow 160ms ease-out;
+      }
+      .hc-debug--visible {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      }
+      .hc-debug-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .hc-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--bn-t0);
+        letter-spacing: 0.2px;
+      }
+      .hc-sep {
+        color: var(--bn-t3, #5a6472);
+        font-size: 12px;
+      }
+      .hc-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        background: var(--bn-bg2, #1e2329);
+        border: 1px solid var(--bn-border, #313944);
+        border-radius: 4px;
+      }
+      .hc-chip-label {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--bn-t3, #5a6472);
+      }
+      .hc-chip-value {
+        font-size: 12px;
+        color: var(--bn-t0, #eaecef);
+        white-space: nowrap;
+      }
+      .hc-mono {
+        font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+      }
+      .hc-truncate {
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .hc-body {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+      }
+    `,
+  ],
 })
 export class HostedComponentComponent implements OnInit, OnDestroy {
   /** Logical name shown in the debug overlay's title. */
@@ -201,8 +209,8 @@ export class HostedComponentComponent implements OnInit, OnDestroy {
   resolvedPath = '';
 
   async ngOnInit(): Promise<void> {
-    this.resolvedPath = this.pathLabel
-      ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+    this.resolvedPath =
+      this.pathLabel ?? (typeof window !== 'undefined' ? window.location.pathname : '');
 
     // Document title
     this.prevTitle = document.title;
@@ -258,12 +266,16 @@ async function resolveHostInstanceId(defaultId: string): Promise<string> {
       const options = await fin.me.getOptions();
       const id = (options as { customData?: { instanceId?: string } })?.customData?.instanceId;
       if (typeof id === 'string' && id.length > 0) return id;
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   try {
     const fromUrl = new URLSearchParams(window.location.search).get('instanceId');
     if (fromUrl && fromUrl.length > 0) return fromUrl;
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
   return defaultId;
 }
 
@@ -273,18 +285,16 @@ async function resolveAppId(fallback: string): Promise<string> {
       const options = await fin.me.getOptions();
       const id = (options as { customData?: { appId?: string } })?.customData?.appId;
       if (typeof id === 'string' && id.length > 0) return id;
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   return fallback;
 }
 
 async function resolveUserId(fallback: string): Promise<string> {
-  if (typeof fin !== 'undefined') {
-    try {
-      const options = await fin.me.getOptions();
-      const id = (options as { customData?: { userId?: string } })?.customData?.userId;
-      if (typeof id === 'string' && id.length > 0) return id;
-    } catch { /* fall through */ }
-  }
-  return fallback;
+  // userId is single-user-pinned — customData.userId is intentionally
+  // ignored. See `LOGGED_IN_USER_ID` in `@marketsui/runtime-port`.
+  void fallback;
+  return LOGGED_IN_USER_ID;
 }

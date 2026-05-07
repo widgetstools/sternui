@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { LOGGED_IN_USER_ID } from '@marketsui/runtime-port';
 import { resolveBrowserIdentity } from './identity.js';
 
 describe('resolveBrowserIdentity', () => {
   const fixedUuid = () => 'fixed-uuid';
 
-  it('uses URL params when present', () => {
+  it('uses URL params when present (userId stays pinned)', () => {
     const id = resolveBrowserIdentity(
       'instanceId=i1&appId=app1&userId=u1&componentType=MarketsGrid&componentSubType=positions&isTemplate=true&singleton=true&roles=trader,admin&permissions=read,write',
       {},
@@ -13,7 +14,9 @@ describe('resolveBrowserIdentity', () => {
     expect(id).toEqual({
       instanceId: 'i1',
       appId: 'app1',
-      userId: 'u1',
+      // userId is single-user-pinned to LOGGED_IN_USER_ID — URL `userId=`
+      // is intentionally ignored. See `runtime-port/src/types.ts`.
+      userId: LOGGED_IN_USER_ID,
       componentType: 'MarketsGrid',
       componentSubType: 'positions',
       isTemplate: true,
@@ -24,7 +27,7 @@ describe('resolveBrowserIdentity', () => {
     });
   });
 
-  it('falls back to overrides when URL params are missing', () => {
+  it('falls back to overrides when URL params are missing (userId stays pinned)', () => {
     const id = resolveBrowserIdentity(
       '',
       {
@@ -36,7 +39,8 @@ describe('resolveBrowserIdentity', () => {
       fixedUuid,
     );
     expect(id.appId).toBe('app-default');
-    expect(id.userId).toBe('u-default');
+    // userId is hard-pinned regardless of overrides.
+    expect(id.userId).toBe(LOGGED_IN_USER_ID);
     expect(id.componentType).toBe('OrderBook');
     expect(id.roles).toEqual(['viewer']);
     expect(id.permissions).toEqual([]);
