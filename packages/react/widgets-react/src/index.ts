@@ -56,10 +56,3 @@ export type {
   HostedMarketsGridProps,
 } from './hosted/index.js';
 export { HostedMarketsGrid } from './hosted/index.js';
-
-// ─── OpenFin Hooks ───────────────────────────────
-export { useOpenfinTheme } from './hooks/openfin/useOpenfinTheme.js';
-export { useViewManager } from './hooks/openfin/useViewManager.js';
-export type { UseViewManagerReturn } from './hooks/openfin/useViewManager.js';
-export { useOpenFinEvents } from './hooks/openfin/useOpenFinEvents.js';
-export type { UseOpenFinEventsReturn } from './hooks/openfin/useOpenFinEvents.js';

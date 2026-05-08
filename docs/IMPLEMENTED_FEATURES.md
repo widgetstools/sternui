@@ -21,6 +21,17 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Removed in 2026-05-08 (PR-1 of code-organization migration)
+
+- Stern OpenFin shell (`@starui/openfin-platform-stern`) and reference apps.
+- fi-trading reference apps (empty placeholders).
+- axe-blotter demo (out of scope).
+- markets-ui-angular-reference (deferred until Angular parity catches up).
+- Three Stern-only OpenFin hooks (`useViewManager`, `useOpenFinEvents`,
+  `useOpenfinTheme`) that re-exported Stern symbols through
+  `@starui/widgets-react` — removed alongside the shell. No surviving
+  app consumed them.
+
 ---
 
 ## 1. Feature Catalog
@@ -1812,9 +1823,9 @@ The new `RuntimePort.onWorkspaceSave(fn)` method completes the lifecycle surface
 
 Two small platform additions that make OpenFin browser windows and view tabs honour user-facing names instead of internal-generated identifiers.
 
-**Window title bound to active page.** `BrowserWorkspacePlatformWindowOptions.title` is set to `{ type: 'page-title' }` in both shell init paths so the OS taskbar entry tracks the current page name (no more `internal-generated-window-…`). Wired in [packages/openfin-platform/src/workspace.ts](../packages/openfin-platform/src/workspace.ts) and [packages/openfin-platform-stern/src/bootstrap.ts](../packages/openfin-platform-stern/src/bootstrap.ts).
+**Window title bound to active page.** `BrowserWorkspacePlatformWindowOptions.title` is set to `{ type: 'page-title' }` in the shell init path so the OS taskbar entry tracks the current page name (no more `internal-generated-window-…`). Wired in [packages/openfin-platform/src/workspace.ts](../packages/openfin-platform/src/workspace.ts).
 
-**View-tab rename via right-click → "Save Tab As…".** Adds a custom item to the top of the view-tab context menu in both shells, mirroring the platform's "Save Page As" UX. Selecting it opens a small frameless popout window (a route in the reference app) prompting for a new tab name. On confirm the action does two things in the target view: (1) runs `document.title = "..."` via `executeJavaScript` so the workspace tabstrip mirrors the rename immediately (default `titlePriority: 'document'`), and (2) writes the new title to `customData.savedTitle` via `view.updateOptions(...)` so the rename rides through the workspace snapshot. `View.updateOptions({ title })` is intentionally NOT used: `title` lives on the create-time `ViewOptions` shape, not on `MutableViewOptions`, and is silently dropped at runtime.
+**View-tab rename via right-click → "Save Tab As…".** Adds a custom item to the top of the view-tab context menu, mirroring the platform's "Save Page As" UX. Selecting it opens a small frameless popout window (a route in the reference app) prompting for a new tab name. On confirm the action does two things in the target view: (1) runs `document.title = "..."` via `executeJavaScript` so the workspace tabstrip mirrors the rename immediately (default `titlePriority: 'document'`), and (2) writes the new title to `customData.savedTitle` via `view.updateOptions(...)` so the rename rides through the workspace snapshot. `View.updateOptions({ title })` is intentionally NOT used: `title` lives on the create-time `ViewOptions` shape, not on `MutableViewOptions`, and is silently dropped at runtime.
 
 **Persistence on workspace restore.** On the next workspace load, `OpenFinRuntime` reads `customData.savedTitle` from the resolved view options during construction and reapplies it to `document.title`. A `MutationObserver` on the `<title>` element pins the title back to `savedTitle` for a 3 s post-boot window, defeating the page's mount-time `document.title = ...` `useEffect` (used by `HostedComponent.tsx`, `DataProviders.tsx`, etc.) which would otherwise clobber the restored title. The observer disconnects after the window so live rename, notification badges, and other dynamic title updates work freely. The customData poll re-applies `savedTitle` on actual changes (guarded by `lastAppliedSavedTitle` so unrelated customData mutations like `activeProfileId` don't clobber dynamic titles).
 
@@ -1824,14 +1835,11 @@ Two small platform additions that make OpenFin browser windows and view tabs hon
 | `packages/openfin-platform/src/internal/customActions.ts` | Spreads `createRenameViewTabAction(openChildWindow)` into the returned `CustomActionsMap`. |
 | `packages/openfin-platform/src/workspace-persistence.ts` | `MarketsUIWorkspaceProvider.openViewTabContextMenu` injects the rename item before delegating to `super`. |
 | `packages/openfin-platform/src/index.ts` | Re-exports the four rename helpers from the main barrel. |
-| `packages/openfin-platform-stern/src/internal/viewTabRename.ts` | New. Self-contained Stern copy — Stern is a parallel shell that intentionally doesn't depend on `@starui/openfin-platform`. |
-| `packages/openfin-platform-stern/src/dock/openfinDock.ts` | `dockGetCustomActions()` spreads `createRenameViewTabAction(openSternChildWindow)`; new local helper `openSternChildWindow` wraps `fin.Window.create` with the platform's `buildUrl()`. |
-| `packages/openfin-platform-stern/src/bootstrap.ts` | `SternPlatformProvider.openViewTabContextMenu` injects the rename item. `defaultWindowOptions.workspacePlatform.title` set to `{ type: 'page-title' }`. |
 | `apps/markets-ui-react-reference/src/views/RenameViewTab.tsx` | Frameless popout that reads `view` + `currentTitle` from `fin.me.getOptions().customData`, renders a card matching the "Save Page As" layout (header icon + title row + single shadcn `Input` + Cancel/Save row), auto-focuses + selects on mount, Enter submits / Esc cancels. On confirm, runs `document.title = "..."` in the target view via `executeJavaScript` for the immediate tabstrip update, then calls `view.updateOptions({ customData: { ..., savedTitle } })` so the rename round-trips through the workspace snapshot. Theme-sensitive via the ambient `<ThemeProvider>`. |
 | `packages/runtime-openfin/src/OpenFinRuntime.ts` | `applySavedViewTitle()` — reads `customData.savedTitle` during construction and reapplies it to `document.title`. The hook closes the persistence loop: without it, the rename would be lost on every workspace reload because `document.title` is a runtime-only DOM mutation that the snapshot never captures. |
 | `apps/markets-ui-react-reference/src/main.tsx` | New `/rename-view-tab` route (lazy). |
 
-Verified green: `npx turbo typecheck --filter=@starui/openfin-platform --filter=@starui/openfin-platform-stern --filter=@starui/markets-ui-react-reference` (22 tasks); `npx turbo test --filter=@starui/openfin-platform` (49 tests).
+Verified green: `npx turbo typecheck --filter=@starui/openfin-platform --filter=@starui/markets-ui-react-reference`; `npx turbo test --filter=@starui/openfin-platform` (49 tests).
 
 ### 1.P Universal `<HostedFeatureView>` wrapper for OpenFin route views
 
