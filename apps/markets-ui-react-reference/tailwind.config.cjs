@@ -20,14 +20,14 @@ module.exports = {
     "../../packages/react/dock-editor-react/src/**/*.{ts,tsx}",
     "../../packages/react/registry-editor-react/src/**/*.{ts,tsx}",
     "../../packages/react/tools/workspace-setup-react/src/**/*.{ts,tsx}",
-    "../../packages/react/markets-grid/src/**/*.{ts,tsx}",
+    "../../packages/react/widgets/markets-grid/src/**/*.{ts,tsx}",
     "../../packages/shared/core/src/**/*.{ts,tsx}",
     // widgets-react ships the DataProvider editor, configurator, and
     // DataProviderSelector. Without scanning it, JIT purges every
     // class name unique to those components — dialogs render with no
     // background, gradient utilities disappear, etc. Symptom: clicking
     // "Create New Dataprovider" dims the page but no dialog card shows.
-    "../../packages/react/widgets-react/src/**/*.{ts,tsx}",
+    "../../packages/react/widgets/widgets-react/src/**/*.{ts,tsx}",
     // ui ships shadcn primitives. Most consumers re-use the same class
     // names in their own files (so JIT picks them up indirectly), but
     // adding the package keeps less-common variants reachable too.
