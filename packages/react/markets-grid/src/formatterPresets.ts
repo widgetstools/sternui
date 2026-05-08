@@ -1,4 +1,4 @@
-import type { ValueFormatterTemplate, TickToken } from '@starui/core';
+import type { ValueFormatterTemplate } from '@starui/core';
 
 /**
  * Formatter presets + inspection helpers for the FormattingToolbar.
@@ -18,19 +18,19 @@ export type FormatterChoice = {
   template: ValueFormatterTemplate;
 };
 
-export const FMT_USD: FormatterChoice = {
+const FMT_USD: FormatterChoice = {
   label: '$',
   template: { kind: 'preset', preset: 'currency', options: { currency: 'USD', decimals: 2 } },
 };
-export const FMT_EUR: FormatterChoice = {
+const FMT_EUR: FormatterChoice = {
   label: '\u20AC',
   template: { kind: 'preset', preset: 'currency', options: { currency: 'EUR', decimals: 2 } },
 };
-export const FMT_GBP: FormatterChoice = {
+const FMT_GBP: FormatterChoice = {
   label: '\u00A3',
   template: { kind: 'preset', preset: 'currency', options: { currency: 'GBP', decimals: 2 } },
 };
-export const FMT_JPY: FormatterChoice = {
+const FMT_JPY: FormatterChoice = {
   label: '\u00A5',
   template: { kind: 'preset', preset: 'currency', options: { currency: 'JPY', decimals: 0 } },
 };
@@ -91,34 +91,6 @@ export function isPercentTemplate(t: ValueFormatterTemplate | undefined): boolea
 export function isTickTemplate(t: ValueFormatterTemplate | undefined): boolean {
   return !!t && t.kind === 'tick';
 }
-
-/** Extract the tick token from a template (or null if not a tick). */
-export function currentTickToken(t: ValueFormatterTemplate | undefined): TickToken | null {
-  return t && t.kind === 'tick' ? t.tick : null;
-}
-
-/** Sample-output string per tick token, used inside the dropdown so
- *  traders see exactly what each precision produces. Values come from
- *  TICK_SAMPLES in core-v2; inlined here to keep the dropdown self-
- *  contained without importing yet another barrel symbol. */
-export const TICK_MENU: ReadonlyArray<{
-  token: TickToken;
-  label: string;
-  sample: string;
-  /** Short denominator label displayed on the toolbar button — reflects
-   *  the active tick base (32 / 32+ / 64 / 128 / 256) so the user can see
-   *  at a glance which tick system is applied. Derived separately from
-   *  `sample` because `sample.split('-').pop()` would incorrectly return
-   *  the fractional numerator ('16' from '101-16') instead of the
-   *  denominator the user actually cares about. */
-  denominator: string;
-}> = [
-  { token: 'TICK32',      label: '32nds',           sample: '101-16',  denominator: '32'  },
-  { token: 'TICK32_PLUS', label: '32nds + halves',  sample: '101-16+', denominator: '32+' },
-  { token: 'TICK64',      label: '64ths',           sample: '101-161', denominator: '64'  },
-  { token: 'TICK128',     label: '128ths',          sample: '101-162', denominator: '128' },
-  { token: 'TICK256',     label: '256ths',          sample: '101-161', denominator: '256' },
-];
 
 export function isCommaTemplate(t: ValueFormatterTemplate | undefined): boolean {
   return !!t && t.kind === 'preset' && t.preset === 'number'

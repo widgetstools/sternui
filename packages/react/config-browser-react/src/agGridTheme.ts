@@ -11,7 +11,7 @@ import { themeQuartz, colorSchemeDark, colorSchemeLight } from "ag-grid-communit
 import type { Theme } from "ag-grid-community";
 
 /** Dark theme params — consume --bn-* via var() so theme flips cascade. */
-export const agGridThemeDark: Theme = themeQuartz.withPart(colorSchemeDark).withParams({
+const agGridThemeDark: Theme = themeQuartz.withPart(colorSchemeDark).withParams({
   backgroundColor: "var(--bn-bg1)",
   foregroundColor: "var(--bn-t0)",
   headerBackgroundColor: "var(--bn-bg2)",
@@ -35,7 +35,7 @@ export const agGridThemeDark: Theme = themeQuartz.withPart(colorSchemeDark).with
   cellTextColor: "var(--bn-t0)",
 });
 
-export const agGridThemeLight: Theme = themeQuartz.withPart(colorSchemeLight).withParams({
+const agGridThemeLight: Theme = themeQuartz.withPart(colorSchemeLight).withParams({
   backgroundColor: "var(--bn-bg1)",
   foregroundColor: "var(--bn-t0)",
   headerBackgroundColor: "var(--bn-bg2)",

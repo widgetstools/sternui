@@ -350,7 +350,7 @@ function parseSingleCondition(s: string): NumberSingleModel | null {
  * Mixed input falls back to single-best-effort parse on the first
  * fragment so the user gets *something* applied while they edit.
  */
-export function parseNumberExpression(input: string): NumberModel | null {
+function parseNumberExpression(input: string): NumberModel | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 

@@ -36,7 +36,7 @@ export interface RowProps {
   'data-testid'?: string;
 }
 
-export function Row({ label, hint, control, ...rest }: RowProps) {
+function Row({ label, hint, control, ...rest }: RowProps) {
   return (
     <div
       className="gc-option-row"
@@ -122,7 +122,7 @@ export function NumberControl({
  * otherwise. Used for DEFAULT COLDEF's max-width / width / flex which
  * have no sensible default value.
  */
-export function OptNumberControl({
+function OptNumberControl({
   value,
   onChange,
   min,
@@ -159,7 +159,7 @@ export function OptNumberControl({
   );
 }
 
-export function TextControl({
+function TextControl({
   value,
   onChange,
   placeholder,
@@ -205,7 +205,7 @@ function decode<T>(encoded: string, options: ReadonlyArray<{ value: T }>): T {
   return hit ? hit.value : (encoded as unknown as T);
 }
 
-export function SelectControl<T extends string | undefined | boolean | number>({
+function SelectControl<T extends string | undefined | boolean | number>({
   value,
   onChange,
   options,
@@ -296,7 +296,7 @@ export interface BandSchema {
 
 // ─── Renderer ─────────────────────────────────────────────────────────
 
-export function FieldRenderer({
+function FieldRenderer({
   field,
   state,
   update,
