@@ -1,12 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
 /* MarketsUI Design System Tokens — single source of truth for every app. */
-@import '../../../packages/shared/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/design-system/src/themes/fi-light.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
 
 /* Theme-flipping scrollbar utilities (`.scrollbar-themed`, `.scrollbar-thin`).
    Pulls from `--scrollbar-thumb` which fi-dark/fi-light define per theme. */
-@import '../../../packages/shared/design-system/src/themes/scrollbars.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/scrollbars.css';
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
 @import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';

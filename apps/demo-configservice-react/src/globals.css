@@ -3,14 +3,14 @@
  *
  * Canonical MarketsUI app stylesheet — mirrors apps/fi-trading-reference
  * and demo-react. Single source of truth for design-system tokens is
- * `packages/shared/design-system/src/themes/fi-dark.css` + `fi-light.css`.
+ * `packages/shared/foundation/design-system/src/themes/fi-dark.css` + `fi-light.css`.
  */
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
 /* Design-system tokens — single source of truth for every app. */
-@import '../../../packages/shared/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/design-system/src/themes/fi-light.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
 @import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';
