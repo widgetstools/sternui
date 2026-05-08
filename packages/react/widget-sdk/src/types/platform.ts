@@ -9,7 +9,7 @@ export interface ParentIdentity {
 
 /**
  * PlatformAdapter — abstracts browser vs OpenFin (or other platforms).
- * BrowserAdapter is the default; OpenFinAdapter lives in @starui/openfin-platform-stern.
+ * BrowserAdapter is the default; OpenFin adapters live in @starui/openfin-platform.
  */
 export interface PlatformAdapter {
   readonly name: string;          // 'browser' | 'openfin' | custom

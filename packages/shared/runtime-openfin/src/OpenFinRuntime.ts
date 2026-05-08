@@ -212,7 +212,7 @@ export class OpenFinRuntime implements RuntimePort {
     // existing PlatformAdapter.openWidget() path are unaffected by this.
     throw new Error(
       `[OpenFinRuntime] openSurface(kind=${spec.kind}) is not yet implemented. ` +
-        `Use the existing platform adapter (@starui/openfin-platform-stern) ` +
+        `Use the existing platform adapter (@starui/openfin-platform) ` +
         `or register an in-page handler.`,
     );
   }
