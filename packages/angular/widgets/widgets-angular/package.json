@@ -1,5 +1,5 @@
 {
-  "name": "@starui/angular",
+  "name": "@starui/widgets-angular",
   "version": "1.0.0",
   "description": "Stern Angular component library — DockConfigurator and DataProviderEditor",
   "type": "module",

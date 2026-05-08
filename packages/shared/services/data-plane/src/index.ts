@@ -10,7 +10,7 @@
  *   `@starui/data-plane/v2/worker`    — `installWorker` + Hub
  *
  * `StompDataProvider` and `DataProviderConfigService` survive at the
- * root for the @starui/angular package (which has its own data-
+ * root for the @starui/widgets-angular package (which has its own data-
  * plane integration). They are scheduled for removal once Angular
  * gets its v2 cutover.
  */

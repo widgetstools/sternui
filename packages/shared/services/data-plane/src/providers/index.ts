@@ -1,7 +1,7 @@
 /**
  * Providers barrel — v1-survival surface.
  *
- * Only modules still consumed by `@starui/angular` survive the v2
+ * Only modules still consumed by `@starui/widgets-angular` survive the v2
  * cutover. The worker-side router + factories are gone (replaced by
  * v2's Hub + provider registry). When Angular gets a v2 cutover this
  * barrel disappears.
