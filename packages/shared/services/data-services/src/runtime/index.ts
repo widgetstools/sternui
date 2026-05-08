@@ -1,8 +1,9 @@
 /**
  * Runtime public surface (in-package). The streaming, SharedWorker-
  * backed runtime that powers live data delivery. One-shot probes
- * (`StompProbe` etc.) live alongside in `../probes/` for editor /
- * field-inference flows that don't need the worker.
+ * (`probeStomp`, `probeRest`, `inferFields`) live next to the
+ * streaming transports in `./providers/` and surface from the package
+ * root for editor / field-inference flows that don't need the worker.
  *
  * Subpaths:
  *   `@starui/data-services/runtime`               — main thread (client + protocol types)
