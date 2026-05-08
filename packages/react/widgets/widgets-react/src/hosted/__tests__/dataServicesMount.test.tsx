@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Parity row 9 — when `dataServicesClient` is supplied, the wrapper
- * mounts a `<DataServicesProvider>` around its children, and the
- * MarketsGridContainer subtree can resolve `useDataServices()` without
- * throwing. With no client, the provider is omitted (consumers must
- * supply data-services context themselves).
+ * Parity row 9 — when `dataServices` (the bootstrap result) is
+ * supplied, the wrapper mounts a `<DataServicesProvider>` around its
+ * children, and the MarketsGridContainer subtree can resolve
+ * `useDataServices()` without throwing. With no bundle, the provider
+ * is omitted (consumers must supply data-services context themselves).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/config-service';
-import type { SharedWorkerDataServicesClient } from '@starui/data-services/runtime/client';
+import type { DataServices } from '@starui/data-services/runtime';
 import { useDataServices } from '@starui/data-services-react/runtime';
 
 let captureClient: unknown = null;
@@ -34,21 +34,29 @@ const fakeConfigManager = {
   deleteConfig: vi.fn().mockResolvedValue(undefined),
 } as unknown as ConfigManager;
 
-// Minimal client stub — the DataServicesProvider calls
-// attachAppData on mount and detachAppData on unmount, so both
-// must be present even though the test only verifies the client
-// reference is forwarded into context (not what mirror.attach does).
+// Minimal bootstrap-shaped stub. The Provider only reads
+// services.client / services.appData / services.configManager — the
+// actual port + mirror behaviour is exercised in
+// data-services-react's hooks.test.tsx.
 const fakeMirror = {
   attach: vi.fn().mockResolvedValue(undefined),
   ready: vi.fn().mockResolvedValue(undefined),
   subscribe: vi.fn(() => () => undefined),
-} as unknown as ReturnType<SharedWorkerDataServicesClient['attachAppData']>;
+} as unknown as DataServices['appData'];
 
 const fakeClient = {
   __fake: true,
   attachAppData: vi.fn(() => fakeMirror),
   detachAppData: vi.fn(),
-} as unknown as SharedWorkerDataServicesClient;
+} as unknown as DataServices['client'];
+
+const fakeServices: DataServices = {
+  client: fakeClient,
+  appData: fakeMirror,
+  configManager: fakeConfigManager,
+  ready: Promise.resolve(),
+  dispose: vi.fn(),
+};
 
 afterEach(() => {
   cleanup();
@@ -57,14 +65,14 @@ afterEach(() => {
 });
 
 describe('HostedMarketsGrid — DataServices mount (row 9)', () => {
-  it('mounts a DataServicesProvider when dataServicesClient is supplied', async () => {
+  it('mounts a DataServicesProvider when dataServices is supplied', async () => {
     const { getByTestId } = render(
       <HostedMarketsGrid
         gridId="dp-1"
         defaultInstanceId="dp-1"
         componentName="DP"
         configManager={fakeConfigManager}
-        dataServicesClient={fakeClient}
+        dataServices={fakeServices}
       />,
     );
     const stub = await waitFor(() => {
@@ -76,7 +84,7 @@ describe('HostedMarketsGrid — DataServices mount (row 9)', () => {
     expect(captureClient).toBe(fakeClient);
   });
 
-  it('omits the provider when dataServicesClient is absent', async () => {
+  it('omits the provider when dataServices is absent', async () => {
     const { getByTestId } = render(
       <HostedMarketsGrid
         gridId="dp-2"
