@@ -21,6 +21,49 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Repackaged in 2026-05-08 (Task 11 / PR-10 of code-organization migration)
+
+The `packages/` tree was reorganized into role-based sub-buckets per
+[`docs/plans/plan-2026-05-07/code-organization.md`](./plans/plan-2026-05-07/code-organization.md)
+(Decisions 5–8). Tasks 1–10 performed the structural moves; this entry
+captures the resulting layout for the living docs.
+
+- `packages/shared/`: `core/`, `foundation/{shared-types, design-system,
+  icons-svg, tokens-primeng}`, `runtime/{runtime-port, runtime-browser,
+  runtime-openfin}`, `services/{config-service, data-plane,
+  component-host}`, `platform/{openfin-platform}`.
+- `packages/react/`: `ui/`, `sdk/{widget-sdk}`,
+  `widgets/{markets-grid, grid-react, widgets-react}`,
+  `hosts/{host-wrapper-react}`, `providers/{data-plane-react}`,
+  `tools/{config-browser-react, workspace-setup-react}`.
+- `packages/angular/`: `hosts/{host-wrapper-angular}`,
+  `tools/{config-browser-angular}`, `widgets/{widgets-angular}`.
+
+**New packages introduced during the migration:**
+
+- `@starui/grid-react` (PR-8) — extracted React surfaces (`ui/`, `hooks/`,
+  `modules/`) from `@starui/core`. ~24,117 LOC across 143 files.
+- `@starui/workspace-setup-react` (PR-3) — extracted `WorkspaceSetup` and
+  its registry-editor primitives from the deleted `@starui/dock-editor`.
+
+**Renamed:**
+
+- `@starui/angular` → `@starui/widgets-angular`
+- `@starui/angular-config-browser` → `@starui/config-browser-angular`
+
+**Deleted (PR-1 + PR-4):**
+
+- `@starui/openfin-platform-stern` (Stern OpenFin shell).
+- `@starui/dock-editor` and `@starui/registry-editor` (React) plus their
+  Angular twins.
+- Reference apps: `stern-reference-react`, `stern-reference-angular`,
+  `fi-trading-reference`, `fi-trading-reference-angular`,
+  `axe-blotter-demo`, `markets-ui-angular-reference`.
+
+**Living docs updated in lockstep:** root `package.json` workspace globs
+(audited and tightened to match the new sub-buckets), `CLAUDE.md`
+"Package layout" section, and `docs/ARCHITECTURE.md` folder layout.
+
 ## Removed in 2026-05-08 (PR-1 of code-organization migration)
 
 - Stern OpenFin shell (`@starui/openfin-platform-stern`) and reference apps.
