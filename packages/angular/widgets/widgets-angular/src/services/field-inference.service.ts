@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import type { StompProviderConfig, FieldNode } from '@starui/shared-types';
 import { convertFieldInfoToNode, collectNonObjectLeaves, findFieldByPath } from '@starui/shared-types';
-import { StompProbe } from '@starui/data-services';
+import { probeStomp, inferFields } from '@starui/data-services';
 
 export interface FieldInferenceState {
   inferring: boolean;
@@ -67,24 +67,14 @@ export class FieldInferenceService {
     }
     this.patch({ inferring: true });
     try {
-      const provider = new StompProbe({
-        websocketUrl: config.websocketUrl,
-        listenerTopic: config.listenerTopic || '',
-        requestMessage: config.requestMessage,
-        requestBody: config.requestBody || 'START',
-        snapshotEndToken: config.snapshotEndToken || 'Success',
-        keyColumn: config.keyColumn,
-        messageRate: config.messageRate,
-        snapshotTimeoutMs: config.snapshotTimeoutMs || 60000,
-        dataType: config.dataType,
-        batchSize: config.batchSize,
+      const result = await probeStomp(config, {
+        maxRows: 100,
+        timeoutMs: config.snapshotTimeoutMs ?? 60_000,
       });
-      const result = await provider.fetchSnapshot(100);
-      if (!result.success || !result.data || result.data.length === 0) {
+      if (!result.ok || !result.rows || result.rows.length === 0) {
         throw new Error(result.error || 'No data received from STOMP server');
       }
-      const inferredFieldsMap = StompProbe.inferFields(result.data);
-      const fieldNodes: FieldNode[] = Object.values(inferredFieldsMap).map((f: any) => convertFieldInfoToNode(f));
+      const { fields: fieldNodes } = inferFields(result.rows, { targetSampleSize: 100 });
       const objectPaths = new Set<string>();
       const findObjects = (nodes: FieldNode[]) => {
         nodes.forEach(n => { if (n.children) { objectPaths.add(n.path); findObjects(n.children); } });
