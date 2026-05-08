@@ -14,7 +14,7 @@ export default defineConfig({
       // the consumer's tree (avoids the Monaco-worker resolution issue
       // that hits consumers reading core's prebuilt dist).
       '@starui/core': resolve(__dirname, '../../packages/shared/core/src'),
-      '@starui/markets-grid': resolve(__dirname, '../../packages/react/markets-grid/src'),
+      '@starui/markets-grid': resolve(__dirname, '../../packages/react/widgets/markets-grid/src'),
     },
   },
   build: {

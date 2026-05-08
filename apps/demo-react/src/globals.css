@@ -20,7 +20,7 @@
 @import '../../../packages/shared/design-system/src/themes/fi-light.css';
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
-@import '../../../packages/react/markets-grid/src/styles/marketsGrid.css';
+@import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';
 
 @tailwind base;
 @tailwind components;

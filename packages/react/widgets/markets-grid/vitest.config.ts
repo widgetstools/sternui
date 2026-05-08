@@ -21,7 +21,7 @@ import { resolve } from 'path';
  * The core package's OWN tests already resolve internally via relative
  * paths, so nothing there changes.
  */
-const coreSrc = resolve(__dirname, '../../shared/core/src/index.ts');
+const coreSrc = resolve(__dirname, '../../../shared/core/src/index.ts');
 
 export default defineConfig({
   plugins: [react()],

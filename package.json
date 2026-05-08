@@ -9,6 +9,10 @@
     "packages/shared/*",
     "packages/react/*",
     "packages/react/tools/*",
+    "packages/react/hosts/*",
+    "packages/react/providers/*",
+    "packages/react/sdk/*",
+    "packages/react/widgets/*",
     "packages/angular/*",
     "e2e-openfin"
   ],

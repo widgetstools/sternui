@@ -1,10 +1,10 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@starui/core": ["../core/src"]
+      "@starui/core": ["../../core/src"]
     }
   },
   "include": ["src"],
