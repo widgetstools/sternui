@@ -349,6 +349,77 @@ export interface AppIdentity {
   getAccessToken?: () => Promise<string>;
 }
 
+// ─── DataServices handle (structural) ────────────────────────────────
+
+/**
+ * Structural shape of the AppData mirror surface that
+ * `ConfigManager` writes into — see `DataServicesHandle` below.
+ *
+ * Defined here as a structural interface (rather than imported from
+ * `@starui/data-services`) so the dependency stays one-way. The
+ * `AppDataMirror` instance from `@starui/data-services` already
+ * satisfies this shape verbatim, so consumers pass it through with no
+ * adapter.
+ *
+ * The methods we rely on are all the AppDataMirror's read/write
+ * surface for a single named provider:
+ *
+ *   - `set(name, key, value)` — upsert one key inside the named row
+ *     (creates the row if it doesn't exist). Resolves once the hub
+ *     has acknowledged.
+ *   - `get(name, key)` — synchronous read off the main-thread mirror
+ *     state. Returns `undefined` for unknown name/key or pre-snapshot.
+ *   - `ready()` — resolves once the initial snapshot from the worker
+ *     has been applied. Awaiting this before publishing avoids
+ *     overwriting any persisted ApplicationContext from a prior
+ *     session.
+ */
+export interface AppDataMirrorHandle {
+  set(name: string, key: string, value: unknown): Promise<void>;
+  get(name: string, key: string): unknown;
+  ready(): Promise<void>;
+}
+
+/**
+ * Structural shape of the data-services bundle that hosts the
+ * SharedWorker-backed AppData mirror. `ConfigManager` consumes only
+ * the `appData` slot — everything else on the bundle (worker client,
+ * config store) is opaque to us here.
+ *
+ * Pass through the `DataServices` object returned by
+ * `bootstrapDataServices` from `@starui/data-services`; structural
+ * typing makes the assignment direct, no adapter required.
+ */
+export interface DataServicesHandle {
+  appData: AppDataMirrorHandle;
+}
+
+// ─── ApplicationContext (Session 7) ──────────────────────────────────
+
+/**
+ * The framework-owned `ApplicationContext` AppData provider, exposed
+ * as a typed view over the four keys ConfigManager publishes after
+ * seeding (Decisions 3 / 4 in `config-manager-redesign.md`).
+ *
+ *   - `AppId` — current app identifier (matches `ConfigManager.appId`).
+ *   - `LoggedInUser` — who the host signed in. Drives audit fields.
+ *   - `ImpersonatedUser` — optional override. When set, the framework
+ *     treats this user as the **effective** user for visibility
+ *     (Session 8 wiring); audit always sticks to `LoggedInUser`.
+ *   - `LoggedInUserProfile` — derived from the seeded auth tables
+ *     (`userProfile` → `roles` → `permissions`).
+ *
+ * Reads come from the main-thread `AppDataMirror`, so consumers (e.g.
+ * a "what permissions do I have?" hook) get sync access without
+ * awaiting the worker.
+ */
+export interface ApplicationContext {
+  AppId: string;
+  LoggedInUser: { userId: string; displayName?: string };
+  ImpersonatedUser: { userId: string; displayName?: string } | null;
+  LoggedInUserProfile: { roles: RoleRow[]; permissions: PermissionRow[] };
+}
+
 // ─── ConfigManager options ───────────────────────────────────────────
 
 /**
@@ -391,6 +462,26 @@ export interface ConfigManagerOptions {
    * omitted. See `AppIdentity` JSDoc.
    */
   identity?: AppIdentity;
+
+  /**
+   * Data-services bundle used to publish `ApplicationContext` into
+   * AppData (Session 7 / Decisions 3 + 4). When present,
+   * `ConfigManager.init()` waits for the AppData mirror's first
+   * snapshot, derives `LoggedInUserProfile` from the seeded auth
+   * tables, and writes the four `ApplicationContext` keys (`AppId`,
+   * `LoggedInUser`, `ImpersonatedUser`, `LoggedInUserProfile`).
+   *
+   * When absent, `init()` is a silent no-op for AppData publishing —
+   * existing call sites that haven't wired data-services keep
+   * working.
+   *
+   * Late wiring is supported via `setDataServices(handle)` for hosts
+   * that have to construct the data-services bundle AFTER
+   * `createConfigManager(...)` (the bundle's `bootstrapDataServices`
+   * takes a ConfigManager today — that order makes options-only
+   * wiring impossible without two ConfigManager instances).
+   */
+  dataServices?: DataServicesHandle;
 }
 
 // ─── Seed data shape ─────────────────────────────────────────────────

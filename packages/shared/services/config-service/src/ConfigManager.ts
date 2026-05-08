@@ -22,7 +22,9 @@ import type {
   AppConfigRow,
   AppIdentity,
   AppRegistryRow,
+  ApplicationContext,
   ConfigManagerOptions,
+  DataServicesHandle,
   PermissionRow,
   PendingSyncRow,
   RoleRow,
@@ -30,6 +32,14 @@ import type {
   UserProfileRow,
 } from './types';
 import { isVisible, type VisibilityContext } from './visibility';
+
+/**
+ * Fixed name of the framework-owned AppData provider (Decision 4 in
+ * `config-manager-redesign.md`). Every ConfigManager that's wired
+ * with `dataServices` writes its identity / profile keys into this
+ * single named row; consumers read it via `appData.get(...)`.
+ */
+const APPLICATION_CONTEXT_NAME = 'ApplicationContext';
 
 /**
  * Optional behavior knobs on a single `saveConfig` call. Adding fields
@@ -100,6 +110,7 @@ export class ConfigManager {
   private restUrl: string | undefined;
   private readonly appId: string;
   private readonly identity: AppIdentity;
+  private dataServices: DataServicesHandle | undefined;
   private drainIntervalId: ReturnType<typeof setInterval> | undefined;
   private isInitialized = false;
 
@@ -109,6 +120,7 @@ export class ConfigManager {
     this.restUrl = options.configServiceRestUrl;
     this.appId = options.appId ?? DEFAULT_APP_ID;
     this.identity = options.identity ?? DEFAULT_IDENTITY;
+    this.dataServices = options.dataServices;
   }
 
   // ─── Identity accessors ──────────────────────────────────────────
@@ -132,6 +144,91 @@ export class ConfigManager {
    */
   getIdentity(): AppIdentity {
     return this.identity;
+  }
+
+  // ─── ApplicationContext / data-services wiring (Session 7) ────────
+  //
+  // ConfigManager publishes a single named AppData row called
+  // `"ApplicationContext"` whose `values` carry `AppId`,
+  // `LoggedInUser`, `ImpersonatedUser`, and `LoggedInUserProfile`.
+  // Every component (any window, any layer) reads identity sync via
+  // the main-thread mirror — no prop drilling, no context plumbing.
+  //
+  // Two wiring shapes are supported:
+  //   1. Construction-time:
+  //      `createConfigManager({ identity, appId, dataServices })`.
+  //   2. Late wiring:
+  //      `const cm = createConfigManager({ identity, appId });`
+  //      `cm.setDataServices(ds);`
+  //      `await cm.init();`
+  //   The late path exists because today's `bootstrapDataServices`
+  //   takes a `ConfigManager` (it keeps the reference for editor
+  //   flows). Without late wiring the host would have to construct
+  //   two ConfigManagers — one to seed the bundle, one to publish
+  //   ApplicationContext — which doubles the IndexedDB connection
+  //   and splits ownership.
+
+  /**
+   * Wire (or rewire) the data-services bundle. When set BEFORE
+   * `init()`, the four ApplicationContext keys are published as part
+   * of init; AFTER `init()`, the next call needs to be made
+   * explicitly via a future helper (Session 8 lands the impersonation
+   * setter) — Session 7 only handles the seed-time publish.
+   *
+   * Passing `undefined` detaches the handle so init() becomes a
+   * silent no-op for AppData. Mostly useful in tests.
+   */
+  setDataServices(handle: DataServicesHandle | undefined): void {
+    this.dataServices = handle;
+  }
+
+  /**
+   * Read the ApplicationContext keys published into AppData by
+   * `init()`. Sync because the main-thread mirror is sync; throws
+   * before init has run (or when no `dataServices` was wired).
+   *
+   * Components that want to reactively re-render on ApplicationContext
+   * change should subscribe to the AppDataMirror directly via
+   * `dataServices.appData.subscribe(...)` — this method is a
+   * point-in-time read.
+   */
+  getApplicationContext(): ApplicationContext {
+    if (!this.dataServices) {
+      throw new Error(
+        'ConfigManager.getApplicationContext requires dataServices to be configured. ' +
+          'Pass `dataServices` in `createConfigManager(...)` or call `setDataServices(...)` ' +
+          'before `init()`.',
+      );
+    }
+
+    const appData = this.dataServices.appData;
+    const appId = appData.get(APPLICATION_CONTEXT_NAME, 'AppId');
+    const loggedInUser = appData.get(APPLICATION_CONTEXT_NAME, 'LoggedInUser');
+    const impersonatedUser = appData.get(APPLICATION_CONTEXT_NAME, 'ImpersonatedUser');
+    const loggedInUserProfile = appData.get(
+      APPLICATION_CONTEXT_NAME,
+      'LoggedInUserProfile',
+    );
+
+    if (
+      typeof appId !== 'string' ||
+      loggedInUser === undefined ||
+      loggedInUserProfile === undefined
+    ) {
+      throw new Error(
+        'ConfigManager.getApplicationContext called before init() published the ' +
+          'ApplicationContext keys. Await `configManager.init()` first.',
+      );
+    }
+
+    return {
+      AppId: appId,
+      LoggedInUser: loggedInUser as ApplicationContext['LoggedInUser'],
+      ImpersonatedUser:
+        (impersonatedUser as ApplicationContext['ImpersonatedUser']) ?? null,
+      LoggedInUserProfile:
+        loggedInUserProfile as ApplicationContext['LoggedInUserProfile'],
+    };
   }
 
   // ─── Visibility (Session 4) ───────────────────────────────────────
@@ -220,6 +317,13 @@ export class ConfigManager {
     // Seed the database if it's empty and a seed URL is provided
     await this.seedIfEmpty();
 
+    // Publish ApplicationContext into AppData (Session 7). Sequenced
+    // AFTER seeding so `LoggedInUserProfile` resolves against the
+    // freshly-seeded auth tables on first run, and BEFORE the REST
+    // drain so consumers reading via the mirror see identity from the
+    // very first render.
+    await this.publishApplicationContext();
+
     // In REST mode, start the background sync drain loop
     if (this.restUrl) {
       this.startSyncDrain();
@@ -228,6 +332,77 @@ export class ConfigManager {
     console.log(
       `ConfigManager initialized (mode: ${this.restUrl ? "REST" : "local"})`,
     );
+  }
+
+  /**
+   * Publish the four `ApplicationContext` keys into AppData. No-op
+   * when `dataServices` wasn't wired — see option JSDoc.
+   *
+   * Awaits `appData.ready()` first so the worker's persisted snapshot
+   * has been applied: otherwise the four sequential `set()` calls
+   * each see an empty `byName` map and would fan-out four separate
+   * configIds racing the snapshot. Once ready, each `set()` merges
+   * into the same row by name.
+   */
+  private async publishApplicationContext(): Promise<void> {
+    if (!this.dataServices) {
+      return;
+    }
+
+    const appData = this.dataServices.appData;
+    await appData.ready();
+
+    const profile = await this.computeLoggedInUserProfile();
+    const loggedInUser: ApplicationContext['LoggedInUser'] = {
+      userId: this.identity.userId,
+      ...(this.identity.displayName !== undefined
+        ? { displayName: this.identity.displayName }
+        : {}),
+    };
+
+    // Sequential — `AppDataMirror.set` reads `byName` after each
+    // round-trip, so awaiting in order keeps the four keys on a
+    // single row instead of racing four inserts.
+    await appData.set(APPLICATION_CONTEXT_NAME, 'AppId', this.appId);
+    await appData.set(APPLICATION_CONTEXT_NAME, 'LoggedInUser', loggedInUser);
+    await appData.set(APPLICATION_CONTEXT_NAME, 'ImpersonatedUser', null);
+    await appData.set(APPLICATION_CONTEXT_NAME, 'LoggedInUserProfile', profile);
+  }
+
+  /**
+   * Resolve the current identity into a `LoggedInUserProfile` payload
+   * — the seeded user's roles + the union of those roles' permissions.
+   *
+   * If the user has no profile row yet (first-run, JIT provisioning
+   * deferred per Decision 8), returns empty arrays so consumers see a
+   * deterministic shape rather than `undefined`.
+   */
+  private async computeLoggedInUserProfile(): Promise<
+    ApplicationContext['LoggedInUserProfile']
+  > {
+    const profile = await this.db.userProfile.get(this.identity.userId);
+    if (!profile) {
+      return { roles: [], permissions: [] };
+    }
+
+    const roles: RoleRow[] = [];
+    const permissionIds = new Set<string>();
+    for (const roleId of profile.roleIds) {
+      const role = await this.db.roles.get(roleId);
+      if (!role) continue;
+      roles.push(role);
+      for (const permId of role.permissionIds) {
+        permissionIds.add(permId);
+      }
+    }
+
+    const permissions: PermissionRow[] = [];
+    for (const permId of permissionIds) {
+      const perm = await this.db.permissions.get(permId);
+      if (perm) permissions.push(perm);
+    }
+
+    return { roles, permissions };
   }
 
   /**

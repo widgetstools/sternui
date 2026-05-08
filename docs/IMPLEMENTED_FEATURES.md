@@ -21,6 +21,59 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 7: ApplicationContext publishing into AppData
+
+Seventh session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 7, Decisions 3 + 4). `ConfigManager` becomes the first writer
+of the framework-owned `"ApplicationContext"` AppData provider so every
+component in every window can read identity synchronously off the
+main-thread mirror — no prop drilling, no per-host context plumbing.
+
+- New types in `packages/shared/services/config-service/src/types.ts`:
+  - `AppDataMirrorHandle` — structural shape of the AppData mirror
+    surface (`set` / `get` / `ready`). Defined inline so the dependency
+    direction stays one-way: `@starui/data-services` already depends
+    on `@starui/config-service`, and the real `AppDataMirror` from
+    `@starui/data-services` satisfies this shape verbatim.
+  - `DataServicesHandle` — `{ appData: AppDataMirrorHandle }`. The
+    bundle returned by `bootstrapDataServices` is structurally
+    assignable.
+  - `ApplicationContext` — typed view of the four published keys
+    (`AppId`, `LoggedInUser`, `ImpersonatedUser`, `LoggedInUserProfile`).
+- `ConfigManagerOptions.dataServices?: DataServicesHandle` is the new
+  wiring slot. When present, `ConfigManager.init()` (after
+  `seedIfEmpty`) awaits `appData.ready()` for the worker's persisted
+  snapshot, derives `LoggedInUserProfile` from the seeded user / role
+  / permission tables, and writes the four ApplicationContext keys
+  sequentially so they land on a single named row. Without
+  `dataServices`, init is a silent no-op for AppData publishing —
+  every existing call site keeps working.
+- `ConfigManager.setDataServices(handle)` is the late-wiring path.
+  Today's `bootstrapDataServices(...)` takes a `ConfigManager`, so
+  the host can't supply `dataServices` to `createConfigManager(...)`
+  without constructing two managers; the setter lets the host wire
+  the bundle back AFTER bootstrap and BEFORE `init()`.
+- `ConfigManager.getApplicationContext()` is a sync read off the
+  mirror. Throws when `dataServices` isn't wired or before init has
+  published; the four keys land together so post-init the read is
+  always coherent.
+- New tests:
+  - `packages/shared/services/config-service/src/configManager.applicationContext.test.ts`
+    (9 tests): publishes all four keys with the correct values from a
+    seeded auth-tables setup; `getApplicationContext()` round-trips
+    the published shape; missing user profile yields empty
+    roles/permissions arrays; `LoggedInUser.displayName` is omitted
+    when the identity has none; `init()` awaits `appData.ready()`
+    before publishing; `init()` succeeds silently without
+    `dataServices`; `setDataServices(...)` supports late wiring;
+    `getApplicationContext()` throws before `init()` has published;
+    the four keys are published in the documented order.
+
+Files touched:
+`packages/shared/services/config-service/src/{ConfigManager,types,index}.ts`,
+`packages/shared/services/config-service/src/configManager.applicationContext.test.ts`.
+
 ## 2026-05-08 — Config-manager redesign Session 6: optimistic locking + bearer plumbing
 
 Sixth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

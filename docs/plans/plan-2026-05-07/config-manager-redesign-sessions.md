@@ -586,15 +586,15 @@ data-services redesign.
 
 **Steps:**
 
-- [ ] **7.1** Read the data-services Provider/handle API. Identify the type the
+- [x] **7.1** Read the data-services Provider/handle API. Identify the type the
       DataServicesProvider exposes (likely `DataServicesHandle` or similar) and how a
       framework code path creates a named AppData provider with sync-mirrored writes.
       If the API isn't quite right for ConfigManager's needs, write down the gap in
       [`data-services-step5.md`](./data-services-step5.md) follow-up notes and adjust
       this session's scope accordingly.
-- [ ] **7.2** Add `dataServices?: DataServicesHandle` to `ConfigManagerOptions`. Store
+- [x] **7.2** Add `dataServices?: DataServicesHandle` to `ConfigManagerOptions`. Store
       on the manager.
-- [ ] **7.3** After `seedIfEmpty()` completes, if `dataServices` is set:
+- [x] **7.3** After `seedIfEmpty()` completes, if `dataServices` is set:
   - Compute `LoggedInUserProfile = { roles: RoleRow[], permissions: PermissionRow[] }`
     from the user's profile (`getUserProfile(identity.userId)` → roleIds → roles →
     permissions).
@@ -609,7 +609,7 @@ appData.set("ImpersonatedUser", null);
 appData.set("LoggedInUserProfile", { roles, permissions });
 ```
 
-- [ ] **7.4** Add a `getApplicationContext(): ApplicationContext` accessor on
+- [x] **7.4** Add a `getApplicationContext(): ApplicationContext` accessor on
       ConfigManager that reads the four keys synchronously from the main-thread mirror
       (existing data-services machinery). Define `ApplicationContext` in `types.ts`:
 
@@ -622,12 +622,12 @@ export interface ApplicationContext {
 }
 ```
 
-- [ ] **7.5** Test: with a mocked `dataServices` handle, init a ConfigManager seeded
+- [x] **7.5** Test: with a mocked `dataServices` handle, init a ConfigManager seeded
       with one user + role + permissions; assert all four AppData keys end up with
       correct values; assert `getApplicationContext()` returns the expected shape.
-- [ ] **7.6** Test: without `dataServices`, ConfigManager init still succeeds (silent
+- [x] **7.6** Test: without `dataServices`, ConfigManager init still succeeds (silent
       no-op for AppData).
-- [ ] **7.7** Run verification.
+- [x] **7.7** Run verification.
 
 **Verification:**
 
