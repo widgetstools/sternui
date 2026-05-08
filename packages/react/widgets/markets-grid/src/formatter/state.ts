@@ -14,6 +14,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  valueFormatterFromTemplate,
+  type BorderSpec,
+  type ValueFormatterTemplate,
+} from '@starui/core';
+import {
   addTemplateReducer,
   applyAlignmentReducer,
   applyBordersReducer,
@@ -40,13 +45,11 @@ import {
   useGridPlatform,
   useModuleState,
   useUndoRedo,
-  type BorderSpec,
   type CellEditorKind,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type FilterKind,
-  type ValueFormatterTemplate,
-} from '@starui/core';
+} from '@starui/grid-react';
 import {
   numberTemplate,
   templateDecimals,
@@ -61,7 +64,6 @@ import {
   type ResolvedFormatting,
   type TargetKind,
 } from '../formattingToolbarHooks';
-import { valueFormatterFromTemplate } from '@starui/core';
 
 export type PickerDataType = 'number' | 'date' | 'datetime' | 'boolean' | 'string';
 

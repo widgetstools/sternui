@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Lock, Undo2, Redo2 } from 'lucide-react';
-import { Tooltip } from '@starui/core';
+import { Tooltip } from '@starui/grid-react';
 import {
   ColumnLabel,
   Pill,

@@ -20,7 +20,7 @@ import {
   Poppable,
   useGridPlatform,
   type PoppableHandle,
-} from '@starui/core';
+} from '@starui/grid-react';
 import {
   ClearAllDialog,
   ClearSelectedDialog,

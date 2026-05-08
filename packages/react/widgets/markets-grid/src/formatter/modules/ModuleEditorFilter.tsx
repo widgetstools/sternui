@@ -28,7 +28,7 @@ import {
   useAppDataProviders,
   type CellEditorKind,
   type FilterKind,
-} from '@starui/core';
+} from '@starui/grid-react';
 import { Hair, Menu, MenuItem, MenuSep, Module, Pill, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

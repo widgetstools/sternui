@@ -17,7 +17,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   GhostIconButton,
-} from '@starui/core';
+} from '@starui/grid-react';
 
 export interface ProfileSelectorProps {
   profiles: ProfileMeta[];

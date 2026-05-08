@@ -16,6 +16,13 @@ import type { GridReadyEvent } from 'ag-grid-community';
 import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import {
+  MemoryAdapter,
+  cockpitCSS,
+  COCKPIT_STYLE_ID,
+  type AnyModule,
+  type StorageAdapter,
+} from '@starui/core';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -27,7 +34,6 @@ import {
   DirtyDot,
   GridProvider,
   Input,
-  MemoryAdapter,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -44,11 +50,7 @@ import {
   useGridApi,
   useGridPlatform,
   useProfileManager,
-  cockpitCSS,
-  COCKPIT_STYLE_ID,
-  type AnyModule,
-  type StorageAdapter,
-} from '@starui/core';
+} from '@starui/grid-react';
 import {
   Save, Check, Settings as SettingsIcon, Brush,
   Wrench,

@@ -1,20 +1,20 @@
 import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
-  Poppable,
-  SharpBtn,
   V2_SHEET_STYLE_ID,
   v2SheetCSS,
   isOpenFin,
-  useDirtyCount,
-  useGridPlatform,
   type AnyModule,
-  type PoppableHandle,
 } from '@starui/core';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@starui/core';
+  Poppable,
+  SharpBtn,
+  useDirtyCount,
+  useGridPlatform,
+  type PoppableHandle,
+} from '@starui/grid-react';
 import {
   ChevronDown,
   GripHorizontal,

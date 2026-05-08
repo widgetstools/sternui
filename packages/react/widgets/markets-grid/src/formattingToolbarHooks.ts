@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GridApi } from 'ag-grid-community';
+import type {
+  BorderSpec,
+  CellStyleOverrides,
+  ValueFormatterTemplate,
+} from '@starui/core';
 import {
   resolveTemplates,
   useGridPlatform,
   useModuleState,
-  type BorderSpec,
-  type CellStyleOverrides,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
-  type ValueFormatterTemplate,
-} from '@starui/core';
+} from '@starui/grid-react';
 
 /**
  * Reusable hooks + api helpers for the FormattingToolbar. Extracted from

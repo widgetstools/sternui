@@ -24,15 +24,25 @@ vi.mock('ag-grid-enterprise', () => ({
   ModuleRegistry: { registerModules: () => {} },
 }));
 
-// Light shells for the @starui/core surfaces MarketsGrid uses. We
-// only need: GridProvider passthrough, the hooks that return inert
-// values, the constants, and the module registry exports.
+// Vanilla shells from @starui/core — only the constants + the
+// `MemoryAdapter` class that MarketsGrid uses for default storage.
 vi.mock('@starui/core', async () => {
   const actual: any = {};
   return {
     ...actual,
-    GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     MemoryAdapter: class { async loadGridLevelData() { return null; } async saveGridLevelData() {} },
+    cockpitCSS: '',
+    COCKPIT_STYLE_ID: 'gc-cockpit-styles',
+  };
+});
+
+// React shells from @starui/grid-react — hooks, panel primitives,
+// shadcn primitives, and module registry exports.
+vi.mock('@starui/grid-react', async () => {
+  const actual: any = {};
+  return {
+    ...actual,
+    GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
     useGridPlatform: () => ({}),
     useProfileManager: () => ({
@@ -48,8 +58,6 @@ vi.mock('@starui/core', async () => {
       discardActiveProfile: vi.fn(),
     }),
     captureGridStateInto: vi.fn(),
-    cockpitCSS: '',
-    COCKPIT_STYLE_ID: 'gc-cockpit-styles',
     DirtyDot: () => null,
     Input: React.forwardRef<HTMLInputElement, any>((p, ref) => (
       <input ref={ref} {...p} />
