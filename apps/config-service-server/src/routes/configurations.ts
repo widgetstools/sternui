@@ -16,6 +16,16 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 
+  /**
+   * Resolve the caller's effective user id for visibility filtering.
+   *
+   * Placeholder until Decision 16 (auth on endpoints) lands — the server
+   * trusts whatever the caller declares via `?userId=...`. Defaults to
+   * `"anonymous"`, which sees only `isPublic = true` rows.
+   */
+  const effectiveUserIdFromQuery = (req: Request): string =>
+    (req.query.userId as string) || 'anonymous';
+
   // =========================================================================
   // Basic CRUD
   // =========================================================================
@@ -155,6 +165,10 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
       const { page, limit, sortBy, sortOrder, ...queryParams } = req.query;
 
       const filterParams: any = { ...queryParams };
+      // The caller's `?userId=...` doubles as their effective user id
+      // for visibility filtering AND (for back-compat) a filter on the
+      // owner column. See Decision 6 / Decision 16 in the redesign.
+      filterParams.effectiveUserId = effectiveUserIdFromQuery(req);
 
       if (queryParams.componentType) {
         filterParams.componentTypes = [queryParams.componentType as string];
@@ -197,7 +211,12 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     asyncHandler(async (req: Request, res: Response) => {
       const { appId } = req.params;
       const { includeDeleted } = req.query;
-      const result = await configService.findByAppId(appId, includeDeleted === 'true');
+      const effectiveUserId = effectiveUserIdFromQuery(req);
+      const result = await configService.findByAppId(
+        appId,
+        includeDeleted === 'true',
+        effectiveUserId,
+      );
       res.json(result);
     }),
   );
@@ -207,18 +226,30 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     asyncHandler(async (req: Request, res: Response) => {
       const { userId } = req.params;
       const { includeDeleted, componentType, componentSubType } = req.query;
+      // Path `userId` is the *target* owner; visibility uses the caller's
+      // effective user from `?effectiveUserId=...` (or `?userId=...` if
+      // provided as a query — but path param wins for the filter).
+      const effectiveUserId =
+        (req.query.effectiveUserId as string) ||
+        (req.query.userId as string) ||
+        'anonymous';
 
       if (componentType || componentSubType) {
         const criteria: ConfigurationFilter = {
           userIds: [userId],
           includeDeleted: includeDeleted === 'true',
+          effectiveUserId,
         };
         if (componentType) criteria.componentTypes = [componentType as string];
         if (componentSubType) criteria.componentSubTypes = [componentSubType as string];
         const result = await configService.queryConfigurations(criteria);
         res.json(result);
       } else {
-        const result = await configService.findByUserId(userId, includeDeleted === 'true');
+        const result = await configService.findByUserId(
+          userId,
+          includeDeleted === 'true',
+          effectiveUserId,
+        );
         res.json(result);
       }
     }),
@@ -229,10 +260,12 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     asyncHandler(async (req: Request, res: Response) => {
       const { componentType } = req.params;
       const { componentSubType, includeDeleted } = req.query;
+      const effectiveUserId = effectiveUserIdFromQuery(req);
       const result = await configService.findByComponentType(
         componentType,
         componentSubType as string,
         includeDeleted === 'true',
+        effectiveUserId,
       );
       res.json(result);
     }),
