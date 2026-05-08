@@ -24,8 +24,6 @@ import type { RuntimePort } from "@starui/runtime-port";
 const Provider    = React.lazy(() => import("./platform/Provider"));
 const View1       = React.lazy(() => import("./views/View1"));
 const View2       = React.lazy(() => import("./views/View2"));
-const DockEditor      = React.lazy(() => import("./views/DockEditor"));
-const RegistryEditor  = React.lazy(() => import("./views/RegistryEditor"));
 const ConfigBrowser   = React.lazy(() => import("./views/ConfigBrowser"));
 const RenameViewTab   = React.lazy(() => import("./views/RenameViewTab"));
 // MarketsGrid blotter — hosted at /blotters/marketsgrid. Lazy so the
@@ -36,19 +34,22 @@ const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid
 // React-Query + provider-editor bundle stays out of the shell.
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
 
-// ImportConfig lives in the @starui/dock-editor package (not a local view file).
-// The .then() unwraps the named export into the default export shape that
-// React.lazy() requires.
-const ImportConfig = React.lazy(() =>
-  import("@starui/dock-editor").then((m) => ({ default: m.ImportConfig })),
-);
-
-// WorkspaceSetup — the unified Components + Dock + Inspector editor
-// (Phase 6). Same lazy-import pattern as ImportConfig. Hosts at
-// /workspace-setup; the dock launches it via ACTION_OPEN_WORKSPACE_SETUP.
-const WorkspaceSetup = React.lazy(() =>
-  import("@starui/dock-editor").then((m) => ({ default: m.WorkspaceSetup })),
-);
+// TODO(Task 4): re-wire to @starui/workspace-setup-react once extracted.
+// During the Task 3→4 window, these routes render a placeholder. The
+// underlying view files (./views/DockEditor.tsx, ./views/RegistryEditor.tsx)
+// remain on disk and are deleted in Task 5 alongside the editor packages.
+const DockEditor = React.lazy(async () => ({
+  default: () => <div style={{ padding: 16 }}>Dock Editor — pending Task 4 extraction</div>,
+}));
+const RegistryEditor = React.lazy(async () => ({
+  default: () => <div style={{ padding: 16 }}>Registry Editor — pending Task 4 extraction</div>,
+}));
+const ImportConfig = React.lazy(async () => ({
+  default: () => <div style={{ padding: 16 }}>Import Config — pending Task 4 extraction</div>,
+}));
+const WorkspaceSetup = React.lazy(async () => ({
+  default: () => <div style={{ padding: 16 }}>Workspace Setup — pending Task 4 extraction</div>,
+}));
 
 // ─── Loading fallback ────────────────────────────────────────────────
 // Shown while a lazy-loaded component is being fetched.
