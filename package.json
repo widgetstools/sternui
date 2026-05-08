@@ -18,6 +18,9 @@
     "packages/react/sdk/*",
     "packages/react/widgets/*",
     "packages/angular/*",
+    "packages/angular/hosts/*",
+    "packages/angular/tools/*",
+    "packages/angular/widgets/*",
     "e2e-openfin"
   ],
   "scripts": {
