@@ -28,9 +28,9 @@ import {
   deriveTemplateConfigId,
   ACTION_LAUNCH_COMPONENT,
 } from "@starui/openfin-platform/config";
+import { Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
 import type { EditorSelection } from "./types";
 import { IconPicker } from "../IconPicker";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 
 /**

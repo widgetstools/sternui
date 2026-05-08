@@ -8,6 +8,7 @@
     "apps/*",
     "packages/shared/*",
     "packages/react/*",
+    "packages/react/tools/*",
     "packages/angular/*",
     "e2e-openfin"
   ],

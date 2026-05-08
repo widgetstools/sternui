@@ -148,12 +148,30 @@ export function buildPackageAliases(opts: BuildAliasesOptions): AliasEntry[] {
         pkgPaths.push(topPath);
         continue;
       }
-      // Bucket: descend one level.
+      // Bucket: descend one level. Some buckets (e.g. `packages/react/tools/`)
+      // group sub-buckets a second level deep — descend once more when
+      // the immediate child has no package.json but does contain
+      // grandchildren that do (e.g. `packages/react/tools/workspace-setup-react/`).
       try {
         for (const child of readdirSync(topPath)) {
           const childPath = join(topPath, child);
+          let isDir = false;
+          try { isDir = statSync(childPath).isDirectory(); } catch { /* skip */ }
+          if (!isDir) continue;
           if (existsSync(join(childPath, 'package.json'))) {
             pkgPaths.push(childPath);
+            continue;
+          }
+          // Sub-bucket: descend one more level.
+          try {
+            for (const grandchild of readdirSync(childPath)) {
+              const grandchildPath = join(childPath, grandchild);
+              if (existsSync(join(grandchildPath, 'package.json'))) {
+                pkgPaths.push(grandchildPath);
+              }
+            }
+          } catch {
+            /* not a directory we can read; skip */
           }
         }
       } catch {

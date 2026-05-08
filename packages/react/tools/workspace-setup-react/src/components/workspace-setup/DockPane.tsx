@@ -30,7 +30,7 @@ import type {
   RegistryEntry,
 } from "@starui/openfin-platform/config";
 import { ACTION_LAUNCH_COMPONENT } from "@starui/openfin-platform/config";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 import type { EditorSelection } from "./types";
 

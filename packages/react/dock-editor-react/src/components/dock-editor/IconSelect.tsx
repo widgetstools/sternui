@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { DynamicIcon as Icon } from "@starui/icons-svg/react";
-import { ICON_OPTIONS, DEFAULT_ICON, findIconByName } from "./icons";
+import { ICON_OPTIONS, DEFAULT_ICON, findIconByName } from "@starui/workspace-setup-react";
 
 interface IconSelectProps {
   value: string;

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { DynamicIcon as Icon } from "@starui/icons-svg/react";
 import { ACTION_LAUNCH_COMPONENT, type RegistryEntry } from "@starui/openfin-platform/config";
 import { IconSelect } from "./IconSelect";
-import { DEFAULT_ICON } from "./icons";
+import { DEFAULT_ICON } from "@starui/workspace-setup-react";
 
 export interface ItemFormData {
   label: string;

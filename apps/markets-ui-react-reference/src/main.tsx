@@ -34,22 +34,22 @@ const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid
 // React-Query + provider-editor bundle stays out of the shell.
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
 
-// TODO(Task 4): re-wire to @starui/workspace-setup-react once extracted.
-// During the Task 3→4 window, these routes render a placeholder. The
-// underlying view files (./views/DockEditor.tsx, ./views/RegistryEditor.tsx)
-// remain on disk and are deleted in Task 5 alongside the editor packages.
+// WorkspaceSetup + ImportConfig now live in @starui/workspace-setup-react
+// (extracted in Task 4 / PR-3). The /dock-editor and /registry-editor
+// routes remain placeholders until Task 5 deletes their packages and
+// drops the routes entirely.
 const DockEditor = React.lazy(async () => ({
-  default: () => <div style={{ padding: 16 }}>Dock Editor — pending Task 4 extraction</div>,
+  default: () => <div style={{ padding: 16 }}>Dock Editor — pending Task 5 removal</div>,
 }));
 const RegistryEditor = React.lazy(async () => ({
-  default: () => <div style={{ padding: 16 }}>Registry Editor — pending Task 4 extraction</div>,
+  default: () => <div style={{ padding: 16 }}>Registry Editor — pending Task 5 removal</div>,
 }));
-const ImportConfig = React.lazy(async () => ({
-  default: () => <div style={{ padding: 16 }}>Import Config — pending Task 4 extraction</div>,
-}));
-const WorkspaceSetup = React.lazy(async () => ({
-  default: () => <div style={{ padding: 16 }}>Workspace Setup — pending Task 4 extraction</div>,
-}));
+const ImportConfig = React.lazy(() =>
+  import("@starui/workspace-setup-react").then((m) => ({ default: m.ImportConfig })),
+);
+const WorkspaceSetup = React.lazy(() =>
+  import("@starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
+);
 
 // ─── Loading fallback ────────────────────────────────────────────────
 // Shown while a lazy-loaded component is being fetched.
