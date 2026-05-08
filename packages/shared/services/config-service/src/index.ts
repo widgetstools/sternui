@@ -67,9 +67,12 @@ export type { VisibilityContext } from './visibility';
 // ─── Types ───────────────────────────────────────────────────────────
 export type {
   AppConfigRow,
+  AppDataMirrorHandle,
   AppIdentity,
   AppRegistryRow,
+  ApplicationContext,
   ConfigManagerOptions,
+  DataServicesHandle,
   PermissionRow,
   PendingSyncRow,
   RoleRow,
