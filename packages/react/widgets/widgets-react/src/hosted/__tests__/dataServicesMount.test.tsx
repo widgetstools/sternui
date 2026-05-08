@@ -1,0 +1,78 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Parity row 9 — when `dataServicesClient` is supplied, the wrapper
+ * mounts a `<DataServicesProvider>` around its children, and the
+ * MarketsGridContainer subtree can resolve `useDataServices()` without
+ * throwing. With no client, the provider is omitted (consumers must
+ * supply data-services context themselves).
+ */
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, waitFor } from '@testing-library/react';
+import type { ConfigManager } from '@starui/config-service';
+import type { SharedWorkerDataServicesClient } from '@starui/data-services/runtime/client';
+import { useDataServices } from '@starui/data-services-react/runtime';
+
+let captureClient: unknown = null;
+let throwsOnRead = false;
+
+vi.mock('../../v2/markets-grid-container/index.js', () => ({
+  MarketsGridContainer: () => {
+    try {
+      const ctx = useDataServices();
+      captureClient = ctx.client;
+      return <div data-testid="mgc-stub" data-has-dp="true" />;
+    } catch {
+      throwsOnRead = true;
+      return <div data-testid="mgc-stub" data-has-dp="false" />;
+    }
+  },
+}));
+
+const { HostedMarketsGrid } = await import('../HostedMarketsGrid.js');
+
+const fakeConfigManager = {
+  deleteConfig: vi.fn().mockResolvedValue(undefined),
+} as unknown as ConfigManager;
+
+const fakeClient = { __fake: true } as unknown as SharedWorkerDataServicesClient;
+
+afterEach(() => {
+  cleanup();
+  captureClient = null;
+  throwsOnRead = false;
+});
+
+describe('HostedMarketsGrid — DataServices mount (row 9)', () => {
+  it('mounts a DataServicesProvider when dataServicesClient is supplied', async () => {
+    const { getByTestId } = render(
+      <HostedMarketsGrid
+        gridId="dp-1"
+        defaultInstanceId="dp-1"
+        componentName="DP"
+        configManager={fakeConfigManager}
+        dataServicesClient={fakeClient}
+      />,
+    );
+    const stub = await waitFor(() => {
+      const el = getByTestId('mgc-stub');
+      if (el.getAttribute('data-has-dp') !== 'true') throw new Error('not yet');
+      return el;
+    });
+    expect(stub.getAttribute('data-has-dp')).toBe('true');
+    expect(captureClient).toBe(fakeClient);
+  });
+
+  it('omits the provider when dataServicesClient is absent', async () => {
+    const { getByTestId } = render(
+      <HostedMarketsGrid
+        gridId="dp-2"
+        defaultInstanceId="dp-2"
+        componentName="DP"
+        configManager={fakeConfigManager}
+      />,
+    );
+    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    expect(stub.getAttribute('data-has-dp')).toBe('false');
+    expect(throwsOnRead).toBe(true);
+  });
+});

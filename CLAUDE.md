@@ -29,14 +29,14 @@ each split into role-based sub-buckets (per
   - `core/` — grid platform (GridPlatform, ProfileManager, expression engine, persistence, etc.)
   - `foundation/` — pure leaves: `shared-types`, `design-system`, `icons-svg`, `tokens-primeng`
   - `runtime/` — `runtime-port` (interface) + `runtime-browser` / `runtime-openfin` impls
-  - `services/` — vanilla services: `config-service`, `data-plane`, `component-host`
+  - `services/` — vanilla services: `config-service`, `data-services`, `component-host`
   - `platform/` — runtime shells: `openfin-platform`
 - `packages/react/` — React-only packages
   - `ui/` — shadcn primitives (no twin → no `-react` suffix)
   - `sdk/widget-sdk/` — widget contract (no twin → no suffix)
   - `widgets/` — `markets-grid`, `grid-react` (extracted from core), `widgets-react`
   - `hosts/host-wrapper-react/`
-  - `providers/data-plane-react/` — Provider + hook shells around `shared/services`
+  - `providers/data-services-react/` — Provider + hook shells around `shared/services`
   - `tools/` — dev/operator UIs: `config-browser-react`, `workspace-setup-react`
 - `packages/angular/` — Angular-only packages (parity catching up)
   - `hosts/host-wrapper-angular/`

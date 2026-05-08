@@ -96,7 +96,7 @@ export default defineConfig({
     },
   },
   worker: {
-    // The data-plane SharedWorker uses dynamic `import('@stomp/stompjs')`
+    // The data-services SharedWorker uses dynamic `import('@stomp/stompjs')`
     // to lazy-load the STOMP client. Dynamic imports require
     // code-splitting, which Vite's default IIFE worker format doesn't
     // support — Rollup throws "Invalid value 'iife' for option

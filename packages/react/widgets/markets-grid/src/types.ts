@@ -33,12 +33,12 @@ export interface MarketsGridProps<TData = unknown> {
    * A single column name keys rows by that field; an array of column
    * names produces a composite key (joined with `-`). Used by the
    * platform's `getRowId` and must match the worker-side cache key
-   * produced by the data-plane Hub.
+   * produced by the data-services SharedWorkerDataServicesHub.
    */
   rowIdField?: string | readonly string[];
   /**
    * Optional adapter over the host application's named-data registry
-   * (e.g. data-plane's AppDataStore). When supplied, column-customization's
+   * (e.g. data-services' AppDataStore). When supplied, column-customization's
    * cell-editor `valuesSource` bindings (`{{providerName.key}}`) resolve
    * at edit time. The grid container typically constructs this from
    * `useAppDataStore()` and forwards it through.

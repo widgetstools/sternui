@@ -1,12 +1,12 @@
 /**
  * BlottersMarketsGrid — route view at `/blotters/marketsgrid`. Delegates
- * all hosting (identity, ConfigManager, DataPlane, theme, full-bleed
- * layout, legacy cleanup) to `<HostedMarketsGrid>`.
+ * all hosting (identity, ConfigManager, data-services, theme,
+ * full-bleed layout, legacy cleanup) to `<HostedMarketsGrid>`.
  */
 
 import type { ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataPlaneClient } from '../dataPlaneClient';
+import { dataServicesClient } from '../dataServices.mainThread';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
 const DEFAULT_COL_DEF = {
@@ -24,7 +24,7 @@ function BlottersMarketsGrid(): ReactNode {
       documentTitle="MarketsGrid · Blotter"
       withStorage
       theme="auto"
-      dataPlaneClient={dataPlaneClient}
+      dataServicesClient={dataServicesClient}
       gridId="markets-ui-reference-blotter"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={(providerId) => openProviderEditorPopout({ providerId })}

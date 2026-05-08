@@ -652,7 +652,7 @@ function Host<TData>({
     >
       {/* Header extras — slot for consumer-supplied chrome that needs
            to live INSIDE the grid's frame but ABOVE the filters/format
-           toolbars. The v2 data-plane container uses this for the
+           toolbars. The data-services container uses this for the
            data-provider picker (live + historical, mode toggle, refresh,
            edit). Hidden by default in v2; revealed only via Alt+Shift+P
            — a developer/support affordance, not surfaced to end users. */}
