@@ -501,3 +501,74 @@ describe('SharedWorkerDataServicesHub — AppData', () => {
     expect(portB.messages).toHaveLength(2);
   });
 });
+
+// ─── REST transport — hub round-trip ─────────────────────────────────
+//
+// The hub's per-request plumbing is transport-agnostic; the same
+// invariants the mock-based tests above exercise should hold for any
+// registered factory. This block plugs the real `startRest` factory
+// (with an injected fetchImpl) into the registry and asserts the
+// attach → snapshot → ready flow works through the hub.
+//
+// Future transports (websocket, kafka, ...) get a parallel describe
+// block with the same shape.
+
+describe('SharedWorkerDataServicesHub — REST round-trip', () => {
+  it('attach → fetched rows → ready over the hub protocol', async () => {
+    // Inject the REST factory directly so we control the fetchImpl.
+    // The default registration in registry.ts uses global fetch; tests
+    // need a stubbed response.
+    const { startRest } = await import('../providers/transports/rest.js');
+    registerProvider('rest' as ProviderConfig['providerType'], (cfg, emit) =>
+      startRest(cfg as never, emit, {
+        fetchImpl: async () =>
+          new Response(JSON.stringify([{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }]), { status: 200 }),
+      }),
+    );
+
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+
+    const restCfg = {
+      providerType: 'rest',
+      baseUrl: 'http://api.test',
+      endpoint: '/positions',
+      method: 'GET',
+      keyColumn: 'id',
+    } as unknown as ProviderConfig;
+
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p-rest', mode: 'data', cfg: restCfg });
+
+    // Same flush dance as rest.test.ts — Response.text() needs a real
+    // macrotask hop in jsdom + undici.
+    for (let i = 0; i < 3; i++) await new Promise<void>((r) => setTimeout(r, 0));
+
+    // Initial attach replay (cache empty), then loading, then the
+    // post-fetch replace with rows, then ready.
+    const deltas = port.messages.filter((m) => m.kind === 'delta');
+    const statuses = port.messages.filter((m) => m.kind === 'status') as Array<Event & { status: string }>;
+
+    expect(statuses.map((s) => s.status)).toEqual(['loading', 'ready']);
+
+    // The last delta carries the fetched rows (the immediate attach
+    // replay sent an empty cache; the post-fetch broadcast carried
+    // the snapshot). Hub dedupes by keyColumn so we expect exactly 2.
+    const finalDelta = deltas[deltas.length - 1] as Event & { rows: unknown[]; replace?: boolean };
+    expect(finalDelta.replace).toBe(true);
+    expect(finalDelta.rows).toHaveLength(2);
+    expect(finalDelta.rows.map((r) => (r as { id: string }).id)).toEqual(['r1', 'r2']);
+
+    // Detach is a clean fire-and-forget; no further events.
+    port.messages.length = 0;
+    hub.handleRequest(port, { kind: 'detach', subId: 's1' });
+    expect(port.messages).toHaveLength(0);
+
+    // Restore the mock factory the rest of the suite expects so other
+    // tests in this file aren't disturbed by the REST registration.
+    registerProvider('mock' as ProviderConfig['providerType'], (cfg, emit) => {
+      const ctrl: TestController = { emit, stopCount: 0, restartLog: [] };
+      controllers.set((cfg as unknown as { __testKey?: string }).__testKey ?? 'default', ctrl);
+      return { stop() { ctrl.stopCount += 1; }, restart(extra) { ctrl.restartLog.push(extra); } };
+    });
+  });
+});
