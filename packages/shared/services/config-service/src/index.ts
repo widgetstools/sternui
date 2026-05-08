@@ -57,6 +57,7 @@ export { ConfigDatabase } from './db';
 // ─── Types ───────────────────────────────────────────────────────────
 export type {
   AppConfigRow,
+  AppIdentity,
   AppRegistryRow,
   ConfigManagerOptions,
   PermissionRow,
