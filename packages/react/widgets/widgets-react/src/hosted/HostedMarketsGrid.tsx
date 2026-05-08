@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { SharedWorkerDataServicesClient } from '@starui/data-services/runtime/client';
+import type { DataServices } from '@starui/data-services/runtime';
 import { DataServicesProvider } from '@starui/data-services-react/runtime';
 import type { MarketsGridHandle } from '@starui/markets-grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../v2/markets-grid-container/index.js';
@@ -71,10 +71,10 @@ export interface HostedMarketsGridProps<
   /** Theme mode for the AG-Grid blotter preset. Defaults to `'auto'`
    *  (follows the host's `[data-theme]` attribute). */
   theme?: AgGridThemeMode;
-  /** Optional data-services client. When provided, the wrapper mounts a
-   *  `<DataServicesProvider>` for it. Omit when an ancestor already
-   *  provides data-services context. */
-  dataServicesClient?: SharedWorkerDataServicesClient;
+  /** Optional data-services bundle from `bootstrapDataServices(...)`.
+   *  When provided, the wrapper mounts a `<DataServicesProvider>` for
+   *  it. Omit when an ancestor already provides data-services context. */
+  dataServices?: DataServices;
 }
 
 function fullBleedReset(): ReactNode {
@@ -126,7 +126,7 @@ export function HostedMarketsGrid<
     withStorage = false,
     configManager,
     theme = 'auto',
-    dataServicesClient,
+    dataServices,
     caption,
     ...containerProps
   } = props;
@@ -248,13 +248,9 @@ export function HostedMarketsGrid<
     handleReady,
   ]);
 
-  const dataServicesWrapped = dataServicesClient && identity.configManager
+  const dataServicesWrapped = dataServices && identity.configManager
     ? (
-      <DataServicesProvider
-        client={dataServicesClient}
-        configManager={identity.configManager}
-        userId={identity.userId}
-      >
+      <DataServicesProvider services={dataServices} userId={identity.userId}>
         {containerNode}
       </DataServicesProvider>
     )
