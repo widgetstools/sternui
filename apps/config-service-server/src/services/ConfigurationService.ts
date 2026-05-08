@@ -80,11 +80,13 @@ export class ConfigurationService {
   async updateConfiguration(
     configId: string,
     updates: Partial<AppConfigRow>,
+    expectedUpdatedTime?: string,
   ): Promise<AppConfigRow> {
-    const result = await this.storage.update(configId, {
-      ...updates,
-      updatedTime: new Date().toISOString(),
-    });
+    const result = await this.storage.update(
+      configId,
+      { ...updates, updatedTime: new Date().toISOString() },
+      expectedUpdatedTime,
+    );
     logger.info('Configuration updated', {
       configId,
       componentType: result.componentType,

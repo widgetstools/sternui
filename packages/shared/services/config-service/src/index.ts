@@ -26,6 +26,7 @@ export {
   RestConfigClient,
   ConfigNotFoundError,
   ConfigClientHttpError,
+  OptimisticLockError,
 } from './client';
 export type {
   ConfigClient,
@@ -36,6 +37,7 @@ export type {
   CompositeKey,
   CreateConfigInput,
   UpsertConfigInput,
+  UpdateConfigOptions,
   BulkUpdateEntry,
   BulkDeleteResult,
   HealthStatus,
@@ -50,6 +52,7 @@ export type {
 // (appRegistry / userProfile / roles / permissions) or to dock/snapshot
 // convenience methods. New feature code should prefer `ConfigClient`.
 export { createConfigManager, ConfigManager } from './ConfigManager';
+export type { SaveConfigOptions } from './ConfigManager';
 
 // ─── Database (for advanced use cases only) ──────────────────────────
 export { ConfigDatabase } from './db';

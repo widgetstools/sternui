@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { IConfigurationStorage } from './IConfigurationStorage.js';
+import { OptimisticLockMismatchError } from './errors.js';
 import type {
   AppConfigRow,
   ConfigurationFilter,
@@ -193,9 +194,23 @@ export class SqliteStorage implements IConfigurationStorage {
     return this.deserialize(result[0].columns, result[0].values[0]);
   }
 
-  async update(configId: string, updates: Partial<AppConfigRow>): Promise<AppConfigRow> {
+  async update(
+    configId: string,
+    updates: Partial<AppConfigRow>,
+    expectedUpdatedTime?: string,
+  ): Promise<AppConfigRow> {
     const existing = await this.findById(configId);
     if (!existing) throw new Error(`Configuration ${configId} not found`);
+
+    // Optimistic locking (Decision 12.5 / Session 6): when the caller
+    // captured a specific `updatedTime` at edit-start, refuse the write
+    // if the row has moved on. The route catches this and surfaces 412.
+    if (
+      expectedUpdatedTime !== undefined &&
+      existing.updatedTime !== expectedUpdatedTime
+    ) {
+      throw new OptimisticLockMismatchError(existing);
+    }
 
     const updated: AppConfigRow = {
       ...existing,
