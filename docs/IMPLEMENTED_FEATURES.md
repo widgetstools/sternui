@@ -21,6 +21,226 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Migrated 2026-05-08 — worker-owned AppData persistence + BlottersMarketsGrid eager mode
+
+Two related changes that close the last code-changing items in the
+data-services redesign:
+
+### Worker is sole IndexedDB writer for AppData
+
+Per [design doc §3](./plans/plan-2026-05-07/data-services-redesign.md):
+> Persistence: worker is the single writer to IndexedDB. Windows
+> never persist locally — avoids drift.
+
+Previously (Step 2's "fan-out bus" shape) each window's main thread
+persisted AppData via its own ConfigManager and posted the row to
+the SharedWorker for fan-out — two writes raced per mutation. Now:
+
+- `SharedWorkerDataServicesHub` takes a `configManager` opt and
+  exposes `hydrateAppData()`. The hub is sole writer.
+- `installSharedWorkerHub({ configManager })` is async — awaits
+  `hydrateAppData()` BEFORE registering the connect handler so first
+  port attaches see a fully-loaded snapshot.
+- `AppDataMirror` drops its `configManager` opt and `AppDataConfigStore`.
+  Writes are pure RPC: `set/upsert/remove` send a request and resolve
+  when the hub's ack arrives (post-persist + post-broadcast).
+- The reference app's `dataServices.sharedWorker.ts` constructs its
+  own ConfigManager via `createConfigManager({})` + `await init()`,
+  then `await installSharedWorkerHub({ configManager })`.
+
+The main-thread `bootstrapDataServices({ configManager })` arg stays —
+it's still threaded into `DataProviderConfigStore` for editor flows
+(which the worker never serves). Both ConfigManagers connect to the
+same Dexie database; only AppData writes are funnelled through the
+worker's connection.
+
+### BlottersMarketsGrid flips to `mode='eager'`
+
+The blotter's cfg uses `{{positions.asOfDate}}`. Lazy mode could
+race-condition first attach with an unresolved template. Eager mode
+suspends first paint until `services.ready` resolves — the route's
+outer `<Suspense>` already renders the loading fallback. With
+worker-owned persistence the hub hydrates from IndexedDB at boot,
+so the suspend gap is just one ~50ms attach round-trip.
+
+`HostedMarketsGrid` gains a `dataServicesMode?: 'eager' | 'lazy'`
+prop (default `'lazy'` for back-compat). The reference app's
+`BlottersMarketsGrid` opts in.
+
+### Verification
+
+`npx turbo typecheck build test` green: 67 tasks, all data-services
+tests rewired to construct the hub WITH a ConfigManager and hydrate
+before mirrors attach. The widgets-angular and React-adapter test
+helpers updated in lockstep.
+
+## Refactored 2026-05-08 — widgets-angular adopts data-services-angular adapter
+
+`DataProviderService` in `@starui/widgets-angular` migrates from the
+legacy `new DataProviderConfigService()` wrapper to
+`inject(DataServicesService)` from `@starui/data-services-angular`.
+After the redesign, persistence is uniformly ConfigManager-backed
+via `bootstrapDataServices({ configManager })`; the v1 service's
+REST/local-backend duo is redundant.
+
+Method-by-method mapping:
+
+| Legacy | New |
+|---|---|
+| `getAll(userId)` | `configStore.list(userId, { includeAppData: true })` |
+| `create(p, userId)` | `configStore.save(p, userId)` (generates providerId) |
+| `update(id, patch, u)` | fetch+merge then save |
+| `delete(id)` | `configStore.remove(id)` |
+| `configure({apiUrl})` | dropped (no callers) |
+
+Behavioural change: consumers must register `provideDataServices(...)`
+at the app root. Without it, DataServicesService resolution fails
+with a clear DI error ("No provider for InjectionToken DATA_SERVICES")
+which is strictly better than silently using a misconfigured REST
+service.
+
+## Added 2026-05-08 — `@starui/data-services-angular` adapter
+
+Closes design doc §8 (React/Angular parity). New package mirrors
+[@starui/data-services-react](../packages/react/providers/data-services-react/)
+over the same vanilla TS core, with one Angular helper per React hook:
+
+| React hook | Angular helper |
+|---|---|
+| `<DataServicesProvider services>` | `provideDataServices({ services })` in `app.config.ts` |
+| `useDataServices()` | `inject(DataServicesService)` |
+| `useAppDataStore()` | `injectAppDataStore()` — Signal-backed `version` + `loaded` |
+| `useAppData(name)` | `injectAppData(name)` — Signal-backed `values` + `get`/`set`/`setMany` |
+| `useDataProviderConfig(id)` | `injectDataProviderConfig$(id)` — Observable |
+| `useDataProvidersList(opts)` | `injectDataProvidersList$(opts)` — Observable + `refresh()` |
+| `useResolvedCfg(cfg)` | `injectResolvedCfg(cfg$)` — `computed()` Signal |
+| `useProviderStream(id, cfg)` | `injectProviderStream(id, cfg)` — `rows$` / `status$` / `error$` + `refresh()` |
+| `useProviderStats(id)` | `injectProviderStats$(id)` — Observable<ProviderStats> |
+
+Both adapters drive the same `AppDataMirror` and `SharedWorkerDataServicesClient`
+under the hood — only the reactive primitive differs (Signals + Observables for
+Angular, `useState`/`useEffect` for React). Every `inject*` helper threads
+`DestroyRef` so dynamic component injectors clean up subscriptions on teardown.
+
+Lazy-only in v1. Eager mode parity (Angular's `provideAppInitializer()`
+awaiting `services.ready` to defer app bootstrap until the AppDataMirror's
+first snapshot lands — the Angular analogue of React's `<Suspense>`-mediated
+`mode="eager"`) is a planned follow-up; no in-repo Angular consumer needs
+it today.
+
+Out of scope (separate PRs):
+- Migrating widgets-angular's `DataProviderService` and `FieldInferenceService`
+  onto the new adapter.
+- Building a real Angular reference app on top of the adapter (apps/demo-angular
+  is currently a fresh skeleton with no `@starui/*` imports).
+
+The adapter ships standalone — ready when the first Angular consumer arrives.
+
+## Tightened 2026-05-08 — REST hub coverage + provider-type lockdown
+
+Step 4 of `docs/plans/plan-2026-05-07/data-services-redesign.md`,
+closing out the original 5-step sequence. The actual generalization
+work (REST runs through the same registry / hub / probe pipeline as
+STOMP) had already shipped; Step 4 is the audit + lockdown pass.
+
+| Layer | Before | After |
+|---|---|---|
+| `SharedWorkerDataServicesHub.test.ts` | mock-only coverage; REST ran in production but had no test through the hub | New "REST round-trip" describe block injects `startRest` with a stubbed `fetchImpl` and asserts loading → fetched-rows-replace → ready over the hub protocol |
+| Angular editor's `providerTypes` picker | offered `websocket` + `socketio` (no factory implementations — saving such configs failed at first attach with `No provider factory registered`) | offers stomp + rest + mock only, matching React's `SUPPORTED_TYPES` |
+| `provider-form.component.ts` | dead `<section *ngIf="…websocket">` + `…socketio` template branches and matching config getters | branches removed, getters dropped, type imports trimmed |
+| `runtime/providers/index.ts` | barrel exported probe functions but didn't tell future maintainers how to add a transport | five-step "Adding a new transport" recipe documents the pattern at the discovery point; references `mock.ts` as the simplest reference and the new REST hub test as the template for verification |
+
+Net delta: +98 LOC test, -52 LOC dead Angular code, +27 LOC docs.
+The five-step redesign sequence (rename → AppData mirror → bootstrap
++ Provider mode → REST generalization → unified probe surface) is
+now complete. Remaining work outside the redesign sequence: the
+Angular adapter (`provideDataServices()` + `injectDataServices()`)
+and worker-owned IndexedDB persistence — both deferred items, both
+unblocked by the Step 1-5 chain.
+
+## Removed 2026-05-08 — legacy `StompProbe` class; unified probe surface
+
+Step 5 of `docs/plans/plan-2026-05-07/data-services-redesign.md`.
+Finishes the design doc's `transport: 'main'` consolidation. Angular
+migrates off the legacy `StompProbe` class (and the probe sibling
+abstract bases `ProviderBase` / `StreamProviderBase`) to the same
+`probeStomp` / `probeRest` / `inferFields` shared functions the
+React editor's `useProviderProbe` already consumes.
+
+| Layer | Before | After |
+|---|---|---|
+| Public root | `import { StompProbe } from '@starui/data-services'` | `import { probeStomp, probeRest, inferFields } from '@starui/data-services'` |
+| React import | `from '@starui/data-services/runtime/sharedWorker'` (misleading — the path implied SharedWorker required) | `from '@starui/data-services'` (root) |
+| Angular `FieldInferenceService.inferFields()` | `new StompProbe(...).fetchSnapshot()` + `StompProbe.inferFields()` (static) + `convertFieldInfoToNode` bridge | `probeStomp(cfg, opts)` + `inferFields(rows, opts)` (returns `FieldNode[]` directly) |
+| Angular `StompForm.testConnection()` | `new StompProbe(cfg).fetchSnapshot(1)` (throws on failure) | `probeStomp(cfg, { maxRows: 1, timeoutMs: 10_000 })` (returns `{ ok, error }`) |
+| Folder | `packages/shared/services/data-services/src/probes/` (5 files) | DELETED |
+
+Behavioural diff (matches React's existing behaviour): `probeStomp`
+resolves `[bracket]` tokens before connecting; the legacy
+`StompProbe` class did not. Verified the Angular call sites build
+cfgs from form inputs without `[bracket]` syntax — no consumer
+behaviour change.
+
+Net deletion: ~620 LOC across 5 deleted files + 2 trimmed Angular
+files; one new ~25-LOC barrel (`runtime/providers/index.ts`)
+aggregates the probe surface.
+
+The Angular adapter (`provideDataServices()` / `injectDataServices()`)
+is now the natural next move — it can drop in cleanly without
+dragging legacy probe types along. Tracked separately.
+
+## Added 2026-05-08 — `bootstrapDataServices()` + `<DataServicesProvider mode>`
+
+Step 3 of `docs/plans/plan-2026-05-07/data-services-redesign.md`.
+Single entry point for wiring data-services into a consuming app —
+caller passes a pre-constructed `SharedWorker` (Vite worker plugin
+constraint), bootstrap returns a `DataServices` bundle:
+
+```ts
+const dataServices = bootstrapDataServices({
+  appName: 'TestApp',
+  worker,                // new SharedWorker(new URL('./worker.ts', ...))
+  configManager,         // ConfigManager class instance
+  userId: LOGGED_IN_USER_ID,
+});
+// → { client, appData, configManager, ready, dispose }
+```
+
+Bootstrap is idempotent by `appName` — same key returns the same
+object reference, so two parts of the app booting independently
+share one client + one mirror.
+
+The React Provider's prop shape switches from the 3-prop legacy
+(`client`/`configManager`/`userId`) to a single `services` prop +
+optional `mode: 'eager' | 'lazy'`:
+
+```tsx
+<DataServicesProvider services={dataServices} mode="lazy">
+  <App />
+</DataServicesProvider>
+
+<Suspense fallback={<Spinner />}>
+  <DataServicesProvider services={dataServices} mode="eager">
+    <DashboardKeyedOnAppData />
+  </DataServicesProvider>
+</Suspense>
+```
+
+Eager mode uses React 19's `use(services.ready)` to suspend first
+paint until the AppDataMirror's first snapshot lands — for
+dashboards keyed off `{{positions.asOfDate}}`-style templates that
+must have real values on first render.
+
+Reference-app consumer wiring drops from ~46 LOC to ~10 LOC of
+meaningful code — `dataServices.mainThread.ts` becomes a SharedWorker
+construction + a single `bootstrapDataServices()` call. Downstream
+views (`BlottersMarketsGrid`, `DataProviders`) read `dataServices`
+directly from this module.
+
+`HostedMarketsGrid`'s `dataServicesClient` prop is renamed to
+`dataServices` (DataServices bundle); the inner Provider mount uses
+the new `services` prop.
+
 ## Renamed 2026-05-08 — `@starui/data-plane` → `@starui/data-services`
 
 Step 1 of `docs/plans/plan-2026-05-07/data-services-redesign.md`. Pure

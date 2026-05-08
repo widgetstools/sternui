@@ -6,7 +6,7 @@
 
 import type { ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataServicesClient } from '../dataServices.mainThread';
+import { dataServices } from '../dataServices.mainThread';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
 const DEFAULT_COL_DEF = {
@@ -24,7 +24,13 @@ function BlottersMarketsGrid(): ReactNode {
       documentTitle="MarketsGrid · Blotter"
       withStorage
       theme="auto"
-      dataServicesClient={dataServicesClient}
+      dataServices={dataServices}
+      // Eager hydration: the grid resolves `{{positions.asOfDate}}`
+      // before first attach, so the cfg never reaches the worker
+      // with an unresolved template. The route's outer <Suspense>
+      // (in main.tsx) renders the loading fallback for the ~50ms
+      // mirror snapshot round-trip.
+      dataServicesMode="eager"
       gridId="markets-ui-reference-blotter"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={(providerId) => openProviderEditorPopout({ providerId })}

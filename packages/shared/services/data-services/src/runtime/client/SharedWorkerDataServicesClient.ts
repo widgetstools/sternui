@@ -20,6 +20,10 @@
  */
 
 import type {
+  AppDataAckEvent,
+  AppDataDeltaEvent,
+  AppDataRequest,
+  AppDataSnapshotEvent,
   AttachRequest,
   DetachRequest,
   Event,
@@ -28,8 +32,9 @@ import type {
   Request,
   StopRequest,
 } from '../protocol.js';
-import { isEvent } from '../protocol.js';
+import { isEvent, isAppDataEvent } from '../protocol.js';
 import type { ProviderConfig } from '@starui/shared-types';
+import { AppDataMirror } from '../mirror/AppDataMirror.js';
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -107,6 +112,13 @@ export class SharedWorkerDataServicesClient {
   private readonly subs = new Map<SubId, Sub>();
   private readonly generateSubId: () => string;
   private closed = false;
+
+  // ─── AppData (Step 2) ───────────────────────────────────────────
+  // The client owns a per-subId map of attached mirrors. Snapshot
+  // and delta events are routed by `subId`; ack events route by
+  // `reqId` to whichever mirror has that pending request — the
+  // mirror tracks its own pending acks, so we just iterate.
+  private readonly appDataMirrors = new Map<string, AppDataMirror>();
 
   constructor(port: MessagePort, opts: SharedWorkerDataServicesClientOpts = {}) {
     this.port = port;
@@ -359,10 +371,52 @@ export class SharedWorkerDataServicesClient {
     this.send({ kind: 'stop', providerId });
   }
 
+  /**
+   * Attach a fresh `AppDataMirror` to the hub. The mirror is a
+   * pure RPC client — it sends operations to the hub and receives
+   * snapshot/delta events back. The hub owns IndexedDB persistence;
+   * the mirror never touches Dexie.
+   *
+   *   const mirror = client.attachAppData({ userId });
+   *   await mirror.attach();
+   *   await mirror.ready();
+   *   mirror.get('positions', 'asOfDate'); // sync read
+   *   await mirror.set('positions', 'asOfDate', '2026-05-08');
+   *
+   * The caller owns the mirror's lifetime — `client.detachAppData(mirror)`
+   * or `client.close()` releases the worker-side listener.
+   */
+  attachAppData(opts: {
+    userId: string;
+    /** Override the auto-generated subId (used in tests for determinism). */
+    subId?: string;
+  }): AppDataMirror {
+    const subId = opts.subId ?? this.generateSubId();
+    const mirror = new AppDataMirror({
+      subId,
+      userId: opts.userId,
+      send: (req: AppDataRequest) => this.sendAppData(req),
+    });
+    this.appDataMirrors.set(subId, mirror);
+    return mirror;
+  }
+
+  /** Detach + remove a previously-attached AppData mirror. */
+  detachAppData(mirror: AppDataMirror): void {
+    for (const [subId, m] of this.appDataMirrors) {
+      if (m === mirror) {
+        this.appDataMirrors.delete(subId);
+        if (!this.closed) this.sendAppData({ kind: 'appdata-detach', subId });
+        return;
+      }
+    }
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
     this.subs.clear();
+    this.appDataMirrors.clear();
     this.port.removeEventListener('message', this.handleMessage);
     try { this.port.close(); } catch { /* MessagePort.close is fine to call twice */ }
   }
@@ -385,7 +439,21 @@ export class SharedWorkerDataServicesClient {
     }
   }
 
+  private sendAppData(req: AppDataRequest): void {
+    if (this.closed) return;
+    try {
+      this.port.postMessage(req);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[SharedWorkerDataServicesClient] AppData postMessage failed', err);
+    }
+  }
+
   private handleMessage = (ev: MessageEvent): void => {
+    if (isAppDataEvent(ev.data)) {
+      this.routeAppDataEvent(ev.data);
+      return;
+    }
     if (!isEvent(ev.data)) return;
     const event: Event = ev.data;
     const sub = this.subs.get(event.subId);
@@ -408,6 +476,19 @@ export class SharedWorkerDataServicesClient {
         return;
     }
   };
+
+  private routeAppDataEvent(event: AppDataSnapshotEvent | AppDataDeltaEvent | AppDataAckEvent): void {
+    if (event.kind === 'appdata-ack') {
+      // Ack events don't carry a subId — every mirror is asked to
+      // resolve its pending request matching reqId. Mirrors with no
+      // such reqId are no-ops, so this is safe.
+      for (const mirror of this.appDataMirrors.values()) mirror.handleEvent(event);
+      return;
+    }
+    const mirror = this.appDataMirrors.get(event.subId);
+    if (!mirror) return; // mirror detached before this event landed; drop.
+    mirror.handleEvent(event);
+  }
 }
 
 /**

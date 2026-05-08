@@ -9,28 +9,27 @@
  *   `@starui/data-services/runtime/client`        — the SharedWorkerDataServicesClient
  *   `@starui/data-services/runtime/sharedWorker`  — installSharedWorkerHub + SharedWorkerDataServicesHub
  *
- * `StompProbe` and `DataProviderConfigService` survive at the root for
- * `@starui/widgets-angular`, which still uses the one-shot probe path
- * for "Test connection" and field inference. They migrate to the
- * unified runtime surface when Angular gets its `transport: 'main'`
- * cutover.
+ * `probeStomp` / `probeRest` / `inferFields` are pure main-thread
+ * helpers (the design doc's `transport: 'main'` mode) consumed by
+ * editors for "Test connection" and "Infer fields" flows.
  */
 
 // Runtime surface — main-thread types + helpers.
 export * from './runtime/index.js';
 
-// Probes — one-shot snapshot fetchers consumed by editors.
+// One-shot probes — pure main-thread functions for editor flows
+// (Test connection, Infer fields). Same vocabulary the streaming
+// runtime uses; calling them in-process is the design doc's
+// `transport: 'main'` mode.
 export {
-  StompProbe,
-  StreamProviderBase,
-  ProviderBase,
-  type StompConnectionConfig,
-  type StompConnectionResult,
-  type ProviderEmitter,
-  type Unsubscribe as ProviderUnsubscribe,
-  type StreamProviderListener,
-  type StreamStatistics,
-} from './probes/index.js';
+  probeStomp,
+  probeRest,
+  inferFields,
+  type StompProbeResult,
+  type StompProbeOpts,
+  type RestProbeResult,
+  type InferOptions,
+} from './runtime/providers/index.js';
 
 export {
   DataProviderConfigService,
