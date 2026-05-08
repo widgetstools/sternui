@@ -21,6 +21,84 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Migrated 2026-05-08 — worker-owned AppData persistence + BlottersMarketsGrid eager mode
+
+Two related changes that close the last code-changing items in the
+data-services redesign:
+
+### Worker is sole IndexedDB writer for AppData
+
+Per [design doc §3](./plans/plan-2026-05-07/data-services-redesign.md):
+> Persistence: worker is the single writer to IndexedDB. Windows
+> never persist locally — avoids drift.
+
+Previously (Step 2's "fan-out bus" shape) each window's main thread
+persisted AppData via its own ConfigManager and posted the row to
+the SharedWorker for fan-out — two writes raced per mutation. Now:
+
+- `SharedWorkerDataServicesHub` takes a `configManager` opt and
+  exposes `hydrateAppData()`. The hub is sole writer.
+- `installSharedWorkerHub({ configManager })` is async — awaits
+  `hydrateAppData()` BEFORE registering the connect handler so first
+  port attaches see a fully-loaded snapshot.
+- `AppDataMirror` drops its `configManager` opt and `AppDataConfigStore`.
+  Writes are pure RPC: `set/upsert/remove` send a request and resolve
+  when the hub's ack arrives (post-persist + post-broadcast).
+- The reference app's `dataServices.sharedWorker.ts` constructs its
+  own ConfigManager via `createConfigManager({})` + `await init()`,
+  then `await installSharedWorkerHub({ configManager })`.
+
+The main-thread `bootstrapDataServices({ configManager })` arg stays —
+it's still threaded into `DataProviderConfigStore` for editor flows
+(which the worker never serves). Both ConfigManagers connect to the
+same Dexie database; only AppData writes are funnelled through the
+worker's connection.
+
+### BlottersMarketsGrid flips to `mode='eager'`
+
+The blotter's cfg uses `{{positions.asOfDate}}`. Lazy mode could
+race-condition first attach with an unresolved template. Eager mode
+suspends first paint until `services.ready` resolves — the route's
+outer `<Suspense>` already renders the loading fallback. With
+worker-owned persistence the hub hydrates from IndexedDB at boot,
+so the suspend gap is just one ~50ms attach round-trip.
+
+`HostedMarketsGrid` gains a `dataServicesMode?: 'eager' | 'lazy'`
+prop (default `'lazy'` for back-compat). The reference app's
+`BlottersMarketsGrid` opts in.
+
+### Verification
+
+`npx turbo typecheck build test` green: 67 tasks, all data-services
+tests rewired to construct the hub WITH a ConfigManager and hydrate
+before mirrors attach. The widgets-angular and React-adapter test
+helpers updated in lockstep.
+
+## Refactored 2026-05-08 — widgets-angular adopts data-services-angular adapter
+
+`DataProviderService` in `@starui/widgets-angular` migrates from the
+legacy `new DataProviderConfigService()` wrapper to
+`inject(DataServicesService)` from `@starui/data-services-angular`.
+After the redesign, persistence is uniformly ConfigManager-backed
+via `bootstrapDataServices({ configManager })`; the v1 service's
+REST/local-backend duo is redundant.
+
+Method-by-method mapping:
+
+| Legacy | New |
+|---|---|
+| `getAll(userId)` | `configStore.list(userId, { includeAppData: true })` |
+| `create(p, userId)` | `configStore.save(p, userId)` (generates providerId) |
+| `update(id, patch, u)` | fetch+merge then save |
+| `delete(id)` | `configStore.remove(id)` |
+| `configure({apiUrl})` | dropped (no callers) |
+
+Behavioural change: consumers must register `provideDataServices(...)`
+at the app root. Without it, DataServicesService resolution fails
+with a clear DI error ("No provider for InjectionToken DATA_SERVICES")
+which is strictly better than silently using a misconfigured REST
+service.
+
 ## Added 2026-05-08 — `@starui/data-services-angular` adapter
 
 Closes design doc §8 (React/Angular parity). New package mirrors
