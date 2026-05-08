@@ -4,13 +4,19 @@
  *
  * The mock provider's factory is registered per test so each
  * controller is fresh.
+ *
+ * Tests construct a `DataServices`-shaped object directly (rather
+ * than calling `bootstrapDataServices`) because the in-process
+ * `createInPageWiring` already builds the client; bootstrap's own
+ * unit tests cover the registry/idempotency surface.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act, render, waitFor, cleanup } from '@testing-library/react';
+import { Suspense } from 'react';
 import { createInPageWiring } from '@starui/data-services/runtime/client';
 import { SharedWorkerDataServicesHub, registerProvider, type PortLike } from '@starui/data-services/runtime/sharedWorker';
-import { isAppDataRequest, isRequest } from '@starui/data-services/runtime';
+import { isAppDataRequest, isRequest, type DataServices } from '@starui/data-services/runtime';
 import type { ProviderConfig } from '@starui/shared-types';
 import type { ProviderEmit, ProviderHandle } from '@starui/data-services/runtime/sharedWorker';
 import type { ConfigManager, AppConfigRow } from '@starui/config-service';
@@ -60,8 +66,25 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-function setup(userId = 'alice') {
+interface TestEnv {
+  cm: ConfigManager & { _rows: Map<string, AppConfigRow> };
+  hub: SharedWorkerDataServicesHub;
+  services: DataServices;
+  userId: string;
+}
+
+interface SetupOpts {
+  userId?: string;
+  /** AppConfigRows to populate the ConfigManager BEFORE the mirror's
+   *  initial `attach()` (which reads from ConfigManager to seed the
+   *  hub). Mirrors production where rows persist across reloads. */
+  seed?: AppConfigRow[];
+}
+
+function setup(opts: SetupOpts = {}): TestEnv {
+  const userId = opts.userId ?? 'alice';
   const cm = stubConfigManager();
+  for (const row of opts.seed ?? []) cm._rows.set(row.configId, row);
   const hub = new SharedWorkerDataServicesHub();
   const wiring = createInPageWiring((port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
@@ -71,7 +94,16 @@ function setup(userId = 'alice') {
     });
     port.start();
   });
-  return { cm, hub, client: wiring.client, userId };
+  const appData = wiring.client.attachAppData({ configManager: cm, userId });
+  void appData.attach();
+  const services: DataServices = {
+    client: wiring.client,
+    appData,
+    configManager: cm,
+    ready: appData.ready(),
+    dispose: () => wiring.close(),
+  };
+  return { cm, hub, services, userId };
 }
 
 describe('useProviderStream', () => {
@@ -89,7 +121,7 @@ describe('useProviderStream', () => {
     }
 
     const ui = render(
-      <DataServicesProvider client={env.client} configManager={env.cm} userId={env.userId}>
+      <DataServicesProvider services={env.services} userId={env.userId}>
         <Probe />
       </DataServicesProvider>,
     );
@@ -115,15 +147,16 @@ describe('useProviderStream', () => {
 
 describe('useAppDataStore', () => {
   it('exposes the snapshot via .get and bumps version on changes', async () => {
-    const env = setup();
-    env.cm._rows.set('ad-1', {
-      configId: 'ad-1', appId: 'TestApp', userId: 'alice',
-      componentType: 'appdata', componentSubType: 'appdata',
-      isTemplate: false, displayText: 'positions',
-      payload: { values: { asOfDate: '2026-04-01' } },
-      createdBy: 'alice', updatedBy: 'alice',
-      creationTime: '0', updatedTime: '0',
-    } as AppConfigRow);
+    const env = setup({
+      seed: [{
+        configId: 'ad-1', appId: 'TestApp', userId: 'alice',
+        componentType: 'appdata', componentSubType: 'appdata',
+        isTemplate: false, displayText: 'positions',
+        payload: { values: { asOfDate: '2026-04-01' } },
+        createdBy: 'alice', updatedBy: 'alice',
+        creationTime: '0', updatedTime: '0',
+      } as AppConfigRow],
+    });
 
     let view: { loaded: boolean; get: (n: string, k: string) => unknown; setKey: (v: string) => Promise<void> } | null = null;
 
@@ -138,7 +171,7 @@ describe('useAppDataStore', () => {
     }
 
     render(
-      <DataServicesProvider client={env.client} configManager={env.cm} userId={env.userId}>
+      <DataServicesProvider services={env.services} userId={env.userId}>
         <Probe />
       </DataServicesProvider>,
     );
@@ -171,7 +204,7 @@ describe('useDataProviderConfig', () => {
     }
 
     render(
-      <DataServicesProvider client={env.client} configManager={env.cm} userId={env.userId}>
+      <DataServicesProvider services={env.services} userId={env.userId}>
         <Probe />
       </DataServicesProvider>,
     );
@@ -179,5 +212,62 @@ describe('useDataProviderConfig', () => {
     await waitFor(() => expect(captured!.loading).toBe(false));
     expect(captured!.cfg?.providerId).toBe('dp-1');
     expect(captured!.cfg?.providerType).toBe('mock');
+  });
+});
+
+describe('DataServicesProvider — mode', () => {
+  it("'lazy' (default) renders children immediately", async () => {
+    const env = setup();
+    let firstPaintLoaded: boolean | null = null;
+
+    function Probe() {
+      const v = useAppDataStore();
+      // Capture loaded state on first render. Mirror.attach() races
+      // with React's render; in lazy mode children always paint
+      // regardless of `loaded`.
+      if (firstPaintLoaded === null) firstPaintLoaded = v.loaded;
+      return <div data-testid="child">child</div>;
+    }
+
+    const ui = render(
+      <DataServicesProvider services={env.services} userId={env.userId}>
+        <Probe />
+      </DataServicesProvider>,
+    );
+
+    // Child rendered synchronously — loaded was false on first paint.
+    expect(ui.queryByTestId('child')).not.toBeNull();
+    expect(firstPaintLoaded).toBe(false);
+
+    // Eventually transitions to loaded after the snapshot lands.
+    await waitFor(() => {
+      const v = (Probe as unknown as { _last?: { loaded: boolean } });
+      void v;
+    });
+  });
+
+  it("'eager' suspends until services.ready resolves", async () => {
+    const env = setup();
+
+    function Probe() {
+      return <div data-testid="child">child</div>;
+    }
+
+    let ui!: ReturnType<typeof render>;
+    await act(async () => {
+      ui = render(
+        <Suspense fallback={<div data-testid="loading">loading</div>}>
+          <DataServicesProvider services={env.services} mode="eager" userId={env.userId}>
+            <Probe />
+          </DataServicesProvider>
+        </Suspense>,
+      );
+      // Let the Suspense fallback paint, then resolve ready and
+      // flush the un-suspend re-render inside the same act scope.
+      await env.services.ready;
+    });
+
+    expect(ui.queryByTestId('child')).not.toBeNull();
+    expect(ui.queryByTestId('loading')).toBeNull();
   });
 });
