@@ -71,8 +71,10 @@ interface Wiring {
   close(): void;
 }
 
-function wire(): Wiring {
-  const hub = new SharedWorkerDataServicesHub();
+function wire(opts: { configManager?: ConfigManager } = {}): Wiring {
+  const hub = new SharedWorkerDataServicesHub({
+    ...(opts.configManager ? { configManager: opts.configManager } : {}),
+  });
   const wiring = createInPageWiring((port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
@@ -300,11 +302,14 @@ describe('SharedWorkerDataServicesClient', () => {
 
 describe('SharedWorkerDataServicesClient — attachAppData', () => {
   let w: Wiring;
-  beforeEach(() => { w = wire(); });
+  let cm: ReturnType<typeof stubConfigManager>;
+  beforeEach(() => {
+    cm = stubConfigManager();
+    w = wire({ configManager: cm });
+  });
   afterEach(() => w.close());
 
-  it('seeds, applies snapshot, and surfaces sync get', async () => {
-    const cm = stubConfigManager();
+  it('hub-hydrated state surfaces through mirror sync get on attach', async () => {
     cm._rows.set('ad-1', {
       configId: 'ad-1', appId: 'TestApp', userId: 'alice',
       componentType: 'appdata', componentSubType: 'appdata',
@@ -313,8 +318,9 @@ describe('SharedWorkerDataServicesClient — attachAppData', () => {
       createdBy: 'alice', updatedBy: 'alice',
       creationTime: '0', updatedTime: '0',
     } as AppConfigRow);
+    await w.hub.hydrateAppData('alice');
 
-    const mirror = w.client.attachAppData({ configManager: cm, userId: 'alice' });
+    const mirror = w.client.attachAppData({ userId: 'alice' });
     await mirror.attach();
     await mirror.ready();
 
@@ -322,9 +328,9 @@ describe('SharedWorkerDataServicesClient — attachAppData', () => {
   });
 
   it('two mirrors converge on a write', async () => {
-    const cm = stubConfigManager();
-    const a = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'a' });
-    const b = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'b' });
+    await w.hub.hydrateAppData('alice');
+    const a = w.client.attachAppData({ userId: 'alice', subId: 'a' });
+    const b = w.client.attachAppData({ userId: 'alice', subId: 'b' });
     await a.attach();
     await b.attach();
     await Promise.all([a.ready(), b.ready()]);
@@ -334,9 +340,9 @@ describe('SharedWorkerDataServicesClient — attachAppData', () => {
   });
 
   it('detachAppData stops further deltas reaching the mirror', async () => {
-    const cm = stubConfigManager();
-    const a = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'a' });
-    const b = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'b' });
+    await w.hub.hydrateAppData('alice');
+    const a = w.client.attachAppData({ userId: 'alice', subId: 'a' });
+    const b = w.client.attachAppData({ userId: 'alice', subId: 'b' });
     await a.attach();
     await b.attach();
     await Promise.all([a.ready(), b.ready()]);
@@ -350,8 +356,8 @@ describe('SharedWorkerDataServicesClient — attachAppData', () => {
   });
 
   it('close() clears AppData mirror routing', async () => {
-    const cm = stubConfigManager();
-    const a = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'a' });
+    await w.hub.hydrateAppData('alice');
+    const a = w.client.attachAppData({ userId: 'alice', subId: 'a' });
     await a.attach();
     await a.ready();
     w.client.close();

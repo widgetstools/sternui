@@ -81,10 +81,13 @@ export function bootstrapDataServices(opts: BootstrapDataServicesOpts): DataServ
   if (existing) return existing;
 
   const client = new SharedWorkerDataServicesClient(opts.worker.port);
-  const appData = client.attachAppData({
-    configManager: opts.configManager,
-    userId: opts.userId,
-  });
+  // The mirror is now a pure RPC client — it sends operations to the
+  // hub and receives snapshot/delta events back. The hub owns
+  // IndexedDB persistence (it constructs its own ConfigManager inside
+  // the SharedWorker context). `opts.configManager` stays on the
+  // bundle for editor flows (`DataProviderConfigStore`) but doesn't
+  // flow into the mirror anymore.
+  const appData = client.attachAppData({ userId: opts.userId });
 
   // Fire the seed read + worker round-trip immediately. Errors here
   // surface through the mirror's existing `console.warn` path —

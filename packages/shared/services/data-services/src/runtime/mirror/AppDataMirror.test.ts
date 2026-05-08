@@ -33,16 +33,25 @@ function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow>
 interface Rig {
   hub: SharedWorkerDataServicesHub;
   cm: ConfigManager & { _rows: Map<string, AppConfigRow> };
+  /**
+   * Re-hydrate the hub from the ConfigManager (used by tests that
+   * pre-populate `cm._rows` and need the hub to reflect those rows
+   * before any mirror attaches). Idempotent because the hub guards
+   * with isHydrated() — call after initial buildRig() returned and
+   * after every cm._rows mutation if you want the hub to re-load.
+   */
+  hydrate(): Promise<void>;
   mountMirror(opts?: { userId?: string; subId?: string }): AppDataMirror;
 }
 
 function buildRig(): Rig {
-  const hub = new SharedWorkerDataServicesHub();
   const cm = stubConfigManager();
+  const hub = new SharedWorkerDataServicesHub({ configManager: cm });
   const ports = new Map<AppDataMirror, PortLike>();
 
   return {
     hub, cm,
+    hydrate: () => hub.hydrateAppData('alice'),
     mountMirror(opts = {}) {
       const userId = opts.userId ?? 'alice';
       const subId = opts.subId ?? `sub-${Math.random().toString(36).slice(2)}`;
@@ -62,7 +71,6 @@ function buildRig(): Rig {
       mirror = new AppDataMirror({
         subId,
         userId,
-        configManager: cm,
         send: (req: AppDataRequest) => {
           // Mirror sends requests to the hub via the same port object
           // — hub uses port identity for fan-out.
@@ -91,7 +99,7 @@ describe('AppDataMirror — single-mirror', () => {
     expect(m.get('positions', 'asOfDate')).toBeUndefined();
   });
 
-  it('seeds the hub from existing ConfigManager rows', async () => {
+  it('hub hydrates from existing ConfigManager rows; mirror sees them on attach', async () => {
     rig.cm._rows.set('ad-1', {
       configId: 'ad-1', appId: 'TestApp', userId: 'alice',
       componentType: 'appdata', componentSubType: 'appdata',
@@ -101,13 +109,18 @@ describe('AppDataMirror — single-mirror', () => {
       creationTime: '0', updatedTime: '0',
     } as AppConfigRow);
 
+    // Hydrate the hub before any mirror attaches — this is what the
+    // worker entry script does at boot in production.
+    await rig.hydrate();
+
     const m = rig.mountMirror();
     await m.attach();
     await m.ready();
     expect(m.get('positions', 'asOfDate')).toBe('2026-04-01');
   });
 
-  it('set persists + broadcasts; sync get reflects the new value', async () => {
+  it('set goes through the hub which persists to ConfigManager; sync get reflects the new value', async () => {
+    await rig.hydrate();
     const m = rig.mountMirror();
     await m.attach();
     await m.ready();
@@ -115,7 +128,7 @@ describe('AppDataMirror — single-mirror', () => {
     await m.set('positions', 'asOfDate', '2026-05-08');
 
     expect(m.get('positions', 'asOfDate')).toBe('2026-05-08');
-    // ConfigManager has the row durably saved.
+    // Hub persisted to ConfigManager — exactly one row visible.
     expect([...rig.cm._rows.values()][0]).toMatchObject({
       componentType: 'appdata',
       payload: { values: { asOfDate: '2026-05-08' } },
@@ -136,7 +149,7 @@ describe('AppDataMirror — single-mirror', () => {
     expect(listener).toHaveBeenCalled();
   });
 
-  it('remove deletes from mirror and ConfigManager', async () => {
+  it('remove deletes from mirror and ConfigManager (via the hub)', async () => {
     rig.cm._rows.set('ad-1', {
       configId: 'ad-1', appId: 'TestApp', userId: 'alice',
       componentType: 'appdata', componentSubType: 'appdata',
@@ -146,6 +159,7 @@ describe('AppDataMirror — single-mirror', () => {
       creationTime: '0', updatedTime: '0',
     } as AppConfigRow);
 
+    await rig.hydrate();
     const m = rig.mountMirror();
     await m.attach();
     await m.ready();

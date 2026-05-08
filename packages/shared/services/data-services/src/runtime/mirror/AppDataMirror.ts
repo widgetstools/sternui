@@ -8,16 +8,14 @@
  *   - Expose `get(name, key)` SYNCHRONOUSLY so template resolution
  *     (`{{positions.asOfDate}}`) doesn't have to await on the render
  *     path.
- *   - Provide async `set` / `upsertConfig` / `remove` that:
- *       1. persist via the configured `AppDataConfigStore`
- *          (ConfigManager-backed; same path as the legacy main-thread
- *          store), AND
- *       2. post the persisted row to the hub for fan-out.
- *     Consumers `await` the resulting promise; resolution means the
- *     row has been persisted AND the hub has acked the broadcast.
+ *   - Provide async `set` / `upsertConfig` / `remove` that post the
+ *     row to the hub. The hub persists to IndexedDB AND broadcasts
+ *     the delta back; the mirror's pending-ack handler resolves once
+ *     both steps complete. The mirror itself never touches Dexie —
+ *     worker is the sole IndexedDB writer.
  *
- * This is the "fan-out bus" persistence shape — see
- * docs/plans/plan-2026-05-07/data-services-step2.md §Persistence.
+ * This is the "worker-owned" persistence shape from
+ * `data-services-redesign.md` §3, replacing the Step 2 fan-out bus.
  */
 
 import type {
@@ -27,15 +25,12 @@ import type {
   AppDataRow,
   AppDataSnapshotEvent,
 } from '../protocol.js';
-import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
+import type { AppDataConfig } from '../providers/appdata/store.js';
 import { PUBLIC_USER_ID } from '../config/store.js';
-import type { ConfigManager } from '@starui/config-service';
 
 export interface AppDataMirrorOpts {
   /** Identifier for this mirror's subscription on the hub. */
   subId: string;
-  /** ConfigManager for persistence. */
-  configManager: ConfigManager;
   /** Logged-in user id — used as `userId` on freshly-created rows. */
   userId: string;
   /**
@@ -59,9 +54,7 @@ function makeReqId(): string {
 export class AppDataMirror {
   private readonly subId: string;
   private readonly send: (req: AppDataRequest) => void;
-  private readonly configManager: ConfigManager;
   private readonly userId: string;
-  private readonly store: AppDataConfigStore;
 
   private readonly byConfigId = new Map<string, AppDataRow>();
   private readonly byName = new Map<string, AppDataRow>();
@@ -75,32 +68,23 @@ export class AppDataMirror {
   constructor(opts: AppDataMirrorOpts) {
     this.subId = opts.subId;
     this.send = opts.send;
-    this.configManager = opts.configManager;
     this.userId = opts.userId;
-    this.store = new AppDataConfigStore(opts.configManager);
     this.readyPromise = new Promise<void>((resolve) => { this.readyResolve = resolve; });
   }
 
   // ─── Wire-up (called by the client) ─────────────────────────────
 
   /**
-   * Send the initial attach with a seed read from ConfigManager.
-   * Idempotent — calling twice does nothing on subsequent calls.
-   * The client owns event routing; it calls this once per mirror.
+   * Send the initial attach. The hub already holds authoritative
+   * AppData state (hydrated from its own IndexedDB connection at
+   * worker boot), so the mirror sends no seed — the hub responds
+   * with the snapshot it already has.
+   *
+   * Idempotent. The client owns event routing; it calls this once
+   * per mirror.
    */
   async attach(): Promise<void> {
-    let seed: readonly AppDataRow[] = [];
-    try {
-      const rows = await this.store.list(this.userId);
-      seed = rows.map(toRow);
-    } catch (err) {
-      // Persistence read failed — attach with empty seed; the hub
-      // will use whatever it already has (possibly empty), and the
-      // mirror will start empty until another window seeds.
-      // eslint-disable-next-line no-console
-      console.warn('[AppDataMirror] seed read failed; attaching empty', err);
-    }
-    this.send({ kind: 'appdata-attach', subId: this.subId, seed });
+    this.send({ kind: 'appdata-attach', subId: this.subId });
   }
 
   /**
@@ -155,9 +139,9 @@ export class AppDataMirror {
 
   /**
    * Set a single key on a named provider. Creates the row if it
-   * doesn't exist. Persists then broadcasts; resolution means the
-   * row is durable AND every attached mirror (including this one)
-   * has applied the delta.
+   * doesn't exist. The hub persists then broadcasts; resolution
+   * means the row is durable AND every attached mirror (including
+   * this one) has applied the delta.
    */
   async set(name: string, key: string, value: unknown): Promise<void> {
     const existing = this.byName.get(name);
@@ -173,17 +157,34 @@ export class AppDataMirror {
     await this.upsertConfig(config);
   }
 
-  /** Replace an entire AppData row. */
+  /**
+   * Replace an entire AppData row. Sends the row to the hub which
+   * persists to IndexedDB then broadcasts. Resolves once the ack
+   * arrives.
+   *
+   * The mirror returns its INPUT config (with whatever configId the
+   * caller provided, or empty for new rows) — the hub assigns a
+   * configId on first save and broadcasts the canonical row. Callers
+   * who need the canonical configId can read it from the next delta
+   * via `subscribe()` or look up by name in `list()` once the ack
+   * resolves.
+   */
   async upsertConfig(config: AppDataConfig): Promise<AppDataConfig> {
-    const saved = await this.store.save(config, this.userId);
-    const row = toRow(saved);
+    const row = toRow({
+      configId: config.configId,
+      name: config.name,
+      ...(config.description !== undefined ? { description: config.description } : {}),
+      isPublic: config.isPublic,
+      values: config.values,
+      userId: config.isPublic ? PUBLIC_USER_ID : (config.userId || this.userId),
+    });
     await this.broadcastUpsert(row);
-    return saved;
+    return config;
   }
 
-  /** Delete an AppData row by configId. */
+  /** Delete an AppData row by configId. Hub removes from IndexedDB
+   *  and broadcasts the delete delta. */
   async remove(configId: string): Promise<void> {
-    await this.store.remove(configId);
     const reqId = makeReqId();
     const ack = this.awaitAck(reqId);
     this.send({ kind: 'appdata-remove', reqId, configId });

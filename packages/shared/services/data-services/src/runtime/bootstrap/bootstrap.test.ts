@@ -34,10 +34,17 @@ function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow>
   } as unknown as ConfigManager & { _rows: Map<string, AppConfigRow> };
 }
 
-/** Build a MessageChannel-backed worker stub wired to an in-process hub. */
-function makeFakeWorker(): FakeWorker {
+/**
+ * Build a MessageChannel-backed worker stub wired to an in-process
+ * hub. When a ConfigManager is supplied, the hub uses it for
+ * persistence + hydration — mirrors how a real SharedWorker entry
+ * script constructs its own ConfigManager + awaits hydrateAppData()
+ * before installing the connect handler.
+ */
+async function makeFakeWorker(configManager?: ConfigManager): Promise<FakeWorker> {
   const channel = new MessageChannel();
-  const hub = new SharedWorkerDataServicesHub();
+  const hub = new SharedWorkerDataServicesHub(configManager ? { configManager } : {});
+  if (configManager) await hub.hydrateAppData('alice');
   const portLike: PortLike = { postMessage: (m) => channel.port2.postMessage(m) };
   channel.port2.addEventListener('message', (ev: MessageEvent) => {
     if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
@@ -55,8 +62,8 @@ afterEach(() => {
 });
 
 describe('bootstrapDataServices — idempotency', () => {
-  it('first call returns a fresh DataServices instance', () => {
-    const worker = makeFakeWorker();
+  it('first call returns a fresh DataServices instance', async () => {
+    const worker = await makeFakeWorker();
     const services = bootstrapDataServices({
       appName: 'appA',
       worker: worker as unknown as SharedWorker,
@@ -71,8 +78,8 @@ describe('bootstrapDataServices — idempotency', () => {
     worker.closeHub();
   });
 
-  it('second call with the same appName returns the same object reference', () => {
-    const worker = makeFakeWorker();
+  it('second call with the same appName returns the same object reference', async () => {
+    const worker = await makeFakeWorker();
     const cm = stubConfigManager();
     const opts = {
       appName: 'appA',
@@ -89,9 +96,9 @@ describe('bootstrapDataServices — idempotency', () => {
     worker.closeHub();
   });
 
-  it('different appName returns a distinct object', () => {
-    const workerA = makeFakeWorker();
-    const workerB = makeFakeWorker();
+  it('different appName returns a distinct object', async () => {
+    const workerA = await makeFakeWorker();
+    const workerB = await makeFakeWorker();
     const a = bootstrapDataServices({
       appName: 'appA',
       worker: workerA as unknown as SharedWorker,
@@ -114,8 +121,8 @@ describe('bootstrapDataServices — idempotency', () => {
 });
 
 describe('bootstrapDataServices — dispose', () => {
-  it('removes the appName from the registry so re-bootstrap returns a NEW object', () => {
-    const workerA = makeFakeWorker();
+  it('removes the appName from the registry so re-bootstrap returns a NEW object', async () => {
+    const workerA = await makeFakeWorker();
     const first = bootstrapDataServices({
       appName: 'appA',
       worker: workerA as unknown as SharedWorker,
@@ -125,7 +132,7 @@ describe('bootstrapDataServices — dispose', () => {
     first.dispose();
     workerA.closeHub();
 
-    const workerA2 = makeFakeWorker();
+    const workerA2 = await makeFakeWorker();
     const second = bootstrapDataServices({
       appName: 'appA',
       worker: workerA2 as unknown as SharedWorker,
@@ -137,8 +144,8 @@ describe('bootstrapDataServices — dispose', () => {
     workerA2.closeHub();
   });
 
-  it('is idempotent — calling twice does not throw', () => {
-    const worker = makeFakeWorker();
+  it('is idempotent — calling twice does not throw', async () => {
+    const worker = await makeFakeWorker();
     const services = bootstrapDataServices({
       appName: 'appA',
       worker: worker as unknown as SharedWorker,
@@ -153,7 +160,7 @@ describe('bootstrapDataServices — dispose', () => {
 
 describe('bootstrapDataServices — ready', () => {
   it('ready resolves once the hub delivers the initial AppData snapshot', async () => {
-    const worker = makeFakeWorker();
+    const worker = await makeFakeWorker();
     const services = bootstrapDataServices({
       appName: 'appA',
       worker: worker as unknown as SharedWorker,
@@ -167,7 +174,6 @@ describe('bootstrapDataServices — ready', () => {
   });
 
   it('appData reflects existing ConfigManager rows after ready resolves', async () => {
-    const worker = makeFakeWorker();
     const cm = stubConfigManager();
     cm._rows.set('ad-1', {
       configId: 'ad-1', appId: 'TestApp', userId: 'alice',
@@ -177,6 +183,11 @@ describe('bootstrapDataServices — ready', () => {
       createdBy: 'alice', updatedBy: 'alice',
       creationTime: '0', updatedTime: '0',
     } as AppConfigRow);
+
+    // The fake worker uses `cm` for hub hydration — mirrors how the
+    // production worker entry constructs its own ConfigManager and
+    // hydrates the hub before installing the connect handler.
+    const worker = await makeFakeWorker(cm);
 
     const services = bootstrapDataServices({
       appName: 'appA',
@@ -192,8 +203,8 @@ describe('bootstrapDataServices — ready', () => {
 });
 
 describe('bootstrapDataServices — configManager exposure', () => {
-  it('exposes the configManager passed in', () => {
-    const worker = makeFakeWorker();
+  it('exposes the configManager passed in', async () => {
+    const worker = await makeFakeWorker();
     const cm = stubConfigManager();
     const services = bootstrapDataServices({
       appName: 'appA',

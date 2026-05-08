@@ -108,10 +108,10 @@ export interface StopRequest {
  * (from any window). subId scopes the broadcast back to a single
  * mirror so multiple mirrors per port (e.g. tests) stay separable.
  *
- * `seed` is supplied by the FIRST window to attach within an origin
- * (the rest pass `undefined`); the hub uses it to lazily hydrate its
- * authoritative map with the existing AppDataConfigStore contents.
- * Subsequent windows just receive the snapshot.
+ * `seed` is the legacy back-compat field — the hub now hydrates
+ * itself from IndexedDB at boot and ignores any seed sent by mirrors.
+ * Kept on the wire as optional so older mirrors still type-check
+ * against the protocol.
  */
 export interface AppDataAttachRequest {
   kind: 'appdata-attach';
