@@ -69,3 +69,17 @@ export {
   type BootstrapDataServicesOpts,
   type DataServices,
 } from './bootstrap/index.js';
+
+// Client — SharedWorker MessagePort wrapper. Most consumers reach the
+// client via `bootstrapDataServices(...).client`; the type is
+// re-exported here so adapters (data-services-react, data-services-angular)
+// can reference it without the deep subpath import.
+export {
+  SharedWorkerDataServicesClient,
+  type DataListener,
+  type StatsListener,
+  type AttachOpts,
+  type SubId,
+  type SubscribeHandle,
+  type SharedWorkerDataServicesClientOpts,
+} from './client/SharedWorkerDataServicesClient.js';
