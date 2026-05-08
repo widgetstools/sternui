@@ -19,7 +19,23 @@
 // Runtime surface — main-thread types + helpers.
 export * from './runtime/index.js';
 
-// Probes — one-shot snapshot fetchers consumed by editors.
+// One-shot probes — pure main-thread functions for editor flows
+// (Test connection, Infer fields). Same vocabulary the streaming
+// runtime uses; calling them in-process is the design doc's
+// `transport: 'main'` mode.
+export {
+  probeStomp,
+  probeRest,
+  inferFields,
+  type StompProbeResult,
+  type StompProbeOpts,
+  type RestProbeResult,
+  type InferOptions,
+} from './runtime/providers/index.js';
+
+// Legacy probe surface — superseded by the functional probe API
+// above. Kept for back-compat until the Angular field-inference
+// migration lands in the same PR; deleted before Step 5 merges.
 export {
   StompProbe,
   StreamProviderBase,
