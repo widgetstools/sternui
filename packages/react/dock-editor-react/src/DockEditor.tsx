@@ -2,10 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { DynamicIcon as Icon } from "@starui/icons-svg/react";
-import { useDockEditor } from "./hooks/useDockEditor";
+// useDockEditor + icon helpers now live in @starui/workspace-setup-react.
+// This package is a thin shim until Task 5 deletes it.
+import {
+  useDockEditor,
+  iconIdToSvgUrl,
+  parseIconUrl,
+} from "@starui/workspace-setup-react";
 import { TreeItem, type TreeItemData } from "./components/dock-editor/TreeItem";
 import { ItemFormDialog, type ItemFormData } from "./components/dock-editor/ItemFormDialog";
-import { iconIdToSvgUrl, parseIconUrl } from "./components/dock-editor/iconUtils";
 import { injectEditorStyles } from "./components/dock-editor/editorStyles";
 // Type-only import via /config subpath — avoids the workspace-platform
 // module-eval side effects that the main barrel triggers.

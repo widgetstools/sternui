@@ -16,10 +16,8 @@ import { useState, useMemo } from "react";
 import { DynamicIcon as Icon } from "@starui/icons-svg/react";
 import { MARKET_ICON_SVGS, svgToDataUrl } from "@starui/icons-svg/all-icons";
 import { ICON_META } from "@starui/icons-svg";
+import { Input, ScrollArea, cn } from "@starui/ui";
 import { ICON_OPTIONS } from "./dock-editor/icons";
-import { Input } from "./ui/input";
-import { ScrollArea } from "./ui/scroll-area";
-import { cn } from "../lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────
 

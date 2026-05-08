@@ -19,6 +19,7 @@ module.exports = {
     "./src/**/*.{ts,tsx,html}",
     "../../packages/react/dock-editor-react/src/**/*.{ts,tsx}",
     "../../packages/react/registry-editor-react/src/**/*.{ts,tsx}",
+    "../../packages/react/tools/workspace-setup-react/src/**/*.{ts,tsx}",
     "../../packages/react/markets-grid/src/**/*.{ts,tsx}",
     "../../packages/shared/core/src/**/*.{ts,tsx}",
     // widgets-react ships the DataProvider editor, configurator, and

@@ -6,7 +6,9 @@ declare const fin: any;
 import { useState, useEffect } from "react";
 import { DynamicIcon as Icon } from "@starui/icons-svg/react";
 import { dark } from "@starui/design-system/tokens/semantic";
-import { useRegistryEditor } from "./hooks/useRegistryEditor";
+// useRegistryEditor moved to @starui/workspace-setup-react in Task 4.
+// This package is a thin shim until Task 5 deletes it.
+import { useRegistryEditor } from "@starui/workspace-setup-react";
 import { RegistryItemRow } from "./components/RegistryItemRow";
 import { RegistryItemForm, type RegistryFormData } from "./components/RegistryItemForm";
 import { injectEditorStyles } from "./editorStyles";

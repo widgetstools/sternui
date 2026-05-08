@@ -19,7 +19,8 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useRegistryEditor } from "@starui/registry-editor";
+import { injectEditorStyles } from "@starui/core";
+import { useRegistryEditor } from "./registry/useRegistryEditor";
 import {
   ACTION_LAUNCH_COMPONENT,
   readHostEnv,
@@ -37,7 +38,6 @@ import { InspectorPane } from "./components/workspace-setup/InspectorPane";
 import { DockPane } from "./components/workspace-setup/DockPane";
 import { newDraftEntry } from "./components/workspace-setup/types";
 import type { EditorSelection } from "./components/workspace-setup/types";
-import { injectEditorStyles } from "./components/dock-editor/editorStyles";
 
 // ─── Outer shell ─────────────────────────────────────────────────────
 // Reads the platform scope forwarded via OpenFin customData, primes
