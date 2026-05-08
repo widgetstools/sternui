@@ -21,6 +21,43 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Added 2026-05-08 — `@starui/data-services-angular` adapter
+
+Closes design doc §8 (React/Angular parity). New package mirrors
+[@starui/data-services-react](../packages/react/providers/data-services-react/)
+over the same vanilla TS core, with one Angular helper per React hook:
+
+| React hook | Angular helper |
+|---|---|
+| `<DataServicesProvider services>` | `provideDataServices({ services })` in `app.config.ts` |
+| `useDataServices()` | `inject(DataServicesService)` |
+| `useAppDataStore()` | `injectAppDataStore()` — Signal-backed `version` + `loaded` |
+| `useAppData(name)` | `injectAppData(name)` — Signal-backed `values` + `get`/`set`/`setMany` |
+| `useDataProviderConfig(id)` | `injectDataProviderConfig$(id)` — Observable |
+| `useDataProvidersList(opts)` | `injectDataProvidersList$(opts)` — Observable + `refresh()` |
+| `useResolvedCfg(cfg)` | `injectResolvedCfg(cfg$)` — `computed()` Signal |
+| `useProviderStream(id, cfg)` | `injectProviderStream(id, cfg)` — `rows$` / `status$` / `error$` + `refresh()` |
+| `useProviderStats(id)` | `injectProviderStats$(id)` — Observable<ProviderStats> |
+
+Both adapters drive the same `AppDataMirror` and `SharedWorkerDataServicesClient`
+under the hood — only the reactive primitive differs (Signals + Observables for
+Angular, `useState`/`useEffect` for React). Every `inject*` helper threads
+`DestroyRef` so dynamic component injectors clean up subscriptions on teardown.
+
+Lazy-only in v1. Eager mode parity (Angular's `provideAppInitializer()`
+awaiting `services.ready` to defer app bootstrap until the AppDataMirror's
+first snapshot lands — the Angular analogue of React's `<Suspense>`-mediated
+`mode="eager"`) is a planned follow-up; no in-repo Angular consumer needs
+it today.
+
+Out of scope (separate PRs):
+- Migrating widgets-angular's `DataProviderService` and `FieldInferenceService`
+  onto the new adapter.
+- Building a real Angular reference app on top of the adapter (apps/demo-angular
+  is currently a fresh skeleton with no `@starui/*` imports).
+
+The adapter ships standalone — ready when the first Angular consumer arrives.
+
 ## Tightened 2026-05-08 — REST hub coverage + provider-type lockdown
 
 Step 4 of `docs/plans/plan-2026-05-07/data-services-redesign.md`,
