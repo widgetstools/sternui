@@ -32,6 +32,47 @@ FI Trading Terminal.
   `@starui/widgets-react` — removed alongside the shell. No surviving
   app consumed them.
 
+## Repackaged in 2026-05-08 (Task 9 / PR-8 of code-organization migration)
+
+- **Extracted React surfaces from `@starui/core` into a new
+  `@starui/grid-react` package.** ~24,117 LOC across 143 files moved
+  from `packages/shared/core/src/{ui,hooks,modules}/` to
+  `packages/react/widgets/grid-react/src/{ui,hooks,modules}/`. After
+  this PR `@starui/core` is vanilla TypeScript with NO React peer-dep.
+- Moved blocks: hooks (`GridProvider`, `useDirty`, `useModuleDraft`,
+  `useGridColumns`, `useUndoRedo`, `useProfileManager`, `useGridApi`,
+  `useGridEvent`, `useModuleState`, `useGridPlatform`,
+  `GridCoreLike`/`GridCore`, `UseProfileManagerResult`); ui
+  (SettingsPanel primitives, gc-themed shadcn primitives, StyleEditor,
+  ColorPicker, FormatterPicker, format-editor, ExpressionEditor,
+  PopoutPortal/Poppable/PortalContainer); modules (all 9 module
+  definitions + their React panels — general-settings,
+  column-templates, column-customization, conditional-styling,
+  calculated-columns, saved-filters, toolbar-visibility, grid-state,
+  column-groups).
+- Stayed in `@starui/core`: GridPlatform, ProfileManager, expression
+  engine, persistence adapters, security policy, history stack,
+  colDef helpers, css tokens, OpenFin shim, shared types.
+- Public-surface change: `IDirtyBus` is now exported from
+  `@starui/core`'s public barrel (was internal); the `Module`
+  interface's `SettingsPanel`/`ListPane`/`EditorPane` slots are now
+  framework-agnostic `(props: P) => any` so core has no React
+  imports anywhere.
+- Consumer moves: `@starui/markets-grid` adds `@starui/grid-react`
+  as a workspace dep and splits its imports per-symbol;
+  `apps/markets-ui-react-reference`'s `RenameViewTab.tsx` switches
+  `Button, Input` to `@starui/grid-react`; demo apps add the alias
+  in `vite.config.ts`.
+- `core/ui/shadcn/` was moved verbatim — these gc-themed primitives
+  are intentionally divergent from `@starui/ui`'s Stern-themed
+  copies (different sizes, focus rings, native-vs-Radix `Select`,
+  `usePortalContainer`-routed Popovers). Reconciling the two
+  themes is out of scope for PR-8.
+- Vitest passing count = **653** (matches pre-PR-8 baseline
+  exactly). Test redistribution: `@starui/core` 272 → 75 (the 197
+  moved-tests now run in `@starui/grid-react`). All other packages
+  unchanged.
+
 ## Removed in 2026-05-08 (Task 5 / PR-4 of code-organization migration)
 
 - React Dock Editor (`@starui/dock-editor` package) — replaced by
