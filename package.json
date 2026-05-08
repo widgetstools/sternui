@@ -39,6 +39,7 @@
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
     "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
+    "pack:libs": "node scripts/pack-libs.mjs",
     "clean": "rimraf -g node_modules apps/*/node_modules packages/*/*/node_modules apps/*/dist packages/*/*/dist .turbo"
   },
   "devDependencies": {
