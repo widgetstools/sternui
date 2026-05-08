@@ -18,6 +18,7 @@
     "packages/react/tools/*",
     "packages/react/widgets/*",
     "packages/angular/hosts/*",
+    "packages/angular/providers/*",
     "packages/angular/tools/*",
     "packages/angular/widgets/*",
     "e2e-openfin"
