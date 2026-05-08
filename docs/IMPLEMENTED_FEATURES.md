@@ -21,6 +21,51 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 3: owner/audit stamping centralized
+
+Third session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 3, Decision 7). Centralizes owner/audit stamping behind one
+helper so Session 8's impersonation swap is a one-line change. No
+external behavior change for existing call sites — owner === audit on
+every row until Session 8 lands.
+
+- New private `ConfigManager.stampWrite<T>(row, isInsert)` helper
+  applies the audit-only rule to any row passing through `saveConfig`,
+  `saveAppRegistry`, `saveUserProfile`, `saveRole`, or `savePermission`:
+  on insert, default `createdBy` / `creationTime` to the current
+  identity / now if the caller didn't set them; on every write, stamp
+  `updatedBy` / `updatedTime` unconditionally. Audit always reflects
+  the real logged-in user (`identity.userId`) — never an impersonated
+  one.
+- `ConfigManager.saveConfig` now reads the existing row to detect
+  insert-vs-update, defaults the OWNER slot (`AppConfigRow.userId`) to
+  `identity.userId` on insert if the caller didn't supply one, then
+  funnels through `stampWrite`. The single extra read is acceptable —
+  config writes are rare and local to Dexie.
+- `ConfigManager.saveSnapshot` drops its previous `userId: "system"` /
+  `createdBy: "system"` / `updatedBy: "system"` hardcoding. Snapshots
+  are now owned by — and audited against — whoever the manager's
+  current identity is. Verified no consumer depends on the literal
+  `"system"` (only the deprecated `UnifiedConfig` JSDoc still mentions
+  it as a historical convention).
+- Auth-table rows (`AppRegistryRow`, `UserProfileRow`, `RoleRow`,
+  `PermissionRow`) gain optional `createdBy` / `updatedBy` /
+  `creationTime` / `updatedTime` fields so audit-only stamping has a
+  declared shape. They're optional to keep older rows readable
+  unchanged.
+- New `configManager.audit.test.ts` (8 tests) pins the contract: insert
+  defaults all three of `userId === createdBy === updatedBy ===
+  identity.userId`; update preserves `createdBy` / `creationTime` and
+  advances `updatedBy` / `updatedTime` to the new writer; explicit
+  caller-supplied values on insert survive verbatim while audit slots
+  still get stamped; `saveSnapshot` no longer writes `"system"`; auth
+  tables stamp audit independently of their primary key.
+
+Files touched:
+`packages/shared/services/config-service/src/{ConfigManager,types}.ts`,
+`packages/shared/services/config-service/src/configManager.audit.test.ts`.
+
 ## 2026-05-08 — Config-manager redesign Session 2: `AppIdentity` option (additive)
 
 Second session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

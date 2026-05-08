@@ -167,6 +167,17 @@ export interface AppRegistryRow {
 
   /** Deployment environment: "dev", "uat", or "prod". */
   environment: string;
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.saveAppRegistry` from the current identity. Optional
+   * for back-compat — rows written before audit stamping landed read
+   * back with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── USER_PROFILE ────────────────────────────────────────────────────
@@ -189,6 +200,17 @@ export interface UserProfileRow {
 
   /** Human-readable display name for the user. */
   displayName: string;
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.saveUserProfile` from the current identity. Optional
+   * for back-compat — rows written before audit stamping landed read
+   * back with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── ROLES ───────────────────────────────────────────────────────────
@@ -209,6 +231,17 @@ export interface RoleRow {
 
   /** Foreign keys → PERMISSIONS. The permissions granted to this role. */
   permissionIds: string[];
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.saveRole` from the current identity. Optional for
+   * back-compat — rows written before audit stamping landed read back
+   * with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── PERMISSIONS ─────────────────────────────────────────────────────
@@ -235,6 +268,17 @@ export interface PermissionRow {
    * Examples: "config", "snapshot", "admin"
    */
   category: string;
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.savePermission` from the current identity. Optional
+   * for back-compat — rows written before audit stamping landed read
+   * back with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── PENDING_SYNC ────────────────────────────────────────────────────
