@@ -38,6 +38,7 @@ export type {
   GridOptions,
   GetRowIdFunc,
   GetRowIdParams,
+  IDirtyBus,
   ListPaneProps,
   Module,
   PlatformEventMap,
