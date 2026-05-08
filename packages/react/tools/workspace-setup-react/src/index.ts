@@ -1,14 +1,14 @@
 /**
  * @starui/workspace-setup-react — public surface.
  *
- * The 3-pane WorkspaceSetup editor, the ImportConfig utility window,
- * plus the registry/dock primitives that power them. Hosted in OpenFin
- * child windows by the markets-ui-react-reference shell.
+ * The 3-pane WorkspaceSetup editor and the ImportConfig utility window,
+ * hosted in OpenFin child windows by the markets-ui-react-reference shell.
  *
  * The hook + helper exports below (`useDockEditor`, `useRegistryEditor`,
- * `iconIdToSvgUrl`, `parseIconUrl`, `ICON_OPTIONS`, etc.) are kept
- * public for downstream callers that need to compose dock / registry
- * state outside the bundled WorkspaceSetup shell.
+ * `iconIdToSvgUrl`, etc.) are made public so future consumers can
+ * compose dock / registry state outside the bundled WorkspaceSetup shell.
+ * No external consumers exist today — they're internal helpers exposed
+ * for forward compatibility.
  */
 
 export { WorkspaceSetup } from "./WorkspaceSetup";
