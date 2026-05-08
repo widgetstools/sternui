@@ -31,7 +31,7 @@ import type {
   StatsListener,
 } from '@starui/data-services/runtime/client';
 import {
-  AppDataStore,
+  AppDataMirror,
   DataProviderConfigStore,
   resolveCfg,
 } from '@starui/data-services/runtime';
@@ -44,7 +44,7 @@ import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 
 interface ContextValue {
   client: SharedWorkerDataServicesClient;
-  appData: AppDataStore;
+  appData: AppDataMirror;
   configStore: DataProviderConfigStore;
 }
 
@@ -61,14 +61,23 @@ export interface DataServicesProviderProps {
 }
 
 export function DataServicesProvider({ client, configManager, userId, children }: DataServicesProviderProps) {
-  // The AppDataStore is keyed to (configManager, userId). Rebuild
-  // when either changes so a userId switch (rare) doesn't bleed
-  // state. The store loads lazily on first ready() call from a hook.
+  // Build the mirror eagerly so child components see a stable
+  // identity from first render. attach() (which fires the seed read
+  // + worker round-trip) runs in a useEffect below — sync `get(...)`
+  // returns undefined until the snapshot lands; consumers read
+  // `loaded` via useAppDataStore() if they need to suspend.
   const value = useMemo<ContextValue>(() => ({
     client,
-    appData: new AppDataStore(configManager, userId),
+    appData: client.attachAppData({ configManager, userId }),
     configStore: new DataProviderConfigStore(configManager),
   }), [client, configManager, userId]);
+
+  useEffect(() => {
+    void value.appData.attach();
+    return () => {
+      client.detachAppData(value.appData);
+    };
+  }, [client, value.appData]);
 
   return (
     <DataServicesContext.Provider value={value}>
@@ -101,7 +110,7 @@ export function useDataServices(): ContextValue {
 // (idempotent across re-renders).
 
 export interface AppDataView {
-  store: AppDataStore;
+  store: AppDataMirror;
   /** Bumps on every AppData mutation. Use as a dependency to drive
    *  re-resolution of templates. */
   version: number;
