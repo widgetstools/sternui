@@ -21,6 +21,37 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Removed 2026-05-08 — legacy `StompProbe` class; unified probe surface
+
+Step 5 of `docs/plans/plan-2026-05-07/data-services-redesign.md`.
+Finishes the design doc's `transport: 'main'` consolidation. Angular
+migrates off the legacy `StompProbe` class (and the probe sibling
+abstract bases `ProviderBase` / `StreamProviderBase`) to the same
+`probeStomp` / `probeRest` / `inferFields` shared functions the
+React editor's `useProviderProbe` already consumes.
+
+| Layer | Before | After |
+|---|---|---|
+| Public root | `import { StompProbe } from '@starui/data-services'` | `import { probeStomp, probeRest, inferFields } from '@starui/data-services'` |
+| React import | `from '@starui/data-services/runtime/sharedWorker'` (misleading — the path implied SharedWorker required) | `from '@starui/data-services'` (root) |
+| Angular `FieldInferenceService.inferFields()` | `new StompProbe(...).fetchSnapshot()` + `StompProbe.inferFields()` (static) + `convertFieldInfoToNode` bridge | `probeStomp(cfg, opts)` + `inferFields(rows, opts)` (returns `FieldNode[]` directly) |
+| Angular `StompForm.testConnection()` | `new StompProbe(cfg).fetchSnapshot(1)` (throws on failure) | `probeStomp(cfg, { maxRows: 1, timeoutMs: 10_000 })` (returns `{ ok, error }`) |
+| Folder | `packages/shared/services/data-services/src/probes/` (5 files) | DELETED |
+
+Behavioural diff (matches React's existing behaviour): `probeStomp`
+resolves `[bracket]` tokens before connecting; the legacy
+`StompProbe` class did not. Verified the Angular call sites build
+cfgs from form inputs without `[bracket]` syntax — no consumer
+behaviour change.
+
+Net deletion: ~620 LOC across 5 deleted files + 2 trimmed Angular
+files; one new ~25-LOC barrel (`runtime/providers/index.ts`)
+aggregates the probe surface.
+
+The Angular adapter (`provideDataServices()` / `injectDataServices()`)
+is now the natural next move — it can drop in cleanly without
+dragging legacy probe types along. Tracked separately.
+
 ## Added 2026-05-08 — `bootstrapDataServices()` + `<DataServicesProvider mode>`
 
 Step 3 of `docs/plans/plan-2026-05-07/data-services-redesign.md`.
