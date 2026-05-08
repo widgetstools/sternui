@@ -116,6 +116,55 @@ export class ConfigManager {
     return this.identity;
   }
 
+  // ─── Owner / audit field stamping (Session 3) ─────────────────────
+  //
+  // Every write path in this manager funnels its row through
+  // `stampWrite` so audit fields (`createdBy`, `updatedBy`,
+  // `creationTime`, `updatedTime`) follow a single rule:
+  //
+  //   - On insert: createdBy / creationTime default to the current
+  //     identity / now if the caller didn't supply them.
+  //   - On every write (insert OR update): updatedBy / updatedTime are
+  //     stamped unconditionally from the current identity / now.
+  //
+  // Audit fields ALWAYS reflect the real logged-in user
+  // (`identity.userId`). When impersonation lands in Session 8, the
+  // OWNER slot (`AppConfigRow.userId`) flips to the effective user via
+  // `getEffectiveUser(applicationContext)`, but createdBy/updatedBy
+  // stay on the real signed-in user. Owner stamping for `AppConfigRow`
+  // happens inline in `saveConfig` / `saveSnapshot`; the helper itself
+  // only handles the audit slots so it stays safe to reuse on auth
+  // tables (`appRegistry`, `userProfile`, `roles`, `permissions`)
+  // which have no owner concept.
+
+  /**
+   * Stamp audit fields (`createdBy`, `updatedBy`, `creationTime`,
+   * `updatedTime`) on a row destined for any of the manager's tables.
+   * Mutates the row in place and returns it for chaining.
+   *
+   * @param row - the row about to be persisted
+   * @param isInsert - whether this is a first-time insert (controls
+   *   whether `createdBy` / `creationTime` get defaulted)
+   */
+  private stampWrite<
+    T extends {
+      createdBy?: string;
+      updatedBy?: string;
+      creationTime?: string;
+      updatedTime?: string;
+    },
+  >(row: T, isInsert: boolean): T {
+    const auditUser = this.identity.userId;
+    const now = new Date().toISOString();
+    if (isInsert) {
+      row.createdBy = row.createdBy ?? auditUser;
+      row.creationTime = row.creationTime ?? now;
+    }
+    row.updatedBy = auditUser;
+    row.updatedTime = now;
+    return row;
+  }
+
   // ─── Initialization ──────────────────────────────────────────────
 
   /**
@@ -179,17 +228,32 @@ export class ConfigManager {
   /**
    * Save a config (create or update).
    * In REST mode, also sends to the remote backend.
+   *
+   * Owner / audit stamping (Decision 7):
+   *   - On INSERT: if the caller didn't set `userId` (owner),
+   *     `createdBy`, or `creationTime`, they default from the current
+   *     identity / now. (Session 8 will swap the owner default to the
+   *     effective user via ApplicationContext.)
+   *   - On EVERY write: `updatedBy` / `updatedTime` are unconditionally
+   *     stamped from the current identity / now — audit fields always
+   *     reflect the real logged-in user, never an impersonated one.
+   *
+   * The extra `getConfig` read on the write path is acceptable: config
+   * writes are rare and the read is local Dexie.
    */
   async saveConfig(config: AppConfigRow): Promise<void> {
-    // Update the timestamp
-    config.updatedTime = new Date().toISOString();
+    const existing = await this.db.appConfig.get(config.configId);
+    const isInsert = existing === undefined;
 
-    // In REST mode, try to sync to the remote backend first
+    if (isInsert) {
+      // Owner default. Until Session 8, effective user === identity.userId.
+      config.userId = config.userId ?? this.identity.userId;
+    }
+    this.stampWrite(config, isInsert);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "appConfig", config.configId, config);
     }
-
-    // Always write to Dexie (the local read path)
     await this.db.appConfig.put(config);
   }
 
@@ -274,8 +338,15 @@ export class ConfigManager {
   /**
    * Upsert an app registry entry.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. There is no owner concept on this table — `appId` is
+   * the primary key.
    */
   async saveAppRegistry(row: AppRegistryRow): Promise<void> {
+    const existing = await this.db.appRegistry.get(row.appId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "app-registry", row.appId, row);
     }
@@ -317,8 +388,16 @@ export class ConfigManager {
   /**
    * Upsert a user profile.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. The row's `userId` is the user this profile belongs
+   * to (the row's primary key), which is independent of `createdBy` /
+   * `updatedBy` (audit — who last edited).
    */
   async saveUserProfile(row: UserProfileRow): Promise<void> {
+    const existing = await this.db.userProfile.get(row.userId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "user-profiles", row.userId, row);
     }
@@ -355,8 +434,15 @@ export class ConfigManager {
   /**
    * Upsert a role definition.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. There is no owner concept on this table — `roleId`
+   * is the primary key.
    */
   async saveRole(row: RoleRow): Promise<void> {
+    const existing = await this.db.roles.get(row.roleId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "roles", row.roleId, row);
     }
@@ -400,8 +486,15 @@ export class ConfigManager {
   /**
    * Upsert a permission definition.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. There is no owner concept on this table —
+   * `permissionId` is the primary key.
    */
   async savePermission(row: PermissionRow): Promise<void> {
+    const existing = await this.db.permissions.get(row.permissionId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "permissions", row.permissionId, row);
     }
@@ -489,16 +582,24 @@ export class ConfigManager {
    * Save a workspace snapshot as an APP_CONFIG row.
    * In REST mode, also sends to the remote backend.
    *
+   * Owner / audit (Decision 7): the row is owned by — and audited
+   * against — whoever the manager's current identity is. The previous
+   * `"system"` placeholder has been dropped now that
+   * `ConfigManager.saveConfig` centralises stamping; the owner now
+   * matches the saving user, and audit follows the real logged-in
+   * user. Until impersonation lands (Session 8) those are the same.
+   *
    * @param snapshotId - Unique ID for this snapshot
    * @param appId - The app this snapshot belongs to
    * @param snapshotData - The snapshot payload (e.g. { instanceIds: [...] })
    */
   async saveSnapshot(snapshotId: string, appId: string, snapshotData: any): Promise<void> {
-    const now = new Date().toISOString();
-    const row: AppConfigRow = {
+    // Owner / audit fields are filled by `saveConfig` → `stampWrite`.
+    // We deliberately omit them here so the central path is the single
+    // source of truth.
+    const row = {
       configId: snapshotId,
       appId,
-      userId: "system",
       // Snapshots are app-wide artefacts, visible to everyone using
       // the app — public by definition. Decision 6.
       isPublic: true,
@@ -507,11 +608,7 @@ export class ConfigManager {
       componentSubType: "",
       isTemplate: false,
       payload: snapshotData,
-      createdBy: "system",
-      updatedBy: "system",
-      creationTime: now,
-      updatedTime: now,
-    };
+    } as unknown as AppConfigRow;
     await this.saveConfig(row);
   }
 

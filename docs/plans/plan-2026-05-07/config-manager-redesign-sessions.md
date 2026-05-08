@@ -255,7 +255,7 @@ needs to touch one branch.
 
 **Steps:**
 
-- [ ] **3.1** Add a private helper to `ConfigManager`:
+- [x] **3.1** Add a private helper to `ConfigManager`:
 
 ```ts
 private stampWrite<T extends { userId?: string; createdBy?: string; updatedBy?: string;
@@ -276,27 +276,27 @@ private stampWrite<T extends { userId?: string; createdBy?: string; updatedBy?: 
   In Session 8 the `userId` line becomes `getEffectiveUser(this.applicationContext)`;
   `createdBy`/`updatedBy` stay on the real logged-in user. The shape stays the same.
 
-- [ ] **3.2** Refactor `saveConfig` to call `stampWrite` instead of mutating
+- [x] **3.2** Refactor `saveConfig` to call `stampWrite` instead of mutating
       `updatedTime` directly. Detect insert-vs-update by checking
       `await this.db.appConfig.get(row.configId)` first (one extra read on the write
       path; acceptable — config writes are rare).
-- [ ] **3.3** Apply the same pattern to `saveAppRegistry`, `saveUserProfile`, `saveRole`,
+- [x] **3.3** Apply the same pattern to `saveAppRegistry`, `saveUserProfile`, `saveRole`,
       `savePermission`. (Roles/permissions don't conceptually have a "user owner" but
       audit fields still apply — add `createdBy`/`updatedBy`/`creationTime`/`updatedTime`
       fields to those types if they don't already have them, defaulting to the schema's
       pre-existing shape so storage round-trips unchanged.)
-- [ ] **3.4** In `saveSnapshot`, drop the `userId: "system"` / `createdBy: "system"`
+- [x] **3.4** In `saveSnapshot`, drop the `userId: "system"` / `createdBy: "system"`
       hard-coding — let `stampWrite` set them. The snapshot's owner is then whoever
       saved it. (This is a small behavior change for snapshots: their `userId` becomes
       the saving user instead of `"system"`. Verify no consumer depends on the literal
       `"system"` — `grep -rn '"system"' packages/shared/platform/openfin-platform/src/`
       and adjust.)
-- [ ] **3.5** Write `configManager.audit.test.ts`:
+- [x] **3.5** Write `configManager.audit.test.ts`:
   - Insert a config: `userId === createdBy === updatedBy === identity.userId`,
     `creationTime === updatedTime`.
   - Update the same config: `createdBy` unchanged, `updatedBy` updated, `updatedTime`
     advanced past `creationTime`.
-- [ ] **3.6** Run verification.
+- [x] **3.6** Run verification.
 
 **Verification:**
 
