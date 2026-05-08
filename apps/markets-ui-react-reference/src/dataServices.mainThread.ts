@@ -1,45 +1,37 @@
 /**
- * dataServices.mainThread.ts — owns the SharedWorker and the
- * SharedWorkerDataServicesClient that talks to it.
+ * dataServices.mainThread.ts — bootstrap the per-app data-services
+ * bundle (SharedWorker client + AppDataMirror + ConfigManager).
  *
- * Why this lives in the APP (and not via @starui/data-services's
- * public surface): Vite's worker plugin needs to see
- *   `new SharedWorker(new URL('./worker.ts', import.meta.url), { type: 'module' })`
- * as ONE literal expression at build time so it can emit a separate
- * worker chunk and rewrite the URL. Routing the construction through
- * a helper in another package defeats the static analysis — the
- * .ts gets served as a plain asset and the worker fails to boot.
+ * The `new SharedWorker(new URL(...))` literal must stay co-located
+ * with its target file so Vite's worker plugin emits a separate
+ * worker chunk and rewrites the URL. The construction stays here;
+ * `bootstrapDataServices()` wraps the worker into a `DataServices`
+ * bundle consumed by the rest of the app.
  *
- * The construction stays here, colocated with the URL literal. The
- * rest of the app reads `dataServicesClient` (and the matching
- * `<DataServicesProvider client={...}>`) from this module.
+ * Consumers import `dataServices` (the bundle) and pass it to
+ * `<DataServicesProvider services={dataServices}>` /
+ * `<HostedMarketsGrid dataServices={dataServices}>`.
  */
 
-import { SharedWorkerDataServicesClient } from '@starui/data-services/runtime/client';
+import { bootstrapDataServices } from '@starui/data-services';
+import { createConfigManager } from '@starui/config-service';
+import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 
-// SharedWorker name is keyed off the appId so different MarketsUI
-// apps running in the same browser don't share a worker by accident.
-// The reference app uses a single appId everywhere; multiple blotter
-// views in the same app SHOULD share the worker (that's the whole
-// point of using a SharedWorker).
 const APP_ID = 'TestApp';
-const sharedWorkerName = `mkt-data-services:${APP_ID}`;
 
-// Both `new URL(...)` and `new SharedWorker(...)` appear together in
-// this expression so Vite's worker plugin picks it up.
 const worker = new SharedWorker(
   new URL('./dataServices.sharedWorker.ts', import.meta.url),
-  { type: 'module', name: sharedWorkerName },
+  { type: 'module', name: `mkt-data-services:${APP_ID}` },
 );
 
-// `error` event surfaces script-load failures and uncaught throws on
-// the worker side. Without this, a failing worker is invisible.
 worker.addEventListener('error', (ev) => {
   // eslint-disable-next-line no-console
   console.error('[data-services SharedWorker] error event', ev);
 });
 
-// SharedWorkerDataServicesClient takes a MessagePort. The constructor
-// calls `port.start()` internally so the channel is live as soon as
-// the worker accepts the connect event.
-export const dataServicesClient = new SharedWorkerDataServicesClient(worker.port);
+export const dataServices = bootstrapDataServices({
+  appName: APP_ID,
+  worker,
+  configManager: createConfigManager({}),
+  userId: LOGGED_IN_USER_ID,
+});

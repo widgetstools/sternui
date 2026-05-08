@@ -7,23 +7,20 @@
  * existing row; we read it via `URLSearchParams` and forward as
  * `initialProviderId` so the form snaps to that row on mount.
  *
- * Storage flows through `<DataServicesProvider>` → `ConfigManager`
- * (Dexie / IndexedDB or REST, depending on `getConfigManager()`'s
- * resolution). No more `dataProviderConfigService` shim.
+ * Storage flows through `<DataServicesProvider services={dataServices}>`
+ * → the bootstrap's ConfigManager (Dexie / IndexedDB).
  *
  * Layout: a thin top bar with a back link, then the editor fills
  * the rest of the window.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { DataServicesProvider } from '@starui/data-services-react/runtime';
 import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
-import { getConfigManager } from '@starui/openfin-platform/config';
 import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
-import type { ConfigManager } from '@starui/config-service';
-import { dataServicesClient } from '../dataServices.mainThread';
+import { dataServices } from '../dataServices.mainThread';
 
 // userId is single-user-pinned across the codebase — no env override,
 // no customData/URL pickup. See LOGGED_IN_USER_ID in runtime-port.
@@ -32,17 +29,6 @@ const userId = LOGGED_IN_USER_ID;
 function DataProviders() {
   const [params] = useSearchParams();
   const initialProviderId = useMemo(() => params.get('id'), [params]);
-
-  const [cm, setCm] = useState<ConfigManager | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getConfigManager().then((manager) => {
-      if (cancelled) return;
-      setCm(manager);
-    });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const prev = document.title;
@@ -86,15 +72,9 @@ function DataProviders() {
         </span>
       </header>
       <div className="flex-1 min-h-0">
-        {cm ? (
-          <DataServicesProvider client={dataServicesClient} configManager={cm} userId={userId}>
-            <DataProviderEditor userId={userId} initialProviderId={initialProviderId} />
-          </DataServicesProvider>
-        ) : (
-          <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-            Connecting to ConfigService…
-          </div>
-        )}
+        <DataServicesProvider services={dataServices} userId={userId}>
+          <DataProviderEditor userId={userId} initialProviderId={initialProviderId} />
+        </DataServicesProvider>
       </div>
     </div>
   );
