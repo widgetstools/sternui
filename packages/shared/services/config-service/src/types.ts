@@ -269,6 +269,42 @@ export interface PendingSyncRow {
   retries: number;
 }
 
+// ─── AppIdentity ─────────────────────────────────────────────────────
+
+/**
+ * The authenticated identity supplied by the host app after sign-in.
+ *
+ * The framework stores this once at construction (via
+ * `ConfigManagerOptions.identity`) and uses it for two things:
+ *
+ *   1. **Owner / audit stamping.** `userId` becomes the row's owner
+ *      slot (`AppConfigRow.userId`) and the audit slot
+ *      (`createdBy` / `updatedBy`). Until impersonation lands
+ *      (Session 8) these are the same value; afterwards `createdBy` /
+ *      `updatedBy` always reflect the real signed-in user from this
+ *      identity, never the impersonated user.
+ *   2. **Outbound auth headers** (REST mode only). Before each request
+ *      the framework calls `getAccessToken()` if present and attaches
+ *      `Authorization: Bearer <token>`. The host owns refresh — the
+ *      framework never caches the token.
+ *
+ * Defaults to a dev placeholder (`{ userId: "dev-user", displayName:
+ * "Dev User" }`) when the host doesn't supply one, so first-run
+ * developer setup keeps working with zero wiring.
+ */
+export interface AppIdentity {
+  /** Stable user id used for createdBy/updatedBy and visibility filters. */
+  userId: string;
+  /** Optional display name for audit / UI labels. */
+  displayName?: string;
+  /**
+   * Returns a fresh access token on demand. Only consulted in REST mode.
+   * The app owns refresh; the framework just calls this before each
+   * outbound HTTP request and attaches `Authorization: Bearer <token>`.
+   */
+  getAccessToken?: () => Promise<string>;
+}
+
 // ─── ConfigManager options ───────────────────────────────────────────
 
 /**
@@ -297,6 +333,20 @@ export interface ConfigManagerOptions {
    * Example: "https://config-api.example.com/api/v1"
    */
   configServiceRestUrl?: string;
+
+  /**
+   * The app this ConfigManager belongs to. Becomes the value of
+   * AppData "AppId" in ApplicationContext (Session 7).
+   * Defaults to "dev-app" if omitted.
+   */
+  appId?: string;
+
+  /**
+   * Authenticated identity supplied by the host app after sign-in.
+   * Defaults to `{ userId: "dev-user", displayName: "Dev User" }` if
+   * omitted. See `AppIdentity` JSDoc.
+   */
+  identity?: AppIdentity;
 }
 
 // ─── Seed data shape ─────────────────────────────────────────────────

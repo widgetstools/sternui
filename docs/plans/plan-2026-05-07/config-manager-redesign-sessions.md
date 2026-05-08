@@ -162,7 +162,7 @@ behavior. This session unblocks Sessions 3 and 7 without breaking any consumer.
 
 **Steps:**
 
-- [ ] **2.1** Add to `types.ts`:
+- [x] **2.1** Add to `types.ts`:
 
 ```ts
 export interface AppIdentity {
@@ -179,7 +179,7 @@ export interface AppIdentity {
 }
 ```
 
-- [ ] **2.2** Extend `ConfigManagerOptions`:
+- [x] **2.2** Extend `ConfigManagerOptions`:
 
 ```ts
 export interface ConfigManagerOptions {
@@ -201,7 +201,7 @@ export interface ConfigManagerOptions {
 }
 ```
 
-- [ ] **2.3** In `ConfigManager` constructor, resolve defaults and store:
+- [x] **2.3** In `ConfigManager` constructor, resolve defaults and store:
 
 ```ts
 this.appId = options.appId ?? "dev-app";
@@ -216,12 +216,12 @@ getAppId(): string { return this.appId; }
 getIdentity(): AppIdentity { return this.identity; }
 ```
 
-- [ ] **2.4** Re-export `AppIdentity` from the package barrel `index.ts`.
-- [ ] **2.5** Write `configManager.identity.test.ts`:
+- [x] **2.4** Re-export `AppIdentity` from the package barrel `index.ts`.
+- [x] **2.5** Write `configManager.identity.test.ts`:
   - `createConfigManager()` with no options → `getIdentity().userId === "dev-user"`,
     `getAppId() === "dev-app"`.
   - With explicit options → values returned verbatim.
-- [ ] **2.6** Run verification.
+- [x] **2.6** Run verification.
 
 **Verification:**
 

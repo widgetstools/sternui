@@ -19,6 +19,7 @@
 import { ConfigDatabase } from './db';
 import type {
   AppConfigRow,
+  AppIdentity,
   AppRegistryRow,
   ConfigManagerOptions,
   PermissionRow,
@@ -27,6 +28,15 @@ import type {
   SeedData,
   UserProfileRow,
 } from './types';
+
+// Dev placeholders used when the host app doesn't pass `appId` /
+// `identity`. Keep these aligned with the JSDoc on the option fields
+// so first-run docs and runtime defaults can never drift.
+const DEFAULT_APP_ID = 'dev-app';
+const DEFAULT_IDENTITY: AppIdentity = {
+  userId: 'dev-user',
+  displayName: 'Dev User',
+};
 
 // How often to retry failed REST writes.
 // 10 seconds is a balance: short enough to recover quickly after a
@@ -70,6 +80,8 @@ export class ConfigManager {
   private db: ConfigDatabase;
   private seedConfigUrl: string | undefined;
   private restUrl: string | undefined;
+  private readonly appId: string;
+  private readonly identity: AppIdentity;
   private drainIntervalId: ReturnType<typeof setInterval> | undefined;
   private isInitialized = false;
 
@@ -77,6 +89,31 @@ export class ConfigManager {
     this.db = new ConfigDatabase();
     this.seedConfigUrl = options.seedConfigUrl;
     this.restUrl = options.configServiceRestUrl;
+    this.appId = options.appId ?? DEFAULT_APP_ID;
+    this.identity = options.identity ?? DEFAULT_IDENTITY;
+  }
+
+  // ─── Identity accessors ──────────────────────────────────────────
+  // Read-only views over the construction-time appId / identity. Every
+  // write path that needs to stamp owner / audit fields (Session 3) and
+  // every read path that needs to apply visibility (Session 4) goes
+  // through these.
+
+  /**
+   * The app this ConfigManager belongs to. Defaults to `"dev-app"`
+   * when the host doesn't supply `appId`.
+   */
+  getAppId(): string {
+    return this.appId;
+  }
+
+  /**
+   * The authenticated identity this ConfigManager was constructed
+   * with. Defaults to `{ userId: "dev-user", displayName: "Dev User" }`
+   * when the host doesn't supply `identity`.
+   */
+  getIdentity(): AppIdentity {
+    return this.identity;
   }
 
   // ─── Initialization ──────────────────────────────────────────────

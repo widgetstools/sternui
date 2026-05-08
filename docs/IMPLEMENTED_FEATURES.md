@@ -21,6 +21,37 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 2: `AppIdentity` option (additive)
+
+Second session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 2, Decisions 1 + 2). Pure surface addition — no behavior changes,
+no call site needs to update.
+
+- New `AppIdentity` interface in
+  `@starui/config-service`: `{ userId, displayName?, getAccessToken?
+  }`. JSDoc captures the two future-session uses (owner/audit stamping
+  in Session 3, outbound `Authorization: Bearer` in Session 6) so
+  there is one place future readers can land on.
+- `ConfigManagerOptions` gains `appId?: string` and `identity?:
+  AppIdentity`. Both default to dev placeholders (`"dev-app"` and
+  `{ userId: "dev-user", displayName: "Dev User" }`) so first-run
+  developer setup keeps working with zero wiring; existing call sites
+  (`markets-ui-react-reference/src/main.tsx`, the OpenFin platform's
+  worker entry, `demo-configservice-react`, etc.) compile unchanged.
+- `ConfigManager` stores both as `private readonly` fields and exposes
+  them through `getAppId()` / `getIdentity()` accessors. Sessions 3
+  (owner/audit stamping), 4 (visibility filter), 6 (REST auth) and 7
+  (ApplicationContext publication) all read from these accessors —
+  centralizing the source of identity here avoids re-threading it
+  through method signatures later.
+- `AppIdentity` re-exported from the package barrel so host apps can
+  type their own identity object against the framework's contract.
+
+Files touched:
+`packages/shared/services/config-service/src/{types,ConfigManager,index}.ts`,
+`packages/shared/services/config-service/src/configManager.identity.test.ts`.
+
 ## 2026-05-08 — Config-manager redesign Session 1: `isPublic` schema field (additive)
 
 First session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
