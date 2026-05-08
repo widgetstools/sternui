@@ -54,9 +54,9 @@
   },
   "dependencies": {
     "@starui/config-service": "*",
-    "@starui/data-plane": "*",
+    "@starui/data-services": "*",
     "@starui/design-system": "*",
-    "@starui/data-plane-react": "*",
+    "@starui/data-services-react": "*",
     "@starui/runtime-port": "*",
     "@starui/shared-types": "1.0.0",
     "@starui/widget-sdk": "1.0.0",

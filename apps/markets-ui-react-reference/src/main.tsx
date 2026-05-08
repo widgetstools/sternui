@@ -11,8 +11,8 @@ import { OpenFinRuntime, isOpenFin } from "@starui/runtime-openfin";
 import { createConfigClient } from "@starui/config-service";
 import type { RuntimePort } from "@starui/runtime-port";
 
-// DataProvider persistence in v2 routes through `<DataPlaneProvider>`
-// (which wires the v2 `DataProviderConfigStore` against the platform's
+// DataProvider persistence routes through `<DataServicesProvider>`
+// (which wires `DataProviderConfigStore` against the platform's
 // `ConfigManager`). No boot-time gate needed — views resolve their
 // own `getConfigManager()` and mount the provider when ready.
 

@@ -13,7 +13,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { Subject, takeUntil } from 'rxjs';
 import type { StompProviderConfig, FieldNode } from '@starui/shared-types';
 import { filterFields, collectNonObjectLeaves } from '@starui/shared-types';
-import { StompDataProvider } from '@starui/data-plane';
+import { StompProbe } from '@starui/data-services';
 import { FieldInferenceService, type FieldInferenceState } from '../../services/field-inference.service';
 
 // ─── AG Grid ──────────────────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ export class StompFormComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
     try {
       const config = this.buildConfig();
-      const provider = new StompDataProvider(config);
+      const provider = new StompProbe(config);
       await provider.fetchSnapshot(1);
       this.connectionOk = true;
       this.connectionStatus = 'Connection successful';

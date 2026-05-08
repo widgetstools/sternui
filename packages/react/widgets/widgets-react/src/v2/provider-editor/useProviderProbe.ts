@@ -4,15 +4,15 @@
  * Replaces the four per-transport hooks v1 had
  * (useStompConnectionTest / useRestConnectionTest /
  *  useStompFieldInference / useRestFieldInference). The probe
- * functions live in `@starui/data-plane/v2/worker` and are pure —
+ * functions live in `@starui/data-services/runtime/sharedWorker` and are pure —
  * no React, no SharedWorker. We call them from the main thread and
  * track the in-flight state here.
  */
 
 import { useCallback, useState } from 'react';
-import { probeStomp, probeRest, inferFields } from '@starui/data-plane/v2/worker';
-import { resolveCfg } from '@starui/data-plane/v2';
-import { useAppDataStore } from '@starui/data-plane-react/v2';
+import { probeStomp, probeRest, inferFields } from '@starui/data-services/runtime/sharedWorker';
+import { resolveCfg } from '@starui/data-services/runtime';
+import { useAppDataStore } from '@starui/data-services-react/runtime';
 import type { ProviderConfig, FieldNode } from '@starui/shared-types';
 
 export interface ProbeState {

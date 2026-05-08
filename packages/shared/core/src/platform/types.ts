@@ -123,9 +123,9 @@ export interface ExpressionEngineLike {
 
 /**
  * Read-only adapter over the host application's named-data registry.
- * Mirrors the shape data-plane's `AppDataStore` exposes, but typed in
+ * Mirrors the shape data-services' `AppDataStore` exposes, but typed in
  * core so the column-customization transform / cell-editor wiring
- * doesn't need a hard dep on data-plane. Concrete implementations live
+ * doesn't need a hard dep on data-services. Concrete implementations live
  * upstream (typically `widgets-react`'s grid container plumbs an
  * AppDataStore into the platform constructor as this interface).
  *
@@ -169,7 +169,7 @@ export interface ResourceScope {
   dirty(): DirtyBus;
   /** Optional AppData lookup. Returns undefined when the platform was
    *  constructed without an `appData` option (e.g. unit tests, demos
-   *  that don't run the full data-plane). Consumers MUST handle the
+   *  that don't run the full data-services runtime). Consumers MUST handle the
    *  undefined case — typically by falling back to a static value list
    *  or skipping the dynamic features entirely. */
   appData?(): AppDataLookup | undefined;

@@ -202,7 +202,7 @@ route file is ~5 lines.
   (`runtime-openfin`, `runtime-browser`) only import `runtime-port` +
   their respective platform.
 - Only `runtime-openfin` and `apps/*` may import `@openfin/core`.
-- Component domain packages (`markets-grid`, `data-plane`, etc.)
+- Component domain packages (`markets-grid`, `data-services`, etc.)
   do NOT import their `-react` siblings, and vice versa.
 - `*-react` packages only import their own agnostic core +
   foundation + helpers.
@@ -229,7 +229,7 @@ packages/
 │   │   └── runtime-openfin/   (impl)
 │   ├── services/              vanilla services consumed by framework adapters
 │   │   ├── config-service/
-│   │   ├── data-plane/
+│   │   ├── data-services/
 │   │   └── component-host/
 │   └── platform/              runtime shells
 │       └── openfin-platform/
@@ -244,7 +244,7 @@ packages/
 │   ├── hosts/
 │   │   └── host-wrapper-react/
 │   ├── providers/             Provider + hook shells around shared/services
-│   │   └── data-plane-react/
+│   │   └── data-services-react/
 │   └── tools/                 dev/operator UIs
 │       ├── config-browser-react/
 │       └── workspace-setup-react/   ← extracted from dock-editor-react

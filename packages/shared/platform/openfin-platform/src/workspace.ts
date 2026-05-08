@@ -505,7 +505,7 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
   },
 
   // Mirrors the customActions handler — opens DevTools scoped to the
-  // data-plane SharedWorker by walking views until one accepts the
+  // data-services SharedWorker by walking views until one accepts the
   // call. See iab-topics.ts:ACTION_INSPECT_SHARED_WORKER for context.
   [ACTION_INSPECT_SHARED_WORKER]: async () => {
     try {
@@ -532,7 +532,7 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
       }
       console.error(
         "[inspect-shared-worker] No view has a SharedWorker connected. " +
-        "Open a blotter or another data-plane consumer first.",
+        "Open a blotter or another data-services consumer first.",
         lastErr,
       );
     } catch (error) {
