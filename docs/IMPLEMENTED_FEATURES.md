@@ -21,6 +21,62 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 4: visibility filter on read paths
+
+Fourth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 4, Decision 6). Lands the
+`row.appId === ctx.appId AND (row.isPublic OR row.userId === effectiveUser)`
+predicate on every client-side `appConfig` list path. Existing rows
+(all `isPublic: true` after Session 1's backfill) read identically when
+the manager is scoped to their app; private rows owned by other users
+are now hidden, and cross-app rows never leak.
+
+- New `visibility.ts` exports a tiny `isVisible(row, ctx)` predicate and
+  `VisibilityContext` type. The predicate is pure — no Dexie / no fetch
+  — so consumers can mirror the rule on row arrays they assembled
+  themselves (e.g. a remote bundle).
+- `ConfigManager` gains a private `visibilityContext` getter that
+  builds `{ appId, effectiveUserId }` per call. Until Session 8 swaps
+  the source of `effectiveUserId` to `getEffectiveUser(...)`, it's
+  just `this.identity.userId`, so behaviour for existing call sites is
+  unchanged.
+- Filter applied to `getConfigsByApp`, `getConfigsByUser`,
+  `getAllConfigs`, and `getTemplates`. `getLatestSnapshot` inherits the
+  filter through its inner `getConfigsByApp` call.
+- `getTemplates` now scans via `toArray()` and filters `isTemplate` in
+  JS rather than `where("isTemplate").equals(1)` — IndexedDB cannot
+  index booleans, so the previous indexed query never returned anything
+  in practice. Same public API, working implementation.
+- New `*Unfiltered` admin opt-out variants: `getAllConfigsUnfiltered`,
+  `getConfigsByUserUnfiltered`, `getConfigsByAppUnfiltered`. Reserved
+  for cross-app GC, migrations, full exports, and the multi-app admin
+  browser landing in Session 12 / 15.
+- Downstream admin / migration paths in `@starui/openfin-platform`
+  (`realignAllConfigsToPlatformScope`, `migrateRegistryToGlobalScope`,
+  `exportAllConfig`, `gcOrphanedConfigs`, `getSavedWorkspaces`, the
+  `configImport` dedup scan) and the platform-global `DataProvider` /
+  `AppData` stores in `@starui/data-services` switched to the
+  unfiltered variants — these read across appIds by design.
+- New `visibility.test.ts` (7 tests) pins the predicate matrix from the
+  plan plus two edge cases: undefined `isPublic` is treated as private
+  (safer default if the row reaches the predicate without going
+  through the Session 1 upgrade), and the appId check happens before
+  the public-vs-private branch.
+- New `configManager.visibility.test.ts` (7 tests) covers each list
+  path end-to-end: planted rows under various `(appId, userId,
+  isPublic)` combinations, asserting both the filtered and unfiltered
+  variants return the expected subset, including the
+  `getLatestSnapshot` snapshot-listing path. DB is wiped between tests
+  via `indexedDB.deleteDatabase` to keep cases isolated.
+
+Files touched:
+`packages/shared/services/config-service/src/{ConfigManager,index,visibility}.ts`,
+`packages/shared/services/config-service/src/{visibility,configManager.visibility}.test.ts`,
+`packages/shared/platform/openfin-platform/src/{db,workspace,workspaceGc,workspacePersistence,configImport}.ts`,
+`packages/shared/services/data-services/src/runtime/{config/store,providers/appdata/store}.ts`,
+plus matching `*Unfiltered` stubs in five existing test fakes.
+
 ## 2026-05-08 — Config-manager redesign Session 3: owner/audit stamping centralized
 
 Third session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

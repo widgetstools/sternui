@@ -170,8 +170,11 @@ export async function importConfigBundle(
     result.appConfig.failed += invalid.length;
     for (const inv of invalid) result.appConfig.errors.push(`appConfig: ${inv.reason}`);
 
+    // Imports cross app/owner boundaries by definition — the bundle can
+    // re-own rows from other apps or other users. Bypass the visibility
+    // filter so dedup against existing IDs is exhaustive.
     const existingIds = mode === 'skip-existing'
-      ? new Set((await cm.getAllConfigs()).map((r) => r.configId))
+      ? new Set((await cm.getAllConfigsUnfiltered()).map((r) => r.configId))
       : null;
 
     for (const row of valid) {

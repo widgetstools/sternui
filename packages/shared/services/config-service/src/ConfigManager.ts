@@ -28,6 +28,7 @@ import type {
   SeedData,
   UserProfileRow,
 } from './types';
+import { isVisible, type VisibilityContext } from './visibility';
 
 // Dev placeholders used when the host app doesn't pass `appId` /
 // `identity`. Keep these aligned with the JSDoc on the option fields
@@ -114,6 +115,23 @@ export class ConfigManager {
    */
   getIdentity(): AppIdentity {
     return this.identity;
+  }
+
+  // ─── Visibility (Session 4) ───────────────────────────────────────
+  //
+  // Every list path that returns AppConfigRow[] runs the rows through
+  // `isVisible(row, ctx)` so cross-app and not-mine-private rows never
+  // leak. Until Session 8 lands impersonation, the effective user is
+  // just the manager's identity; afterwards `getEffectiveUser(...)`
+  // flips it to the impersonated user when one is set.
+
+  /**
+   * The visibility context applied to every filtered read. Built fresh
+   * each call so a future impersonation swap (Session 8) is visible
+   * immediately on the next list call.
+   */
+  private get visibilityContext(): VisibilityContext {
+    return { appId: this.appId, effectiveUserId: this.identity.userId };
   }
 
   // ─── Owner / audit field stamping (Session 3) ─────────────────────
@@ -269,42 +287,93 @@ export class ConfigManager {
   }
 
   /**
-   * Get all configs belonging to a specific app.
+   * Get all configs belonging to a specific app, filtered by visibility
+   * (Decision 6 / Session 4): cross-app rows are excluded, and private
+   * rows are returned only when owned by the current effective user.
+   *
+   * For admin / migration paths that need cross-app access, use
+   * `getConfigsByAppUnfiltered` instead.
    */
   async getConfigsByApp(appId: string): Promise<AppConfigRow[]> {
-    return this.db.appConfig.where("appId").equals(appId).toArray();
+    const rows = await this.db.appConfig.where("appId").equals(appId).toArray();
+    return rows.filter((r) => isVisible(r, this.visibilityContext));
   }
 
   /**
-   * Get all configs belonging to a specific user.
+   * Get all configs belonging to a specific user, filtered by
+   * visibility (Decision 6 / Session 4): only rows under the manager's
+   * `appId` are returned. For cross-app GC and migration paths use
+   * `getConfigsByUserUnfiltered`.
    */
   async getConfigsByUser(userId: string): Promise<AppConfigRow[]> {
-    return this.db.appConfig.where("userId").equals(userId).toArray();
+    const rows = await this.db.appConfig.where("userId").equals(userId).toArray();
+    return rows.filter((r) => isVisible(r, this.visibilityContext));
   }
 
   /**
-   * Get every row in the appConfig table. Use sparingly — prefer the
-   * indexed queries (`getConfigsByApp`, `getConfigsByUser`, etc.).
+   * Get every row visible to the current caller. Use sparingly — prefer
+   * the indexed queries (`getConfigsByApp`, `getConfigsByUser`, etc.).
+   *
+   * For admin / migration paths that need every row regardless of
+   * visibility (cross-app re-stamping, exports, GC across apps), use
+   * `getAllConfigsUnfiltered`.
    */
   async getAllConfigs(): Promise<AppConfigRow[]> {
+    const rows = await this.db.appConfig.toArray();
+    return rows.filter((r) => isVisible(r, this.visibilityContext));
+  }
+
+  /**
+   * Get every row in the appConfig table, **bypassing the visibility
+   * filter**. Reserved for admin and migration paths that need to see
+   * rows across apps (e.g. realign-to-platform-scope, registry
+   * migrations, full exports, the multi-app admin browser in Session
+   * 12). New feature code should use `getAllConfigs` and let visibility
+   * apply.
+   */
+  async getAllConfigsUnfiltered(): Promise<AppConfigRow[]> {
     return this.db.appConfig.toArray();
   }
 
   /**
-   * Get template configs, optionally filtered by component type and subtype.
-   * Templates are base configurations that get cloned for new instances.
+   * Get every row owned by `userId`, **bypassing the visibility
+   * filter**. Reserved for cross-app GC / migration paths where the
+   * caller does its own appId narrowing after the read.
+   */
+  async getConfigsByUserUnfiltered(userId: string): Promise<AppConfigRow[]> {
+    return this.db.appConfig.where("userId").equals(userId).toArray();
+  }
+
+  /**
+   * Get every row under `appId`, **bypassing the visibility filter**.
+   * Reserved for the multi-app admin browser and exports that show
+   * private rows regardless of ownership.
+   */
+  async getConfigsByAppUnfiltered(appId: string): Promise<AppConfigRow[]> {
+    return this.db.appConfig.where("appId").equals(appId).toArray();
+  }
+
+  /**
+   * Get template configs, optionally filtered by component type and
+   * subtype. Templates are base configurations that get cloned for new
+   * instances.
+   *
+   * Visibility (Session 4) applies — cross-app templates and private
+   * templates owned by other users are hidden.
+   *
+   * IndexedDB cannot index boolean values, so we scan via `toArray()`
+   * and filter `isTemplate` in JS rather than querying the index.
    */
   async getTemplates(
     componentType?: string,
     componentSubType?: string,
   ): Promise<AppConfigRow[]> {
-    let query = this.db.appConfig.where("isTemplate").equals(1);
+    const all = await this.db.appConfig.toArray();
 
-    // Dexie stores booleans as 0/1 in indexes
-    const results = await query.toArray();
-
-    // Filter in memory for optional type/subtype (simpler than compound queries)
-    return results.filter((row) => {
+    const ctx = this.visibilityContext;
+    return all.filter((row) => {
+      if (!row.isTemplate) return false;
+      if (!isVisible(row, ctx)) return false;
       if (componentType && row.componentType !== componentType) return false;
       if (componentSubType && row.componentSubType !== componentSubType) return false;
       return true;

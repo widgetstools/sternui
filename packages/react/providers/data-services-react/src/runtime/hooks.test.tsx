@@ -36,8 +36,11 @@ function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow>
       return [...rows.values()].filter((r) => r.userId === userId);
     },
     // DataProviders are now global — list() reads all rows regardless
-    // of the calling user. Stub matches the production semantics.
+    // of the calling user. Stub matches the production semantics
+    // (production now uses the unfiltered admin variant for the same
+    // reason — see DataProviderConfigStore.list()).
     async getAllConfigs() { return [...rows.values()]; },
+    async getAllConfigsUnfiltered() { return [...rows.values()]; },
     async getConfig(id: string) { return rows.get(id); },
     async saveConfig(row: AppConfigRow) { rows.set(row.configId, row); },
     async deleteConfig(id: string) { rows.delete(id); },

@@ -404,7 +404,10 @@ export async function migrateLegacyPlatformScope(): Promise<{ migrated: number }
  */
 export async function realignAllConfigsToPlatformScope(): Promise<{ realigned: number; total: number }> {
   const manager = await getConfigManager();
-  const rows = await manager.getAllConfigs();
+  // Cross-app re-stamping migration: the visibility filter (Session 4)
+  // would hide rows whose `appId` doesn't match the manager's scope —
+  // exactly the rows we need to realign. Use the unfiltered read.
+  const rows = await manager.getAllConfigsUnfiltered();
   const now = new Date().toISOString();
   let realigned = 0;
   for (const row of rows) {
@@ -450,8 +453,11 @@ export async function migrateRegistryToGlobalScope(): Promise<{ migrated: number
   const existingGlobal = await manager.getConfig(globalConfigId);
   if (existingGlobal) return { migrated: 0 };
 
-  // Find every registry row for this app at any non-global userId
-  const all = await manager.getAllConfigs();
+  // Find every registry row for this app at any non-global userId.
+  // Bypass the visibility filter — this migration walks rows owned by
+  // every user, including private rows owned by other users that we
+  // need to relocate.
+  const all = await manager.getAllConfigsUnfiltered();
   const candidates = all.filter((r) =>
     r.appId === targetAppId &&
     r.userId !== GLOBAL_USER_ID &&

@@ -42,6 +42,11 @@ class InMemoryConfigManager {
       .filter((r) => r.userId === userId)
       .map((r) => ({ ...r }));
   }
+  async getConfigsByUserUnfiltered(userId: string): Promise<AppConfigRow[]> {
+    return Array.from(this.rows.values())
+      .filter((r) => r.userId === userId)
+      .map((r) => ({ ...r }));
+  }
   async getAllConfigs(): Promise<AppConfigRow[]> {
     return Array.from(this.rows.values()).map((r) => ({ ...r }));
   }

@@ -34,6 +34,9 @@ class InMemoryConfigManager {
   async getConfigsByUser(): Promise<AppConfigRow[]> {
     return Array.from(this.rows.values()).map((r) => ({ ...r }));
   }
+  async getConfigsByUserUnfiltered(): Promise<AppConfigRow[]> {
+    return Array.from(this.rows.values()).map((r) => ({ ...r }));
+  }
 }
 
 class StubWorkspacePlatformProvider {}
