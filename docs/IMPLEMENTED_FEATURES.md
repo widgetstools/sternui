@@ -1813,7 +1813,7 @@ Apps render hosted components without those components knowing whether they live
 - `windowShown$`, `windowClosing$`, `customData$`, `workspaceSave$` Observables bridged from the underlying `RuntimePort`.
 - `dispose()` tears down listener subscriptions and completes every Subject. Wired automatically through `DestroyRef` so the singleton cleans itself up when the root injector tears down.
 
-Built via `ng-packagr` (FESM2022 + `.d.ts`). Wired into `apps/markets-ui-angular-reference`: `app.config.ts` exports `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async), selects `OpenFinRuntime` when `isOpenFin()` else `BrowserRuntime`, and spreads `provideHostWrapper(...)` into the providers list. `main.ts` awaits `buildAppConfig()` before `bootstrapApplication`.
+Built via `ng-packagr` (FESM2022 + `.d.ts`). Recommended wiring pattern for an Angular host: an `app.config.ts` exports `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async), selects `OpenFinRuntime` when `isOpenFin()` else `BrowserRuntime`, and spreads `provideHostWrapper(...)` into the providers list; `main.ts` awaits `buildAppConfig()` before `bootstrapApplication`. (The `apps/markets-ui-angular-reference` app that demonstrated this pattern was removed on 2026-05-08 — see "Removed in 2026-05-08" above.)
 
 ### Workspace-save event
 
@@ -2165,7 +2165,6 @@ client-side userId resolution to it.
 | `packages/component-host/src/save-config.ts` | Build-fresh fallback uses `LOGGED_IN_USER_ID` instead of `""` so a row never lands with `userId=''`. New dep: `@starui/runtime-port`. |
 | `packages/data-plane-react/src/v2/index.tsx` | `useAppData().setMany()` falls back to `LOGGED_IN_USER_ID` (was `''`) for the user-owner field on a freshly-created AppData config row. New dep: `@starui/runtime-port`. |
 | `apps/markets-ui-react-reference/src/views/DataProviders.tsx` | Removes the `VITE_DEFAULT_USER_ID` env override and the `readHostEnv()`-based userId pickup; `userId` is now `LOGGED_IN_USER_ID` directly. |
-| `apps/markets-ui-angular-reference/src/app/components/hosted-component/hosted-component.component.ts` | `resolveUserId()` collapses to `return LOGGED_IN_USER_ID` — `customData.userId` is ignored. |
 | Tests in `runtime-browser`, `runtime-openfin`, `widgets-react`, `component-host` | Updated to assert the new pin (`expect(id.userId).toBe(LOGGED_IN_USER_ID)`) where they previously verified URL/override/customData propagation for `userId`. |
 
 Result: every client write to the config service lands under
