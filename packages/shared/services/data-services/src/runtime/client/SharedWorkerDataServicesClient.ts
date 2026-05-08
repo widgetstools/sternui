@@ -34,7 +34,6 @@ import type {
 } from '../protocol.js';
 import { isEvent, isAppDataEvent } from '../protocol.js';
 import type { ProviderConfig } from '@starui/shared-types';
-import type { ConfigManager } from '@starui/config-service';
 import { AppDataMirror } from '../mirror/AppDataMirror.js';
 
 /**
@@ -373,21 +372,21 @@ export class SharedWorkerDataServicesClient {
   }
 
   /**
-   * Attach a fresh `AppDataMirror` to the hub. The mirror seeds the
-   * hub from ConfigManager on first attach, then reflects every
-   * subsequent broadcast.
+   * Attach a fresh `AppDataMirror` to the hub. The mirror is a
+   * pure RPC client — it sends operations to the hub and receives
+   * snapshot/delta events back. The hub owns IndexedDB persistence;
+   * the mirror never touches Dexie.
    *
-   *   const mirror = client.attachAppData({ configManager, userId });
+   *   const mirror = client.attachAppData({ userId });
    *   await mirror.attach();
    *   await mirror.ready();
    *   mirror.get('positions', 'asOfDate'); // sync read
    *   await mirror.set('positions', 'asOfDate', '2026-05-08');
    *
-   * The caller owns the mirror's lifetime — `mirror.detach()` (TODO)
+   * The caller owns the mirror's lifetime — `client.detachAppData(mirror)`
    * or `client.close()` releases the worker-side listener.
    */
   attachAppData(opts: {
-    configManager: ConfigManager;
     userId: string;
     /** Override the auto-generated subId (used in tests for determinism). */
     subId?: string;
@@ -395,7 +394,6 @@ export class SharedWorkerDataServicesClient {
     const subId = opts.subId ?? this.generateSubId();
     const mirror = new AppDataMirror({
       subId,
-      configManager: opts.configManager,
       userId: opts.userId,
       send: (req: AppDataRequest) => this.sendAppData(req),
     });

@@ -75,17 +75,20 @@ interface TestEnv {
 
 interface SetupOpts {
   userId?: string;
-  /** AppConfigRows to populate the ConfigManager BEFORE the mirror's
-   *  initial `attach()` (which reads from ConfigManager to seed the
-   *  hub). Mirrors production where rows persist across reloads. */
+  /** AppConfigRows to populate the ConfigManager BEFORE the hub
+   *  hydrates. Mirrors production where rows persist across reloads
+   *  and the SharedWorker entry hydrates the hub at boot. */
   seed?: AppConfigRow[];
 }
 
-function setup(opts: SetupOpts = {}): TestEnv {
+async function setup(opts: SetupOpts = {}): Promise<TestEnv> {
   const userId = opts.userId ?? 'alice';
   const cm = stubConfigManager();
   for (const row of opts.seed ?? []) cm._rows.set(row.configId, row);
-  const hub = new SharedWorkerDataServicesHub();
+  // Hub takes the ConfigManager + hydrates from it BEFORE accepting
+  // any port traffic — same shape as the production worker entry.
+  const hub = new SharedWorkerDataServicesHub({ configManager: cm });
+  await hub.hydrateAppData(userId);
   const wiring = createInPageWiring((port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
@@ -94,7 +97,7 @@ function setup(opts: SetupOpts = {}): TestEnv {
     });
     port.start();
   });
-  const appData = wiring.client.attachAppData({ configManager: cm, userId });
+  const appData = wiring.client.attachAppData({ userId });
   void appData.attach();
   const services: DataServices = {
     client: wiring.client,
@@ -108,7 +111,7 @@ function setup(opts: SetupOpts = {}): TestEnv {
 
 describe('useProviderStream', () => {
   it('subscribes on mount and detaches on unmount', async () => {
-    const env = setup();
+    const env = await setup();
     const cfg: ProviderConfig = { providerType: 'mock', keyColumn: 'id' } as ProviderConfig;
     const deltas: Array<{ rows: readonly unknown[]; replace: boolean }> = [];
 
@@ -147,7 +150,7 @@ describe('useProviderStream', () => {
 
 describe('useAppDataStore', () => {
   it('exposes the snapshot via .get and bumps version on changes', async () => {
-    const env = setup({
+    const env = await setup({
       seed: [{
         configId: 'ad-1', appId: 'TestApp', userId: 'alice',
         componentType: 'appdata', componentSubType: 'appdata',
@@ -186,7 +189,7 @@ describe('useAppDataStore', () => {
 
 describe('useDataProviderConfig', () => {
   it('loads the row by id', async () => {
-    const env = setup();
+    const env = await setup();
     env.cm._rows.set('dp-1', {
       configId: 'dp-1', appId: 'TestApp', userId: 'alice',
       componentType: 'data-provider', componentSubType: 'mock',
@@ -217,7 +220,7 @@ describe('useDataProviderConfig', () => {
 
 describe('DataServicesProvider — mode', () => {
   it("'lazy' (default) renders children immediately", async () => {
-    const env = setup();
+    const env = await setup();
     let firstPaintLoaded: boolean | null = null;
 
     function Probe() {
@@ -247,7 +250,7 @@ describe('DataServicesProvider — mode', () => {
   });
 
   it("'eager' suspends until services.ready resolves", async () => {
-    const env = setup();
+    const env = await setup();
 
     function Probe() {
       return <div data-testid="child">child</div>;
