@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import type { DataProviderConfig } from '@starui/shared-types';
-import { DataProviderConfigService } from '@starui/data-plane';
+import { DataProviderConfigService } from '@starui/data-services';
 
 @Injectable({ providedIn: 'root' })
 export class DataProviderService {

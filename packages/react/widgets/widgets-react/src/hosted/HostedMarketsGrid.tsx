@@ -5,20 +5,20 @@
  * call site. Composes the building blocks from sessions 1–3 plus
  * MarketsGridContainer:
  *
- *   <DataPlaneProvider>
+ *   <DataServicesProvider>
  *     <FullBleedLayout>
  *       <ConfigManagerLoadingGuard>
  *         <MarketsGridContainer ... />
  *       </ConfigManagerLoadingGuard>
  *     </FullBleedLayout>
- *   </DataPlaneProvider>
+ *   </DataServicesProvider>
  *
  * Props are flat (no `gridProps` namespacing) per refactor decision D7.
  */
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { DataPlane } from '@starui/data-plane/v2/client';
-import { DataPlaneProvider } from '@starui/data-plane-react/v2';
+import type { SharedWorkerDataServicesClient } from '@starui/data-services/runtime/client';
+import { DataServicesProvider } from '@starui/data-services-react/runtime';
 import type { MarketsGridHandle } from '@starui/markets-grid';
 import { MarketsGridContainer, type MarketsGridContainerProps } from '../v2/markets-grid-container/index.js';
 import { useHostedView } from './useHostedView.js';
@@ -71,10 +71,10 @@ export interface HostedMarketsGridProps<
   /** Theme mode for the AG-Grid blotter preset. Defaults to `'auto'`
    *  (follows the host's `[data-theme]` attribute). */
   theme?: AgGridThemeMode;
-  /** Optional DataPlane client. When provided, the wrapper mounts a
-   *  `<DataPlaneProvider>` for it. Omit when an ancestor already
-   *  provides DataPlane context. */
-  dataPlaneClient?: DataPlane;
+  /** Optional data-services client. When provided, the wrapper mounts a
+   *  `<DataServicesProvider>` for it. Omit when an ancestor already
+   *  provides data-services context. */
+  dataServicesClient?: SharedWorkerDataServicesClient;
 }
 
 function fullBleedReset(): ReactNode {
@@ -126,7 +126,7 @@ export function HostedMarketsGrid<
     withStorage = false,
     configManager,
     theme = 'auto',
-    dataPlaneClient,
+    dataServicesClient,
     caption,
     ...containerProps
   } = props;
@@ -248,15 +248,15 @@ export function HostedMarketsGrid<
     handleReady,
   ]);
 
-  const dataPlaneWrapped = dataPlaneClient && identity.configManager
+  const dataServicesWrapped = dataServicesClient && identity.configManager
     ? (
-      <DataPlaneProvider
-        client={dataPlaneClient}
+      <DataServicesProvider
+        client={dataServicesClient}
         configManager={identity.configManager}
         userId={identity.userId}
       >
         {containerNode}
-      </DataPlaneProvider>
+      </DataServicesProvider>
     )
     : containerNode;
 
@@ -264,7 +264,7 @@ export function HostedMarketsGrid<
     <>
       {fullBleedReset()}
       <div style={FULL_BLEED_STYLE}>
-        <div style={INNER_FILL_STYLE}>{dataPlaneWrapped}</div>
+        <div style={INNER_FILL_STYLE}>{dataServicesWrapped}</div>
       </div>
     </>
   );

@@ -25,12 +25,12 @@ export interface GridPlatformOptions {
    * Pass a single string for a one-column key, or an array of column
    * names for a composite key — the values are joined with `-` to form
    * the row id (matches the worker-side cache key produced by the
-   * data-plane Hub).
+   * data-services SharedWorkerDataServicesHub).
    */
   rowIdField?: string | readonly string[];
   /**
    * Optional adapter over the host application's named-data registry
-   * (e.g. data-plane's AppDataStore). Plumbed through to `resources.appData()`
+   * (e.g. data-services' AppDataStore). Plumbed through to `resources.appData()`
    * so cell-editor `valuesSource: '{{name.key}}'` bindings can resolve at
    * edit time. When omitted, dynamic value-source bindings degrade to
    * empty value lists — features tied to AppData simply don't render.

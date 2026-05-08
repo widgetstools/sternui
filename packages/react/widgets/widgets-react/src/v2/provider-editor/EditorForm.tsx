@@ -25,7 +25,7 @@ import {
 } from '@starui/ui';
 import { CheckCircle2, Columns3, Loader2, X } from 'lucide-react';
 import type { ColumnDefinition, DataProviderConfig, ProviderConfig } from '@starui/shared-types';
-import { useDataPlane } from '@starui/data-plane-react/v2';
+import { useDataServices } from '@starui/data-services-react/runtime';
 import { useProviderProbe } from './useProviderProbe.js';
 import { ConnectionTab } from './tabs/ConnectionTab.js';
 import { FieldsTab } from './tabs/FieldsTab.js';
@@ -48,7 +48,7 @@ export interface EditorFormProps {
 }
 
 export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormProps) {
-  const { configStore } = useDataPlane();
+  const { configStore } = useDataServices();
   const [provider, setProvider] = useState<DataProviderConfig>(initial);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);

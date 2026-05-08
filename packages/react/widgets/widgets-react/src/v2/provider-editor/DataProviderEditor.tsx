@@ -18,7 +18,7 @@ import {
 } from '@starui/ui';
 import { Database, Globe, Plus, Radio, Search, Trash2, TestTube2 } from 'lucide-react';
 import type { DataProviderConfig, ProviderConfig, ProviderType } from '@starui/shared-types';
-import { useDataPlane, useDataProvidersList } from '@starui/data-plane-react/v2';
+import { useDataServices, useDataProvidersList } from '@starui/data-services-react/runtime';
 import { EditorForm } from './EditorForm.js';
 
 // ─── Provider-type defaults — keep MINIMAL; everything else is
@@ -44,7 +44,7 @@ export interface DataProviderEditorProps {
 }
 
 export function DataProviderEditor({ userId, initialProviderId = null, onClose }: DataProviderEditorProps) {
-  const { configStore } = useDataPlane();
+  const { configStore } = useDataServices();
   // Editor sidebar lists EVERY kind of provider — including AppData
   // rows that the live-stream picker filters out. The user's mental
   // model is that anything they create here should be visible here

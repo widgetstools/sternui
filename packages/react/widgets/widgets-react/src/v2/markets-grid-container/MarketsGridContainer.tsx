@@ -35,8 +35,8 @@ import {
   useResolvedCfg,
   useDataProvidersList,
   useAppDataStore,
-  useDataPlane,
-} from '@starui/data-plane-react/v2';
+  useDataServices,
+} from '@starui/data-services-react/runtime';
 import { composeRowId, getValueByPath } from '@starui/shared-types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
 import { useChordHotkey } from './useChordHotkey.js';
@@ -112,7 +112,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     ...marketsGridProps
   } = props;
 
-  const dp = useDataPlane();
+  const dp = useDataServices();
   const dpClient = dp.client;
   const appData = useAppDataStore();
 
@@ -517,12 +517,12 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       // overlay tear-down to the same microtask. The flip MUST happen
       // inside the microtask (not synchronously here) because:
       //
-      //   1. trySettleSnapshot() inside DataPlane.ts schedules a
+      //   1. trySettleSnapshot() inside SharedWorkerDataServicesClient.ts schedules a
       //      microtask M_snap (the consumer's `handle.snapshot.then`).
       //   2. This onStatus body runs synchronously and schedules
       //      M_commit (below).
       //   3. M_snap runs FIRST (FIFO microtask order). Inside it,
-      //      `handle.onUpdate(cb)` triggers DataPlane.ts's
+      //      `handle.onUpdate(cb)` triggers SharedWorkerDataServicesClient.ts's
       //      `flushBuffered`, which synchronously replays every
       //      `replace=false` chunk that arrived before onUpdate was
       //      wired (i.e. chunks 1..N of the late-join cache replay).
@@ -597,7 +597,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     // Register onUpdate IMMEDIATELY (not inside snapshot.then) so
     // each `replace=false` chunk of the late-join cache replay fires
     // its own task tick. With the late registration, every chunk
-    // bypassed updateCb and accumulated in DataPlane's bufferedUpdates;
+    // bypassed updateCb and accumulated in SharedWorkerDataServicesClient's bufferedUpdates;
     // the entire backlog then flushed synchronously when onUpdate was
     // registered post-`status='ready'`, collapsing into a single React
     // render and leaving the busy-overlay caption stuck at "0 rows

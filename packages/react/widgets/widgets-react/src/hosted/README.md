@@ -6,10 +6,10 @@ previously a six-deep stack (`BlottersMarketsGrid → HostedFeatureView →
 HostedComponent → BlotterGrid → MarketsGridContainer → MarketsGrid`)
 into one call site. The wrapper owns identity resolution (OpenFin and
 browser), ConfigService-backed storage, the AG-Grid blotter theme, the
-DataPlane mount, the full-bleed layout, the ConfigManager loading
-guard, the legacy view-state cleanup, and the document title — leaving
-the call site to do nothing more than name the grid and supply the
-data-plane client.
+data-services mount, the full-bleed layout, the ConfigManager
+loading guard, the legacy view-state cleanup, and the document title
+— leaving the call site to do nothing more than name the grid and
+supply the data-services client.
 
 ## Minimum-viable usage
 
@@ -56,7 +56,7 @@ namespacing).
 | `withStorage` | `boolean?` | `false` | When true, build a `StorageAdapterFactory` from the host ConfigManager and pass it to the grid. The factory is wrapped to auto-inject `componentType` / `componentSubType` / `isTemplate` / `singleton` from the OpenFin Registry on every call. |
 | `configManager` | `ConfigManager?` | resolved lazily from `@starui/openfin-platform/config` | Explicit override. Use in tests or in non-OpenFin runtimes that supply their own ConfigManager. |
 | `theme` | `'auto' \| 'dark' \| 'light'` | `'auto'` | AG-Grid blotter theme mode. `'auto'` follows the host's `[data-theme]` attribute on `<html>` via a MutationObserver. |
-| `dataPlaneClient` | `DataPlane?` | — | Optional DataPlane client. When provided, the wrapper mounts a `<DataPlaneProvider>`. Omit when an ancestor already provides DataPlane context. |
+| `dataServicesClient` | `SharedWorkerDataServicesClient?` | — | Optional data-services client. When provided, the wrapper mounts a `<DataServicesProvider>`. Omit when an ancestor already provides data-services context. |
 | `caption` | `string?` | `componentName` | Caption forwarded to `MarketsGridContainer` *only when the host OpenFin window has hidden its tab strip*. When tabs are visible nothing is forwarded; when hidden and `caption` is omitted, `componentName` is used as the fallback. The wrapper does not render the caption itself — it forwards both the resolved string and the `tabsHidden` flag, leaving the layout decision to the grid. |
 
 ## Workspace save
@@ -80,7 +80,7 @@ The remaining props are forwarded verbatim — selected highlights:
 |---|---|---|
 | `gridId` | `string` | Required by `MarketsGrid`; keys profile and view-state rows. |
 | `historicalDateAppDataRef` | `string?` | `'appDataProviderName.key'` target for the historical date picker. |
-| `onEditProvider` | `(id: string) => void` | Open the provider editor. The reference app forwards this to `data-plane-popout.ts` to launch a popout window. |
+| `onEditProvider` | `(id: string) => void` | Open the provider editor. The reference app forwards this to `data-services-popout.ts` to launch a popout window. |
 | `onError` | `(err: Error) => void` | Stream-error sink. Defaults to `console.error`. |
 | `showFiltersToolbar` | `boolean?` | Show the filters toolbar above the grid. |
 | `showFormattingToolbar` | `boolean?` | Show the formatting toolbar above the grid. |
@@ -178,7 +178,7 @@ at the wrapper boundary, with inherited rows additionally covered by
 | 6 | `withStorage` opt-in to ConfigService adapter | `with-storage.test.tsx` |
 | 7 | Document title set on mount, restored on unmount | `document-title.test.tsx` |
 | 8 | Full-bleed fixed layout | `full-bleed.test.tsx` |
-| 9 | DataPlane provider mount | `data-plane-mount.test.tsx` |
+| 9 | DataServices provider mount | `dataServicesMount.test.tsx` |
 | 10 | ConfigManager loading-state guard | `config-manager.test.tsx` |
 | 11 | AG-Grid blotter theme | `useAgGridTheme.test.tsx` |
 | 12 | Theme switching driven by `[data-theme]` | `useAgGridTheme.test.tsx` |

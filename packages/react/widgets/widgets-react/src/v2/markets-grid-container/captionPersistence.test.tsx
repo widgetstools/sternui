@@ -24,8 +24,8 @@ vi.mock('@starui/markets-grid', () => ({
   },
 }));
 
-vi.mock('@starui/data-plane-react/v2', () => ({
-  useDataPlane: () => ({ client: {} }),
+vi.mock('@starui/data-services-react/runtime', () => ({
+  useDataServices: () => ({ client: {} }),
   useAppDataStore: () => ({ store: { set: vi.fn() } }),
   useDataProviderConfig: () => ({ cfg: null, loading: false }),
   useResolvedCfg: () => null,
