@@ -21,6 +21,28 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Tightened 2026-05-08 — REST hub coverage + provider-type lockdown
+
+Step 4 of `docs/plans/plan-2026-05-07/data-services-redesign.md`,
+closing out the original 5-step sequence. The actual generalization
+work (REST runs through the same registry / hub / probe pipeline as
+STOMP) had already shipped; Step 4 is the audit + lockdown pass.
+
+| Layer | Before | After |
+|---|---|---|
+| `SharedWorkerDataServicesHub.test.ts` | mock-only coverage; REST ran in production but had no test through the hub | New "REST round-trip" describe block injects `startRest` with a stubbed `fetchImpl` and asserts loading → fetched-rows-replace → ready over the hub protocol |
+| Angular editor's `providerTypes` picker | offered `websocket` + `socketio` (no factory implementations — saving such configs failed at first attach with `No provider factory registered`) | offers stomp + rest + mock only, matching React's `SUPPORTED_TYPES` |
+| `provider-form.component.ts` | dead `<section *ngIf="…websocket">` + `…socketio` template branches and matching config getters | branches removed, getters dropped, type imports trimmed |
+| `runtime/providers/index.ts` | barrel exported probe functions but didn't tell future maintainers how to add a transport | five-step "Adding a new transport" recipe documents the pattern at the discovery point; references `mock.ts` as the simplest reference and the new REST hub test as the template for verification |
+
+Net delta: +98 LOC test, -52 LOC dead Angular code, +27 LOC docs.
+The five-step redesign sequence (rename → AppData mirror → bootstrap
++ Provider mode → REST generalization → unified probe surface) is
+now complete. Remaining work outside the redesign sequence: the
+Angular adapter (`provideDataServices()` + `injectDataServices()`)
+and worker-owned IndexedDB persistence — both deferred items, both
+unblocked by the Step 1-5 chain.
+
 ## Removed 2026-05-08 — legacy `StompProbe` class; unified probe surface
 
 Step 5 of `docs/plans/plan-2026-05-07/data-services-redesign.md`.
