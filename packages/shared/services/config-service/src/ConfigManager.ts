@@ -462,6 +462,9 @@ export class ConfigManager {
       configId: snapshotId,
       appId,
       userId: "system",
+      // Snapshots are app-wide artefacts, visible to everyone using
+      // the app — public by definition. Decision 6.
+      isPublic: true,
       displayText: `Snapshot ${snapshotId}`,
       componentType: "WORKSPACE_SNAPSHOT",
       componentSubType: "",

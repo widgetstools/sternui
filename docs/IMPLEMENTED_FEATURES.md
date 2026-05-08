@@ -21,6 +21,42 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 1: `isPublic` schema field (additive)
+
+First session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 1, Decisions 6 + 7). Pure schema addition — no read/write paths
+consult the field yet; existing consumers compile and behave unchanged.
+
+- `AppConfigRow.isPublic?: boolean` lands as an optional column. JSDoc
+  on the type captures the owner-vs-audit role split (Decision 7) so
+  Sessions 3+8 can swap stamping/visibility into one place without
+  needing to retell the whole story.
+- Dexie schema bumped to v3 with an idempotent `.upgrade()` hook that
+  fills `isPublic = true` on every pre-existing row. The field is
+  intentionally NOT indexed — Decision 6's visibility filter runs in
+  JS, so adding an index would only slow opens for no read win.
+- New writes through `ConfigManager.saveSnapshot` and the
+  `createConfigServiceStorage` profile-set adapter populate
+  `isPublic: true` explicitly. The adapter preserves a row's existing
+  `isPublic` value across read-modify-write so a row that's already
+  private stays private.
+- `@starui/config-service` is now wired for vitest:
+  `vitest.config.ts` (jsdom env) + `test/setup.ts`
+  (`fake-indexeddb/auto`). The pre-existing
+  `profileStorage.identity.test.ts` had been dead-code under the old
+  setup; this session adopts it into a runnable suite (10 existing
+  tests + 2 new `isPublic` tests + 3 new `db.upgrade.test.ts` tests
+  for the schema migration). `fake-indexeddb ^6.2.5` is recorded in
+  [`docs/DEPS_STANDARD.md`](./DEPS_STANDARD.md).
+
+Files touched:
+`packages/shared/services/config-service/src/{types,db,profileStorage,ConfigManager}.ts`,
+`packages/shared/services/config-service/src/{db.upgrade,profileStorage.identity}.test.ts`,
+`packages/shared/services/config-service/{package.json,vitest.config.ts}`,
+`packages/shared/services/config-service/test/setup.ts`,
+`docs/DEPS_STANDARD.md`.
+
 ## Migrated 2026-05-08 — worker-owned AppData persistence + BlottersMarketsGrid eager mode
 
 Two related changes that close the last code-changing items in the
