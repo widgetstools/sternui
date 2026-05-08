@@ -21,6 +21,58 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Added 2026-05-08 — `bootstrapDataServices()` + `<DataServicesProvider mode>`
+
+Step 3 of `docs/plans/plan-2026-05-07/data-services-redesign.md`.
+Single entry point for wiring data-services into a consuming app —
+caller passes a pre-constructed `SharedWorker` (Vite worker plugin
+constraint), bootstrap returns a `DataServices` bundle:
+
+```ts
+const dataServices = bootstrapDataServices({
+  appName: 'TestApp',
+  worker,                // new SharedWorker(new URL('./worker.ts', ...))
+  configManager,         // ConfigManager class instance
+  userId: LOGGED_IN_USER_ID,
+});
+// → { client, appData, configManager, ready, dispose }
+```
+
+Bootstrap is idempotent by `appName` — same key returns the same
+object reference, so two parts of the app booting independently
+share one client + one mirror.
+
+The React Provider's prop shape switches from the 3-prop legacy
+(`client`/`configManager`/`userId`) to a single `services` prop +
+optional `mode: 'eager' | 'lazy'`:
+
+```tsx
+<DataServicesProvider services={dataServices} mode="lazy">
+  <App />
+</DataServicesProvider>
+
+<Suspense fallback={<Spinner />}>
+  <DataServicesProvider services={dataServices} mode="eager">
+    <DashboardKeyedOnAppData />
+  </DataServicesProvider>
+</Suspense>
+```
+
+Eager mode uses React 19's `use(services.ready)` to suspend first
+paint until the AppDataMirror's first snapshot lands — for
+dashboards keyed off `{{positions.asOfDate}}`-style templates that
+must have real values on first render.
+
+Reference-app consumer wiring drops from ~46 LOC to ~10 LOC of
+meaningful code — `dataServices.mainThread.ts` becomes a SharedWorker
+construction + a single `bootstrapDataServices()` call. Downstream
+views (`BlottersMarketsGrid`, `DataProviders`) read `dataServices`
+directly from this module.
+
+`HostedMarketsGrid`'s `dataServicesClient` prop is renamed to
+`dataServices` (DataServices bundle); the inner Provider mount uses
+the new `services` prop.
+
 ## Renamed 2026-05-08 — `@starui/data-plane` → `@starui/data-services`
 
 Step 1 of `docs/plans/plan-2026-05-07/data-services-redesign.md`. Pure
