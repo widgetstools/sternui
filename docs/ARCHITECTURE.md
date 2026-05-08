@@ -30,8 +30,8 @@ inject the differences.
 ├──────────────────────────────────────────────────────────────┤
 │  Layer 3  Component domain:                                  │
 │            MarketsGrid, DataProvider, Profile,               │
-│            ConfigBrowser, DataProviderEditor, DockEditor,    │  agnostic
-│            RegistryEditor, WorkspaceSetup                    │
+│            ConfigBrowser, DataProviderEditor,                │  agnostic
+│            WorkspaceSetup                                    │
 ├──────────────────────────────────────────────────────────────┤
 │  Layer 2  Platform helpers:                                  │
 │            ConfigManager (4 backends), HostWrapper identity, │
@@ -113,7 +113,7 @@ or routing directly.
 ## Modular component shape
 
 Every major component (MarketsGrid, DataProviderEditor, ConfigBrowser,
-DockEditor, RegistryEditor, WorkspaceSetup) follows the same shape:
+WorkspaceSetup) follows the same shape:
 
 ```
 @starui/<thing>                     ← agnostic logic (TS only)
@@ -211,41 +211,62 @@ ESLint enforcement is a follow-up; convention enforcement comes first.
 
 ## Folder layout
 
-Packages are bucketed by framework:
+Packages are bucketed by framework, then by role inside each framework
+(per [`plans/plan-2026-05-07/code-organization.md`](./plans/plan-2026-05-07/code-organization.md)):
 
 ```
 packages/
-├── shared/        vanilla TS — framework-agnostic
-│   ├── shared-types/
-│   ├── design-system/
-│   ├── icons-svg/
-│   ├── core/
-│   ├── data-plane/
-│   ├── runtime-port/
-│   ├── runtime-browser/
-│   ├── runtime-openfin/
-│   ├── config-service/
-│   ├── component-host/
-│   ├── openfin-platform/
-│   └── openfin-platform-stern/
-├── react/         peer-depends on react/react-dom
-│   ├── ui/
-│   ├── markets-grid/
-│   ├── widget-sdk/
-│   ├── widgets-react/
-│   ├── host-wrapper-react/
-│   ├── data-plane-react/
-│   ├── dock-editor-react/
-│   ├── registry-editor-react/
-│   └── config-browser-react/
-└── angular/       peer-depends on @angular/core
-    ├── angular/
-    ├── host-wrapper-angular/
-    ├── tokens-primeng/
-    ├── dock-editor-angular/
-    ├── registry-editor-angular/
-    └── config-browser-angular/
+├── shared/                    vanilla TS — framework-agnostic
+│   ├── core/                  grid platform (vanilla)
+│   ├── foundation/            pure leaves; no internal deps allowed
+│   │   ├── shared-types/
+│   │   ├── design-system/
+│   │   ├── icons-svg/
+│   │   └── tokens-primeng/
+│   ├── runtime/               runtime abstraction layer
+│   │   ├── runtime-port/      (interface)
+│   │   ├── runtime-browser/   (impl)
+│   │   └── runtime-openfin/   (impl)
+│   ├── services/              vanilla services consumed by framework adapters
+│   │   ├── config-service/
+│   │   ├── data-plane/
+│   │   └── component-host/
+│   └── platform/              runtime shells
+│       └── openfin-platform/
+├── react/                     peer-depends on react/react-dom
+│   ├── ui/                    shadcn primitives (no twin → no -react)
+│   ├── sdk/
+│   │   └── widget-sdk/        widget contract (no twin → no -react)
+│   ├── widgets/               end-user UI components
+│   │   ├── markets-grid/
+│   │   ├── grid-react/        ← extracted from core/{ui,hooks,modules}
+│   │   └── widgets-react/
+│   ├── hosts/
+│   │   └── host-wrapper-react/
+│   ├── providers/             Provider + hook shells around shared/services
+│   │   └── data-plane-react/
+│   └── tools/                 dev/operator UIs
+│       ├── config-browser-react/
+│       └── workspace-setup-react/   ← extracted from dock-editor-react
+└── angular/                   peer-depends on @angular/core (parity catching up)
+    ├── hosts/
+    │   └── host-wrapper-angular/
+    ├── tools/
+    │   └── config-browser-angular/
+    └── widgets/
+        └── widgets-angular/
 ```
+
+**Bucket rules** (enforced by convention; ESLint follow-up):
+
+- `foundation/` packages must not import from any other package.
+- `runtime/`, `services/`, `platform/` may depend on `foundation/` and
+  on each other within the same bucket.
+- No package in `shared/` may import React, Angular, or any
+  framework-coupled library.
+- `core` is its own package at the root of `shared/` (NOT inside
+  `platform/`) — a framework-agnostic grid platform, distinct from the
+  OpenFin platform shell.
 
 ## Reference apps
 

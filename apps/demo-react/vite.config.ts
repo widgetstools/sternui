@@ -8,7 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@starui/core': resolve(__dirname, '../../packages/shared/core/src'),
-      '@starui/markets-grid': resolve(__dirname, '../../packages/react/markets-grid/src'),
+      '@starui/grid-react': resolve(__dirname, '../../packages/react/widgets/grid-react/src'),
+      '@starui/markets-grid': resolve(__dirname, '../../packages/react/widgets/markets-grid/src'),
     },
   },
   build: {
