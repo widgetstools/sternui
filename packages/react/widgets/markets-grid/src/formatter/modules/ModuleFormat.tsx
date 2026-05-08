@@ -9,11 +9,11 @@ import { useState } from 'react';
 import {
   ArrowLeft, ArrowRight, ChevronDown, DollarSign, Hash, Percent,
 } from 'lucide-react';
+import type { ValueFormatterTemplate } from '@starui/core';
 import {
   PopoverCompat as Popover,
   FormatterPicker,
-  type ValueFormatterTemplate,
-} from '@starui/core';
+} from '@starui/grid-react';
 import {
   BPS_TEMPLATE,
   COMMA_TEMPLATE,

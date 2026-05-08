@@ -19,6 +19,7 @@
     "@starui/core": "*",
     "@starui/data-plane": "*",
     "@starui/data-plane-react": "*",
+    "@starui/grid-react": "*",
     "@starui/host-wrapper-react": "*",
     "@starui/markets-grid": "*",
     "@starui/widgets-react": "*",

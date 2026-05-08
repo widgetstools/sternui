@@ -23,7 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@starui/core';
+} from '@starui/grid-react';
 import { ModuleClear } from './modules/ModuleClear';
 import { ModuleContext } from './modules/ModuleContext';
 import { ModuleEditorFilter } from './modules/ModuleEditorFilter';

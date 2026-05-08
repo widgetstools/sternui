@@ -8,7 +8,7 @@
  */
 import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
-import { PopoverCompat as Popover } from '@starui/core';
+import { PopoverCompat as Popover } from '@starui/grid-react';
 import { TemplateManager } from '../../TemplateManager';
 import { Module, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';

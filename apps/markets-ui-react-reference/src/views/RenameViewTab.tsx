@@ -2,7 +2,7 @@
 declare const fin: any;
 
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input } from '@starui/core';
+import { Button, Input } from '@starui/grid-react';
 
 interface RenameCustomData {
   view: { uuid: string; name: string };

@@ -4,7 +4,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@starui/core": ["../../core/src"]
+      "@starui/core": ["../../../shared/core/src"],
+      "@starui/grid-react": ["../grid-react/src"]
     }
   },
   "include": ["src"],

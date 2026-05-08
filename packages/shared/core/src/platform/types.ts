@@ -11,7 +11,17 @@ import type {
   GridApi,
   GridOptions,
 } from 'ag-grid-community';
-import type { ComponentType } from 'react';
+/**
+ * Framework-agnostic component slot. The `Module` interface accepts
+ * React `ComponentType<X>` here because `@starui/grid-react` plugs in
+ * actual React components, but `@starui/core` itself stays
+ * vanilla-TypeScript: any `(props: P) => any` callable satisfies the
+ * slot, including a `React.ComponentType<P>`. The `any` return is
+ * deliberate so a host using `<module.SettingsPanel />` in JSX
+ * type-checks regardless of what shape `core` was compiled against.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UIComponent<P> = (props: P) => any;
 
 // ─── Column / grid aliases ──────────────────────────────────────────────────
 
@@ -232,12 +242,14 @@ export interface Module<S = unknown> {
   transformColumnDefs?(defs: AnyColDef[], state: S, ctx: TransformContext): AnyColDef[];
   transformGridOptions?(opts: Partial<GridOptions>, state: S, ctx: TransformContext): Partial<GridOptions>;
 
-  // Optional UI surface (React types — these are slots filled by React
-  // bindings that live next to the module. Vanilla consumers can ignore.)
+  // Optional UI surface — slots filled by React bindings that live next
+  // to the module (in `@starui/grid-react`). Vanilla consumers can
+  // ignore. Typed structurally as `(props) => unknown` so this file has
+  // no React peer-dep.
   readonly code?: string;
-  SettingsPanel?: ComponentType<SettingsPanelProps>;
-  ListPane?: ComponentType<ListPaneProps>;
-  EditorPane?: ComponentType<EditorPaneProps>;
+  SettingsPanel?: UIComponent<SettingsPanelProps>;
+  ListPane?: UIComponent<ListPaneProps>;
+  EditorPane?: UIComponent<EditorPaneProps>;
 }
 
 export type AnyModule = Module<any>;

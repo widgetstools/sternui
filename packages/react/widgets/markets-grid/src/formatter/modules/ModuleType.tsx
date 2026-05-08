@@ -9,7 +9,7 @@ import {
   AlignCenter, AlignLeft, AlignRight,
   Bold, ChevronDown, Italic, Underline,
 } from 'lucide-react';
-import { PopoverCompat as Popover } from '@starui/core';
+import { PopoverCompat as Popover } from '@starui/grid-react';
 import { Hair, Menu, MenuItem, Module, Pill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

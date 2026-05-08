@@ -9,7 +9,7 @@ import {
   Button,
   Textarea,
   type SavedFiltersState,
-} from '@starui/core';
+} from '@starui/grid-react';
 import {
   FunnelPlus,
   Pencil,

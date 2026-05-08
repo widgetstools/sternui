@@ -4,12 +4,12 @@
 import { useState } from 'react';
 import { PaintBucket, SquareDashed, Type } from 'lucide-react';
 import {
+  BorderStyleEditor,
   ColorPickerPopover,
   Popover as RadixPopover,
   PopoverContent as RadixPopoverContent,
   PopoverTrigger as RadixPopoverTrigger,
-} from '@starui/core';
-import { BorderStyleEditor } from '@starui/core';
+} from '@starui/grid-react';
 import { Hair, Module } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

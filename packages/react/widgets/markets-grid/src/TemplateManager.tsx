@@ -28,7 +28,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Plus, RotateCw, Trash2, Check, X } from 'lucide-react';
-import { GhostIconButton } from '@starui/core';
+import { GhostIconButton } from '@starui/grid-react';
 
 // Inactive-row hover tint. Co-located here (instead of marketsGrid.css)
 // so the row + its buttons stay self-contained — the row also serves

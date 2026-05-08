@@ -22,11 +22,15 @@ import { resolve } from 'path';
  * paths, so nothing there changes.
  */
 const coreSrc = resolve(__dirname, '../../../shared/core/src/index.ts');
+const gridReactSrc = resolve(__dirname, '../grid-react/src/index.ts');
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { '@starui/core': coreSrc },
+    alias: {
+      '@starui/core': coreSrc,
+      '@starui/grid-react': gridReactSrc,
+    },
   },
   test: {
     environment: 'jsdom',

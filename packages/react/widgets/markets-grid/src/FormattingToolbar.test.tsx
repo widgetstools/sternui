@@ -18,14 +18,14 @@ import * as React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Column, GridApi } from 'ag-grid-community';
+import { GridPlatform } from '@starui/core';
 import {
   columnCustomizationModule,
   columnTemplatesModule,
-  GridPlatform,
   GridProvider,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
-} from '@starui/core';
+} from '@starui/grid-react';
 import { FormattingToolbar } from './FormattingToolbar';
 
 // ─── Fake GridApi harness ─────────────────────────────────────────────

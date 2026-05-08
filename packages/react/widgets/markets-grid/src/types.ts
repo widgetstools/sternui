@@ -1,6 +1,6 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type { AnyModule, AppDataLookup, GridPlatform, UseProfileManagerResult } from '@starui/core';
-import type { StorageAdapter } from '@starui/core';
+import type { AnyModule, AppDataLookup, GridPlatform, StorageAdapter } from '@starui/core';
+import type { UseProfileManagerResult } from '@starui/grid-react';
 
 /**
  * One saved filter pinned to the toolbar. Shape is stable across
