@@ -427,30 +427,44 @@ stub, settle on one canonical row type. Auth-on-endpoints stays deferred (Decisi
 
 **Steps:**
 
-- [ ] **5.1** Locate the SqliteStorage schema initializer. Add an `isPublic INTEGER NOT
-      NULL DEFAULT 1` column to the `appConfig` table CREATE; add an idempotent migration
-      block: `if column does not exist, ALTER TABLE appConfig ADD COLUMN isPublic INTEGER
-      NOT NULL DEFAULT 1`. Use SQLite's `PRAGMA table_info` to detect.
-- [ ] **5.2** In `findByAppId` and `findByMultipleCriteria`, append:
-      `AND (isPublic = 1 OR userId = ?)` and bind the `userId` parameter (caller passes
-      the effective user ID; routes will need to extract this from a query param or auth
-      header — for now accept it as `?userId=...` query string).
-- [ ] **5.3** In list route handlers, read `req.query.userId` (string), default to
-      `"anonymous"` if absent, pass into storage. Add a JSDoc warning that this is a
-      placeholder until Decision 16 (auth on endpoints) is implemented.
-- [ ] **5.4** Drop the MongoDB stub: remove the `case "mongodb"` branch in
-      `StorageFactory.ts`, remove `mongodb` from `package.json` dependencies, remove any
-      `MONGO_URL` env-var branching. Run `npm ci --legacy-peer-deps` from repo root.
-- [ ] **5.5** Pick the canonical row type. Per design Decision 13: rename `UnifiedConfig`
-      to `AppConfigRow` everywhere on the server (search-and-replace in
-      `apps/config-service-server/src/`). In `shared-types`, re-export the
-      `@starui/config-service` `AppConfigRow` as the canonical name, and keep
-      `UnifiedConfig` as a `@deprecated` re-export for one release.
-- [ ] **5.6** Write `SqliteStorage.visibility.test.ts`: insert public and private rows
-      under different users, call `findByAppId(appId, userId)`, assert correct subset.
-- [ ] **5.7** Update existing server tests that assert the `UnifiedConfig` name; they
-      now assert `AppConfigRow`.
-- [ ] **5.8** Run verification.
+- [x] **5.1** Locate the SqliteStorage schema initializer. Add an `isPublic INTEGER NOT
+      NULL DEFAULT 1` column to the `configurations` table CREATE; add an idempotent
+      migration block — on connect, run `PRAGMA table_info(configurations)` and
+      `ALTER TABLE … ADD COLUMN isPublic INTEGER NOT NULL DEFAULT 1` only when the
+      column is missing. (Note: actual table is `configurations`, not `appConfig`.)
+- [x] **5.2** In `buildWhereClause`, append `AND (isPublic = 1 OR userId = ?)` whenever
+      `criteria.effectiveUserId` is set. `findByAppId`, `findByUserId`, and
+      `findByComponentType` gained an optional trailing `effectiveUserId` arg and forward
+      it through `findByMultipleCriteria`. Unfiltered admin paths simply omit the field.
+- [x] **5.3** List route handlers read `?userId=...` (caller's effective user) and pass
+      it through to storage as `effectiveUserId`, defaulting to `"anonymous"` (sees only
+      public rows) when absent. `/by-user/:userId` reads `?effectiveUserId=...` (or falls
+      back to `?userId=...` query) so the path-vs-caller userId is unambiguous.
+      `effectiveUserIdFromQuery` JSDoc warns that this is a placeholder until Decision
+      16 (auth on endpoints) is implemented.
+- [x] **5.4** MongoDB stub dropped: `mongodb` removed from `package.json`, the
+      `case "mongodb"` branch removed from `StorageFactory.ts`, the `DATABASE_TYPE` /
+      `MONGODB_URI` env-var branching removed from `StorageFactory`, `server.ts`, and
+      `.env.example`. `npm ci --legacy-peer-deps` re-installed cleanly.
+- [x] **5.5** Canonical row type lands in `@starui/shared-types` as `AppConfigRow` (with
+      the new `isPublic?: boolean` field); `UnifiedConfig` becomes a `@deprecated type
+      UnifiedConfig = AppConfigRow` alias for one release. Server src is fully on the new
+      name (`storage/`, `services/`, `routes/`, `utils/validation.ts` — `unifiedConfigSchema`
+      kept as a deprecated alias of the new `appConfigRowSchema`). Other consumers
+      (`data-services`, `widget-sdk`, etc.) keep compiling unchanged via the alias and
+      will migrate over future sessions.
+- [x] **5.6** `SqliteStorage.visibility.test.ts` (6 tests) covers `isPublic` round-trip,
+      `findByAppId` unfiltered (admin) vs filtered (alice/bob/anonymous),
+      `findByMultipleCriteria` honoring `effectiveUserId`, legacy rows normalising to
+      public on read, and cross-app exclusion. New `SqliteStorage.migration.test.ts`
+      (2 tests) covers the idempotent column-add migration.
+- [x] **5.7** No existing server-side test files referenced `UnifiedConfig` — the
+      package shipped without tests prior to this session, so the search-and-replace
+      step had no targets. New tests use `AppConfigRow` directly.
+- [x] **5.8** Run verification — green. Tests: 8 server tests pass; full repo
+      `npx turbo typecheck build test` shows 33 packages green. Smoke: empty DB starts,
+      schema migrates, public/private rows created via REST, visibility filter narrows
+      `?userId=...` correctly across alice/bob/anonymous.
 
 **Verification:**
 

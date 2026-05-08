@@ -1,10 +1,11 @@
 import Joi from 'joi';
-import type { UnifiedConfig, ConfigurationFilter } from '@starui/shared-types';
+import type { AppConfigRow, ConfigurationFilter } from '@starui/shared-types';
 
-export const unifiedConfigSchema = Joi.object({
+export const appConfigRowSchema = Joi.object({
   configId: Joi.string().min(1).max(200).required(),
   appId: Joi.string().min(1).max(100).required(),
   userId: Joi.string().min(1).max(100).required(),
+  isPublic: Joi.boolean().optional(),
   componentType: Joi.string().min(1).max(100).required(),
   componentSubType: Joi.string().max(100).allow('').optional(),
   isTemplate: Joi.boolean().required(),
@@ -16,7 +17,10 @@ export const unifiedConfigSchema = Joi.object({
   updatedTime: Joi.string().isoDate().required(),
 });
 
-export const createConfigSchema = unifiedConfigSchema.fork(
+/** @deprecated Use `appConfigRowSchema` instead. */
+export const unifiedConfigSchema = appConfigRowSchema;
+
+export const createConfigSchema = appConfigRowSchema.fork(
   ['configId', 'creationTime', 'updatedTime'],
   (schema) => schema.optional(),
 );
@@ -24,6 +28,7 @@ export const createConfigSchema = unifiedConfigSchema.fork(
 export const updateConfigSchema = Joi.object({
   appId: Joi.string().min(1).max(100).optional(),
   userId: Joi.string().min(1).max(100).optional(),
+  isPublic: Joi.boolean().optional(),
   componentType: Joi.string().min(1).max(100).optional(),
   componentSubType: Joi.string().max(100).allow('').optional(),
   isTemplate: Joi.boolean().optional(),
@@ -45,6 +50,7 @@ export const configurationFilterSchema = Joi.object({
   createdBefore: Joi.string().isoDate().optional(),
   updatedAfter: Joi.string().isoDate().optional(),
   updatedBefore: Joi.string().isoDate().optional(),
+  effectiveUserId: Joi.string().min(1).max(100).optional(),
 });
 
 export const paginationSchema = Joi.object({
@@ -87,8 +93,8 @@ export const cleanupSchema = Joi.object({
 });
 
 export class ValidationUtils {
-  static validateConfig(config: any): { error?: string; value?: UnifiedConfig } {
-    const { error, value } = unifiedConfigSchema.validate(config, { abortEarly: false });
+  static validateConfig(config: any): { error?: string; value?: AppConfigRow } {
+    const { error, value } = appConfigRowSchema.validate(config, { abortEarly: false });
     if (error) return { error: error.details.map((d) => d.message).join(', ') };
     return { value };
   }

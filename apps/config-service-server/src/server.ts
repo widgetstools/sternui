@@ -34,7 +34,7 @@ async function startServer(): Promise<void> {
       environment: process.env.NODE_ENV || 'development',
       port,
       host,
-      databaseType: process.env.DATABASE_TYPE || 'auto-detect',
+      databaseType: 'sqlite',
       nodeVersion: process.version,
       platform: process.platform
     });

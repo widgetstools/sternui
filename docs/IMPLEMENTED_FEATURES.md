@@ -21,6 +21,71 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 5: server `isPublic` + visibility + trim
+
+Fifth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 5, Decisions 6 + 13). Mirrors Sessions 1 + 4 on the SQLite
+backend, lands the design Decision 13 trim pass, and renames the
+canonical row type so client and server speak the same name.
+
+- `apps/config-service-server` gains an `isPublic INTEGER NOT NULL
+  DEFAULT 1` column on `configurations`. The migration is idempotent —
+  on connect the storage runs `PRAGMA table_info(configurations)` and
+  appends the column only when missing, so pre-redesign databases
+  upgrade silently and existing rows backfill `isPublic = 1` (public).
+- The visibility filter `(isPublic = 1 OR userId = ?)` is applied
+  inside `buildWhereClause` whenever `criteria.effectiveUserId` is set.
+  Admin / unfiltered paths simply omit the field. `findByAppId`,
+  `findByUserId`, and `findByComponentType` gain an optional trailing
+  `effectiveUserId` argument and forward it through `findByMultipleCriteria`.
+- List route handlers read `?userId=...` from the query string and pass
+  it as `effectiveUserId` (defaulting to `"anonymous"` — which sees
+  only public rows). `/by-user/:userId` accepts a separate
+  `?effectiveUserId=...` query so the path-vs-caller userId stays
+  unambiguous. Documented as a placeholder until Decision 16 (real
+  auth on endpoints) lands.
+- Decision 13 trim pass:
+  - The `MongoDB` storage stub is gone — `mongodb` removed from
+    `package.json`, the `case "mongodb"` branch removed from
+    `StorageFactory`, and `MONGODB_URI` / `DATABASE_TYPE` env-var
+    branching removed from server bootstrap. SQLite is the only engine.
+  - Renamed the wire-format type from `UnifiedConfig` to `AppConfigRow`
+    in `@starui/shared-types`, with a `@deprecated` `type UnifiedConfig
+    = AppConfigRow` alias kept for one release. Server src is
+    fully on the new name; the shared-types alias keeps every existing
+    consumer (`data-services`, `widget-sdk`, etc.) compiling unchanged.
+- New `vitest.config.ts` at the server root selects the node
+  environment (no DOM). Two new test files cover the migration and
+  visibility behaviour:
+  - `SqliteStorage.migration.test.ts` (2 tests): builds a pre-redesign
+    DB by hand, opens it through `SqliteStorage`, asserts the row
+    reads back with `isPublic === true`. Second test asserts the
+    migration is idempotent — re-opening an already-upgraded DB does
+    not fail or duplicate-add the column.
+  - `SqliteStorage.visibility.test.ts` (6 tests): persists
+    public/private rows under different owners, verifies
+    `findByAppId(...)` and `findByMultipleCriteria(...)` return the
+    correct subset for alice / bob / anonymous callers, the unfiltered
+    admin path returns every row, cross-app rows are excluded, and
+    legacy rows (no `isPublic` column write) normalize to public on
+    read.
+- End-to-end smoke verified: server boots cleanly against an empty DB
+  file, schema migration runs once, `POST /configurations` creates
+  public + private rows, `GET /by-app/TestApp?userId=alice` returns
+  both, `?userId=bob` returns only the public row, no `?userId` defaults
+  to `"anonymous"` and also returns only public.
+
+Files touched:
+`apps/config-service-server/src/storage/{SqliteStorage,IConfigurationStorage,StorageFactory}.ts`,
+`apps/config-service-server/src/services/ConfigurationService.ts`,
+`apps/config-service-server/src/routes/configurations.ts`,
+`apps/config-service-server/src/utils/validation.ts`,
+`apps/config-service-server/src/server.ts`,
+`apps/config-service-server/{package.json,vitest.config.ts,.env.example}`,
+`apps/config-service-server/src/storage/{SqliteStorage.migration,SqliteStorage.visibility}.test.ts`,
+`packages/shared/foundation/shared-types/src/configuration.ts`.
+
 ## 2026-05-08 — Config-manager redesign Session 4: visibility filter on read paths
 
 Fourth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
