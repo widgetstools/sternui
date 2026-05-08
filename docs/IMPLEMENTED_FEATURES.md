@@ -32,6 +32,21 @@ FI Trading Terminal.
   `@starui/widgets-react` — removed alongside the shell. No surviving
   app consumed them.
 
+## Removed in 2026-05-08 (Task 5 / PR-4 of code-organization migration)
+
+- React Dock Editor (`@starui/dock-editor` package) — replaced by
+  Workspace Setup (extracted in Task 4 to
+  `@starui/workspace-setup-react`).
+- React Component Registry editor (`@starui/registry-editor` package) —
+  replaced by Workspace Setup.
+- Angular Dock Editor + Component Registry editor
+  (`@starui/angular-dock-editor`, `@starui/angular-registry-editor`) —
+  Angular parity for Workspace Setup is deferred (Decision 1); these
+  packages will return when parity catches up.
+- `/dock-editor` and `/registry-editor` routes in
+  `apps/markets-ui-react-reference` (and the `views/DockEditor.tsx` /
+  `views/RegistryEditor.tsx` view files that backed them).
+
 ---
 
 ## 1. Feature Catalog

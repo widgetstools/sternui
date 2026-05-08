@@ -34,16 +34,10 @@ const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid
 // React-Query + provider-editor bundle stays out of the shell.
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
 
-// WorkspaceSetup + ImportConfig now live in @starui/workspace-setup-react
-// (extracted in Task 4 / PR-3). The /dock-editor and /registry-editor
-// routes remain placeholders until Task 5 deletes their packages and
-// drops the routes entirely.
-const DockEditor = React.lazy(async () => ({
-  default: () => <div style={{ padding: 16 }}>Dock Editor — pending Task 5 removal</div>,
-}));
-const RegistryEditor = React.lazy(async () => ({
-  default: () => <div style={{ padding: 16 }}>Registry Editor — pending Task 5 removal</div>,
-}));
+// WorkspaceSetup + ImportConfig live in @starui/workspace-setup-react
+// (extracted in Task 4 / PR-3). The legacy /dock-editor and
+// /registry-editor routes were removed in Task 5 / PR-4 — those features
+// are subsumed by WorkspaceSetup.
 const ImportConfig = React.lazy(() =>
   import("@starui/workspace-setup-react").then((m) => ({ default: m.ImportConfig })),
 );
@@ -155,8 +149,6 @@ root.render(
             />
 
             {/* Utility windows — opened by dock toolbar buttons */}
-            <Route path="/dock-editor"       element={<React.Suspense fallback={LOADING}><DockEditor /></React.Suspense>} />
-            <Route path="/registry-editor"  element={<React.Suspense fallback={LOADING}><RegistryEditor /></React.Suspense>} />
             <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
             <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
             <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
