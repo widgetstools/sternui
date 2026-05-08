@@ -21,20 +21,42 @@ install breaks.
 
 ## Package layout
 
-Workspace packages live under `packages/` in three framework buckets:
+Workspace packages live under `packages/` in three framework buckets,
+each split into role-based sub-buckets (per
+[`docs/plans/plan-2026-05-07/code-organization.md`](./docs/plans/plan-2026-05-07/code-organization.md)):
 
-- `packages/shared/` — vanilla TS, framework-agnostic (12 packages)
-- `packages/react/` — React-only packages (9)
-- `packages/angular/` — Angular-only packages (6)
+- `packages/shared/` — vanilla TS, framework-agnostic
+  - `core/` — grid platform (GridPlatform, ProfileManager, expression engine, persistence, etc.)
+  - `foundation/` — pure leaves: `shared-types`, `design-system`, `icons-svg`, `tokens-primeng`
+  - `runtime/` — `runtime-port` (interface) + `runtime-browser` / `runtime-openfin` impls
+  - `services/` — vanilla services: `config-service`, `data-plane`, `component-host`
+  - `platform/` — runtime shells: `openfin-platform`
+- `packages/react/` — React-only packages
+  - `ui/` — shadcn primitives (no twin → no `-react` suffix)
+  - `sdk/widget-sdk/` — widget contract (no twin → no suffix)
+  - `widgets/` — `markets-grid`, `grid-react` (extracted from core), `widgets-react`
+  - `hosts/host-wrapper-react/`
+  - `providers/data-plane-react/` — Provider + hook shells around `shared/services`
+  - `tools/` — dev/operator UIs: `config-browser-react`, `workspace-setup-react`
+- `packages/angular/` — Angular-only packages (parity catching up)
+  - `hosts/host-wrapper-angular/`
+  - `tools/config-browser-angular/`
+  - `widgets/widgets-angular/`
 
-The workspaces glob in root `package.json` lists each bucket explicitly
-(npm 10 doesn't do `packages/**`). When adding a new package:
+The workspaces glob in root `package.json` enumerates each sub-bucket
+explicitly (npm 10 doesn't do `packages/**`). When adding a new package:
 
-1. Pick the bucket by what it depends on:
-   - depends only on TS / browser APIs / vanilla → `shared/`
-   - peer-depends on `react` / `react-dom` → `react/`
-   - peer-depends on `@angular/core` → `angular/`
-2. `tsconfig.json` `"extends"` is `"../../../tsconfig.base.json"` (3 levels).
+1. Pick the framework bucket by peer dep (vanilla → `shared/`, React →
+   `react/`, Angular → `angular/`).
+2. Pick the sub-bucket by role (foundation leaf, runtime, service, host,
+   provider, sdk, widget, tool, platform shell).
+3. Package name carries the framework suffix when a twin can exist
+   (`config-browser-react` / `config-browser-angular`); drop the suffix
+   for framework-singletons (`ui`, `widget-sdk`, `tokens-primeng`).
+4. `tsconfig.json` `"extends"` is `"../../../../tsconfig.base.json"`
+   (4 levels) for sub-bucketed packages;
+   `"../../../tsconfig.base.json"` (3 levels) for root-of-bucket
+   exceptions (`shared/core/`, `react/ui/`).
 
 ## File naming
 
@@ -66,8 +88,8 @@ muscle memory both depend on it.
 - `packages/react/ui/src/components/**` — shadcn-ui CLI generates kebab
   filenames (`alert-dialog.tsx`, `dropdown-menu.tsx`); renaming would
   diverge from `npx shadcn add ...` future regenerations
-- `packages/shared/core/src/ui/shadcn/**` — same
-- `packages/react/dock-editor-react/src/components/ui/**` — same
+- `packages/react/widgets/grid-react/src/ui/shadcn/**` — same (gc-themed
+  shadcn copy carried over from the `core/ui/shadcn/` extraction in PR-8)
 
 **Public subpath exports** in `package.json` `"exports"` may use kebab
 even when they point at camelCase files (subpath name is the package's
@@ -96,7 +118,7 @@ on the next run. Don't remove it.
 
 ## Testing
 
-- Vitest 4 + jsdom 29 for unit tests. Baseline: 298 passing.
+- Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
 - Playwright 1.59 against `apps/demo-react`. Baseline: 195/214 passing
   (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
 
@@ -131,10 +153,12 @@ Enforced via convention (ESLint enforcement is a follow-up). See
 
 - Foundation packages (`shared-types`, `design-system`, `tokens-primeng`,
   `icons-svg`) must not import from anywhere except each other.
-- `core` must not import from framework adapters (`angular`, `widgets-react`).
-- `angular` must not import from `widgets-react` (siblings, not consumers).
-- Only platform shells (`openfin-platform`, `openfin-platform-stern`) may
-  import from `@openfin/core`.
+- `core` must not import from framework adapters (`widgets-angular`,
+  `widgets-react`, `grid-react`).
+- `widgets-angular` must not import from `widgets-react` (siblings, not
+  consumers).
+- Only `runtime-openfin` and `openfin-platform` may import from
+  `@openfin/core`.
 - Apps import from packages, never the reverse.
 
 ## Pre-implementation checklist
@@ -148,7 +172,9 @@ Run mentally before writing code for any feature add / update / remove:
    (use shadcn), no per-panel re-exploration of settled UI
 5. **Complexity ceilings** — 800 LOC / file, 80 LOC / function
 6. **Test coverage** — unit for logic, e2e for interaction
-7. **v1/v2 scope** — all new features ship in v2. v1 is legacy reference
+7. **No versioned code** — never `v1/`, `v2/`, `legacy/` in paths or
+   doc phasing; superseded code is deleted in the same change as its
+   replacement
 
 ## Post-implementation checklist
 

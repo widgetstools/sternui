@@ -1,0 +1,13 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@starui/core": ["../../../shared/core/src"],
+      "@starui/grid-react": ["../grid-react/src"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.*", "node_modules", "dist"]
+}

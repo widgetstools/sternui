@@ -11,8 +11,8 @@ module.exports = {
     './index.html',
     './src/**/*.{ts,tsx}',
     '../../packages/shared/core/src/**/*.{ts,tsx}',
-    '../../packages/react/markets-grid/src/**/*.{ts,tsx}',
+    '../../packages/react/widgets/markets-grid/src/**/*.{ts,tsx}',
     '../../packages/react/config-browser-react/src/**/*.{ts,tsx}',
-    '../../packages/shared/config-service/src/**/*.{ts,tsx}',
+    '../../packages/shared/services/config-service/src/**/*.{ts,tsx}',
   ],
 };

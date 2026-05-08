@@ -21,6 +21,116 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Repackaged in 2026-05-08 (Task 11 / PR-10 of code-organization migration)
+
+The `packages/` tree was reorganized into role-based sub-buckets per
+[`docs/plans/plan-2026-05-07/code-organization.md`](./plans/plan-2026-05-07/code-organization.md)
+(Decisions 5–8). Tasks 1–10 performed the structural moves; this entry
+captures the resulting layout for the living docs.
+
+- `packages/shared/`: `core/`, `foundation/{shared-types, design-system,
+  icons-svg, tokens-primeng}`, `runtime/{runtime-port, runtime-browser,
+  runtime-openfin}`, `services/{config-service, data-plane,
+  component-host}`, `platform/{openfin-platform}`.
+- `packages/react/`: `ui/`, `sdk/{widget-sdk}`,
+  `widgets/{markets-grid, grid-react, widgets-react}`,
+  `hosts/{host-wrapper-react}`, `providers/{data-plane-react}`,
+  `tools/{config-browser-react, workspace-setup-react}`.
+- `packages/angular/`: `hosts/{host-wrapper-angular}`,
+  `tools/{config-browser-angular}`, `widgets/{widgets-angular}`.
+
+**New packages introduced during the migration:**
+
+- `@starui/grid-react` (PR-8) — extracted React surfaces (`ui/`, `hooks/`,
+  `modules/`) from `@starui/core`. ~24,117 LOC across 143 files.
+- `@starui/workspace-setup-react` (PR-3) — extracted `WorkspaceSetup` and
+  its registry-editor primitives from the deleted `@starui/dock-editor`.
+
+**Renamed:**
+
+- `@starui/angular` → `@starui/widgets-angular`
+- `@starui/angular-config-browser` → `@starui/config-browser-angular`
+
+**Deleted (PR-1 + PR-4):**
+
+- `@starui/openfin-platform-stern` (Stern OpenFin shell).
+- `@starui/dock-editor` and `@starui/registry-editor` (React) plus their
+  Angular twins.
+- Reference apps: `stern-reference-react`, `stern-reference-angular`,
+  `fi-trading-reference`, `fi-trading-reference-angular`,
+  `axe-blotter-demo`, `markets-ui-angular-reference`.
+
+**Living docs updated in lockstep:** root `package.json` workspace globs
+(audited and tightened to match the new sub-buckets), `CLAUDE.md`
+"Package layout" section, and `docs/ARCHITECTURE.md` folder layout.
+
+## Removed in 2026-05-08 (PR-1 of code-organization migration)
+
+- Stern OpenFin shell (`@starui/openfin-platform-stern`) and reference apps.
+- fi-trading reference apps (empty placeholders).
+- axe-blotter demo (out of scope).
+- markets-ui-angular-reference (deferred until Angular parity catches up).
+- Three Stern-only OpenFin hooks (`useViewManager`, `useOpenFinEvents`,
+  `useOpenfinTheme`) that re-exported Stern symbols through
+  `@starui/widgets-react` — removed alongside the shell. No surviving
+  app consumed them.
+
+## Repackaged in 2026-05-08 (Task 9 / PR-8 of code-organization migration)
+
+- **Extracted React surfaces from `@starui/core` into a new
+  `@starui/grid-react` package.** ~24,117 LOC across 143 files moved
+  from `packages/shared/core/src/{ui,hooks,modules}/` to
+  `packages/react/widgets/grid-react/src/{ui,hooks,modules}/`. After
+  this PR `@starui/core` is vanilla TypeScript with NO React peer-dep.
+- Moved blocks: hooks (`GridProvider`, `useDirty`, `useModuleDraft`,
+  `useGridColumns`, `useUndoRedo`, `useProfileManager`, `useGridApi`,
+  `useGridEvent`, `useModuleState`, `useGridPlatform`,
+  `GridCoreLike`/`GridCore`, `UseProfileManagerResult`); ui
+  (SettingsPanel primitives, gc-themed shadcn primitives, StyleEditor,
+  ColorPicker, FormatterPicker, format-editor, ExpressionEditor,
+  PopoutPortal/Poppable/PortalContainer); modules (all 9 module
+  definitions + their React panels — general-settings,
+  column-templates, column-customization, conditional-styling,
+  calculated-columns, saved-filters, toolbar-visibility, grid-state,
+  column-groups).
+- Stayed in `@starui/core`: GridPlatform, ProfileManager, expression
+  engine, persistence adapters, security policy, history stack,
+  colDef helpers, css tokens, OpenFin shim, shared types.
+- Public-surface change: `IDirtyBus` is now exported from
+  `@starui/core`'s public barrel (was internal); the `Module`
+  interface's `SettingsPanel`/`ListPane`/`EditorPane` slots are now
+  framework-agnostic `(props: P) => any` so core has no React
+  imports anywhere.
+- Consumer moves: `@starui/markets-grid` adds `@starui/grid-react`
+  as a workspace dep and splits its imports per-symbol;
+  `apps/markets-ui-react-reference`'s `RenameViewTab.tsx` switches
+  `Button, Input` to `@starui/grid-react`; demo apps add the alias
+  in `vite.config.ts`.
+- `core/ui/shadcn/` was moved verbatim — these gc-themed primitives
+  are intentionally divergent from `@starui/ui`'s Stern-themed
+  copies (different sizes, focus rings, native-vs-Radix `Select`,
+  `usePortalContainer`-routed Popovers). Reconciling the two
+  themes is out of scope for PR-8.
+- Vitest passing count = **653** (matches pre-PR-8 baseline
+  exactly). Test redistribution: `@starui/core` 272 → 75 (the 197
+  moved-tests now run in `@starui/grid-react`). All other packages
+  unchanged.
+
+## Removed in 2026-05-08 (Task 5 / PR-4 of code-organization migration)
+
+- React Dock Editor (`@starui/dock-editor` package) — replaced by
+  Workspace Setup (extracted in Task 4 to
+  `@starui/workspace-setup-react`).
+- React Component Registry editor (`@starui/registry-editor` package) —
+  replaced by Workspace Setup.
+- Angular Dock Editor + Component Registry editor
+  (`@starui/angular-dock-editor`, `@starui/angular-registry-editor`) —
+  Angular parity for Workspace Setup is deferred (Decision 1); these
+  packages will return when parity catches up.
+- `/dock-editor` and `/registry-editor` routes in
+  `apps/markets-ui-react-reference` (and the `views/DockEditor.tsx` /
+  `views/RegistryEditor.tsx` view files that backed them).
+
 ---
 
 ## 1. Feature Catalog
@@ -1802,7 +1912,7 @@ Apps render hosted components without those components knowing whether they live
 - `windowShown$`, `windowClosing$`, `customData$`, `workspaceSave$` Observables bridged from the underlying `RuntimePort`.
 - `dispose()` tears down listener subscriptions and completes every Subject. Wired automatically through `DestroyRef` so the singleton cleans itself up when the root injector tears down.
 
-Built via `ng-packagr` (FESM2022 + `.d.ts`). Wired into `apps/markets-ui-angular-reference`: `app.config.ts` exports `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async), selects `OpenFinRuntime` when `isOpenFin()` else `BrowserRuntime`, and spreads `provideHostWrapper(...)` into the providers list. `main.ts` awaits `buildAppConfig()` before `bootstrapApplication`.
+Built via `ng-packagr` (FESM2022 + `.d.ts`). Recommended wiring pattern for an Angular host: an `app.config.ts` exports `buildAppConfig(): Promise<ApplicationConfig>` (async because `OpenFinRuntime.create()` is async), selects `OpenFinRuntime` when `isOpenFin()` else `BrowserRuntime`, and spreads `provideHostWrapper(...)` into the providers list; `main.ts` awaits `buildAppConfig()` before `bootstrapApplication`. (The `apps/markets-ui-angular-reference` app that demonstrated this pattern was removed on 2026-05-08 — see "Removed in 2026-05-08" above.)
 
 ### Workspace-save event
 
@@ -1812,9 +1922,9 @@ The new `RuntimePort.onWorkspaceSave(fn)` method completes the lifecycle surface
 
 Two small platform additions that make OpenFin browser windows and view tabs honour user-facing names instead of internal-generated identifiers.
 
-**Window title bound to active page.** `BrowserWorkspacePlatformWindowOptions.title` is set to `{ type: 'page-title' }` in both shell init paths so the OS taskbar entry tracks the current page name (no more `internal-generated-window-…`). Wired in [packages/openfin-platform/src/workspace.ts](../packages/openfin-platform/src/workspace.ts) and [packages/openfin-platform-stern/src/bootstrap.ts](../packages/openfin-platform-stern/src/bootstrap.ts).
+**Window title bound to active page.** `BrowserWorkspacePlatformWindowOptions.title` is set to `{ type: 'page-title' }` in the shell init path so the OS taskbar entry tracks the current page name (no more `internal-generated-window-…`). Wired in [packages/openfin-platform/src/workspace.ts](../packages/openfin-platform/src/workspace.ts).
 
-**View-tab rename via right-click → "Save Tab As…".** Adds a custom item to the top of the view-tab context menu in both shells, mirroring the platform's "Save Page As" UX. Selecting it opens a small frameless popout window (a route in the reference app) prompting for a new tab name. On confirm the action does two things in the target view: (1) runs `document.title = "..."` via `executeJavaScript` so the workspace tabstrip mirrors the rename immediately (default `titlePriority: 'document'`), and (2) writes the new title to `customData.savedTitle` via `view.updateOptions(...)` so the rename rides through the workspace snapshot. `View.updateOptions({ title })` is intentionally NOT used: `title` lives on the create-time `ViewOptions` shape, not on `MutableViewOptions`, and is silently dropped at runtime.
+**View-tab rename via right-click → "Save Tab As…".** Adds a custom item to the top of the view-tab context menu, mirroring the platform's "Save Page As" UX. Selecting it opens a small frameless popout window (a route in the reference app) prompting for a new tab name. On confirm the action does two things in the target view: (1) runs `document.title = "..."` via `executeJavaScript` so the workspace tabstrip mirrors the rename immediately (default `titlePriority: 'document'`), and (2) writes the new title to `customData.savedTitle` via `view.updateOptions(...)` so the rename rides through the workspace snapshot. `View.updateOptions({ title })` is intentionally NOT used: `title` lives on the create-time `ViewOptions` shape, not on `MutableViewOptions`, and is silently dropped at runtime.
 
 **Persistence on workspace restore.** On the next workspace load, `OpenFinRuntime` reads `customData.savedTitle` from the resolved view options during construction and reapplies it to `document.title`. A `MutationObserver` on the `<title>` element pins the title back to `savedTitle` for a 3 s post-boot window, defeating the page's mount-time `document.title = ...` `useEffect` (used by `HostedComponent.tsx`, `DataProviders.tsx`, etc.) which would otherwise clobber the restored title. The observer disconnects after the window so live rename, notification badges, and other dynamic title updates work freely. The customData poll re-applies `savedTitle` on actual changes (guarded by `lastAppliedSavedTitle` so unrelated customData mutations like `activeProfileId` don't clobber dynamic titles).
 
@@ -1824,14 +1934,11 @@ Two small platform additions that make OpenFin browser windows and view tabs hon
 | `packages/openfin-platform/src/internal/customActions.ts` | Spreads `createRenameViewTabAction(openChildWindow)` into the returned `CustomActionsMap`. |
 | `packages/openfin-platform/src/workspace-persistence.ts` | `MarketsUIWorkspaceProvider.openViewTabContextMenu` injects the rename item before delegating to `super`. |
 | `packages/openfin-platform/src/index.ts` | Re-exports the four rename helpers from the main barrel. |
-| `packages/openfin-platform-stern/src/internal/viewTabRename.ts` | New. Self-contained Stern copy — Stern is a parallel shell that intentionally doesn't depend on `@starui/openfin-platform`. |
-| `packages/openfin-platform-stern/src/dock/openfinDock.ts` | `dockGetCustomActions()` spreads `createRenameViewTabAction(openSternChildWindow)`; new local helper `openSternChildWindow` wraps `fin.Window.create` with the platform's `buildUrl()`. |
-| `packages/openfin-platform-stern/src/bootstrap.ts` | `SternPlatformProvider.openViewTabContextMenu` injects the rename item. `defaultWindowOptions.workspacePlatform.title` set to `{ type: 'page-title' }`. |
 | `apps/markets-ui-react-reference/src/views/RenameViewTab.tsx` | Frameless popout that reads `view` + `currentTitle` from `fin.me.getOptions().customData`, renders a card matching the "Save Page As" layout (header icon + title row + single shadcn `Input` + Cancel/Save row), auto-focuses + selects on mount, Enter submits / Esc cancels. On confirm, runs `document.title = "..."` in the target view via `executeJavaScript` for the immediate tabstrip update, then calls `view.updateOptions({ customData: { ..., savedTitle } })` so the rename round-trips through the workspace snapshot. Theme-sensitive via the ambient `<ThemeProvider>`. |
 | `packages/runtime-openfin/src/OpenFinRuntime.ts` | `applySavedViewTitle()` — reads `customData.savedTitle` during construction and reapplies it to `document.title`. The hook closes the persistence loop: without it, the rename would be lost on every workspace reload because `document.title` is a runtime-only DOM mutation that the snapshot never captures. |
 | `apps/markets-ui-react-reference/src/main.tsx` | New `/rename-view-tab` route (lazy). |
 
-Verified green: `npx turbo typecheck --filter=@starui/openfin-platform --filter=@starui/openfin-platform-stern --filter=@starui/markets-ui-react-reference` (22 tasks); `npx turbo test --filter=@starui/openfin-platform` (49 tests).
+Verified green: `npx turbo typecheck --filter=@starui/openfin-platform --filter=@starui/markets-ui-react-reference`; `npx turbo test --filter=@starui/openfin-platform` (49 tests).
 
 ### 1.P Universal `<HostedFeatureView>` wrapper for OpenFin route views
 
@@ -2157,7 +2264,6 @@ client-side userId resolution to it.
 | `packages/component-host/src/save-config.ts` | Build-fresh fallback uses `LOGGED_IN_USER_ID` instead of `""` so a row never lands with `userId=''`. New dep: `@starui/runtime-port`. |
 | `packages/data-plane-react/src/v2/index.tsx` | `useAppData().setMany()` falls back to `LOGGED_IN_USER_ID` (was `''`) for the user-owner field on a freshly-created AppData config row. New dep: `@starui/runtime-port`. |
 | `apps/markets-ui-react-reference/src/views/DataProviders.tsx` | Removes the `VITE_DEFAULT_USER_ID` env override and the `readHostEnv()`-based userId pickup; `userId` is now `LOGGED_IN_USER_ID` directly. |
-| `apps/markets-ui-angular-reference/src/app/components/hosted-component/hosted-component.component.ts` | `resolveUserId()` collapses to `return LOGGED_IN_USER_ID` — `customData.userId` is ignored. |
 | Tests in `runtime-browser`, `runtime-openfin`, `widgets-react`, `component-host` | Updated to assert the new pin (`expect(id.userId).toBe(LOGGED_IN_USER_ID)`) where they previously verified URL/override/customData propagation for `userId`. |
 
 Result: every client write to the config service lands under

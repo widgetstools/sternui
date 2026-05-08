@@ -13,6 +13,6 @@ module.exports = {
     './index.html',
     './src/**/*.{ts,tsx}',
     '../../packages/shared/core/src/**/*.{ts,tsx}',
-    '../../packages/react/markets-grid/src/**/*.{ts,tsx}',
+    '../../packages/react/widgets/markets-grid/src/**/*.{ts,tsx}',
   ],
 };

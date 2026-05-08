@@ -1,17 +1,14 @@
 import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 /**
  * Vitest config for `@starui/core`.
  *
- * Covers:
- *  - Module-level units (modules/*) — pure logic, no DOM needed but jsdom is
- *    cheap and available so RTL/hook tests work too.
- *  - Hook tests (hooks/*) using @testing-library/react `renderHook`.
+ * After PR-8 extracted React surfaces to `@starui/grid-react`, every
+ * surviving test in this package is pure TS. We keep `environment: 'jsdom'`
+ * because `openFin.test.ts` stubs `window.fin` and needs the DOM globals.
  */
 export default defineConfig({
-  plugins: [react()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -24,7 +21,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
     // AG-Grid heaviness slows cold start; bump per-test timeout a touch.

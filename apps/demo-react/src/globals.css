@@ -5,7 +5,7 @@
  *
  *   1. Web fonts (Geist + JetBrains Mono)
  *   2. Design-system tokens via `fi-dark.css` + `fi-light.css`
- *      (packages/shared/design-system/src/themes) — provides every
+ *      (packages/shared/foundation/design-system/src/themes) — provides every
  *      --bn-*, --fi-*, and shadcn (HSL-triplet) variable.
  *   3. MarketsGrid chrome via `@starui/markets-grid/styles.css`
  *      (ships the .gc-* toolbar + filter-pill rules).
@@ -16,11 +16,11 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
 /* Design-system tokens — single source of truth for every app. */
-@import '../../../packages/shared/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/design-system/src/themes/fi-light.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
+@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
-@import '../../../packages/react/markets-grid/src/styles/marketsGrid.css';
+@import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';
 
 @tailwind base;
 @tailwind components;

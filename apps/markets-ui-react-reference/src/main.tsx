@@ -24,8 +24,6 @@ import type { RuntimePort } from "@starui/runtime-port";
 const Provider    = React.lazy(() => import("./platform/Provider"));
 const View1       = React.lazy(() => import("./views/View1"));
 const View2       = React.lazy(() => import("./views/View2"));
-const DockEditor      = React.lazy(() => import("./views/DockEditor"));
-const RegistryEditor  = React.lazy(() => import("./views/RegistryEditor"));
 const ConfigBrowser   = React.lazy(() => import("./views/ConfigBrowser"));
 const RenameViewTab   = React.lazy(() => import("./views/RenameViewTab"));
 // MarketsGrid blotter — hosted at /blotters/marketsgrid. Lazy so the
@@ -36,18 +34,15 @@ const BlottersMarketsGrid = React.lazy(() => import("./views/BlottersMarketsGrid
 // React-Query + provider-editor bundle stays out of the shell.
 const DataProviders = React.lazy(() => import("./views/DataProviders"));
 
-// ImportConfig lives in the @starui/dock-editor package (not a local view file).
-// The .then() unwraps the named export into the default export shape that
-// React.lazy() requires.
+// WorkspaceSetup + ImportConfig live in @starui/workspace-setup-react
+// (extracted in Task 4 / PR-3). The legacy /dock-editor and
+// /registry-editor routes were removed in Task 5 / PR-4 — those features
+// are subsumed by WorkspaceSetup.
 const ImportConfig = React.lazy(() =>
-  import("@starui/dock-editor").then((m) => ({ default: m.ImportConfig })),
+  import("@starui/workspace-setup-react").then((m) => ({ default: m.ImportConfig })),
 );
-
-// WorkspaceSetup — the unified Components + Dock + Inspector editor
-// (Phase 6). Same lazy-import pattern as ImportConfig. Hosts at
-// /workspace-setup; the dock launches it via ACTION_OPEN_WORKSPACE_SETUP.
 const WorkspaceSetup = React.lazy(() =>
-  import("@starui/dock-editor").then((m) => ({ default: m.WorkspaceSetup })),
+  import("@starui/workspace-setup-react").then((m) => ({ default: m.WorkspaceSetup })),
 );
 
 // ─── Loading fallback ────────────────────────────────────────────────
@@ -154,8 +149,6 @@ root.render(
             />
 
             {/* Utility windows — opened by dock toolbar buttons */}
-            <Route path="/dock-editor"       element={<React.Suspense fallback={LOADING}><DockEditor /></React.Suspense>} />
-            <Route path="/registry-editor"  element={<React.Suspense fallback={LOADING}><RegistryEditor /></React.Suspense>} />
             <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
             <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
             <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
