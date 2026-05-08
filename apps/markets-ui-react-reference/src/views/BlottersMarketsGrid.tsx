@@ -6,7 +6,7 @@
 
 import type { ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { dataServicesClient } from '../dataServices.mainThread';
+import { dataServices } from '../dataServices.mainThread';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
 const DEFAULT_COL_DEF = {
@@ -24,7 +24,7 @@ function BlottersMarketsGrid(): ReactNode {
       documentTitle="MarketsGrid · Blotter"
       withStorage
       theme="auto"
-      dataServicesClient={dataServicesClient}
+      dataServices={dataServices}
       gridId="markets-ui-reference-blotter"
       historicalDateAppDataRef="positions.asOfDate"
       onEditProvider={(providerId) => openProviderEditorPopout({ providerId })}
