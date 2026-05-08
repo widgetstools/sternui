@@ -51,10 +51,13 @@ import type {
   AppDataUpsertRequest,
   AppDataRemoveRequest,
   AppDataEvent,
+  AppDataRow,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
 import { WorkerAppDataStore } from './WorkerAppDataStore.js';
+import type { ConfigManager } from '@starui/config-service';
+import { AppDataConfigStore, type AppDataConfig } from '../providers/appdata/store.js';
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -109,6 +112,15 @@ interface AppDataListenerEntry {
 }
 
 export interface SharedWorkerDataServicesHubOpts {
+  /**
+   * ConfigManager backing AppData persistence. The hub becomes the
+   * sole IndexedDB writer for AppData rows — main-thread mirrors no
+   * longer touch ConfigManager. Optional only for back-compat with
+   * tests that don't exercise the AppData path; production callers
+   * (the SharedWorker entry script) MUST pass one.
+   */
+  configManager?: ConfigManager;
+
   /** Tick interval for the stats sampler (default 1000ms). */
   statsIntervalMs?: number;
   /** Inject the timer for tests. Default: setInterval. */
@@ -137,11 +149,14 @@ export class SharedWorkerDataServicesHub {
   private readonly dataListeners = new Map<string, Map<string, DataListener>>();
   private readonly statsListeners = new Map<string, Map<string, StatsListener>>();
 
-  // ─── AppData state (Step 2) ────────────────────────────────────
+  // ─── AppData state (Steps 2 + worker-persistence) ──────────────
   // Single authoritative store per hub instance. Listeners are keyed
-  // by subId for direct lookup on detach.
+  // by subId for direct lookup on detach. The hub also owns the
+  // IndexedDB writer (`appDataStore`); main-thread mirrors send pure
+  // RPC requests for set/upsert/remove and never touch Dexie themselves.
   private readonly appData = new WorkerAppDataStore();
   private readonly appDataListeners = new Map<string, AppDataListenerEntry>();
+  private readonly appDataStore: AppDataConfigStore | null;
 
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
@@ -152,6 +167,7 @@ export class SharedWorkerDataServicesHub {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
+    this.appDataStore = opts.configManager ? new AppDataConfigStore(opts.configManager) : null;
 
     // Wire the AppData store to fan deltas to every attached listener.
     // Set up here once; re-attaching listeners doesn't re-subscribe.
@@ -183,15 +199,51 @@ export class SharedWorkerDataServicesHub {
    * AppData request handler. Separate entry point so the existing
    * provider request flow stays identical. Routed by `isAppDataRequest`
    * upstream of the hub (typically in the worker entry).
+   *
+   * The set/upsert/remove paths are async because they persist to
+   * IndexedDB before broadcasting. Caller fires-and-forgets — the
+   * client receives an `appdata-ack` event when the operation
+   * completes (success or failure).
    */
   handleAppDataRequest(port: PortLike, req: AppDataRequest): void {
     switch (req.kind) {
       case 'appdata-attach':  this.handleAppDataAttach(port, req); return;
       case 'appdata-detach':  this.handleAppDataDetach(req); return;
-      case 'appdata-set':     this.handleAppDataSet(port, req); return;
-      case 'appdata-upsert':  this.handleAppDataUpsert(port, req); return;
-      case 'appdata-remove':  this.handleAppDataRemove(port, req); return;
+      case 'appdata-set':     void this.handleAppDataSet(port, req); return;
+      case 'appdata-upsert':  void this.handleAppDataUpsert(port, req); return;
+      case 'appdata-remove':  void this.handleAppDataRemove(port, req); return;
     }
+  }
+
+  /**
+   * Read existing AppData rows from IndexedDB and seed the in-memory
+   * store. Caller must await this BEFORE invoking
+   * `handleAppDataRequest` for any port — otherwise late-joiners may
+   * observe a partial snapshot before the worker finishes hydrating.
+   *
+   * Idempotent. No-op if no ConfigManager was supplied.
+   *
+   * `userId` is used only to satisfy `AppDataConfigStore.list`'s
+   * legacy signature; AppData rows are global so the value doesn't
+   * narrow the result. Pass any string ('worker' is a sensible
+   * default).
+   */
+  async hydrateAppData(userId = 'worker'): Promise<void> {
+    if (!this.appDataStore) return;
+    if (this.appData.isHydrated()) return;
+    let configs: AppDataConfig[];
+    try {
+      configs = await this.appDataStore.list(userId);
+    } catch (err) {
+      // Hydration failure is non-fatal — store stays un-hydrated and
+      // first-attach mirrors send seeds (back-compat path). Log so
+      // operators can see the issue in worker DevTools.
+      // eslint-disable-next-line no-console
+      console.error('[hub] AppData hydrate failed', err);
+      return;
+    }
+    const rows: AppDataRow[] = configs.map(toAppDataRow);
+    this.appData.hydrate(rows);
   }
 
   /** Drop every subscription owned by this port. Called on disconnect. */
@@ -316,29 +368,44 @@ export class SharedWorkerDataServicesHub {
     this.appDataListeners.delete(req.subId);
   }
 
-  private handleAppDataSet(port: PortLike, req: AppDataSetRequest): void {
+  private async handleAppDataSet(port: PortLike, req: AppDataSetRequest): Promise<void> {
     try {
-      this.appData.upsert(req.row);
+      // Persist first, in-memory upsert second — if persistence fails,
+      // the in-memory state isn't dirtied and the client gets a
+      // surfaceable error. AppDataConfigStore.save assigns/preserves
+      // configId; we re-read the persisted row so listeners see the
+      // hub's final canonical shape (including any timestamp / ownerUserId
+      // adjustments).
+      const persisted = this.appDataStore
+        ? await this.appDataStore.save(toAppDataConfig(req.row), req.row.userId)
+        : null;
+      const finalRow = persisted ? toAppDataRow(persisted) : req.row;
+      this.appData.upsert(finalRow);
       this.ackAppData(port, req.reqId, true);
     } catch (err) {
       this.ackAppData(port, req.reqId, false, err);
     }
   }
 
-  private handleAppDataUpsert(port: PortLike, req: AppDataUpsertRequest): void {
+  private async handleAppDataUpsert(port: PortLike, req: AppDataUpsertRequest): Promise<void> {
     // upsert is currently identical to set on the wire — both deliver
     // a full row. Kept as a separate kind so future API additions
     // (e.g. partial-merge upsert) don't have to overload `set`.
     try {
-      this.appData.upsert(req.row);
+      const persisted = this.appDataStore
+        ? await this.appDataStore.save(toAppDataConfig(req.row), req.row.userId)
+        : null;
+      const finalRow = persisted ? toAppDataRow(persisted) : req.row;
+      this.appData.upsert(finalRow);
       this.ackAppData(port, req.reqId, true);
     } catch (err) {
       this.ackAppData(port, req.reqId, false, err);
     }
   }
 
-  private handleAppDataRemove(port: PortLike, req: AppDataRemoveRequest): void {
+  private async handleAppDataRemove(port: PortLike, req: AppDataRemoveRequest): Promise<void> {
     try {
+      if (this.appDataStore) await this.appDataStore.remove(req.configId);
       this.appData.remove(req.configId);
       this.ackAppData(port, req.reqId, true);
     } catch (err) {
@@ -585,4 +652,32 @@ export class SharedWorkerDataServicesHub {
       lastError: slot.lastError,
     };
   }
+}
+
+// ─── AppData row ↔ config bridges ──────────────────────────────────
+// Wire-shape `AppDataRow` and persistence-shape `AppDataConfig` carry
+// the same data; the hub speaks both since it sits between the wire
+// (rows in/out via postMessage) and IndexedDB (configs in/out via
+// AppDataConfigStore).
+
+function toAppDataConfig(r: AppDataRow): AppDataConfig {
+  return {
+    configId: r.configId,
+    name: r.name,
+    description: r.description,
+    isPublic: r.isPublic,
+    values: r.values,
+    userId: r.userId,
+  };
+}
+
+function toAppDataRow(c: AppDataConfig): AppDataRow {
+  return {
+    configId: c.configId,
+    name: c.name,
+    description: c.description,
+    isPublic: c.isPublic,
+    values: c.values,
+    userId: c.userId,
+  };
 }
