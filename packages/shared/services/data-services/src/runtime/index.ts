@@ -21,8 +21,19 @@ export type {
   StatusEvent,
   StatsEvent,
   Event,
+  AppDataRow,
+  AppDataAttachRequest,
+  AppDataDetachRequest,
+  AppDataSetRequest,
+  AppDataUpsertRequest,
+  AppDataRemoveRequest,
+  AppDataRequest,
+  AppDataSnapshotEvent,
+  AppDataDeltaEvent,
+  AppDataAckEvent,
+  AppDataEvent,
 } from './protocol.js';
-export { isRequest, isEvent } from './protocol.js';
+export { isRequest, isEvent, isAppDataRequest, isAppDataEvent } from './protocol.js';
 
 // Template substitution (client-side, before attach).
 export {
@@ -41,7 +52,10 @@ export {
 } from './config/store.js';
 export {
   AppDataConfigStore,
-  AppDataStore,
   COMPONENT_TYPE_APPDATA,
   type AppDataConfig,
 } from './providers/appdata/index.js';
+
+// AppData mirror — the main-thread surface. Sync read + async write
+// proxy backed by the SharedWorkerDataServicesHub.
+export { AppDataMirror, type AppDataMirrorOpts } from './mirror/AppDataMirror.js';

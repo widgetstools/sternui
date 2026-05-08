@@ -17,7 +17,7 @@ import {
   type SharedWorkerDataServicesHubOpts,
   type PortLike,
 } from './SharedWorkerDataServicesHub.js';
-import { isRequest } from '../protocol.js';
+import { isRequest, isAppDataRequest } from '../protocol.js';
 
 interface SharedWorkerLike {
   onconnect: ((ev: { ports: readonly MessagePort[] }) => void) | null;
@@ -48,6 +48,7 @@ export function installSharedWorkerHub(opts: InstallOpts = {}): InstalledWorker 
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
       if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+      else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
     });
     port.addEventListener('messageerror', () => hub.onPortClosed(portLike));
     port.start();
@@ -67,6 +68,7 @@ export function installSharedWorkerHub(opts: InstallOpts = {}): InstalledWorker 
     const fakePort: PortLike = { postMessage: (m) => dw.postMessage(m) };
     dw.onmessage = (ev: MessageEvent) => {
       if (isRequest(ev.data)) hub.handleRequest(fakePort, ev.data);
+      else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(fakePort, ev.data);
     };
   }
 

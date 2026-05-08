@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act, render, waitFor, cleanup } from '@testing-library/react';
 import { createInPageWiring } from '@starui/data-services/runtime/client';
 import { SharedWorkerDataServicesHub, registerProvider, type PortLike } from '@starui/data-services/runtime/sharedWorker';
+import { isAppDataRequest, isRequest } from '@starui/data-services/runtime';
 import type { ProviderConfig } from '@starui/shared-types';
 import type { ProviderEmit, ProviderHandle } from '@starui/data-services/runtime/sharedWorker';
 import type { ConfigManager, AppConfigRow } from '@starui/config-service';
@@ -64,7 +65,10 @@ function setup(userId = 'alice') {
   const hub = new SharedWorkerDataServicesHub();
   const wiring = createInPageWiring((port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
-    port.addEventListener('message', (ev: MessageEvent) => hub.handleRequest(portLike, ev.data));
+    port.addEventListener('message', (ev: MessageEvent) => {
+      if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+      else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
+    });
     port.start();
   });
   return { cm, hub, client: wiring.client, userId };

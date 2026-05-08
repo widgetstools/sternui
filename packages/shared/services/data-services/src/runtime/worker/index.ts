@@ -9,6 +9,7 @@ export {
   type SharedWorkerDataServicesHubOpts,
   type PortLike,
 } from './SharedWorkerDataServicesHub.js';
+export { WorkerAppDataStore, type AppDataListener } from './WorkerAppDataStore.js';
 export { installSharedWorkerHub, type InstallOpts, type InstalledWorker } from './entry.js';
 export { registerProvider, startProvider, type ProviderFactory } from '../providers/registry.js';
 export { startMock, type MockProviderOpts } from '../providers/transports/mock.js';

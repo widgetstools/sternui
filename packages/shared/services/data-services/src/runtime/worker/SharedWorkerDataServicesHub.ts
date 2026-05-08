@@ -44,9 +44,17 @@ import type {
   ProviderStatus,
   Request,
   StopRequest,
+  AppDataRequest,
+  AppDataAttachRequest,
+  AppDataDetachRequest,
+  AppDataSetRequest,
+  AppDataUpsertRequest,
+  AppDataRemoveRequest,
+  AppDataEvent,
 } from '../protocol.js';
 import { startProvider } from '../providers/registry.js';
 import type { ProviderEmit, ProviderEmitEvent, ProviderHandle } from '../providers/Provider.js';
+import { WorkerAppDataStore } from './WorkerAppDataStore.js';
 
 /**
  * Gate for hot-path diagnostic logs. Flip to `true` locally when debugging
@@ -95,6 +103,11 @@ interface StatsListener {
   port: PortLike;
 }
 
+interface AppDataListenerEntry {
+  subId: string;
+  port: PortLike;
+}
+
 export interface SharedWorkerDataServicesHubOpts {
   /** Tick interval for the stats sampler (default 1000ms). */
   statsIntervalMs?: number;
@@ -124,6 +137,12 @@ export class SharedWorkerDataServicesHub {
   private readonly dataListeners = new Map<string, Map<string, DataListener>>();
   private readonly statsListeners = new Map<string, Map<string, StatsListener>>();
 
+  // ─── AppData state (Step 2) ────────────────────────────────────
+  // Single authoritative store per hub instance. Listeners are keyed
+  // by subId for direct lookup on detach.
+  private readonly appData = new WorkerAppDataStore();
+  private readonly appDataListeners = new Map<string, AppDataListenerEntry>();
+
   private readonly statsIntervalMs: number;
   private readonly setTimer: (cb: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
@@ -133,6 +152,21 @@ export class SharedWorkerDataServicesHub {
     this.statsIntervalMs = opts.statsIntervalMs ?? 1000;
     this.setTimer = opts.setTimer ?? ((cb, ms) => setInterval(cb, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
+
+    // Wire the AppData store to fan deltas to every attached listener.
+    // Set up here once; re-attaching listeners doesn't re-subscribe.
+    this.appData.subscribe((op, row) => {
+      for (const [, entry] of this.appDataListeners) {
+        const event: AppDataEvent = {
+          kind: 'appdata-delta',
+          subId: entry.subId,
+          op,
+          row,
+        };
+        try { entry.port.postMessage(event); }
+        catch { /* port dead; cleanup happens via onPortClosed */ }
+      }
+    });
   }
 
   // ─── Public surface ────────────────────────────────────────────
@@ -142,6 +176,21 @@ export class SharedWorkerDataServicesHub {
       case 'attach':  this.handleAttach(port, req); return;
       case 'detach':  this.handleDetach(req); return;
       case 'stop':    this.handleStop(req); return;
+    }
+  }
+
+  /**
+   * AppData request handler. Separate entry point so the existing
+   * provider request flow stays identical. Routed by `isAppDataRequest`
+   * upstream of the hub (typically in the worker entry).
+   */
+  handleAppDataRequest(port: PortLike, req: AppDataRequest): void {
+    switch (req.kind) {
+      case 'appdata-attach':  this.handleAppDataAttach(port, req); return;
+      case 'appdata-detach':  this.handleAppDataDetach(req); return;
+      case 'appdata-set':     this.handleAppDataSet(port, req); return;
+      case 'appdata-upsert':  this.handleAppDataUpsert(port, req); return;
+      case 'appdata-remove':  this.handleAppDataRemove(port, req); return;
     }
   }
 
@@ -155,6 +204,9 @@ export class SharedWorkerDataServicesHub {
       for (const [subId, l] of listeners) if (l.port === port) listeners.delete(subId);
       if (listeners.size === 0) this.statsListeners.delete(providerId);
     }
+    for (const [subId, entry] of this.appDataListeners) {
+      if (entry.port === port) this.appDataListeners.delete(subId);
+    }
     this.maybeStopStatsSampler();
   }
 
@@ -164,6 +216,7 @@ export class SharedWorkerDataServicesHub {
     this.providers.clear();
     this.dataListeners.clear();
     this.statsListeners.clear();
+    this.appDataListeners.clear();
     this.maybeStopStatsSampler();
   }
 
@@ -239,6 +292,65 @@ export class SharedWorkerDataServicesHub {
     }
     this.statsListeners.delete(req.providerId);
     this.maybeStopStatsSampler();
+  }
+
+  // ─── AppData handlers (Step 2) ─────────────────────────────────
+
+  private handleAppDataAttach(port: PortLike, req: AppDataAttachRequest): void {
+    // First attacher seeds the store; subsequent attachers' seeds
+    // are ignored (idempotent — see WorkerAppDataStore.hydrate).
+    if (req.seed && !this.appData.isHydrated()) {
+      this.appData.hydrate(req.seed);
+    }
+    this.appDataListeners.set(req.subId, { subId: req.subId, port });
+    const event: AppDataEvent = {
+      kind: 'appdata-snapshot',
+      subId: req.subId,
+      rows: this.appData.snapshot(),
+    };
+    try { port.postMessage(event); }
+    catch { this.appDataListeners.delete(req.subId); }
+  }
+
+  private handleAppDataDetach(req: AppDataDetachRequest): void {
+    this.appDataListeners.delete(req.subId);
+  }
+
+  private handleAppDataSet(port: PortLike, req: AppDataSetRequest): void {
+    try {
+      this.appData.upsert(req.row);
+      this.ackAppData(port, req.reqId, true);
+    } catch (err) {
+      this.ackAppData(port, req.reqId, false, err);
+    }
+  }
+
+  private handleAppDataUpsert(port: PortLike, req: AppDataUpsertRequest): void {
+    // upsert is currently identical to set on the wire — both deliver
+    // a full row. Kept as a separate kind so future API additions
+    // (e.g. partial-merge upsert) don't have to overload `set`.
+    try {
+      this.appData.upsert(req.row);
+      this.ackAppData(port, req.reqId, true);
+    } catch (err) {
+      this.ackAppData(port, req.reqId, false, err);
+    }
+  }
+
+  private handleAppDataRemove(port: PortLike, req: AppDataRemoveRequest): void {
+    try {
+      this.appData.remove(req.configId);
+      this.ackAppData(port, req.reqId, true);
+    } catch (err) {
+      this.ackAppData(port, req.reqId, false, err);
+    }
+  }
+
+  private ackAppData(port: PortLike, reqId: string, ok: boolean, err?: unknown): void {
+    const event: AppDataEvent = ok
+      ? { kind: 'appdata-ack', reqId, ok: true }
+      : { kind: 'appdata-ack', reqId, ok: false, error: err instanceof Error ? err.message : String(err) };
+    try { port.postMessage(event); } catch { /* port dead */ }
   }
 
   // ─── Provider lifecycle ────────────────────────────────────────

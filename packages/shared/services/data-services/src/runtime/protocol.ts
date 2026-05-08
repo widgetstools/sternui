@@ -13,6 +13,24 @@
 
 import type { ProviderConfig, ProviderType } from '@starui/shared-types';
 
+// ─── AppData row shape (mirrors AppDataConfig from probes/appdata) ─
+
+/**
+ * Wire-shape for an AppData row crossing the port. Identical to
+ * `AppDataConfig` from `runtime/providers/appdata/store.ts` but
+ * inlined here so the protocol module has no internal-package
+ * coupling other than `@starui/shared-types`.
+ */
+export interface AppDataRow {
+  configId: string;
+  name: string;
+  description?: string;
+  isPublic: boolean;
+  values: Record<string, unknown>;
+  /** Owner user id — `'system'` for public rows. */
+  userId: string;
+}
+
 // ─── Provider stats ─────────────────────────────────────────────────
 
 export interface ProviderStats {
@@ -79,6 +97,70 @@ export interface StopRequest {
   providerId: string;
 }
 
+// ─── Client → Worker AppData requests ──────────────────────────────
+//
+// Separate union so existing provider request handling stays
+// untouched. Hub routes by top-level `kind` prefix (`appdata-*`).
+
+/**
+ * Attach a port to AppData broadcasts. The hub returns a snapshot
+ * event immediately, then delta events on every subsequent mutation
+ * (from any window). subId scopes the broadcast back to a single
+ * mirror so multiple mirrors per port (e.g. tests) stay separable.
+ *
+ * `seed` is supplied by the FIRST window to attach within an origin
+ * (the rest pass `undefined`); the hub uses it to lazily hydrate its
+ * authoritative map with the existing AppDataConfigStore contents.
+ * Subsequent windows just receive the snapshot.
+ */
+export interface AppDataAttachRequest {
+  kind: 'appdata-attach';
+  subId: string;
+  seed?: readonly AppDataRow[];
+}
+
+export interface AppDataDetachRequest {
+  kind: 'appdata-detach';
+  subId: string;
+}
+
+/**
+ * Set a single key on a named AppData provider. Creates the row if
+ * it doesn't exist. The hub broadcasts the resulting full row to
+ * every attached subscriber after applying.
+ *
+ * Persistence (writing to ConfigManager) happens on the originating
+ * window's main thread BEFORE the request is posted — see Step 2
+ * plan §Persistence ("fan-out bus" shape). The hub fans out the
+ * already-persisted row.
+ */
+export interface AppDataSetRequest {
+  kind: 'appdata-set';
+  reqId: string;
+  row: AppDataRow;
+}
+
+/** Replace an entire AppData row. Same flow as set. */
+export interface AppDataUpsertRequest {
+  kind: 'appdata-upsert';
+  reqId: string;
+  row: AppDataRow;
+}
+
+/** Delete an AppData row by configId. */
+export interface AppDataRemoveRequest {
+  kind: 'appdata-remove';
+  reqId: string;
+  configId: string;
+}
+
+export type AppDataRequest =
+  | AppDataAttachRequest
+  | AppDataDetachRequest
+  | AppDataSetRequest
+  | AppDataUpsertRequest
+  | AppDataRemoveRequest;
+
 export type Request = AttachRequest | DetachRequest | StopRequest;
 
 // ─── Worker → Client events ────────────────────────────────────────
@@ -111,6 +193,48 @@ export interface StatsEvent {
 
 export type Event = DeltaEvent | StatusEvent | StatsEvent;
 
+// ─── Worker → Client AppData events ────────────────────────────────
+
+/**
+ * Initial snapshot delivered to a freshly-attached mirror.
+ *
+ * The mirror is allowed to render BEFORE the snapshot arrives (sync
+ * `get` returns undefined for unknown keys), but tests typically
+ * `await mirror.ready()` for determinism.
+ */
+export interface AppDataSnapshotEvent {
+  kind: 'appdata-snapshot';
+  subId: string;
+  rows: readonly AppDataRow[];
+}
+
+/**
+ * Delta event — fired AFTER the hub applied a mutation to its
+ * authoritative state, broadcast to every attached subscriber
+ * including the originator. `op` is `'remove'` for deletions
+ * (`row.configId` identifies the removed row); otherwise the row
+ * is an upsert.
+ */
+export interface AppDataDeltaEvent {
+  kind: 'appdata-delta';
+  subId: string;
+  op: 'upsert' | 'remove';
+  row: AppDataRow;
+}
+
+/** Acknowledgement for set/upsert/remove. Mirrors the reqId. */
+export interface AppDataAckEvent {
+  kind: 'appdata-ack';
+  reqId: string;
+  ok: boolean;
+  error?: string;
+}
+
+export type AppDataEvent =
+  | AppDataSnapshotEvent
+  | AppDataDeltaEvent
+  | AppDataAckEvent;
+
 // ─── Type guards ───────────────────────────────────────────────────
 
 export function isRequest(value: unknown): value is Request {
@@ -124,6 +248,28 @@ export function isEvent(value: unknown): value is Event {
   const v = value as { kind?: string; subId?: unknown };
   if (typeof v.subId !== 'string') return false;
   return v.kind === 'delta' || v.kind === 'status' || v.kind === 'stats';
+}
+
+export function isAppDataRequest(value: unknown): value is AppDataRequest {
+  if (!value || typeof value !== 'object') return false;
+  const k = (value as { kind?: string }).kind;
+  return (
+    k === 'appdata-attach' ||
+    k === 'appdata-detach' ||
+    k === 'appdata-set' ||
+    k === 'appdata-upsert' ||
+    k === 'appdata-remove'
+  );
+}
+
+export function isAppDataEvent(value: unknown): value is AppDataEvent {
+  if (!value || typeof value !== 'object') return false;
+  const k = (value as { kind?: string }).kind;
+  return (
+    k === 'appdata-snapshot' ||
+    k === 'appdata-delta' ||
+    k === 'appdata-ack'
+  );
 }
 
 // ─── Re-exports for ergonomics ─────────────────────────────────────

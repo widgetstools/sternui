@@ -365,3 +365,139 @@ describe('SharedWorkerDataServicesHub — port closure', () => {
     expect(port.messages).toHaveLength(0);
   });
 });
+
+// ─── AppData wire round-trip ─────────────────────────────────────
+
+interface AppDataPort {
+  messages: unknown[];
+  postMessage(m: unknown): void;
+}
+
+function makeAppDataPort(): AppDataPort {
+  const messages: unknown[] = [];
+  return {
+    messages,
+    postMessage(m) { messages.push(m); },
+  };
+}
+
+function appDataRow(configId: string, name: string, values: Record<string, unknown> = {}) {
+  return { configId, name, isPublic: false, values, userId: 'alice' };
+}
+
+describe('SharedWorkerDataServicesHub — AppData', () => {
+  it('snapshot delivered on attach reflects the seed', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makeAppDataPort();
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-attach',
+      subId: 'a',
+      seed: [appDataRow('a', 'positions', { asOfDate: '2026-04-01' })],
+    });
+    expect(port.messages).toHaveLength(1);
+    expect(port.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      subId: 'a',
+      rows: [{ configId: 'a', name: 'positions' }],
+    });
+  });
+
+  it('second attacher sees the previously-seeded snapshot (no double-hydrate)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+
+    // First attacher seeds.
+    hub.handleAppDataRequest(portA, {
+      kind: 'appdata-attach',
+      subId: 'a',
+      seed: [appDataRow('a', 'positions', { asOfDate: '2026-04-01' })],
+    });
+    // Second attacher attempts a different seed — ignored.
+    hub.handleAppDataRequest(portB, {
+      kind: 'appdata-attach',
+      subId: 'b',
+      seed: [appDataRow('z', 'wouldOverwrite')],
+    });
+    expect(portB.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      rows: [{ configId: 'a', name: 'positions' }],
+    });
+  });
+
+  it('set fans out a delta to every attached subscriber including originator', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+    hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a', seed: [] });
+    hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+
+    const next = appDataRow('a1', 'positions', { asOfDate: '2026-05-08' });
+    hub.handleAppDataRequest(portA, { kind: 'appdata-set', reqId: 'r1', row: next });
+
+    // A: snapshot, delta, ack (broadcast happens before ack — see hub).
+    expect(portA.messages).toHaveLength(3);
+    // B: snapshot, delta.
+    expect(portB.messages).toHaveLength(2);
+
+    const aDelta = portA.messages[1] as { kind: string; subId: string; op: string; row: { configId: string } };
+    expect(aDelta).toMatchObject({ kind: 'appdata-delta', subId: 'a', op: 'upsert', row: { configId: 'a1' } });
+    const aAck = portA.messages[2] as { kind: string; reqId: string; ok: boolean };
+    expect(aAck).toMatchObject({ kind: 'appdata-ack', reqId: 'r1', ok: true });
+
+    const bDelta = portB.messages[1] as { kind: string; subId: string; op: string };
+    expect(bDelta).toMatchObject({ kind: 'appdata-delta', subId: 'b', op: 'upsert' });
+  });
+
+  it('remove fans out a remove delta + ack', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makeAppDataPort();
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-attach', subId: 'a',
+      seed: [appDataRow('a1', 'positions')],
+    });
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-remove', reqId: 'r1', configId: 'a1',
+    });
+    const lastTwo = port.messages.slice(-2) as { kind: string }[];
+    expect(lastTwo[0]).toMatchObject({ kind: 'appdata-delta', op: 'remove' });
+    expect(lastTwo[1]).toMatchObject({ kind: 'appdata-ack', reqId: 'r1', ok: true });
+  });
+
+  it('detach stops further deltas reaching the listener', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+    hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a', seed: [] });
+    hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+    hub.handleAppDataRequest(portA, { kind: 'appdata-detach', subId: 'a' });
+
+    portA.messages.length = 0;
+    portB.messages.length = 0;
+    hub.handleAppDataRequest(portB, {
+      kind: 'appdata-set', reqId: 'r2',
+      row: appDataRow('a2', 'trades'),
+    });
+    expect(portA.messages).toHaveLength(0);
+    // B: delta + ack (no snapshot — already attached).
+    expect(portB.messages).toHaveLength(2);
+  });
+
+  it('onPortClosed cleans up appdata listeners', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+    hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a', seed: [] });
+    hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+    hub.onPortClosed(portA);
+
+    portA.messages.length = 0;
+    portB.messages.length = 0;
+    hub.handleAppDataRequest(portB, {
+      kind: 'appdata-set', reqId: 'r3',
+      row: appDataRow('a3', 'orders'),
+    });
+    expect(portA.messages).toHaveLength(0);
+    expect(portB.messages).toHaveLength(2);
+  });
+});

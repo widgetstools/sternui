@@ -12,9 +12,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createInPageWiring, SharedWorkerDataServicesClient } from './SharedWorkerDataServicesClient';
 import { SharedWorkerDataServicesHub, type PortLike } from '../worker/SharedWorkerDataServicesHub';
 import { registerProvider } from '../providers/registry';
+import { isAppDataRequest, isRequest } from '../protocol';
 import type { ProviderConfig } from '@starui/shared-types';
 import type { ProviderEmit, ProviderHandle } from '../providers/Provider';
 import type { ProviderStats, ProviderStatus } from '../protocol';
+import type { ConfigManager, AppConfigRow } from '@starui/config-service';
 
 interface TestController {
   emit: ProviderEmit;
@@ -74,7 +76,8 @@ function wire(): Wiring {
   const wiring = createInPageWiring((port) => {
     const portLike: PortLike = { postMessage: (m) => port.postMessage(m) };
     port.addEventListener('message', (ev: MessageEvent) => {
-      hub.handleRequest(portLike, ev.data);
+      if (isRequest(ev.data)) hub.handleRequest(portLike, ev.data);
+      else if (isAppDataRequest(ev.data)) hub.handleAppDataRequest(portLike, ev.data);
     });
     port.start();
   });
@@ -86,6 +89,20 @@ function wire(): Wiring {
       void hub.dispose();
     },
   };
+}
+
+function stubConfigManager(): ConfigManager & { _rows: Map<string, AppConfigRow> } {
+  const rows = new Map<string, AppConfigRow>();
+  return {
+    _rows: rows,
+    async getConfigsByUser(userId: string) {
+      return [...rows.values()].filter((r) => r.userId === userId);
+    },
+    async getAllConfigs() { return [...rows.values()]; },
+    async getConfig(id: string) { return rows.get(id); },
+    async saveConfig(row: AppConfigRow) { rows.set(row.configId, row); },
+    async deleteConfig(id: string) { rows.delete(id); },
+  } as unknown as ConfigManager & { _rows: Map<string, AppConfigRow> };
 }
 
 async function flush(): Promise<void> {
@@ -278,5 +295,72 @@ describe('SharedWorkerDataServicesClient', () => {
     expect(() => w.client.attach('p2', cfg('c-2'), listener)).toThrow();
     // Idempotent.
     w.client.close();
+  });
+});
+
+describe('SharedWorkerDataServicesClient — attachAppData', () => {
+  let w: Wiring;
+  beforeEach(() => { w = wire(); });
+  afterEach(() => w.close());
+
+  it('seeds, applies snapshot, and surfaces sync get', async () => {
+    const cm = stubConfigManager();
+    cm._rows.set('ad-1', {
+      configId: 'ad-1', appId: 'TestApp', userId: 'alice',
+      componentType: 'appdata', componentSubType: 'appdata',
+      isTemplate: false, displayText: 'positions',
+      payload: { values: { asOfDate: '2026-04-01' } },
+      createdBy: 'alice', updatedBy: 'alice',
+      creationTime: '0', updatedTime: '0',
+    } as AppConfigRow);
+
+    const mirror = w.client.attachAppData({ configManager: cm, userId: 'alice' });
+    await mirror.attach();
+    await mirror.ready();
+
+    expect(mirror.get('positions', 'asOfDate')).toBe('2026-04-01');
+  });
+
+  it('two mirrors converge on a write', async () => {
+    const cm = stubConfigManager();
+    const a = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'a' });
+    const b = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'b' });
+    await a.attach();
+    await b.attach();
+    await Promise.all([a.ready(), b.ready()]);
+
+    await a.set('positions', 'asOfDate', '2026-05-08');
+    expect(b.get('positions', 'asOfDate')).toBe('2026-05-08');
+  });
+
+  it('detachAppData stops further deltas reaching the mirror', async () => {
+    const cm = stubConfigManager();
+    const a = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'a' });
+    const b = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'b' });
+    await a.attach();
+    await b.attach();
+    await Promise.all([a.ready(), b.ready()]);
+
+    w.client.detachAppData(a);
+    await b.set('positions', 'asOfDate', '2026-05-08');
+
+    // a stayed pre-detach; its sync state is whatever the snapshot held.
+    expect(a.get('positions', 'asOfDate')).toBeUndefined();
+    expect(b.get('positions', 'asOfDate')).toBe('2026-05-08');
+  });
+
+  it('close() clears AppData mirror routing', async () => {
+    const cm = stubConfigManager();
+    const a = w.client.attachAppData({ configManager: cm, userId: 'alice', subId: 'a' });
+    await a.attach();
+    await a.ready();
+    w.client.close();
+
+    // After close, set() resolves but the underlying postMessage is a
+    // no-op (port closed). The mirror's pending ack stays unresolved
+    // unless the client surfaces an error. Verify no throw.
+    // The ack-resolution path is exercised in the AppDataMirror tests
+    // (in-process, no port).
+    expect(() => w.client.detachAppData(a)).not.toThrow();
   });
 });

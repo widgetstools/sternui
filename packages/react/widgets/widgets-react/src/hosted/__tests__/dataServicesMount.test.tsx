@@ -34,7 +34,21 @@ const fakeConfigManager = {
   deleteConfig: vi.fn().mockResolvedValue(undefined),
 } as unknown as ConfigManager;
 
-const fakeClient = { __fake: true } as unknown as SharedWorkerDataServicesClient;
+// Minimal client stub — the DataServicesProvider calls
+// attachAppData on mount and detachAppData on unmount, so both
+// must be present even though the test only verifies the client
+// reference is forwarded into context (not what mirror.attach does).
+const fakeMirror = {
+  attach: vi.fn().mockResolvedValue(undefined),
+  ready: vi.fn().mockResolvedValue(undefined),
+  subscribe: vi.fn(() => () => undefined),
+} as unknown as ReturnType<SharedWorkerDataServicesClient['attachAppData']>;
+
+const fakeClient = {
+  __fake: true,
+  attachAppData: vi.fn(() => fakeMirror),
+  detachAppData: vi.fn(),
+} as unknown as SharedWorkerDataServicesClient;
 
 afterEach(() => {
   cleanup();
