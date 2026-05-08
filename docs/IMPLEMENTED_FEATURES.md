@@ -21,6 +21,81 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 6: optimistic locking + bearer plumbing
+
+Sixth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 6, Decisions 12.5 + 13). Adds RFC 7232-style optimistic
+locking on `PUT /configurations/:id` so two operators editing the same
+row never silently overwrite each other, and lands the
+`AppIdentity.getAccessToken` outbound bearer-header plumbing one step
+ahead of the deferred Decision 16 server-side auth pass.
+
+- Server: `IConfigurationStorage.update(id, updates, expectedUpdatedTime?)`
+  takes an optional pinned `updatedTime`. When supplied, `SqliteStorage`
+  re-reads the row and throws `OptimisticLockMismatchError` (new
+  `apps/config-service-server/src/storage/errors.ts`) carrying the
+  current row when the check fails. `ConfigurationService.updateConfiguration`
+  forwards the value through.
+- Server route `PUT /api/v1/configurations/:configId` now reads the
+  caller's `If-Match` header (RFC 7232 §3.1) and forwards it as
+  `expectedUpdatedTime`. On match the response sets `ETag: <updatedTime>`
+  and returns 200 as today; on mismatch the route returns HTTP 412
+  Precondition Failed with the current row in the body and the same
+  `ETag` header pointing at the new `updatedTime`. Without the header
+  the route preserves today's last-write-wins behavior — every existing
+  caller compiles unchanged.
+- Client: new `packages/shared/services/config-service/src/errors.ts`
+  hosts a single `OptimisticLockError` class (re-exported from `client.ts`
+  for back-compat) used by both the local Dexie path and the REST path
+  so consumers catch one error name regardless of mode. `ConfigClient.updateConfig`
+  gains an optional third `UpdateConfigOptions` arg with
+  `expectedUpdatedTime`. Today no caller passes it (default behavior is
+  preserved); the editor UI in Session 14 will.
+- `RestConfigClient` sends `If-Match` when `expectedUpdatedTime` is
+  present and surfaces 412 responses as `OptimisticLockError(currentRow)`
+  before the generic `ConfigClientHttpError` branch fires. Auth-table
+  ops inherit the same outbound headers via `rawRequest`.
+- `ConfigManager.saveConfig(row, options?)` mirrors the contract on the
+  Dexie/local side: when `options.expectedUpdatedTime` no longer matches
+  the stored row it throws `OptimisticLockError`. In REST mode the same
+  value flows out through `syncToRest` as `If-Match`, and a 412 from
+  the server short-circuits the queue-for-retry branch so the caller
+  sees the lock failure instead of a silent retry.
+- `AppIdentity.getAccessToken` is now consulted on every outbound
+  config-service REST call: the `RestConfigClient` request helper, the
+  `ConfigManager.syncToRest` write path, and the `drainPendingSync`
+  retry loop all `await identity.getAccessToken()` and attach
+  `Authorization: Bearer <token>` when the host supplied one. The
+  server doesn't yet verify the token (Decision 16 deferred), but the
+  editor UI never has to think about auth from now on. `createConfigClient`
+  accepts the identity option and forwards it to the REST client; local
+  mode forwards it to a fresh `ConfigManager`.
+- New tests:
+  - `apps/config-service-server/src/routes/configurations.optimisticlock.test.ts`
+    (4 tests, supertest-driven): no-If-Match writes through with `ETag`,
+    matching If-Match writes through, stale If-Match returns 412 with
+    the current row + ETag, missing configId returns 404 even with
+    If-Match.
+  - `packages/shared/services/config-service/src/client.optimisticlock.test.ts`
+    (6 tests): no header by default, header sent when option passed,
+    412 surfaces `OptimisticLockError(currentRow)`, non-412 errors stay
+    `ConfigClientHttpError`, `Authorization: Bearer` attached when the
+    identity exposes `getAccessToken`, header omitted otherwise.
+  - `packages/shared/services/config-service/src/configManager.optimisticlock.test.ts`
+    (5 tests): default last-write-wins, matching expected time succeeds,
+    stale expected time throws, REST sync sends both `Authorization`
+    and `If-Match`, 412 from the server surfaces as `OptimisticLockError`
+    and is not queued for retry.
+
+Files touched:
+`apps/config-service-server/src/storage/{IConfigurationStorage,SqliteStorage,errors}.ts`,
+`apps/config-service-server/src/services/ConfigurationService.ts`,
+`apps/config-service-server/src/routes/configurations.ts`,
+`apps/config-service-server/src/routes/configurations.optimisticlock.test.ts`,
+`packages/shared/services/config-service/src/{ConfigManager,client,errors,index}.ts`,
+`packages/shared/services/config-service/src/{client.optimisticlock,configManager.optimisticlock}.test.ts`.
+
 ## 2026-05-08 — Config-manager redesign Session 5: server `isPublic` + visibility + trim
 
 Fifth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

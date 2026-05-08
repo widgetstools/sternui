@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ConfigurationService } from '../services/ConfigurationService.js';
+import { OptimisticLockMismatchError } from '../storage/errors.js';
 import type { ConfigurationFilter } from '@starui/shared-types';
 import logger from '../utils/logger.js';
 
@@ -116,10 +117,25 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     '/:configId',
     asyncHandler(async (req: Request, res: Response) => {
       const { configId } = req.params;
+      // Optimistic locking (Decision 12.5 / Session 6). The caller may
+      // pin their edit to a specific `updatedTime` via `If-Match` (RFC
+      // 7232 §3.1). On mismatch, return 412 with the current row so the
+      // editor UI can offer a "row changed elsewhere — reload?" prompt.
+      // No header == today's behavior (last-write-wins).
+      const expectedUpdatedTime = req.header('If-Match');
       try {
-        const result = await configService.updateConfiguration(configId, req.body);
+        const result = await configService.updateConfiguration(
+          configId,
+          req.body,
+          expectedUpdatedTime,
+        );
+        res.setHeader('ETag', result.updatedTime);
         return res.json(result);
       } catch (error: any) {
+        if (error instanceof OptimisticLockMismatchError) {
+          res.setHeader('ETag', error.currentRow.updatedTime);
+          return res.status(412).json(error.currentRow);
+        }
         if (error.message.includes('not found')) {
           return res.status(404).json({ error: 'Configuration not found' });
         }

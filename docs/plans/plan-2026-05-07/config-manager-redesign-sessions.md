@@ -505,7 +505,7 @@ editor UI (Session 14) can show a "row changed, reload?" banner.
 
 **Steps:**
 
-- [ ] **6.1** Define `OptimisticLockError` in `client.ts`:
+- [x] **6.1** Define `OptimisticLockError` in `client.ts`:
 
 ```ts
 export class OptimisticLockError extends Error {
@@ -516,28 +516,42 @@ export class OptimisticLockError extends Error {
 }
 ```
 
-- [ ] **6.2** In `SqliteStorage.update`, if `expectedUpdatedTime` is provided, fetch the
-      row, compare; if mismatch return a sentinel ({ ok: false, current: row }). The
-      route handler turns that into HTTP 412 with the current row in the body.
-- [ ] **6.3** Server route: read `req.header("If-Match")`. If present, pass to storage.
+- [x] **6.2** Implemented as a typed throw rather than a sentinel: `SqliteStorage.update`
+      gains an optional `expectedUpdatedTime` and throws a new
+      `OptimisticLockMismatchError` (carrying the current row) when the value mismatches.
+      The route catches this and translates it to HTTP 412 — same caller-facing contract
+      as the sentinel, with no return-type change for the no-locking path.
+- [x] **6.3** Server route: read `req.header("If-Match")`. If present, pass to storage.
       On mismatch, respond `412 Precondition Failed` with the current row body and an
       `ETag: <updatedTime>` response header. On match, respond as today.
-- [ ] **6.4** `RestConfigClient.update`: include `If-Match: <expectedUpdatedTime>` when
-      caller provides one. On 412, parse the response body as the current row and throw
-      `OptimisticLockError(currentRow)`.
-- [ ] **6.5** `ConfigManager.saveConfig` gains an optional second arg
-      `{ expectedUpdatedTime?: string }`. Today no caller passes it (default behavior
-      unchanged). The editor UI in Session 14 will pass it.
-- [ ] **6.6** Wire `AppIdentity.getAccessToken` here as well (it's the same outbound HTTP
-      path): if `identity.getAccessToken` is set, await it before each REST call and
-      attach `Authorization: Bearer <token>`. **The server does not yet verify it
-      (Decision 16 deferred)** — but plumbing it now means the editor UI never has to
-      think about auth.
-- [ ] **6.7** Tests:
-  - Server: PUT without If-Match works as today; PUT with matching If-Match works; PUT
-    with stale If-Match returns 412 + body.
-  - Client: `OptimisticLockError` thrown on 412; `currentRow` field populated.
-- [ ] **6.8** Run verification.
+- [x] **6.4** `RestConfigClient.updateConfig` accepts an optional `UpdateConfigOptions`
+      with `expectedUpdatedTime` and includes `If-Match` when set. The shared `request()`
+      helper detects 412, parses the response body as the current row, and throws
+      `OptimisticLockError(currentRow)` ahead of the generic HTTP-error branch.
+- [x] **6.5** `ConfigManager.saveConfig` gains an optional second `SaveConfigOptions` arg
+      with `expectedUpdatedTime`. Today no caller passes it (default behavior unchanged);
+      the editor UI in Session 14 will. Local mode performs the same compare-then-write
+      against Dexie; REST mode forwards the value as `If-Match` through `syncToRest`.
+- [x] **6.6** `AppIdentity.getAccessToken` is now consulted on every outbound REST call —
+      `RestConfigClient.request`, `ConfigManager.syncToRest`, and `drainPendingSync`. The
+      framework awaits the token and attaches `Authorization: Bearer <token>` when the
+      host supplied one. Server-side verification stays deferred (Decision 16).
+      `createConfigClient` accepts the identity and forwards it through to the REST
+      client (or to a fresh `ConfigManager` in local mode).
+- [x] **6.7** Tests:
+  - Server: `apps/config-service-server/src/routes/configurations.optimisticlock.test.ts`
+    (4 tests, supertest) — PUT without If-Match writes through with `ETag`; PUT with
+    matching If-Match writes through; PUT with stale If-Match returns 412 + current row +
+    `ETag`; missing configId returns 404 even with If-Match.
+  - Client: `client.optimisticlock.test.ts` (6 tests) — header omitted by default, sent
+    when option provided, 412 → `OptimisticLockError`, non-412 stays
+    `ConfigClientHttpError`, `Authorization` header attached / omitted based on identity.
+  - ConfigManager (local + REST): `configManager.optimisticlock.test.ts` (5 tests) covers
+    last-write-wins default, matching/stale expected-time, REST `If-Match` + Bearer
+    plumbing, and 412 surfaced as `OptimisticLockError` rather than queued for retry.
+- [x] **6.8** Run verification — green. Server: 12 tests pass (8 storage + 4 routes).
+      Config-service: 53 tests pass across 8 files. Full repo `npx turbo typecheck build`
+      passes (54 tasks, 19 cached). `npx turbo test` reports 33 successful packages.
 
 **Verification:**
 

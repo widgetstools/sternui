@@ -17,6 +17,7 @@
 // APP_REGISTRY, USER_PROFILE, and ROLES tables.
 
 import { ConfigDatabase } from './db';
+import { OptimisticLockError } from './errors';
 import type {
   AppConfigRow,
   AppIdentity,
@@ -29,6 +30,22 @@ import type {
   UserProfileRow,
 } from './types';
 import { isVisible, type VisibilityContext } from './visibility';
+
+/**
+ * Optional behavior knobs on a single `saveConfig` call. Adding fields
+ * here is non-breaking; existing call sites pass nothing and get the
+ * pre-Session-6 last-write-wins semantics.
+ */
+export interface SaveConfigOptions {
+  /**
+   * The `updatedTime` the caller observed at edit-start. When supplied
+   * AND the manager is in REST mode, the value flows out as an
+   * `If-Match` header so the server can refuse a stale write with HTTP
+   * 412 (Decision 12.5 / Session 6). Local mode applies the same check
+   * against Dexie before persisting.
+   */
+  expectedUpdatedTime?: string;
+}
 
 // Dev placeholders used when the host app doesn't pass `appId` /
 // `identity`. Keep these aligned with the JSDoc on the option fields
@@ -259,9 +276,22 @@ export class ConfigManager {
    * The extra `getConfig` read on the write path is acceptable: config
    * writes are rare and the read is local Dexie.
    */
-  async saveConfig(config: AppConfigRow): Promise<void> {
+  async saveConfig(config: AppConfigRow, options?: SaveConfigOptions): Promise<void> {
     const existing = await this.db.appConfig.get(config.configId);
     const isInsert = existing === undefined;
+
+    // Optimistic locking (Decision 12.5 / Session 6). When the caller
+    // captured an `updatedTime` at edit-start, refuse the write if Dexie
+    // has moved on. The same `expectedUpdatedTime` is forwarded to the
+    // server as `If-Match` below so REST mode shares one rule.
+    if (
+      !isInsert &&
+      options?.expectedUpdatedTime !== undefined &&
+      existing !== undefined &&
+      existing.updatedTime !== options.expectedUpdatedTime
+    ) {
+      throw new OptimisticLockError(existing);
+    }
 
     if (isInsert) {
       // Owner default. Until Session 8, effective user === identity.userId.
@@ -270,7 +300,9 @@ export class ConfigManager {
     this.stampWrite(config, isInsert);
 
     if (this.restUrl) {
-      await this.syncToRest("upsert", "appConfig", config.configId, config);
+      await this.syncToRest('upsert', 'appConfig', config.configId, config, {
+        ifMatch: options?.expectedUpdatedTime,
+      });
     }
     await this.db.appConfig.put(config);
   }
@@ -804,6 +836,7 @@ export class ConfigManager {
     tableName: string,
     recordId: string,
     payload: any,
+    options?: { ifMatch?: string },
   ): Promise<void> {
     if (!this.restUrl) {
       return;
@@ -813,16 +846,47 @@ export class ConfigManager {
       const url = `${this.restUrl}/${tableName}/${recordId}`;
       const method = operation === "delete" ? "DELETE" : "PUT";
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      // Outbound auth (Decision 2 / Session 6). The host owns refresh —
+      // we just call before each request and attach the bearer header.
+      // The server doesn't verify yet (Decision 16 deferred) but
+      // plumbing it now means later sessions don't have to revisit.
+      if (this.identity.getAccessToken) {
+        const token = await this.identity.getAccessToken();
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+      }
+      if (options?.ifMatch !== undefined) {
+        headers["If-Match"] = options.ifMatch;
+      }
+
       const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: operation === "delete" ? undefined : JSON.stringify(payload),
       });
+
+      // 412 from the server means the row's `updatedTime` has moved on
+      // since `expectedUpdatedTime` was captured. This is a USER-facing
+      // error (the editor must reload); never queue it for retry.
+      if (response.status === 412) {
+        let currentRow: AppConfigRow | undefined;
+        try {
+          currentRow = (await response.json()) as AppConfigRow;
+        } catch {
+          currentRow = undefined;
+        }
+        throw new OptimisticLockError(currentRow);
+      }
 
       if (!response.ok) {
         throw new Error(`REST sync failed with HTTP ${response.status}`);
       }
     } catch (error) {
+      // Optimistic-lock failures are caller-visible; do not queue for retry.
+      if (error instanceof OptimisticLockError) {
+        throw error;
+      }
+
       console.warn(
         `ConfigManager: REST sync failed for ${operation} ${tableName}/${recordId}. Queuing for retry.`,
         error,
@@ -893,9 +957,15 @@ export class ConfigManager {
         const url = `${this.restUrl}/${entry.tableName}/${entry.recordId}`;
         const method = entry.operation === "delete" ? "DELETE" : "PUT";
 
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (this.identity.getAccessToken) {
+          const token = await this.identity.getAccessToken();
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const response = await fetch(url, {
           method,
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: entry.operation === "delete" ? undefined : JSON.stringify(entry.payload),
         });
 

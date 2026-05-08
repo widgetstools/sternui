@@ -27,7 +27,18 @@ export interface IConfigurationStorage {
     displayText: string,
     componentSubType?: string,
   ): Promise<AppConfigRow | null>;
-  update(configId: string, updates: Partial<AppConfigRow>): Promise<AppConfigRow>;
+  /**
+   * Update a configuration. When `expectedUpdatedTime` is provided, the
+   * write is conditional: if the row's stored `updatedTime` no longer
+   * matches, the implementation throws `OptimisticLockMismatchError`
+   * carrying the current row. Routes turn that into HTTP 412.
+   * (Decision 12.5 / Session 6.)
+   */
+  update(
+    configId: string,
+    updates: Partial<AppConfigRow>,
+    expectedUpdatedTime?: string,
+  ): Promise<AppConfigRow>;
   delete(configId: string): Promise<boolean>;
 
   // Clone
