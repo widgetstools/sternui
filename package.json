@@ -7,6 +7,10 @@
   "workspaces": [
     "apps/*",
     "packages/shared/*",
+    "packages/shared/foundation/*",
+    "packages/shared/runtime/*",
+    "packages/shared/services/*",
+    "packages/shared/platform/*",
     "packages/react/*",
     "packages/react/tools/*",
     "packages/react/hosts/*",

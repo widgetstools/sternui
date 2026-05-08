@@ -1,10 +1,10 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
     "outDir": "dist",
     "rootDir": ".",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*", "react/**/*", "angular/**/*"]
+  "include": ["index.ts", "all-icons.ts", "react/**/*", "angular/**/*"]
 }

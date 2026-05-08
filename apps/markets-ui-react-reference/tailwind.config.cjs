@@ -5,7 +5,7 @@ const marketsPreset = require("@starui/tokens-primeng/tailwind-preset");
  * Uses the canonical `@starui/tokens-primeng` preset which wraps
  * shadcn semantic tokens (`--background`, `--card`, etc.) in
  * `hsl(var(--x))` — matches the HSL-triplet form those tokens take
- * in `packages/shared/design-system/src/themes/fi-*.css`.
+ * in `packages/shared/foundation/design-system/src/themes/fi-*.css`.
  *
  * Consumer packages (`@starui/markets-grid`, `@starui/core`)
  * don't read those tokens raw — they use the `--bn-*` / `--fi-*`
