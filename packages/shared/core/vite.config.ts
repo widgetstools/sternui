@@ -15,19 +15,10 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        'react',
-        'react-dom',
-        'react/jsx-runtime',
         'ag-grid-community',
         'ag-grid-enterprise',
         'ag-grid-react',
       ],
-      output: {
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-        },
-      },
       onwarn(warning, defaultHandler) {
         // Radix-UI + lucide-react ship `"use client"` RSC directives
         // that are irrelevant in this plain client-side library
