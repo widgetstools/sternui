@@ -87,6 +87,7 @@ These packages are NOT on corporate artifactory. They are vendored as `.tgz` fil
 | `@testing-library/jest-dom` | `^6.9.1` | extras list | |
 | `@testing-library/user-event` | `^14.6.1` | extras list | |
 | `@playwright/test` | `^1.59.1` | extras list | |
+| `fake-indexeddb` | `^6.2.5` | config-service Dexie tests | In-process IndexedDB shim used by `@starui/config-service` schema-upgrade tests; jsdom 29 does not ship IndexedDB |
 
 ## OpenFin
 

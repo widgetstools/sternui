@@ -19,6 +19,25 @@
  * The `config` field holds the full component configuration as a JSON
  * object. Its shape depends on `componentType` (e.g. BlotterConfig
  * for "GRID", DockEditorConfig for "DOCK").
+ *
+ * ## Owner vs audit field roles (Decision 7 in the redesign)
+ *
+ * The row carries two distinct identity slots that future sessions
+ * separate cleanly:
+ *
+ *   - `userId` — the **owner** of the row. Drives visibility (see
+ *     `isPublic` below): a private row owned by alice is not visible
+ *     to bob. The owner is whoever the row was authored *as* — under
+ *     impersonation (Session 8) this is the impersonated user, not
+ *     the real signed-in user.
+ *   - `createdBy` / `updatedBy` — **audit** fields. Always reflect the
+ *     real logged-in user (`AppIdentity.userId`), never the
+ *     impersonated user. These never change ownership semantics.
+ *
+ * Until Session 3 lands the centralized stamping helper, owner and
+ * audit are populated by ad-hoc code paths and may both be the
+ * signed-in user; see Session 3 of
+ * `docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md`.
  */
 export interface AppConfigRow {
   /** Primary key — instanceId for instances, templateId for templates. */
@@ -28,10 +47,30 @@ export interface AppConfigRow {
   appId: string;
 
   /**
-   * Owner of this config row. Templates typically use a system/shared user
-   * id; instance configs use the signed-in user id.
+   * Owner of this config row (drives visibility — see `isPublic`).
+   * Templates typically use a system/shared user id; instance configs
+   * use the signed-in user id. Under impersonation (Session 8) this
+   * is the impersonated user, not the real logged-in user.
+   *
+   * See the type's class-level JSDoc for the owner-vs-audit split.
    */
   userId: string;
+
+  /**
+   * Visibility flag (Decision 6 in the redesign).
+   *
+   *   - `true` (default) — **public**: visible to every user of this
+   *     app. Templates and shared configs are public.
+   *   - `false` — **private**: visible only to the row's `userId`
+   *     (owner) within the row's `appId`.
+   *
+   * Optional for back-compat — rows written before this field existed
+   * are normalized to `true` by a Dexie schema upgrade so existing
+   * data keeps reading. New writes always populate the field
+   * explicitly. See Session 1 of
+   * `docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md`.
+   */
+  isPublic?: boolean;
 
   /** Human-readable label shown in toolbars and menus. */
   displayText: string;
