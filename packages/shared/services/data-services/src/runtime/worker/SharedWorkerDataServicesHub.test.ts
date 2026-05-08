@@ -365,3 +365,210 @@ describe('SharedWorkerDataServicesHub — port closure', () => {
     expect(port.messages).toHaveLength(0);
   });
 });
+
+// ─── AppData wire round-trip ─────────────────────────────────────
+
+interface AppDataPort {
+  messages: unknown[];
+  postMessage(m: unknown): void;
+}
+
+function makeAppDataPort(): AppDataPort {
+  const messages: unknown[] = [];
+  return {
+    messages,
+    postMessage(m) { messages.push(m); },
+  };
+}
+
+function appDataRow(configId: string, name: string, values: Record<string, unknown> = {}) {
+  return { configId, name, isPublic: false, values, userId: 'alice' };
+}
+
+describe('SharedWorkerDataServicesHub — AppData', () => {
+  it('snapshot delivered on attach reflects the seed', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makeAppDataPort();
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-attach',
+      subId: 'a',
+      seed: [appDataRow('a', 'positions', { asOfDate: '2026-04-01' })],
+    });
+    expect(port.messages).toHaveLength(1);
+    expect(port.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      subId: 'a',
+      rows: [{ configId: 'a', name: 'positions' }],
+    });
+  });
+
+  it('second attacher sees the previously-seeded snapshot (no double-hydrate)', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+
+    // First attacher seeds.
+    hub.handleAppDataRequest(portA, {
+      kind: 'appdata-attach',
+      subId: 'a',
+      seed: [appDataRow('a', 'positions', { asOfDate: '2026-04-01' })],
+    });
+    // Second attacher attempts a different seed — ignored.
+    hub.handleAppDataRequest(portB, {
+      kind: 'appdata-attach',
+      subId: 'b',
+      seed: [appDataRow('z', 'wouldOverwrite')],
+    });
+    expect(portB.messages[0]).toMatchObject({
+      kind: 'appdata-snapshot',
+      rows: [{ configId: 'a', name: 'positions' }],
+    });
+  });
+
+  it('set fans out a delta to every attached subscriber including originator', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+    hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a', seed: [] });
+    hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+
+    const next = appDataRow('a1', 'positions', { asOfDate: '2026-05-08' });
+    hub.handleAppDataRequest(portA, { kind: 'appdata-set', reqId: 'r1', row: next });
+
+    // A: snapshot, delta, ack (broadcast happens before ack — see hub).
+    expect(portA.messages).toHaveLength(3);
+    // B: snapshot, delta.
+    expect(portB.messages).toHaveLength(2);
+
+    const aDelta = portA.messages[1] as { kind: string; subId: string; op: string; row: { configId: string } };
+    expect(aDelta).toMatchObject({ kind: 'appdata-delta', subId: 'a', op: 'upsert', row: { configId: 'a1' } });
+    const aAck = portA.messages[2] as { kind: string; reqId: string; ok: boolean };
+    expect(aAck).toMatchObject({ kind: 'appdata-ack', reqId: 'r1', ok: true });
+
+    const bDelta = portB.messages[1] as { kind: string; subId: string; op: string };
+    expect(bDelta).toMatchObject({ kind: 'appdata-delta', subId: 'b', op: 'upsert' });
+  });
+
+  it('remove fans out a remove delta + ack', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makeAppDataPort();
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-attach', subId: 'a',
+      seed: [appDataRow('a1', 'positions')],
+    });
+    hub.handleAppDataRequest(port, {
+      kind: 'appdata-remove', reqId: 'r1', configId: 'a1',
+    });
+    const lastTwo = port.messages.slice(-2) as { kind: string }[];
+    expect(lastTwo[0]).toMatchObject({ kind: 'appdata-delta', op: 'remove' });
+    expect(lastTwo[1]).toMatchObject({ kind: 'appdata-ack', reqId: 'r1', ok: true });
+  });
+
+  it('detach stops further deltas reaching the listener', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+    hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a', seed: [] });
+    hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+    hub.handleAppDataRequest(portA, { kind: 'appdata-detach', subId: 'a' });
+
+    portA.messages.length = 0;
+    portB.messages.length = 0;
+    hub.handleAppDataRequest(portB, {
+      kind: 'appdata-set', reqId: 'r2',
+      row: appDataRow('a2', 'trades'),
+    });
+    expect(portA.messages).toHaveLength(0);
+    // B: delta + ack (no snapshot — already attached).
+    expect(portB.messages).toHaveLength(2);
+  });
+
+  it('onPortClosed cleans up appdata listeners', () => {
+    const hub = new SharedWorkerDataServicesHub();
+    const portA = makeAppDataPort();
+    const portB = makeAppDataPort();
+    hub.handleAppDataRequest(portA, { kind: 'appdata-attach', subId: 'a', seed: [] });
+    hub.handleAppDataRequest(portB, { kind: 'appdata-attach', subId: 'b' });
+    hub.onPortClosed(portA);
+
+    portA.messages.length = 0;
+    portB.messages.length = 0;
+    hub.handleAppDataRequest(portB, {
+      kind: 'appdata-set', reqId: 'r3',
+      row: appDataRow('a3', 'orders'),
+    });
+    expect(portA.messages).toHaveLength(0);
+    expect(portB.messages).toHaveLength(2);
+  });
+});
+
+// ─── REST transport — hub round-trip ─────────────────────────────────
+//
+// The hub's per-request plumbing is transport-agnostic; the same
+// invariants the mock-based tests above exercise should hold for any
+// registered factory. This block plugs the real `startRest` factory
+// (with an injected fetchImpl) into the registry and asserts the
+// attach → snapshot → ready flow works through the hub.
+//
+// Future transports (websocket, kafka, ...) get a parallel describe
+// block with the same shape.
+
+describe('SharedWorkerDataServicesHub — REST round-trip', () => {
+  it('attach → fetched rows → ready over the hub protocol', async () => {
+    // Inject the REST factory directly so we control the fetchImpl.
+    // The default registration in registry.ts uses global fetch; tests
+    // need a stubbed response.
+    const { startRest } = await import('../providers/transports/rest.js');
+    registerProvider('rest' as ProviderConfig['providerType'], (cfg, emit) =>
+      startRest(cfg as never, emit, {
+        fetchImpl: async () =>
+          new Response(JSON.stringify([{ id: 'r1', x: 1 }, { id: 'r2', x: 2 }]), { status: 200 }),
+      }),
+    );
+
+    const hub = new SharedWorkerDataServicesHub();
+    const port = makePort();
+
+    const restCfg = {
+      providerType: 'rest',
+      baseUrl: 'http://api.test',
+      endpoint: '/positions',
+      method: 'GET',
+      keyColumn: 'id',
+    } as unknown as ProviderConfig;
+
+    hub.handleRequest(port, { kind: 'attach', subId: 's1', providerId: 'p-rest', mode: 'data', cfg: restCfg });
+
+    // Same flush dance as rest.test.ts — Response.text() needs a real
+    // macrotask hop in jsdom + undici.
+    for (let i = 0; i < 3; i++) await new Promise<void>((r) => setTimeout(r, 0));
+
+    // Initial attach replay (cache empty), then loading, then the
+    // post-fetch replace with rows, then ready.
+    const deltas = port.messages.filter((m) => m.kind === 'delta');
+    const statuses = port.messages.filter((m) => m.kind === 'status') as Array<Event & { status: string }>;
+
+    expect(statuses.map((s) => s.status)).toEqual(['loading', 'ready']);
+
+    // The last delta carries the fetched rows (the immediate attach
+    // replay sent an empty cache; the post-fetch broadcast carried
+    // the snapshot). Hub dedupes by keyColumn so we expect exactly 2.
+    const finalDelta = deltas[deltas.length - 1] as Event & { rows: unknown[]; replace?: boolean };
+    expect(finalDelta.replace).toBe(true);
+    expect(finalDelta.rows).toHaveLength(2);
+    expect(finalDelta.rows.map((r) => (r as { id: string }).id)).toEqual(['r1', 'r2']);
+
+    // Detach is a clean fire-and-forget; no further events.
+    port.messages.length = 0;
+    hub.handleRequest(port, { kind: 'detach', subId: 's1' });
+    expect(port.messages).toHaveLength(0);
+
+    // Restore the mock factory the rest of the suite expects so other
+    // tests in this file aren't disturbed by the REST registration.
+    registerProvider('mock' as ProviderConfig['providerType'], (cfg, emit) => {
+      const ctrl: TestController = { emit, stopCount: 0, restartLog: [] };
+      controllers.set((cfg as unknown as { __testKey?: string }).__testKey ?? 'default', ctrl);
+      return { stop() { ctrl.stopCount += 1; }, restart(extra) { ctrl.restartLog.push(extra); } };
+    });
+  });
+});

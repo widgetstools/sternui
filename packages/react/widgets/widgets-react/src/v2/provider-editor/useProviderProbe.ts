@@ -4,13 +4,13 @@
  * Replaces the four per-transport hooks v1 had
  * (useStompConnectionTest / useRestConnectionTest /
  *  useStompFieldInference / useRestFieldInference). The probe
- * functions live in `@starui/data-services/runtime/sharedWorker` and are pure —
- * no React, no SharedWorker. We call them from the main thread and
- * track the in-flight state here.
+ * functions are pure main-thread helpers exported from
+ * `@starui/data-services` — they share their implementation with the
+ * SharedWorker hub but don't require a worker to call.
  */
 
 import { useCallback, useState } from 'react';
-import { probeStomp, probeRest, inferFields } from '@starui/data-services/runtime/sharedWorker';
+import { probeStomp, probeRest, inferFields } from '@starui/data-services';
 import { resolveCfg } from '@starui/data-services/runtime';
 import { useAppDataStore } from '@starui/data-services-react/runtime';
 import type { ProviderConfig, FieldNode } from '@starui/shared-types';

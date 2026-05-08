@@ -6,6 +6,11 @@
  * configs via `{{name.key}}` substitution upstream of the worker.
  * It has no `start/stop/snapshot/onUpdate` lifecycle and so doesn't
  * register with the provider factory registry.
+ *
+ * The reactive in-memory + cross-window state lives in
+ * `../../mirror/AppDataMirror` (main thread) backed by
+ * `../../worker/WorkerAppDataStore` (SharedWorker). This module
+ * exports only the persistence-layer types.
  */
 
 export {
@@ -13,4 +18,3 @@ export {
   COMPONENT_TYPE_APPDATA,
   type AppDataConfig,
 } from './store.js';
-export { AppDataStore } from './AppDataStore.js';

@@ -143,11 +143,15 @@ export class DataProviderEditorComponent {
   providerToDelete: DataProviderConfig | null = null;
   showTypeDialog = false;
 
+  // Selectable provider types track the registered transports in
+  // packages/shared/services/data-services/src/runtime/providers/registry.ts.
+  // websocket and socketio configs are declared in shared-types but no
+  // factory implements them — picking either previously saved a config
+  // that failed at first attach with `No provider factory registered`.
+  // Aligns with React's SUPPORTED_TYPES list.
   providerTypes = [
     { id: 'stomp', label: 'STOMP WebSocket', description: 'STOMP protocol over WebSocket', gradient: 'from-blue-500 to-cyan-500' },
     { id: 'rest', label: 'REST API', description: 'HTTP REST endpoint', gradient: 'from-green-500 to-emerald-500' },
-    { id: 'websocket', label: 'WebSocket', description: 'Raw WebSocket connection', gradient: 'from-purple-500 to-pink-500' },
-    { id: 'socketio', label: 'Socket.IO', description: 'Socket.IO event stream', gradient: 'from-orange-500 to-red-500' },
     { id: 'mock', label: 'Mock Data', description: 'Simulated data for testing', gradient: 'from-gray-500 to-slate-500' },
   ];
 

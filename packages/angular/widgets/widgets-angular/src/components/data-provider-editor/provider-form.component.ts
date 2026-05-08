@@ -14,8 +14,6 @@ import type {
   DataProviderConfig,
   StompProviderConfig,
   RestProviderConfig,
-  WebSocketProviderConfig,
-  SocketIOProviderConfig,
   MockProviderConfig,
   ProviderType,
 } from '@starui/shared-types';
@@ -114,44 +112,6 @@ import { StompFormComponent } from './stomp-form.component';
             </div>
           </section>
 
-          <!-- WebSocket config -->
-          <section *ngIf="formData.providerType === 'websocket'" class="rounded-lg border border-border bg-muted/30 p-4 space-y-3.5">
-            <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">WebSocket Configuration</h3>
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">WebSocket URL *</label>
-              <input [value]="wsConfig.url || ''"
-                (input)="handleConfigChange({ field: 'url', value: $any($event.target).value })"
-                placeholder="ws://localhost:8080/ws"
-                class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-            </div>
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Subscribe Message</label>
-              <input [value]="wsConfig.subscribeMessage || ''"
-                (input)="handleConfigChange({ field: 'subscribeMessage', value: $any($event.target).value })"
-                placeholder='{"action":"subscribe"}'
-                class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-            </div>
-          </section>
-
-          <!-- Socket.IO config -->
-          <section *ngIf="formData.providerType === 'socketio'" class="rounded-lg border border-border bg-muted/30 p-4 space-y-3.5">
-            <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Socket.IO Configuration</h3>
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Server URL *</label>
-              <input [value]="socketIOConfig.url || ''"
-                (input)="handleConfigChange({ field: 'url', value: $any($event.target).value })"
-                placeholder="http://localhost:3000"
-                class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-            </div>
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Event Name</label>
-              <input [value]="socketIOConfig.eventName || ''"
-                (input)="handleConfigChange({ field: 'eventName', value: $any($event.target).value })"
-                placeholder="data"
-                class="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-            </div>
-          </section>
-
           <!-- Mock config -->
           <section *ngIf="formData.providerType === 'mock'" class="rounded-lg border border-border bg-muted/30 p-4 space-y-3.5">
             <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mock Configuration</h3>
@@ -222,14 +182,6 @@ export class ProviderFormComponent implements OnChanges {
 
   get restConfig(): RestProviderConfig {
     return (this.formData.config ?? {}) as RestProviderConfig;
-  }
-
-  get wsConfig(): WebSocketProviderConfig {
-    return (this.formData.config ?? {}) as WebSocketProviderConfig;
-  }
-
-  get socketIOConfig(): SocketIOProviderConfig {
-    return (this.formData.config ?? {}) as SocketIOProviderConfig;
   }
 
   get mockConfig(): MockProviderConfig {

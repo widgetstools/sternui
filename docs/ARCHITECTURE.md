@@ -251,6 +251,8 @@ packages/
 └── angular/                   peer-depends on @angular/core (parity catching up)
     ├── hosts/
     │   └── host-wrapper-angular/
+    ├── providers/             provideDataServices() + DI/RxJS/Signal shells around shared/services
+    │   └── data-services-angular/
     ├── tools/
     │   └── config-browser-angular/
     └── widgets/
