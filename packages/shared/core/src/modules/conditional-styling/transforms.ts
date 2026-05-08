@@ -23,8 +23,8 @@ import { findIndicatorIcon, iconAsDataUrl } from './indicatorIcons';
 
 // ─── Pulse keyframes (module-scoped, shipped once per grid) ────────────────
 
-export const FLASH_PULSE_RULE_ID = '__flash-pulse-keyframes__';
-export const FLASH_PULSE_CSS = `
+const FLASH_PULSE_RULE_ID = '__flash-pulse-keyframes__';
+const FLASH_PULSE_CSS = `
 @keyframes gc-flash-pulse {
   0%, 100% { box-shadow: inset 0 0 0 9999px var(--gc-flash-color, rgba(251, 191, 36, 0.42)); }
   50%      { box-shadow: inset 0 0 0 9999px transparent; }
@@ -98,7 +98,7 @@ function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefin
   }`;
 }
 
-export function buildCssText(
+function buildCssText(
   ruleId: string,
   scopeType: 'cell' | 'row',
   light: CellStyleProperties,
@@ -168,7 +168,7 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
  * cost), otherwise fall back to a function that evaluates the AST per cell.
  * Evaluation errors are swallowed — a broken rule must NOT crash the grid.
  */
-export function buildCellClassPredicate(
+function buildCellClassPredicate(
   engine: ExpressionEngineLike,
   rule: ConditionalRule,
 ): ((params: CellClassParams) => boolean) | string {

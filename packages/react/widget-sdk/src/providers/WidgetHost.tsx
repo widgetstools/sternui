@@ -14,7 +14,7 @@ export interface WidgetHostContextValue {
   configClient: ConfigClient;
 }
 
-export const WidgetHostContext = createContext<WidgetHostContextValue | null>(null);
+const WidgetHostContext = createContext<WidgetHostContextValue | null>(null);
 
 export function useWidgetHost(): WidgetHostContextValue {
   const ctx = useContext(WidgetHostContext);

@@ -13,7 +13,6 @@
 export { FormatPopover } from './FormatPopover';
 export { FormatDropdown } from './FormatDropdown';
 export { FormatColorPicker } from './FormatColorPicker';
-export { FormatSwatch } from './FormatSwatch';
 
 export { registerPopoverRoot, clickIsInsideAnyOpenPopover } from './popoverStack';
 

@@ -1,5 +1,4 @@
 import type * as MonacoNS from 'monaco-editor';
-import { LANGUAGE_ID } from './language';
 import { ExpressionEngine } from '../../expression';
 
 /**
@@ -88,5 +87,3 @@ function getEngine(): ExpressionEngine {
   return (_engine ??= new ExpressionEngine());
 }
 
-// Re-export for the language module to use the same id constant.
-export { LANGUAGE_ID };

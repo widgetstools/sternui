@@ -40,10 +40,6 @@ export { sternDarkTheme, sternLightTheme, useAgGridTheme } from './theme/index.j
 //   import { DataProviderSelector } from '@starui/widgets-react/v2/data-provider-selector';
 //   import { MarketsGridContainer } from '@starui/widgets-react/v2/markets-grid-container';
 
-// ─── Dock Configurator ───────────────────────────
-export { DockConfigurator } from './dock/DockConfigurator.js';
-export type { DockConfiguratorProps } from './dock/DockConfigurator.js';
-
 // ─── Hosted-feature wrappers (public API) ────────
 // Subpath: '@starui/widgets-react/hosted'
 // Re-exported here for convenience; new consumers should prefer the

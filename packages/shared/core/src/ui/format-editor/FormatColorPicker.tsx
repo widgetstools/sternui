@@ -55,7 +55,7 @@ function addRecent(color: string): void {
 
 // ─── HSV math ────────────────────────────────────────────────────────────────
 
-export function hexToHsv(hex: string): { h: number; s: number; v: number } {
+function hexToHsv(hex: string): { h: number; s: number; v: number } {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
@@ -72,7 +72,7 @@ export function hexToHsv(hex: string): { h: number; s: number; v: number } {
   return { h, s: max ? d / max : 0, v: max };
 }
 
-export function hsvToHex(h: number, s: number, v: number): string {
+function hsvToHex(h: number, s: number, v: number): string {
   const c = v * s,
     x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
     m = v - c;
