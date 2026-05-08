@@ -3,7 +3,7 @@
  * focused hooks.
  *
  * Surface:
- *   <DataServicesProvider client={dsClient} configManager={...} userId={...} />
+ *   <DataServicesProvider services={ds} mode="lazy"|"eager" />
  *   useDataServices()              — escape hatch to the raw client
  *   useAppDataStore()              — reactive AppData snapshot
  *   useDataProviderConfig(id)      — single saved config row
@@ -17,10 +17,11 @@
 
 import {
   createContext,
+  use,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -34,9 +35,9 @@ import {
   AppDataMirror,
   DataProviderConfigStore,
   resolveCfg,
+  type DataServices,
 } from '@starui/data-services/runtime';
 import type { ProviderStatus } from '@starui/data-services/runtime';
-import type { ConfigManager } from '@starui/config-service';
 import type { DataProviderConfig, ProviderConfig } from '@starui/shared-types';
 import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 
@@ -51,37 +52,42 @@ interface ContextValue {
 const DataServicesContext = createContext<ContextValue | null>(null);
 
 export interface DataServicesProviderProps {
-  client: SharedWorkerDataServicesClient;
-  configManager: ConfigManager;
-  /** Active user id — gates which AppData / DataProvider rows are
-   *  visible. Public rows (`userId === 'system'`) ride along for
-   *  every user. */
-  userId: string;
+  /** Bootstrap result from `bootstrapDataServices(...)`. */
+  services: DataServices;
+  /**
+   * Hydration mode for the AppData mirror.
+   *   - `'lazy'` (default): render immediately. Components see
+   *     `useAppDataStore().loaded === false` on first paint;
+   *     templates resolve once the mirror snapshot arrives.
+   *   - `'eager'`: suspend until `services.ready` resolves. Wrap
+   *     this Provider in a `<Suspense fallback>` boundary to control
+   *     the loading UI.
+   */
+  mode?: 'eager' | 'lazy';
+  /** Override the user id stamped on AppData rows authored from this
+   *  tree. Defaults to the bootstrap's userId via `LOGGED_IN_USER_ID`. */
+  userId?: string;
   children: ReactNode;
 }
 
-export function DataServicesProvider({ client, configManager, userId, children }: DataServicesProviderProps) {
-  // Build the mirror eagerly so child components see a stable
-  // identity from first render. attach() (which fires the seed read
-  // + worker round-trip) runs in a useEffect below — sync `get(...)`
-  // returns undefined until the snapshot lands; consumers read
-  // `loaded` via useAppDataStore() if they need to suspend.
-  const value = useMemo<ContextValue>(() => ({
-    client,
-    appData: client.attachAppData({ configManager, userId }),
-    configStore: new DataProviderConfigStore(configManager),
-  }), [client, configManager, userId]);
+export function DataServicesProvider({ services, mode = 'lazy', userId, children }: DataServicesProviderProps) {
+  // Eager mode: throw services.ready to nearest <Suspense fallback>.
+  // React's `use()` hook unwraps the resolved promise on subsequent
+  // renders, so once the mirror snapshot has applied the children
+  // mount normally.
+  if (mode === 'eager') use(services.ready);
 
-  useEffect(() => {
-    void value.appData.attach();
-    return () => {
-      client.detachAppData(value.appData);
-    };
-  }, [client, value.appData]);
+  const effectiveUserId = userId ?? LOGGED_IN_USER_ID;
+
+  const value = useMemo<ContextValue>(() => ({
+    client: services.client,
+    appData: services.appData,
+    configStore: new DataProviderConfigStore(services.configManager),
+  }), [services]);
 
   return (
     <DataServicesContext.Provider value={value}>
-      <DataServicesUserIdContext.Provider value={userId}>
+      <DataServicesUserIdContext.Provider value={effectiveUserId}>
         {children}
       </DataServicesUserIdContext.Provider>
     </DataServicesContext.Provider>
