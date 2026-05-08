@@ -60,7 +60,11 @@ export class DataProviderConfigStore {
     // platform-level resource (a STOMP feed configured by one trader
     // is selectable by every other trader's blotters).
     void userId;
-    const all = await this.cm.getAllConfigs();
+    // DataProviders are platform-global per the comment above — scan
+    // every row regardless of the manager's app/owner scope. Visibility
+    // is the wrong filter here because providers authored under any
+    // app must be selectable from any other app's components.
+    const all = await this.cm.getAllConfigsUnfiltered();
     const out: DataProviderConfig[] = [];
     for (const row of all) {
       if (row.componentType !== COMPONENT_TYPE_DATA_PROVIDER) continue;

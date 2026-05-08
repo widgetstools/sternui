@@ -21,8 +21,10 @@ class InMemoryConfigManager {
   async getConfig(id: string)            { return this.configs.get(id); }
   async saveConfig(row: AppConfigRow)    { this.configs.set(row.configId, { ...row }); }
   async getAllConfigs()                  { return Array.from(this.configs.values()); }
+  async getAllConfigsUnfiltered()        { return Array.from(this.configs.values()); }
   async getAllApps()                     { return Array.from(this.apps.values()); }
   async getConfigsByApp(appId: string)   { return Array.from(this.configs.values()).filter((r) => r.appId === appId); }
+  async getConfigsByAppUnfiltered(appId: string) { return Array.from(this.configs.values()).filter((r) => r.appId === appId); }
   async saveAppRegistry(row: AppRegistryRow) { this.apps.set(row.appId, { ...row }); }
   async getAllRoles()                    { return Array.from(this.roles.values()); }
   async saveRole(row: RoleRow)           { this.roles.set(row.roleId, { ...row }); }

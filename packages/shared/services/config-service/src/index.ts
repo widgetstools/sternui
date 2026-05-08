@@ -54,6 +54,13 @@ export { createConfigManager, ConfigManager } from './ConfigManager';
 // ─── Database (for advanced use cases only) ──────────────────────────
 export { ConfigDatabase } from './db';
 
+// ─── Visibility (Session 4) ──────────────────────────────────────────
+// Pure predicate exposed for hosts that want to mirror the framework's
+// visibility rule on row arrays they assembled themselves (e.g. a
+// remote import).
+export { isVisible } from './visibility';
+export type { VisibilityContext } from './visibility';
+
 // ─── Types ───────────────────────────────────────────────────────────
 export type {
   AppConfigRow,

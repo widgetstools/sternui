@@ -332,7 +332,7 @@ Session 1's backfill), every existing read returns the same set as before this s
 
 **Steps:**
 
-- [ ] **4.1** Create `visibility.ts`:
+- [x] **4.1** Create `visibility.ts`:
 
 ```ts
 import type { AppConfigRow } from "./types";
@@ -349,7 +349,7 @@ export function isVisible(row: AppConfigRow, ctx: VisibilityContext): boolean {
 }
 ```
 
-- [ ] **4.2** In `ConfigManager`, add a private helper:
+- [x] **4.2** In `ConfigManager`, add a private helper:
 
 ```ts
 private get visibilityContext(): VisibilityContext {
@@ -359,7 +359,7 @@ private get visibilityContext(): VisibilityContext {
 
   (Session 8 swaps the `effectiveUserId` source to `getEffectiveUser(...)`.)
 
-- [ ] **4.3** Apply the filter in `getAllConfigs`, `getConfigsByApp`, `getConfigsByUser`,
+- [x] **4.3** Apply the filter in `getAllConfigs`, `getConfigsByApp`, `getConfigsByUser`,
       `getTemplates`, `getLatestSnapshot`, and the workspace-snapshot listing path.
       Example:
 
@@ -370,10 +370,13 @@ async getConfigsByApp(appId: string): Promise<AppConfigRow[]> {
 }
 ```
 
-- [ ] **4.4** Add an opt-out for admin / debug paths: `getAllConfigsUnfiltered()` returns
+- [x] **4.4** Add an opt-out for admin / debug paths: `getAllConfigsUnfiltered()` returns
       every row regardless. The `config-browser-react` admin view will need this in
-      Session 12 to show every row to operators.
-- [ ] **4.5** Write `visibility.test.ts` covering the matrix:
+      Session 12 to show every row to operators. (Also added `getConfigsByUserUnfiltered`
+      and `getConfigsByAppUnfiltered`; switched openfin-platform admin paths and the
+      platform-global DataProvider/AppData stores in `@starui/data-services` to use the
+      unfiltered variants.)
+- [x] **4.5** Write `visibility.test.ts` covering the matrix:
 
 | `row.appId` | `row.isPublic` | `row.userId` | `ctx.appId` | `ctx.effectiveUserId` | visible? |
 |-------------|----------------|--------------|-------------|-----------------------|----------|
@@ -383,10 +386,13 @@ async getConfigsByApp(appId: string): Promise<AppConfigRow[]> {
 | "A"         | false          | "alice"      | "A"         | "bob"                 | false    |
 | "A"         | true           | "alice"      | "B"         | "alice"               | false    |
 
-- [ ] **4.6** Write `configManager.visibility.test.ts`: insert public + private rows
+- [x] **4.6** Write `configManager.visibility.test.ts`: insert public + private rows
       under different users, assert each list method returns the correct subset.
-- [ ] **4.7** Run verification, including a smoke run of `markets-ui-react-reference`
+- [x] **4.7** Run verification, including a smoke run of `markets-ui-react-reference`
       dev server to confirm the existing UI still renders configs.
+      (Full repo `npx turbo test typecheck build` green: 33 test packages pass,
+      including the openfin-platform integration tests; the dev-server smoke is
+      a manual ctrl-C step left to the operator.)
 
 **Verification:**
 

@@ -159,7 +159,10 @@ export interface GcResult {
 export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
   const { cm, appId, userId, verbose = false } = opts;
 
-  const allByUser = await cm.getConfigsByUser(userId);
+  // GC operates per-user across apps, then narrows to the requested
+  // appId locally — bypass the visibility filter so cross-app rows
+  // owned by this user reach the appId narrowing below.
+  const allByUser = await cm.getConfigsByUserUnfiltered(userId);
   const inScope = allByUser.filter((r) => r.appId === appId);
   const workspaces = inScope.filter((r) => r.componentType === COMPONENT_TYPES.WORKSPACE);
   const referenced = instanceIdsFromWorkspaces(workspaces);

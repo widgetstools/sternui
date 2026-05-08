@@ -327,7 +327,10 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
   const allApps = await cm.getAllApps();
   const allConfigs: any[] = [];
   for (const app of allApps) {
-    const configs = await cm.getConfigsByApp(app.appId);
+    // Export crosses app boundaries — the visibility filter would hide
+    // rows under any app other than the manager's own. Use the
+    // unfiltered admin variant so the export captures everything.
+    const configs = await cm.getConfigsByAppUnfiltered(app.appId);
     allConfigs.push(...configs);
   }
   // Dock + registry persist as regular AppConfigRows keyed by a
