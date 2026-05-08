@@ -26,7 +26,7 @@ export const ACTION_OPEN_DOCK_EDITOR     = "open-dock-editor";
 export const ACTION_RELOAD_DOCK          = "reload-dock";
 export const ACTION_SHOW_DEVTOOLS        = "show-devtools";
 /**
- * Dock action to open Chromium DevTools scoped to the data-plane
+ * Dock action to open Chromium DevTools scoped to the data-services
  * SharedWorker. Iterates through Application.getViews() and calls
  * `view.inspectSharedWorker()` on the first one that has a worker
  * attached — useful because the standalone `chrome://inspect`

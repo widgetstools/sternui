@@ -29,7 +29,7 @@ import {
 } from '@starui/ui';
 import { Database, Loader2, Pencil, Plus, RefreshCw } from 'lucide-react';
 import type { DataProviderConfig, ProviderConfig } from '@starui/shared-types';
-import { useDataProvidersList } from '@starui/data-plane-react/v2';
+import { useDataProvidersList } from '@starui/data-services-react/runtime';
 
 const PUBLIC_USER_ID = 'system';
 const NONE_VALUE = '__none__';

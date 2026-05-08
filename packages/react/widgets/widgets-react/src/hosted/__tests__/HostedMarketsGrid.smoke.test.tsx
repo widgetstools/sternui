@@ -4,7 +4,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/config-service';
 
 // Replace MarketsGridContainer with a marker so we exercise the wrapper
-// without bringing AG-Grid, the DataPlane runtime, or the live picker
+// without bringing AG-Grid, the data-services runtime, or the live picker
 // into the test bundle. The wrapper's job is composition; this asserts
 // it gets to the point of rendering its child.
 vi.mock('../../v2/markets-grid-container/index.js', () => ({

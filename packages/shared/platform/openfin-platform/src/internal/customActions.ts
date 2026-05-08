@@ -346,7 +346,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
       }
     },
 
-    // ── Open Chromium DevTools scoped to the data-plane SharedWorker ──
+    // ── Open Chromium DevTools scoped to the data-services SharedWorker ──
     //
     // OpenFin's `View.inspectSharedWorker()` is the only reliable way
     // to inspect a SharedWorker in the embedded runtime — chrome://
@@ -384,7 +384,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
         }
         console.error(
           '[inspect-shared-worker] No view has a SharedWorker connected. ' +
-          'Open a blotter or another data-plane consumer first.',
+          'Open a blotter or another data-services consumer first.',
           lastErr,
         );
       } catch (error) {

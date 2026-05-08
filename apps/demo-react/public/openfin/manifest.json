@@ -41,6 +41,6 @@
     "target": ["desktop", "start-menu"]
   },
 
-  "$comment-devtools": "devtools_port + --remote-debugging-port=9090 together expose the OpenFin runtime to Chrome DevTools — including SharedWorkers (data-plane v2). Open chrome://inspect#devices in a separate Chrome, add 'localhost:9090' in Configure..., the SharedWorker appears under 'Other'. See docs/DEBUGGING_SHARED_WORKER.md for full steps.",
+  "$comment-devtools": "devtools_port + --remote-debugging-port=9090 together expose the OpenFin runtime to Chrome DevTools — including SharedWorkers (data-services). Open chrome://inspect#devices in a separate Chrome, add 'localhost:9090' in Configure..., the SharedWorker appears under 'Other'. See docs/DEBUGGING_SHARED_WORKER.md for full steps.",
   "devtools_port": 9090
 }

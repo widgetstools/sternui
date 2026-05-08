@@ -7,7 +7,7 @@
  * existing row; we read it via `URLSearchParams` and forward as
  * `initialProviderId` so the form snaps to that row on mount.
  *
- * Storage flows through `<DataPlaneProvider>` → `ConfigManager`
+ * Storage flows through `<DataServicesProvider>` → `ConfigManager`
  * (Dexie / IndexedDB or REST, depending on `getConfigManager()`'s
  * resolution). No more `dataProviderConfigService` shim.
  *
@@ -18,12 +18,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { DataPlaneProvider } from '@starui/data-plane-react/v2';
+import { DataServicesProvider } from '@starui/data-services-react/runtime';
 import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
 import { getConfigManager } from '@starui/openfin-platform/config';
 import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 import type { ConfigManager } from '@starui/config-service';
-import { dataPlaneClient } from '../dataPlaneClient';
+import { dataServicesClient } from '../dataServices.mainThread';
 
 // userId is single-user-pinned across the codebase — no env override,
 // no customData/URL pickup. See LOGGED_IN_USER_ID in runtime-port.
@@ -87,9 +87,9 @@ function DataProviders() {
       </header>
       <div className="flex-1 min-h-0">
         {cm ? (
-          <DataPlaneProvider client={dataPlaneClient} configManager={cm} userId={userId}>
+          <DataServicesProvider client={dataServicesClient} configManager={cm} userId={userId}>
             <DataProviderEditor userId={userId} initialProviderId={initialProviderId} />
-          </DataPlaneProvider>
+          </DataServicesProvider>
         ) : (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
             Connecting to ConfigService…

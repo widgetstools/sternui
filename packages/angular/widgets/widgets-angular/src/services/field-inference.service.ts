@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import type { StompProviderConfig, FieldNode } from '@starui/shared-types';
 import { convertFieldInfoToNode, collectNonObjectLeaves, findFieldByPath } from '@starui/shared-types';
-import { StompDataProvider } from '@starui/data-plane';
+import { StompProbe } from '@starui/data-services';
 
 export interface FieldInferenceState {
   inferring: boolean;
@@ -67,7 +67,7 @@ export class FieldInferenceService {
     }
     this.patch({ inferring: true });
     try {
-      const provider = new StompDataProvider({
+      const provider = new StompProbe({
         websocketUrl: config.websocketUrl,
         listenerTopic: config.listenerTopic || '',
         requestMessage: config.requestMessage,
@@ -83,7 +83,7 @@ export class FieldInferenceService {
       if (!result.success || !result.data || result.data.length === 0) {
         throw new Error(result.error || 'No data received from STOMP server');
       }
-      const inferredFieldsMap = StompDataProvider.inferFields(result.data);
+      const inferredFieldsMap = StompProbe.inferFields(result.data);
       const fieldNodes: FieldNode[] = Object.values(inferredFieldsMap).map((f: any) => convertFieldInfoToNode(f));
       const objectPaths = new Set<string>();
       const findObjects = (nodes: FieldNode[]) => {

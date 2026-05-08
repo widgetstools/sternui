@@ -44,7 +44,7 @@ packages/
 | `@starui/icons-svg` | Shared icon bundle |
 | `@starui/config-service` | Dexie + REST dual-mode config storage |
 | `@starui/component-host` | Identity resolver + debounced saver (with `/react` + `/angular` subpaths) |
-| `@starui/data-plane` | DataProvider interface + InProcess/Shared implementations |
+| `@starui/data-services` | SharedWorker-backed data-services runtime + one-shot probes (StompProbe et al.) |
 | `@starui/runtime-port` | Runtime adapter interface |
 | `@starui/runtime-browser` | Browser runtime adapter |
 | `@starui/runtime-openfin` | OpenFin runtime adapter |
@@ -60,7 +60,7 @@ packages/
 | `@starui/widget-sdk` | Widget registry, launch spec, WidgetContext |
 | `@starui/widgets-react` | Blotter / chart / heatmap widgets |
 | `@starui/host-wrapper-react` | React HostWrapper + identity context |
-| `@starui/data-plane-react` | React hooks over `@starui/data-plane` |
+| `@starui/data-services-react` | React hooks over `@starui/data-services` |
 | `@starui/dock-editor` (`dock-editor-react`) | Dock configurator UI (React) |
 | `@starui/registry-editor` (`registry-editor-react`) | Widget-registry editor UI (React) |
 | `@starui/config-browser` (`config-browser-react`) | Config-row browser/editor (React) |

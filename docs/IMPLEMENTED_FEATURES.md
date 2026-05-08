@@ -21,6 +21,46 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## Renamed 2026-05-08 — `@starui/data-plane` → `@starui/data-services`
+
+Step 1 of `docs/plans/plan-2026-05-07/data-services-redesign.md`. Pure
+rename / no-logic-change PR; coordinates folder, package, class, file,
+and identifier names so the package name self-documents (transport-
+hidden public surface, transport-exposed internal naming).
+
+| Layer | Before | After |
+|---|---|---|
+| Shared package dir | `packages/shared/services/data-plane/` | `packages/shared/services/data-services/` |
+| React package dir  | `packages/react/providers/data-plane-react/` | `packages/react/providers/data-services-react/` |
+| Shared package     | `@starui/data-plane` | `@starui/data-services` |
+| React package      | `@starui/data-plane-react` | `@starui/data-services-react` |
+| Subpath (worker)   | `@starui/data-plane/v2/worker` | `@starui/data-services/runtime/sharedWorker` |
+| Subpath (client)   | `@starui/data-plane/v2/client` | `@starui/data-services/runtime/client` |
+| Subpath (runtime)  | `@starui/data-plane/v2`        | `@starui/data-services/runtime` |
+| Folder             | `src/v2/` | `src/runtime/` |
+| Folder             | `src/providers/` (one-shots) | `src/probes/` |
+| Class              | `Hub` | `SharedWorkerDataServicesHub` |
+| Class              | `DataPlane` | `SharedWorkerDataServicesClient` |
+| Class              | `StompDataProvider` | `StompProbe` |
+| Function           | `installWorker()` | `installSharedWorkerHub()` |
+| Hook               | `useDataPlane()` | `useDataServices()` |
+| React component    | `<DataPlaneProvider>` | `<DataServicesProvider>` |
+| App-side file      | `apps/markets-ui-react-reference/src/dataPlaneClient.ts` | `dataServices.mainThread.ts` |
+| App-side file      | `apps/markets-ui-react-reference/src/dataPlaneWorker.ts` | `dataServices.sharedWorker.ts` |
+| Prop / variable    | `dataPlaneClient` | `dataServicesClient` |
+| SharedWorker name  | `mkt-data-plane-v2:<APP_ID>` | `mkt-data-services:<APP_ID>` |
+
+The naming convention agreed in the redesign doc — public names hide
+transport, internal names expose it (`SharedWorker*` prefix, `*.sharedWorker.ts` /
+`*.mainThread.ts` filename suffixes) — is now in effect for the
+data-services package; subsequent steps (AppData → worker, bootstrap
+entrypoint, REST/probe consolidation) layer on top without further
+rename churn.
+
+Older IMPLEMENTED_FEATURES entries below still reference the previous
+`data-plane` names — they describe the package as it existed at the
+time and are left as historical record.
+
 ## Repackaged in 2026-05-08 (Task 11 / PR-10 of code-organization migration)
 
 The `packages/` tree was reorganized into role-based sub-buckets per
@@ -30,11 +70,11 @@ captures the resulting layout for the living docs.
 
 - `packages/shared/`: `core/`, `foundation/{shared-types, design-system,
   icons-svg, tokens-primeng}`, `runtime/{runtime-port, runtime-browser,
-  runtime-openfin}`, `services/{config-service, data-plane,
+  runtime-openfin}`, `services/{config-service, data-services,
   component-host}`, `platform/{openfin-platform}`.
 - `packages/react/`: `ui/`, `sdk/{widget-sdk}`,
   `widgets/{markets-grid, grid-react, widgets-react}`,
-  `hosts/{host-wrapper-react}`, `providers/{data-plane-react}`,
+  `hosts/{host-wrapper-react}`, `providers/{data-services-react}`,
   `tools/{config-browser-react, workspace-setup-react}`.
 - `packages/angular/`: `hosts/{host-wrapper-angular}`,
   `tools/{config-browser-angular}`, `widgets/{widgets-angular}`.

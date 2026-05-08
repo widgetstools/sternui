@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import { Badge, Button, Separator } from '@starui/ui';
 import { Loader2, RefreshCw, Square } from 'lucide-react';
-import { useDataPlane, useProviderStats, type ProviderStats, type ProviderStatus } from '@starui/data-plane-react/v2';
+import { useDataServices, useProviderStats, type ProviderStats, type ProviderStatus } from '@starui/data-services-react/runtime';
 
 export interface DiagnosticsTabProps {
   providerId: string | null;
@@ -34,7 +34,7 @@ export function DiagnosticsTab({ providerId }: DiagnosticsTabProps) {
 }
 
 function Live({ providerId }: { providerId: string }) {
-  const { client } = useDataPlane();
+  const { client } = useDataServices();
   const [stats, setStats] = useState<ProviderStats | null>(null);
   const [stopping, setStopping] = useState(false);
   const [statusBanner, setStatusBanner] = useState<{ status: ProviderStatus; error?: string } | null>(null);
