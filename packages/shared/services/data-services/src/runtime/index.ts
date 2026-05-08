@@ -59,3 +59,12 @@ export {
 // AppData mirror — the main-thread surface. Sync read + async write
 // proxy backed by the SharedWorkerDataServicesHub.
 export { AppDataMirror, type AppDataMirrorOpts } from './mirror/AppDataMirror.js';
+
+// Bootstrap — single entry point that wraps a SharedWorker into the
+// `DataServices` bundle (client + mirror + ConfigManager + ready).
+// Idempotent by `appName`.
+export {
+  bootstrapDataServices,
+  type BootstrapDataServicesOpts,
+  type DataServices,
+} from './bootstrap/index.js';
