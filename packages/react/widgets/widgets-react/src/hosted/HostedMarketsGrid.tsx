@@ -75,6 +75,14 @@ export interface HostedMarketsGridProps<
    *  When provided, the wrapper mounts a `<DataServicesProvider>` for
    *  it. Omit when an ancestor already provides data-services context. */
   dataServices?: DataServices;
+  /** Hydration mode for the AppData mirror. `'lazy'` (default) renders
+   *  immediately and reconciles when the snapshot arrives; `'eager'`
+   *  suspends first paint until `dataServices.ready` resolves. Use
+   *  eager when the grid's cfg has `{{name.key}}` template references
+   *  whose initial values must be resolved on first attach (e.g. a
+   *  historical-date blotter keyed off `{{positions.asOfDate}}`). The
+   *  consumer's surrounding `<Suspense>` boundary handles the fallback. */
+  dataServicesMode?: 'eager' | 'lazy';
 }
 
 function fullBleedReset(): ReactNode {
@@ -127,6 +135,7 @@ export function HostedMarketsGrid<
     configManager,
     theme = 'auto',
     dataServices,
+    dataServicesMode = 'lazy',
     caption,
     ...containerProps
   } = props;
@@ -250,7 +259,7 @@ export function HostedMarketsGrid<
 
   const dataServicesWrapped = dataServices && identity.configManager
     ? (
-      <DataServicesProvider services={dataServices} userId={identity.userId}>
+      <DataServicesProvider services={dataServices} mode={dataServicesMode} userId={identity.userId}>
         {containerNode}
       </DataServicesProvider>
     )
