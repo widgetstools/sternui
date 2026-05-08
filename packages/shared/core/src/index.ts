@@ -169,6 +169,7 @@ export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 
 // ─── Shared CSS / cockpit tokens ────────────────────────────────────────────
 export { cockpitCSS, COCKPIT_STYLE_ID } from './css';
+export { injectEditorStyles } from './css/injectEditorStyles';
 
 // v2 name aliases for ported host chrome — SettingsSheet injects under
 // these names. Delete alongside the SettingsSheet rewrite in Phase 4.
