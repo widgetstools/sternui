@@ -44,7 +44,8 @@
     "e2e:ui": "playwright test --ui",
     "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
     "pack:libs": "node scripts/pack-libs.mjs",
-    "clean": "rimraf -g node_modules apps/*/node_modules packages/*/*/node_modules apps/*/dist packages/*/*/dist .turbo"
+    "clean": "rimraf -g node_modules apps/*/node_modules packages/*/*/node_modules apps/*/dist packages/*/*/dist .turbo",
+    "check-ds": "tsx tools/scripts/check-ds-tokens.ts"
   },
   "devDependencies": {
     "@openfin/node-adapter": "43.101.2",
