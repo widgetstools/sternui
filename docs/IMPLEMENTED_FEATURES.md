@@ -21,6 +21,77 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 15: `apps/config-admin-web` bundled inside config-service-server
+
+Fifteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 15, Decision 10). Operator-facing multi-app admin console
+ships as a brand-new app (`apps/config-admin-web/`) and is bundled
+into `apps/config-service-server` so the operator gets one URL, one
+process, one deployment artifact.
+
+What landed:
+
+- New SPA at `apps/config-admin-web/` — Vite + React 19 + react-router
+  + `@starui/ui` (shadcn) + `@starui/design-system` tokens. Uses the
+  canonical `@starui/tokens-primeng/tailwind-preset` so theming flips
+  via `data-theme` like every other React surface in the repo.
+- Top-level `<AppSelector>` reads `client.apps.list()` and lets the
+  operator scope subsequent screens to one registered application.
+  Per design Decision 11 the in-app `config-browser-react` wrapper
+  remains hard-coded to `ApplicationContext.AppId` — only this admin
+  SPA exposes the dropdown.
+- All four list editors (`AppRegistryEditor`, `RolesEditor`,
+  `PermissionsEditor`, `UserProfileEditor`) and both matrices
+  (`PermissionMatrix`, `RoleAssignmentMatrix` from Sessions 12–13)
+  wired into the routing. The two matrices are wrapped in
+  `PermissionMatrixView` / `RoleAssignmentMatrixView` which load the
+  initial state, hold the working copy, and persist only the diff
+  via per-row `update()` calls (so Session 6 optimistic locking
+  rejects per row, not per-batch).
+- Operator auth gate is the placeholder Decision-16 surface: any
+  non-empty `?token=...` URL param (or sessionStorage value) counts
+  as signed in. The token plumbs into `RestConfigClient` via
+  `AppIdentity.getAccessToken`, so every request carries
+  `Authorization: Bearer <token>` once the server gains a real auth
+  middleware. Real IDP integration is deferred per the design.
+- Server-side mount: `apps/config-service-server/src/app.ts` now
+  serves `dist/admin-web/` from `/` via `express.static` and falls
+  back to `index.html` for any non-`/api`, non-`/health` route so
+  deep-links (e.g. `/permissions`) survive a hard refresh. The mount
+  is gated on the bundle existing — `tsx watch src/server.ts` runs
+  API-only when the SPA hasn't been built.
+- Build glue: `apps/config-service-server/scripts/copy-admin-web.mjs`
+  is a small Node script (cross-platform `cp -r`) that copies the
+  Vite output into `dist/admin-web/` after `tsc`. The new
+  per-package `apps/config-service-server/turbo.json` declares
+  `build.dependsOn: ["@starui/config-admin-web#build"]` so turbo
+  orders the SPA build first and caches both correctly.
+- Smoke test: `apps/config-service-server/src/app.adminWeb.test.ts`
+  fakes a minimal `dist/admin-web/` bundle next to `app.ts`, calls
+  `createApp()`, and asserts that `/`, deep-link routes, static
+  assets, `/health`, and `/api/*` all behave as designed. Five new
+  tests, restored alongside the original 12.
+
+Verification: `npx turbo typecheck build test` (79/79 green incl. new
+admin-web typecheck/build and 5 new server tests). Manual smoke:
+`PORT=3018 npm --workspace apps/config-service-server run start`,
+then `curl http://localhost:3018/{,permissions,health,api/v1/app-registry}`
+all return 200 with the SPA index served on `/` and `/permissions`.
+
+Out-of-scope for Session 15 (deferred per the plan): real IDP
+integration (Decision 16); the Angular admin twin (the parity rule
+explicitly carves out the operator-facing admin UI per Decision 10);
+collapse of dual `ConfigManager` / `ConfigClient` surfaces and
+`isRegisteredComponent` cleanup (Session 16).
+
+Touched: `apps/config-admin-web/**` (new app — package.json,
+tsconfig*, vite.config.ts, tailwind.config.cjs, postcss.config.cjs,
+index.html, src/{main,App*,Sign*,AppSelector,auth,index.css},
+src/views/{PermissionMatrixView,RoleAssignmentMatrixView}.tsx);
+`apps/config-service-server/{package.json,turbo.json,scripts/copy-admin-web.mjs,src/app.ts,src/app.adminWeb.test.ts}` (server mount + build wiring + smoke test);
+`docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md` (Session 15 checkboxes).
+
 ## 2026-05-08 — Config-manager redesign Session 14: list polish (filter/sort/paginate + validation + optimistic locking)
 
 Fourteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

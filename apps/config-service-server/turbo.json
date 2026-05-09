@@ -1,0 +1,16 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "@starui/config-admin-web#build"],
+      "outputs": ["dist/**"],
+      "inputs": [
+        "src/**",
+        "scripts/**",
+        "tsconfig*.json",
+        "package.json"
+      ]
+    }
+  }
+}

@@ -1211,25 +1211,35 @@ artifact. Operator goes to one URL.
 
 **Steps:**
 
-- [ ] **15.1** Scaffold `apps/config-admin-web/` with Vite. Shadcn primitives in place.
-      Top-level `<AppSelector>` reads the list of apps from `client.getAllApps()` and
+- [x] **15.1** Scaffold `apps/config-admin-web/` with Vite. Shadcn primitives in place.
+      Top-level `<AppSelector>` reads the list of apps from `client.apps.list()` and
       sets the editor scope. The in-app `config-browser-react` continues to lock to
       `ApplicationContext.AppId`; only this admin app has the dropdown.
-- [ ] **15.2** Operator auth gate — placeholder. Read `?token=...` query param, accept
-      any non-empty token, plumb into `RestConfigClient`'s `getAccessToken`. Document
-      that real auth lands in the deferred Decision 16.
-- [ ] **15.3** Wire all four editors and both matrices (Sessions 12 + 13) into the
-      admin app's routing.
-- [ ] **15.4** Bundle into the server: in `apps/config-service-server/package.json`,
-      change `build` to `npm --workspace apps/config-admin-web run build && cp -r ../config-admin-web/dist dist/admin-web && tsc`. (Or use a small Node build script for portability.)
-- [ ] **15.5** In `app.ts`, after API routes are mounted, add
-      `app.use(express.static(path.join(__dirname, "admin-web")))` and a SPA fallback
-      `app.get("*", (_, res) => res.sendFile(...))` for client-side routing.
-- [ ] **15.6** Update Turbo config so that `@starui/config-service-server`'s `build`
-      task `dependsOn` includes `@starui/config-admin-web#build`.
-- [ ] **15.7** Tests: server smoke test that starts the server and confirms `/` returns
-      the SPA's `index.html`. Existing API tests stay green.
-- [ ] **15.8** Run verification + manual operator smoke.
+- [x] **15.2** Operator auth gate — placeholder. Read `?token=...` query param (with
+      `sessionStorage` persistence so a refresh stays signed in), accept any non-empty
+      token, plumb into `RestConfigClient`'s `getAccessToken`. Real auth lands in the
+      deferred Decision 16.
+- [x] **15.3** Wire all four editors and both matrices (Sessions 12 + 13) into the
+      admin app's routing. Matrices are wrapped in per-route persistence views so the
+      Session 6 optimistic-locking guard applies per row.
+- [x] **15.4** Bundle into the server: `apps/config-service-server`'s `build` script
+      runs `tsc && node scripts/copy-admin-web.mjs` (cross-platform `cp -r` via Node's
+      `fs.cp`), copying `apps/config-admin-web/dist` into `dist/admin-web/`.
+- [x] **15.5** `app.ts` mounts `express.static(<dist>/admin-web, { index: false })`
+      after the API routes and adds an `app.get(/^\/(?!api\/|health$).*/)` fallback
+      that sends `admin-web/index.html` so client-side routing survives deep-links.
+      Skipped when the bundle is absent so `tsx watch src/server.ts` still runs API-only.
+- [x] **15.6** Per-package `apps/config-service-server/turbo.json` extends `//` and
+      sets `build.dependsOn: ["^build", "@starui/config-admin-web#build"]`.
+- [x] **15.7** Tests: `src/app.adminWeb.test.ts` synthesises a fake admin-web bundle
+      next to `app.ts`, calls `createApp()`, and asserts `/`, deep-link routes,
+      static asset serving, `/health`, and `/api/*` 404 handling. Existing tests stay
+      green (17/17 passing).
+- [x] **15.8** Verification: `npx turbo typecheck build test` → 79/79 green. Manual
+      smoke: `PORT=3018 npm --workspace apps/config-service-server run start` then
+      `curl http://localhost:3018/{,permissions,health,api/v1/app-registry}` all
+      return 200 with the SPA on `/` and `/permissions`, the API on `/api/v1/...`,
+      and `/health` JSON intact.
 
 **Verification:**
 
