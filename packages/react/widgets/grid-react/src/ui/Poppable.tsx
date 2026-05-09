@@ -82,7 +82,7 @@ export interface PoppableRenderProps {
 }
 
 export interface PopoutButtonProps {
-  /** Override the default className (`gc-popout-btn`). */
+  /** Override the default className (`ds-popout-btn`). */
   className?: string;
   /** `title` + ARIA label on the button. */
   title?: string;
@@ -184,7 +184,7 @@ export const Poppable = forwardRef<PoppableHandle, PoppableProps>(function Poppa
       return (
         <button
           type="button"
-          className={className ?? 'gc-popout-btn'}
+          className={className ?? 'ds-popout-btn'}
           onClick={() => setPopped(true)}
           title={btnTitle ?? 'Open in a separate window'}
           aria-label={btnTitle ?? 'Open in a separate window'}

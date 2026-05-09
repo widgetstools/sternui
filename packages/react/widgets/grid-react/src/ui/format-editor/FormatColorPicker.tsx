@@ -208,7 +208,7 @@ export function FormatColorPicker({
     borderRadius: 4,
     padding: 0,
     cursor: 'pointer',
-    border: selected ? '2px solid var(--gc-positive, #2dd4bf)' : '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+    border: selected ? '2px solid var(--ds-accent-positive)' : '1px solid var(--ds-border-primary)',
     background: c,
     boxShadow: selected
       ? '0 0 0 2px rgba(45,212,191,0.20)'
@@ -305,7 +305,7 @@ export function FormatColorPicker({
               fontWeight: 600,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: 'var(--gc-text-dim, #64748b)',
+              color: 'var(--ds-text-muted)',
               marginBottom: 3,
             }}
           >
@@ -323,7 +323,7 @@ export function FormatColorPicker({
                   borderRadius: 4,
                   padding: 0,
                   cursor: 'pointer',
-                  border: hex.toLowerCase() === c.toLowerCase() ? '2px solid var(--gc-positive, #2dd4bf)' : '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+                  border: hex.toLowerCase() === c.toLowerCase() ? '2px solid var(--ds-accent-positive)' : '1px solid var(--ds-border-primary)',
                   background: c,
                 }}
               />
@@ -347,7 +347,7 @@ export function FormatColorPicker({
             position: 'relative',
             overflow: 'hidden',
             background: hex,
-            border: '1px solid var(--gc-border, rgba(255,255,255,0.12))',
+            border: '1px solid var(--ds-border-primary)',
             flexShrink: 0,
           }}
           title="Pick any color"
@@ -369,13 +369,13 @@ export function FormatColorPicker({
           style={{
             flex: 1,
             height: 22,
-            border: '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+            border: '1px solid var(--ds-border-primary)',
             borderRadius: 4,
-            background: 'var(--gc-bg, #0c1018)',
-            color: 'var(--gc-text, #e2e8f0)',
+            background: 'var(--ds-surface-ground)',
+            color: 'var(--ds-text-primary)',
             fontSize: 11,
             fontWeight: 500,
-            fontFamily: 'var(--gc-font-mono)',
+            fontFamily: 'var(--ds-font-mono)',
             padding: '0 8px',
             outline: 'none',
             minWidth: 0,
@@ -401,7 +401,7 @@ export function FormatColorPicker({
               cursor: 'pointer',
               background: 'rgba(248,113,113,0.08)',
               border: 'none',
-              color: 'var(--gc-negative, #f87171)',
+              color: 'var(--ds-accent-negative)',
               flexShrink: 0,
             }}
           >

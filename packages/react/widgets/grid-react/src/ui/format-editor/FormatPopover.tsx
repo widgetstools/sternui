@@ -17,8 +17,7 @@ import { clickIsInsideAnyOpenPopover, registerPopoverRoot } from './popoverStack
  *   - Accessibility (aria-expanded, role, etc.)
  *
  * We add:
- *   - --gc-* theming with dark fallbacks
- *   - data-gc-settings attr for CSS variable scoping
+ *   - --ds-* design-system token theming
  *   - Popover stack registration for nested-popover awareness
  *   - stopPropagation on mousedown inside content
  *   - max z-index (2147483647)
@@ -70,17 +69,12 @@ export function FormatPopover({
           align={align}
           sideOffset={4}
           collisionPadding={8}
-          data-gc-settings=""
           className={cn(
             'z-[2147483647] rounded-md',
-            // Theme-aware: prefer the theme tokens (--popover / --popover-foreground
-            // / --border from the host app). The `--gc-*` vars remain as an
-            // intermediate override for consumers that explicitly want to pin
-            // the popover chrome (e.g. inside the cockpit-dark preview).
-            'bg-[var(--gc-surface,var(--bn-bg1,#161a1e))] text-[var(--gc-text,var(--bn-t0,#eaecef))]',
-            'border border-[var(--gc-border,var(--bn-border,#313944))]',
+            'bg-card text-card-foreground',
+            'border border-border',
             'shadow-[0_16px_40px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.04)_inset]',
-            'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)] text-[11px]',
+            'font-sans text-[11px]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
             'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
@@ -105,16 +99,10 @@ export function FormatPopover({
             minHeight: 0,
             overflow: 'hidden',
             padding: 10,
-            // Token-backed background — inline so it wins over the
-            // Tailwind arbitrary-value class above with the same
-            // specificity outcome but guaranteed application.
-            // `--gc-surface` inherits from `[data-gc-settings]` via
-            // cockpit.ts, which maps through `--card` with a `#161a1e`
-            // final fallback. Light theme flips automatically because
-            // `--card` re-binds under `[data-theme='light']` via the
-            // cascade (html → body → popover content).
-            background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
-            color: 'var(--gc-text, var(--bn-t0, #eaecef))',
+            // Token-backed background — inline wins the cascade race.
+            // Flips automatically between dark/light via the --ds-* cascade.
+            background: 'var(--ds-surface-primary)',
+            color: 'var(--ds-text-primary)',
             // Suppress the browser's default focus outline on the
             // Radix Content element — Radix focuses the content on
             // open, which paints a bright blue/white ring around the

@@ -240,7 +240,7 @@ export function BorderStyleEditor({
   const previewSide = (spec: BorderSpec | undefined) =>
     spec
       ? `${spec.width}px ${spec.style} ${spec.color}`
-      : '1px dashed var(--be-line)';
+      : '1px dashed var(--ds-border-secondary)';
 
   const edgeIsOn = (key: 'all' | Edge): boolean =>
     key === 'all' ? allOn : Boolean(borders[key]);

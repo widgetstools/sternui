@@ -50,8 +50,8 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         ref={shellRef}
         style={{
           width: 720, maxWidth: '92vw', maxHeight: '82vh',
-          background: 'var(--gc-surface, #161a1e)',
-          border: '1px solid var(--gc-border, #313944)',
+          background: 'var(--ds-surface-primary)',
+          border: '1px solid var(--ds-border-primary)',
           borderRadius: 8,
           boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
           display: 'flex', flexDirection: 'column',
@@ -60,19 +60,19 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         }}
       >
         <div style={{
-          padding: '12px 16px', borderBottom: '1px solid var(--gc-border, #313944)',
+          padding: '12px 16px', borderBottom: '1px solid var(--ds-border-primary)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gc-text, #eaecef)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ds-text-primary)' }}>
               Expression Editor — Cheat Sheet
             </div>
-            <div style={{ fontSize: 10, color: 'var(--gc-text-dim, #7a8494)', marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: 'var(--ds-text-muted)', marginTop: 2 }}>
               <kbd style={kbdStyle}>F1</kbd> reopen &middot; <kbd style={kbdStyle}>Esc</kbd> close
             </div>
           </div>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', fontSize: 11, lineHeight: 1.6, color: 'var(--gc-text, #eaecef)' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', fontSize: 11, lineHeight: 1.6, color: 'var(--ds-text-primary)' }}>
           <Section title="Column references">
             <Row code="[price]" note="Reference the `price` column of the current row." />
             <Row code="[settlementDate]" note="Any column id from the grid. Type `[` for autocomplete." />
@@ -128,7 +128,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div style={{
         fontSize: 9, fontWeight: 600, letterSpacing: 0.8,
         textTransform: 'uppercase',
-        color: 'var(--gc-text-dim, #7a8494)',
+        color: 'var(--ds-text-muted)',
         marginBottom: 6,
       }}>{title}</div>
       <div>{children}</div>
@@ -144,24 +144,24 @@ function Row({ code, note, muted, kbd }: { code: string; note?: string; muted?: 
           fontFamily: "'JetBrains Mono', Menlo, monospace",
           fontSize: 11,
           minWidth: 260,
-          color: muted ? 'var(--gc-text-dim, #7a8494)' : 'var(--gc-accent, #f0b90b)',
-          background: kbd ? 'var(--gc-surface-active, #2b3139)' : 'transparent',
+          color: muted ? 'var(--ds-text-muted)' : 'var(--ds-accent-warning)',
+          background: kbd ? 'var(--ds-surface-secondary)' : 'transparent',
           padding: kbd ? '1px 6px' : 0,
           borderRadius: kbd ? 3 : 0,
-          border: kbd ? '1px solid var(--gc-border, #313944)' : 'none',
+          border: kbd ? '1px solid var(--ds-border-primary)' : 'none',
         }}
         dangerouslySetInnerHTML={{ __html: code.replace(/</g, '&lt;').replace(/>/g, '&gt;') }}
       />
-      {note && <span style={{ fontSize: 10, color: 'var(--gc-text-muted, #a0a8b4)', flex: 1 }}>{note}</span>}
+      {note && <span style={{ fontSize: 10, color: 'var(--ds-text-secondary)', flex: 1 }}>{note}</span>}
     </div>
   );
 }
 
 const kbdStyle: React.CSSProperties = {
   padding: '0 4px', borderRadius: 2,
-  background: 'var(--gc-surface-active, #2b3139)',
-  color: 'var(--gc-text-muted, #a0a8b4)',
+  background: 'var(--ds-surface-secondary)',
+  color: 'var(--ds-text-secondary)',
   fontFamily: "'JetBrains Mono', Menlo, monospace",
   fontSize: 9,
-  border: '1px solid var(--gc-border, #313944)',
+  border: '1px solid var(--ds-border-primary)',
 };
