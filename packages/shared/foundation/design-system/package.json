@@ -15,19 +15,23 @@
     "./css": "./dist/css/theme.css",
     "./tailwind": {
       "types": "./dist/adapters/tailwind.d.ts",
-      "import": "./dist/adapters/tailwind.js"
+      "import": "./dist/adapters/tailwind.js",
+      "default": "./dist/adapters/tailwind.js"
     },
     "./primeng": {
       "types": "./dist/adapters/primeng.d.ts",
-      "import": "./dist/adapters/primeng.js"
+      "import": "./dist/adapters/primeng.js",
+      "default": "./dist/adapters/primeng.js"
     },
     "./shadcn": {
       "types": "./dist/adapters/shadcn.d.ts",
-      "import": "./dist/adapters/shadcn.js"
+      "import": "./dist/adapters/shadcn.js",
+      "default": "./dist/adapters/shadcn.js"
     },
     "./adapters/ag-grid": {
       "types": "./dist/adapters/agGrid.d.ts",
-      "import": "./dist/adapters/agGrid.js"
+      "import": "./dist/adapters/agGrid.js",
+      "default": "./dist/adapters/agGrid.js"
     },
     "./tokens/primitives": {
       "types": "./dist/tokens/primitives.d.ts",
