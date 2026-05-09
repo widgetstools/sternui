@@ -1273,24 +1273,24 @@ public surface gets *smaller* — guard with a deprecation cycle.
 
 **Steps:**
 
-- [ ] **16.1** Decide canonical client API. Per design Decision 13, `ConfigClient` is the
+- [x] **16.1** Decide canonical client API. Per design Decision 13, `ConfigClient` is the
       forward-looking interface; `ConfigManager` collapses to a private implementation
       detail behind it. Plan: rename ConfigManager's public methods 1:1 onto a
       LocalConfigClient, ensure RestConfigClient remains feature-equivalent, and have
       `createConfigManager` return a `ConfigClient`-typed object. Mark the previous
       surface `@deprecated` for one minor release; remove in the next session-set.
-- [ ] **16.2** Remove `isRegisteredComponent` from new writes (Session 1 documented
+- [x] **16.2** Remove `isRegisteredComponent` from new writes (Session 1 documented
       this). Add a one-shot Dexie upgrade that drops the field on read for any row that
       has it. Update server-side row type identically. Keep `isTemplate` as the single
       canonical flag.
-- [ ] **16.3** Update every consumer:
+- [x] **16.3** Update every consumer:
       `grep -rn "isRegisteredComponent" packages apps` returns zero matches in the new
       code; the deprecated re-export is the only place the name still appears.
-- [ ] **16.4** Tests: existing tests stay green; add one that loads an old-shape row and
+- [x] **16.4** Tests: existing tests stay green; add one that loads an old-shape row and
       confirms `isRegisteredComponent` is silently dropped.
-- [ ] **16.5** Update [`docs/IMPLEMENTED_FEATURES.md`](../../IMPLEMENTED_FEATURES.md) to
+- [x] **16.5** Update [`docs/IMPLEMENTED_FEATURES.md`](../../IMPLEMENTED_FEATURES.md) to
       reflect the unified surface.
-- [ ] **16.6** Run full repo verification.
+- [x] **16.6** Run full repo verification.
 
 **Verification:**
 

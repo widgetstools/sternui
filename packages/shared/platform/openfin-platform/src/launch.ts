@@ -226,10 +226,9 @@ export async function launchRegisteredComponent(
  *     (same as a first-ever launch), the user authors state, the
  *     normal save path persists it.
  *   - Identity flip: the cloned row carries `isTemplate: false`,
- *     `isRegisteredComponent: false`, `singleton: false`. Workspace
- *     GC's existing rules then dispose the row when the view isn't
- *     referenced by any saved workspace, so dock-launches the user
- *     immediately closes don't accumulate.
+ *     `singleton: false`. Workspace GC's existing rules then dispose
+ *     the row when the view isn't referenced by any saved workspace,
+ *     so dock-launches the user immediately closes don't accumulate.
  *   - Display text: marks the row as "<template-display>: <short-id>"
  *     so Config Browser shows clearly which template it descended from.
  */
@@ -249,7 +248,6 @@ async function cloneTemplateRowForInstance(
       configId: instanceId,
       displayText: `${src.displayText || entry.displayName || entry.componentType}: ${shortId}`,
       isTemplate: false,
-      isRegisteredComponent: false,
       singleton: false,
       creationTime: now,
       updatedTime: now,
@@ -307,9 +305,9 @@ async function createComponentInstance(
     componentSubType: entry.componentSubType,
     appId: entry.appId,
     configServiceUrl: entry.configServiceUrl,
-    // Mark singleton launches so component-host can flag the persisted
-    // row with `isRegisteredComponent: true`, keeping it safe from
-    // workspace GC. `singletonId` is set in the singleton-aware
+    // Mark singleton launches so component-host stamps `singleton: true`
+    // on the persisted row, keeping it self-describing for downstream
+    // consumers. `singletonId` is set in the singleton-aware
     // launchRegisteredComponent branch (entry.singleton && entry.configId);
     // non-singleton spawns leave this falsy.
     singleton: singletonId !== undefined,

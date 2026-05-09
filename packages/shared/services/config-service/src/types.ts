@@ -114,20 +114,6 @@ export interface AppConfigRow {
    */
   singleton?: boolean;
 
-  /**
-   * Back-compat flag: true when this row IS the registered-component
-   * config (the template). Workspace GC must never delete these rows.
-   *
-   * Superseded by `isTemplate` (same semantics now that the
-   * configId-naming convention is unified). Kept on the type so older
-   * rows still load cleanly; new writes set both `isTemplate` and
-   * `isRegisteredComponent` to the same value.
-   *
-   * @deprecated Use `isTemplate` instead. Will be removed in a
-   * future schema version.
-   */
-  isRegisteredComponent?: boolean;
-
   /** The full component configuration object (shape varies by componentType). */
   payload: any;
 
