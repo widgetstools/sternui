@@ -659,7 +659,7 @@ keep using the real `LoggedInUser`.
 
 **Steps:**
 
-- [ ] **8.1** Create `effectiveUser.ts`:
+- [x] **8.1** Create `effectiveUser.ts`:
 
 ```ts
 import type { ApplicationContext } from "./types";
@@ -669,7 +669,7 @@ export function getEffectiveUser(ctx: ApplicationContext): { userId: string; dis
 }
 ```
 
-- [ ] **8.2** On `ConfigManager`, add:
+- [x] **8.2** On `ConfigManager`, add:
 
 ```ts
 setImpersonatedUser(user: { userId: string; displayName?: string } | null): void {
@@ -680,18 +680,34 @@ setImpersonatedUser(user: { userId: string; displayName?: string } | null): void
 }
 ```
 
-- [ ] **8.3** Update the Session 3 `stampWrite` helper:
-  - `userId` (owner) := effective user from current ApplicationContext.
-  - `createdBy`/`updatedBy` := `this.identity.userId` (real logged-in user, never the
-    impersonated one).
-- [ ] **8.4** Update the Session 4 `visibilityContext` getter to use the effective user.
-- [ ] **8.5** Tests:
-  - Set impersonation to "alice"; save a private config; row's `userId === "alice"`,
-    `createdBy === LoggedInUser.userId`.
-  - Read configs as "alice"; private rows owned by "alice" visible; private rows owned
-    by `LoggedInUser.userId` (post-impersonation) not visible.
-  - Clear impersonation (`setImpersonatedUser(null)`); visibility reverts.
-- [ ] **8.6** Run verification.
+- [x] **8.3** Owner-stamping update landed inline in `saveConfig`
+      rather than inside `stampWrite`: the helper still owns the audit
+      slots only (`createdBy` / `updatedBy` / `creationTime` /
+      `updatedTime`), all stamped from `this.identity.userId` so
+      impersonation can never rewrite history. The `userId` (owner)
+      default in `saveConfig` now reads from
+      `getEffectiveUserId()` — equals the impersonated user when one
+      is set on `ApplicationContext`, otherwise the real logged-in
+      user. This split keeps `stampWrite` safe to reuse on the
+      ownerless auth tables (`appRegistry`, `userProfile`, `roles`,
+      `permissions`).
+- [x] **8.4** `visibilityContext` now builds `effectiveUserId` from
+      `getEffectiveUserId()` so a `setImpersonatedUser(...)` flip is
+      visible on the very next list call without any explicit
+      re-bind. Falls back to `identity.userId` when `dataServices`
+      isn't wired (tests / hosts that haven't opted in).
+- [x] **8.5** `configManager.impersonation.test.ts` (10 tests) covers
+      every step's acceptance criterion: setter mutates / clears
+      `ApplicationContext.ImpersonatedUser`; saved row owner ===
+      impersonated user while audit === real user; clearing
+      impersonation reverts owner default; reads while impersonating
+      alice show alice-owned private rows AND public rows but hide
+      real-user-owned private rows; clearing reverts visibility;
+      setter throws without `dataServices`. Plus pure-helper tests
+      for `getEffectiveUser` covering both branches.
+- [x] **8.6** Verification green: 70 config-service tests pass across
+      10 files; full repo `npx turbo test typecheck build` green
+      (33 test packages + 54 build tasks).
 
 **Verification:**
 

@@ -34,6 +34,14 @@ import type {
 import { isVisible, type VisibilityContext } from './visibility';
 
 /**
+ * Subset of `ApplicationContext.ImpersonatedUser` used by
+ * `setImpersonatedUser`. Kept as a structural alias so callers can pass
+ * either a freshly-constructed object literal or the
+ * `LoggedInUser` shape they already hold.
+ */
+export type ImpersonatedUser = { userId: string; displayName?: string };
+
+/**
  * Fixed name of the framework-owned AppData provider (Decision 4 in
  * `config-manager-redesign.md`). Every ConfigManager that's wired
  * with `dataServices` writes its identity / profile keys into this
@@ -231,21 +239,83 @@ export class ConfigManager {
     };
   }
 
+  // ─── Effective user / impersonation (Session 8) ──────────────────
+  //
+  // The framework exposes a single "effective user" slot that drives
+  // visibility (Session 4) AND `AppConfigRow.userId` owner stamping
+  // (Session 3). When `ImpersonatedUser` is set in
+  // `ApplicationContext` (via `setImpersonatedUser` below), the
+  // effective user becomes the impersonated user; otherwise it falls
+  // back to the construction-time identity (which equals
+  // `LoggedInUser`).
+  //
+  // Audit fields (`createdBy` / `updatedBy`) deliberately bypass this
+  // helper — they always reflect the real signed-in user via
+  // `this.identity.userId`, so impersonation can never rewrite history.
+
+  /**
+   * Resolve the user whose ownership / visibility applies to the next
+   * write or read. Reads `ImpersonatedUser` live from the AppData
+   * mirror so a flip via `setImpersonatedUser` is visible to the
+   * subsequent call without any explicit refresh.
+   *
+   * No-op when `dataServices` isn't wired (back-compat for tests and
+   * hosts that haven't opted into ApplicationContext): falls back to
+   * `identity.userId`. Same fallback when AppData is wired but the
+   * `ImpersonatedUser` slot is empty / null.
+   */
+  private getEffectiveUserId(): string {
+    if (!this.dataServices) {
+      return this.identity.userId;
+    }
+    const impersonated = this.dataServices.appData.get(
+      APPLICATION_CONTEXT_NAME,
+      'ImpersonatedUser',
+    ) as ImpersonatedUser | null | undefined;
+    if (impersonated && typeof impersonated === 'object' && impersonated.userId) {
+      return impersonated.userId;
+    }
+    return this.identity.userId;
+  }
+
+  /**
+   * Set or clear the impersonated user on `ApplicationContext`. After
+   * the returned promise resolves, every subsequent visibility check
+   * and owner stamp on this manager uses the new effective user; audit
+   * fields keep tracking the real logged-in user.
+   *
+   * Pass `null` to clear impersonation. Throws if the manager wasn't
+   * wired with `dataServices` — there's no AppData slot to write to.
+   */
+  async setImpersonatedUser(user: ImpersonatedUser | null): Promise<void> {
+    if (!this.dataServices) {
+      throw new Error(
+        'ConfigManager.setImpersonatedUser requires dataServices to be ' +
+          'configured. Pass `dataServices` in `createConfigManager(...)` ' +
+          'or call `setDataServices(...)` before `init()`.',
+      );
+    }
+    await this.dataServices.appData.set(
+      APPLICATION_CONTEXT_NAME,
+      'ImpersonatedUser',
+      user,
+    );
+  }
+
   // ─── Visibility (Session 4) ───────────────────────────────────────
   //
   // Every list path that returns AppConfigRow[] runs the rows through
   // `isVisible(row, ctx)` so cross-app and not-mine-private rows never
-  // leak. Until Session 8 lands impersonation, the effective user is
-  // just the manager's identity; afterwards `getEffectiveUser(...)`
-  // flips it to the impersonated user when one is set.
+  // leak. The effective user comes from `getEffectiveUserId()` so an
+  // active impersonation flips visibility immediately.
 
   /**
    * The visibility context applied to every filtered read. Built fresh
-   * each call so a future impersonation swap (Session 8) is visible
+   * each call so an impersonation swap (Session 8) is visible
    * immediately on the next list call.
    */
   private get visibilityContext(): VisibilityContext {
-    return { appId: this.appId, effectiveUserId: this.identity.userId };
+    return { appId: this.appId, effectiveUserId: this.getEffectiveUserId() };
   }
 
   // ─── Owner / audit field stamping (Session 3) ─────────────────────
@@ -260,14 +330,13 @@ export class ConfigManager {
   //     stamped unconditionally from the current identity / now.
   //
   // Audit fields ALWAYS reflect the real logged-in user
-  // (`identity.userId`). When impersonation lands in Session 8, the
-  // OWNER slot (`AppConfigRow.userId`) flips to the effective user via
-  // `getEffectiveUser(applicationContext)`, but createdBy/updatedBy
-  // stay on the real signed-in user. Owner stamping for `AppConfigRow`
-  // happens inline in `saveConfig` / `saveSnapshot`; the helper itself
-  // only handles the audit slots so it stays safe to reuse on auth
-  // tables (`appRegistry`, `userProfile`, `roles`, `permissions`)
-  // which have no owner concept.
+  // (`identity.userId`). The OWNER slot (`AppConfigRow.userId`) flows
+  // through `getEffectiveUserId()` so impersonation (Session 8) flips
+  // ownership without ever touching audit. Owner stamping for
+  // `AppConfigRow` happens inline in `saveConfig` / `saveSnapshot`;
+  // the helper itself only handles the audit slots so it stays safe
+  // to reuse on auth tables (`appRegistry`, `userProfile`, `roles`,
+  // `permissions`) which have no owner concept.
 
   /**
    * Stamp audit fields (`createdBy`, `updatedBy`, `creationTime`,
@@ -439,11 +508,12 @@ export class ConfigManager {
    * Save a config (create or update).
    * In REST mode, also sends to the remote backend.
    *
-   * Owner / audit stamping (Decision 7):
-   *   - On INSERT: if the caller didn't set `userId` (owner),
-   *     `createdBy`, or `creationTime`, they default from the current
-   *     identity / now. (Session 8 will swap the owner default to the
-   *     effective user via ApplicationContext.)
+   * Owner / audit stamping (Decisions 5 + 7):
+   *   - On INSERT: if the caller didn't set `userId` (owner) it
+   *     defaults to the **effective** user via `getEffectiveUserId()`
+   *     — the impersonated user when impersonation is active, the
+   *     real signed-in user otherwise. `createdBy` / `creationTime`
+   *     default from the **real** identity / now if absent.
    *   - On EVERY write: `updatedBy` / `updatedTime` are unconditionally
    *     stamped from the current identity / now — audit fields always
    *     reflect the real logged-in user, never an impersonated one.
@@ -469,8 +539,11 @@ export class ConfigManager {
     }
 
     if (isInsert) {
-      // Owner default. Until Session 8, effective user === identity.userId.
-      config.userId = config.userId ?? this.identity.userId;
+      // Owner defaults to the effective user (Session 8): equals the
+      // impersonated user when one is set, otherwise the real
+      // logged-in user. Audit fields are stamped from the real user
+      // independently inside `stampWrite`.
+      config.userId = config.userId ?? this.getEffectiveUserId();
     }
     this.stampWrite(config, isInsert);
 
@@ -858,12 +931,12 @@ export class ConfigManager {
    * Save a workspace snapshot as an APP_CONFIG row.
    * In REST mode, also sends to the remote backend.
    *
-   * Owner / audit (Decision 7): the row is owned by — and audited
-   * against — whoever the manager's current identity is. The previous
-   * `"system"` placeholder has been dropped now that
-   * `ConfigManager.saveConfig` centralises stamping; the owner now
-   * matches the saving user, and audit follows the real logged-in
-   * user. Until impersonation lands (Session 8) those are the same.
+   * Owner / audit (Decisions 5 + 7): the row is owned by the manager's
+   * **effective** user (the impersonated user when impersonation is
+   * active, otherwise the real signed-in user). Audit fields always
+   * follow the real signed-in user. The previous `"system"` placeholder
+   * has been dropped now that `ConfigManager.saveConfig` centralises
+   * stamping.
    *
    * @param snapshotId - Unique ID for this snapshot
    * @param appId - The app this snapshot belongs to
