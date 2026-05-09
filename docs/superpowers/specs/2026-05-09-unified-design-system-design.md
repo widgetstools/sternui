@@ -23,9 +23,9 @@ Replace three coexisting token systems (FI v1, MarketsUI MDL, Cockpit Terminal) 
 | 1 | Framework scope | React + Angular, Tailwind everywhere, PrimeNG styled mode + `tailwindcss-primeui` plugin |
 | 2 | Token source | Build new unified token tree from `patch/design-system/` as canonical |
 | 3 | Cockpit fate | Becomes house style with more contrast; Cockpit-specific classes and tokens deleted |
-| 4 | Light mode | Three selectable variants: `paper` (warm cream), `neutral` (mid grey), `grey` (deep grey, ~88% L) |
+| 4 | Theme name | **One theme: "Chroma Desk"**, with two modes: `light` (cool graphite-grey ~89% L ground, AA/AAA-audited accents) and `dark` (balanced graphite + signature cyan brand) |
 | 5 | CVD strategy | Default red/green + opt-in CVD theme that swaps positive/negative accents to blue/orange globally |
-| 6 | Dual fonts | Keep v2's intent: `IBM Plex` family in light, `Geist` + JetBrains Mono in dark |
+| 6 | Typography | **Unified across both modes**: Geist sans + JetBrains Mono. One typographic voice, consistent identity. (IBM Plex split dropped — single Chroma Desk identity carries across light and dark.) |
 | 7 | Token authoring | TypeScript file → generates Tailwind config + PrimeNG preset + CSS vars file |
 | 8 | Class naming | Tailwind utilities + single `--ds-*` / `.ds-*` prefix for the few non-utility utilities |
 | 9 | Migration | Big-bang on `bug/styling` branch, single PR target |
@@ -41,13 +41,19 @@ PrimeNG 21.1.5 (the pinned version per `docs/2026-05-08/architecture-and-design/
 
 ## Section 1 — Token Model
 
-The `patch/design-system/` v2 tokens are the canonical core, extended for the new theme dimensions.
+The `patch/design-system/` tokens are the canonical core. There is **one theme — Chroma Desk — with two modes (light, dark)**. Both modes share Chroma Desk's typographic voice (Geist + JetBrains Mono), the same accent hue family (teal/rose/amber/brand-cyan/cyan/purple), and the same component spacing language. They differ only in surface luminance and per-mode accent contrast tuning.
 
 ### 1.1 `primitives.ts`
 
-Adopt v2 verbatim. Contains:
-- **`colors`** — palette (paper, ink, graphite, teal, rose, amber, brand, cyan, purple, cvd)
-- **`typography`** — `fontFamily.{sans, mono, serif, sansDark, monoDark}`, `fontSize.{2xs..4xl}`, `fontWeight`, `letterSpacing`, `lineHeight`
+Located at `patch/design-system/tokens/primitives.ts`. Contains:
+
+- **`colors`** — palette
+  - `chromeLight.{50..600}` — cool graphite-grey scale for light surfaces. Ground sits at `chromeLight[100]` (~89% L) for long-session ergonomics
+  - `coolInk.{0..3}` — deep cool-charcoal text scale for light mode (AAA primary at ~16.5:1 against ground)
+  - `graphite.{50, 300..975}` — Chroma Desk dark scale (unchanged from prior v2)
+  - `teal`, `rose`, `amber`, `brand`, `cyan`, `purple` — accent families with `light` / `lightHov` / `dark` / `darkHov` variants, all WCAG-audited per-mode against the paired ground
+  - `cvd.{buyLight, sellLight, buyDark, sellDark}` — deuteranopia-safe blue/orange alternates
+- **`typography`** — `fontFamily.{sans, mono, serif}` all unified on **Geist + JetBrains Mono** (no per-mode font split). `fontSize.{2xs..4xl}`, `fontWeight`, `letterSpacing`, `lineHeight`
 - **`spacing`** — `0..10` scale aligned to 4px grid
 - **`radius`** — `none/sm/md/lg/xl/full` (3, 5, 8, 12px)
 - **`opacity`**, **`transition`** (includes `tickFlash` 900ms for price-cell pulse), **`shadow`** (sm/md/lg)
@@ -55,13 +61,12 @@ Adopt v2 verbatim. Contains:
 
 ### 1.2 `semantic.ts`
 
-Replace v2's single `light` ColorScheme with three:
+Located at `patch/design-system/tokens/semantic.ts`. Exports exactly two `ColorScheme` objects:
 
-- **`lightPaper`** — v2's `light` as-is. Warm paper (`paper[100]` ground, `paper[50]` card)
-- **`lightNeutral`** — NEW. Mid-neutral grey ground (~92% L target). Specific hex values are determined during implementation by the contrast audit; starting points to tune from: ground `#e9ecf0`, primary `#f0f2f5`, secondary `#dde1e6`. Surface block only differs from `lightPaper`; accents/text/borders stay identical, contrast re-verified
-- **`lightGrey`** — NEW. Deep neutral grey ground (~88% L target). Starting points to tune: ground `#dde1e6`, primary `#e3e6ec`, secondary `#d2d6dc`. Surface block only differs; accents/text/borders are re-audited for sufficient contrast against the darker ground (this variant prioritizes long-session ergonomics for traders running the app 12+ hours)
+- **`light`** — Chroma Desk · Light. Cool graphite-grey ground (`chromeLight[100]`, ~89% L), deep cool-charcoal text (`coolInk[0]`, AAA), vivid AA/AAA accents (teal `#076a48`, rose `#b01e3f`, amber `#7a5408`, brand `#1740a8`). Long-session-friendly, low-glare, never warm
+- **`dark`** — Chroma Desk · Dark. Balanced graphite chrome (`graphite[975/950/900/850/800]`), vivid mint-teal `#22e3a8` and rose `#ff5a82`, signature cyan `#22d3ee` brand moment, white CTA text on accent backgrounds
 
-The `dark` ColorScheme stays as v2 ("Chroma Desk" — graphite chrome with signature cyan brand).
+Each scheme implements the full `ColorScheme` interface: `surface`, `text`, `border`, `accent`, `action`, `state`, `overlay`, `cvd`, `scrollbar`, `elevation`.
 
 CVD is **not** a separate scheme. It's an override layer the CSS adapter emits as a small `[data-cvd="on"]` block that only overrides:
 - `--ds-accent-positive`, `--ds-accent-positive-hover`
@@ -69,23 +74,22 @@ CVD is **not** a separate scheme. It's an override layer the CSS adapter emits a
 - `--ds-action-buy-bg`, `--ds-action-buy-fg`
 - `--ds-action-sell-bg`, `--ds-action-sell-fg`
 
-with the `cvd.buyLight/sellLight` (in light mode) or `cvd.buyDark/sellDark` (in dark mode) values. Everything else inherits from the active base theme.
+with the `cvd.buy` / `cvd.sell` values from the active scheme (`cvd.buyLight/sellLight` resolved in light mode, `cvd.buyDark/sellDark` in dark). Everything else inherits.
 
 ### 1.3 `components.ts`
 
-Adopt v2's component-token shape (button, input, tab, badge, instrumentBar, countdownRing, table, card, tooltip, scrollbar). Drop any cockpit-specific slots. The terminal aesthetic comes from existing primitives — `font-mono text-xs uppercase tracking-widest tabular-nums` is the cockpit voice without privileged tokens.
+Component-token shape (button, input, tab, badge, instrumentBar, countdownRing, table, card, tooltip, scrollbar). Drop any cockpit-specific slots. The terminal aesthetic comes from existing primitives — `font-mono text-xs uppercase tracking-widest tabular-nums` is the cockpit voice without privileged tokens.
 
 ### 1.4 Theme matrix
 
-Three orthogonal `<html>` attributes:
+Two orthogonal `<html>` attributes:
 
 | Attribute | Values | Default |
 |---|---|---|
 | `data-theme` | `dark` \| `light` | `dark` (also when unset) |
-| `data-light-variant` (light only) | `paper` \| `neutral` \| `grey` | `paper` |
 | `data-cvd` | `on` \| (unset) | unset |
 
-Combinations: 1 dark + 3 light variants = 4 base, each with cvd on/off = **8 effective themes**, expressed as orthogonal CSS layers.
+Combinations: 2 modes × 2 cvd states = **4 effective themes**, expressed as orthogonal CSS layers.
 
 ---
 
@@ -95,39 +99,29 @@ The CSS file (`@starui/design-system/css`) emits a layered cascade. Apps import 
 
 ```css
 @layer base {
-  /* Layer 1: Dark base — also default when no [data-theme] set */
+  /* Layer 1: Chroma Desk · Dark — also default when no [data-theme] set */
   :root, [data-theme="dark"] {
     /* every dark token as --ds-* */
     /* shadcn-compat aliases (HSL channels): --background, --foreground, … */
     /* tailwindcss-primeui-compat aliases: --p-primary-color, --p-surface-50, … */
   }
 
-  /* Layer 2: Light base = paper (default light variant) */
+  /* Layer 2: Chroma Desk · Light */
   [data-theme="light"] {
-    /* every lightPaper token as --ds-* */
+    /* every light token as --ds-* */
     /* shadcn-compat aliases */
     /* primeng-compat aliases */
   }
 
-  /* Layer 3: Light variant overrides — surface block only */
-  [data-theme="light"][data-light-variant="neutral"] {
-    --ds-surface-ground: …;
-    --ds-surface-primary: …;
-    /* …surface only */
-  }
-  [data-theme="light"][data-light-variant="grey"] {
-    /* surface only */
-  }
-
-  /* Layer 4: CVD override — orthogonal, only positive/negative accents */
+  /* Layer 3: CVD override — orthogonal, only positive/negative accents */
   [data-theme="dark"][data-cvd="on"] {
-    --ds-accent-positive: /* cvd.buyDark */;
-    --ds-accent-negative: /* cvd.sellDark */;
-    /* … */
+    --ds-accent-positive: /* cvd.buyDark = #7aa6ff */;
+    --ds-accent-negative: /* cvd.sellDark = #ff9d4e */;
+    /* and the *-hover, action.buyBg/sellBg counterparts */
   }
   [data-theme="light"][data-cvd="on"] {
-    --ds-accent-positive: /* cvd.buyLight */;
-    --ds-accent-negative: /* cvd.sellLight */;
+    --ds-accent-positive: /* cvd.buyLight = #1740a8 */;
+    --ds-accent-negative: /* cvd.sellLight = #a8350c */;
     /* … */
   }
 }
@@ -136,12 +130,12 @@ The CSS file (`@starui/design-system/css`) emits a layered cascade. Apps import 
 App switches themes by setting attributes on `<html>`:
 
 ```html
-<html data-theme="light" data-light-variant="grey" data-cvd="on">
+<html data-theme="light" data-cvd="on">
 ```
 
 Apps store user preference in localStorage; a tiny `applyTheme()` helper reads the saved settings and sets the attributes on mount. Helper lives in `@starui/design-system` and is exported as part of the package's main entry.
 
-**Why orthogonal over enumerated:** if all 8 combinations were listed explicitly, every token would appear 8 times. With orthogonal layers, paper/neutral/grey override only their delta (~5 lines each), and CVD lives in two ~10-line blocks regardless of how many themes exist.
+**Why orthogonal over enumerated:** if all 4 combinations were listed explicitly, every token would appear 4 times. With orthogonal layers, the CVD override lives in two compact blocks regardless of how many modes the theme grows to support.
 
 ---
 
@@ -174,7 +168,7 @@ The preset:
 - Sets `darkMode: ['selector', '[data-theme="dark"]']`
 - Adds `theme.extend.colors` with shadcn-compat names (primary, secondary, muted, card, popover, destructive, border, input, ring, background, foreground, success, warning, info)
 - Adds `theme.extend.colors.surface.{50..950}` mapped from `--ds-surface-*` for parity with PrimeNG's surface scale
-- Adds `theme.extend.fontFamily` reading `--ds-font-sans` / `--ds-font-mono` (single CSS var, content swaps per theme so light gets IBM Plex, dark gets Geist automatically)
+- Adds `theme.extend.fontFamily` reading `--ds-font-sans` / `--ds-font-mono`. Content is the same in both modes (Geist + JetBrains Mono) — Chroma Desk uses one typographic voice across light and dark
 - Includes `tailwindcss-primeui` in `plugins`
 - Adds `theme.extend.boxShadow` for `--ds-elevation-card/overlay/glow` and a few semantic shadow utilities
 
@@ -389,10 +383,10 @@ Single branch (`bug/styling`), single PR target. Sequenced commits, CI green at 
 ### 7.2 Replace with v2
 
 - `packages/shared/foundation/design-system/src/tokens/primitives.ts` ← `patch/design-system/tokens/primitives.ts`
-- `packages/shared/foundation/design-system/src/tokens/semantic.ts` ← `patch/design-system/tokens/semantic.ts` + extensions for `lightPaper`/`lightNeutral`/`lightGrey` and CVD override layer
+- `packages/shared/foundation/design-system/src/tokens/semantic.ts` ← `patch/design-system/tokens/semantic.ts` (Chroma Desk light + dark, single theme); CVD override layer added in the css adapter
 - `packages/shared/foundation/design-system/src/tokens/components.ts` — extend v2 with no cockpit slots
 - `packages/shared/foundation/design-system/src/themes/fi-dark.css` — regenerated by adapter
-- `packages/shared/foundation/design-system/src/themes/fi-light.css` — regenerated by adapter (now emits 3 light variants + cvd overrides)
+- `packages/shared/foundation/design-system/src/themes/fi-light.css` — regenerated by adapter (single light scheme + cvd override)
 - `packages/shared/foundation/design-system/src/themes/scrollbars.css` — replaced by single `.ds-scrollbar` in new `styles/scrollbar.css`
 
 ### 7.3 Add new
@@ -425,7 +419,7 @@ Single branch (`bug/styling`), single PR target. Sequenced commits, CI green at 
 
 ### 7.6 Commit order
 
-1. `feat(design-system): import v2 tokens, add light variants + cvd theme`
+1. `feat(design-system): adopt Chroma Desk tokens (light + dark) + cvd override layer`
 2. `feat(design-system): add tailwind/shadcn/primeng adapters, ds-scrollbar`
 3. `feat(design-system): emit unified css, add subpath exports`
 4. `chore: delete tokens-primeng package`
@@ -455,7 +449,7 @@ Once shipped, modifying the design system is always one of three flows.
 Edit `packages/shared/foundation/design-system/src/tokens/primitives.ts` or `semantic.ts`. Run `npx turbo build --filter=@starui/design-system`. Build regenerates `dist/css/theme.css`. Apps pick up the change on next dev reload (or rebuild). One file edit propagates to every consumer in every framework.
 
 **Flow 2 — Add a new theme variant** (e.g., a new light variant or brand swap)
-Add the new `ColorScheme` object in `semantic.ts`, register it with the adapter (a single array of variants drives the CSS emission). The adapter emits the new `[data-theme="…"][data-light-variant="…"]` block automatically. No per-component changes needed.
+Add the new `ColorScheme` object in `semantic.ts`, register it with the adapter (a single array of modes drives the CSS emission). The adapter emits the new `[data-theme="…"]` block automatically. No per-component changes needed.
 
 **Flow 3 — Add a new component variant or new utility**
 Edit `components.ts` for the token (or `tailwindPreset` for the utility). cva variants in shadcn primitives consume token slots, so adding `success` / `info` button variants is a token edit + a one-line cva entry.
@@ -493,7 +487,7 @@ Edit `components.ts` for the token (or `tailwindPreset` for the utility). cva va
 
 **Adapter unit tests** (`packages/shared/foundation/design-system/src/adapters/*.test.ts`)
 - `tailwind.ts` snapshot — preset shape, `theme.extend.colors`, `darkMode` setting
-- `shadcn.ts` snapshot — generated CSS for each theme combo (8 snapshots: dark, dark-cvd, light-paper, light-paper-cvd, light-neutral, light-neutral-cvd, light-grey, light-grey-cvd)
+- `shadcn.ts` snapshot — generated CSS for each theme combo (4 snapshots: dark, dark-cvd, light, light-cvd)
 - `primeng.ts` snapshot — preset object structure
 - `agGrid.ts` snapshot — light/dark params
 
@@ -508,7 +502,7 @@ Edit `components.ts` for the token (or `tailwindPreset` for the utility). cva va
 - Fixture: a file with only `bg-card text-foreground` → expect pass
 
 **Theme switching e2e** (`e2e/design-system-theme-switch.spec.ts`)
-- demo-react: cycles `<html data-theme>` and `data-light-variant` and `data-cvd`, asserts surface and accent colors per combo via `getComputedStyle`
+- demo-react: cycles `<html data-theme>` (dark↔light) and `data-cvd` (on↔unset), asserts surface and accent colors per combo via `getComputedStyle`
 - demo-angular: same matrix on `p-button`, `p-inputtext`, ensures PrimeNG components paint correctly
 
 **Visual smoke** (`e2e/design-system-smoke.spec.ts`)
@@ -519,15 +513,15 @@ Edit `components.ts` for the token (or `tailwindPreset` for the utility). cva va
 ### 9.3 What we explicitly do NOT do here
 
 - No re-snapshot of existing component tests. Old snapshots that referenced `--bn-*` / `--ck-*` colors get updated mechanically as part of commit 9 (grid-react sweep), not as a separate test rewrite phase.
-- No font-loading tests. IBM Plex / Geist load via whatever mechanism each app already uses (Google Fonts CDN or local `@font-face`); the existing setup is trusted, not changed by this PR. If font loading is broken or inconsistent across apps, that's a follow-up.
+- No font-loading tests. Geist + JetBrains Mono load via whatever mechanism each app already uses (Google Fonts CDN or local `@font-face`); the existing setup is trusted, not changed by this PR. If font loading is broken or inconsistent across apps, that's a follow-up.
 - No Figma sync. Adding Style Dictionary or Figma Token sync is a documented follow-up.
 - No visual regression PNG snapshots. Recommended once the system stabilizes, not on day 1.
 
 ### 9.4 Manual QA checklist (PR description)
 
-- [ ] Each of 4 React apps: theme toggle works, all 8 combos render correctly
+- [ ] Each of 4 React apps: theme toggle works, all 4 combos (dark, dark-cvd, light, light-cvd) render correctly
 - [ ] demo-angular: theme toggle works, PrimeNG components paint with our tokens
-- [ ] Grid settings popout: opens, looks correct in all 8 combos, no `.gc-*` references in DOM
+- [ ] Grid settings popout: opens, looks correct in all 4 combos, no `.gc-*` references in DOM
 - [ ] No console warnings about undefined CSS vars
 - [ ] Lint passes (`tools/scripts/check-ds-tokens.ts`)
 - [ ] Build-time contrast audit passes
@@ -551,6 +545,6 @@ Edit `components.ts` for the token (or `tailwindPreset` for the utility). cva va
 | PrimeNG `definePreset` may not accept `var(--ds-*)` string values directly | Verify in commit 2 with a smoke test on `p-button`. If preset resolves values eagerly, fall back to passing literal hex per scheme — preset is regenerated only at app build, not at runtime, so this only affects how *fast* theme switching repaints, not whether it works. Reference docs: https://primeng.org/theming/styled-mode |
 | Grid-react sweep (commit 9) is large and risky to review | Optionally split into 4–6 sub-commits by feature module if reviewer prefers |
 | Existing snapshot tests reference `--bn-*` / `--ck-*` and break | Update mechanically as part of the same commit that introduces the `--ds-*` references |
-| Three light variants × CVD doubles testing surface | Snapshot tests cover all 8 theme combos at the adapter layer; e2e cycles them |
+| Light + dark + CVD = 4 combos to test | Snapshot tests cover all 4 theme combos at the adapter layer; e2e cycles them |
 | PrimeNG `cssLayer` ordering differs across browser engines | Validate in demo-angular early (commit 8); document workaround if needed |
-| Font loading (IBM Plex + Geist) regresses on slow networks | `font-display: swap` + use system fallbacks until loaded; QA on throttled connection |
+| Font loading (Geist + JetBrains Mono) regresses on slow networks | `font-display: swap` + use system fallbacks until loaded; QA on throttled connection |
