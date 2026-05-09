@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { IConfigurationStorage } from '../storage/IConfigurationStorage.js';
 import { StorageFactory } from '../storage/StorageFactory.js';
 import type {
-  UnifiedConfig,
+  AppConfigRow,
   ConfigurationFilter,
   PaginatedResult,
   StorageHealthStatus,
@@ -34,12 +34,13 @@ export class ConfigurationService {
     logger.info('ConfigurationService shut down');
   }
 
-  async createConfiguration(input: Partial<UnifiedConfig>): Promise<UnifiedConfig> {
+  async createConfiguration(input: Partial<AppConfigRow>): Promise<AppConfigRow> {
     const now = new Date().toISOString();
-    const config: UnifiedConfig = {
+    const config: AppConfigRow = {
       configId: input.configId || uuidv4(),
       appId: input.appId ?? '',
       userId: input.userId ?? '',
+      isPublic: input.isPublic === false ? false : true,
       componentType: input.componentType ?? '',
       componentSubType: input.componentSubType ?? '',
       isTemplate: Boolean(input.isTemplate),
@@ -63,7 +64,7 @@ export class ConfigurationService {
     return result;
   }
 
-  findConfigurationById(configId: string): Promise<UnifiedConfig | null> {
+  findConfigurationById(configId: string): Promise<AppConfigRow | null> {
     return this.storage.findById(configId);
   }
 
@@ -72,18 +73,20 @@ export class ConfigurationService {
     componentType: string,
     displayText: string,
     componentSubType?: string,
-  ): Promise<UnifiedConfig | null> {
+  ): Promise<AppConfigRow | null> {
     return this.storage.findByCompositeKey(userId, componentType, displayText, componentSubType);
   }
 
   async updateConfiguration(
     configId: string,
-    updates: Partial<UnifiedConfig>,
-  ): Promise<UnifiedConfig> {
-    const result = await this.storage.update(configId, {
-      ...updates,
-      updatedTime: new Date().toISOString(),
-    });
+    updates: Partial<AppConfigRow>,
+    expectedUpdatedTime?: string,
+  ): Promise<AppConfigRow> {
+    const result = await this.storage.update(
+      configId,
+      { ...updates, updatedTime: new Date().toISOString() },
+      expectedUpdatedTime,
+    );
     logger.info('Configuration updated', {
       configId,
       componentType: result.componentType,
@@ -100,11 +103,11 @@ export class ConfigurationService {
     sourceConfigId: string,
     newDisplayText: string,
     userId: string,
-  ): Promise<UnifiedConfig> {
+  ): Promise<AppConfigRow> {
     return this.storage.clone(sourceConfigId, newDisplayText, userId);
   }
 
-  async queryConfigurations(filter: ConfigurationFilter): Promise<UnifiedConfig[]> {
+  async queryConfigurations(filter: ConfigurationFilter): Promise<AppConfigRow[]> {
     const v = ValidationUtils.validateFilter(filter);
     if (v.error) throw new Error(`Filter validation failed: ${v.error}`);
     return this.storage.findByMultipleCriteria(v.value!);
@@ -116,7 +119,7 @@ export class ConfigurationService {
     limit = 50,
     sortBy = 'updatedTime',
     sortOrder: 'asc' | 'desc' = 'desc',
-  ): Promise<PaginatedResult<UnifiedConfig>> {
+  ): Promise<PaginatedResult<AppConfigRow>> {
     const p = ValidationUtils.validatePagination({ page, limit, sortBy, sortOrder });
     if (p.error) throw new Error(`Pagination validation failed: ${p.error}`);
     const f = ValidationUtils.validateFilter(filter);
@@ -124,30 +127,45 @@ export class ConfigurationService {
     return this.storage.findWithPagination(f.value!, page, limit, sortBy, sortOrder);
   }
 
-  findByAppId(appId: string, includeDeleted = false): Promise<UnifiedConfig[]> {
-    return this.storage.findByAppId(appId, includeDeleted);
+  findByAppId(
+    appId: string,
+    includeDeleted = false,
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]> {
+    return this.storage.findByAppId(appId, includeDeleted, effectiveUserId);
   }
 
-  findByUserId(userId: string, includeDeleted = false): Promise<UnifiedConfig[]> {
-    return this.storage.findByUserId(userId, includeDeleted);
+  findByUserId(
+    userId: string,
+    includeDeleted = false,
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]> {
+    return this.storage.findByUserId(userId, includeDeleted, effectiveUserId);
   }
 
   findByComponentType(
     componentType: string,
     componentSubType?: string,
     includeDeleted = false,
-  ): Promise<UnifiedConfig[]> {
-    return this.storage.findByComponentType(componentType, componentSubType, includeDeleted);
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]> {
+    return this.storage.findByComponentType(
+      componentType,
+      componentSubType,
+      includeDeleted,
+      effectiveUserId,
+    );
   }
 
-  async bulkCreateConfigurations(configs: Partial<UnifiedConfig>[]): Promise<UnifiedConfig[]> {
+  async bulkCreateConfigurations(configs: Partial<AppConfigRow>[]): Promise<AppConfigRow[]> {
     if (!configs || configs.length === 0) throw new Error('Configurations array cannot be empty');
     if (configs.length > 50) throw new Error('Cannot create more than 50 configurations at once');
     const now = new Date().toISOString();
-    const prepared: UnifiedConfig[] = configs.map((c) => ({
+    const prepared: AppConfigRow[] = configs.map((c) => ({
       configId: c.configId || uuidv4(),
       appId: c.appId ?? '',
       userId: c.userId ?? '',
+      isPublic: c.isPublic === false ? false : true,
       componentType: c.componentType ?? '',
       componentSubType: c.componentSubType ?? '',
       isTemplate: Boolean(c.isTemplate),

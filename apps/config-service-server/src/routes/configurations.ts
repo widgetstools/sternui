@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ConfigurationService } from '../services/ConfigurationService.js';
+import { OptimisticLockMismatchError } from '../storage/errors.js';
 import type { ConfigurationFilter } from '@starui/shared-types';
 import logger from '../utils/logger.js';
 
@@ -15,6 +16,16 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
   const asyncHandler = (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
+
+  /**
+   * Resolve the caller's effective user id for visibility filtering.
+   *
+   * Placeholder until Decision 16 (auth on endpoints) lands — the server
+   * trusts whatever the caller declares via `?userId=...`. Defaults to
+   * `"anonymous"`, which sees only `isPublic = true` rows.
+   */
+  const effectiveUserIdFromQuery = (req: Request): string =>
+    (req.query.userId as string) || 'anonymous';
 
   // =========================================================================
   // Basic CRUD
@@ -106,10 +117,25 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     '/:configId',
     asyncHandler(async (req: Request, res: Response) => {
       const { configId } = req.params;
+      // Optimistic locking (Decision 12.5 / Session 6). The caller may
+      // pin their edit to a specific `updatedTime` via `If-Match` (RFC
+      // 7232 §3.1). On mismatch, return 412 with the current row so the
+      // editor UI can offer a "row changed elsewhere — reload?" prompt.
+      // No header == today's behavior (last-write-wins).
+      const expectedUpdatedTime = req.header('If-Match');
       try {
-        const result = await configService.updateConfiguration(configId, req.body);
+        const result = await configService.updateConfiguration(
+          configId,
+          req.body,
+          expectedUpdatedTime,
+        );
+        res.setHeader('ETag', result.updatedTime);
         return res.json(result);
       } catch (error: any) {
+        if (error instanceof OptimisticLockMismatchError) {
+          res.setHeader('ETag', error.currentRow.updatedTime);
+          return res.status(412).json(error.currentRow);
+        }
         if (error.message.includes('not found')) {
           return res.status(404).json({ error: 'Configuration not found' });
         }
@@ -155,6 +181,10 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
       const { page, limit, sortBy, sortOrder, ...queryParams } = req.query;
 
       const filterParams: any = { ...queryParams };
+      // The caller's `?userId=...` doubles as their effective user id
+      // for visibility filtering AND (for back-compat) a filter on the
+      // owner column. See Decision 6 / Decision 16 in the redesign.
+      filterParams.effectiveUserId = effectiveUserIdFromQuery(req);
 
       if (queryParams.componentType) {
         filterParams.componentTypes = [queryParams.componentType as string];
@@ -197,7 +227,12 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     asyncHandler(async (req: Request, res: Response) => {
       const { appId } = req.params;
       const { includeDeleted } = req.query;
-      const result = await configService.findByAppId(appId, includeDeleted === 'true');
+      const effectiveUserId = effectiveUserIdFromQuery(req);
+      const result = await configService.findByAppId(
+        appId,
+        includeDeleted === 'true',
+        effectiveUserId,
+      );
       res.json(result);
     }),
   );
@@ -207,18 +242,30 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     asyncHandler(async (req: Request, res: Response) => {
       const { userId } = req.params;
       const { includeDeleted, componentType, componentSubType } = req.query;
+      // Path `userId` is the *target* owner; visibility uses the caller's
+      // effective user from `?effectiveUserId=...` (or `?userId=...` if
+      // provided as a query — but path param wins for the filter).
+      const effectiveUserId =
+        (req.query.effectiveUserId as string) ||
+        (req.query.userId as string) ||
+        'anonymous';
 
       if (componentType || componentSubType) {
         const criteria: ConfigurationFilter = {
           userIds: [userId],
           includeDeleted: includeDeleted === 'true',
+          effectiveUserId,
         };
         if (componentType) criteria.componentTypes = [componentType as string];
         if (componentSubType) criteria.componentSubTypes = [componentSubType as string];
         const result = await configService.queryConfigurations(criteria);
         res.json(result);
       } else {
-        const result = await configService.findByUserId(userId, includeDeleted === 'true');
+        const result = await configService.findByUserId(
+          userId,
+          includeDeleted === 'true',
+          effectiveUserId,
+        );
         res.json(result);
       }
     }),
@@ -229,10 +276,12 @@ export function createConfigurationRoutes(configService: ConfigurationService): 
     asyncHandler(async (req: Request, res: Response) => {
       const { componentType } = req.params;
       const { componentSubType, includeDeleted } = req.query;
+      const effectiveUserId = effectiveUserIdFromQuery(req);
       const result = await configService.findByComponentType(
         componentType,
         componentSubType as string,
         includeDeleted === 'true',
+        effectiveUserId,
       );
       res.json(result);
     }),

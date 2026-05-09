@@ -27,6 +27,7 @@ import { createConfigManager, type ConfigManager } from "@starui/config-service"
 import type { AppConfigRow } from "@starui/config-service";
 import { COMPONENT_TYPES } from "@starui/shared-types";
 import type { DockEditorConfig } from './dockConfigTypes';
+import { getConfigServiceRestUrlFromManifest } from './manifestConfig';
 import type { RegistryEditorConfig } from './registryConfigTypes';
 
 // ─── Singleton management ────────────────────────────────────────────
@@ -63,10 +64,14 @@ export function setConfigManager(manager: ConfigManager): void {
 /**
  * Returns the ConfigManager instance, creating a fallback if needed.
  *
- * Why a fallback? The dock-editor runs in a separate OpenFin child
- * window. That window can't access the provider's in-memory
- * configManagerInstance, so it creates its own — which still connects
- * to the same Dexie database on disk.
+ * Why a fallback? Child OpenFin windows (dock editor, Config Browser,
+ * registry editor) run in their own JS realm and can't see the
+ * Provider window's in-memory `configManagerInstance`. The fallback
+ * creates a per-window manager that still connects to the same Dexie
+ * database on disk, AND reads the same manifest customSettings the
+ * Provider read so REST mode stays consistent across windows. Without
+ * this, dock-launched diagnostic UIs would silently run local-only
+ * even after the Provider switched into REST mode.
  *
  * The promise guard (initPromise) ensures that even if this function
  * is called multiple times before the first init completes, only one
@@ -76,7 +81,8 @@ export async function getConfigManager(): Promise<ConfigManager> {
   if (configManagerInstance) return configManagerInstance;
   if (!initPromise) {
     initPromise = (async () => {
-      const manager = createConfigManager();
+      const configServiceRestUrl = await getConfigServiceRestUrlFromManifest();
+      const manager = createConfigManager({ configServiceRestUrl });
       await manager.init();
       configManagerInstance = manager;
       initPromise = undefined;
@@ -404,7 +410,10 @@ export async function migrateLegacyPlatformScope(): Promise<{ migrated: number }
  */
 export async function realignAllConfigsToPlatformScope(): Promise<{ realigned: number; total: number }> {
   const manager = await getConfigManager();
-  const rows = await manager.getAllConfigs();
+  // Cross-app re-stamping migration: the visibility filter (Session 4)
+  // would hide rows whose `appId` doesn't match the manager's scope —
+  // exactly the rows we need to realign. Use the unfiltered read.
+  const rows = await manager.getAllConfigsUnfiltered();
   const now = new Date().toISOString();
   let realigned = 0;
   for (const row of rows) {
@@ -450,8 +459,11 @@ export async function migrateRegistryToGlobalScope(): Promise<{ migrated: number
   const existingGlobal = await manager.getConfig(globalConfigId);
   if (existingGlobal) return { migrated: 0 };
 
-  // Find every registry row for this app at any non-global userId
-  const all = await manager.getAllConfigs();
+  // Find every registry row for this app at any non-global userId.
+  // Bypass the visibility filter — this migration walks rows owned by
+  // every user, including private rows owned by other users that we
+  // need to relocate.
+  const all = await manager.getAllConfigsUnfiltered();
   const candidates = all.filter((r) =>
     r.appId === targetAppId &&
     r.userId !== GLOBAL_USER_ID &&

@@ -1,5 +1,5 @@
 import type {
-  UnifiedConfig,
+  AppConfigRow,
   ConfigurationFilter,
   PaginatedResult,
   StorageHealthStatus,
@@ -11,32 +11,57 @@ import type {
 /**
  * Universal storage interface for configuration management.
  * Backend-agnostic — SQLite today, any other engine tomorrow.
+ *
+ * Visibility (Decision 6 in the redesign): list methods accept an
+ * optional `effectiveUserId`. When provided, results are filtered to
+ * `(isPublic = 1 OR userId = effectiveUserId)`. When omitted, no
+ * visibility filter applies — admin / unfiltered paths only.
  */
 export interface IConfigurationStorage {
   // Basic CRUD
-  create(config: UnifiedConfig): Promise<UnifiedConfig>;
-  findById(configId: string, includeDeleted?: boolean): Promise<UnifiedConfig | null>;
+  create(config: AppConfigRow): Promise<AppConfigRow>;
+  findById(configId: string, includeDeleted?: boolean): Promise<AppConfigRow | null>;
   findByCompositeKey(
     userId: string,
     componentType: string,
     displayText: string,
     componentSubType?: string,
-  ): Promise<UnifiedConfig | null>;
-  update(configId: string, updates: Partial<UnifiedConfig>): Promise<UnifiedConfig>;
+  ): Promise<AppConfigRow | null>;
+  /**
+   * Update a configuration. When `expectedUpdatedTime` is provided, the
+   * write is conditional: if the row's stored `updatedTime` no longer
+   * matches, the implementation throws `OptimisticLockMismatchError`
+   * carrying the current row. Routes turn that into HTTP 412.
+   * (Decision 12.5 / Session 6.)
+   */
+  update(
+    configId: string,
+    updates: Partial<AppConfigRow>,
+    expectedUpdatedTime?: string,
+  ): Promise<AppConfigRow>;
   delete(configId: string): Promise<boolean>;
 
   // Clone
-  clone(sourceConfigId: string, newDisplayText: string, userId: string): Promise<UnifiedConfig>;
+  clone(sourceConfigId: string, newDisplayText: string, userId: string): Promise<AppConfigRow>;
 
-  // Query
-  findByMultipleCriteria(criteria: ConfigurationFilter): Promise<UnifiedConfig[]>;
-  findByAppId(appId: string, includeDeleted?: boolean): Promise<UnifiedConfig[]>;
-  findByUserId(userId: string, includeDeleted?: boolean): Promise<UnifiedConfig[]>;
+  // Query — when `criteria.effectiveUserId` is set the visibility filter applies
+  findByMultipleCriteria(criteria: ConfigurationFilter): Promise<AppConfigRow[]>;
+  findByAppId(
+    appId: string,
+    includeDeleted?: boolean,
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]>;
+  findByUserId(
+    userId: string,
+    includeDeleted?: boolean,
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]>;
   findByComponentType(
     componentType: string,
     componentSubType?: string,
     includeDeleted?: boolean,
-  ): Promise<UnifiedConfig[]>;
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]>;
 
   // Pagination
   findWithPagination(
@@ -45,10 +70,10 @@ export interface IConfigurationStorage {
     limit: number,
     sortBy?: string,
     sortOrder?: 'asc' | 'desc',
-  ): Promise<PaginatedResult<UnifiedConfig>>;
+  ): Promise<PaginatedResult<AppConfigRow>>;
 
   // Bulk
-  bulkCreate(configs: UnifiedConfig[]): Promise<UnifiedConfig[]>;
+  bulkCreate(configs: AppConfigRow[]): Promise<AppConfigRow[]>;
   bulkUpdate(updates: BulkUpdateRequest[]): Promise<BulkUpdateResult[]>;
   bulkDelete(configIds: string[]): Promise<BulkUpdateResult[]>;
 

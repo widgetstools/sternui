@@ -289,14 +289,17 @@ export function createConfigServiceStorage(
         configId: rowId,
         appId,
         userId,
+        // Default visibility: public. Profile-set rows are owned by
+        // their `userId` but currently treated as visible to everyone
+        // in the app (matches pre-redesign behaviour). When private
+        // profile sets become a feature, the consumer can override
+        // this via the registered identity. See Decision 6.
+        isPublic: existing?.isPublic ?? true,
         displayText: `${displayTextPrefix}: ${instanceId}`,
         componentType,
         componentSubType,
         isTemplate,
         singleton,
-        // Back-compat alias kept aligned with isTemplate while the
-        // field is still on the schema.
-        isRegisteredComponent: isTemplate,
         payload: { ...set, version: expectedVersion + 1 },
         createdBy: existing?.createdBy ?? userId,
         updatedBy: userId,

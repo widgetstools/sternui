@@ -100,10 +100,6 @@ export async function resolveInstanceId(
       // have used `instanceId === templateId` so case 1 hit. Setting
       // it explicitly keeps the row self-describing regardless.
       singleton: identity.singleton,
-      // Back-compat: keep `isRegisteredComponent` aligned with
-      // `isTemplate` until the field is removed in a future schema
-      // version. Workspace GC checks both.
-      isRegisteredComponent: false,
       creationTime: now,
       updatedTime: now,
     };

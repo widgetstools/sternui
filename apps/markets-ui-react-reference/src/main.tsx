@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
@@ -9,7 +9,15 @@ import { HostWrapper } from "@starui/host-wrapper-react";
 import { BrowserRuntime } from "@starui/runtime-browser";
 import { OpenFinRuntime, isOpenFin } from "@starui/runtime-openfin";
 import { createConfigClient } from "@starui/config-service";
+import {
+  ConfigServiceProvider,
+  useConfigService,
+} from "@starui/config-service-react";
+import { getConfigServiceRestUrlFromManifest } from "@starui/openfin-platform/config";
+import { DataServicesProvider } from "@starui/data-services-react/runtime";
+import { LOGGED_IN_USER_ID } from "@starui/runtime-port";
 import type { RuntimePort } from "@starui/runtime-port";
+import { dataServices } from "./dataServices.mainThread";
 
 // DataProvider persistence routes through `<DataServicesProvider>`
 // (which wires `DataProviderConfigStore` against the platform's
@@ -86,13 +94,61 @@ async function createRuntimeForViews(): Promise<RuntimePort> {
 }
 
 const runtimePromise = createRuntimeForViews();
-const configManager = createConfigClient({});
 
-function ViewRoutesLayout() {
+// Identity wired into <ConfigServiceProvider>. Reuses the same single-
+// user dev placeholder every other module pins to (LOGGED_IN_USER_ID),
+// so audit / visibility / impersonation defaults stay consistent
+// across windows.
+const APP_ID = "markets-ui-react-reference";
+const IDENTITY = { userId: LOGGED_IN_USER_ID, displayName: LOGGED_IN_USER_ID };
+
+// REST endpoint for `@starui/config-service-server`. Single source of
+// truth: the OpenFin manifest's `customSettings.{useRest, configServiceRestUrl}`
+// pair. `getConfigServiceRestUrlFromManifest()` enforces the gate
+// (`useRest === true` AND non-empty URL → REST mode; anything else →
+// local Dexie only). Out of OpenFin (plain-browser dev), the helper
+// returns `undefined` so the app still boots — flipping to REST in
+// browser mode is intentionally not supported here, since that path
+// lacks the manifest customSettings the rest of the platform reads.
+//
+// Resolved BEFORE `root.render()` so every `<ConfigServiceProvider>`
+// in this window starts with the same value the platform Provider
+// window's `initWorkspace()` resolved from the same manifest.
+const REST_URL = await getConfigServiceRestUrlFromManifest();
+
+/**
+ * Inner half of `ViewRoutesLayout` — runs inside
+ * `<ConfigServiceProvider>` so it can read the live ConfigManager and
+ * derive a stable `ConfigClient` for `<HostWrapper>`.
+ */
+function HostWrapperWithProviderClient() {
+  const { configManager } = useConfigService();
+  const configClient = useMemo(
+    () => createConfigClient({ configManager }),
+    [configManager],
+  );
   return (
-    <HostWrapper runtime={runtimePromise} configManager={configManager}>
+    <HostWrapper runtime={runtimePromise} configManager={configClient}>
       <Outlet />
     </HostWrapper>
+  );
+}
+
+/**
+ * Layout for every non-platform-provider route. Wraps with
+ * `<DataServicesProvider>` (so views can read `useDataServices()`)
+ * and `<ConfigServiceProvider>` (which publishes ApplicationContext
+ * and exposes the ConfigManager + storage factory). The hidden
+ * `/platform/provider` window deliberately stays OUTSIDE — it owns
+ * the platform's ConfigManager singleton via `bootstrapPlatform()`.
+ */
+function ViewRoutesLayout() {
+  return (
+    <DataServicesProvider services={dataServices}>
+      <ConfigServiceProvider identity={IDENTITY} appId={APP_ID} restUrl={REST_URL}>
+        <HostWrapperWithProviderClient />
+      </ConfigServiceProvider>
+    </DataServicesProvider>
   );
 }
 

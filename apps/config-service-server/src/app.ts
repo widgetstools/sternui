@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import helmet from 'helmet';
 import compression from 'compression';
+import path from 'path';
 import rateLimit from 'express-rate-limit';
+import { fileURLToPath } from 'url';
 import { ConfigurationService } from './services/ConfigurationService.js';
 import { AuthService } from './services/AuthService.js';
 import { createConfigurationRoutes } from './routes/configurations.js';
@@ -13,6 +16,8 @@ import { createPermissionRoutes } from './routes/permissions.js';
 import { StorageFactory } from './storage/StorageFactory.js';
 import { seedAuthIfEmpty } from './seed.js';
 import logger from './utils/logger.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function createApp(): Promise<express.Application> {
   const app = express();
@@ -125,6 +130,34 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/v1/user-profiles', createUserProfileRoutes(authService));
   app.use('/api/v1/roles', createRoleRoutes(authService));
   app.use('/api/v1/permissions', createPermissionRoutes(authService));
+
+  // ─── Admin SPA (apps/config-admin-web) ───────────────────────────────
+  // The build copies its dist into `<server-dist>/admin-web/` (see
+  // scripts/copy-admin-web.mjs). When that bundle is present, mount it
+  // at `/` and serve `index.html` for any non-API route so the SPA's
+  // client-side router (react-router-dom) handles the URL.
+  //
+  // When the bundle is absent (developer running `tsx watch src/server.ts`
+  // without first building the SPA, or unit tests) the SPA mount is
+  // skipped — the API still works on its own; the API 404 catch-all
+  // below picks up anything else.
+  const adminWebDir = path.resolve(__dirname, 'admin-web');
+  const adminWebIndex = path.join(adminWebDir, 'index.html');
+  const adminWebPresent = fs.existsSync(adminWebIndex);
+  if (adminWebPresent) {
+    logger.info('Mounting admin SPA from dist/admin-web/');
+    app.use(express.static(adminWebDir, { index: false }));
+    // SPA fallback — anything that isn't /api/* or /health and survives
+    // the static middleware (i.e. there's no matching file on disk) gets
+    // index.html. The router on the client owns the route.
+    app.get(/^\/(?!api\/|health$).*/, (_req, res) => {
+      res.sendFile(adminWebIndex);
+    });
+  } else {
+    logger.warn(
+      'Admin SPA bundle not found at dist/admin-web/index.html — running API-only',
+    );
+  }
 
   app.use('*', (req, res) => {
     res.status(404).json({

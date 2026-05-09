@@ -406,7 +406,10 @@ export function createWorkspacePersistenceOverride(
       }
 
       async getSavedWorkspaces(query?: string): Promise<any[]> {
-        const all = await cm.getConfigsByUser(userId);
+        // Pull cross-app rows owned by this user, then narrow to the
+        // requested appId locally — the manager's visibility filter
+        // would otherwise hide anything written outside its own scope.
+        const all = await cm.getConfigsByUserUnfiltered(userId);
         const mine = all.filter(
           (r) =>
             r.appId === appId &&

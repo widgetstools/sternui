@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 // /config subpath = workspace-platform-free entry; safe in non-OpenFin
 // contexts. See packages/openfin-platform/src/configOnly.ts.
 import {
@@ -8,6 +8,7 @@ import {
   type HostEnv,
 } from '@starui/openfin-platform/config';
 import type { ConfigManager } from '@starui/config-service';
+import { ConfigServiceClient } from '@starui/config-service-angular';
 import { TABLES, type TableKey, type TableMeta } from './tables';
 
 export interface Counts {
@@ -34,6 +35,17 @@ function tableOf(manager: ConfigManager, key: TableKey): any {
 
 @Injectable()
 export class ConfigBrowserService {
+  // Optional Provider-based wiring (Session 10). When the host has
+  // registered `provideConfigService(...)` from
+  // `@starui/config-service-angular`, this injectable resolves and we
+  // read its already-initialised ConfigManager directly. When it's
+  // absent (legacy OpenFin shells that ship their own
+  // `bootstrapPlatform()`), we fall back to the platform-managed
+  // `getConfigManager()` singleton.
+  private readonly providerClient = inject(ConfigServiceClient, {
+    optional: true,
+  });
+
   private manager: ConfigManager | null = null;
 
   private _hostEnv = signal<HostEnv>({ appId: '', configServiceUrl: '' });
@@ -52,12 +64,23 @@ export class ConfigBrowserService {
 
   async init(): Promise<void> {
     try {
-      const [env, manager] = await Promise.all([
-        readHostEnv(),
-        getConfigManager(),
-      ]);
-      this._hostEnv.set(env);
-      this.manager = manager;
+      if (this.providerClient) {
+        // Provider-based wiring — manager is already init()ed by
+        // `provideConfigService`'s app initializer; just snapshot the
+        // host env from its options.
+        this.manager = this.providerClient.configManager;
+        this._hostEnv.set({
+          appId: this.providerClient.appId,
+          configServiceUrl: '',
+        });
+      } else {
+        const [env, manager] = await Promise.all([
+          readHostEnv(),
+          getConfigManager(),
+        ]);
+        this._hostEnv.set(env);
+        this.manager = manager;
+      }
       await this.loadCounts();
       await this.loadRows();
     } catch (err) {

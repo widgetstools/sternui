@@ -3,8 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { IConfigurationStorage } from './IConfigurationStorage.js';
+import { OptimisticLockMismatchError } from './errors.js';
 import type {
-  UnifiedConfig,
+  AppConfigRow,
   ConfigurationFilter,
   PaginatedResult,
   StorageHealthStatus,
@@ -96,6 +97,7 @@ export class SqliteStorage implements IConfigurationStorage {
         configId TEXT PRIMARY KEY,
         appId TEXT NOT NULL,
         userId TEXT NOT NULL,
+        isPublic INTEGER NOT NULL DEFAULT 1,
         componentType TEXT NOT NULL,
         componentSubType TEXT NOT NULL DEFAULT '',
         isTemplate INTEGER NOT NULL DEFAULT 0,
@@ -110,6 +112,17 @@ export class SqliteStorage implements IConfigurationStorage {
       );
     `);
 
+    // Idempotent migration: pre-redesign DBs may not have `isPublic`.
+    // Default-true backfill matches the client-side Dexie upgrade.
+    const postCreateInfo = this.db.exec('PRAGMA table_info(configurations)');
+    const postCreateCols: string[] =
+      postCreateInfo[0]?.values?.map((row: any) => String(row[1])) ?? [];
+    if (!postCreateCols.includes('isPublic')) {
+      this.db.run(
+        'ALTER TABLE configurations ADD COLUMN isPublic INTEGER NOT NULL DEFAULT 1',
+      );
+    }
+
     this.db.run('CREATE INDEX IF NOT EXISTS idx_app_user ON configurations(appId, userId)');
     this.db.run('CREATE INDEX IF NOT EXISTS idx_component ON configurations(componentType, componentSubType)');
     this.db.run('CREATE INDEX IF NOT EXISTS idx_user ON configurations(userId)');
@@ -120,19 +133,20 @@ export class SqliteStorage implements IConfigurationStorage {
     this.saveToFile();
   }
 
-  async create(config: UnifiedConfig): Promise<UnifiedConfig> {
+  async create(config: AppConfigRow): Promise<AppConfigRow> {
     if (!this.db) throw new Error('Database not connected');
     try {
       this.db.run(
         `INSERT INTO configurations (
-          configId, appId, userId, componentType, componentSubType, isTemplate,
+          configId, appId, userId, isPublic, componentType, componentSubType, isTemplate,
           displayText, payload, createdBy, updatedBy, creationTime, updatedTime,
           deletedAt, deletedBy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
         [
           config.configId,
           config.appId,
           config.userId,
+          config.isPublic === false ? 0 : 1,
           config.componentType,
           config.componentSubType,
           config.isTemplate ? 1 : 0,
@@ -145,7 +159,7 @@ export class SqliteStorage implements IConfigurationStorage {
         ],
       );
       this.saveToFile();
-      return config;
+      return { ...config, isPublic: config.isPublic === false ? false : true };
     } catch (error) {
       if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
         throw new Error(`Configuration with ID ${config.configId} already exists`);
@@ -154,7 +168,7 @@ export class SqliteStorage implements IConfigurationStorage {
     }
   }
 
-  async findById(configId: string, includeDeleted = false): Promise<UnifiedConfig | null> {
+  async findById(configId: string, includeDeleted = false): Promise<AppConfigRow | null> {
     if (!this.db) throw new Error('Database not connected');
     const where = includeDeleted ? 'WHERE configId = ?' : 'WHERE configId = ? AND deletedAt IS NULL';
     const result = this.db.exec(`SELECT * FROM configurations ${where}`, [configId]);
@@ -167,7 +181,7 @@ export class SqliteStorage implements IConfigurationStorage {
     componentType: string,
     displayText: string,
     componentSubType?: string,
-  ): Promise<UnifiedConfig | null> {
+  ): Promise<AppConfigRow | null> {
     if (!this.db) throw new Error('Database not connected');
     const where = componentSubType
       ? 'WHERE userId = ? AND componentType = ? AND componentSubType = ? AND displayText = ? AND deletedAt IS NULL'
@@ -180,11 +194,25 @@ export class SqliteStorage implements IConfigurationStorage {
     return this.deserialize(result[0].columns, result[0].values[0]);
   }
 
-  async update(configId: string, updates: Partial<UnifiedConfig>): Promise<UnifiedConfig> {
+  async update(
+    configId: string,
+    updates: Partial<AppConfigRow>,
+    expectedUpdatedTime?: string,
+  ): Promise<AppConfigRow> {
     const existing = await this.findById(configId);
     if (!existing) throw new Error(`Configuration ${configId} not found`);
 
-    const updated: UnifiedConfig = {
+    // Optimistic locking (Decision 12.5 / Session 6): when the caller
+    // captured a specific `updatedTime` at edit-start, refuse the write
+    // if the row has moved on. The route catches this and surfaces 412.
+    if (
+      expectedUpdatedTime !== undefined &&
+      existing.updatedTime !== expectedUpdatedTime
+    ) {
+      throw new OptimisticLockMismatchError(existing);
+    }
+
+    const updated: AppConfigRow = {
       ...existing,
       ...updates,
       configId: existing.configId,
@@ -194,12 +222,13 @@ export class SqliteStorage implements IConfigurationStorage {
     if (!this.db) throw new Error('Database not connected');
     this.db.run(
       `UPDATE configurations SET
-        appId = ?, userId = ?, componentType = ?, componentSubType = ?, isTemplate = ?,
+        appId = ?, userId = ?, isPublic = ?, componentType = ?, componentSubType = ?, isTemplate = ?,
         displayText = ?, payload = ?, updatedBy = ?, updatedTime = ?
        WHERE configId = ?`,
       [
         updated.appId,
         updated.userId,
+        updated.isPublic === false ? 0 : 1,
         updated.componentType,
         updated.componentSubType,
         updated.isTemplate ? 1 : 0,
@@ -211,7 +240,7 @@ export class SqliteStorage implements IConfigurationStorage {
       ],
     );
     this.saveToFile();
-    return updated;
+    return { ...updated, isPublic: updated.isPublic === false ? false : true };
   }
 
   async delete(configId: string): Promise<boolean> {
@@ -230,16 +259,17 @@ export class SqliteStorage implements IConfigurationStorage {
     sourceConfigId: string,
     newDisplayText: string,
     userId: string,
-  ): Promise<UnifiedConfig> {
+  ): Promise<AppConfigRow> {
     const src = await this.findById(sourceConfigId);
     if (!src) throw new Error(`Configuration ${sourceConfigId} not found`);
     const now = new Date().toISOString();
-    const clone: UnifiedConfig = {
+    const clone: AppConfigRow = {
       ...src,
       configId: uuidv4(),
       displayText: newDisplayText,
       userId,
       isTemplate: false,
+      isPublic: src.isPublic === false ? false : true,
       createdBy: userId,
       updatedBy: userId,
       creationTime: now,
@@ -248,7 +278,7 @@ export class SqliteStorage implements IConfigurationStorage {
     return this.create(clone);
   }
 
-  async findByMultipleCriteria(criteria: ConfigurationFilter): Promise<UnifiedConfig[]> {
+  async findByMultipleCriteria(criteria: ConfigurationFilter): Promise<AppConfigRow[]> {
     if (!this.db) throw new Error('Database not connected');
     const { whereClause, params } = this.buildWhereClause(criteria);
     const result = this.db.exec(
@@ -259,21 +289,39 @@ export class SqliteStorage implements IConfigurationStorage {
     return result[0].values.map((row: any) => this.deserialize(result[0].columns, row));
   }
 
-  async findByAppId(appId: string, includeDeleted = false): Promise<UnifiedConfig[]> {
-    return this.findByMultipleCriteria({ appIds: [appId], includeDeleted });
+  async findByAppId(
+    appId: string,
+    includeDeleted = false,
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]> {
+    return this.findByMultipleCriteria({
+      appIds: [appId],
+      includeDeleted,
+      ...(effectiveUserId !== undefined ? { effectiveUserId } : {}),
+    });
   }
 
-  async findByUserId(userId: string, includeDeleted = false): Promise<UnifiedConfig[]> {
-    return this.findByMultipleCriteria({ userIds: [userId], includeDeleted });
+  async findByUserId(
+    userId: string,
+    includeDeleted = false,
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]> {
+    return this.findByMultipleCriteria({
+      userIds: [userId],
+      includeDeleted,
+      ...(effectiveUserId !== undefined ? { effectiveUserId } : {}),
+    });
   }
 
   async findByComponentType(
     componentType: string,
     componentSubType?: string,
     includeDeleted = false,
-  ): Promise<UnifiedConfig[]> {
+    effectiveUserId?: string,
+  ): Promise<AppConfigRow[]> {
     const criteria: ConfigurationFilter = { componentTypes: [componentType], includeDeleted };
     if (componentSubType) criteria.componentSubTypes = [componentSubType];
+    if (effectiveUserId !== undefined) criteria.effectiveUserId = effectiveUserId;
     return this.findByMultipleCriteria(criteria);
   }
 
@@ -283,7 +331,7 @@ export class SqliteStorage implements IConfigurationStorage {
     limit: number,
     sortBy = 'updatedTime',
     sortOrder: 'asc' | 'desc' = 'desc',
-  ): Promise<PaginatedResult<UnifiedConfig>> {
+  ): Promise<PaginatedResult<AppConfigRow>> {
     if (!this.db) throw new Error('Database not connected');
     const { whereClause, params } = this.buildWhereClause(criteria);
 
@@ -316,7 +364,7 @@ export class SqliteStorage implements IConfigurationStorage {
     };
   }
 
-  async bulkCreate(configs: UnifiedConfig[]): Promise<UnifiedConfig[]> {
+  async bulkCreate(configs: AppConfigRow[]): Promise<AppConfigRow[]> {
     for (const c of configs) await this.create(c);
     return configs;
   }
@@ -466,11 +514,18 @@ export class SqliteStorage implements IConfigurationStorage {
       params.push(criteria.updatedBefore);
     }
 
+    // Visibility filter (Decision 6). Only applied when caller supplies an
+    // effective user id — admin / unfiltered paths omit it.
+    if (criteria.effectiveUserId !== undefined) {
+      conditions.push('(isPublic = 1 OR userId = ?)');
+      params.push(criteria.effectiveUserId);
+    }
+
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     return { whereClause, params };
   }
 
-  private deserialize(columns: string[], values: any[]): UnifiedConfig {
+  private deserialize(columns: string[], values: any[]): AppConfigRow {
     const row: any = {};
     columns.forEach((col, idx) => {
       row[col] = values[idx];
@@ -479,6 +534,7 @@ export class SqliteStorage implements IConfigurationStorage {
       configId: row.configId,
       appId: row.appId,
       userId: row.userId,
+      isPublic: row.isPublic === undefined ? true : Boolean(row.isPublic),
       componentType: row.componentType,
       componentSubType: row.componentSubType ?? '',
       isTemplate: Boolean(row.isTemplate),
