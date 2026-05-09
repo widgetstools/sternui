@@ -4,8 +4,11 @@ import { BrowserRouter } from 'react-router-dom';
 import { ConfigEditorProvider } from '@starui/config-editor-ui';
 import { createConfigClient } from '@starui/config-service';
 import type { AppIdentity, ConfigClient } from '@starui/config-service';
+import { applyTheme, getTheme } from '@starui/design-system';
 
 import './index.css';
+
+applyTheme(getTheme());
 import { AppShell } from './AppShell';
 import { SignIn } from './SignIn';
 import { clearToken, readTokenFromUrl, setToken } from './auth';

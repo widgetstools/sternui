@@ -1,15 +1,7 @@
+@import '@starui/design-system/css';
+
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
-/* MarketsUI Design System Tokens — single source of truth for every app. */
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
-
-/* Theme-flipping scrollbar utilities (`.scrollbar-themed`, `.scrollbar-thin`).
-   Pulls from `--scrollbar-thumb` which fi-dark/fi-light define per theme. */
-@import '../../../packages/shared/foundation/design-system/src/themes/scrollbars.css';
-
-/* Tailwind v3 directives — utilities resolve via the shadcn-compatible
-   aliases exported by fi-dark.css / fi-light.css. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -30,6 +22,7 @@
     width: 100%;
   }
   body {
+    /* TODO Phase 6: migrate --bn-bg / --bn-t0 / --fi-sans / --fi-font-sm to unified token refs */
     background: var(--bn-bg);
     color: var(--bn-t0);
     font-family: var(--fi-sans), -apple-system, sans-serif;
