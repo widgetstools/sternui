@@ -1,0 +1,157 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`primengPreset > matches snapshot 1`] = `
+{
+  "components": {
+    "button": {
+      "borderRadius": "5px",
+      "fontWeight": "600",
+      "paddingX": "16px",
+      "paddingY": "8px",
+    },
+    "datatable": {
+      "bodyCellPadding": "6px 10px",
+      "headerCellPadding": "6px 10px",
+    },
+    "inputtext": {
+      "borderRadius": "3px",
+      "paddingX": "10px",
+      "paddingY": "6px",
+    },
+    "tabs": {
+      "activeBorderColor": "var(--ds-accent-info)",
+    },
+  },
+  "primitive": {
+    "borderRadius": {
+      "lg": "8px",
+      "md": "5px",
+      "none": "0px",
+      "sm": "3px",
+      "xl": "12px",
+      "xs": "3px",
+    },
+  },
+  "semantic": {
+    "colorScheme": {
+      "dark": {
+        "content": {
+          "background": "var(--ds-surface-primary)",
+          "borderColor": "var(--ds-border-primary)",
+          "color": "var(--ds-text-primary)",
+          "hoverBackground": "var(--ds-surface-secondary)",
+          "hoverColor": "var(--ds-text-primary)",
+        },
+        "formField": {
+          "background": "var(--ds-surface-primary)",
+          "borderColor": "var(--ds-border-secondary)",
+          "color": "var(--ds-text-primary)",
+          "disabledBackground": "var(--ds-state-disabled-bg)",
+          "disabledColor": "var(--ds-state-disabled-fg)",
+          "filledBackground": "var(--ds-surface-tertiary)",
+          "focusBorderColor": "var(--ds-accent-info)",
+          "hoverBorderColor": "var(--ds-accent-info)",
+          "placeholderColor": "var(--ds-text-muted)",
+        },
+        "primary": {
+          "activeColor": "var(--ds-accent-info-hover)",
+          "color": "var(--ds-accent-info)",
+          "contrastColor": "#0b2b20",
+          "hoverColor": "var(--ds-accent-info-hover)",
+        },
+        "surface": {
+          "0": "var(--ds-surface-ground)",
+          "100": "var(--ds-surface-secondary)",
+          "200": "var(--ds-surface-tertiary)",
+          "300": "var(--ds-surface-quaternary)",
+          "400": "var(--ds-border-secondary)",
+          "50": "var(--ds-surface-primary)",
+          "500": "var(--ds-border-primary)",
+          "600": "var(--ds-text-faint)",
+          "700": "var(--ds-text-muted)",
+          "800": "var(--ds-text-secondary)",
+          "900": "var(--ds-text-primary)",
+          "950": "var(--ds-text-primary)",
+        },
+        "text": {
+          "color": "var(--ds-text-primary)",
+          "hoverColor": "var(--ds-text-primary)",
+          "hoverMutedColor": "var(--ds-text-secondary)",
+          "mutedColor": "var(--ds-text-muted)",
+        },
+      },
+      "light": {
+        "content": {
+          "background": "var(--ds-surface-primary)",
+          "borderColor": "var(--ds-border-primary)",
+          "color": "var(--ds-text-primary)",
+          "hoverBackground": "var(--ds-surface-secondary)",
+          "hoverColor": "var(--ds-text-primary)",
+        },
+        "formField": {
+          "background": "var(--ds-surface-primary)",
+          "borderColor": "var(--ds-border-secondary)",
+          "color": "var(--ds-text-primary)",
+          "disabledBackground": "var(--ds-state-disabled-bg)",
+          "disabledColor": "var(--ds-state-disabled-fg)",
+          "filledBackground": "var(--ds-surface-secondary)",
+          "focusBorderColor": "var(--ds-accent-info)",
+          "hoverBorderColor": "var(--ds-accent-info)",
+          "placeholderColor": "var(--ds-text-muted)",
+        },
+        "primary": {
+          "activeColor": "var(--ds-accent-info-hover)",
+          "color": "var(--ds-accent-info)",
+          "contrastColor": "#ffffff",
+          "hoverColor": "var(--ds-accent-info-hover)",
+        },
+        "surface": {
+          "0": "var(--ds-surface-primary)",
+          "100": "var(--ds-surface-secondary)",
+          "200": "var(--ds-surface-tertiary)",
+          "300": "var(--ds-surface-quaternary)",
+          "400": "var(--ds-border-secondary)",
+          "50": "var(--ds-surface-ground)",
+          "500": "var(--ds-border-primary)",
+          "600": "var(--ds-text-faint)",
+          "700": "var(--ds-text-muted)",
+          "800": "var(--ds-text-secondary)",
+          "900": "var(--ds-text-primary)",
+          "950": "var(--ds-surface-ground)",
+        },
+        "text": {
+          "color": "var(--ds-text-primary)",
+          "hoverColor": "var(--ds-text-primary)",
+          "hoverMutedColor": "var(--ds-text-secondary)",
+          "mutedColor": "var(--ds-text-muted)",
+        },
+      },
+    },
+    "danger": {
+      "500": "var(--ds-accent-negative)",
+    },
+    "fontFamily": "var(--ds-font-sans)",
+    "info": {
+      "500": "var(--ds-accent-info)",
+    },
+    "primary": {
+      "100": "#1740a8",
+      "200": "#1740a8",
+      "300": "#1740a8",
+      "400": "#13348a",
+      "50": "#1740a8",
+      "500": "var(--ds-accent-info)",
+      "600": "var(--ds-accent-info-hover)",
+      "700": "#13348a",
+      "800": "#13348a",
+      "900": "#13348a",
+    },
+    "success": {
+      "500": "var(--ds-accent-positive)",
+    },
+    "warning": {
+      "500": "var(--ds-accent-warning)",
+    },
+  },
+}
+`;
