@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -17,14 +18,16 @@ import {
   TableRow,
   Textarea,
 } from '@starui/ui';
-import { Copy, Eye, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Copy, Eye, Pencil, Trash2 } from 'lucide-react';
 import {
   guardOptimisticUpdate,
   isOptimisticLockError,
   OptimisticLockDialog,
   useConfigClient,
 } from '@starui/config-editor-ui';
-import type { AppConfigRow } from '@starui/config-service';
+import type { AppConfigRow, AppRegistryRow } from '@starui/config-service';
+
+import { useAppScope } from '../AppScopeContext';
 
 /**
  * Operator surface for the actual `appConfig` rows scoped to the
@@ -43,11 +46,6 @@ import type { AppConfigRow } from '@starui/config-service';
  * `deleteConfig`. Optimistic locking from Session 6 is enforced via
  * `guardOptimisticUpdate` before each save.
  */
-
-export interface AppConfigListProps {
-  /** Active app from the top-of-shell `<AppSelector>`. */
-  appId: string | null;
-}
 
 interface DraftRow {
   configId: string;
@@ -101,8 +99,10 @@ function formatTimestamp(iso?: string): string {
   return d.toISOString().replace('T', ' ').slice(0, 19);
 }
 
-export function AppConfigList({ appId }: AppConfigListProps) {
+export function AppConfigList() {
   const client = useConfigClient();
+  const { appId } = useAppScope();
+  const [app, setApp] = useState<AppRegistryRow | null>(null);
   const [rows, setRows] = useState<AppConfigRow[]>([]);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(false);
@@ -118,6 +118,7 @@ export function AppConfigList({ appId }: AppConfigListProps) {
   useEffect(() => {
     if (!appId) {
       setRows([]);
+      setApp(null);
       return;
     }
     void refresh();
@@ -129,7 +130,15 @@ export function AppConfigList({ appId }: AppConfigListProps) {
     setLoading(true);
     setError(null);
     try {
-      const next = await client.findByAppId(appId);
+      // Load the parent app and its configs in parallel so the header
+      // can show the app's displayName + environment alongside the id.
+      // The header is otherwise just an opaque appId chip — the operator
+      // has no clue *which* of the registered apps they're looking at.
+      const [parentApp, next] = await Promise.all([
+        client.apps.get(appId).catch(() => undefined),
+        client.findByAppId(appId),
+      ]);
+      setApp(parentApp ?? null);
       setRows(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load configs');
@@ -269,12 +278,36 @@ export function AppConfigList({ appId }: AppConfigListProps) {
   return (
     <div className="flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col">
-          <h2 className="text-lg font-semibold">App configurations</h2>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold">
+            {app ? app.displayName : 'App configurations'}
+            {app ? (
+              <Badge variant="outline" className="ml-2 align-middle">
+                {app.environment}
+              </Badge>
+            ) : null}
+          </h2>
           <p className="text-xs text-muted-foreground">
             Saved component state for{' '}
-            <span className="font-mono">{appId}</span> — templates and
-            per-instance rows. {rows.length} row{rows.length === 1 ? '' : 's'}.
+            <span className="font-mono">{appId}</span>
+            {app === null && !loading ? (
+              <>
+                {' — '}
+                <span className="text-amber-600 dark:text-amber-400">
+                  no matching app in the registry (orphan configs?)
+                </span>
+              </>
+            ) : null}
+            {' · '}
+            {rows.length} row{rows.length === 1 ? '' : 's'} (templates +
+            instances).{' '}
+            <Link
+              to="/apps"
+              className="inline-flex items-center gap-0.5 underline-offset-2 hover:underline"
+              data-testid="app-config-back-to-apps"
+            >
+              View in apps registry <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </p>
         </div>
         <div className="flex items-center gap-2">

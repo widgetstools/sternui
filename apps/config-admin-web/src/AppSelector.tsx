@@ -9,6 +9,8 @@ import {
 import type { AppRegistryRow } from '@starui/config-service';
 import { useConfigClient } from '@starui/config-editor-ui';
 
+import { useAppScope } from './AppScopeContext';
+
 /**
  * Top-level "scope" picker — operator chooses which deployed app the
  * editor screens are scoped to.
@@ -23,13 +25,9 @@ import { useConfigClient } from '@starui/config-editor-ui';
  * registering an app first, since user profiles are scoped per app.
  */
 
-export interface AppSelectorProps {
-  value: string | null;
-  onChange: (appId: string | null) => void;
-}
-
-export function AppSelector({ value, onChange }: AppSelectorProps) {
+export function AppSelector() {
   const client = useConfigClient();
+  const { appId, setAppId } = useAppScope();
   const [apps, setApps] = useState<AppRegistryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +40,7 @@ export function AppSelector({ value, onChange }: AppSelectorProps) {
         if (cancelled) return;
         setApps(rows);
         // Auto-select the first app on first load if nothing's chosen.
-        if (!value && rows.length > 0) onChange(rows[0].appId);
+        if (!appId && rows.length > 0) setAppId(rows[0].appId);
       })
       .catch(() => {
         if (cancelled) return;
@@ -54,10 +52,10 @@ export function AppSelector({ value, onChange }: AppSelectorProps) {
     return () => {
       cancelled = true;
     };
-    // value is intentionally omitted — refetching the list every time
-    // the operator switches apps would be wasteful. AppRegistryEditor
-    // refreshes the dropdown via `data-app-registry-refresh` (see
-    // AppRegistryEditor wrapping in App.tsx).
+    // appId intentionally omitted from deps — refetching the list every
+    // time the operator switches apps would be wasteful. AppsOverview
+    // (or any other CRUD surface) refreshes by re-mounting this component
+    // when the operator changes navs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client]);
 
@@ -74,8 +72,8 @@ export function AppSelector({ value, onChange }: AppSelectorProps) {
 
   return (
     <Select
-      value={value ?? undefined}
-      onValueChange={(v) => onChange(v)}
+      value={appId ?? undefined}
+      onValueChange={(v) => setAppId(v)}
     >
       <SelectTrigger
         className="w-[20rem]"
