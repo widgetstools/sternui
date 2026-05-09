@@ -3,6 +3,40 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-08 — Config-manager redesign Session 17: ConfigBrowser "Export all" → admin one-shot bundle import
+
+One-step Dexie → REST seeding path. The in-app `ConfigBrowser` already
+exported the currently-selected table; now it also has an "Export all"
+toolbar button that reads every config table from Dexie and writes a
+single bundled JSON file shaped like the server's `seed-config.json`
+(plus `appConfig`). Drop that one file into `apps/config-admin-web`'s
+"Import from JSON" screen and every table populates in one shot — no
+per-table juggling.
+
+What landed:
+
+- `useConfigBrowser` exports a new `exportAll()` that reads `appConfig`,
+  `appRegistry`, `userProfile`, `roles`, `permissions` from Dexie and
+  returns an `ExportBundle`. Scopable tables (`appConfig`,
+  `userProfile`) are filtered to the active `hostEnv.appId` when set,
+  matching the per-table export's existing behavior. `pendingSync` is
+  excluded — it is a write-retry queue, not config data.
+- New "Export all" toolbar button (`lucide:package`) in
+  `packages/react/tools/config-browser-react/src/components/Toolbar.tsx`,
+  wired to `handleExportAll` in `ConfigBrowser.tsx` which downloads
+  `config-bundle-<appId>.json`.
+- Bundle key is `userProfiles` (plural) to match the canonical
+  `seed-config.json` shape used by the server and the admin importer,
+  even though the Dexie table key is `userProfile` (singular). The
+  admin's `parseBundle` was updated to accept either spelling as an
+  alias so both shapes import cleanly.
+- The admin's import screen already accepted both flat per-table
+  exports (`[ {row}, ... ]`) and bundle objects, so no further work was
+  needed there beyond the alias fix.
+
+Touched: `packages/react/tools/config-browser-react/src/{hooks/useConfigBrowser.ts,components/Toolbar.tsx,ConfigBrowser.tsx}`,
+`apps/config-admin-web/src/views/ImportFromJson.tsx`.
+
 > The legacy v1 surface area is fully retired. Earlier removal pulled
 > the v1 packages (`@grid-customizer/markets-grid`-v1, the v1 modules
 > inside `@grid-customizer/core`, and the v1 e2e specs); a follow-up

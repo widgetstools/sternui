@@ -109,6 +109,19 @@ function detectTable(row: unknown): TableKey | null {
   return null;
 }
 
+// Bundle key aliases: ConfigBrowser's Dexie table is `userProfile` (singular),
+// while the canonical bundle (seed-config.json + this admin tool) uses
+// `userProfiles` (plural). Accept both so a "config-bundle-<appId>.json"
+// produced by ConfigBrowser's "Export all" feeds straight in.
+const BUNDLE_KEY_ALIASES: Record<string, TableKey> = {
+  appConfig: 'appConfig',
+  appRegistry: 'appRegistry',
+  userProfile: 'userProfiles',
+  userProfiles: 'userProfiles',
+  roles: 'roles',
+  permissions: 'permissions',
+};
+
 function parseBundle(raw: unknown): Partial<Record<TableKey, unknown[]>> | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return null;
@@ -116,10 +129,10 @@ function parseBundle(raw: unknown): Partial<Record<TableKey, unknown[]>> | null 
   const obj = raw as Record<string, unknown>;
   const out: Partial<Record<TableKey, unknown[]>> = {};
   let matchedAny = false;
-  for (const key of Object.keys(TABLE_LABELS) as TableKey[]) {
-    const v = obj[key];
+  for (const [bundleKey, table] of Object.entries(BUNDLE_KEY_ALIASES)) {
+    const v = obj[bundleKey];
     if (Array.isArray(v)) {
-      out[key] = v;
+      out[table] = [...(out[table] ?? []), ...v];
       matchedAny = true;
     }
   }

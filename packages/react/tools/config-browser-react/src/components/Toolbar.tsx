@@ -10,6 +10,7 @@ interface ToolbarProps {
   onRefresh: () => void;
   onNew: () => void;
   onExport: () => void;
+  onExportAll: () => void;
   onImport: () => void;
   onDeleteAll: () => void;
 }
@@ -22,6 +23,7 @@ export function Toolbar({
   onRefresh,
   onNew,
   onExport,
+  onExportAll,
   onImport,
   onDeleteAll,
 }: ToolbarProps) {
@@ -78,7 +80,12 @@ export function Toolbar({
 
       <ToolbarButton onClick={onRefresh} title="Refresh" icon="lucide:refresh-cw" />
       <ToolbarButton onClick={onImport} title="Import JSON (matches Export format)" icon="lucide:upload" />
-      <ToolbarButton onClick={onExport} title="Export JSON" icon="lucide:download" />
+      <ToolbarButton onClick={onExport} title="Export JSON (this table only)" icon="lucide:download" />
+      <ToolbarButton
+        onClick={onExportAll}
+        title="Export ALL tables as a single bundle (seed-config shape — feed straight into the admin importer)"
+        icon="lucide:package"
+      />
       <ToolbarButton
         onClick={onDeleteAll}
         title="Delete all rows in this view (requires backup)"

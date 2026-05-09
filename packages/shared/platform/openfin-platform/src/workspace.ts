@@ -32,6 +32,7 @@ import {
 } from './dock';
 import { registerHome } from './home';
 import { launchApp, launchRegisteredComponent } from './launch';
+import { resolveRestUrl } from './manifestConfig';
 import { registerNotifications } from './notifications';
 import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
@@ -178,10 +179,18 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
 
   // Initialize the config service before anything else.
   // It seeds the database on first run and starts the sync drain
-  // loop if a REST URL is configured in the manifest.
+  // loop if REST mode is enabled in the manifest.
+  //
+  // REST mode requires BOTH `useRest === true` and a non-empty
+  // `configServiceRestUrl`. Keeping the URL configured but `useRest`
+  // off lets one manifest flip between local and REST by toggling
+  // a single boolean instead of editing two fields. This matches the
+  // same source-of-truth read used by view-route ConfigServiceProviders
+  // (see `getConfigServiceRestUrlFromManifest()`).
+  const restUrl = resolveRestUrl(settings.customSettings);
   configManager = createConfigManager({
     seedConfigUrl: settings.customSettings?.seedConfigUrl,
-    configServiceRestUrl: settings.customSettings?.configServiceRestUrl,
+    configServiceRestUrl: restUrl,
   });
   await configManager.init();
 

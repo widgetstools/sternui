@@ -505,6 +505,17 @@ export class ConfigManager {
     return this.restUrl !== undefined;
   }
 
+  /**
+   * The configured REST endpoint, or `undefined` in local-only mode.
+   * Surfaces the live mode source-of-truth for diagnostic UIs (e.g.
+   * the ConfigBrowser header chip) so they don't have to re-read
+   * OpenFin customData independently — that path is unset for views
+   * launched by the dock without a registry-driven `customData`.
+   */
+  getRestUrl(): string | undefined {
+    return this.restUrl;
+  }
+
   // ─── APP_CONFIG operations ────────────────────────────────────────
 
   /**

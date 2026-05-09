@@ -13,6 +13,7 @@ import {
   ConfigServiceProvider,
   useConfigService,
 } from "@starui/config-service-react";
+import { getConfigServiceRestUrlFromManifest } from "@starui/openfin-platform/config";
 import { DataServicesProvider } from "@starui/data-services-react/runtime";
 import { LOGGED_IN_USER_ID } from "@starui/runtime-port";
 import type { RuntimePort } from "@starui/runtime-port";
@@ -101,6 +102,20 @@ const runtimePromise = createRuntimeForViews();
 const APP_ID = "markets-ui-react-reference";
 const IDENTITY = { userId: LOGGED_IN_USER_ID, displayName: LOGGED_IN_USER_ID };
 
+// REST endpoint for `@starui/config-service-server`. Single source of
+// truth: the OpenFin manifest's `customSettings.{useRest, configServiceRestUrl}`
+// pair. `getConfigServiceRestUrlFromManifest()` enforces the gate
+// (`useRest === true` AND non-empty URL → REST mode; anything else →
+// local Dexie only). Out of OpenFin (plain-browser dev), the helper
+// returns `undefined` so the app still boots — flipping to REST in
+// browser mode is intentionally not supported here, since that path
+// lacks the manifest customSettings the rest of the platform reads.
+//
+// Resolved BEFORE `root.render()` so every `<ConfigServiceProvider>`
+// in this window starts with the same value the platform Provider
+// window's `initWorkspace()` resolved from the same manifest.
+const REST_URL = await getConfigServiceRestUrlFromManifest();
+
 /**
  * Inner half of `ViewRoutesLayout` — runs inside
  * `<ConfigServiceProvider>` so it can read the live ConfigManager and
@@ -130,7 +145,7 @@ function HostWrapperWithProviderClient() {
 function ViewRoutesLayout() {
   return (
     <DataServicesProvider services={dataServices}>
-      <ConfigServiceProvider identity={IDENTITY} appId={APP_ID}>
+      <ConfigServiceProvider identity={IDENTITY} appId={APP_ID} restUrl={REST_URL}>
         <HostWrapperWithProviderClient />
       </ConfigServiceProvider>
     </DataServicesProvider>

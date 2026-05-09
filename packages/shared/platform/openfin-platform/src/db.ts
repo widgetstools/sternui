@@ -27,6 +27,7 @@ import { createConfigManager, type ConfigManager } from "@starui/config-service"
 import type { AppConfigRow } from "@starui/config-service";
 import { COMPONENT_TYPES } from "@starui/shared-types";
 import type { DockEditorConfig } from './dockConfigTypes';
+import { getConfigServiceRestUrlFromManifest } from './manifestConfig';
 import type { RegistryEditorConfig } from './registryConfigTypes';
 
 // ─── Singleton management ────────────────────────────────────────────
@@ -63,10 +64,14 @@ export function setConfigManager(manager: ConfigManager): void {
 /**
  * Returns the ConfigManager instance, creating a fallback if needed.
  *
- * Why a fallback? The dock-editor runs in a separate OpenFin child
- * window. That window can't access the provider's in-memory
- * configManagerInstance, so it creates its own — which still connects
- * to the same Dexie database on disk.
+ * Why a fallback? Child OpenFin windows (dock editor, Config Browser,
+ * registry editor) run in their own JS realm and can't see the
+ * Provider window's in-memory `configManagerInstance`. The fallback
+ * creates a per-window manager that still connects to the same Dexie
+ * database on disk, AND reads the same manifest customSettings the
+ * Provider read so REST mode stays consistent across windows. Without
+ * this, dock-launched diagnostic UIs would silently run local-only
+ * even after the Provider switched into REST mode.
  *
  * The promise guard (initPromise) ensures that even if this function
  * is called multiple times before the first init completes, only one
@@ -76,7 +81,8 @@ export async function getConfigManager(): Promise<ConfigManager> {
   if (configManagerInstance) return configManagerInstance;
   if (!initPromise) {
     initPromise = (async () => {
-      const manager = createConfigManager();
+      const configServiceRestUrl = await getConfigServiceRestUrlFromManifest();
+      const manager = createConfigManager({ configServiceRestUrl });
       await manager.init();
       configManagerInstance = manager;
       initPromise = undefined;
