@@ -144,7 +144,7 @@ export function RowGroupingEditor({
               style={{
                 width: '100%',
                 minHeight: 56,
-                fontFamily: 'var(--ck-font-mono, ui-monospace, monospace)',
+                fontFamily: 'var(--ds-font-mono)',
                 fontSize: 11,
                 lineHeight: 1.5,
                 resize: 'vertical',
@@ -206,10 +206,10 @@ export function RowGroupingEditor({
         style={{
           marginTop: 12,
           paddingTop: 8,
-          borderTop: '1px dashed var(--ck-border)',
+          borderTop: '1px dashed var(--ds-border-primary)',
         }}
       >
-        <Caps size={9} color="var(--ck-t2, var(--bn-t2))">
+        <Caps size={9} color="var(--ds-text-muted)">
           Grid-level · applies to every column
         </Caps>
       </div>

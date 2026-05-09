@@ -34,7 +34,7 @@ export function TemplatesBand({
         }
         control={
           templates.length === 0 ? (
-            <Caps size={10} color="var(--ck-t3)">
+            <Caps size={10} color="var(--ds-text-faint)">
               —
             </Caps>
           ) : (
@@ -49,7 +49,6 @@ export function TemplatesBand({
               {templates.map((t) => (
                 <span
                   key={t.id}
-                  className="gc-chip"
                   data-testid={`cols-${colId}-template-${t.id}`}
                   style={{
                     display: 'inline-flex',
@@ -57,12 +56,12 @@ export function TemplatesBand({
                     gap: 6,
                     padding: '0 4px 0 10px',
                     height: 24,
-                    background: 'var(--ck-card-hi)',
-                    border: '1px solid var(--ck-border-hi)',
+                    background: 'var(--ds-surface-tertiary)',
+                    border: '1px solid var(--ds-border-secondary)',
                     borderRadius: 2,
                     fontSize: 11,
-                    fontFamily: 'var(--ck-font-sans)',
-                    color: 'var(--ck-t0)',
+                    fontFamily: 'var(--ds-font-sans)',
+                    color: 'var(--ds-text-primary)',
                   }}
                 >
                   {t.name}
@@ -82,16 +81,16 @@ export function TemplatesBand({
                       margin: 0,
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--ck-t2)',
+                      color: 'var(--ds-text-muted)',
                       cursor: 'pointer',
                       borderRadius: 2,
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.color = 'var(--ck-red)';
-                      e.currentTarget.style.background = 'var(--ck-red-bg)';
+                      e.currentTarget.style.color = 'var(--ds-accent-negative)';
+                      e.currentTarget.style.background = 'var(--ds-overlay-negative-soft)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.color = 'var(--ck-t2)';
+                      e.currentTarget.style.color = 'var(--ds-text-muted)';
                       e.currentTarget.style.background = 'transparent';
                     }}
                   >

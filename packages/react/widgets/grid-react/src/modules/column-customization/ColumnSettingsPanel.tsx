@@ -232,9 +232,9 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
 
   return (
     <>
-      <div className="gc-popout-list-header">
+      <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Columns</Caps>
-        <Mono color="var(--ck-t3)" size={11}>
+        <Mono color="var(--ds-text-faint)" size={11}>
           {String(columns.length).padStart(2, '0')}
         </Mono>
       </div>
@@ -272,9 +272,9 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
                   title="Has overrides"
                   style={{
                     fontSize: 9,
-                    color: 'var(--ck-green)',
+                    color: 'var(--ds-accent-positive)',
                     letterSpacing: '0.08em',
-                    fontFamily: 'var(--ck-font-mono)',
+                    fontFamily: 'var(--ds-font-mono)',
                   }}
                 >
                   •
@@ -285,7 +285,7 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
         })}
         {padBottom > 0 && <div aria-hidden style={{ height: padBottom }} />}
         {columns.length === 0 && (
-          <div style={{ padding: '16px 12px', fontSize: 11, color: 'var(--ck-t3)' }}>
+          <div className="px-3 py-4 text-[11px] text-muted">
             No columns available yet.
           </div>
         )}
@@ -305,7 +305,7 @@ export function ColumnSettingsEditor({ selectedId }: EditorPaneProps) {
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No column selected
         </Caps>
-        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+        <div className="text-xs text-muted-foreground">
           Pick a column from the list to edit its settings.
         </div>
       </div>
@@ -413,7 +413,7 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
         onDiscard={discard}
       />
 
-      <div className="gc-editor-scroll">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
         <ColumnMetaStrip
           colId={col.colId}
           cellDataType={col.cellDataType}
@@ -556,9 +556,9 @@ export function ColumnSettingsPanel() {
     >
       <aside
         style={{
-          borderRight: '1px solid var(--ck-border)',
+          borderRight: '1px solid var(--ds-border-primary)',
           overflowY: 'auto',
-          background: 'var(--ck-surface)',
+          background: 'var(--ds-surface-primary)',
         }}
       >
         <ColumnSettingsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
