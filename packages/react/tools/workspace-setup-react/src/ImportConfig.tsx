@@ -16,7 +16,7 @@ import { UPLOAD_SVG } from "@starui/icons-svg/all-icons";
 type ImportStatus = "idle" | "success" | "error";
 
 // ─── Design tokens ───────────────────────────────────────────────────
-// Maps to the --de-* editor design system from @starui/tokens-primeng.
+// Maps to the --de-* editor design system from @starui/design-system.
 // This component always renders in dark mode (utility dialog).
 const COLORS = {
   accent:        "var(--de-accent)",
