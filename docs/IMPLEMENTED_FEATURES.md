@@ -21,6 +21,57 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 13: PermissionMatrix + RoleAssignmentMatrix
+
+Thirteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 13, Decisions 12.1 / 12.2 — RBAC matrices). Two new
+controlled components in `@starui/config-editor-ui` that turn the
+roles / permissions / users tables into the centerpiece RBAC UX:
+
+- `PermissionMatrix` — `roles × permissions` checkbox grid. Rows are
+  roles, columns are permissions grouped by `category` (uncategorised
+  permissions land in their own `(uncategorised)` group). A filter
+  input narrows columns by `permissionId`, `description`, or
+  `category`. Toggling any cell emits the next `roles: RoleRow[]`
+  array via `onChange`; the host owns persistence so Session 14's
+  optimistic-locking flow can batch one save per row instead of one
+  per toggle. Role label cells stick to the left edge for horizontal
+  scrolling.
+- `RoleAssignmentMatrix` — `users × roles` chip surface with a mode
+  pill that toggles between two layouts: "by user" (rows = users,
+  chips = their `roleIds`) and "by role" (rows = roles, chips = the
+  users that hold them). A shared `<AddPicker>` Popover provides the
+  add affordance on each row, hiding itself with an "All assigned"
+  hint when no candidates remain. Every chip toggle and add emits
+  the next `users: UserProfileRow[]` array via `onChange`. The
+  filter input narrows users in by-user mode, roles in by-role mode.
+- Both matrices render via shadcn `Table` + `Checkbox` + `Badge` +
+  `Popover` + `ToggleGroup` — no native `<input>` / `<select>` /
+  `<table>` primitives. Surfaces use semantic tokens
+  (`bg-background`, `text-foreground`, `border-border`,
+  `text-muted-foreground`) so dark/light theming Just Works under
+  the existing `[data-theme]` plumbing.
+
+Verification: `npx turbo test --filter=@starui/config-editor-ui`
+(26/26 pass — 14 new across `PermissionMatrix.test.tsx` and
+`RoleAssignmentMatrix.test.tsx`); `npx turbo typecheck build` green
+for the package and 60-task full-repo run. The new matrices export
+through `src/index.ts` as `PermissionMatrix` /
+`RoleAssignmentMatrix` plus the `PermissionMatrixProps`,
+`RoleAssignmentMatrixProps`, and `RoleAssignmentMode` types.
+
+Out-of-scope for Session 13 (deferred to later sessions per the
+plan): MarketsGrid swap-in for tables (Session 14), cross-table
+validation rules / referential integrity (Session 14), client-side
+optimistic-locking on save (Session 14), bundling the editors into
+`apps/config-admin-web` (Session 15).
+
+Touched: `packages/react/tools/config-editor-ui/src/{PermissionMatrix,RoleAssignmentMatrix}.tsx` (new),
+`packages/react/tools/config-editor-ui/src/{PermissionMatrix,RoleAssignmentMatrix}.test.tsx` (new),
+`packages/react/tools/config-editor-ui/src/index.ts` (matrix exports),
+`docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md` (Session 13 checkboxes).
+
 ## 2026-05-08 — Config-manager redesign Session 12: `@starui/config-editor-ui` skeleton + four list editors
 
 Twelfth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

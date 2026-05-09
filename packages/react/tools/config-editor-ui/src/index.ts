@@ -24,3 +24,13 @@ export { RolesEditor } from './RolesEditor';
 export { PermissionsEditor } from './PermissionsEditor';
 export { UserProfileEditor } from './UserProfileEditor';
 export { AppRegistryEditor } from './AppRegistryEditor';
+
+export {
+  PermissionMatrix,
+  type PermissionMatrixProps,
+} from './PermissionMatrix';
+export {
+  RoleAssignmentMatrix,
+  type RoleAssignmentMatrixProps,
+  type RoleAssignmentMode,
+} from './RoleAssignmentMatrix';
