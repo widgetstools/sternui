@@ -17,8 +17,6 @@ import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import {
   MemoryAdapter,
-  cockpitCSS,
-  COCKPIT_STYLE_ID,
   type AnyModule,
   type StorageAdapter,
 } from '@starui/core';
@@ -94,20 +92,6 @@ function ensureAgGridRegistered() {
 let _memoryAdapterWarned = false;
 
 /**
- * Inject the cockpit design-system stylesheet once per document. Idempotent —
- * subsequent grids reuse the single `<style id="gc-cockpit-styles">` node.
- * SSR-safe: no-ops when `document` is undefined.
- */
-function ensureCockpitStyles() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(COCKPIT_STYLE_ID)) return;
-  const el = document.createElement('style');
-  el.id = COCKPIT_STYLE_ID;
-  el.textContent = cockpitCSS;
-  document.head.appendChild(el);
-}
-
-/**
  * Default module list — every shipped module, ordered the way the user's
  * profile round-trips expect. Hosts can pass `modules` to override.
  *
@@ -173,7 +157,6 @@ function MarketsGridInner<TData = unknown>(
   } = props;
 
   ensureAgGridRegistered();
-  ensureCockpitStyles();
 
   const gridRef = useRef<AgGridReact<TData>>(null);
 
