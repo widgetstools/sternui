@@ -987,7 +987,7 @@ falls through to `MemoryAdapter` and `process.env.NODE_ENV !== "production"`.
 
 **Steps:**
 
-- [ ] **11.1** In `MarketsGrid.tsx`, near `adapterRef.current = storageAdapter ?? new MemoryAdapter();`,
+- [x] **11.1** In `MarketsGrid.tsx`, near `adapterRef.current = storageAdapter ?? new MemoryAdapter();`,
       add a module-scoped `let warned = false;` and:
 
 ```ts
@@ -1003,10 +1003,10 @@ if (!storage && !storageAdapter) {
 }
 ```
 
-- [ ] **11.2** Test: render `<MarketsGrid />` twice without `storage` and without
+- [x] **11.2** Test: render `<MarketsGrid />` twice without `storage` and without
       `storageAdapter`; spy on `console.warn`; assert called exactly once.
-- [ ] **11.3** Test: render with `storage={...}`; assert `console.warn` not called.
-- [ ] **11.4** Run verification.
+- [x] **11.3** Test: render with `storage={...}`; assert `console.warn` not called.
+- [x] **11.4** Run verification.
 
 **Verification:**
 

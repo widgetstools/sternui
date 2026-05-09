@@ -21,6 +21,40 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 11: `<MarketsGrid>` dev-mode warning on MemoryAdapter fallback
+
+Eleventh session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 11, Decision 15 follow-up). One-time `console.warn` when a
+`<MarketsGrid>` is mounted without `storage` (or the legacy
+`storageAdapter`) and the inner host falls through to the in-memory
+default — the half-day "why aren't my profiles saving?" gotcha every
+new framework consumer hits exactly once.
+
+- Module-scoped `_memoryAdapterWarned` flag in
+  `packages/react/widgets/markets-grid/src/MarketsGrid.tsx` guards a
+  single warning per page session even across many grid mounts.
+- The check fires inside `MarketsGridInner` (where both `storage` and
+  `storageAdapter` are in scope, before the host's
+  `storageAdapter ?? new MemoryAdapter()` fallback runs) and is gated
+  by `process.env.NODE_ENV !== 'production'` so production bundles
+  stay quiet.
+- Message: `[MarketsGrid] No storage prop provided. Using in-memory
+  storage — profiles, layouts and grid-level-data WILL be lost on
+  reload. Wire @starui/config-service via createConfigServiceStorage(...)
+  to persist.`
+- Tests `packages/react/widgets/markets-grid/src/MarketsGrid.devwarning.test.tsx`
+  (2 tests): two consecutive mounts without storage → warn called
+  exactly once with the expected message; mount with a `storage`
+  factory → warn never called. Uses Vitest's per-file module isolation
+  so the flag starts false.
+- Verification: `npx turbo test --filter=@starui/markets-grid`
+  (68 tests pass — 2 new, 66 pre-existing); `npx turbo typecheck build`
+  (58 tasks green across the monorepo).
+
+Touched: `packages/react/widgets/markets-grid/src/MarketsGrid.tsx`,
+`packages/react/widgets/markets-grid/src/MarketsGrid.devwarning.test.tsx` (new).
+
 ## 2026-05-08 — Config-manager redesign Session 10: `@starui/config-service-angular` provider package
 
 Tenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
