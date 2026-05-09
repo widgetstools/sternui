@@ -99,7 +99,12 @@ export function createPermissionRoutes(authService: AuthService): Router {
         const row = await authService.createPermission({ ...req.body, permissionId });
         return res.status(201).json(row);
       }
-      const row = await authService.updatePermission(permissionId, req.body);
+      // The Joi update schema rejects the primary key in the body, but
+      // a full-row PUT (e.g. from a JSON-import flow) naturally carries
+      // it. Strip it here so an upsert of a row that already exists
+      // succeeds without forcing every caller to remove the PK.
+      const { permissionId: _pk, ...patch } = req.body ?? {};
+      const row = await authService.updatePermission(permissionId, patch);
       return res.json(row);
     }),
   );

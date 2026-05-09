@@ -47,7 +47,10 @@ export function createRoleRoutes(authService: AuthService): Router {
         const row = await authService.createRole({ ...req.body, roleId });
         return res.status(201).json(row);
       }
-      const row = await authService.updateRole(roleId, req.body);
+      // PK in the body is fine on a full-row PUT but the Joi update
+      // schema rejects it; strip before forwarding (mirrors permissions).
+      const { roleId: _pk, ...patch } = req.body ?? {};
+      const row = await authService.updateRole(roleId, patch);
       return res.json(row);
     }),
   );
