@@ -1,0 +1,27 @@
+/* ─────────────────────────────────────────────────────────────
+   Base layer — Tailwind primitives + minimal reset.
+   Apps import this once via @starui/design-system/css; no need
+   to also include @tailwind base in their own globals.css.
+   ───────────────────────────────────────────────────────────── */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: var(--ds-surface-ground);
+    color:            var(--ds-text-primary);
+    font-family:      var(--ds-font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--ds-state-focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--ds-state-selection);
+  }
+}
