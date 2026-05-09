@@ -10,6 +10,7 @@ import {
 } from '@starui/config-editor-ui';
 
 import { AppSelector } from './AppSelector';
+import { AppConfigList } from './views/AppConfigList';
 import { PermissionMatrixView } from './views/PermissionMatrixView';
 import { RoleAssignmentMatrixView } from './views/RoleAssignmentMatrixView';
 
@@ -19,6 +20,7 @@ export interface AppShellProps {
 
 const NAV_ITEMS: ReadonlyArray<{ to: string; label: string }> = [
   { to: '/apps', label: 'Apps' },
+  { to: '/configs', label: 'App configs' },
   { to: '/users', label: 'Users' },
   { to: '/roles', label: 'Roles' },
   { to: '/permissions', label: 'Permissions' },
@@ -60,6 +62,7 @@ function ScopeRoutes({ appId }: { appId: string | null }) {
     <Routes>
       <Route element={<Outlet />}>
         <Route path="/apps" element={<AppRegistryEditor />} />
+        <Route path="/configs" element={<AppConfigList appId={appId} />} />
         <Route
           path="/users"
           element={

@@ -105,6 +105,15 @@ What landed:
   initial state, hold the working copy, and persist only the diff
   via per-row `update()` calls (so Session 6 optimistic locking
   rejects per row, not per-batch).
+- Plus a fifth screen — `AppConfigList` — for the actual `appConfig`
+  rows scoped to the active appId. Beyond the plan's Session 15
+  acceptance list (the four auth editors), but the auth editors
+  alone don't let an operator inspect or repair what an app has
+  saved (MarketsGrid profiles, dock layouts, order tickets, etc.).
+  Talks to the framework-agnostic `ConfigClient` via `findByAppId` /
+  `getConfig` / `updateConfig` / `cloneConfig` / `deleteConfig`,
+  with the same Session-6 optimistic-locking guard and a JSON
+  `<Textarea>` for payload edits.
 - Operator auth gate is the placeholder Decision-16 surface: any
   non-empty `?token=...` URL param (or sessionStorage value) counts
   as signed in. The token plumbs into `RestConfigClient` via
