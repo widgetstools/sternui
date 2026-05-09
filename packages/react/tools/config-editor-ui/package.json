@@ -1,0 +1,51 @@
+{
+  "name": "@starui/config-editor-ui",
+  "version": "0.1.0",
+  "description": "Engine-agnostic React editors for the config-service auth tables (roles, permissions, user profiles, app registry).",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@starui/config-service": "*",
+    "@starui/design-system": "*",
+    "@starui/ui": "*",
+    "@starui/widgets-react": "*",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@starui/widgets-react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@starui/config-service": "*",
+    "@starui/design-system": "*",
+    "@starui/ui": "*",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.2",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "files": [
+    "dist"
+  ]
+}
