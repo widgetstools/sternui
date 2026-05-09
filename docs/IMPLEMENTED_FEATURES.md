@@ -21,6 +21,98 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 12: `@starui/config-editor-ui` skeleton + four list editors
+
+Twelfth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 12, Decision 11 — engine-agnostic shared editor library). New
+React-only workspace package that ships the four list-editor screens
+for the `config-service` auth tables. Components consume the
+framework-agnostic `ConfigClient` interface (Local-Dexie or REST — same
+shape) via a thin `<ConfigEditorProvider>`, so the same screens work
+regardless of how the host wires storage. Filter / sort / paginate +
+client-side optimistic locking are explicitly deferred to Session 14;
+the matrices land in Session 13.
+
+- Package `@starui/config-editor-ui` lives at
+  `packages/react/tools/config-editor-ui/` with the standard
+  `package.json` / `tsconfig.json` / `vitest.config.ts` layout matching
+  the other React tools workspaces. Peer deps:
+  `@starui/config-service` (type-only),
+  `@starui/ui` (shadcn primitives), `@starui/design-system` (tokens),
+  and `@starui/widgets-react` (declared as optional peer for the
+  Session 14 MarketsGrid usage; not consumed yet). React 19 / React
+  DOM 19 are peer'd as well.
+- `src/ConfigEditorContext.tsx` — `<ConfigEditorProvider client={...}>`
+  + `useConfigClient()` hook. Throws if used outside the provider —
+  mirrors the assertive style already used by
+  `useConfigService` / `useDataServices`.
+- `src/EditorShell.tsx` — shared visual frame for all four editors:
+  header (title + "New {item}" button), list slot, and a right-docked
+  shadcn `<Sheet>` with body slot, optional inline error, and
+  Cancel/Save footer. The `canSave` / `saving` props centralise the
+  save-button-disabled states so polish in Session 14 lands in one
+  place.
+- `src/RolesEditor.tsx` — `Table`-based list (`roleId`, `displayName`,
+  permission count) with edit drawer fields: `Input` for roleId
+  (locked on edit) + displayName, `Textarea` for permissionIds
+  (comma- or newline-separated). Inline warning when a typed
+  permissionId is not in the permissions table.
+- `src/PermissionsEditor.tsx` — list view (`permissionId`, `category`,
+  `description`) with edit drawer using shadcn `Select` for category;
+  picking the `+ New category…` sentinel reveals an `Input` for
+  free-text categories so the dropdown is not a hard wall on day one.
+- `src/UserProfileEditor.tsx` — list with role chips (`Badge`) per row;
+  edit drawer combines `Input` (userId, displayName), shadcn `Select`
+  for app (with Input fallback when no apps are seeded yet), and a
+  `Popover` + `Checkbox` list for the role multi-select with chips
+  shown above. Clicking a chip removes the role.
+- `src/AppRegistryEditor.tsx` — list of registered apps with
+  environment + config-service-enabled columns; edit drawer uses
+  `Input` (appId locked on edit, displayName, manifestUrl), shadcn
+  `Select` for environment (`dev`/`uat`/`prod`), and shadcn `Switch`
+  for the config-service-enabled flag.
+- All four editors use shadcn primitives end-to-end — no native
+  `<input>` / `<textarea>` / `<select>` (CLAUDE.md rule). Tokens
+  resolve through Tailwind utility classes that already map to
+  `--bn-*` / `--fi-*` via `@starui/ui` — no hardcoded colors. Sheet,
+  Table, Select, Switch, Popover, Checkbox, Badge, Button, Input,
+  Textarea, Label all come from `@starui/ui`.
+- `src/createStubClient.ts` — hand-rolled in-memory `ConfigClient`
+  that records every write call to `client.calls` for assertion.
+  Implements every method on the contract; the four editors only
+  touch the auth-table ops, so the appConfig methods throw loudly
+  rather than silently no-op. Lives in `src/` (not `test/`) so
+  consumer apps can use it for Storybook-style smoke screens.
+- Tests (12 total across 4 files; all pass under jsdom via
+  `vitest run`):
+  - `RolesEditor.test.tsx` (3): renders existing roles; saves a new
+    role, asserting the recorded `roles.create` payload; blocks save
+    when validation fails.
+  - `PermissionsEditor.test.tsx` (3): renders; validates that
+    description-only without category is blocked; round-trips an
+    `permissions.update` through the edit path with the seeded
+    category.
+  - `UserProfileEditor.test.tsx` (3): renders chips for existing
+    profiles; creates a new profile (no roles) through the
+    Input-fallback when no apps are seeded; toggles a role via the
+    popover checkbox and saves an `userProfiles.update` with the
+    expected `roleIds`.
+  - `AppRegistryEditor.test.tsx` (3): renders existing apps; updates
+    `displayName` via the edit drawer and asserts the recorded
+    `apps.update` patch; blocks save when manifestUrl is empty.
+- Verification:
+  `npx turbo test --filter=@starui/config-editor-ui` (12/12 pass);
+  `npx turbo typecheck build` (60 tasks green across the monorepo);
+  full `npx turbo test` (38 tasks, all green — 12 new + the existing
+  baseline).
+- Acceptance gates met: four functional editors land, engine-agnostic
+  via `ConfigClient`, dark/light correct (token-driven), no native
+  form controls, no filter/sort/paginate (Session 14 boundary).
+
+Touched: `packages/react/tools/config-editor-ui/{package.json,tsconfig.json,turbo.json,vitest.config.ts,test/setup.ts,src/{index,ConfigEditorContext,EditorShell,RolesEditor,PermissionsEditor,UserProfileEditor,AppRegistryEditor,createStubClient}.{ts,tsx},src/{RolesEditor,PermissionsEditor,UserProfileEditor,AppRegistryEditor}.test.tsx}` (new),
+`docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md` (Session 12 checkboxes).
+
 ## 2026-05-08 — Config-manager redesign Session 11: `<MarketsGrid>` dev-mode warning on MemoryAdapter fallback
 
 Eleventh session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

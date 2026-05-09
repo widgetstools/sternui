@@ -1042,12 +1042,12 @@ list editors land first; the matrices come in Session 13.
 
 **Steps:**
 
-- [ ] **12.1** Scaffold the package. Peer deps: `react`, `react-dom`,
+- [x] **12.1** Scaffold the package. Peer deps: `react`, `react-dom`,
       `@starui/config-service` (for `ConfigClient` types only — type-only import),
       `@starui/ui` (shadcn primitives), `@starui/design-system` (tokens), and
       `@starui/widgets-react` (peer dep for Session 14's MarketsGrid usage; declare now,
       consume later).
-- [ ] **12.2** Define `ConfigEditorContext`:
+- [x] **12.2** Define `ConfigEditorContext`:
 
 ```tsx
 const Ctx = createContext<ConfigClient | null>(null);
@@ -1061,22 +1061,24 @@ export function useConfigClient(): ConfigClient {
 }
 ```
 
-- [ ] **12.3** Implement `RolesEditor`: list view with shadcn `Table`, "New role"
+- [x] **12.3** Implement `RolesEditor`: list view with shadcn `Table`, "New role"
       button, edit drawer with shadcn `Sheet`, save calls `client.saveRole`. **No
       filter/sort/paginate yet** (Session 14). All inputs are shadcn `Input` /
       `Textarea` / `Select` — no native HTML form controls (CLAUDE.md rule).
-- [ ] **12.4** Implement `PermissionsEditor`: same shape. Categories visible in a
+- [x] **12.4** Implement `PermissionsEditor`: same shape. Categories visible in a
       dropdown.
-- [ ] **12.5** Implement `UserProfileEditor`: same shape. Role multi-select uses shadcn
-      `Combobox` with chips.
-- [ ] **12.6** Implement `AppRegistryEditor`: same shape. Environment is shadcn `Select`.
-- [ ] **12.7** All surfaces use design-system tokens (`--bn-*` / `--fi-*`); no hardcoded
+- [x] **12.5** Implement `UserProfileEditor`: same shape. Role multi-select uses a
+      shadcn `Popover` + `Checkbox` list with chips above (the `@starui/ui`
+      surface ships `Command` / `Popover` rather than a single bundled
+      `Combobox`; the equivalent shape is preserved).
+- [x] **12.6** Implement `AppRegistryEditor`: same shape. Environment is shadcn `Select`.
+- [x] **12.7** All surfaces use design-system tokens (`--bn-*` / `--fi-*`); no hardcoded
       colors. Tested under `[data-theme="dark"]` and `[data-theme="light"]` via a
       Storybook-style smoke (manual screenshot pair is sufficient since we don't have
       visual regression set up).
-- [ ] **12.8** Tests: each editor renders, save round-trips through a stubbed
+- [x] **12.8** Tests: each editor renders, save round-trips through a stubbed
       `ConfigClient`, validation errors block save.
-- [ ] **12.9** Run verification.
+- [x] **12.9** Run verification.
 
 **Verification:**
 
