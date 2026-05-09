@@ -1108,20 +1108,20 @@ grid) and `RoleAssignmentMatrix` (users × roles).
 
 **Steps:**
 
-- [ ] **13.1** `PermissionMatrix` props: `{ roles: RoleRow[]; permissions: PermissionRow[]; onChange: (next: RoleRow[]) => void; }`. Render rows = roles, columns = permissions, checkbox per cell. Group permissions by `category`. Search/filter input filters by permission `permissionId` or `description`.
-- [ ] **13.2** Click a cell → toggle `permissionIds` array on the role; call `onChange`
+- [x] **13.1** `PermissionMatrix` props: `{ roles: RoleRow[]; permissions: PermissionRow[]; onChange: (next: RoleRow[]) => void; }`. Render rows = roles, columns = permissions, checkbox per cell. Group permissions by `category`. Search/filter input filters by permission `permissionId` or `description`.
+- [x] **13.2** Click a cell → toggle `permissionIds` array on the role; call `onChange`
       with the next roles array. Saves are batched on a "Save changes" button to keep
       the optimistic-locking story (Session 14) simple.
-- [ ] **13.3** `RoleAssignmentMatrix` props: `{ users: UserProfileRow[]; roles: RoleRow[]; onChange: (next: UserProfileRow[]) => void; }`. Two layouts toggleable: "by user" (rows = users, chips = roles) and "by role" (rows = roles, chips = users). Mode pill switches.
-- [ ] **13.4** Both matrices render via shadcn `Table` (or `DataTable` from `@starui/ui`
+- [x] **13.3** `RoleAssignmentMatrix` props: `{ users: UserProfileRow[]; roles: RoleRow[]; onChange: (next: UserProfileRow[]) => void; }`. Two layouts toggleable: "by user" (rows = users, chips = roles) and "by role" (rows = roles, chips = users). Mode pill switches.
+- [x] **13.4** Both matrices render via shadcn `Table` (or `DataTable` from `@starui/ui`
       if it exists; check). No native `<table>` tags directly — only shadcn primitives.
       Dark/light correct.
-- [ ] **13.5** Tests:
+- [x] **13.5** Tests:
   - PermissionMatrix: toggle a cell, assert `onChange` payload.
   - RoleAssignmentMatrix: by-user mode, add/remove a chip, assert payload; switch mode,
     same.
   - Filter by category narrows columns / chips.
-- [ ] **13.6** Run verification.
+- [x] **13.6** Run verification.
 
 **Verification:**
 
