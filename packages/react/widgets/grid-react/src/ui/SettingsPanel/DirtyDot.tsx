@@ -22,8 +22,8 @@ export function LedBar({ on = true, amber, title }: LedBarProps) {
         'inline-block flex-shrink-0 w-0.5 h-3',
         on
           ? amber
-            ? 'bg-warning shadow-[0_0_4px_var(--ds-color-warning)]'
-            : 'bg-success shadow-[0_0_4px_var(--ds-color-success)]'
+            ? 'bg-warning shadow-[0_0_4px_var(--ds-accent-warning)]'
+            : 'bg-success shadow-[0_0_4px_var(--ds-accent-positive)]'
           : 'bg-border',
       ].join(' ')}
       data-on={on ? 'true' : 'false'}
