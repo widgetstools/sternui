@@ -177,6 +177,7 @@ All Radix packages in fi-trading-terminal/react-app/package.json are corporate-m
 |---|---|---|
 | `tailwindcss` | `3.4.1` | fi-trading authority — "Do not upgrade to 4.x" |
 | `tailwindcss-animate` | `^1.0.7` | classic plugin |
+| `tailwindcss-primeui` | `^0.6.1` | JS variant of PrimeTek's Tailwind plugin — required for tailwindcss-primeui utilities to resolve PrimeNG `--p-*` vars. JS, NOT CSS variant (the CSS variant requires Tailwind v4) |
 | `autoprefixer` | `^10.4.27` | required for PostCSS |
 | `postcss` | `^8.5.9` | required for Tailwind 3 |
 
