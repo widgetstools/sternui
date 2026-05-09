@@ -1,18 +1,12 @@
+@import '@starui/design-system/css';
+
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
-
-/* MarketsUI Design System Tokens — single source of truth for every app. */
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
-
-/* Theme-flipping scrollbar utilities (`.scrollbar-themed`, `.scrollbar-thin`).
-   Pulls from `--scrollbar-thumb` which fi-dark/fi-light define per theme. */
-@import '../../../packages/shared/foundation/design-system/src/themes/scrollbars.css';
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
 @import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';
 
 /* Tailwind v3 directives — utilities resolve via the shadcn-compatible
-   aliases exported by fi-dark.css / fi-light.css. */
+   aliases exported by the design-system tokens. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -23,6 +17,7 @@
     @apply border-border;
   }
   body {
+    /* TODO Phase 6: migrate --bn-* / --fi-* refs to unified token names */
     background: var(--bn-bg);
     color: var(--bn-t0);
     font-family: var(--fi-sans);
@@ -34,6 +29,7 @@
 
 /* ── OpenFin theme variable bridge ───────────────────────────────── */
 :root {
+  /* TODO Phase 6: migrate --bn-* / --fi-* refs to unified token names */
   --of-bg: var(--theme-background-primary, var(--bn-bg));
   --of-fg: var(--theme-text-default, var(--bn-t0));
 }

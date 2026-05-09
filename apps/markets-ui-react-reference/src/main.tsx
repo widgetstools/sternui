@@ -4,6 +4,8 @@ import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
 import { ThemeProvider } from "./context/ThemeContext";
 import "./index.css";
+import { applyTheme, getTheme } from "@starui/design-system";
+applyTheme(getTheme());
 
 import { HostWrapper } from "@starui/host-wrapper-react";
 import { BrowserRuntime } from "@starui/runtime-browser";
