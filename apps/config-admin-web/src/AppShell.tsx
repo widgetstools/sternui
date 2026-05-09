@@ -11,6 +11,7 @@ import {
 
 import { AppSelector } from './AppSelector';
 import { AppConfigList } from './views/AppConfigList';
+import { ImportFromJson } from './views/ImportFromJson';
 import { PermissionMatrixView } from './views/PermissionMatrixView';
 import { RoleAssignmentMatrixView } from './views/RoleAssignmentMatrixView';
 
@@ -26,6 +27,7 @@ const NAV_ITEMS: ReadonlyArray<{ to: string; label: string }> = [
   { to: '/permissions', label: 'Permissions' },
   { to: '/permission-matrix', label: 'Permission matrix' },
   { to: '/role-assignment', label: 'Role assignment' },
+  { to: '/import', label: 'Import JSON' },
 ];
 
 function ThemeToggle() {
@@ -81,6 +83,7 @@ function ScopeRoutes({ appId }: { appId: string | null }) {
           path="/role-assignment"
           element={<RoleAssignmentMatrixView />}
         />
+        <Route path="/import" element={<ImportFromJson />} />
         <Route path="*" element={<DefaultRedirect />} />
       </Route>
     </Routes>
