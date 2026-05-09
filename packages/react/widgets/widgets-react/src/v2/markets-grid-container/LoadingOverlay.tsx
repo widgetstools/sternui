@@ -62,7 +62,7 @@ export function MarketsGridLoadingOverlay({
               'color-mix(in srgb, var(--card, rgba(255,255,255,0.06)) 85%, transparent)',
             border: '1px solid var(--border, rgba(255,255,255,0.12))',
             boxShadow:
-              '0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--primary, #3b82f6) 20%, transparent)',
+              '0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 20%, transparent)',
             minWidth: 240,
             animation: 'mui-grid-overlay-card-pulse 2.6s ease-in-out infinite',
           }}
@@ -96,7 +96,7 @@ export function MarketsGridLoadingOverlay({
                 inset: 0,
                 borderRadius: '50%',
                 border: '3px solid transparent',
-                borderTopColor: 'var(--primary, #3b82f6)',
+                borderTopColor: 'var(--ds-accent-info)',
                 borderRightColor: 'rgba(59,130,246,0.35)',
                 animation: 'mui-grid-overlay-spin-cw 1.0s linear infinite',
                 boxShadow: '0 0 12px rgba(59,130,246,0.45)',
@@ -125,7 +125,7 @@ export function MarketsGridLoadingOverlay({
                 marginLeft: -4,
                 marginTop: -4,
                 borderRadius: '50%',
-                background: 'var(--primary, #3b82f6)',
+                background: 'var(--ds-accent-info)',
                 boxShadow: '0 0 14px rgba(59,130,246,0.8)',
                 animation: 'mui-grid-overlay-dot 1.2s ease-in-out infinite',
               }}
@@ -138,7 +138,7 @@ export function MarketsGridLoadingOverlay({
               style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: 'var(--foreground, #e5e7eb)',
+                color: 'var(--foreground, var(--ds-border-secondary))',
                 letterSpacing: 0.2,
               }}
             >
@@ -147,7 +147,7 @@ export function MarketsGridLoadingOverlay({
             <span
               style={{
                 fontSize: 11,
-                color: 'var(--muted-foreground, #9ca3af)',
+                color: 'var(--muted-foreground, var(--ds-text-muted))',
                 fontFamily:
                   'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
                 letterSpacing: 0.15,
@@ -168,8 +168,8 @@ const KEYFRAMES_CSS = `
   to   { opacity: 1; }
 }
 @keyframes mui-grid-overlay-card-pulse {
-  0%, 100% { box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--primary, #3b82f6) 20%, transparent); }
-  50%      { box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--primary, #3b82f6) 55%, transparent); }
+  0%, 100% { box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 20%, transparent); }
+  50%      { box-shadow: 0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 55%, transparent); }
 }
 @keyframes mui-grid-overlay-halo {
   0%, 100% { opacity: 0.45; transform: scale(0.92); }

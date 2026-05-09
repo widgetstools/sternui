@@ -430,7 +430,7 @@ function ValuesSourcePopover({
           title="Cancel (Esc)"
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
           data-testid="fmt-editor-values-cancel"
-          style={{ color: 'var(--bn-red, #ff4d6d)' }}
+          style={{ color: 'var(--ds-accent-negative)' }}
         >
           <X size={13} strokeWidth={2.25} />
         </button>
@@ -441,7 +441,7 @@ function ValuesSourcePopover({
           title="Confirm (Enter)"
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm(); }}
           data-testid="fmt-editor-values-confirm"
-          style={{ color: 'var(--bn-green, #14d9a0)' }}
+          style={{ color: 'var(--ds-accent-positive)' }}
         >
           <Check size={13} strokeWidth={2.25} />
         </button>

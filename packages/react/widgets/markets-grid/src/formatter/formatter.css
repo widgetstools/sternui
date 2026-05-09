@@ -9,8 +9,8 @@
  *   Display caps (module eyebrow): JetBrains Mono 10px / 0.18em / 500
  *   Body labels:                   IBM Plex Sans 10–11px / 0.04em / 500
  *   Numerics + readouts:           JetBrains Mono / tabular-nums
- *   Accent (active state):         phosphor-teal #3ee5c4 — ring only
- *   Live preview tint:             warm amber #ffb454
+ *   Accent (active state):         phosphor-teal (--ds-accent-positive) — ring only
+ *   Live preview tint:             warm amber (--ds-accent-warning)
  *
  * Naming: `.fx-*` — short, self-namespaced, doesn't collide with the
  * legacy `.gc-tb-*` selectors during the transition.
@@ -19,23 +19,23 @@
 /* ─── Tokens — bind to host theme via [data-theme] cascade ─────── */
 
 .fx-shell {
-  --fx-bg:           var(--gc-surface, #11161b);
-  --fx-bg-soft:      var(--gc-surface-2, #161b21);
-  --fx-bg-sunken:    var(--gc-surface-3, #0c1015);
-  --fx-line:         var(--gc-border, #1f262e);
-  --fx-line-strong:  var(--gc-border-2, #2a323c);
+  --fx-bg:           var(--ds-surface-ground);
+  --fx-bg-soft:      var(--ds-surface-primary);
+  --fx-bg-sunken:    var(--ds-surface-ground);
+  --fx-line:         var(--ds-border-primary);
+  --fx-line-strong:  var(--ds-border-secondary);
 
-  --fx-ink:          var(--gc-text, #e7eaee);
-  --fx-ink-soft:     var(--gc-text-muted, #8a93a0);
-  --fx-ink-faint:    var(--gc-text-faint, #5a626d);
+  --fx-ink:          var(--ds-text-primary);
+  --fx-ink-soft:     var(--ds-text-muted);
+  --fx-ink-faint:    var(--ds-text-faint);
 
-  --fx-accent:       #3ee5c4;
-  --fx-accent-soft:  rgba(62, 229, 196, 0.10);
-  --fx-accent-line:  rgba(62, 229, 196, 0.55);
-  --fx-amber:        #ffb454;
-  --fx-amber-soft:   rgba(255, 180, 84, 0.08);
-  --fx-amber-line:   rgba(255, 180, 84, 0.32);
-  --fx-danger:       #f87171;
+  --fx-accent:       var(--ds-accent-positive);
+  --fx-accent-soft:  var(--ds-overlay-positive-soft);
+  --fx-accent-line:  var(--ds-overlay-positive-ring);
+  --fx-amber:        var(--ds-accent-warning);
+  --fx-amber-soft:   var(--ds-overlay-warning-soft);
+  --fx-amber-line:   var(--ds-overlay-warning-ring);
+  --fx-danger:       var(--ds-accent-negative);
 
   --fx-radius:       3px;
   --fx-radius-lg:    4px;
@@ -60,22 +60,24 @@
   background: var(--fx-bg);
 }
 
-/* Light theme — softer line + inverted accent contrast. */
+/* Light theme — ds-* vars already resolve per-theme via [data-theme].
+   Only override fx-* tokens that need light-specific tuning beyond
+   what the ds-* cascade provides. */
 [data-theme='light'] .fx-shell {
-  --fx-bg:           #ffffff;
-  --fx-bg-soft:      #f8f9fb;
-  --fx-bg-sunken:    #f1f3f5;
-  --fx-line:         #e3e6eb;
-  --fx-line-strong:  #d2d6dd;
-  --fx-ink:          #1c2128;
-  --fx-ink-soft:     #5a626d;
-  --fx-ink-faint:    #8a93a0;
-  --fx-accent:       #0d9488;
-  --fx-accent-soft:  rgba(13, 148, 136, 0.10);
-  --fx-accent-line:  rgba(13, 148, 136, 0.55);
-  --fx-amber:        #b45309;
-  --fx-amber-soft:   rgba(180, 83, 9, 0.08);
-  --fx-amber-line:   rgba(180, 83, 9, 0.32);
+  --fx-bg:           var(--ds-surface-ground);
+  --fx-bg-soft:      var(--ds-surface-primary);
+  --fx-bg-sunken:    var(--ds-surface-secondary);
+  --fx-line:         var(--ds-border-primary);
+  --fx-line-strong:  var(--ds-border-secondary);
+  --fx-ink:          var(--ds-text-primary);
+  --fx-ink-soft:     var(--ds-text-muted);
+  --fx-ink-faint:    var(--ds-text-faint);
+  --fx-accent:       var(--ds-accent-positive);
+  --fx-accent-soft:  var(--ds-overlay-positive-soft);
+  --fx-accent-line:  var(--ds-overlay-positive-ring);
+  --fx-amber:        var(--ds-accent-warning);
+  --fx-amber-soft:   var(--ds-overlay-warning-soft);
+  --fx-amber-line:   var(--ds-overlay-warning-ring);
 }
 
 /* ─── Shell ─────────────────────────────────────────────────────── */

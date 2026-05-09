@@ -41,7 +41,7 @@ if (typeof document !== 'undefined' && !document.getElementById(ROW_STYLE_ID)) {
   style.id = ROW_STYLE_ID;
   style.textContent = `
     .gc-tpl-row:not([data-active='true']):hover {
-      background: color-mix(in srgb, var(--bn-t0) 5%, transparent) !important;
+      background: color-mix(in srgb, var(--ds-text-primary) 5%, transparent) !important;
     }
   `;
   document.head.appendChild(style);
@@ -157,7 +157,7 @@ function TemplateRow({
         borderRadius: 4,
         cursor: disabled ? 'not-allowed' : 'pointer',
         background: isActive
-          ? 'color-mix(in srgb, var(--bn-blue) 10%, transparent)'
+          ? 'color-mix(in srgb, var(--ds-accent-info) 10%, transparent)'
           : 'transparent',
         opacity: disabled ? 0.5 : 1,
         transition: 'background 120ms',
@@ -170,7 +170,7 @@ function TemplateRow({
         style={{
           position: 'absolute', left: 2, top: 6, bottom: 6,
           width: 2, borderRadius: 2,
-          background: isActive ? 'var(--bn-blue)' : 'transparent',
+          background: isActive ? 'var(--ds-accent-info)' : 'transparent',
         }}
       />
 
@@ -180,11 +180,11 @@ function TemplateRow({
         width: 12, height: 12, flexShrink: 0,
       }}>
         {isActive ? (
-          <Check size={11} strokeWidth={2.5} style={{ color: 'var(--bn-blue)' }} />
+          <Check size={11} strokeWidth={2.5} style={{ color: 'var(--ds-accent-info)' }} />
         ) : (
           <span style={{
             width: 5, height: 5, borderRadius: '50%',
-            background: 'color-mix(in srgb, var(--bn-t2) 50%, transparent)',
+            background: 'color-mix(in srgb, var(--ds-text-muted) 50%, transparent)',
           }} />
         )}
       </span>
@@ -206,10 +206,10 @@ function TemplateRow({
           onBlur={onCommitRename}
           style={{
             flex: 1, minWidth: 0, height: 22, padding: '0 6px',
-            background: 'var(--bn-bg)',
-            border: '1px solid color-mix(in srgb, var(--bn-blue) 55%, var(--bn-border))',
+            background: 'var(--ds-surface-ground)',
+            border: '1px solid color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))',
             borderRadius: 3,
-            color: 'var(--bn-t0)',
+            color: 'var(--ds-text-primary)',
             fontSize: 11,
             fontWeight: isActive ? 600 : 450,
             outline: 'none',
@@ -220,7 +220,7 @@ function TemplateRow({
           flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           fontSize: 11,
           fontWeight: isActive ? 600 : 450,
-          color: 'var(--bn-t0)',
+          color: 'var(--ds-text-primary)',
           letterSpacing: 0.1,
         }}>
           {name}
@@ -272,10 +272,10 @@ function TemplateRow({
               style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                 height: 22, padding: '0 8px',
-                border: '1px solid var(--bn-red)',
+                border: '1px solid var(--ds-accent-negative)',
                 borderRadius: 3,
-                background: 'color-mix(in srgb, var(--bn-red) 18%, transparent)',
-                color: 'var(--bn-red)',
+                background: 'color-mix(in srgb, var(--ds-accent-negative) 18%, transparent)',
+                color: 'var(--ds-accent-negative)',
                 fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 cursor: 'pointer',
@@ -449,7 +449,7 @@ export function TemplateManager({
       {!isEmpty && (
         <div style={{
           height: 1,
-          background: 'color-mix(in srgb, var(--bn-border) 60%, transparent)',
+          background: 'color-mix(in srgb, var(--ds-border-primary) 60%, transparent)',
           margin: '2px 0',
         }} />
       )}
@@ -459,7 +459,7 @@ export function TemplateManager({
         <div style={{
           fontSize: 9, fontWeight: 600, letterSpacing: 0.6,
           textTransform: 'uppercase',
-          color: 'var(--bn-t2)',
+          color: 'var(--ds-text-muted)',
           marginBottom: 4,
         }}>
           Save current as new
@@ -478,10 +478,10 @@ export function TemplateManager({
             }}
             style={{
               flex: 1, minWidth: 0, height: 28, padding: '0 10px',
-              border: '1px solid var(--bn-border)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 3,
-              background: 'var(--bn-bg)',
-              color: 'var(--bn-t0)',
+              background: 'var(--ds-surface-ground)',
+              color: 'var(--ds-text-primary)',
               fontSize: 11,
               outline: 'none',
             }}
@@ -498,13 +498,13 @@ export function TemplateManager({
               width: 28, height: 28,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               border: `1px solid ${saveConfirmed
-                ? 'color-mix(in srgb, var(--bn-blue) 40%, transparent)'
-                : 'var(--bn-border)'}`,
+                ? 'color-mix(in srgb, var(--ds-accent-info) 40%, transparent)'
+                : 'var(--ds-border-primary)'}`,
               borderRadius: 3,
               background: saveConfirmed
-                ? 'color-mix(in srgb, var(--bn-blue) 14%, transparent)'
+                ? 'color-mix(in srgb, var(--ds-accent-info) 14%, transparent)'
                 : 'transparent',
-              color: saveConfirmed ? 'var(--bn-blue)' : 'var(--bn-t1)',
+              color: saveConfirmed ? 'var(--ds-accent-info)' : 'var(--ds-text-secondary)',
               cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
               opacity: disabled || !saveName.trim() ? 0.3 : 1,
               transition: 'all 120ms',
@@ -526,12 +526,12 @@ export function TemplateManager({
           data-testid={`${testIdPrefix}-capture-hint`}
           style={{
             fontSize: 10,
-            color: 'var(--bn-t2)',
+            color: 'var(--ds-text-muted)',
             lineHeight: 1.4,
             paddingTop: 2,
           }}
         >
-          Will save: <span style={{ color: 'var(--bn-t1)', fontWeight: 500 }}>
+          Will save: <span style={{ color: 'var(--ds-text-secondary)', fontWeight: 500 }}>
             {capturableFields.join(' · ')}
           </span>
         </div>
@@ -543,12 +543,12 @@ export function TemplateManager({
           data-testid={`${testIdPrefix}-empty-hint`}
           style={{
             fontSize: 10,
-            color: 'var(--bn-t2)',
+            color: 'var(--ds-text-muted)',
             lineHeight: 1.4,
             paddingTop: 2,
           }}
         >
-          Name a style, then click <span style={{ fontWeight: 600, color: 'var(--bn-t1)' }}>+</span> to save your first template.
+          Name a style, then click <span style={{ fontWeight: 600, color: 'var(--ds-text-secondary)' }}>+</span> to save your first template.
         </div>
       )}
     </div>
