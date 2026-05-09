@@ -11,8 +11,8 @@
  *     Caps, Mono, SharpBtn, TGroup, TBtn, TDivider, Band, MetaCell, Stepper,
  *   } from '@starui/core';
  *
- * Every primitive consumes the `--ck-*` tokens scoped to the Cockpit
- * popout shell (`v2-sheet-styles.ts`).
+ * Every primitive consumes `--ds-*` tokens from the unified design system
+ * via Tailwind utility classes from the shared preset.
  */
 
 export { DirtyDot, LedBar, type DirtyDotProps, type LedBarProps } from './DirtyDot';

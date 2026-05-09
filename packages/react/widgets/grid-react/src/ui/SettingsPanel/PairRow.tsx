@@ -20,16 +20,11 @@ export interface PairRowProps {
 export function PairRow({ left, right, trailing, style }: PairRowProps) {
   return (
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 8,
-        ...style,
-      }}
+      className="flex items-center gap-2 mb-2"
+      style={style}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>{left}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>{right}</div>
+      <div className="flex-1 min-w-0">{left}</div>
+      <div className="flex-1 min-w-0">{right}</div>
       {trailing}
     </div>
   );
