@@ -26,11 +26,11 @@ import { findIndicatorIcon, iconAsDataUrl } from './indicatorIcons';
 const FLASH_PULSE_RULE_ID = '__flash-pulse-keyframes__';
 const FLASH_PULSE_CSS = `
 @keyframes gc-flash-pulse {
-  0%, 100% { box-shadow: inset 0 0 0 9999px var(--gc-flash-color, rgba(251, 191, 36, 0.42)); }
+  0%, 100% { box-shadow: inset 0 0 0 9999px var(--flash-color, rgba(251, 191, 36, 0.42)); }
   50%      { box-shadow: inset 0 0 0 9999px transparent; }
 }
-.gc-flash-pulse { animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out; }
-.ag-header-cell.gc-flash-hdr-pulse { animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out; }
+.gc-flash-pulse { animation: gc-flash-pulse var(--flash-period, 1s) infinite ease-in-out; }
+.ag-header-cell.gc-flash-hdr-pulse { animation: gc-flash-pulse var(--flash-period, 1s) infinite ease-in-out; }
 `;
 
 // ─── CSS generation ────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ function buildCssText(
   if (lightProps && !darkProps) lines.push(`${cls} { ${lightProps} }`);
 
   if (pulse?.enabled && (pulse.target === 'cells' || pulse.target === 'cells+headers' || pulse.target === 'row')) {
-    lines.push(`${cls} { animation: gc-flash-pulse var(--gc-flash-period, 1s) infinite ease-in-out; }`);
+    lines.push(`${cls} { animation: gc-flash-pulse var(--flash-period, 1s) infinite ease-in-out; }`);
   }
 
   const indicatorCss = indicatorOverlayCSS(cls, indicator);

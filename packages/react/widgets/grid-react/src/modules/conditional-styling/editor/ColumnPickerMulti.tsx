@@ -28,12 +28,12 @@ export const ColumnPickerMulti = memo(function ColumnPickerMulti({
               fontWeight: 600,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: 'var(--ck-amber)',
-              background: 'var(--ck-amber-bg)',
-              border: '1px solid var(--ck-amber)',
+              color: 'var(--ds-accent-warning)',
+              background: 'var(--ds-overlay-warning-soft)',
+              border: '1px solid var(--ds-accent-warning)',
               borderRadius: 2,
               padding: '4px 8px',
-              fontFamily: 'var(--ck-font-sans)',
+              fontFamily: 'var(--ds-font-sans)',
             }}
           >
             NO COLUMNS · RULE WON'T APPLY
@@ -45,18 +45,17 @@ export const ColumnPickerMulti = memo(function ColumnPickerMulti({
               <span
                 key={colId}
                 data-v2-chip=""
-                className="gc-cs-col-chip"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
                   padding: '3px 6px',
                   borderRadius: 2,
-                  background: 'var(--ck-card)',
-                  border: '1px solid var(--ck-border)',
-                  fontFamily: 'var(--ck-font-mono)',
+                  background: 'var(--ds-surface-secondary)',
+                  border: '1px solid var(--ds-border-primary)',
+                  fontFamily: 'var(--ds-font-mono)',
                   fontSize: 11,
-                  color: 'var(--ck-t0)',
+                  color: 'var(--ds-text-primary)',
                 }}
               >
                 {col?.headerName ?? colId}
@@ -68,7 +67,7 @@ export const ColumnPickerMulti = memo(function ColumnPickerMulti({
                     background: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
-                    color: 'var(--ck-t2)',
+                    color: 'var(--ds-text-muted)',
                     padding: 0,
                     lineHeight: 1,
                     fontSize: 12,
@@ -83,7 +82,6 @@ export const ColumnPickerMulti = memo(function ColumnPickerMulti({
       </div>
       {remaining.length > 0 && (
         <Select
-          className="gc-cs-col-add"
           value=""
           onChange={(e) => {
             const v = e.target.value;
