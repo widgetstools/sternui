@@ -14,13 +14,28 @@ export interface CustomSettings {
 
   /**
    * Base URL of the remote config service REST API.
-   * When set, the config service operates in REST mode — writes go to
-   * the remote backend first, then mirror to local Dexie/IndexedDB.
-   * When not set (default), everything stays local (dev mode).
+   * Only honoured when `useRest === true` — see `useRest` for the
+   * intended on/off switch. Keeping the URL configured (but disabled)
+   * lets a single manifest flip between local and REST mode by toggling
+   * one boolean instead of editing two fields.
    *
    * Example: "https://config-api.example.com/api/v1"
    */
   configServiceRestUrl?: string;
+
+  /**
+   * Master switch for REST mode. When `true` AND
+   * `configServiceRestUrl` is non-empty, every ConfigManager in this
+   * platform (Provider window + view-route ConfigServiceProviders +
+   * any future child window that reads the manifest) runs in REST
+   * mode: writes go to the server first, mirror to Dexie, queue
+   * `pendingSync` on transient failures.
+   *
+   * When `false` or unset, everything stays local — Dexie only — even
+   * if `configServiceRestUrl` is configured. Default is `false` so an
+   * accidentally-shipped URL doesn't silently start hitting a server.
+   */
+  useRest?: boolean;
 }
 
 export interface PlatformSettings {

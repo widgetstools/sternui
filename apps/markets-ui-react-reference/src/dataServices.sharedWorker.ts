@@ -41,11 +41,28 @@ import { createConfigManager } from '@starui/config-service';
 // eslint-disable-next-line no-console
 console.info('[dataServices.sharedWorker] imports resolved');
 
+// REST endpoint for `@starui/config-service-server`. Sourced from the
+// `?configServiceRestUrl=…` param the main-thread bootstrap stamped onto
+// our scriptURL. SharedWorkers run in their own global scope without
+// access to OpenFin's `fin` object, so the manifest is read once on
+// the main thread and forwarded here. See `dataServices.mainThread.ts`.
+//
+// Empty / missing → local Dexie only. The first tab to spawn the
+// worker fixes the URL for the worker's lifetime; subsequent tabs
+// (with the same worker `name`) attach to that running instance.
+const CONFIG_SERVICE_REST_URL =
+  new URLSearchParams(self.location.search).get('configServiceRestUrl') ||
+  undefined;
+
 async function boot(): Promise<void> {
-  const configManager = createConfigManager({});
+  const configManager = createConfigManager({
+    configServiceRestUrl: CONFIG_SERVICE_REST_URL,
+  });
   await configManager.init();
   // eslint-disable-next-line no-console
-  console.info('[dataServices.sharedWorker] ConfigManager initialised');
+  console.info(
+    `[dataServices.sharedWorker] ConfigManager initialised (mode: ${configManager.isRestMode() ? 'REST' : 'local'})`,
+  );
 
   await installSharedWorkerHub({ configManager });
   // eslint-disable-next-line no-console

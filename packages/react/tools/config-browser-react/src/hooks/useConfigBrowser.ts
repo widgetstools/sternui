@@ -41,8 +41,36 @@ export interface ImportResult {
   errors: string[];
 }
 
+/**
+ * The full export bundle shape produced by `exportAll`. Keys match the
+ * server's `data/seed-config.json` (and the admin tool's bundle reader),
+ * so a single file can seed an empty REST server in one round-trip
+ * without per-table juggling.
+ *
+ * `userProfiles` is plural to match the canonical bundle shape even
+ * though the Dexie table key is `userProfile` (singular).
+ *
+ * `pendingSync` is intentionally excluded — it is a write-retry queue,
+ * not config data.
+ */
+export interface ExportBundle {
+  appConfig: any[];
+  appRegistry: any[];
+  userProfiles: any[];
+  roles: any[];
+  permissions: any[];
+}
+
 export interface UseConfigBrowserReturn {
   hostEnv: HostEnv;
+  /**
+   * The REST URL the ConfigManager is *actually* running against, or
+   * `undefined` in local-only mode. Source-of-truth for the header
+   * "connected" chip — `hostEnv.configServiceUrl` only carries a value
+   * when the window was launched with registry-driven customData,
+   * which dock-spawned ConfigBrowser windows aren't.
+   */
+  restUrl: string | undefined;
   selected: TableMeta;
   setSelected: (key: TableKey) => void;
   rows: any[];
@@ -56,6 +84,10 @@ export interface UseConfigBrowserReturn {
   /** Delete every row currently visible in the selected table. For
    *  scopable tables this respects the active appId scope. */
   deleteAllRows: () => Promise<{ deleted: number; failed: number; errors: string[] }>;
+  /** Read every config table from Dexie and return a single bundle.
+   *  Scopable tables are filtered to the active `hostEnv.appId` when
+   *  set, matching the per-table export's behavior. */
+  exportAll: () => Promise<ExportBundle>;
 }
 
 const ZERO_COUNTS: Counts = {
@@ -81,6 +113,7 @@ function tableOf(manager: ConfigManager, key: TableKey) {
 
 export function useConfigBrowser(): UseConfigBrowserReturn {
   const [hostEnv, setHostEnv] = useState<HostEnv>({ appId: "", configServiceUrl: "" });
+  const [restUrl, setRestUrl] = useState<string | undefined>(undefined);
   const [selectedKey, setSelectedKey] = useState<TableKey>("appConfig");
   const [rows, setRows] = useState<any[]>([]);
   const [counts, setCounts] = useState<Counts>(ZERO_COUNTS);
@@ -132,6 +165,7 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
           getConfigManager(),
         ]);
         setHostEnv(env);
+        setRestUrl(manager.getRestUrl?.());
         managerRef.current = manager;
         await loadCounts(manager, env.appId);
         await loadRows(manager, selectedKey, env.appId);
@@ -349,6 +383,23 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     [selectedKey, refresh, previewImport, reownForImport],
   );
 
+  const exportAll = useCallback(async (): Promise<ExportBundle> => {
+    const manager = managerRef.current;
+    if (!manager) {
+      return { appConfig: [], appRegistry: [], userProfiles: [], roles: [], permissions: [] };
+    }
+    const db = (manager as any).db;
+    const appId = hostEnv.appId;
+    const [appConfig, appRegistry, userProfiles, roles, permissions] = await Promise.all([
+      appId ? db.appConfig.where('appId').equals(appId).toArray() : db.appConfig.toArray(),
+      db.appRegistry.toArray(),
+      appId ? db.userProfile.where('appId').equals(appId).toArray() : db.userProfile.toArray(),
+      db.roles.toArray(),
+      db.permissions.toArray(),
+    ]);
+    return { appConfig, appRegistry, userProfiles, roles, permissions };
+  }, [hostEnv.appId]);
+
   /**
    * Delete every row currently in view. For scopable tables (appConfig,
    * userProfile) only rows inside the active appId scope are affected
@@ -391,6 +442,7 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
 
   return {
     hostEnv,
+    restUrl,
     selected,
     setSelected: setSelectedKey,
     rows,
@@ -402,5 +454,6 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     previewImport,
     importRows,
     deleteAllRows,
+    exportAll,
   };
 }

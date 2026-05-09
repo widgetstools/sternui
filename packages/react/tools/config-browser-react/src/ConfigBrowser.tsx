@@ -20,6 +20,7 @@ import type { ImportMode, ImportPreview } from "./hooks/useConfigBrowser";
 export function ConfigBrowserPanel() {
   const {
     hostEnv,
+    restUrl,
     selected,
     setSelected,
     rows,
@@ -31,6 +32,7 @@ export function ConfigBrowserPanel() {
     previewImport,
     importRows,
     deleteAllRows,
+    exportAll,
   } = useConfigBrowser();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -118,6 +120,20 @@ export function ConfigBrowserPanel() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `${selected.key}-${hostEnv.appId || "all"}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportAll = async () => {
+    const bundle = await exportAll();
+    const json = JSON.stringify(bundle, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `config-bundle-${hostEnv.appId || "all"}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -222,6 +238,46 @@ export function ConfigBrowserPanel() {
           appId: {hostEnv.appId || "—"}
         </span>
 
+        {restUrl ? (
+          <span
+            title={`Writes mirror to ${restUrl}. Reads still come from local Dexie.`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 10,
+              fontFamily: "var(--de-mono)",
+              padding: "3px 8px",
+              borderRadius: "var(--de-radius-sm)",
+              background: "color-mix(in srgb, var(--de-success, #22c55e) 12%, var(--de-bg-surface))",
+              color: "var(--de-success, #22c55e)",
+              border: "1px solid color-mix(in srgb, var(--de-success, #22c55e) 35%, var(--de-border))",
+            }}
+          >
+            <Icon icon="lucide:cloud" style={{ width: 12, height: 12 }} />
+            <span>connected · {restUrl}</span>
+          </span>
+        ) : (
+          <span
+            title="ConfigManager is in local-only mode (no restUrl) — Dexie only."
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 10,
+              fontFamily: "var(--de-mono)",
+              padding: "3px 8px",
+              borderRadius: "var(--de-radius-sm)",
+              background: "var(--de-bg-surface)",
+              color: "var(--de-text-tertiary)",
+              border: "1px solid var(--de-border)",
+            }}
+          >
+            <Icon icon="lucide:cloud-off" style={{ width: 12, height: 12 }} />
+            <span>local only</span>
+          </span>
+        )}
+
         <div style={{ flex: 1 }} />
 
         <button
@@ -270,6 +326,7 @@ export function ConfigBrowserPanel() {
             onRefresh={refresh}
             onNew={openCreate}
             onExport={handleExport}
+            onExportAll={handleExportAll}
             onImport={handleImportClick}
             onDeleteAll={() => setDeleteAllOpen(true)}
           />
@@ -400,9 +457,9 @@ export function ConfigBrowserPanel() {
       >
         <span>{rows.length} rows</span>
         <span>·</span>
-        <span>dexie</span>
+        <span>dexie · marketsui-config</span>
         <span>·</span>
-        <span>marketsui-config</span>
+        <span>{restUrl ? `REST → ${restUrl}` : "local only"}</span>
         <div style={{ flex: 1 }} />
         <span>{selected.description}</span>
       </div>

@@ -28,6 +28,9 @@
   },
   "customSettings": {
     "seedConfigUrl": "http://localhost:5174/seed-config.json",
+    "$comment-useRest": "Master switch for REST mode. true + non-empty configServiceRestUrl → every ConfigManager in the platform (Provider + main-thread bundle + SharedWorker hub) writes to the REST server first, mirrors to Dexie, queues pendingSync on transient failures. false (or unset) → local Dexie only, even if the URL stays configured. Flip this single boolean to switch the whole platform between local and REST.",
+    "useRest": true,
+    "configServiceRestUrl": "http://localhost:3001/api/v1",
     "apps": [
       {
         "appId": "react-view1",
