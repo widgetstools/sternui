@@ -1,0 +1,147 @@
+/*
+ * FI Design System — Dark Theme  ("Chroma Desk")
+ * Generated from design-system/tokens/semantic.ts
+ *
+ * Balanced graphite chrome, vivid mint-teal (positive) and rose
+ * (negative), signature cyan brand moment. Paired with Geist +
+ * JetBrains Mono. AAA body text, AA accents on graphite.
+ */
+
+:root, [data-theme="dark"] {
+  /* ── shadcn/ui overrides ── */
+  --background: 213 17% 6%;          /* #0b0d10 */
+  --foreground: 213 22% 94%;         /* #ecf0f5 */
+  --card: 216 15% 10%;               /* #14171b */
+  --card-foreground: 213 22% 94%;
+  --popover: 216 15% 10%;
+  --popover-foreground: 213 22% 94%;
+  --primary: 188 84% 53%;            /* #22d3ee — signature cyan */
+  --primary-foreground: 201 74% 9%;
+  --secondary: 215 15% 13%;          /* #1c2025 */
+  --secondary-foreground: 214 14% 71%;
+  --muted: 215 15% 13%;
+  --muted-foreground: 215 9% 54%;    /* #7d8694 */
+  --accent: 215 15% 13%;
+  --accent-foreground: 213 22% 94%;
+  --destructive: 345 100% 67%;       /* #ff5a82 */
+  --destructive-foreground: 340 65% 10%;
+  --border: 215 14% 20%;             /* #2b3139 */
+  --input: 215 14% 20%;
+  --ring: 188 84% 53%;
+  --radius: 5px;
+
+  /* ── Surface (balanced graphite) ── */
+  --bn-bg:      #0b0d10;
+  --bn-bg1:     #14171b;
+  --bn-bg2:     #1c2025;
+  --bn-bg3:     #252a31;
+
+  /* ── Text ── */
+  --bn-t0:      #ecf0f5;
+  --bn-t1:      #aab3bf;
+  --bn-t2:      #7d8694;
+  --bn-t3:      #565d68;
+
+  /* ── Border ── */
+  --bn-border:  #2b3139;
+  --bn-border2: #3e4552;
+
+  /* ── Accent (vivid; AA on graphite; cyan = signature brand) ── */
+  --bn-green:   #22e3a8;
+  --bn-green2:  #3fecb8;
+  --bn-red:     #ff5a82;
+  --bn-red2:    #ff7898;
+  --bn-amber:   #f5c14b;    /* pure amber — warning semantic only */
+  --bn-blue:    #22d3ee;    /* BRAND — signature cyan */
+  --bn-blue2:   #4ae0f2;
+  --bn-cyan:    #22d3ee;
+  --bn-purple:  #a78bfa;
+
+  /* ── Actions (deep tinted CTA text for AAA on vivid bg) ── */
+  --bn-buy-bg:   #22e3a8;
+  --bn-sell-bg:  #ff5a82;
+  --bn-cta-text: #0b2b20;   /* overridden per-button if sell */
+  --bn-logo-bg:  #0b0d10;
+
+  /* ── Interactive states ── */
+  --bn-focus-ring:    #22d3ee;
+  --bn-focus-ring-bg: rgba(34,211,238,0.30);
+  --bn-disabled-bg:   #252a31;
+  --bn-disabled-fg:   #565d68;
+  --bn-hover-overlay: rgba(255,255,255,0.05);
+  --bn-selection:     rgba(34,211,238,0.22);
+
+  /* ── Overlay tints ── */
+  --bn-positive-soft: rgba(34,227,168,0.12);
+  --bn-positive-ring: rgba(34,227,168,0.40);
+  --bn-negative-soft: rgba(255,90,130,0.12);
+  --bn-negative-ring: rgba(255,90,130,0.40);
+  --bn-warning-soft:  rgba(245,193,75,0.13);
+  --bn-warning-ring:  rgba(245,193,75,0.40);
+  --bn-info-soft:     rgba(34,211,238,0.12);
+  --bn-info-ring:     rgba(34,211,238,0.45);
+  --bn-neutral-soft:  rgba(170,179,191,0.10);
+  --bn-neutral-ring:  rgba(170,179,191,0.25);
+
+  /* ── CVD alternates ── */
+  --bn-cvd-buy:  #7aa6ff;
+  --bn-cvd-sell: #ff9d4e;
+
+  /* ── Typography (Geist + JetBrains Mono for Chroma Desk) ── */
+  --fi-sans:  'Geist', 'Inter', system-ui, sans-serif;
+  --fi-mono:  'JetBrains Mono', 'Geist Mono', monospace;
+  --fi-serif: 'Geist', system-ui, sans-serif;
+  --fi-font-2xs: 10px;
+  --fi-font-xs:  11px;
+  --fi-font-sm:  12px;
+  --fi-font-md:  13px;
+  --fi-font-lg:  14px;
+  --fi-font-xl:  16px;
+
+  /* ── Motion ── */
+  --fi-t-instant:   80ms cubic-bezier(0.4,0,0.6,1);
+  --fi-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+  --fi-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+  --fi-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+  --fi-t-emphasis: 640ms cubic-bezier(0.2,0.8,0.2,1);
+  --fi-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+  /* ── Elevation ── */
+  --fi-shadow-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5);
+  --fi-shadow-overlay: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5), 0 8px 22px rgba(0,0,0,0.4);
+  --fi-glow-focus:     0 0 0 2px rgba(34,211,238,0.40), 0 0 28px rgba(34,211,238,0.18);
+
+  /* ── Order Book / Trade Ticket fills ── */
+  --ob-bid-fill:   rgba(34,227,168,0.16);
+  --ob-ask-fill:   rgba(255,90,130,0.16);
+  --tt-bid-strip:  rgba(34,211,238,0.12);
+  --tt-ask-strip:  rgba(255,90,130,0.14);
+
+  /* ── Misc ── */
+  --scrollbar-thumb: #3e4552;
+
+  /* ── Legacy aliases ── */
+  --fi-bg0: var(--bn-bg);
+  --fi-bg1: var(--bn-bg1);
+  --fi-bg2: var(--bn-bg2);
+  --fi-bg3: var(--bn-bg3);
+  --fi-bg4: var(--bn-bg3);
+  --fi-border: var(--bn-border);
+  --fi-border2: var(--bn-border2);
+  --fi-border3: var(--bn-border2);
+  --fi-t0: var(--bn-t0);
+  --fi-t1: var(--bn-t1);
+  --fi-t2: var(--bn-t2);
+  --fi-t3: var(--bn-t3);
+  --fi-green: var(--bn-green);
+  --fi-red: var(--bn-red);
+  --fi-blue: var(--bn-blue);
+  --fi-amber: var(--bn-amber);
+  --fi-yellow: var(--bn-amber);
+  --bn-yellow: var(--bn-amber);
+  --fi-cyan: var(--bn-cyan);
+  --fi-purple: var(--bn-purple);
+  --fi-title: var(--bn-t0);
+  --fi-col-header: var(--bn-t1);
+  --divider: 1px solid var(--bn-border);
+}
