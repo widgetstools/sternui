@@ -19,7 +19,6 @@ export interface RowProps {
 export function Row({ label, hint, control }: RowProps) {
   return (
     <div
-      className="gc-option-row"
       style={{
         display: 'grid',
         gridTemplateColumns: '180px 1fr',
@@ -27,13 +26,13 @@ export function Row({ label, hint, control }: RowProps) {
         columnGap: 20,
         rowGap: 4,
         padding: '8px 0',
-        borderBottom: '1px solid color-mix(in srgb, var(--ck-border) 50%, transparent)',
+        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 50%, transparent)',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Caps size={10}>{label}</Caps>
         {hint && (
-          <span style={{ fontSize: 10, color: 'var(--ck-t3)', lineHeight: 1.35 }}>{hint}</span>
+          <span className="text-[10px] text-muted leading-[1.35]">{hint}</span>
         )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{control}</div>

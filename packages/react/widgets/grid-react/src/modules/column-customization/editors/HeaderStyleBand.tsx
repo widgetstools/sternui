@@ -12,7 +12,7 @@ export function HeaderStyleBand({
 }) {
   return (
     <Band index="05" title="HEADER STYLE">
-      <Caps size={10} color="var(--ck-t3)" style={{ marginBottom: 6, display: 'block' }}>
+      <Caps size={10} color="var(--ds-text-faint)" style={{ marginBottom: 6, display: 'block' }}>
         Blank alignment = follow the cell. Explicit value overrides.
       </Caps>
       <StyleEditor

@@ -23,7 +23,7 @@ export function ColumnEditorHeader({
   onDiscard: () => void;
 }) {
   return (
-    <div className="gc-editor-header">
+    <div className="shrink-0 bg-background border-b border-border">
       <ObjectTitleRow
         title={
           <TitleInput
