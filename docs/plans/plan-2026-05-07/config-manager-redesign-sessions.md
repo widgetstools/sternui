@@ -902,21 +902,62 @@ providers, `ConfigServiceClient` injectable for components.
 
 **Steps:**
 
-- [ ] **10.1** Scaffold by copying `data-services-angular`'s package.json /
-      ng-package.json / tsconfig. Name `@starui/config-service-angular`.
-- [ ] **10.2** Implement `provideConfigService(opts: { identity, appId, seedUrl?,
-      restUrl? }): EnvironmentProviders` returning two providers:
-  - One that constructs `ConfigManager` using DI to obtain the
-    `DataServicesService` (from `data-services-angular`) and exposes the lifecycle in
-    a service.
-  - The `ConfigServiceClient` injectable that re-exports `{ configManager, storage,
-    appId, userId, applicationContext }`.
-- [ ] **10.3** `ConfigServiceClient.ngOnDestroy` calls `cm.dispose()`.
-- [ ] **10.4** Test: bootstrap a `TestBed` with the provider, mocked dataServices, and
-      assert injection returns the expected shape.
-- [ ] **10.5** Update one Angular consumer (e.g., the `config-browser-angular` story or
-      app) to wire via `provideConfigService` and confirm it still renders.
-- [ ] **10.6** Run verification.
+- [x] **10.1** Scaffolded `packages/angular/providers/config-service-angular/`
+      with `package.json`, `ng-package.json`, `tsconfig.json` (extends
+      `../../../../tsconfig.base.json`), and `vitest.config.ts`
+      mirroring `data-services-angular`. Name
+      `@starui/config-service-angular`. `peerDependencies` cover
+      `@angular/common >=21`, `@angular/core >=21`,
+      `@starui/config-service`, and `@starui/data-services-angular`
+      (the client injects `DataServicesService` so the ConfigManager
+      attaches to the same AppData mirror the worker hub writes to).
+      `devDependencies` add `fake-indexeddb` so the real
+      `ConfigManager.init()` runs under jsdom in tests, and
+      `@angular/compiler` for JIT decorator metadata in Vitest.
+- [x] **10.2** `provideConfigService(opts): EnvironmentProviders`
+      lives in `src/provider.ts`. It returns
+      `makeEnvironmentProviders([{ provide: CONFIG_SERVICE_OPTIONS,
+      useValue: opts }, provideAppInitializer(() =>
+      inject(ConfigServiceClient).init())])`. `ConfigServiceClient`
+      (in `src/ConfigServiceClient.ts`,
+      `@Injectable({ providedIn: 'root' })`) reads options +
+      `DataServicesService` via `inject(...)`, constructs
+      `ConfigManager` with `appId` / `identity` / `seedConfigUrl` /
+      `configServiceRestUrl` / `dataServices`, builds
+      `createConfigServiceStorage({ configManager: ... })`, and
+      exposes `{ configManager, storage, appId, userId,
+      applicationContext }`. The `applicationContext` getter throws
+      if read before `init()` resolved so misuse fails fast instead
+      of returning stale data.
+- [x] **10.3** `ConfigServiceClient.ngOnDestroy()` calls
+      `this.configManager.dispose()`. Angular's root-injector
+      destruction triggers it on app teardown.
+- [x] **10.4** Tests in
+      `packages/angular/providers/config-service-angular/src/ConfigServiceClient.test.ts`
+      (3 tests, jsdom + fake-indexeddb): exposes the expected shape
+      after `init()` incl. ApplicationContext snapshot AND verifies
+      ConfigManager actually published into the fake AppData mirror;
+      throws when `applicationContext` is read before `init()`;
+      disposes the ConfigManager on `ngOnDestroy`. Tests use
+      `Injector.create` (not `TestBed`) since the monorepo doesn't
+      install `@angular/platform-browser-dynamic` — bare DI is enough
+      to verify injection works. `DataServicesService` is mocked with
+      a tiny in-memory `appData` that satisfies `AppDataMirrorHandle`.
+- [x] **10.5** Wired `@starui/config-browser-angular`'s
+      `ConfigBrowserService` to optionally consume
+      `ConfigServiceClient` via `inject(ConfigServiceClient, {
+      optional: true })`. When present, it reads the
+      Provider-managed manager directly (already initialised by
+      `provideAppInitializer`); when absent (legacy OpenFin shells
+      that ship their own `bootstrapPlatform()`), it falls back to
+      the existing `getConfigManager()` / `readHostEnv()` path so
+      every existing consumer keeps working unchanged. The
+      `package.json` adds `@starui/config-service-angular: "*"` as a
+      workspace dep.
+- [x] **10.6** Verification green:
+      `npx turbo test --filter=@starui/config-service-angular`
+      (3 tests pass); `npx turbo typecheck build test` (74 tasks
+      across the monorepo all green).
 
 **Verification:**
 

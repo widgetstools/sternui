@@ -21,6 +21,60 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 10: `@starui/config-service-angular` provider package
+
+Tenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 10, Decision 14 Angular half). Ships the Angular twin of
+Session 9 — a host's `app.config.ts` now carries identity + `appId`
++ (optional) seed / REST URLs as `provideConfigService(...)`, and
+`ConfigServiceClient` exposes the live `{ configManager, storage,
+appId, userId, applicationContext }` surface to any component via DI.
+
+- New workspace package
+  `packages/angular/providers/config-service-angular/` with the
+  standard `package.json` / `tsconfig.json` / `ng-package.json` shape
+  (mirrors `data-services-angular`). Peer-dep on
+  `@starui/data-services-angular` (the client injects
+  `DataServicesService` so the ConfigManager attaches to the same
+  AppData mirror the worker hub writes to). Exports:
+  - `provideConfigService(opts: { identity, appId, seedUrl?,
+    restUrl? }): EnvironmentProviders` — registers
+    `CONFIG_SERVICE_OPTIONS` and a `provideAppInitializer` that
+    awaits `ConfigServiceClient.init()` so by the time any component
+    injects the client, `ConfigManager.init()` has resolved and
+    `ApplicationContext` is published into AppData.
+  - `ConfigServiceClient` (`@Injectable({ providedIn: 'root' })`):
+    constructs `ConfigManager` from the registered options +
+    `DataServicesService`, exposes `configManager`, `storage`
+    (pre-bound `ProfileStorageFactory` for `<MarketsGrid>`), `appId`,
+    `userId`, and an `applicationContext` getter that throws if read
+    before `init()` resolved. `ngOnDestroy` calls `dispose()`.
+  - `CONFIG_SERVICE_OPTIONS` (`InjectionToken<ConfigServiceOptions>`):
+    public escape hatch for advanced wiring.
+- Tests `packages/angular/providers/config-service-angular/src/ConfigServiceClient.test.ts`
+  (3 tests, jsdom + fake-indexeddb + `@angular/compiler` for JIT):
+  exposes the expected shape after `init()` (incl. ApplicationContext
+  snapshot and a check that the ConfigManager actually published into
+  the fake AppData mirror); throws when `applicationContext` is read
+  before `init()`; disposes the ConfigManager on `ngOnDestroy`. Tests
+  use `Injector.create` (not `TestBed`) since the monorepo doesn't
+  install `@angular/platform-browser-dynamic` — bare DI is enough to
+  exercise injection.
+- Consumer wiring in `@starui/config-browser-angular`:
+  `ConfigBrowserService` now `inject(ConfigServiceClient, { optional:
+  true })` and prefers the Provider-managed manager when present,
+  falling back to the existing `getConfigManager()` /
+  `readHostEnv()` path so legacy OpenFin shells keep working
+  unchanged. `package.json` adds `@starui/config-service-angular: "*"`
+  as a workspace dep.
+- Verification: `npx turbo test --filter=@starui/config-service-angular`
+  (3 tests pass); `npx turbo typecheck build test` (74 tasks green
+  across the monorepo).
+
+Touched: `packages/angular/providers/config-service-angular/{package.json,ng-package.json,tsconfig.json,vitest.config.ts,test/setup.ts,src/{index,tokens,provider,ConfigServiceClient,ConfigServiceClient.test}.ts}`,
+`packages/angular/tools/config-browser-angular/{package.json,src/config-browser/config-browser.service.ts}`.
+
 ## 2026-05-08 — Config-manager redesign Session 9: `@starui/config-service-react` Provider package
 
 Ninth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
