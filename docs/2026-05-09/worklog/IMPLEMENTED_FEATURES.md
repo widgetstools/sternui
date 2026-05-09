@@ -3549,3 +3549,60 @@ brings in the full bundle — workspaces, registry, blotter
 profile-sets, and `gridLevelData` — so opening a saved workspace on the
 new machine restores the same data-provider selection it had on the
 source machine.
+
+---
+
+## Unified Design-System Token Sweep (2026-05-09)
+
+Every legacy CSS variable family (`--bn-*`, `--fi-*`, `--gc-*`, `--ck-*`,
+`--mdl-*`) and every hardcoded hex colour outside the design-system package
+has been replaced with the unified `--ds-*` token set across the entire
+monorepo. The lint gate `npm run check-ds` (`npx tsx tools/scripts/check-ds-tokens.ts`)
+now exits clean (zero violations).
+
+Key changes:
+- **`packages/react/widgets/markets-grid/`** — all CSS and TSX files swept;
+  `--bn-*`/`--gc-*`/`--fi-*` vars replaced with `--ds-*` equivalents in
+  `marketsGrid.css`, `formatter.css`, `ProfileSelector.css`, `HelpPanel.css`,
+  and all `.tsx` component files.
+- **`packages/react/widgets/widgets-react/`** — `sternAgGridTheme.ts`
+  updated to use `var(--ds-surface-primary)` etc. in `themeQuartz.withParams()`.
+  `HostedMarketsGrid.tsx`, `LoadingOverlay.tsx`, `useColorLinking.ts` swept.
+- **`packages/shared/core/`** — `injectEditorStyles.ts` scrollbar/editor CSS
+  updated; `excelFormatter.ts` Excel color map updated.
+- **`packages/react/widgets/grid-react/`** — shadcn primitives
+  (`alert-dialog.tsx`, `popover.tsx`, `select.tsx`, `ghost-icon-button.tsx`,
+  `PopoutPortal.tsx`) swept.
+- **`packages/react/tools/`** — `config-browser-react` and
+  `workspace-setup-react` fully swept.
+- **`packages/angular/tools/config-browser-angular/`** — Angular template
+  inline styles swept.
+- **`apps/demo-react/`**, **`apps/demo-configservice-react/`**,
+  **`apps/demo-angular/`**, **`apps/config-admin-web/`**,
+  **`apps/markets-ui-react-reference/`** — all app-level CSS, SCSS, and
+  component files swept.
+- **`tools/scripts/check-ds-tokens.ts`** — ALLOW_PATHS extended for
+  legitimate data files (color-picker swatches, Monaco editor token theme,
+  OpenFin API hex, console.log `%c` debug colors, WCAG test fixtures, demo
+  fixture data, Recharts SVG attribute selectors).
+
+Token mapping used (partial):
+
+| Legacy | Unified |
+|--------|---------|
+| `--bn-bg` / `--fi-bg1` | `--ds-surface-primary` |
+| `--bn-bg2` / `--fi-bg2` | `--ds-surface-secondary` |
+| `--fi-bg0` | `--ds-surface-ground` |
+| `--fi-bg3` | `--ds-surface-tertiary` |
+| `--bn-t0` / `--fi-t0` | `--ds-text-primary` |
+| `--bn-t1` / `--fi-t1` | `--ds-text-secondary` |
+| `--bn-t2` / `--fi-t2` | `--ds-text-muted` |
+| `--fi-t3` | `--ds-text-faint` |
+| `--bn-border` / `--fi-border` | `--ds-border-primary` |
+| `--fi-border2` | `--ds-border-secondary` |
+| `--bn-green` / `--fi-green` | `--ds-accent-positive` |
+| `--bn-red` / `--fi-red` | `--ds-accent-negative` |
+| `--bn-blue` / `--fi-blue` | `--ds-accent-info` |
+| `--fi-amber` | `--ds-accent-warning` |
+| `--fi-sans` | `--ds-font-sans` |
+| `--fi-mono` | `--ds-font-mono` |
