@@ -79,8 +79,8 @@ export function FormatSection({
         gap: 10,
         flexWrap: 'wrap',
         padding: '6px 8px',
-        background: 'var(--ck-card, #22262b)',
-        border: '1px solid var(--ck-border, #2d3339)',
+        background: 'var(--ds-surface-secondary)',
+        border: '1px solid var(--ds-border-primary)',
         borderRadius: 2,
       }}
     >
@@ -98,7 +98,7 @@ export function FormatSection({
                 title={p}
                 style={{
                   minWidth: 40,
-                  fontFamily: 'var(--ck-font-mono)',
+                  fontFamily: 'var(--ds-font-mono)',
                   fontSize: 10,
                   letterSpacing: '0.06em',
                   padding: '0 8px',

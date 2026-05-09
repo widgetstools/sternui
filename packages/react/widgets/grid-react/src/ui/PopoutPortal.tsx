@@ -403,13 +403,11 @@ export function PopoutPortal({
   // while globals.css uses just `:root`.
   //
   // - On <html>: both rules match. globals.css is loaded LAST so its hex
-  //   value wins — `--card` resolves to #161a1e, `var(--bn-bg1)` is a valid
-  //   color, and descendants inherit correctly.
+  //   value wins — `--card` resolves correctly, and descendants inherit.
   // - If we ALSO set data-theme on <body>: fi-dark's `[data-theme="dark"]`
   //   rule matches body directly. globals.css's `:root` rule does NOT match
   //   body. So on body, fi-dark wins → `--card` is "214 26% 10%" (HSL
-  //   triplet meant for hsl(var(--bn-bg1))) → `var(--bn-bg1)` is an invalid
-  //   background value → transparent popovers.
+  //   triplet) → the background value is invalid → transparent popovers.
   //
   // Keeping data-theme only on <html> means body inherits the valid hex
   // via the normal CSS-var cascade. The descendant-form selectors in
@@ -602,11 +600,11 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
     // Seed the popout's <body> with BOTH the cockpit scope class AND
     // the gc-settings data-attr so every Radix portal target (we pass
     // `popout.document.body` as the container) inherits the full
-    // --ck-*, --gc-*, + Tailwind shadcn token stack. Without this, a
+    // --ds-*, + Tailwind shadcn token stack. Without this, a
     // FormatPopover opened from inside a popped settings sheet would
     // fall back to light-theme shadcn defaults — the user saw a white
     // rectangle in the middle of the Indicator section because the
-    // portaled color-picker content had no --gc-surface bound.
+    // portaled color-picker content had no design-system surface token bound.
     //
     // These are purely scoping hooks (no layout styles bound to them
     // at :root level), so adding them to <body> is harmless for any
@@ -617,7 +615,7 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
     } catch (err) { console.warn('[PopoutPortal] body scope tag failed:', err); }
 
     // Clone every stylesheet from the main document so our CSS-in-
-    // JS tokens (--bn-*, --ck-*, --primary) + cockpit runtime styles
+    // JS tokens (--ds-*, --primary) + runtime styles
     // + Tailwind bundle all resolve. Done BEFORE the reset so that
     // the popout-specific reset (`body { padding: 0 }`,
     // `[data-popout-root] { overflow: hidden }`) wins the cascade —
@@ -639,7 +637,7 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
       // cascade-only reset.
       reset.textContent = `
         html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; width: 100% !important; overflow: hidden !important; }
-        body { font-family: inherit; background: var(--bn-bg, #0b0e11); color: var(--bn-t0, #eaecef); }
+        body { font-family: inherit; background: var(--ds-surface-ground, #0b0e11); color: var(--ds-text-primary, #eaecef); }
         [data-popout-root] { width: 100% !important; height: 100% !important; min-width: 0; min-height: 0; overflow: hidden !important; }
       `;
       doc.head.appendChild(reset);

@@ -374,8 +374,8 @@ function ApplyOrClearButton({
 }) {
   const accentColor =
     accent === 'green'
-      ? 'var(--ck-green, var(--bn-blue))'
-      : 'var(--ck-red, var(--bn-red))';
+      ? 'var(--ds-accent-info)'
+      : 'var(--ds-accent-negative)';
   return (
     <button
       type="button"
@@ -392,9 +392,9 @@ function ApplyOrClearButton({
         height: 26,
         padding: 0,
         background: 'transparent',
-        border: '1px solid var(--ck-border-hi, var(--bn-border))',
+        border: '1px solid var(--ds-border-secondary)',
         borderRadius: 2,
-        color: disabled ? 'var(--ck-t3)' : accentColor,
+        color: disabled ? 'var(--ds-text-faint)' : accentColor,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.4 : 1,
         transition: 'background 100ms, border-color 100ms, color 100ms',
@@ -442,13 +442,13 @@ function CompactFormatterPicker({
             gap: 6,
             height: 26,
             padding: '0 8px',
-            background: 'var(--ck-bg, var(--bn-bg))',
+            background: 'var(--ds-surface-ground)',
             border: `1px solid ${
-              value ? 'var(--ck-green-dim, var(--bn-border))' : 'var(--ck-border-hi, var(--bn-border))'
+              value ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
             }`,
             borderRadius: 2,
-            color: value ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t0, var(--bn-t0))',
-            fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+            color: value ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
+            fontFamily: 'var(--ds-font-sans)',
             fontSize: 11,
             cursor: 'pointer',
             transition: 'background 120ms, border-color 120ms, color 120ms',
@@ -463,8 +463,8 @@ function CompactFormatterPicker({
               textOverflow: 'ellipsis',
               fontFamily:
                 activePreset || !value
-                  ? 'var(--ck-font-sans, sans-serif)'
-                  : 'var(--ck-font-mono, monospace)',
+                  ? 'var(--ds-font-sans)'
+                  : 'var(--ds-font-mono)',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -488,7 +488,7 @@ function CompactFormatterPicker({
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
-          fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+          fontFamily: 'var(--ds-font-sans)',
           padding: 2,
         }}
       >
@@ -503,14 +503,14 @@ function CompactFormatterPicker({
               height: 22,
               padding: '0 8px',
               background: preview
-                ? 'var(--ck-green-bg, color-mix(in srgb, var(--bn-blue) 10%, transparent))'
-                : 'var(--ck-bg, var(--bn-bg))',
+                ? 'var(--ds-overlay-info-soft)'
+                : 'var(--ds-surface-ground)',
               border: `1px dashed ${
-                preview ? 'var(--ck-green-dim, var(--bn-border))' : 'var(--ck-border-hi, var(--bn-border))'
+                preview ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
               }`,
               borderRadius: 2,
-              color: preview ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t3)',
-              fontFamily: 'var(--ck-font-mono, monospace)',
+              color: preview ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
+              fontFamily: 'var(--ds-font-mono)',
               fontSize: 11,
               fontVariantNumeric: 'tabular-nums',
               flex: 1,
@@ -539,9 +539,9 @@ function CompactFormatterPicker({
               height: 22,
               padding: 0,
               background: 'transparent',
-              border: '1px solid var(--ck-border-hi, var(--bn-border))',
+              border: '1px solid var(--ds-border-secondary)',
               borderRadius: 2,
-              color: value ? 'var(--ck-red, var(--bn-red))' : 'var(--ck-t3)',
+              color: value ? 'var(--ds-accent-negative)' : 'var(--ds-text-faint)',
               cursor: value ? 'pointer' : 'default',
               opacity: value ? 1 : 0.4,
             }}
@@ -564,7 +564,7 @@ function CompactFormatterPicker({
             gap: 8,
             overflowY: 'auto',
             paddingRight: 2,
-            scrollbarColor: 'var(--gc-border, #313944) transparent',
+            scrollbarColor: 'var(--ds-border-primary) transparent',
             scrollbarWidth: 'thin',
           }}
         >
@@ -595,13 +595,13 @@ function CompactFormatterPicker({
                         gap: 2,
                         padding: '6px 8px',
                         background: active
-                          ? 'var(--ck-green-bg, color-mix(in srgb, var(--bn-blue) 14%, transparent))'
-                          : 'var(--ck-bg, var(--bn-bg))',
+                          ? 'var(--ds-overlay-info-soft)'
+                          : 'var(--ds-surface-ground)',
                         border: `1px solid ${
-                          active ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-border-hi, var(--bn-border))'
+                          active ? 'var(--ds-accent-info)' : 'var(--ds-border-primary)'
                         }`,
                         borderRadius: 2,
-                        color: active ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t0, var(--bn-t0))',
+                        color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontFamily: 'inherit',
@@ -612,9 +612,9 @@ function CompactFormatterPicker({
                       {p.hint ? (
                         <span
                           style={{
-                            fontFamily: 'var(--ck-font-mono, monospace)',
+                            fontFamily: 'var(--ds-font-mono)',
                             fontSize: 9,
-                            color: active ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t3)',
+                            color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -631,13 +631,13 @@ function CompactFormatterPicker({
             </div>
           ))}
           {presets.length === 0 ? (
-            <Caps size={10} color="var(--ck-t3)">
+            <Caps size={10} color="var(--ds-text-faint)">
               No presets for this data type — use the custom format below.
             </Caps>
           ) : null}
         </div>
 
-        <div style={{ height: 1, background: 'var(--ck-border, var(--bn-border))', flexShrink: 0 }} />
+        <div style={{ height: 1, background: 'var(--ds-border-primary)', flexShrink: 0 }} />
 
         {/* Custom Excel input + info (fixed-height shrinker — never collapses) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
@@ -655,7 +655,7 @@ function CompactFormatterPicker({
               flexWrap: 'wrap',
             }}
           >
-            <Caps size={9} color="var(--ck-t3)" style={{ paddingRight: 4 }}>
+            <Caps size={9} color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
               SYMBOL
             </Caps>
             {CURRENCY_QUICK_INSERT.map((c) => (
@@ -677,23 +677,23 @@ function CompactFormatterPicker({
                   minWidth: 26,
                   height: 22,
                   padding: '0 6px',
-                  background: 'var(--ck-bg, var(--bn-bg))',
-                  border: '1px solid var(--ck-border-hi, var(--bn-border))',
+                  background: 'var(--ds-surface-ground)',
+                  border: '1px solid var(--ds-border-primary)',
                   borderRadius: 2,
-                  color: 'var(--ck-t0, var(--bn-t0))',
+                  color: 'var(--ds-text-primary)',
                   cursor: 'pointer',
-                  fontFamily: 'var(--ck-font-mono, monospace)',
+                  fontFamily: 'var(--ds-font-mono)',
                   fontSize: 11,
                   lineHeight: 1,
                   transition: 'background 100ms, border-color 100ms',
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    'var(--ck-surface-hover, var(--bn-bg3))';
+                    'var(--ds-surface-tertiary)';
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    'var(--ck-bg, var(--bn-bg))';
+                    'var(--ds-surface-ground)';
                 }}
               >
                 {c.label}
@@ -763,7 +763,7 @@ function CompactFormatterPicker({
               data-testid={testId ? `${testId}-info` : undefined}
             />
           </div>
-          <Caps size={9} color="var(--ck-t3)">
+          <Caps size={9} color="var(--ds-text-faint)">
             {EXCEL_EXAMPLES.length} categories of example formats in the{' '}
             <Info size={9} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
             reference.
@@ -840,10 +840,10 @@ function InlineFormatterPicker({
                 width: '100%',
                 height: rowHeight,
                 padding: '0 8px 0 10px',
-                background: 'var(--bn-bg)',
-                border: '1px solid var(--bn-border)',
+                background: 'var(--ds-surface-ground)',
+                border: '1px solid var(--ds-border-primary)',
                 borderRadius: 3,
-                color: 'var(--bn-t0)',
+                color: 'var(--ds-text-primary)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 fontSize: 11,
@@ -915,11 +915,11 @@ function InlineFormatterPicker({
           gap: 6,
           height: 28,
           padding: '0 8px',
-          background: 'var(--ck-bg, var(--bn-bg))',
-          border: '1px solid var(--ck-border-hi, var(--bn-border))',
+          background: 'var(--ds-surface-ground)',
+          border: '1px solid var(--ds-border-primary)',
           borderRadius: 2,
-          color: 'var(--ck-t0, var(--bn-t0))',
-          fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+          color: 'var(--ds-text-primary)',
+          fontFamily: 'var(--ds-font-sans)',
           fontSize: 11,
           cursor: 'pointer',
           transition: 'background 120ms, border-color 120ms',
@@ -932,7 +932,7 @@ function InlineFormatterPicker({
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            fontFamily: 'var(--ck-font-mono, monospace)',
+            fontFamily: 'var(--ds-font-mono)',
             fontVariantNumeric: 'tabular-nums',
           }}
         >
@@ -951,10 +951,10 @@ function InlineFormatterPicker({
         alignItems: 'center',
         gap: 6,
         padding: 4,
-        background: 'var(--ck-card, transparent)',
-        border: '1px solid var(--ck-border, var(--bn-border))',
+        background: 'var(--ds-surface-secondary)',
+        border: '1px solid var(--ds-border-primary)',
         borderRadius: 2,
-        fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+        fontFamily: 'var(--ds-font-sans)',
       }}
     >
       <button
@@ -970,7 +970,7 @@ function InlineFormatterPicker({
           padding: 0,
           background: 'transparent',
           border: 'none',
-          color: 'var(--ck-t2, var(--bn-t2))',
+          color: 'var(--ds-text-muted)',
           cursor: 'pointer',
         }}
       >
@@ -1001,10 +1001,10 @@ function InlineFormatterPicker({
               minWidth: 120,
               maxWidth: 240,
               padding: '0 6px 0 10px',
-              background: 'var(--ck-bg, var(--bn-bg))',
-              border: '1px solid var(--ck-border-hi, var(--bn-border))',
+              background: 'var(--ds-surface-ground)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 2,
-              color: 'var(--ck-t0, var(--bn-t0))',
+              color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               fontFamily: 'inherit',
               fontSize: 11,
@@ -1066,11 +1066,11 @@ function InlineFormatterPicker({
             gap: 4,
             height: rowHeight,
             padding: '0 8px',
-            background: 'var(--ck-green-bg, color-mix(in srgb, var(--bn-blue) 10%, transparent))',
-            border: '1px dashed var(--ck-green-dim, var(--bn-border))',
+            background: 'var(--ds-overlay-info-soft)',
+            border: '1px dashed var(--ds-border-secondary)',
             borderRadius: 2,
-            color: 'var(--ck-green, var(--bn-blue))',
-            fontFamily: 'var(--ck-font-mono, monospace)',
+            color: 'var(--ds-accent-info)',
+            fontFamily: 'var(--ds-font-mono)',
             fontSize: 11,
             fontVariantNumeric: 'tabular-nums',
             whiteSpace: 'nowrap',
@@ -1080,7 +1080,7 @@ function InlineFormatterPicker({
           }}
           title={`Preview: ${preview}`}
         >
-          <Caps size={9} color="var(--ck-green)">
+          <Caps size={9} color="var(--ds-accent-info)">
             PREVIEW
           </Caps>
           {preview}

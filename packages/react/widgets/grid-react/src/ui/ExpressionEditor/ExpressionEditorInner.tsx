@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
+import './monaco-overflow.css';
 import type { ExpressionEditorProps, ExpressionEditorHandle } from './types';
 import { registerLanguage, LANGUAGE_ID } from './language';
 import { registerCompletions, defaultFunctionsProvider } from './completions';
@@ -77,7 +78,7 @@ function getMonacoOverflowHost(): HTMLElement | undefined {
   // uses to paint the suggest-widget background, borders, and text colours;
   // without this, the widget renders as a transparent box over the sheet.
   host.className = `monaco-editor ${themeClass} monaco-editor-overflow-widgets-host`;
-  host.setAttribute('data-gc-monaco-overflow', '');
+  host.setAttribute('data-ds-monaco-overflow', '');
   // Keep it out of the way until Monaco fills it with positioned children.
   host.style.position = 'absolute';
   host.style.top = '0';
@@ -330,9 +331,9 @@ export default function ExpressionEditorInner(
         data-testid={dataTestId}
         style={{
           height: heightPx,
-          border: '1px solid var(--gc-border, #313944)',
+          border: '1px solid var(--ds-border-primary)',
           borderRadius: 4,
-          background: 'var(--gc-bg, #0b0e11)',
+          background: 'var(--ds-surface-ground)',
           overflow: 'hidden',
         }}
       />
@@ -401,7 +402,7 @@ function installPlaceholder(editor: monaco.editor.IStandaloneCodeEditor, text: s
   if (!document.getElementById('gc-expr-placeholder-style')) {
     const style = document.createElement('style');
     style.id = 'gc-expr-placeholder-style';
-    style.textContent = `.gc-expr-placeholder { color: var(--gc-text-faint, #4a5568); font-style: italic; pointer-events: none; }`;
+    style.textContent = `.gc-expr-placeholder { color: var(--ds-text-faint); font-style: italic; pointer-events: none; }`;
     document.head.appendChild(style);
   }
   return { dispose: () => { sub.dispose(); editor.deltaDecorations(decorations, []); } };

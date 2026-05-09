@@ -46,13 +46,12 @@ export function FormatDropdown<V extends string | number>({
           align="start"
           sideOffset={4}
           collisionPadding={8}
-          data-gc-settings=""
           className={cn(
             'z-[2147483647] rounded-md',
-            'bg-[var(--gc-surface,#161a1e)] text-[var(--gc-text,#eaecef)]',
-            'border border-[var(--gc-border,#313944)]',
+            'bg-card text-card-foreground',
+            'border border-border',
             'shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
-            'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)] text-[11px]',
+            'font-sans text-[11px]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
             'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
@@ -60,11 +59,10 @@ export function FormatDropdown<V extends string | number>({
           style={{
             minWidth: width ?? 180,
             padding: 4,
-            // Token-backed opaque background. Mirrors FormatPopover;
-            // auto-flips for light theme via the --card re-binding
-            // under [data-theme='light'].
-            background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
-            color: 'var(--gc-text, var(--bn-t0, #eaecef))',
+            // Token-backed opaque background. Auto-flips for light/dark theme
+            // via the design-system token cascade.
+            background: 'var(--ds-surface-primary)',
+            color: 'var(--ds-text-primary)',
             // Suppress the browser's default focus outline on the
             // Radix-focused Content element.
             outline: 'none',
@@ -97,15 +95,15 @@ export function FormatDropdown<V extends string | number>({
                   width: '100%',
                   padding: '6px 8px 6px 4px',
                   background: 'transparent',
-                  color: 'var(--gc-text, #eaecef)',
+                  color: 'var(--ds-text-primary)',
                   border: 'none',
-                  borderRadius: 'var(--gc-radius-sm, 4px)',
+                  borderRadius: 'var(--ds-radius-sm)',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  fontFamily: 'var(--gc-font)',
-                  fontSize: 'var(--gc-font-sm, 11px)',
+                  fontFamily: 'inherit',
+                  fontSize: 11,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gc-surface-hover, #1e2329)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--ds-state-hover-overlay)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <span
@@ -113,13 +111,13 @@ export function FormatDropdown<V extends string | number>({
                     width: 14,
                     display: 'inline-flex',
                     justifyContent: 'center',
-                    color: selected ? 'var(--gc-positive, #2dd4bf)' : 'transparent',
+                    color: selected ? 'var(--ds-accent-positive)' : 'transparent',
                   }}
                 >
                   <Check size={11} strokeWidth={2} />
                 </span>
                 {o.icon && (
-                  <span style={{ color: selected ? 'var(--gc-positive)' : 'var(--gc-text-muted)', display: 'inline-flex' }}>
+                  <span style={{ color: selected ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)', display: 'inline-flex' }}>
                     {o.icon}
                   </span>
                 )}
@@ -129,7 +127,7 @@ export function FormatDropdown<V extends string | number>({
           })}
           {footer && (
             <>
-              <div style={{ height: 1, background: 'var(--gc-border)', margin: '4px 0' }} />
+              <div style={{ height: 1, background: 'var(--ds-border-primary)', margin: '4px 0' }} />
               {footer}
             </>
           )}
