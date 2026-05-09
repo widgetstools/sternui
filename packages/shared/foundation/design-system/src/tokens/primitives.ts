@@ -1,153 +1,176 @@
 // ─────────────────────────────────────────────────────────────
-//  FI Design System — Primitive Tokens
+//  Chroma Desk — Primitive Tokens
 //  Raw palette, type scale, spacing, radius, opacity, timing.
-//  No semantic meaning — just values.
 //
-//  Palette direction:
-//    - Punchy, saturated accents. Nothing washed out.
-//    - No earthy tones, no browns. Warning is pure orange, not copper.
-//    - Cool-neutral charcoal for dark chrome and cool off-white
-//      for light chrome. No warm cream anywhere.
+//  One theme, two modes:
+//    - LIGHT  — cool graphite-grey chrome, deep cool-charcoal text,
+//               vivid accents AA/AAA-audited against the grey ground.
+//               Designed for traders running the app 12+ hours; ground
+//               sits at ~88–89% L so it's never glaring under office
+//               fluorescents or late-night ambient light.
+//    - DARK   — balanced graphite chrome, vivid mint-teal & rose,
+//               signature cyan brand moment.
+//
+//  Typography: Geist sans + JetBrains Mono in both modes.
+//  Accents: identical hue family across modes (teal/rose/amber/cyan/
+//  brand-cyan), tuned per mode for contrast against its surface.
+//  Warning is pure amber, never copper or brown.
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
-  // Cool-neutral grayscale. No warm shift — surfaces read as clean
-  // cool chrome, letting the saturated accents carry all the color.
-  charcoal: {
-    0:   '#ffffff',
-    50:  '#f3f5f9',  // light theme ground (cool off-white)
-    100: '#ebeef3',  // light hover
-    150: '#dde2ea',  // light pressed
-    200: '#d9dee8',  // light border primary
-    300: '#c3cad7',  // light border secondary
-    400: '#9ca3af',  // light faint text
-    500: '#6b7280',  // muted text (both themes)
-    600: '#4f5665',  // light secondary text
-    700: '#4d586a',  // dark faint text
-    800: '#323b49',  // dark border secondary
-    850: '#2e3744',  // dark border primary
-    900: '#242c38',  // dark tertiary surface
-    925: '#1a212b',  // dark secondary surface
-    950: '#121820',  // dark primary surface (card)
-    975: '#0a0e14',  // dark ground
+  // ── Cool graphite (light chrome) ──────────────────────────
+  // Cool-tinted greys, not warm paper. Ground sits at ~88% L for
+  // long-session ergonomics; cards lift to ~92% L for depth.
+  chromeLight: {
+    50:  '#eef1f6',  // card surface     (~94% L)
+    100: '#e2e6ee',  // ground           (~89% L) — primary background
+    200: '#d3d9e3',  // hover            (~85% L)
+    300: '#c2c9d6',  // pressed          (~80% L)
+    400: '#b1b9c8',  // accent band      (~75% L)
+    500: '#9aa3b5',  // border primary   (~67% L)
+    600: '#7c8497',  // border secondary (~57% L)
   },
-  // Vibrant teal-green — reads clearly positive, no neon haze.
+  // ── Cool charcoal (light text) ────────────────────────────
+  // Deep cool charcoals — never pure black, never warm.
+  coolInk: {
+    0:   '#0f1218',  // primary body   (~16.5:1 AAA on chromeLight-100)
+    1:   '#2a3140',  // secondary      (~10.0:1 AAA)
+    2:   '#4d5566',  // muted          (~5.6:1  AA)
+    3:   '#727a8c',  // faint / UI     (~3.5:1  UI only)
+  },
+  // ── Balanced graphite (dark chrome) ───────────────────────
+  // Slightly cool but not clinical — the Chroma Desk dark body.
+  graphite: {
+    975: '#0b0d10',  // ground
+    950: '#14171b',  // card
+    900: '#1c2025',  // hover / header
+    850: '#252a31',  // pressed
+    800: '#31373f',  // accent band
+    700: '#3e4552',  // border secondary
+    600: '#2b3139',  // border primary
+    500: '#565d68',  // dark faint text   (2.7:1  UI only)
+    400: '#7d8694',  // dark muted        (4.6:1  AA)
+    300: '#aab3bf',  // dark secondary    (7.6:1  AAA)
+    50:  '#ecf0f5',  // dark primary text (14.8:1 AAA)
+  },
+  // ── Teal / positive ──────────────────────────────────────
+  // Light: deep teal-green (AA on chromeLight-100).
+  // Dark:  vivid mint-teal (AAA on graphite).
   teal: {
-    50:  '#e6fbf3',
-    100: '#c1f5de',
-    200: '#8cecc3',
-    300: '#4ee1a5',
-    400: '#14d9a0',  // dark theme positive (punchy)
-    500: '#0fb88a',  // dark hover / buy bg
-    600: '#0ea870',  // light theme positive
-    700: '#0b8959',  // light hover
-    800: '#086b47',
-    900: '#065234',
+    light:    '#076a48',   // light positive   (~6.0:1 AAA)
+    lightHov: '#055438',
+    dark:     '#22e3a8',   // dark positive    (11.1:1 AAA)
+    darkHov:  '#3fecb8',
   },
-  // Vivid coral-pink-red. Saturated but not fire-engine.
-  red: {
-    50:  '#ffe8ed',
-    100: '#ffc5d0',
-    200: '#ff94a7',
-    300: '#ff6c86',
-    400: '#ff4d6d',  // dark negative (punchy)
-    500: '#e8304e',  // dark hover / sell bg
-    600: '#e02e47',  // light negative
-    700: '#b81e37',  // light hover
-    800: '#91162b',
-    900: '#6e1020',
+  // ── Rose / negative ──────────────────────────────────────
+  // Light: deep red-rose (AA on chromeLight-100, distinct from amber).
+  // Dark:  vivid rose (AA on graphite).
+  rose: {
+    light:    '#b01e3f',   // light negative   (~6.5:1 AAA)
+    lightHov: '#911731',
+    dark:     '#ff5a82',   // dark negative    (6.02:1 AA)
+    darkHov:  '#ff7898',
   },
-  // PURE ORANGE — warning semantic. Deliberately NOT copper, NOT
-  // brown. Clearly distinct from red (hue ≈22°) and unmistakably
-  // orange (no yellow character).
-  orange: {
-    300: '#ffc195',
-    400: '#ffa872',
-    500: '#ff8c42',  // dark warning (vivid)
-    600: '#e86a1c',  // dark hover / light warning
-    700: '#c75b18',  // light hover
+  // ── Amber / warning ──────────────────────────────────────
+  // Pure amber, unmistakable from rose. Semantic-only.
+  amber: {
+    light:    '#7a5408',   // ~6.2:1 AAA on chromeLight-100
+    dark:     '#f5c14b',   // 10.6:1 AAA on graphite
   },
-  // Punchy saturated blue — brand accent. Replaces Binance yellow.
-  blue: {
-    50:  '#eaf3ff',
-    100: '#d0e2ff',
-    200: '#a1c4ff',
-    300: '#6fa5fc',
-    400: '#60a5fa',
-    500: '#3b82f6',  // dark brand (punchy)
-    600: '#2563eb',  // light brand / dark hover
-    700: '#1d4ed8',  // light hover
+  // ── Brand / info ─────────────────────────────────────────
+  // Light: deep confident blue.
+  // Dark:  signature cyan — Chroma Desk's wow moment.
+  brand: {
+    light:    '#1740a8',   // ~7.8:1 AAA
+    lightHov: '#13348a',
+    dark:     '#22d3ee',   // signature cyan
+    darkHov:  '#4ae0f2',
   },
-  // Bright cyan for highlights and selected states.
+  // ── Highlight / selected ─────────────────────────────────
   cyan: {
-    300: '#67e8f9',
-    400: '#22d3ee',  // dark highlight
-    500: '#06b6d4',  // light highlight
-    600: '#0891b2',
-    700: '#0e7490',
+    light:    '#035c68',   // ~7.1:1 AAA
+    dark:     '#22d3ee',
   },
-  // Saturated purple — tertiary accent.
+  // ── Purple / tertiary ────────────────────────────────────
   purple: {
-    300: '#c4b5fd',
-    400: '#a855f7',  // dark
-    500: '#9333ea',
-    600: '#7c3aed',  // light
+    light:    '#5821b8',
+    dark:     '#a78bfa',
+  },
+  // ── CVD-safe alternates ──────────────────────────────────
+  // Deuteranopia/protanopia-safe mapping: blue=buy, orange=sell.
+  cvd: {
+    buyLight:  '#1740a8',
+    sellLight: '#a8350c',
+    buyDark:   '#7aa6ff',
+    sellDark:  '#ff9d4e',
   },
 } as const;
 
 export const typography = {
   fontFamily: {
-    mono: "'JetBrains Mono', monospace",
-    sans: "'Geist', sans-serif",
+    // Chroma Desk identity: Geist sans + JetBrains Mono in both
+    // modes. Single typographic voice across light and dark.
+    sans:  "'Geist', 'Inter', system-ui, sans-serif",
+    mono:  "'JetBrains Mono', 'Geist Mono', ui-monospace, monospace",
+    serif: "'Geist', Georgia, serif",
   },
   fontSize: {
-    xs: '10px',  // column headers, badges, timestamps, captions
-    sm: '11px',  // body text, table cells, data values (DEFAULT)
-    md: '13px',  // section titles, nav tabs, CTA buttons
-    lg: '18px',  // KPI headline numbers
+    '2xs': '10px',
+    xs:    '11px',   // badges, timestamps
+    sm:    '12px',   // table cells, body default
+    md:    '13px',   // section titles, nav tabs
+    lg:    '14px',   // CTA buttons
+    xl:    '16px',   // card headers
+    '2xl': '20px',   // widget headlines
+    '3xl': '26px',   // KPI numbers
+    '4xl': '36px',   // hero
   },
   fontWeight: {
     regular:  400,
+    book:     450,   // optical weight for small body text
     medium:   500,
     semibold: 600,
     bold:     700,
   },
   letterSpacing: {
-    tight:  '0.02em',
-    normal: '0.03em',
-    wide:   '0.04em',
-    wider:  '0.05em',
+    tight:   '-0.02em',
+    snug:    '-0.01em',
+    normal:  '0',
+    wide:    '0.02em',
+    wider:   '0.04em',
+    widest:  '0.06em',
   },
   lineHeight: {
     none:    1,
-    tight:   1.25,
+    tight:   1.2,
+    snug:    1.35,
     normal:  1.5,
-    relaxed: 1.8,
+    relaxed: 1.65,
   },
 } as const;
 
 export const spacing = {
-  0:  0,
-  px: 1,
+  0:   0,
+  px:  1,
   0.5: 2,
-  1:  4,
+  1:   4,
   1.5: 6,
-  2:  8,
+  2:   8,
   2.5: 10,
-  3:  12,
-  3.5: 14,
-  4:  16,
-  5:  20,
-  6:  24,
-  8:  32,
+  3:   12,
+  4:   16,
+  5:   20,
+  6:   24,
+  8:   32,
+  10:  40,
 } as const;
 
 export const radius = {
   none: '0px',
-  sm:   '2px',
-  md:   '3px',
-  lg:   '4px',
-  xl:   '6px',
+  sm:   '3px',
+  md:   '5px',
+  lg:   '8px',
+  xl:   '12px',
   full: '9999px',
 } as const;
 
@@ -160,17 +183,23 @@ export const opacity = {
   solid:  1.0,
 } as const;
 
+// Motion — tuned for data clarity. `tickFlash` is the signature
+// price-cell pulse; never override it below 600ms or users will
+// miss the flash during a fast tape.
 export const transition = {
-  fast:   '150ms ease',
-  normal: '200ms ease',
-  slow:   '500ms ease-out',
+  instant:   '80ms cubic-bezier(0.4,0,0.6,1)',
+  fast:      '140ms cubic-bezier(0.4,0,0.2,1)',
+  normal:    '220ms cubic-bezier(0.4,0,0.2,1)',
+  slow:      '420ms cubic-bezier(0.4,0,0.2,1)',
+  emphasis:  '640ms cubic-bezier(0.2,0.8,0.2,1)',
+  tickFlash: '900ms cubic-bezier(0.25,0.1,0.25,1)',
 } as const;
 
 export const shadow = {
   none: 'none',
-  sm:   '0 1px 2px rgba(0,0,0,0.15)',
-  md:   '0 2px 6px rgba(0,0,0,0.2)',
-  lg:   '0 4px 12px rgba(0,0,0,0.25)',
+  sm:   '0 1px 2px rgba(15,18,24,0.08)',
+  md:   '0 1px 2px rgba(15,18,24,0.08), 0 4px 14px rgba(15,18,24,0.10)',   // light
+  lg:   '0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5), 0 8px 22px rgba(0,0,0,0.4)', // dark
 } as const;
 
 export const primitives = {
