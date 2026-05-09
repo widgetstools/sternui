@@ -17,16 +17,62 @@
 // APP_REGISTRY, USER_PROFILE, and ROLES tables.
 
 import { ConfigDatabase } from './db';
+import { OptimisticLockError } from './errors';
 import type {
   AppConfigRow,
+  AppIdentity,
   AppRegistryRow,
+  ApplicationContext,
   ConfigManagerOptions,
+  DataServicesHandle,
   PermissionRow,
   PendingSyncRow,
   RoleRow,
   SeedData,
   UserProfileRow,
 } from './types';
+import { isVisible, type VisibilityContext } from './visibility';
+
+/**
+ * Subset of `ApplicationContext.ImpersonatedUser` used by
+ * `setImpersonatedUser`. Kept as a structural alias so callers can pass
+ * either a freshly-constructed object literal or the
+ * `LoggedInUser` shape they already hold.
+ */
+export type ImpersonatedUser = { userId: string; displayName?: string };
+
+/**
+ * Fixed name of the framework-owned AppData provider (Decision 4 in
+ * `config-manager-redesign.md`). Every ConfigManager that's wired
+ * with `dataServices` writes its identity / profile keys into this
+ * single named row; consumers read it via `appData.get(...)`.
+ */
+const APPLICATION_CONTEXT_NAME = 'ApplicationContext';
+
+/**
+ * Optional behavior knobs on a single `saveConfig` call. Adding fields
+ * here is non-breaking; existing call sites pass nothing and get the
+ * pre-Session-6 last-write-wins semantics.
+ */
+export interface SaveConfigOptions {
+  /**
+   * The `updatedTime` the caller observed at edit-start. When supplied
+   * AND the manager is in REST mode, the value flows out as an
+   * `If-Match` header so the server can refuse a stale write with HTTP
+   * 412 (Decision 12.5 / Session 6). Local mode applies the same check
+   * against Dexie before persisting.
+   */
+  expectedUpdatedTime?: string;
+}
+
+// Dev placeholders used when the host app doesn't pass `appId` /
+// `identity`. Keep these aligned with the JSDoc on the option fields
+// so first-run docs and runtime defaults can never drift.
+const DEFAULT_APP_ID = 'dev-app';
+const DEFAULT_IDENTITY: AppIdentity = {
+  userId: 'dev-user',
+  displayName: 'Dev User',
+};
 
 // How often to retry failed REST writes.
 // 10 seconds is a balance: short enough to recover quickly after a
@@ -41,8 +87,15 @@ const MAX_SYNC_RETRIES = 10;
 /**
  * Create a new ConfigManager instance.
  *
- * This is the recommended way to create a ConfigManager. Call `init()`
- * after creation to seed the database and start the sync loop.
+ * @deprecated Prefer `createConfigClient(...)` from `./client`. Per
+ * Decision 13 (config-manager-redesign), `ConfigClient` is the canonical
+ * forward-looking surface for component configuration; `ConfigManager`
+ * is collapsing to a private implementation detail behind the
+ * `LocalConfigClient` wrapper. Use `createConfigClient` for new feature
+ * code; keep `createConfigManager` only for legacy paths that still
+ * need the auth-table / dock-snapshot helper methods that haven't been
+ * lifted onto `ConfigClient` yet (those follow in the next session-set,
+ * after which this factory will be removed).
  *
  * @example
  * ```typescript
@@ -64,12 +117,19 @@ export function createConfigManager(options: ConfigManagerOptions = {}): ConfigM
  * database tables. It handles seeding, dual-mode persistence, and
  * sync retry logic.
  *
- * Use `createConfigManager()` to create an instance.
+ * @deprecated New feature code should consume `ConfigClient` (from
+ * `./client`) instead. `ConfigManager` is being collapsed behind
+ * `LocalConfigClient` — see Decision 13 in
+ * `docs/plans/plan-2026-05-07/config-manager-redesign.md` and the
+ * follow-up session-set that removes the factory and class.
  */
 export class ConfigManager {
   private db: ConfigDatabase;
   private seedConfigUrl: string | undefined;
   private restUrl: string | undefined;
+  private readonly appId: string;
+  private readonly identity: AppIdentity;
+  private dataServices: DataServicesHandle | undefined;
   private drainIntervalId: ReturnType<typeof setInterval> | undefined;
   private isInitialized = false;
 
@@ -77,6 +137,244 @@ export class ConfigManager {
     this.db = new ConfigDatabase();
     this.seedConfigUrl = options.seedConfigUrl;
     this.restUrl = options.configServiceRestUrl;
+    this.appId = options.appId ?? DEFAULT_APP_ID;
+    this.identity = options.identity ?? DEFAULT_IDENTITY;
+    this.dataServices = options.dataServices;
+  }
+
+  // ─── Identity accessors ──────────────────────────────────────────
+  // Read-only views over the construction-time appId / identity. Every
+  // write path that needs to stamp owner / audit fields (Session 3) and
+  // every read path that needs to apply visibility (Session 4) goes
+  // through these.
+
+  /**
+   * The app this ConfigManager belongs to. Defaults to `"dev-app"`
+   * when the host doesn't supply `appId`.
+   */
+  getAppId(): string {
+    return this.appId;
+  }
+
+  /**
+   * The authenticated identity this ConfigManager was constructed
+   * with. Defaults to `{ userId: "dev-user", displayName: "Dev User" }`
+   * when the host doesn't supply `identity`.
+   */
+  getIdentity(): AppIdentity {
+    return this.identity;
+  }
+
+  // ─── ApplicationContext / data-services wiring (Session 7) ────────
+  //
+  // ConfigManager publishes a single named AppData row called
+  // `"ApplicationContext"` whose `values` carry `AppId`,
+  // `LoggedInUser`, `ImpersonatedUser`, and `LoggedInUserProfile`.
+  // Every component (any window, any layer) reads identity sync via
+  // the main-thread mirror — no prop drilling, no context plumbing.
+  //
+  // Two wiring shapes are supported:
+  //   1. Construction-time:
+  //      `createConfigManager({ identity, appId, dataServices })`.
+  //   2. Late wiring:
+  //      `const cm = createConfigManager({ identity, appId });`
+  //      `cm.setDataServices(ds);`
+  //      `await cm.init();`
+  //   The late path exists because today's `bootstrapDataServices`
+  //   takes a `ConfigManager` (it keeps the reference for editor
+  //   flows). Without late wiring the host would have to construct
+  //   two ConfigManagers — one to seed the bundle, one to publish
+  //   ApplicationContext — which doubles the IndexedDB connection
+  //   and splits ownership.
+
+  /**
+   * Wire (or rewire) the data-services bundle. When set BEFORE
+   * `init()`, the four ApplicationContext keys are published as part
+   * of init; AFTER `init()`, the next call needs to be made
+   * explicitly via a future helper (Session 8 lands the impersonation
+   * setter) — Session 7 only handles the seed-time publish.
+   *
+   * Passing `undefined` detaches the handle so init() becomes a
+   * silent no-op for AppData. Mostly useful in tests.
+   */
+  setDataServices(handle: DataServicesHandle | undefined): void {
+    this.dataServices = handle;
+  }
+
+  /**
+   * Read the ApplicationContext keys published into AppData by
+   * `init()`. Sync because the main-thread mirror is sync; throws
+   * before init has run (or when no `dataServices` was wired).
+   *
+   * Components that want to reactively re-render on ApplicationContext
+   * change should subscribe to the AppDataMirror directly via
+   * `dataServices.appData.subscribe(...)` — this method is a
+   * point-in-time read.
+   */
+  getApplicationContext(): ApplicationContext {
+    if (!this.dataServices) {
+      throw new Error(
+        'ConfigManager.getApplicationContext requires dataServices to be configured. ' +
+          'Pass `dataServices` in `createConfigManager(...)` or call `setDataServices(...)` ' +
+          'before `init()`.',
+      );
+    }
+
+    const appData = this.dataServices.appData;
+    const appId = appData.get(APPLICATION_CONTEXT_NAME, 'AppId');
+    const loggedInUser = appData.get(APPLICATION_CONTEXT_NAME, 'LoggedInUser');
+    const impersonatedUser = appData.get(APPLICATION_CONTEXT_NAME, 'ImpersonatedUser');
+    const loggedInUserProfile = appData.get(
+      APPLICATION_CONTEXT_NAME,
+      'LoggedInUserProfile',
+    );
+
+    if (
+      typeof appId !== 'string' ||
+      loggedInUser === undefined ||
+      loggedInUserProfile === undefined
+    ) {
+      throw new Error(
+        'ConfigManager.getApplicationContext called before init() published the ' +
+          'ApplicationContext keys. Await `configManager.init()` first.',
+      );
+    }
+
+    return {
+      AppId: appId,
+      LoggedInUser: loggedInUser as ApplicationContext['LoggedInUser'],
+      ImpersonatedUser:
+        (impersonatedUser as ApplicationContext['ImpersonatedUser']) ?? null,
+      LoggedInUserProfile:
+        loggedInUserProfile as ApplicationContext['LoggedInUserProfile'],
+    };
+  }
+
+  // ─── Effective user / impersonation (Session 8) ──────────────────
+  //
+  // The framework exposes a single "effective user" slot that drives
+  // visibility (Session 4) AND `AppConfigRow.userId` owner stamping
+  // (Session 3). When `ImpersonatedUser` is set in
+  // `ApplicationContext` (via `setImpersonatedUser` below), the
+  // effective user becomes the impersonated user; otherwise it falls
+  // back to the construction-time identity (which equals
+  // `LoggedInUser`).
+  //
+  // Audit fields (`createdBy` / `updatedBy`) deliberately bypass this
+  // helper — they always reflect the real signed-in user via
+  // `this.identity.userId`, so impersonation can never rewrite history.
+
+  /**
+   * Resolve the user whose ownership / visibility applies to the next
+   * write or read. Reads `ImpersonatedUser` live from the AppData
+   * mirror so a flip via `setImpersonatedUser` is visible to the
+   * subsequent call without any explicit refresh.
+   *
+   * No-op when `dataServices` isn't wired (back-compat for tests and
+   * hosts that haven't opted into ApplicationContext): falls back to
+   * `identity.userId`. Same fallback when AppData is wired but the
+   * `ImpersonatedUser` slot is empty / null.
+   */
+  private getEffectiveUserId(): string {
+    if (!this.dataServices) {
+      return this.identity.userId;
+    }
+    const impersonated = this.dataServices.appData.get(
+      APPLICATION_CONTEXT_NAME,
+      'ImpersonatedUser',
+    ) as ImpersonatedUser | null | undefined;
+    if (impersonated && typeof impersonated === 'object' && impersonated.userId) {
+      return impersonated.userId;
+    }
+    return this.identity.userId;
+  }
+
+  /**
+   * Set or clear the impersonated user on `ApplicationContext`. After
+   * the returned promise resolves, every subsequent visibility check
+   * and owner stamp on this manager uses the new effective user; audit
+   * fields keep tracking the real logged-in user.
+   *
+   * Pass `null` to clear impersonation. Throws if the manager wasn't
+   * wired with `dataServices` — there's no AppData slot to write to.
+   */
+  async setImpersonatedUser(user: ImpersonatedUser | null): Promise<void> {
+    if (!this.dataServices) {
+      throw new Error(
+        'ConfigManager.setImpersonatedUser requires dataServices to be ' +
+          'configured. Pass `dataServices` in `createConfigManager(...)` ' +
+          'or call `setDataServices(...)` before `init()`.',
+      );
+    }
+    await this.dataServices.appData.set(
+      APPLICATION_CONTEXT_NAME,
+      'ImpersonatedUser',
+      user,
+    );
+  }
+
+  // ─── Visibility (Session 4) ───────────────────────────────────────
+  //
+  // Every list path that returns AppConfigRow[] runs the rows through
+  // `isVisible(row, ctx)` so cross-app and not-mine-private rows never
+  // leak. The effective user comes from `getEffectiveUserId()` so an
+  // active impersonation flips visibility immediately.
+
+  /**
+   * The visibility context applied to every filtered read. Built fresh
+   * each call so an impersonation swap (Session 8) is visible
+   * immediately on the next list call.
+   */
+  private get visibilityContext(): VisibilityContext {
+    return { appId: this.appId, effectiveUserId: this.getEffectiveUserId() };
+  }
+
+  // ─── Owner / audit field stamping (Session 3) ─────────────────────
+  //
+  // Every write path in this manager funnels its row through
+  // `stampWrite` so audit fields (`createdBy`, `updatedBy`,
+  // `creationTime`, `updatedTime`) follow a single rule:
+  //
+  //   - On insert: createdBy / creationTime default to the current
+  //     identity / now if the caller didn't supply them.
+  //   - On every write (insert OR update): updatedBy / updatedTime are
+  //     stamped unconditionally from the current identity / now.
+  //
+  // Audit fields ALWAYS reflect the real logged-in user
+  // (`identity.userId`). The OWNER slot (`AppConfigRow.userId`) flows
+  // through `getEffectiveUserId()` so impersonation (Session 8) flips
+  // ownership without ever touching audit. Owner stamping for
+  // `AppConfigRow` happens inline in `saveConfig` / `saveSnapshot`;
+  // the helper itself only handles the audit slots so it stays safe
+  // to reuse on auth tables (`appRegistry`, `userProfile`, `roles`,
+  // `permissions`) which have no owner concept.
+
+  /**
+   * Stamp audit fields (`createdBy`, `updatedBy`, `creationTime`,
+   * `updatedTime`) on a row destined for any of the manager's tables.
+   * Mutates the row in place and returns it for chaining.
+   *
+   * @param row - the row about to be persisted
+   * @param isInsert - whether this is a first-time insert (controls
+   *   whether `createdBy` / `creationTime` get defaulted)
+   */
+  private stampWrite<
+    T extends {
+      createdBy?: string;
+      updatedBy?: string;
+      creationTime?: string;
+      updatedTime?: string;
+    },
+  >(row: T, isInsert: boolean): T {
+    const auditUser = this.identity.userId;
+    const now = new Date().toISOString();
+    if (isInsert) {
+      row.createdBy = row.createdBy ?? auditUser;
+      row.creationTime = row.creationTime ?? now;
+    }
+    row.updatedBy = auditUser;
+    row.updatedTime = now;
+    return row;
   }
 
   // ─── Initialization ──────────────────────────────────────────────
@@ -99,6 +397,13 @@ export class ConfigManager {
     // Seed the database if it's empty and a seed URL is provided
     await this.seedIfEmpty();
 
+    // Publish ApplicationContext into AppData (Session 7). Sequenced
+    // AFTER seeding so `LoggedInUserProfile` resolves against the
+    // freshly-seeded auth tables on first run, and BEFORE the REST
+    // drain so consumers reading via the mirror see identity from the
+    // very first render.
+    await this.publishApplicationContext();
+
     // In REST mode, start the background sync drain loop
     if (this.restUrl) {
       this.startSyncDrain();
@@ -107,6 +412,77 @@ export class ConfigManager {
     console.log(
       `ConfigManager initialized (mode: ${this.restUrl ? "REST" : "local"})`,
     );
+  }
+
+  /**
+   * Publish the four `ApplicationContext` keys into AppData. No-op
+   * when `dataServices` wasn't wired — see option JSDoc.
+   *
+   * Awaits `appData.ready()` first so the worker's persisted snapshot
+   * has been applied: otherwise the four sequential `set()` calls
+   * each see an empty `byName` map and would fan-out four separate
+   * configIds racing the snapshot. Once ready, each `set()` merges
+   * into the same row by name.
+   */
+  private async publishApplicationContext(): Promise<void> {
+    if (!this.dataServices) {
+      return;
+    }
+
+    const appData = this.dataServices.appData;
+    await appData.ready();
+
+    const profile = await this.computeLoggedInUserProfile();
+    const loggedInUser: ApplicationContext['LoggedInUser'] = {
+      userId: this.identity.userId,
+      ...(this.identity.displayName !== undefined
+        ? { displayName: this.identity.displayName }
+        : {}),
+    };
+
+    // Sequential — `AppDataMirror.set` reads `byName` after each
+    // round-trip, so awaiting in order keeps the four keys on a
+    // single row instead of racing four inserts.
+    await appData.set(APPLICATION_CONTEXT_NAME, 'AppId', this.appId);
+    await appData.set(APPLICATION_CONTEXT_NAME, 'LoggedInUser', loggedInUser);
+    await appData.set(APPLICATION_CONTEXT_NAME, 'ImpersonatedUser', null);
+    await appData.set(APPLICATION_CONTEXT_NAME, 'LoggedInUserProfile', profile);
+  }
+
+  /**
+   * Resolve the current identity into a `LoggedInUserProfile` payload
+   * — the seeded user's roles + the union of those roles' permissions.
+   *
+   * If the user has no profile row yet (first-run, JIT provisioning
+   * deferred per Decision 8), returns empty arrays so consumers see a
+   * deterministic shape rather than `undefined`.
+   */
+  private async computeLoggedInUserProfile(): Promise<
+    ApplicationContext['LoggedInUserProfile']
+  > {
+    const profile = await this.db.userProfile.get(this.identity.userId);
+    if (!profile) {
+      return { roles: [], permissions: [] };
+    }
+
+    const roles: RoleRow[] = [];
+    const permissionIds = new Set<string>();
+    for (const roleId of profile.roleIds) {
+      const role = await this.db.roles.get(roleId);
+      if (!role) continue;
+      roles.push(role);
+      for (const permId of role.permissionIds) {
+        permissionIds.add(permId);
+      }
+    }
+
+    const permissions: PermissionRow[] = [];
+    for (const permId of permissionIds) {
+      const perm = await this.db.permissions.get(permId);
+      if (perm) permissions.push(perm);
+    }
+
+    return { roles, permissions };
   }
 
   /**
@@ -129,6 +505,17 @@ export class ConfigManager {
     return this.restUrl !== undefined;
   }
 
+  /**
+   * The configured REST endpoint, or `undefined` in local-only mode.
+   * Surfaces the live mode source-of-truth for diagnostic UIs (e.g.
+   * the ConfigBrowser header chip) so they don't have to re-read
+   * OpenFin customData independently — that path is unset for views
+   * launched by the dock without a registry-driven `customData`.
+   */
+  getRestUrl(): string | undefined {
+    return this.restUrl;
+  }
+
   // ─── APP_CONFIG operations ────────────────────────────────────────
 
   /**
@@ -142,17 +529,51 @@ export class ConfigManager {
   /**
    * Save a config (create or update).
    * In REST mode, also sends to the remote backend.
+   *
+   * Owner / audit stamping (Decisions 5 + 7):
+   *   - On INSERT: if the caller didn't set `userId` (owner) it
+   *     defaults to the **effective** user via `getEffectiveUserId()`
+   *     — the impersonated user when impersonation is active, the
+   *     real signed-in user otherwise. `createdBy` / `creationTime`
+   *     default from the **real** identity / now if absent.
+   *   - On EVERY write: `updatedBy` / `updatedTime` are unconditionally
+   *     stamped from the current identity / now — audit fields always
+   *     reflect the real logged-in user, never an impersonated one.
+   *
+   * The extra `getConfig` read on the write path is acceptable: config
+   * writes are rare and the read is local Dexie.
    */
-  async saveConfig(config: AppConfigRow): Promise<void> {
-    // Update the timestamp
-    config.updatedTime = new Date().toISOString();
+  async saveConfig(config: AppConfigRow, options?: SaveConfigOptions): Promise<void> {
+    const existing = await this.db.appConfig.get(config.configId);
+    const isInsert = existing === undefined;
 
-    // In REST mode, try to sync to the remote backend first
-    if (this.restUrl) {
-      await this.syncToRest("upsert", "appConfig", config.configId, config);
+    // Optimistic locking (Decision 12.5 / Session 6). When the caller
+    // captured an `updatedTime` at edit-start, refuse the write if Dexie
+    // has moved on. The same `expectedUpdatedTime` is forwarded to the
+    // server as `If-Match` below so REST mode shares one rule.
+    if (
+      !isInsert &&
+      options?.expectedUpdatedTime !== undefined &&
+      existing !== undefined &&
+      existing.updatedTime !== options.expectedUpdatedTime
+    ) {
+      throw new OptimisticLockError(existing);
     }
 
-    // Always write to Dexie (the local read path)
+    if (isInsert) {
+      // Owner defaults to the effective user (Session 8): equals the
+      // impersonated user when one is set, otherwise the real
+      // logged-in user. Audit fields are stamped from the real user
+      // independently inside `stampWrite`.
+      config.userId = config.userId ?? this.getEffectiveUserId();
+    }
+    this.stampWrite(config, isInsert);
+
+    if (this.restUrl) {
+      await this.syncToRest('upsert', 'appConfig', config.configId, config, {
+        ifMatch: options?.expectedUpdatedTime,
+      });
+    }
     await this.db.appConfig.put(config);
   }
 
@@ -168,42 +589,93 @@ export class ConfigManager {
   }
 
   /**
-   * Get all configs belonging to a specific app.
+   * Get all configs belonging to a specific app, filtered by visibility
+   * (Decision 6 / Session 4): cross-app rows are excluded, and private
+   * rows are returned only when owned by the current effective user.
+   *
+   * For admin / migration paths that need cross-app access, use
+   * `getConfigsByAppUnfiltered` instead.
    */
   async getConfigsByApp(appId: string): Promise<AppConfigRow[]> {
-    return this.db.appConfig.where("appId").equals(appId).toArray();
+    const rows = await this.db.appConfig.where("appId").equals(appId).toArray();
+    return rows.filter((r) => isVisible(r, this.visibilityContext));
   }
 
   /**
-   * Get all configs belonging to a specific user.
+   * Get all configs belonging to a specific user, filtered by
+   * visibility (Decision 6 / Session 4): only rows under the manager's
+   * `appId` are returned. For cross-app GC and migration paths use
+   * `getConfigsByUserUnfiltered`.
    */
   async getConfigsByUser(userId: string): Promise<AppConfigRow[]> {
-    return this.db.appConfig.where("userId").equals(userId).toArray();
+    const rows = await this.db.appConfig.where("userId").equals(userId).toArray();
+    return rows.filter((r) => isVisible(r, this.visibilityContext));
   }
 
   /**
-   * Get every row in the appConfig table. Use sparingly — prefer the
-   * indexed queries (`getConfigsByApp`, `getConfigsByUser`, etc.).
+   * Get every row visible to the current caller. Use sparingly — prefer
+   * the indexed queries (`getConfigsByApp`, `getConfigsByUser`, etc.).
+   *
+   * For admin / migration paths that need every row regardless of
+   * visibility (cross-app re-stamping, exports, GC across apps), use
+   * `getAllConfigsUnfiltered`.
    */
   async getAllConfigs(): Promise<AppConfigRow[]> {
+    const rows = await this.db.appConfig.toArray();
+    return rows.filter((r) => isVisible(r, this.visibilityContext));
+  }
+
+  /**
+   * Get every row in the appConfig table, **bypassing the visibility
+   * filter**. Reserved for admin and migration paths that need to see
+   * rows across apps (e.g. realign-to-platform-scope, registry
+   * migrations, full exports, the multi-app admin browser in Session
+   * 12). New feature code should use `getAllConfigs` and let visibility
+   * apply.
+   */
+  async getAllConfigsUnfiltered(): Promise<AppConfigRow[]> {
     return this.db.appConfig.toArray();
   }
 
   /**
-   * Get template configs, optionally filtered by component type and subtype.
-   * Templates are base configurations that get cloned for new instances.
+   * Get every row owned by `userId`, **bypassing the visibility
+   * filter**. Reserved for cross-app GC / migration paths where the
+   * caller does its own appId narrowing after the read.
+   */
+  async getConfigsByUserUnfiltered(userId: string): Promise<AppConfigRow[]> {
+    return this.db.appConfig.where("userId").equals(userId).toArray();
+  }
+
+  /**
+   * Get every row under `appId`, **bypassing the visibility filter**.
+   * Reserved for the multi-app admin browser and exports that show
+   * private rows regardless of ownership.
+   */
+  async getConfigsByAppUnfiltered(appId: string): Promise<AppConfigRow[]> {
+    return this.db.appConfig.where("appId").equals(appId).toArray();
+  }
+
+  /**
+   * Get template configs, optionally filtered by component type and
+   * subtype. Templates are base configurations that get cloned for new
+   * instances.
+   *
+   * Visibility (Session 4) applies — cross-app templates and private
+   * templates owned by other users are hidden.
+   *
+   * IndexedDB cannot index boolean values, so we scan via `toArray()`
+   * and filter `isTemplate` in JS rather than querying the index.
    */
   async getTemplates(
     componentType?: string,
     componentSubType?: string,
   ): Promise<AppConfigRow[]> {
-    let query = this.db.appConfig.where("isTemplate").equals(1);
+    const all = await this.db.appConfig.toArray();
 
-    // Dexie stores booleans as 0/1 in indexes
-    const results = await query.toArray();
-
-    // Filter in memory for optional type/subtype (simpler than compound queries)
-    return results.filter((row) => {
+    const ctx = this.visibilityContext;
+    return all.filter((row) => {
+      if (!row.isTemplate) return false;
+      if (!isVisible(row, ctx)) return false;
       if (componentType && row.componentType !== componentType) return false;
       if (componentSubType && row.componentSubType !== componentSubType) return false;
       return true;
@@ -237,8 +709,15 @@ export class ConfigManager {
   /**
    * Upsert an app registry entry.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. There is no owner concept on this table — `appId` is
+   * the primary key.
    */
   async saveAppRegistry(row: AppRegistryRow): Promise<void> {
+    const existing = await this.db.appRegistry.get(row.appId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "app-registry", row.appId, row);
     }
@@ -280,8 +759,16 @@ export class ConfigManager {
   /**
    * Upsert a user profile.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. The row's `userId` is the user this profile belongs
+   * to (the row's primary key), which is independent of `createdBy` /
+   * `updatedBy` (audit — who last edited).
    */
   async saveUserProfile(row: UserProfileRow): Promise<void> {
+    const existing = await this.db.userProfile.get(row.userId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "user-profiles", row.userId, row);
     }
@@ -318,8 +805,15 @@ export class ConfigManager {
   /**
    * Upsert a role definition.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. There is no owner concept on this table — `roleId`
+   * is the primary key.
    */
   async saveRole(row: RoleRow): Promise<void> {
+    const existing = await this.db.roles.get(row.roleId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "roles", row.roleId, row);
     }
@@ -363,8 +857,15 @@ export class ConfigManager {
   /**
    * Upsert a permission definition.
    * In REST mode, also sends to the remote backend.
+   *
+   * Audit fields are stamped from the current identity via
+   * `stampWrite`. There is no owner concept on this table —
+   * `permissionId` is the primary key.
    */
   async savePermission(row: PermissionRow): Promise<void> {
+    const existing = await this.db.permissions.get(row.permissionId);
+    this.stampWrite(row, existing === undefined);
+
     if (this.restUrl) {
       await this.syncToRest("upsert", "permissions", row.permissionId, row);
     }
@@ -452,26 +953,33 @@ export class ConfigManager {
    * Save a workspace snapshot as an APP_CONFIG row.
    * In REST mode, also sends to the remote backend.
    *
+   * Owner / audit (Decisions 5 + 7): the row is owned by the manager's
+   * **effective** user (the impersonated user when impersonation is
+   * active, otherwise the real signed-in user). Audit fields always
+   * follow the real signed-in user. The previous `"system"` placeholder
+   * has been dropped now that `ConfigManager.saveConfig` centralises
+   * stamping.
+   *
    * @param snapshotId - Unique ID for this snapshot
    * @param appId - The app this snapshot belongs to
    * @param snapshotData - The snapshot payload (e.g. { instanceIds: [...] })
    */
   async saveSnapshot(snapshotId: string, appId: string, snapshotData: any): Promise<void> {
-    const now = new Date().toISOString();
-    const row: AppConfigRow = {
+    // Owner / audit fields are filled by `saveConfig` → `stampWrite`.
+    // We deliberately omit them here so the central path is the single
+    // source of truth.
+    const row = {
       configId: snapshotId,
       appId,
-      userId: "system",
+      // Snapshots are app-wide artefacts, visible to everyone using
+      // the app — public by definition. Decision 6.
+      isPublic: true,
       displayText: `Snapshot ${snapshotId}`,
       componentType: "WORKSPACE_SNAPSHOT",
       componentSubType: "",
       isTemplate: false,
       payload: snapshotData,
-      createdBy: "system",
-      updatedBy: "system",
-      creationTime: now,
-      updatedTime: now,
-    };
+    } as unknown as AppConfigRow;
     await this.saveConfig(row);
   }
 
@@ -598,6 +1106,7 @@ export class ConfigManager {
     tableName: string,
     recordId: string,
     payload: any,
+    options?: { ifMatch?: string },
   ): Promise<void> {
     if (!this.restUrl) {
       return;
@@ -607,16 +1116,47 @@ export class ConfigManager {
       const url = `${this.restUrl}/${tableName}/${recordId}`;
       const method = operation === "delete" ? "DELETE" : "PUT";
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      // Outbound auth (Decision 2 / Session 6). The host owns refresh —
+      // we just call before each request and attach the bearer header.
+      // The server doesn't verify yet (Decision 16 deferred) but
+      // plumbing it now means later sessions don't have to revisit.
+      if (this.identity.getAccessToken) {
+        const token = await this.identity.getAccessToken();
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+      }
+      if (options?.ifMatch !== undefined) {
+        headers["If-Match"] = options.ifMatch;
+      }
+
       const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: operation === "delete" ? undefined : JSON.stringify(payload),
       });
+
+      // 412 from the server means the row's `updatedTime` has moved on
+      // since `expectedUpdatedTime` was captured. This is a USER-facing
+      // error (the editor must reload); never queue it for retry.
+      if (response.status === 412) {
+        let currentRow: AppConfigRow | undefined;
+        try {
+          currentRow = (await response.json()) as AppConfigRow;
+        } catch {
+          currentRow = undefined;
+        }
+        throw new OptimisticLockError(currentRow);
+      }
 
       if (!response.ok) {
         throw new Error(`REST sync failed with HTTP ${response.status}`);
       }
     } catch (error) {
+      // Optimistic-lock failures are caller-visible; do not queue for retry.
+      if (error instanceof OptimisticLockError) {
+        throw error;
+      }
+
       console.warn(
         `ConfigManager: REST sync failed for ${operation} ${tableName}/${recordId}. Queuing for retry.`,
         error,
@@ -687,9 +1227,15 @@ export class ConfigManager {
         const url = `${this.restUrl}/${entry.tableName}/${entry.recordId}`;
         const method = entry.operation === "delete" ? "DELETE" : "PUT";
 
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (this.identity.getAccessToken) {
+          const token = await this.identity.getAccessToken();
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const response = await fetch(url, {
           method,
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: entry.operation === "delete" ? undefined : JSON.stringify(entry.payload),
         });
 

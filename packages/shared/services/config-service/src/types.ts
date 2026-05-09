@@ -19,6 +19,25 @@
  * The `config` field holds the full component configuration as a JSON
  * object. Its shape depends on `componentType` (e.g. BlotterConfig
  * for "GRID", DockEditorConfig for "DOCK").
+ *
+ * ## Owner vs audit field roles (Decision 7 in the redesign)
+ *
+ * The row carries two distinct identity slots that future sessions
+ * separate cleanly:
+ *
+ *   - `userId` — the **owner** of the row. Drives visibility (see
+ *     `isPublic` below): a private row owned by alice is not visible
+ *     to bob. The owner is whoever the row was authored *as* — under
+ *     impersonation (Session 8) this is the impersonated user, not
+ *     the real signed-in user.
+ *   - `createdBy` / `updatedBy` — **audit** fields. Always reflect the
+ *     real logged-in user (`AppIdentity.userId`), never the
+ *     impersonated user. These never change ownership semantics.
+ *
+ * Until Session 3 lands the centralized stamping helper, owner and
+ * audit are populated by ad-hoc code paths and may both be the
+ * signed-in user; see Session 3 of
+ * `docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md`.
  */
 export interface AppConfigRow {
   /** Primary key — instanceId for instances, templateId for templates. */
@@ -28,10 +47,30 @@ export interface AppConfigRow {
   appId: string;
 
   /**
-   * Owner of this config row. Templates typically use a system/shared user
-   * id; instance configs use the signed-in user id.
+   * Owner of this config row (drives visibility — see `isPublic`).
+   * Templates typically use a system/shared user id; instance configs
+   * use the signed-in user id. Under impersonation (Session 8) this
+   * is the impersonated user, not the real logged-in user.
+   *
+   * See the type's class-level JSDoc for the owner-vs-audit split.
    */
   userId: string;
+
+  /**
+   * Visibility flag (Decision 6 in the redesign).
+   *
+   *   - `true` (default) — **public**: visible to every user of this
+   *     app. Templates and shared configs are public.
+   *   - `false` — **private**: visible only to the row's `userId`
+   *     (owner) within the row's `appId`.
+   *
+   * Optional for back-compat — rows written before this field existed
+   * are normalized to `true` by a Dexie schema upgrade so existing
+   * data keeps reading. New writes always populate the field
+   * explicitly. See Session 1 of
+   * `docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md`.
+   */
+  isPublic?: boolean;
 
   /** Human-readable label shown in toolbars and menus. */
   displayText: string;
@@ -75,20 +114,6 @@ export interface AppConfigRow {
    */
   singleton?: boolean;
 
-  /**
-   * Back-compat flag: true when this row IS the registered-component
-   * config (the template). Workspace GC must never delete these rows.
-   *
-   * Superseded by `isTemplate` (same semantics now that the
-   * configId-naming convention is unified). Kept on the type so older
-   * rows still load cleanly; new writes set both `isTemplate` and
-   * `isRegisteredComponent` to the same value.
-   *
-   * @deprecated Use `isTemplate` instead. Will be removed in a
-   * future schema version.
-   */
-  isRegisteredComponent?: boolean;
-
   /** The full component configuration object (shape varies by componentType). */
   payload: any;
 
@@ -128,6 +153,17 @@ export interface AppRegistryRow {
 
   /** Deployment environment: "dev", "uat", or "prod". */
   environment: string;
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.saveAppRegistry` from the current identity. Optional
+   * for back-compat — rows written before audit stamping landed read
+   * back with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── USER_PROFILE ────────────────────────────────────────────────────
@@ -150,6 +186,17 @@ export interface UserProfileRow {
 
   /** Human-readable display name for the user. */
   displayName: string;
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.saveUserProfile` from the current identity. Optional
+   * for back-compat — rows written before audit stamping landed read
+   * back with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── ROLES ───────────────────────────────────────────────────────────
@@ -170,6 +217,17 @@ export interface RoleRow {
 
   /** Foreign keys → PERMISSIONS. The permissions granted to this role. */
   permissionIds: string[];
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.saveRole` from the current identity. Optional for
+   * back-compat — rows written before audit stamping landed read back
+   * with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── PERMISSIONS ─────────────────────────────────────────────────────
@@ -196,6 +254,17 @@ export interface PermissionRow {
    * Examples: "config", "snapshot", "admin"
    */
   category: string;
+
+  /**
+   * Audit fields (Decision 7). Stamped automatically by
+   * `ConfigManager.savePermission` from the current identity. Optional
+   * for back-compat — rows written before audit stamping landed read
+   * back with these fields undefined.
+   */
+  createdBy?: string;
+  updatedBy?: string;
+  creationTime?: string;
+  updatedTime?: string;
 }
 
 // ─── PENDING_SYNC ────────────────────────────────────────────────────
@@ -230,6 +299,113 @@ export interface PendingSyncRow {
   retries: number;
 }
 
+// ─── AppIdentity ─────────────────────────────────────────────────────
+
+/**
+ * The authenticated identity supplied by the host app after sign-in.
+ *
+ * The framework stores this once at construction (via
+ * `ConfigManagerOptions.identity`) and uses it for two things:
+ *
+ *   1. **Owner / audit stamping.** `userId` becomes the row's owner
+ *      slot (`AppConfigRow.userId`) and the audit slot
+ *      (`createdBy` / `updatedBy`). Until impersonation lands
+ *      (Session 8) these are the same value; afterwards `createdBy` /
+ *      `updatedBy` always reflect the real signed-in user from this
+ *      identity, never the impersonated user.
+ *   2. **Outbound auth headers** (REST mode only). Before each request
+ *      the framework calls `getAccessToken()` if present and attaches
+ *      `Authorization: Bearer <token>`. The host owns refresh — the
+ *      framework never caches the token.
+ *
+ * Defaults to a dev placeholder (`{ userId: "dev-user", displayName:
+ * "Dev User" }`) when the host doesn't supply one, so first-run
+ * developer setup keeps working with zero wiring.
+ */
+export interface AppIdentity {
+  /** Stable user id used for createdBy/updatedBy and visibility filters. */
+  userId: string;
+  /** Optional display name for audit / UI labels. */
+  displayName?: string;
+  /**
+   * Returns a fresh access token on demand. Only consulted in REST mode.
+   * The app owns refresh; the framework just calls this before each
+   * outbound HTTP request and attaches `Authorization: Bearer <token>`.
+   */
+  getAccessToken?: () => Promise<string>;
+}
+
+// ─── DataServices handle (structural) ────────────────────────────────
+
+/**
+ * Structural shape of the AppData mirror surface that
+ * `ConfigManager` writes into — see `DataServicesHandle` below.
+ *
+ * Defined here as a structural interface (rather than imported from
+ * `@starui/data-services`) so the dependency stays one-way. The
+ * `AppDataMirror` instance from `@starui/data-services` already
+ * satisfies this shape verbatim, so consumers pass it through with no
+ * adapter.
+ *
+ * The methods we rely on are all the AppDataMirror's read/write
+ * surface for a single named provider:
+ *
+ *   - `set(name, key, value)` — upsert one key inside the named row
+ *     (creates the row if it doesn't exist). Resolves once the hub
+ *     has acknowledged.
+ *   - `get(name, key)` — synchronous read off the main-thread mirror
+ *     state. Returns `undefined` for unknown name/key or pre-snapshot.
+ *   - `ready()` — resolves once the initial snapshot from the worker
+ *     has been applied. Awaiting this before publishing avoids
+ *     overwriting any persisted ApplicationContext from a prior
+ *     session.
+ */
+export interface AppDataMirrorHandle {
+  set(name: string, key: string, value: unknown): Promise<void>;
+  get(name: string, key: string): unknown;
+  ready(): Promise<void>;
+}
+
+/**
+ * Structural shape of the data-services bundle that hosts the
+ * SharedWorker-backed AppData mirror. `ConfigManager` consumes only
+ * the `appData` slot — everything else on the bundle (worker client,
+ * config store) is opaque to us here.
+ *
+ * Pass through the `DataServices` object returned by
+ * `bootstrapDataServices` from `@starui/data-services`; structural
+ * typing makes the assignment direct, no adapter required.
+ */
+export interface DataServicesHandle {
+  appData: AppDataMirrorHandle;
+}
+
+// ─── ApplicationContext (Session 7) ──────────────────────────────────
+
+/**
+ * The framework-owned `ApplicationContext` AppData provider, exposed
+ * as a typed view over the four keys ConfigManager publishes after
+ * seeding (Decisions 3 / 4 in `config-manager-redesign.md`).
+ *
+ *   - `AppId` — current app identifier (matches `ConfigManager.appId`).
+ *   - `LoggedInUser` — who the host signed in. Drives audit fields.
+ *   - `ImpersonatedUser` — optional override. When set, the framework
+ *     treats this user as the **effective** user for visibility
+ *     (Session 8 wiring); audit always sticks to `LoggedInUser`.
+ *   - `LoggedInUserProfile` — derived from the seeded auth tables
+ *     (`userProfile` → `roles` → `permissions`).
+ *
+ * Reads come from the main-thread `AppDataMirror`, so consumers (e.g.
+ * a "what permissions do I have?" hook) get sync access without
+ * awaiting the worker.
+ */
+export interface ApplicationContext {
+  AppId: string;
+  LoggedInUser: { userId: string; displayName?: string };
+  ImpersonatedUser: { userId: string; displayName?: string } | null;
+  LoggedInUserProfile: { roles: RoleRow[]; permissions: PermissionRow[] };
+}
+
 // ─── ConfigManager options ───────────────────────────────────────────
 
 /**
@@ -258,6 +434,40 @@ export interface ConfigManagerOptions {
    * Example: "https://config-api.example.com/api/v1"
    */
   configServiceRestUrl?: string;
+
+  /**
+   * The app this ConfigManager belongs to. Becomes the value of
+   * AppData "AppId" in ApplicationContext (Session 7).
+   * Defaults to "dev-app" if omitted.
+   */
+  appId?: string;
+
+  /**
+   * Authenticated identity supplied by the host app after sign-in.
+   * Defaults to `{ userId: "dev-user", displayName: "Dev User" }` if
+   * omitted. See `AppIdentity` JSDoc.
+   */
+  identity?: AppIdentity;
+
+  /**
+   * Data-services bundle used to publish `ApplicationContext` into
+   * AppData (Session 7 / Decisions 3 + 4). When present,
+   * `ConfigManager.init()` waits for the AppData mirror's first
+   * snapshot, derives `LoggedInUserProfile` from the seeded auth
+   * tables, and writes the four `ApplicationContext` keys (`AppId`,
+   * `LoggedInUser`, `ImpersonatedUser`, `LoggedInUserProfile`).
+   *
+   * When absent, `init()` is a silent no-op for AppData publishing —
+   * existing call sites that haven't wired data-services keep
+   * working.
+   *
+   * Late wiring is supported via `setDataServices(handle)` for hosts
+   * that have to construct the data-services bundle AFTER
+   * `createConfigManager(...)` (the bundle's `bootstrapDataServices`
+   * takes a ConfigManager today — that order makes options-only
+   * wiring impossible without two ConfigManager instances).
+   */
+  dataServices?: DataServicesHandle;
 }
 
 // ─── Seed data shape ─────────────────────────────────────────────────

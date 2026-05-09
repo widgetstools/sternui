@@ -51,7 +51,10 @@ export function createAppRegistryRoutes(authService: AuthService): Router {
         const row = await authService.createApp({ ...req.body, appId });
         return res.status(201).json(row);
       }
-      const row = await authService.updateApp(appId, req.body);
+      // PK in the body is fine on a full-row PUT but the Joi update
+      // schema rejects it; strip before forwarding (mirrors permissions).
+      const { appId: _pk, ...patch } = req.body ?? {};
+      const row = await authService.updateApp(appId, patch);
       return res.json(row);
     }),
   );

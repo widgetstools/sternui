@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@starui/config-service": "*",
+    "@starui/config-service-angular": "*",
     "@starui/design-system": "*",
     "@starui/icons-svg": "*",
     "@starui/openfin-platform": "*",

@@ -1,4 +1,4 @@
-// Core UnifiedConfig schema for the MarketsUI Configuration Service.
+// Core AppConfigRow schema for the MarketsUI Configuration Service.
 //
 // This is the contract shared between:
 //   - `@starui/config-service` (Dexie / IndexedDB client)
@@ -11,7 +11,7 @@
 // boundary.
 
 // ============================================================================
-// Unified Configuration
+// AppConfigRow
 // ============================================================================
 
 /**
@@ -21,8 +21,16 @@
  * determined by `componentType` + `componentSubType` and is opaque to
  * the config service itself. Versioning, tagging, and similar features
  * are the responsibility of the consumer and live inside `payload`.
+ *
+ * ## Owner vs audit field roles (Decision 7 in the redesign)
+ *
+ *   - `userId` — the **owner** of the row. Drives visibility (see
+ *     `isPublic` below). Under impersonation this is the impersonated
+ *     user, not the real signed-in user.
+ *   - `createdBy` / `updatedBy` — **audit** fields. Always reflect the
+ *     real logged-in user, never the impersonated user.
  */
-export interface UnifiedConfig {
+export interface AppConfigRow {
   /** Primary key — unique id for this row. */
   configId: string;
 
@@ -34,6 +42,20 @@ export interface UnifiedConfig {
    * typically use a reserved user id such as `"system"`.
    */
   userId: string;
+
+  /**
+   * Visibility flag (Decision 6 in the redesign).
+   *
+   *   - `true` (default) — **public**: visible to every user of this
+   *     app. Templates and shared configs are public.
+   *   - `false` — **private**: visible only to the row's `userId`
+   *     (owner) within the row's `appId`.
+   *
+   * Optional for back-compat — rows written before this field existed
+   * are normalized to `true` by storage migrations so existing data
+   * keeps reading. New writes always populate the field explicitly.
+   */
+  isPublic?: boolean;
 
   /** Component type: "GRID", "CHART", "HEATMAP", "ORDERTICKET", "DOCK", etc. */
   componentType: string;
@@ -63,6 +85,13 @@ export interface UnifiedConfig {
   updatedTime: string;
 }
 
+/**
+ * @deprecated Use `AppConfigRow` instead. Retained as an alias for
+ * one release while consumers migrate. See Decision 13 in
+ * `docs/plans/plan-2026-05-07/config-manager-redesign.md`.
+ */
+export type UnifiedConfig = AppConfigRow;
+
 // ============================================================================
 // Query / filtering
 // ============================================================================
@@ -81,6 +110,14 @@ export interface ConfigurationFilter {
   createdBefore?: string;
   updatedAfter?: string;
   updatedBefore?: string;
+
+  /**
+   * The caller's effective user id. When set, storage layers must apply
+   * the visibility filter `(isPublic = 1 OR userId = ?)` so private rows
+   * owned by other users are excluded. When unset, no visibility filter
+   * applies — admin / unfiltered paths only.
+   */
+  effectiveUserId?: string;
 }
 
 export interface PaginatedResult<T> {
@@ -104,7 +141,7 @@ export interface StorageHealthStatus {
 
 export interface BulkUpdateRequest {
   configId: string;
-  updates: Partial<UnifiedConfig>;
+  updates: Partial<AppConfigRow>;
 }
 
 export interface BulkUpdateResult {
@@ -115,7 +152,7 @@ export interface BulkUpdateResult {
 
 export interface CleanupResult {
   removedCount: number;
-  configs?: UnifiedConfig[] | undefined;
+  configs?: AppConfigRow[] | undefined;
   dryRun?: boolean;
 }
 

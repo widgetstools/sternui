@@ -19,13 +19,17 @@
 // for RestConfigClient is transparent.
 
 import { ConfigManager, createConfigManager } from './ConfigManager';
+import { OptimisticLockError } from './errors';
 import type {
   AppConfigRow,
+  AppIdentity,
   AppRegistryRow,
   PermissionRow,
   RoleRow,
   UserProfileRow,
 } from './types';
+
+export { OptimisticLockError };
 
 // ─── Shared query types ───────────────────────────────────────────────
 
@@ -94,6 +98,21 @@ export interface HealthStatus {
 // ─── The client interface ─────────────────────────────────────────────
 
 /**
+ * Optional behavior knobs on a single update call. Adding fields here is
+ * non-breaking — existing call sites pass `undefined` and get the
+ * pre-Session-6 behavior.
+ */
+export interface UpdateConfigOptions {
+  /**
+   * The `updatedTime` the caller observed at edit-start. When supplied,
+   * the implementation refuses the write and throws
+   * `OptimisticLockError` if the row has moved on (Decision 12.5 /
+   * Session 6).
+   */
+  expectedUpdatedTime?: string;
+}
+
+/**
  * Framework-agnostic configuration client. Same interface whether the
  * implementation is Dexie-backed or REST-backed.
  */
@@ -108,7 +127,11 @@ export interface ConfigClient {
 
   createConfig(input: CreateConfigInput): Promise<AppConfigRow>;
   getConfig(configId: string): Promise<AppConfigRow | undefined>;
-  updateConfig(configId: string, patch: Partial<AppConfigRow>): Promise<AppConfigRow>;
+  updateConfig(
+    configId: string,
+    patch: Partial<AppConfigRow>,
+    options?: UpdateConfigOptions,
+  ): Promise<AppConfigRow>;
   /**
    * Upsert — create if missing, overwrite if present. The caller provides
    * the complete row (incl. `configId`). Timestamps are stamped on the
@@ -231,6 +254,14 @@ export interface CreateConfigClientOptions {
 
   /** Optional fetch implementation override (useful for tests). */
   fetchImpl?: typeof fetch;
+
+  /**
+   * Authenticated identity supplied by the host app. When the identity
+   * exposes `getAccessToken`, the RestConfigClient calls it before each
+   * outbound request and attaches `Authorization: Bearer <token>`.
+   * Local mode ignores this. (Session 6 / Session 2.)
+   */
+  identity?: AppIdentity;
 }
 
 /**
@@ -240,11 +271,15 @@ export interface CreateConfigClientOptions {
  */
 export function createConfigClient(options: CreateConfigClientOptions = {}): ConfigClient {
   if (options.baseUrl && options.baseUrl.trim().length > 0) {
-    return new RestConfigClient(options.baseUrl, options.fetchImpl ?? fetch.bind(globalThis));
+    return new RestConfigClient(
+      options.baseUrl,
+      options.fetchImpl ?? fetch.bind(globalThis),
+      options.identity,
+    );
   }
   const manager =
     options.configManager ??
-    createConfigManager({ seedConfigUrl: options.seedUrl });
+    createConfigManager({ seedConfigUrl: options.seedUrl, identity: options.identity });
   return new LocalConfigClient(manager);
 }
 
@@ -282,9 +317,19 @@ export class LocalConfigClient implements ConfigClient {
     return this.manager.getConfig(configId);
   }
 
-  async updateConfig(configId: string, patch: Partial<AppConfigRow>): Promise<AppConfigRow> {
+  async updateConfig(
+    configId: string,
+    patch: Partial<AppConfigRow>,
+    options?: UpdateConfigOptions,
+  ): Promise<AppConfigRow> {
     const existing = await this.manager.getConfig(configId);
     if (!existing) throw new ConfigNotFoundError(configId);
+    if (
+      options?.expectedUpdatedTime !== undefined &&
+      existing.updatedTime !== options.expectedUpdatedTime
+    ) {
+      throw new OptimisticLockError(existing);
+    }
     const next: AppConfigRow = { ...existing, ...patch, configId, updatedTime: new Date().toISOString() };
     await this.manager.saveConfig(next);
     return next;
@@ -433,6 +478,7 @@ export class RestConfigClient implements ConfigClient {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch,
+    private readonly identity?: AppIdentity,
   ) {
     this.apps = createRestAppRegistryOps(this);
     this.userProfiles = createRestUserProfileOps(this);
@@ -443,7 +489,7 @@ export class RestConfigClient implements ConfigClient {
   /** Shared HTTP entry — exposed so auth-table op factories can reuse it. */
   rawRequest<T>(
     path: string,
-    init: { method: string; body?: unknown; allow404?: boolean },
+    init: { method: string; body?: unknown; allow404?: boolean; ifMatch?: string },
   ): Promise<T> {
     return this.request<T>(path, init);
   }
@@ -469,10 +515,15 @@ export class RestConfigClient implements ConfigClient {
     );
   }
 
-  async updateConfig(configId: string, patch: Partial<AppConfigRow>): Promise<AppConfigRow> {
+  async updateConfig(
+    configId: string,
+    patch: Partial<AppConfigRow>,
+    options?: UpdateConfigOptions,
+  ): Promise<AppConfigRow> {
     return this.request<AppConfigRow>(`/configurations/${encodeURIComponent(configId)}`, {
       method: 'PUT',
       body: patch,
+      ifMatch: options?.expectedUpdatedTime,
     });
   }
 
@@ -617,16 +668,46 @@ export class RestConfigClient implements ConfigClient {
 
   private async request<T>(
     path: string,
-    init: { method: string; body?: unknown; allow404?: boolean },
+    init: { method: string; body?: unknown; allow404?: boolean; ifMatch?: string },
   ): Promise<T> {
     const url = `${this.baseUrl.replace(/\/+$/, '')}${path}`;
+
+    // Build headers. Order doesn't matter, but keeping it deterministic
+    // makes test snapshots stable.
+    const headers: Record<string, string> = {};
+    if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (init.ifMatch !== undefined) headers['If-Match'] = init.ifMatch;
+
+    // AppIdentity.getAccessToken (Decision 2 / Session 6). The host owns
+    // refresh; we just call before each outbound request and attach
+    // `Authorization: Bearer <token>`. The server does not verify it
+    // yet (Decision 16 deferred), but plumbing it now means no editor
+    // UI ever has to think about auth.
+    if (this.identity?.getAccessToken) {
+      const token = await this.identity.getAccessToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await this.fetchImpl(url, {
       method: init.method,
-      headers: init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
     if (res.status === 404 && init.allow404) {
       return undefined as unknown as T;
+    }
+    // Optimistic locking (Decision 12.5 / Session 6). The server
+    // responds 412 with the current row in the body when the caller's
+    // `If-Match` is stale. Surface as a typed error so the editor UI
+    // can offer "reload current values?".
+    if (res.status === 412) {
+      let currentRow: AppConfigRow | undefined;
+      try {
+        currentRow = (await res.json()) as AppConfigRow;
+      } catch {
+        currentRow = undefined;
+      }
+      throw new OptimisticLockError(currentRow);
     }
     if (!res.ok) {
       let detail: string | undefined;

@@ -142,6 +142,59 @@ describe('createConfigServiceStorage — identity-aware persistence (TEST-LAUNCH
   });
 });
 
+// ─── Decision 6 — fresh writes carry `isPublic: true` ─────────────
+
+describe('createConfigServiceStorage — visibility (Decision 6)', () => {
+  let cm: FakeManager;
+  beforeEach(() => { cm = makeFakeConfigManager(); });
+
+  it('writes `isPublic: true` on a brand-new row (no prior row to inherit from)', async () => {
+    const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapter = factory({
+      instanceId: 'fresh-instance',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+
+    await adapter.saveProfile(snapshot('Default', 'fresh-instance'));
+
+    expect(cm.rows.get('fresh-instance')!.isPublic).toBe(true);
+  });
+
+  it('preserves `isPublic: false` on a row that was already private', async () => {
+    // Pre-seed a private row, then save through the adapter — the
+    // existing visibility should survive the read-modify-write.
+    cm.rows.set('private-instance', {
+      configId: 'private-instance',
+      appId: 'TestApp',
+      userId: 'dev1',
+      isPublic: false,
+      displayText: 'pre-existing private row',
+      componentType: 'blotter',
+      componentSubType: 'positions',
+      isTemplate: false,
+      singleton: false,
+      payload: { version: 1, profiles: [snapshot('Default', 'private-instance')] },
+      createdBy: 'dev1',
+      updatedBy: 'dev1',
+      creationTime: '2026-01-01T00:00:00Z',
+      updatedTime: '2026-01-01T00:00:00Z',
+    });
+
+    const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapter = factory({
+      instanceId: 'private-instance',
+      appId: 'TestApp',
+      userId: 'dev1',
+      registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
+    });
+    await adapter.saveProfile(snapshot('Aggressive', 'private-instance'));
+
+    expect(cm.rows.get('private-instance')!.isPublic).toBe(false);
+  });
+});
+
 // ─── Back-compat: no identity → legacy hardcoded fields ────────────
 
 describe('createConfigServiceStorage — back-compat (NO identity supplied)', () => {
@@ -194,8 +247,7 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
   it('reads the launcher-cloned row verbatim — profiles AND gridLevelData', async () => {
     // Simulate what `createComponentInstance` does at launch: copy
     // the template row's payload onto a fresh UUID-keyed row with
-    // isTemplate: false / isRegisteredComponent: false. The view
-    // then reads its own row directly.
+    // isTemplate: false. The view then reads its own row directly.
     cm.rows.set('inst-cloned', {
       configId: 'inst-cloned',
       appId: 'TestApp',
@@ -204,7 +256,6 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       componentType: 'blotter',
       componentSubType: 'positions',
       isTemplate: false,
-      isRegisteredComponent: false,
       singleton: false,
       payload: {
         version: 1,
@@ -250,7 +301,6 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       componentType: 'blotter',
       componentSubType: 'positions',
       isTemplate: false,
-      isRegisteredComponent: false,
       singleton: false,
       payload: {
         version: 1,
@@ -300,7 +350,6 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       ...tplRow,
       configId: 'inst-1',
       isTemplate: false,
-      isRegisteredComponent: false,
       singleton: false,
     });
 

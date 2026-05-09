@@ -67,7 +67,10 @@ export function createUserProfileRoutes(authService: AuthService): Router {
         const row = await authService.createUserProfile({ ...req.body, userId });
         return res.status(201).json(row);
       }
-      const row = await authService.updateUserProfile(userId, req.body);
+      // PK in the body is fine on a full-row PUT but the Joi update
+      // schema rejects it; strip before forwarding (mirrors permissions).
+      const { userId: _pk, ...patch } = req.body ?? {};
+      const row = await authService.updateUserProfile(userId, patch);
       return res.json(row);
     }),
   );

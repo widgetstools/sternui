@@ -37,6 +37,12 @@ import type {
  * - `"[componentType+componentSubType]"` → compound index for
  *   querying configs by type and subtype together
  */
+/**
+ * Default database name. Tests override via the constructor argument
+ * to keep parallel runs (and the upgrade test in particular) isolated.
+ */
+export const DEFAULT_DB_NAME = "marketsui-config";
+
 export class ConfigDatabase extends Dexie {
   /** Component and template configurations. */
   appConfig!: Table<AppConfigRow>;
@@ -56,8 +62,8 @@ export class ConfigDatabase extends Dexie {
   /** Queue of failed REST writes waiting to be retried. */
   pendingSync!: Table<PendingSyncRow>;
 
-  constructor() {
-    super("marketsui-config");
+  constructor(dbName: string = DEFAULT_DB_NAME) {
+    super(dbName);
 
     // v1: original shape (kept so existing browsers can upgrade cleanly).
     this.version(1).stores({
@@ -98,6 +104,52 @@ export class ConfigDatabase extends Dexie {
           }
           if (row.userId === undefined) {
             row.userId = row.createdBy ?? "system";
+          }
+        });
+      });
+
+    // v3: introduce `isPublic` on appConfig (Decision 6). The visibility
+    // filter (Session 4) runs in JS, so the field is intentionally NOT
+    // indexed — keeping the index list identical to v2 avoids a noop
+    // schema-rebuild step. Migration backfills `isPublic = true` on
+    // every existing row so reads after upgrade match pre-redesign
+    // behaviour exactly.
+    this.version(3)
+      .stores({
+        appConfig: "configId, appId, userId, [componentType+componentSubType], isTemplate",
+        appRegistry: "appId",
+        userProfile: "userId, appId",
+        roles: "roleId",
+        permissions: "permissionId, category",
+        pendingSync: "++id, tableName, recordId",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("appConfig").toCollection().modify((row: any) => {
+          if (row.isPublic === undefined) {
+            row.isPublic = true;
+          }
+        });
+      });
+
+    // v4: drop the deprecated `isRegisteredComponent` field on appConfig
+    // (Session 16 / Decision 13 trim pass). `isTemplate` is now the sole
+    // canonical template flag — the back-compat alias is gone from
+    // writes, and any row that still carries it from a pre-cleanup
+    // session has the field stripped on read so consumer code can stop
+    // probing for it. No index changes; data-only migration.
+    this.version(4)
+      .stores({
+        appConfig: "configId, appId, userId, [componentType+componentSubType], isTemplate",
+        appRegistry: "appId",
+        userProfile: "userId, appId",
+        roles: "roleId",
+        permissions: "permissionId, category",
+        pendingSync: "++id, tableName, recordId",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("appConfig").toCollection().modify((row: any) => {
+          if (row.isRegisteredComponent !== undefined) {
+            delete row.isRegisteredComponent;
           }
         });
       });

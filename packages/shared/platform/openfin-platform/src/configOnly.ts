@@ -122,3 +122,12 @@ export {
 
 // ── Host URL normaliser (pure DOM, no workspace-platform) ───────────
 export { resolveHostUrl } from './hostUrl';
+
+// ── Manifest-driven config service settings ─────────────────────────
+// Read by both the platform Provider (`initWorkspace`) and view-route
+// `<ConfigServiceProvider>` hosts so a manifest edit cannot put the two
+// halves of the app into conflicting REST/local modes.
+export {
+  resolveRestUrl,
+  getConfigServiceRestUrlFromManifest,
+} from './manifestConfig';

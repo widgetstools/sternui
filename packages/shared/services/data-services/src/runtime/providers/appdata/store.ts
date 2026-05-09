@@ -44,7 +44,11 @@ export class AppDataConfigStore {
     // userId param is retained on the API for back-compat, but no
     // longer narrows the result.
     void userId;
-    const all = await this.cm.getAllConfigs();
+    // AppData providers are platform-global like their DataProvider
+    // siblings — bypass the per-app/per-owner visibility filter so
+    // rows authored under any app surface in {{name.key}} resolution
+    // anywhere.
+    const all = await this.cm.getAllConfigsUnfiltered();
     const seen = new Set<string>();
     const out: AppDataConfig[] = [];
     for (const row of all) {

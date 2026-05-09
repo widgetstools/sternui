@@ -26,6 +26,7 @@ export {
   RestConfigClient,
   ConfigNotFoundError,
   ConfigClientHttpError,
+  OptimisticLockError,
 } from './client';
 export type {
   ConfigClient,
@@ -36,6 +37,7 @@ export type {
   CompositeKey,
   CreateConfigInput,
   UpsertConfigInput,
+  UpdateConfigOptions,
   BulkUpdateEntry,
   BulkDeleteResult,
   HealthStatus,
@@ -45,20 +47,44 @@ export type {
   PermissionOps,
 } from './client';
 
-// ─── Lower-level ConfigManager ──────────────────────────────────────
-// Exposed for consumers that need direct access to auth tables
-// (appRegistry / userProfile / roles / permissions) or to dock/snapshot
-// convenience methods. New feature code should prefer `ConfigClient`.
+// ─── Lower-level ConfigManager (deprecated) ─────────────────────────
+// Exposed for consumers that still call auth-table getters
+// (appRegistry / userProfile / roles / permissions) or dock/snapshot
+// helpers directly. New feature code MUST prefer `ConfigClient` — these
+// re-exports collapse behind `LocalConfigClient` in the next
+// session-set. See Decision 13 and Session 16 of
+// `docs/plans/plan-2026-05-07/config-manager-redesign.md`.
+/** @deprecated Prefer `createConfigClient` from this same package. */
 export { createConfigManager, ConfigManager } from './ConfigManager';
+export type { ImpersonatedUser, SaveConfigOptions } from './ConfigManager';
 
 // ─── Database (for advanced use cases only) ──────────────────────────
 export { ConfigDatabase } from './db';
 
+// ─── Visibility (Session 4) ──────────────────────────────────────────
+// Pure predicate exposed for hosts that want to mirror the framework's
+// visibility rule on row arrays they assembled themselves (e.g. a
+// remote import).
+export { isVisible } from './visibility';
+export type { VisibilityContext } from './visibility';
+
+// ─── Effective user / impersonation (Session 8) ──────────────────────
+// `getEffectiveUser(ctx)` is the single source of truth for "who am I
+// acting as right now": the impersonated user when one is set on
+// ApplicationContext, otherwise the real signed-in user. Hosts that
+// want to apply the same rule outside ConfigManager (e.g. a "what
+// would alice see?" admin preview) call this helper.
+export { getEffectiveUser } from './effectiveUser';
+
 // ─── Types ───────────────────────────────────────────────────────────
 export type {
   AppConfigRow,
+  AppDataMirrorHandle,
+  AppIdentity,
   AppRegistryRow,
+  ApplicationContext,
   ConfigManagerOptions,
+  DataServicesHandle,
   PermissionRow,
   PendingSyncRow,
   RoleRow,
