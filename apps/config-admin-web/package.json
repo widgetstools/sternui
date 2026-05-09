@@ -14,7 +14,7 @@
     "@starui/config-editor-ui": "*",
     "@starui/config-service": "*",
     "@starui/design-system": "*",
-    "@starui/tokens-primeng": "*",
+
     "@starui/ui": "*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
