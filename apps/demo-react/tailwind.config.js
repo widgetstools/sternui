@@ -1,17 +1,13 @@
-const marketsPreset = require('@starui/tokens-primeng/tailwind-preset');
+/** @type {import('tailwindcss').Config} */
+import { tailwindPreset } from '@starui/design-system/tailwind';
 
-/** @type {import('tailwindcss').Config}
- *
- * Uses the canonical MarketsUI preset — single source of truth for
- * shadcn semantic colour mappings, border radius, accordion
- * animations, and `darkMode: 'class'`. Apps list their own content
- * paths + any app-specific plugins.
- */
-module.exports = {
-  presets: [marketsPreset],
+export default {
+  presets: [tailwindPreset],
   content: [
     './index.html',
     './src/**/*.{ts,tsx}',
+    '../../packages/react/ui/src/**/*.{ts,tsx}',
+    '../../packages/react/widgets/**/src/**/*.{ts,tsx}',
     '../../packages/shared/core/src/**/*.{ts,tsx}',
     '../../packages/react/widgets/markets-grid/src/**/*.{ts,tsx}',
   ],

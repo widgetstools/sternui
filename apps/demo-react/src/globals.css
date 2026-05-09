@@ -1,23 +1,17 @@
 /**
  * demo-react / globals.css
  *
- * Canonical MarketsUI app stylesheet — mirrors apps/fi-trading-reference.
- *
- *   1. Web fonts (Geist + JetBrains Mono)
- *   2. Design-system tokens via `fi-dark.css` + `fi-light.css`
- *      (packages/shared/foundation/design-system/src/themes) — provides every
- *      --bn-*, --fi-*, and shadcn (HSL-triplet) variable.
+ *   1. Unified design-system CSS (tokens + scrollbar + base resets).
+ *   2. Web fonts (Geist + JetBrains Mono).
  *   3. MarketsGrid chrome via `@starui/markets-grid/styles.css`
  *      (ships the .gc-* toolbar + filter-pill rules).
  *   4. Tailwind directives.
  *   5. App-local tweaks (body, ticking-dot animation).
  */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
+@import '@starui/design-system/css';
 
-/* Design-system tokens — single source of truth for every app. */
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
 @import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';
@@ -31,6 +25,7 @@
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; width: 100%; }
   body {
+    /* TODO Phase 6: migrate --bn-bg / --bn-t0 / --fi-sans / --fi-font-sm to --ds-* tokens */
     background: var(--bn-bg);
     color: var(--bn-t0);
     font-family: var(--fi-sans), -apple-system, sans-serif;
