@@ -754,7 +754,7 @@ function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModel
     <div className="flex flex-col">
       <div
         className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider opacity-60"
-        style={{ borderColor: 'var(--bn-border)' }}
+        style={{ borderColor: 'var(--ds-border-primary)' }}
       >
         {label}
       </div>
@@ -764,13 +764,13 @@ function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModel
         spellCheck={false}
         rows={10}
         className="font-mono text-[11px] leading-snug rounded-none border-0 border-b resize-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[280px]"
-        style={{ borderColor: 'var(--bn-border)' }}
+        style={{ borderColor: 'var(--ds-border-primary)' }}
         data-testid="filter-pill-details-textarea"
       />
       {!parsed.ok && (
         <div
           className="px-3 py-1.5 text-[10px] font-medium border-b"
-          style={{ color: 'var(--bn-red, #f87171)', borderColor: 'var(--bn-border)' }}
+          style={{ color: 'var(--ds-accent-negative)', borderColor: 'var(--ds-border-primary)' }}
           data-testid="filter-pill-details-error"
         >
           {parsed.error}

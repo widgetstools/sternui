@@ -186,8 +186,8 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 already labels the window. */}
             {(!popped || frameless) && (
               <>
-                <GripHorizontal size={14} color="var(--ck-t3)" />
-                <span style={{ color: 'var(--ck-green)', fontSize: 11 }}>●</span>
+                <GripHorizontal size={14} color="var(--ds-text-faint)" />
+                <span style={{ color: 'var(--ds-accent-positive)', fontSize: 11 }}>●</span>
                 <span className="gc-popout-title-text">Grid Customizer</span>
                 <span className="gc-popout-title-sub">v2.3.0</span>
               </>
@@ -210,7 +210,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                     style={frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : undefined}
                   >
                     <span>{activeModule.name}</span>
-                    <ChevronDown size={11} strokeWidth={2} color="var(--ck-t2)" />
+                    <ChevronDown size={11} strokeWidth={2} color="var(--ds-text-muted)" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
@@ -220,10 +220,10 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   style={{
                     padding: 4,
                     width: 220,
-                    background: 'var(--ck-card)',
-                    border: '1px solid var(--ck-border-hi)',
+                    background: 'var(--ds-surface-secondary)',
+                    border: '1px solid var(--ds-border-secondary)',
                     borderRadius: 2,
-                    boxShadow: 'var(--ck-popout-shadow)',
+                    boxShadow: 'var(--ds-elevation-overlay)',
                   }}
                 >
                   {panelModules.map((m) => {
@@ -250,7 +250,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
 
             <span style={{ flex: 1 }} />
             <span className="gc-popout-title-status">
-              DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ck-amber)' : 'var(--ck-t1)' }}>
+              DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ds-accent-warning)' : 'var(--ds-text-secondary)' }}>
                 {String(dirtyCount).padStart(2, '0')}
               </strong>
             </span>
@@ -274,7 +274,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 aria-label={helpOpen ? 'Back to settings' : 'Open formats and expressions help'}
                 aria-pressed={helpOpen}
                 data-testid="v2-settings-help-btn"
-                style={helpOpen ? { color: 'var(--ck-green)' } : undefined}
+                style={helpOpen ? { color: 'var(--ds-accent-positive)' } : undefined}
               >
                 <HelpCircle size={12} strokeWidth={2} />
               </button>
@@ -425,7 +425,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   <div className="gc-caps" style={{ fontSize: 10, marginBottom: 6 }}>
                     NO EDITOR
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--ds-text-muted)' }}>
                     {activeModule?.name ?? 'This module'} has no settings UI registered.
                   </div>
                 </div>

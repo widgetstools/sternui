@@ -14,7 +14,7 @@
 import { themeQuartz } from 'ag-grid-community';
 
 export const sternDarkTheme = themeQuartz.withParams({
-  backgroundColor: '#1f2836',
+  backgroundColor: 'var(--ds-surface-primary)',
   borderRadius: 2,
   browserColorScheme: 'dark',
   chromeBackgroundColor: {
@@ -23,8 +23,8 @@ export const sternDarkTheme = themeQuartz.withParams({
     onto: 'backgroundColor',
   },
   columnBorder: true,
-  foregroundColor: '#FFF',
-  oddRowBackgroundColor: '#1B2433',
+  foregroundColor: 'var(--ds-text-primary)',
+  oddRowBackgroundColor: 'var(--ds-surface-secondary)',
   spacing: 6,
   wrapperBorderRadius: 4,
 });
@@ -36,7 +36,7 @@ export const sternLightTheme = themeQuartz.withParams({
   headerFontFamily: {
     googleFont: 'IBM Plex Sans',
   },
-  oddRowBackgroundColor: '#EEF4FF',
+  oddRowBackgroundColor: 'var(--ds-surface-secondary)',
   spacing: 6,
   wrapperBorderRadius: 4,
 });

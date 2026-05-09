@@ -70,8 +70,8 @@ export function ModulePaint({
             background: 'transparent',
             border: 'none',
             borderRadius: 4,
-            boxShadow: 'var(--ck-popout-shadow, 0 20px 40px rgba(0,0,0,0.5))',
-            fontFamily: 'var(--fx-font-sans, "IBM Plex Sans", sans-serif)',
+            boxShadow: 'var(--ds-elevation-overlay)',
+            fontFamily: 'var(--ds-font-sans)',
           }}
           onMouseDown={(e) => {
             const tag = (e.target as HTMLElement).tagName;

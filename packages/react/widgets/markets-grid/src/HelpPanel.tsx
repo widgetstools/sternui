@@ -55,9 +55,9 @@ export function HelpPanel() {
                 border: 'none',
                 borderRadius: 4,
                 background: on
-                  ? 'color-mix(in srgb, var(--ck-green) 10%, transparent)'
+                  ? 'color-mix(in srgb, var(--ds-accent-positive) 10%, transparent)'
                   : 'transparent',
-                color: on ? 'var(--ck-green)' : 'var(--ck-t1)',
+                color: on ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
                 fontSize: 11,
                 fontWeight: on ? 600 : 450,
                 letterSpacing: 0.12,
@@ -113,7 +113,7 @@ function H1({ children }: { children: React.ReactNode }) {
         fontWeight: 700,
         letterSpacing: 0.2,
         margin: '0 0 4px',
-        color: 'var(--ck-t0)',
+        color: 'var(--ds-text-primary)',
       }}
     >
       {children}
@@ -129,8 +129,8 @@ function H2({ children }: { children: React.ReactNode }) {
         fontWeight: 600,
         letterSpacing: 0.15,
         margin: '24px 0 8px',
-        color: 'var(--ck-t0)',
-        borderBottom: '1px solid var(--ck-border)',
+        color: 'var(--ds-text-primary)',
+        borderBottom: '1px solid var(--ds-border-primary)',
         paddingBottom: 4,
       }}
     >
@@ -147,7 +147,7 @@ function H3({ children }: { children: React.ReactNode }) {
         fontWeight: 600,
         letterSpacing: 0.2,
         margin: '18px 0 6px',
-        color: 'var(--ck-t1)',
+        color: 'var(--ds-text-secondary)',
         textTransform: 'uppercase',
       }}
     >
@@ -167,9 +167,9 @@ function Code({ children }: { children: React.ReactNode }) {
         display: 'inline-block',
         padding: '1px 6px',
         borderRadius: 3,
-        background: 'var(--ck-bg)',
-        border: '1px solid var(--ck-border)',
-        fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
+        background: 'var(--ds-surface-ground)',
+        border: '1px solid var(--ds-border-primary)',
+        fontFamily: 'var(--ds-font-mono)',
         fontSize: 11,
       }}
     >
@@ -185,12 +185,12 @@ function Pre({ children }: { children: React.ReactNode }) {
         margin: '8px 0 14px',
         padding: '10px 12px',
         borderRadius: 4,
-        background: 'var(--ck-bg)',
-        border: '1px solid var(--ck-border)',
-        fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
+        background: 'var(--ds-surface-ground)',
+        border: '1px solid var(--ds-border-primary)',
+        fontFamily: 'var(--ds-font-mono)',
         fontSize: 11,
         lineHeight: 1.55,
-        color: 'var(--ck-t0)',
+        color: 'var(--ds-text-primary)',
         overflowX: 'auto',
       }}
     >
@@ -217,13 +217,13 @@ function Table({ rows, cols }: { cols: string[]; rows: Array<Array<React.ReactNo
               style={{
                 textAlign: 'left',
                 padding: '6px 8px',
-                borderBottom: '1px solid var(--ck-border-hi)',
+                borderBottom: '1px solid var(--ds-border-secondary)',
                 fontWeight: 600,
                 fontSize: 10,
                 textTransform: 'uppercase',
                 letterSpacing: 0.25,
-                color: 'var(--ck-t2)',
-                background: 'var(--ck-surface)',
+                color: 'var(--ds-text-muted)',
+                background: 'var(--ds-surface-secondary)',
               }}
             >
               {c}
@@ -239,9 +239,9 @@ function Table({ rows, cols }: { cols: string[]; rows: Array<Array<React.ReactNo
                 key={j}
                 style={{
                   padding: '5px 8px',
-                  borderBottom: '1px solid var(--ck-border)',
+                  borderBottom: '1px solid var(--ds-border-primary)',
                   verticalAlign: 'top',
-                  color: 'var(--ck-t0)',
+                  color: 'var(--ds-text-primary)',
                 }}
               >
                 {cell}
@@ -289,20 +289,20 @@ function Overview({ onNav }: { onNav: (id: SectionId) => void }) {
             style={{
               textAlign: 'left',
               padding: '8px 10px',
-              border: '1px solid var(--ck-border)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 4,
               background: 'transparent',
-              color: 'var(--ck-t0)',
+              color: 'var(--ds-text-primary)',
               fontSize: 12,
               cursor: 'pointer',
               transition: 'border-color 120ms, background 120ms',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ck-green-dim)';
-              e.currentTarget.style.background = 'var(--ck-green-bg)';
+              e.currentTarget.style.borderColor = 'var(--ds-overlay-positive-ring)';
+              e.currentTarget.style.background = 'var(--ds-overlay-positive-soft)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ck-border)';
+              e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
               e.currentTarget.style.background = 'transparent';
             }}
           >
@@ -708,11 +708,11 @@ function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }
               justifyContent: 'center',
               gap: 2,
               padding: '8px 6px 6px',
-              background: copied ? 'var(--ck-green-bg, rgba(45,212,191,0.12))' : 'var(--ck-bg)',
+              background: copied ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
               border: '1px solid',
-              borderColor: copied ? 'var(--ck-green)' : 'var(--ck-border)',
+              borderColor: copied ? 'var(--ds-accent-positive)' : 'var(--ds-border-primary)',
               borderRadius: 4,
-              color: 'var(--ck-t0)',
+              color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               transition: 'all 120ms',
             }}
@@ -731,9 +731,9 @@ function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }
               style={{
                 fontSize: 9,
                 lineHeight: 1.2,
-                color: copied ? 'var(--ck-green)' : 'var(--ck-t2)',
+                color: copied ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
                 textAlign: 'center',
-                fontFamily: 'var(--ck-font-mono, monospace)',
+                fontFamily: 'var(--ds-font-mono)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -902,7 +902,7 @@ IFS([price] >= 105, "🟢", [price] >= 95, "🟡", "🔴")
 
 // mixed with text via CONCAT
 CONCAT("📈 ", [security], " ", [side])`}</Pre>
-      <p style={{ margin: '6px 0', color: 'var(--ck-t2)', fontSize: 11 }}>
+      <p style={{ margin: '6px 0', color: 'var(--ds-text-muted)', fontSize: 11 }}>
         <strong>Tip:</strong> when you need group-row aggregation, use a
         numeric 1 / 2 / 3 (or N / S / E / W, etc.) from the expression and let
         the Excel format render the emoji — see the Traffic Light walkthrough.

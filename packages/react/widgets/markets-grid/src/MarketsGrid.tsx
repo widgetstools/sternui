@@ -1065,8 +1065,8 @@ function GridInfoButton({
             <div
               className="px-3 py-2 border-b text-[13px] font-semibold"
               style={{
-                color: 'var(--bn-t0)',
-                borderColor: 'var(--bn-border)',
+                color: 'var(--ds-text-primary)',
+                borderColor: 'var(--ds-border-primary)',
               }}
             >
               {componentName}
@@ -1095,7 +1095,7 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
           fontWeight: 600,
           letterSpacing: 0.6,
           textTransform: 'uppercase',
-          color: 'var(--bn-t3, var(--muted-foreground))',
+          color: 'var(--ds-text-faint)',
           width: 80,
         }}
       >
@@ -1105,7 +1105,7 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
         className="min-w-0 truncate"
         title={value}
         style={{
-          color: 'var(--bn-t0, var(--foreground))',
+          color: 'var(--ds-text-primary)',
           fontFamily: mono ? "'JetBrains Mono', 'IBM Plex Mono', monospace" : 'inherit',
           fontSize: 12,
         }}
@@ -1255,7 +1255,7 @@ function EditableCaption({
         marginRight: 8,
         fontSize: 12,
         fontWeight: 600,
-        color: 'var(--bn-t0, #d8dee9)',
+        color: 'var(--ds-text-primary)',
       }}
     >
       <span data-testid="grid-caption-text">{value}</span>
@@ -1277,7 +1277,7 @@ function EditableCaption({
           padding: 0,
           background: 'transparent',
           border: 'none',
-          color: 'var(--bn-t2, #7a8494)',
+          color: 'var(--ds-text-muted)',
           cursor: 'pointer',
         }}
       >

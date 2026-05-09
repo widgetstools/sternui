@@ -14,33 +14,33 @@
   grid-template-columns: 220px 1fr;
   height: 100%;
   overflow: hidden;
-  font-family: var(--ck-font-sans, 'IBM Plex Sans', sans-serif);
+  font-family: var(--ds-font-sans);
 }
 
 .gc-help-nav {
-  border-right: 1px solid var(--ck-border);
+  border-right: 1px solid var(--ds-border-primary);
   padding: 12px 6px;
   overflow-y: auto;
-  background: var(--ck-surface);
+  background: var(--ds-surface-secondary);
 }
 
 .gc-help-nav-footer {
   margin-top: 18px;
   padding: 0 10px;
   font-size: 10px;
-  color: var(--ck-t3);
+  color: var(--ds-text-faint);
 }
 
 .gc-help-nav-footer code {
-  font-family: var(--ck-font-mono);
+  font-family: var(--ds-font-mono);
 }
 
 .gc-help-content {
   overflow-y: auto;
-  color: var(--ck-t0);
+  color: var(--ds-text-primary);
 }
 
 .gc-help-p {
   margin: 6px 0;
-  color: var(--ck-t1);
+  color: var(--ds-text-secondary);
 }
