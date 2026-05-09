@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, RemoveFormatting } from 'lucide-react';
 import { FormatColorPicker, FormatDropdown, FormatPopover } from '../format-editor';
 import type { BorderSpec } from '@starui/core';
+import './BorderStyleEditor.css';
 
 /**
  * Shared border style editor — the single source of truth for every
