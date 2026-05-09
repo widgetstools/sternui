@@ -15,23 +15,16 @@ export interface SubLabelProps {
 export function SubLabel({ children, style, action }: SubLabelProps) {
   return (
     <div
-      className="gc-caps"
+      className="flex items-baseline justify-between gap-2 font-semibold uppercase text-muted-foreground mb-1.5"
       style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 8,
         fontSize: 10,
         letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        color: 'var(--ck-t2)',
-        margin: '0 0 6px',
         fontWeight: 600,
         ...style,
       }}
     >
       <span>{children}</span>
-      {action && <span style={{ color: 'var(--ck-t3)' }}>{action}</span>}
+      {action && <span className="text-muted-foreground/60">{action}</span>}
     </div>
   );
 }

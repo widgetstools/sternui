@@ -8,13 +8,6 @@
  * accessible, keyboard-navigable list rail instead of hand-rolled
  * `<ul><li><button>` markup.
  *
- * Why cmdk directly and not shadcn's `Command` wrapper:
- *   - shadcn's wrapper applies Tailwind utility classes (`bg-popover`,
- *     `text-popover-foreground`, `data-[selected]:bg-accent`) that
- *     fight the cockpit token CSS we already use here. Pulling cmdk
- *     directly lets the existing `.gc-popout-list-item[*]` selectors
- *     remain the single source of truth for the cockpit theme.
- *
  * Selection model:
  *   - cmdk auto-sets `aria-selected="true"` on whichever item is
  *     currently *highlighted* (hovered / keyboard-focused). That is
@@ -22,7 +15,7 @@
  *     item.
  *   - Panel-level "this card is open in the editor" is encoded as
  *     `data-active="true"` on the item (set by callers via the
- *     `active` prop). The cockpit CSS keys the green left-border on
+ *     `active` prop). The CSS keys the green left-border on
  *     `data-active`, with `aria-selected` falling back to a softer
  *     hover-style highlight for keyboard navigation discoverability.
  */
@@ -36,7 +29,7 @@ export interface CockpitListProps
 }
 
 /**
- * Outer Command + inner CommandList. The cockpit rail never shows a
+ * Outer Command + inner CommandList. The rail never shows a
  * search input, so cmdk's built-in filter is disabled — every item
  * passed in always renders.
  */
@@ -46,7 +39,10 @@ export const CockpitList = forwardRef<
 >(function CockpitList({ children, listTestId, ...rest }, ref) {
   return (
     <CommandPrimitive ref={ref} shouldFilter={false} {...rest}>
-      <CommandPrimitive.List className="gc-popout-list-items" data-testid={listTestId}>
+      <CommandPrimitive.List
+        className="ds-scrollbar list-none p-1 m-0 flex-1"
+        data-testid={listTestId}
+      >
         {children}
       </CommandPrimitive.List>
     </CommandPrimitive>
@@ -59,8 +55,8 @@ export interface CockpitListItemProps
    *  navigation, click, and `onSelect` all dispatch with the same key. */
   value: string;
   /** True when this row's editor card is open in the panel's right
-   *  pane. Encoded as `data-active="true"` so the cockpit theme can
-   *  draw the persistent green left-border without conflicting with
+   *  pane. Encoded as `data-active="true"` so the theme can
+   *  draw the persistent accent left-border without conflicting with
    *  cmdk's transient `aria-selected` highlight. */
   active?: boolean;
   /** Optional ghosting hook (`data-muted="true"`) for rows whose
@@ -82,7 +78,10 @@ export const CockpitListItem = forwardRef<
       value={value}
       data-active={active ? 'true' : undefined}
       data-muted={muted ? 'true' : undefined}
-      className={className ?? 'gc-popout-list-item'}
+      className={
+        className ??
+        'flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-l-2 border-transparent text-foreground text-sm cursor-pointer select-none rounded-sm data-[active=true]:bg-card data-[active=true]:border-l-success aria-selected:bg-muted data-[muted=true]:text-muted-foreground hover:bg-muted'
+      }
       {...rest}
     >
       {children}

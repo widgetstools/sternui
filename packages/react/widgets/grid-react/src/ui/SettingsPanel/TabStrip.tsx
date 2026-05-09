@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 
 /**
- * Cockpit sub-tab strip — horizontal tabs with phosphor-green underline
- * for the active item. Used for in-editor view switches like Rule /
- * Preview. The top-level module tabs live in the SettingsSheet shell,
- * not here.
+ * Sub-tab strip — horizontal tabs with accent underline for the active item.
+ * Used for in-editor view switches like Rule / Preview. The top-level module
+ * tabs live in the SettingsSheet shell, not here.
  */
 
 export interface TabItem {
@@ -27,15 +26,9 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
   return (
     <div
       data-testid={rest['data-testid']}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        padding: '0 20px',
-        borderBottom: '1px solid var(--ck-border, #2d3339)',
-      }}
+      className="flex items-center gap-4 px-5 border-b border-border"
     >
-      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+      <div className="flex items-stretch">
         {items.map((item) => {
           const active = item.value === value;
           return (
@@ -45,36 +38,19 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
               onClick={() => !item.disabled && onChange(item.value)}
               disabled={item.disabled}
               aria-pressed={active ? 'true' : 'false'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 14px',
-                borderBottom: active ? '2px solid var(--ck-green, #6ee7b7)' : '2px solid transparent',
-                background: 'transparent',
-                color: active
-                  ? 'var(--ck-t0, #e5e7ea)'
+              className={[
+                'inline-flex items-center gap-1.5 px-3.5 py-2 font-sans text-sm font-medium tracking-[0.02em] bg-transparent border-none cursor-pointer -mb-px transition-colors duration-[120ms]',
+                active
+                  ? 'text-foreground font-semibold border-b-2 border-primary'
                   : item.disabled
-                    ? 'var(--ck-t3, #4a5360)'
-                    : 'var(--ck-t1, #9ba3ad)',
-                fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-                fontSize: 12,
-                fontWeight: active ? 600 : 500,
-                letterSpacing: '0.02em',
-                cursor: item.disabled ? 'not-allowed' : 'pointer',
-                border: 'none',
-                marginBottom: -1,
-              }}
+                    ? 'text-muted-foreground cursor-not-allowed border-b-2 border-transparent'
+                    : 'text-secondary hover:text-foreground border-b-2 border-transparent',
+              ].join(' ')}
+              style={{ fontSize: 12 }}
             >
               {item.label}
               {item.badge !== undefined && (
-                <span
-                  className="gc-mono"
-                  style={{
-                    fontSize: 10,
-                    color: 'var(--ck-t3, #4a5360)',
-                  }}
-                >
+                <span className="font-mono text-muted-foreground tabular-nums text-[10px]">
                   {item.badge}
                 </span>
               )}
@@ -83,16 +59,7 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
         })}
       </div>
       {trailing && (
-        <div
-          style={{
-            marginLeft: 'auto',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 11,
-            color: 'var(--ck-t2, #6b7480)',
-          }}
-        >
+        <div className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           {trailing}
         </div>
       )}

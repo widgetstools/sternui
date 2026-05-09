@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /**
- * Deprecated in the Cockpit Terminal redesign.
+ * Deprecated in the redesign.
  *
  * The popout shell (`SettingsSheet`) now owns the window chrome (drag
  * title bar, profile/dirty readout, close/maximize) that this component
@@ -26,16 +26,10 @@ export function PanelChrome({ breadcrumb, actions, ...rest }: PanelChromeProps) 
   return (
     <div
       data-testid={rest['data-testid']}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 16px',
-        gap: 10,
-      }}
+      className="flex items-center justify-between px-4 py-2 gap-2.5"
     >
       <div>{breadcrumb}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{actions}</div>
+      <div className="flex items-center gap-1.5">{actions}</div>
     </div>
   );
 }
