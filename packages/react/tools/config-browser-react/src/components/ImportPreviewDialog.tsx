@@ -192,9 +192,9 @@ function SummaryGrid({
         <code style={{ fontFamily: "var(--de-mono)", color: "var(--de-text)" }}>{primaryKey}</code>.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-        <StatCell label="New" value={fresh} accent="var(--de-success, #4ade80)" />
-        <StatCell label="Will overwrite" value={conflicts} accent="var(--de-warning, #fbbf24)" />
-        <StatCell label="Invalid" value={invalid} accent="var(--de-danger, #f87171)" />
+        <StatCell label="New" value={fresh} accent="var(--de-success, var(--ds-accent-positive))" />
+        <StatCell label="Will overwrite" value={conflicts} accent="var(--ds-accent-warning)" />
+        <StatCell label="Invalid" value={invalid} accent="var(--de-danger, var(--ds-accent-negative))" />
       </div>
     </div>
   );
@@ -262,7 +262,7 @@ function ModeRadio({
           {warning && (
             <Icon
               icon="lucide:alert-triangle"
-              style={{ width: 12, height: 12, color: "var(--de-warning, #fbbf24)" }}
+              style={{ width: 12, height: 12, color: "var(--ds-accent-warning)" }}
             />
           )}
         </div>
@@ -296,7 +296,7 @@ function DialogButton({
         border: primary ? "none" : "1px solid var(--de-border)",
         borderRadius: "var(--de-radius-sm)",
         background: primary ? "var(--de-accent)" : "var(--de-bg)",
-        color: primary ? "var(--bn-cta-text, #fff)" : "var(--de-text-secondary)",
+        color: primary ? "var(--ds-text-primary)" : "var(--de-text-secondary)",
         fontSize: 12,
         fontWeight: primary ? 600 : 500,
         cursor: disabled ? "not-allowed" : "pointer",

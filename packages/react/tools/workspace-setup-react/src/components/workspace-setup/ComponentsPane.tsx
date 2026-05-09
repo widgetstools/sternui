@@ -68,14 +68,14 @@ export function ComponentsPane({
   }), [entries, inDockEntryIds]);
 
   return (
-    <div className="flex flex-col h-full border-r" style={{ borderColor: "var(--bn-border)" }}>
+    <div className="flex flex-col h-full border-r" style={{ borderColor: "var(--ds-border-primary)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--bn-border)" }}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--ds-border-primary)" }}>
         <div className="flex flex-col">
-          <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--bn-t1)" }}>
+          <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--ds-text-secondary)" }}>
             ① COMPONENTS
           </span>
-          <span className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
+          <span className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
             global · all users
           </span>
         </div>
@@ -83,31 +83,31 @@ export function ComponentsPane({
           type="button"
           onClick={onAddDraft}
           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium"
-          style={{ background: "var(--bn-bg2)", color: "var(--bn-t0)", border: "1px solid var(--bn-border)" }}
+          style={{ background: "var(--ds-surface-secondary)", color: "var(--ds-text-primary)", border: "1px solid var(--ds-border-primary)" }}
         >
           <Plus className="w-3 h-3" /> New
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3 py-2 border-b" style={{ borderColor: "var(--bn-border)" }}>
+      <div className="px-3 py-2 border-b" style={{ borderColor: "var(--ds-border-primary)" }}>
         <div
           className="flex items-center gap-2 rounded-md px-2 py-1"
-          style={{ background: "var(--bn-bg2)", border: "1px solid var(--bn-border)" }}
+          style={{ background: "var(--ds-surface-secondary)", border: "1px solid var(--ds-border-primary)" }}
         >
-          <Search className="w-3 h-3" style={{ color: "var(--bn-t2)" }} />
+          <Search className="w-3 h-3" style={{ color: "var(--ds-text-muted)" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search components"
             className="flex-1 bg-transparent text-xs outline-none"
-            style={{ color: "var(--bn-t0)" }}
+            style={{ color: "var(--ds-text-primary)" }}
           />
         </div>
       </div>
 
       {/* Filter chips */}
-      <div className="flex flex-wrap gap-1 px-3 py-2 border-b" style={{ borderColor: "var(--bn-border)" }}>
+      <div className="flex flex-wrap gap-1 px-3 py-2 border-b" style={{ borderColor: "var(--ds-border-primary)" }}>
         <FilterChip current={filter} value="all" label={`All (${counts.all})`} onChange={setFilter} />
         <FilterChip current={filter} value="in-dock" label={`In dock (${counts.inDock})`} onChange={setFilter} />
         <FilterChip current={filter} value="not-in-dock" label={`Not in dock (${counts.notInDock})`} onChange={setFilter} />
@@ -117,7 +117,7 @@ export function ComponentsPane({
       {/* List */}
       <div className="flex-1 overflow-auto bn-scrollbar min-h-0">
         {filtered.length === 0 && (
-          <div className="px-3 py-6 text-center text-xs" style={{ color: "var(--bn-t2)" }}>
+          <div className="px-3 py-6 text-center text-xs" style={{ color: "var(--ds-text-muted)" }}>
             {entries.length === 0
               ? 'No components yet. Click "+ New" to define your first one.'
               : "No components match the current filter."}
@@ -133,22 +133,22 @@ export function ComponentsPane({
               onClick={() => onSelect({ kind: "component", entryId: entry.id })}
               className="w-full text-left flex items-start gap-2 px-3 py-2 border-b group"
               style={{
-                background: isSelected ? "var(--bn-bg3)" : "transparent",
-                borderColor: "var(--bn-border)",
-                borderLeft: isSelected ? "2px solid var(--bn-accent, #14b8a6)" : "2px solid transparent",
+                background: isSelected ? "var(--ds-surface-tertiary)" : "transparent",
+                borderColor: "var(--ds-border-primary)",
+                borderLeft: isSelected ? "2px solid var(--ds-accent-info, var(--ds-accent-info))" : "2px solid transparent",
               }}
             >
               <ComponentIcon iconId={entry.iconId} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 text-xs font-medium truncate" style={{ color: "var(--bn-t0)" }}>
+                <div className="flex items-center gap-1.5 text-xs font-medium truncate" style={{ color: "var(--ds-text-primary)" }}>
                   {entry.singleton && <span title="Singleton">⭐</span>}
                   {entry.type === "external" && <span title="External component">🌐</span>}
                   <span className="truncate">{entry.displayName || "(unnamed)"}</span>
                 </div>
-                <div className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bn-t2)" }}>
+                <div className="text-[10px] mt-0.5 truncate" style={{ color: "var(--ds-text-muted)" }}>
                   {entry.componentType || "—"} / {entry.componentSubType || "—"}
                 </div>
-                <div className="text-[10px] mt-0.5" style={{ color: isInDock ? "var(--bn-success, #14b8a6)" : "var(--bn-warn, #f59e0b)" }}>
+                <div className="text-[10px] mt-0.5" style={{ color: isInDock ? "var(--ds-accent-positive)" : "var(--ds-accent-warning)" }}>
                   {isInDock ? "✓ in dock" : "⚠ not in dock"}
                 </div>
               </div>
@@ -188,11 +188,11 @@ function ComponentIcon({ iconId }: { iconId: string | undefined }) {
         alt=""
         width={20}
         height={20}
-        style={{ width: 20, height: 20, flexShrink: 0, color: "var(--bn-t1)" }}
+        style={{ width: 20, height: 20, flexShrink: 0, color: "var(--ds-text-secondary)" }}
       />
     );
   }
-  return <Box className="w-5 h-5 shrink-0" style={{ color: "var(--bn-t2)" }} />;
+  return <Box className="w-5 h-5 shrink-0" style={{ color: "var(--ds-text-muted)" }} />;
 }
 
 function FilterChip({
@@ -213,9 +213,9 @@ function FilterChip({
       onClick={() => onChange(value)}
       className="rounded-md px-2 py-0.5 text-[10px] font-medium"
       style={{
-        background: active ? "var(--bn-accent, #14b8a6)" : "var(--bn-bg2)",
-        color: active ? "var(--bn-bg)" : "var(--bn-t1)",
-        border: "1px solid var(--bn-border)",
+        background: active ? "var(--ds-accent-info, var(--ds-accent-info))" : "var(--ds-surface-secondary)",
+        color: active ? "var(--ds-surface-ground)" : "var(--ds-text-secondary)",
+        border: "1px solid var(--ds-border-primary)",
       }}
     >
       {label}
@@ -238,7 +238,7 @@ function RowAction({
       title={title}
       onClick={onClick}
       className="rounded p-1 hover:bg-white/10"
-      style={{ color: "var(--bn-t1)" }}
+      style={{ color: "var(--ds-text-secondary)" }}
     >
       {children}
     </button>

@@ -5,7 +5,7 @@ import { YC_CHART_DATA } from '../services/trading-data.service';
   selector: 'yield-curve-widget',
   standalone: true,
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
-  template: `<div style="flex:1;position:relative;background:var(--bn-bg1)">
+  template: `<div style="flex:1;position:relative;background:var(--ds-surface-primary)">
     <canvas #canvas style="width:100%;height:100%;display:block"></canvas>
   </div>`,
 })
@@ -41,7 +41,7 @@ export class YieldCurveWidget implements AfterViewInit, OnDestroy {
     const pad = { l: 40, r: 16, t: 16, b: 28 };
     ctx.clearRect(0, 0, W, H);
     const g = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-    ctx.fillStyle = g('--bn-bg1');
+    ctx.fillStyle = g('--ds-surface-primary');
     ctx.fillRect(0, 0, W, H);
 
     const allVals = data.flatMap((d) => [d.today, d.week, d.month]);
@@ -52,7 +52,7 @@ export class YieldCurveWidget implements AfterViewInit, OnDestroy {
     const yOf = (v: number) => pad.t + (1 - (v - minV) / (maxV - minV)) * (H - pad.t - pad.b);
 
     // Grid
-    ctx.strokeStyle = g('--bn-bg2');
+    ctx.strokeStyle = g('--ds-surface-secondary');
     ctx.lineWidth = 0.5;
     for (let i = 1; i <= 4; i++) {
       const y = pad.t + ((H - pad.t - pad.b) * i) / 5;
@@ -61,14 +61,14 @@ export class YieldCurveWidget implements AfterViewInit, OnDestroy {
       ctx.lineTo(W - pad.r, y);
       ctx.stroke();
       const val = maxV - ((maxV - minV) * i) / 5;
-      ctx.fillStyle = g('--bn-t2');
+      ctx.fillStyle = g('--ds-text-muted');
       ctx.font = '9px JetBrains Mono,monospace';
       ctx.textAlign = 'right';
       ctx.fillText(val.toFixed(2), pad.l - 4, y + 3);
     }
     // X labels
     data.forEach((d, i) => {
-      ctx.fillStyle = g('--bn-t2');
+      ctx.fillStyle = g('--ds-text-muted');
       ctx.font = '9px JetBrains Mono,monospace';
       ctx.textAlign = 'center';
       ctx.fillText(d.tenor, xOf(i), H - pad.b + 14);
@@ -91,28 +91,28 @@ export class YieldCurveWidget implements AfterViewInit, OnDestroy {
       ctx.stroke();
       ctx.setLineDash([]);
     };
-    drawLine('month', g('--bn-bg2'), 1, [2, 4]);
-    drawLine('week', g('--bn-border'), 1.2, [4, 4]);
-    drawLine('today', '#3b82f6', 2, []);
+    drawLine('month', g('--ds-surface-secondary'), 1, [2, 4]);
+    drawLine('week', g('--ds-border-primary'), 1.2, [4, 4]);
+    drawLine('today', 'var(--ds-accent-info)', 2, []);
 
     // Today dots
     data.forEach((d, i) => {
       ctx.beginPath();
       ctx.arc(xOf(i), yOf(d.today), 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#3b82f6';
+      ctx.fillStyle = 'var(--ds-accent-info)';
       ctx.fill();
     });
 
     // Legend
     ctx.textAlign = 'left';
     [
-      ['Today', '#3b82f6'],
-      ['-1 Week', g('--bn-border')],
-      ['-1 Month', g('--bn-bg2')],
+      ['Today', 'var(--ds-accent-info)'],
+      ['-1 Week', g('--ds-border-primary')],
+      ['-1 Month', g('--ds-surface-secondary')],
     ].forEach(([label, color], idx) => {
       ctx.fillStyle = color as string;
       ctx.fillRect(pad.l + idx * 80, 4, 12, 3);
-      ctx.fillStyle = g('--bn-t2');
+      ctx.fillStyle = g('--ds-text-muted');
       ctx.font = '8px JetBrains Mono,monospace';
       ctx.fillText(label as string, pad.l + idx * 80 + 16, 8);
     });

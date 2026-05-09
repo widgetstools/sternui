@@ -29,9 +29,9 @@ function makeQuote(bond: Bond, side: 'Buy' | 'Sell', dealer: string): RfqQuote {
 }
 
 const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  live: { bg: 'rgba(59,130,246,0.1)', color: 'var(--fi-blue)', border: 'rgba(59,130,246,0.25)' },
-  done: { bg: 'rgba(20,217,160,0.12)', color: 'var(--fi-green)', border: 'rgba(20,217,160,0.25)' },
-  stale: { bg: 'rgba(74,82,117,0.2)', color: 'var(--fi-t2)', border: 'rgba(74,82,117,0.25)' },
+  live: { bg: 'rgba(59,130,246,0.1)', color: 'var(--ds-accent-info)', border: 'rgba(59,130,246,0.25)' },
+  done: { bg: 'rgba(20,217,160,0.12)', color: 'var(--ds-accent-positive)', border: 'rgba(20,217,160,0.25)' },
+  stale: { bg: 'rgba(74,82,117,0.2)', color: 'var(--ds-text-muted)', border: 'rgba(74,82,117,0.25)' },
 };
 
 @Component({
@@ -51,31 +51,31 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
     `,
   ],
   template: `
-    <div style="display:flex;flex-direction:column;height:100%;background:var(--fi-bg1)">
+    <div style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary)">
       <!-- Live count toolbar -->
       <div
-        style="display:flex;align-items:center;justify-content:flex-end;padding:0 12px;height:32px;border-bottom:1px solid var(--fi-border);flex-shrink:0"
+        style="display:flex;align-items:center;justify-content:flex-end;padding:0 12px;height:32px;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0"
       >
         <span
           class="font-mono-fi"
-          style="font-size:9px;padding:1px 6px;border-radius:2px;background:rgba(59,130,246,0.08);color:var(--fi-blue);border:1px solid rgba(59,130,246,0.2)"
+          style="font-size:9px;padding:1px 6px;border-radius:2px;background:rgba(59,130,246,0.08);color:var(--ds-accent-info);border:1px solid rgba(59,130,246,0.2)"
           >{{ liveCount }} live</span
         >
       </div>
-      <div style="display:flex;flex:1;overflow:hidden;gap:1px;background:var(--fi-border)">
+      <div style="display:flex;flex:1;overflow:hidden;gap:1px;background:var(--ds-border-primary)">
         <!-- Left: RFQ ticket -->
         <div
-          style="display:flex;flex-direction:column;flex-shrink:0;width:220px;background:var(--fi-bg2)"
+          style="display:flex;flex-direction:column;flex-shrink:0;width:220px;background:var(--ds-surface-secondary)"
         >
           <div
-            style="display:flex;align-items:center;padding:0 12px;height:28px;border-bottom:1px solid var(--fi-border);background:rgba(59,130,246,0.06)"
+            style="display:flex;align-items:center;padding:0 12px;height:28px;border-bottom:1px solid var(--ds-border-primary);background:rgba(59,130,246,0.06)"
           >
             <svg
               width="10"
               height="10"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--fi-blue)"
+              stroke="var(--ds-accent-info)"
               stroke-width="2.5"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -83,7 +83,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             >
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
-            <span class="col-hdr" style="color:var(--fi-blue)">New RFQ</span>
+            <span class="col-hdr" style="color:var(--ds-accent-info)">New RFQ</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;padding:12px">
             <!-- Instrument -->
@@ -93,7 +93,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 *ngIf="activeBond && !instrOpen"
                 (click)="instrOpen = true"
                 class="font-mono-fi"
-                style="font-size:11px;font-weight:700;padding:6px 8px;border-radius:2px;border:1px solid rgba(0,188,212,0.25);background:rgba(0,188,212,0.06);color:var(--fi-cyan);cursor:pointer;display:flex;align-items:center;justify-content:space-between"
+                style="font-size:11px;font-weight:700;padding:6px 8px;border-radius:2px;border:1px solid rgba(0,188,212,0.25);background:rgba(0,188,212,0.06);color:var(--ds-accent-info);cursor:pointer;display:flex;align-items:center;justify-content:space-between"
               >
                 <span>{{ activeBond.ticker }} {{ activeBond.cpn }} {{ activeBond.mat }}</span>
               </div>
@@ -103,20 +103,20 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                   (focus)="instrOpen = true"
                   placeholder="CUSIP, ticker, issuer..."
                   class="font-mono-fi"
-                  style="font-size:11px;width:100%;padding:6px 8px;border-radius:2px;border:1px solid var(--fi-blue);background:var(--fi-bg3);color:var(--fi-t0);outline:none;box-sizing:border-box"
+                  style="font-size:11px;width:100%;padding:6px 8px;border-radius:2px;border:1px solid var(--ds-accent-info);background:var(--ds-surface-tertiary);color:var(--ds-text-primary);outline:none;box-sizing:border-box"
                 />
               </div>
               <div
                 *ngIf="instrOpen && instrResults.length > 0"
-                style="position:relative;z-index:50;border-radius:2px;border:1px solid var(--fi-border2);background:var(--fi-bg2);max-height:200px;overflow-y:auto;margin-top:2px"
+                style="position:relative;z-index:50;border-radius:2px;border:1px solid var(--ds-border-secondary);background:var(--ds-surface-secondary);max-height:200px;overflow-y:auto;margin-top:2px"
               >
                 <div
                   *ngFor="let b of instrResults"
                   (click)="pickBond(b)"
-                  style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--fi-border);font-size:9px;font-family:JetBrains Mono,monospace"
+                  style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--ds-border-primary);font-size:9px;font-family:JetBrains Mono,monospace"
                   (mouseenter)="
                     $event.currentTarget &&
-                      ($any($event.currentTarget).style.background = 'var(--fi-bg3)')
+                      ($any($event.currentTarget).style.background = 'var(--ds-surface-tertiary)')
                   "
                   (mouseleave)="
                     $event.currentTarget &&
@@ -124,10 +124,10 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                   "
                 >
                   <div>
-                    <span style="color:var(--fi-cyan);font-weight:700">{{ b.ticker }}</span>
-                    <span style="color:var(--fi-t1);margin-left:4px">{{ b.cpn }} {{ b.mat }}</span>
+                    <span style="color:var(--ds-accent-info);font-weight:700">{{ b.ticker }}</span>
+                    <span style="color:var(--ds-text-secondary);margin-left:4px">{{ b.cpn }} {{ b.mat }}</span>
                   </div>
-                  <span style="color:var(--fi-t2)">{{ b.cusip }}</span>
+                  <span style="color:var(--ds-text-muted)">{{ b.cusip }}</span>
                 </div>
               </div>
             </div>
@@ -138,18 +138,18 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             >
               <div
                 class="font-mono-fi"
-                style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(59,130,246,0.08);color:var(--fi-blue);text-align:right;border:1px solid rgba(59,130,246,0.15)"
+                style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(59,130,246,0.08);color:var(--ds-accent-info);text-align:right;border:1px solid rgba(59,130,246,0.15)"
               >
-                <span style="font-size:9px;color:var(--fi-t2);display:block;margin-bottom:1px"
+                <span style="font-size:9px;color:var(--ds-text-muted);display:block;margin-bottom:1px"
                   >BID</span
                 >
                 {{ activeBond.bid.toFixed(3) }}
               </div>
               <div
                 class="font-mono-fi"
-                style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(255,77,109,0.08);color:var(--fi-red);text-align:right;border:1px solid rgba(255,77,109,0.15)"
+                style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:2px;background:rgba(255,77,109,0.08);color:var(--ds-accent-negative);text-align:right;border:1px solid rgba(255,77,109,0.15)"
               >
-                <span style="font-size:9px;color:var(--fi-t2);display:block;margin-bottom:1px"
+                <span style="font-size:9px;color:var(--ds-text-muted);display:block;margin-bottom:1px"
                   >ASK</span
                 >
                 {{ activeBond.ask.toFixed(3) }}
@@ -177,14 +177,14 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                       ? s === 'Buy'
                         ? 'rgba(20,217,160,0.4)'
                         : 'rgba(255,77,109,0.4)'
-                      : 'var(--fi-border2)')
+                      : 'var(--ds-border-secondary)')
                   "
                   [style.color]="
                     rfqSide === s
                       ? s === 'Buy'
-                        ? 'var(--fi-green)'
-                        : 'var(--fi-red)'
-                      : 'var(--fi-t2)'
+                        ? 'var(--ds-accent-positive)'
+                        : 'var(--ds-accent-negative)'
+                      : 'var(--ds-text-muted)'
                   "
                 >
                   {{ $any(s).toUpperCase() }}
@@ -202,11 +202,11 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                   (click)="rfqSize = v"
                   class="font-mono-fi"
                   style="padding:4px;border-radius:2px;font-size:9px;cursor:pointer"
-                  [style.background]="rfqSize === v ? 'rgba(59,130,246,0.12)' : 'var(--fi-bg3)'"
+                  [style.background]="rfqSize === v ? 'rgba(59,130,246,0.12)' : 'var(--ds-surface-tertiary)'"
                   [style.border]="
-                    '1px solid ' + (rfqSize === v ? 'var(--fi-blue)' : 'var(--fi-border2)')
+                    '1px solid ' + (rfqSize === v ? 'var(--ds-accent-info)' : 'var(--ds-border-secondary)')
                   "
-                  [style.color]="rfqSize === v ? 'var(--fi-blue)' : 'var(--fi-t1)'"
+                  [style.color]="rfqSize === v ? 'var(--ds-accent-info)' : 'var(--ds-text-secondary)'"
                 >
                   {{ v }}
                 </button>
@@ -215,7 +215,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 type="number"
                 [(ngModel)]="rfqSize"
                 class="font-mono-fi"
-                style="font-size:11px;width:100%;padding:6px 8px;border-radius:2px;border:1px solid var(--fi-border2);background:var(--fi-bg3);color:var(--fi-t0);outline:none;box-sizing:border-box"
+                style="font-size:11px;width:100%;padding:6px 8px;border-radius:2px;border:1px solid var(--ds-border-secondary);background:var(--ds-surface-tertiary);color:var(--ds-text-primary);outline:none;box-sizing:border-box"
               />
             </div>
             <!-- Dealers -->
@@ -225,7 +225,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 <span
                   *ngFor="let d of dealers"
                   class="font-mono-fi"
-                  style="font-size:9px;padding:2px 6px;border-radius:2px;background:rgba(59,130,246,0.08);color:var(--fi-blue);border:1px solid rgba(59,130,246,0.2)"
+                  style="font-size:9px;padding:2px 6px;border-radius:2px;background:rgba(59,130,246,0.08);color:var(--ds-accent-info);border:1px solid rgba(59,130,246,0.2)"
                   >{{ d }}</span
                 >
               </div>
@@ -236,25 +236,25 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
               [disabled]="!activeBond"
               class="font-mono-fi font-bold"
               style="width:100%;padding:8px;border-radius:2px;font-size:11px;letter-spacing:0.06em;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;border:none;cursor:pointer"
-              [style.background]="activeBond ? 'var(--fi-blue)' : 'var(--fi-bg3)'"
-              [style.color]="activeBond ? 'var(--bn-cta-text)' : 'var(--fi-t3)'"
+              [style.background]="activeBond ? 'var(--ds-accent-info)' : 'var(--ds-surface-tertiary)'"
+              [style.color]="activeBond ? 'var(--ds-text-primary)' : 'var(--ds-text-faint)'"
             >
               SEND RFQ
             </button>
           </div>
           <!-- RFQ history -->
-          <div style="border-top:1px solid var(--fi-border);flex:1;overflow-y:auto">
+          <div style="border-top:1px solid var(--ds-border-primary);flex:1;overflow-y:auto">
             <div
-              style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:28px;border-bottom:1px solid var(--fi-border)"
+              style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:28px;border-bottom:1px solid var(--ds-border-primary)"
             >
               <span class="col-hdr">RFQ History</span>
               <button
                 *ngIf="hasCompletedRfqs"
                 (click)="clearHistory()"
                 class="font-mono-fi"
-                style="font-size:9px;color:var(--fi-t3);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:3px"
-                (mouseenter)="$any($event.currentTarget).style.color = 'var(--fi-red)'"
-                (mouseleave)="$any($event.currentTarget).style.color = 'var(--fi-t3)'"
+                style="font-size:9px;color:var(--ds-text-faint);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:3px"
+                (mouseenter)="$any($event.currentTarget).style.color = 'var(--ds-accent-negative)'"
+                (mouseleave)="$any($event.currentTarget).style.color = 'var(--ds-text-faint)'"
               >
                 <svg
                   width="9"
@@ -278,20 +278,20 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
               *ngFor="let r of requests"
               (click)="activeId = r.id"
               class="rfq-history-item"
-              style="padding:8px 12px;border-bottom:1px solid var(--fi-border);cursor:pointer;position:relative"
-              [style.background]="activeId === r.id ? 'var(--fi-bg3)' : 'transparent'"
+              style="padding:8px 12px;border-bottom:1px solid var(--ds-border-primary);cursor:pointer;position:relative"
+              [style.background]="activeId === r.id ? 'var(--ds-surface-tertiary)' : 'transparent'"
             >
               <div
                 style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px"
               >
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--fi-cyan)">{{
+                  <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--ds-accent-info)">{{
                     r.id
                   }}</span>
                   <span
                     class="font-mono-fi"
                     style="font-size:9px;font-weight:600"
-                    [style.color]="r.side === 'Buy' ? 'var(--fi-green)' : 'var(--fi-red)'"
+                    [style.color]="r.side === 'Buy' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)'"
                     >{{ r.side.toUpperCase() }}</span
                   >
                 </div>
@@ -308,9 +308,9 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                     *ngIf="r.status === 'done' || r.status === 'cancelled'"
                     (click)="removeRfq(r.id); $event.stopPropagation()"
                     class="rfq-remove-btn"
-                    style="background:none;border:none;cursor:pointer;padding:0;color:var(--fi-t3);line-height:0"
-                    (mouseenter)="$any($event.currentTarget).style.color = 'var(--fi-red)'"
-                    (mouseleave)="$any($event.currentTarget).style.color = 'var(--fi-t3)'"
+                    style="background:none;border:none;cursor:pointer;padding:0;color:var(--ds-text-faint);line-height:0"
+                    (mouseenter)="$any($event.currentTarget).style.color = 'var(--ds-accent-negative)'"
+                    (mouseleave)="$any($event.currentTarget).style.color = 'var(--ds-text-faint)'"
                   >
                     <svg
                       width="11"
@@ -328,9 +328,9 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                   </button>
                 </div>
               </div>
-              <div class="font-mono-fi" style="font-size:9px;color:var(--fi-t1)">{{ r.bond }}</div>
+              <div class="font-mono-fi" style="font-size:9px;color:var(--ds-text-secondary)">{{ r.bond }}</div>
               <div style="display:flex;align-items:center;justify-content:space-between">
-                <span class="font-mono-fi" style="font-size:9px;color:var(--fi-t2)">
+                <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)">
                   {{ r.size }} · {{ r.quotes.length }} quotes
                 </span>
                 <div
@@ -343,7 +343,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                       cy="14"
                       r="11"
                       fill="none"
-                      stroke="var(--fi-bg3)"
+                      stroke="var(--ds-surface-tertiary)"
                       stroke-width="2.5"
                     />
                     <circle
@@ -372,25 +372,25 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
         </div>
         <!-- Right: Quote ladder -->
         <div
-          style="display:flex;flex-direction:column;flex:1;overflow:hidden;background:var(--fi-bg1)"
+          style="display:flex;flex-direction:column;flex:1;overflow:hidden;background:var(--ds-surface-primary)"
         >
           <ng-container *ngIf="activeReq">
             <!-- Active RFQ header -->
             <div
-              style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:32px;border-bottom:1px solid var(--fi-border);flex-shrink:0"
+              style="display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:32px;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0"
             >
               <div style="display:flex;align-items:center;gap:12px">
                 <span class="ph-title">{{ activeReq.id }}</span>
-                <span class="font-mono-fi font-bold" style="font-size:11px;color:var(--fi-cyan)">{{
+                <span class="font-mono-fi font-bold" style="font-size:11px;color:var(--ds-accent-info)">{{
                   activeReq.bond
                 }}</span>
                 <span
                   class="font-mono-fi font-bold"
                   style="font-size:11px"
-                  [style.color]="activeReq.side === 'Buy' ? 'var(--fi-green)' : 'var(--fi-red)'"
+                  [style.color]="activeReq.side === 'Buy' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)'"
                   >{{ activeReq.side.toUpperCase() }}</span
                 >
-                <span class="font-mono-fi" style="font-size:11px;color:var(--fi-t1)">{{
+                <span class="font-mono-fi" style="font-size:11px;color:var(--ds-text-secondary)">{{
                   activeReq.size
                 }}</span>
               </div>
@@ -406,7 +406,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                       cy="14"
                       r="11"
                       fill="none"
-                      stroke="var(--fi-bg3)"
+                      stroke="var(--ds-surface-tertiary)"
                       stroke-width="2.5"
                     />
                     <circle
@@ -432,13 +432,13 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 <span
                   *ngIf="activeReq.status === 'pending'"
                   class="font-mono-fi"
-                  style="font-size:9px;color:var(--fi-amber)"
+                  style="font-size:9px;color:var(--ds-accent-warning)"
                   >Awaiting quotes…</span
                 >
                 <button
                   (click)="cancelRfq(activeReq.id)"
                   class="font-mono-fi"
-                  style="font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.3);color:var(--fi-red);cursor:pointer"
+                  style="font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.3);color:var(--ds-accent-negative);cursor:pointer"
                 >
                   Cancel
                 </button>
@@ -447,29 +447,29 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             <!-- Best quote banner -->
             <div
               *ngIf="activeReq.quotes.length > 0 && activeReq.status !== 'done'"
-              style="display:flex;align-items:center;gap:24px;padding:8px 16px;border-bottom:1px solid var(--fi-border);background:var(--fi-bg2);flex-shrink:0"
+              style="display:flex;align-items:center;gap:24px;padding:8px 16px;border-bottom:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary);flex-shrink:0"
             >
               <div>
                 <div class="col-hdr" style="margin-bottom:2px">Best Bid</div>
-                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--fi-blue)">
+                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--ds-accent-info)">
                   {{ bestBid.toFixed(3) }}
                 </div>
               </div>
               <div>
                 <div class="col-hdr" style="margin-bottom:2px">Best Ask</div>
-                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--fi-red)">
+                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--ds-accent-negative)">
                   {{ bestAsk.toFixed(3) }}
                 </div>
               </div>
               <div>
                 <div class="col-hdr" style="margin-bottom:2px">Spread</div>
-                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--fi-amber)">
+                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--ds-accent-warning)">
                   {{ ((bestAsk - bestBid) * 100).toFixed(1) }}c
                 </div>
               </div>
               <div>
                 <div class="col-hdr" style="margin-bottom:2px">Quotes</div>
-                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--fi-green)">
+                <div class="font-mono-fi font-bold" style="font-size:13px;color:var(--ds-accent-positive)">
                   {{ activeReq.quotes.length }}
                 </div>
               </div>
@@ -481,8 +481,8 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                 style="display:flex;align-items:center;justify-content:center;height:100%"
               >
                 <div style="text-align:center">
-                  <div class="font-mono-fi" style="font-size:18px;color:var(--fi-border2)">...</div>
-                  <div class="font-mono-fi" style="font-size:11px;color:var(--fi-t3)">
+                  <div class="font-mono-fi" style="font-size:18px;color:var(--ds-border-secondary)">...</div>
+                  <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-faint)">
                     Quotes incoming from dealers...
                   </div>
                 </div>
@@ -492,42 +492,42 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                   <thead>
                     <tr>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         DEALER
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         BID
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         BID SIZE
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         ASK
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         ASK SIZE
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:right;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         SPREAD
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         STATUS
                       </th>
                       <th
-                        style="font-size:9px;color:var(--fi-t1);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;background:var(--fi-bg2);border-bottom:1px solid var(--fi-border)"
+                        style="font-size:9px;color:var(--ds-text-secondary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;background:var(--ds-surface-secondary);border-bottom:1px solid var(--ds-border-primary)"
                       >
                         ACTION
                       </th>
@@ -539,51 +539,51 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                       [style.opacity]="q.status === 'stale' || q.status === 'done' ? 0.5 : 1"
                     >
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap;font-weight:700;color:var(--fi-cyan)"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap;font-weight:700;color:var(--ds-accent-info)"
                       >
                         {{ q.dealer }}
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap;text-align:right"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap;text-align:right"
                         [style.font-weight]="q.bid === bestBid ? '700' : '400'"
-                        [style.color]="q.bid === bestBid ? 'var(--fi-blue)' : '#5a7090'"
+                        [style.color]="q.bid === bestBid ? 'var(--ds-accent-info)' : 'var(--ds-text-secondary)'"
                       >
                         {{ q.bid.toFixed(3)
                         }}<span
                           *ngIf="q.bid === bestBid"
-                          style="margin-left:4px;font-size:9px;font-weight:700;color:var(--fi-blue)"
+                          style="margin-left:4px;font-size:9px;font-weight:700;color:var(--ds-accent-info)"
                           >&#9650;BEST</span
                         >
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap;text-align:right;color:var(--fi-t1)"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap;text-align:right;color:var(--ds-text-secondary)"
                       >
                         {{ q.bidSize }}
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap;text-align:right"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap;text-align:right"
                         [style.font-weight]="q.ask === bestAsk ? '700' : '400'"
-                        [style.color]="q.ask === bestAsk ? 'var(--fi-red)' : '#7a4050'"
+                        [style.color]="q.ask === bestAsk ? 'var(--ds-accent-negative)' : 'var(--ds-accent-negative)'"
                       >
                         {{ q.ask.toFixed(3)
                         }}<span
                           *ngIf="q.ask === bestAsk"
-                          style="margin-left:4px;font-size:9px;font-weight:700;color:var(--fi-red)"
+                          style="margin-left:4px;font-size:9px;font-weight:700;color:var(--ds-accent-negative)"
                           >&#9660;BEST</span
                         >
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap;text-align:right;color:var(--fi-t1)"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap;text-align:right;color:var(--ds-text-secondary)"
                       >
                         {{ q.askSize }}
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap;text-align:right;color:var(--fi-amber)"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap;text-align:right;color:var(--ds-accent-warning)"
                       >
                         {{ ((q.ask - q.bid) * 100).toFixed(1) }}c
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap"
                       >
                         <span
                           style="font-size:9px;padding:1px 6px;border-radius:2px"
@@ -594,10 +594,10 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                         >
                       </td>
                       <td
-                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--fi-border);white-space:nowrap"
+                        style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);white-space:nowrap"
                       >
                         <ng-container *ngIf="q.status === 'done'">
-                          <span style="color:var(--fi-green)">&#10003;</span>
+                          <span style="color:var(--ds-accent-positive)">&#10003;</span>
                         </ng-container>
                         <ng-container
                           *ngIf="
@@ -610,14 +610,14 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
                             <button
                               class="font-mono-fi font-bold"
                               (click)="hitLift(activeReq!.id, q.dealer, 'hit')"
-                              style="font-size:11px;padding:4px 10px;border-radius:2px;background:rgba(59,130,246,0.15);color:var(--fi-blue);border:1px solid rgba(59,130,246,0.35);cursor:pointer"
+                              style="font-size:11px;padding:4px 10px;border-radius:2px;background:rgba(59,130,246,0.15);color:var(--ds-accent-info);border:1px solid rgba(59,130,246,0.35);cursor:pointer"
                             >
                               HIT
                             </button>
                             <button
                               class="font-mono-fi font-bold"
                               (click)="hitLift(activeReq!.id, q.dealer, 'lift')"
-                              style="font-size:11px;padding:4px 10px;border-radius:2px;background:rgba(20,217,160,0.15);color:var(--fi-green);border:1px solid rgba(20,217,160,0.35);cursor:pointer"
+                              style="font-size:11px;padding:4px 10px;border-radius:2px;background:rgba(20,217,160,0.15);color:var(--ds-accent-positive);border:1px solid rgba(20,217,160,0.35);cursor:pointer"
                             >
                               LIFT
                             </button>
@@ -632,9 +632,9 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             <!-- Done banner -->
             <div
               *ngIf="activeReq.status === 'done'"
-              style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--fi-border);flex-shrink:0;background:rgba(20,217,160,0.05)"
+              style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--ds-border-primary);flex-shrink:0;background:rgba(20,217,160,0.05)"
             >
-              <span class="font-mono-fi font-bold" style="font-size:11px;color:var(--fi-green)"
+              <span class="font-mono-fi font-bold" style="font-size:11px;color:var(--ds-accent-positive)"
                 >RFQ COMPLETE</span
               >
             </div>
@@ -643,7 +643,7 @@ const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: str
             *ngIf="!activeReq"
             style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"
           >
-            <div class="font-mono-fi" style="font-size:11px;color:var(--fi-t3)">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-faint)">
               Select a bond from the blotter, then send an RFQ
             </div>
           </div>
@@ -726,7 +726,7 @@ export class RfqWidget implements OnInit, OnDestroy {
   }
   countdownColor(createdAt: number): string {
     const r = this.countdownRemaining(createdAt);
-    return r > 15 ? 'var(--fi-blue)' : r > 7 ? 'var(--fi-amber)' : 'var(--fi-red)';
+    return r > 15 ? 'var(--ds-accent-info)' : r > 7 ? 'var(--ds-accent-warning)' : 'var(--ds-accent-negative)';
   }
   countdownDash(createdAt: number): string {
     const r = this.countdownRemaining(createdAt);
@@ -873,12 +873,12 @@ export class RfqWidget implements OnInit, OnDestroy {
   }
   statusColor(s: string) {
     return s === 'pending'
-      ? 'var(--fi-blue)'
+      ? 'var(--ds-accent-info)'
       : s === 'quoted'
-        ? 'var(--fi-amber)'
+        ? 'var(--ds-accent-warning)'
         : s === 'done'
-          ? 'var(--fi-green)'
-          : 'var(--fi-red)';
+          ? 'var(--ds-accent-positive)'
+          : 'var(--ds-accent-negative)';
   }
   statusBorder(s: string) {
     return s === 'pending'

@@ -23,7 +23,7 @@ const totalMv = SECTOR_MAP.reduce((a, s) => a + s.value, 0);
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px">
         <p-chart
@@ -43,7 +43,7 @@ const totalMv = SECTOR_MAP.reduce((a, s) => a + s.value, 0);
             style="width:7px;height:7px;border-radius:2px;flex-shrink:0"
           ></div>
           <span
-            style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace;white-space:nowrap"
+            style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace;white-space:nowrap"
             >{{ s.name }}</span
           >
         </div>
@@ -72,7 +72,7 @@ export class SectorAllocationWidget implements OnInit {
         {
           data: SECTOR_MAP.map((s) => s.value),
           backgroundColor: colors,
-          borderColor: 'var(--bn-bg1)',
+          borderColor: 'var(--ds-surface-primary)',
           borderWidth: 2,
           hoverOffset: 6,
         },

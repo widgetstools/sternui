@@ -16,7 +16,7 @@ const chartItems = [
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;padding:8px 6px 0">
         <p-chart
@@ -28,10 +28,10 @@ const chartItems = [
         />
       </div>
       <div
-        style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--bn-border);flex-shrink:0"
+        style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--ds-border-primary);flex-shrink:0"
       >
-        <span style="font-size:9px;color:var(--bn-t1)">NET P&L MTD</span>
-        <span class="font-mono-fi font-bold" style="font-size:18px;color:#3b82f6">{{
+        <span style="font-size:9px;color:var(--ds-text-secondary)">NET P&L MTD</span>
+        <span class="font-mono-fi font-bold" style="font-size:18px;color:var(--ds-accent-info)">{{
           netPnlLabel
         }}</span>
       </div>
@@ -48,7 +48,7 @@ export class PnlAttributionWidget implements OnInit {
 
   ngOnInit() {
     const colors = chartItems.map((d) => {
-      if (d.attr === 'Total') return d.pnl >= 0 ? '#14d9a0' : '#ff4d6d';
+      if (d.attr === 'Total') return d.pnl >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)';
       return d.pnl >= 0 ? 'rgba(59,130,246,0.75)' : 'rgba(255,77,109,0.75)';
     });
 
@@ -83,12 +83,12 @@ export class PnlAttributionWidget implements OnInit {
       },
       scales: {
         x: {
-          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          ticks: { color: 'var(--ds-text-muted)', font: { size: 9, family: 'JetBrains Mono,monospace' } },
           grid: { display: false },
         },
         y: {
           ticks: {
-            color: '#8a8f98',
+            color: 'var(--ds-text-muted)',
             font: { size: 9, family: 'JetBrains Mono,monospace' },
             callback: (v: number) => `${v > 0 ? '+' : ''}$${v}K`,
           },

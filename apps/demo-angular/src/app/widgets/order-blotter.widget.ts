@@ -22,7 +22,7 @@ LicenseManager.setLicenseKey('');
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="display:flex;justify-content:flex-end;padding:4px 10px;flex-shrink:0">
         <button
@@ -30,9 +30,9 @@ LicenseManager.setLicenseKey('');
           (click)="shared.orderFilter.set(f)"
           class="font-mono-fi"
           style="font-size:9px;padding:2px 8px;margin-left:3px;border-radius:2px;cursor:pointer"
-          [style.background]="shared.orderFilter() === f ? 'var(--bn-border)' : 'transparent'"
-          [style.border]="'1px solid var(--bn-border)'"
-          [style.color]="shared.orderFilter() === f ? 'var(--bn-t0)' : 'var(--bn-t1)'"
+          [style.background]="shared.orderFilter() === f ? 'var(--ds-border-primary)' : 'transparent'"
+          [style.border]="'1px solid var(--ds-border-primary)'"
+          [style.color]="shared.orderFilter() === f ? 'var(--ds-text-primary)' : 'var(--ds-text-secondary)'"
         >
           {{ f }}
         </button>
@@ -64,13 +64,13 @@ export class OrderBlotterWidget {
       field: 'time',
       headerName: 'TIME',
       flex: 0.6,
-      cellStyle: { color: 'var(--bn-t2)', fontSize: '9px' },
+      cellStyle: { color: 'var(--ds-text-muted)', fontSize: '9px' },
     },
     {
       field: 'bond',
       headerName: 'BOND',
       flex: 1,
-      cellStyle: { color: '#22d3ee' },
+      cellStyle: { color: 'var(--ds-accent-info)' },
     },
     {
       field: 'side',
@@ -82,7 +82,7 @@ export class OrderBlotterWidget {
       field: 'type',
       headerName: 'TYPE',
       flex: 0.5,
-      cellStyle: { color: 'var(--bn-t1)', fontSize: '9px' },
+      cellStyle: { color: 'var(--ds-text-secondary)', fontSize: '9px' },
     },
     {
       field: 'qty',
@@ -109,7 +109,7 @@ export class OrderBlotterWidget {
       headerName: 'YTM',
       flex: 0.6,
       type: 'numericColumn',
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
       valueFormatter: (p) => (p.value > 0 ? Number(p.value).toFixed(2) + '%' : '---'),
     },
     {

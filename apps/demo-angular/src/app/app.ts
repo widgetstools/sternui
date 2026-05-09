@@ -377,11 +377,11 @@ const NAV_TABS = [
     <!-- Top Bar -->
     <div
       data-nav
-      style="flex-shrink:0;background:var(--bn-bg1);border-bottom:1px solid var(--bn-border)"
+      style="flex-shrink:0;background:var(--ds-surface-primary);border-bottom:1px solid var(--ds-border-primary)"
     >
       <!-- Main nav bar -->
       <div
-        style="display:flex;align-items:center;height:44px;padding:0 16px;gap:0;border-bottom:1px solid var(--bn-border)"
+        style="display:flex;align-items:center;height:44px;padding:0 16px;gap:0;border-bottom:1px solid var(--ds-border-primary)"
       >
         <!-- Logo -->
         <div style="display:flex;align-items:center;gap:8px;margin-right:24px;flex-shrink:0">
@@ -394,8 +394,8 @@ const NAV_TABS = [
             <polygon points="41,33 49,33 49,52 41,52" fill="#4ba5c3" />
             <rect x="11" y="52" width="38" height="2" fill="#2d4b69" />
           </svg>
-          <span style="font-weight:700;font-size:13px;letter-spacing:0.04em;color:var(--bn-t0)"
-            >MarketsUI <span style="color:var(--bn-blue)">FI</span></span
+          <span style="font-weight:700;font-size:13px;letter-spacing:0.04em;color:var(--ds-text-primary)"
+            >MarketsUI <span style="color:var(--ds-accent-info)">FI</span></span
           >
         </div>
         <!-- Nav tabs -->
@@ -412,37 +412,37 @@ const NAV_TABS = [
           <ng-container *ngIf="isTrading">
             <button
               (click)="handleNewOrder()"
-              style="font-size:11px;padding:4px 12px;border-radius:3px;background:var(--bn-bg3);color:var(--bn-t0);cursor:pointer;border:1px solid var(--bn-border2);white-space:nowrap;font-family:JetBrains Mono,monospace;font-weight:600"
+              style="font-size:11px;padding:4px 12px;border-radius:3px;background:var(--ds-surface-tertiary);color:var(--ds-text-primary);cursor:pointer;border:1px solid var(--ds-border-secondary);white-space:nowrap;font-family:JetBrains Mono,monospace;font-weight:600"
             >
               + New Order
             </button>
             <button
               (click)="handleOpenRfq()"
-              style="font-size:11px;padding:4px 12px;border-radius:3px;background:var(--bn-bg3);color:var(--bn-t0);cursor:pointer;border:1px solid var(--bn-border2);white-space:nowrap;font-family:JetBrains Mono,monospace;font-weight:600"
+              style="font-size:11px;padding:4px 12px;border-radius:3px;background:var(--ds-surface-tertiary);color:var(--ds-text-primary);cursor:pointer;border:1px solid var(--ds-border-secondary);white-space:nowrap;font-family:JetBrains Mono,monospace;font-weight:600"
             >
               RFQ
             </button>
-            <div style="width:1px;height:14px;background:var(--bn-border);flex-shrink:0"></div>
+            <div style="width:1px;height:14px;background:var(--ds-border-primary);flex-shrink:0"></div>
           </ng-container>
           <!-- LIVE indicator -->
           <div style="display:flex;align-items:center;gap:6px">
             <div
               class="live-dot"
-              style="width:6px;height:6px;border-radius:50%;background:var(--bn-green)"
+              style="width:6px;height:6px;border-radius:50%;background:var(--ds-accent-positive)"
             ></div>
-            <span class="font-mono-fi" style="color:var(--bn-green);font-size:11px">LIVE</span>
+            <span class="font-mono-fi" style="color:var(--ds-accent-positive);font-size:11px">LIVE</span>
           </div>
-          <div style="width:1px;height:14px;background:var(--bn-border);flex-shrink:0"></div>
+          <div style="width:1px;height:14px;background:var(--ds-border-primary);flex-shrink:0"></div>
           <!-- Clock -->
-          <span class="font-mono-fi" style="color:var(--bn-t1);font-size:11px">{{ time() }}</span>
-          <div style="width:1px;height:14px;background:var(--bn-border);flex-shrink:0"></div>
+          <span class="font-mono-fi" style="color:var(--ds-text-secondary);font-size:11px">{{ time() }}</span>
+          <div style="width:1px;height:14px;background:var(--ds-border-primary);flex-shrink:0"></div>
           <!-- Save layout -->
           <button
             (click)="saveLayout()"
             title="Save layout"
             style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:none;cursor:pointer;transition:all 0.15s ease"
-            [style.background]="saveFlash() ? 'rgba(20,217,160,0.25)' : 'var(--bn-bg3)'"
-            [style.color]="saveFlash() ? 'var(--bn-green)' : 'var(--bn-t1)'"
+            [style.background]="saveFlash() ? 'rgba(20,217,160,0.25)' : 'var(--ds-surface-tertiary)'"
+            [style.color]="saveFlash() ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)'"
             [style.transform]="saveFlash() ? 'scale(0.9)' : 'scale(1)'"
           >
             @if (saveFlash()) {
@@ -482,7 +482,7 @@ const NAV_TABS = [
             (click)="resetLayout()"
             title="Reset layout"
             aria-label="Reset layout"
-            style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);border:none;cursor:pointer"
+            style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--ds-surface-tertiary);color:var(--ds-text-secondary);border:none;cursor:pointer"
           >
             <svg
               width="13"
@@ -501,7 +501,7 @@ const NAV_TABS = [
           <!-- Theme toggle -->
           <button
             (click)="toggleTheme()"
-            style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);border:none;cursor:pointer;font-size:13px"
+            style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;background:var(--ds-surface-tertiary);color:var(--ds-text-secondary);border:none;cursor:pointer;font-size:13px"
             [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
           >
             {{ isDark() ? '☀' : '☽' }}
@@ -512,16 +512,16 @@ const NAV_TABS = [
       <!-- Instrument stats strip (Trade/Prices tabs) -->
       <div
         *ngIf="isTrading"
-        style="display:flex;align-items:center;height:36px;border-bottom:1px solid var(--bn-border);padding:0 16px;gap:16px"
+        style="display:flex;align-items:center;height:36px;border-bottom:1px solid var(--ds-border-primary);padding:0 16px;gap:16px"
       >
         <div
           *ngFor="let s of statsStrip; let i = index; let last = last"
           style="display:flex;align-items:center;flex-shrink:0;gap:5px"
           [style.paddingRight.px]="last ? 0 : 12"
-          [style.borderRight]="last ? 'none' : '1px solid var(--bn-border)'"
+          [style.borderRight]="last ? 'none' : '1px solid var(--ds-border-primary)'"
           [style.width.px]="s.w"
         >
-          <span style="font-size:9px;color:var(--bn-t2);white-space:nowrap;flex-shrink:0">{{
+          <span style="font-size:9px;color:var(--ds-text-muted);white-space:nowrap;flex-shrink:0">{{
             s.label
           }}</span>
           <span
@@ -531,23 +531,23 @@ const NAV_TABS = [
             >{{ s.val }}</span
           >
         </div>
-        <div style="width:1px;height:18px;background:var(--bn-border);flex-shrink:0"></div>
+        <div style="width:1px;height:18px;background:var(--ds-border-primary);flex-shrink:0"></div>
         <!-- Ticker strip (compact, right side) -->
         <div style="display:flex;align-items:center;overflow:hidden;gap:4px;margin-left:auto">
           <div
             *ngFor="let t of tickerStrip().slice(0, 8)"
-            style="display:flex;align-items:center;padding:3px 7px;border-radius:3px;gap:5px;background:var(--bn-bg2);flex-shrink:0"
+            style="display:flex;align-items:center;padding:3px 7px;border-radius:3px;gap:5px;background:var(--ds-surface-secondary);flex-shrink:0"
           >
-            <span style="font-size:9px;color:var(--bn-t2);white-space:nowrap">{{ t.label }}</span>
+            <span style="font-size:9px;color:var(--ds-text-muted);white-space:nowrap">{{ t.label }}</span>
             <span
               class="font-mono-fi font-semibold"
-              style="font-size:11px;color:var(--bn-t0);white-space:nowrap"
+              style="font-size:11px;color:var(--ds-text-primary);white-space:nowrap"
               >{{ t.value }}</span
             >
             <span
               class="font-mono-fi"
               style="font-size:9px;white-space:nowrap"
-              [style.color]="t.up ? 'var(--bn-green)' : 'var(--bn-red)'"
+              [style.color]="t.up ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)'"
               >{{ t.change }}</span
             >
           </div>
@@ -557,22 +557,22 @@ const NAV_TABS = [
       <!-- Ticker strip only (non-trade tabs) -->
       <div
         *ngIf="!isTrading"
-        style="display:flex;align-items:stretch;overflow:hidden;height:38px;border-bottom:1px solid var(--bn-border)"
+        style="display:flex;align-items:stretch;overflow:hidden;height:38px;border-bottom:1px solid var(--ds-border-primary)"
       >
         <div
           *ngFor="let t of tickerStrip()"
-          style="display:flex;align-items:center;gap:8px;padding:0 12px;border-right:1px solid var(--bn-border)"
+          style="display:flex;align-items:center;gap:8px;padding:0 12px;border-right:1px solid var(--ds-border-primary)"
         >
-          <span style="font-size:11px;color:var(--bn-t2);white-space:nowrap">{{ t.label }}</span>
+          <span style="font-size:11px;color:var(--ds-text-muted);white-space:nowrap">{{ t.label }}</span>
           <span
             class="font-mono-fi font-semibold"
-            style="font-size:11px;color:var(--bn-t0);white-space:nowrap"
+            style="font-size:11px;color:var(--ds-text-primary);white-space:nowrap"
             >{{ t.value }}</span
           >
           <span
             class="font-mono-fi"
             style="font-size:11px;white-space:nowrap"
-            [style.color]="t.up ? 'var(--bn-green)' : 'var(--bn-red)'"
+            [style.color]="t.up ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)'"
             >{{ t.change }}</span
           >
         </div>
@@ -602,7 +602,7 @@ const NAV_TABS = [
         height: 100vh;
         width: 100vw;
         overflow: hidden;
-        background: var(--bn-bg);
+        background: var(--ds-surface-ground);
       }
     `,
   ],
@@ -638,30 +638,30 @@ export class App implements OnDestroy {
       {
         label: 'Security',
         val: `${bond.ticker} ${bond.cpn.toFixed(3)} ${bond.mat}`,
-        color: 'var(--bn-cyan)',
+        color: 'var(--ds-accent-info)',
         w: 130,
       },
       {
         label: 'Mid',
         val: mid.toFixed(3),
-        color: pctChg >= 0 ? 'var(--bn-green)' : 'var(--bn-red)',
+        color: pctChg >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)',
         w: 72,
       },
-      { label: 'Bid', val: bond.bid.toFixed(3), color: 'var(--bn-t0)', w: 72 },
-      { label: 'Ask', val: bond.ask.toFixed(3), color: 'var(--bn-t0)', w: 72 },
+      { label: 'Bid', val: bond.bid.toFixed(3), color: 'var(--ds-text-primary)', w: 72 },
+      { label: 'Ask', val: bond.ask.toFixed(3), color: 'var(--ds-text-primary)', w: 72 },
       {
         label: 'Chg',
         val: `${pctChg >= 0 ? '+' : ''}${change24h.toFixed(2)} (${pctChg >= 0 ? '+' : ''}${pctChg.toFixed(2)}%)`,
-        color: pctChg >= 0 ? 'var(--bn-green)' : 'var(--bn-red)',
+        color: pctChg >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)',
         w: 120,
       },
       {
         label: 'OAS',
         val: bond.oas > 0 ? `+${bond.oas}bp` : '---',
-        color: bond.oas > 80 ? 'var(--bn-amber)' : 'var(--bn-green)',
+        color: bond.oas > 80 ? 'var(--ds-accent-warning)' : 'var(--ds-accent-positive)',
         w: 52,
       },
-      { label: 'Dur', val: `${bond.dur?.toFixed(2) ?? '---'}yr`, color: 'var(--bn-t0)', w: 56 },
+      { label: 'Dur', val: `${bond.dur?.toFixed(2) ?? '---'}yr`, color: 'var(--ds-text-primary)', w: 56 },
     ];
   }
 

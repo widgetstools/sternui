@@ -9,13 +9,13 @@ import { SharedStateService } from '../services/shared-state.service';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="display:flex;justify-content:flex-end;padding:4px 10px;flex-shrink:0">
         <button
           *ngFor="let b of actions"
           class="font-mono-fi"
-          style="font-size:9px;padding:2px 8px;margin-left:3px;border-radius:2px;border:1px solid var(--bn-border);background:transparent;color:var(--bn-t1);cursor:pointer"
+          style="font-size:9px;padding:2px 8px;margin-left:3px;border-radius:2px;border:1px solid var(--ds-border-primary);background:transparent;color:var(--ds-text-secondary);cursor:pointer"
         >
           {{ b }}
         </button>
@@ -23,7 +23,7 @@ import { SharedStateService } from '../services/shared-state.service';
       <div style="flex:1;overflow-y:auto;padding:24px">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
           <span
-            style="font-size:18px;font-weight:700;color:#22d3ee;font-family:JetBrains Mono,monospace"
+            style="font-size:18px;font-weight:700;color:var(--ds-accent-info);font-family:JetBrains Mono,monospace"
             >{{ note.ticker }}</span
           >
           <span
@@ -35,21 +35,21 @@ import { SharedStateService } from '../services/shared-state.service';
           >
         </div>
         <div
-          style="font-size:13px;color:var(--bn-t0);line-height:1.5;max-width:600px;font-family:JetBrains Mono,monospace;margin-bottom:16px"
+          style="font-size:13px;color:var(--ds-text-primary);line-height:1.5;max-width:600px;font-family:JetBrains Mono,monospace;margin-bottom:16px"
         >
           {{ note.title }}
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
           <div
             *ngFor="let f of metaFields"
-            style="padding:12px;border-radius:3px;border:1px solid var(--bn-border);background:var(--bn-bg2)"
+            style="padding:12px;border-radius:3px;border:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary)"
           >
             <div
-              style="font-size:9px;color:var(--bn-t1);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em"
+              style="font-size:9px;color:var(--ds-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em"
             >
               {{ f.l }}
             </div>
-            <div style="font-size:11px;color:var(--bn-t0);font-family:JetBrains Mono,monospace">
+            <div style="font-size:11px;color:var(--ds-text-primary);font-family:JetBrains Mono,monospace">
               {{ f.v }}
             </div>
           </div>
@@ -59,42 +59,42 @@ import { SharedStateService } from '../services/shared-state.service';
           style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"
         >
           <div
-            style="padding:12px;border-radius:3px;border:1px solid var(--bn-border);background:var(--bn-bg2)"
+            style="padding:12px;border-radius:3px;border:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary)"
           >
             <div
-              style="font-size:9px;color:var(--bn-t1);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em"
+              style="font-size:9px;color:var(--ds-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em"
             >
               OAS Target (12M)
             </div>
             <div
-              style="font-size:18px;font-weight:700;color:var(--bn-green);font-family:JetBrains Mono,monospace"
+              style="font-size:18px;font-weight:700;color:var(--ds-accent-positive);font-family:JetBrains Mono,monospace"
             >
               +{{ note.target }}bp
             </div>
           </div>
           <div
-            style="padding:12px;border-radius:3px;border:1px solid var(--bn-border);background:var(--bn-bg2)"
+            style="padding:12px;border-radius:3px;border:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary)"
           >
             <div
-              style="font-size:9px;color:var(--bn-t1);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em"
+              style="font-size:9px;color:var(--ds-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em"
             >
               Current OAS
             </div>
             <div
-              style="font-size:18px;font-weight:700;color:#ff8c42;font-family:JetBrains Mono,monospace"
+              style="font-size:18px;font-weight:700;color:var(--ds-accent-warning);font-family:JetBrains Mono,monospace"
             >
               +{{ note.prev }}bp
             </div>
           </div>
         </div>
-        <div style="border-top:1px solid var(--bn-border);padding-top:16px">
+        <div style="border-top:1px solid var(--ds-border-primary);padding-top:16px">
           <div
-            style="font-size:9px;color:var(--bn-t1);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em"
+            style="font-size:9px;color:var(--ds-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em"
           >
             Summary
           </div>
           <p
-            style="font-size:11px;color:var(--bn-t1);line-height:1.8;font-family:JetBrains Mono,monospace"
+            style="font-size:11px;color:var(--ds-text-secondary);line-height:1.8;font-family:JetBrains Mono,monospace"
           >
             {{ note.body }}
           </p>
@@ -122,10 +122,10 @@ export class NoteDetailWidget {
 
   ratingColor(r: string) {
     return r === 'Overweight'
-      ? 'var(--bn-green)'
+      ? 'var(--ds-accent-positive)'
       : r === 'Underweight'
-        ? 'var(--bn-red)'
-        : '#ff8c42';
+        ? 'var(--ds-accent-negative)'
+        : 'var(--ds-accent-warning)';
   }
   ratingBg(r: string) {
     return r === 'Overweight'

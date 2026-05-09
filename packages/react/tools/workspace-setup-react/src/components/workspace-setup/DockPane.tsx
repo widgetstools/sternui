@@ -51,7 +51,7 @@ function RowIcon({ iconId, isFolder }: { iconId: string | undefined; isFolder: b
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "var(--bn-t1)",
+    color: "var(--ds-text-secondary)",
   };
   if (url) {
     return <img src={url} alt="" width={size} height={size} style={baseStyle} />;
@@ -103,16 +103,16 @@ export function DockPane({
   const buttons = dock?.buttons ?? [];
 
   return (
-    <div className="flex flex-col h-full border-r min-h-0" style={{ borderColor: "var(--bn-border)" }}>
+    <div className="flex flex-col h-full border-r min-h-0" style={{ borderColor: "var(--ds-border-primary)" }}>
       <div
         className="flex items-center justify-between px-3 py-2 border-b shrink-0"
-        style={{ borderColor: "var(--bn-border)" }}
+        style={{ borderColor: "var(--ds-border-primary)" }}
       >
         <div className="flex flex-col">
-          <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--bn-t1)" }}>
+          <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--ds-text-secondary)" }}>
             ② DOCK LAYOUT  →
           </span>
-          <span className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
+          <span className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
             personal · per user
           </span>
         </div>
@@ -120,7 +120,7 @@ export function DockPane({
           type="button"
           onClick={onCreateDropdown}
           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium"
-          style={{ background: "var(--bn-bg2)", color: "var(--bn-t0)", border: "1px solid var(--bn-border)" }}
+          style={{ background: "var(--ds-surface-secondary)", color: "var(--ds-text-primary)", border: "1px solid var(--ds-border-primary)" }}
           title="Create a new dropdown menu — you'll add components to it via the per-row + Add affordance"
         >
           <FolderPlus className="w-3 h-3" /> New menu
@@ -131,7 +131,7 @@ export function DockPane({
         {buttons.length === 0 && (
           <div
             className="rounded-md border border-dashed p-4 text-center text-xs"
-            style={{ borderColor: "var(--bn-border)", color: "var(--bn-t2)" }}
+            style={{ borderColor: "var(--ds-border-primary)", color: "var(--ds-text-muted)" }}
           >
             Your dock has no buttons yet. Pick a component on the left and
             click <strong>Add to your dock</strong>, or click <strong>+ New menu</strong>{" "}
@@ -201,19 +201,19 @@ function DockButtonRow({
           onClick={() => onSelect({ kind: "dock-item", itemId: button.id })}
           className="flex-1 text-left rounded-md px-2 py-1.5 text-xs flex items-center gap-2"
           style={{
-            background: isSelected ? "var(--bn-bg3)" : "var(--bn-bg2)",
-            border: "1px solid var(--bn-border)",
-            color: broken ? "var(--bn-warn, #f59e0b)" : "var(--bn-t0)",
+            background: isSelected ? "var(--ds-surface-tertiary)" : "var(--ds-surface-secondary)",
+            border: "1px solid var(--ds-border-primary)",
+            color: broken ? "var(--ds-accent-warning, var(--ds-accent-warning))" : "var(--ds-text-primary)",
             textDecoration: broken ? "line-through" : "none",
           }}
         >
           <RowIcon iconId={button.iconId} isFolder={isDropdown} />
           <span className="font-medium flex-1 truncate">
-            {isDropdown && <span style={{ color: "var(--bn-t2)" }}>▾ </span>}
+            {isDropdown && <span style={{ color: "var(--ds-text-muted)" }}>▾ </span>}
             {button.tooltip}
           </span>
           {broken && (
-            <span className="text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
+            <span className="text-[10px]" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>
               ⚠ Component deleted
             </span>
           )}
@@ -243,7 +243,7 @@ function DockButtonRow({
         </RowAction>
       </div>
       {dropdown && dropdown.options.length > 0 && (
-        <div className="ml-4 mt-1 border-l pl-2" style={{ borderColor: "var(--bn-border)" }}>
+        <div className="ml-4 mt-1 border-l pl-2" style={{ borderColor: "var(--ds-border-primary)" }}>
           {dropdown.options.map((it) => (
             <DockMenuItemRow
               key={it.id}
@@ -261,7 +261,7 @@ function DockButtonRow({
       {dropdown && dropdown.options.length === 0 && (
         <div
           className="ml-4 mt-1 px-2 py-1 text-[10px] italic"
-          style={{ color: "var(--bn-t2)" }}
+          style={{ color: "var(--ds-text-muted)" }}
         >
           Empty menu — click <strong>+ Add</strong> to drop a component in.
         </div>
@@ -305,15 +305,15 @@ function DockMenuItemRow({
           onClick={() => onSelect({ kind: "dock-item", itemId: item.id })}
           className="flex-1 text-left rounded-md px-2 py-1 text-xs flex items-center gap-2"
           style={{
-            background: isSelected ? "var(--bn-bg3)" : "transparent",
-            color: broken ? "var(--bn-warn, #f59e0b)" : "var(--bn-t1)",
+            background: isSelected ? "var(--ds-surface-tertiary)" : "transparent",
+            color: broken ? "var(--ds-accent-warning, var(--ds-accent-warning))" : "var(--ds-text-secondary)",
             textDecoration: broken ? "line-through" : "none",
           }}
         >
           <RowIcon iconId={item.iconId} isFolder={isFolder} />
           <span className="flex-1 truncate">{item.tooltip}</span>
           {broken && (
-            <span className="text-[10px]" style={{ color: "var(--bn-warn, #f59e0b)" }}>
+            <span className="text-[10px]" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>
               ⚠ Component deleted
             </span>
           )}
@@ -330,7 +330,7 @@ function DockMenuItemRow({
         </RowAction>
       </div>
       {item.options && item.options.length > 0 && (
-        <div className="ml-3 border-l pl-2" style={{ borderColor: "var(--bn-border)" }}>
+        <div className="ml-3 border-l pl-2" style={{ borderColor: "var(--ds-border-primary)" }}>
           {item.options.map((sub) => (
             <DockMenuItemRow
               key={sub.id}
@@ -381,9 +381,9 @@ function AddChildPopover({
           title={`Add a component to "${parentLabel}"`}
           className="rounded-md px-2 text-xs"
           style={{
-            background: "var(--bn-bg2)",
-            border: "1px solid var(--bn-border)",
-            color: "var(--bn-t1)",
+            background: "var(--ds-surface-secondary)",
+            border: "1px solid var(--ds-border-primary)",
+            color: "var(--ds-text-secondary)",
           }}
         >
           <Plus className="w-3 h-3 inline -mt-0.5" /> Add
@@ -393,28 +393,28 @@ function AddChildPopover({
         className="p-2 w-[280px]"
         align="end"
         style={{
-          background: "var(--bn-bg)",
-          border: "1px solid var(--bn-border)",
-          color: "var(--bn-t0)",
+          background: "var(--ds-surface-ground)",
+          border: "1px solid var(--ds-border-primary)",
+          color: "var(--ds-text-primary)",
         }}
       >
         <div
           className="flex items-center gap-2 rounded-md px-2 py-1 mb-2"
-          style={{ background: "var(--bn-bg2)", border: "1px solid var(--bn-border)" }}
+          style={{ background: "var(--ds-surface-secondary)", border: "1px solid var(--ds-border-primary)" }}
         >
-          <Search className="w-3 h-3" style={{ color: "var(--bn-t2)" }} />
+          <Search className="w-3 h-3" style={{ color: "var(--ds-text-muted)" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search components"
             className="flex-1 bg-transparent text-xs outline-none"
-            style={{ color: "var(--bn-t0)" }}
+            style={{ color: "var(--ds-text-primary)" }}
             autoFocus
           />
         </div>
         <div className="max-h-64 overflow-auto bn-scrollbar">
           {filtered.length === 0 && (
-            <div className="text-center text-xs py-3" style={{ color: "var(--bn-t2)" }}>
+            <div className="text-center text-xs py-3" style={{ color: "var(--ds-text-muted)" }}>
               {entries.length === 0 ? "Define a component first." : "No matches."}
             </div>
           )}
@@ -427,14 +427,14 @@ function AddChildPopover({
                 setOpen(false);
               }}
               className="w-full text-left rounded-md px-2 py-1 text-xs my-0.5"
-              style={{ color: "var(--bn-t1)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bn-bg2)")}
+              style={{ color: "var(--ds-text-secondary)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--ds-surface-secondary)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <div className="font-medium" style={{ color: "var(--bn-t0)" }}>
+              <div className="font-medium" style={{ color: "var(--ds-text-primary)" }}>
                 {entry.displayName || "(unnamed)"}
               </div>
-              <div className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
+              <div className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
                 {entry.componentType || "—"} / {entry.componentSubType || "—"}
               </div>
             </button>
@@ -465,7 +465,7 @@ function RowAction({
       onClick={onClick}
       disabled={disabled}
       className="rounded p-1 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
-      style={{ color: "var(--bn-t1)" }}
+      style={{ color: "var(--ds-text-secondary)" }}
     >
       {children}
     </button>

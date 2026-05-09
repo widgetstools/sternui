@@ -25,11 +25,11 @@
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; width: 100%; }
   body {
-    /* TODO Phase 6: migrate --bn-bg / --bn-t0 / --fi-sans / --fi-font-sm to --ds-* tokens */
-    background: var(--bn-bg);
-    color: var(--bn-t0);
-    font-family: var(--fi-sans), -apple-system, sans-serif;
-    font-size: var(--fi-font-sm);
+    /* TODO: remove legacy references */
+    background: var(--ds-surface-ground);
+    color: var(--ds-text-primary);
+    font-family: var(--ds-font-sans), -apple-system, sans-serif;
+    font-size: var(--ds-font-sans);
     -webkit-font-smoothing: antialiased;
   }
 }

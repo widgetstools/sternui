@@ -122,9 +122,9 @@ export function InspectorPane({
   if (!entry) {
     return (
       <PaneShell title="COMPONENT">
-        <div className="flex items-start gap-2 rounded-md p-2" style={{ background: "var(--bn-bg2)" }}>
-          <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--bn-warn, #f59e0b)" }} />
-          <p className="text-xs" style={{ color: "var(--bn-t1)" }}>
+        <div className="flex items-start gap-2 rounded-md p-2" style={{ background: "var(--ds-surface-secondary)" }}>
+          <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }} />
+          <p className="text-xs" style={{ color: "var(--ds-text-secondary)" }}>
             Selected component no longer exists. It may have been deleted.
           </p>
         </div>
@@ -202,7 +202,7 @@ function SummaryCard({ summary }: { summary: InspectorPaneProps["summary"] }) {
         <Stat label="Singletons" value={summary.singletons} />
         <Stat label="Dock buttons" value={summary.dockButtons} />
       </div>
-      <div className="mt-3 rounded-md p-2 text-[11px]" style={{ background: "var(--bn-bg2)", color: "var(--bn-t2)" }}>
+      <div className="mt-3 rounded-md p-2 text-[11px]" style={{ background: "var(--ds-surface-secondary)", color: "var(--ds-text-muted)" }}>
         Select a component on the left to edit it, or click <strong>+ New</strong> to define a new one.
       </div>
     </PaneShell>
@@ -211,9 +211,9 @@ function SummaryCard({ summary }: { summary: InspectorPaneProps["summary"] }) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md p-2" style={{ background: "var(--bn-bg2)", border: "1px solid var(--bn-border)" }}>
-      <div className="text-lg font-semibold" style={{ color: "var(--bn-t0)" }}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>{label}</div>
+    <div className="rounded-md p-2" style={{ background: "var(--ds-surface-secondary)", border: "1px solid var(--ds-border-primary)" }}>
+      <div className="text-lg font-semibold" style={{ color: "var(--ds-text-primary)" }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>{label}</div>
     </div>
   );
 }
@@ -293,9 +293,9 @@ function ComponentForm({
                 placeholder="e.g. Risk Dashboard"
                 className="w-full rounded-md px-2 py-1 text-xs outline-none"
                 style={{
-                  background: "var(--bn-bg2)",
-                  border: "1px solid var(--bn-border)",
-                  color: "var(--bn-t0)",
+                  background: "var(--ds-surface-secondary)",
+                  border: "1px solid var(--ds-border-primary)",
+                  color: "var(--ds-text-primary)",
                 }}
               />
             </Field>
@@ -311,9 +311,9 @@ function ComponentForm({
               placeholder="GRID"
               className="w-full rounded-md px-2 py-1 text-xs outline-none"
               style={{
-                background: "var(--bn-bg2)",
-                border: "1px solid var(--bn-border)",
-                color: "var(--bn-t0)",
+                background: "var(--ds-surface-secondary)",
+                border: "1px solid var(--ds-border-primary)",
+                color: "var(--ds-text-primary)",
               }}
             />
           </Field>
@@ -324,9 +324,9 @@ function ComponentForm({
               placeholder="CREDIT"
               className="w-full rounded-md px-2 py-1 text-xs outline-none"
               style={{
-                background: "var(--bn-bg2)",
-                border: "1px solid var(--bn-border)",
-                color: "var(--bn-t0)",
+                background: "var(--ds-surface-secondary)",
+                border: "1px solid var(--ds-border-primary)",
+                color: "var(--ds-text-primary)",
               }}
             />
           </Field>
@@ -334,9 +334,9 @@ function ComponentForm({
 
         {dupKey && (
           <div className="flex items-start gap-2 rounded-md p-2 text-[11px]" style={{
-            background: "var(--bn-bg2)",
-            border: "1px solid var(--bn-warn, #f59e0b)",
-            color: "var(--bn-warn, #f59e0b)",
+            background: "var(--ds-surface-secondary)",
+            border: "1px solid var(--ds-accent-warning, var(--ds-accent-warning))",
+            color: "var(--ds-accent-warning, var(--ds-accent-warning))",
           }}>
             <AlertCircle className="w-3 h-3 mt-0.5" />
             <span>
@@ -353,15 +353,15 @@ function ComponentForm({
             placeholder="https://..."
             className="w-full rounded-md px-2 py-1 text-xs outline-none font-mono"
             style={{
-              background: "var(--bn-bg2)",
-              border: "1px solid var(--bn-border)",
-              color: "var(--bn-t0)",
+              background: "var(--ds-surface-secondary)",
+              border: "1px solid var(--ds-border-primary)",
+              color: "var(--ds-text-primary)",
             }}
           />
         </Field>
 
         {/* Flags */}
-        <div className="flex flex-col gap-2 rounded-md p-2" style={{ background: "var(--bn-bg2)", border: "1px solid var(--bn-border)" }}>
+        <div className="flex flex-col gap-2 rounded-md p-2" style={{ background: "var(--ds-surface-secondary)", border: "1px solid var(--ds-border-primary)" }}>
           <Toggle
             label="Singleton — only one instance, focus existing on next click"
             checked={entry.singleton}
@@ -376,8 +376,8 @@ function ComponentForm({
 
         {/* External-only fields */}
         {entry.type === "external" && (
-          <div className="flex flex-col gap-2 rounded-md p-2" style={{ background: "var(--bn-bg2)", border: "1px solid var(--bn-border)" }}>
-            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+          <div className="flex flex-col gap-2 rounded-md p-2" style={{ background: "var(--ds-surface-secondary)", border: "1px solid var(--ds-border-primary)" }}>
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>
               External component hints (optional)
             </div>
             <Field label="App ID">
@@ -385,7 +385,7 @@ function ComponentForm({
                 value={entry.appId}
                 onChange={(e) => onChange({ appId: e.target.value })}
                 className="w-full rounded-md px-2 py-1 text-xs outline-none font-mono"
-                style={{ background: "var(--bn-bg)", border: "1px solid var(--bn-border)", color: "var(--bn-t0)" }}
+                style={{ background: "var(--ds-surface-ground)", border: "1px solid var(--ds-border-primary)", color: "var(--ds-text-primary)" }}
               />
             </Field>
             <Field label="ConfigService URL">
@@ -393,7 +393,7 @@ function ComponentForm({
                 value={entry.configServiceUrl}
                 onChange={(e) => onChange({ configServiceUrl: e.target.value })}
                 className="w-full rounded-md px-2 py-1 text-xs outline-none font-mono"
-                style={{ background: "var(--bn-bg)", border: "1px solid var(--bn-border)", color: "var(--bn-t0)" }}
+                style={{ background: "var(--ds-surface-ground)", border: "1px solid var(--ds-border-primary)", color: "var(--ds-text-primary)" }}
               />
             </Field>
           </div>
@@ -402,23 +402,23 @@ function ComponentForm({
         {/* configId (read-only display) */}
         <Field label="Config ID">
           <div className="rounded-md px-2 py-1 text-xs font-mono" style={{
-            background: "var(--bn-bg2)",
-            border: "1px solid var(--bn-border)",
-            color: "var(--bn-t1)",
+            background: "var(--ds-surface-secondary)",
+            border: "1px solid var(--ds-border-primary)",
+            color: "var(--ds-text-secondary)",
           }}>
             {entry.configId || deriveTemplateConfigId(entry.componentType, entry.componentSubType) || "—"}
           </div>
         </Field>
 
         {/* Actions */}
-        <div className="flex flex-col gap-2 pt-2 border-t" style={{ borderColor: "var(--bn-border)" }}>
+        <div className="flex flex-col gap-2 pt-2 border-t" style={{ borderColor: "var(--ds-border-primary)" }}>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => void onTest(entry)}
               disabled={!entry.hostUrl}
               className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-              style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
+              style={{ background: "var(--ds-accent-info, var(--ds-accent-info))", color: "var(--ds-surface-ground)" }}
             >
               <PlayCircle className="w-3 h-3" /> Configure Component
             </button>
@@ -429,16 +429,16 @@ function ComponentForm({
                 disabled={!entry.hostUrl}
                 className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
                 style={{
-                  background: "var(--bn-bg2)",
-                  border: "1px solid var(--bn-border)",
-                  color: "var(--bn-t0)",
+                  background: "var(--ds-surface-secondary)",
+                  border: "1px solid var(--ds-border-primary)",
+                  color: "var(--ds-text-primary)",
                 }}
               >
                 <ArrowRight className="w-3 h-3" /> Add to your dock
               </button>
             )}
           </div>
-          <span className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
+          <span className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
             {isInDock
               ? "✓ Currently in your dock"
               : "Not in your dock yet — click \"Add to your dock\" to surface it"}
@@ -449,8 +449,8 @@ function ComponentForm({
             shows as a click-to-jump pill so users can navigate directly
             from a component to where it appears in the dock. */}
         {placements.length > 0 && (
-          <div className="flex flex-col gap-1 pt-2 border-t" style={{ borderColor: "var(--bn-border)" }}>
-            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+          <div className="flex flex-col gap-1 pt-2 border-t" style={{ borderColor: "var(--ds-border-primary)" }}>
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>
               📍 In your dock at:
             </div>
             <div className="flex flex-col gap-1">
@@ -461,9 +461,9 @@ function ComponentForm({
                   onClick={() => onSelect({ kind: "dock-item", itemId: p.buttonId })}
                   className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-left"
                   style={{
-                    background: "var(--bn-bg2)",
-                    border: "1px solid var(--bn-border)",
-                    color: "var(--bn-t1)",
+                    background: "var(--ds-surface-secondary)",
+                    border: "1px solid var(--ds-border-primary)",
+                    color: "var(--ds-text-secondary)",
                   }}
                 >
                   <ExternalLink className="w-3 h-3" />
@@ -550,9 +550,9 @@ function DockItemInspector({
   if (!resolved) {
     return (
       <PaneShell title="DOCK ITEM">
-        <div className="flex items-start gap-2 rounded-md p-2" style={{ background: "var(--bn-bg2)" }}>
-          <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--bn-warn, #f59e0b)" }} />
-          <p className="text-xs" style={{ color: "var(--bn-t1)" }}>
+        <div className="flex items-start gap-2 rounded-md p-2" style={{ background: "var(--ds-surface-secondary)" }}>
+          <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }} />
+          <p className="text-xs" style={{ color: "var(--ds-text-secondary)" }}>
             Selected dock item no longer exists. It may have been removed.
           </p>
         </div>
@@ -615,31 +615,31 @@ function DockItemInspector({
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full rounded-md px-2 py-1 text-xs outline-none"
                 style={{
-                  background: "var(--bn-bg2)",
-                  border: "1px solid var(--bn-border)",
-                  color: "var(--bn-t0)",
+                  background: "var(--ds-surface-secondary)",
+                  border: "1px solid var(--ds-border-primary)",
+                  color: "var(--ds-text-primary)",
                 }}
               />
             </Field>
           </div>
         </div>
         {referenced && (
-          <div className="text-[10px] -mt-2" style={{ color: "var(--bn-t2)" }}>
-            Component default: <span style={{ color: "var(--bn-t1)" }}>{referenced.iconId || "—"}</span>{" "}
+          <div className="text-[10px] -mt-2" style={{ color: "var(--ds-text-muted)" }}>
+            Component default: <span style={{ color: "var(--ds-text-secondary)" }}>{referenced.iconId || "—"}</span>{" "}
             · per-placement overrides win.
           </div>
         )}
 
         <div>
-          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>
             Type
           </div>
           <div
             className="rounded-md px-2 py-1 text-xs"
             style={{
-              background: "var(--bn-bg2)",
-              border: "1px solid var(--bn-border)",
-              color: "var(--bn-t1)",
+              background: "var(--ds-surface-secondary)",
+              border: "1px solid var(--ds-border-primary)",
+              color: "var(--ds-text-secondary)",
             }}
           >
             {typeLine}
@@ -648,14 +648,14 @@ function DockItemInspector({
 
         {isLaunchComponent && (
           <div>
-            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>
               Launches component
             </div>
             {broken && (
               <div className="flex items-start gap-2 rounded-md p-2 mt-1 text-[11px]" style={{
-                background: "var(--bn-bg2)",
-                border: "1px solid var(--bn-warn, #f59e0b)",
-                color: "var(--bn-warn, #f59e0b)",
+                background: "var(--ds-surface-secondary)",
+                border: "1px solid var(--ds-accent-warning, var(--ds-accent-warning))",
+                color: "var(--ds-accent-warning, var(--ds-accent-warning))",
               }}>
                 <AlertCircle className="w-3 h-3 mt-0.5" />
                 <span>
@@ -670,14 +670,14 @@ function DockItemInspector({
                 onClick={() => onSelect({ kind: "component", entryId: referenced.id })}
                 className="w-full mt-1 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-left"
                 style={{
-                  background: "var(--bn-bg2)",
-                  border: "1px solid var(--bn-border)",
-                  color: "var(--bn-t1)",
+                  background: "var(--ds-surface-secondary)",
+                  border: "1px solid var(--ds-border-primary)",
+                  color: "var(--ds-text-secondary)",
                 }}
               >
                 <ExternalLink className="w-3 h-3" />
                 <span className="truncate">
-                  {referenced.displayName} <span style={{ color: "var(--bn-t2)" }}>({referenced.componentType}/{referenced.componentSubType})</span>
+                  {referenced.displayName} <span style={{ color: "var(--ds-text-muted)" }}>({referenced.componentType}/{referenced.componentSubType})</span>
                 </span>
               </button>
             )}
@@ -693,8 +693,8 @@ function DockItemInspector({
 function PaneShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-3 py-2 border-b shrink-0" style={{ borderColor: "var(--bn-border)" }}>
-        <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--bn-t1)" }}>
+      <div className="px-3 py-2 border-b shrink-0" style={{ borderColor: "var(--ds-border-primary)" }}>
+        <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--ds-text-secondary)" }}>
           ③ {title}
         </span>
       </div>
@@ -706,7 +706,7 @@ function PaneShell({ title, children }: { title: string; children: React.ReactNo
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>{label}</span>
+      <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>{label}</span>
       {children}
     </label>
   );
@@ -721,7 +721,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         onChange={(e) => onChange(e.target.checked)}
         className="rounded"
       />
-      <span className="text-xs" style={{ color: "var(--bn-t1)" }}>{label}</span>
+      <span className="text-xs" style={{ color: "var(--ds-text-secondary)" }}>{label}</span>
     </label>
   );
 }
@@ -740,7 +740,7 @@ function IconField({ iconId, onChange }: { iconId: string; onChange: (iconId: st
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bn-t2)" }}>
+      <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-text-muted)" }}>
         Icon
       </span>
       <Popover open={open} onOpenChange={setOpen}>
@@ -749,9 +749,9 @@ function IconField({ iconId, onChange }: { iconId: string; onChange: (iconId: st
             type="button"
             className="w-9 h-9 flex items-center justify-center rounded-md"
             style={{
-              background: "var(--bn-bg2)",
-              border: "1px solid var(--bn-border)",
-              color: "var(--bn-t1)",
+              background: "var(--ds-surface-secondary)",
+              border: "1px solid var(--ds-border-primary)",
+              color: "var(--ds-text-secondary)",
             }}
             title={iconId ? `Icon: ${iconId} — click to change` : "Pick an icon"}
           >
@@ -764,7 +764,7 @@ function IconField({ iconId, onChange }: { iconId: string; onChange: (iconId: st
                 style={{ display: "block" }}
               />
             ) : (
-              <ImageIcon className="w-4 h-4" style={{ color: "var(--bn-t2)" }} />
+              <ImageIcon className="w-4 h-4" style={{ color: "var(--ds-text-muted)" }} />
             )}
           </button>
         </PopoverTrigger>
@@ -772,9 +772,9 @@ function IconField({ iconId, onChange }: { iconId: string; onChange: (iconId: st
           className="p-2 w-[360px]"
           align="start"
           style={{
-            background: "var(--bn-bg)",
-            border: "1px solid var(--bn-border)",
-            color: "var(--bn-t0)",
+            background: "var(--ds-surface-ground)",
+            border: "1px solid var(--ds-border-primary)",
+            color: "var(--ds-text-primary)",
           }}
         >
           <IconPicker

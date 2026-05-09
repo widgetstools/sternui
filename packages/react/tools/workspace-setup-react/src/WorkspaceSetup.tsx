@@ -78,7 +78,7 @@ export function WorkspaceSetup() {
     return (
       <div
         className="flex items-center justify-center h-full w-full"
-        style={{ background: "var(--bn-bg)", color: "var(--bn-t2)" }}
+        style={{ background: "var(--ds-surface-ground)", color: "var(--ds-text-muted)" }}
       >
         <span className="text-xs">Loading workspace setup…</span>
       </div>
@@ -329,22 +329,22 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
     <div
       data-dock-editor=""
       className="flex flex-col h-full w-full overflow-hidden"
-      style={{ background: "var(--bn-bg)", color: "var(--bn-t0)" }}
+      style={{ background: "var(--ds-surface-ground)", color: "var(--ds-text-primary)" }}
     >
       {/* Fixed header — title + unsaved badge */}
       <header
         className="flex items-center justify-between px-4 py-2 border-b shrink-0"
-        style={{ borderColor: "var(--bn-border)", background: "var(--bn-bg)" }}
+        style={{ borderColor: "var(--ds-border-primary)", background: "var(--ds-surface-ground)" }}
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">Workspace Setup</span>
-          <span className="text-[10px]" style={{ color: "var(--bn-t2)" }}>
+          <span className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
             {summary.totalComponents} component{summary.totalComponents === 1 ? "" : "s"} · {summary.dockButtons} dock button{summary.dockButtons === 1 ? "" : "s"}
           </span>
         </div>
         {isDirty && (
-          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--bn-warn, #f59e0b)" }}>
-            <span style={{ color: "var(--bn-warn, #f59e0b)" }}>●</span> Unsaved changes
+          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>
+            <span style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>●</span> Unsaved changes
           </span>
         )}
       </header>
@@ -392,7 +392,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           actions are reachable regardless of which pane is scrolled. */}
       <footer
         className="flex items-center justify-end gap-2 px-4 py-2 border-t shrink-0"
-        style={{ borderColor: "var(--bn-border)", background: "var(--bn-bg)" }}
+        style={{ borderColor: "var(--ds-border-primary)", background: "var(--ds-surface-ground)" }}
       >
         <button
           type="button"
@@ -400,9 +400,9 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           disabled={!isDirty}
           className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
           style={{
-            background: "var(--bn-bg2)",
-            color: "var(--bn-t1)",
-            border: "1px solid var(--bn-border)",
+            background: "var(--ds-surface-secondary)",
+            color: "var(--ds-text-secondary)",
+            border: "1px solid var(--ds-border-primary)",
           }}
         >
           Discard
@@ -412,7 +412,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           onClick={() => { void handleSaveAll(); }}
           disabled={!isDirty}
           className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-          style={{ background: "var(--bn-accent, #14b8a6)", color: "var(--bn-bg)" }}
+          style={{ background: "var(--ds-accent-info, var(--ds-accent-info))", color: "var(--ds-surface-ground)" }}
         >
           Save
         </button>

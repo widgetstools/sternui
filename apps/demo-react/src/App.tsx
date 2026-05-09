@@ -58,26 +58,26 @@ const sharedParams = {
 
 const darkTheme = themeQuartz.withParams({
   ...sharedParams,
-  backgroundColor: '#161a1e',
-  foregroundColor: '#eaecef',
-  headerBackgroundColor: '#1e2329',
-  headerTextColor: '#a0a8b4',
-  oddRowBackgroundColor: '#161a1e',
-  rowHoverColor: '#1e2329',
-  selectedRowBackgroundColor: '#14b8a614',
-  borderColor: '#313944',
+  backgroundColor: 'var(--ds-surface-primary)',
+  foregroundColor: 'var(--ds-text-primary)',
+  headerBackgroundColor: 'var(--ds-surface-secondary)',
+  headerTextColor: 'var(--ds-text-secondary)',
+  oddRowBackgroundColor: 'var(--ds-surface-primary)',
+  rowHoverColor: 'var(--ds-surface-secondary)',
+  selectedRowBackgroundColor: 'var(--ds-overlay-info-soft)',
+  borderColor: 'var(--ds-border-primary)',
 });
 
 const lightTheme = themeQuartz.withParams({
   ...sharedParams,
-  backgroundColor: '#ffffff',
-  foregroundColor: '#3b3b3b',
-  headerBackgroundColor: '#f3f3f3',
-  headerTextColor: '#616161',
-  oddRowBackgroundColor: '#fafafa',
-  rowHoverColor: '#f3f3f3',
-  selectedRowBackgroundColor: '#0d948814',
-  borderColor: '#e5e5e5',
+  backgroundColor: 'var(--ds-surface-primary)',
+  foregroundColor: 'var(--ds-text-primary)',
+  headerBackgroundColor: 'var(--ds-surface-secondary)',
+  headerTextColor: 'var(--ds-text-muted)',
+  oddRowBackgroundColor: 'var(--ds-surface-ground)',
+  rowHoverColor: 'var(--ds-surface-secondary)',
+  selectedRowBackgroundColor: 'var(--ds-overlay-positive-soft)',
+  borderColor: 'var(--ds-border-primary)',
 });
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────
@@ -295,9 +295,9 @@ function AppInner() {
                 height: 26, padding: '0 10px', borderRadius: 5,
                 border: '1px solid var(--border)',
                 background: ticking
-                  ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)'
+                  ? 'color-mix(in srgb, var(--ds-accent-positive) 14%, transparent)'
                   : 'var(--secondary)',
-                color: ticking ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
+                color: ticking ? 'var(--ds-accent-positive)' : 'var(--muted-foreground)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '0.08em',
@@ -311,8 +311,8 @@ function AppInner() {
               <span
                 style={{
                   width: 7, height: 7, borderRadius: '50%',
-                  background: ticking ? '#2dd4bf' : '#64748b',
-                  boxShadow: ticking ? '0 0 8px #2dd4bf' : 'none',
+                  background: ticking ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
+                  boxShadow: ticking ? '0 0 8px var(--ds-accent-positive)' : 'none',
                   animation: ticking ? 'gcTickPulse 1.4s ease-in-out infinite' : undefined,
                 }}
               />
@@ -430,9 +430,9 @@ function ViewTab({
         fontFamily: "'IBM Plex Sans', sans-serif",
         borderRadius: 4,
         border: '1px solid',
-        borderColor: active ? 'var(--bn-green, #2dd4bf)' : 'var(--border)',
-        color: active ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
-        background: active ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)' : 'transparent',
+        borderColor: active ? 'var(--ds-accent-positive)' : 'var(--border)',
+        color: active ? 'var(--ds-accent-positive)' : 'var(--muted-foreground)',
+        background: active ? 'color-mix(in srgb, var(--ds-accent-positive) 14%, transparent)' : 'transparent',
         cursor: 'pointer',
         transition: 'all 120ms',
       }}

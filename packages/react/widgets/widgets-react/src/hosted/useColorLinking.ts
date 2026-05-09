@@ -17,7 +17,7 @@ import { subscribeWindowOptions } from './windowOptionsSubscription.js';
  * pre-link-feature environments render unlinked.
  */
 export interface ColorLinkingState {
-  /** Hex string (e.g. `'#FF6E1B'`) or `null` when unlinked / unsupported. */
+  /** Hex string (e.g. `'#ff6e1b'` — an OpenFin color group value) or `null` when unlinked / unsupported. */
   color: string | null;
   /** True when the parent window is currently joined to a color link group. */
   linked: boolean;
