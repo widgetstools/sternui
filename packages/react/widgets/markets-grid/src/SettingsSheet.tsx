@@ -1,7 +1,5 @@
 import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
-  V2_SHEET_STYLE_ID,
-  v2SheetCSS,
   isOpenFin,
   type AnyModule,
 } from '@starui/core';
@@ -66,19 +64,6 @@ export interface SettingsSheetProps {
  */
 export type SettingsSheetHandle = PoppableHandle;
 
-function ensureStyles() {
-  if (typeof document === 'undefined') return;
-  // Inject the cockpit popout stylesheet. MarketsGrid's top-level
-  // ensureCockpitStyles already covers the cockpit tokens; this
-  // function stays because the sheet itself may mount before
-  // MarketsGrid's effect runs on cold-mount edge cases.
-  if (!document.getElementById(V2_SHEET_STYLE_ID)) {
-    const v2style = document.createElement('style');
-    v2style.id = V2_SHEET_STYLE_ID;
-    v2style.textContent = v2SheetCSS;
-    document.head.appendChild(v2style);
-  }
-}
 
 export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>(function SettingsSheet({
   modules,
@@ -129,10 +114,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialModuleId, panelModules.length]);
-
-  useEffect(() => {
-    if (open) ensureStyles();
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
