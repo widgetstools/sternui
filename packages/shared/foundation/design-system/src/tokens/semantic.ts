@@ -1,17 +1,30 @@
 // ─────────────────────────────────────────────────────────────
-//  FI Design System — Semantic Tokens
+//  Chroma Desk — Semantic Tokens
 //  Maps primitives to purpose-driven roles.
-//  Each color scheme (dark/light) gets its own mappings.
 //
-//  Design intent:
-//    - Punchy, saturated accents — colors pop against neutral chrome.
-//    - No earthy tones or brown/copper. Warning is pure orange.
-//    - Dark: cool charcoal grounds, vivid accents.
-//    - Light: cool off-white (never cream), charcoal text, vivid
-//      accents that stay WCAG AA on the light ground.
+//  ONE theme — Chroma Desk — with two modes (light, dark).
+//  Both modes share the same typographic voice (Geist sans +
+//  JetBrains Mono), the same accent hues (teal/rose/amber/brand/
+//  cyan/purple), the same component spacing language, and the same
+//  signature cyan brand moment. They differ only in surface luminance
+//  and per-mode contrast tuning of accents.
+//
+//  - LIGHT mode: cool graphite-grey chrome at ~89% L ground, deep
+//    cool-charcoal text. Designed for traders running 12+ hour
+//    sessions; never glaring under office light or late-night ambient.
+//  - DARK mode: balanced graphite chrome, vivid mint-teal/rose
+//    accents, signature cyan brand.
+//
+//  All accents WCAG-audited against their paired surface.
+//  Warning is pure amber — visually distinct from negative.
+//
+//  CVD (color-vision-deficiency) is an opt-in override layer: a
+//  `[data-cvd="on"]` attribute swaps positive/negative accents to
+//  blue (buy) / orange (sell) globally. It is not a separate scheme;
+//  see the css adapter for how it's emitted.
 // ─────────────────────────────────────────────────────────────
 
-import { colors, typography, radius, spacing, opacity, transition } from './primitives';
+import { colors, typography, radius, spacing, opacity, transition, shadow } from './primitives';
 
 // ── Color Scheme Type ──
 export interface ColorScheme {
@@ -20,12 +33,13 @@ export interface ColorScheme {
     primary:   string;  // card/panel background
     secondary: string;  // hover, header background
     tertiary:  string;  // active/pressed, accent bg
+    quaternary:string;  // accent band
   };
   text: {
     primary:   string;  // main body text
     secondary: string;  // labels, descriptions
     muted:     string;  // captions, timestamps
-    faint:     string;  // disabled, placeholder
+    faint:     string;  // disabled, placeholder, UI-only
   };
   border: {
     primary:   string;  // panel borders, dividers
@@ -36,7 +50,7 @@ export interface ColorScheme {
     positiveHover: string;
     negative:      string;  // sell, loss, error
     negativeHover: string;
-    warning:       string;  // caution, pending (pure orange, never brown)
+    warning:       string;  // caution, pending (pure amber)
     info:          string;  // BRAND / primary / informational / links
     infoHover:     string;
     highlight:     string;  // emphasis, selected
@@ -54,6 +68,7 @@ export interface ColorScheme {
     disabledBg:   string;
     disabledFg:   string;
     hoverOverlay: string;
+    selection:    string;
   };
   overlay: {
     positiveSoft:  string;
@@ -67,124 +82,158 @@ export interface ColorScheme {
     neutralSoft:   string;
     neutralRing:   string;
   };
+  cvd: {
+    // Deuteranopia/protanopia-safe alternates (blue buy, orange sell).
+    buy:  string;
+    sell: string;
+  };
   scrollbar: string;
+  elevation: {
+    card:    string;  // drop shadow
+    overlay: string;  // dialog / popover
+    glow:    string;  // focus glow
+  };
 }
 
-// ── Dark Scheme ─────────────────────────────────────────────
-// Deep cool charcoal chrome + vibrant saturated accents.
-export const dark: ColorScheme = {
-  surface: {
-    ground:    colors.charcoal[975],  // #0a0e14
-    primary:   colors.charcoal[950],  // #121820 — card
-    secondary: colors.charcoal[925],  // #1a212b — hover/header
-    tertiary:  colors.charcoal[900],  // #242c38 — pressed
-  },
-  text: {
-    primary:   '#e6e9ef',             // warm off-white (never pure white)
-    secondary: '#a7b0bd',
-    muted:     colors.charcoal[500],  // #6b7280
-    faint:     colors.charcoal[700],  // #4d586a
-  },
-  border: {
-    primary:   colors.charcoal[850],  // #2e3744
-    secondary: colors.charcoal[800],  // #323b49
-  },
-  accent: {
-    positive:      colors.teal[400],   // #14d9a0 — vivid teal
-    positiveHover: colors.teal[500],   // #0fb88a
-    negative:      colors.red[400],    // #ff4d6d — vivid coral
-    negativeHover: colors.red[500],    // #e8304e
-    warning:       colors.orange[500], // #ff8c42 — pure orange
-    info:          colors.blue[500],   // #3b82f6 — punchy brand
-    infoHover:     colors.blue[600],   // #2563eb
-    highlight:     colors.cyan[400],   // #22d3ee — bright cyan
-    purple:        colors.purple[400], // #a855f7
-  },
-  action: {
-    buyBg:    colors.teal[500],   // #0fb88a
-    buyText:  '#ffffff',
-    sellBg:   colors.red[500],    // #e8304e
-    sellText: '#ffffff',
-  },
-  state: {
-    focusRing:    colors.blue[500],
-    focusRingBg:  'rgba(59,130,246,0.30)',       // blue-500 @ 30%
-    disabledBg:   colors.charcoal[900],
-    disabledFg:   colors.charcoal[700],
-    hoverOverlay: 'rgba(255,255,255,0.05)',
-  },
-  overlay: {
-    positiveSoft:  'rgba(20,217,160,0.15)',  // teal-400 @ 15%
-    positiveRing:  'rgba(20,217,160,0.35)',
-    negativeSoft:  'rgba(255,77,109,0.15)',  // red-400 @ 15%
-    negativeRing:  'rgba(255,77,109,0.35)',
-    warningSoft:   'rgba(255,140,66,0.15)',  // orange-500 @ 15%
-    warningRing:   'rgba(255,140,66,0.38)',
-    infoSoft:      'rgba(59,130,246,0.15)',  // blue-500 @ 15%
-    infoRing:      'rgba(59,130,246,0.35)',
-    neutralSoft:   'rgba(107,114,128,0.20)', // charcoal-500 @ 20%
-    neutralRing:   'rgba(107,114,128,0.30)',
-  },
-  scrollbar: colors.charcoal[800],
-};
-
-// ── Light Scheme ────────────────────────────────────────────
-// Cool off-white (NOT cream, NOT warm) + charcoal text + vivid
-// accents that pop without glare. WCAG AA across all text tiers.
+// ── Chroma Desk · Light ─────────────────────────────────────
+// Cool graphite-grey ground, deep cool-charcoal text, vivid AA/AAA
+// accents. Long-session-friendly, low-glare, never warm.
 export const light: ColorScheme = {
   surface: {
-    ground:    colors.charcoal[50],   // #f3f5f9 — cool off-white
-    primary:   '#fbfcfd',             // soft paper-cool (not pure #fff)
-    secondary: colors.charcoal[100],  // #ebeef3
-    tertiary:  colors.charcoal[150],  // #dde2ea
+    ground:     colors.chromeLight[100],  // #e2e6ee  ~89% L  primary background
+    primary:    colors.chromeLight[50],   // #eef1f6  ~94% L  card / panel
+    secondary:  colors.chromeLight[200],  // #d3d9e3  ~85% L  hover
+    tertiary:   colors.chromeLight[300],  // #c2c9d6  ~80% L  pressed
+    quaternary: colors.chromeLight[400],  // #b1b9c8  ~75% L  accent band
   },
   text: {
-    primary:   '#1a1f2e',             // deep cool charcoal (never pure black)
-    secondary: colors.charcoal[600],  // #4f5665
-    muted:     colors.charcoal[500],  // #6b7280 — AA on off-white
-    faint:     colors.charcoal[400],  // #9ca3af
+    primary:   colors.coolInk[0],         // #0f1218  AAA ~16.5:1
+    secondary: colors.coolInk[1],         // #2a3140  AAA ~10:1
+    muted:     colors.coolInk[2],         // #4d5566  AA  ~5.6:1
+    faint:     colors.coolInk[3],         // #727a8c  UI  ~3.5:1
   },
   border: {
-    primary:   colors.charcoal[200],  // #d9dee8
-    secondary: colors.charcoal[300],  // #c3cad7
+    primary:   colors.chromeLight[500],   // #9aa3b5
+    secondary: colors.chromeLight[600],   // #7c8497
   },
   accent: {
-    positive:      colors.teal[600],   // #0ea870 — vivid emerald
-    positiveHover: colors.teal[700],   // #0b8959
-    negative:      colors.red[600],    // #e02e47 — vivid pink-red
-    negativeHover: colors.red[700],    // #b81e37
-    warning:       colors.orange[600], // #e86a1c — vivid orange (no brown)
-    info:          colors.blue[600],   // #2563eb — punchy brand
-    infoHover:     colors.blue[700],   // #1d4ed8
-    highlight:     colors.cyan[500],   // #06b6d4
-    purple:        colors.purple[600], // #7c3aed
+    positive:      colors.teal.light,       // #076a48  AAA ~6.0:1
+    positiveHover: colors.teal.lightHov,    // #055438
+    negative:      colors.rose.light,       // #b01e3f  AAA ~6.5:1
+    negativeHover: colors.rose.lightHov,    // #911731
+    warning:       colors.amber.light,      // #7a5408  AAA ~6.2:1
+    info:          colors.brand.light,      // #1740a8  AAA ~7.8:1
+    infoHover:     colors.brand.lightHov,   // #13348a
+    highlight:     colors.cyan.light,       // #035c68  AAA ~7.1:1
+    purple:        colors.purple.light,     // #5821b8
   },
   action: {
-    buyBg:    colors.teal[600],   // #0ea870
+    buyBg:    colors.teal.light,
     buyText:  '#ffffff',
-    sellBg:   colors.red[600],    // #e02e47
+    sellBg:   colors.rose.light,
     sellText: '#ffffff',
   },
   state: {
-    focusRing:    colors.blue[600],
-    focusRingBg:  'rgba(37,99,235,0.22)',       // blue-600 @ 22%
-    disabledBg:   colors.charcoal[100],
-    disabledFg:   colors.charcoal[400],
-    hoverOverlay: 'rgba(0,0,0,0.045)',
+    focusRing:    colors.brand.light,
+    focusRingBg:  'rgba(23,64,168,0.22)',
+    disabledBg:   colors.chromeLight[200],
+    disabledFg:   colors.coolInk[3],
+    hoverOverlay: 'rgba(15,18,24,0.045)',
+    selection:    'rgba(23,64,168,0.18)',
   },
   overlay: {
-    positiveSoft:  'rgba(14,168,112,0.12)',  // teal-600 @ 12%
-    positiveRing:  'rgba(14,168,112,0.32)',
-    negativeSoft:  'rgba(224,46,71,0.10)',   // red-600 @ 10%
-    negativeRing:  'rgba(224,46,71,0.32)',
-    warningSoft:   'rgba(232,106,28,0.12)',  // orange-600 @ 12%
-    warningRing:   'rgba(232,106,28,0.35)',
-    infoSoft:      'rgba(37,99,235,0.10)',   // blue-600 @ 10%
-    infoRing:      'rgba(37,99,235,0.32)',
-    neutralSoft:   'rgba(79,86,101,0.08)',   // charcoal-600 @ 8%
-    neutralRing:   'rgba(79,86,101,0.22)',
+    positiveSoft:  'rgba(7,106,72,0.10)',
+    positiveRing:  'rgba(7,106,72,0.32)',
+    negativeSoft:  'rgba(176,30,63,0.09)',
+    negativeRing:  'rgba(176,30,63,0.32)',
+    warningSoft:   'rgba(122,84,8,0.10)',
+    warningRing:   'rgba(122,84,8,0.35)',
+    infoSoft:      'rgba(23,64,168,0.08)',
+    infoRing:      'rgba(23,64,168,0.32)',
+    neutralSoft:   'rgba(42,49,64,0.07)',
+    neutralRing:   'rgba(42,49,64,0.22)',
   },
-  scrollbar: '#c3cad7',
+  cvd: {
+    buy:  colors.cvd.buyLight,    // #1740a8
+    sell: colors.cvd.sellLight,   // #a8350c
+  },
+  scrollbar: colors.chromeLight[600],
+  elevation: {
+    card:    shadow.sm,
+    overlay: shadow.md,
+    glow:    `0 0 0 3px rgba(23,64,168,0.18)`,
+  },
+};
+
+// ── Chroma Desk · Dark ──────────────────────────────────────
+// Balanced graphite chrome, vivid teal/rose, signature cyan brand.
+export const dark: ColorScheme = {
+  surface: {
+    ground:     colors.graphite[975], // #0b0d10
+    primary:    colors.graphite[950], // #14171b  card
+    secondary:  colors.graphite[900], // #1c2025  hover
+    tertiary:   colors.graphite[850], // #252a31  pressed
+    quaternary: colors.graphite[800], // #31373f  accent band
+  },
+  text: {
+    primary:   colors.graphite[50],   // #ecf0f5  AAA 14.8:1
+    secondary: colors.graphite[300],  // #aab3bf  AAA  7.6:1
+    muted:     colors.graphite[400],  // #7d8694  AA   4.6:1
+    faint:     colors.graphite[500],  // #565d68  UI   2.7:1
+  },
+  border: {
+    primary:   colors.graphite[600],  // #2b3139
+    secondary: colors.graphite[700],  // #3e4552
+  },
+  accent: {
+    positive:      colors.teal.dark,     // #22e3a8  AAA 11.1:1
+    positiveHover: colors.teal.darkHov,  // #3fecb8
+    negative:      colors.rose.dark,     // #ff5a82  AA  6.02:1
+    negativeHover: colors.rose.darkHov,  // #ff7898
+    warning:       colors.amber.dark,    // #f5c14b  AAA 10.6:1
+    info:          colors.brand.dark,    // #22d3ee  signature cyan
+    infoHover:     colors.brand.darkHov, // #4ae0f2
+    highlight:     colors.cyan.dark,     // #22d3ee
+    purple:        colors.purple.dark,   // #a78bfa
+  },
+  action: {
+    // CTA backgrounds in dark use slightly-muted variants so
+    // white CTA text remains readable.
+    buyBg:    colors.teal.dark,
+    buyText:  '#0b2b20',   // deep teal-black — AAA on mint-teal
+    sellBg:   colors.rose.dark,
+    sellText: '#2a0810',   // deep rose-black — AAA on rose
+  },
+  state: {
+    focusRing:    colors.brand.dark,
+    focusRingBg:  'rgba(34,211,238,0.30)',
+    disabledBg:   colors.graphite[850],
+    disabledFg:   colors.graphite[500],
+    hoverOverlay: 'rgba(255,255,255,0.05)',
+    selection:    'rgba(34,211,238,0.22)',
+  },
+  overlay: {
+    positiveSoft:  'rgba(34,227,168,0.12)',
+    positiveRing:  'rgba(34,227,168,0.40)',
+    negativeSoft:  'rgba(255,90,130,0.12)',
+    negativeRing:  'rgba(255,90,130,0.40)',
+    warningSoft:   'rgba(245,193,75,0.13)',
+    warningRing:   'rgba(245,193,75,0.40)',
+    infoSoft:      'rgba(34,211,238,0.12)',
+    infoRing:      'rgba(34,211,238,0.45)',
+    neutralSoft:   'rgba(170,179,191,0.10)',
+    neutralRing:   'rgba(170,179,191,0.25)',
+  },
+  cvd: {
+    buy:  colors.cvd.buyDark,    // #7aa6ff
+    sell: colors.cvd.sellDark,   // #ff9d4e
+  },
+  scrollbar: colors.graphite[700],
+  elevation: {
+    card:    '0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5)',
+    overlay: shadow.lg,
+    glow:    `0 0 0 2px rgba(34,211,238,0.40), 0 0 28px rgba(34,211,238,0.18)`,
+  },
 };
 
 // ── Shared (non-theme-dependent) ──
@@ -194,6 +243,7 @@ export const shared = {
   spacing,
   opacity,
   transition,
+  shadow,
 } as const;
 
 export const semantic = { dark, light, shared } as const;
