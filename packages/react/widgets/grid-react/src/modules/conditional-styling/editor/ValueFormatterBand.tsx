@@ -34,7 +34,7 @@ export const ValueFormatterBand = memo(function ValueFormatterBand({
           data-testid={`cs-rule-value-formatter-${ruleId}`}
         />
         <div style={{ marginTop: 8 }}>
-          <Caps size={9} color="var(--ck-t3)">
+          <Caps size={9} color="var(--ds-text-faint)">
             Applied to cells where this rule matches — overrides the column's own formatter.
           </Caps>
         </div>
@@ -43,7 +43,7 @@ export const ValueFormatterBand = memo(function ValueFormatterBand({
   }
   return (
     <Band index="09" title="VALUE FORMATTER">
-      <Caps size={10} color="var(--ck-t2)">
+      <Caps size={10} color="var(--ds-text-muted)">
         Select exactly ONE target column above to set a per-rule value formatter.
       </Caps>
     </Band>

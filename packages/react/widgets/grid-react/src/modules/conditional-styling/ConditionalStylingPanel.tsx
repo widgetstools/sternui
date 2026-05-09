@@ -106,9 +106,9 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
 
   return (
     <>
-      <div className="gc-popout-list-header">
+      <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Rules</Caps>
-        <Mono color="var(--ck-t3)" size={11}>
+        <Mono color="var(--ds-text-faint)" size={11}>
           {String(state.rules.length).padStart(2, '0')}
         </Mono>
         <span style={{ flex: 1 }} />
@@ -123,9 +123,9 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'var(--ck-green-bg)',
-            color: 'var(--ck-green)',
-            border: '1px solid var(--ck-green-dim)',
+            background: 'var(--ds-overlay-positive-soft)',
+            color: 'var(--ds-accent-positive)',
+            border: '1px solid var(--ds-overlay-positive-ring)',
             borderRadius: 2,
             cursor: 'pointer',
             padding: 0,
@@ -199,7 +199,7 @@ export function ConditionalStylingEditor({ selectedId }: EditorPaneProps) {
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No rule selected
         </Caps>
-        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+        <div className="text-xs text-muted-foreground">
           Select a rule from the list, or press <Mono size={11}>+</Mono> to add one.
         </div>
       </div>
@@ -281,7 +281,7 @@ const RuleEditor = memo(function RuleEditor({
         onDelete={onDelete}
       />
 
-      <div className="gc-editor-scroll">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
         <RuleMetaStrip
           ruleId={ruleId}
           enabled={draft.enabled}
@@ -439,20 +439,20 @@ function IndicatorPicker({
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid var(--ck-border-hi)',
+            border: '1px solid var(--ds-border-secondary)',
             borderRadius: 2,
-            background: 'var(--ck-bg)',
+            background: 'var(--ds-surface-ground)',
           }}
         >
           {value?.icon ? (
             <IndicatorIconPreview iconKey={value.icon} color={color} size={14} />
           ) : (
-            <Caps size={9} color="var(--ck-t3)">
+            <Caps size={9} color="var(--ds-text-faint)">
               NONE
             </Caps>
           )}
         </span>
-        <Caps size={10} color="var(--ck-t2)">
+        <Caps size={10} color="var(--ds-text-muted)">
           {value?.icon ? findIndicatorIcon(value.icon)?.label ?? value.icon : 'No indicator'}
         </Caps>
 
@@ -471,8 +471,8 @@ function IndicatorPicker({
                   alignItems: 'center',
                   gap: 6,
                   padding: '2px 8px 2px 2px',
-                  background: 'var(--ck-bg, var(--bn-bg))',
-                  border: '1px solid var(--ck-border-hi, var(--bn-border))',
+                  background: 'var(--ds-surface-ground)',
+                  border: '1px solid var(--ds-border-secondary)',
                   borderRadius: 2,
                   height: 28,
                   cursor: 'pointer',
@@ -484,12 +484,12 @@ function IndicatorPicker({
                     width: 18,
                     height: 18,
                     background: color,
-                    border: '1px solid var(--ck-border-hi, var(--bn-border))',
+                    border: '1px solid var(--ds-border-secondary)',
                     borderRadius: 2,
                     display: 'inline-block',
                   }}
                 />
-                <Caps size={9} color="var(--ck-t2)">
+                <Caps size={9} color="var(--ds-text-muted)">
                   {color.startsWith('#') ? color.toUpperCase() : 'COLOR'}
                 </Caps>
               </button>
@@ -513,11 +513,11 @@ function IndicatorPicker({
             height: 28,
             padding: '0 10px',
             background: 'transparent',
-            border: '1px solid var(--ck-border-hi)',
+            border: '1px solid var(--ds-border-secondary)',
             borderRadius: 2,
-            color: value?.icon ? 'var(--ck-red, var(--bn-red))' : 'var(--ck-t3)',
+            color: value?.icon ? 'var(--ds-accent-negative)' : 'var(--ds-text-faint)',
             cursor: value?.icon ? 'pointer' : 'default',
-            fontFamily: 'var(--ck-font-sans)',
+            fontFamily: 'var(--ds-font-sans)',
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: '0.08em',
@@ -628,11 +628,11 @@ function IndicatorPicker({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: active ? 'var(--ck-green-bg)' : 'var(--ck-bg)',
-                    border: `1px solid ${active ? 'var(--ck-green)' : 'var(--ck-border-hi)'}`,
+                    background: active ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
+                    border: `1px solid ${active ? 'var(--ds-accent-positive)' : 'var(--ds-border-secondary)'}`,
                     borderRadius: 2,
                     cursor: 'pointer',
-                    color: active ? 'var(--ck-green)' : 'var(--ck-t1)',
+                    color: active ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
                     padding: 0,
                     transition: 'background 120ms, border-color 120ms',
                   }}
@@ -650,7 +650,7 @@ function IndicatorPicker({
         </div>
       ))}
 
-      <Caps size={9} color="var(--ck-t3)">
+      <Caps size={9} color="var(--ds-text-faint)">
         Shown as a 12×12 badge on the top-right of every cell (and column header) currently matching this rule.
       </Caps>
     </div>
@@ -668,9 +668,9 @@ export function ConditionalStylingPanel() {
     >
       <aside
         style={{
-          borderRight: '1px solid var(--ck-border)',
+          borderRight: '1px solid var(--ds-border-primary)',
           overflowY: 'auto',
-          background: 'var(--ck-surface)',
+          background: 'var(--ds-surface-primary)',
         }}
       >
         <ConditionalStylingList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
