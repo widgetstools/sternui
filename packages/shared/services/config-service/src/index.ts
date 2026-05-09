@@ -52,7 +52,7 @@ export type {
 // (appRegistry / userProfile / roles / permissions) or to dock/snapshot
 // convenience methods. New feature code should prefer `ConfigClient`.
 export { createConfigManager, ConfigManager } from './ConfigManager';
-export type { SaveConfigOptions } from './ConfigManager';
+export type { ImpersonatedUser, SaveConfigOptions } from './ConfigManager';
 
 // ─── Database (for advanced use cases only) ──────────────────────────
 export { ConfigDatabase } from './db';
@@ -63,6 +63,14 @@ export { ConfigDatabase } from './db';
 // remote import).
 export { isVisible } from './visibility';
 export type { VisibilityContext } from './visibility';
+
+// ─── Effective user / impersonation (Session 8) ──────────────────────
+// `getEffectiveUser(ctx)` is the single source of truth for "who am I
+// acting as right now": the impersonated user when one is set on
+// ApplicationContext, otherwise the real signed-in user. Hosts that
+// want to apply the same rule outside ConfigManager (e.g. a "what
+// would alice see?" admin preview) call this helper.
+export { getEffectiveUser } from './effectiveUser';
 
 // ─── Types ───────────────────────────────────────────────────────────
 export type {

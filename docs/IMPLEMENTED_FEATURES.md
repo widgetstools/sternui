@@ -21,6 +21,56 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 8: impersonation + effective-user helper
+
+Eighth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 8, Decision 5). Splits the row's **owner** slot
+(`AppConfigRow.userId` — drives visibility) from the **audit** slots
+(`createdBy` / `updatedBy`) so an admin / debug UI can flip
+`ImpersonatedUser` on `ApplicationContext` and have the manager treat
+that user as the effective user for ownership and visibility — while
+audit fields keep tracking the real signed-in user so impersonation
+can never rewrite history.
+
+- New helper `packages/shared/services/config-service/src/effectiveUser.ts`:
+  `getEffectiveUser(ctx: ApplicationContext)` returns
+  `ImpersonatedUser ?? LoggedInUser`. Pure function, no side effects —
+  hosts can apply the same rule outside `ConfigManager` (e.g. a "what
+  would alice see?" admin preview).
+- `ConfigManager.setImpersonatedUser(user | null)` — sets or clears the
+  impersonated user on `ApplicationContext`. Throws when `dataServices`
+  isn't wired; otherwise writes through to the AppData mirror so the
+  next visibility check / owner stamp picks up the new effective user
+  without any explicit refresh.
+- `ConfigManager.getEffectiveUserId()` (private) — single source of
+  truth used by both `visibilityContext` (Session 4) and the inline
+  owner default in `saveConfig`. Reads `ImpersonatedUser` live off the
+  AppData mirror, falling back to `identity.userId` when impersonation
+  is null or `dataServices` isn't wired (back-compat for tests / hosts
+  that haven't opted into ApplicationContext).
+- `saveConfig` now defaults `AppConfigRow.userId` to the effective user
+  on insert. Audit fields (`createdBy` / `updatedBy` / `creationTime` /
+  `updatedTime`) keep flowing through `stampWrite` from
+  `this.identity.userId`, so an impersonated write lands as
+  `userId === alice` but `createdBy === LoggedInUser.userId`.
+- New `ImpersonatedUser` type alias re-exported from the package
+  barrel for callers that hold the shape independently.
+- New tests:
+  - `packages/shared/services/config-service/src/configManager.impersonation.test.ts`
+    (10 tests): `setImpersonatedUser` updates ApplicationContext;
+    `setImpersonatedUser(null)` clears the slot; saved row owner ===
+    impersonated user while audit === real user; clearing impersonation
+    reverts owner default; reads while impersonating alice show
+    alice-owned private rows AND public rows but hide real-user-owned
+    private rows; clearing reverts visibility; `setImpersonatedUser`
+    throws without `dataServices`. Plus pure-helper tests for
+    `getEffectiveUser` covering both branches.
+
+Files touched:
+`packages/shared/services/config-service/src/{effectiveUser,ConfigManager,index}.ts`,
+`packages/shared/services/config-service/src/configManager.impersonation.test.ts`.
+
 ## 2026-05-08 — Config-manager redesign Session 7: ApplicationContext publishing into AppData
 
 Seventh session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
