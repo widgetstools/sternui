@@ -746,24 +746,32 @@ data-services work.
 
 **Steps:**
 
-- [ ] **9.1** Scaffold the package by copying `data-services-react`'s structure
-      (`package.json`, `tsconfig.json`, `vitest.config.ts` if any). Adjust name to
-      `@starui/config-service-react`. Peer deps: `react`, `react-dom`,
-      `@starui/config-service`, `@starui/data-services-react` (for the
-      DataServicesContext consumed in Session 7's wiring).
-- [ ] **9.2** Define `ConfigServiceContextValue`:
+- [x] **9.1** Scaffolded `packages/react/providers/config-service-react/`
+      with `package.json`, `tsconfig.json` (extends
+      `../../../../tsconfig.base.json`), and `vitest.config.ts`
+      mirroring `data-services-react`. Name `@starui/config-service-react`.
+      `dependencies` carries `@starui/config-service`; peer deps cover
+      `react >=19` and `@starui/data-services-react` (the Provider
+      reads `useDataServices()`). `devDependencies` add
+      `fake-indexeddb` so the Provider's real `ConfigManager.init()`
+      can run under jsdom in tests.
+- [x] **9.2** Defined `ConfigServiceContextValue`:
 
 ```ts
 export interface ConfigServiceContextValue {
   configManager: ConfigManager;
-  storage: StorageAdapterFactory;
+  storage: ProfileStorageFactory;   // canonical name in this repo (= StorageAdapterFactory in the plan template)
   appId: string;
   userId: string;
   applicationContext: ApplicationContext;
 }
 ```
 
-- [ ] **9.3** Implement `ConfigServiceProvider`:
+      Lives in `src/types.ts`; re-exported from the package barrel
+      `src/index.ts`.
+
+- [x] **9.3** Implemented `ConfigServiceProvider` in
+      `src/ConfigServiceProvider.tsx`:
 
 ```tsx
 export function ConfigServiceProvider(props: {
@@ -808,17 +816,60 @@ export function ConfigServiceProvider(props: {
 }
 ```
 
-- [ ] **9.4** `useConfigService()` returns the context value or throws if used outside
-      the Provider.
-- [ ] **9.5** In `main.tsx` of `markets-ui-react-reference`, replace the manual
-      `createConfigManager` + storage wiring with `<ConfigServiceProvider>`. Confirm
-      total config-service wiring is ≤ 8 lines, matching the design's target.
-- [ ] **9.6** Test: render the Provider with a stub `dataServices`, mocked seed fetch,
-      and an in-memory ConfigManager; assert `useConfigService()` returns expected
-      values; assert disposal on unmount.
-- [ ] **9.7** Smoke: `npm --workspace apps/markets-ui-react-reference run dev`, load the
-      reference app, confirm grid renders with persisted profiles.
-- [ ] **9.8** Run verification.
+      Implementation matches the plan template: pulls
+      `dataServices = useDataServices()` (peer dep), constructs the
+      `ConfigManager` with `appId` / `identity` / `seedConfigUrl` /
+      `configServiceRestUrl` / `dataServices`, runs `init()`, and on
+      success exposes `{ configManager, storage:
+      createConfigServiceStorage({ configManager }), appId, userId:
+      identity.userId, applicationContext:
+      configManager.getApplicationContext() }`. A `disposed` guard
+      short-circuits a late `init()` resolution; the cleanup function
+      always calls `manager.dispose()` so unmount + prop change leak
+      nothing. Errors thrown during bootstrap rethrow on the next
+      render so the nearest `<ErrorBoundary>` catches them. While
+      bootstrap is pending the Provider renders `null`. The
+      shared React context lives in
+      `src/configServiceContext.ts` so the Provider (`.tsx`) and the
+      hook (`.ts`) can both read it without dragging the JSX runtime
+      into the hook module.
+- [x] **9.4** `useConfigService()` lives in `src/useConfigService.ts`,
+      reads from the same context as the Provider, and throws
+      `useConfigService must be used within <ConfigServiceProvider>`
+      when called outside the tree.
+- [x] **9.5** Cut over `apps/markets-ui-react-reference/src/main.tsx`.
+      The previous module-scope `const configManager =
+      createConfigClient({})` is gone; instead `ViewRoutesLayout`
+      wraps non-platform-provider routes in
+      `<DataServicesProvider services={dataServices}>` →
+      `<ConfigServiceProvider identity={IDENTITY} appId={APP_ID}>` →
+      a small `HostWrapperWithProviderClient` that pulls
+      `useConfigService().configManager` and wraps it as
+      `createConfigClient({ configManager })` for `<HostWrapper>`.
+      The hidden `/platform/provider` route stays OUTSIDE the new
+      providers so its `bootstrapPlatform()` keeps owning the
+      platform's ConfigManager singleton without competition.
+      `apps/markets-ui-react-reference/package.json` adds
+      `@starui/config-service-react: "*"` as a workspace dep.
+- [x] **9.6** Tests in
+      `packages/react/providers/config-service-react/src/ConfigServiceProvider.test.tsx`
+      (5 tests, jsdom + fake-indexeddb): exposes the expected shape
+      after init (incl. ApplicationContext snapshot); disposes the
+      ConfigManager on unmount; renders `null` while bootstrap is
+      pending; throws from `useConfigService` outside the Provider;
+      re-bootstraps when `appId` changes. `useDataServices` is
+      `vi.mock`-ed to return a tiny in-memory `appData` that
+      satisfies `AppDataMirrorHandle` so the real
+      `ConfigManager.init()` exercises the publish-into-AppData path.
+- [x] **9.7** Smoke ran the reference app dev server
+      (`npm --workspace apps/markets-ui-react-reference run dev`):
+      Vite reported `ready in 285 ms` on
+      `http://localhost:5174/`, the index page rendered, and Vite
+      transformed `/src/main.tsx` with no errors in the dev log.
+- [x] **9.8** Verification green:
+      `npx turbo test --force` → 35 test packages pass (incl. the
+      new 5 Provider tests); `npx turbo typecheck build --force` →
+      56 tasks green incl. the reference app's Vite bundle.
 
 **Verification:**
 
