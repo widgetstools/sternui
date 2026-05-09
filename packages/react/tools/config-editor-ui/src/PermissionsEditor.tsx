@@ -7,18 +7,24 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
 } from '@starui/ui';
-import type { PermissionRow } from '@starui/config-service';
+import type { PermissionRow, RoleRow } from '@starui/config-service';
 
 import { useConfigClient } from './ConfigEditorContext';
 import { EditorShell } from './EditorShell';
+import { EditorDataTable, type EditorTableColumn } from './EditorDataTable';
+import { OptimisticLockDialog } from './OptimisticLockDialog';
+import {
+  formatErrors,
+  hasBlockingError,
+  validatePermission,
+  type ValidationError,
+} from './validation';
+import {
+  guardOptimisticUpdate,
+  isOptimisticLockError,
+} from './useOptimisticUpdate';
 
 interface DraftPermission {
   permissionId: string;
@@ -52,12 +58,17 @@ function rowToDraft(row: PermissionRow): DraftPermission {
 export function PermissionsEditor() {
   const client = useConfigClient();
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
+  const [_roles, setRoles] = useState<RoleRow[]>([]);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'create' | 'edit'>('create');
   const [draft, setDraft] = useState<DraftPermission>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expectedUpdatedTime, setExpectedUpdatedTime] = useState<
+    string | undefined
+  >(undefined);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [lockDialogOpen, setLockDialogOpen] = useState(false);
 
   useEffect(() => {
     void refresh();
@@ -65,7 +76,12 @@ export function PermissionsEditor() {
   }, []);
 
   async function refresh() {
-    setPermissions(await client.permissions.list());
+    const [p, r] = await Promise.all([
+      client.permissions.list(),
+      client.roles.list(),
+    ]);
+    setPermissions(p);
+    setRoles(r);
   }
 
   const categories = useMemo(() => {
@@ -79,6 +95,7 @@ export function PermissionsEditor() {
   function startCreate() {
     setMode('create');
     setEditingId(null);
+    setExpectedUpdatedTime(undefined);
     setDraft(EMPTY_DRAFT);
     setError(null);
     setOpen(true);
@@ -87,188 +104,218 @@ export function PermissionsEditor() {
   function startEdit(row: PermissionRow) {
     setMode('edit');
     setEditingId(row.permissionId);
+    setExpectedUpdatedTime(row.updatedTime);
     setDraft(rowToDraft(row));
     setError(null);
     setOpen(true);
   }
 
-  const trimmedId = draft.permissionId.trim();
-  const trimmedDescription = draft.description.trim();
-  const effectiveCategory = (
-    draft.useCustomCategory ? draft.customCategory : draft.category
-  ).trim();
-  const canSave =
-    trimmedId.length > 0 &&
-    trimmedDescription.length > 0 &&
-    effectiveCategory.length > 0 &&
-    !saving;
+  function buildNextRow(): PermissionRow {
+    const effectiveCategory = (
+      draft.useCustomCategory ? draft.customCategory : draft.category
+    ).trim();
+    return {
+      permissionId: draft.permissionId.trim(),
+      description: draft.description.trim(),
+      category: effectiveCategory,
+    };
+  }
+
+  function liveErrors(): ValidationError[] {
+    return validatePermission(buildNextRow(), permissions, mode);
+  }
+
+  const errors = liveErrors();
+  const canSave = !hasBlockingError(errors) && !saving;
 
   async function handleSave() {
     if (!canSave) return;
     setSaving(true);
     setError(null);
     try {
-      const next: PermissionRow = {
-        permissionId: trimmedId,
-        description: trimmedDescription,
-        category: effectiveCategory,
-      };
+      const next = buildNextRow();
       if (mode === 'create') {
         await client.permissions.create(next);
       } else if (editingId) {
+        await guardOptimisticUpdate<PermissionRow>({
+          expectedUpdatedTime,
+          fetchCurrent: () => client.permissions.get(editingId),
+        });
         await client.permissions.update(editingId, next);
       }
       await refresh();
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      if (isOptimisticLockError(err)) {
+        setLockDialogOpen(true);
+      } else {
+        setError(err instanceof Error ? err.message : 'Save failed');
+      }
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleReload() {
+    setLockDialogOpen(false);
+    if (!editingId) return;
+    const fresh = await client.permissions.get(editingId);
+    if (fresh) {
+      setDraft(rowToDraft(fresh));
+      setExpectedUpdatedTime(fresh.updatedTime);
+    }
+    await refresh();
+  }
+
+  function handleDiscard() {
+    setLockDialogOpen(false);
+    setOpen(false);
+    setDraft(EMPTY_DRAFT);
+    setEditingId(null);
+    setExpectedUpdatedTime(undefined);
+  }
+
+  const columns: EditorTableColumn<PermissionRow>[] = [
+    {
+      key: 'permissionId',
+      header: 'Permission ID',
+      cell: (r) => <span className="font-mono">{r.permissionId}</span>,
+      sortValue: (r) => r.permissionId,
+      width: '16rem',
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      sortValue: (r) => r.category,
+      width: '12rem',
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      cell: (r) => <span className="text-muted-foreground">{r.description}</span>,
+      sortValue: (r) => r.description,
+    },
+  ];
+
+  const blockingErrors = errors.filter(
+    (e) => (e.severity ?? 'error') === 'error',
+  );
+  const drawerError =
+    error ?? (blockingErrors.length > 0 ? formatErrors(blockingErrors) : null);
+
   return (
-    <EditorShell
-      title="Permissions"
-      itemLabel="permission"
-      onCreate={startCreate}
-      list={
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Permission ID</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-24" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {permissions.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center text-muted-foreground"
-                >
-                  No permissions defined.
-                </TableCell>
-              </TableRow>
-            ) : (
-              permissions.map((row) => (
-                <TableRow
-                  key={row.permissionId}
-                  data-testid={`permission-row-${row.permissionId}`}
-                >
-                  <TableCell className="font-mono">{row.permissionId}</TableCell>
-                  <TableCell>{row.category}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.description}
-                  </TableCell>
-                  <TableCell>
-                    <button
-                      type="button"
-                      className="text-sm text-primary underline-offset-4 hover:underline"
-                      onClick={() => startEdit(row)}
-                      data-testid={`permission-edit-${row.permissionId}`}
-                    >
-                      Edit
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      }
-      drawer={{
-        open,
-        mode,
-        onOpenChange: setOpen,
-        canSave,
-        saving,
-        error,
-        onSave: handleSave,
-        body: (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="permission-id">Permission ID</Label>
-              <Input
-                id="permission-id"
-                value={draft.permissionId}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, permissionId: e.target.value }))
-                }
-                disabled={mode === 'edit'}
-                placeholder="e.g. config:write"
-                data-testid="permission-field-id"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="permission-category">Category</Label>
-              <Select
-                value={
-                  draft.useCustomCategory
-                    ? CUSTOM_SENTINEL
-                    : draft.category || undefined
-                }
-                onValueChange={(v) => {
-                  if (v === CUSTOM_SENTINEL) {
-                    setDraft((d) => ({ ...d, useCustomCategory: true }));
-                  } else {
-                    setDraft((d) => ({
-                      ...d,
-                      useCustomCategory: false,
-                      category: v,
-                    }));
-                  }
-                }}
-              >
-                <SelectTrigger
-                  id="permission-category"
-                  data-testid="permission-field-category"
-                >
-                  <SelectValue placeholder="Choose a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={CUSTOM_SENTINEL}>
-                    + New category…
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {draft.useCustomCategory ? (
+    <>
+      <EditorShell
+        title="Permissions"
+        itemLabel="permission"
+        onCreate={startCreate}
+        list={
+          <EditorDataTable
+            rows={permissions}
+            columns={columns}
+            rowKey={(r) => r.permissionId}
+            onEditRow={startEdit}
+            emptyMessage="No permissions defined."
+            testIdPrefix="permission"
+          />
+        }
+        drawer={{
+          open,
+          mode,
+          onOpenChange: setOpen,
+          canSave,
+          saving,
+          error: drawerError,
+          onSave: handleSave,
+          body: (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="permission-id">Permission ID</Label>
                 <Input
-                  value={draft.customCategory}
+                  id="permission-id"
+                  value={draft.permissionId}
                   onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      customCategory: e.target.value,
-                    }))
+                    setDraft((d) => ({ ...d, permissionId: e.target.value }))
                   }
-                  placeholder="New category name"
-                  data-testid="permission-field-custom-category"
+                  disabled={mode === 'edit'}
+                  placeholder="e.g. config:write"
+                  data-testid="permission-field-id"
                 />
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="permission-description">Description</Label>
-              <Textarea
-                id="permission-description"
-                value={draft.description}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, description: e.target.value }))
-                }
-                rows={3}
-                placeholder="What does this permission allow?"
-                data-testid="permission-field-description"
-              />
-            </div>
-          </>
-        ),
-      }}
-    />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="permission-category">Category</Label>
+                <Select
+                  value={
+                    draft.useCustomCategory
+                      ? CUSTOM_SENTINEL
+                      : draft.category || undefined
+                  }
+                  onValueChange={(v) => {
+                    if (v === CUSTOM_SENTINEL) {
+                      setDraft((d) => ({ ...d, useCustomCategory: true }));
+                    } else {
+                      setDraft((d) => ({
+                        ...d,
+                        useCustomCategory: false,
+                        category: v,
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="permission-category"
+                    data-testid="permission-field-category"
+                  >
+                    <SelectValue placeholder="Choose a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={CUSTOM_SENTINEL}>
+                      + New category…
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {draft.useCustomCategory ? (
+                  <Input
+                    value={draft.customCategory}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        customCategory: e.target.value,
+                      }))
+                    }
+                    placeholder="New category name"
+                    data-testid="permission-field-custom-category"
+                  />
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="permission-description">Description</Label>
+                <Textarea
+                  id="permission-description"
+                  value={draft.description}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, description: e.target.value }))
+                  }
+                  rows={3}
+                  placeholder="What does this permission allow?"
+                  data-testid="permission-field-description"
+                />
+              </div>
+            </>
+          ),
+        }}
+      />
+      <OptimisticLockDialog
+        open={lockDialogOpen}
+        onOpenChange={setLockDialogOpen}
+        onReload={handleReload}
+        onDiscard={handleDiscard}
+      />
+    </>
   );
 }

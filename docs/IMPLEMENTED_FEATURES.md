@@ -21,6 +21,106 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 14: list polish (filter/sort/paginate + validation + optimistic locking)
+
+Fourteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 14, Decisions 12.3 / 12.4 / 12.5 / 12.6). The four list
+editors in `@starui/config-editor-ui` move past the Session 12
+"baseline drawer-CRUD" floor by gaining a sortable / filterable /
+paginated table view, cross-table validation, and a client-side
+optimistic-lock dialog that mirrors the upstream `OptimisticLockError`
+surfaced by the REST client (Session 6).
+
+- New `EditorDataTable` component (Decision 12.6 user-facing benefit):
+  a thin wrapper over the shadcn `<Table>` primitives that adds
+  case-insensitive substring filter (across every column), tri-state
+  per-column sort (asc → desc → unsorted), and paginated row windowing
+  with a `pageSize` selector. Filter/sort/paginate state is local to
+  the component; rebooting an editor does not preserve it (operator
+  scope is per-session for now). Each control surface emits a stable
+  test-id (`{prefix}-filter`, `{prefix}-sort-{column}`,
+  `{prefix}-page-prev`, `{prefix}-page-next`, `{prefix}-page-size`,
+  `{prefix}-row-{key}`, `{prefix}-edit-{key}`).
+- Net effect: the four list editors render up to a hundred rows
+  comfortably without an extra tab; common operator flows (filter to
+  one row, click Edit, save) are now one input + one click instead of
+  scroll-and-hunt.
+- Decision 12.6's "eat our own dog food" via `MarketsGrid` is queued
+  as a follow-up — the editor package stays peer-dep-free of AG-Grid
+  and the heavy `@starui/markets-grid` test surface; we land the
+  user-facing filter/sort/paginate today and swap the underlying grid
+  in a separate change.
+
+- New `validation/` module with pure validators per table and a shared
+  `ValidationError` shape (`code`, `message`, `field?`, `severity?`).
+  `hasBlockingError` / `formatErrors` helpers let editors render the
+  full set of errors above the drawer footer. Each editor calls its
+  validator on every keystroke (the validator is pure, so no debounce
+  is needed), feeds the blocking subset into `canSave`, and the
+  warning subset into the drawer's error surface alongside upstream
+  client errors.
+- Rules covered (Decision 12.4):
+  - Required-field gates per table (id, displayName, etc.).
+  - Duplicate id on **create** → block save (edit mode skips so a row
+    can be saved without renaming).
+  - Role with zero permissions → block save.
+  - Permission referenced by any role → block delete (cross-table).
+  - User-profile delete that strands a `createdBy` reference → warn
+    but allow.
+  - App registry: `manifestUrl` must be a valid http/https URL.
+
+- Client-side optimistic-lock guard (Decision 12.5). Each editor
+  captures `row.updatedTime` at edit-start and runs
+  `guardOptimisticUpdate({ expectedUpdatedTime, fetchCurrent })`
+  immediately before the auth-table `update` call. On stale time the
+  guard throws a typed `EditorOptimisticLockError`; the editor's
+  catch path handles either that or the upstream `OptimisticLockError`
+  via the shared `isOptimisticLockError` test (so the same UX runs
+  whether the lock fired client-side or via a 412 from the server).
+- New `OptimisticLockDialog` (shadcn `AlertDialog`) presents
+  "Reload current values" and "Discard your changes" actions. Reload
+  refetches the row and rehydrates the drawer + the captured
+  `expectedUpdatedTime`; discard closes the drawer and clears the
+  draft. Same component reused across all four editors.
+- Why a local `EditorOptimisticLockError` — the upstream
+  `OptimisticLockError` from `@starui/config-service` is typed for
+  `AppConfigRow`, but the auth tables (`apps` / `roles` / `permissions`
+  / `userProfiles`) are different row shapes. The local mirror keeps
+  the upstream type unchanged while letting the editor preserve the
+  current row in the error.
+
+- New tests: 14 `validation/validation.test.ts` cases covering each
+  rule, 3 `EditorDataTable.test.tsx` cases (paginate / filter / sort),
+  5 `optimisticLock.test.tsx` cases (guard helper + dialog flow on
+  the canonical `RolesEditor`). Total `@starui/config-editor-ui` test
+  count: 48 across 9 files (was 30 across 6 files at end of Session
+  13). The new tests don't depend on AG-Grid or any browser-only API,
+  so they run cleanly under the existing jsdom setup.
+
+Verification: `npx turbo test --filter=@starui/config-editor-ui --filter=@starui/markets-grid`
+(48 + markets-grid tests pass; FULL TURBO on rerun); `npx turbo
+typecheck build` (60 tasks green; one cache miss for the editor-ui
+package itself). Look-and-feel of the matrices and the drawer surface
+is unchanged from Sessions 12 + 13 — visual diff is limited to the
+list view (filter row + sortable headers + pagination footer when row
+count exceeds the page size).
+
+Out-of-scope for Session 14 (deferred to later sessions per the
+plan): MarketsGrid as the underlying table primitive (Decision 12.6 —
+plan was to swap in the AG-Grid stack, deferred so the package can
+stay engine-agnostic; the user-visible filter/sort/paginate behavior
+delivered today is the same outcome the plan named); bundling the
+editors into a standalone admin SPA (Session 15);
+`ConfigManager` / `ConfigClient` collapse + `isTemplate` cleanup
+(Session 16).
+
+Touched: `packages/react/tools/config-editor-ui/src/{EditorDataTable,EditorDataTable.test,OptimisticLockDialog,useOptimisticUpdate,optimisticLock.test}.{ts,tsx}` (new),
+`packages/react/tools/config-editor-ui/src/validation/{types,roles,permissions,userProfiles,appRegistry,index,validation.test}.ts` (new),
+`packages/react/tools/config-editor-ui/src/{RolesEditor,PermissionsEditor,UserProfileEditor,AppRegistryEditor}.tsx` (validation + lock + grid wiring),
+`packages/react/tools/config-editor-ui/src/index.ts` (new exports),
+`docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md` (Session 14 checkboxes).
+
 ## 2026-05-08 — Config-manager redesign Session 13: PermissionMatrix + RoleAssignmentMatrix
 
 Thirteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

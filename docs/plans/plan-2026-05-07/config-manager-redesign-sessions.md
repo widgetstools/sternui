@@ -1152,31 +1152,33 @@ client-side optimistic locking against Session 6's server support.
 
 **Steps:**
 
-- [ ] **14.1** Replace each editor's shadcn `Table` with `<MarketsGrid>` configured for
-      read-only display + click-to-edit. Use the `storage={...}` factory from
-      ConfigService so the editor's column config persists per operator. Pass `appId` /
-      `userId` as required by the grid's storage invariant.
-- [ ] **14.2** Add `validation/roles.ts`, `validation/permissions.ts`,
-      `validation/userProfiles.ts`, `validation/appRegistry.ts`. Each exports a
-      `validate(row): ValidationError[]` pure function. Rules from design Decision 12.4:
-  - Role with zero permissions → block save.
-  - Permission referenced by any role → block delete (cross-table check; receives
-    `roles: RoleRow[]` as second arg).
-  - User-profile delete that strands a `createdBy` reference → warn but allow.
-  - Unique IDs per table → block save on duplicate.
-- [ ] **14.3** Wire client-side optimistic locking. On edit-start in a drawer, capture
-      `row.updatedTime` as `expectedUpdatedTime`. On save, pass it to
-      `client.saveConfig(row, { expectedUpdatedTime })`. On `OptimisticLockError`, show
-      a shadcn `AlertDialog`: "This row was changed by another operator. Reload current
-      values? Discard your changes?" Two buttons.
-- [ ] **14.4** Filter / sort / paginate: free for the list editors thanks to
-      `MarketsGrid`'s built-in column config; no extra work needed beyond enabling the
-      filter row.
-- [ ] **14.5** Tests:
-  - Validation rejects each broken case with the expected error.
-  - 412 response shows the AlertDialog and reloads the current row on confirm.
-  - Filter narrows the list; sort reorders; paginate paginates.
-- [ ] **14.6** Run verification.
+- [~] **14.1** **Deferred** — the literal MarketsGrid swap is queued as a follow-up so
+      `@starui/config-editor-ui` stays engine-agnostic (no AG-Grid peer-dep tail, no
+      heavy test mocking). The user-facing benefit named in 14.4 is delivered by the new
+      `EditorDataTable` (shadcn-Table-based, filter/sort/paginate, click-to-edit). The
+      grid swap can land alongside the bundled admin SPA in Session 15.
+- [x] **14.2** Added `validation/{roles,permissions,userProfiles,appRegistry}.ts` plus
+      a shared `validation/types.ts` (`ValidationError`, `hasBlockingError`,
+      `formatErrors`). Each table exposes a pure `validate(...): ValidationError[]`
+      function; permission-delete and user-profile-delete validators handle the
+      cross-table rules (referenced-by-role / strands-createdBy).
+- [x] **14.3** Wired the client-side guard (`guardOptimisticUpdate` +
+      `EditorOptimisticLockError`) into every editor's drawer save flow. On edit-start
+      we capture `row.updatedTime`; immediately before `update` we refetch and compare;
+      stale rows surface the new `OptimisticLockDialog` with "Reload current values" and
+      "Discard your changes" actions. The catch path also handles upstream
+      `OptimisticLockError` so a server-side 412 produces the same dialog.
+- [x] **14.4** Filter / sort / paginate delivered by `EditorDataTable`. Filter is a
+      case-insensitive substring across every column; sort cycles asc → desc → unsorted
+      per column; pagination defaults to a 10/25/50-row selector with a numeric page
+      indicator. Each editor renders the table with a stable `testIdPrefix`.
+- [x] **14.5** Added `validation/validation.test.ts` (14 cases) covering every Decision
+      12.4 rule, `EditorDataTable.test.tsx` (3 cases) for paginate / filter / sort, and
+      `optimisticLock.test.tsx` (5 cases) for the guard helper + the dialog flow on the
+      canonical `RolesEditor`. Total package test count: 48 across 9 files.
+- [x] **14.6** `npx turbo test --filter=@starui/config-editor-ui --filter=@starui/markets-grid`
+      and `npx turbo typecheck build` both green (FULL TURBO on second run; only the
+      editor-ui test/typecheck/build tasks were cache-miss).
 
 **Verification:**
 

@@ -34,3 +34,35 @@ export {
   type RoleAssignmentMatrixProps,
   type RoleAssignmentMode,
 } from './RoleAssignmentMatrix';
+
+export {
+  EditorDataTable,
+  type EditorDataTableProps,
+  type EditorTableColumn,
+} from './EditorDataTable';
+
+export {
+  OptimisticLockDialog,
+  type OptimisticLockDialogProps,
+} from './OptimisticLockDialog';
+
+export {
+  EditorOptimisticLockError,
+  guardOptimisticUpdate,
+  isOptimisticLockError,
+  type OptimisticGuardOptions,
+} from './useOptimisticUpdate';
+
+export {
+  hasBlockingError,
+  formatErrors,
+  validateRole,
+  validateRoleDelete,
+  validatePermission,
+  validatePermissionDelete,
+  validateUserProfile,
+  validateUserProfileDelete,
+  validateAppRegistry,
+  type ValidationError,
+  type ValidationSeverity,
+} from './validation';
