@@ -12,11 +12,11 @@ const SCATTER_DATA = BONDS.map((b) => ({
 }));
 
 const RTG_COLOR: Record<string, string> = {
-  aaa: '#3b82f6',
-  aa: '#22d3ee',
-  a: '#2dd4bf',
-  bbb: '#ff8c42',
-  hy: '#f87171',
+  aaa: 'var(--ds-accent-info)',
+  aa: 'var(--ds-accent-info)',
+  a: 'var(--ds-accent-positive)',
+  bbb: 'var(--ds-accent-warning)',
+  hy: 'var(--ds-accent-negative)',
 };
 
 const rtgGroups = Object.keys(RTG_COLOR);
@@ -28,7 +28,7 @@ const rtgGroups = Object.keys(RTG_COLOR);
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;padding:8px 6px 0">
         <p-chart
@@ -42,7 +42,7 @@ const rtgGroups = Object.keys(RTG_COLOR);
       <div style="display:flex;gap:10px;padding:4px 14px 8px;flex-shrink:0">
         <div *ngFor="let item of legend" style="display:flex;align-items:center;gap:4px">
           <div [style.background]="item.color" style="width:7px;height:7px;border-radius:50%"></div>
-          <span style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">{{
+          <span style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace">{{
             item.label
           }}</span>
         </div>
@@ -93,15 +93,15 @@ export class OasDurationWidget implements OnInit {
           title: {
             display: true,
             text: 'Duration (yrs)',
-            color: '#8a8f98',
+            color: 'var(--ds-text-muted)',
             font: { size: 9, family: 'JetBrains Mono,monospace' },
           },
-          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          ticks: { color: 'var(--ds-text-muted)', font: { size: 9, family: 'JetBrains Mono,monospace' } },
           grid: { color: 'rgba(255,255,255,0.06)' },
         },
         y: {
           ticks: {
-            color: '#8a8f98',
+            color: 'var(--ds-text-muted)',
             font: { size: 9, family: 'JetBrains Mono,monospace' },
             callback: (v: number) => `+${v}`,
           },

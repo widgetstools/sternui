@@ -2,13 +2,13 @@ import { Component, Input, AfterViewInit, ElementRef, ViewChild, OnDestroy } fro
 import { RISK_POSITIONS } from '../services/trading-data.service';
 
 const DV01_DATA = RISK_POSITIONS.map((p) => ({ name: p.book, dv01: p.dv01, pnl: p.pnl }));
-const BAR_COLORS = ['#3b82f6', 'var(--bn-red)', '#3b82f6', '#22d3ee', '#a855f7'];
+const BAR_COLORS = ['var(--ds-accent-info)', 'var(--ds-accent-negative)', 'var(--ds-accent-info)', 'var(--ds-accent-info)', 'var(--ds-accent-info)'];
 
 @Component({
   selector: 'dv01-chart-widget',
   standalone: true,
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
-  template: `<div style="flex:1;position:relative;background:var(--bn-bg1)">
+  template: `<div style="flex:1;position:relative;background:var(--ds-surface-primary)">
     <canvas #canvas style="width:100%;height:100%;display:block"></canvas>
   </div>`,
 })
@@ -42,7 +42,7 @@ export class Dv01ChartWidget implements AfterViewInit, OnDestroy {
       H = canvas.height;
     const pad = { l: 60, r: 16, t: 16, b: 40 };
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bn-bg1').trim();
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ds-surface-primary').trim();
     ctx.fillRect(0, 0, W, H);
 
     const maxVal = Math.max(...DV01_DATA.map((d) => d.dv01));
@@ -51,7 +51,7 @@ export class Dv01ChartWidget implements AfterViewInit, OnDestroy {
 
     // Grid
     ctx.strokeStyle = getComputedStyle(document.documentElement)
-      .getPropertyValue('--bn-bg2')
+      .getPropertyValue('--ds-surface-secondary')
       .trim();
     ctx.lineWidth = 0.5;
     for (let i = 1; i <= 4; i++) {
@@ -60,7 +60,7 @@ export class Dv01ChartWidget implements AfterViewInit, OnDestroy {
       ctx.moveTo(pad.l, y);
       ctx.lineTo(W - pad.r, y);
       ctx.stroke();
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bn-t2').trim();
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ds-text-muted').trim();
       ctx.font = '9px JetBrains Mono,monospace';
       ctx.textAlign = 'right';
       ctx.fillText(`$${((maxVal * i) / 4 / 1000).toFixed(0)}K`, pad.l - 4, y + 3);
@@ -75,7 +75,7 @@ export class Dv01ChartWidget implements AfterViewInit, OnDestroy {
       ctx.roundRect(x, y, barW, barH, [2, 2, 0, 0]);
       ctx.fill();
       // Label
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bn-t2').trim();
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ds-text-muted').trim();
       ctx.font = '9px JetBrains Mono,monospace';
       ctx.textAlign = 'center';
       ctx.fillText(

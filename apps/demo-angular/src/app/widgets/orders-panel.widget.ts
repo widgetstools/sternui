@@ -21,10 +21,10 @@ LicenseManager.setLicenseKey('');
   imports: [CommonModule, AgGridAngular],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
-    <div style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1)">
+    <div style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary)">
       <!-- Tabs -->
       <div
-        style="display:flex;align-items:center;border-bottom:1px solid var(--bn-border);flex-shrink:0"
+        style="display:flex;align-items:center;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0"
       >
         <button
           *ngFor="let t of tabNames"
@@ -69,14 +69,14 @@ LicenseManager.setLicenseKey('');
         >
           <div
             *ngFor="let f of funds"
-            style="padding:12px;border-radius:4px;border:1px solid var(--bn-border2);background:var(--bn-bg2)"
+            style="padding:12px;border-radius:4px;border:1px solid var(--ds-border-secondary);background:var(--ds-surface-secondary)"
           >
-            <div class="font-bold" style="color:var(--bn-t0);margin-bottom:4px">{{ f.asset }}</div>
-            <div style="font-size:11px;color:var(--bn-t1)">
-              Available: <span class="font-mono-fi" style="color:var(--bn-t0)">{{ f.avail }}</span>
+            <div class="font-bold" style="color:var(--ds-text-primary);margin-bottom:4px">{{ f.asset }}</div>
+            <div style="font-size:11px;color:var(--ds-text-secondary)">
+              Available: <span class="font-mono-fi" style="color:var(--ds-text-primary)">{{ f.avail }}</span>
             </div>
-            <div style="font-size:11px;color:var(--bn-t1)">
-              In Order: <span class="font-mono-fi" style="color:var(--bn-t0)">{{ f.locked }}</span>
+            <div style="font-size:11px;color:var(--ds-text-secondary)">
+              In Order: <span class="font-mono-fi" style="color:var(--ds-text-primary)">{{ f.locked }}</span>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ export class OrdersPanelWidget {
       field: 'time',
       headerName: 'Date',
       flex: 0.6,
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
     },
     {
       field: 'bond',
@@ -120,7 +120,7 @@ export class OrdersPanelWidget {
       field: 'type',
       headerName: 'Type',
       flex: 0.6,
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
     },
     {
       field: 'side',
@@ -152,7 +152,7 @@ export class OrdersPanelWidget {
       headerName: 'Total',
       flex: 0.7,
       type: 'numericColumn',
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
       valueGetter: (p) => {
         if (!p.data || p.data.px <= 0) return '---';
         const val = parseFloat(String(p.data.qty).replace(/[$MM,]/g, ''));
@@ -172,7 +172,7 @@ export class OrdersPanelWidget {
       field: 'time',
       headerName: 'Date',
       flex: 0.6,
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
     },
     {
       field: 'bond',
@@ -202,14 +202,14 @@ export class OrdersPanelWidget {
       headerName: 'Total',
       flex: 0.6,
       type: 'numericColumn',
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
       valueGetter: () => '---',
     },
     {
       headerName: 'Fee',
       flex: 0.5,
       type: 'numericColumn',
-      cellStyle: { color: 'var(--bn-t1)' },
+      cellStyle: { color: 'var(--ds-text-secondary)' },
       valueGetter: () => '---',
     },
     {

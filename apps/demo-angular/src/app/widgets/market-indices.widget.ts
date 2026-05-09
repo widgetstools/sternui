@@ -18,7 +18,7 @@ LicenseManager.setLicenseKey('');
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;overflow:hidden">
         <ag-grid-angular
@@ -50,7 +50,7 @@ export class MarketIndicesWidget implements OnInit, OnDestroy {
       field: 'name',
       headerName: 'INDEX',
       flex: 1.5,
-      cellStyle: { color: 'var(--bn-t0)' },
+      cellStyle: { color: 'var(--ds-text-primary)' },
     },
     {
       field: 'val',

@@ -41,26 +41,26 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 const EDITOR_CSS = `
 :root, [data-dock-editor] {
-  --de-font: var(--fi-sans);
-  --de-mono: var(--fi-mono);
+  --de-font: var(--ds-font-sans);
+  --de-mono: var(--ds-font-mono);
 
-  --de-bg-deep:    var(--bn-bg);
-  --de-bg:         var(--bn-bg1);
-  --de-bg-raised:  var(--bn-bg1);
-  --de-bg-surface: var(--bn-bg2);
-  --de-bg-hover:   var(--bn-bg3);
+  --de-bg-deep:    var(--ds-surface-ground);
+  --de-bg:         var(--ds-surface-primary);
+  --de-bg-raised:  var(--ds-surface-primary);
+  --de-bg-surface: var(--ds-surface-secondary);
+  --de-bg-hover:   var(--ds-surface-tertiary);
 
-  --de-border:         var(--bn-border);
-  --de-border-strong:  var(--bn-border2);
+  --de-border:         var(--ds-border-primary);
+  --de-border-strong:  var(--ds-border-secondary);
 
-  --de-text:           var(--bn-t0);
-  --de-text-secondary: var(--bn-t1);
-  --de-text-tertiary:  var(--bn-t2);
-  --de-text-ghost:     var(--bn-t3);
+  --de-text:           var(--ds-text-primary);
+  --de-text-secondary: var(--ds-text-secondary);
+  --de-text-tertiary:  var(--ds-text-muted);
+  --de-text-ghost:     var(--ds-text-faint);
 
-  --de-accent:         var(--bn-blue);
-  --de-accent-dim:     var(--bn-info-soft);
-  --de-danger:         var(--bn-red);
+  --de-accent:         var(--ds-accent-info);
+  --de-accent-dim:     var(--ds-overlay-info-soft);
+  --de-danger:         var(--ds-accent-negative);
 
   --de-radius-sm: 6px;
   --de-radius-md: 10px;
@@ -71,28 +71,28 @@ const EDITOR_CSS = `
 }
 
 /* PrimeNG input/button chrome */
-.p-inputtext { background: var(--bn-bg2) !important; color: var(--bn-t0) !important; border: 1px solid var(--bn-border) !important; }
+.p-inputtext { background: var(--ds-surface-secondary) !important; color: var(--ds-text-primary) !important; border: 1px solid var(--ds-border-primary) !important; }
 .p-inputtext:focus, .p-inputtext:enabled:focus {
-  border-color: var(--bn-blue) !important;
-  box-shadow: 0 0 0 2px var(--bn-info-soft) !important;
+  border-color: var(--ds-accent-info) !important;
+  box-shadow: 0 0 0 2px var(--ds-overlay-info-soft) !important;
 }
-.p-inputtext::placeholder { color: var(--bn-t2) !important; }
-.p-button { font-family: var(--fi-sans) !important; }
+.p-inputtext::placeholder { color: var(--ds-text-muted) !important; }
+.p-button { font-family: var(--ds-font-sans) !important; }
 .p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger) {
-  background: var(--bn-blue) !important;
-  color: var(--bn-cta-text, #fff) !important;
-  border: 1px solid var(--bn-blue) !important;
+  background: var(--ds-accent-info) !important;
+  color: var(--ds-text-primary) !important;
+  border: 1px solid var(--ds-accent-info) !important;
 }
 .p-button.p-button-text {
   background: transparent !important;
-  color: var(--bn-t1) !important;
-  border: 1px solid var(--bn-border) !important;
+  color: var(--ds-text-secondary) !important;
+  border: 1px solid var(--ds-border-primary) !important;
 }
-.p-button.p-button-text:enabled:hover { background: var(--bn-bg3) !important; }
+.p-button.p-button-text:enabled:hover { background: var(--ds-surface-tertiary) !important; }
 .p-button.p-button-danger {
-  background: var(--bn-red) !important;
-  color: #fff !important;
-  border: 1px solid var(--bn-red) !important;
+  background: var(--ds-accent-negative) !important;
+  color: var(--ds-text-primary) !important;
+  border: 1px solid var(--ds-accent-negative) !important;
 }
 `;
 
@@ -109,27 +109,27 @@ function injectStyles(): void {
 // ─── AG-Grid theme (design-system driven) ───────────────────────────
 
 const AG_THEME_DARK: Theme = themeQuartz.withPart(colorSchemeDark).withParams({
-  backgroundColor: 'var(--bn-bg1)',
-  foregroundColor: 'var(--bn-t0)',
-  headerBackgroundColor: 'var(--bn-bg2)',
-  headerTextColor: 'var(--bn-t1)',
-  rowHoverColor: 'var(--bn-bg3)',
-  selectedRowBackgroundColor: 'var(--bn-info-soft)',
-  borderColor: 'var(--bn-border)',
-  accentColor: 'var(--bn-blue)',
-  fontFamily: 'var(--fi-sans)',
+  backgroundColor: 'var(--ds-surface-primary)',
+  foregroundColor: 'var(--ds-text-primary)',
+  headerBackgroundColor: 'var(--ds-surface-secondary)',
+  headerTextColor: 'var(--ds-text-secondary)',
+  rowHoverColor: 'var(--ds-surface-tertiary)',
+  selectedRowBackgroundColor: 'var(--ds-overlay-info-soft)',
+  borderColor: 'var(--ds-border-primary)',
+  accentColor: 'var(--ds-accent-info)',
+  fontFamily: 'var(--ds-font-sans)',
   fontSize: 12,
 });
 const AG_THEME_LIGHT: Theme = themeQuartz.withPart(colorSchemeLight).withParams({
-  backgroundColor: 'var(--bn-bg1)',
-  foregroundColor: 'var(--bn-t0)',
-  headerBackgroundColor: 'var(--bn-bg2)',
-  headerTextColor: 'var(--bn-t1)',
-  rowHoverColor: 'var(--bn-bg3)',
-  selectedRowBackgroundColor: 'var(--bn-info-soft)',
-  borderColor: 'var(--bn-border)',
-  accentColor: 'var(--bn-blue)',
-  fontFamily: 'var(--fi-sans)',
+  backgroundColor: 'var(--ds-surface-primary)',
+  foregroundColor: 'var(--ds-text-primary)',
+  headerBackgroundColor: 'var(--ds-surface-secondary)',
+  headerTextColor: 'var(--ds-text-secondary)',
+  rowHoverColor: 'var(--ds-surface-tertiary)',
+  selectedRowBackgroundColor: 'var(--ds-overlay-info-soft)',
+  borderColor: 'var(--ds-border-primary)',
+  accentColor: 'var(--ds-accent-info)',
+  fontFamily: 'var(--ds-font-sans)',
   fontSize: 12,
 });
 
@@ -329,7 +329,7 @@ const AG_THEME_LIGHT: Theme = themeQuartz.withPart(colorSchemeLight).withParams(
                       (click)="handleDelete()" [disabled]="saving()"
                       [style.border]="confirmDelete() ? '1px solid var(--de-danger)' : '1px solid var(--de-border)'"
                       [style.background]="confirmDelete() ? 'var(--de-danger)' : 'var(--de-bg-surface)'"
-                      [style.color]="confirmDelete() ? '#fff' : 'var(--de-danger)'"
+                      [style.color]="confirmDelete() ? 'var(--ds-text-primary)' : 'var(--de-danger)'"
                       style="height: 30px; padding: 0 12px;
                              border-radius: var(--de-radius-sm);
                              font-size: 12px; font-weight: 600; cursor: pointer;
@@ -349,7 +349,7 @@ const AG_THEME_LIGHT: Theme = themeQuartz.withPart(colorSchemeLight).withParams(
               <button type="button" (click)="handleSave()"
                       [disabled]="saving() || !canSave()"
                       [style.background]="canSave() ? 'var(--de-accent)' : 'var(--de-bg-surface)'"
-                      [style.color]="canSave() ? 'var(--bn-cta-text, #fff)' : 'var(--de-text-tertiary)'"
+                      [style.color]="canSave() ? 'var(--ds-text-primary)' : 'var(--de-text-tertiary)'"
                       [style.cursor]="canSave() && !saving() ? 'pointer' : 'not-allowed'"
                       style="height: 30px; padding: 0 16px;
                              border-radius: var(--de-radius-sm); border: none;
@@ -436,10 +436,10 @@ export class ConfigBrowserComponent implements OnInit, OnDestroy {
           return { color: 'var(--de-text-ghost)', fontStyle: 'italic' } as CellStyle;
         }
         if (typeof params.value === 'object') {
-          return { fontFamily: 'var(--fi-mono)', color: 'var(--de-text-secondary)' } as CellStyle;
+          return { fontFamily: 'var(--ds-font-mono)', color: 'var(--de-text-secondary)' } as CellStyle;
         }
         if (key === pk) {
-          return { fontFamily: 'var(--fi-mono)', fontWeight: '600' } as CellStyle;
+          return { fontFamily: 'var(--ds-font-mono)', fontWeight: '600' } as CellStyle;
         }
         return null;
       },

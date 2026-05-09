@@ -139,7 +139,7 @@ function GridPanel({
             width: 6,
             height: 6,
             borderRadius: 3,
-            background: 'var(--bn-green, #2dd4bf)',
+            background: 'var(--ds-accent-positive)',
             display: 'inline-block',
           }}
         />

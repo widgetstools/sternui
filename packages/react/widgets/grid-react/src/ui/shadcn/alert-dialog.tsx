@@ -8,7 +8,7 @@
  * than a plain Dialog.
  *
  * Visual language matches the rest of the app's shadcn primitives:
- *   --gc-surface / --gc-border / --gc-text with dark hex fallbacks so it
+ *   --ds-surface-primary / --ds-border-primary / --ds-text-primary so it
  *   still looks right when rendered into the document root (outside the
  *   gc-sheet scope).
  *
@@ -77,12 +77,12 @@ const AlertDialogContent = React.forwardRef<
         'fixed left-1/2 top-1/2 z-[2147483647] w-[min(420px,calc(100vw-24px))]',
         '-translate-x-1/2 -translate-y-1/2',
         // Theme
-        'bg-[var(--gc-surface,#161a1e)] text-[var(--gc-text,#eaecef)]',
-        'border border-[var(--gc-border,#313944)] rounded-lg',
+        'bg-[var(--ds-surface-primary)] text-[var(--ds-text-primary)]',
+        'border border-[var(--ds-border-primary)] rounded-lg',
         'shadow-[0_24px_56px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
         // Layout + type
         'grid gap-4 p-5',
-        'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)]',
+        'font-[var(--ds-font-sans)]',
         // Animations
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
@@ -93,8 +93,8 @@ const AlertDialogContent = React.forwardRef<
       // via the --card re-binding under [data-theme='light'].
       // `outline: none` suppresses the browser's default focus ring.
       style={{
-        background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
-        color: 'var(--gc-text, var(--bn-t0, #eaecef))',
+        background: 'var(--ds-surface-primary)',
+        color: 'var(--ds-text-primary)',
         outline: 'none',
         ...style,
       }}
@@ -128,7 +128,7 @@ const AlertDialogTitle = React.forwardRef<
   <AlertDialogPrimitive.Title
     ref={ref}
     className={cn(
-      'text-[13px] font-semibold tracking-[0.1px] text-[var(--gc-text,#eaecef)]',
+      'text-[13px] font-semibold tracking-[0.1px] text-[var(--ds-text-primary)]',
       className,
     )}
     {...props}
@@ -143,7 +143,7 @@ const AlertDialogDescription = React.forwardRef<
   <AlertDialogPrimitive.Description
     ref={ref}
     className={cn(
-      'text-[11px] leading-[1.5] text-[var(--gc-muted,#8b93a1)]',
+      'text-[11px] leading-[1.5] text-[var(--ds-text-muted)]',
       className,
     )}
     {...props}
@@ -164,11 +164,11 @@ const AlertDialogAction = React.forwardRef<
       'text-[11px] font-semibold tracking-[0.2px]',
       'transition-colors duration-100',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-      'focus-visible:ring-offset-[var(--gc-surface,#161a1e)]',
+      'focus-visible:ring-offset-[var(--ds-surface-primary)]',
       'disabled:pointer-events-none disabled:opacity-50',
       variant === 'destructive'
-        ? 'bg-[var(--bn-red,#ef4444)] text-white hover:bg-[color-mix(in_srgb,var(--bn-red,#ef4444)_90%,#000)] focus-visible:ring-[var(--bn-red,#ef4444)]'
-        : 'bg-[var(--bn-blue,#14b8a6)] text-[#0b0e11] hover:bg-[color-mix(in_srgb,var(--bn-blue,#14b8a6)_90%,#000)] focus-visible:ring-[var(--bn-blue,#14b8a6)]',
+        ? 'bg-[var(--ds-accent-negative)] text-white hover:bg-[color-mix(in_srgb,var(--ds-accent-negative)_90%,black)] focus-visible:ring-[var(--ds-accent-negative)]'
+        : 'bg-[var(--ds-accent-info)] text-[var(--ds-surface-ground)] hover:bg-[color-mix(in_srgb,var(--ds-accent-info)_90%,black)] focus-visible:ring-[var(--ds-accent-info)]',
       className,
     )}
     {...props}
@@ -185,12 +185,12 @@ const AlertDialogCancel = React.forwardRef<
     className={cn(
       'inline-flex h-[30px] items-center justify-center rounded-md px-3',
       'text-[11px] font-medium tracking-[0.1px]',
-      'bg-transparent text-[var(--gc-text,#eaecef)]',
-      'border border-[var(--gc-border,#313944)]',
+      'bg-transparent text-[var(--ds-text-primary)]',
+      'border border-[var(--ds-border-primary)]',
       'transition-colors duration-100',
-      'hover:bg-[color-mix(in_srgb,var(--gc-text,#eaecef)_6%,transparent)]',
+      'hover:bg-[color-mix(in_srgb,var(--ds-text-primary)_6%,transparent)]',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-      'focus-visible:ring-offset-[var(--gc-surface,#161a1e)] focus-visible:ring-[var(--gc-border,#313944)]',
+      'focus-visible:ring-offset-[var(--ds-surface-primary)] focus-visible:ring-[var(--ds-border-primary)]',
       'disabled:pointer-events-none disabled:opacity-50',
       className,
     )}

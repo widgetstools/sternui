@@ -399,7 +399,7 @@ export function PopoutPortal({
   // Why NOT body: the demo loads two stylesheets that both define shadcn
   // tokens — fi-dark.css (design-system, HSL triplets like
   // `--card: 214 26% 10%`) and globals.css (demo, hex like
-  // `--card: #161a1e`). fi-dark.css uses selector `:root, [data-theme="dark"]`
+  // `--card: var(--ds-surface-primary)`). fi-dark.css uses selector `:root, [data-theme="dark"]`
   // while globals.css uses just `:root`.
   //
   // - On <html>: both rules match. globals.css is loaded LAST so its hex
@@ -637,7 +637,7 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
       // cascade-only reset.
       reset.textContent = `
         html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; width: 100% !important; overflow: hidden !important; }
-        body { font-family: inherit; background: var(--ds-surface-ground, #0b0e11); color: var(--ds-text-primary, #eaecef); }
+        body { font-family: inherit; background: var(--ds-surface-ground); color: var(--ds-text-primary); }
         [data-popout-root] { width: 100% !important; height: 100% !important; min-width: 0; min-height: 0; overflow: hidden !important; }
       `;
       doc.head.appendChild(reset);

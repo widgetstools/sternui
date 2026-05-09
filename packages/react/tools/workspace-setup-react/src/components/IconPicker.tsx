@@ -30,7 +30,7 @@ interface IconPickerProps {
   onSelect: (iconId: string, svgDataUrl: string) => void;
   /** Currently selected iconId (e.g. "mkt:bond"). */
   selectedIcon?: string;
-  /** Color for the SVG data URL (default "#ffffff" for dark theme) */
+  /** Color for the SVG data URL (default "var(--ds-text-primary)" for dark theme) */
   color?: string;
 }
 
@@ -72,7 +72,7 @@ const ALL_ICONS = buildIconList();
 
 // ─── Component ──────────────────────────────────────────────────────
 
-export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPickerProps) {
+export function IconPicker({ onSelect, selectedIcon, color = "var(--ds-text-primary)" }: IconPickerProps) {
   const [search, setSearch] = useState("");
 
   // Filter icons based on search query

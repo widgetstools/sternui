@@ -10,7 +10,7 @@ import { HIST_OAS } from '../services/trading-data.service';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="display:flex;justify-content:flex-end;padding:4px 10px;flex-shrink:0">
         <button
@@ -18,9 +18,9 @@ import { HIST_OAS } from '../services/trading-data.service';
           (click)="period = p"
           class="font-mono-fi"
           style="font-size:9px;padding:2px 6px;margin-left:3px;border-radius:2px;cursor:pointer"
-          [style.background]="period === p ? 'var(--bn-border)' : 'transparent'"
-          [style.border]="'1px solid var(--bn-border)'"
-          [style.color]="period === p ? 'var(--bn-t0)' : 'var(--bn-t1)'"
+          [style.background]="period === p ? 'var(--ds-border-primary)' : 'transparent'"
+          [style.border]="'1px solid var(--ds-border-primary)'"
+          [style.color]="period === p ? 'var(--ds-text-primary)' : 'var(--ds-text-secondary)'"
         >
           {{ p }}
         </button>
@@ -53,7 +53,7 @@ export class HistoricalOasWidget implements OnInit {
         {
           label: 'CDX IG',
           data: HIST_OAS.map((d) => d.ig),
-          borderColor: '#3b82f6',
+          borderColor: 'var(--ds-accent-info)',
           backgroundColor: 'rgba(59,130,246,0.1)',
           fill: true,
           tension: 0.3,
@@ -64,7 +64,7 @@ export class HistoricalOasWidget implements OnInit {
         {
           label: 'CDX HY',
           data: HIST_OAS.map((d) => d.hy),
-          borderColor: '#f87171',
+          borderColor: 'var(--ds-accent-negative)',
           backgroundColor: 'rgba(255,77,109,0.06)',
           fill: true,
           tension: 0.3,
@@ -85,7 +85,7 @@ export class HistoricalOasWidget implements OnInit {
           position: 'top' as const,
           align: 'start' as const,
           labels: {
-            color: '#8a8f98',
+            color: 'var(--ds-text-muted)',
             font: { size: 9, family: 'JetBrains Mono,monospace' },
             boxWidth: 12,
             padding: 8,
@@ -102,7 +102,7 @@ export class HistoricalOasWidget implements OnInit {
       scales: {
         x: {
           ticks: {
-            color: '#8a8f98',
+            color: 'var(--ds-text-muted)',
             font: { size: 9, family: 'JetBrains Mono,monospace' },
             maxTicksLimit: 8,
           },
@@ -110,12 +110,12 @@ export class HistoricalOasWidget implements OnInit {
         },
         ig: {
           position: 'left' as const,
-          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          ticks: { color: 'var(--ds-text-muted)', font: { size: 9, family: 'JetBrains Mono,monospace' } },
           grid: { color: 'rgba(255,255,255,0.06)' },
         },
         hy: {
           position: 'right' as const,
-          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          ticks: { color: 'var(--ds-text-muted)', font: { size: 9, family: 'JetBrains Mono,monospace' } },
           grid: { display: false },
         },
       },

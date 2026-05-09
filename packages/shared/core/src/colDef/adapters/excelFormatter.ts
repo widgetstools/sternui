@@ -54,16 +54,16 @@ const _cache = new Map<string, CachedFormatter>();
 // negative PnL, fill-bar states, etc.). Each entry uses the `var(--token,
 // #fallback)` pattern so CSS variables that aren't defined at render time
 // degrade gracefully to a sensible hex. Black / White / Magenta aren't in
-// the `--bn-*` palette so they stay as plain hex.
+// the design-system palette so they stay as plain hex.
 const EXCEL_COLOR_MAP: Record<string, string> = {
-  BLACK:   '#000000',
-  BLUE:    'var(--bn-blue, #3da0ff)',
-  CYAN:    'var(--bn-cyan, #22d3ee)',
-  GREEN:   'var(--bn-green, #2dd4bf)',     // design-system teal — same token as BUY / positive PnL
-  MAGENTA: '#FF00FF',
-  RED:     'var(--bn-red, #f87171)',       // design-system red — same token as SELL / negative PnL
-  WHITE:   '#FFFFFF',
-  YELLOW:  'var(--bn-yellow, #f0b90b)',
+  BLACK:   'var(--ds-surface-ground)',
+  BLUE:    'var(--ds-accent-info)',
+  CYAN:    'var(--ds-accent-info)',
+  GREEN:   'var(--ds-accent-positive)',   // design-system positive — same token as BUY / positive PnL
+  MAGENTA: 'var(--ds-accent-warning)',
+  RED:     'var(--ds-accent-negative)',   // design-system negative — same token as SELL / negative PnL
+  WHITE:   'var(--ds-text-primary)',
+  YELLOW:  'var(--ds-accent-warning)',
 };
 
 /**

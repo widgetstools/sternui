@@ -56,10 +56,10 @@ export function DataGrid({
           return { color: "var(--de-text-ghost)", fontStyle: "italic" } as CellStyle;
         }
         if (typeof params.value === "object") {
-          return { fontFamily: "var(--fi-mono)", color: "var(--de-text-secondary)" } as CellStyle;
+          return { fontFamily: "var(--ds-font-mono)", color: "var(--de-text-secondary)" } as CellStyle;
         }
         if (key === primaryKey) {
-          return { fontFamily: "var(--fi-mono)", fontWeight: "600" } as CellStyle;
+          return { fontFamily: "var(--ds-font-mono)", fontWeight: "600" } as CellStyle;
         }
         return null;
       },

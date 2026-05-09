@@ -127,18 +127,18 @@ function ToolbarButton({
         border: primary
           ? "none"
           : danger
-            ? "1px solid color-mix(in srgb, var(--de-danger, #f87171) 35%, var(--de-border))"
+            ? "1px solid color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 35%, var(--de-border))"
             : "1px solid var(--de-border)",
         borderRadius: "var(--de-radius-sm)",
         background: primary
           ? "var(--de-accent)"
           : danger
-            ? "color-mix(in srgb, var(--de-danger, #f87171) 8%, var(--de-bg-surface))"
+            ? "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 8%, var(--de-bg-surface))"
             : "var(--de-bg-surface)",
         color: primary
-          ? "var(--bn-cta-text, #fff)"
+          ? "var(--ds-text-primary)"
           : danger
-            ? "var(--de-danger, #f87171)"
+            ? "var(--de-danger, var(--ds-accent-negative))"
             : "var(--de-text-secondary)",
         fontSize: 12,
         fontWeight: primary ? 600 : 500,

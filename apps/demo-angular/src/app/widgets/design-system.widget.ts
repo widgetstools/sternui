@@ -13,11 +13,11 @@ import { CommonModule } from '@angular/common';
       <!-- ══════════════════════════════════════════════════════ -->
       <div style="margin-bottom:32px">
         <h1
-          style="font-size:18px;font-weight:700;color:var(--bn-t0);margin:0 0 4px 0;font-family:var(--fi-sans)"
+          style="font-size:18px;font-weight:700;color:var(--ds-text-primary);margin:0 0 4px 0;font-family:var(--ds-font-sans)"
         >
           FI Design System
         </h1>
-        <p style="font-size:11px;color:var(--bn-t2);margin:0;font-family:var(--fi-mono)">
+        <p style="font-size:11px;color:var(--ds-text-muted);margin:0;font-family:var(--ds-font-mono)">
           Color palette, typography, spacing, and component reference. Dark theme + VS Code Light
           Modern-style light theme. All values adapt via CSS custom properties.
         </p>
@@ -46,14 +46,14 @@ import { CommonModule } from '@angular/common';
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <div
               *ngFor="let t of textColors"
-              style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bn-bg1);border-radius:3px;border:1px solid var(--bn-border)"
+              style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--ds-surface-primary);border-radius:3px;border:1px solid var(--ds-border-primary)"
             >
               <span
-                style="font-size:13px;font-family:var(--fi-mono);font-weight:600"
+                style="font-size:13px;font-family:var(--ds-font-mono);font-weight:600"
                 [style.color]="t.var"
                 >Sample Text</span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)"
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                 >{{ t.name }} {{ t.hex }}</span
               >
             </div>
@@ -66,11 +66,11 @@ import { CommonModule } from '@angular/common';
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <div *ngFor="let c of semanticColors" class="ds-color-chip" [style.background]="c.var">
               <span
-                style="font-size:9px;font-weight:600;color:var(--bn-bg);font-family:var(--fi-mono)"
+                style="font-size:9px;font-weight:600;color:var(--ds-surface-ground);font-family:var(--ds-font-mono)"
                 >{{ c.name }}</span
               >
               <span
-                style="font-size:9px;color:var(--bn-bg);font-family:var(--fi-mono);opacity:0.8"
+                style="font-size:9px;color:var(--ds-surface-ground);font-family:var(--ds-font-mono);opacity:0.8"
                 >{{ c.hex }}</span
               >
             </div>
@@ -82,57 +82,57 @@ import { CommonModule } from '@angular/common';
           <div class="ds-sub-heading">Trading Colors</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <div
-              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bn-buy-bg);border-radius:3px"
+              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--ds-overlay-positive-soft);border-radius:3px"
             >
               <span
-                style="font-size:11px;font-weight:600;color:var(--bn-cta-text);font-family:var(--fi-mono)"
+                style="font-size:11px;font-weight:600;color:var(--ds-text-primary);font-family:var(--ds-font-mono)"
                 >BUY +0.125</span
               >
-              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--fi-mono)"
-                >--bn-buy-bg</span
+              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--ds-font-mono)"
+                >--ds-overlay-positive-soft</span
               >
             </div>
             <div
-              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bn-sell-bg);border-radius:3px"
+              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--ds-overlay-negative-soft);border-radius:3px"
             >
               <span
-                style="font-size:11px;font-weight:600;color:var(--bn-cta-text);font-family:var(--fi-mono)"
+                style="font-size:11px;font-weight:600;color:var(--ds-text-primary);font-family:var(--ds-font-mono)"
                 >SELL -0.250</span
               >
-              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--fi-mono)"
-                >--bn-sell-bg</span
+              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--ds-font-mono)"
+                >--ds-overlay-negative-soft</span
               >
             </div>
             <div
-              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bn-blue);border-radius:3px"
+              style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--ds-accent-info);border-radius:3px"
             >
               <span
-                style="font-size:11px;font-weight:600;color:var(--bn-cta-text);font-family:var(--fi-mono)"
+                style="font-size:11px;font-weight:600;color:var(--ds-text-primary);font-family:var(--ds-font-mono)"
                 >SEND RFQ</span
               >
-              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--fi-mono)"
-                >--bn-cta-text</span
+              <span style="font-size:9px;color:rgba(255,255,255,0.7);font-family:var(--ds-font-mono)"
+                >--ds-text-primary</span
               >
             </div>
             <div
-              style="display:flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid var(--bn-green);border-radius:3px"
+              style="display:flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid var(--ds-accent-positive);border-radius:3px"
             >
               <span
-                style="font-size:11px;font-weight:600;color:var(--bn-green);font-family:var(--fi-mono)"
+                style="font-size:11px;font-weight:600;color:var(--ds-accent-positive);font-family:var(--ds-font-mono)"
                 >+2.35%</span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)"
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                 >Positive</span
               >
             </div>
             <div
-              style="display:flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid var(--bn-red);border-radius:3px"
+              style="display:flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid var(--ds-accent-negative);border-radius:3px"
             >
               <span
-                style="font-size:11px;font-weight:600;color:var(--bn-red);font-family:var(--fi-mono)"
+                style="font-size:11px;font-weight:600;color:var(--ds-accent-negative);font-family:var(--ds-font-mono)"
                 >-1.08%</span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)"
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                 >Negative</span
               >
             </div>
@@ -153,33 +153,33 @@ import { CommonModule } from '@angular/common';
           <div class="ds-sub-heading">Font Families</div>
           <div style="display:flex;flex-direction:column;gap:8px">
             <div
-              style="padding:10px 14px;background:var(--bn-bg1);border-radius:3px;border:1px solid var(--bn-border)"
+              style="padding:10px 14px;background:var(--ds-surface-primary);border-radius:3px;border:1px solid var(--ds-border-primary)"
             >
-              <span style="font-family:var(--fi-mono);font-size:13px;color:var(--bn-t0)"
+              <span style="font-family:var(--ds-font-mono);font-size:13px;color:var(--ds-text-primary)"
                 >JetBrains Mono</span
               >
               <span
-                style="font-size:9px;color:var(--bn-t2);margin-left:8px;font-family:var(--fi-mono)"
-                >--fi-mono / Data, prices, tables, code</span
+                style="font-size:9px;color:var(--ds-text-muted);margin-left:8px;font-family:var(--ds-font-mono)"
+                >--ds-font-mono / Data, prices, tables, code</span
               >
               <div
-                style="font-family:var(--fi-mono);font-size:11px;color:var(--bn-t1);margin-top:4px"
+                style="font-family:var(--ds-font-mono);font-size:11px;color:var(--ds-text-secondary);margin-top:4px"
               >
                 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 $%+-.,:;
               </div>
             </div>
             <div
-              style="padding:10px 14px;background:var(--bn-bg1);border-radius:3px;border:1px solid var(--bn-border)"
+              style="padding:10px 14px;background:var(--ds-surface-primary);border-radius:3px;border:1px solid var(--ds-border-primary)"
             >
-              <span style="font-family:var(--fi-sans);font-size:13px;color:var(--bn-t0)"
+              <span style="font-family:var(--ds-font-sans);font-size:13px;color:var(--ds-text-primary)"
                 >Geist</span
               >
               <span
-                style="font-size:9px;color:var(--bn-t2);margin-left:8px;font-family:var(--fi-mono)"
-                >--fi-sans / Headings, labels, UI chrome</span
+                style="font-size:9px;color:var(--ds-text-muted);margin-left:8px;font-family:var(--ds-font-mono)"
+                >--ds-font-sans / Headings, labels, UI chrome</span
               >
               <div
-                style="font-family:var(--fi-sans);font-size:11px;color:var(--bn-t1);margin-top:4px"
+                style="font-family:var(--ds-font-sans);font-size:11px;color:var(--ds-text-secondary);margin-top:4px"
               >
                 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 $%+-.,:;
               </div>
@@ -193,14 +193,14 @@ import { CommonModule } from '@angular/common';
           <div style="display:flex;flex-direction:column;gap:6px">
             <div
               *ngFor="let f of fontScale"
-              style="display:flex;align-items:baseline;gap:12px;padding:6px 14px;background:var(--bn-bg1);border-radius:3px;border:1px solid var(--bn-border)"
+              style="display:flex;align-items:baseline;gap:12px;padding:6px 14px;background:var(--ds-surface-primary);border-radius:3px;border:1px solid var(--ds-border-primary)"
             >
               <span
-                style="font-family:var(--fi-mono);color:var(--bn-t0);font-weight:600"
+                style="font-family:var(--ds-font-mono);color:var(--ds-text-primary);font-weight:600"
                 [style.fontSize]="f.size"
                 >{{ f.sample }}</span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)"
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                 >{{ f.label }} ({{ f.size }})</span
               >
             </div>
@@ -213,15 +213,15 @@ import { CommonModule } from '@angular/common';
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <div
               *ngFor="let w of fontWeights"
-              style="padding:8px 14px;background:var(--bn-bg1);border-radius:3px;border:1px solid var(--bn-border)"
+              style="padding:8px 14px;background:var(--ds-surface-primary);border-radius:3px;border:1px solid var(--ds-border-primary)"
             >
               <span
-                style="font-family:var(--fi-mono);font-size:13px;color:var(--bn-t0)"
+                style="font-family:var(--ds-font-mono);font-size:13px;color:var(--ds-text-primary)"
                 [style.fontWeight]="w.weight"
                 >{{ w.label }}</span
               >
               <span
-                style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono);margin-left:6px"
+                style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono);margin-left:6px"
                 >{{ w.weight }}</span
               >
             </div>
@@ -248,12 +248,12 @@ import { CommonModule } from '@angular/common';
               <div
                 [style.width.px]="s.px"
                 [style.height.px]="s.px"
-                style="background:var(--bn-cyan);border-radius:2px;min-width:4px;min-height:4px;opacity:0.7"
+                style="background:var(--ds-accent-info);border-radius:2px;min-width:4px;min-height:4px;opacity:0.7"
               ></div>
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)"
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                 >{{ s.px }}px</span
               >
-              <span style="font-size:9px;color:var(--bn-t3);font-family:var(--fi-mono)">{{
+              <span style="font-size:9px;color:var(--ds-text-faint);font-family:var(--ds-font-mono)">{{
                 s.label
               }}</span>
             </div>
@@ -269,13 +269,13 @@ import { CommonModule } from '@angular/common';
               style="display:flex;flex-direction:column;align-items:center;gap:4px"
             >
               <div
-                style="width:48px;height:48px;background:var(--bn-bg3);border:1px solid var(--bn-cyan)"
+                style="width:48px;height:48px;background:var(--ds-surface-tertiary);border:1px solid var(--ds-accent-info)"
                 [style.borderRadius]="r.val"
               ></div>
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)">{{
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)">{{
                 r.label
               }}</span>
-              <span style="font-size:9px;color:var(--bn-t3);font-family:var(--fi-mono)">{{
+              <span style="font-size:9px;color:var(--ds-text-faint);font-family:var(--ds-font-mono)">{{
                 r.val
               }}</span>
             </div>
@@ -309,14 +309,14 @@ import { CommonModule } from '@angular/common';
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
             <div style="display:flex;flex-direction:column;gap:3px">
               <label
-                style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono);text-transform:uppercase;letter-spacing:0.05em"
+                style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono);text-transform:uppercase;letter-spacing:0.05em"
                 >Price</label
               >
               <input type="text" value="99.875" readonly class="ds-input" style="width:120px" />
             </div>
             <div style="display:flex;flex-direction:column;gap:3px">
               <label
-                style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono);text-transform:uppercase;letter-spacing:0.05em"
+                style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono);text-transform:uppercase;letter-spacing:0.05em"
                 >Search</label
               >
               <input
@@ -329,7 +329,7 @@ import { CommonModule } from '@angular/common';
             </div>
             <div style="display:flex;flex-direction:column;gap:3px">
               <label
-                style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono);text-transform:uppercase;letter-spacing:0.05em"
+                style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono);text-transform:uppercase;letter-spacing:0.05em"
                 >Quantity (MM)</label
               >
               <input type="text" value="5.000" readonly class="ds-input" style="width:120px" />
@@ -341,19 +341,19 @@ import { CommonModule } from '@angular/common';
         <div style="margin-bottom:20px">
           <div class="ds-sub-heading">Status Badges</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <span class="ds-badge" style="background:rgba(20,217,160,0.15);color:var(--bn-green)"
+            <span class="ds-badge" style="background:rgba(20,217,160,0.15);color:var(--ds-accent-positive)"
               >Filled</span
             >
-            <span class="ds-badge" style="background:rgba(59,130,246,0.15);color:var(--bn-blue)"
+            <span class="ds-badge" style="background:rgba(59,130,246,0.15);color:var(--ds-accent-info)"
               >Partial</span
             >
-            <span class="ds-badge" style="background:rgba(255,140,66,0.15);color:var(--bn-amber)"
+            <span class="ds-badge" style="background:rgba(255,140,66,0.15);color:var(--ds-accent-warning)"
               >Pending</span
             >
-            <span class="ds-badge" style="background:rgba(255,77,109,0.15);color:var(--bn-red)"
+            <span class="ds-badge" style="background:rgba(255,77,109,0.15);color:var(--ds-accent-negative)"
               >Cancelled</span
             >
-            <span class="ds-badge" style="background:rgba(0,188,212,0.15);color:var(--bn-cyan)"
+            <span class="ds-badge" style="background:rgba(0,188,212,0.15);color:var(--ds-accent-info)"
               >Working</span
             >
           </div>
@@ -371,7 +371,7 @@ import { CommonModule } from '@angular/common';
                 [style.color]="qt.color"
                 >{{ qt.label }}</span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:var(--fi-mono)">{{
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)">{{
                 qt.desc
               }}</span>
             </div>
@@ -381,7 +381,7 @@ import { CommonModule } from '@angular/common';
         <!-- Tab Navigation -->
         <div style="margin-bottom:20px">
           <div class="ds-sub-heading">Tab Navigation</div>
-          <div style="display:flex;border-bottom:1px solid var(--bn-border)">
+          <div style="display:flex;border-bottom:1px solid var(--ds-border-primary)">
             <div
               *ngFor="let tab of sampleTabs; let i = index"
               class="ds-tab"
@@ -396,38 +396,38 @@ import { CommonModule } from '@angular/common';
         <div>
           <div class="ds-sub-heading">Panel / Card</div>
           <div
-            style="background:var(--bn-bg1);border:1px solid var(--bn-border);border-radius:4px;overflow:hidden;max-width:400px"
+            style="background:var(--ds-surface-primary);border:1px solid var(--ds-border-primary);border-radius:4px;overflow:hidden;max-width:400px"
           >
             <div
-              style="padding:8px 12px;border-bottom:1px solid var(--bn-border);font-size:11px;color:var(--bn-t1);font-family:var(--fi-mono);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;background:var(--bn-bg2)"
+              style="padding:8px 12px;border-bottom:1px solid var(--ds-border-primary);font-size:11px;color:var(--ds-text-secondary);font-family:var(--ds-font-mono);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;background:var(--ds-surface-secondary)"
             >
               Position Summary
             </div>
             <div style="padding:12px">
               <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                <span style="font-size:11px;color:var(--bn-t2);font-family:var(--fi-mono)"
+                <span style="font-size:11px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                   >Notional</span
                 >
                 <span
-                  style="font-size:11px;color:var(--bn-t0);font-family:var(--fi-mono);font-weight:600"
+                  style="font-size:11px;color:var(--ds-text-primary);font-family:var(--ds-font-mono);font-weight:600"
                   >$25,000,000</span
                 >
               </div>
               <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                <span style="font-size:11px;color:var(--bn-t2);font-family:var(--fi-mono)"
+                <span style="font-size:11px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                   >Avg Price</span
                 >
                 <span
-                  style="font-size:11px;color:var(--bn-t0);font-family:var(--fi-mono);font-weight:600"
+                  style="font-size:11px;color:var(--ds-text-primary);font-family:var(--ds-font-mono);font-weight:600"
                   >99.750</span
                 >
               </div>
               <div style="display:flex;justify-content:space-between">
-                <span style="font-size:11px;color:var(--bn-t2);font-family:var(--fi-mono)"
+                <span style="font-size:11px;color:var(--ds-text-muted);font-family:var(--ds-font-mono)"
                   >P&amp;L</span
                 >
                 <span
-                  style="font-size:11px;color:var(--bn-green);font-family:var(--fi-mono);font-weight:600"
+                  style="font-size:11px;color:var(--ds-accent-positive);font-family:var(--ds-font-mono);font-weight:600"
                   >+$42,500</span
                 >
               </div>
@@ -447,7 +447,7 @@ import { CommonModule } from '@angular/common';
         <!-- Sample Table -->
         <div style="margin-bottom:20px">
           <div class="ds-sub-heading">Bond Table</div>
-          <div style="overflow-x:auto;border:1px solid var(--bn-border);border-radius:4px">
+          <div style="overflow-x:auto;border:1px solid var(--ds-border-primary);border-radius:4px">
             <table class="ds-table">
               <thead>
                 <tr>
@@ -462,7 +462,7 @@ import { CommonModule } from '@angular/common';
               </thead>
               <tbody>
                 <tr *ngFor="let row of tableRows">
-                  <td style="color:var(--bn-cyan);font-weight:600">{{ row.security }}</td>
+                  <td style="color:var(--ds-accent-info);font-weight:600">{{ row.security }}</td>
                   <td>{{ row.coupon }}</td>
                   <td>{{ row.maturity }}</td>
                   <td>{{ row.bid }}</td>
@@ -481,33 +481,33 @@ import { CommonModule } from '@angular/common';
             Order Book — FI Desk (Dealer, Price, Yield, Face, DV01, Type)
           </div>
           <div
-            style="max-width:560px;background:var(--bn-bg1);border:1px solid var(--bn-border);border-radius:3px;overflow:hidden"
+            style="max-width:560px;background:var(--ds-surface-primary);border:1px solid var(--ds-border-primary);border-radius:3px;overflow:hidden"
           >
             <!-- Instrument context bar -->
             <div
-              style="display:flex;align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--bn-border);background:rgba(0,188,212,0.04)"
+              style="display:flex;align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--ds-border-primary);background:rgba(0,188,212,0.04)"
             >
-              <span class="font-mono-fi" style="font-size:9px;font-weight:700;color:var(--bn-cyan)"
+              <span class="font-mono-fi" style="font-size:9px;font-weight:700;color:var(--ds-accent-info)"
                 >UST 4.625 06/26</span
               >
-              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">US Treasury</span>
-              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)"
+              <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)">US Treasury</span>
+              <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)"
                 >CUSIP 912828ZT0</span
               >
-              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t1)">Aaa</span>
+              <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-secondary)">Aaa</span>
               <div style="margin-left:auto;display:flex;gap:12px">
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">OAS </span
-                  ><span style="color:var(--bn-amber);font-weight:600">+8</span></span
+                  ><span style="color:var(--ds-text-muted)">OAS </span
+                  ><span style="color:var(--ds-accent-warning);font-weight:600">+8</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">DUR </span
+                  ><span style="color:var(--ds-text-muted)">DUR </span
                   ><span style="color:#3b82f6;font-weight:600">1.85</span></span
                 >
               </div>
             </div>
             <!-- Column headers -->
-            <div class="ob-grid-cols" style="display:grid;padding:4px 8px;background:var(--bn-bg2)">
+            <div class="ob-grid-cols" style="display:grid;padding:4px 8px;background:var(--ds-surface-secondary)">
               <div class="col-hdr" style="text-align:left">Dealer</div>
               <div class="col-hdr" style="text-align:right">Price</div>
               <div class="col-hdr" style="text-align:right">Yield</div>
@@ -518,7 +518,7 @@ import { CommonModule } from '@angular/common';
             <!-- Ask label + rows -->
             <div
               class="font-mono-fi"
-              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-red);letter-spacing:0.06em"
+              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--ds-accent-negative);letter-spacing:0.06em"
             >
               OFFERS (ASK)
             </div>
@@ -530,22 +530,22 @@ import { CommonModule } from '@angular/common';
               <div class="ds-ob-bar-ask" [style.width.%]="r.fill"></div>
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-t1);position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-text-secondary);position:relative;z-index:1"
                 >{{ r.dealer }}</span
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-red);text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-accent-negative);text-align:right;position:relative;z-index:1"
                 >{{ r.price }}</span
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-text-primary);text-align:right;position:relative;z-index:1"
                 >{{ r.yld }}</span
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-text-primary);text-align:right;position:relative;z-index:1"
                 >{{ r.face }}</span
               >
               <span
@@ -565,27 +565,27 @@ import { CommonModule } from '@angular/common';
             </div>
             <!-- Spread bar -->
             <div
-              style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--bn-bg2), rgba(255,77,109,0.08))"
+              style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--ds-border-primary);border-bottom:1px solid var(--ds-border-primary);background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--ds-surface-secondary), rgba(255,77,109,0.08))"
             >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;font-weight:700;color:var(--bn-green)"
+                style="font-size:11px;font-weight:700;color:var(--ds-accent-positive)"
                 >100.135</span
               >
-              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2);margin-left:12px"
+              <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted);margin-left:12px"
                 >≈ $100.135</span
               >
               <div style="margin-left:auto;display:flex;gap:16px">
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">Spread </span
-                  ><span style="color:var(--bn-amber);font-weight:600">0.125</span></span
+                  ><span style="color:var(--ds-text-muted)">Spread </span
+                  ><span style="color:var(--ds-accent-warning);font-weight:600">0.125</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">Mid Yld </span
+                  ><span style="color:var(--ds-text-muted)">Mid Yld </span
                   ><span style="color:#22d3ee;font-weight:600">4.520</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">Z-Spd </span
+                  ><span style="color:var(--ds-text-muted)">Z-Spd </span
                   ><span style="color:#a855f7;font-weight:600">8</span></span
                 >
               </div>
@@ -593,7 +593,7 @@ import { CommonModule } from '@angular/common';
             <!-- Bid label + rows -->
             <div
               class="font-mono-fi"
-              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-green);letter-spacing:0.06em"
+              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--ds-accent-positive);letter-spacing:0.06em"
             >
               BIDS
             </div>
@@ -605,22 +605,22 @@ import { CommonModule } from '@angular/common';
               <div class="ds-ob-bar-bid" [style.width.%]="r.fill"></div>
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-t1);position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-text-secondary);position:relative;z-index:1"
                 >{{ r.dealer }}</span
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-green);text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-accent-positive);text-align:right;position:relative;z-index:1"
                 >{{ r.price }}</span
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-text-primary);text-align:right;position:relative;z-index:1"
                 >{{ r.yld }}</span
               >
               <span
                 class="font-mono-fi"
-                style="font-size:11px;color:var(--bn-t0);text-align:right;position:relative;z-index:1"
+                style="font-size:11px;color:var(--ds-text-primary);text-align:right;position:relative;z-index:1"
                 >{{ r.face }}</span
               >
               <span
@@ -640,30 +640,30 @@ import { CommonModule } from '@angular/common';
             </div>
             <!-- Aggregate footer -->
             <div
-              style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--bn-border);background:var(--bn-bg2)"
+              style="display:flex;align-items:center;padding:6px 8px;border-top:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary)"
             >
               <div style="display:flex;gap:16px">
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">BID DV01 </span
-                  ><span style="color:var(--bn-green);font-weight:600">$16.3K</span></span
+                  ><span style="color:var(--ds-text-muted)">BID DV01 </span
+                  ><span style="color:var(--ds-accent-positive);font-weight:600">$16.3K</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">ASK DV01 </span
-                  ><span style="color:var(--bn-red);font-weight:600">$20.9K</span></span
+                  ><span style="color:var(--ds-text-muted)">ASK DV01 </span
+                  ><span style="color:var(--ds-accent-negative);font-weight:600">$20.9K</span></span
                 >
               </div>
               <div style="margin-left:auto;display:flex;gap:16px">
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">MIN SIZE </span
-                  ><span style="color:var(--bn-t1);font-weight:600">1.5MM</span></span
+                  ><span style="color:var(--ds-text-muted)">MIN SIZE </span
+                  ><span style="color:var(--ds-text-secondary);font-weight:600">1.5MM</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">FIRM </span
-                  ><span style="color:var(--bn-green);font-weight:600">4</span></span
+                  ><span style="color:var(--ds-text-muted)">FIRM </span
+                  ><span style="color:var(--ds-accent-positive);font-weight:600">4</span></span
                 >
                 <span class="font-mono-fi" style="font-size:9px"
-                  ><span style="color:var(--bn-t2)">SETTLE </span
-                  ><span style="color:var(--bn-t1);font-weight:600">T+1</span></span
+                  ><span style="color:var(--ds-text-muted)">SETTLE </span
+                  ><span style="color:var(--ds-text-secondary);font-weight:600">T+1</span></span
                 >
               </div>
             </div>
@@ -673,28 +673,28 @@ import { CommonModule } from '@angular/common';
         <!-- Instrument Context Bar -->
         <div style="margin-top:20px">
           <div class="ds-sub-heading">Instrument Context Bar</div>
-          <div style="font-size:9px;color:var(--bn-t2);margin-bottom:8px">
+          <div style="font-size:9px;color:var(--ds-text-muted);margin-bottom:8px">
             Appears atop Order Book and Trade Ticket. Shows bond identity, CUSIP, rating, and live
             analytics.
           </div>
           <div
-            style="max-width:560px;display:flex;align-items:center;gap:12px;padding:6px 12px;background:rgba(0,188,212,0.04);border:1px solid var(--bn-border);border-radius:3px"
+            style="max-width:560px;display:flex;align-items:center;gap:12px;padding:6px 12px;background:rgba(0,188,212,0.04);border:1px solid var(--ds-border-primary);border-radius:3px"
           >
-            <span class="font-mono-fi" style="font-size:9px;font-weight:700;color:var(--bn-cyan)"
+            <span class="font-mono-fi" style="font-size:9px;font-weight:700;color:var(--ds-accent-info)"
               >AAPL 3.25 02/29</span
             >
-            <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">Apple Inc</span>
-            <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)"
+            <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)">Apple Inc</span>
+            <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)"
               >CUSIP 037833DV8</span
             >
-            <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t1)">Aa1</span>
+            <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-secondary)">Aa1</span>
             <div style="margin-left:auto;display:flex;gap:12px">
               <span class="font-mono-fi" style="font-size:9px"
-                ><span style="color:var(--bn-t2)">OAS </span
-                ><span style="color:var(--bn-amber);font-weight:600">+65</span></span
+                ><span style="color:var(--ds-text-muted)">OAS </span
+                ><span style="color:var(--ds-accent-warning);font-weight:600">+65</span></span
               >
               <span class="font-mono-fi" style="font-size:9px"
-                ><span style="color:var(--bn-t2)">DUR </span
+                ><span style="color:var(--ds-text-muted)">DUR </span
                 ><span style="color:#3b82f6;font-weight:600">2.68</span></span
               >
             </div>
@@ -704,7 +704,7 @@ import { CommonModule } from '@angular/common';
         <!-- Countdown Ring -->
         <div style="margin-top:20px">
           <div class="ds-sub-heading">Countdown Ring (RFQ TTL)</div>
-          <div style="font-size:9px;color:var(--bn-t2);margin-bottom:8px">
+          <div style="font-size:9px;color:var(--ds-text-muted);margin-bottom:8px">
             SVG ring depletes over 30s TTL. Color transitions: blue (safe) → amber (warning &lt;10s)
             → red (expiring &lt;5s).
           </div>
@@ -716,7 +716,7 @@ import { CommonModule } from '@angular/common';
                   cy="14"
                   r="12"
                   fill="none"
-                  stroke="var(--bn-bg2)"
+                  stroke="var(--ds-surface-secondary)"
                   stroke-width="2.5"
                 />
                 <circle
@@ -737,12 +737,12 @@ import { CommonModule } from '@angular/common';
                   text-anchor="middle"
                   dominant-baseline="central"
                   [attr.fill]="r.color"
-                  style="font-size:9px;font-family:var(--fi-mono);font-weight:600"
+                  style="font-size:9px;font-family:var(--ds-font-mono);font-weight:600"
                 >
                   {{ r.secs }}
                 </text>
               </svg>
-              <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">{{
+              <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)">{{
                 r.label
               }}</span>
             </div>
@@ -757,7 +757,7 @@ import { CommonModule } from '@angular/common';
       <!-- ══════════════════════════════════════════════════════ -->
       <section style="margin-bottom:32px">
         <div class="ds-section-heading">6. AG Grid Cell Renderers</div>
-        <div style="font-size:11px;color:var(--bn-t2);margin-bottom:16px">
+        <div style="font-size:11px;color:var(--ds-text-muted);margin-bottom:16px">
           Shared vanilla TypeScript cell renderers from design-system/cell-renderers.ts.
           Framework-agnostic — used in both React and Angular apps via ICellRendererComp.
         </div>
@@ -765,22 +765,22 @@ import { CommonModule } from '@angular/common';
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
           @for (r of cellRenderers; track r.name) {
             <div
-              style="background:var(--bn-bg1);border:1px solid var(--bn-border);border-radius:3px;padding:8px 12px"
+              style="background:var(--ds-surface-primary);border:1px solid var(--ds-border-primary);border-radius:3px;padding:8px 12px"
             >
               <div
                 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"
               >
                 <span
-                  style="font-size:11px;font-weight:600;color:var(--bn-t0);font-family:var(--fi-mono)"
+                  style="font-size:11px;font-weight:600;color:var(--ds-text-primary);font-family:var(--ds-font-mono)"
                   >{{ r.name }}</span
                 >
                 <span
                   [style.color]="r.color"
-                  style="font-size:11px;font-weight:700;font-family:var(--fi-mono)"
+                  style="font-size:11px;font-weight:700;font-family:var(--ds-font-mono)"
                   >{{ r.example }}</span
                 >
               </div>
-              <span style="font-size:9px;color:var(--bn-t2)">{{ r.desc }}</span>
+              <span style="font-size:9px;color:var(--ds-text-muted)">{{ r.desc }}</span>
             </div>
           }
         </div>
@@ -826,38 +826,38 @@ import { CommonModule } from '@angular/common';
   styles: [
     `
       :host {
-        background: var(--bn-bg);
+        background: var(--ds-surface-ground);
         scrollbar-width: thin;
         scrollbar-color: var(--scrollbar-thumb) transparent;
       }
       .ds-section-heading {
         font-size: 13px;
         font-weight: 700;
-        color: var(--bn-t0);
-        font-family: var(--fi-sans);
+        color: var(--ds-text-primary);
+        font-family: var(--ds-font-sans);
         margin-bottom: 16px;
         padding-bottom: 6px;
-        border-bottom: 1px solid var(--bn-border);
+        border-bottom: 1px solid var(--ds-border-primary);
       }
       .ds-sub-heading {
         font-size: 11px;
         font-weight: 600;
-        color: var(--bn-t1);
-        font-family: var(--fi-mono);
+        color: var(--ds-text-secondary);
+        font-family: var(--ds-font-mono);
         margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       .ds-divider {
         height: 1px;
-        background: var(--bn-border);
+        background: var(--ds-border-primary);
         margin-bottom: 32px;
       }
       .ds-swatch {
         width: 100px;
         height: 64px;
         border-radius: 4px;
-        border: 1px solid var(--bn-border);
+        border: 1px solid var(--ds-border-primary);
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
@@ -865,13 +865,13 @@ import { CommonModule } from '@angular/common';
       }
       .ds-swatch-label {
         font-size: 9px;
-        color: var(--bn-t1);
-        font-family: var(--fi-mono);
+        color: var(--ds-text-secondary);
+        font-family: var(--ds-font-mono);
       }
       .ds-swatch-hex {
         font-size: 9px;
-        color: var(--bn-t2);
-        font-family: var(--fi-mono);
+        color: var(--ds-text-muted);
+        font-family: var(--ds-font-mono);
       }
       .ds-color-chip {
         display: flex;
@@ -883,7 +883,7 @@ import { CommonModule } from '@angular/common';
         min-width: 80px;
       }
       .ds-btn {
-        font-family: var(--fi-mono);
+        font-family: var(--ds-font-mono);
         font-size: 11px;
         font-weight: 600;
         padding: 6px 16px;
@@ -894,39 +894,39 @@ import { CommonModule } from '@angular/common';
         text-transform: uppercase;
       }
       .ds-btn-buy {
-        background: var(--bn-buy-bg);
+        background: var(--ds-overlay-positive-soft);
         color: #fff;
       }
       .ds-btn-sell {
-        background: var(--bn-sell-bg);
+        background: var(--ds-overlay-negative-soft);
         color: #fff;
       }
       .ds-btn-ghost {
         background: transparent;
-        color: var(--bn-t1);
-        border: 1px solid var(--bn-border2);
+        color: var(--ds-text-secondary);
+        border: 1px solid var(--ds-border-secondary);
       }
       .ds-btn-ghost:disabled {
         opacity: 0.4;
         cursor: not-allowed;
       }
       .ds-btn-primary {
-        background: var(--bn-blue);
+        background: var(--ds-accent-info);
         color: #ffffff;
       }
       .ds-input {
-        font-family: var(--fi-mono);
+        font-family: var(--ds-font-mono);
         font-size: 11px;
-        color: var(--bn-t0);
-        background: var(--bn-bg);
-        border: 1px solid var(--bn-border2);
+        color: var(--ds-text-primary);
+        background: var(--ds-surface-ground);
+        border: 1px solid var(--ds-border-secondary);
         border-radius: 3px;
         padding: 6px 10px;
         outline: none;
         font-variant-numeric: tabular-nums;
       }
       .ds-badge {
-        font-family: var(--fi-mono);
+        font-family: var(--ds-font-mono);
         font-size: 9px;
         font-weight: 600;
         padding: 3px 8px;
@@ -935,44 +935,44 @@ import { CommonModule } from '@angular/common';
         text-transform: uppercase;
       }
       .ds-tab {
-        font-family: var(--fi-mono);
+        font-family: var(--ds-font-mono);
         font-size: 11px;
-        color: var(--bn-t2);
+        color: var(--ds-text-muted);
         padding: 8px 14px;
         cursor: pointer;
         border-bottom: 2px solid transparent;
         font-weight: 500;
       }
       .ds-tab-active {
-        color: var(--bn-t0);
-        border-bottom-color: var(--bn-blue);
+        color: var(--ds-text-primary);
+        border-bottom-color: var(--ds-accent-info);
         font-weight: 600;
       }
       .ds-table {
         width: 100%;
         border-collapse: collapse;
-        font-family: var(--fi-mono);
+        font-family: var(--ds-font-mono);
         font-size: 11px;
       }
       .ds-table th {
         font-size: 9px;
-        color: var(--bn-t2);
+        color: var(--ds-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
         font-weight: 600;
         text-align: left;
         padding: 6px 12px;
-        background: var(--bn-bg2);
-        border-bottom: 1px solid var(--bn-border);
+        background: var(--ds-surface-secondary);
+        border-bottom: 1px solid var(--ds-border-primary);
       }
       .ds-table td {
         padding: 6px 12px;
-        color: var(--bn-t0);
-        border-bottom: 1px solid var(--bn-border);
+        color: var(--ds-text-primary);
+        border-bottom: 1px solid var(--ds-border-primary);
         font-variant-numeric: tabular-nums;
       }
       .ds-table tr:hover td {
-        background: var(--bn-bg2);
+        background: var(--ds-surface-secondary);
       }
       .ds-ob-bar-bid {
         position: absolute;
@@ -989,11 +989,11 @@ import { CommonModule } from '@angular/common';
         background: rgba(248, 113, 113, 0.08);
       }
       .ds-code {
-        font-family: var(--fi-mono);
+        font-family: var(--ds-font-mono);
         font-size: 11px;
-        color: var(--bn-t1);
-        background: var(--bn-bg1);
-        border: 1px solid var(--bn-border);
+        color: var(--ds-text-secondary);
+        background: var(--ds-surface-primary);
+        border: 1px solid var(--ds-border-primary);
         border-radius: 4px;
         padding: 12px 16px;
         margin: 0;
@@ -1013,26 +1013,26 @@ export class DesignSystemWidget {
   // ── 1. Color Palette data ──
   // Hex values show Dark / Light (VS Code Light Modern) pairs
   surfaceColors = [
-    { name: '--bn-bg', hex: 'D:#0a0e14 L:#f3f5f9', var: 'var(--bn-bg)' },
-    { name: '--bn-bg1', hex: 'D:#121820 L:#fbfcfd', var: 'var(--bn-bg1)' },
-    { name: '--bn-bg2', hex: 'D:#1a212b L:#ebeef3', var: 'var(--bn-bg2)' },
-    { name: '--bn-bg3', hex: 'D:#242c38 L:#dde2ea', var: 'var(--bn-bg3)' },
+    { name: '--ds-surface-ground', hex: 'D:#0a0e14 L:#f3f5f9', var: 'var(--ds-surface-ground)' },
+    { name: '--ds-surface-primary', hex: 'D:#121820 L:#fbfcfd', var: 'var(--ds-surface-primary)' },
+    { name: '--ds-surface-secondary', hex: 'D:#1a212b L:#ebeef3', var: 'var(--ds-surface-secondary)' },
+    { name: '--ds-surface-tertiary', hex: 'D:#242c38 L:#dde2ea', var: 'var(--ds-surface-tertiary)' },
   ];
 
   textColors = [
-    { name: '--bn-t0', hex: 'D:#e6e9ef L:#1a1f2e', var: 'var(--bn-t0)' },
-    { name: '--bn-t1', hex: 'D:#a7b0bd L:#4f5665', var: 'var(--bn-t1)' },
-    { name: '--bn-t2', hex: 'D:#6b7280 L:#6b7280', var: 'var(--bn-t2)' },
-    { name: '--bn-t3', hex: 'D:#4d586a L:#9ca3af', var: 'var(--bn-t3)' },
+    { name: '--ds-text-primary', hex: 'D:#e6e9ef L:#1a1f2e', var: 'var(--ds-text-primary)' },
+    { name: '--ds-text-secondary', hex: 'D:#a7b0bd L:#4f5665', var: 'var(--ds-text-secondary)' },
+    { name: '--ds-text-muted', hex: 'D:#6b7280 L:#6b7280', var: 'var(--ds-text-muted)' },
+    { name: '--ds-text-faint', hex: 'D:#4d586a L:#9ca3af', var: 'var(--ds-text-faint)' },
   ];
 
   semanticColors = [
-    { name: 'Green (Buy)', hex: 'D:#14d9a0 L:#0ea870', var: 'var(--bn-green)' },
-    { name: 'Red (Sell)', hex: 'D:#ff4d6d L:#e02e47', var: 'var(--bn-red)' },
-    { name: 'Orange (Warn)', hex: 'D:#ff8c42 L:#e86a1c', var: 'var(--bn-amber)' },
-    { name: 'Blue (Brand)', hex: 'D:#3b82f6 L:#2563eb', var: 'var(--bn-blue)' },
-    { name: 'Cyan (HL)', hex: 'D:#22d3ee L:#06b6d4', var: 'var(--bn-cyan)' },
-    { name: 'Purple', hex: 'D:#a855f7 L:#7c3aed', var: 'var(--fi-purple)' },
+    { name: 'Green (Buy)', hex: 'D:#14d9a0 L:#0ea870', var: 'var(--ds-accent-positive)' },
+    { name: 'Red (Sell)', hex: 'D:#ff4d6d L:#e02e47', var: 'var(--ds-accent-negative)' },
+    { name: 'Orange (Warn)', hex: 'D:#ff8c42 L:#e86a1c', var: 'var(--ds-accent-warning)' },
+    { name: 'Blue (Brand)', hex: 'D:#3b82f6 L:#2563eb', var: 'var(--ds-accent-info)' },
+    { name: 'Cyan (HL)', hex: 'D:#22d3ee L:#06b6d4', var: 'var(--ds-accent-info)' },
+    { name: 'Purple', hex: 'D:#a855f7 L:#7c3aed', var: 'var(--ds-accent-info)' },
   ];
 
   // ── 2. Typography data ──
@@ -1084,9 +1084,9 @@ export class DesignSystemWidget {
       bid: '99.875',
       ask: '99.938',
       oas: '+42bp',
-      oasColor: 'var(--bn-green)',
+      oasColor: 'var(--ds-accent-positive)',
       chg: '+0.125',
-      chgColor: 'var(--bn-green)',
+      chgColor: 'var(--ds-accent-positive)',
     },
     {
       security: 'T 3.875 08/31',
@@ -1095,9 +1095,9 @@ export class DesignSystemWidget {
       bid: '97.250',
       ask: '97.375',
       oas: '+58bp',
-      oasColor: 'var(--bn-green)',
+      oasColor: 'var(--ds-accent-positive)',
       chg: '-0.063',
-      chgColor: 'var(--bn-red)',
+      chgColor: 'var(--ds-accent-negative)',
     },
     {
       security: 'T 5.000 05/34',
@@ -1106,9 +1106,9 @@ export class DesignSystemWidget {
       bid: '102.500',
       ask: '102.625',
       oas: '+85bp',
-      oasColor: 'var(--bn-amber)',
+      oasColor: 'var(--ds-accent-warning)',
       chg: '+0.250',
-      chgColor: 'var(--bn-green)',
+      chgColor: 'var(--ds-accent-positive)',
     },
     {
       security: 'T 4.250 02/29',
@@ -1117,9 +1117,9 @@ export class DesignSystemWidget {
       bid: '100.125',
       ask: '100.188',
       oas: '+31bp',
-      oasColor: 'var(--bn-green)',
+      oasColor: 'var(--ds-accent-positive)',
       chg: '-0.188',
-      chgColor: 'var(--bn-red)',
+      chgColor: 'var(--ds-accent-negative)',
     },
   ];
 
@@ -1128,19 +1128,19 @@ export class DesignSystemWidget {
     {
       label: 'STREAM',
       bg: 'rgba(20,217,160,0.12)',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
       desc: 'Firm / executable',
     },
     {
       label: 'RFQ',
       bg: 'rgba(59,130,246,0.12)',
-      color: 'var(--bn-blue)',
+      color: 'var(--ds-accent-info)',
       desc: 'Request for quote',
     },
     {
       label: 'IND',
       bg: 'rgba(255,140,66,0.12)',
-      color: 'var(--bn-amber)',
+      color: 'var(--ds-accent-warning)',
       desc: 'Indicative only',
     },
   ];
@@ -1154,10 +1154,10 @@ export class DesignSystemWidget {
   }
   qtBadgeColor(type: string) {
     return type === 'STREAM'
-      ? 'var(--bn-green)'
+      ? 'var(--ds-accent-positive)'
       : type === 'RFQ'
-        ? 'var(--bn-blue)'
-        : 'var(--bn-amber)';
+        ? 'var(--ds-accent-info)'
+        : 'var(--ds-accent-warning)';
   }
 
   // Order book sample data (FI desk layout)
@@ -1224,7 +1224,7 @@ export class DesignSystemWidget {
   countdownRings = [
     { secs: 25, color: '#3da0ff', dash: '69 75.4', label: '25s — blue (safe)' },
     { secs: 8, color: '#ff8c42', dash: '20 75.4', label: '8s — amber (warning)' },
-    { secs: 3, color: 'var(--bn-red)', dash: '7.5 75.4', label: '3s — red (expiring)' },
+    { secs: 3, color: 'var(--ds-accent-negative)', dash: '7.5 75.4', label: '3s — red (expiring)' },
   ];
 
   // ── 6. Code snippets ──
@@ -1270,17 +1270,17 @@ get gridTheme() {
 
   cssVarCode = `/* Use CSS variables directly in styles */
 .panel-header {
-  background: var(--bn-bg2);
-  color: var(--bn-t1);
-  font-family: var(--fi-mono);
-  font-size: var(--fi-font-sm);    /* 11px */
-  border-bottom: 1px solid var(--bn-border);
+  background: var(--ds-surface-secondary);
+  color: var(--ds-text-secondary);
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-font-sans);    /* 11px */
+  border-bottom: 1px solid var(--ds-border-primary);
 }
 
-.price-positive { color: var(--bn-green); }
-.price-negative { color: var(--bn-red); }
+.price-positive { color: var(--ds-accent-positive); }
+.price-negative { color: var(--ds-accent-negative); }
 .kpi-value {
-  font-size: var(--fi-font-lg);    /* 18px */
+  font-size: var(--ds-font-sans);    /* 18px */
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }`;
@@ -1314,73 +1314,73 @@ toggleTheme() {
       name: 'SideCellRenderer',
       desc: 'BUY / SELL with green / red color',
       example: 'BUY',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'StatusBadgeRenderer',
       desc: 'Filled, Partial, Pending, Cancelled',
       example: 'FILLED',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'ColoredValueRenderer',
       desc: 'Positive green, negative red',
       example: '+0.125',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'OasValueRenderer',
       desc: 'OAS with warning threshold >80',
       example: '+42',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'SignedValueRenderer',
       desc: 'Signed spread values',
       example: '+3.2',
-      color: 'var(--bn-t1)',
+      color: 'var(--ds-text-secondary)',
     },
     {
       name: 'TickerCellRenderer',
       desc: 'Cyan bold ticker symbol',
       example: 'UST',
-      color: 'var(--bn-cyan)',
+      color: 'var(--ds-accent-info)',
     },
     {
       name: 'RatingBadgeRenderer',
       desc: 'Credit rating badge (Aaa-HY)',
       example: 'Aa2',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'PnlValueRenderer',
       desc: 'P&L with K suffix',
       example: '+120K',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'FilledAmountRenderer',
       desc: 'Green if full, yellow if partial',
       example: '5000',
-      color: 'var(--bn-amber)',
+      color: 'var(--ds-accent-warning)',
     },
     {
       name: 'BookNameRenderer',
       desc: 'Cyan book/desk name',
       example: 'IG-NYC',
-      color: 'var(--bn-cyan)',
+      color: 'var(--ds-accent-info)',
     },
     {
       name: 'ChangeValueRenderer',
       desc: 'Market index change',
       example: '+0.45',
-      color: 'var(--bn-green)',
+      color: 'var(--ds-accent-positive)',
     },
     {
       name: 'RfqStatusRenderer',
       desc: 'LIVE / DONE / STALE badge',
       example: 'LIVE',
-      color: 'var(--bn-blue)',
+      color: 'var(--ds-accent-info)',
     },
   ];
 

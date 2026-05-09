@@ -18,25 +18,25 @@ body {
 }
 
 body {
-  background: var(--bn-bg);
-  color: var(--bn-t0);
-  font-family: var(--fi-sans);
-  font-size: var(--fi-font-sm);
+  background: var(--ds-surface-ground);
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-font-sans);
 }
 
 
 // ── Font utilities ──
-.font-mono-fi { font-family: var(--fi-mono); }
+.font-mono-fi { font-family: var(--ds-font-mono); }
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
 .font-medium { font-weight: 500; }
 
 // ── Tab navigation ──
 .bn-tab {
-  font-family: var(--fi-sans);
+  font-family: var(--ds-font-sans);
   font-size: 11px;
   font-weight: 500;
-  color: var(--bn-t1);
+  color: var(--ds-text-secondary);
   background: transparent;
   border: none;
   padding: 8px 14px;
@@ -44,21 +44,21 @@ body {
   border-bottom: 2px solid transparent;
   transition: color 150ms ease, border-color 150ms ease;
   white-space: nowrap;
-  &:hover { color: var(--bn-t0); }
+  &:hover { color: var(--ds-text-primary); }
   &.active {
-    color: var(--bn-t0);
-    border-bottom-color: var(--bn-blue);
+    color: var(--ds-text-primary);
+    border-bottom-color: var(--ds-accent-info);
   }
 }
 
 // ── Pill action toggle ──
 .pact {
-  font-family: var(--fi-mono);
+  font-family: var(--ds-font-mono);
   font-size: 9px;
   font-weight: 500;
-  color: var(--bn-t1);
+  color: var(--ds-text-secondary);
   background: transparent;
-  border: 1px solid var(--bn-border2);
+  border: 1px solid var(--ds-border-secondary);
   border-radius: 2px;
   padding: 2px 8px;
   cursor: pointer;
@@ -66,23 +66,23 @@ body {
   white-space: nowrap;
   transition: background 150ms ease, color 150ms ease;
   &:hover {
-    background: var(--bn-bg3);
-    color: var(--bn-t0);
+    background: var(--ds-surface-tertiary);
+    color: var(--ds-text-primary);
   }
 }
 
 // ── Price input ──
 .price-input {
-  font-family: var(--fi-mono);
+  font-family: var(--ds-font-mono);
   font-size: 11px;
   width: 100%;
   padding: 6px 10px;
   border-radius: 3px;
-  border: 1px solid var(--bn-border2);
-  background: var(--bn-bg2);
-  color: var(--bn-t0);
+  border: 1px solid var(--ds-border-secondary);
+  background: var(--ds-surface-secondary);
+  color: var(--ds-text-primary);
   outline: none;
-  &:focus { border-color: var(--bn-focus-ring); }
+  &:focus { border-color: var(--ds-accent-info); }
 }
 
 // ── Buy / Sell CTA buttons ──
@@ -91,9 +91,9 @@ body {
   padding: 8px;
   border-radius: 3px;
   border: none;
-  background: var(--bn-buy-bg);
-  color: var(--bn-cta-text);
-  font-family: var(--fi-mono);
+  background: var(--ds-overlay-positive-soft);
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -105,9 +105,9 @@ body {
   padding: 8px;
   border-radius: 3px;
   border: none;
-  background: var(--bn-sell-bg);
-  color: var(--bn-cta-text);
-  font-family: var(--fi-mono);
+  background: var(--ds-overlay-negative-soft);
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -117,7 +117,7 @@ body {
 
 // ── Order type tab ──
 .order-type-tab {
-  font-family: var(--fi-mono);
+  font-family: var(--ds-font-mono);
   font-weight: 500;
   background: none;
   border: none;
@@ -125,27 +125,27 @@ body {
   padding: 4px 0;
   cursor: pointer;
   transition: color 150ms ease, border-color 150ms ease;
-  &:hover { color: var(--bn-t1); }
+  &:hover { color: var(--ds-text-secondary); }
 }
 
 // ── Status badges ──
-.badge-filled   { background: var(--bn-positive-soft); color: var(--bn-green); border: 1px solid var(--bn-positive-ring); }
-.badge-partial  { background: var(--bn-warning-soft);  color: var(--bn-amber); border: 1px solid var(--bn-warning-ring);  }
-.badge-new      { background: var(--bn-info-soft);     color: var(--bn-blue);  border: 1px solid var(--bn-info-ring);     }
-.badge-cancel   { background: var(--bn-negative-soft); color: var(--bn-red);   border: 1px solid var(--bn-negative-ring); }
+.badge-filled   { background: var(--ds-overlay-positive-soft); color: var(--ds-accent-positive); border: 1px solid var(--ds-overlay-positive-ring); }
+.badge-partial  { background: var(--ds-overlay-warning-soft);  color: var(--ds-accent-warning); border: 1px solid var(--ds-overlay-warning-ring);  }
+.badge-new      { background: var(--ds-overlay-info-soft);     color: var(--ds-accent-info);  border: 1px solid var(--ds-overlay-info-ring);     }
+.badge-cancel   { background: var(--ds-overlay-negative-soft); color: var(--ds-accent-negative);   border: 1px solid var(--ds-overlay-negative-ring); }
 
 // ── Panel header helpers ──
 .ph-title {
-  font-family: var(--fi-mono);
+  font-family: var(--ds-font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--bn-t0);
+  color: var(--ds-text-primary);
   letter-spacing: 0.04em;
 }
 .col-hdr {
-  font-family: var(--fi-mono);
+  font-family: var(--ds-font-mono);
   font-size: 10px;
-  color: var(--bn-t1);
+  color: var(--ds-text-secondary);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -213,9 +213,9 @@ body {
 .text-right { text-align: right; }
 .text-left { text-align: left; }
 .text-center { text-align: center; }
-.border-b { border-bottom: 1px solid var(--bn-border); }
-.border-t { border-top: 1px solid var(--bn-border); }
-.border-r { border-right: 1px solid var(--bn-border); }
+.border-b { border-bottom: 1px solid var(--ds-border-primary); }
+.border-t { border-top: 1px solid var(--ds-border-primary); }
+.border-r { border-right: 1px solid var(--ds-border-primary); }
 .rounded-sm { border-radius: 2px; }
 .rounded { border-radius: 4px; }
 .px-2 { padding-left: 8px; padding-right: 8px; }
@@ -260,13 +260,13 @@ body {
 
 // Visible focus ring for keyboard navigation
 :focus-visible {
-  outline: 2px solid var(--bn-blue);
+  outline: 2px solid var(--ds-accent-info);
   outline-offset: 2px;
 }
 button:focus-visible,
 [role="tab"]:focus-visible,
 .bn-tab:focus-visible {
-  outline: 2px solid var(--bn-blue);
+  outline: 2px solid var(--ds-accent-info);
   outline-offset: -1px;
 }
 // Remove outline for mouse clicks

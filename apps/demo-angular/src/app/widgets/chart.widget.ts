@@ -58,25 +58,25 @@ function getCssVar(name: string): string {
   template: `
     <!-- Toolbar — compact, wraps on narrow containers -->
     <div
-      style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px 8px;border-bottom:1px solid var(--bn-border);flex-shrink:0;min-height:28px"
+      style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px 8px;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0;min-height:28px"
     >
       <button
         *ngFor="let iv of intervals"
         (click)="interval = iv"
         class="font-mono-fi"
-        [style.background]="interval === iv ? 'var(--bn-bg3)' : 'transparent'"
-        [style.color]="interval === iv ? 'var(--bn-blue)' : 'var(--bn-t1)'"
+        [style.background]="interval === iv ? 'var(--ds-surface-tertiary)' : 'transparent'"
+        [style.color]="interval === iv ? 'var(--ds-accent-info)' : 'var(--ds-text-secondary)'"
         style="font-size:11px;padding:2px 6px;line-height:16px;border-radius:4px;border:none;cursor:pointer"
       >
         {{ iv }}
       </button>
       <div
-        style="width:1px;height:12px;background:var(--bn-border2);margin:0 2px;flex-shrink:0"
+        style="width:1px;height:12px;background:var(--ds-border-secondary);margin:0 2px;flex-shrink:0"
       ></div>
       <span
         *ngFor="let ind of indicators"
         class="font-mono-fi"
-        style="font-size:11px;padding:2px 5px;line-height:16px;border-radius:4px;background:var(--bn-bg3);color:var(--bn-t1);cursor:pointer"
+        style="font-size:11px;padding:2px 5px;line-height:16px;border-radius:4px;background:var(--ds-surface-tertiary);color:var(--ds-text-secondary);cursor:pointer"
         >{{ ind }}</span
       >
       <div style="flex:1 1 0;min-width:4px"></div>
@@ -85,9 +85,9 @@ function getCssVar(name: string): string {
           *ngFor="let ct of chartTypes"
           (click)="chartType = ct"
           class="font-mono-fi"
-          [style.background]="chartType === ct ? 'var(--bn-bg3)' : 'transparent'"
-          [style.borderColor]="chartType === ct ? 'var(--bn-border2)' : 'transparent'"
-          [style.color]="chartType === ct ? 'var(--bn-t0)' : 'var(--bn-t1)'"
+          [style.background]="chartType === ct ? 'var(--ds-surface-tertiary)' : 'transparent'"
+          [style.borderColor]="chartType === ct ? 'var(--ds-border-secondary)' : 'transparent'"
+          [style.color]="chartType === ct ? 'var(--ds-text-primary)' : 'var(--ds-text-secondary)'"
           style="font-size:11px;padding:2px 6px;line-height:16px;border-radius:4px;border:1px solid transparent;cursor:pointer"
         >
           {{ ct }}
@@ -198,13 +198,13 @@ export class ChartWidget implements OnInit, OnDestroy, AfterViewInit {
     const yOf = (p: number) => pad.t + (1 - (p - minP) / (maxP - minP)) * chartH;
     const yVol = (v: number) => H - pad.b - (v / maxV) * (pad.vol * 0.85);
 
-    const bgColor = getCssVar('--bn-bg1'),
-      gridColor = getCssVar('--bn-bg2'),
-      labelColor = getCssVar('--bn-t2');
-    const greenColor = getCssVar('--bn-green'),
-      redColor = getCssVar('--bn-red');
-    const blueColor = getCssVar('--bn-blue'),
-      cyanColor = getCssVar('--bn-cyan');
+    const bgColor = getCssVar('--ds-surface-primary'),
+      gridColor = getCssVar('--ds-surface-secondary'),
+      labelColor = getCssVar('--ds-text-muted');
+    const greenColor = getCssVar('--ds-accent-positive'),
+      redColor = getCssVar('--ds-accent-negative');
+    const blueColor = getCssVar('--ds-accent-info'),
+      cyanColor = getCssVar('--ds-accent-info');
 
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, W, H);
@@ -259,7 +259,7 @@ export class ChartWidget implements OnInit, OnDestroy, AfterViewInit {
       ctx.stroke();
     };
     drawMA(ma7, blueColor);
-    drawMA(ma25, '#d84aff');
+    drawMA(ma25, 'var(--ds-accent-info)');
     drawMA(ma99, cyanColor);
 
     // Candles
@@ -303,7 +303,7 @@ export class ChartWidget implements OnInit, OnDestroy, AfterViewInit {
     ctx.beginPath();
     ctx.roundRect(W - pad.r - 48, lastY - 9, 48, 18, 2);
     ctx.fill();
-    ctx.fillStyle = getCssVar('--bn-cta-text');
+    ctx.fillStyle = getCssVar('--ds-text-primary');
     ctx.font = 'bold 9px JetBrains Mono,monospace';
     ctx.textAlign = 'center';
     ctx.fillText(last.c.toFixed(3), W - pad.r - 24, lastY + 3);
@@ -312,7 +312,7 @@ export class ChartWidget implements OnInit, OnDestroy, AfterViewInit {
     ctx.textAlign = 'left';
     [
       [`MA(7)`, blueColor, ma7],
-      [`MA(25)`, '#d84aff', ma25],
+      [`MA(25)`, 'var(--ds-accent-info)', ma25],
       [`MA(99)`, cyanColor, ma99],
     ].forEach(([label, color, data]: any[], idx) => {
       const v = data[data.length - 1];

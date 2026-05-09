@@ -249,9 +249,9 @@ export function ConfigBrowserPanel() {
               fontFamily: "var(--de-mono)",
               padding: "3px 8px",
               borderRadius: "var(--de-radius-sm)",
-              background: "color-mix(in srgb, var(--de-success, #22c55e) 12%, var(--de-bg-surface))",
-              color: "var(--de-success, #22c55e)",
-              border: "1px solid color-mix(in srgb, var(--de-success, #22c55e) 35%, var(--de-border))",
+              background: "color-mix(in srgb, var(--de-success, var(--ds-accent-positive)) 12%, var(--de-bg-surface))",
+              color: "var(--de-success, var(--ds-accent-positive))",
+              border: "1px solid color-mix(in srgb, var(--de-success, var(--ds-accent-positive)) 35%, var(--de-border))",
             }}
           >
             <Icon icon="lucide:cloud" style={{ width: 12, height: 12 }} />
@@ -383,7 +383,7 @@ export function ConfigBrowserPanel() {
                   onClick={openCreate}
                   style={{
                     background: "var(--de-accent)",
-                    color: "var(--bn-cta-text, #fff)",
+                    color: "var(--ds-text-primary)",
                     border: "none",
                     borderRadius: "var(--de-radius-sm)",
                     padding: "8px 16px",

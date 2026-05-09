@@ -68,7 +68,7 @@ export function DeleteAllDialog({
           display: "flex",
           flexDirection: "column",
           background: "var(--de-bg)",
-          border: "1px solid var(--de-danger, #f87171)",
+          border: "1px solid var(--de-danger, var(--ds-accent-negative))",
           borderRadius: "var(--de-radius-md, 8px)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
           overflow: "hidden",
@@ -82,12 +82,12 @@ export function DeleteAllDialog({
             gap: 10,
             padding: "14px 18px",
             borderBottom: "1px solid var(--de-border)",
-            background: "color-mix(in srgb, var(--de-danger, #f87171) 8%, var(--de-bg))",
+            background: "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 8%, var(--de-bg))",
           }}
         >
           <Icon
             icon="lucide:alert-triangle"
-            style={{ width: 16, height: 16, color: "var(--de-danger, #f87171)" }}
+            style={{ width: 16, height: 16, color: "var(--de-danger, var(--ds-accent-negative))" }}
           />
           <span
             id="delete-all-title"
@@ -158,7 +158,7 @@ export function DeleteAllDialog({
                 fontSize: 12,
                 fontFamily: "var(--de-mono)",
                 background: "var(--de-bg-surface)",
-                border: `1px solid ${typedMatches ? "var(--de-success, #4ade80)" : "var(--de-border)"}`,
+                border: `1px solid ${typedMatches ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-border)"}`,
                 color: "var(--de-text)",
               }}
             />
@@ -179,7 +179,7 @@ export function DeleteAllDialog({
           <span
             style={{
               fontSize: 11,
-              color: canDelete ? "var(--de-danger, #f87171)" : "var(--de-text-tertiary)",
+              color: canDelete ? "var(--de-danger, var(--ds-accent-negative))" : "var(--de-text-tertiary)",
               fontFamily: "var(--de-mono)",
             }}
           >
@@ -229,7 +229,7 @@ function Step({
         gap: 12,
         padding: "12px 14px",
         background: "var(--de-bg-surface)",
-        border: `1px solid ${done ? "var(--de-success, #4ade80)" : "var(--de-border)"}`,
+        border: `1px solid ${done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-border)"}`,
         borderRadius: "var(--de-radius-sm)",
         transition: "border-color 100ms",
       }}
@@ -239,8 +239,8 @@ function Step({
           width: 22,
           height: 22,
           borderRadius: "50%",
-          background: done ? "var(--de-success, #4ade80)" : "var(--de-bg)",
-          color: done ? "var(--bn-cta-text, #fff)" : "var(--de-text-secondary)",
+          background: done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-bg)",
+          color: done ? "var(--ds-text-primary)" : "var(--de-text-secondary)",
           fontSize: 11,
           fontWeight: 700,
           display: "flex",
@@ -274,8 +274,8 @@ function stepButton(done: boolean): React.CSSProperties {
     padding: "0 12px",
     border: "1px solid var(--de-border)",
     borderRadius: "var(--de-radius-sm)",
-    background: done ? "color-mix(in srgb, var(--de-success, #4ade80) 12%, var(--de-bg))" : "var(--de-bg)",
-    color: done ? "var(--de-success, #4ade80)" : "var(--de-text-secondary)",
+    background: done ? "color-mix(in srgb, var(--de-success, var(--ds-accent-positive)) 12%, var(--de-bg))" : "var(--de-bg)",
+    color: done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-text-secondary)",
     fontSize: 12,
     fontWeight: 500,
     cursor: "pointer",
@@ -308,8 +308,8 @@ function dangerButton(enabled: boolean): React.CSSProperties {
     padding: "0 14px",
     border: "none",
     borderRadius: "var(--de-radius-sm)",
-    background: enabled ? "var(--de-danger, #f87171)" : "color-mix(in srgb, var(--de-danger, #f87171) 30%, transparent)",
-    color: "var(--bn-cta-text, #fff)",
+    background: enabled ? "var(--de-danger, var(--ds-accent-negative))" : "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 30%, transparent)",
+    color: "var(--ds-text-primary)",
     fontSize: 12,
     fontWeight: 600,
     cursor: enabled ? "pointer" : "not-allowed",
