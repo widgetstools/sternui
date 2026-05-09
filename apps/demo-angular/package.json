@@ -44,6 +44,12 @@
     }
   },
   "dependencies": {
+    "@starui/design-system": "*",
+    "tailwindcss": "3.4.1",
+    "tailwindcss-primeui": "^0.6.1",
+    "tailwindcss-animate": "^1.0.7",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
     "@angular/animations": "21.1.0",
     "@angular/cdk": "21.1.0",
     "@angular/common": "21.1.0",
