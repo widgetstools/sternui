@@ -12,9 +12,23 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./themes/fi-dark.css": "./src/themes/fi-dark.css",
-    "./themes/fi-light.css": "./src/themes/fi-light.css",
-    "./themes/scrollbars.css": "./src/themes/scrollbars.css",
+    "./css": "./dist/css/theme.css",
+    "./tailwind": {
+      "types": "./dist/adapters/tailwind.d.ts",
+      "import": "./dist/adapters/tailwind.js"
+    },
+    "./primeng": {
+      "types": "./dist/adapters/primeng.d.ts",
+      "import": "./dist/adapters/primeng.js"
+    },
+    "./shadcn": {
+      "types": "./dist/adapters/shadcn.d.ts",
+      "import": "./dist/adapters/shadcn.js"
+    },
+    "./adapters/ag-grid": {
+      "types": "./dist/adapters/agGrid.d.ts",
+      "import": "./dist/adapters/agGrid.js"
+    },
     "./tokens/primitives": {
       "types": "./dist/tokens/primitives.d.ts",
       "import": "./dist/tokens/primitives.js"
@@ -26,18 +40,6 @@
     "./tokens/components": {
       "types": "./dist/tokens/components.d.ts",
       "import": "./dist/tokens/components.js"
-    },
-    "./adapters/ag-grid": {
-      "types": "./dist/adapters/agGrid.d.ts",
-      "import": "./dist/adapters/agGrid.js"
-    },
-    "./adapters/shadcn": {
-      "types": "./dist/adapters/shadcn.d.ts",
-      "import": "./dist/adapters/shadcn.js"
-    },
-    "./adapters/primeng": {
-      "types": "./dist/adapters/primeng.d.ts",
-      "import": "./dist/adapters/primeng.js"
     },
     "./cell-renderers": {
       "types": "./dist/cellRenderers.d.ts",
@@ -63,8 +65,7 @@
   },
   "files": [
     "dist",
-    "src/themes",
-    "src/icons"
+    "src/styles"
   ],
   "dependencies": {
     "turbo": "^2.9.6",
