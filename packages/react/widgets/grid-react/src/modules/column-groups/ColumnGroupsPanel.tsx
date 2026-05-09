@@ -94,9 +94,9 @@ function showTooltip(show: GroupChildShow | undefined): string {
 
 function showAccentColor(show: GroupChildShow | undefined): string {
   const mode = show ?? 'always';
-  if (mode === 'open') return 'var(--ck-green)';
-  if (mode === 'closed') return 'var(--ck-amber)';
-  return 'var(--ck-t2)';
+  if (mode === 'open') return 'var(--ds-accent-positive)';
+  if (mode === 'closed') return 'var(--ds-accent-warning)';
+  return 'var(--ds-text-muted)';
 }
 
 // ─── headerStyle ↔ StyleEditorValue ────────────────────────────────────
@@ -188,9 +188,9 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
 
   return (
     <>
-      <div className="gc-popout-list-header">
+      <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Groups</Caps>
-        <Mono color="var(--ck-t3)" size={11}>
+        <Mono color="var(--ds-text-faint)" size={11}>
           {String(flat.length).padStart(2, '0')}
         </Mono>
         <span style={{ flex: 1 }} />
@@ -205,9 +205,9 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'var(--ck-green-bg)',
-            color: 'var(--ck-green)',
-            border: '1px solid var(--ck-green-dim)',
+            background: 'var(--ds-overlay-positive-soft)',
+            color: 'var(--ds-accent-positive)',
+            border: '1px solid var(--ds-overlay-positive-ring)',
             borderRadius: 2,
             cursor: 'pointer',
             padding: 0,
@@ -269,7 +269,7 @@ export function ColumnGroupsEditor({ selectedId }: EditorPaneProps) {
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No group selected
         </Caps>
-        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+        <div className="text-xs text-muted-foreground">
           Select a group from the list, or press <Mono size={11}>+</Mono> to add one.
         </div>
       </div>
@@ -430,7 +430,7 @@ const GroupEditor = memo(function GroupEditor({
         overflow: 'hidden',
       }}
     >
-      <div className="gc-editor-header">
+      <div className="shrink-0 bg-background border-b border-border">
         <ObjectTitleRow
           title={
             <TitleInput
@@ -480,8 +480,8 @@ const GroupEditor = memo(function GroupEditor({
         />
       </div>
 
-      <div className="gc-editor-scroll">
-        <div className="gc-meta-grid">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+        <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
           <MetaCell
             label="OPEN BY DEFAULT"
             value={
@@ -528,13 +528,13 @@ const GroupEditor = memo(function GroupEditor({
                 padding: '0 10px',
                 height: 24,
                 fontSize: 10,
-                color: 'var(--ck-t1)',
+                color: 'var(--ds-text-secondary)',
                 background: 'transparent',
-                border: '1px solid var(--ck-border-hi)',
+                border: '1px solid var(--ds-border-secondary)',
                 borderRadius: 2,
                 cursor: canAddSubgroup ? 'pointer' : 'not-allowed',
                 opacity: canAddSubgroup ? 1 : 0.35,
-                fontFamily: 'var(--ck-font-sans)',
+                fontFamily: 'var(--ds-font-sans)',
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
@@ -561,11 +561,11 @@ const GroupEditor = memo(function GroupEditor({
                     gap: 5,
                     padding: '3px 4px 3px 8px',
                     borderRadius: 2,
-                    background: 'var(--ck-bg)',
-                    border: '1px solid var(--ck-border-hi)',
-                    fontFamily: 'var(--ck-font-mono)',
+                    background: 'var(--ds-surface-ground)',
+                    border: '1px solid var(--ds-border-secondary)',
+                    fontFamily: 'var(--ds-font-mono)',
                     fontSize: 11,
-                    color: 'var(--ck-t0)',
+                    color: 'var(--ds-text-primary)',
                   }}
                 >
                   {info?.headerName ?? c.colId}
@@ -598,7 +598,7 @@ const GroupEditor = memo(function GroupEditor({
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
-                      color: 'var(--ck-t2)',
+                      color: 'var(--ds-text-muted)',
                       padding: 0,
                       lineHeight: 1,
                     }}
@@ -654,9 +654,9 @@ export function ColumnGroupsPanel() {
     >
       <aside
         style={{
-          borderRight: '1px solid var(--ck-border)',
+          borderRight: '1px solid var(--ds-border-primary)',
           overflowY: 'auto',
-          background: 'var(--ck-surface)',
+          background: 'var(--ds-surface-primary)',
         }}
       >
         <ColumnGroupsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
