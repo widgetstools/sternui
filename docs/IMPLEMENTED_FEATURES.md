@@ -21,6 +21,71 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 9: `@starui/config-service-react` Provider package
+
+Ninth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 9, Decision 14 React half). Ships the React Provider + hook
+that wires `@starui/config-service` end-to-end — a host's `main.tsx`
+now carries identity + `appId` + (optional) seed / REST URLs and
+`ConfigServiceProvider` does the rest: constructs the `ConfigManager`,
+runs `init()` (which publishes `ApplicationContext` into the
+surrounding `<DataServicesProvider>` per Session 7), and exposes
+`{ configManager, storage, appId, userId, applicationContext }` via a
+single `useConfigService()` hook.
+
+- New workspace package
+  `packages/react/providers/config-service-react/` with the standard
+  `package.json` / `tsconfig.json` / `vitest.config.ts` shape (mirrors
+  `data-services-react`). Peer-dep on `@starui/data-services-react`
+  (the Provider reads `useDataServices()` so the ConfigManager can
+  attach to the same AppData mirror that the worker hub writes to).
+  Exports:
+  - `ConfigServiceProvider` (React component): props `{ identity,
+    appId, seedUrl?, restUrl?, children }`. On mount: constructs
+    `ConfigManager` with `dataServices = useDataServices()`, runs
+    `init()`, then exposes context. On unmount or prop change:
+    `dispose()` the manager. Pending bootstrap is short-circuited via
+    a `disposed` guard so a late `init()` resolution doesn't leak a
+    manager. Errors thrown during bootstrap rethrow on the next
+    render so the nearest `<ErrorBoundary>` catches them.
+  - `useConfigService()` (hook): returns the live
+    `ConfigServiceContextValue` or throws when called outside the
+    Provider so missing wiring fails fast.
+  - `ConfigServiceContextValue` (type): `configManager: ConfigManager`,
+    `storage: ProfileStorageFactory` (pre-bound for `<MarketsGrid>`),
+    `appId: string`, `userId: string`,
+    `applicationContext: ApplicationContext`.
+- Tests `packages/react/providers/config-service-react/src/ConfigServiceProvider.test.tsx`
+  (5 tests, jsdom + fake-indexeddb): exposes the expected shape after
+  init (incl. ApplicationContext snapshot); disposes the ConfigManager
+  on unmount; renders `null` while bootstrap is pending; throws from
+  `useConfigService` outside the Provider; re-bootstraps when `appId`
+  changes. `useDataServices` is `vi.mock`-ed to return a tiny
+  in-memory `appData` that satisfies `AppDataMirrorHandle` so the
+  Provider's real `ConfigManager.init()` exercises the actual
+  publish-into-AppData path.
+- Reference-app cutover in
+  `apps/markets-ui-react-reference/src/main.tsx`: the per-window
+  `createConfigClient({})` line is replaced with a `ViewRoutesLayout`
+  that wraps non-platform-provider routes in
+  `<DataServicesProvider services={dataServices}>` →
+  `<ConfigServiceProvider identity={IDENTITY} appId={APP_ID}>` →
+  inner `HostWrapperWithProviderClient` that derives a stable
+  `ConfigClient` from `useConfigService().configManager` via
+  `createConfigClient({ configManager })`. The hidden
+  `/platform/provider` route stays OUTSIDE the new providers so its
+  `bootstrapPlatform()` keeps owning the platform's ConfigManager
+  singleton without competition.
+- Verification: `npx turbo test --force` (35 packages, all green
+  including the new Provider's 5 tests); `npx turbo typecheck build
+  --force` (56 tasks green incl. the reference app's Vite bundle);
+  Vite dev server smoke for `markets-ui-react-reference` boots cleanly
+  on `http://localhost:5174/` with no console errors.
+
+Touched: `packages/react/providers/config-service-react/{package.json,tsconfig.json,vitest.config.ts,test/setup.ts,src/{index,types,configServiceContext,ConfigServiceProvider,useConfigService,ConfigServiceProvider.test}.{ts,tsx}}`,
+`apps/markets-ui-react-reference/{package.json,src/main.tsx}`.
+
 ## 2026-05-08 — Config-manager redesign Session 8: impersonation + effective-user helper
 
 Eighth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

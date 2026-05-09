@@ -16,6 +16,7 @@
     "@finos/fdc3": "2.0.3",
     "@starui/config-browser": "*",
     "@starui/config-service": "*",
+    "@starui/config-service-react": "*",
     "@starui/core": "*",
     "@starui/data-services": "*",
     "@starui/data-services-react": "*",
