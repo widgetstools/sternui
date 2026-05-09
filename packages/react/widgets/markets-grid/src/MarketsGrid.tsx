@@ -87,6 +87,12 @@ function ensureAgGridRegistered() {
   _agRegistered = true;
 }
 
+// One-shot dev-only warning when the host forgets to pass `storage`
+// (or the legacy `storageAdapter`). Module-scoped so the message fires
+// at most once per page session even across many grid mounts. Reset
+// only if the module is reloaded (HMR / a fresh page).
+let _memoryAdapterWarned = false;
+
 /**
  * Inject the cockpit design-system stylesheet once per document. Idempotent —
  * subsequent grids reuse the single `<style id="gc-cockpit-styles">` node.
@@ -225,6 +231,28 @@ function MarketsGridInner<TData = unknown>(
     if (storage) return storage({ instanceId: effectiveInstanceId, appId, userId });
     return storageAdapter as StorageAdapter | undefined;
   }, [storage, storageAdapter, effectiveInstanceId, appId, userId]);
+
+  // Dev-only nudge — when neither a `storage` factory nor a direct
+  // `storageAdapter` is wired, the inner Host falls through to a
+  // `MemoryAdapter` and every profile / layout / grid-level-data
+  // change vanishes on reload. This is the half-day gotcha every new
+  // framework consumer hits exactly once. Fire a single warn per
+  // page session, only outside production builds.
+  if (
+    !storage &&
+    !storageAdapter &&
+    !_memoryAdapterWarned &&
+    typeof process !== 'undefined' &&
+    process.env?.NODE_ENV !== 'production'
+  ) {
+    _memoryAdapterWarned = true;
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[MarketsGrid] No storage prop provided. Using in-memory storage — ' +
+      'profiles, layouts and grid-level-data WILL be lost on reload. ' +
+      'Wire @starui/config-service via createConfigServiceStorage(...) to persist.',
+    );
+  }
 
   return (
     <GridProvider platform={platform}>
