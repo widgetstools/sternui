@@ -87,8 +87,15 @@ const MAX_SYNC_RETRIES = 10;
 /**
  * Create a new ConfigManager instance.
  *
- * This is the recommended way to create a ConfigManager. Call `init()`
- * after creation to seed the database and start the sync loop.
+ * @deprecated Prefer `createConfigClient(...)` from `./client`. Per
+ * Decision 13 (config-manager-redesign), `ConfigClient` is the canonical
+ * forward-looking surface for component configuration; `ConfigManager`
+ * is collapsing to a private implementation detail behind the
+ * `LocalConfigClient` wrapper. Use `createConfigClient` for new feature
+ * code; keep `createConfigManager` only for legacy paths that still
+ * need the auth-table / dock-snapshot helper methods that haven't been
+ * lifted onto `ConfigClient` yet (those follow in the next session-set,
+ * after which this factory will be removed).
  *
  * @example
  * ```typescript
@@ -110,7 +117,11 @@ export function createConfigManager(options: ConfigManagerOptions = {}): ConfigM
  * database tables. It handles seeding, dual-mode persistence, and
  * sync retry logic.
  *
- * Use `createConfigManager()` to create an instance.
+ * @deprecated New feature code should consume `ConfigClient` (from
+ * `./client`) instead. `ConfigManager` is being collapsed behind
+ * `LocalConfigClient` — see Decision 13 in
+ * `docs/plans/plan-2026-05-07/config-manager-redesign.md` and the
+ * follow-up session-set that removes the factory and class.
  */
 export class ConfigManager {
   private db: ConfigDatabase;

@@ -21,6 +21,62 @@ FI Trading Terminal.
 > now `packages/shared/core`); semantic content of the entries is
 > unchanged. See `docs/ARCHITECTURE.md` for the new folder map.
 
+## 2026-05-08 — Config-manager redesign Session 16: collapse dual surfaces (`isRegisteredComponent` retired, `ConfigManager` deprecated in favour of `ConfigClient`)
+
+Sixteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)
+([per-session breakdown](./plans/plan-2026-05-07/config-manager-redesign-sessions.md)
+§Session 16, Decision 13 trim-pass tail). Per the design's "collapse
+dual surfaces" call: pick one canonical row template flag and one
+canonical client API. `isTemplate` is the sole template signal, and
+`ConfigClient` (introduced in Session 6/9) is the forward-looking
+public entry point — `ConfigManager` collapses behind it for a
+deprecation window.
+
+- `AppConfigRow.isRegisteredComponent` is removed from the schema
+  type. Every writer that used to mirror the deprecated alias next
+  to `isTemplate` now writes `isTemplate` only:
+  `packages/shared/services/config-service/src/profileStorage.ts`
+  (`saveSet`), `packages/shared/services/component-host/src/saveConfig.ts`
+  (debounced saver enforced fields), `.../resolveIdentity.ts` (template
+  clone path), and
+  `packages/shared/platform/openfin-platform/src/launch.ts`
+  (`cloneTemplateRowForInstance`).
+- New Dexie `version(4)` upgrade in
+  `packages/shared/services/config-service/src/db.ts` walks
+  every appConfig row and silently `delete`s the legacy
+  `isRegisteredComponent` field. No index changes — data-only
+  migration. Two new tests in `db.upgrade.test.ts` cover the
+  drop-on-read path (rows that carried the field, rows that never
+  did) so a regression that resurrects the alias is caught early.
+- `workspaceGc.ts` retires its old "rule 3" (preserve when
+  `isRegisteredComponent === true`) — `isTemplate` (rule 2),
+  well-known shared ids, registry singleton keys, the singleton-shape
+  fallback, and workspace-referenced instances together cover every
+  case the alias used to. `GcResult.preservedRegistered` is gone with
+  the rule; `workspaceGc.test.ts` is renumbered and the heterogeneous
+  batch test refreshed to match. `DebouncedSaverOptions.isRegisteredComponent`
+  (already deprecated) is dropped from the public type.
+- `createConfigManager(...)` and the `ConfigManager` class are
+  marked `@deprecated` in source and in
+  `packages/shared/services/config-service/src/index.ts` re-exports —
+  both still work, but their JSDoc now points consumers at
+  `createConfigClient` from `./client`. The next session-set
+  finishes lifting the auth-table / dock-snapshot helpers onto
+  `LocalConfigClient` and removes the factory + class entirely.
+- Server-side row type already lives in `@starui/shared-types`'
+  `AppConfigRow` (Session 1 / Decision 7 trim) which has never
+  carried `isRegisteredComponent`; SQLite migrations stay unchanged.
+
+Acceptance: `grep -rn isRegisteredComponent packages apps` matches
+only the v4 upgrade hook and this entry; one client API name
+(`ConfigClient`) and one canonical template flag (`isTemplate`) on
+the row type.
+
+Touched: `packages/shared/services/config-service/src/{types.ts,db.ts,db.upgrade.test.ts,profileStorage.ts,profileStorage.identity.test.ts,ConfigManager.ts,index.ts}`,
+`packages/shared/services/component-host/src/{saveConfig.ts,resolveIdentity.ts}`,
+`packages/shared/platform/openfin-platform/src/{launch.ts,workspaceGc.ts,workspaceGc.test.ts}`,
+`docs/plans/plan-2026-05-07/config-manager-redesign-sessions.md` (Session 16 checkboxes).
+
 ## 2026-05-08 — Config-manager redesign Session 15: `apps/config-admin-web` bundled inside config-service-server
 
 Fifteenth session of the [config-manager redesign](./plans/plan-2026-05-07/config-manager-redesign.md)

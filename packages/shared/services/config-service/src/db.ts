@@ -130,5 +130,28 @@ export class ConfigDatabase extends Dexie {
           }
         });
       });
+
+    // v4: drop the deprecated `isRegisteredComponent` field on appConfig
+    // (Session 16 / Decision 13 trim pass). `isTemplate` is now the sole
+    // canonical template flag — the back-compat alias is gone from
+    // writes, and any row that still carries it from a pre-cleanup
+    // session has the field stripped on read so consumer code can stop
+    // probing for it. No index changes; data-only migration.
+    this.version(4)
+      .stores({
+        appConfig: "configId, appId, userId, [componentType+componentSubType], isTemplate",
+        appRegistry: "appId",
+        userProfile: "userId, appId",
+        roles: "roleId",
+        permissions: "permissionId, category",
+        pendingSync: "++id, tableName, recordId",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("appConfig").toCollection().modify((row: any) => {
+          if (row.isRegisteredComponent !== undefined) {
+            delete row.isRegisteredComponent;
+          }
+        });
+      });
   }
 }

@@ -24,25 +24,26 @@
  *
  * Preservation rules (any one is enough to keep a row):
  *   1. componentType === 'workspace'           — workspace rows themselves
- *   2. isTemplate === true                     — admin-defined templates
- *   3. isRegisteredComponent === true          — explicit flag set when the
- *                                                row was written as a
- *                                                registered-component config
- *   4. configId in WELL_KNOWN_SHARED_IDS       — admin/system rows
+ *   2. isTemplate === true                     — registered-component
+ *                                                templates (the sole
+ *                                                canonical "this is a
+ *                                                registered-component
+ *                                                config" signal post-Session-16)
+ *   3. configId in WELL_KNOWN_SHARED_IDS       — admin/system rows
  *                                                (dock, registry, ws-setup)
- *   5. configId === deriveSingletonConfigId(componentType, componentSubType)
+ *   4. configId === deriveSingletonConfigId(componentType, componentSubType)
  *                                              — self-describing fallback for
  *                                                pre-flag rows; protects existing
  *                                                singleton rows that haven't
  *                                                been re-saved yet
- *   6. configId in singletonKeys (registry)    — entry-driven catch for
+ *   5. configId in singletonKeys (registry)    — entry-driven catch for
  *                                                custom configIds that don't
  *                                                match the canonical derivation
- *   7. configId referenced by some saved workspace's instanceIds
+ *   6. configId referenced by some saved workspace's instanceIds
  *
- * Rules 3, 5, and 6 are layered defenses for the same intent — "registered
- * components are protected." The explicit flag (rule 3) is the canonical
- * signal going forward; rules 5–6 catch legacy rows and registries written
+ * Rules 2, 4, and 5 are layered defenses for the same intent — "registered
+ * components are protected." The `isTemplate` flag (rule 2) is the canonical
+ * signal going forward; rules 4–5 catch legacy rows and registries written
  * under unusual scopes.
  *
  * GC is wired to:
@@ -97,9 +98,9 @@ function singletonKeysFromRegistryEntries(
 /**
  * True when a row's configId equals the canonical derivation for its
  * componentType/componentSubType. This is the back-compat signal for
- * rows written before `isRegisteredComponent` existed — those rows
- * have no flag, but their configId IS the derived singleton id, so we
- * can identify them by shape alone.
+ * rows written before any explicit registered-component flag existed —
+ * those rows have no flag, but their configId IS the derived singleton
+ * id, so we can identify them by shape alone.
  */
 function isSingletonShape(row: AppConfigRow): boolean {
   if (!row.componentType) return false;
@@ -142,7 +143,6 @@ export interface GcResult {
    */
   wouldDelete: number;
   preservedTemplate: number;
-  preservedRegistered: number;
   preservedKnown: number;
   preservedSingleton: number;
   preservedSingletonShape: number;
@@ -186,7 +186,6 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
     deleted: 0,
     wouldDelete: 0,
     preservedTemplate: 0,
-    preservedRegistered: 0,
     preservedKnown: 0,
     preservedSingleton: 0,
     preservedSingletonShape: 0,
@@ -204,14 +203,6 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
       if (verbose) console.debug(`[workspace-gc] keep (template): ${row.configId}`);
       continue;
     }
-    // Rule 3 — explicit "this is a registered-component config" flag.
-    // Set by component-host when the saver was created with
-    // isRegisteredComponent: true (i.e. for singleton launches).
-    if (row.isRegisteredComponent === true) {
-      result.preservedRegistered++;
-      if (verbose) console.debug(`[workspace-gc] keep (registered): ${row.configId}`);
-      continue;
-    }
     if (WELL_KNOWN_SHARED_CONFIG_IDS.has(row.configId)) {
       result.preservedKnown++;
       if (verbose) console.debug(`[workspace-gc] keep (well-known): ${row.configId}`);
@@ -222,10 +213,10 @@ export async function gcOrphanedConfigs(opts: GcOptions): Promise<GcResult> {
       if (verbose) console.debug(`[workspace-gc] keep (singleton-registry): ${row.configId}`);
       continue;
     }
-    // Rule 5 — self-describing fallback. Protects pre-flag singleton rows
-    // (written before `isRegisteredComponent` existed) by recognising that
-    // their configId matches the canonical derivation. After the next
-    // save the explicit flag covers them under rule 3.
+    // Rule 4 — self-describing fallback. Protects singleton rows by
+    // recognising that their configId matches the canonical derivation.
+    // Catches both legacy rows that pre-date isTemplate stamping and
+    // any row whose template flag has drifted.
     if (isSingletonShape(row)) {
       result.preservedSingletonShape++;
       if (verbose) console.debug(`[workspace-gc] keep (singleton-shape): ${row.configId}`);

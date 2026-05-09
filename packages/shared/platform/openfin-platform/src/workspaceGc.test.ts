@@ -143,38 +143,18 @@ describe('Rule 2 — isTemplate', () => {
   });
 });
 
-// ─── Rule 3: explicit isRegisteredComponent flag (NEW) ───────────────
+// ─── Rule 2 (cont.): non-template, non-shape rows are reaped ────────
 
-describe('Rule 3 — isRegisteredComponent flag', () => {
-  it('preserves rows with isRegisteredComponent=true', async () => {
-    // Use a configId that does NOT match the singleton-shape derivation
-    // so we know rule 6 isn't carrying the test. With componentType='X'
-    // and componentSubType='Y', deriveSingletonConfigId = 'x-y' — but
-    // the actual configId is 'custom-key'.
-    cm.rows.set('custom-key', row({
-      configId: 'custom-key',
-      componentType: 'X',
-      componentSubType: 'Y',
-      isRegisteredComponent: true,
-    }));
-
-    const r = await gcOrphanedConfigs({ cm: cm as unknown as ConfigManager, appId: APP_ID, userId: USER_ID });
-    expect(r.preservedRegistered).toBe(1);
-    expect(r.preservedSingletonShape).toBe(0);
-    expect(r.deleted).toBe(0);
-    expect(cm.rows.has('custom-key')).toBe(true);
-  });
-
-  it('does NOT preserve when flag is false or missing', async () => {
+describe('Rule 2 — non-template, non-shape rows are NOT preserved', () => {
+  it('does NOT preserve rows that lack isTemplate and have no singleton-shape match', async () => {
     // Both rows have componentType/subType that don't form a singleton-shape
-    // configId, so only the explicit flag could save them.
+    // configId AND isTemplate is false — only an explicit rule could save
+    // them, and there is none post-Session-16.
     cm.rows.set('orphan-1', row({
       configId: 'orphan-1', componentType: 'X', componentSubType: 'Y',
-      isRegisteredComponent: false,
     }));
     cm.rows.set('orphan-2', row({
       configId: 'orphan-2', componentType: 'X', componentSubType: 'Y',
-      // no isRegisteredComponent set at all (undefined)
     }));
 
     const r = await gcOrphanedConfigs({ cm: cm as unknown as ConfigManager, appId: APP_ID, userId: USER_ID });
@@ -188,9 +168,9 @@ describe('Rule 3 — isRegisteredComponent flag', () => {
   });
 });
 
-// ─── Rule 4: well-known shared config ids preserved ──────────────────
+// ─── Rule 3: well-known shared config ids preserved ──────────────────
 
-describe('Rule 4 — well-known shared ids', () => {
+describe('Rule 3 — well-known shared ids', () => {
   it.each(['dock-config', 'component-registry', 'workspace-setup'])(
     'preserves %s',
     async (id) => {
@@ -202,9 +182,9 @@ describe('Rule 4 — well-known shared ids', () => {
   );
 });
 
-// ─── Rule 5: registry singleton keys ─────────────────────────────────
+// ─── Rule 4: registry singleton keys ─────────────────────────────────
 
-describe('Rule 5 — singleton keys from registry', () => {
+describe('Rule 4 — singleton keys from registry', () => {
   it('preserves rows whose configId matches a singleton entry in the registry', async () => {
     seedRegistry([
       { configId: 'custom-singleton', singleton: true },
@@ -235,7 +215,7 @@ describe('Rule 5 — singleton keys from registry', () => {
     expect(cm.rows.has('custom-not-singleton')).toBe(true);
   });
 
-  it('does not crash when registry load fails — flag/shape rules still apply', async () => {
+  it('does not crash when registry load fails — shape rule still applies', async () => {
     // Force loadRegistryConfig to throw by making getConfig blow up only
     // for the registry id. Other lookups continue to work.
     const original = cm.getConfig.bind(cm);
@@ -247,7 +227,7 @@ describe('Rule 5 — singleton keys from registry', () => {
       configId: 'grid-credit', componentType: 'GRID', componentSubType: 'CREDIT',
     }));
 
-    // Even with the registry lookup broken, rule 6 (singleton-shape)
+    // Even with the registry lookup broken, the singleton-shape rule
     // still protects the row.
     const r = await gcOrphanedConfigs({ cm: cm as unknown as ConfigManager, appId: APP_ID, userId: USER_ID });
     expect(r.preservedSingletonShape).toBe(1);
@@ -255,9 +235,9 @@ describe('Rule 5 — singleton keys from registry', () => {
   });
 });
 
-// ─── Rule 6: singleton-shape fallback (NEW) ──────────────────────────
+// ─── Rule 5: singleton-shape fallback ────────────────────────────────
 
-describe('Rule 6 — singleton-shape fallback', () => {
+describe('Rule 5 — singleton-shape fallback', () => {
   it('preserves rows whose configId == deriveSingletonConfigId(type, subType)', async () => {
     // 'GRID' + 'CREDIT' → 'grid-credit' (lowercase, dash-joined)
     const id = deriveSingletonConfigId('GRID', 'CREDIT');
@@ -291,9 +271,9 @@ describe('Rule 6 — singleton-shape fallback', () => {
   });
 });
 
-// ─── Rule 7: workspace-referenced instances ──────────────────────────
+// ─── Rule 6: workspace-referenced instances ──────────────────────────
 
-describe('Rule 7 — workspace-referenced instances', () => {
+describe('Rule 6 — workspace-referenced instances', () => {
   it('preserves a row whose configId is in some workspace.instanceIds', async () => {
     cm.rows.set('WS_a', row({
       configId: 'WS_a',
@@ -379,22 +359,17 @@ describe('counter accuracy across mixed scenarios', () => {
     }));
     // Rule 2 — template
     cm.rows.set('tpl', row({ configId: 'tpl', isTemplate: true }));
-    // Rule 3 — explicit flag
-    cm.rows.set('flagged', row({
-      configId: 'flagged', componentType: 'A', componentSubType: 'B',
-      isRegisteredComponent: true,
-    }));
-    // Rule 4 — well-known
+    // Rule 3 — well-known
     cm.rows.set('dock-config', row({ configId: 'dock-config' }));
-    // Rule 5 — registry singleton
+    // Rule 4 — registry singleton
     cm.rows.set('reg-singleton-X', row({
       configId: 'reg-singleton-X', componentType: 'A', componentSubType: 'B',
     }));
-    // Rule 6 — singleton-shape
+    // Rule 5 — singleton-shape
     cm.rows.set('grid-credit', row({
       configId: 'grid-credit', componentType: 'GRID', componentSubType: 'CREDIT',
     }));
-    // Rule 7 — referenced
+    // Rule 6 — referenced
     cm.rows.set('ref-me', row({ configId: 'ref-me', componentType: 'A', componentSubType: 'B' }));
     // Default — orphan, deleted
     cm.rows.set('lonely', row({ configId: 'lonely', componentType: 'A', componentSubType: 'B' }));
@@ -402,7 +377,6 @@ describe('counter accuracy across mixed scenarios', () => {
     const r = await gcOrphanedConfigs({ cm: cm as unknown as ConfigManager, appId: APP_ID, userId: USER_ID });
 
     expect(r.preservedTemplate).toBe(1);
-    expect(r.preservedRegistered).toBe(1);
     expect(r.preservedKnown).toBe(1);
     expect(r.preservedSingleton).toBe(1);
     expect(r.preservedSingletonShape).toBe(1);
@@ -410,12 +384,11 @@ describe('counter accuracy across mixed scenarios', () => {
     // Deletion disabled — orphan is identified (wouldDelete=1) but kept.
     expect(r.wouldDelete).toBe(1);
     expect(r.deleted).toBe(0);
-    // 7 non-workspace rows scanned (workspace is skipped pre-scan)
-    expect(r.scanned).toBe(7);
+    // 6 non-workspace rows scanned (workspace is skipped pre-scan)
+    expect(r.scanned).toBe(6);
 
     expect(cm.rows.has('lonely')).toBe(true);
     expect(cm.rows.has('tpl')).toBe(true);
-    expect(cm.rows.has('flagged')).toBe(true);
     expect(cm.rows.has('dock-config')).toBe(true);
     expect(cm.rows.has('reg-singleton-X')).toBe(true);
     expect(cm.rows.has('grid-credit')).toBe(true);
@@ -423,16 +396,15 @@ describe('counter accuracy across mixed scenarios', () => {
   });
 
   it('counts a row under the FIRST matching rule (rules are short-circuit ordered)', async () => {
-    // Row has BOTH isTemplate=true and isRegisteredComponent=true.
-    // Rule order is template → registered, so it should land in preservedTemplate.
-    cm.rows.set('both-flags', row({
-      configId: 'both-flags',
+    // Row is both `isTemplate: true` AND has `well-known` configId. Rule
+    // order is template → well-known, so it should land in preservedTemplate.
+    cm.rows.set('dock-config', row({
+      configId: 'dock-config',
       isTemplate: true,
-      isRegisteredComponent: true,
     }));
 
     const r = await gcOrphanedConfigs({ cm: cm as unknown as ConfigManager, appId: APP_ID, userId: USER_ID });
     expect(r.preservedTemplate).toBe(1);
-    expect(r.preservedRegistered).toBe(0);
+    expect(r.preservedKnown).toBe(0);
   });
 });

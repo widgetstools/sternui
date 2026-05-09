@@ -47,10 +47,14 @@ export type {
   PermissionOps,
 } from './client';
 
-// ─── Lower-level ConfigManager ──────────────────────────────────────
-// Exposed for consumers that need direct access to auth tables
-// (appRegistry / userProfile / roles / permissions) or to dock/snapshot
-// convenience methods. New feature code should prefer `ConfigClient`.
+// ─── Lower-level ConfigManager (deprecated) ─────────────────────────
+// Exposed for consumers that still call auth-table getters
+// (appRegistry / userProfile / roles / permissions) or dock/snapshot
+// helpers directly. New feature code MUST prefer `ConfigClient` — these
+// re-exports collapse behind `LocalConfigClient` in the next
+// session-set. See Decision 13 and Session 16 of
+// `docs/plans/plan-2026-05-07/config-manager-redesign.md`.
+/** @deprecated Prefer `createConfigClient` from this same package. */
 export { createConfigManager, ConfigManager } from './ConfigManager';
 export type { ImpersonatedUser, SaveConfigOptions } from './ConfigManager';
 

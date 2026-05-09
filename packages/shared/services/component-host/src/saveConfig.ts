@@ -27,14 +27,6 @@ export interface DebouncedSaver<T> {
 export interface DebouncedSaverOptions {
   /** Debounce window in ms. Default 300. */
   debounceMs?: number;
-  /**
-   * @deprecated The saver now reads identity directly and writes
-   * `isTemplate` from `identity.isTemplate`; the back-compat
-   * `isRegisteredComponent` flag is set to the same value
-   * automatically. Setting this option no longer has any effect on
-   * its own; identity is the source of truth.
-   */
-  isRegisteredComponent?: boolean;
 }
 
 /**
@@ -97,10 +89,6 @@ export function createDebouncedSaver<T>(
       componentSubType: identity.componentSubType,
       isTemplate,
       singleton: identity.singleton ?? false,
-      // Back-compat flag — kept aligned with isTemplate while the
-      // field is still on the schema. Will be removed in a future
-      // schema bump (see config-service/src/types.ts).
-      isRegisteredComponent: isTemplate,
       updatedTime: now,
     };
 

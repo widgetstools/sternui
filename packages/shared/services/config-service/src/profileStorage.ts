@@ -300,9 +300,6 @@ export function createConfigServiceStorage(
         componentSubType,
         isTemplate,
         singleton,
-        // Back-compat alias kept aligned with isTemplate while the
-        // field is still on the schema.
-        isRegisteredComponent: isTemplate,
         payload: { ...set, version: expectedVersion + 1 },
         createdBy: existing?.createdBy ?? userId,
         updatedBy: userId,

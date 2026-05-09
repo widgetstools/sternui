@@ -166,3 +166,133 @@ describe('ConfigDatabase v3 upgrade — backfills `isPublic`', () => {
     expect(row?.isPublic).toBe(true);
   });
 });
+
+describe('ConfigDatabase v4 upgrade — drops `isRegisteredComponent`', () => {
+  let dbName: string;
+
+  beforeEach(() => {
+    dbName = uniqueDbName('isRegisteredComponent');
+  });
+
+  it('silently drops `isRegisteredComponent` from rows that pre-date the cleanup', async () => {
+    // Hand-roll an old DB at v3 — the version where `isRegisteredComponent`
+    // could still be authored onto a row. Then write a row carrying the
+    // legacy field and reopen at the latest version. The v4 upgrade
+    // should erase the field entirely.
+    const oldDb = new Dexie(dbName);
+    oldDb.version(1).stores({
+      appConfig: 'configId, appId, [componentType+componentSubType], isTemplate',
+      appRegistry: 'appId',
+      userProfile: 'userId, appId',
+      roles: 'roleId',
+      permissions: 'permissionId, category',
+      pendingSync: '++id, tableName, recordId',
+    });
+    oldDb.version(2).stores({
+      appConfig: 'configId, appId, userId, [componentType+componentSubType], isTemplate',
+      appRegistry: 'appId',
+      userProfile: 'userId, appId',
+      roles: 'roleId',
+      permissions: 'permissionId, category',
+      pendingSync: '++id, tableName, recordId',
+    });
+    oldDb.version(3).stores({
+      appConfig: 'configId, appId, userId, [componentType+componentSubType], isTemplate',
+      appRegistry: 'appId',
+      userProfile: 'userId, appId',
+      roles: 'roleId',
+      permissions: 'permissionId, category',
+      pendingSync: '++id, tableName, recordId',
+    });
+    await oldDb.open();
+    await oldDb.table('appConfig').put({
+      configId: 'legacy-registered',
+      appId: 'TestApp',
+      userId: 'alice',
+      isPublic: true,
+      displayText: 'Pre-Session-16 row with the deprecated alias still set',
+      componentType: 'GRID',
+      componentSubType: 'CREDIT',
+      isTemplate: true,
+      // ← deprecated alias on disk; should not survive the upgrade
+      isRegisteredComponent: true,
+      payload: { foo: 'bar' },
+      createdBy: 'alice',
+      updatedBy: 'alice',
+      creationTime: '2026-01-01T00:00:00Z',
+      updatedTime: '2026-01-01T00:00:00Z',
+    });
+    oldDb.close();
+
+    const upgraded = new ConfigDatabase(dbName);
+    await upgraded.open();
+    const row = await upgraded.appConfig.get('legacy-registered');
+    upgraded.close();
+
+    expect(row).toBeDefined();
+    // Field is silently gone — readers can stop probing for it.
+    expect((row as unknown as Record<string, unknown>).isRegisteredComponent).toBeUndefined();
+    // Sanity: every other field survives the upgrade unmangled.
+    expect(row?.isTemplate).toBe(true);
+    expect(row?.isPublic).toBe(true);
+    expect(row?.componentType).toBe('GRID');
+    expect(row?.componentSubType).toBe('CREDIT');
+    expect(row?.payload).toEqual({ foo: 'bar' });
+  });
+
+  it('is a no-op for rows that never carried the field', async () => {
+    // A row authored at v3 without the deprecated alias should pass
+    // through the v4 upgrade unchanged.
+    const oldDb = new Dexie(dbName);
+    oldDb.version(1).stores({
+      appConfig: 'configId, appId, [componentType+componentSubType], isTemplate',
+      appRegistry: 'appId',
+      userProfile: 'userId, appId',
+      roles: 'roleId',
+      permissions: 'permissionId, category',
+      pendingSync: '++id, tableName, recordId',
+    });
+    oldDb.version(2).stores({
+      appConfig: 'configId, appId, userId, [componentType+componentSubType], isTemplate',
+      appRegistry: 'appId',
+      userProfile: 'userId, appId',
+      roles: 'roleId',
+      permissions: 'permissionId, category',
+      pendingSync: '++id, tableName, recordId',
+    });
+    oldDb.version(3).stores({
+      appConfig: 'configId, appId, userId, [componentType+componentSubType], isTemplate',
+      appRegistry: 'appId',
+      userProfile: 'userId, appId',
+      roles: 'roleId',
+      permissions: 'permissionId, category',
+      pendingSync: '++id, tableName, recordId',
+    });
+    await oldDb.open();
+    await oldDb.table('appConfig').put({
+      configId: 'modern-row',
+      appId: 'TestApp',
+      userId: 'alice',
+      isPublic: true,
+      displayText: 'Row that already ditched the deprecated alias',
+      componentType: 'GRID',
+      componentSubType: 'CREDIT',
+      isTemplate: false,
+      payload: {},
+      createdBy: 'alice',
+      updatedBy: 'alice',
+      creationTime: '2026-01-01T00:00:00Z',
+      updatedTime: '2026-01-01T00:00:00Z',
+    });
+    oldDb.close();
+
+    const upgraded = new ConfigDatabase(dbName);
+    await upgraded.open();
+    const row = await upgraded.appConfig.get('modern-row');
+    upgraded.close();
+
+    expect(row).toBeDefined();
+    expect((row as unknown as Record<string, unknown>).isRegisteredComponent).toBeUndefined();
+    expect(row?.isTemplate).toBe(false);
+  });
+});
