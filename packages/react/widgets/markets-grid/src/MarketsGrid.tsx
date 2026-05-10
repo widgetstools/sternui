@@ -10,6 +10,7 @@ import {
   type ReactElement,
   type RefAttributes,
 } from 'react';
+import './grid-chrome.css';
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';

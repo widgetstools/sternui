@@ -3620,3 +3620,12 @@ Token mapping used (partial):
 - Build-time WCAG contrast audit codifies AAA body / AA chrome thresholds
 - Replaces deleted: `@starui/tokens-primeng` package, Cockpit stylesheet (`packages/shared/core/src/css/cockpit.ts`)
 - See `docs/2026-05-09/architecture-and-design/DESIGN_SYSTEM.md`
+
+## 2026-05-09 — Grid Customizer popout chrome visual regression fix
+
+- **Root cause**: `cockpit.ts` deletion (Task 17) + Phase 6 var sweeps removed structural chrome classes without recreating them. Popout rendered as a flat unstyled vertical stack.
+- **Fix**: `packages/react/widgets/markets-grid/src/grid-chrome.css` — new scoped CSS file that recreates `.gc-sheet`, `.gc-popout`, `.gc-popout-title*`, `.gc-popout-module-btn`, `.gc-popout-body`, `.gc-popout-list*`, `.gc-popout-editor`, `.gc-editor-header`, `.gc-editor-scroll`, `.gc-popout-footer`, `.gc-caps`, `.gc-mono`, `.gc-led`, themed scrollbars for list/body/formatting-toolbar.
+- All colour refs use `var(--ds-*)` tokens; light-mode override blocks dropped (theme switching handled automatically by unified CSS adapter).
+- Imported in `SettingsSheet.tsx` and `MarketsGrid.tsx`; Vite deduplicates.
+- Same pattern as `BorderStyleEditor.css` fix on this branch.
+- `check-ds-tokens`: clean; typecheck: clean; 68 tests passing.
