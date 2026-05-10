@@ -24,11 +24,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontWeight": 600,
     "headerHeight": 26,
     "headerTextColor": "#aab3bf",
-    "inputFocusBorder": {
-      "color": "#2b3139",
-      "style": "solid",
-      "width": 1,
-    },
     "rangeSelectionBackgroundColor": "rgba(34,211,238,0.12)",
     "rangeSelectionBorderColor": "#22d3ee",
     "rowBorder": {
@@ -64,11 +59,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontWeight": 600,
     "headerHeight": 26,
     "headerTextColor": "#3d4347",
-    "inputFocusBorder": {
-      "color": "#c7cac7",
-      "style": "solid",
-      "width": 1,
-    },
     "rangeSelectionBackgroundColor": "rgba(11,123,138,0.10)",
     "rangeSelectionBorderColor": "#0b7b8a",
     "rowBorder": {
@@ -104,11 +94,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontWeight": 600,
     "headerHeight": 32,
     "headerTextColor": "#aab3bf",
-    "inputFocusBorder": {
-      "color": "#2b3139",
-      "style": "solid",
-      "width": 1,
-    },
     "rangeSelectionBackgroundColor": "rgba(34,211,238,0.12)",
     "rangeSelectionBorderColor": "#22d3ee",
     "rowBorder": {
@@ -144,11 +129,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerFontWeight": 600,
     "headerHeight": 32,
     "headerTextColor": "#3d4347",
-    "inputFocusBorder": {
-      "color": "#c7cac7",
-      "style": "solid",
-      "width": 1,
-    },
     "rangeSelectionBackgroundColor": "rgba(11,123,138,0.10)",
     "rangeSelectionBorderColor": "#0b7b8a",
     "rowBorder": {
