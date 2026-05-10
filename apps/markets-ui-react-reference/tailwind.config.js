@@ -9,13 +9,16 @@ export default {
     '../../packages/react/dock-editor-react/src/**/*.{ts,tsx}',
     '../../packages/react/registry-editor-react/src/**/*.{ts,tsx}',
     '../../packages/react/tools/workspace-setup-react/src/**/*.{ts,tsx}',
-    '../../packages/react/widgets/markets-grid/src/**/*.{ts,tsx}',
+    // Scan EVERY widgets package — markets-grid, grid-react,
+    // widgets-react. Without grid-react in the glob, JIT tree-shakes
+    // any class that ONLY appears in grid-react files (RuleMetaStrip's
+    // `grid-cols-4 gap-x-5 border-b border-border bg-card`, every
+    // module-panel editor, the SettingsPanel atoms). Result: the Grid
+    // Customizer dialog meta-strip stacks vertically instead of into
+    // a 4-column row, every editor's layout collapses. demo-react's
+    // broader `widgets/**/src` glob caught these; this app missed them.
+    '../../packages/react/widgets/**/src/**/*.{ts,tsx}',
     '../../packages/shared/core/src/**/*.{ts,tsx}',
-    // widgets-react ships the DataProvider editor, configurator, and
-    // DataProviderSelector. Without scanning it, JIT purges every
-    // class name unique to those components — dialogs render with no
-    // background, gradient utilities disappear, etc.
-    '../../packages/react/widgets/widgets-react/src/**/*.{ts,tsx}',
     // ui ships shadcn primitives. Most consumers re-use the same class
     // names in their own files (so JIT picks them up indirectly), but
     // adding the package keeps less-common variants reachable too.
