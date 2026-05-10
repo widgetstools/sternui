@@ -55,6 +55,7 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     // "doubled cyan stripe" we kept hitting on edge-aligned inputs
     // like floating filters.
     inputFocusBorder:   false as const,
+    inputFocusShadow:   'none' as const,
     focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
     // ── Range / selection ──
     // Range selection signals via background tint only. The range
