@@ -43,7 +43,9 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%`;
 }
 
-function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
+function schemeVars(scheme: ColorScheme, mode: 'dark'|'light') {
+  // Same dark-on-accent rule as dsVars — see comment there.
+  const onAccent = mode === 'dark' ? hexToHsl(scheme.surface.ground) : '0 0% 100%';
   return `
     /* ── shadcn/ui overrides ── */
     --background: ${hexToHsl(scheme.surface.ground)};
@@ -53,7 +55,7 @@ function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
     --popover: ${hexToHsl(scheme.surface.primary)};
     --popover-foreground: ${hexToHsl(scheme.text.primary)};
     --primary: ${hexToHsl(scheme.accent.info)};
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: ${onAccent};
     --secondary: ${hexToHsl(scheme.surface.tertiary)};
     --secondary-foreground: ${hexToHsl(scheme.text.secondary)};
     --muted: ${hexToHsl(scheme.surface.secondary)};
@@ -61,7 +63,7 @@ function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
     --accent: ${hexToHsl(scheme.surface.tertiary)};
     --accent-foreground: ${hexToHsl(scheme.text.primary)};
     --destructive: ${hexToHsl(scheme.accent.negative)};
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: ${onAccent};
     --border: ${hexToHsl(scheme.border.primary)};
     --input: ${hexToHsl(scheme.border.primary)};
     --ring: ${hexToHsl(scheme.accent.info)};
@@ -90,7 +92,14 @@ export function getShadcnTokens(mode: 'dark' | 'light') {
 //  Unified CSS Generator — Task 9
 // ─────────────────────────────────────────────────────────────
 
-function dsVars(scheme: ColorScheme): string {
+function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
+  // Reference Chroma Desk uses dark text on accent-colored buttons in
+  // dark mode (`onAccent = t.c.bg`) and white text in light mode.
+  // White-on-mint or white-on-cyan in dark mode reads pale/washed out
+  // because the luminance is too close — dark-on-accent gives the
+  // punchy CTA look the reference showcase has on its BUY/SELL/Send
+  // buttons. Apply the same logic to every accent foreground.
+  const onAccent = mode === 'dark' ? hexToHslChannel(scheme.surface.ground) : '0 0% 100%';
   return `
     /* ── Chroma Desk source tokens ── */
     --ds-surface-ground:     ${scheme.surface.ground};
@@ -154,7 +163,7 @@ function dsVars(scheme: ColorScheme): string {
     --popover:              ${hexToHslChannel(scheme.surface.primary)};
     --popover-foreground:   ${hexToHslChannel(scheme.text.primary)};
     --primary:              ${hexToHslChannel(scheme.accent.info)};
-    --primary-foreground:   0 0% 100%;
+    --primary-foreground:   ${onAccent};
     --secondary:            ${hexToHslChannel(scheme.surface.tertiary)};
     --secondary-foreground: ${hexToHslChannel(scheme.text.secondary)};
     --muted:                ${hexToHslChannel(scheme.surface.secondary)};
@@ -162,13 +171,13 @@ function dsVars(scheme: ColorScheme): string {
     --accent:               ${hexToHslChannel(scheme.surface.tertiary)};
     --accent-foreground:    ${hexToHslChannel(scheme.text.primary)};
     --destructive:          ${hexToHslChannel(scheme.accent.negative)};
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: ${onAccent};
     --success:              ${hexToHslChannel(scheme.accent.positive)};
-    --success-foreground:   0 0% 100%;
+    --success-foreground:   ${onAccent};
     --warning:              ${hexToHslChannel(scheme.accent.warning)};
-    --warning-foreground:   0 0% 100%;
+    --warning-foreground:   ${onAccent};
     --info:                 ${hexToHslChannel(scheme.accent.info)};
-    --info-foreground:      0 0% 100%;
+    --info-foreground:      ${onAccent};
     --border:               ${hexToHslChannel(scheme.border.primary)};
     --input:                ${hexToHslChannel(scheme.border.primary)};
     --ring:                 ${hexToHslChannel(scheme.accent.info)};
@@ -229,10 +238,10 @@ function cvdOverride(scheme: ColorScheme): string {
 
 export function generateUnifiedCSS(): string {
   return `@layer base {
-  :root, [data-theme="dark"] {${dsVars(dark)}
+  :root, [data-theme="dark"] {${dsVars(dark, 'dark')}
   }
 
-  [data-theme="light"] {${dsVars(light)}
+  [data-theme="light"] {${dsVars(light, 'light')}
   }
 
   [data-theme="dark"][data-cvd="on"] {${cvdOverride(dark)}
