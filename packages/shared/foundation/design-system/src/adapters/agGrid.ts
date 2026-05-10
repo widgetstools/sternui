@@ -47,12 +47,13 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     spacing:            density === 'ultra' ? 4 : 6,
     borderRadius:       2,
     // ── Range / selection ──
-    // Range selection signals via background tint only. The range
-    // border style is hard-disabled so a clicked cell (which is BOTH
-    // focused AND a 1x1 range) doesn't render the cyan range border
-    // INSIDE the cell on top of the cyan focus ring OUTSIDE — that's
-    // the same doubled-stripe issue, just on cells.
-    rangeSelectionBorderStyle:     'none' as const,
+    // Range border style is left at AG Grid's default — it IS the
+    // single cell-selection indicator now that the focus-related
+    // overrides (focusShadow / inputFocusShadow / inputFocusBorder)
+    // are gone. A clicked cell becomes a 1x1 range and renders one
+    // cyan border via the default rangeSelectionBorderColor, which
+    // derives from accentColor. No doubling possible because there's
+    // nothing else stacked on top of it.
     rangeSelectionBackgroundColor: scheme.overlay.infoSoft,
     // ── Brand accent ──
     accentColor:        scheme.accent.info,
