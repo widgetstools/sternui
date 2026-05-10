@@ -5,6 +5,7 @@ import { MarketsGrid } from '@starui/markets-grid';
 import { DexieAdapter, activeProfileKey } from '@starui/core';
 import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
+import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -39,46 +40,26 @@ function initialFixtureName(): FixtureName | null {
 }
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
+//
+// Built from @starui/design-system/adapters/ag-grid (reference-aligned
+// Chroma Desk params) + app-specific tuning (mono font, smaller icons,
+// tighter cell padding, sharp corners). Theme attribute on <html> drives
+// the underlying --ds-* CSS vars; these params just point at them.
 
-const sharedParams = {
+const sharedParamOverrides = {
   fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 11,       // primitives.typography.fontSize.sm (11px)
-  headerFontSize: 10,  // primitives.typography.fontSize.xs + 1 (9+1=10)
-  // Scale AG-Grid's built-in glyphs (sort arrow, filter funnel, menu
-  // hamburger, sidebar chevrons, etc.) down to match the dense FI
-  // blotter type stack. Applies to both light and dark variants.
+  fontSize: 11,
+  headerFontSize: 10,
   iconSize: 10,
   cellHorizontalPaddingScale: 0.6,
-  wrapperBorder: false,
-  columnBorder: true,
   spacing: 6,
   borderRadius: 0,
   wrapperBorderRadius: 0,
+  columnBorder: true,
 };
 
-const darkTheme = themeQuartz.withParams({
-  ...sharedParams,
-  backgroundColor: 'var(--ds-surface-primary)',
-  foregroundColor: 'var(--ds-text-primary)',
-  headerBackgroundColor: 'var(--ds-surface-secondary)',
-  headerTextColor: 'var(--ds-text-secondary)',
-  oddRowBackgroundColor: 'var(--ds-surface-primary)',
-  rowHoverColor: 'var(--ds-surface-secondary)',
-  selectedRowBackgroundColor: 'var(--ds-overlay-info-soft)',
-  borderColor: 'var(--ds-border-primary)',
-});
-
-const lightTheme = themeQuartz.withParams({
-  ...sharedParams,
-  backgroundColor: 'var(--ds-surface-primary)',
-  foregroundColor: 'var(--ds-text-primary)',
-  headerBackgroundColor: 'var(--ds-surface-secondary)',
-  headerTextColor: 'var(--ds-text-muted)',
-  oddRowBackgroundColor: 'var(--ds-surface-ground)',
-  rowHoverColor: 'var(--ds-surface-secondary)',
-  selectedRowBackgroundColor: 'var(--ds-overlay-positive-soft)',
-  borderColor: 'var(--ds-border-primary)',
-});
+const darkTheme  = themeQuartz.withParams({ ...agGridDarkParams,  ...sharedParamOverrides });
+const lightTheme = themeQuartz.withParams({ ...agGridLightParams, ...sharedParamOverrides });
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────
 

@@ -31,6 +31,7 @@ import type {
   GridOptions,
 } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
+import { agGridBlotterDarkParams, agGridBlotterLightParams } from '@starui/design-system/adapters/ag-grid';
 import { AgGridReact } from 'ag-grid-react';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
@@ -242,48 +243,29 @@ function PriceCellRenderer(props: ICellRendererParams<LadderRow>) {
 }
 
 // ─── Grid config ──────────────────────────────────────────────────────
+//
+// Built from @starui/design-system/adapters/ag-grid blotter params
+// (reference-aligned Chroma Desk ultra-density) + depth-view overrides.
+// MarketDepth sits between blotter (22/26) and standard (28/32) — use
+// blotter as the base and override row/header heights to 24/28.
 
-const darkDepthTheme = themeQuartz.withParams({
+const depthOverrides = {
   fontFamily: "'JetBrains Mono', monospace",
   fontSize: 11,
   headerFontSize: 9,
   headerFontWeight: 700,
   rowHeight: 24,
   headerHeight: 28,
-  backgroundColor: 'var(--ds-surface-ground)',
-  foregroundColor: 'var(--ds-text-primary)',
-  headerBackgroundColor: 'var(--ds-surface-primary)',
-  headerTextColor: 'var(--ds-text-muted)',
-  oddRowBackgroundColor: 'var(--ds-surface-ground)',
-  rowHoverColor: 'var(--ds-surface-primary)',
   borderColor: 'transparent',
   columnBorder: false,
   wrapperBorder: false,
   cellHorizontalPaddingScale: 0.5,
   spacing: 5,
   borderRadius: 0,
-});
+};
 
-const lightDepthTheme = themeQuartz.withParams({
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 11,
-  headerFontSize: 9,
-  headerFontWeight: 700,
-  rowHeight: 24,
-  headerHeight: 28,
-  backgroundColor: 'var(--ds-surface-ground)',
-  foregroundColor: 'var(--ds-text-primary)',
-  headerBackgroundColor: 'var(--ds-surface-secondary)',
-  headerTextColor: 'var(--ds-text-muted)',
-  oddRowBackgroundColor: 'var(--ds-surface-ground)',
-  rowHoverColor: 'var(--ds-surface-secondary)',
-  borderColor: 'transparent',
-  columnBorder: false,
-  wrapperBorder: false,
-  cellHorizontalPaddingScale: 0.5,
-  spacing: 5,
-  borderRadius: 0,
-});
+const darkDepthTheme  = themeQuartz.withParams({ ...agGridBlotterDarkParams,  ...depthOverrides });
+const lightDepthTheme = themeQuartz.withParams({ ...agGridBlotterLightParams, ...depthOverrides });
 
 const columnDefs: ColDef<LadderRow>[] = [
   {
