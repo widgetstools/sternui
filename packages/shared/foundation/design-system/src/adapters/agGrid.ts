@@ -20,9 +20,12 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
   const fontPx  = density === 'ultra' ? 11 : 12;
   return {
     // ── Typography ──
+    // Headers use JetBrains Mono so column captions sit on the same
+    // tabular baseline as the cell values — keeps numeric / identifier
+    // columns aligned and reinforces the trading-terminal voice.
     fontFamily:        typography.fontFamily.sans,
     fontSize:          fontPx,
-    headerFontFamily:  typography.fontFamily.sans,
+    headerFontFamily:  typography.fontFamily.mono,
     headerFontSize:    Math.max(10, fontPx - 1),
     headerFontWeight:  600,
     cellFontFamily:    typography.fontFamily.mono,
