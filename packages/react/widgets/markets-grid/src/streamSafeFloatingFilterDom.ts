@@ -24,11 +24,11 @@
  * input's height + border + focus ring stay exactly as the theme
  * styles them (no inline style overrides on those properties).
  *
- * **Theme-awareness.** The clear button reads from AG-Grid CSS
- * variables (`--ag-foreground-color`, `--ag-row-hover-color`) so it
- * adapts automatically to the active theme — Quartz Light/Dark/etc.
+ * **Theme-awareness.** The clear button reads from design-system CSS
+ * variables (`--ds-text-primary`, `--ds-surface-secondary`) so it
+ * adapts automatically to the active theme — light/dark/etc.
  * Falls back to neutral defaults when the variables aren't defined
- * (e.g. running outside an AG-Grid theme). The wrapper's
+ * (e.g. running outside the design-system theme). The wrapper's
  * `position: relative` is the only structural inline style we add.
  */
 export interface FloatingFilterDom {
@@ -113,16 +113,16 @@ export function buildFloatingFilterDom(opts: BuildFloatingFilterDomOptions): Flo
   clearBtn.style.borderRadius = '3px';
   clearBtn.style.background = 'transparent';
   clearBtn.style.border = 'none';
-  // `--ag-foreground-color` flips automatically between light/dark
+  // `--ds-text-primary` flips automatically between light/dark
   // themes; `currentColor` is the safe fallback.
-  clearBtn.style.color = 'var(--ag-foreground-color, currentColor)';
+  clearBtn.style.color = 'var(--ds-text-primary, currentColor)';
   clearBtn.style.opacity = '0.75';
   clearBtn.style.cursor = 'pointer';
   clearBtn.addEventListener('mouseenter', () => {
     clearBtn.style.opacity = '1';
-    // `--ag-row-hover-color` is themed for both light and dark; falls
+    // `--ds-surface-secondary` is themed for both light and dark; falls
     // back to a low-alpha neutral grey when the variable is undefined.
-    clearBtn.style.background = 'var(--ag-row-hover-color, rgba(127, 127, 127, 0.18))';
+    clearBtn.style.background = 'var(--ds-surface-secondary, rgba(127, 127, 127, 0.18))';
   });
   clearBtn.addEventListener('mouseleave', () => {
     clearBtn.style.opacity = '0.75';
