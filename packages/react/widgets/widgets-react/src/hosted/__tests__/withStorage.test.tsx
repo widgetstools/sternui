@@ -13,7 +13,7 @@ const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
-    return <div data-testid="mgc-stub" data-has-storage={String(Boolean(props.storage))} />;
+    return <div data-testid="mds-stub" data-has-storage={String(Boolean(props.storage))} />;
   },
 }));
 
@@ -44,7 +44,7 @@ describe('HostedMarketsGrid — withStorage (row 6)', () => {
         configManager={fakeConfigManager}
       />,
     );
-    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-has-storage')).toBe('false');
     expect(mgcProps[mgcProps.length - 1].storage).toBeUndefined();
   });
@@ -60,7 +60,7 @@ describe('HostedMarketsGrid — withStorage (row 6)', () => {
       />,
     );
     const stub = await waitFor(() => {
-      const el = getByTestId('mgc-stub');
+      const el = getByTestId('mds-stub');
       if (el.getAttribute('data-has-storage') !== 'true') throw new Error('not yet');
       return el;
     });

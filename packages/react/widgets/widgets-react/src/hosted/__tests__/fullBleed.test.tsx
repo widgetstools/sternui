@@ -9,7 +9,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/config-service';
 
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
-  MarketsGridContainer: () => <div data-testid="mgc-stub" />,
+  MarketsGridContainer: () => <div data-testid="mds-stub" />,
 }));
 
 const { HostedMarketsGrid } = await import('../HostedMarketsGrid.js');
@@ -33,7 +33,7 @@ describe('HostedMarketsGrid — full-bleed layout (row 8)', () => {
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
 
     const styleEl = container.querySelector('style');
     expect(styleEl?.textContent).toMatch(/html,\s*body/);

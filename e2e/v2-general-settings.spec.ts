@@ -93,7 +93,7 @@ test.describe('v2 — general-settings (Grid Options) panel', () => {
   test('animate-rows toggle persists + updates OVERRIDES counter', async ({ page }) => {
     await openPanel(page, 'general-settings');
     // Panel shows OVERRIDES=0 initially.
-    const metaCells = page.locator('[data-testid="go-panel"] .gc-meta-cell');
+    const metaCells = page.locator('[data-testid="go-panel"] .ds-meta-cell');
     await expect(metaCells.nth(1)).toContainText('0');
 
     await toggleSwitch(page, 'go-animate-rows');

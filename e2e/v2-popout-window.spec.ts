@@ -66,7 +66,7 @@ test.describe('v2 — settings sheet pop-out window', () => {
     );
     expect(Array.isArray(calls) && calls.length).toBeGreaterThanOrEqual(1);
     const firstCall = (calls as { name: string; features: string }[])[0];
-    expect(firstCall.name).toMatch(/^gc-popout-/);
+    expect(firstCall.name).toMatch(/^ds-popout-/);
     expect(firstCall.features).toMatch(/width=960/);
     expect(firstCall.features).toMatch(/height=700/);
   });
@@ -90,8 +90,8 @@ test.describe('v2 — settings sheet pop-out window', () => {
         const doc = iframe?.contentDocument;
         const sheetWrapper = doc?.querySelector('[data-testid="v2-settings-sheet"]');
         return {
-          hasSheet: !!doc?.querySelector('.gc-sheet'),
-          hasPoppedClass: !!doc?.querySelector('.gc-popout.is-popped'),
+          hasSheet: !!doc?.querySelector('.ds-sheet'),
+          hasPoppedClass: !!doc?.querySelector('.ds-popout.is-popped'),
           hasMountNode: !!doc?.querySelector('[data-popout-root]'),
           sheetPoppedAttr: sheetWrapper?.getAttribute('data-popped') ?? null,
           stylesCloned: doc?.head?.querySelectorAll('style, link[rel="stylesheet"]').length ?? 0,
@@ -237,8 +237,8 @@ test.describe('v2 — settings sheet pop-out window', () => {
       return {
         close: !!document.querySelector('[data-testid="v2-settings-close-btn"]'),
         popoutBtn: !!document.querySelector('[data-testid="v2-settings-popout-btn"]'),
-        titleText: !!document.querySelector('.gc-popout-title-text'),
-        titleSub: !!document.querySelector('.gc-popout-title-sub'),
+        titleText: !!document.querySelector('.ds-popout-title-text'),
+        titleSub: !!document.querySelector('.ds-popout-title-sub'),
       };
     });
     expect(mainDocHasChrome).toEqual({
@@ -256,8 +256,8 @@ test.describe('v2 — settings sheet pop-out window', () => {
       return {
         close: !!doc?.querySelector('[data-testid="v2-settings-close-btn"]'),
         popoutBtn: !!doc?.querySelector('[data-testid="v2-settings-popout-btn"]'),
-        titleText: !!doc?.querySelector('.gc-popout-title-text'),
-        titleSub: !!doc?.querySelector('.gc-popout-title-sub'),
+        titleText: !!doc?.querySelector('.ds-popout-title-text'),
+        titleSub: !!doc?.querySelector('.ds-popout-title-sub'),
       };
     });
     expect(popoutDocHasChrome).toEqual({

@@ -10,7 +10,7 @@
  * Visual language matches the rest of the app's shadcn primitives:
  *   --ds-surface-primary / --ds-border-primary / --ds-text-primary so it
  *   still looks right when rendered into the document root (outside the
- *   gc-sheet scope).
+ *   ds-sheet scope).
  *
  * Usage:
  *   <AlertDialog>
@@ -71,7 +71,7 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
       ref={ref}
-      data-gc-settings=""
+      data-ds-settings=""
       className={cn(
         // Positioning — centered, portal-rendered
         'fixed left-1/2 top-1/2 z-[2147483647] w-[min(420px,calc(100vw-24px))]',

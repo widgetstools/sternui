@@ -411,7 +411,7 @@ export function PopoutPortal({
   //
   // Keeping data-theme only on <html> means body inherits the valid hex
   // via the normal CSS-var cascade. The descendant-form selectors in
-  // cockpit.ts (`[data-theme='light'] .gc-sheet-v2`) still match because
+  // cockpit.ts (`[data-theme='light'] .ds-sheet-v2`) still match because
   // body is a descendant of html.
   useEffect(() => {
     if (!popout) return;
@@ -598,7 +598,7 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
     } catch (err) { console.warn('[PopoutPortal] viewport meta inject failed:', err); }
 
     // Seed the popout's <body> with BOTH the cockpit scope class AND
-    // the gc-settings data-attr so every Radix portal target (we pass
+    // the ds-settings data-attr so every Radix portal target (we pass
     // `popout.document.body` as the container) inherits the full
     // --ds-*, + Tailwind shadcn token stack. Without this, a
     // FormatPopover opened from inside a popped settings sheet would
@@ -610,8 +610,8 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
     // at :root level), so adding them to <body> is harmless for any
     // direct-body consumers and fixes every downstream portal.
     try {
-      doc.body.classList.add('gc-sheet-v2');
-      doc.body.setAttribute('data-gc-settings', '');
+      doc.body.classList.add('ds-sheet-v2');
+      doc.body.setAttribute('data-ds-settings', '');
     } catch (err) { console.warn('[PopoutPortal] body scope tag failed:', err); }
 
     // Clone every stylesheet from the main document so our CSS-in-

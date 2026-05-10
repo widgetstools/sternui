@@ -72,41 +72,41 @@
        base reset doesn't override them) ───────────────────────────── */
 
 @layer components {
-  .gc-tbtn {
+  .ds-tbtn {
     color: var(--ds-text-primary);
     opacity: 0.55;
   }
-  .gc-tbtn:hover {
+  .ds-tbtn:hover {
     opacity: 1;
     background: var(--ds-surface-tertiary);
   }
-  .gc-toolbar-enabled .gc-tbtn {
+  .ds-toolbar-enabled .ds-tbtn {
     opacity: 0.85;
   }
-  .gc-toolbar-enabled .gc-tbtn:hover {
+  .ds-toolbar-enabled .ds-tbtn:hover {
     opacity: 1;
     background: var(--ds-surface-tertiary);
   }
-  .gc-tbtn-active {
+  .ds-tbtn-active {
     opacity: 1 !important;
     background: color-mix(in srgb, var(--ds-accent-info) 15%, transparent);
     color: var(--ds-accent-info) !important;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-accent-info) 30%, transparent);
   }
-  .gc-tbtn-active:hover {
+  .ds-tbtn-active:hover {
     background: color-mix(in srgb, var(--ds-accent-info) 22%, transparent);
   }
-  .gc-toolbar-sep {
+  .ds-toolbar-sep {
     width: 1px;
     background: var(--ds-border-primary);
     flex-shrink: 0;
   }
-  .gc-toolbar-group-bg {
+  .ds-toolbar-group-bg {
     background: color-mix(in srgb, var(--ds-surface-primary) 60%, transparent);
   }
 
   /* Toolbar Switcher — dropdown */
-  .gc-switcher-trigger {
+  .ds-switcher-trigger {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -121,17 +121,17 @@
     color: var(--ds-text-muted);
     transition: color 120ms ease;
   }
-  .gc-switcher-trigger:hover {
+  .ds-switcher-trigger:hover {
     color: var(--ds-text-primary);
   }
-  .gc-switcher-dot {
+  .ds-switcher-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
     background: var(--sw-color, var(--ds-accent-info));
     box-shadow: 0 0 4px color-mix(in srgb, var(--sw-color, var(--ds-accent-info)) 50%, transparent);
   }
-  .gc-switcher-menu {
+  .ds-switcher-menu {
     position: absolute;
     top: 100%;
     left: 0;
@@ -144,7 +144,7 @@
     border: 1px solid var(--ds-border-primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.04);
   }
-  .gc-switcher-item {
+  .ds-switcher-item {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -158,30 +158,30 @@
     cursor: pointer;
     transition: background 100ms ease;
   }
-  .gc-switcher-item:hover {
+  .ds-switcher-item:hover {
     background: var(--ds-surface-tertiary);
   }
-  .gc-switcher-item-active {
+  .ds-switcher-item-active {
     color: var(--sw-color, var(--ds-text-primary));
     background: color-mix(in srgb, var(--sw-color, var(--ds-accent-info)) 10%, transparent);
   }
-  .gc-switcher-item-dot {
+  .ds-switcher-item-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--sw-color, var(--ds-text-muted));
     flex-shrink: 0;
   }
-  .gc-switcher-item-active .gc-switcher-item-dot {
+  .ds-switcher-item-active .ds-switcher-item-dot {
     box-shadow: 0 0 3px color-mix(in srgb, var(--sw-color, var(--ds-accent-info)) 50%, transparent);
   }
-  .gc-switcher-icon {
+  .ds-switcher-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .gc-switcher-item-icon {
+  .ds-switcher-item-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -197,7 +197,7 @@
    Must be OUTSIDE @layer so Tailwind's reset can't overwrite the
    flexbox layout. */
 
-.gc-primary-row {
+.ds-primary-row {
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -206,7 +206,7 @@
   border-bottom: 1px solid var(--ds-border-primary);
 }
 
-.gc-primary-filters {
+.ds-primary-filters {
   flex: 1 1 0px;
   min-width: 0;
   overflow-x: clip;
@@ -214,12 +214,12 @@
   align-items: center;
 }
 
-.gc-primary-filters-empty {
+.ds-primary-filters-empty {
   flex: 1 1 0px;
   height: 100%;
 }
 
-.gc-primary-actions {
+.ds-primary-actions {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -228,7 +228,7 @@
 }
 
 /* Shared icon button for Brush / Save / Settings. */
-.gc-primary-action {
+.ds-primary-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -244,29 +244,29 @@
   flex-shrink: 0;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
-.gc-primary-action:hover {
+.ds-primary-action:hover {
   color: var(--ds-accent-info);
   opacity: 1;
   background: color-mix(in srgb, var(--ds-accent-info) 12%, transparent);
   border-color: color-mix(in srgb, var(--ds-accent-info) 35%, transparent);
 }
-.gc-primary-action[aria-pressed='true'],
-.gc-primary-action[data-active='true'] {
+.ds-primary-action[aria-pressed='true'],
+.ds-primary-action[data-active='true'] {
   color: var(--ds-accent-positive);
   background: rgba(45, 212, 191, 0.12);
   border-color: rgba(45, 212, 191, 0.35);
 }
-.gc-primary-action[data-state='dirty'] {
+.ds-primary-action[data-state='dirty'] {
   color: var(--ds-accent-warning);
 }
-.gc-primary-action[data-state='saved'] {
+.ds-primary-action[data-state='saved'] {
   color: var(--ds-accent-positive);
 }
 
-.gc-primary-save {
+.ds-primary-save {
   position: relative;
 }
-.gc-primary-save-dirty {
+.ds-primary-save-dirty {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -276,7 +276,7 @@
   pointer-events: none;
 }
 
-.gc-primary-divider {
+.ds-primary-divider {
   display: inline-block;
   width: 1px;
   height: 20px;
@@ -288,7 +288,7 @@
 
 /* ─── Filters toolbar itself ───────────────────────────────────────── */
 
-.gc-filters-bar {
+.ds-filters-bar {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -298,7 +298,7 @@
   overflow: hidden;
 }
 
-.gc-filters-collapse {
+.ds-filters-collapse {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,7 +315,7 @@
   margin-right: 4px;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
-.gc-filters-collapse:hover {
+.ds-filters-collapse:hover {
   color: var(--ds-accent-info);
   opacity: 1;
   background: color-mix(in srgb, var(--ds-accent-info) 14%, transparent);
@@ -323,7 +323,7 @@
 }
 
 /* Summary chip (collapsed state) */
-.gc-filters-summary {
+.ds-filters-summary {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -341,29 +341,29 @@
   flex-shrink: 0;
   transition: all 120ms ease;
 }
-.gc-filters-summary:hover {
+.ds-filters-summary:hover {
   border-color: var(--ds-border-secondary);
   background: var(--ds-surface-secondary);
 }
-.gc-filters-summary-count {
+.ds-filters-summary-count {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--ds-accent-info);
 }
-.gc-filters-summary-label {
+.ds-filters-summary-label {
   color: var(--ds-text-muted);
 }
-.gc-filters-summary-active {
+.ds-filters-summary-active {
   color: var(--ds-accent-warning);
   font-weight: 500;
 }
-.gc-filters-summary-empty {
+.ds-filters-summary-empty {
   color: var(--ds-text-muted);
   font-style: italic;
 }
 
 /* Clear-all / Add-new sticky actions */
-.gc-filters-clear-btn {
+.ds-filters-clear-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -378,12 +378,12 @@
   border-radius: 3px;
   transition: color 120ms ease, background 120ms ease;
 }
-.gc-filters-clear-btn:hover {
+.ds-filters-clear-btn:hover {
   background: rgba(239, 68, 68, 0.10);
   color: var(--ds-accent-negative-hover);
 }
 
-.gc-filters-add-btn {
+.ds-filters-add-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -398,12 +398,12 @@
   border-radius: 3px;
   transition: color 120ms ease, background 120ms ease;
 }
-.gc-filters-add-btn:hover:not(:disabled) {
+.ds-filters-add-btn:hover:not(:disabled) {
   background: rgba(20, 184, 166, 0.10);
   color: var(--ds-accent-positive-hover);
 }
 
-.gc-filter-scroll {
+.ds-filter-scroll {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -413,11 +413,11 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.gc-filter-scroll::-webkit-scrollbar {
+.ds-filter-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.gc-filter-pill {
+.ds-filter-pill {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -436,30 +436,30 @@
   cursor: default;
 }
 
-.gc-filter-active {
+.ds-filter-active {
   background: var(--filter-active-bg);
   color: var(--filter-active-text);
   border-color: var(--filter-active-border);
   box-shadow: var(--filter-active-glow);
   text-shadow: 0 0 8px color-mix(in srgb, var(--ds-accent-warning) 50%, transparent);
 }
-.gc-filter-active:hover {
+.ds-filter-active:hover {
   background: color-mix(in srgb, var(--ds-accent-warning) 32%, transparent);
   border-color: color-mix(in srgb, var(--ds-accent-warning) 85%, transparent);
 }
 
-.gc-filter-inactive {
+.ds-filter-inactive {
   background: var(--filter-inactive-bg);
   color: var(--filter-inactive-text);
   border-color: var(--filter-inactive-border);
 }
-.gc-filter-inactive:hover {
+.ds-filter-inactive:hover {
   color: var(--ds-text-primary);
   background: color-mix(in srgb, var(--ds-text-primary) 6%, var(--ds-surface-tertiary));
   border-color: color-mix(in srgb, var(--ds-text-primary) 22%, var(--ds-border-secondary));
 }
 
-.gc-filter-pill-btn {
+.ds-filter-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 0;
@@ -476,7 +476,7 @@
   flex: 1;
 }
 
-.gc-filter-pill-count {
+.ds-filter-pill-count {
   flex-shrink: 0;
   margin-left: 7px;
   padding: 0 6px;
@@ -494,18 +494,18 @@
   color: inherit;
   opacity: 0.9;
 }
-.gc-filter-active .gc-filter-pill-count {
+.ds-filter-active .ds-filter-pill-count {
   background: color-mix(in srgb, var(--ds-accent-warning) 25%, transparent);
   color: var(--ds-accent-warning);
   opacity: 1;
 }
-.gc-filter-inactive .gc-filter-pill-count {
+.ds-filter-inactive .ds-filter-pill-count {
   background: color-mix(in srgb, var(--ds-text-primary) 10%, transparent);
   color: var(--ds-text-primary);
   opacity: 0.95;
 }
 
-.gc-filter-pill-actions {
+.ds-filter-pill-actions {
   display: inline-flex;
   align-items: center;
   gap: 1px;
@@ -517,15 +517,15 @@
   flex-shrink: 0;
   pointer-events: none;
 }
-.gc-filter-pill:hover .gc-filter-pill-actions,
-.gc-filter-pill:focus-within .gc-filter-pill-actions {
+.ds-filter-pill:hover .ds-filter-pill-actions,
+.ds-filter-pill:focus-within .ds-filter-pill-actions {
   max-width: 60px;
   margin-left: 4px;
   opacity: 1;
   pointer-events: auto;
 }
 
-.gc-filter-pill-action {
+.ds-filter-pill-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -540,18 +540,18 @@
   cursor: pointer;
   transition: all 100ms ease;
 }
-.gc-filter-pill-action:hover {
+.ds-filter-pill-action:hover {
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
 }
-.gc-filter-pill-action-remove:hover {
+.ds-filter-pill-action-remove:hover {
   color: var(--ds-accent-negative);
   background: rgba(248, 113, 113, 0.12);
 }
 
 /* Always-visible "show saved filter" menu trigger. Sits between the
    label-button and the hover-only rename/remove actions. */
-.gc-filter-pill-menu {
+.ds-filter-pill-menu {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -570,26 +570,26 @@
   pointer-events: none;
   transition: width 150ms ease, margin-left 150ms ease, opacity 120ms ease, background 100ms ease;
 }
-.gc-filter-pill:hover .gc-filter-pill-menu,
-.gc-filter-pill:focus-within .gc-filter-pill-menu,
-.gc-filter-pill-menu[data-state="open"] {
+.ds-filter-pill:hover .ds-filter-pill-menu,
+.ds-filter-pill:focus-within .ds-filter-pill-menu,
+.ds-filter-pill-menu[data-state="open"] {
   width: 16px;
   margin-left: 4px;
   opacity: 0.6;
   pointer-events: auto;
 }
-.gc-filter-pill-menu:hover,
-.gc-filter-pill-menu[data-state="open"] {
+.ds-filter-pill-menu:hover,
+.ds-filter-pill-menu[data-state="open"] {
   opacity: 1;
   background: rgba(255, 255, 255, 0.12);
 }
-[data-theme="light"] .gc-filter-pill-menu:hover,
-[data-theme="light"] .gc-filter-pill-menu[aria-expanded="true"] {
+[data-theme="light"] .ds-filter-pill-menu:hover,
+[data-theme="light"] .ds-filter-pill-menu[aria-expanded="true"] {
   background: rgba(0, 0, 0, 0.08);
 }
 
 
-.gc-filters-caret {
+.ds-filters-caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -604,12 +604,12 @@
   flex-shrink: 0;
   transition: color 100ms ease, background 100ms ease;
 }
-.gc-filters-caret:hover {
+.ds-filters-caret:hover {
   color: var(--ds-text-primary);
   background: var(--ds-surface-tertiary);
 }
 
-.gc-filters-actions {
+.ds-filters-actions {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -617,7 +617,7 @@
   margin-left: 4px;
 }
 
-.gc-filters-icon-btn {
+.ds-filters-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -631,16 +631,16 @@
   cursor: pointer;
   transition: all 100ms ease;
 }
-.gc-filters-icon-btn:hover {
+.ds-filters-icon-btn:hover {
   color: var(--ds-text-primary);
   background: var(--ds-surface-tertiary);
   border-color: var(--ds-text-primary);
 }
-.gc-filters-icon-btn-confirm {
+.ds-filters-icon-btn-confirm {
   border-color: var(--ds-accent-positive);
 }
 
-.gc-filter-rename-input {
+.ds-filter-rename-input {
   height: 24px;
   width: 110px;
   min-width: 70px;
@@ -659,7 +659,7 @@
 
 /* ─── Stacked toolbar slide-in animation ───────────────────────────── */
 
-@keyframes gc-slide-down {
+@keyframes ds-slide-down {
   from {
     opacity: 0;
     transform: translateY(-4px);
@@ -672,7 +672,7 @@
 
 /* ─── Toolbar visibility pills ─────────────────────────────────────── */
 
-.gc-toolbar-pills-dock {
+.ds-toolbar-pills-dock {
   position: absolute;
   top: 0;
   left: 50%;
@@ -691,13 +691,13 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.18);
 }
 
-.gc-toolbar-primary:hover .gc-toolbar-pills-dock,
-.gc-toolbar-pills-dock:hover {
+.ds-toolbar-primary:hover .ds-toolbar-pills-dock,
+.ds-toolbar-pills-dock:hover {
   opacity: 1;
   pointer-events: auto;
 }
 
-.gc-pill {
+.ds-pill {
   height: 16px;
   padding: 0 6px;
   display: inline-flex;
@@ -718,29 +718,29 @@
   line-height: 1;
 }
 
-.gc-pill > svg {
+.ds-pill > svg {
   width: 9px;
   height: 9px;
 }
 
-.gc-pill:hover {
+.ds-pill:hover {
   background: color-mix(in srgb, var(--pill-color) 14%, transparent);
   color: var(--pill-color);
   border-color: color-mix(in srgb, var(--pill-color) 45%, transparent);
 }
 
-.gc-pill[data-active='true'] {
+.ds-pill[data-active='true'] {
   background: color-mix(in srgb, var(--pill-color) 22%, transparent);
   color: var(--pill-color);
   border-color: color-mix(in srgb, var(--pill-color) 55%, transparent);
 }
 
-.gc-pill[data-active='true']:hover {
+.ds-pill[data-active='true']:hover {
   background: color-mix(in srgb, var(--pill-color) 30%, transparent);
 }
 
 /* Stacked-toolbar close button (always visible) */
-.gc-stacked-close:hover {
+.ds-stacked-close:hover {
   background: color-mix(in srgb, var(--ds-accent-negative) 12%, transparent) !important;
   color: var(--ds-accent-negative) !important;
 }

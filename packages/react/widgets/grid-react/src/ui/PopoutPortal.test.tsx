@@ -80,7 +80,7 @@ describe('PopoutPortal', () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => fake.win);
 
     render(
-      <PopoutPortal name="gc-popout-test" title="Test" width={800} height={600} onClose={() => {}}>
+      <PopoutPortal name="ds-popout-test" title="Test" width={800} height={600} onClose={() => {}}>
         <div data-testid="child">hi</div>
       </PopoutPortal>,
     );
@@ -88,12 +88,12 @@ describe('PopoutPortal', () => {
 
     expect(openSpy).toHaveBeenCalledWith(
       '',
-      'gc-popout-test',
+      'ds-popout-test',
       expect.stringContaining('width=800'),
     );
     expect(openSpy).toHaveBeenCalledWith(
       '',
-      'gc-popout-test',
+      'ds-popout-test',
       expect.stringContaining('height=600'),
     );
   });

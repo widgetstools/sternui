@@ -391,7 +391,7 @@ function installPlaceholder(editor: monaco.editor.IStandaloneCodeEditor, text: s
         isWholeLine: false,
         after: {
           content: text,
-          inlineClassName: 'gc-expr-placeholder',
+          inlineClassName: 'ds-expr-placeholder',
         },
       },
     }] : []);
@@ -399,10 +399,10 @@ function installPlaceholder(editor: monaco.editor.IStandaloneCodeEditor, text: s
   render();
   const sub = editor.onDidChangeModelContent(render);
   // Minimal style injection for the placeholder.
-  if (!document.getElementById('gc-expr-placeholder-style')) {
+  if (!document.getElementById('ds-expr-placeholder-style')) {
     const style = document.createElement('style');
-    style.id = 'gc-expr-placeholder-style';
-    style.textContent = `.gc-expr-placeholder { color: var(--ds-text-faint); font-style: italic; pointer-events: none; }`;
+    style.id = 'ds-expr-placeholder-style';
+    style.textContent = `.ds-expr-placeholder { color: var(--ds-text-faint); font-style: italic; pointer-events: none; }`;
     document.head.appendChild(style);
   }
   return { dispose: () => { sub.dispose(); editor.deltaDecorations(decorations, []); } };

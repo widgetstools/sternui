@@ -75,7 +75,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
       () => (window as unknown as { __popoutCalls: { name: string; features: string }[] }).__popoutCalls,
     );
     expect(calls.length).toBeGreaterThanOrEqual(1);
-    expect(calls[0].name).toBe('gc-popout-toolbar-demo-blotter-v2');
+    expect(calls[0].name).toBe('ds-popout-toolbar-demo-blotter-v2');
     // 560×680 is the current properties-panel popout dim (set in
     // FormattingToolbar.tsx, commit 1a292bd0 on 2026-04-26 — bumped
     // from the previous 400×620 because the band layout grew). The
@@ -95,7 +95,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
 
     await expect.poll(async () => {
       return page.evaluate(() => {
-        const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+        const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
         const doc = iframe?.contentDocument;
         return {
           // Popped mode renders the FormattingPropertiesPanel, not
@@ -123,7 +123,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     await page.waitForTimeout(300);
 
     const title = await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
       return iframe?.contentDocument?.title ?? '';
     });
     expect(title).toContain('Formatting');
@@ -147,10 +147,10 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
 
     // Trigger the Text color picker inside the panel. The compact
     // ColorPickerPopover renders an unlabeled button with
-    // `.gc-tbtn` — pick the first one under the panel's COLOR
+    // `.ds-tbtn` — pick the first one under the panel's COLOR
     // section (section index 02).
     const clicked = await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
       const btn = iframe?.contentDocument?.querySelector('[data-section-index="02"] button') as HTMLElement | null;
       if (!btn) return false;
       btn.click();
@@ -160,7 +160,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     await page.waitForTimeout(250);
 
     const where = await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
       const popoutDoc = iframe?.contentDocument;
       return {
         wrappersInMain: document.querySelectorAll('[data-radix-popper-content-wrapper]').length,
@@ -182,7 +182,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     await page.waitForTimeout(300);
 
     await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
       const win = iframe?.contentWindow as unknown as { resizeTo: (w: number, h: number) => void } | null;
       if (!win) return;
       const orig = win.resizeTo?.bind(win) ?? (() => {});
@@ -195,7 +195,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     // Open the color picker (the only popover still present in the
     // panel design). Fixed-size panel should NOT trigger a resize.
     await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
       const btn = iframe?.contentDocument?.querySelector('[data-section-index="02"] button') as HTMLElement | null;
       btn?.click();
     });
@@ -216,7 +216,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
 
     // Intercept focus() on the iframe's contentWindow.
     await page.evaluate(() => {
-      const iframe = document.querySelector('iframe[data-popout-iframe^="gc-popout-toolbar-"]') as HTMLIFrameElement | null;
+      const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
       const win = iframe?.contentWindow as unknown as { focus: () => void } | null;
       if (!win) return;
       const orig = win.focus?.bind(win) ?? (() => {});
@@ -233,7 +233,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     const { focusCalls, iframeCount, inlineToolbarCount } = await page.evaluate(() => {
       return {
         focusCalls: (window as unknown as { __focusCalls: number }).__focusCalls,
-        iframeCount: document.querySelectorAll('iframe[data-popout-iframe^="gc-popout-toolbar-"]').length,
+        iframeCount: document.querySelectorAll('iframe[data-popout-iframe^="ds-popout-toolbar-"]').length,
         // Inline toolbar should NOT re-mount in main.
         inlineToolbarCount: document.querySelectorAll('[data-testid="formatting-toolbar"]').length,
       };

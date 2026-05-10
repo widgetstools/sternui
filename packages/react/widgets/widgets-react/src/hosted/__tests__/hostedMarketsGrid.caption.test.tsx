@@ -8,7 +8,7 @@ import type { ConfigManager } from '@starui/config-service';
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => (
     <div
-      data-testid="mgc-stub"
+      data-testid="mds-stub"
       data-caption={props.caption ?? ''}
       data-tabs-hidden={String(Boolean(props.tabsHidden))}
     />
@@ -72,7 +72,7 @@ describe('HostedMarketsGrid — caption + tabsHidden forwarding', () => {
         configManager={fakeConfigManager}
       />,
     );
-    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-tabs-hidden')).toBe('false');
     expect(stub.getAttribute('data-caption')).toBe('');
   });
@@ -88,7 +88,7 @@ describe('HostedMarketsGrid — caption + tabsHidden forwarding', () => {
         configManager={fakeConfigManager}
       />,
     );
-    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-tabs-hidden')).toBe('true');
     expect(stub.getAttribute('data-caption')).toBe('Markets Blotter');
   });
@@ -103,7 +103,7 @@ describe('HostedMarketsGrid — caption + tabsHidden forwarding', () => {
         configManager={fakeConfigManager}
       />,
     );
-    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-caption')).toBe('Markets');
   });
 });

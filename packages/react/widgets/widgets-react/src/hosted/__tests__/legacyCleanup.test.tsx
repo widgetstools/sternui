@@ -10,7 +10,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ConfigManager } from '@starui/config-service';
 
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
-  MarketsGridContainer: () => <div data-testid="mgc-stub" />,
+  MarketsGridContainer: () => <div data-testid="mds-stub" />,
 }));
 
 const { HostedMarketsGrid } = await import('../HostedMarketsGrid.js');
@@ -40,7 +40,7 @@ describe('HostedMarketsGrid — legacy view-state cleanup (row 15)', () => {
         configManager={cm}
       />,
     );
-    await waitFor(() => first.getByTestId('mgc-stub'));
+    await waitFor(() => first.getByTestId('mds-stub'));
     await waitFor(() => expect(deleteConfig).toHaveBeenCalledTimes(1));
 
     expect(deleteConfig).toHaveBeenCalledWith('marketsgrid-view-state::lc-1');
@@ -57,7 +57,7 @@ describe('HostedMarketsGrid — legacy view-state cleanup (row 15)', () => {
         configManager={cm}
       />,
     );
-    await waitFor(() => second.getByTestId('mgc-stub'));
+    await waitFor(() => second.getByTestId('mds-stub'));
     // Give the effect a chance to run.
     await new Promise((r) => setTimeout(r, 0));
     expect(deleteConfig).toHaveBeenCalledTimes(1);

@@ -45,7 +45,7 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       collisionPadding={8}
-      data-gc-settings=""
+      data-ds-settings=""
       className={cn(
         // Base layout
         'z-[2147483647] w-72 rounded-md p-2.5',

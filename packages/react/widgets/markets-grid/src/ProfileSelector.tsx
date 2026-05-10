@@ -125,7 +125,7 @@ export function ProfileSelector({
   };
 
   return (
-    <div className="gc-profile-selector">
+    <div className="ds-profile-selector">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -190,15 +190,15 @@ export function ProfileSelector({
           }}
         >
           {/* Header */}
-          <div className="gc-ps-header">
-            <span className="gc-ps-header-label">Profiles</span>
-            <span className="gc-ps-header-count">{profiles.length}</span>
+          <div className="ds-ps-header">
+            <span className="ds-ps-header-label">Profiles</span>
+            <span className="ds-ps-header-count">{profiles.length}</span>
           </div>
 
           {/* List */}
-          <div className="gc-ps-list">
+          <div className="ds-ps-list">
             {profiles.length === 0 ? (
-              <div className="gc-ps-empty">
+              <div className="ds-ps-empty">
                 No profiles yet — create one below
               </div>
             ) : profiles.map((p) => {
@@ -212,7 +212,7 @@ export function ProfileSelector({
                   tabIndex={0}
                   data-testid={`profile-row-${p.id}`}
                   data-row-hover-target=""
-                  className="gc-ps-row"
+                  className="ds-ps-row"
                   data-active={isActive ? 'true' : undefined}
                   onClick={() => { if (!isRenaming) { onLoad(p.id); setOpen(false); } }}
                   onKeyDown={(e) => { if (!isRenaming && e.key === 'Enter') { onLoad(p.id); setOpen(false); } }}
@@ -241,11 +241,11 @@ export function ProfileSelector({
                   />
 
                   {/* Leading indicator */}
-                  <span className="gc-ps-row-indicator">
+                  <span className="ds-ps-row-indicator">
                     {isActive ? (
                       <Check size={12} strokeWidth={2.5} style={{ color: 'var(--ds-accent-info)' }} />
                     ) : (
-                      <span className="gc-ps-row-dot" />
+                      <span className="ds-ps-row-dot" />
                     )}
                   </span>
 

@@ -36,14 +36,14 @@ import { openFinWindowOpener } from '@starui/core';
  * ```tsx
  * <Poppable
  *   ref={toolbarRef}
- *   name={`gc-popout-toolbar-${gridId}`}
+ *   name={`ds-popout-toolbar-${gridId}`}
  *   title={`Formatting — ${gridId}`}
  *   width={900}
  *   height={60}
  *   alwaysOnTop
  * >
  *   {({ popped, PopoutButton }) => (
- *     <div className={cn('gc-formatting-toolbar', popped && 'is-popped')}>
+ *     <div className={cn('ds-formatting-toolbar', popped && 'is-popped')}>
  *       {!popped && <DragRail />}
  *       <TbItems>...<PopoutButton />...</TbItems>
  *       {!popped && <CloseButton />}
@@ -96,7 +96,7 @@ export interface PoppableProps {
   /**
    * Stable OS window name. Named windows are refocused rather than
    * duplicated when the user triggers a second pop-out — pick a
-   * gridId-scoped name (e.g. `gc-popout-toolbar-${gridId}`).
+   * gridId-scoped name (e.g. `ds-popout-toolbar-${gridId}`).
    */
   name: string;
   /** Window title (shown in OS taskbar). */

@@ -251,11 +251,11 @@ export function BorderStyleEditor({
     (key === 'all' ? true : Boolean(borders[key]) || selectedEdge === key);
 
   return (
-    <div className="gc-be-editor" data-v2-border-host="" data-testid={rest['data-testid']}>
+    <div className="ds-be-editor" data-v2-border-host="" data-testid={rest['data-testid']}>
       {/* ── Preview ────────────────────────────────────────────── */}
-      <div className="gc-be-preview" data-testid="gc-be-preview">
+      <div className="ds-be-preview" data-testid="ds-be-preview">
         <span
-          className="gc-be-preview-inner"
+          className="ds-be-preview-inner"
           style={{
             borderTop: previewSide(borders.top),
             borderRight: previewSide(borders.right),
@@ -265,10 +265,10 @@ export function BorderStyleEditor({
         />
       </div>
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Side preset buttons: A T B L R ────────────────────── */}
-      <div className="gc-be-sides" role="group" aria-label="Border sides">
+      <div className="ds-be-sides" role="group" aria-label="Border sides">
         {SIDE_BUTTONS.map(({ key, letter }) => {
           const on = edgeIsOn(key);
           const selected = edgeIsSelected(key);
@@ -286,11 +286,11 @@ export function BorderStyleEditor({
             <button
               key={key}
               type="button"
-              className="gc-be-side"
+              className="ds-be-side"
               data-side={letter}
               data-on={on ? 'true' : undefined}
               data-selected={selected ? 'true' : undefined}
-              data-testid={`gc-be-side-${letter.toLowerCase()}`}
+              data-testid={`ds-be-side-${letter.toLowerCase()}`}
               title={title}
               aria-pressed={on}
               onClick={() => (key === 'all' ? handleAllClick() : handleEdgeClick(key))}
@@ -302,7 +302,7 @@ export function BorderStyleEditor({
         })}
       </div>
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Color trigger ──────────────────────────────────────── */}
       <FormatPopover
@@ -310,18 +310,18 @@ export function BorderStyleEditor({
         trigger={
           <button
             type="button"
-            className="gc-be-color"
+            className="ds-be-color"
             title="Border colour"
-            data-testid="gc-be-color"
+            data-testid="ds-be-color"
             onMouseDown={(e) => e.preventDefault()}
           >
             <span
-              className="gc-be-swatch"
+              className="ds-be-swatch"
               aria-hidden
               style={{ background: anchor.color }}
             />
             <span>{normalizedHex}</span>
-            <ChevronDown className="gc-be-caret" strokeWidth={1.75} />
+            <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
           </button>
         }
       >
@@ -334,7 +334,7 @@ export function BorderStyleEditor({
         />
       </FormatPopover>
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Style dropdown ─────────────────────────────────────── */}
       <FormatDropdown<BorderStyle>
@@ -345,23 +345,23 @@ export function BorderStyleEditor({
         trigger={
           <button
             type="button"
-            className="gc-be-chip"
+            className="ds-be-chip"
             title="Border style"
-            data-testid="gc-be-style"
+            data-testid="ds-be-style"
             onMouseDown={(e) => e.preventDefault()}
           >
             <span
-              className="gc-be-stroke"
+              className="ds-be-stroke"
               aria-hidden
               data-style={anchor.style}
             />
             <span>{STYLE_OPTIONS.find((o) => o.value === anchor.style)?.label ?? 'Solid'}</span>
-            <ChevronDown className="gc-be-caret" strokeWidth={1.75} />
+            <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
           </button>
         }
       />
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Width dropdown ─────────────────────────────────────── */}
       <FormatDropdown<number>
@@ -372,13 +372,13 @@ export function BorderStyleEditor({
         trigger={
           <button
             type="button"
-            className="gc-be-chip"
+            className="ds-be-chip"
             title="Border width"
-            data-testid="gc-be-width"
+            data-testid="ds-be-width"
             onMouseDown={(e) => e.preventDefault()}
           >
             <span>{Math.max(1, Math.min(5, anchor.width || 1))} PX</span>
-            <ChevronDown className="gc-be-caret" strokeWidth={1.75} />
+            <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
           </button>
         }
       />
@@ -388,13 +388,13 @@ export function BorderStyleEditor({
           "clear styles" rather than the ambiguous generic X. */}
       <button
         type="button"
-        className="gc-be-clear"
+        className="ds-be-clear"
         onClick={clearAll}
         onMouseDown={(e) => e.preventDefault()}
         disabled={!hasAny}
         aria-label="Clear all borders"
         title="Clear all borders"
-        data-testid="gc-be-clear"
+        data-testid="ds-be-clear"
       >
         <RemoveFormatting size={14} strokeWidth={1.75} />
       </button>

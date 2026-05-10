@@ -13,7 +13,7 @@
  *   Live preview tint:             warm amber (--ds-accent-warning)
  *
  * Naming: `.fx-*` — short, self-namespaced, doesn't collide with the
- * legacy `.gc-tb-*` selectors during the transition.
+ * legacy `.ds-tb-*` selectors during the transition.
  */
 
 /* ─── Tokens — bind to host theme via [data-theme] cascade ─────── */

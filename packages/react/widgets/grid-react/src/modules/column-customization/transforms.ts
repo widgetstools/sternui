@@ -40,9 +40,9 @@ export function cellDataTypeToDomain(value: unknown): ColumnDataType | undefined
  *
  * The walker derives column identity from `colDef.colId ?? colDef.field`
  * — for nested fields the field is `'a.b.c'` style and AG-Grid uses
- * that as the colId. Without encoding, the cellClass `gc-col-c-a.b.c`
- * becomes the selector `.gc-col-c-a.b.c` which CSS parses as three
- * chained class matches (`.gc-col-c-a` AND `.b` AND `.c`) — so the
+ * that as the colId. Without encoding, the cellClass `ds-col-c-a.b.c`
+ * becomes the selector `.ds-col-c-a.b.c` which CSS parses as three
+ * chained class matches (`.ds-col-c-a` AND `.b` AND `.c`) — so the
  * rule never matches and the formatter has no visible effect.
  *
  * Rule: replace every char outside `[A-Za-z0-9_-]` with `_xx` where
@@ -172,8 +172,8 @@ export function reinjectCSS(
     // encoder — they always match regardless of the source colId's
     // shape (dots, brackets, spaces, …).
     const safeId = cssEscapeColId(colId);
-    const cellCls = `gc-col-c-${safeId}`;
-    const hdrCls = `gc-hdr-c-${safeId}`;
+    const cellCls = `ds-col-c-${safeId}`;
+    const hdrCls = `ds-hdr-c-${safeId}`;
 
     if (resolved?.cellStyleOverrides) {
       const css = styleOverridesToCSS(resolved.cellStyleOverrides);
@@ -506,7 +506,7 @@ export function applyAssignments(
       // `{ color: '' }` explicitly resets `cell.style.color` so AG-Grid
       // clears the inline color. Does NOT interfere with class-based
       // colors from `colors.text` overrides — those come from the
-      // injected `.gc-col-c-{colId}` rule, which an empty inline color
+      // injected `.ds-col-c-{colId}` rule, which an empty inline color
       // cascades through.
       const colorResolver =
         resolved.valueFormatterTemplate.kind === 'excelFormat'
@@ -582,7 +582,7 @@ export function applyAssignments(
     // colIds work correctly.
     const safeId = cssEscapeColId(colId);
     if (resolved?.cellStyleOverrides !== undefined) {
-      const cls = `gc-col-c-${safeId}`;
+      const cls = `ds-col-c-${safeId}`;
       const existing = colDef.cellClass;
       merged.cellClass = Array.isArray(existing)
         ? [...existing, cls]
@@ -599,7 +599,7 @@ export function applyAssignments(
       resolved?.headerStyleOverrides !== undefined ||
       resolved?.cellStyleOverrides?.alignment?.horizontal !== undefined;
     if (needsHeaderClass) {
-      const cls = `gc-hdr-c-${safeId}`;
+      const cls = `ds-hdr-c-${safeId}`;
       const existing = colDef.headerClass;
       merged.headerClass = Array.isArray(existing)
         ? [...existing, cls]

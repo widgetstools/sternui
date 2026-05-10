@@ -670,14 +670,14 @@ function Host<TData>({
            — a developer/support affordance, not surfaced to end users. */}
       {headerExtras ? (
         <div
-          className="gc-toolbar-primary gc-primary-row"
+          className="ds-toolbar-primary ds-primary-row"
           data-grid-header-extras
         >
           {headerExtras}
         </div>
       ) : null}
       {showToolbar && (
-        <div className="gc-toolbar-primary gc-primary-row">
+        <div className="ds-toolbar-primary ds-primary-row">
           {/* LEFT-MOST — editable caption surfaced when the host's
                OpenFin tab strip is hidden. Click reveals an inline edit
                icon; clicking the icon swaps the label for an input.
@@ -692,22 +692,22 @@ function Host<TData>({
           {/* LEFT — filters carousel (flex:1, collapses/expands via its
                own chevron; formatter-toolbar toggle no longer lives
                inside it). */}
-          <div className="gc-primary-filters">
+          <div className="ds-primary-filters">
             {showFiltersToolbar ? (
               <FiltersToolbar />
             ) : (
-              <div className="gc-primary-filters-empty" />
+              <div className="ds-primary-filters-empty" />
             )}
           </div>
 
           {/* RIGHT — action cluster. A single thin divider leads the
                group (instead of a full-height border on every button),
                then evenly-spaced icon buttons with matching chrome. */}
-          <div className="gc-primary-actions">
+          <div className="ds-primary-actions">
             {showFormattingToolbar && (
               <button
                 type="button"
-                className="gc-primary-action"
+                className="ds-primary-action"
                 onClick={handleToggleStyleToolbar}
                 title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
                 data-testid="style-toolbar-toggle"
@@ -720,7 +720,7 @@ function Host<TData>({
 
             {showProfileSelector && (
               <>
-                {showFormattingToolbar && <span className="gc-primary-divider" aria-hidden />}
+                {showFormattingToolbar && <span className="ds-primary-divider" aria-hidden />}
                 <ProfileSelector
                   profiles={profiles.profiles}
                   activeProfileId={profiles.activeProfileId ?? ''}
@@ -773,7 +773,7 @@ function Host<TData>({
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `gc-profile-${fileStem}.json`;
+                      a.download = `ds-profile-${fileStem}.json`;
                       document.body.appendChild(a);
                       a.click();
                       a.remove();
@@ -801,10 +801,10 @@ function Host<TData>({
 
             {showSaveButton && (
               <>
-                <span className="gc-primary-divider" aria-hidden />
+                <span className="ds-primary-divider" aria-hidden />
                 <button
                   type="button"
-                  className="gc-primary-action gc-primary-save"
+                  className="ds-primary-action ds-primary-save"
                   onClick={handleSaveAll}
                   title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
                   data-testid="save-all-btn"
@@ -816,7 +816,7 @@ function Host<TData>({
                       flashing (to avoid stacking indicators during the
                       600ms post-save flash). */}
                   {isDirty && !saveFlash && (
-                    <span className="gc-primary-save-dirty" data-testid="save-all-dirty">
+                    <span className="ds-primary-save-dirty" data-testid="save-all-dirty">
                       <DirtyDot title="Unsaved changes" />
                     </span>
                   )}
@@ -826,10 +826,10 @@ function Host<TData>({
 
             {showSettingsButton && (
               <>
-                <span className="gc-primary-divider" aria-hidden />
+                <span className="ds-primary-divider" aria-hidden />
                 <button
                   type="button"
-                  className="gc-primary-action"
+                  className="ds-primary-action"
                   onClick={handleOpenSettings}
                   title="Open settings"
                   data-testid="v2-settings-open-btn"
@@ -873,7 +873,7 @@ function Host<TData>({
            overlap narrow grid columns in multi-grid dashboards. */}
       {showFormattingToolbar && styleToolbarOpen && (
         <div
-          className="gc-tb-pinned"
+          className="ds-tb-pinned"
           data-testid="formatting-toolbar-pinned"
           style={{ flexShrink: 0 }}
         >
@@ -1043,12 +1043,12 @@ function GridInfoButton({
   const resolvedInstanceId = instanceId ?? gridId;
   return (
     <>
-      <span className="gc-primary-divider" aria-hidden />
+      <span className="ds-primary-divider" aria-hidden />
       <Popover>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="gc-primary-action"
+            className="ds-primary-action"
             title="Grid info"
             aria-label="Grid info"
             data-testid="grid-info-btn"
@@ -1060,7 +1060,7 @@ function GridInfoButton({
           align="end"
           sideOffset={6}
           className="w-[360px] p-0 text-xs"
-          data-gc-settings
+          data-ds-settings
         >
           {componentName && (
             <div
@@ -1123,7 +1123,7 @@ function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined })
 
   return (
     <>
-      <span className="gc-primary-divider" aria-hidden />
+      <span className="ds-primary-divider" aria-hidden />
       {visible.map((action) => {
         const Icon = resolveAdminActionIcon(action.icon);
         // Tooltip shows label and description stacked. Native `title`
@@ -1135,7 +1135,7 @@ function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined })
           <button
             key={action.id}
             type="button"
-            className="gc-primary-action"
+            className="ds-primary-action"
             onClick={() => { void action.onClick(); }}
             title={title}
             aria-label={action.label}

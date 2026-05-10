@@ -661,8 +661,8 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
     suppressRowHoverHighlight: false,
     animateRows: false,
     rowClassRules: {
-      'gc-depth-spread-row': (p) => p.data?.kind === 'spread',
-      'gc-depth-touch': (p) => p.data?.kind !== 'spread' && (p.data?.levelsFromTouch ?? 99) === 0,
+      'ds-depth-spread-row': (p) => p.data?.kind === 'spread',
+      'ds-depth-touch': (p) => p.data?.kind !== 'spread' && (p.data?.levelsFromTouch ?? 99) === 0,
     },
   }), []);
 
@@ -684,12 +684,12 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           0%   { opacity: 1; }
           100% { opacity: 0; }
         }
-        .gc-depth-spread-row .ag-cell {
+        .ds-depth-spread-row .ag-cell {
           background: rgba(100,116,139,0.06) !important;
           border-top: 1px solid rgba(100,116,139,0.25) !important;
           border-bottom: 1px solid rgba(100,116,139,0.25) !important;
         }
-        .gc-depth-touch .ag-cell {
+        .ds-depth-touch .ag-cell {
           background: rgba(45,212,191,0.04);
         }
       `}</style>

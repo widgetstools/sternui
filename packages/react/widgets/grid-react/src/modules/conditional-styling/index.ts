@@ -55,7 +55,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
      * pulse (and header indicator badge). Runs on every modelUpdated /
      * filterChanged / cellValueChanged, AND whenever the rule list itself
      * changes (a toggle that doesn't produce a data event still needs to
-     * clear stale `.gc-flash-hdr-pulse` classes).
+     * clear stale `.ds-flash-hdr-pulse` classes).
      */
     const evaluate = () => {
       const api = platform.api.api;
@@ -76,11 +76,11 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       // Wipe previously-painted header state (both pulse + rule classes) —
       // this is how "disable a rule" + "change target" cleans up classes
       // that data events alone wouldn't touch.
-      document.querySelectorAll('.ag-header-cell.gc-flash-hdr-pulse').forEach((el) => {
-        el.classList.remove('gc-flash-hdr-pulse');
+      document.querySelectorAll('.ag-header-cell.ds-flash-hdr-pulse').forEach((el) => {
+        el.classList.remove('ds-flash-hdr-pulse');
       });
-      document.querySelectorAll('.ag-header-cell[class*=" gc-rule-"], .ag-header-cell[class^="gc-rule-"]').forEach((el) => {
-        [...el.classList].forEach((c) => { if (c.startsWith('gc-rule-')) el.classList.remove(c); });
+      document.querySelectorAll('.ag-header-cell[class*=" ds-rule-"], .ag-header-cell[class^="ds-rule-"]').forEach((el) => {
+        [...el.classList].forEach((c) => { if (c.startsWith('ds-rule-')) el.classList.remove(c); });
       });
 
       if (headerFlashRules.length === 0 && headerIndicatorRules.length === 0) return;
@@ -118,14 +118,14 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       const notFilter = ':not(.ag-floating-filter)';
       for (const colId of pulseCols) {
         document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
-          el.classList.add('gc-flash-hdr-pulse');
+          el.classList.add('ds-flash-hdr-pulse');
         });
       }
       for (const [ruleId, cols] of indicatorCols) {
         const safeRuleId = cssEscapeColId(ruleId);
         for (const colId of cols) {
           document.querySelectorAll(`.ag-header-cell${notFilter}[col-id="${CSS.escape(colId)}"]`).forEach((el) => {
-            el.classList.add(`gc-rule-${safeRuleId}`);
+            el.classList.add(`ds-rule-${safeRuleId}`);
           });
         }
       }
@@ -143,8 +143,8 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     return () => {
       for (const d of disposers) { try { d(); } catch { /* swallow */ } }
       if (typeof document !== 'undefined') {
-        document.querySelectorAll('.ag-header-cell.gc-flash-hdr-pulse').forEach((el) => {
-          el.classList.remove('gc-flash-hdr-pulse');
+        document.querySelectorAll('.ag-header-cell.ds-flash-hdr-pulse').forEach((el) => {
+          el.classList.remove('ds-flash-hdr-pulse');
         });
       }
     };
@@ -174,7 +174,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     for (const rule of rowRules) {
       // KEY must match the encoded selector emitted by buildCssText —
       // see cssEscapeColId in column-customization for the rationale.
-      (rowClassRules as Record<string, unknown>)[`gc-rule-${cssEscapeColId(rule.id)}`] = buildRowClassPredicate(engine, rule);
+      (rowClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] = buildRowClassPredicate(engine, rule);
     }
     return { ...opts, rowClassRules };
   },

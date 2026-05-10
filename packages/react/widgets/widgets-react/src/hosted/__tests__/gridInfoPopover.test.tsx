@@ -16,7 +16,7 @@ const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -43,7 +43,7 @@ describe('HostedMarketsGrid — info popover identity (row 21 / D2)', () => {
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     const last = mgcProps[mgcProps.length - 1];
     expect(last.componentName).toBe('MarketsGrid');
     expect(last.instanceId).toBe('ip-instance');

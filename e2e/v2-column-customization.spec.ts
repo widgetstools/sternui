@@ -268,12 +268,12 @@ test.describe('v2 — column-customization panel', () => {
     await selectColumn(page, 'venue');
     const editor = page.locator('[data-testid="cols-editor-venue"]');
     // Initial: 0 overrides.
-    await expect(editor.locator('.gc-meta-cell').nth(2)).toContainText('0');
+    await expect(editor.locator('.ds-meta-cell').nth(2)).toContainText('0');
 
     await commitInput(page, 'cols-venue-header-name', 'Venue Hall');
     await saveColumn(page, 'venue');
 
-    await expect(editor.locator('.gc-meta-cell').nth(2)).toContainText('1');
+    await expect(editor.locator('.ds-meta-cell').nth(2)).toContainText('1');
   });
 
   test('discard reverts an unsaved draft back to committed state', async ({ page }) => {

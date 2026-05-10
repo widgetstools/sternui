@@ -15,7 +15,7 @@ import {
  * landed on cells whose colId was a dotted path.
  *
  * These specs assert on what the fix actually changes:
- *   - the encoded CSS class (`gc-col-c-pricing_2ebid` etc.) is on the
+ *   - the encoded CSS class (`ds-col-c-pricing_2ebid` etc.) is on the
  *     cell DOM,
  *   - cellStyleOverrides (bold/italic/colours) actually paint via that
  *     class — proves selector matches the class,
@@ -46,8 +46,8 @@ test.describe('v2 — static formatter on nested fields', () => {
     expect(['bold', '700']).toContain(fw);
   });
 
-  test('encoded class lands on DOM cell (gc-col-c-pricing_2ebid)', async ({ page }) => {
-    const has = await cellHasClassMatching(page, 'N-00007', 'pricing.bid', /^gc-col-c-pricing_2ebid$/);
+  test('encoded class lands on DOM cell (ds-col-c-pricing_2ebid)', async ({ page }) => {
+    const has = await cellHasClassMatching(page, 'N-00007', 'pricing.bid', /^ds-col-c-pricing_2ebid$/);
     expect(has).toBe(true);
   });
 
@@ -61,14 +61,14 @@ test.describe('v2 — static formatter on nested fields', () => {
     expect(['bold', '700']).toContain(fw);
   });
 
-  test('encoded class lands on nested string column (gc-col-c-ratings_2esp)', async ({ page }) => {
-    const has = await cellHasClassMatching(page, 'N-00007', 'ratings.sp', /^gc-col-c-ratings_2esp$/);
+  test('encoded class lands on nested string column (ds-col-c-ratings_2esp)', async ({ page }) => {
+    const has = await cellHasClassMatching(page, 'N-00007', 'ratings.sp', /^ds-col-c-ratings_2esp$/);
     expect(has).toBe(true);
   });
 
   test('encoded class is present on multiple cells (CSS rule isn\'t per-row)', async ({ page }) => {
     const counts = await page.evaluate(() => {
-      return document.querySelectorAll('.ag-cell.gc-col-c-pricing_2ebid').length;
+      return document.querySelectorAll('.ag-cell.ds-col-c-pricing_2ebid').length;
     });
     expect(counts).toBeGreaterThan(1);
   });
@@ -87,7 +87,7 @@ test.describe('v2 — static formatter on nested fields', () => {
     });
     expect(exists).toBe(true);
     // Class still attached even though value is null.
-    const has = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^gc-col-c-pricing_2ebid$/);
+    const has = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^ds-col-c-pricing_2ebid$/);
     expect(has).toBe(true);
   });
 
@@ -95,7 +95,7 @@ test.describe('v2 — static formatter on nested fields', () => {
     const idCellText = await readCellText(page, 'EDGE-MISS-PRICING', 'id');
     expect(idCellText).toBe('EDGE-MISS-PRICING');
     // bid cell exists in DOM but value is empty.
-    const has = await cellHasClassMatching(page, 'EDGE-MISS-PRICING', 'pricing.bid', /^gc-col-c-pricing_2ebid$/);
+    const has = await cellHasClassMatching(page, 'EDGE-MISS-PRICING', 'pricing.bid', /^ds-col-c-pricing_2ebid$/);
     expect(has).toBe(true);
   });
 
@@ -111,16 +111,16 @@ test.describe('v2 — static formatter on nested fields', () => {
     const text = await readCellText(page, 'EDGE-NULL-RATINGS', 'ratings.sp');
     // Empty / null / undefined value — but the cell DOM exists.
     expect(['', null]).toContain(text);
-    const has = await cellHasClassMatching(page, 'EDGE-NULL-RATINGS', 'ratings.sp', /^gc-col-c-ratings_2esp$/);
+    const has = await cellHasClassMatching(page, 'EDGE-NULL-RATINGS', 'ratings.sp', /^ds-col-c-ratings_2esp$/);
     expect(has).toBe(true);
   });
 
   test('every nested string-column cell with the encoded class also reads computed bg color', async ({ page }) => {
-    // Cross-check: the CSS rule `.gc-col-c-ratings_2esp { background: #fde68a }`
+    // Cross-check: the CSS rule `.ds-col-c-ratings_2esp { background: #fde68a }`
     // applies to every cell carrying the class — except for
     // EDGE-NULL-RATINGS where AG-Grid still creates the cell DOM.
     const allHaveBg = await page.evaluate(() => {
-      const cells = document.querySelectorAll('.ag-cell.gc-col-c-ratings_2esp');
+      const cells = document.querySelectorAll('.ag-cell.ds-col-c-ratings_2esp');
       let mismatches = 0;
       cells.forEach((c) => {
         const bg = getComputedStyle(c as HTMLElement).backgroundColor;

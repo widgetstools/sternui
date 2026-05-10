@@ -34,7 +34,7 @@ async function waitForGrid(page: Page) {
 async function clearV2(page: Page) {
   await page.evaluate(async () => {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('gc-grid:'))
+      .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach((k) => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('gc-customizer-v2');
@@ -119,7 +119,7 @@ test.describe('v2 FormattingToolbar', () => {
     await selectCell(page, colId);
     const enabled = await page.evaluate(() => {
       const tb = document.querySelector('[data-testid="formatting-toolbar"]');
-      return tb?.className?.includes('gc-toolbar-enabled') ?? false;
+      return tb?.className?.includes('ds-toolbar-enabled') ?? false;
     });
     expect(enabled).toBe(true);
   });

@@ -48,7 +48,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
       <>
         <Poppable
           ref={ref}
-          name={`gc-popout-toolbar-${platform.gridId}`}
+          name={`ds-popout-toolbar-${platform.gridId}`}
           title={`Formatting — ${platform.gridId}`}
           // 560×680 is the comfortable default: the header strip
           // (column label + scope toggle + undo/redo + preview pill +

@@ -13,7 +13,7 @@ import {
  *     `byId.get(colId)` Map lookup (which works as-is for any colId
  *     string — proves the Map-keyed path doesn't trip on dots).
  *   - Group header CSS targets the encoded class
- *     (`gc-hdr-grp-${cssEscapeColId(groupId)}`) so styled headers paint
+ *     (`ds-hdr-grp-${cssEscapeColId(groupId)}`) so styled headers paint
  *     correctly. Group ids in the fixture (`grp-pricing`, etc.) are
  *     CSS-safe, so the encoder is a no-op for them — but a regression
  *     in the encoder would still show up here as a stale class chain.
@@ -78,7 +78,7 @@ test.describe('v2 — column groups containing nested-field cols', () => {
     expect(['bold', '700']).toContain(style!.fontWeight);
   });
 
-  test('group header CSS class is the encoded form (gc-hdr-grp-grp-pricing)', async ({ page }) => {
+  test('group header CSS class is the encoded form (ds-hdr-grp-grp-pricing)', async ({ page }) => {
     // grp-pricing is alphanumeric+dash → cssEscapeColId is a no-op
     // and the class is literal. A regression that flipped the encoder
     // would still keep this assertion green; we cover encoder
@@ -86,7 +86,7 @@ test.describe('v2 — column groups containing nested-field cols', () => {
     // Here we just confirm the class IS present.
     const exists = await page.evaluate(() => {
       const cells = Array.from(document.querySelectorAll('.ag-header-group-cell'));
-      return cells.some((c) => c.classList.contains('gc-hdr-grp-grp-pricing'));
+      return cells.some((c) => c.classList.contains('ds-hdr-grp-grp-pricing'));
     });
     expect(exists).toBe(true);
   });
