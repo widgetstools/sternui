@@ -15,11 +15,18 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, CellValueChangedEvent, GetRowIdParams, ICellRendererParams } from 'ag-grid-community';
-import { AllCommunityModule, themeQuartz } from 'ag-grid-community';
+import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
+import {
+  MultiFilterModule,
+  SetFilterModule,
+  StatusBarModule,
+} from 'ag-grid-enterprise';
 import { Button, Input, Label, useTheme } from '@starui/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { AppDataVariable, AppDataProviderConfig } from '@starui/shared-types';
 import { agGridLightParams, agGridDarkParams } from '@starui/design-system/adapters/ag-grid';
+
+ModuleRegistry.registerModules([MultiFilterModule, SetFilterModule, StatusBarModule]);
 
 export interface AppDataFieldsProps {
   cfg: AppDataProviderConfig;
@@ -30,9 +37,35 @@ type RowData = AppDataVariable & { _rowId: string };
 
 export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
   const { resolvedTheme } = useTheme();
-  const gridTheme = themeQuartz.withParams(
-    resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams,
+  const gridTheme = useMemo(
+    () => themeQuartz.withParams(resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams),
+    [resolvedTheme],
   );
+
+  const defaultColDef = useMemo<ColDef>(() => ({
+    sortable: true,
+    resizable: true,
+    filter: 'agMultiColumnFilter',
+    filterParams: {
+      filters: [
+        {
+          filter: 'agTextColumnFilter',
+          filterParams: { buttons: ['reset'], debounceMs: 200 },
+        },
+        { filter: 'agSetColumnFilter' },
+      ],
+    },
+    floatingFilter: true,
+    suppressHeaderMenuButton: true,
+  }), []);
+
+  const statusBar = useMemo(() => ({
+    statusPanels: [
+      { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' as const },
+      { statusPanel: 'agSelectedRowCountComponent', align: 'center' as const },
+      { statusPanel: 'agAggregationComponent', align: 'right' as const },
+    ],
+  }), []);
 
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
@@ -217,11 +250,8 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
             onCellValueChanged={onCellValueChanged}
             headerHeight={28}
             rowHeight={32}
-            defaultColDef={{
-              resizable: true,
-              sortable: false,
-              suppressHeaderMenuButton: true,
-            }}
+            defaultColDef={defaultColDef}
+            statusBar={statusBar}
             suppressContextMenu
             overlayNoRowsTemplate='<span class="text-xs text-muted-foreground">No variables yet. Add one using the form above.</span>'
           />
