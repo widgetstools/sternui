@@ -8,19 +8,19 @@
  * are needed.
  *
  * Classes covered:
- *   .gc-sheet / .gc-sheet-v2          — token scoping + baseline reset
- *   .gc-popout / .is-maximized / .is-popped — popout shell + animations
- *   .gc-popout-backdrop               — modal overlay
- *   .gc-popout-title + sub-classes    — title-bar chrome
- *   .gc-popout-module-btn + menu-item — module-switcher dropdown
- *   .gc-popout-body                   — 2-column body grid
- *   .gc-popout-list + sub-classes     — items-list rail
- *   .gc-popout-editor                 — editor pane
- *   .gc-editor-header / .gc-editor-scroll — editor-pane sub-layout
- *   .gc-popout-footer                 — footer strip
- *   .gc-caps / .gc-mono               — typography utility atoms
- *   .gc-led                           — status LED indicator
- *   .gc-formatting-toolbar            — scrollbar for formatting toolbar
+ *   .ds-sheet / .ds-sheet-v2          — token scoping + baseline reset
+ *   .ds-popout / .is-maximized / .is-popped — popout shell + animations
+ *   .ds-popout-backdrop               — modal overlay
+ *   .ds-popout-title + sub-classes    — title-bar chrome
+ *   .ds-popout-module-btn + menu-item — module-switcher dropdown
+ *   .ds-popout-body                   — 2-column body grid
+ *   .ds-popout-list + sub-classes     — items-list rail
+ *   .ds-popout-editor                 — editor pane
+ *   .ds-editor-header / .ds-editor-scroll — editor-pane sub-layout
+ *   .ds-popout-footer                 — footer strip
+ *   .ds-caps / .ds-mono               — typography utility atoms
+ *   .ds-led                           — status LED indicator
+ *   .ds-formatting-toolbar            — scrollbar for formatting toolbar
  *   Themed scrollbars for list / body / formatting toolbar
  *
  * Same pattern as BorderStyleEditor.css (fix for Task 17 visual regression).
@@ -28,11 +28,11 @@
 
 /* ── Token scoping ─────────────────────────────────────────────────────────
  * Bind the sheet to the design-system surface tier. Applied to BOTH
- * .gc-sheet (in-DOM panels) and .gc-sheet-v2 (Radix-portaled popovers /
+ * .ds-sheet (in-DOM panels) and .ds-sheet-v2 (Radix-portaled popovers /
  * dropdowns mounted at document.body) so portaled menus resolve tokens.
  */
-.gc-sheet,
-.gc-sheet-v2 {
+.ds-sheet,
+.ds-sheet-v2 {
   font-family: var(--ds-font-sans);
   font-size: 12px;
   line-height: 1.5;
@@ -43,14 +43,14 @@
   text-rendering: geometricPrecision;
 }
 
-.gc-sheet *,
-.gc-sheet *::before,
-.gc-sheet *::after {
+.ds-sheet *,
+.ds-sheet *::before,
+.ds-sheet *::after {
   box-sizing: border-box;
 }
 
-.gc-sheet code,
-.gc-sheet kbd {
+.ds-sheet code,
+.ds-sheet kbd {
   font-family: var(--ds-font-mono);
   font-size: inherit;
 }
@@ -59,64 +59,64 @@
  * Thin scrollbar with token-resolved thumb so the default white
  * browser scrollbar doesn't appear on dark surfaces.
  */
-.gc-formatting-toolbar,
-.gc-popout-list-items,
-.gc-popout-body,
-.gc-popout-body main {
+.ds-formatting-toolbar,
+.ds-popout-list-items,
+.ds-popout-body,
+.ds-popout-body main {
   scrollbar-width: thin;
   scrollbar-color: var(--ds-border-secondary) var(--ds-surface-primary);
 }
 
-.gc-formatting-toolbar::-webkit-scrollbar,
-.gc-popout-list-items::-webkit-scrollbar,
-.gc-popout-body::-webkit-scrollbar,
-.gc-popout-body main::-webkit-scrollbar {
+.ds-formatting-toolbar::-webkit-scrollbar,
+.ds-popout-list-items::-webkit-scrollbar,
+.ds-popout-body::-webkit-scrollbar,
+.ds-popout-body main::-webkit-scrollbar {
   height: 8px;
   width: 8px;
 }
-.gc-formatting-toolbar::-webkit-scrollbar-track,
-.gc-popout-list-items::-webkit-scrollbar-track,
-.gc-popout-body::-webkit-scrollbar-track,
-.gc-popout-body main::-webkit-scrollbar-track {
+.ds-formatting-toolbar::-webkit-scrollbar-track,
+.ds-popout-list-items::-webkit-scrollbar-track,
+.ds-popout-body::-webkit-scrollbar-track,
+.ds-popout-body main::-webkit-scrollbar-track {
   background: transparent;
 }
-.gc-formatting-toolbar::-webkit-scrollbar-thumb,
-.gc-popout-list-items::-webkit-scrollbar-thumb,
-.gc-popout-body::-webkit-scrollbar-thumb,
-.gc-popout-body main::-webkit-scrollbar-thumb {
+.ds-formatting-toolbar::-webkit-scrollbar-thumb,
+.ds-popout-list-items::-webkit-scrollbar-thumb,
+.ds-popout-body::-webkit-scrollbar-thumb,
+.ds-popout-body main::-webkit-scrollbar-thumb {
   background: var(--ds-border-secondary);
   border-radius: 4px;
 }
-.gc-formatting-toolbar::-webkit-scrollbar-thumb:hover,
-.gc-popout-list-items::-webkit-scrollbar-thumb:hover,
-.gc-popout-body::-webkit-scrollbar-thumb:hover,
-.gc-popout-body main::-webkit-scrollbar-thumb:hover {
+.ds-formatting-toolbar::-webkit-scrollbar-thumb:hover,
+.ds-popout-list-items::-webkit-scrollbar-thumb:hover,
+.ds-popout-body::-webkit-scrollbar-thumb:hover,
+.ds-popout-body main::-webkit-scrollbar-thumb:hover {
   background: var(--ds-text-faint);
 }
 
 /* Sheet-scoped general scrollbar (portaled popovers excluded) */
-.gc-sheet ::-webkit-scrollbar { width: 8px; height: 8px; }
-.gc-sheet ::-webkit-scrollbar-track { background: transparent; }
-.gc-sheet ::-webkit-scrollbar-thumb {
+.ds-sheet ::-webkit-scrollbar { width: 8px; height: 8px; }
+.ds-sheet ::-webkit-scrollbar-track { background: transparent; }
+.ds-sheet ::-webkit-scrollbar-thumb {
   background: var(--ds-border-secondary);
   border-radius: 2px;
 }
-.gc-sheet ::-webkit-scrollbar-thumb:hover {
+.ds-sheet ::-webkit-scrollbar-thumb:hover {
   background: var(--ds-text-faint);
 }
 
 /* ── Backdrop ─────────────────────────────────────────────────────────────*/
-.gc-popout-backdrop {
+.ds-popout-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   z-index: 10000;
-  animation: gc-popout-fade 140ms ease-out;
+  animation: ds-popout-fade 140ms ease-out;
 }
 
 /* ── Popout shell ──────────────────────────────────────────────────────────*/
-.gc-popout {
+.ds-popout {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -134,16 +134,16 @@
   z-index: 10001;
   box-shadow: var(--ds-elevation-overlay), inset 0 1px 0 rgba(255, 255, 255, 0.02);
   overflow: hidden;
-  animation: gc-popout-rise 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: ds-popout-rise 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.gc-popout.is-maximized {
+.ds-popout.is-maximized {
   width: 94vw;
   height: 90vh;
 }
 
 /* Popped mode — window IS the overlay; fill edge-to-edge */
-.gc-popout.is-popped {
+.ds-popout.is-popped {
   position: static;
   top: auto;
   left: auto;
@@ -159,18 +159,18 @@
   flex: 1;
 }
 
-@keyframes gc-popout-fade {
+@keyframes ds-popout-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-@keyframes gc-popout-rise {
+@keyframes ds-popout-rise {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 /* ── Title bar ─────────────────────────────────────────────────────────────*/
-.gc-popout-title {
+.ds-popout-title {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -183,7 +183,7 @@
   flex-shrink: 0;
 }
 
-.gc-popout-title-text {
+.ds-popout-title-text {
   font-family: var(--ds-font-sans);
   font-size: 12px;
   font-weight: 600;
@@ -192,14 +192,14 @@
   color: var(--ds-text-primary);
 }
 
-.gc-popout-title-sub {
+.ds-popout-title-sub {
   font-family: var(--ds-font-mono);
   font-size: 11px;
   color: var(--ds-text-faint);
   letter-spacing: 0.04em;
 }
 
-.gc-popout-title-status {
+.ds-popout-title-status {
   font-family: var(--ds-font-mono);
   font-size: 11px;
   color: var(--ds-text-muted);
@@ -207,12 +207,12 @@
   text-transform: uppercase;
 }
 
-.gc-popout-title-status strong {
+.ds-popout-title-status strong {
   color: var(--ds-text-primary);
   font-weight: 500;
 }
 
-.gc-popout-title-btn {
+.ds-popout-title-btn {
   width: 24px;
   height: 24px;
   display: inline-flex;
@@ -227,13 +227,13 @@
   transition: background 120ms, color 120ms;
 }
 
-.gc-popout-title-btn:hover {
+.ds-popout-title-btn:hover {
   background: var(--ds-surface-secondary);
   color: var(--ds-text-primary);
 }
 
 /* ── Module dropdown ───────────────────────────────────────────────────────*/
-.gc-popout-module-btn {
+.ds-popout-module-btn {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -252,13 +252,13 @@
   transition: background 120ms, border-color 120ms;
 }
 
-.gc-popout-module-btn:hover,
-.gc-popout-module-btn[aria-expanded='true'] {
+.ds-popout-module-btn:hover,
+.ds-popout-module-btn[aria-expanded='true'] {
   background: var(--ds-surface-tertiary);
   border-color: var(--ds-text-faint);
 }
 
-.gc-popout-module-menu-item {
+.ds-popout-module-menu-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -278,17 +278,17 @@
   transition: background 100ms;
 }
 
-.gc-popout-module-menu-item:hover {
+.ds-popout-module-menu-item:hover {
   background: var(--ds-surface-tertiary);
 }
 
-.gc-popout-module-menu-item[aria-selected='true'] {
+.ds-popout-module-menu-item[aria-selected='true'] {
   background: var(--ds-surface-tertiary);
   border-left-color: var(--ds-accent-positive);
 }
 
 /* ── Body (2-column grid: items list + editor) ─────────────────────────────*/
-.gc-popout-body {
+.ds-popout-body {
   flex: 1;
   min-height: 0;
   display: grid;
@@ -296,16 +296,16 @@
   border-bottom: 1px solid var(--ds-border-primary);
 }
 
-.gc-popout-body[data-layout='editor-only'] {
+.ds-popout-body[data-layout='editor-only'] {
   grid-template-columns: 1fr;
 }
 
-.gc-popout-body[data-layout='help'] {
+.ds-popout-body[data-layout='help'] {
   grid-template-columns: 1fr;
 }
 
 /* ── Items list rail ───────────────────────────────────────────────────────*/
-.gc-popout-list {
+.ds-popout-list {
   border-right: 1px solid var(--ds-border-primary);
   background: var(--ds-surface-ground);
   overflow-y: auto;
@@ -314,7 +314,7 @@
   flex-direction: column;
 }
 
-.gc-popout-list-header {
+.ds-popout-list-header {
   padding: 14px 16px 10px;
   display: flex;
   align-items: center;
@@ -326,14 +326,14 @@
   z-index: 1;
 }
 
-.gc-popout-list-items {
+.ds-popout-list-items {
   list-style: none;
   padding: 4px 0;
   margin: 0;
   flex: 1;
 }
 
-.gc-popout-list-item {
+.ds-popout-list-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -351,26 +351,26 @@
 }
 
 /* Persistent "this card is open" marker */
-.gc-popout-list-item[data-active='true'] {
+.ds-popout-list-item[data-active='true'] {
   background: var(--ds-surface-primary);
   border-left-color: var(--ds-accent-positive);
 }
 
 /* Keyboard / mouse highlight — same tint as :hover */
-.gc-popout-list-item[aria-selected='true']:not([data-active='true']) {
+.ds-popout-list-item[aria-selected='true']:not([data-active='true']) {
   background: var(--ds-surface-primary);
 }
 
-.gc-popout-list-item:hover:not([data-active='true']) {
+.ds-popout-list-item:hover:not([data-active='true']) {
   background: var(--ds-surface-primary);
 }
 
-.gc-popout-list-item[data-muted='true'] {
+.ds-popout-list-item[data-muted='true'] {
   color: var(--ds-text-muted);
 }
 
 /* ── Editor pane ───────────────────────────────────────────────────────────*/
-.gc-popout-editor {
+.ds-popout-editor {
   overflow: hidden;
   min-height: 0;
   display: flex;
@@ -378,7 +378,7 @@
   background: var(--ds-surface-ground);
 }
 
-.gc-editor-header {
+.ds-editor-header {
   flex-shrink: 0;
   background: var(--ds-surface-ground);
   border-bottom: 1px solid var(--ds-border-primary);
@@ -388,7 +388,7 @@
   z-index: 2;
 }
 
-.gc-editor-scroll {
+.ds-editor-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -396,7 +396,7 @@
 }
 
 /* ── Footer strip ──────────────────────────────────────────────────────────*/
-.gc-popout-footer {
+.ds-popout-footer {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -411,14 +411,14 @@
   text-transform: uppercase;
 }
 
-.gc-popout-footer-shortcuts {
+.ds-popout-footer-shortcuts {
   color: var(--ds-text-faint);
 }
 
 /* ── Typography atoms ──────────────────────────────────────────────────────*/
 
 /* Tracked-caps label */
-.gc-caps {
+.ds-caps {
   font-family: var(--ds-font-sans);
   font-size: 11px;
   font-weight: 600;
@@ -429,7 +429,7 @@
 }
 
 /* Mono numeric / identifier voice */
-.gc-mono {
+.ds-mono {
   font-family: var(--ds-font-mono);
   font-size: 12px;
   color: var(--ds-text-primary);
@@ -438,7 +438,7 @@
 }
 
 /* ── LED status indicator ──────────────────────────────────────────────────*/
-.gc-led {
+.ds-led {
   width: 2px;
   height: 12px;
   display: inline-block;
@@ -446,12 +446,12 @@
   background: var(--ds-border-secondary);
 }
 
-.gc-led[data-on='true'] {
+.ds-led[data-on='true'] {
   background: var(--ds-accent-positive);
   box-shadow: 0 0 5px color-mix(in srgb, var(--ds-accent-positive) 60%, transparent);
 }
 
-.gc-led[data-on='true'][data-amber='true'] {
+.ds-led[data-on='true'][data-amber='true'] {
   background: var(--ds-accent-warning);
   box-shadow: 0 0 5px color-mix(in srgb, var(--ds-accent-warning) 55%, transparent);
 }

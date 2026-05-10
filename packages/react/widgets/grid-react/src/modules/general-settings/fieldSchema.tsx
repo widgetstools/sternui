@@ -67,7 +67,7 @@ function Row({ label, hint, control, ...rest }: RowProps) {
 // ─── Control primitives ────────────────────────────────────────────────
 //
 // Each thin control aligns v2's inline patterns. Size + padding + colour
-// come from the Cockpit `--ck-*` token system on `.gc-sheet-v2` so the
+// come from the Cockpit `--ck-*` token system on `.ds-sheet-v2` so the
 // look is unchanged from v2-baseline.
 
 export function BoolControl({ checked, onChange, testId }: {

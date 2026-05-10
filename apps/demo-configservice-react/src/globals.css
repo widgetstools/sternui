@@ -35,10 +35,10 @@
 }
 
 /* ─── Live-tick indicator ──────────────────────────────────────────── */
-@keyframes gc-live-pulse {
+@keyframes ds-live-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
-.gc-live-dot {
-  animation: gc-live-pulse 1.6s ease-in-out infinite;
+.ds-live-dot {
+  animation: ds-live-pulse 1.6s ease-in-out infinite;
 }

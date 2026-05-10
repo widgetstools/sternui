@@ -49,7 +49,7 @@ function reinjectHeaderCSS(css: CssHandle, groups: ColumnGroupNode[]): void {
       // both go through cssEscapeColId — they always match regardless
       // of the groupId's shape.
       const safeId = cssEscapeColId(node.groupId);
-      const cls = `gc-hdr-grp-${safeId}`;
+      const cls = `ds-hdr-grp-${safeId}`;
       if (body) {
         // Target both the header cell AND the inner label container so
         // background + color reach the right element (AG-Grid renders the

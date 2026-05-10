@@ -22,7 +22,7 @@ describe('GhostIconButton', () => {
     // type=button by default so the component never accidentally
     // submits a form when used inside one.
     expect(btn.getAttribute('type')).toBe('button');
-    expect(btn.classList.contains('gc-gib')).toBe(true);
+    expect(btn.classList.contains('ds-gib')).toBe(true);
   });
 
   it.each([
@@ -62,7 +62,7 @@ describe('GhostIconButton', () => {
       <GhostIconButton aria-label="x" className="extra-class" />,
     );
     const btn = getByRole('button');
-    expect(btn.classList.contains('gc-gib')).toBe(true);
+    expect(btn.classList.contains('ds-gib')).toBe(true);
     expect(btn.classList.contains('extra-class')).toBe(true);
   });
 

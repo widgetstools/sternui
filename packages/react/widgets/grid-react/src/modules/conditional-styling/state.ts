@@ -2,7 +2,7 @@
  * Conditional Styling — a list of expression-driven rules that paint cells
  * (scoped to specific columns) or whole rows. Carried into AG-Grid via
  * `ColDef.cellClassRules` / `GridOptions.rowClassRules`. The actual visual
- * styling is delivered through CSS classes (`gc-rule-<id>`) injected at
+ * styling is delivered through CSS classes (`ds-rule-<id>`) injected at
  * mount time, NOT inline styles — keeps re-render cheap and lets the dark
  * theme switch via `:root.dark` selectors without recomputing rules.
  *

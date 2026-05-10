@@ -12,7 +12,7 @@ const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -39,7 +39,7 @@ describe('HostedMarketsGrid — toolbar flags (row 13)', () => {
         showFormattingToolbar
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     const last = mgcProps[mgcProps.length - 1];
     expect(last.showFiltersToolbar).toBe(true);
     expect(last.showFormattingToolbar).toBe(true);
@@ -54,7 +54,7 @@ describe('HostedMarketsGrid — toolbar flags (row 13)', () => {
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     const last = mgcProps[mgcProps.length - 1];
     expect(last.showFiltersToolbar).toBeUndefined();
     expect(last.showFormattingToolbar).toBeUndefined();

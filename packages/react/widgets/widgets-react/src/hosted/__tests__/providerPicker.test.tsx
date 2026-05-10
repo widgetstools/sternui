@@ -19,7 +19,7 @@ vi.mock('../../v2/markets-grid-container/index.js', () => ({
     useChordHotkey('Alt+Shift+P', () => {
       chordFires += 1;
     });
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -44,7 +44,7 @@ describe('HostedMarketsGrid — provider picker chord (row 16)', () => {
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
 
     act(() => {
       document.dispatchEvent(

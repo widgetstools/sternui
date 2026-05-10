@@ -35,12 +35,12 @@ import { GhostIconButton } from '@starui/grid-react';
 // as `data-row-hover-target` for the GhostIconButton reveal, so its
 // hover feedback is part of the same primitive's behaviour. Idempotent
 // + SSR-safe per the same pattern GhostIconButton uses.
-const ROW_STYLE_ID = 'gc-tpl-row-styles';
+const ROW_STYLE_ID = 'ds-tpl-row-styles';
 if (typeof document !== 'undefined' && !document.getElementById(ROW_STYLE_ID)) {
   const style = document.createElement('style');
   style.id = ROW_STYLE_ID;
   style.textContent = `
-    .gc-tpl-row:not([data-active='true']):hover {
+    .ds-tpl-row:not([data-active='true']):hover {
       background: color-mix(in srgb, var(--ds-text-primary) 5%, transparent) !important;
     }
   `;
@@ -136,7 +136,7 @@ function TemplateRow({
       data-testid={testId}
       data-row-hover-target=""
       data-active={isActive ? 'true' : undefined}
-      className="gc-tpl-row"
+      className="ds-tpl-row"
       role="button"
       tabIndex={isRenaming ? -1 : 0}
       onClick={() => { if (!isRenaming && !isPendingDelete && !disabled) onApply(); }}

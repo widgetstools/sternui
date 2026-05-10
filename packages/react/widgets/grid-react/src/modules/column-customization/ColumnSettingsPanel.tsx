@@ -81,7 +81,7 @@ type ColumnInfo = GridColumnInfo;
 const MODULE_ID = 'column-customization';
 const DIRTY_PREFIX = `${MODULE_ID}:`;
 
-// Row height matches `.gc-popout-list-item` (9px + 13px line + 9px ≈ 36).
+// Row height matches `.ds-popout-list-item` (9px + 13px line + 9px ≈ 36).
 // Used for windowed layout math when the column count crosses the threshold.
 const ROW_HEIGHT = 36;
 // Below this column count, every row renders — windowing is pure overhead.
@@ -123,7 +123,7 @@ function useDirtyColIds(): Set<string> {
 
 // ─── Scroll-parent windowing ───────────────────────────────────────────
 //
-// The list rail does not own its scroll container — `.gc-popout-list`
+// The list rail does not own its scroll container — `.ds-popout-list`
 // (and the legacy panel's `<aside>`) own it. We walk up to find the
 // first scrolling ancestor and observe its scrollTop / clientHeight to
 // compute which rows to render. If no scroll parent is found (e.g.

@@ -11,7 +11,7 @@ import { test, expect, Page } from '@playwright/test';
  *
  * Intentionally OMITTED vs v1 (deliberate cuts in v2):
  *  - row-count badges on pills (would re-couple v2 to rowData)
- *  - localStorage-key save assertions (`gc-filters:<gridId>` — v2 persists via
+ *  - localStorage-key save assertions (`ds-filters:<gridId>` — v2 persists via
  *    profile snapshot in IndexedDB, no legacy keys are written)
  *  - toolbar-switcher dance — v2 renders FiltersToolbar inline, no pill click
  */
@@ -28,7 +28,7 @@ async function clearV2Persistence(page: Page) {
   // and the active-profile pointer so each test starts from a clean slate.
   await page.evaluate(async () => {
     Object.keys(localStorage)
-      .filter(k => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('gc-grid:'))
+      .filter(k => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach(k => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('gc-customizer-v2');
@@ -43,11 +43,11 @@ function filterPills(page: Page) {
   // The count-badge inside each pill carries a `filter-pill-count-<id>`
   // testid that shares the `filter-pill-` prefix, so a bare prefix
   // locator double-counts. Scope to the outer pill's stable class.
-  return page.locator('.gc-filter-pill[data-testid^="filter-pill-"]');
+  return page.locator('.ds-filter-pill[data-testid^="filter-pill-"]');
 }
 
 function filterToggleBtn(page: Page, index: number) {
-  return filterPills(page).nth(index).locator('.gc-filter-pill-btn');
+  return filterPills(page).nth(index).locator('.ds-filter-pill-btn');
 }
 
 async function getFilterPillCount(page: Page): Promise<number> {
@@ -55,7 +55,7 @@ async function getFilterPillCount(page: Page): Promise<number> {
 }
 
 async function clickAddFilter(page: Page) {
-  await page.locator('.gc-filters-add-btn').click();
+  await page.locator('.ds-filters-add-btn').click();
   await page.waitForTimeout(400);
 }
 
@@ -133,10 +133,10 @@ test.describe('v2 FiltersToolbar', () => {
   });
 
   test('shows empty toolbar with only + button', async ({ page }) => {
-    await expect(page.locator('.gc-filters-add-btn')).toBeVisible();
+    await expect(page.locator('.ds-filters-add-btn')).toBeVisible();
     expect(await getFilterPillCount(page)).toBe(0);
     // No clear-all button with no pills
-    await expect(page.locator('.gc-filters-clear-btn')).toHaveCount(0);
+    await expect(page.locator('.ds-filters-clear-btn')).toHaveCount(0);
   });
 
   test('toggle off removes filter from grid', async ({ page }) => {
@@ -222,7 +222,7 @@ test.describe('v2 FiltersToolbar', () => {
     await pill.locator('button[title="Rename"]').click();
     await page.waitForTimeout(300);
 
-    const input = page.locator('.gc-filter-rename-input');
+    const input = page.locator('.ds-filter-rename-input');
     await expect(input).toBeVisible();
     await input.fill('My BUY Filter');
     await input.press('Enter');
@@ -329,36 +329,36 @@ test.describe('v2 FiltersToolbar', () => {
   test('clear + add buttons sit OUTSIDE the scroll container (always visible)', async ({ page }) => {
     // Regression guard: the clear-all (FunnelX) and add-new (+) buttons
     // are sticky action items that must remain visible even when the
-    // pill row overflows. They live in `.gc-filters-actions`, after
-    // the right scroll caret, NOT inside `.gc-filter-scroll`.
+    // pill row overflows. They live in `.ds-filters-actions`, after
+    // the right scroll caret, NOT inside `.ds-filter-scroll`.
     const addBtn = page.locator('[data-testid="filters-add-btn"]');
     // The + button is always rendered (disabled when no new filter).
     await expect(addBtn).toBeVisible();
 
-    // DOM placement: add button's closest `.gc-filter-scroll` ancestor
+    // DOM placement: add button's closest `.ds-filter-scroll` ancestor
     // should NOT exist — it's in the sticky action cluster instead.
     const insideScroll = await addBtn.evaluate(
-      (el) => !!el.closest('.gc-filter-scroll'),
+      (el) => !!el.closest('.ds-filter-scroll'),
     );
     expect(insideScroll).toBe(false);
 
     const insideActions = await addBtn.evaluate(
-      (el) => !!el.closest('.gc-filters-actions'),
+      (el) => !!el.closest('.ds-filters-actions'),
     );
     expect(insideActions).toBe(true);
 
     // Create a pill so the clear-all button mounts.
     await setFilterViaApi(page, { side: { filterType: 'set', values: ['BUY'] } });
     await clickAddFilter(page);
-    const clearBtn = page.locator('.gc-filters-clear-btn');
+    const clearBtn = page.locator('.ds-filters-clear-btn');
     await expect(clearBtn).toBeVisible();
     // Same sticky-group placement.
     const clearInsideScroll = await clearBtn.evaluate(
-      (el) => !!el.closest('.gc-filter-scroll'),
+      (el) => !!el.closest('.ds-filter-scroll'),
     );
     expect(clearInsideScroll).toBe(false);
     const clearInsideActions = await clearBtn.evaluate(
-      (el) => !!el.closest('.gc-filters-actions'),
+      (el) => !!el.closest('.ds-filters-actions'),
     );
     expect(clearInsideActions).toBe(true);
   });
@@ -385,7 +385,7 @@ test.describe('v2 FiltersToolbar', () => {
     await expect(toolbar).toHaveAttribute('data-expanded', 'false');
 
     // Pill row is gone; summary chip shows `2 filters · 1 active`.
-    await expect(page.locator('.gc-filter-scroll')).toHaveCount(0);
+    await expect(page.locator('.ds-filter-scroll')).toHaveCount(0);
     const chip = page.locator('[data-testid="filters-summary-chip"]');
     await expect(chip).toBeVisible();
     await expect(chip).toContainText('2');
@@ -419,7 +419,7 @@ test.describe('v2 FiltersToolbar', () => {
     await expect(
       page.locator('[data-testid="filters-toolbar"]'),
     ).toHaveAttribute('data-expanded', 'true');
-    await expect(page.locator('.gc-filter-scroll')).toBeVisible();
+    await expect(page.locator('.ds-filter-scroll')).toBeVisible();
   });
 
   test('collapsed toolbar keeps clear + add buttons reachable', async ({ page }) => {
@@ -431,23 +431,23 @@ test.describe('v2 FiltersToolbar', () => {
     ).toHaveAttribute('data-expanded', 'false');
 
     // Clear-all and add buttons still in the DOM because
-    // `.gc-filters-actions` sits outside the collapsible pill section.
-    await expect(page.locator('.gc-filters-clear-btn')).toBeVisible();
+    // `.ds-filters-actions` sits outside the collapsible pill section.
+    await expect(page.locator('.ds-filters-clear-btn')).toBeVisible();
     await expect(page.locator('[data-testid="filters-add-btn"]')).toBeVisible();
   });
 
   test('formatter-toolbar toggle (brush) lives OUTSIDE the filters toolbar', async ({ page }) => {
     // Brush was hoisted into the primary row's action cluster. Verify
-    // the testid still exists but sits in `.gc-primary-actions`, NOT
-    // inside `.gc-filters-actions`.
+    // the testid still exists but sits in `.ds-primary-actions`, NOT
+    // inside `.ds-filters-actions`.
     const toggle = page.locator('[data-testid="style-toolbar-toggle"]');
     await expect(toggle).toBeVisible();
     const insideFiltersActions = await toggle.evaluate(
-      (el) => !!el.closest('.gc-filters-actions'),
+      (el) => !!el.closest('.ds-filters-actions'),
     );
     expect(insideFiltersActions).toBe(false);
     const insidePrimaryActions = await toggle.evaluate(
-      (el) => !!el.closest('.gc-primary-actions'),
+      (el) => !!el.closest('.ds-primary-actions'),
     );
     expect(insidePrimaryActions).toBe(true);
   });
@@ -458,7 +458,7 @@ test.describe('v2 FiltersToolbar', () => {
     // scrollbar is hidden to stop it from stealing vertical space or
     // clashing with the terminal aesthetic.
     const scrollbarChrome = await page.evaluate(() => {
-      const el = document.querySelector('.gc-filter-scroll') as HTMLElement | null;
+      const el = document.querySelector('.ds-filter-scroll') as HTMLElement | null;
       if (!el) return null;
       const styles = getComputedStyle(el);
       return {

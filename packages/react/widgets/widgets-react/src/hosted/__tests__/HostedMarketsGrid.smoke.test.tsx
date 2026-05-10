@@ -10,7 +10,7 @@ import type { ConfigManager } from '@starui/config-service';
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => (
     <div
-      data-testid="mgc-stub"
+      data-testid="mds-stub"
       data-grid-id={props.gridId}
       data-instance-id={props.instanceId}
       data-component-name={props.componentName}
@@ -41,7 +41,7 @@ describe('HostedMarketsGrid — smoke', () => {
         configManager={fakeConfigManager}
       />,
     );
-    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-grid-id')).toBe('t1');
     expect(stub.getAttribute('data-instance-id')).toBe('t1');
     expect(stub.getAttribute('data-component-name')).toBe('Test');
@@ -58,7 +58,7 @@ describe('HostedMarketsGrid — smoke', () => {
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     expect(document.title).toBe('Hosted · Test');
     unmount();
     expect(document.title).toBe('Original');

@@ -23,7 +23,7 @@ import {
  *     assertions below will fail in a way the per-fixture specs
  *     wouldn't.
  *   - CSS-rule class collisions — every module emits its own class
- *     prefix (`gc-col-c-`, `gc-rule-`, `gc-hdr-grp-`); we assert the
+ *     prefix (`ds-col-c-`, `ds-rule-`, `ds-hdr-grp-`); we assert the
  *     encoded forms appear together on the same cells.
  *   - Group composition picking up calculated columns that didn't
  *     exist when groups were first authored — the calculated cols
@@ -42,21 +42,21 @@ test.describe('v2 — kitchen-sink nested fields', () => {
     expect(text!).not.toBe('');
     expect(text!).toMatch(/\d/);
 
-    const has = await cellHasClassMatching(page, 'N-00007', 'pricing.bid', /^gc-col-c-pricing_2ebid$/);
+    const has = await cellHasClassMatching(page, 'N-00007', 'pricing.bid', /^ds-col-c-pricing_2ebid$/);
     expect(has).toBe(true);
   });
 
   test('cell rule class AND column-customization class coexist on the same cell', async ({ page }) => {
-    // EDGE-INVERTED.bid → gets BOTH `gc-col-c-pricing_2ebid` (from
-    // column-customization) and `gc-rule-rule-bid-inverted` (from the
+    // EDGE-INVERTED.bid → gets BOTH `ds-col-c-pricing_2ebid` (from
+    // column-customization) and `ds-rule-rule-bid-inverted` (from the
     // cell rule). Critical co-existence test — proves the priority
     // pipeline is leaving each module's classes intact.
     const classes = await page.evaluate(() => {
       const cell = document.querySelector('.ag-row[row-id="EDGE-INVERTED"] .ag-cell[col-id="pricing.bid"]');
       return cell ? Array.from(cell.classList) : [];
     });
-    expect(classes).toContain('gc-col-c-pricing_2ebid');
-    expect(classes).toContain('gc-rule-rule-bid-inverted');
+    expect(classes).toContain('ds-col-c-pricing_2ebid');
+    expect(classes).toContain('ds-rule-rule-bid-inverted');
   });
 
   test('column groups, calculated columns, and conditional styling all visible', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('v2 — kitchen-sink nested fields', () => {
 
     // At least one row tinted by row-scope rule
     const rowMatches = await page.evaluate(() => {
-      return document.querySelectorAll('.ag-row.gc-rule-rule-row-high-dv01').length;
+      return document.querySelectorAll('.ag-row.ds-rule-rule-row-high-dv01').length;
     });
     expect(rowMatches).toBeGreaterThanOrEqual(0);
   });
@@ -84,7 +84,7 @@ test.describe('v2 — kitchen-sink nested fields', () => {
     // column STILL has a value — proves the cellClassRules add doesn't
     // wipe out other transforms.
     const rowId = await page.evaluate(() => {
-      const row = document.querySelector('.ag-row.gc-rule-rule-row-high-dv01');
+      const row = document.querySelector('.ag-row.ds-rule-rule-row-high-dv01');
       return row?.getAttribute('row-id') ?? null;
     });
     test.skip(rowId === null, 'no high-DV01 row matched in this seed — non-deterministic');
@@ -95,13 +95,13 @@ test.describe('v2 — kitchen-sink nested fields', () => {
   test('AAA + BUY row carries BOTH row-rule classes when both predicates match', async ({ page }) => {
     // Find a row that's marked by either rule, then check whether it
     // also matches the AAA+BUY rule. If the seed produced overlap,
-    // the row carries both `gc-rule-rule-row-high-dv01` and
-    // `gc-rule-rule-row-buy-aaa`.
+    // the row carries both `ds-rule-rule-row-high-dv01` and
+    // `ds-rule-rule-row-buy-aaa`.
     const result = await page.evaluate(() => {
-      const rows = document.querySelectorAll('.ag-row.gc-rule-rule-row-buy-aaa');
+      const rows = document.querySelectorAll('.ag-row.ds-rule-rule-row-buy-aaa');
       let withDv01 = 0;
       rows.forEach((r) => {
-        if (r.classList.contains('gc-rule-rule-row-high-dv01')) withDv01 += 1;
+        if (r.classList.contains('ds-rule-rule-row-high-dv01')) withDv01 += 1;
       });
       return { total: rows.length, withDv01 };
     });
@@ -128,15 +128,15 @@ test.describe('v2 — kitchen-sink nested fields', () => {
     // customization style class IS still attached (it's class-based,
     // not value-based). Calc columns must render empty without
     // throwing.
-    const has = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^gc-rule-rule-bid-high$/);
+    const has = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^ds-rule-rule-bid-high$/);
     expect(has).toBe(false);
-    const customizationHas = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^gc-col-c-pricing_2ebid$/);
+    const customizationHas = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^ds-col-c-pricing_2ebid$/);
     expect(customizationHas).toBe(true);
     // Row-level rules might still match if e.g. risk.dv01 > 100.
     const rowClasses = await rowHasAnyRuleClass(page, 'EDGE-NULL-PRICING');
     // Whatever the row matches, no class names should be malformed.
     for (const c of rowClasses) {
-      expect(c).toMatch(/^gc-rule-[a-z0-9_-]+$/i);
+      expect(c).toMatch(/^ds-rule-[a-z0-9_-]+$/i);
     }
   });
 

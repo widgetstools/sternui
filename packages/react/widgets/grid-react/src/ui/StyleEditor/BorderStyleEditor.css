@@ -1,7 +1,7 @@
-/* BorderStyleEditor — scoped to .gc-be-editor.
+/* BorderStyleEditor — scoped to .ds-be-editor.
    All values reference --ds-* vars from @starui/design-system/css. */
 
-.gc-be-editor {
+.ds-be-editor {
   /* Local variable shortcuts for readability */
   --be-bg-card:     var(--ds-surface-secondary);
   --be-bg-sunken:   var(--ds-surface-tertiary);
@@ -34,7 +34,7 @@
   color: var(--be-ink-0);
 }
 
-.gc-be-editor .gc-be-preview {
+.ds-be-editor .ds-be-preview {
   width: 56px;
   height: var(--be-h-preview);
   border: 1px solid var(--be-line-strong);
@@ -47,7 +47,7 @@
   padding: 4px;
 }
 
-.gc-be-editor .gc-be-preview-inner {
+.ds-be-editor .ds-be-preview-inner {
   width: 100%;
   height: 100%;
   border-radius: 1px;
@@ -56,14 +56,14 @@
   justify-content: center;
 }
 
-.gc-be-editor .gc-be-div {
+.ds-be-editor .ds-be-div {
   width: 1px;
   height: 18px;
   background: var(--be-line-strong);
   flex-shrink: 0;
 }
 
-.gc-be-editor .gc-be-sides {
+.ds-be-editor .ds-be-sides {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -75,7 +75,7 @@
   height: var(--be-h-ctrl);
 }
 
-.gc-be-editor .gc-be-side {
+.ds-be-editor .ds-be-side {
   width: 24px;
   height: 20px;
   display: inline-flex;
@@ -95,44 +95,44 @@
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.gc-be-editor .gc-be-side:hover:not(:disabled) {
+.ds-be-editor .ds-be-side:hover:not(:disabled) {
   background: var(--be-bg-hover);
   color: var(--be-ink-0);
 }
 
-.gc-be-editor .gc-be-side[data-on='true'] {
+.ds-be-editor .ds-be-side[data-on='true'] {
   color: var(--be-accent);
   border-color: transparent;
 }
 
-.gc-be-editor .gc-be-side[data-on='true'][data-side='A'] {
+.ds-be-editor .ds-be-side[data-on='true'][data-side='A'] {
   border: 2px solid var(--be-accent);
 }
 
-.gc-be-editor .gc-be-side[data-on='true'][data-side='T'] {
+.ds-be-editor .ds-be-side[data-on='true'][data-side='T'] {
   border-top: 2px solid var(--be-accent);
 }
 
-.gc-be-editor .gc-be-side[data-on='true'][data-side='B'] {
+.ds-be-editor .ds-be-side[data-on='true'][data-side='B'] {
   border-bottom: 2px solid var(--be-accent);
 }
 
-.gc-be-editor .gc-be-side[data-on='true'][data-side='L'] {
+.ds-be-editor .ds-be-side[data-on='true'][data-side='L'] {
   border-left: 2px solid var(--be-accent);
 }
 
-.gc-be-editor .gc-be-side[data-on='true'][data-side='R'] {
+.ds-be-editor .ds-be-side[data-on='true'][data-side='R'] {
   border-right: 2px solid var(--be-accent);
 }
 
-.gc-be-editor .gc-be-side[data-selected='true'] {
+.ds-be-editor .ds-be-side[data-selected='true'] {
   background: color-mix(in srgb, var(--be-accent) 16%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--be-accent) 60%, transparent),
               0 0 0 2px var(--be-bg-card);
   color: var(--be-accent);
 }
 
-.gc-be-editor .gc-be-color {
+.ds-be-editor .ds-be-color {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -151,11 +151,11 @@
   transition: border-color 120ms ease, background 120ms ease;
 }
 
-.gc-be-editor .gc-be-color:hover:not(:disabled) {
+.ds-be-editor .ds-be-color:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--be-accent) 45%, transparent);
 }
 
-.gc-be-editor .gc-be-color .gc-be-swatch {
+.ds-be-editor .ds-be-color .ds-be-swatch {
   width: 18px;
   height: 18px;
   border-radius: 1px;
@@ -163,15 +163,15 @@
   flex-shrink: 0;
 }
 
-.gc-be-editor .gc-be-color .gc-be-caret,
-.gc-be-editor .gc-be-chip .gc-be-caret {
+.ds-be-editor .ds-be-color .ds-be-caret,
+.ds-be-editor .ds-be-chip .ds-be-caret {
   width: 9px;
   height: 9px;
   color: var(--be-ink-2);
   flex-shrink: 0;
 }
 
-.gc-be-editor .gc-be-chip {
+.ds-be-editor .ds-be-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -192,11 +192,11 @@
   transition: border-color 120ms ease, background 120ms ease;
 }
 
-.gc-be-editor .gc-be-chip:hover:not(:disabled) {
+.ds-be-editor .ds-be-chip:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--be-accent) 45%, transparent);
 }
 
-.gc-be-editor .gc-be-stroke {
+.ds-be-editor .ds-be-stroke {
   width: 18px;
   height: 2px;
   background: currentColor;
@@ -205,19 +205,19 @@
   align-self: center;
 }
 
-.gc-be-editor .gc-be-stroke[data-style='dashed'] {
+.ds-be-editor .ds-be-stroke[data-style='dashed'] {
   background: none;
   border-top: 2px dashed var(--be-ink-0);
   height: 0;
 }
 
-.gc-be-editor .gc-be-stroke[data-style='dotted'] {
+.ds-be-editor .ds-be-stroke[data-style='dotted'] {
   background: none;
   border-top: 2px dotted var(--be-ink-0);
   height: 0;
 }
 
-.gc-be-editor .gc-be-clear {
+.ds-be-editor .ds-be-clear {
   width: 26px;
   height: var(--be-h-ctrl);
   display: inline-flex;
@@ -234,18 +234,18 @@
   border-radius: var(--be-r);
 }
 
-.gc-be-editor .gc-be-clear:hover:not(:disabled) {
+.ds-be-editor .ds-be-clear:hover:not(:disabled) {
   background: color-mix(in srgb, var(--be-red) 12%, transparent);
   border-color: color-mix(in srgb, var(--be-red) 35%, transparent);
 }
 
-.gc-be-editor .gc-be-clear:disabled {
+.ds-be-editor .ds-be-clear:disabled {
   color: var(--be-ink-3);
   opacity: 0.45;
   cursor: default;
 }
 
-.gc-be-editor button:focus-visible {
+.ds-be-editor button:focus-visible {
   outline: 2px solid var(--be-accent);
   outline-offset: 1px;
 }

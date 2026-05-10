@@ -96,7 +96,7 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     // override — we need to CLEAR the previously-injected rules, not
     // leave them dangling. Previously this ran only when assignments
     // was non-empty, which meant Clear-All / Undo-to-empty left stale
-    // `.gc-col-c-{colId}` rules in the page stylesheet.
+    // `.ds-col-c-{colId}` rules in the page stylesheet.
     const cells = ctx.resources.css(`${COLUMN_CUSTOMIZATION_MODULE_ID}-cells`);
     const headers = ctx.resources.css(`${COLUMN_CUSTOMIZATION_MODULE_ID}-headers`);
     reinjectCSS(cells, headers, state.assignments, templatesState, defs);

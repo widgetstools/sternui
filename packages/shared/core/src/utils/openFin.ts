@@ -125,7 +125,7 @@ if (typeof window !== 'undefined') {
  * Usage:
  * ```tsx
  * <PopoutPortal
- *   name="gc-popout-demo"
+ *   name="ds-popout-demo"
  *   onClose={() => setPopped(false)}
  *   openWindow={openFinWindowOpener({ alwaysOnTop: true })}
  * >
@@ -207,7 +207,7 @@ export function openFinWindowOpener(opts?: { alwaysOnTop?: boolean }):
   };
 
   return async ({ name, width, height, alwaysOnTop, frame }) => {
-    const appUuid = fin.me?.identity?.uuid ?? 'gc-popout-host';
+    const appUuid = fin.me?.identity?.uuid ?? 'ds-popout-host';
     const windowOpts = {
       name,
       url: 'about:blank',

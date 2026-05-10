@@ -101,8 +101,8 @@ async function clickSaveAll(page: Page) {
 }
 
 async function captureCurrentFilter(page: Page) {
-  await page.locator('.gc-filters-add-btn').click();
-  await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
+  await page.locator('.ds-filters-add-btn').click();
+  await expect(page.locator('.ds-filter-pill')).toHaveCount(1);
 }
 
 test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
@@ -150,7 +150,7 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
     await page.reload();
     await waitForV2Grid(page);
 
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(0);
+    await expect(page.locator('.ds-filter-pill')).toHaveCount(0);
   });
 
   test('saved filter pill SURVIVES reload after clicking Save', async ({ page }) => {
@@ -162,7 +162,7 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
     await page.reload();
     await waitForV2Grid(page);
 
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
+    await expect(page.locator('.ds-filter-pill')).toHaveCount(1);
   });
 
   test('Save button surfaces a dirty indicator while there are unsaved edits', async ({ page }) => {
@@ -208,7 +208,7 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
     await page.locator('[data-testid="profile-switch-cancel"]').click();
     await expect(page.locator('[data-testid="profile-switch-confirm"]')).toHaveCount(0);
     await expect(profileTrigger(page)).toContainText('Default');
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
+    await expect(page.locator('.ds-filter-pill')).toHaveCount(1);
   });
 
   test('Discard path on profile switch throws away unsaved edits + switches', async ({ page }) => {
@@ -228,7 +228,7 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
     // We landed on the target profile, and the pill we captured under
     // Default was thrown away.
     await expect(profileTrigger(page)).toContainText('Discard-Target');
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(0);
+    await expect(page.locator('.ds-filter-pill')).toHaveCount(0);
 
     // Going back to Default should also show no pill — the discard
     // reverted the in-memory state to the last saved snapshot of
@@ -236,7 +236,7 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
     await openProfilePopover(page);
     await page.locator('[data-testid="profile-row-__default__"]').click();
     await expect(profileTrigger(page)).toContainText('Default');
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(0);
+    await expect(page.locator('.ds-filter-pill')).toHaveCount(0);
   });
 
   test('Save-and-switch path writes the outgoing profile then switches', async ({ page }) => {
@@ -260,6 +260,6 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
     await openProfilePopover(page);
     await page.locator('[data-testid="profile-row-__default__"]').click();
     await expect(profileTrigger(page)).toContainText('Default');
-    await expect(page.locator('.gc-filter-pill')).toHaveCount(1);
+    await expect(page.locator('.ds-filter-pill')).toHaveCount(1);
   });
 });

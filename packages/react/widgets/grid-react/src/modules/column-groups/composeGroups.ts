@@ -171,7 +171,7 @@ export function composeGroups(
       openByDefault,
     };
     if (node.marryChildren) group.marryChildren = true;
-    // Header styling is injected via CSS on `.gc-hdr-grp-{groupId}`; the class
+    // Header styling is injected via CSS on `.ds-hdr-grp-{groupId}`; the class
     // is only attached when the style object has anything set, so unstyled
     // groups render at theme default.
     if (hasHeaderStyle(node.headerStyle)) {
@@ -180,7 +180,7 @@ export function composeGroups(
       // no-op in practice — but defense-in-depth for snapshots loaded
       // from older code paths and parity with column-customization /
       // conditional-styling.
-      group.headerClass = `gc-hdr-grp-${cssEscapeColId(node.groupId)}`;
+      group.headerClass = `ds-hdr-grp-${cssEscapeColId(node.groupId)}`;
     }
     return group;
   };

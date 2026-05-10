@@ -203,7 +203,7 @@ describe('openFinWindowOpener', () => {
   });
 
   it('does NOT set processAffinity — would move popout into a different process from main', async () => {
-    // Regression: an earlier version set `processAffinity: "gc-popout:<uuid>"`
+    // Regression: an earlier version set `processAffinity: "ds-popout:<uuid>"`
     // thinking it'd "share" the renderer with main, but it actually
     // did the opposite — main has no affinity, so setting one on the
     // popout moved it to a different process group and broke

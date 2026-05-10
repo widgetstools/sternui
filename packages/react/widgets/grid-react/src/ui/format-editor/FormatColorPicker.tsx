@@ -32,7 +32,7 @@ const PRESETS = [
 
 // ─── Recent colors (localStorage) ────────────────────────────────────────────
 
-const LS_KEY = 'gc-recent-colors';
+const LS_KEY = 'ds-recent-colors';
 const MAX_RECENT = 10;
 
 function getRecent(): string[] {

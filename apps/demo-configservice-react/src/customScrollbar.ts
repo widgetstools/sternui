@@ -48,11 +48,11 @@ function setup(
   if (!container || !viewport) return null;
 
   // Remove any old thumb
-  container.querySelector('.gc-thumb')?.remove();
+  container.querySelector('.ds-thumb')?.remove();
 
   // Create thumb
   const thumb = document.createElement('div');
-  thumb.className = 'gc-thumb';
+  thumb.className = 'ds-thumb';
   thumb.dataset.axis = axis;
   container.style.position = 'relative';
   container.appendChild(thumb);

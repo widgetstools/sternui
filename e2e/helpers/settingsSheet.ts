@@ -60,7 +60,7 @@ export async function bootCleanDemo(page: Page): Promise<void> {
 
 /** Opens the settings sheet via the header Settings button. Idempotent. */
 export async function openSettingsSheet(page: Page): Promise<void> {
-  const sheet = page.locator('.gc-sheet');
+  const sheet = page.locator('.ds-sheet');
   if (await sheet.isVisible().catch(() => false)) return;
   await page.locator('[data-testid="v2-settings-open-btn"]').click();
   await expect(sheet).toBeVisible();

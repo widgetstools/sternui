@@ -35,9 +35,9 @@ const SECTIONS: Array<{ id: SectionId; title: string }> = [
 export function HelpPanel() {
   const [active, setActive] = useState<SectionId>('overview');
   return (
-    <div data-testid="v2-settings-help" className="gc-help-shell">
+    <div data-testid="v2-settings-help" className="ds-help-shell">
       {/* Section rail */}
-      <nav className="gc-help-nav">
+      <nav className="ds-help-nav">
         {SECTIONS.map((s) => {
           const on = s.id === active;
           return (
@@ -79,7 +79,7 @@ export function HelpPanel() {
             </button>
           );
         })}
-        <div className="gc-help-nav-footer">
+        <div className="ds-help-nav-footer">
           Full reference:
           <br />
           <code>docs/FORMATS_AND_EXPRESSIONS.md</code>
@@ -89,7 +89,7 @@ export function HelpPanel() {
       {/* Content pane */}
       <section
         data-testid="help-content"
-        className="gc-help-content"
+        className="ds-help-content"
         style={{ padding: '20px 28px 32px', fontSize: 12.5, lineHeight: 1.6 }}
       >
         {active === 'overview' && <Overview onNav={setActive} />}
@@ -157,7 +157,7 @@ function H3({ children }: { children: React.ReactNode }) {
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="gc-help-p">{children}</p>;
+  return <p className="ds-help-p">{children}</p>;
 }
 
 function Code({ children }: { children: React.ReactNode }) {

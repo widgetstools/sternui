@@ -62,7 +62,7 @@ export function ModulePaint({
         <RadixPopoverContent
           align="start"
           sideOffset={6}
-          className="gc-sheet-v2"
+          className="ds-sheet-v2"
           style={{
             padding: 0,
             width: 460,

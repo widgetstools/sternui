@@ -36,16 +36,16 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
     // produces values around 95–105, so some rows match. Probe by
     // counting cells with the rule class.
     const matchedCells = await page.evaluate(() => {
-      return document.querySelectorAll('.ag-cell[col-id="pricing.bid"].gc-rule-rule-bid-high').length;
+      return document.querySelectorAll('.ag-cell[col-id="pricing.bid"].ds-rule-rule-bid-high').length;
     });
     expect(matchedCells).toBeGreaterThan(0);
   });
 
-  test('rule class is exact "gc-rule-rule-bid-high" — no accidental dot-collapse', async ({ page }) => {
+  test('rule class is exact "ds-rule-rule-bid-high" — no accidental dot-collapse', async ({ page }) => {
     const matchedHigh = await page.evaluate(() => {
-      const all = document.querySelectorAll('.gc-rule-rule-bid-high');
+      const all = document.querySelectorAll('.ds-rule-rule-bid-high');
       // Make sure NONE of these matched via something parsed as a dot
-      // chain (no element should match `.gc-rule-rule-bid-high.foo`).
+      // chain (no element should match `.ds-rule-rule-bid-high.foo`).
       return all.length;
     });
     expect(matchedHigh).toBeGreaterThan(0);
@@ -57,7 +57,7 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
       page,
       'EDGE-INVERTED',
       'pricing.bid',
-      /^gc-rule-rule-bid-inverted$/,
+      /^ds-rule-rule-bid-inverted$/,
     );
     expect(has).toBe(true);
   });
@@ -68,7 +68,7 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
       page,
       'N-00007',
       'pricing.bid',
-      /^gc-rule-rule-bid-inverted$/,
+      /^ds-rule-rule-bid-inverted$/,
     );
     expect(has).toBe(false);
   });
@@ -77,7 +77,7 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
     // EDGE-NULL-PRICING.ratings.sp === 'AAA' (per nestedData.ts edge
     // row). With `[ratings.sp]` correctly parsed as a dotted columnRef
     // (not an array literal), the predicate evaluates the per-row
-    // scalar against 'AAA' and the gc-rule-rule-rating-aaa class lands
+    // scalar against 'AAA' and the ds-rule-rule-rating-aaa class lands
     // on the cell. Pre-fix this asserted only that the CSS selector
     // landed in a <style> tag — too lax: the rule attached but never
     // fired because `[scalar] === 'AAA'` is always false.
@@ -85,7 +85,7 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
       page,
       'EDGE-NULL-PRICING',
       'ratings.sp',
-      /^gc-rule-rule-rating-aaa$/,
+      /^ds-rule-rule-rating-aaa$/,
     );
     expect(has).toBe(true);
   });
@@ -93,7 +93,7 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
   // ─── Edge cases ─────────────────────────────────────────────────
 
   test('edge: null pricing — bid cell does NOT match the > 100 rule', async ({ page }) => {
-    const has = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^gc-rule-rule-bid-high$/);
+    const has = await cellHasClassMatching(page, 'EDGE-NULL-PRICING', 'pricing.bid', /^ds-rule-rule-bid-high$/);
     expect(has).toBe(false);
     // And the grid is still alive.
     const idText = await page.evaluate(() => {
@@ -107,13 +107,13 @@ test.describe('v2 — conditional cell rules on nested fields', () => {
     // EDGE-MISS-PRICING has no `pricing` key at all; both sides of
     // [pricing.bid] > [pricing.ask] resolve to null. Predicate must
     // be falsy and not throw.
-    const has = await cellHasClassMatching(page, 'EDGE-MISS-PRICING', 'pricing.bid', /^gc-rule-rule-bid-inverted$/);
+    const has = await cellHasClassMatching(page, 'EDGE-MISS-PRICING', 'pricing.bid', /^ds-rule-rule-bid-inverted$/);
     expect(has).toBe(false);
   });
 
   test('edge: partial pricing (bid only) — bid cell still considered for > 100', async ({ page }) => {
     // EDGE-PARTIAL: bid=99.5 → < 100 → no rule.
-    const has = await cellHasClassMatching(page, 'EDGE-PARTIAL', 'pricing.bid', /^gc-rule-rule-bid-high$/);
+    const has = await cellHasClassMatching(page, 'EDGE-PARTIAL', 'pricing.bid', /^ds-rule-rule-bid-high$/);
     expect(has).toBe(false);
   });
 
@@ -136,7 +136,7 @@ test.describe('v2 — conditional row rules on nested fields', () => {
   test('row rule "[risk.dv01] > 100" applies to matching rows', async ({ page }) => {
     // At least one regular row's risk.dv01 falls in the >100 bucket.
     const matchedRows = await page.evaluate(() => {
-      return document.querySelectorAll('.ag-row.gc-rule-rule-row-high-dv01').length;
+      return document.querySelectorAll('.ag-row.ds-rule-rule-row-high-dv01').length;
     });
     expect(matchedRows).toBeGreaterThan(0);
   });
@@ -151,13 +151,13 @@ test.describe('v2 — conditional row rules on nested fields', () => {
     // Cross-check: any row in the high-DV01 class set must really have
     // dv01 > 100. We can't read dv01 directly, but at least confirm
     // the set isn't ALL rows.
-    const matched = allRows.filter((r) => r.classes.includes('gc-rule-rule-row-high-dv01'));
+    const matched = allRows.filter((r) => r.classes.includes('ds-rule-rule-row-high-dv01'));
     expect(matched.length).toBeLessThan(allRows.length);
   });
 
   test('AND-composition row rule "[ratings.sp] == AAA AND [side] == BUY" tints matching rows only', async ({ page }) => {
     const matchedIds = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.ag-row.gc-rule-rule-row-buy-aaa'))
+      return Array.from(document.querySelectorAll('.ag-row.ds-rule-rule-row-buy-aaa'))
         .map((r) => r.getAttribute('row-id') ?? '');
     });
     // Generator: row index i where i % 12 === 0 AND i % 2 === 0 (BUY) →
@@ -170,11 +170,11 @@ test.describe('v2 — conditional row rules on nested fields', () => {
 
   test('row rule classes survive on the row element (not just attached to cells)', async ({ page }) => {
     const someRowId = await page.evaluate(() => {
-      const el = document.querySelector('.ag-row.gc-rule-rule-row-high-dv01');
+      const el = document.querySelector('.ag-row.ds-rule-rule-row-high-dv01');
       return el?.getAttribute('row-id') ?? null;
     });
     expect(someRowId).not.toBeNull();
     const classes = await rowHasAnyRuleClass(page, someRowId!);
-    expect(classes).toContain('gc-rule-rule-row-high-dv01');
+    expect(classes).toContain('ds-rule-rule-row-high-dv01');
   });
 });

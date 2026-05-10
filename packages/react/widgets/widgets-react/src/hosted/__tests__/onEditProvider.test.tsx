@@ -12,7 +12,7 @@ const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -39,7 +39,7 @@ describe('HostedMarketsGrid — onEditProvider (row 14)', () => {
         onEditProvider={onEditProvider}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     const last = mgcProps[mgcProps.length - 1];
     expect(last.onEditProvider).toBe(onEditProvider);
     last.onEditProvider('provider-xyz');

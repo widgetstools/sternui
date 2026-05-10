@@ -156,13 +156,13 @@ export async function cellHasClassMatching(page: Page, rowId: string, colId: str
 
 void findCellInDom;
 
-/** Whether the row carries any `gc-rule-*` class — handy probe for
+/** Whether the row carries any `ds-rule-*` class — handy probe for
  *  row-scope conditional styling. */
 export async function rowHasAnyRuleClass(page: Page, rowId: string): Promise<string[]> {
   return page.evaluate((r) => {
     const row = document.querySelector(`.ag-row[row-id="${r}"]`);
     if (!row) return [];
-    return Array.from(row.classList).filter((c) => c.startsWith('gc-rule-'));
+    return Array.from(row.classList).filter((c) => c.startsWith('ds-rule-'));
   }, rowId);
 }
 
