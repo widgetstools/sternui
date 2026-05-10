@@ -145,8 +145,8 @@ export function ProfileSelector({
               transition: 'border-color 120ms, background 120ms',
             }}
           >
-            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <User size={12} strokeWidth={1.75} style={{ opacity: 0.75 }} />
+            <span className="relative inline-flex items-center">
+              <User size={12} strokeWidth={1.75} className="opacity-75" />
               <span
                 aria-label={isDirty ? 'unsaved changes' : 'saved'}
                 style={{
@@ -159,10 +159,7 @@ export function ProfileSelector({
                 }}
               />
             </span>
-            <span style={{
-              maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              fontWeight: 500, letterSpacing: 0.1,
-            }}>
+            <span className="max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[0.1px]">
               {triggerLabel}
             </span>
             <ChevronDown
@@ -243,7 +240,7 @@ export function ProfileSelector({
                   {/* Leading indicator */}
                   <span className="ds-ps-row-indicator">
                     {isActive ? (
-                      <Check size={12} strokeWidth={2.5} style={{ color: 'var(--ds-accent-info)' }} />
+                      <Check size={12} strokeWidth={2.5} className="text-[var(--ds-accent-info)]" />
                     ) : (
                       <span className="ds-ps-row-dot" />
                     )}
@@ -292,11 +289,7 @@ export function ProfileSelector({
                     <span
                       title="Unsaved changes"
                       aria-label="unsaved"
-                      style={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        background: 'var(--ds-accent-warning)',
-                        flexShrink: 0,
-                      }}
+                      className="w-1.5 h-1.5 rounded-full bg-[var(--ds-accent-warning)] shrink-0"
                     />
                   )}
 
@@ -377,12 +370,7 @@ export function ProfileSelector({
                   {isRenaming ? null : isReserved ? (
                     <span
                       title="Built-in default profile"
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        color: 'var(--ds-text-secondary)',
-                        opacity: 0.55,
-                      }}
+                      className="flex items-center justify-center w-[22px] h-[22px] text-[var(--ds-text-secondary)] opacity-[0.55]"
                     >
                       <Lock size={12} strokeWidth={2.25} />
                     </span>
@@ -411,19 +399,11 @@ export function ProfileSelector({
           </div>
 
           {/* Separator */}
-          <div style={{
-            height: 1,
-            background: 'color-mix(in srgb, var(--ds-border-primary) 60%, transparent)',
-          }} />
+          <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
 
           {/* Create new */}
-          <div style={{ padding: '10px 10px 12px' }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              color: 'var(--ds-text-secondary)',
-              marginBottom: 6,
-            }}>
+          <div className="px-2.5 pt-2.5 pb-3">
+            <div className="text-[10px] font-semibold tracking-[0.6px] uppercase text-[var(--ds-text-secondary)] mb-1.5">
               Save current as
             </div>
             <div
@@ -454,15 +434,7 @@ export function ProfileSelector({
                 placeholder="New profile name"
                 autoFocus
                 data-testid="profile-name-input"
-                style={{
-                  flex: 1, minWidth: 0, height: 30, padding: '0 10px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--ds-text-primary)',
-                  fontSize: 11,
-                  outline: 'none',
-                  letterSpacing: 0.1,
-                }}
+                className="flex-1 min-w-0 h-[30px] px-2.5 bg-transparent border-none text-foreground text-[11px] outline-none tracking-[0.1px]"
               />
               <button
                 type="button"
@@ -493,14 +465,8 @@ export function ProfileSelector({
               need the feature. */}
           {(onExport || onImport) && (
             <>
-              <div style={{
-                height: 1,
-                background: 'color-mix(in srgb, var(--ds-border-primary) 60%, transparent)',
-              }} />
-              <div style={{
-                display: 'flex', gap: 6,
-                padding: '8px 10px 10px',
-              }}>
+              <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
+              <div className="flex gap-1.5 px-2.5 pt-2 pb-2.5">
                 {onExport && (
                   <button
                     type="button"
@@ -539,7 +505,7 @@ export function ProfileSelector({
                       type="file"
                       accept="application/json,.json"
                       data-testid="profile-import-file"
-                      style={{ display: 'none' }}
+                      className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) void onImport(file);

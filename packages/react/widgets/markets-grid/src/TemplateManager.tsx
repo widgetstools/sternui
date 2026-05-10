@@ -175,17 +175,11 @@ function TemplateRow({
       />
 
       {/* Leading check / dot */}
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 12, height: 12, flexShrink: 0,
-      }}>
+      <span className="inline-flex items-center justify-center w-3 h-3 shrink-0">
         {isActive ? (
-          <Check size={11} strokeWidth={2.5} style={{ color: 'var(--ds-accent-info)' }} />
+          <Check size={11} strokeWidth={2.5} className="text-[var(--ds-accent-info)]" />
         ) : (
-          <span style={{
-            width: 5, height: 5, borderRadius: '50%',
-            background: 'color-mix(in srgb, var(--ds-text-muted) 50%, transparent)',
-          }} />
+          <span className="w-[5px] h-[5px] rounded-full bg-[color-mix(in_srgb,var(--ds-text-muted)_50%,transparent)]" />
         )}
       </span>
 
@@ -269,18 +263,7 @@ function TemplateRow({
               data-testid={`${testId}-delete-confirm`}
               title="Click to confirm delete"
               aria-label="Confirm delete template"
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                height: 22, padding: '0 8px',
-                border: '1px solid var(--ds-accent-negative)',
-                borderRadius: 3,
-                background: 'color-mix(in srgb, var(--ds-accent-negative) 18%, transparent)',
-                color: 'var(--ds-accent-negative)',
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
+              className="inline-flex items-center justify-center gap-1 h-[22px] px-2 border border-[var(--ds-accent-negative)] rounded-[3px] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] text-[var(--ds-accent-negative)] text-[9px] font-bold tracking-[0.08em] uppercase cursor-pointer shrink-0"
             >
               <Trash2 size={10} strokeWidth={2.25} />
               <span>Delete</span>
@@ -401,10 +384,8 @@ export function TemplateManager({
   return (
     <div
       data-testid={`${testIdPrefix}-manager`}
+      className="flex flex-col gap-1.5"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
         minWidth: isCompact ? 320 : undefined,
         width: isCompact ? undefined : '100%',
       }}
@@ -413,11 +394,7 @@ export function TemplateManager({
       {!isEmpty && (
         <div
           data-testid={`${testIdPrefix}-list`}
-          style={{
-            display: 'flex', flexDirection: 'column', gap: 1,
-            maxHeight: 240, overflowY: 'auto',
-            paddingRight: 2,
-          }}
+          className="flex flex-col gap-px max-h-60 overflow-y-auto pr-0.5"
         >
           {templates.map((tpl) => (
             <TemplateRow
@@ -447,24 +424,15 @@ export function TemplateManager({
 
       {/* Separator — only when both list and footer have content. */}
       {!isEmpty && (
-        <div style={{
-          height: 1,
-          background: 'color-mix(in srgb, var(--ds-border-primary) 60%, transparent)',
-          margin: '2px 0',
-        }} />
+        <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)] my-0.5" />
       )}
 
       {/* Save-as footer */}
       <div>
-        <div style={{
-          fontSize: 9, fontWeight: 600, letterSpacing: 0.6,
-          textTransform: 'uppercase',
-          color: 'var(--ds-text-muted)',
-          marginBottom: 4,
-        }}>
+        <div className="text-[9px] font-semibold tracking-[0.6px] uppercase text-muted-foreground mb-1">
           Save current as new
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="flex gap-1.5">
           <input
             type="text"
             value={saveName}
@@ -476,15 +444,7 @@ export function TemplateManager({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && saveName.trim()) onSave();
             }}
-            style={{
-              flex: 1, minWidth: 0, height: 28, padding: '0 10px',
-              border: '1px solid var(--ds-border-primary)',
-              borderRadius: 3,
-              background: 'var(--ds-surface-ground)',
-              color: 'var(--ds-text-primary)',
-              fontSize: 11,
-              outline: 'none',
-            }}
+            className="flex-1 min-w-0 h-7 px-2.5 border border-border rounded-[3px] bg-background text-foreground text-[11px] outline-none"
           />
           <button
             type="button"
@@ -524,14 +484,9 @@ export function TemplateManager({
       {capturableFields && capturableFields.length > 0 && (
         <div
           data-testid={`${testIdPrefix}-capture-hint`}
-          style={{
-            fontSize: 10,
-            color: 'var(--ds-text-muted)',
-            lineHeight: 1.4,
-            paddingTop: 2,
-          }}
+          className="text-[10px] text-muted-foreground leading-[1.4] pt-0.5"
         >
-          Will save: <span style={{ color: 'var(--ds-text-secondary)', fontWeight: 500 }}>
+          Will save: <span className="text-[var(--ds-text-secondary)] font-medium">
             {capturableFields.join(' · ')}
           </span>
         </div>
@@ -541,14 +496,9 @@ export function TemplateManager({
       {isEmpty && (
         <div
           data-testid={`${testIdPrefix}-empty-hint`}
-          style={{
-            fontSize: 10,
-            color: 'var(--ds-text-muted)',
-            lineHeight: 1.4,
-            paddingTop: 2,
-          }}
+          className="text-[10px] text-muted-foreground leading-[1.4] pt-0.5"
         >
-          Name a style, then click <span style={{ fontWeight: 600, color: 'var(--ds-text-secondary)' }}>+</span> to save your first template.
+          Name a style, then click <span className="font-semibold text-[var(--ds-text-secondary)]">+</span> to save your first template.
         </div>
       )}
     </div>

@@ -44,22 +44,13 @@ import type { EditorSelection } from "./types";
 function RowIcon({ iconId, isFolder }: { iconId: string | undefined; isFolder: boolean }) {
   const url = iconId ? iconIdToSvgUrl(iconId, "currentColor") : "";
   const size = 16;
-  const baseStyle: React.CSSProperties = {
-    width: size,
-    height: size,
-    flexShrink: 0,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "var(--ds-text-secondary)",
-  };
   if (url) {
-    return <img src={url} alt="" width={size} height={size} style={baseStyle} />;
+    return <img src={url} alt="" width={size} height={size} className="w-4 h-4 shrink-0 inline-flex items-center justify-center text-[var(--ds-text-secondary)]" />;
   }
   return isFolder ? (
-    <Folder className="w-4 h-4" style={baseStyle} />
+    <Folder className="w-4 h-4 shrink-0 text-[var(--ds-text-secondary)]" />
   ) : (
-    <Box className="w-4 h-4" style={baseStyle} />
+    <Box className="w-4 h-4 shrink-0 text-[var(--ds-text-secondary)]" />
   );
 }
 
@@ -103,24 +94,22 @@ export function DockPane({
   const buttons = dock?.buttons ?? [];
 
   return (
-    <div className="flex flex-col h-full border-r min-h-0" style={{ borderColor: "var(--ds-border-primary)" }}>
+    <div className="flex flex-col h-full border-r min-h-0 border-[var(--ds-border-primary)]">
       <div
-        className="flex items-center justify-between px-3 py-2 border-b shrink-0"
-        style={{ borderColor: "var(--ds-border-primary)" }}
+        className="flex items-center justify-between px-3 py-2 border-b shrink-0 border-[var(--ds-border-primary)]"
       >
         <div className="flex flex-col">
-          <span className="text-xs font-semibold tracking-wide" style={{ color: "var(--ds-text-secondary)" }}>
+          <span className="text-xs font-semibold tracking-wide text-[var(--ds-text-secondary)]">
             ② DOCK LAYOUT  →
           </span>
-          <span className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
+          <span className="text-[10px] text-muted-foreground">
             personal · per user
           </span>
         </div>
         <button
           type="button"
           onClick={onCreateDropdown}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium"
-          style={{ background: "var(--ds-surface-secondary)", color: "var(--ds-text-primary)", border: "1px solid var(--ds-border-primary)" }}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium bg-[var(--ds-surface-secondary)] text-foreground border border-[var(--ds-border-primary)]"
           title="Create a new dropdown menu — you'll add components to it via the per-row + Add affordance"
         >
           <FolderPlus className="w-3 h-3" /> New menu
@@ -130,8 +119,7 @@ export function DockPane({
       <div className="flex-1 overflow-auto bn-scrollbar p-3 min-h-0">
         {buttons.length === 0 && (
           <div
-            className="rounded-md border border-dashed p-4 text-center text-xs"
-            style={{ borderColor: "var(--ds-border-primary)", color: "var(--ds-text-muted)" }}
+            className="rounded-md border border-dashed p-4 text-center text-xs border-[var(--ds-border-primary)] text-muted-foreground"
           >
             Your dock has no buttons yet. Pick a component on the left and
             click <strong>Add to your dock</strong>, or click <strong>+ New menu</strong>{" "}
@@ -199,21 +187,20 @@ function DockButtonRow({
         <button
           type="button"
           onClick={() => onSelect({ kind: "dock-item", itemId: button.id })}
-          className="flex-1 text-left rounded-md px-2 py-1.5 text-xs flex items-center gap-2"
+          className="flex-1 text-left rounded-md px-2 py-1.5 text-xs flex items-center gap-2 border border-[var(--ds-border-primary)]"
           style={{
             background: isSelected ? "var(--ds-surface-tertiary)" : "var(--ds-surface-secondary)",
-            border: "1px solid var(--ds-border-primary)",
-            color: broken ? "var(--ds-accent-warning, var(--ds-accent-warning))" : "var(--ds-text-primary)",
+            color: broken ? "var(--ds-accent-warning)" : "var(--ds-text-primary)",
             textDecoration: broken ? "line-through" : "none",
           }}
         >
           <RowIcon iconId={button.iconId} isFolder={isDropdown} />
           <span className="font-medium flex-1 truncate">
-            {isDropdown && <span style={{ color: "var(--ds-text-muted)" }}>▾ </span>}
+            {isDropdown && <span className="text-muted-foreground">▾ </span>}
             {button.tooltip}
           </span>
           {broken && (
-            <span className="text-[10px]" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>
+            <span className="text-[10px] text-[var(--ds-accent-warning)]">
               ⚠ Component deleted
             </span>
           )}
@@ -243,7 +230,7 @@ function DockButtonRow({
         </RowAction>
       </div>
       {dropdown && dropdown.options.length > 0 && (
-        <div className="ml-4 mt-1 border-l pl-2" style={{ borderColor: "var(--ds-border-primary)" }}>
+        <div className="ml-4 mt-1 border-l pl-2 border-[var(--ds-border-primary)]">
           {dropdown.options.map((it) => (
             <DockMenuItemRow
               key={it.id}
@@ -260,8 +247,7 @@ function DockButtonRow({
       )}
       {dropdown && dropdown.options.length === 0 && (
         <div
-          className="ml-4 mt-1 px-2 py-1 text-[10px] italic"
-          style={{ color: "var(--ds-text-muted)" }}
+          className="ml-4 mt-1 px-2 py-1 text-[10px] italic text-muted-foreground"
         >
           Empty menu — click <strong>+ Add</strong> to drop a component in.
         </div>
@@ -313,7 +299,7 @@ function DockMenuItemRow({
           <RowIcon iconId={item.iconId} isFolder={isFolder} />
           <span className="flex-1 truncate">{item.tooltip}</span>
           {broken && (
-            <span className="text-[10px]" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>
+            <span className="text-[10px] text-[var(--ds-accent-warning)]">
               ⚠ Component deleted
             </span>
           )}
@@ -330,7 +316,7 @@ function DockMenuItemRow({
         </RowAction>
       </div>
       {item.options && item.options.length > 0 && (
-        <div className="ml-3 border-l pl-2" style={{ borderColor: "var(--ds-border-primary)" }}>
+        <div className="ml-3 border-l pl-2 border-[var(--ds-border-primary)]">
           {item.options.map((sub) => (
             <DockMenuItemRow
               key={sub.id}
@@ -379,42 +365,30 @@ function AddChildPopover({
         <button
           type="button"
           title={`Add a component to "${parentLabel}"`}
-          className="rounded-md px-2 text-xs"
-          style={{
-            background: "var(--ds-surface-secondary)",
-            border: "1px solid var(--ds-border-primary)",
-            color: "var(--ds-text-secondary)",
-          }}
+          className="rounded-md px-2 text-xs bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)] text-[var(--ds-text-secondary)]"
         >
           <Plus className="w-3 h-3 inline -mt-0.5" /> Add
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="p-2 w-[280px]"
+        className="p-2 w-[280px] bg-background border-[var(--ds-border-primary)] text-foreground"
         align="end"
-        style={{
-          background: "var(--ds-surface-ground)",
-          border: "1px solid var(--ds-border-primary)",
-          color: "var(--ds-text-primary)",
-        }}
       >
         <div
-          className="flex items-center gap-2 rounded-md px-2 py-1 mb-2"
-          style={{ background: "var(--ds-surface-secondary)", border: "1px solid var(--ds-border-primary)" }}
+          className="flex items-center gap-2 rounded-md px-2 py-1 mb-2 bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)]"
         >
-          <Search className="w-3 h-3" style={{ color: "var(--ds-text-muted)" }} />
+          <Search className="w-3 h-3 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search components"
-            className="flex-1 bg-transparent text-xs outline-none"
-            style={{ color: "var(--ds-text-primary)" }}
+            className="flex-1 bg-transparent text-xs outline-none text-foreground"
             autoFocus
           />
         </div>
         <div className="max-h-64 overflow-auto bn-scrollbar">
           {filtered.length === 0 && (
-            <div className="text-center text-xs py-3" style={{ color: "var(--ds-text-muted)" }}>
+            <div className="text-center text-xs py-3 text-muted-foreground">
               {entries.length === 0 ? "Define a component first." : "No matches."}
             </div>
           )}
@@ -426,15 +400,14 @@ function AddChildPopover({
                 onPick(entry);
                 setOpen(false);
               }}
-              className="w-full text-left rounded-md px-2 py-1 text-xs my-0.5"
-              style={{ color: "var(--ds-text-secondary)" }}
+              className="w-full text-left rounded-md px-2 py-1 text-xs my-0.5 text-[var(--ds-text-secondary)]"
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--ds-surface-secondary)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <div className="font-medium" style={{ color: "var(--ds-text-primary)" }}>
+              <div className="font-medium text-foreground">
                 {entry.displayName || "(unnamed)"}
               </div>
-              <div className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
+              <div className="text-[10px] text-muted-foreground">
                 {entry.componentType || "—"} / {entry.componentSubType || "—"}
               </div>
             </button>
@@ -464,8 +437,7 @@ function RowAction({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className="rounded p-1 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
-      style={{ color: "var(--ds-text-secondary)" }}
+      className="rounded p-1 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-[var(--ds-text-secondary)]"
     >
       {children}
     </button>

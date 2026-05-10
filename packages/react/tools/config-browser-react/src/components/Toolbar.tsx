@@ -29,52 +29,31 @@ export function Toolbar({
 }: ToolbarProps) {
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "10px 16px",
-        borderBottom: "1px solid var(--de-border)",
-        background: "var(--de-bg)",
-      }}
+      className="flex items-center gap-2 px-4 py-2.5 border-b bg-[var(--de-bg)] border-[var(--de-border)]"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--de-text)" }}>
+      <div className="flex flex-col gap-0.5">
+        <div className="text-[13px] font-semibold text-[var(--de-text)]">
           {table.label}
         </div>
-        <div style={{ fontSize: 11, color: "var(--de-text-tertiary)" }}>
+        <div className="text-[11px] text-[var(--de-text-tertiary)]">
           {rowCount} {rowCount === 1 ? "row" : "rows"} · pk {table.primaryKey}
         </div>
       </div>
 
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
 
-      <div style={{ position: "relative", width: 240 }}>
+      <div className="relative w-60">
         <Icon
           icon="lucide:search"
-          style={{
-            position: "absolute",
-            left: 8,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 14,
-            height: 14,
-            color: "var(--de-text-tertiary)",
-            pointerEvents: "none",
-          }}
+          style={{ width: 14, height: 14 }}
+          className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--de-text-tertiary)] pointer-events-none"
         />
         <Input
           value={quickFilter}
           onChange={(e) => onQuickFilterChange(e.target.value)}
           placeholder="Search rows…"
-          style={{
-            paddingLeft: 28,
-            height: 30,
-            fontSize: 12,
-            background: "var(--de-bg-surface)",
-            border: "1px solid var(--de-border)",
-            color: "var(--de-text)",
-          }}
+          className="h-[30px] text-[12px] bg-[var(--de-bg-surface)] border-[var(--de-border)] text-[var(--de-text)]"
+          style={{ paddingLeft: 28 }}
         />
       </div>
 
