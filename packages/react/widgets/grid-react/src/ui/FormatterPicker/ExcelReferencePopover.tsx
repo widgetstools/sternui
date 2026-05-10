@@ -72,7 +72,7 @@ export function ExcelReferencePopover({
             <h4
               style={{
                 margin: '6px 4px 4px',
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 600,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',

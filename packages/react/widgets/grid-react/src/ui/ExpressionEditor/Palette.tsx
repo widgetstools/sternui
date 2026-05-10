@@ -165,7 +165,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
               <div key={it.id} data-idx={idx}>
                 {showGroup && (
                   <div style={{
-                    padding: '8px 14px 4px', fontSize: 9, fontWeight: 600,
+                    padding: '8px 14px 4px', fontSize: 10, fontWeight: 600,
                     textTransform: 'uppercase', letterSpacing: 0.8,
                     color: 'var(--ds-text-muted)',
                   }}>{it.group}</div>
@@ -204,7 +204,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         </div>
         <div style={{
           padding: '6px 14px', borderTop: '1px solid var(--ds-border-primary)',
-          fontSize: 9, color: 'var(--ds-text-faint)',
+          fontSize: 10, color: 'var(--ds-text-faint)',
           display: 'flex', gap: 14,
         }}>
           <span><kbd style={kbdStyle}>↑↓</kbd> navigate</span>
@@ -223,6 +223,6 @@ const kbdStyle: React.CSSProperties = {
   background: 'var(--ds-surface-secondary)',
   color: 'var(--ds-text-secondary)',
   fontFamily: "'JetBrains Mono', Menlo, monospace",
-  fontSize: 9,
+  fontSize: 10,
   border: '1px solid var(--ds-border-primary)',
 };

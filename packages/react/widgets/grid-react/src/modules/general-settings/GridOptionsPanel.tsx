@@ -90,7 +90,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
     >
       <div className="shrink-0 bg-background border-b border-border">
         <ObjectTitleRow
-          title={<span style={{ fontWeight: 600, fontSize: 13 }}>Grid Options</span>}
+          title={<span style={{ fontWeight: 600, fontSize: 12 }}>Grid Options</span>}
           actions={
             <>
               <SharpBtn

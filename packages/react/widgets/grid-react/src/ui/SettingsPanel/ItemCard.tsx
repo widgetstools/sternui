@@ -74,7 +74,7 @@ export function ItemCard({
         )}
         {dirty && <DirtyDot />}
         <div
-          className="flex-1 min-w-0 font-sans text-sm font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap"
+          className="flex-1 min-w-0 font-sans text-xs font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap"
           style={{ cursor: canToggle ? 'pointer' : 'default' }}
           onClick={canToggle ? onToggleCollapsed : undefined}
         >
