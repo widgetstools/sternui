@@ -24,7 +24,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 26,
     "headerTextColor": "#aab3bf",
     "rangeSelectionBackgroundColor": "rgba(34,211,238,0.12)",
-    "rangeSelectionBorderStyle": "none",
     "rowBorder": {
       "color": "#2b3139",
       "style": "solid",
@@ -58,7 +57,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 26,
     "headerTextColor": "#3d4347",
     "rangeSelectionBackgroundColor": "rgba(11,123,138,0.10)",
-    "rangeSelectionBorderStyle": "none",
     "rowBorder": {
       "color": "#c7cac7",
       "style": "solid",
@@ -92,7 +90,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 32,
     "headerTextColor": "#aab3bf",
     "rangeSelectionBackgroundColor": "rgba(34,211,238,0.12)",
-    "rangeSelectionBorderStyle": "none",
     "rowBorder": {
       "color": "#2b3139",
       "style": "solid",
@@ -126,7 +123,6 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 32,
     "headerTextColor": "#3d4347",
     "rangeSelectionBackgroundColor": "rgba(11,123,138,0.10)",
-    "rangeSelectionBorderStyle": "none",
     "rowBorder": {
       "color": "#c7cac7",
       "style": "solid",
