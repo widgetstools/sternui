@@ -77,7 +77,7 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
             {icon}
             <span
               className="w-3.5 h-[2px] rounded-full transition-colors"
-              style={{ background: value || 'var(--bn-t2)' }}
+              style={{ background: value || 'var(--ds-text-muted)' }}
             />
           </span>
         </button>

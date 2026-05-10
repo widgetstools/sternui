@@ -1064,7 +1064,7 @@ export const SECTOR_COLORS = [
   '#3b82f6',
   '#22d3ee',
   '#a855f7',
-  'var(--bn-green)',
+  'var(--ds-accent-positive)',
   '#ff8c42',
   '#e86a1c',
 ];
