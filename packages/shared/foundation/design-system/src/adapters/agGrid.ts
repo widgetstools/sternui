@@ -47,14 +47,11 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     spacing:            density === 'ultra' ? 4 : 6,
     borderRadius:       2,
     // ── Focus ──
-    // Use the focus ring (box-shadow) as the SOLE focus indicator —
-    // do NOT also flip inputFocusBorder to the focus colour. The two
-    // together render as a doubled cyan stripe on each edge of
-    // floating-filter inputs (the 1px border inside + 2px ring outside
-    // both in cyan reads as two parallel lines). Keep the input's
-    // resting border (scheme.border.primary) on focus; the shadow ring
-    // handles the focus signal.
-    inputFocusBorder:   { style: 'solid' as const, width: 1, color: scheme.border.primary },
+    // The focusShadow ring (box-shadow) is the SOLE focus indicator.
+    // inputFocusBorder is intentionally omitted — when present it
+    // renders a 1px cyan border inside the input that, paired with the
+    // 2px ring outside, reads as a doubled cyan stripe on edge-aligned
+    // inputs (e.g. AG Grid floating filters that fill the cell width).
     focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
     // ── Range / selection ──
     rangeSelectionBorderColor:     scheme.accent.info,
