@@ -184,47 +184,6 @@ html, body {
 }
 
 /* ============================================================================
- * AG Grid Cell Flash Animation (Trading Data Updates)
- * ============================================================================ */
-
-/* First phase: immediate change */
-.ag-cell-data-changed {
-  background-color: hsl(var(--positive) / 0.4) !important;
-}
-
-/* Second phase: fade animation */
-@keyframes ag-cell-data-changed-animation {
-  from {
-    background-color: hsl(var(--positive) / 0.4);
-  }
-  to {
-    background-color: transparent;
-  }
-}
-
-.ag-cell-data-changed-animation {
-  animation: ag-cell-data-changed-animation 1s;
-}
-
-/* Negative value flash (price decrease) */
-.ag-cell-data-changed-negative {
-  background-color: hsl(var(--negative) / 0.4) !important;
-}
-
-@keyframes ag-cell-data-changed-negative-animation {
-  from {
-    background-color: hsl(var(--negative) / 0.4);
-  }
-  to {
-    background-color: transparent;
-  }
-}
-
-.ag-cell-data-changed-negative-animation {
-  animation: ag-cell-data-changed-negative-animation 1s;
-}
-
-/* ============================================================================
  * Trading-Specific Utility Classes
  * ============================================================================ */
 
