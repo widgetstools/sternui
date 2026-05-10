@@ -232,7 +232,7 @@ export function Stepper({ value, onChange, width = 44, mono = true, ...rest }: S
       value={value}
       onChange={(e) => onChange(e.target.value)}
       data-testid={rest['data-testid']}
-      className="bg-transparent border-none outline-none text-center tabular-nums text-foreground text-sm font-mono p-0"
+      className="bg-transparent border-none outline-none text-center tabular-nums text-foreground text-xs font-mono p-0"
       style={{
         width,
         height: 26,

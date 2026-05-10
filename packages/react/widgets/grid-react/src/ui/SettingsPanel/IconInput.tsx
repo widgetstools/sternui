@@ -98,7 +98,7 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
         data-testid={rest['data-testid']}
         aria-label={rest['aria-label']}
         className={[
-          'flex-1 min-w-0 bg-transparent border-none outline-none h-auto p-0 text-foreground text-sm',
+          'flex-1 min-w-0 bg-transparent border-none outline-none h-auto p-0 text-foreground text-xs',
           monospace || numeric ? 'font-mono tabular-nums' : 'font-sans',
         ].join(' ')}
         style={{ fontSize: 12 }}

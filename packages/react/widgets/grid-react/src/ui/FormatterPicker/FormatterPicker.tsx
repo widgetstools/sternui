@@ -613,7 +613,7 @@ function CompactFormatterPicker({
                         <span
                           style={{
                             fontFamily: 'var(--ds-font-mono)',
-                            fontSize: 9,
+                            fontSize: 10,
                             color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',

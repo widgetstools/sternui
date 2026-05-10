@@ -301,7 +301,7 @@ export function FormatColorPicker({
         <div style={{ marginBottom: 6 }}>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: 600,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',

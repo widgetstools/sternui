@@ -25,7 +25,7 @@ export const TitleInput = forwardRef<HTMLInputElement, TitleInputProps>(function
         className ?? '',
       ].join(' ')}
       style={{
-        fontSize: 15,
+        fontSize: 13,
         letterSpacing: '-0.01em',
         ...style,
       }}

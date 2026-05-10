@@ -126,7 +126,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{
-        fontSize: 9, fontWeight: 600, letterSpacing: 0.8,
+        fontSize: 10, fontWeight: 600, letterSpacing: 0.8,
         textTransform: 'uppercase',
         color: 'var(--ds-text-muted)',
         marginBottom: 6,
@@ -162,6 +162,6 @@ const kbdStyle: React.CSSProperties = {
   background: 'var(--ds-surface-secondary)',
   color: 'var(--ds-text-secondary)',
   fontFamily: "'JetBrains Mono', Menlo, monospace",
-  fontSize: 9,
+  fontSize: 10,
   border: '1px solid var(--ds-border-primary)',
 };
