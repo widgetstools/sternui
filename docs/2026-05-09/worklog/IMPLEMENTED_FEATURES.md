@@ -3606,3 +3606,17 @@ Token mapping used (partial):
 | `--fi-amber` | `--ds-accent-warning` |
 | `--fi-sans` | `--ds-font-sans` |
 | `--fi-mono` | `--ds-font-mono` |
+
+## 2026-05-09 — Unified Chroma Desk Design System
+
+- Single token tree at `packages/shared/foundation/design-system/src/tokens/`
+- Three adapters generate Tailwind preset, PrimeNG preset, AG Grid params from the same source
+- Bundled stylesheet at `@starui/design-system/css` — imported once per app
+- Theme matrix: `<html data-theme="dark|light" [data-cvd="on"]>` = 4 combos
+- Single `.ds-scrollbar` utility (theme-aware via color-mix)
+- `tailwindcss-primeui` plugin gives Angular/PrimeNG templates the same utility class vocabulary as React/shadcn
+- `applyTheme()` / `getTheme()` helpers persist user preference to localStorage
+- `check-ds-tokens` lint script gates CI: forbids hardcoded hex, inline styles, legacy CSS vars
+- Build-time WCAG contrast audit codifies AAA body / AA chrome thresholds
+- Replaces deleted: `@starui/tokens-primeng` package, Cockpit stylesheet (`packages/shared/core/src/css/cockpit.ts`)
+- See `docs/2026-05-09/architecture-and-design/DESIGN_SYSTEM.md`
