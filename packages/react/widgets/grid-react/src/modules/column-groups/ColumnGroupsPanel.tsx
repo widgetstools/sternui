@@ -193,25 +193,13 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
         <Mono color="var(--ds-text-faint)" size={11}>
           {String(flat.length).padStart(2, '0')}
         </Mono>
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
         <button
           type="button"
           onClick={addTopLevelGroup}
           title="Add group"
           data-testid="cg-add-group-btn"
-          style={{
-            width: 22,
-            height: 22,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--ds-overlay-positive-soft)',
-            color: 'var(--ds-accent-positive)',
-            border: '1px solid var(--ds-overlay-positive-ring)',
-            borderRadius: 2,
-            cursor: 'pointer',
-            padding: 0,
-          }}
+          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-overlay-positive-soft)] text-[var(--ds-accent-positive)] border border-[var(--ds-overlay-positive-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
         </button>
@@ -228,18 +216,10 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
               data-testid={`cg-group-${fg.node.groupId}`}
               style={{ paddingLeft: 10 + fg.depth * 18 }}
             >
-              <span style={{ width: 2, display: 'inline-flex' }}>
+              <span className="w-0.5 inline-flex">
                 <DirtyListLed groupId={fg.node.groupId} />
               </span>
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 {fg.node.headerName}
               </span>
             </CockpitListItem>
@@ -265,7 +245,7 @@ export function ColumnGroupsEditor({ selectedId }: EditorPaneProps) {
 
   if (!selectedId) {
     return (
-      <div style={{ padding: '32px 24px' }}>
+      <div className="px-6 py-8">
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No group selected
         </Caps>
@@ -422,13 +402,7 @@ const GroupEditor = memo(function GroupEditor({
   return (
     <div
       data-testid={`cg-group-editor-${node.groupId}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
+      className="flex flex-col flex-1 min-h-0 overflow-hidden"
     >
       <div className="shrink-0 bg-background border-b border-border">
         <ObjectTitleRow
@@ -544,7 +518,7 @@ const GroupEditor = memo(function GroupEditor({
             </button>
           }
         >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          <div className="flex flex-wrap gap-1 items-center">
             {columnChildren.map((c) => {
               const info = columns.find((a) => a.colId === c.colId);
               const show = c.show ?? 'always';
@@ -555,18 +529,7 @@ const GroupEditor = memo(function GroupEditor({
                   data-show={show}
                   data-testid={`cg-chip-${node.groupId}-${c.colId}`}
                   title={showTooltip(show)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '3px 4px 3px 8px',
-                    borderRadius: 2,
-                    background: 'var(--ds-surface-ground)',
-                    border: '1px solid var(--ds-border-secondary)',
-                    fontFamily: 'var(--ds-font-mono)',
-                    fontSize: 11,
-                    color: 'var(--ds-text-primary)',
-                  }}
+                  className="inline-flex items-center gap-[5px] pt-[3px] pr-1 pb-[3px] pl-2 rounded-sm bg-background border border-[var(--ds-border-secondary)] font-mono text-[11px] text-foreground"
                 >
                   {info?.headerName ?? c.colId}
                   <button
@@ -594,14 +557,7 @@ const GroupEditor = memo(function GroupEditor({
                     type="button"
                     onClick={() => removeColumn(c.colId)}
                     title="Remove"
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: 'var(--ds-text-muted)',
-                      padding: 0,
-                      lineHeight: 1,
-                    }}
+                    className="bg-transparent border-none cursor-pointer text-muted-foreground p-0 leading-none"
                   >
                     <XIcon size={11} />
                   </button>
@@ -637,7 +593,7 @@ const GroupEditor = memo(function GroupEditor({
           data-testid={`cg-hdr-style-${node.groupId}`}
         />
 
-        <div style={{ height: 20 }} />
+        <div className="h-5" />
       </div>
     </div>
   );
@@ -650,18 +606,13 @@ export function ColumnGroupsPanel() {
   return (
     <div
       data-testid="cg-panel"
-      style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}
+      className="grid h-full"
+      style={{ gridTemplateColumns: '220px 1fr' }}
     >
-      <aside
-        style={{
-          borderRight: '1px solid var(--ds-border-primary)',
-          overflowY: 'auto',
-          background: 'var(--ds-surface-primary)',
-        }}
-      >
+      <aside className="border-r border-border overflow-y-auto bg-card">
         <ColumnGroupsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
       </aside>
-      <section style={{ overflowY: 'auto' }}>
+      <section className="overflow-y-auto">
         <ColumnGroupsEditor gridId="" selectedId={selectedId} />
       </section>
     </div>

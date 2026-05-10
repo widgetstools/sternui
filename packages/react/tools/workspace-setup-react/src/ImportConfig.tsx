@@ -206,7 +206,7 @@ export default function ImportConfig() {
         ref={fileInputRef}
         type="file"
         accept=".json"
-        style={{ display: "none" }}
+        className="hidden"
         onChange={handleFileChange}
       />
 

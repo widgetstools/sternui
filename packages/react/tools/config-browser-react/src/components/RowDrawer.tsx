@@ -137,76 +137,31 @@ export function RowDrawer({
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--de-border)",
-          background: "var(--de-bg)",
-        }}
-      >
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--de-border)] bg-[var(--de-bg)]">
         <Icon
           icon={mode === "create" ? "lucide:plus-circle" : "lucide:file-json"}
-          style={{ width: 16, height: 16, color: "var(--de-accent)" }}
+          style={{ width: 16, height: 16 }}
+          className="text-[var(--de-accent)]"
         />
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--de-text)" }}>
+        <span className="text-[13px] font-semibold text-[var(--de-text)]">
           {mode === "create" ? "New row" : "Edit row"}
         </span>
-        <span
-          style={{
-            fontFamily: "var(--de-mono)",
-            fontSize: 11,
-            fontWeight: 500,
-            color: "var(--de-text-tertiary)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <span className="font-[var(--de-mono)] text-[11px] font-medium text-[var(--de-text-tertiary)] overflow-hidden text-ellipsis whitespace-nowrap">
           {title}
         </span>
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         <button
           onClick={onClose}
           title="Close"
-          style={{
-            background: "transparent",
-            border: "1px solid var(--de-border)",
-            borderRadius: "var(--de-radius-sm)",
-            padding: 4,
-            cursor: "pointer",
-            color: "var(--de-text-secondary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="bg-transparent border border-[var(--de-border)] rounded-[var(--de-radius-sm)] p-1 cursor-pointer text-[var(--de-text-secondary)] flex items-center justify-center"
         >
           <Icon icon="lucide:x" style={{ width: 14, height: 14 }} />
         </button>
       </div>
 
       {/* Body */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-          padding: 14,
-          gap: 8,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: 0.8,
-            textTransform: "uppercase",
-            color: "var(--de-text-tertiary)",
-          }}
-        >
+      <div className="flex-1 min-h-0 flex flex-col p-[14px] gap-2">
+        <div className="text-[10px] font-bold tracking-[0.8px] uppercase text-[var(--de-text-tertiary)]">
           JSON payload
         </div>
         <textarea
@@ -233,22 +188,14 @@ export function RowDrawer({
         />
         {!parsedOk && (
           <div
-            style={{
-              fontSize: 11,
-              color: "var(--de-danger)",
-              fontFamily: "var(--de-mono)",
-            }}
+            className="text-[11px] text-[var(--de-danger)] font-[var(--de-mono)]"
           >
             Invalid JSON — save disabled
           </div>
         )}
         {parseError && (
           <div
-            style={{
-              fontSize: 11,
-              color: "var(--de-danger)",
-              fontFamily: "var(--de-mono)",
-            }}
+            className="text-[11px] text-[var(--de-danger)] font-[var(--de-mono)]"
           >
             {parseError}
           </div>
@@ -256,16 +203,7 @@ export function RowDrawer({
       </div>
 
       {/* Footer */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 14px",
-          borderTop: "1px solid var(--de-border)",
-          background: "var(--de-bg)",
-        }}
-      >
+      <div className="flex items-center gap-2 px-[14px] py-2.5 border-t border-[var(--de-border)] bg-[var(--de-bg)]">
         {mode === "edit" && (
           <button
             onClick={handleDelete}
@@ -286,7 +224,7 @@ export function RowDrawer({
             {confirmDelete ? "Click to confirm" : "Delete"}
           </button>
         )}
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         <button
           onClick={onClose}
           disabled={saving}

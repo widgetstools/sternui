@@ -77,8 +77,7 @@ export function WorkspaceSetup() {
   if (scope === null) {
     return (
       <div
-        className="flex items-center justify-center h-full w-full"
-        style={{ background: "var(--ds-surface-ground)", color: "var(--ds-text-muted)" }}
+        className="flex items-center justify-center h-full w-full bg-background text-muted-foreground"
       >
         <span className="text-xs">Loading workspace setup…</span>
       </div>
@@ -328,23 +327,21 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
   return (
     <div
       data-dock-editor=""
-      className="flex flex-col h-full w-full overflow-hidden"
-      style={{ background: "var(--ds-surface-ground)", color: "var(--ds-text-primary)" }}
+      className="flex flex-col h-full w-full overflow-hidden bg-background text-foreground"
     >
       {/* Fixed header — title + unsaved badge */}
       <header
-        className="flex items-center justify-between px-4 py-2 border-b shrink-0"
-        style={{ borderColor: "var(--ds-border-primary)", background: "var(--ds-surface-ground)" }}
+        className="flex items-center justify-between px-4 py-2 border-b shrink-0 border-[var(--ds-border-primary)] bg-background"
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">Workspace Setup</span>
-          <span className="text-[10px]" style={{ color: "var(--ds-text-muted)" }}>
+          <span className="text-[10px] text-muted-foreground">
             {summary.totalComponents} component{summary.totalComponents === 1 ? "" : "s"} · {summary.dockButtons} dock button{summary.dockButtons === 1 ? "" : "s"}
           </span>
         </div>
         {isDirty && (
-          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>
-            <span style={{ color: "var(--ds-accent-warning, var(--ds-accent-warning))" }}>●</span> Unsaved changes
+          <span className="text-[10px] flex items-center gap-1 text-[var(--ds-accent-warning)]">
+            <span>●</span> Unsaved changes
           </span>
         )}
       </header>
@@ -391,19 +388,13 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
       {/* Fixed footer — Save / Discard. Anchored at the bottom so primary
           actions are reachable regardless of which pane is scrolled. */}
       <footer
-        className="flex items-center justify-end gap-2 px-4 py-2 border-t shrink-0"
-        style={{ borderColor: "var(--ds-border-primary)", background: "var(--ds-surface-ground)" }}
+        className="flex items-center justify-end gap-2 px-4 py-2 border-t shrink-0 border-[var(--ds-border-primary)] bg-background"
       >
         <button
           type="button"
           onClick={() => { void handleDiscard(); }}
           disabled={!isDirty}
-          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-          style={{
-            background: "var(--ds-surface-secondary)",
-            color: "var(--ds-text-secondary)",
-            border: "1px solid var(--ds-border-primary)",
-          }}
+          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 bg-[var(--ds-surface-secondary)] text-[var(--ds-text-secondary)] border border-[var(--ds-border-primary)]"
         >
           Discard
         </button>
@@ -411,8 +402,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           type="button"
           onClick={() => { void handleSaveAll(); }}
           disabled={!isDirty}
-          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-          style={{ background: "var(--ds-accent-info, var(--ds-accent-info))", color: "var(--ds-surface-ground)" }}
+          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 bg-[var(--ds-accent-info)] text-[var(--ds-surface-ground)]"
         >
           Save
         </button>

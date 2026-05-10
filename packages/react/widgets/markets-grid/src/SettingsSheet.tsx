@@ -188,7 +188,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             {(!popped || frameless) && (
               <>
                 <GripHorizontal size={14} color="var(--ds-text-faint)" />
-                <span style={{ color: 'var(--ds-accent-positive)', fontSize: 11 }}>●</span>
+                <span className="text-[var(--ds-accent-positive)] text-[11px]">●</span>
                 <span className="ds-popout-title-text">Grid Customizer</span>
                 <span className="ds-popout-title-sub">v2.3.0</span>
               </>
@@ -217,15 +217,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 <PopoverContent
                   align="start"
                   sideOffset={6}
-                  className="ds-sheet-v2"
-                  style={{
-                    padding: 4,
-                    width: 220,
-                    background: 'var(--ds-surface-secondary)',
-                    border: '1px solid var(--ds-border-secondary)',
-                    borderRadius: 2,
-                    boxShadow: 'var(--ds-elevation-overlay)',
-                  }}
+                  className="ds-sheet-v2 p-1 w-[220px] bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-secondary)] rounded-sm shadow-[var(--ds-elevation-overlay)]"
                 >
                   {panelModules.map((m) => {
                     const selected = m.id === activeId;
@@ -249,7 +241,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               </Popover>
             )}
 
-            <span style={{ flex: 1 }} />
+            <span className="flex-1" />
             <span className="ds-popout-title-status">
               DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ds-accent-warning)' : 'var(--ds-text-secondary)' }}>
                 {String(dirtyCount).padStart(2, '0')}
@@ -348,18 +340,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             // a non-zero hit area keep programmatic clicks working for
             // screen readers / e2e tests. The dropdown above remains the
             // visible UX for real users.
-            style={{
-              position: 'absolute',
-              top: 4,
-              left: 4,
-              width: 1,
-              height: 1,
-              opacity: 0,
-              overflow: 'hidden',
-              pointerEvents: 'auto',
-              whiteSpace: 'nowrap',
-              zIndex: 0,
-            }}
+            className="absolute top-1 left-1 w-px h-px opacity-0 overflow-hidden pointer-events-auto whitespace-nowrap z-0"
             data-testid="v2-settings-nav"
           >
             {panelModules.map((m) => (
@@ -370,7 +351,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 aria-selected={m.id === activeId}
                 tabIndex={-1}
                 onClick={() => setActiveId(m.id)}
-                style={{ width: 1, height: 1, padding: 0, border: 'none', background: 'transparent' }}
+                className="w-px h-px p-0 border-none bg-transparent"
               >
                 {m.name}
               </button>
@@ -409,24 +390,18 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 // previous `display: contents` hoist).
                 <div
                   data-testid={PANEL_TESTID_BY_MODULE_ID[activeId] ?? ''}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flex: 1,
-                    minHeight: 0,
-                    overflow: 'hidden',
-                  }}
+                  className="flex flex-col flex-1 min-h-0 overflow-hidden"
                 >
                   <EditorPane gridId={gridId} selectedId={selectedId} />
                 </div>
               ) : LegacyPanel ? (
                 <LegacyPanel gridId={gridId} />
               ) : (
-                <div style={{ padding: 24 }}>
-                  <div className="ds-caps" style={{ fontSize: 10, marginBottom: 6 }}>
+                <div className="p-6">
+                  <div className="ds-caps text-[10px] mb-1.5">
                     NO EDITOR
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ds-text-muted)' }}>
+                  <div className="text-xs text-muted-foreground">
                     {activeModule?.name ?? 'This module'} has no settings UI registered.
                   </div>
                 </div>
@@ -443,10 +418,10 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 individually", so the redundant copy line was dropped
                 when the popout narrowed to 820px (it was pushing the
                 Done button off-screen). */}
-            <span style={{ whiteSpace: 'nowrap' }}>
+            <span className="whitespace-nowrap">
               ⌘ S = SAVE CARD · ⌘ ⏎ = SAVE ALL · ⌫ = DELETE · ESC = CLOSE
             </span>
-            <span style={{ flex: 1 }} />
+            <span className="flex-1" />
             <SharpBtn
               variant="ghost"
               onClick={onClose}
