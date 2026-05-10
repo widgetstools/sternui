@@ -1,6 +1,10 @@
 /**
  * Stern AG Grid Themes — dark and light variants built on themeQuartz.
  *
+ * Surface / border / focus / range / accent colors flow from the design-system
+ * adapter (agGridDarkParams / agGridLightParams). Only app-specific geometry
+ * (borderRadius, columnBorder, spacing, wrapperBorderRadius) is overridden here.
+ *
  * Usage:
  *   import { sternDarkTheme, sternLightTheme } from '@starui/widgets-react';
  *   <AgGridReact theme={sternDarkTheme} ... />
@@ -12,31 +16,15 @@
  */
 
 import { themeQuartz } from 'ag-grid-community';
+import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
-export const sternDarkTheme = themeQuartz.withParams({
-  backgroundColor: 'var(--ds-surface-primary)',
-  borderRadius: 2,
-  browserColorScheme: 'dark',
-  chromeBackgroundColor: {
-    ref: 'foregroundColor',
-    mix: 0.07,
-    onto: 'backgroundColor',
-  },
-  columnBorder: true,
-  foregroundColor: 'var(--ds-text-primary)',
-  oddRowBackgroundColor: 'var(--ds-surface-secondary)',
-  spacing: 6,
+// App-specific geometry — surfaces/borders/focus/range/accent come from the adapter.
+const sternOverrides = {
+  borderRadius:       2,
+  columnBorder:       true,
+  spacing:            6,
   wrapperBorderRadius: 4,
-});
+};
 
-export const sternLightTheme = themeQuartz.withParams({
-  borderRadius: 2,
-  browserColorScheme: 'light',
-  columnBorder: true,
-  headerFontFamily: {
-    googleFont: 'IBM Plex Sans',
-  },
-  oddRowBackgroundColor: 'var(--ds-surface-secondary)',
-  spacing: 6,
-  wrapperBorderRadius: 4,
-});
+export const sternDarkTheme  = themeQuartz.withParams({ ...agGridDarkParams,  ...sternOverrides });
+export const sternLightTheme = themeQuartz.withParams({ ...agGridLightParams, ...sternOverrides });

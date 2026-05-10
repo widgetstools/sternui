@@ -19,9 +19,8 @@ import {
   AllCommunityModule,
   ModuleRegistry,
   themeQuartz,
-  colorSchemeDark,
-  colorSchemeLight,
 } from 'ag-grid-community';
+import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 // PrimeNG imports — shadcn's Angular counterpart per repo rules.
 // We deliberately do NOT use `p-drawer` for the row editor — it portals to
@@ -107,31 +106,11 @@ function injectStyles(): void {
 }
 
 // ─── AG-Grid theme (design-system driven) ───────────────────────────
+// Surface / border / focus / range / accent colors flow from the design-system
+// adapter. No app-specific geometry overrides needed here.
 
-const AG_THEME_DARK: Theme = themeQuartz.withPart(colorSchemeDark).withParams({
-  backgroundColor: 'var(--ds-surface-primary)',
-  foregroundColor: 'var(--ds-text-primary)',
-  headerBackgroundColor: 'var(--ds-surface-secondary)',
-  headerTextColor: 'var(--ds-text-secondary)',
-  rowHoverColor: 'var(--ds-surface-tertiary)',
-  selectedRowBackgroundColor: 'var(--ds-overlay-info-soft)',
-  borderColor: 'var(--ds-border-primary)',
-  accentColor: 'var(--ds-accent-info)',
-  fontFamily: 'var(--ds-font-sans)',
-  fontSize: 12,
-});
-const AG_THEME_LIGHT: Theme = themeQuartz.withPart(colorSchemeLight).withParams({
-  backgroundColor: 'var(--ds-surface-primary)',
-  foregroundColor: 'var(--ds-text-primary)',
-  headerBackgroundColor: 'var(--ds-surface-secondary)',
-  headerTextColor: 'var(--ds-text-secondary)',
-  rowHoverColor: 'var(--ds-surface-tertiary)',
-  selectedRowBackgroundColor: 'var(--ds-overlay-info-soft)',
-  borderColor: 'var(--ds-border-primary)',
-  accentColor: 'var(--ds-accent-info)',
-  fontFamily: 'var(--ds-font-sans)',
-  fontSize: 12,
-});
+const AG_THEME_DARK: Theme  = themeQuartz.withParams({ ...agGridDarkParams });
+const AG_THEME_LIGHT: Theme = themeQuartz.withParams({ ...agGridLightParams });
 
 // ─── Component ──────────────────────────────────────────────────────
 
