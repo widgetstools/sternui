@@ -39,7 +39,6 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     selectedRowBackgroundColor: scheme.overlay.infoSoft,
     // ── Borders & spacing ──
     borderColor:        scheme.border.primary,
-    wrapperBorder:      false as const,
     headerColumnBorder: { style: 'solid' as const, width: 1, color: scheme.border.primary },
     rowBorder:          { style: 'solid' as const, width: 1, color: scheme.border.primary },
     rowHeight:          rowH,
