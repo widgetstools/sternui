@@ -18,25 +18,26 @@
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
-  // ── Cool graphite (light chrome) ──────────────────────────
-  // Cool-tinted greys, not warm paper. Ground sits at ~88% L for
-  // long-session ergonomics; cards lift to ~92% L for depth.
+  // ── Neutral grey (light chrome) ───────────────────────────
+  // Neutral grey, no warm or cool cast. Ground sits at #edeeed
+  // for long-session ergonomics; cards lift to #f7f8f7 for depth.
+  // Reference: Direction C "Chroma Desk" light palette.
   chromeLight: {
-    50:  '#eef1f6',  // card surface     (~94% L)
-    100: '#e2e6ee',  // ground           (~89% L) — primary background
-    200: '#d3d9e3',  // hover            (~85% L)
-    300: '#c2c9d6',  // pressed          (~80% L)
-    400: '#b1b9c8',  // accent band      (~75% L)
-    500: '#9aa3b5',  // border primary   (~67% L)
-    600: '#7c8497',  // border secondary (~57% L)
+    50:  '#f7f8f7',  // card surface
+    100: '#edeeed',  // ground — neutral grey, no cast
+    200: '#e3e5e3',  // hover
+    300: '#d6d8d6',  // pressed
+    400: '#c5c8c5',  // accent band
+    500: '#c7cac7',  // border primary
+    600: '#abafab',  // border secondary
   },
-  // ── Cool charcoal (light text) ────────────────────────────
-  // Deep cool charcoals — never pure black, never warm.
+  // ── Near-black charcoal (light text) ─────────────────────
+  // Deep near-black charcoals — matches reference Chroma Desk exactly.
   coolInk: {
-    0:   '#0f1218',  // primary body   (~16.5:1 AAA on chromeLight-100)
-    1:   '#2a3140',  // secondary      (~10.0:1 AAA)
-    2:   '#4d5566',  // muted          (~5.6:1  AA)
-    3:   '#727a8c',  // faint / UI     (~3.5:1  UI only)
+    0:   '#14181a',  // primary body   (15.8:1 AAA on chromeLight-100)
+    1:   '#3d4347',  // secondary      (8.9:1  AAA)
+    2:   '#5c6267',  // muted          (5.5:1  AA)
+    3:   '#7d8287',  // faint / UI     (3.4:1  UI only)
   },
   // ── Balanced graphite (dark chrome) ───────────────────────
   // Slightly cool but not clinical — the Chroma Desk dark body.
@@ -54,41 +55,41 @@ export const colors = {
     50:  '#ecf0f5',  // dark primary text (14.8:1 AAA)
   },
   // ── Teal / positive ──────────────────────────────────────
-  // Light: deep teal-green (AA on chromeLight-100).
+  // Light: teal-green (4.82:1 AA on chromeLight-100).
   // Dark:  vivid mint-teal (AAA on graphite).
   teal: {
-    light:    '#076a48',   // light positive   (~6.0:1 AAA)
-    lightHov: '#055438',
+    light:    '#0a7d5a',   // light positive   (4.82:1 AA)
+    lightHov: '#086647',
     dark:     '#22e3a8',   // dark positive    (11.1:1 AAA)
     darkHov:  '#3fecb8',
   },
   // ── Rose / negative ──────────────────────────────────────
-  // Light: deep red-rose (AA on chromeLight-100, distinct from amber).
+  // Light: red-rose (5.22:1 AA on chromeLight-100).
   // Dark:  vivid rose (AA on graphite).
   rose: {
-    light:    '#b01e3f',   // light negative   (~6.5:1 AAA)
-    lightHov: '#911731',
+    light:    '#c81d5a',   // light negative   (5.22:1 AA)
+    lightHov: '#a5174a',
     dark:     '#ff5a82',   // dark negative    (6.02:1 AA)
     darkHov:  '#ff7898',
   },
   // ── Amber / warning ──────────────────────────────────────
   // Pure amber, unmistakable from rose. Semantic-only.
   amber: {
-    light:    '#7a5408',   // ~6.2:1 AAA on chromeLight-100
+    light:    '#8a6410',   // 5.07:1 AA on chromeLight-100
     dark:     '#f5c14b',   // 10.6:1 AAA on graphite
   },
   // ── Brand / info ─────────────────────────────────────────
-  // Light: deep confident blue.
+  // Light: signature cyan-teal — Chroma Desk identity colour.
   // Dark:  signature cyan — Chroma Desk's wow moment.
   brand: {
-    light:    '#1740a8',   // ~7.8:1 AAA
-    lightHov: '#13348a',
+    light:    '#0b7b8a',   // signature cyan-teal (4.27:1 — graphics threshold)
+    lightHov: '#086470',
     dark:     '#22d3ee',   // signature cyan
     darkHov:  '#4ae0f2',
   },
   // ── Highlight / selected ─────────────────────────────────
   cyan: {
-    light:    '#035c68',   // ~7.1:1 AAA
+    light:    '#0b7b8a',   // matches brand for highlight unity
     dark:     '#22d3ee',
   },
   // ── Purple / tertiary ────────────────────────────────────
@@ -99,8 +100,8 @@ export const colors = {
   // ── CVD-safe alternates ──────────────────────────────────
   // Deuteranopia/protanopia-safe mapping: blue=buy, orange=sell.
   cvd: {
-    buyLight:  '#1740a8',
-    sellLight: '#a8350c',
+    buyLight:  '#1a52c4',
+    sellLight: '#c2410c',
     buyDark:   '#7aa6ff',
     sellDark:  '#ff9d4e',
   },

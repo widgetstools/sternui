@@ -96,35 +96,35 @@ export interface ColorScheme {
 }
 
 // ── Chroma Desk · Light ─────────────────────────────────────
-// Cool graphite-grey ground, deep cool-charcoal text, vivid AA/AAA
-// accents. Long-session-friendly, low-glare, never warm.
+// Neutral grey ground, near-black text, signature cyan-teal brand.
+// Reference: Direction C "Chroma Desk" light — exact match.
 export const light: ColorScheme = {
   surface: {
-    ground:     colors.chromeLight[100],  // #e2e6ee  ~89% L  primary background
-    primary:    colors.chromeLight[50],   // #eef1f6  ~94% L  card / panel
-    secondary:  colors.chromeLight[200],  // #d3d9e3  ~85% L  hover
-    tertiary:   colors.chromeLight[300],  // #c2c9d6  ~80% L  pressed
-    quaternary: colors.chromeLight[400],  // #b1b9c8  ~75% L  accent band
+    ground:     colors.chromeLight[100],  // #edeeed  neutral grey ground
+    primary:    colors.chromeLight[50],   // #f7f8f7  card / panel
+    secondary:  colors.chromeLight[200],  // #e3e5e3  hover
+    tertiary:   colors.chromeLight[300],  // #d6d8d6  pressed
+    quaternary: colors.chromeLight[400],  // #c5c8c5  accent band
   },
   text: {
-    primary:   colors.coolInk[0],         // #0f1218  AAA ~16.5:1
-    secondary: colors.coolInk[1],         // #2a3140  AAA ~10:1
-    muted:     colors.coolInk[2],         // #4d5566  AA  ~5.6:1
-    faint:     colors.coolInk[3],         // #727a8c  UI  ~3.5:1
+    primary:   colors.coolInk[0],         // #14181a  AAA 15.8:1
+    secondary: colors.coolInk[1],         // #3d4347  AAA  8.9:1
+    muted:     colors.coolInk[2],         // #5c6267  AA   5.5:1
+    faint:     colors.coolInk[3],         // #7d8287  UI   3.4:1
   },
   border: {
-    primary:   colors.chromeLight[500],   // #9aa3b5
-    secondary: colors.chromeLight[600],   // #7c8497
+    primary:   colors.chromeLight[500],   // #c7cac7  border primary
+    secondary: colors.chromeLight[600],   // #abafab  border secondary
   },
   accent: {
-    positive:      colors.teal.light,       // #076a48  AAA ~6.0:1
-    positiveHover: colors.teal.lightHov,    // #055438
-    negative:      colors.rose.light,       // #b01e3f  AAA ~6.5:1
-    negativeHover: colors.rose.lightHov,    // #911731
-    warning:       colors.amber.light,      // #7a5408  AAA ~6.2:1
-    info:          colors.brand.light,      // #1740a8  AAA ~7.8:1
-    infoHover:     colors.brand.lightHov,   // #13348a
-    highlight:     colors.cyan.light,       // #035c68  AAA ~7.1:1
+    positive:      colors.teal.light,       // #0a7d5a  AA 4.82:1
+    positiveHover: colors.teal.lightHov,    // #086647
+    negative:      colors.rose.light,       // #c81d5a  AA 5.22:1
+    negativeHover: colors.rose.lightHov,    // #a5174a
+    warning:       colors.amber.light,      // #8a6410  AA 5.07:1
+    info:          colors.brand.light,      // #0b7b8a  signature cyan-teal
+    infoHover:     colors.brand.lightHov,   // #086470
+    highlight:     colors.cyan.light,       // #0b7b8a  matches brand
     purple:        colors.purple.light,     // #5821b8
   },
   action: {
@@ -135,33 +135,33 @@ export const light: ColorScheme = {
   },
   state: {
     focusRing:    colors.brand.light,
-    focusRingBg:  'rgba(23,64,168,0.22)',
+    focusRingBg:  'rgba(11,123,138,0.30)',
     disabledBg:   colors.chromeLight[200],
     disabledFg:   colors.coolInk[3],
-    hoverOverlay: 'rgba(15,18,24,0.045)',
-    selection:    'rgba(23,64,168,0.18)',
+    hoverOverlay: 'rgba(20,24,26,0.045)',
+    selection:    'rgba(11,123,138,0.14)',
   },
   overlay: {
-    positiveSoft:  'rgba(7,106,72,0.10)',
-    positiveRing:  'rgba(7,106,72,0.32)',
-    negativeSoft:  'rgba(176,30,63,0.09)',
-    negativeRing:  'rgba(176,30,63,0.32)',
-    warningSoft:   'rgba(122,84,8,0.10)',
-    warningRing:   'rgba(122,84,8,0.35)',
-    infoSoft:      'rgba(23,64,168,0.08)',
-    infoRing:      'rgba(23,64,168,0.32)',
-    neutralSoft:   'rgba(42,49,64,0.07)',
-    neutralRing:   'rgba(42,49,64,0.22)',
+    positiveSoft:  'rgba(10,125,90,0.10)',
+    positiveRing:  'rgba(10,125,90,0.32)',
+    negativeSoft:  'rgba(200,29,90,0.10)',
+    negativeRing:  'rgba(200,29,90,0.32)',
+    warningSoft:   'rgba(138,100,16,0.11)',
+    warningRing:   'rgba(138,100,16,0.35)',
+    infoSoft:      'rgba(11,123,138,0.10)',
+    infoRing:      'rgba(11,123,138,0.38)',
+    neutralSoft:   'rgba(61,67,71,0.07)',
+    neutralRing:   'rgba(61,67,71,0.22)',
   },
   cvd: {
-    buy:  colors.cvd.buyLight,    // #1740a8
-    sell: colors.cvd.sellLight,   // #a8350c
+    buy:  colors.cvd.buyLight,    // #1a52c4
+    sell: colors.cvd.sellLight,   // #c2410c
   },
   scrollbar: colors.chromeLight[600],
   elevation: {
-    card:    shadow.sm,
-    overlay: shadow.md,
-    glow:    `0 0 0 3px rgba(23,64,168,0.18)`,
+    card:    '0 1px 2px rgba(20,24,26,0.06), 0 4px 12px rgba(20,24,26,0.06)',
+    overlay: '0 1px 2px rgba(20,24,26,0.06), 0 4px 12px rgba(20,24,26,0.06)',
+    glow:    '0 0 0 3px rgba(11,123,138,0.30)',
   },
 };
 

@@ -128,111 +128,111 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
   [data-theme="light"] {
     /* ── Chroma Desk source tokens ── */
-    --ds-surface-ground:     #e2e6ee;
-    --ds-surface-primary:    #eef1f6;
-    --ds-surface-secondary:  #d3d9e3;
-    --ds-surface-tertiary:   #c2c9d6;
-    --ds-surface-quaternary: #b1b9c8;
+    --ds-surface-ground:     #edeeed;
+    --ds-surface-primary:    #f7f8f7;
+    --ds-surface-secondary:  #e3e5e3;
+    --ds-surface-tertiary:   #d6d8d6;
+    --ds-surface-quaternary: #c5c8c5;
 
-    --ds-text-primary:   #0f1218;
-    --ds-text-secondary: #2a3140;
-    --ds-text-muted:     #4d5566;
-    --ds-text-faint:     #727a8c;
+    --ds-text-primary:   #14181a;
+    --ds-text-secondary: #3d4347;
+    --ds-text-muted:     #5c6267;
+    --ds-text-faint:     #7d8287;
 
-    --ds-border-primary:   #9aa3b5;
-    --ds-border-secondary: #7c8497;
+    --ds-border-primary:   #c7cac7;
+    --ds-border-secondary: #abafab;
 
-    --ds-accent-positive:       #076a48;
-    --ds-accent-positive-hover: #055438;
-    --ds-accent-negative:       #b01e3f;
-    --ds-accent-negative-hover: #911731;
-    --ds-accent-warning:        #7a5408;
-    --ds-accent-info:           #1740a8;
-    --ds-accent-info-hover:     #13348a;
-    --ds-accent-highlight:      #035c68;
+    --ds-accent-positive:       #0a7d5a;
+    --ds-accent-positive-hover: #086647;
+    --ds-accent-negative:       #c81d5a;
+    --ds-accent-negative-hover: #a5174a;
+    --ds-accent-warning:        #8a6410;
+    --ds-accent-info:           #0b7b8a;
+    --ds-accent-info-hover:     #086470;
+    --ds-accent-highlight:      #0b7b8a;
     --ds-accent-purple:         #5821b8;
 
-    --ds-action-buy-bg:    #076a48;
+    --ds-action-buy-bg:    #0a7d5a;
     --ds-action-buy-fg:    #ffffff;
-    --ds-action-sell-bg:   #b01e3f;
+    --ds-action-sell-bg:   #c81d5a;
     --ds-action-sell-fg:   #ffffff;
 
-    --ds-state-focus-ring:    #1740a8;
-    --ds-state-focus-ring-bg: rgba(23,64,168,0.22);
-    --ds-state-disabled-bg:   #d3d9e3;
-    --ds-state-disabled-fg:   #727a8c;
-    --ds-state-hover-overlay: rgba(15,18,24,0.045);
-    --ds-state-selection:     rgba(23,64,168,0.18);
+    --ds-state-focus-ring:    #0b7b8a;
+    --ds-state-focus-ring-bg: rgba(11,123,138,0.30);
+    --ds-state-disabled-bg:   #e3e5e3;
+    --ds-state-disabled-fg:   #7d8287;
+    --ds-state-hover-overlay: rgba(20,24,26,0.045);
+    --ds-state-selection:     rgba(11,123,138,0.14);
 
-    --ds-overlay-positive-soft:  rgba(7,106,72,0.10);
-    --ds-overlay-positive-ring:  rgba(7,106,72,0.32);
-    --ds-overlay-negative-soft:  rgba(176,30,63,0.09);
-    --ds-overlay-negative-ring:  rgba(176,30,63,0.32);
-    --ds-overlay-warning-soft:   rgba(122,84,8,0.10);
-    --ds-overlay-warning-ring:   rgba(122,84,8,0.35);
-    --ds-overlay-info-soft:      rgba(23,64,168,0.08);
-    --ds-overlay-info-ring:      rgba(23,64,168,0.32);
-    --ds-overlay-neutral-soft:   rgba(42,49,64,0.07);
-    --ds-overlay-neutral-ring:   rgba(42,49,64,0.22);
+    --ds-overlay-positive-soft:  rgba(10,125,90,0.10);
+    --ds-overlay-positive-ring:  rgba(10,125,90,0.32);
+    --ds-overlay-negative-soft:  rgba(200,29,90,0.10);
+    --ds-overlay-negative-ring:  rgba(200,29,90,0.32);
+    --ds-overlay-warning-soft:   rgba(138,100,16,0.11);
+    --ds-overlay-warning-ring:   rgba(138,100,16,0.35);
+    --ds-overlay-info-soft:      rgba(11,123,138,0.10);
+    --ds-overlay-info-ring:      rgba(11,123,138,0.38);
+    --ds-overlay-neutral-soft:   rgba(61,67,71,0.07);
+    --ds-overlay-neutral-ring:   rgba(61,67,71,0.22);
 
-    --ds-scrollbar:  #7c8497;
+    --ds-scrollbar:  #abafab;
 
-    --ds-elevation-card:    0 1px 2px rgba(15,18,24,0.08);
-    --ds-elevation-overlay: 0 1px 2px rgba(15,18,24,0.08), 0 4px 14px rgba(15,18,24,0.10);
-    --ds-elevation-glow:    0 0 0 3px rgba(23,64,168,0.18);
+    --ds-elevation-card:    0 1px 2px rgba(20,24,26,0.06), 0 4px 12px rgba(20,24,26,0.06);
+    --ds-elevation-overlay: 0 1px 2px rgba(20,24,26,0.06), 0 4px 12px rgba(20,24,26,0.06);
+    --ds-elevation-glow:    0 0 0 3px rgba(11,123,138,0.30);
 
     /* ── shadcn-compat HSL channel aliases ── */
-    --background:           220 26% 91%;
-    --foreground:           220 23% 8%;
-    --card:                 218 31% 95%;
-    --card-foreground:      220 23% 8%;
-    --popover:              218 31% 95%;
-    --popover-foreground:   220 23% 8%;
-    --primary:              223 76% 37%;
+    --background:           120 3% 93%;
+    --foreground:           200 13% 9%;
+    --card:                 120 7% 97%;
+    --card-foreground:      200 13% 9%;
+    --popover:              120 7% 97%;
+    --popover-foreground:   200 13% 9%;
+    --primary:              187 85% 29%;
     --primary-foreground:   0 0% 100%;
-    --secondary:            219 20% 80%;
-    --secondary-foreground: 221 21% 21%;
-    --muted:                218 22% 86%;
-    --muted-foreground:     221 14% 35%;
-    --accent:               219 20% 80%;
-    --accent-foreground:    220 23% 8%;
-    --destructive:          346 71% 40%;
+    --secondary:            120 2% 84%;
+    --secondary-foreground: 204 8% 26%;
+    --muted:                120 4% 89%;
+    --muted-foreground:     207 6% 38%;
+    --accent:               120 2% 84%;
+    --accent-foreground:    200 13% 9%;
+    --destructive:          339 75% 45%;
     --destructive-foreground: 0 0% 100%;
-    --success:              159 88% 22%;
+    --success:              162 85% 26%;
     --success-foreground:   0 0% 100%;
-    --warning:              40 88% 25%;
+    --warning:              41 79% 30%;
     --warning-foreground:   0 0% 100%;
-    --info:                 223 76% 37%;
+    --info:                 187 85% 29%;
     --info-foreground:      0 0% 100%;
-    --border:               220 15% 66%;
-    --input:                220 15% 66%;
-    --ring:                 223 76% 37%;
+    --border:               120 3% 79%;
+    --input:                120 3% 79%;
+    --ring:                 187 85% 29%;
 
-    --surface-50:  218 31% 95%;
-    --surface-100: 218 22% 86%;
-    --surface-200: 219 20% 80%;
-    --surface-300: 219 17% 74%;
-    --surface-400: 222 11% 54%;
-    --surface-500: 220 15% 66%;
-    --surface-600: 222 10% 50%;
-    --surface-700: 221 14% 35%;
-    --surface-800: 221 21% 21%;
-    --surface-900: 220 23% 8%;
-    --surface-950: 220 26% 91%;
+    --surface-50:  120 7% 97%;
+    --surface-100: 120 4% 89%;
+    --surface-200: 120 2% 84%;
+    --surface-300: 120 3% 78%;
+    --surface-400: 120 2% 68%;
+    --surface-500: 120 3% 79%;
+    --surface-600: 210 4% 51%;
+    --surface-700: 207 6% 38%;
+    --surface-800: 204 8% 26%;
+    --surface-900: 200 13% 9%;
+    --surface-950: 120 3% 93%;
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
-    --p-primary-color:        #1740a8;
+    --p-primary-color:        #0b7b8a;
     --p-primary-color-text:   #ffffff;
-    --p-surface-50:           #eef1f6;
-    --p-surface-100:          #d3d9e3;
-    --p-surface-200:          #c2c9d6;
-    --p-surface-900:          #0f1218;
-    --p-surface-950:          #e2e6ee;
-    --p-text-color:           #0f1218;
-    --p-text-muted-color:     #4d5566;
-    --p-content-background:   #eef1f6;
-    --p-content-border-color: #9aa3b5;
-    --p-content-color:        #0f1218;
+    --p-surface-50:           #f7f8f7;
+    --p-surface-100:          #e3e5e3;
+    --p-surface-200:          #d6d8d6;
+    --p-surface-900:          #14181a;
+    --p-surface-950:          #edeeed;
+    --p-text-color:           #14181a;
+    --p-text-muted-color:     #5c6267;
+    --p-content-background:   #f7f8f7;
+    --p-content-border-color: #c7cac7;
+    --p-content-color:        #14181a;
 
     /* ── Typography vars ── */
     --ds-font-sans:  'Geist', 'Inter', system-ui, sans-serif;
@@ -262,14 +262,14 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
   }
 
   [data-theme="light"][data-cvd="on"] {
-    --ds-accent-positive:       #1740a8;
-    --ds-accent-positive-hover: #1740a8;
-    --ds-accent-negative:       #a8350c;
-    --ds-accent-negative-hover: #a8350c;
-    --ds-action-buy-bg:         #1740a8;
-    --ds-action-sell-bg:        #a8350c;
-    --success:                  223 76% 37%;
-    --destructive:              16 87% 35%;
+    --ds-accent-positive:       #1a52c4;
+    --ds-accent-positive-hover: #1a52c4;
+    --ds-accent-negative:       #c2410c;
+    --ds-accent-negative-hover: #c2410c;
+    --ds-action-buy-bg:         #1a52c4;
+    --ds-action-sell-bg:        #c2410c;
+    --success:                  220 77% 44%;
+    --destructive:              17 88% 40%;
   }
 }"
 `;
