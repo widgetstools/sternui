@@ -11,10 +11,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
-const base       = readFileSync(resolve(root, 'src/styles/base.css'), 'utf8');
-const scrollbar  = readFileSync(resolve(root, 'src/styles/scrollbar.css'), 'utf8');
-const agGridFix  = readFileSync(resolve(root, 'src/styles/ag-grid-overrides.css'), 'utf8');
-const theme      = generateUnifiedCSS();
+const base      = readFileSync(resolve(root, 'src/styles/base.css'), 'utf8');
+const scrollbar = readFileSync(resolve(root, 'src/styles/scrollbar.css'), 'utf8');
+const theme     = generateUnifiedCSS();
 
 const out = [
   '/* @starui/design-system — Chroma Desk unified stylesheet */',
@@ -25,8 +24,6 @@ const out = [
   theme,
   '',
   scrollbar,
-  '',
-  agGridFix,
 ].join('\n');
 
 const outPath = resolve(root, 'dist/css/theme.css');
