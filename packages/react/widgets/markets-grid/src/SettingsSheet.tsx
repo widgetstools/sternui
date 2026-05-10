@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import './grid-chrome.css';
 import {
   isOpenFin,
   type AnyModule,
