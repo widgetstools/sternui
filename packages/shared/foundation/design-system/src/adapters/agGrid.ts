@@ -46,17 +46,6 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     headerHeight:       headerH,
     spacing:            density === 'ultra' ? 4 : 6,
     borderRadius:       2,
-    // ── Focus ──
-    // focusShadow (the box-shadow ring around focused cells/inputs) is
-    // the sole focus indicator. inputFocusBorder is hard-disabled
-    // (false === "no border" per AG Grid's BorderValue type) so the
-    // built-in cyan border that AG Grid would otherwise paint on focus
-    // does NOT layer on top of the box-shadow ring — that's the
-    // "doubled cyan stripe" we kept hitting on edge-aligned inputs
-    // like floating filters.
-    inputFocusBorder:   false as const,
-    inputFocusShadow:   'none' as const,
-    focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
     // ── Range / selection ──
     // Range selection signals via background tint only. The range
     // border style is hard-disabled so a clicked cell (which is BOTH
