@@ -54,7 +54,13 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     // inputs (e.g. AG Grid floating filters that fill the cell width).
     focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
     // ── Range / selection ──
-    rangeSelectionBorderColor:     scheme.accent.info,
+    // Range selection signals via background tint ONLY. The
+    // rangeSelectionBorderColor is intentionally omitted: when a cell
+    // is BOTH focused and range-selected (the common click-once case),
+    // the focusShadow ring outside the cell + the range border inside
+    // render as two parallel cyan lines, the same doubled-stripe issue
+    // we fixed on floating-filter inputs. Tint alone for range, ring
+    // alone (focusShadow) for focus — never two simultaneous borders.
     rangeSelectionBackgroundColor: scheme.overlay.infoSoft,
     // ── Brand accent ──
     accentColor:        scheme.accent.info,
