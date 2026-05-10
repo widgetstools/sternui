@@ -47,20 +47,22 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     spacing:            density === 'ultra' ? 4 : 6,
     borderRadius:       2,
     // ── Focus ──
-    // The focusShadow ring (box-shadow) is the SOLE focus indicator.
-    // inputFocusBorder is intentionally omitted — when present it
-    // renders a 1px cyan border inside the input that, paired with the
-    // 2px ring outside, reads as a doubled cyan stripe on edge-aligned
-    // inputs (e.g. AG Grid floating filters that fill the cell width).
+    // focusShadow (the box-shadow ring around focused cells/inputs) is
+    // the sole focus indicator. inputFocusBorder is hard-disabled
+    // (false === "no border" per AG Grid's BorderValue type) so the
+    // built-in cyan border that AG Grid would otherwise paint on focus
+    // does NOT layer on top of the box-shadow ring — that's the
+    // "doubled cyan stripe" we kept hitting on edge-aligned inputs
+    // like floating filters.
+    inputFocusBorder:   false as const,
     focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
     // ── Range / selection ──
-    // Range selection signals via background tint ONLY. The
-    // rangeSelectionBorderColor is intentionally omitted: when a cell
-    // is BOTH focused and range-selected (the common click-once case),
-    // the focusShadow ring outside the cell + the range border inside
-    // render as two parallel cyan lines, the same doubled-stripe issue
-    // we fixed on floating-filter inputs. Tint alone for range, ring
-    // alone (focusShadow) for focus — never two simultaneous borders.
+    // Range selection signals via background tint only. The range
+    // border style is hard-disabled so a clicked cell (which is BOTH
+    // focused AND a 1x1 range) doesn't render the cyan range border
+    // INSIDE the cell on top of the cyan focus ring OUTSIDE — that's
+    // the same doubled-stripe issue, just on cells.
+    rangeSelectionBorderStyle:     'none' as const,
     rangeSelectionBackgroundColor: scheme.overlay.infoSoft,
     // ── Brand accent ──
     accentColor:        scheme.accent.info,
