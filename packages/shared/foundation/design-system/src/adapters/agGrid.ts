@@ -52,7 +52,7 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     // renders a 1px cyan border inside the input that, paired with the
     // 2px ring outside, reads as a doubled cyan stripe on edge-aligned
     // inputs (e.g. AG Grid floating filters that fill the cell width).
-    focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
+    //focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
     // ── Range / selection ──
     // Range selection signals via background tint ONLY. The
     // rangeSelectionBorderColor is intentionally omitted: when a cell

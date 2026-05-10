@@ -1,0 +1,32 @@
+/* ─────────────────────────────────────────────────────────────
+ *  AG Grid Quartz overrides
+ *
+ *  Quartz draws BOTH a cell-focus border AND a range-selection
+ *  border on a clicked cell (a click is also a 1x1 range), and BOTH
+ *  derive from --ag-accent-color. They render as two parallel cyan
+ *  lines — the "doubled stripe" the design-system team kept hitting.
+ *  Same root cause for focused inputs (border + box-shadow glow,
+ *  both cyan).
+ *
+ *  Strategy: keep ONE indicator per state.
+ *    - Focused cell        → 1 cyan border (cell-focus border)
+ *    - Range-selected cell → cyan tint background, no border
+ *    - Focused input       → cyan box-shadow glow only
+ * ───────────────────────────────────────────────────────────── */
+
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+  /* Range selection: tint only, no border. Suppresses the inner
+   * cyan stripe on a clicked cell (1x1 range) and on multi-cell
+   * ranges. The infoSoft tint background already signals selection. */
+  --ag-range-selection-border-color: transparent;
+  --ag-range-selection-border-style: none;
+
+  /* Input focus: keep the resting input border on focus. The
+   * --ag-input-focus-box-shadow ring is the focus indicator —
+   * adding a colour change to the border on top of the ring
+   * produces the doubled-stripe effect on edge-aligned inputs
+   * (AG Grid floating filters fill their cell width). */
+  --ag-input-focus-border-color: var(--ag-input-border-color);
+}
