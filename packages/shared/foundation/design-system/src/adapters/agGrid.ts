@@ -53,7 +53,7 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
     // cyan border via the default rangeSelectionBorderColor, which
     // derives from accentColor. No doubling possible because there's
     // nothing else stacked on top of it.
-    rangeSelectionBackgroundColor: scheme.overlay.infoSoft,
+    //rangeSelectionBackgroundColor: scheme.overlay.infoSoft,
     // ── Brand accent ──
     accentColor:        scheme.accent.info,
   };
