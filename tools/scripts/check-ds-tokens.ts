@@ -51,6 +51,10 @@ export function lintFile(path: string): Issue[] {
 const SKIP_DIRS = new Set([
   'node_modules', 'dist', '.turbo', '.git', '.next', 'coverage',
   '__snapshots__', '__fixtures__', 'libs',
+  // External reference materials (user-provided design system samples,
+  // unpacked zips, etc.) — not project code, kept in-tree as a reference
+  // for migration work. Match by exact directory name.
+  'Markets Design System-latest',
 ]);
 
 // design-system package itself is allowed to define hex; everywhere
