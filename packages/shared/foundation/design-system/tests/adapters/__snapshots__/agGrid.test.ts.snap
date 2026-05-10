@@ -25,7 +25,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 26,
     "headerTextColor": "#aab3bf",
     "inputFocusBorder": {
-      "color": "#22d3ee",
+      "color": "#2b3139",
       "style": "solid",
       "width": 1,
     },
@@ -65,7 +65,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 26,
     "headerTextColor": "#3d4347",
     "inputFocusBorder": {
-      "color": "#0b7b8a",
+      "color": "#c7cac7",
       "style": "solid",
       "width": 1,
     },
@@ -105,7 +105,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 32,
     "headerTextColor": "#aab3bf",
     "inputFocusBorder": {
-      "color": "#22d3ee",
+      "color": "#2b3139",
       "style": "solid",
       "width": 1,
     },
@@ -145,7 +145,7 @@ exports[`agGrid params > matches snapshot 1`] = `
     "headerHeight": 32,
     "headerTextColor": "#3d4347",
     "inputFocusBorder": {
-      "color": "#0b7b8a",
+      "color": "#c7cac7",
       "style": "solid",
       "width": 1,
     },
