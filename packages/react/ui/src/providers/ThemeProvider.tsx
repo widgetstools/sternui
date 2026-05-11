@@ -19,7 +19,7 @@ export interface ThemeProviderProps {
 export function ThemeProvider({
   children,
   defaultTheme = 'dark',
-  storageKey = 'stern-theme',
+  storageKey = 'marketsui-theme',
   enableSystem = true,
   disableTransitionOnChange = false,
   attribute = 'class',

@@ -9,6 +9,7 @@ export default {
     '../../packages/react/dock-editor-react/src/**/*.{ts,tsx}',
     '../../packages/react/registry-editor-react/src/**/*.{ts,tsx}',
     '../../packages/react/tools/workspace-setup-react/src/**/*.{ts,tsx}',
+    '../../packages/react/tools/config-browser-react/src/**/*.{ts,tsx}',
     // Scan EVERY widgets package — markets-grid, grid-react,
     // widgets-react. Without grid-react in the glob, JIT tree-shakes
     // any class that ONLY appears in grid-react files (RuleMetaStrip's

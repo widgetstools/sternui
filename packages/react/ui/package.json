@@ -1,7 +1,7 @@
 {
   "name": "@starui/ui",
   "version": "1.0.0",
-  "description": "Stern Design System — Coinbase-inspired UI components built on shadcn/ui + Tailwind",
+  "description": "MarketsUI shadcn/Radix primitives themed via @starui/design-system",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,7 +17,6 @@
       "require": "./dist/components/chart.js",
       "types": "./dist/components/chart.d.ts"
     },
-    "./styles": "./src/styles/stern-theme.css",
     "./tailwind-config": "./tailwind.config.js"
   },
   "scripts": {
@@ -85,13 +84,13 @@
     "typescript": "~5.9.3"
   },
   "keywords": [
-    "stern",
+    "marketsui",
+    "starui",
     "ui",
     "design-system",
     "shadcn",
-    "tailwind",
-    "coinbase"
+    "tailwind"
   ],
-  "author": "Stern Development Team",
+  "author": "MarketsUI",
   "license": "MIT"
 }

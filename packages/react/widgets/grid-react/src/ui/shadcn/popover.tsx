@@ -52,7 +52,7 @@ const PopoverContent = React.forwardRef<
         // Theme — use gc-* vars with dark fallbacks for portal context
         'bg-[var(--ds-surface-primary)] text-[var(--ds-text-primary)]',
         'border border-[var(--ds-border-primary)]',
-        'shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
+        'shadow-card',
         // Font
         'font-[var(--ds-font-sans)] text-[11px]',
         // Animations

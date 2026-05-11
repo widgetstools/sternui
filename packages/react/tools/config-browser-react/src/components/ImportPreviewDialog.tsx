@@ -44,12 +44,12 @@ export function ImportPreviewDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-preview-title"
-      className="fixed inset-0 bg-black/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
+      className="fixed inset-0 bg-background/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
       onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[520px] max-w-[90vw] max-h-[90vh] flex flex-col bg-[var(--de-bg)] border border-[var(--de-border)] rounded-[var(--de-radius-md,8px)] shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden"
+        className="w-[520px] max-w-[90vw] max-h-[90vh] flex flex-col bg-[var(--de-bg)] border border-[var(--de-border)] rounded-[var(--de-radius-md,8px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-[var(--de-border)]">
@@ -249,7 +249,7 @@ function DialogButton({
         border: primary ? "none" : "1px solid var(--de-border)",
         borderRadius: "var(--de-radius-sm)",
         background: primary ? "var(--de-accent)" : "var(--de-bg)",
-        color: primary ? "var(--ds-text-primary)" : "var(--de-text-secondary)",
+        color: primary ? "hsl(var(--primary-foreground))" : "var(--de-text-secondary)",
         fontSize: 12,
         fontWeight: primary ? 600 : 500,
         cursor: disabled ? "not-allowed" : "pointer",

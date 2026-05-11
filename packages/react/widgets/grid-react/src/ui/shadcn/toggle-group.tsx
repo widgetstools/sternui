@@ -74,7 +74,7 @@ export const ToggleGroupItem = forwardRef<HTMLButtonElement, ToggleGroupItemProp
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
           ctx.size === 'sm' ? 'h-[22px] px-3 text-[11px]' : 'h-6 px-3.5 text-[11px]',
           active
-            ? 'bg-background text-primary shadow-[0_1px_3px_rgba(0,0,0,0.12)]'
+            ? 'bg-background text-primary shadow-sm'
             : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
           className,
         )}

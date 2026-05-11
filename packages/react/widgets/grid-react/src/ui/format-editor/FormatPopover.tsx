@@ -73,7 +73,7 @@ export function FormatPopover({
             'z-[2147483647] rounded-md',
             'bg-card text-card-foreground',
             'border border-border',
-            'shadow-[0_16px_40px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.04)_inset]',
+            'shadow-card',
             'font-sans text-[11px]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',

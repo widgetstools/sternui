@@ -48,12 +48,12 @@ export function DeleteAllDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-all-title"
-      className="fixed inset-0 bg-black/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
+      className="fixed inset-0 bg-background/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
       onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[520px] max-w-[90vw] flex flex-col bg-[var(--de-bg)] border border-[var(--de-danger,var(--ds-accent-negative))] rounded-[var(--de-radius-md,8px)] shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden"
+        className="w-[520px] max-w-[90vw] flex flex-col bg-[var(--de-bg)] border border-[var(--de-danger,var(--ds-accent-negative))] rounded-[var(--de-radius-md,8px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
       >
         {/* Header */}
         <div
@@ -277,7 +277,7 @@ function dangerButton(enabled: boolean): React.CSSProperties {
     border: "none",
     borderRadius: "var(--de-radius-sm)",
     background: enabled ? "var(--de-danger, var(--ds-accent-negative))" : "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 30%, transparent)",
-    color: "var(--ds-text-primary)",
+    color: "hsl(var(--destructive-foreground))",
     fontSize: 12,
     fontWeight: 600,
     cursor: enabled ? "pointer" : "not-allowed",

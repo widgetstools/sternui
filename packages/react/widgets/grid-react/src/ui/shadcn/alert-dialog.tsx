@@ -48,7 +48,7 @@ const AlertDialogOverlay = React.forwardRef<
   <AlertDialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-[2147483646] bg-black/60 backdrop-blur-[2px]',
+      'fixed inset-0 z-[2147483646] bg-background/60 backdrop-blur-[2px]',
       'data-[state=open]:animate-in data-[state=closed]:animate-out',
       'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
       className,
@@ -79,7 +79,7 @@ const AlertDialogContent = React.forwardRef<
         // Theme
         'bg-[var(--ds-surface-primary)] text-[var(--ds-text-primary)]',
         'border border-[var(--ds-border-primary)] rounded-lg',
-        'shadow-[0_24px_56px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
+        'shadow-overlay',
         // Layout + type
         'grid gap-4 p-5',
         'font-[var(--ds-font-sans)]',
@@ -167,8 +167,8 @@ const AlertDialogAction = React.forwardRef<
       'focus-visible:ring-offset-[var(--ds-surface-primary)]',
       'disabled:pointer-events-none disabled:opacity-50',
       variant === 'destructive'
-        ? 'bg-[var(--ds-accent-negative)] text-white hover:bg-[color-mix(in_srgb,var(--ds-accent-negative)_90%,black)] focus-visible:ring-[var(--ds-accent-negative)]'
-        : 'bg-[var(--ds-accent-info)] text-[var(--ds-surface-ground)] hover:bg-[color-mix(in_srgb,var(--ds-accent-info)_90%,black)] focus-visible:ring-[var(--ds-accent-info)]',
+        ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive'
+        : 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary',
       className,
     )}
     {...props}

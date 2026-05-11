@@ -446,7 +446,7 @@ export function ProfileSelector({
                   display: 'flex', alignItems: 'center', gap: 5,
                   height: 30, padding: '0 12px',
                   background: canCreate ? 'var(--ds-accent-info)' : 'transparent',
-                  color: canCreate ? 'var(--ds-surface-ground)' : 'var(--ds-text-muted)',
+                  color: canCreate ? 'hsl(var(--primary-foreground))' : 'var(--ds-text-muted)',
                   border: 'none',
                   borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--ds-border-primary)'}`,
                   fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
