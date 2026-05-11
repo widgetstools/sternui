@@ -40,6 +40,19 @@ async function editorState(page: EditorHost) {
     const textarea = document.querySelector<HTMLTextAreaElement>('textarea.inputarea');
     const cursors = Array.from(document.querySelectorAll<HTMLElement>('.cursor'));
     const cursor = cursors.find((node) => getComputedStyle(node).visibility === 'visible') ?? cursors[0];
+    const suggestWidget = Array.from(document.querySelectorAll<HTMLElement>('.suggest-widget')).find((widget) => {
+      const style = getComputedStyle(widget);
+      return style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && widget.querySelector('.monaco-list-row') !== null;
+    });
+    const suggestionRows = suggestWidget
+      ? Array.from(suggestWidget.querySelectorAll<HTMLElement>('.monaco-list-row'))
+      : [];
+    const focusedRow = suggestWidget?.querySelector<HTMLElement>('.monaco-list-row.focused');
+    const focusedSuggestionIndex = focusedRow && suggestionRows.length
+      ? suggestionRows.indexOf(focusedRow)
+      : suggestionRows.length > 0 ? 0 : -1;
     return {
       activeTag: document.activeElement?.tagName ?? null,
       activeClass: String((document.activeElement as HTMLElement | null)?.className ?? ''),
@@ -57,13 +70,9 @@ async function editorState(page: EditorHost) {
         '.core-guide, .core-guide-indent, .core-guide-active-indent, [class*="indent-guide"], [class*="indentGuide"]',
       ).length,
       overflowHosts: document.querySelectorAll('[data-ds-monaco-overflow]').length,
-      visibleSuggestions: Array.from(document.querySelectorAll<HTMLElement>('.suggest-widget'))
-        .filter((widget) => {
-          const style = getComputedStyle(widget);
-          return style.display !== 'none'
-            && style.visibility !== 'hidden'
-            && widget.querySelector('.monaco-list-row') !== null;
-        }).length,
+      visibleSuggestions: suggestWidget ? 1 : 0,
+      suggestionRowCount: suggestionRows.length,
+      focusedSuggestionIndex,
     };
   });
 }
@@ -209,6 +218,51 @@ async function assertSuggestionArrowsStayInSuggestionMode(page: EditorHost) {
   await page.keyboard.press('Escape');
 }
 
+/** Regression: popout used to lose keys — list focus must move on ↑/↓ and Home must jump to first row. */
+async function assertSuggestListArrowNavigationMovesFocusedRow(page: EditorHost) {
+  await focusExpressionAtEnd(page);
+  await page.keyboard.type('[');
+  await expect.poll(async () => {
+    const s = await editorState(page);
+    return s.visibleSuggestions >= 1 && s.suggestionRowCount >= 2;
+  }, { timeout: 4_000 }).toBe(true);
+
+  const atOpen = await editorState(page);
+  expect(atOpen.focusedSuggestionIndex).toBe(0);
+
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await editorState(page)).focusedSuggestionIndex).toBe(1);
+
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(async () => (await editorState(page)).focusedSuggestionIndex).toBe(0);
+
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await editorState(page)).focusedSuggestionIndex).toBe(1);
+
+  await page.keyboard.press('Home');
+  await expect.poll(async () => (await editorState(page)).focusedSuggestionIndex).toBe(0);
+
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => (await editorState(page)).visibleSuggestions, { timeout: 3_000 }).toBe(0);
+}
+
+/** Regression: caret moves with ←/→ after typing (bridged path in popout). */
+async function assertArrowLeftRightMovesCaretWithoutChangingLength(page: EditorHost) {
+  await focusExpressionAtEnd(page);
+  await page.keyboard.type('Z9');
+  const typed = (await editorState(page)).textareaValue;
+  expect(typed).toContain('Z9');
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(60);
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(60);
+  const mid = await editorState(page);
+  expect(mid.textareaValue).toBe(typed);
+  expect(mid.activeTag).toBe('TEXTAREA');
+  await page.keyboard.type('X');
+  await expect.poll(async () => (await editorState(page)).textareaValue).toContain('XZ9');
+}
+
 async function assertControlSpaceTriggersSuggestions(page: EditorHost) {
   await focusExpressionAtEnd(page);
   await page.keyboard.press('Control+Space');
@@ -244,6 +298,8 @@ test.describe('v2 — expression editor keyboard behaviour', () => {
     await assertBackspaceEditsTextAndDeletesSelection(editorPage);
     await assertDeleteKeyEditsText(editorPage);
     await assertSuggestionArrowsStayInSuggestionMode(editorPage);
+    await assertSuggestListArrowNavigationMovesFocusedRow(editorPage);
+    await assertArrowLeftRightMovesCaretWithoutChangingLength(editorPage);
   });
 
   test('popped-out editor keeps Monaco DOM, caret, and keyboard handling in the popout window', async ({ page }) => {
@@ -261,6 +317,8 @@ test.describe('v2 — expression editor keyboard behaviour', () => {
     await assertBackspaceEditsTextAndDeletesSelection(popup);
     await assertDeleteKeyEditsText(popup);
     await assertSuggestionArrowsStayInSuggestionMode(popup);
+    await assertSuggestListArrowNavigationMovesFocusedRow(popup);
+    await assertArrowLeftRightMovesCaretWithoutChangingLength(popup);
 
     const mainDocHosts = await page.locator('[data-ds-monaco-overflow]').count();
     const popupState = await editorState(popup);

@@ -28,6 +28,12 @@ off for the compact surface; Monaco `guides` (indent + bracket pair guides) are
 disabled so leading spaces never paint guide columns. Injected document styles
 keep a single visible caret in popouts.
 
+Playwright `e2e/v2-expression-editor.spec.ts` asserts the same keyboard and
+suggest flows in both inline and popped-out windows, plus focused-row index
+(`.monaco-list-row.focused`) after ↑/↓ and Home, and ←/→ caret moves without
+length drift. Auxiliary `window.open` popouts register an Escape →
+`hideSuggestWidget` bridge so the suggest list can be dismissed reliably.
+
 Verification: `npm run typecheck -w @starui/grid-react`, `npm test -w
 @starui/grid-react -- monacoEnvironment`, and `npx playwright test
 e2e/v2-expression-editor.spec.ts`.

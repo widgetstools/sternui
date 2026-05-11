@@ -84,4 +84,14 @@ export function registerExpressionEditorKeyBridges(
     if (readOnly) return;
     deleteFromEditor(monacoApi, editor, 'forward');
   });
+
+  const hostWin = editor.getDomNode()?.ownerDocument?.defaultView ?? window;
+  const auxiliaryPopout = hostWin.opener != null && hostWin.opener !== hostWin;
+  if (auxiliaryPopout) {
+    void editor.addCommand(monacoApi.KeyCode.Escape, () => {
+      if (suggestOpen()) {
+        trig('hideSuggestWidget');
+      }
+    });
+  }
 }
