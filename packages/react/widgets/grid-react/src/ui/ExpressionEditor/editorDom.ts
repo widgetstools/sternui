@@ -82,8 +82,12 @@ export function ensureExpressionEditorMonacoStyle(doc: Document): void {
 }
 
 .monaco-editor .cursor {
-  visibility: visible !important;
+  visibility: hidden;
   animation: ds-expression-caret-blink 1s steps(1, end) infinite;
+}
+
+.monaco-editor .cursors-layer .cursor:first-child {
+  visibility: visible !important;
 }
 
 @keyframes ds-expression-caret-blink {

@@ -3,21 +3,33 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
-## 2026-05-11 — Expression editor popout keyboard deletion fixes
+## 2026-05-11 — Expression editor thin Monaco shell (modular)
 
-The expression editor now handles Backspace/Delete through a Monaco model-edit
-fallback when the editor has focus, which keeps deletion working in popped-out
-settings windows where Monaco's native hidden-textarea path can miss keys. The
-same path respects selected ranges, and Shift+Arrow navigation now extends the
-selection instead of collapsing it, so highlighted text can be removed normally.
+The expression editor is a thin wrapper around stock Monaco: navigation,
+selection, Backspace/Delete, and Enter stay on Monaco defaults. Tab, Shift+Tab,
+and Control/Cmd+Space are re-bound through `editor.addCommand` in
+`expressionEditorKeyBridges.ts` so popped-out settings shells do not steal those
+chords for focus traversal while IntelliSense stays usable; everything else is
+DSL registration: language, completions, diagnostics, per-document overflow
+widget host + token-aligned CSS, optional empty-model placeholder decoration,
+and palette chords (Ctrl/Cmd+Shift+C/F, F1).
 
-Tab completion is also narrowed to bracketed column-reference prefixes. Pressing
-Tab in ordinary editor text no longer appends the first column suggestion (for
-example `[positionId]`) at the end of the expression; typing `[` and then Tab
-still accepts the column completion.
+Implementation is split into small modules (`monacoEnvironment.ts`,
+`expressionEditorKeyBridges.ts`, `expressionEditorPlaceholder.ts`,
+`expressionEditorPaletteCommands.ts`) so the React inner stays mount/dispose +
+theme observer + palettes. The public props
+gain optional `className` and `style` on the Monaco host (and fallback input) so
+callers can use `width: 100%`, flex, or `min-h-0` without forking the component.
 
-Verification: `npm test -w @starui/grid-react -- editorTextInput.test.ts` and
-`npx playwright test e2e/v2-expression-editor.spec.ts`.
+Completion auto-triggering does not fire on plain spaces (no `[positionId]` Tab
+artifacts at line end unless IntelliSense is open). Whitespace rendering stays
+off for the compact surface; Monaco `guides` (indent + bracket pair guides) are
+disabled so leading spaces never paint guide columns. Injected document styles
+keep a single visible caret in popouts.
+
+Verification: `npm run typecheck -w @starui/grid-react`, `npm test -w
+@starui/grid-react -- monacoEnvironment`, and `npx playwright test
+e2e/v2-expression-editor.spec.ts`.
 
 ## 2026-05-11 — Expression engine nested dotted field refs
 

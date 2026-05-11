@@ -23,6 +23,8 @@ export function FallbackInput({
   lines = 4,
   fontSize = 11,
   readOnly,
+  className,
+  style: hostStyle,
   validate: _validate,
   warnDeprecated: _warnDeprecated,
   columnsProvider: _columnsProvider,
@@ -74,7 +76,7 @@ export function FallbackInput({
       onChange?.(e.target.value);
     },
     onBlur: commit,
-    style: { fontSize },
+    style: { fontSize, ...hostStyle },
     'data-testid': dataTestId,
   };
 
@@ -94,6 +96,7 @@ export function FallbackInput({
           'w-full rounded border bg-card px-2 py-1 text-foreground font-mono',
           'placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring',
           'border-border',
+          className,
         )}
       />
     );
@@ -104,7 +107,7 @@ export function FallbackInput({
       ref={(el) => { inputRef.current = el; }}
       {...commonProps}
       onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-      className={cn('font-mono')}
+      className={cn('font-mono', className)}
     />
   );
 }
