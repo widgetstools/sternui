@@ -1,27 +1,19 @@
 // ─────────────────────────────────────────────────────────────
-//  Chroma Desk — Semantic Tokens
+//  FI Design System — Semantic Tokens  (v2)
 //  Maps primitives to purpose-driven roles.
 //
-//  ONE theme — Chroma Desk — with two modes (light, dark).
-//  Both modes share the same typographic voice (Geist sans +
-//  JetBrains Mono), the same accent hues (teal/rose/amber/brand/
-//  cyan/purple), the same component spacing language, and the same
-//  signature cyan brand moment. They differ only in surface luminance
-//  and per-mode contrast tuning of accents.
-//
-//  - LIGHT mode: cool graphite-grey chrome at ~89% L ground, deep
-//    cool-charcoal text. Designed for traders running 12+ hour
-//    sessions; never glaring under office light or late-night ambient.
-//  - DARK mode: balanced graphite chrome, vivid mint-teal/rose
-//    accents, signature cyan brand.
+//  Design intent:
+//    - LIGHT = "Refined Classic" — warm paper ground, deep warm
+//      charcoal text, understated teal / rose accents.
+//      Editorial IBM Plex typography. Trader-friendly, low-glare.
+//    - DARK  = "Chroma Desk"     — balanced graphite chrome,
+//      vivid mint-teal & rose, signature cyan brand moment.
+//      Geist + JetBrains Mono.
 //
 //  All accents WCAG-audited against their paired surface.
 //  Warning is pure amber — visually distinct from negative.
 //
-//  CVD (color-vision-deficiency) is an opt-in override layer: a
-//  `[data-cvd="on"]` attribute swaps positive/negative accents to
-//  blue (buy) / orange (sell) globally. It is not a separate scheme;
-//  see the css adapter for how it's emitted.
+//  CVD (color-vision-deficiency) is an opt-in override layer.
 // ─────────────────────────────────────────────────────────────
 
 import { colors, typography, radius, spacing, opacity, transition, shadow } from './primitives';
@@ -95,26 +87,24 @@ export interface ColorScheme {
   };
 }
 
-// ── Chroma Desk · Light ─────────────────────────────────────
-// Neutral grey ground, near-black text, signature cyan-teal brand.
-// Reference: Direction C "Chroma Desk" light — exact match.
+// ── Light Scheme — "Refined Classic" ────────────────────────
 export const light: ColorScheme = {
   surface: {
-    ground:     colors.chromeLight[100],  // #edeeed  neutral grey ground
-    primary:    colors.chromeLight[50],   // #f7f8f7  card / panel
-    secondary:  colors.chromeLight[200],  // #e3e5e3  hover
-    tertiary:   colors.chromeLight[300],  // #d6d8d6  pressed
-    quaternary: colors.chromeLight[400],  // #c5c8c5  accent band
+    ground:     colors.paper[100],   // #f5f1ea — warm cream paper
+    primary:    colors.paper[50],    // #fbf8f2 — card
+    secondary:  colors.paper[200],   // #ece6da — hover
+    tertiary:   colors.paper[300],   // #e0d8c8 — pressed
+    quaternary: colors.paper[400],   // #d5ccb8 — accent band
   },
   text: {
-    primary:   colors.coolInk[0],         // #14181a  AAA 15.8:1
-    secondary: colors.coolInk[1],         // #3d4347  AAA  8.9:1
-    muted:     colors.coolInk[2],         // #5c6267  AA   5.5:1
-    faint:     colors.coolInk[3],         // #7d8287  UI   3.4:1
+    primary:   colors.ink[0],        // #2a2519  AAA 13.1:1
+    secondary: colors.ink[1],        // #524a38  AAA  7.8:1
+    muted:     colors.ink[2],        // #6d6550  AA   5.2:1
+    faint:     colors.ink[3],        // #8a806a  UI   3.5:1
   },
   border: {
-    primary:   colors.chromeLight[500],   // #c7cac7  border primary
-    secondary: colors.chromeLight[600],   // #abafab  border secondary
+    primary:   colors.paper[500],    // #c9bfab
+    secondary: colors.paper[600],    // #b4a98f
   },
   accent: {
     positive:      colors.teal.light,       // #0a7d5a  AA 4.82:1
@@ -122,10 +112,10 @@ export const light: ColorScheme = {
     negative:      colors.rose.light,       // #c81d5a  AA 5.22:1
     negativeHover: colors.rose.lightHov,    // #a5174a
     warning:       colors.amber.light,      // #8a6410  AA 5.07:1
-    info:          colors.brand.light,      // #0b7b8a  signature cyan-teal
-    infoHover:     colors.brand.lightHov,   // #086470
-    highlight:     colors.cyan.light,       // #0b7b8a  matches brand
-    purple:        colors.purple.light,     // #5821b8
+    info:          colors.brand.light,      // #1e4fb8  AA 6.91:1
+    infoHover:     colors.brand.lightHov,   // #1a43a0
+    highlight:     colors.cyan.light,       // #047987
+    purple:        colors.purple.light,     // #6d28d9
   },
   action: {
     buyBg:    colors.teal.light,
@@ -135,33 +125,33 @@ export const light: ColorScheme = {
   },
   state: {
     focusRing:    colors.brand.light,
-    focusRingBg:  'rgba(11,123,138,0.30)',
-    disabledBg:   colors.chromeLight[200],
-    disabledFg:   colors.coolInk[3],
-    hoverOverlay: 'rgba(20,24,26,0.045)',
-    selection:    'rgba(11,123,138,0.14)',
+    focusRingBg:  'rgba(30,79,184,0.22)',
+    disabledBg:   colors.paper[200],
+    disabledFg:   colors.ink[3],
+    hoverOverlay: 'rgba(42,37,25,0.045)',
+    selection:    'rgba(30,79,184,0.18)',
   },
   overlay: {
-    positiveSoft:  'rgba(10,125,90,0.10)',
-    positiveRing:  'rgba(10,125,90,0.32)',
-    negativeSoft:  'rgba(200,29,90,0.10)',
-    negativeRing:  'rgba(200,29,90,0.32)',
-    warningSoft:   'rgba(138,100,16,0.11)',
+    positiveSoft:  'rgba(14,124,91,0.09)',
+    positiveRing:  'rgba(14,124,91,0.30)',
+    negativeSoft:  'rgba(191,32,82,0.09)',
+    negativeRing:  'rgba(191,32,82,0.30)',
+    warningSoft:   'rgba(138,100,16,0.10)',
     warningRing:   'rgba(138,100,16,0.35)',
-    infoSoft:      'rgba(11,123,138,0.10)',
-    infoRing:      'rgba(11,123,138,0.38)',
-    neutralSoft:   'rgba(61,67,71,0.07)',
-    neutralRing:   'rgba(61,67,71,0.22)',
+    infoSoft:      'rgba(30,79,184,0.08)',
+    infoRing:      'rgba(30,79,184,0.32)',
+    neutralSoft:   'rgba(82,74,56,0.07)',
+    neutralRing:   'rgba(82,74,56,0.22)',
   },
   cvd: {
-    buy:  colors.cvd.buyLight,    // #1a52c4
+    buy:  colors.cvd.buyLight,    // #1e4fb8
     sell: colors.cvd.sellLight,   // #c2410c
   },
-  scrollbar: colors.chromeLight[600],
+  scrollbar: colors.paper[600],
   elevation: {
-    card:    '0 1px 2px rgba(20,24,26,0.06), 0 4px 12px rgba(20,24,26,0.06)',
-    overlay: '0 1px 2px rgba(20,24,26,0.06), 0 4px 12px rgba(20,24,26,0.06)',
-    glow:    '0 0 0 3px rgba(11,123,138,0.30)',
+    card:    shadow.sm,
+    overlay: shadow.md,
+    glow:    `0 0 0 3px rgba(30,79,184,0.18)`,
   },
 };
 

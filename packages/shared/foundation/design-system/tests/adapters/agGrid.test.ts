@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   agGridDarkParams, agGridLightParams,
+  agGridComfortDarkParams, agGridComfortLightParams,
   agGridBlotterDarkParams, agGridBlotterLightParams,
 } from '../../src/adapters/agGrid';
 
@@ -21,9 +22,15 @@ describe('agGrid params', () => {
     expect(agGridBlotterLightParams).toBeDefined();
   });
 
+  it('comfort variants exist', () => {
+    expect(agGridComfortDarkParams).toBeDefined();
+    expect(agGridComfortLightParams).toBeDefined();
+  });
+
   it('matches snapshot', () => {
     expect({
       dark: agGridDarkParams, light: agGridLightParams,
+      comfortDark: agGridComfortDarkParams, comfortLight: agGridComfortLightParams,
       blotterDark: agGridBlotterDarkParams, blotterLight: agGridBlotterLightParams,
     }).toMatchSnapshot();
   });

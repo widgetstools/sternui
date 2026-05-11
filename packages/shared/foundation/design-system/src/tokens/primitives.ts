@@ -18,26 +18,24 @@
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
-  // ── Neutral grey (light chrome) ───────────────────────────
-  // Neutral grey, no warm or cool cast. Ground sits at #edeeed
-  // for long-session ergonomics; cards lift to #f7f8f7 for depth.
-  // Reference: Direction C "Chroma Desk" light palette.
-  chromeLight: {
-    50:  '#f7f8f7',  // card surface
-    100: '#edeeed',  // ground — neutral grey, no cast
-    200: '#e3e5e3',  // hover
-    300: '#d6d8d6',  // pressed
-    400: '#c5c8c5',  // accent band
-    500: '#c7cac7',  // border primary
-    600: '#abafab',  // border secondary
+  // ── Warm paper (light chrome) ─────────────────────────────
+  // Trader-friendly warm cream, low-glare, Bloomberg-adjacent.
+  paper: {
+    50:  '#fbf8f2',  // card (warmer than pure white)
+    100: '#f5f1ea',  // ground
+    200: '#ece6da',  // hover
+    300: '#e0d8c8',  // pressed
+    400: '#d5ccb8',  // accent band
+    500: '#c9bfab',  // border primary
+    600: '#b4a98f',  // border secondary
   },
-  // ── Near-black charcoal (light text) ─────────────────────
-  // Deep near-black charcoals — matches reference Chroma Desk exactly.
-  coolInk: {
-    0:   '#14181a',  // primary body   (15.8:1 AAA on chromeLight-100)
-    1:   '#3d4347',  // secondary      (8.9:1  AAA)
-    2:   '#5c6267',  // muted          (5.5:1  AA)
-    3:   '#7d8287',  // faint / UI     (3.4:1  UI only)
+  // ── Warm charcoal (light text) ────────────────────────────
+  // Deep warm charcoals — never pure black.
+  ink: {
+    0:   '#2a2519',  // primary body   (13.1:1 AAA on paper-100)
+    1:   '#524a38',  // secondary      (7.8:1  AAA)
+    2:   '#6d6550',  // muted          (5.2:1  AA)
+    3:   '#8a806a',  // faint / UI     (3.5:1  UI only)
   },
   // ── Balanced graphite (dark chrome) ───────────────────────
   // Slightly cool but not clinical — the Chroma Desk dark body.
@@ -58,8 +56,8 @@ export const colors = {
   // Light: teal-green (4.82:1 AA on chromeLight-100).
   // Dark:  vivid mint-teal (AAA on graphite).
   teal: {
-    light:    '#0a7d5a',   // light positive   (4.82:1 AA)
-    lightHov: '#086647',
+    light:    '#0e7c5b',   // light positive   (4.89:1 AA)
+    lightHov: '#0a6448',
     dark:     '#22e3a8',   // dark positive    (11.1:1 AAA)
     darkHov:  '#3fecb8',
   },
@@ -67,8 +65,8 @@ export const colors = {
   // Light: red-rose (5.22:1 AA on chromeLight-100).
   // Dark:  vivid rose (AA on graphite).
   rose: {
-    light:    '#c81d5a',   // light negative   (5.22:1 AA)
-    lightHov: '#a5174a',
+    light:    '#bf2052',   // light negative   (5.59:1 AA)
+    lightHov: '#9e1843',
     dark:     '#ff5a82',   // dark negative    (6.02:1 AA)
     darkHov:  '#ff7898',
   },
@@ -79,28 +77,28 @@ export const colors = {
     dark:     '#f5c14b',   // 10.6:1 AAA on graphite
   },
   // ── Brand / info ─────────────────────────────────────────
-  // Light: signature cyan-teal — Chroma Desk identity colour.
+  // Light: deep confident blue.
   // Dark:  signature cyan — Chroma Desk's wow moment.
   brand: {
-    light:    '#0b7b8a',   // signature cyan-teal (4.27:1 — graphics threshold)
-    lightHov: '#086470',
+    light:    '#1e4fb8',
+    lightHov: '#1a43a0',
     dark:     '#22d3ee',   // signature cyan
     darkHov:  '#4ae0f2',
   },
   // ── Highlight / selected ─────────────────────────────────
   cyan: {
-    light:    '#0b7b8a',   // matches brand for highlight unity
+    light:    '#047987',
     dark:     '#22d3ee',
   },
   // ── Purple / tertiary ────────────────────────────────────
   purple: {
-    light:    '#5821b8',
+    light:    '#6d28d9',
     dark:     '#a78bfa',
   },
   // ── CVD-safe alternates ──────────────────────────────────
   // Deuteranopia/protanopia-safe mapping: blue=buy, orange=sell.
   cvd: {
-    buyLight:  '#1a52c4',
+    buyLight:  '#1e4fb8',
     sellLight: '#c2410c',
     buyDark:   '#7aa6ff',
     sellDark:  '#ff9d4e',
@@ -109,11 +107,13 @@ export const colors = {
 
 export const typography = {
   fontFamily: {
-    // Chroma Desk identity: Geist sans + JetBrains Mono in both
-    // modes. Single typographic voice across light and dark.
-    sans:  "'Geist', 'Inter', system-ui, sans-serif",
-    mono:  "'JetBrains Mono', 'Geist Mono', ui-monospace, monospace",
-    serif: "'Geist', Georgia, serif",
+    // Refined Classic: editorial IBM Plex family.
+    sans:  "'IBM Plex Sans', 'Inter', system-ui, sans-serif",
+    mono:  "'IBM Plex Mono', 'JetBrains Mono', monospace",
+    serif: "'IBM Plex Serif', Georgia, serif",
+    // Chroma Desk aliases (dark):
+    sansDark: "'Geist', 'Inter', system-ui, sans-serif",
+    monoDark: "'JetBrains Mono', 'Geist Mono', monospace",
   },
   fontSize: {
     '2xs': '10px',
@@ -198,8 +198,8 @@ export const transition = {
 
 export const shadow = {
   none: 'none',
-  sm:   '0 1px 2px rgba(15,18,24,0.08)',
-  md:   '0 1px 2px rgba(15,18,24,0.08), 0 4px 14px rgba(15,18,24,0.10)',   // light
+  sm:   '0 1px 2px rgba(42,37,25,0.06)',
+  md:   '0 1px 2px rgba(42,37,25,0.06), 0 4px 14px rgba(42,37,25,0.08)',   // light — refined classic
   lg:   '0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5), 0 8px 22px rgba(0,0,0,0.4)', // dark
 } as const;
 
