@@ -16,7 +16,11 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  *:focus-visible {
+  /* Universal focus indicator. Excludes AG Grid cells (.ag-cell) and
+   * AG Grid input/widget elements — they have their own focus styling
+   * baked into the theme params, and stacking our outline on top of
+   * AG Grid's range-selection border produces a doubled cyan ring. */
+  *:focus-visible:not(.ag-cell):not([class^="ag-"]):not([class*=" ag-"]) {
     outline: 2px solid var(--ds-state-focus-ring);
     outline-offset: 2px;
   }
