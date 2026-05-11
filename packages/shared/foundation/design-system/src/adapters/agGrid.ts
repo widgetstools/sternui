@@ -14,11 +14,17 @@ import { typography } from '../tokens/primitives';
 
 type Density = 'compact' | 'ultra';
 
-function gridParams(scheme: ColorScheme, density: Density = 'compact') {
+function gridParams(
+  scheme: ColorScheme,
+  mode: 'dark' | 'light',
+  density: Density = 'compact',
+) {
   const rowH    = density === 'ultra' ? 22 : 28;
   const headerH = density === 'ultra' ? 26 : 32;
   const fontPx  = density === 'ultra' ? 11 : 12;
   return {
+    // Ensure browser-native UI (including scrollbars) matches the theme.
+    browserColorScheme: mode,
     // ── Typography ──
     // Headers use JetBrains Mono so column captions sit on the same
     // tabular baseline as the cell values — keeps numeric / identifier
@@ -57,7 +63,7 @@ function gridParams(scheme: ColorScheme, density: Density = 'compact') {
   };
 }
 
-export const agGridDarkParams         = gridParams(dark,  'compact');
-export const agGridLightParams        = gridParams(light, 'compact');
-export const agGridBlotterDarkParams  = gridParams(dark,  'ultra');
-export const agGridBlotterLightParams = gridParams(light, 'ultra');
+export const agGridDarkParams         = gridParams(dark,  'dark',  'compact');
+export const agGridLightParams        = gridParams(light, 'light', 'compact');
+export const agGridBlotterDarkParams  = gridParams(dark,  'dark',  'ultra');
+export const agGridBlotterLightParams = gridParams(light, 'light', 'ultra');
