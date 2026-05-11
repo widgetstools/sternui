@@ -688,7 +688,7 @@ export function FiltersToolbar() {
             onClick={handleDeactivateAll}
             title="Clear all filters"
           >
-            <FunnelX size={16} strokeWidth={2.75} />
+            <FunnelX size={18} strokeWidth={3} />
           </button>
         )}
 
@@ -709,7 +709,7 @@ export function FiltersToolbar() {
             cursor: hasNewFilter ? 'pointer' : 'not-allowed',
           }}
         >
-          <FunnelPlus size={16} strokeWidth={2.75} />
+          <FunnelPlus size={18} strokeWidth={3} />
         </button>
       </div>
     </div>

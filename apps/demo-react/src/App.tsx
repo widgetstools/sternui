@@ -238,10 +238,13 @@ function AppInner() {
   }, []);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ds-surface-ground)' }}>
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '6px 12px', borderBottom: '1px solid var(--border)', background: 'var(--card)',
+        padding: '8px 12px',
+        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%)',
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%, var(--ds-surface-primary) 100%)',
+        boxShadow: '0 1px 0 rgba(255, 255, 255, 0.86) inset, 0 1px 2px rgba(15, 23, 42, 0.05)',
         gap: 12,
       }}>
         {/* View switcher — Single Grid vs Dashboard. Pins the demo to
@@ -274,11 +277,11 @@ function AppInner() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 height: 26, padding: '0 10px', borderRadius: 5,
-                border: '1px solid var(--border)',
+              border: '1px solid var(--ds-border-primary)',
                 background: ticking
                   ? 'color-mix(in srgb, var(--ds-accent-positive) 14%, transparent)'
-                  : 'var(--secondary)',
-                color: ticking ? 'var(--ds-accent-positive)' : 'var(--muted-foreground)',
+                : 'var(--ds-surface-secondary)',
+              color: ticking ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '0.08em',
@@ -305,9 +308,9 @@ function AppInner() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: 26, height: 26, borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--secondary)',
-              color: 'var(--foreground)',
+              border: '1px solid var(--ds-border-primary)',
+              background: 'var(--ds-surface-secondary)',
+              color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               transition: 'all 150ms',
             }}
@@ -411,9 +414,9 @@ function ViewTab({
         fontFamily: 'var(--ds-font-sans)',
         borderRadius: 4,
         border: '1px solid',
-        borderColor: active ? 'var(--ds-accent-positive)' : 'var(--border)',
-        color: active ? 'var(--ds-accent-positive)' : 'var(--muted-foreground)',
-        background: active ? 'color-mix(in srgb, var(--ds-accent-positive) 14%, transparent)' : 'transparent',
+        borderColor: active ? 'var(--ds-primary-ring)' : 'var(--ds-border-primary)',
+        color: active ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+        background: active ? 'var(--ds-primary-soft)' : 'var(--ds-surface-secondary)',
         cursor: 'pointer',
         transition: 'all 120ms',
       }}

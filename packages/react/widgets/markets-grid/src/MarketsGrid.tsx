@@ -30,7 +30,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  DirtyDot,
   GridProvider,
   Input,
   Popover,
@@ -51,7 +50,7 @@ import {
   useProfileManager,
 } from '@starui/grid-react';
 import {
-  Save, Check, Settings as SettingsIcon, Brush,
+  Save, Check, Settings as SettingsIcon, SlidersHorizontal,
   Wrench,
   Database,
   FileText,
@@ -536,13 +535,13 @@ function Host<TData>({
     setSettingsOpen(true);
   }, []);
 
-  // Formatting toolbar — always starts hidden. The Brush button on the
+  // Formatting toolbar — always starts hidden. The toolbar-control button on the
   // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
-  // controls whether the feature is available (i.e. whether the Brush
+  // controls whether the feature is available (i.e. whether the formatter
   // pill + floating panel exist); it doesn't pre-open the toolbar.
   const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
   // Imperative handle into the FormattingToolbar — same pattern as
-  // sheetRef. The brush button uses `focusIfPopped()` to raise a
+  // sheetRef. The toolbar-control button uses `focusIfPopped()` to raise a
   // buried popout window before falling through to toggle.
   const toolbarRef = useRef<FormattingToolbarHandle>(null);
 
@@ -714,7 +713,7 @@ function Host<TData>({
                 data-active={styleToolbarOpen ? 'true' : 'false'}
                 aria-pressed={styleToolbarOpen}
               >
-                <Brush size={14} strokeWidth={2} />
+                <SlidersHorizontal size={14} strokeWidth={2} />
               </button>
             )}
 
@@ -811,15 +810,6 @@ function Host<TData>({
                   data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
                 >
                   {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
-                  {/* Dirty indicator — small pulsed teal dot top-right of
-                      the icon. Shown only when unsaved and NOT actively
-                      flashing (to avoid stacking indicators during the
-                      600ms post-save flash). */}
-                  {isDirty && !saveFlash && (
-                    <span className="ds-primary-save-dirty" data-testid="save-all-dirty">
-                      <DirtyDot title="Unsaved changes" />
-                    </span>
-                  )}
                 </button>
               </>
             )}
@@ -863,7 +853,7 @@ function Host<TData>({
 
       {/* FormattingToolbar — pinned as a second toolbar row directly
            beneath the FiltersToolbar. Visibility is bound to the
-           existing Brush toggle in the FiltersToolbar
+           existing formatter toggle in the FiltersToolbar
            (`styleToolbarOpen`). When the viewport is narrow the
            toolbar's flex-wrap kicks in and the row grows vertically
            (1 row → 2 rows) so no content is clipped.

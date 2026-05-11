@@ -1,124 +1,124 @@
 /*
- * FI Design System — Dark Theme  ("Chroma Desk")
+ * FI Design System — Dark Theme
  * Generated from design-system/tokens/semantic.ts
  *
- * Balanced graphite chrome, vivid mint-teal (positive) and rose
- * (negative), signature cyan brand moment. Paired with Geist +
- * JetBrains Mono. AAA body text, AA accents on graphite.
+ * Cool charcoal chrome, electric exchange-terminal accents. Warning is
+ * restrained orange (no brown / copper). Brand is electric cyan.
  */
 
 :root, [data-theme="dark"] {
   /* ── shadcn/ui overrides ── */
-  --background: 213 17% 6%;          /* #0b0d10 */
-  --foreground: 213 22% 94%;         /* #ecf0f5 */
-  --card: 216 15% 10%;               /* #14171b */
-  --card-foreground: 213 22% 94%;
-  --popover: 216 15% 10%;
-  --popover-foreground: 213 22% 94%;
-  --primary: 188 84% 53%;            /* #22d3ee — signature cyan */
+  --background: 213 30% 6%;          /* #0a0e14 */
+  --foreground: 220 16% 92%;         /* #e6e9ef */
+  --card: 214 26% 10%;               /* #121820 */
+  --card-foreground: 220 16% 92%;
+  --popover: 214 26% 10%;
+  --popover-foreground: 220 16% 92%;
+  --primary: 190 100% 50%;           /* #00d5ff — electric cyan brand */
   --primary-foreground: 201 74% 9%;
-  --secondary: 215 15% 13%;          /* #1c2025 */
-  --secondary-foreground: 214 14% 71%;
-  --muted: 215 15% 13%;
-  --muted-foreground: 215 9% 54%;    /* #7d8694 */
-  --accent: 215 15% 13%;
-  --accent-foreground: 213 22% 94%;
-  --destructive: 345 100% 67%;       /* #ff5a82 */
-  --destructive-foreground: 340 65% 10%;
-  --border: 215 14% 20%;             /* #2b3139 */
-  --input: 215 14% 20%;
-  --ring: 188 84% 53%;
-  --radius: 5px;
+  --secondary: 215 22% 18%;          /* #242c38 */
+  --secondary-foreground: 216 15% 70%;
+  --muted: 215 24% 14%;              /* #1a212b */
+  --muted-foreground: 220 9% 46%;    /* #6b7280 */
+  --accent: 215 22% 18%;
+  --accent-foreground: 220 16% 92%;
+  --destructive: 351 100% 65%;       /* #ff4d6d */
+  --destructive-foreground: 343 75% 9%;
+  --border: 216 22% 22%;             /* #323b49 */
+  --input: 216 22% 22%;
+  --ring: 190 100% 50%;
+  --radius: 4px;
 
-  /* ── Surface (balanced graphite) ── */
-  --bn-bg:      #0b0d10;
-  --bn-bg1:     #14171b;
-  --bn-bg2:     #1c2025;
-  --bn-bg3:     #252a31;
+  /* ── Surface ── */
+  --bn-bg:      #0a0e14;
+  --bn-bg1:     #121820;
+  --bn-bg2:     #1a212b;
+  --bn-bg3:     #242c38;
 
   /* ── Text ── */
-  --bn-t0:      #ecf0f5;
-  --bn-t1:      #aab3bf;
-  --bn-t2:      #7d8694;
-  --bn-t3:      #565d68;
+  --bn-t0:      #e6e9ef;
+  --bn-t1:      #a7b0bd;
+  --bn-t2:      #6b7280;
+  --bn-t3:      #4d586a;
 
   /* ── Border ── */
-  --bn-border:  #2b3139;
-  --bn-border2: #3e4552;
+  --bn-border:  #2e3744;
+  --bn-border2: #323b49;
 
-  /* ── Accent (vivid; AA on graphite; cyan = signature brand) ── */
-  --bn-green:   #22e3a8;
-  --bn-green2:  #3fecb8;
-  --bn-red:     #ff5a82;
-  --bn-red2:    #ff7898;
-  --bn-amber:   #f5c14b;    /* pure amber — warning semantic only */
-  --bn-blue:    #22d3ee;    /* BRAND — signature cyan */
-  --bn-blue2:   #4ae0f2;
-  --bn-cyan:    #22d3ee;
-  --bn-purple:  #a78bfa;
+  /* ── Accent (electric exchange-terminal) ── */
+  --bn-green:   #00f5a0;
+  --bn-green2:  #31ffc1;
+  --bn-red:     #ff3366;
+  --bn-red2:    #ff5c85;
+  --bn-amber:   #ff9f1a;    /* restrained orange — warning semantic only */
+  --bn-blue:    #00d5ff;    /* PRIMARY BRAND */
+  --bn-blue2:   #48e6ff;    /* PRIMARY HOVER */
+  --bn-info:    #48e6ff;    /* informational accent */
+  --bn-cyan:    #00e5ff;    /* highlight accent */
+  --bn-purple:  #b56cff;
 
-  /* ── Actions (deep tinted CTA text for AAA on vivid bg) ── */
-  --bn-buy-bg:   #22e3a8;
-  --bn-sell-bg:  #ff5a82;
-  --bn-cta-text: #0b2b20;   /* overridden per-button if sell */
-  --bn-logo-bg:  #0b0d10;
+  /* ── Actions ── */
+  --bn-buy-bg:   #00f5a0;
+  --bn-sell-bg:  #ff3366;
+  --bn-cta-text: #061c28;
+  --bn-logo-bg:  #0a0e14;
 
   /* ── Interactive states ── */
-  --bn-focus-ring:    #22d3ee;
-  --bn-focus-ring-bg: rgba(34,211,238,0.30);
-  --bn-disabled-bg:   #252a31;
-  --bn-disabled-fg:   #565d68;
+  --bn-focus-ring:    #00d5ff;
+  --bn-focus-ring-bg: rgba(0,213,255,0.30);
+  --bn-disabled-bg:   #242c38;
+  --bn-disabled-fg:   #4d586a;
   --bn-hover-overlay: rgba(255,255,255,0.05);
-  --bn-selection:     rgba(34,211,238,0.22);
+  --bn-selection:     rgba(0,213,255,0.24);
 
-  /* ── Overlay tints ── */
-  --bn-positive-soft: rgba(34,227,168,0.12);
-  --bn-positive-ring: rgba(34,227,168,0.40);
-  --bn-negative-soft: rgba(255,90,130,0.12);
-  --bn-negative-ring: rgba(255,90,130,0.40);
-  --bn-warning-soft:  rgba(245,193,75,0.13);
-  --bn-warning-ring:  rgba(245,193,75,0.40);
-  --bn-info-soft:     rgba(34,211,238,0.12);
-  --bn-info-ring:     rgba(34,211,238,0.45);
-  --bn-neutral-soft:  rgba(170,179,191,0.10);
-  --bn-neutral-ring:  rgba(170,179,191,0.25);
+  /* ── Overlay tints (badge / fill / chip) ── */
+  --bn-positive-soft: rgba(0,245,160,0.18);
+  --bn-positive-ring: rgba(0,245,160,0.45);
+  --bn-negative-soft: rgba(255,51,102,0.18);
+  --bn-negative-ring: rgba(255,51,102,0.45);
+  --bn-warning-soft:  rgba(255,159,26,0.16);
+  --bn-warning-ring:  rgba(255,159,26,0.38);
+  --bn-info-soft:     rgba(72,230,255,0.16);
+  --bn-info-ring:     rgba(72,230,255,0.40);
+  --bn-neutral-soft:  rgba(107,114,128,0.20);
+  --bn-neutral-ring:  rgba(107,114,128,0.30);
 
   /* ── CVD alternates ── */
   --bn-cvd-buy:  #7aa6ff;
   --bn-cvd-sell: #ff9d4e;
 
-  /* ── Typography (Geist + JetBrains Mono for Chroma Desk) ── */
+  /* ── Typography ── */
   --fi-sans:  'Geist', 'Inter', system-ui, sans-serif;
-  --fi-mono:  'JetBrains Mono', 'Geist Mono', monospace;
-  --fi-serif: 'Geist', system-ui, sans-serif;
-  --fi-font-2xs: 10px;
-  --fi-font-xs:  11px;
-  --fi-font-sm:  12px;
+  --fi-mono:  'JetBrains Mono', monospace;
+  --fi-serif: 'Geist', Georgia, serif;
+  --fi-font-2xs: 9px;
+  --fi-font-xs:  10px;
+  --fi-font-sm:  11px;
   --fi-font-md:  13px;
-  --fi-font-lg:  14px;
-  --fi-font-xl:  16px;
+  --fi-font-lg:  18px;
+  --fi-font-xl:  20px;
 
   /* ── Motion ── */
   --fi-t-instant:   80ms cubic-bezier(0.4,0,0.6,1);
-  --fi-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
-  --fi-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
-  --fi-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
-  --fi-t-emphasis: 640ms cubic-bezier(0.2,0.8,0.2,1);
-  --fi-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+  --fi-t-fast:      150ms ease;
+  --fi-t-normal:    200ms ease;
+  --fi-t-slow:      500ms ease-out;
+  --fi-t-emphasis:  640ms cubic-bezier(0.2,0.8,0.2,1);
+  --fi-t-tick:      900ms cubic-bezier(0.25,0.1,0.25,1);
 
   /* ── Elevation ── */
-  --fi-shadow-card:    0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5);
-  --fi-shadow-overlay: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.5), 0 8px 22px rgba(0,0,0,0.4);
-  --fi-glow-focus:     0 0 0 2px rgba(34,211,238,0.40), 0 0 28px rgba(34,211,238,0.18);
+  --fi-shadow-card:    0 1px 2px rgba(0,0,0,0.15);
+  --fi-shadow-overlay: 0 4px 12px rgba(0,0,0,0.25);
+  --fi-glow-focus:     0 0 0 2px rgba(0,213,255,0.42), 0 0 28px rgba(0,213,255,0.20);
 
   /* ── Order Book / Trade Ticket fills ── */
-  --ob-bid-fill:   rgba(34,227,168,0.16);
-  --ob-ask-fill:   rgba(255,90,130,0.16);
-  --tt-bid-strip:  rgba(34,211,238,0.12);
-  --tt-ask-strip:  rgba(255,90,130,0.14);
+  --ob-bid-fill:   rgba(0,245,160,0.20);
+  --ob-ask-fill:   rgba(255,51,102,0.20);
+  --tt-bid-strip:  rgba(0,213,255,0.14);
+  --tt-ask-strip:  rgba(255,51,102,0.16);
 
   /* ── Misc ── */
-  --scrollbar-thumb: #3e4552;
+  --scrollbar-thumb: #323b49;
 
   /* ── Legacy aliases ── */
   --fi-bg0: var(--bn-bg);
@@ -136,6 +136,7 @@
   --fi-green: var(--bn-green);
   --fi-red: var(--bn-red);
   --fi-blue: var(--bn-blue);
+  --fi-info: var(--bn-info);
   --fi-amber: var(--bn-amber);
   --fi-yellow: var(--bn-amber);
   --bn-yellow: var(--bn-amber);

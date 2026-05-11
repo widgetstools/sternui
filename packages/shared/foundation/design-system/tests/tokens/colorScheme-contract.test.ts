@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { dark, light, type ColorScheme } from '../../src/tokens/semantic';
 
 const requiredKeys: ReadonlyArray<keyof ColorScheme> = [
-  'surface', 'text', 'border', 'accent', 'action',
+  'primary', 'surface', 'text', 'border', 'accent', 'action',
   'state', 'overlay', 'cvd', 'scrollbar', 'elevation',
 ];
 
+const requiredPrimaryKeys = ['color', 'hover', 'foreground', 'soft', 'ring'] as const;
 const requiredSurfaceKeys = ['ground', 'primary', 'secondary', 'tertiary', 'quaternary'] as const;
 const requiredAccentKeys = [
   'positive', 'positiveHover', 'negative', 'negativeHover',
@@ -23,6 +24,11 @@ describe('ColorScheme contract', () => {
       it.each(requiredSurfaceKeys)('surface.%s is a non-empty string', (key) => {
         expect(typeof scheme.surface[key]).toBe('string');
         expect(scheme.surface[key].length).toBeGreaterThan(0);
+      });
+
+      it.each(requiredPrimaryKeys)('primary.%s is a non-empty string', (key) => {
+        expect(typeof scheme.primary[key]).toBe('string');
+        expect(scheme.primary[key].length).toBeGreaterThan(0);
       });
 
       it.each(requiredAccentKeys)('accent.%s is a non-empty string', (key) => {
@@ -46,5 +52,12 @@ describe('ColorScheme contract', () => {
     expect(dark.cvd.sell).not.toBe(dark.accent.negative);
     expect(light.cvd.buy).not.toBe(light.accent.positive);
     expect(light.cvd.sell).not.toBe(light.accent.negative);
+  });
+
+  it('primary brand colors are distinct from informational accents', () => {
+    expect(dark.primary.color).not.toBe(dark.accent.info);
+    expect(dark.primary.hover).not.toBe(dark.accent.infoHover);
+    expect(light.primary.color).not.toBe(light.accent.info);
+    expect(light.primary.hover).not.toBe(light.accent.infoHover);
   });
 });
