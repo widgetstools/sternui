@@ -16,11 +16,25 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Universal focus indicator. Excludes AG Grid cells (.ag-cell) and
-   * AG Grid input/widget elements — they have their own focus styling
-   * baked into the theme params, and stacking our outline on top of
-   * AG Grid's range-selection border produces a doubled cyan ring. */
-  *:focus-visible:not(.ag-cell):not([class^="ag-"]):not([class*=" ag-"]) {
+  /* Universal fallback focus indicator. Native/form controls and common
+   * ARIA controls own their focus ring at component level; stacking this
+   * outline on top of those rings creates a doubled cyan border. */
+  *:focus-visible:not(.ag-cell):not([class^="ag-"]):not([class*=" ag-"]):not(:where(
+    input,
+    textarea,
+    select,
+    button,
+    [contenteditable="true"],
+    [role="button"],
+    [role="checkbox"],
+    [role="combobox"],
+    [role="radio"],
+    [role="searchbox"],
+    [role="slider"],
+    [role="spinbutton"],
+    [role="switch"],
+    [role="textbox"]
+  )) {
     outline: 2px solid var(--ds-state-focus-ring);
     outline-offset: 2px;
   }

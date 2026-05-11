@@ -3,6 +3,36 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-11 — Expression editor popout keyboard deletion fixes
+
+The expression editor now handles Backspace/Delete through a Monaco model-edit
+fallback when the editor has focus, which keeps deletion working in popped-out
+settings windows where Monaco's native hidden-textarea path can miss keys. The
+same path respects selected ranges, and Shift+Arrow navigation now extends the
+selection instead of collapsing it, so highlighted text can be removed normally.
+
+Tab completion is also narrowed to bracketed column-reference prefixes. Pressing
+Tab in ordinary editor text no longer appends the first column suggestion (for
+example `[positionId]`) at the end of the expression; typing `[` and then Tab
+still accepts the column completion.
+
+Verification: `npm test -w @starui/grid-react -- editorTextInput.test.ts` and
+`npx playwright test e2e/v2-expression-editor.spec.ts`.
+
+## 2026-05-11 — Expression engine nested dotted field refs
+
+Square-bracket column references now handle nested dot paths whose segments
+start with numbers, such as `[analytics.keyRateDuration.3Y]`. The parser keeps
+the canonical bracket syntax while preserving array-literal parsing for
+expressions like `[1, 2, 3]`; evaluation already uses `getValueByPath`, so the
+resolved path still prefers flat literal keys before walking nested row
+objects. Aggregation functions that consume direct column refs, for example
+`SUM([analytics.keyRateDuration.3Y])`, use the same nested path resolution
+across `ctx.allRows`.
+
+Verification: `npm run test -w @starui/core --
+src/expression/expressionEngine.test.ts`.
+
 ## 2026-05-11 — Expression editor popout regression E2E coverage
 
 Added Playwright regression coverage for the conditional-styling expression
