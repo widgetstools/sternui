@@ -4,7 +4,7 @@ import { contrastRatio } from '../../src/internal/wcag';
 
 const schemes = [['dark', dark], ['light', light]] as const;
 
-describe('Chroma Desk contrast audit', () => {
+describe('FI Design System contrast audit', () => {
   for (const [name, s] of schemes) {
     describe(name, () => {
       it('text.primary on surface.ground ≥ 7 (AAA body)', () => {
@@ -20,20 +20,15 @@ describe('Chroma Desk contrast audit', () => {
       });
 
       it('accent.info on surface.ground ≥ 4.0 (graphics threshold)', () => {
-        // Brand color (#0b7b8a in light, #22d3ee in dark) is used primarily for
-        // focus rings, button backgrounds with white text, and decorative emphasis
-        // — graphics threshold (3:1) applies more naturally than link-text threshold
-        // (4.5:1). Reference design system (Direction C "Chroma Desk") accepts this
-        // trade-off; light mode yields ~4.27:1 which comfortably clears 4.0.
+        // Informational accents are used for links, pending statuses, and emphasis.
+        // Primary CTA/focus color is audited separately by component and adapter tests.
         expect(contrastRatio(s.accent.info, s.surface.ground)).toBeGreaterThanOrEqual(4.0);
       });
 
       it('accent.positive on surface.ground ≥ 4.0 (graphics threshold)', () => {
-        // Positive accent (#0a7d5a in light) is used for buy/gain indicators and
+        // Positive accent is used for buy/gain indicators and
         // action button backgrounds with white text — graphics threshold (3:1) applies
-        // more naturally than link-text AA (4.5:1). Reference Direction C "Chroma Desk"
-        // specifies #0a7d5a (4.82:1 claimed; actual ~4.41:1 by strict WCAG math), and
-        // accepts this trade-off. We assert 4.0 to reflect actual measurement.
+        // more naturally than link-text AA (4.5:1). We assert 4.0 to reflect actual use.
         expect(contrastRatio(s.accent.positive, s.surface.ground)).toBeGreaterThanOrEqual(4.0);
       });
 

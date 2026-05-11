@@ -3,6 +3,40 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-11 — Light-mode toolbar and page-header chrome polish
+
+`@starui/markets-grid` light-mode header/toolbars now use the cool-clinical
+primary brand treatment for active controls, focus-like borders, and filter
+pills use bright cyan/violet accents instead of earthy warning tones. The
+primary toolbar row and formatter toolbar get a subtle elevated white surface,
+calmer borders, centered icon-button spacing, reduced light-mode glow, and
+cleaner hover/active states. Demo React page headers and dashboard panel
+headers now use concrete `--ds-*` color variables instead of raw shadcn HSL
+channels, so their light-mode chrome matches the grid. Green/red/orange remain
+reserved for trading and semantic states.
+
+The save icon no longer overlays the legacy dirty LED/bar when settings are
+unsaved; the dirty state remains represented by the save button state/title
+without adding a stray vertical mark beside the icon.
+
+The formatter-toolbar visibility toggle now uses a sliders icon instead of the
+brush glyph, making the action read as “show formatting controls” rather than
+paint/apply styling.
+
+Formatter toolbar and popout icons now use brighter cyan/violet icon tokens
+with subtle glow and stronger hover/active treatment, so glyphs read clearly
+against the cool-clinical light chrome and the darker terminal theme.
+
+The filter-pill deactivate/create controls now use slightly larger, bolder
+funnel icons and roomier hit targets so those actions stand out in the filter
+toolbar.
+
+AG Grid header column separators are now disabled through the design-system AG
+Grid theme params (`headerColumnBorder: false`) instead of CSS overrides. Header
+resize handles remain enabled through `headerColumnResizeHandle*` theme params as
+a subtle 1px resize affordance, keeping the change aligned with AG Grid's v33+
+theme-object API.
+
 ## 2026-05-11 — Primary button label ink on dark (unified `theme.css`)
 
 `generateUnifiedCSS()` previously emitted `--primary-foreground: 0 0% 100%` for
@@ -3856,3 +3890,52 @@ Token mapping used (partial):
   updated for combobox interaction; `RuleMetaStrip` exposes
   `data-testid="cs-rule-scope-<ruleId>"`; `src/test/setup.ts` polyfills
   `hasPointerCapture` / `setPointerCapture` for jsdom + user-event.
+
+## 2026-05-11 — `@starui/design-system` synced from `fi-trading-terminal`
+
+- Primitive and semantic tokens now follow the `/Users/develop/wfh/fi-trading-terminal/design-system` direction: cool off-white light chrome, deep charcoal dark chrome, saturated blue primary, teal positive, red negative, pure orange warning, Geist sans, and JetBrains Mono.
+- The monorepo token contract is preserved (`--ds-*`, shadcn HSL aliases, PrimeNG bridge vars, CVD overrides, elevations) while the checked-in `fi-light.css` and `fi-dark.css` mirror the imported palette.
+- Light-theme trading accents use darker stops from the same hue families so the existing contrast audit remains green.
+
+## 2026-05-11 — Exchange-terminal color pop
+
+- Dark mode now uses electric exchange accents: cyan primary/focus, neon teal buy/positive, hot red sell/negative, bright orange warning, and a stronger cyan focus glow.
+- Light mode keeps the same energy with high-contrast blue, teal, red, and restrained orange stops that still pass the design-system contrast audit.
+- Dark-mode primary/destructive/action foregrounds use deep ink on electric fills so the saturated colors pop without sacrificing button readability.
+
+## 2026-05-11 — Primary and accent token roles separated
+
+- `ColorScheme` now has an explicit `primary` block for brand CTA, focus, active navigation, framework primary hooks, AG Grid accent color, and selected-state styling.
+- `accent.info` is reserved for informational/status usage such as pending badges, live status chips, and the Tailwind/shadcn `info` semantic color.
+- Shadcn, PrimeNG, AG Grid, and component tokens now consume `scheme.primary` for primary/focus behavior instead of borrowing `scheme.accent.info`.
+- Contract tests assert that primary brand colors remain distinct from informational accents in both dark and light themes.
+
+## 2026-05-11 — Sophisticated light-mode surface polish
+
+- Light mode now uses an “Arctic glass” surface scale: cooler blue-gray app ground, crisp white cards/grid cells, lifted header/hover surfaces, and clearer pressed/accent bands.
+- Text and border ramps were deepened so the grid chrome reads sharper and less washed out in dense financial layouts.
+- Light elevations now use subtle slate-blue shadows instead of flat generic gray shadows, adding depth without making the UI feel heavy.
+
+## 2026-05-11 — Formatting toolbar alignment polish
+
+- The in-grid formatting toolbar now has consistent vertical padding and centered wrapped rows so icon buttons no longer cling to the top edge.
+- Toolbar dividers now align to the control centerline instead of stretching through the full row height.
+- The popout trigger is separated into a fixed right-edge action lane with its own divider and vertical centering.
+
+## 2026-05-11 — Low-glare comfort light theme
+
+- Light mode now uses warm-neutral “comfort paper” surfaces instead of the cooler, brighter Arctic glass palette to reduce glare during long sessions.
+- Light-mode text stays high contrast but avoids harsh black-on-white; muted/faint text was softened for older-eye readability.
+- Light-mode primary and semantic accents were desaturated and overlay strengths reduced so status colors remain clear without visual vibration.
+
+## 2026-05-11 — Mercury-inspired light theme
+
+- Light mode was refined toward Mercury’s visual language: airy limestone workspace, white cards, quiet dividers, graphite text, and soft periwinkle primary actions.
+- Status accents now use calm teal, rose, ochre, and slate-blue tones with lighter overlays so dense grids feel less noisy.
+- The light theme keeps the primary/accent role split and continues to pass the design-system contrast audit.
+
+## 2026-05-11 — Cool-clinical light theme direction
+
+- Light mode now follows the preferred cool-clinical reference: `#F8F9FB` canvas, crisp white cards/cells, quiet cool-gray dividers, and slate text.
+- Primary brand color is cobalt (`#2952CC`) with subdued focus/selection tints, matching the reference without over-saturating the workspace.
+- Semantic colors remain rationed and muted so dense tables feel calm rather than visually noisy.

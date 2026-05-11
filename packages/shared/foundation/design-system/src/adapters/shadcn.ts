@@ -10,8 +10,8 @@
 //  Emits the entire theme.css consumed by every app.
 //
 //  Layer order:
-//    1. Chroma Desk · Dark — :root + [data-theme="dark"]
-//    2. Chroma Desk · Light — [data-theme="light"]
+//    1. FI Design System · Dark — :root + [data-theme="dark"]
+//    2. FI Design System · Light — [data-theme="light"]
 //    3. CVD override (dark) — [data-theme="dark"][data-cvd="on"]
 //    4. CVD override (light) — [data-theme="light"][data-cvd="on"]
 //
@@ -44,10 +44,9 @@ function hexToHsl(hex: string): string {
 }
 
 function schemeVars(scheme: ColorScheme, mode: 'dark' | 'light') {
-  const primaryFg =
-    mode === 'dark' ? '201 74% 9%' : '0 0% 100%';
+  const primaryFg = hexToHsl(scheme.primary.foreground);
   const destructiveFg =
-    mode === 'dark' ? '340 65% 10%' : '0 0% 100%';
+    mode === 'dark' ? '343 75% 9%' : '0 0% 100%';
   return `
     /* ── shadcn/ui overrides ── */
     --background: ${hexToHsl(scheme.surface.ground)};
@@ -56,7 +55,7 @@ function schemeVars(scheme: ColorScheme, mode: 'dark' | 'light') {
     --card-foreground: ${hexToHsl(scheme.text.primary)};
     --popover: ${hexToHsl(scheme.surface.primary)};
     --popover-foreground: ${hexToHsl(scheme.text.primary)};
-    --primary: ${hexToHsl(scheme.accent.info)};
+    --primary: ${hexToHsl(scheme.primary.color)};
     --primary-foreground: ${primaryFg};
     --secondary: ${hexToHsl(scheme.surface.tertiary)};
     --secondary-foreground: ${hexToHsl(scheme.text.secondary)};
@@ -68,7 +67,7 @@ function schemeVars(scheme: ColorScheme, mode: 'dark' | 'light') {
     --destructive-foreground: ${destructiveFg};
     --border: ${hexToHsl(scheme.border.primary)};
     --input: ${hexToHsl(scheme.border.primary)};
-    --ring: ${hexToHsl(scheme.accent.info)};
+    --ring: ${hexToHsl(scheme.primary.color)};
     --radius: ${shared.radius.lg};
 
     --scrollbar-thumb: ${scheme.scrollbar};`;
@@ -94,16 +93,11 @@ export function getShadcnTokens(mode: 'dark' | 'light') {
 //  Unified CSS Generator — Task 9
 // ─────────────────────────────────────────────────────────────
 
-/** Dark ink on vivid cyan primary — matches fi-dark.css --primary-foreground */
-const DARK_PRIMARY_FOREGROUND_CHANNELS = '201 74% 9%';
-/** Dark ink on vivid rose destructive — matches fi-dark.css --destructive-foreground */
-const DARK_DESTRUCTIVE_FOREGROUND_CHANNELS = '340 65% 10%';
-/** Hex for PrimeNG --p-primary-color-text on signature cyan (same hue as DARK_PRIMARY_FOREGROUND_CHANNELS) */
-const DARK_PRIMARY_FOREGROUND_HEX = '#061c28';
+/** Dark red ink on electric destructive — matches fi-dark.css --destructive-foreground */
+const DARK_DESTRUCTIVE_FOREGROUND_CHANNELS = '343 75% 9%';
 
 function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
-  const primaryFg =
-    mode === 'dark' ? DARK_PRIMARY_FOREGROUND_CHANNELS : '0 0% 100%';
+  const primaryFg = hexToHslChannel(scheme.primary.foreground);
   const destructiveFg =
     mode === 'dark' ? DARK_DESTRUCTIVE_FOREGROUND_CHANNELS : '0 0% 100%';
   const successFg = hexToHslChannel(scheme.action.buyText);
@@ -111,7 +105,13 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     mode === 'dark' ? hexToHslChannel(colors.ink[0]) : '0 0% 100%';
 
   return `
-    /* ── Chroma Desk source tokens ── */
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           ${scheme.primary.color};
+    --ds-primary-hover:     ${scheme.primary.hover};
+    --ds-primary-foreground:${scheme.primary.foreground};
+    --ds-primary-soft:      ${scheme.primary.soft};
+    --ds-primary-ring:      ${scheme.primary.ring};
+
     --ds-surface-ground:     ${scheme.surface.ground};
     --ds-surface-primary:    ${scheme.surface.primary};
     --ds-surface-secondary:  ${scheme.surface.secondary};
@@ -172,7 +172,7 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --card-foreground:      ${hexToHslChannel(scheme.text.primary)};
     --popover:              ${hexToHslChannel(scheme.surface.primary)};
     --popover-foreground:   ${hexToHslChannel(scheme.text.primary)};
-    --primary:              ${hexToHslChannel(scheme.accent.info)};
+    --primary:              ${hexToHslChannel(scheme.primary.color)};
     --primary-foreground:   ${primaryFg};
     --secondary:            ${hexToHslChannel(scheme.surface.tertiary)};
     --secondary-foreground: ${hexToHslChannel(scheme.text.secondary)};
@@ -190,7 +190,7 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --info-foreground:      ${primaryFg};
     --border:               ${hexToHslChannel(scheme.border.primary)};
     --input:                ${hexToHslChannel(scheme.border.primary)};
-    --ring:                 ${hexToHslChannel(scheme.accent.info)};
+    --ring:                 ${hexToHslChannel(scheme.primary.color)};
 
     --surface-50:  ${hexToHslChannel(scheme.surface.primary)};
     --surface-100: ${hexToHslChannel(scheme.surface.secondary)};
@@ -205,8 +205,8 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --surface-950: ${hexToHslChannel(scheme.surface.ground)};
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
-    --p-primary-color:        ${scheme.accent.info};
-    --p-primary-color-text:   ${mode === 'dark' ? DARK_PRIMARY_FOREGROUND_HEX : '#ffffff'};
+    --p-primary-color:        ${scheme.primary.color};
+    --p-primary-color-text:   ${scheme.primary.foreground};
     --p-surface-50:           ${scheme.surface.primary};
     --p-surface-100:          ${scheme.surface.secondary};
     --p-surface-200:          ${scheme.surface.tertiary};

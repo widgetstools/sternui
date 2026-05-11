@@ -1,7 +1,6 @@
 // ─────────────────────────────────────────────────────────────
-//  AG Grid Theme Params — Chroma Desk
-//  Mirrors the reference buildAgGridTheme from
-//  Markets Design System-latest/showcase.jsx — exports params for
+//  AG Grid Theme Params — FI Design System
+//  Mirrors the fi-trading-terminal design-system reference and exports params for
 //  AG Grid v31+ Theming API (themeQuartz.withParams(params)).
 //
 //  Density:
@@ -43,24 +42,27 @@ function gridParams(
     headerBackgroundColor:  scheme.surface.secondary,
     headerTextColor:        scheme.text.secondary,
     rowHoverColor:          scheme.surface.secondary,
-    selectedRowBackgroundColor: scheme.overlay.infoSoft,
+    selectedRowBackgroundColor: scheme.primary.soft,
     // ── Borders & spacing ──
     borderColor:        scheme.border.primary,
     wrapperBorder:      false as const,
-    headerColumnBorder: { style: 'solid' as const, width: 1, color: scheme.border.primary },
+    headerColumnBorder: false as const,
+    headerColumnResizeHandleColor: scheme.border.secondary,
+    headerColumnResizeHandleHeight: '45%',
+    headerColumnResizeHandleWidth: '1px',
     rowBorder:          { style: 'solid' as const, width: 1, color: scheme.border.primary },
     rowHeight:          rowH,
     headerHeight:       headerH,
     spacing,
     borderRadius:       2,
     // ── Focus ──
-    inputFocusBorder:   { style: 'solid' as const, width: 1, color: scheme.state.focusRing },
-    focusShadow:        `0 0 0 2px ${scheme.overlay.infoRing}`,
+    inputFocusBorder:   { style: 'solid' as const, width: 1, color: scheme.primary.color },
+    focusShadow:        `0 0 0 2px ${scheme.primary.ring}`,
     // ── Range / selection ──
-    rangeSelectionBorderColor:     scheme.accent.info,
-    rangeSelectionBackgroundColor: scheme.overlay.infoSoft,
-    // ── Brand accent ──
-    accentColor:        scheme.accent.info,
+    rangeSelectionBorderColor:     scheme.primary.color,
+    rangeSelectionBackgroundColor: scheme.primary.soft,
+    // ── Brand primary ──
+    accentColor:        scheme.primary.color,
   };
 }
 

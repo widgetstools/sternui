@@ -1,15 +1,14 @@
 // ─────────────────────────────────────────────────────────────
-//  Chroma Desk — Component Tokens
+//  FI Design System — Component Tokens
 //  Per-component overrides that both shadcn and PrimeNG consume.
 //  Values reference semantic-scheme slots, never primitives directly.
 //
-//  Brand accent is `scheme.accent.info`. `scheme.accent.warning` is
-//  semantic-only — never used for primary buttons, focus rings, or
-//  tab indicators. The Chroma Desk identity reserves the brand cyan
-//  (dark) / deep blue (light) for those moments.
+//  `scheme.primary` is reserved for brand CTAs, focus rings, active tabs,
+//  and primary framework hooks. `scheme.accent.*` is reserved for semantic
+//  status accents: positive, negative, warning, info, highlight, purple.
 // ─────────────────────────────────────────────────────────────
 
-import { colors, typography, radius, spacing } from './primitives';
+import { typography, radius, spacing } from './primitives';
 import type { ColorScheme } from './semantic';
 
 export function componentTokens(scheme: ColorScheme) {
@@ -23,12 +22,9 @@ export function componentTokens(scheme: ColorScheme) {
       paddingX:      `${spacing[4]}px`,
       paddingY:      `${spacing[2]}px`,
       primary: {
-        background:       scheme.accent.info,
-        backgroundHover:  scheme.accent.infoHover,
-        color:
-          scheme.accent.info === colors.brand.dark
-            ? '#061c28'
-            : '#ffffff',
+        background:       scheme.primary.color,
+        backgroundHover:  scheme.primary.hover,
+        color:            scheme.primary.foreground,
       },
       buy: {
         background:       scheme.action.buyBg,
@@ -59,8 +55,8 @@ export function componentTokens(scheme: ColorScheme) {
       background:       'transparent',
       color:            scheme.text.primary,
       borderColor:      scheme.border.secondary,
-      borderColorHover: scheme.accent.info,
-      borderColorFocus: scheme.accent.info,
+      borderColorHover: scheme.primary.color,
+      borderColorFocus: scheme.primary.color,
       focusRingBg:      scheme.state.focusRingBg,
       borderRadius:     radius.sm,
       placeholderColor: scheme.text.muted,
@@ -76,7 +72,7 @@ export function componentTokens(scheme: ColorScheme) {
       fontWeight:     typography.fontWeight.medium,
       color:          scheme.text.secondary,
       colorActive:    scheme.text.primary,
-      indicatorColor: scheme.accent.info,
+      indicatorColor: scheme.primary.color,
       indicatorWidth: '2px',
       paddingX:       `${spacing[3]}px`,
       paddingY:       `${spacing[2]}px`,
@@ -107,7 +103,7 @@ export function componentTokens(scheme: ColorScheme) {
       rowBackground:       scheme.surface.primary,
       rowBackgroundHover:  scheme.surface.secondary,
       rowBorderColor:      scheme.border.primary,
-      selectedRowBg:       scheme.overlay.infoSoft,
+      selectedRowBg:       scheme.primary.soft,
       cellPaddingX:        `${spacing[2.5]}px`,
       cellPaddingY:        `${spacing[1.5]}px`,
     },

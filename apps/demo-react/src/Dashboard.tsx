@@ -96,7 +96,7 @@ function GridPanel({
   return (
     <section
       data-testid={`dashboard-panel-${gridId}`}
-      style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--background)' }}
+      style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--ds-surface-ground)' }}
     >
       <header
         style={{
@@ -104,9 +104,10 @@ function GridPanel({
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '6px 12px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--card)',
+          padding: '8px 12px',
+          borderBottom: '1px solid var(--ds-border-primary)',
+          background: 'var(--ds-surface-primary)',
+          boxShadow: '0 1px 0 rgba(255, 255, 255, 0.82) inset',
         }}
       >
         <span
@@ -124,13 +125,13 @@ function GridPanel({
             fontWeight: 700,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
-            color: 'var(--foreground)',
+            color: 'var(--ds-text-primary)',
             fontFamily: 'var(--ds-font-sans)',
           }}
         >
           {label}
         </span>
-        <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>
+        <span style={{ fontSize: 10, color: 'var(--ds-text-muted)' }}>
           · {rowData.length} rows · {gridId}
         </span>
       </header>
