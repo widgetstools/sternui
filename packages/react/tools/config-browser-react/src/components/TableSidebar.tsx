@@ -84,7 +84,7 @@ export function TableSidebar({ selected, counts, onSelect }: TableSidebarProps) 
                   padding: "1px 6px",
                   borderRadius: 4,
                   background: isActive ? "var(--de-accent)" : "var(--de-bg-surface)",
-                  color: isActive ? "var(--de-bg)" : "var(--de-text-tertiary)",
+                  color: isActive ? "hsl(var(--primary-foreground))" : "var(--de-text-tertiary)",
                   minWidth: 22,
                   textAlign: "center",
                 }}

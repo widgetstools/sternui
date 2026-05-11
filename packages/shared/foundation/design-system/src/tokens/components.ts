@@ -9,7 +9,7 @@
 //  (dark) / deep blue (light) for those moments.
 // ─────────────────────────────────────────────────────────────
 
-import { typography, radius, spacing } from './primitives';
+import { colors, typography, radius, spacing } from './primitives';
 import type { ColorScheme } from './semantic';
 
 export function componentTokens(scheme: ColorScheme) {
@@ -25,7 +25,10 @@ export function componentTokens(scheme: ColorScheme) {
       primary: {
         background:       scheme.accent.info,
         backgroundHover:  scheme.accent.infoHover,
-        color:            '#ffffff',
+        color:
+          scheme.accent.info === colors.brand.dark
+            ? '#061c28'
+            : '#ffffff',
       },
       buy: {
         background:       scheme.action.buyBg,

@@ -1,5 +1,4 @@
-// @starui/ui — Stern Design System
-// Coinbase-inspired UI components built on shadcn/ui + Tailwind CSS
+// @starui/ui — shadcn/Radix primitives; theme tokens from @starui/design-system/css
 
 // ============================================================================
 // Utilities

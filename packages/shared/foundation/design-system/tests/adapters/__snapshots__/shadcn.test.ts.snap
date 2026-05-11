@@ -65,7 +65,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --popover:              214 15% 9%;
     --popover-foreground:   213 31% 94%;
     --primary:              188 86% 53%;
-    --primary-foreground:   0 0% 100%;
+    --primary-foreground:   201 74% 9%;
     --secondary:            215 14% 17%;
     --secondary-foreground: 214 14% 71%;
     --muted:                213 14% 13%;
@@ -73,13 +73,13 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --accent:               215 14% 17%;
     --accent-foreground:    213 31% 94%;
     --destructive:          345 100% 68%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 340 65% 10%;
     --success:              162 78% 51%;
-    --success-foreground:   0 0% 100%;
+    --success-foreground:   159 59% 11%;
     --warning:              42 89% 63%;
-    --warning-foreground:   0 0% 100%;
+    --warning-foreground:   42 25% 13%;
     --info:                 188 86% 53%;
-    --info-foreground:      0 0% 100%;
+    --info-foreground:      201 74% 9%;
     --border:               214 14% 20%;
     --input:                214 14% 20%;
     --ring:                 188 86% 53%;
@@ -98,7 +98,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
     --p-primary-color:        #22d3ee;
-    --p-primary-color-text:   #ffffff;
+    --p-primary-color-text:   #061c28;
     --p-surface-50:           #14171b;
     --p-surface-100:          #1c2025;
     --p-surface-200:          #252a31;

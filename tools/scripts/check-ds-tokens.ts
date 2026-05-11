@@ -70,8 +70,6 @@ const ALLOW_PATHS = [
   'packages/shared/services/data-services/src/runtime/client/SharedWorkerDataServicesClient.ts', // console.log %c debug colors
   'packages/react/widgets/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx', // console.log %c debug colors
   'packages/react/widgets/grid-react/src/ui/ExpressionEditor/language.ts', // Monaco editor token theme
-  // --- Theme definition files: hex values are in comments documenting HSL values ---
-  'packages/react/ui/src/styles/stern-theme.css',
   // --- Recharts wrapper: #ccc/#fff are CSS attribute selectors matching Recharts SVG attributes ---
   'packages/react/ui/src/components/chart.tsx',
   // --- Color picker components: hex values are color swatch data, not styling ---

@@ -289,7 +289,7 @@ export function ConfigBrowserPanel() {
                 </div>
                 <button
                   onClick={openCreate}
-                  className="bg-[var(--de-accent)] text-foreground border-none rounded-[var(--de-radius-sm)] px-4 py-2 text-xs font-semibold cursor-pointer"
+                  className="bg-primary text-primary-foreground border-none rounded-[var(--de-radius-sm)] px-4 py-2 text-xs font-semibold cursor-pointer hover:bg-primary/90"
                 >
                   Add first row
                 </button>

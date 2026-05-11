@@ -115,7 +115,7 @@ function ToolbarButton({
             ? "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 8%, var(--de-bg-surface))"
             : "var(--de-bg-surface)",
         color: primary
-          ? "var(--ds-text-primary)"
+          ? "hsl(var(--primary-foreground))"
           : danger
             ? "var(--de-danger, var(--ds-accent-negative))"
             : "var(--de-text-secondary)",

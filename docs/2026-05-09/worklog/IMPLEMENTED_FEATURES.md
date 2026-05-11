@@ -3,6 +3,32 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-11 — Primary button label ink on dark (unified `theme.css`)
+
+`generateUnifiedCSS()` previously emitted `--primary-foreground: 0 0% 100%` for
+both themes, so shadcn default buttons (`bg-primary text-primary-foreground`)
+showed white on signature cyan despite **fi-dark.css** using dark ink (`201 74% 9%`).
+The adapter now sets dark-theme `--primary-foreground`, `--destructive-foreground`,
+`--info-foreground`, `--success-foreground`, `--warning-foreground`, and
+`--p-primary-color-text` per Chroma Desk (vivid fills → dark labels; light theme
+unchanged for blue primary). `componentTokens().button.primary.color` matches for
+the dark brand cyan. **`@starui/grid-react`** `AlertDialogAction` now uses
+`bg-primary text-primary-foreground` / `bg-destructive text-destructive-foreground`
+instead of raw `--ds-accent-*` + `text-white` / `--ds-surface-ground`.
+**`@starui/markets-grid`** `ProfileSelector` “Save” pill uses
+`hsl(var(--primary-foreground))` on `var(--ds-accent-info)`. **`@starui/config-browser`**
+inline chrome (`Toolbar`, `RowDrawer`, `ImportPreviewDialog`, `DeleteAllDialog`,
+`TableSidebar`) stopped using **`var(--ds-text-primary)`** on **`var(--de-accent)`**
+/ destructive fills (that painted light body text on vivid cyan/red); labels now use
+**`hsl(var(--primary-foreground))`** / **`hsl(var(--destructive-foreground))`**.
+**`apps/markets-ui-react-reference`** Tailwind **`content`** includes
+**`packages/react/tools/config-browser-react/src`** so JIT keeps **`bg-primary`** /
+**`text-primary-foreground`** on **`ConfigBrowserPanel`**; local **`button.tsx`**
+destructive variant uses **`text-destructive-foreground`**. Verification:
+`npm run build && npm test --workspace=@starui/design-system`,
+`npm run test --workspace=@starui/grid-react --workspace=@starui/markets-grid`,
+`npm run build -w @starui/markets-ui-react-reference`.
+
 ## 2026-05-11 — Design-system dependency contract (`check-design-system-deps`)
 
 Any workspace package whose `src/` references unified tokens (`--ds-*`) or
@@ -12,6 +38,34 @@ and **`@starui/markets-grid`** now list it as **peer** (+ **dev** for tests).
 **`packages/angular/**`** is excluded until Angular DS work lands. Root
 **`npm run check-ds`** runs **`tools/scripts/check-design-system-deps.ts`**
 after **`check-ds-tokens`**. Verification: `npm run check-ds`.
+
+## 2026-05-11 — Modal scrims + elevation: `@starui/ui` + grid-react primitives
+
+**`@starui/ui`** `Dialog` / `Sheet` / `Drawer` / `AlertDialog` overlays use **`bg-background/80`**
+instead of **`bg-black/80`**; sheet + dialog + alert content use **`shadow-overlay`**
+(`--ds-elevation-overlay`) instead of **`shadow-lg`**.
+
+**`@starui/grid-react`** `AlertDialog` overlay **`bg-background/60`**; content **`shadow-overlay`**.
+**`Popover`**, **`FormatDropdown`**, **`FormatPopover`** use **`shadow-card`**;
+**`ToggleGroup`** active item uses **`shadow-sm`** instead of arbitrary RGBA.
+
+Verification: `npm run test --workspace=@starui/grid-react`, `npm run typecheck -w @starui/ui`.
+
+## 2026-05-11 — Config Browser modals: token backdrop + elevation
+
+**`ImportPreviewDialog`** / **`DeleteAllDialog`** replace **`bg-black/55`** with
+**`bg-background/55`** (semantic scrim via shadcn **`--background`**) and
+**`shadow-[0_20px_60px_rgba(0,0,0,0.45)]`** with **`shadow-[var(--ds-elevation-overlay)]`**.
+Verification: `npm run typecheck -w @starui/config-browser`.
+
+## 2026-05-11 — Remove legacy `@starui/ui` Stern / Coinbase CSS theme
+
+Deleted **`packages/react/ui/src/styles/stern-theme.css`** (duplicate Tailwind +
+Coinbase-style `:root` vars). Apps already import **`@starui/design-system/css`**;
+**`@starui/ui`** no longer exports **`./styles`**. **`ThemeProvider`** default
+**`storageKey`** is **`marketsui-theme`** (was **`stern-theme`**). Package metadata
+and **`check-ds-tokens`** allowlist updated. Verification:
+`npx turbo typecheck build --filter=@starui/ui`.
 
 ## 2026-05-11 — Typography: IBM Plex Sans + JetBrains Mono (canonical)
 
