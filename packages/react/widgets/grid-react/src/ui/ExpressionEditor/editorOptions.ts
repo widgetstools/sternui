@@ -35,6 +35,12 @@ export function createExpressionEditorOptions({
     overviewRulerLanes: 0,
     renderLineHighlight: 'none',
     renderWhitespace: 'none',
+    guides: {
+      indentation: false,
+      highlightActiveIndentation: false,
+      bracketPairs: false,
+      bracketPairsHorizontal: false,
+    },
     fontSize,
     fontFamily: "'JetBrains Mono', Menlo, monospace",
     wordWrap: multiline ? 'on' : 'off',

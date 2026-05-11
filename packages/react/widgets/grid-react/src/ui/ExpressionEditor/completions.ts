@@ -72,7 +72,8 @@ const OPERATORS_AND_KEYWORDS: ReadonlyArray<OpSpec> = [
  * provider merges across all active callers so autocomplete sees whatever
  * set of columns the currently-focused editor exposes.
  *
- * Triggers on every character and on `[`, `{`, `(`, `.`, `,`. Context-sensitive:
+   * Triggers on `[`, `{`, `(`, `.`, `,` and explicit IntelliSense
+   * (`Ctrl+Space`). Context-sensitive:
  *   - After an open `[` or `{` without its closer yet → only columns (the
  *     caller is opening a column reference, showing functions would be
  *     distracting).
@@ -104,7 +105,7 @@ export function registerCompletions(
   _providerRegistered = true;
 
   const sub = monaco.languages.registerCompletionItemProvider(LANGUAGE_ID, {
-    triggerCharacters: ['[', '{', '(', '.', ',', ' '],
+    triggerCharacters: ['[', '{', '(', '.', ','],
     provideCompletionItems(model, position) {
       const textBefore = model.getValueInRange({
         startLineNumber: 1, startColumn: 1,
