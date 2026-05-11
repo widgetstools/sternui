@@ -35,7 +35,7 @@
 import * as React from 'react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import { cn } from './utils';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
 
 const AlertDialog = AlertDialogPrimitive.Root;
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
@@ -65,9 +65,9 @@ const AlertDialogContent = React.forwardRef<
   // Route the Radix portal into the PortalContainer context — when
   // the settings sheet is popped into a separate OS window, the
   // dialog has to render IN that window, not the main document.body.
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
   return (
-  <AlertDialogPortal container={portalContainer ?? undefined}>
+  <AlertDialogPortal container={portalContainer}>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
       ref={ref}

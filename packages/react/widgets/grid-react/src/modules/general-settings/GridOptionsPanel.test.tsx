@@ -11,6 +11,7 @@
  *    committed state
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GridPlatform } from '@starui/core';
 import { GridProvider } from '../../hooks/GridProvider';
@@ -107,14 +108,16 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
     expect(sticky.checked).toBe(false);
   });
 
-  it('edits select field (ROW SELECTION) — sentinel-encoded undefined', () => {
+  it('edits select field (ROW SELECTION) — sentinel-encoded undefined', async () => {
+    const user = userEvent.setup();
     mount(platform);
-    const select = screen.getByTestId('go-row-selection') as HTMLSelectElement;
-    // Initial 'Off' = undefined.
-    expect(select.value).toBe('__none__');
+    const trigger = screen.getByTestId('go-row-selection');
+    // Initial 'Off' = undefined (label from encoded `__none__` option).
+    expect(trigger).toHaveTextContent('Off');
 
-    fireEvent.change(select, { target: { value: 'multiRow' } });
-    expect(select.value).toBe('multiRow');
+    await user.click(trigger);
+    await user.click(await screen.findByRole('option', { name: /Multiple rows/i }));
+    expect(trigger).toHaveTextContent('Multiple rows');
   });
 
   it('conditional fields (PAGE SIZE) render only when pagination=true', () => {

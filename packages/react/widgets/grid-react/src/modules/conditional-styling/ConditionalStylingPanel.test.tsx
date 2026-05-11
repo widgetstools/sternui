@@ -10,6 +10,7 @@
  */
 import * as React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GridPlatform } from '@starui/core';
 import { GridProvider } from '../../hooks/GridProvider';
@@ -130,7 +131,7 @@ describe('ConditionalStylingPanel (v4)', () => {
 
   // ─── Scope / flash interaction ─────────────────────────────────────
 
-  it('flipping scope row→cell narrows flash target from "row" to "cells"', () => {
+  it('flipping scope row→cell narrows flash target from "row" to "cells"', async () => {
     // Seed the rule with an existing row-flash config so the flip
     // actually needs to narrow.
     platform.store.setModuleState<ConditionalStylingState>('conditional-styling', (s) => ({
@@ -142,11 +143,13 @@ describe('ConditionalStylingPanel (v4)', () => {
       ),
     }));
 
+    const user = userEvent.setup();
     render(<MasterDetail platform={platform} />);
 
     // Flip scope to 'cell'.
-    const scope = document.querySelector('select') as HTMLSelectElement;
-    fireEvent.change(scope, { target: { value: 'cell' } });
+    const scope = screen.getByTestId('cs-rule-scope-rule-one');
+    await user.click(scope);
+    await user.click(await screen.findByRole('option', { name: /^CELL$/ }));
 
     // Save, then inspect the committed flash target.
     act(() => screen.getByTestId('cs-rule-save-rule-one').click());

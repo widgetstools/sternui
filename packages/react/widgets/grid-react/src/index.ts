@@ -54,10 +54,11 @@ export type {
 export {
   PortalContainerProvider,
   usePortalContainer,
+  useResolvedPortalContainer,
 } from './ui/PortalContainer';
 export type { PortalContainerProviderProps } from './ui/PortalContainer';
 
-// ─── Cockpit settings-panel primitives ───────────────────────────────────
+// ─── Settings-panel primitives ───────────────────────────────────────────
 export {
   DirtyDot,
   LedBar,

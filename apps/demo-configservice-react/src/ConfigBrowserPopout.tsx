@@ -70,7 +70,7 @@ export function ConfigBrowserPopout() {
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
           color: 'var(--muted-foreground)',
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: 'var(--ds-font-sans)',
         }}>
           Config Browser · demo-configservice
         </span>

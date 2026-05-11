@@ -23,7 +23,7 @@ export interface FigmaPanelSectionProps {
   /** Right-aligned header actions (GhostIcon buttons, typically). */
   actions?: ReactNode;
   children?: ReactNode;
-  /** Optional numeric prefix shown in Plex Mono before the title. */
+  /** Optional numeric prefix shown in JetBrains Mono before the title. */
   index?: string;
   'data-testid'?: string;
 }

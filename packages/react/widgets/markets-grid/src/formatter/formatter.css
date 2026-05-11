@@ -7,8 +7,8 @@
  * finished with refined-broadsheet typography.
  *
  *   Display caps (module eyebrow): JetBrains Mono 10px / 0.18em / 500
- *   Body labels:                   IBM Plex Sans 10–11px / 0.04em / 500
- *   Numerics + readouts:           JetBrains Mono / tabular-nums
+ *   Body labels:                   var(--ds-font-sans) 10–11px / 0.04em / 500
+ *   Numerics + readouts:           var(--ds-font-mono) / tabular-nums
  *   Accent (active state):         phosphor-teal (--ds-accent-positive) — ring only
  *   Live preview tint:             warm amber (--ds-accent-warning)
  *
@@ -46,8 +46,8 @@
   --fx-pill-h:       24px;
   --fx-pill-h-lg:    28px;
 
-  --fx-font-sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --fx-font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --fx-font-sans:    var(--ds-font-sans);
+  --fx-font-mono:    var(--ds-font-mono);
 
   /* Internal sizing knobs the layouts use — both surfaces share. */
   --fx-icon:         13px;

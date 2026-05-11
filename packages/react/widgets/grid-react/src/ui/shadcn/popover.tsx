@@ -23,7 +23,7 @@
 import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from './utils';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
 
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -37,9 +37,9 @@ const PopoverContent = React.forwardRef<
   // Route the Radix portal into the PortalContainer context's target
   // (popout body when inside PopoutPortal, document.body otherwise).
   // Undefined = Radix falls back to its own default.
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
   return (
-  <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
+  <PopoverPrimitive.Portal container={portalContainer}>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}

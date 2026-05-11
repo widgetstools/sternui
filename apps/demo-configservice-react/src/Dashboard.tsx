@@ -150,7 +150,7 @@ function GridPanel({
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             color: 'var(--foreground)',
-            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontFamily: 'var(--ds-font-sans)',
           }}
         >
           {label}

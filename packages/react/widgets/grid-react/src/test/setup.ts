@@ -22,6 +22,18 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function () {};
 }
 
+// Radix Select + @testing-library/user-event call `hasPointerCapture` /
+// `setPointerCapture` on pointer down — jsdom's Element omits them.
+if (typeof Element !== 'undefined' && !Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (typeof Element !== 'undefined' && !Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = function () {};
+}
+if (typeof Element !== 'undefined' && !Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = function () {};
+}
+
 afterEach(() => {
   cleanup();
   try { localStorage.clear(); } catch { /* noop */ }

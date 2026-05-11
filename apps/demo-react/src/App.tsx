@@ -283,7 +283,7 @@ function AppInner() {
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontFamily: 'var(--ds-font-sans)',
                 cursor: 'pointer',
                 transition: 'all 150ms',
               }}
@@ -332,7 +332,7 @@ function AppInner() {
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--muted-foreground)', fontSize: 11,
-          fontFamily: "'IBM Plex Sans', sans-serif", letterSpacing: '0.08em',
+          fontFamily: 'var(--ds-font-sans)', letterSpacing: '0.08em',
           textTransform: 'uppercase',
         }}>
           Loading showcase…
@@ -408,7 +408,7 @@ function ViewTab({
         fontWeight: 700,
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: 'var(--ds-font-sans)',
         borderRadius: 4,
         border: '1px solid',
         borderColor: active ? 'var(--ds-accent-positive)' : 'var(--border)',

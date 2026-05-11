@@ -172,7 +172,7 @@ import { CommonModule } from '@angular/common';
               style="padding:10px 14px;background:var(--ds-surface-primary);border-radius:3px;border:1px solid var(--ds-border-primary)"
             >
               <span style="font-family:var(--ds-font-sans);font-size:13px;color:var(--ds-text-primary)"
-                >Geist</span
+                >IBM Plex Sans</span
               >
               <span
                 style="font-size:9px;color:var(--ds-text-muted);margin-left:8px;font-family:var(--ds-font-mono)"
@@ -1273,14 +1273,14 @@ get gridTheme() {
   background: var(--ds-surface-secondary);
   color: var(--ds-text-secondary);
   font-family: var(--ds-font-mono);
-  font-size: var(--ds-font-sans);    /* 11px */
+  font-size: var(--ds-font-size-xs);
   border-bottom: 1px solid var(--ds-border-primary);
 }
 
 .price-positive { color: var(--ds-accent-positive); }
 .price-negative { color: var(--ds-accent-negative); }
 .kpi-value {
-  font-size: var(--ds-font-sans);    /* 18px */
+  font-size: var(--ds-font-size-2xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }`;

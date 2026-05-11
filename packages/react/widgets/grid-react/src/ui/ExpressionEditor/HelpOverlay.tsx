@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
 import { getPortalDomContext } from './editorDom';
 
 /**
@@ -17,7 +17,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
   // Use the PortalContainer context (popout body when popped out,
   // document.body otherwise) so the overlay renders in the correct
   // window.
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
   const portalDom = getPortalDomContext(portalContainer);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
           boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: "'Geist', 'Inter', -apple-system, sans-serif",
+          fontFamily: 'var(--ds-font-sans)',
         }}
       >
         <div style={{

@@ -443,7 +443,7 @@ function AppInner() {
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontFamily: 'var(--ds-font-sans)',
                 cursor: 'pointer',
                 transition: 'all 150ms',
               }}
@@ -472,7 +472,7 @@ function AppInner() {
               color: 'var(--muted-foreground)',
               fontSize: 10, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontFamily: 'var(--ds-font-sans)',
             }}
           >
             <Database size={11} strokeWidth={2} />
@@ -506,7 +506,7 @@ function AppInner() {
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontFamily: 'var(--ds-font-sans)',
                   borderRadius: 3,
                   border: '1px solid transparent',
                   color: userId === u.id ? 'var(--ds-accent-positive)' : 'var(--muted-foreground)',
@@ -555,7 +555,7 @@ function AppInner() {
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 8,
           color: 'var(--ds-accent-negative)', fontSize: 12,
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: 'var(--ds-font-sans)',
         }}>
           <div style={{ fontWeight: 600 }}>ConfigService init failed</div>
           <div style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{cfgError.message}</div>
@@ -564,7 +564,7 @@ function AppInner() {
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--muted-foreground)', fontSize: 11,
-          fontFamily: "'IBM Plex Sans', sans-serif", letterSpacing: '0.08em',
+          fontFamily: 'var(--ds-font-sans)', letterSpacing: '0.08em',
           textTransform: 'uppercase',
         }}>
           {!configManager ? 'Initializing ConfigService…' : `Loading showcase for ${userId}…`}
@@ -635,7 +635,7 @@ function ViewTab({
         fontWeight: 700,
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: 'var(--ds-font-sans)',
         borderRadius: 4,
         border: '1px solid',
         borderColor: active ? 'var(--ds-accent-positive)' : 'var(--border)',

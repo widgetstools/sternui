@@ -96,7 +96,7 @@ export function Fixture({ fixture, theme, storageAdapter }: FixtureProps) {
           color: 'var(--muted-foreground)',
           borderBottom: '1px solid var(--border)',
           background: 'var(--card)',
-          fontFamily: "'IBM Plex Mono', monospace",
+          fontFamily: "'JetBrains Mono', monospace",
         }}
       >
         Fixture · {fixture.label} · gridId={fixture.gridId}

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from '../shadcn/utils';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
 import { clickIsInsideAnyOpenPopover, registerPopoverRoot } from './popoverStack';
 
 /**
@@ -50,7 +50,7 @@ export function FormatPopover({
   // Route the Radix portal via the PortalContainer context so this
   // popover lands in the popout window's body when the settings sheet
   // is popped out.
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
 
   // Register in the shared popover stack for nested-popover close logic.
   React.useEffect(() => {
@@ -63,7 +63,7 @@ export function FormatPopover({
       <PopoverPrimitive.Trigger asChild>
         {trigger}
       </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
+      <PopoverPrimitive.Portal container={portalContainer}>
         <PopoverPrimitive.Content
           ref={contentRef}
           align={align}

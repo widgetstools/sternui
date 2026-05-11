@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
 import { getPortalDomContext } from './editorDom';
 
 /**
@@ -44,7 +44,7 @@ export interface PaletteProps {
 }
 
 export function Palette({ title, placeholder, items, onPick, onClose, subtitle }: PaletteProps) {
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
   const portalDom = getPortalDomContext(portalContainer);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState(0);
@@ -128,7 +128,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
           boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: "'Geist', 'Inter', -apple-system, sans-serif",
+          fontFamily: 'var(--ds-font-sans)',
         }}
       >
         <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--ds-border-primary)' }}>

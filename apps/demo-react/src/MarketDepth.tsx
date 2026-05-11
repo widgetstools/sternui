@@ -360,7 +360,7 @@ function L1Bar({ book }: { book: SymbolBook | null }) {
         <div
           style={{
             fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: 'var(--ds-text-muted)', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600,
+            color: 'var(--ds-text-muted)', fontFamily: 'var(--ds-font-sans)', fontWeight: 600,
           }}
         >
           Last
@@ -454,7 +454,7 @@ function InsideCell({
       <div
         style={{
           fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase',
-          color: 'var(--ds-text-muted)', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600,
+          color: 'var(--ds-text-muted)', fontFamily: 'var(--ds-font-sans)', fontWeight: 600,
         }}
       >
         {label}
@@ -491,7 +491,7 @@ function Metric({ label, value }: { label: string; value: string }) {
       <span
         style={{
           fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase',
-          color: 'var(--ds-text-secondary)', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600,
+          color: 'var(--ds-text-secondary)', fontFamily: 'var(--ds-font-sans)', fontWeight: 600,
         }}
       >
         {label}
@@ -586,7 +586,7 @@ function SymbolChips({
               color: isActive ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-border-secondary)',
               cursor: 'pointer',
               transition: 'all 150ms',
-              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontFamily: 'var(--ds-font-sans)',
               flexShrink: 0,
             }}
           >
@@ -707,7 +707,7 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           <span
             style={{
               fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase',
-              color: 'var(--ds-text-muted)', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 700,
+              color: 'var(--ds-text-muted)', fontFamily: 'var(--ds-font-sans)', fontWeight: 700,
             }}
           >
             Market Depth · Level II
@@ -715,7 +715,7 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           <span
             style={{
               fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em',
-              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontFamily: 'var(--ds-font-sans)',
               color: isDark ? 'var(--ds-surface-secondary)' : 'var(--ds-surface-secondary)',
             }}
           >
@@ -740,7 +740,7 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
               : 'rgba(17,20,24,0.5)',
             color: running ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-text-muted)',
             cursor: 'pointer',
-            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontFamily: 'var(--ds-font-sans)',
             fontSize: 10,
             fontWeight: 700,
             letterSpacing: '0.12em',
