@@ -3,6 +3,26 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-11 — Expression editor popout regression E2E coverage
+
+Added Playwright regression coverage for the conditional-styling expression
+editor in both inline Grid Customizer dialogs and popped-out browser windows.
+The spec verifies the Monaco caret remains visible/blinking, Space inserts at
+the visible cursor without whitespace glyph artifacts, arrow keys keep moving
+the caret, Tab/Enter accept column completions without focus escaping,
+Option+Esc/Alt+Esc opens the suggestion list, and suggestion-list arrows stay
+routed to Monaco while suggestions are open.
+
+The new popped-out coverage exposed one remaining cross-document styling gap:
+Monaco's lazy-loaded CSS can land in the opener document instead of the popout
+document. `editorDom` now installs the critical expression-editor Monaco styles
+into the editor's owning document, preserving the existing CSS import while
+making cursor and suggestion styling deterministic in real popouts.
+
+Verification: `npm run test -w @starui/grid-react --
+ExpressionEditor/editorDom.test.ts` and `npx playwright test
+e2e/v2-expression-editor.spec.ts --project=chromium`.
+
 ## 2026-05-08 — Config-manager redesign Session 17: ConfigBrowser "Export all" → admin one-shot bundle import
 
 One-step Dexie → REST seeding path. The in-app `ConfigBrowser` already
@@ -1513,6 +1533,22 @@ management, Escape dismiss, and accessibility out of the box.
   cursor. Fix: body-mounted `data-gc-monaco-overflow` container with
   `overflowWidgetsDomNode` pointing to it; sheet-scoped `--ck-*` tokens
   rebound on the host so the widget paints with a solid background.
+- **Popout-safe DOM context** — `<ExpressionEditor>` now resolves Monaco
+  helper DOM from the editor host's `ownerDocument`. When the Grid
+  Customizer is portaled into a browser/OpenFin popout, overflow widgets,
+  placeholder styles, palette listeners, and help-overlay listeners bind to
+  the popout document/window instead of the parent document.
+- **Popout keyboard completion** — popup-hosted editors keep the Monaco
+  textarea focused while accepting column suggestions. `Enter` uses Monaco's
+  suggestion acceptance; `Tab` is captured on the editor document/window and
+  falls back to the focused `[column]` suggestion so focus does not advance
+  into the next input control. When the suggestion widget is visible, Up/Down
+  route to Monaco's previous/next suggestion actions; otherwise
+  Arrow/Home/End keys have a popup-safe navigation fallback through Monaco's
+  `setPosition`. Space is inserted through Monaco's model position, avoiding
+  the popup hidden-textarea selection drift that inserted spaces at the start
+  of the expression. The Monaco caret uses native blink mode, and whitespace
+  glyph rendering is disabled so typed spaces don't look like extra carets.
 - **Live draft propagation** — both the calc-column editor and the
   conditional-styling rule editor now wire `<ExpressionEditor onChange>`
   into `useDraftModuleItem.setDraft`. Previously only `onCommit`

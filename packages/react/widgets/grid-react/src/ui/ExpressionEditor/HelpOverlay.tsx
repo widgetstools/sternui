@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalContainer } from '../PortalContainer';
+import { getPortalDomContext } from './editorDom';
 
 /**
  * F1 help overlay — DSL cheat sheet.
@@ -17,22 +18,23 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
   // document.body otherwise) so the overlay renders in the correct
   // window.
   const portalContainer = usePortalContainer();
+  const portalDom = getPortalDomContext(portalContainer);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+    portalDom.window.addEventListener('keydown', onKey, true);
+    return () => portalDom.window.removeEventListener('keydown', onKey, true);
+  }, [onClose, portalDom.window]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (shellRef.current && !shellRef.current.contains(e.target as Node)) onClose();
     };
-    document.addEventListener('mousedown', onDown, true);
-    return () => document.removeEventListener('mousedown', onDown, true);
-  }, [onClose]);
+    portalDom.document.addEventListener('mousedown', onDown, true);
+    return () => portalDom.document.removeEventListener('mousedown', onDown, true);
+  }, [onClose, portalDom.document]);
 
   return createPortal(
     <div
@@ -118,7 +120,7 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>,
-    portalContainer ?? document.body,
+    portalContainer ?? portalDom.document.body,
   );
 }
 
