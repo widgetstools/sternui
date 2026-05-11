@@ -13,6 +13,16 @@ export { ThemeProvider, useTheme } from './providers/ThemeProvider.js';
 export type { Theme, ThemeProviderProps } from './providers/ThemeProvider.js';
 
 // ============================================================================
+// Portal target (detached windows / OpenFin popouts)
+// ============================================================================
+export {
+  PortalContainerProvider,
+  usePortalContainer,
+  useResolvedPortalContainer,
+  type PortalContainerProviderProps,
+} from './portal-container.js';
+
+// ============================================================================
 // Components
 // ============================================================================
 

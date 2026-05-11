@@ -15,7 +15,7 @@ export function getElementDomContext(element: HTMLElement | null): EditorDomCont
   };
 }
 
-export function getPortalDomContext(container: HTMLElement | null): EditorDomContext {
+export function getPortalDomContext(container: HTMLElement | null | undefined): EditorDomContext {
   const doc = container?.ownerDocument ?? document;
   return {
     document: doc,

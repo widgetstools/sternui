@@ -1,10 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { cn } from '../shadcn/utils';
 
 /**
- * Cockpit Terminal atoms. Reusable voices composed by every editor:
+ * Settings-shell atoms (Tailwind + `--ds-*` tokens; avoid inline font metrics).
  *
- *   - <Caps>   tracked-out small caps label (11px +0.1em uppercase).
- *   - <Mono>   IBM Plex Mono numeric / identifier.
+ *   - <Caps>   tracked-out small caps (`text-[length:var(--ds-font-size-sm)]` + uppercase).
+ *   - <Mono>   mono numeric / identifier.
  *   - <SharpBtn>  sharp-corner rectangular button, uppercase label.
  *   - <TGroup> / <TBtn> / <TDivider>  toolbar primitives.
  *   - <Band>   numbered section header (`01 EXPRESSION ───────`).
@@ -15,23 +16,27 @@ import type { CSSProperties, ReactNode } from 'react';
  * (Tailwind utilities from the shared preset).
  */
 
+/** Body scale for settings chrome — matches `typography.fontSize.sm` / `--ds-font-size-sm`. */
+const SETTINGS_UI_TEXT = 'text-[length:var(--ds-font-size-sm)]';
+
 // ─── Typography voices ────────────────────────────────────────────
 
 export interface CapsProps {
   children: ReactNode;
+  /** Rare px override (prefer tokens); maps to `fontSize` when set. */
   size?: number;
   color?: string;
   letterSpacing?: string;
   style?: CSSProperties;
 }
 
-export function Caps({ children, size = 11, color, letterSpacing = '0.1em', style }: CapsProps) {
+export function Caps({ children, size, color, letterSpacing = '0.1em', style }: CapsProps) {
   return (
     <span
-      className="font-semibold uppercase text-muted-foreground"
+      className={cn('font-semibold uppercase text-muted-foreground', SETTINGS_UI_TEXT)}
       style={{
-        fontSize: size,
         letterSpacing,
+        ...(size !== undefined ? { fontSize: size } : {}),
         ...(color ? { color } : {}),
         ...style,
       }}
@@ -43,17 +48,18 @@ export function Caps({ children, size = 11, color, letterSpacing = '0.1em', styl
 
 export interface MonoProps {
   children: ReactNode;
+  /** Rare px override (prefer tokens). */
   size?: number;
   color?: string;
   style?: CSSProperties;
 }
 
-export function Mono({ children, size = 12, color, style }: MonoProps) {
+export function Mono({ children, size, color, style }: MonoProps) {
   return (
     <span
-      className="font-mono tabular-nums text-foreground"
+      className={cn('font-mono tabular-nums text-foreground', SETTINGS_UI_TEXT)}
       style={{
-        fontSize: size,
+        ...(size !== undefined ? { fontSize: size } : {}),
         ...(color ? { color } : {}),
         ...style,
       }}
@@ -94,7 +100,10 @@ export function SharpBtn({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className="inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-sm font-semibold text-xs uppercase tracking-widest cursor-pointer border border-transparent disabled:opacity-45 disabled:cursor-not-allowed"
+      className={cn(
+        'inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-sm font-semibold uppercase tracking-widest cursor-pointer border border-transparent disabled:opacity-45 disabled:cursor-not-allowed',
+        SETTINGS_UI_TEXT,
+      )}
       data-variant={variant}
       data-testid={rest['data-testid']}
       style={style}
@@ -145,7 +154,10 @@ export function TBtn({ active, onClick, children, title, width, disabled, ...res
       title={title}
       disabled={disabled}
       aria-pressed={active ? 'true' : undefined}
-      className="min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-secondary px-1.5 rounded-sm hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-overlay-positive-soft)] aria-pressed:text-success disabled:opacity-45 disabled:cursor-not-allowed"
+      className={cn(
+        'min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-secondary px-1.5 rounded-sm hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-overlay-positive-soft)] aria-pressed:text-success disabled:opacity-45 disabled:cursor-not-allowed',
+        SETTINGS_UI_TEXT,
+      )}
       data-testid={rest['data-testid']}
       style={width ? { width } : undefined}
     >
@@ -185,11 +197,11 @@ export function Band({ index, title, trailing, children, flush }: BandProps) {
         style={flush ? { padding: '16px 24px 12px' } : undefined}
       >
         {index && (
-          <span className="font-mono text-xs text-muted-foreground tabular-nums tracking-[0.06em]">
+          <span className={cn('font-mono text-muted-foreground tabular-nums tracking-[0.06em]', SETTINGS_UI_TEXT)}>
             {index}
           </span>
         )}
-        <span className="font-semibold text-xs uppercase tracking-widest text-secondary">
+        <span className={cn('font-semibold uppercase tracking-widest text-secondary', SETTINGS_UI_TEXT)}>
           {title}
         </span>
         <span className="flex-1 h-px bg-border" />
@@ -210,7 +222,7 @@ export interface MetaCellProps {
 export function MetaCell({ label, value }: MetaCellProps) {
   return (
     <div className="flex flex-col gap-1.5 min-w-0">
-      <Caps size={10}>{label}</Caps>
+      <Caps>{label}</Caps>
       <div>{value}</div>
     </div>
   );
@@ -232,12 +244,14 @@ export function Stepper({ value, onChange, width = 44, mono = true, ...rest }: S
       value={value}
       onChange={(e) => onChange(e.target.value)}
       data-testid={rest['data-testid']}
-      className="bg-transparent border-none outline-none text-center tabular-nums text-foreground text-xs font-mono p-0"
+      className={cn(
+        'bg-transparent border-none outline-none text-center tabular-nums text-foreground p-0',
+        SETTINGS_UI_TEXT,
+        mono ? 'font-mono' : 'font-sans',
+      )}
       style={{
         width,
         height: 26,
-        fontFamily: mono ? 'var(--ds-font-mono)' : 'var(--ds-font-sans)',
-        fontSize: 12,
       }}
     />
   );

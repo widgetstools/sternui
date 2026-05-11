@@ -1,49 +1,147 @@
-import { type SelectHTMLAttributes, forwardRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import {
+  Children,
+  Fragment,
+  forwardRef,
+  isValidElement,
+  useMemo,
+  type ChangeEvent,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import {
+  Select as SelectRoot,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@starui/ui';
 import { cn } from './utils';
 
+/** Radix `Select.Item` forbids `value=""` — map real `""` options through this sentinel. */
+const RADIX_EMPTY_OPTION = '__STARUI_GRID_SELECT_EMPTY__';
+
+function toRadixItemValue(v: string): string {
+  return v === '' ? RADIX_EMPTY_OPTION : v;
+}
+
+function fromRadixItemValue(v: string): string {
+  return v === RADIX_EMPTY_OPTION ? '' : v;
+}
+
+export interface SelectProps {
+  value?: string | number | readonly string[] | undefined;
+  defaultValue?: string | number | readonly string[] | undefined;
+  /** Same shape as a native `<select>` change event — only `target.value` is populated. */
+  onChange?: (e: Pick<ChangeEvent<HTMLSelectElement>, 'target'> & { target: { value: string } }) => void;
+  disabled?: boolean;
+  className?: string;
+  style?: CSSProperties;
+  'data-testid'?: string;
+  children?: ReactNode;
+}
+
+function stringifyProp(v: SelectProps['value'] | SelectProps['defaultValue']): string | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.join(',');
+  return String(v);
+}
+
+function collectOptions(children: ReactNode): Array<{ value: string; label: ReactNode }> {
+  const out: Array<{ value: string; label: ReactNode }> = [];
+  const walk = (nodes: ReactNode) => {
+    Children.forEach(nodes, (node) => {
+      if (!isValidElement(node)) return;
+      if (node.type === Fragment) {
+        walk((node.props as { children?: ReactNode }).children);
+        return;
+      }
+      if (node.type === 'option') {
+        const p = node.props as { value?: unknown; children?: ReactNode };
+        out.push({
+          value: p.value != null ? String(p.value) : '',
+          label: p.children,
+        });
+      }
+    });
+  };
+  walk(children);
+  return out;
+}
+
 /**
- * Select — native <select> wrapped so it tracks the design-system
- * tokens directly via `var(--...)` arbitrary values rather than via
- * Tailwind theme-extension classes like `bg-card`.
- *
- * Why arbitrary-value syntax instead of `bg-card` / `text-foreground`:
- * consumer apps ship on Tailwind 3.4 AND 4 and the two versions
- * configure shadcn tokens differently (v3 via `theme.extend.colors`
- * in tailwind.config.js; v4 via the `@theme inline { ... }` CSS
- * block). If a consumer is on Tailwind 3 without the extend config
- * (e.g. the ConfigService demo) then `bg-card` resolves to nothing,
- * the select paints browser-default white, and disabled states look
- * busted. Using `bg-[var(--ds-surface-primary)]` sidesteps the whole theme-config
- * question — it always resolves to the CSS variable at runtime.
- *
- * `disabled:bg-[var(--ds-surface-primary)]` is belt-and-suspenders: browser UA
- * stylesheets (Chrome / Safari on macOS) force disabled selects to
- * white on some configs, and `appearance-none` doesn't always fully
- * suppress that. An explicit disabled-state background wins.
+ * Radix/shadcn select used across the grid customizer. Accepts legacy
+ * `<option>` children and `onChange({ target: { value } })` so call sites
+ * stay unchanged while dropping the native `<select>` element.
  */
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ className, children, ...props }, ref) => (
-    <div className="relative">
-      <select
+export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
+  { value, defaultValue, onChange, disabled, className, style, 'data-testid': dataTestId, children },
+  ref,
+) {
+  const items = useMemo(() => collectOptions(children), [children]);
+
+  const encodedValue = stringifyProp(value);
+  const encodedDefault = stringifyProp(defaultValue);
+  const isControlled = value !== undefined;
+
+  const rootValue = isControlled ? toRadixItemValue(encodedValue ?? '') : undefined;
+  const rootDefault = !isControlled ? toRadixItemValue(encodedDefault ?? '') : undefined;
+
+  const handleValueChange = (next: string) => {
+    onChange?.({
+      target: { value: fromRadixItemValue(next) },
+    } as ChangeEvent<HTMLSelectElement>);
+  };
+
+  if (items.length === 0) {
+    return (
+      <button
+        type="button"
         ref={ref}
+        disabled={disabled}
+        data-testid={dataTestId}
         className={cn(
-          'flex h-7 w-full appearance-none rounded px-2 pr-7 text-[11px]',
-          'border border-[var(--ds-border-primary)] bg-[var(--ds-surface-primary)] text-[var(--ds-text-primary)]',
-          'focus:outline-none focus:ring-1 focus:ring-[var(--ds-accent-info)] focus:border-[var(--ds-accent-info)]',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          'disabled:bg-[var(--ds-surface-primary)] disabled:text-[var(--ds-text-primary)]',
+          'inline-flex h-7 min-h-[28px] w-full items-center rounded-md border border-[var(--ds-border-primary)] bg-[var(--ds-surface-primary)] px-2 text-left text-[11px] text-[var(--ds-text-muted)]',
           className,
         )}
-        {...props}
+        style={style}
       >
-        {children}
-      </select>
-      <ChevronDown
-        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 size-3"
-        style={{ color: 'var(--ds-text-muted)' }}
-      />
-    </div>
-  ),
-);
+        —
+      </button>
+    );
+  }
+
+  return (
+    <SelectRoot
+      value={rootValue}
+      defaultValue={rootDefault}
+      onValueChange={handleValueChange}
+      disabled={disabled}
+    >
+      <SelectTrigger
+        ref={ref}
+        className={cn(
+          'h-7 min-h-[28px] w-full gap-1 px-2 py-0 text-[11px] shadow-sm',
+          className,
+        )}
+        style={style}
+        data-testid={dataTestId}
+      >
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent position="popper" className="max-h-72">
+        {items.map((it, idx) => (
+          <SelectItem
+            key={`${idx}:${toRadixItemValue(it.value)}`}
+            value={toRadixItemValue(it.value)}
+            className="text-[11px]"
+          >
+            {it.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </SelectRoot>
+  );
+});
 Select.displayName = 'Select';

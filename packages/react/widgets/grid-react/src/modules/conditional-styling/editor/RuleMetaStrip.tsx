@@ -41,6 +41,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
         label="SCOPE"
         value={
           <Select
+            data-testid={`cs-rule-scope-${ruleId}`}
             value={scopeType}
             onChange={(e) => {
               const v = e.target.value;

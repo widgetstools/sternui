@@ -16,25 +16,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Universal fallback focus indicator. Native/form controls and common
-   * ARIA controls own their focus ring at component level; stacking this
-   * outline on top of those rings creates a doubled cyan border. */
-  *:focus-visible:not(.ag-cell):not([class^="ag-"]):not([class*=" ag-"]):not(:where(
-    input,
-    textarea,
-    select,
-    button,
-    [contenteditable="true"],
-    [role="button"],
-    [role="checkbox"],
-    [role="combobox"],
-    [role="radio"],
-    [role="searchbox"],
-    [role="slider"],
-    [role="spinbutton"],
-    [role="switch"],
-    [role="textbox"]
-  )) {
+  *:focus-visible {
     outline: 2px solid var(--ds-state-focus-ring);
     outline-offset: 2px;
   }

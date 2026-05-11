@@ -1107,7 +1107,9 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
         title={value}
         style={{
           color: 'var(--ds-text-primary)',
-          fontFamily: mono ? "'JetBrains Mono', 'IBM Plex Mono', monospace" : 'inherit',
+          fontFamily: mono
+            ? "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"
+            : 'inherit',
           fontSize: 12,
         }}
       >

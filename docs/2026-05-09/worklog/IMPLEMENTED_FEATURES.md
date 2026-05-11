@@ -3,6 +3,52 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-11 — Design-system dependency contract (`check-design-system-deps`)
+
+Any workspace package whose `src/` references unified tokens (`--ds-*`) or
+imports `@starui/design-system` must declare `@starui/design-system` in
+`dependencies`, `peerDependencies`, or `devDependencies`. **`@starui/grid-react`**
+and **`@starui/markets-grid`** now list it as **peer** (+ **dev** for tests).
+**`packages/angular/**`** is excluded until Angular DS work lands. Root
+**`npm run check-ds`** runs **`tools/scripts/check-design-system-deps.ts`**
+after **`check-ds-tokens`**. Verification: `npm run check-ds`.
+
+## 2026-05-11 — Typography: IBM Plex Sans + JetBrains Mono (canonical)
+
+`typography.fontFamily` in `@starui/design-system` primitives: **sans** =
+IBM Plex Sans stack, **mono** = JetBrains Mono with **IBM Plex Mono** fallback,
+**serif** = system Georgia stack. Legacy `--fi-sans` / `--fi-mono` in `fi-dark.css`
+/ `fi-light.css` aligned. Apps import Google Fonts for Plex Sans + Plex Mono +
+JetBrains; demo `index.html` drops Geist CDN. Demo chrome uses `var(--ds-font-sans)`;
+`markets-grid` formatter aliases `--fx-font-*` to `--ds-font-*`; grid-react
+expression palette/help overlays use `var(--ds-font-sans)`. Verification:
+`npm run build && npm test --workspace=@starui/design-system`,
+`npm test --workspace=@starui/markets-grid`.
+
+## 2026-05-11 — AG Grid adapter: JetBrains Mono (replace IBM Plex Mono)
+
+`@starui/design-system/adapters/ag-grid` `fontFamily.googleFont` now matches
+the Chroma Desk voice in `typography.fontFamily.mono` (JetBrains Mono) for both
+dark and light Quartz params; `agGridLightParams` gains the same `fontFamily`
+so Stern / config-browser light grids are not silent-default to a different face.
+`MarketsGrid` mono inline stack, `formatter.css` `--fx-font-mono`, and the
+demo-react fixture banner align with the mono stack (IBM Plex Mono as secondary
+fallback). Verification: `npm test --workspace=@starui/design-system`,
+`npm test --workspace=@starui/markets-grid` (if touched tests).
+
+## 2026-05-11 — Body font-size: `--ds-font-size-body` (fix invalid `font-size: var(--ds-font-sans)`)
+
+`--ds-font-sans` is the sans **font-family** stack; several app `body` rules
+mistakenly used it for `font-size`, which is not a valid length and produced
+weak/inconsistent root typography next to dense AG Grid chrome. `@starui/design-system`
+now emits `--ds-font-size-2xs` … `--ds-font-size-4xl` plus `--ds-font-size-body`
+(12px, aligned with `typography.fontSize.sm`); unified `base.css` sets
+`font-size: var(--ds-font-size-body)` on `html, body`. Updated:
+`apps/demo-react`, `apps/demo-configservice-react`, `apps/markets-ui-react-reference`,
+`apps/config-admin-web`, `apps/demo-angular` global styles; Angular
+`design-system.widget` embedded CSS examples use `--ds-font-size-xs` /
+`--ds-font-size-2xl`. Verification: `npm run build && npm test --workspace=@starui/design-system`.
+
 ## 2026-05-11 — Expression editor thin Monaco shell (modular)
 
 The expression editor is a thin wrapper around stock Monaco: navigation,
@@ -3714,3 +3760,45 @@ Token mapping used (partial):
 - Imported in `SettingsSheet.tsx` and `MarketsGrid.tsx`; Vite deduplicates.
 - Same pattern as `BorderStyleEditor.css` fix on this branch.
 - `check-ds-tokens`: clean; typecheck: clean; 68 tests passing.
+
+## 2026-05-11 — `@starui/ui` portals respect popped-out / OpenFin windows
+
+- **`packages/react/ui/src/portal-container.tsx`** — Shared
+  `PortalContainerProvider` + `usePortalContainer()` (same contract as the
+  former grid-local context).
+- **Radix `Portal` `container` prop** threaded through `@starui/ui`:
+  `popover`, `dropdown-menu` (content + submenus), `context-menu` (content +
+  submenus), `menubar` (content + submenus), `select`, `dialog`,
+  `alert-dialog`, `sheet`, `drawer`, `hover-card`, `tooltip`.
+- **`packages/react/widgets/grid-react/src/ui/PortalContainer.tsx`** — Now
+  re-exports from `@starui/ui` so `PopoutPortal` and `@starui/ui` share one
+  React context; overlays/menus mount into the popout `document.body` instead
+  of the parent shell.
+- **`packages/react/ui/src/index.ts`** — Exports `PortalContainerProvider`,
+  `usePortalContainer`, `useResolvedPortalContainer`,
+  `PortalContainerProviderProps`.
+- **`useResolvedPortalContainer()`** — When no provider wraps the tree, returns
+  `document.body` immediately so Radix `Portal` gets an explicit container on
+  the first paint (omitting `container` relied on Radix’s deferred mount and
+  broke overlays/popovers on the parent shell). Popout paths still pass an
+  explicit child `body` via `PortalContainerProvider`.
+- **Portaled z-index vs Grid Customizer chrome** — `markets-grid`
+  `grid-chrome.css` uses `.ds-popout-backdrop` at **10000** and `.ds-popout` at
+  **10001**. Radix surfaces portaled to `document.body` used shadcn’s default
+  **`z-50`**, so selects/menus drew **behind** the backdrop on the parent page.
+  `@starui/ui` portaled primitives now use **`z-[11000]`** so dropdowns,
+  popovers, dialogs, etc. stack above that sheet.
+
+## 2026-05-11 — `@starui/grid-react` Select uses `@starui/ui` (Radix)
+
+- **`packages/react/widgets/grid-react/src/ui/shadcn/select.tsx`** — Replaced the
+  token-styled native `<select>` wrapper with Radix/shadcn primitives from
+  `@starui/ui` (`Select`, `SelectTrigger`, `SelectValue`, `SelectContent`,
+  `SelectItem`). Call sites keep legacy `<option>` children and
+  `onChange({ target: { value } })`; empty-string option values round-trip via
+  an internal sentinel because Radix forbids `SelectItem value=""`.
+- **`@starui/ui`** added as a workspace dependency of `@starui/grid-react`.
+- **Tests** — `GridOptionsPanel.test.tsx` and `ConditionalStylingPanel.test.tsx`
+  updated for combobox interaction; `RuleMetaStrip` exposes
+  `data-testid="cs-rule-scope-<ruleId>"`; `src/test/setup.ts` polyfills
+  `hasPointerCapture` / `setPointerCapture` for jsdom + user-event.

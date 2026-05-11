@@ -69,7 +69,7 @@ export const CockpitListItem = forwardRef<
   ElementRef<typeof CommandPrimitive.Item>,
   CockpitListItemProps
 >(function CockpitListItem(
-  { value, active, muted, className, children, ...rest },
+  { value, active, muted, className, children, style, ...rest },
   ref,
 ) {
   return (
@@ -80,8 +80,9 @@ export const CockpitListItem = forwardRef<
       data-muted={muted ? 'true' : undefined}
       className={
         className ??
-        'flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-l-2 border-transparent text-foreground text-xs cursor-pointer select-none rounded-sm data-[active=true]:bg-card data-[active=true]:border-l-success aria-selected:bg-muted data-[muted=true]:text-muted-foreground hover:bg-muted'
+        'flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-l-2 border-transparent text-foreground text-[length:var(--ds-font-size-sm)] cursor-pointer select-none rounded-sm data-[active=true]:bg-card data-[active=true]:border-l-success aria-selected:bg-muted data-[muted=true]:text-muted-foreground hover:bg-muted'
       }
+      style={style}
       {...rest}
     >
       {children}
