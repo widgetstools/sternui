@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalContainer } from '../PortalContainer';
+import { getPortalDomContext } from './editorDom';
 
 /**
  * Generic keyboard-navigable palette modal.
@@ -44,6 +45,7 @@ export interface PaletteProps {
 
 export function Palette({ title, placeholder, items, onPick, onClose, subtitle }: PaletteProps) {
   const portalContainer = usePortalContainer();
+  const portalDom = getPortalDomContext(portalContainer);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -77,9 +79,9 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         return;
       }
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [filtered, selected, onPick, onClose]);
+    portalDom.window.addEventListener('keydown', onKey, true);
+    return () => portalDom.window.removeEventListener('keydown', onKey, true);
+  }, [filtered, selected, onPick, onClose, portalDom.window]);
 
   // Autofocus input on mount.
   useLayoutEffect(() => {
@@ -100,9 +102,9 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         onClose();
       }
     };
-    document.addEventListener('mousedown', onDown, true);
-    return () => document.removeEventListener('mousedown', onDown, true);
-  }, [onClose]);
+    portalDom.document.addEventListener('mousedown', onDown, true);
+    return () => portalDom.document.removeEventListener('mousedown', onDown, true);
+  }, [onClose, portalDom.document]);
 
   return createPortal(
     <div
@@ -213,7 +215,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         </div>
       </div>
     </div>,
-    portalContainer ?? document.body,
+    portalContainer ?? portalDom.document.body,
   );
 }
 

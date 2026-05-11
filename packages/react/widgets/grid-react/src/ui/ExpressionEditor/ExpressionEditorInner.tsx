@@ -7,6 +7,20 @@ import { registerCompletions, defaultFunctionsProvider } from './completions';
 import { attachDiagnostics } from './diagnostics';
 import { Palette, type PaletteItem } from './Palette';
 import { HelpOverlay } from './HelpOverlay';
+import {
+  ensurePlaceholderStyle,
+  getElementDomContext,
+  getExpressionTheme,
+  getMonacoOverflowHost,
+  hasVisibleSuggestion,
+} from './editorDom';
+import { createExpressionEditorOptions } from './editorOptions';
+import {
+  getNavigationPosition,
+  getSuggestionNavigationAction,
+  type NavigationKey,
+} from './editorNavigation';
+import { getInsertionRange } from './editorTextInput';
 
 /**
  * Monaco-hosting expression editor. Code-split from the public wrapper so
@@ -40,57 +54,6 @@ if (!w.MonacoEnvironment) {
 }
 // Expose for in-browser inspection / testing.
 w.monaco = monaco;
-
-// ─── Body-mounted overflow-widgets container ─────────────────────────────
-// Monaco's suggestion / hover / parameter-hints widgets render inside the
-// editor's DOM tree by default, so they get clipped by the settings sheet's
-// `overflow: hidden` AND — the real bug — get captured by the sheet's
-// `transform: translate(...)` centering transform, which creates a new
-// containing block for `position: fixed`. Under that ancestor, Monaco's
-// supposed-to-be-viewport-fixed suggestion widget drifts hundreds of
-// pixels below the cursor.
-//
-// Setting `fixedOverflowWidgets: true` alone isn't enough — Monaco still
-// attaches the container inside the editor unless we hand it an explicit
-// DOM node. Mount one lazily on document.body so the widget escapes every
-// transformed / clipped ancestor and renders in viewport coordinates.
-let _monacoOverflowHost: HTMLDivElement | null = null;
-function getMonacoOverflowHost(): HTMLElement | undefined {
-  if (typeof document === 'undefined') return undefined;
-  // Match the editor's own theme-pick exactly so the overflow host uses the
-  // same base theme Monaco is painting with. The v2 shell ships dark-first;
-  // it sets `data-theme="dark"` on <html>. Anything else falls back to the
-  // `vs` light theme, matching what `monaco.editor.create({ theme: ... })`
-  // does for these editors.
-  const themeClass =
-    document.documentElement.getAttribute('data-theme') === 'dark' ? 'vs-dark' : 'vs';
-
-  if (_monacoOverflowHost && _monacoOverflowHost.isConnected) {
-    // Keep the theme class in sync — the host outlives every editor instance.
-    _monacoOverflowHost.classList.remove('vs-dark', 'vs');
-    _monacoOverflowHost.classList.add(themeClass);
-    return _monacoOverflowHost;
-  }
-
-  const host = document.createElement('div');
-  // `monaco-editor` is mandatory — every Monaco widget CSS rule is scoped
-  // under `.monaco-editor`. `vs-dark` / `vs` carries the theme tokens Monaco
-  // uses to paint the suggest-widget background, borders, and text colours;
-  // without this, the widget renders as a transparent box over the sheet.
-  host.className = `monaco-editor ${themeClass} monaco-editor-overflow-widgets-host`;
-  host.setAttribute('data-ds-monaco-overflow', '');
-  // Keep it out of the way until Monaco fills it with positioned children.
-  host.style.position = 'absolute';
-  host.style.top = '0';
-  host.style.left = '0';
-  host.style.width = '0';
-  host.style.height = '0';
-  // Use a high stacking context so the widget always paints above the sheet.
-  host.style.zIndex = '2147483646';
-  document.body.appendChild(host);
-  _monacoOverflowHost = host;
-  return host;
-}
 
 export default function ExpressionEditorInner(
   props: ExpressionEditorProps & { handleRef?: React.Ref<ExpressionEditorHandle> },
@@ -130,50 +93,22 @@ export default function ExpressionEditorInner(
   // Mount the editor ONCE per component instance.
   useEffect(() => {
     if (!hostRef.current) return;
+    const dom = getElementDomContext(hostRef.current);
+    if (!dom) return;
     registerLanguage(monaco);
 
-    const editor = monaco.editor.create(hostRef.current, {
+    const editor = monaco.editor.create(hostRef.current, createExpressionEditorOptions({
       value,
-      language: LANGUAGE_ID,
-      theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'gcExpressionDark' : 'gcExpressionLight',
-      minimap: { enabled: false },
-      lineNumbers: multiline ? 'on' : 'off',
-      glyphMargin: false,
-      folding: false,
-      lineDecorationsWidth: multiline ? 8 : 2,
-      lineNumbersMinChars: multiline ? 3 : 0,
-      scrollBeyondLastLine: false,
-      scrollbar: { vertical: multiline ? 'auto' : 'hidden', horizontal: 'hidden', handleMouseWheel: true },
-      overviewRulerLanes: 0,
-      renderLineHighlight: 'none',
       fontSize,
-      fontFamily: "'JetBrains Mono', Menlo, monospace",
-      wordWrap: multiline ? 'on' : 'off',
-      padding: { top: 4, bottom: 4 },
+      multiline,
       readOnly,
-      contextmenu: false,
-      automaticLayout: true,
-      fixedOverflowWidgets: true,
-      // Escape the settings-sheet's transformed / clipped containers by
-      // rendering overflow widgets (suggestions, hovers, parameter hints)
-      // into a body-level host — see `getMonacoOverflowHost` above.
-      overflowWidgetsDomNode: getMonacoOverflowHost(),
-      suggest: { showStatusBar: false, preview: false, insertMode: 'replace' },
-      quickSuggestions: { other: true, comments: false, strings: false },
-      // Force the legacy hidden-textarea (`.inputarea`) input path. Monaco
-      // ≥ 0.50 enables the new EditContext-API input by default; in our
-      // settings sheet (Style Rules / Calculated Columns), that path
-      // never registers an EditContext, so NO `.inputarea` element is
-      // created and the editor has no way to receive keystrokes — typing,
-      // Backspace, Delete, and the suggest widget all silently no-op.
-      // The textarea path is rock-solid in every browser we ship to.
-      editContext: false,
-    });
+      document: dom.document,
+    }));
     editorRef.current = editor;
 
     // Placeholder (Monaco doesn't have native placeholder support — we draw
     // it via a decoration on the empty line).
-    const placeholderContrib = multiline ? null : installPlaceholder(editor, placeholder);
+    const placeholderContrib = multiline ? null : installPlaceholder(editor, placeholder, dom.document);
 
     const disposers: Array<() => void> = [];
     disposers.push(registerCompletions(
@@ -191,6 +126,62 @@ export default function ExpressionEditorInner(
     // editor has focus), which is exactly what we want — don't steal these
     // chords globally. The `KeyMod.CtrlCmd` flag maps to Ctrl on
     // Windows/Linux and ⌘ on macOS, matching platform conventions.
+    const acceptSuggestionWithFallback = () => {
+      editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
+      acceptColumnSuggestionFallback(monaco, editor, dom.document, providersRef.current.columnsProvider?.() ?? []);
+    };
+    const onDocumentKeyDown = (event: KeyboardEvent) => {
+      const isTab = event.key === 'Tab';
+      const isSpace = event.key === ' ';
+      const isTriggerSuggest = event.key === 'Escape' && event.altKey;
+      const isNavigationKey = isExpressionNavigationKey(event.key);
+      if (!isTab && !isSpace && !isTriggerSuggest && !isNavigationKey) return;
+      const active = dom.document.activeElement;
+      const editorHasFocus =
+        editor.hasTextFocus()
+        || active?.classList.contains('inputarea') === true;
+      if (!editorHasFocus) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (isTab) {
+        acceptSuggestionWithFallback();
+        return;
+      }
+      if (isTriggerSuggest) {
+        editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+        return;
+      }
+      if (isSpace && !hasVisibleSuggestion(dom.document)) {
+        const position = editor.getPosition();
+        if (!position) return;
+        event.preventDefault();
+        event.stopPropagation();
+        editor.executeEdits('gcExpression-space-input', [{
+          range: getInsertionRange(position),
+          text: ' ',
+          forceMoveMarkers: true,
+        }]);
+        editor.setPosition({ lineNumber: position.lineNumber, column: position.column + 1 });
+        return;
+      }
+      const suggestionAction = getSuggestionNavigationAction(event.key as NavigationKey);
+      if (suggestionAction && hasVisibleSuggestion(dom.document)) {
+        editor.trigger('keyboard', suggestionAction, {});
+        return;
+      }
+      const model = editor.getModel();
+      const position = editor.getPosition();
+      if (!model || !position) return;
+      editor.setPosition(getNavigationPosition(event.key as NavigationKey, position, model));
+      editor.revealPositionInCenterIfOutsideViewport(editor.getPosition() ?? position);
+    };
+    dom.document.addEventListener('keydown', onDocumentKeyDown, true);
+    dom.window.addEventListener('keydown', onDocumentKeyDown, true);
+    disposers.push(() => {
+      dom.document.removeEventListener('keydown', onDocumentKeyDown, true);
+      dom.window.removeEventListener('keydown', onDocumentKeyDown, true);
+    });
+    const tabCmd = editor.addCommand(monaco.KeyCode.Tab, acceptSuggestionWithFallback);
     const colCmd = editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyC,
       () => setActivePalette('columns'),
@@ -202,7 +193,7 @@ export default function ExpressionEditorInner(
     const helpCmd = editor.addCommand(monaco.KeyCode.F1, () => setActivePalette('help'));
     // `addCommand` returns the command id; nothing to dispose explicitly —
     // commands are removed when the editor is disposed.
-    void colCmd; void fnCmd; void helpCmd;
+    void tabCmd; void colCmd; void fnCmd; void helpCmd;
 
     const model = editor.getModel();
     if (model && validate) {
@@ -223,6 +214,11 @@ export default function ExpressionEditorInner(
     // Enter commits (single-line); Ctrl/Cmd+Enter (multiline).
     disposers.push(editor.onKeyDown((e) => {
       if (e.keyCode !== monaco.KeyCode.Enter) return;
+      if (hasVisibleSuggestion(dom.document)) {
+        e.preventDefault();
+        editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
+        return;
+      }
       if (multiline && !(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
       commit();
@@ -265,13 +261,18 @@ export default function ExpressionEditorInner(
 
   // Theme follows <html data-theme="dark">.
   useEffect(() => {
+    const dom = getElementDomContext(hostRef.current);
+    if (!dom) return;
     const apply = () => {
-      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-      monaco.editor.setTheme(dark ? 'gcExpressionDark' : 'gcExpressionLight');
+      monaco.editor.setTheme(getExpressionTheme(dom.document));
+      getMonacoOverflowHost(dom.document);
     };
     apply();
-    const mo = new MutationObserver(apply);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    const MutationObserverCtor =
+      (dom.window as unknown as { MutationObserver?: typeof MutationObserver }).MutationObserver
+      ?? MutationObserver;
+    const mo = new MutationObserverCtor(apply);
+    mo.observe(dom.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => mo.disconnect();
   }, []);
 
@@ -380,7 +381,7 @@ export default function ExpressionEditorInner(
  * Install a placeholder decoration that shows `text` when the model is empty.
  * Removed on first input; re-shown on clear. Returns a disposer.
  */
-function installPlaceholder(editor: monaco.editor.IStandaloneCodeEditor, text: string | undefined) {
+function installPlaceholder(editor: monaco.editor.IStandaloneCodeEditor, text: string | undefined, doc: Document) {
   if (!text) return { dispose: () => {} };
   let decorations: string[] = [];
   const render = () => {
@@ -399,11 +400,51 @@ function installPlaceholder(editor: monaco.editor.IStandaloneCodeEditor, text: s
   render();
   const sub = editor.onDidChangeModelContent(render);
   // Minimal style injection for the placeholder.
-  if (!document.getElementById('ds-expr-placeholder-style')) {
-    const style = document.createElement('style');
-    style.id = 'ds-expr-placeholder-style';
-    style.textContent = `.ds-expr-placeholder { color: var(--ds-text-faint); font-style: italic; pointer-events: none; }`;
-    document.head.appendChild(style);
-  }
+  ensurePlaceholderStyle(doc);
   return { dispose: () => { sub.dispose(); editor.deltaDecorations(decorations, []); } };
+}
+
+function acceptColumnSuggestionFallback(
+  monacoApi: typeof monaco,
+  editor: monaco.editor.IStandaloneCodeEditor,
+  doc: Document,
+  columns: Array<{ colId: string; headerName: string }>,
+): boolean {
+  const model = editor.getModel();
+  const pos = editor.getPosition();
+  if (!model || !pos) return false;
+
+  const line = model.getLineContent(pos.lineNumber);
+  const beforeCursor = line.slice(0, pos.column - 1);
+  const bracketMatch = beforeCursor.match(/\[([^\]\s]*)$/);
+
+  const focusedText =
+    doc.querySelector('.suggest-widget .monaco-list-row.focused')?.textContent
+    ?? doc.querySelector('.suggest-widget .monaco-list-row')?.textContent
+    ?? '';
+  const focusedColumnId = focusedText.match(/\[([^\]]+)\]/)?.[1];
+  const prefix = bracketMatch?.[1].toLowerCase() ?? '';
+  const column =
+    (focusedColumnId ? columns.find((c) => c.colId === focusedColumnId) : undefined)
+    ?? columns.find((c) => c.colId.toLowerCase().startsWith(prefix))
+    ?? columns.find((c) => c.headerName.toLowerCase().startsWith(prefix));
+
+  if (!column) return false;
+
+  const startColumn = bracketMatch ? pos.column - bracketMatch[0].length : pos.column;
+  editor.executeEdits('gcExpression-tab-completion', [{
+    range: new monacoApi.Range(pos.lineNumber, startColumn, pos.lineNumber, pos.column),
+    text: `[${column.colId}]`,
+    forceMoveMarkers: true,
+  }]);
+  return true;
+}
+
+function isExpressionNavigationKey(key: string): key is NavigationKey {
+  return key === 'ArrowLeft'
+    || key === 'ArrowRight'
+    || key === 'ArrowUp'
+    || key === 'ArrowDown'
+    || key === 'Home'
+    || key === 'End';
 }
