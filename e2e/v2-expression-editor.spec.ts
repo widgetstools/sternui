@@ -114,6 +114,46 @@ async function assertTabAcceptsColumnWithoutLeavingEditor(page: EditorHost) {
   expect(after.textareaValue).toMatch(/\[[^\]]+\]\]?$/);
 }
 
+async function assertTabDoesNotInsertColumnWithoutCompletionPrefix(page: EditorHost) {
+  await focusExpressionAtEnd(page);
+  const before = await editorState(page);
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(120);
+  const after = await editorState(page);
+
+  expect(after.activeTag).toBe('TEXTAREA');
+  expect(after.textareaValue).toBe(before.textareaValue);
+  expect(after.textareaValue).not.toMatch(/\[positionId\]\s*$/);
+}
+
+async function assertTabAcceptsTypedFunctionSuggestion(page: EditorHost) {
+  await focusExpressionAtEnd(page);
+  await page.keyboard.type('SU');
+  await page.keyboard.press('Alt+Escape');
+  await expect.poll(async () => (await editorState(page)).visibleSuggestions, {
+    timeout: 2_000,
+  }).toBeGreaterThanOrEqual(1);
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await editorState(page)).textareaValue).toMatch(/SU[A-Z]*\(/);
+}
+
+async function assertBackspaceEditsTextAndDeletesSelection(page: EditorHost) {
+  await focusExpressionAtEnd(page);
+  const before = (await editorState(page)).textareaValue;
+  await page.keyboard.type('abc');
+  await expect.poll(async () => (await editorState(page)).textareaValue).toBe(`${before}abc`);
+
+  await page.keyboard.press('Backspace');
+  await expect.poll(async () => (await editorState(page)).textareaValue).toBe(`${before}ab`);
+
+  await page.keyboard.type('c');
+  await page.keyboard.press('Shift+ArrowLeft');
+  await page.keyboard.press('Shift+ArrowLeft');
+  await page.keyboard.press('Shift+ArrowLeft');
+  await page.keyboard.press('Backspace');
+  await expect.poll(async () => (await editorState(page)).textareaValue).toBe(before);
+}
+
 async function assertEnterAcceptsColumnWithoutLeavingEditor(page: EditorHost) {
   await focusExpressionAtEnd(page);
   const before = await editorState(page);
@@ -182,6 +222,9 @@ test.describe('v2 — expression editor keyboard behaviour', () => {
     await assertCaretIsVisibleAndBlinking(editorPage);
     await assertEditorReceivesSpaceAtVisibleCursor(editorPage);
     await assertArrowKeysMoveVisibleCursor(editorPage);
+    await assertBackspaceEditsTextAndDeletesSelection(editorPage);
+    await assertTabDoesNotInsertColumnWithoutCompletionPrefix(editorPage);
+    await assertTabAcceptsTypedFunctionSuggestion(editorPage);
     await assertTabAcceptsColumnWithoutLeavingEditor(editorPage);
     await assertEnterAcceptsColumnWithoutLeavingEditor(editorPage);
     await assertOptionEscapeTriggersSuggestions(editorPage);
@@ -194,6 +237,9 @@ test.describe('v2 — expression editor keyboard behaviour', () => {
     await assertCaretIsVisibleAndBlinking(popup);
     await assertEditorReceivesSpaceAtVisibleCursor(popup);
     await assertArrowKeysMoveVisibleCursor(popup);
+    await assertBackspaceEditsTextAndDeletesSelection(popup);
+    await assertTabDoesNotInsertColumnWithoutCompletionPrefix(popup);
+    await assertTabAcceptsTypedFunctionSuggestion(popup);
     await assertTabAcceptsColumnWithoutLeavingEditor(popup);
     await assertEnterAcceptsColumnWithoutLeavingEditor(popup);
     await assertOptionEscapeTriggersSuggestions(popup);

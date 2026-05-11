@@ -20,7 +20,12 @@ import {
   getSuggestionNavigationAction,
   type NavigationKey,
 } from './editorNavigation';
-import { getInsertionRange } from './editorTextInput';
+import {
+  getDeletionEdit,
+  getInsertionRange,
+  shouldUseColumnSuggestionFallback,
+  type DeletionKey,
+} from './editorTextInput';
 
 /**
  * Monaco-hosting expression editor. Code-split from the public wrapper so
@@ -127,15 +132,39 @@ export default function ExpressionEditorInner(
     // chords globally. The `KeyMod.CtrlCmd` flag maps to Ctrl on
     // Windows/Linux and ⌘ on macOS, matching platform conventions.
     const acceptSuggestionWithFallback = () => {
-      editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
-      acceptColumnSuggestionFallback(monaco, editor, dom.document, providersRef.current.columnsProvider?.() ?? []);
+      if (readOnly) return;
+      if (hasColumnCompletionPrefix(editor)) {
+        editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
+        acceptColumnSuggestionFallback(monaco, editor, dom.document, providersRef.current.columnsProvider?.() ?? []);
+        return;
+      }
+      if (hasVisibleSuggestion(dom.document) && hasTypedCompletionPrefix(editor)) {
+        editor.trigger('keyboard', 'acceptSelectedSuggestion', {});
+      }
+    };
+    const applyDeletion = (key: DeletionKey) => {
+      if (readOnly) return false;
+      const model = editor.getModel();
+      const position = editor.getPosition();
+      if (!model || !position) return false;
+      const edit = getDeletionEdit(key, editor.getSelection(), position, model);
+      if (!edit) return false;
+      editor.executeEdits('gcExpression-delete-input', [{
+        range: edit.range,
+        text: '',
+        forceMoveMarkers: true,
+      }]);
+      editor.setPosition(edit.position);
+      editor.revealPositionInCenterIfOutsideViewport(edit.position);
+      return true;
     };
     const onDocumentKeyDown = (event: KeyboardEvent) => {
       const isTab = event.key === 'Tab';
       const isSpace = event.key === ' ';
+      const isDeletionKey = event.key === 'Backspace' || event.key === 'Delete';
       const isTriggerSuggest = event.key === 'Escape' && event.altKey;
       const isNavigationKey = isExpressionNavigationKey(event.key);
-      if (!isTab && !isSpace && !isTriggerSuggest && !isNavigationKey) return;
+      if (!isTab && !isSpace && !isDeletionKey && !isTriggerSuggest && !isNavigationKey) return;
       const active = dom.document.activeElement;
       const editorHasFocus =
         editor.hasTextFocus()
@@ -152,6 +181,7 @@ export default function ExpressionEditorInner(
         return;
       }
       if (isSpace && !hasVisibleSuggestion(dom.document)) {
+        if (readOnly) return;
         const position = editor.getPosition();
         if (!position) return;
         event.preventDefault();
@@ -164,7 +194,13 @@ export default function ExpressionEditorInner(
         editor.setPosition({ lineNumber: position.lineNumber, column: position.column + 1 });
         return;
       }
-      const suggestionAction = getSuggestionNavigationAction(event.key as NavigationKey);
+      if (isDeletionKey) {
+        applyDeletion(event.key as DeletionKey);
+        return;
+      }
+      const suggestionAction = event.shiftKey
+        ? undefined
+        : getSuggestionNavigationAction(event.key as NavigationKey);
       if (suggestionAction && hasVisibleSuggestion(dom.document)) {
         editor.trigger('keyboard', suggestionAction, {});
         return;
@@ -172,8 +208,25 @@ export default function ExpressionEditorInner(
       const model = editor.getModel();
       const position = editor.getPosition();
       if (!model || !position) return;
-      editor.setPosition(getNavigationPosition(event.key as NavigationKey, position, model));
-      editor.revealPositionInCenterIfOutsideViewport(editor.getPosition() ?? position);
+      const nextPosition = getNavigationPosition(event.key as NavigationKey, position, model);
+      if (event.shiftKey) {
+        const selection = editor.getSelection();
+        const anchor = selection && !selection.isEmpty()
+          ? {
+              lineNumber: selection.selectionStartLineNumber,
+              column: selection.selectionStartColumn,
+            }
+          : position;
+        editor.setSelection(new monaco.Selection(
+          anchor.lineNumber,
+          anchor.column,
+          nextPosition.lineNumber,
+          nextPosition.column,
+        ));
+      } else {
+        editor.setPosition(nextPosition);
+      }
+      editor.revealPositionInCenterIfOutsideViewport(nextPosition);
     };
     dom.document.addEventListener('keydown', onDocumentKeyDown, true);
     dom.window.addEventListener('keydown', onDocumentKeyDown, true);
@@ -182,6 +235,8 @@ export default function ExpressionEditorInner(
       dom.window.removeEventListener('keydown', onDocumentKeyDown, true);
     });
     const tabCmd = editor.addCommand(monaco.KeyCode.Tab, acceptSuggestionWithFallback);
+    const backspaceCmd = editor.addCommand(monaco.KeyCode.Backspace, () => applyDeletion('Backspace'));
+    const deleteCmd = editor.addCommand(monaco.KeyCode.Delete, () => applyDeletion('Delete'));
     const colCmd = editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyC,
       () => setActivePalette('columns'),
@@ -193,7 +248,7 @@ export default function ExpressionEditorInner(
     const helpCmd = editor.addCommand(monaco.KeyCode.F1, () => setActivePalette('help'));
     // `addCommand` returns the command id; nothing to dispose explicitly —
     // commands are removed when the editor is disposed.
-    void tabCmd; void colCmd; void fnCmd; void helpCmd;
+    void tabCmd; void backspaceCmd; void deleteCmd; void colCmd; void fnCmd; void helpCmd;
 
     const model = editor.getModel();
     if (model && validate) {
@@ -288,7 +343,7 @@ export default function ExpressionEditorInner(
   // Ctrl+Z an unwanted insertion.
   const insertAtCursor = (text: string) => {
     const ed = editorRef.current;
-    if (!ed) return;
+    if (!ed || readOnly) return;
     const pos = ed.getPosition();
     if (!pos) return;
     ed.executeEdits('gcExpression-palette', [{
@@ -418,12 +473,19 @@ function acceptColumnSuggestionFallback(
   const beforeCursor = line.slice(0, pos.column - 1);
   const bracketMatch = beforeCursor.match(/\[([^\]\s]*)$/);
 
-  const focusedText =
-    doc.querySelector('.suggest-widget .monaco-list-row.focused')?.textContent
-    ?? doc.querySelector('.suggest-widget .monaco-list-row')?.textContent
-    ?? '';
+  const suggestionVisible = hasVisibleSuggestion(doc);
+  const focusedText = suggestionVisible
+    ? (
+        doc.querySelector('.suggest-widget .monaco-list-row.focused')?.textContent
+        ?? doc.querySelector('.suggest-widget .monaco-list-row')?.textContent
+        ?? ''
+      )
+    : '';
   const focusedColumnId = focusedText.match(/\[([^\]]+)\]/)?.[1];
   const prefix = bracketMatch?.[1].toLowerCase() ?? '';
+  if (!shouldUseColumnSuggestionFallback(bracketMatch !== undefined)) {
+    return false;
+  }
   const column =
     (focusedColumnId ? columns.find((c) => c.colId === focusedColumnId) : undefined)
     ?? columns.find((c) => c.colId.toLowerCase().startsWith(prefix))
@@ -438,6 +500,23 @@ function acceptColumnSuggestionFallback(
     forceMoveMarkers: true,
   }]);
   return true;
+}
+
+function hasColumnCompletionPrefix(editor: monaco.editor.IStandaloneCodeEditor): boolean {
+  const model = editor.getModel();
+  const pos = editor.getPosition();
+  if (!model || !pos) return false;
+
+  const line = model.getLineContent(pos.lineNumber);
+  const beforeCursor = line.slice(0, pos.column - 1);
+  return /\[([^\]\s]*)$/.test(beforeCursor);
+}
+
+function hasTypedCompletionPrefix(editor: monaco.editor.IStandaloneCodeEditor): boolean {
+  const model = editor.getModel();
+  const pos = editor.getPosition();
+  if (!model || !pos) return false;
+  return model.getWordUntilPosition(pos).word.length > 0;
 }
 
 function isExpressionNavigationKey(key: string): key is NavigationKey {

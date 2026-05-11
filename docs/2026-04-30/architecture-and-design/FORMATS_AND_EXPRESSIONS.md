@@ -217,9 +217,14 @@ evaluator, all CSP-safe.
 | Syntax | Meaning |
 |---|---|
 | `[price]` or `{price}` | The current row's `price` value |
+| `[analytics.keyRateDuration.3Y]` | Nested row value at `row.analytics.keyRateDuration["3Y"]` |
 | `[value]` (in agg expressions) | The array of child values passed by AG-Grid |
 
-Column names with spaces or hyphens must use brackets: `[order id]`.
+Use square brackets for column references. Dotted paths are resolved with a
+flat-key fallback first (`row["analytics.keyRateDuration.3Y"]`) and then by
+walking nested objects (`row.analytics.keyRateDuration["3Y"]`). Curly braces
+remain parseable for legacy expressions, but new expressions should use square
+brackets.
 
 ### Literals
 

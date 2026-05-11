@@ -176,41 +176,8 @@ export class Parser {
       return { type: 'columnRef', columnId: token.value };
     }
 
-    // `[identifier(.identifier)*]` — column reference (Excel/Tableau-style),
-    // optionally dotted to address nested fields (`[risk.dv01]`,
-    // `[ratings.sp]`). Lookahead scans IDENTIFIER (DOT IDENTIFIER)* RBRACKET
-    // — anything else (`[1, 2]`, `[x > 0]`, `[price, qty]`, the `IN [...]`
-    // RHS) falls through to the array-literal branch below, so existing
-    // expressions keep parsing identically. The columnId is the joined
-    // dotted path; the evaluator's `getValueByPath` resolves it against
-    // either a literal flat key (`row['risk.dv01']`) or a nested object
-    // walk (`row.risk.dv01`).
-    if (token.type === 'LBRACKET' && this.tokens[this.pos + 1]?.type === 'IDENTIFIER') {
-      let scan = this.pos + 1;
-      const parts: string[] = [];
-      let matched = false;
-      while (true) {
-        const id = this.tokens[scan];
-        if (id?.type !== 'IDENTIFIER') break;
-        parts.push(id.value);
-        scan++;
-        const next = this.tokens[scan];
-        if (next?.type === 'RBRACKET') {
-          scan++;
-          matched = true;
-          break;
-        }
-        if (next?.type === 'DOT') {
-          scan++;
-          continue;
-        }
-        break;
-      }
-      if (matched) {
-        this.pos = scan;
-        return { type: 'columnRef', columnId: parts.join('.') };
-      }
-    }
+    const bracketedColumnRef = this.tryParseBracketedColumnRef();
+    if (bracketedColumnRef) return bracketedColumnRef;
 
     // Array literal
     if (token.type === 'LBRACKET') {
@@ -267,6 +234,80 @@ export class Parser {
       throw new SyntaxError(`Expected '${keyword}' but got '${token.value}' at position ${token.position}`);
     }
     return this.advance();
+  }
+
+  /**
+   * `[field.path]` — column reference (Excel/Tableau-style), optionally
+   * dotted to address nested fields. This is intentionally stricter than
+   * "anything between brackets" so array literals (`[1, 2]`, `[x > 0]`,
+   * `IN [...]`) keep parsing as expressions.
+   *
+   * Tokenization has one wrinkle: a path segment that starts with a number,
+   * such as `3Y` in `[analytics.keyRateDuration.3Y]`, arrives as NUMBER
+   * token `.3` followed by IDENTIFIER token `Y` because `.3` is also valid
+   * decimal syntax. The branch below treats NUMBER tokens that start with
+   * `.` as the required path separator plus a numeric-leading segment.
+   */
+  private tryParseBracketedColumnRef(): ExpressionNode | null {
+    if (this.peek().type !== 'LBRACKET') return null;
+    if (this.tokens[this.pos + 1]?.type !== 'IDENTIFIER') return null;
+
+    let scan = this.pos + 1;
+    const firstSegment = this.tokens[scan];
+    if (firstSegment?.type !== 'IDENTIFIER') return null;
+
+    const parts = [firstSegment.value];
+    scan++;
+
+    while (true) {
+      const next = this.tokens[scan];
+      if (next?.type === 'RBRACKET') {
+        this.pos = scan + 1;
+        return { type: 'columnRef', columnId: parts.join('.') };
+      }
+
+      if (next?.type === 'DOT') {
+        const segment = this.readPathSegmentAfterDot(scan + 1);
+        if (!segment) return null;
+        parts.push(segment.value);
+        scan = segment.next;
+        continue;
+      }
+
+      if (next?.type === 'NUMBER' && next.value.startsWith('.')) {
+        const segment = this.readNumericLeadingPathSegment(scan);
+        if (!segment) return null;
+        parts.push(segment.value);
+        scan = segment.next;
+        continue;
+      }
+
+      return null;
+    }
+  }
+
+  private readPathSegmentAfterDot(scan: number): { value: string; next: number } | null {
+    const token = this.tokens[scan];
+    if (token?.type === 'IDENTIFIER') return { value: token.value, next: scan + 1 };
+    if (token?.type === 'NUMBER' && token.value.length > 0 && !token.value.startsWith('.')) {
+      return { value: token.value, next: scan + 1 };
+    }
+    return null;
+  }
+
+  private readNumericLeadingPathSegment(scan: number): { value: string; next: number } | null {
+    const token = this.tokens[scan];
+    if (token?.type !== 'NUMBER' || !token.value.startsWith('.') || token.value.length <= 1) {
+      return null;
+    }
+
+    let value = token.value.slice(1);
+    let next = scan + 1;
+    while (this.tokens[next]?.type === 'IDENTIFIER') {
+      value += this.tokens[next].value;
+      next++;
+    }
+    return { value, next };
   }
 }
 
