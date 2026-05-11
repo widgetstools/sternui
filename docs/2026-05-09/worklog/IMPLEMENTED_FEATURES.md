@@ -6,11 +6,12 @@ FI Trading Terminal.
 ## 2026-05-11 — Expression editor thin Monaco shell (modular)
 
 The expression editor is a thin wrapper around stock Monaco: navigation,
-selection, Backspace/Delete, and Enter stay on Monaco defaults. Tab, Shift+Tab,
-and Control/Cmd+Space are re-bound through `editor.addCommand` in
-`expressionEditorKeyBridges.ts` so popped-out settings shells do not steal those
-chords for focus traversal while IntelliSense stays usable; everything else is
-DSL registration: language, completions, diagnostics, per-document overflow
+selection, Backspace/Delete, and Enter stay on Monaco defaults. Tab, Shift+Tab, Control/Cmd+Space, arrows (with Shift), Home/End (with Shift
+when the suggest list is open), and Backspace/Delete are re-bound through
+`editor.addCommand` in `expressionEditorKeyBridges.ts` plus model edits in
+`expressionEditorDeletion.ts`, so popped-out settings shells still route keys to
+Monaco (suggest navigation, caret moves, deletion) instead of losing them to the
+host; DSL registration covers language, completions, diagnostics, per-document overflow
 widget host + token-aligned CSS, optional empty-model placeholder decoration,
 and palette chords (Ctrl/Cmd+Shift+C/F, F1).
 

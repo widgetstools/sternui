@@ -1,28 +1,87 @@
 import type * as monaco from 'monaco-editor';
 import { hasVisibleSuggestion } from './editorDom';
+import { deleteFromEditor } from './expressionEditorDeletion';
+
+export interface ExpressionEditorKeyBridgeOptions {
+  readOnly: boolean;
+}
 
 /**
- * Re-bind a few chords through `editor.addCommand` so they reach Monaco even when
- * a host shell (e.g. popped-out settings) would otherwise hand Tab / Ctrl+Space to
- * native focus traversal or browser defaults. Core typing stays on Monaco; we do
- * not replace Backspace, Delete, or Shift+arrow selection.
+ * Re-bind chords through `editor.addCommand` so they reach Monaco when a host
+ * shell (popped-out settings, transformed containing blocks, etc.) would
+ * otherwise swallow keys before the hidden textarea sees them.
+ *
+ * Includes: Tab/suggest, arrows + shift-selection, suggestion list navigation,
+ * and model-level Backspace/Delete (same behavior as stock Monaco when native
+ * input works).
  */
 export function registerExpressionEditorKeyBridges(
   monacoApi: typeof monaco,
   editor: monaco.editor.IStandaloneCodeEditor,
   doc: Document,
+  options: ExpressionEditorKeyBridgeOptions,
 ): void {
+  const { readOnly } = options;
+  const trig = (commandId: string) => {
+    editor.trigger('gcExpression-key-bridge', commandId, {});
+  };
+
+  const suggestOpen = () => hasVisibleSuggestion(doc);
+
   void editor.addCommand(monacoApi.KeyCode.Tab, () => {
-    editor.trigger(
-      'keyboard',
-      hasVisibleSuggestion(doc) ? 'acceptSelectedSuggestion' : 'tab',
-      {},
-    );
+    trig(suggestOpen() ? 'acceptSelectedSuggestion' : 'tab');
   });
   void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.Tab, () => {
-    editor.trigger('keyboard', 'outdent', {});
+    trig('outdent');
   });
   void editor.addCommand(monacoApi.KeyMod.WinCtrl | monacoApi.KeyCode.Space, () => {
-    editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+    trig('editor.action.triggerSuggest');
+  });
+
+  void editor.addCommand(monacoApi.KeyCode.DownArrow, () => {
+    trig(suggestOpen() ? 'selectNextSuggestion' : 'cursorDown');
+  });
+  void editor.addCommand(monacoApi.KeyCode.UpArrow, () => {
+    trig(suggestOpen() ? 'selectPrevSuggestion' : 'cursorUp');
+  });
+  void editor.addCommand(monacoApi.KeyCode.LeftArrow, () => {
+    trig('cursorLeft');
+  });
+  void editor.addCommand(monacoApi.KeyCode.RightArrow, () => {
+    trig('cursorRight');
+  });
+  void editor.addCommand(monacoApi.KeyCode.Home, () => {
+    trig(suggestOpen() ? 'selectFirstSuggestion' : 'cursorHome');
+  });
+  void editor.addCommand(monacoApi.KeyCode.End, () => {
+    trig(suggestOpen() ? 'selectLastSuggestion' : 'cursorEnd');
+  });
+
+  void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.DownArrow, () => {
+    trig(suggestOpen() ? 'selectNextSuggestion' : 'cursorDownSelect');
+  });
+  void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.UpArrow, () => {
+    trig(suggestOpen() ? 'selectPrevSuggestion' : 'cursorUpSelect');
+  });
+  void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.LeftArrow, () => {
+    trig('cursorLeftSelect');
+  });
+  void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.RightArrow, () => {
+    trig('cursorRightSelect');
+  });
+  void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.Home, () => {
+    trig('cursorHomeSelect');
+  });
+  void editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.End, () => {
+    trig('cursorEndSelect');
+  });
+
+  void editor.addCommand(monacoApi.KeyCode.Backspace, () => {
+    if (readOnly) return;
+    deleteFromEditor(monacoApi, editor, 'backward');
+  });
+  void editor.addCommand(monacoApi.KeyCode.Delete, () => {
+    if (readOnly) return;
+    deleteFromEditor(monacoApi, editor, 'forward');
   });
 }

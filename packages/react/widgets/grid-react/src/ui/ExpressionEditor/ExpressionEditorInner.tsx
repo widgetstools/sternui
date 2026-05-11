@@ -21,7 +21,7 @@ import { registerExpressionEditorKeyBridges } from './expressionEditorKeyBridges
  * Uses `monaco-editor` directly (not @monaco-editor/react) — Vite bundles
  * it cleanly as a dynamic chunk. Thin shell: language, completions,
  * diagnostics, overflow host, placeholder decoration, and palette chords
- * only; all other keys stay on Monaco defaults (same as stock editor demos).
+ * plus popout-safe `addCommand` bridges (see `expressionEditorKeyBridges.ts`).
  */
 
 ensureMonacoWorkerEnvironment(monaco);
@@ -86,7 +86,7 @@ export default function ExpressionEditorInner(
       () => providersRef.current.functionsProvider?.() ?? defaultFunctionsProvider(),
     ).dispose);
 
-    registerExpressionEditorKeyBridges(monaco, editor, dom.document);
+    registerExpressionEditorKeyBridges(monaco, editor, dom.document, { readOnly: !!readOnly });
     registerExpressionPaletteCommands(monaco, editor, {
       onOpenColumns: () => setActivePalette('columns'),
       onOpenFunctions: () => setActivePalette('functions'),
