@@ -6,32 +6,33 @@
 //
 //  Density:
 //    compact (standard) — rowHeight 28, headerHeight 32, fontSize 12
+//    comfort            — rowHeight 36, headerHeight 40, fontSize 13
 //    ultra (blotter)    — rowHeight 22, headerHeight 26, fontSize 11
 // ─────────────────────────────────────────────────────────────
 
 import { dark, light, type ColorScheme } from '../tokens/semantic';
 import { typography } from '../tokens/primitives';
 
-type Density = 'compact' | 'ultra';
+type Density = 'compact' | 'comfort' | 'ultra';
 
 function gridParams(
   scheme: ColorScheme,
   mode: 'dark' | 'light',
   density: Density = 'compact',
 ) {
-  const rowH    = density === 'ultra' ? 22 : 28;
-  const headerH = density === 'ultra' ? 26 : 32;
-  const fontPx  = density === 'ultra' ? 11 : 12;
+  const rowH    = density === 'ultra' ? 22 : density === 'comfort' ? 36 : 28;
+  const headerH = density === 'ultra' ? 26 : density === 'comfort' ? 40 : 32;
+  const fontPx  = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
+  const spacing = density === 'ultra' ? 4 : density === 'comfort' ? 8 : 6;
   return {
     // Ensure browser-native UI (including scrollbars) matches the theme.
     browserColorScheme: mode,
     // ── Typography ──
-    // Headers use JetBrains Mono so column captions sit on the same
-    // tabular baseline as the cell values — keeps numeric / identifier
-    // columns aligned and reinforces the trading-terminal voice.
+    // Keep data cells monospace for tabular alignment, but render
+    // headers in sans to match the original design-system reference.
     fontFamily:        typography.fontFamily.sans,
     fontSize:          fontPx,
-    headerFontFamily:  typography.fontFamily.mono,
+    headerFontFamily:  typography.fontFamily.sans,
     headerFontSize:    Math.max(10, fontPx - 1),
     headerFontWeight:  600,
     cellFontFamily:    typography.fontFamily.mono,
@@ -50,7 +51,7 @@ function gridParams(
     rowBorder:          { style: 'solid' as const, width: 1, color: scheme.border.primary },
     rowHeight:          rowH,
     headerHeight:       headerH,
-    spacing:            density === 'ultra' ? 4 : 6,
+    spacing,
     borderRadius:       2,
     // ── Focus ──
     inputFocusBorder:   { style: 'solid' as const, width: 1, color: scheme.state.focusRing },
@@ -65,5 +66,7 @@ function gridParams(
 
 export const agGridDarkParams         = gridParams(dark,  'dark',  'compact');
 export const agGridLightParams        = gridParams(light, 'light', 'compact');
+export const agGridComfortDarkParams  = gridParams(dark,  'dark',  'comfort');
+export const agGridComfortLightParams = gridParams(light, 'light', 'comfort');
 export const agGridBlotterDarkParams  = gridParams(dark,  'dark',  'ultra');
 export const agGridBlotterLightParams = gridParams(light, 'light', 'ultra');
