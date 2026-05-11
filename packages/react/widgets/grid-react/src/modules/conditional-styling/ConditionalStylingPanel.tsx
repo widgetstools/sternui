@@ -106,30 +106,18 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
 
   return (
     <>
-      <div className="gc-popout-list-header">
+      <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Rules</Caps>
-        <Mono color="var(--ck-t3)" size={11}>
+        <Mono color="var(--ds-text-faint)" size={11}>
           {String(state.rules.length).padStart(2, '0')}
         </Mono>
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
         <button
           type="button"
           onClick={addRule}
           title="Add rule"
           data-testid="cs-add-rule-btn"
-          style={{
-            width: 22,
-            height: 22,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--ck-green-bg)',
-            color: 'var(--ck-green)',
-            border: '1px solid var(--ck-green-dim)',
-            borderRadius: 2,
-            cursor: 'pointer',
-            padding: 0,
-          }}
+          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-overlay-positive-soft)] text-[var(--ds-accent-positive)] border border-[var(--ds-overlay-positive-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
         </button>
@@ -170,18 +158,10 @@ const RuleRow = memo(function RuleRow({
       onSelect={onSelect}
       data-testid={`cs-rule-card-${rule.id}`}
     >
-      <span style={{ width: 2, display: 'inline-flex' }}>
+      <span className="w-0.5 inline-flex">
         <DirtyListLed ruleId={rule.id} />
       </span>
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
+      <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
         {rule.name}
       </span>
     </CockpitListItem>
@@ -195,11 +175,11 @@ export function ConditionalStylingEditor({ selectedId }: EditorPaneProps) {
 
   if (!selectedId) {
     return (
-      <div style={{ padding: '32px 24px' }}>
+      <div className="px-6 py-8">
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No rule selected
         </Caps>
-        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+        <div className="text-xs text-muted-foreground">
           Select a rule from the list, or press <Mono size={11}>+</Mono> to add one.
         </div>
       </div>
@@ -264,13 +244,7 @@ const RuleEditor = memo(function RuleEditor({
     <div
       data-testid="cs-rule-editor"
       data-rule-testid={`cs-rule-editor-${ruleId}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
+      className="flex flex-col flex-1 min-h-0 overflow-hidden"
     >
       <RuleEditorHeader
         ruleId={ruleId}
@@ -281,7 +255,7 @@ const RuleEditor = memo(function RuleEditor({
         onDelete={onDelete}
       />
 
-      <div className="gc-editor-scroll">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
         <RuleMetaStrip
           ruleId={ruleId}
           enabled={draft.enabled}
@@ -350,7 +324,7 @@ const RuleEditor = memo(function RuleEditor({
           setDraft={setDraft}
         />
 
-        <div style={{ height: 20 }} />
+        <div className="h-5" />
       </div>
     </div>
   );
@@ -428,35 +402,26 @@ function IndicatorPicker({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="flex flex-col gap-2">
       {/* Top bar: current selection + clear */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="flex items-center gap-2.5">
         <span
           aria-label="Current indicator"
-          style={{
-            width: 28,
-            height: 28,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid var(--ck-border-hi)',
-            borderRadius: 2,
-            background: 'var(--ck-bg)',
-          }}
+          className="w-7 h-7 inline-flex items-center justify-center border border-[var(--ds-border-secondary)] rounded-sm bg-background"
         >
           {value?.icon ? (
             <IndicatorIconPreview iconKey={value.icon} color={color} size={14} />
           ) : (
-            <Caps size={9} color="var(--ck-t3)">
+            <Caps size={9} color="var(--ds-text-faint)">
               NONE
             </Caps>
           )}
         </span>
-        <Caps size={10} color="var(--ck-t2)">
+        <Caps size={10} color="var(--ds-text-muted)">
           {value?.icon ? findIndicatorIcon(value.icon)?.label ?? value.icon : 'No indicator'}
         </Caps>
 
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
 
         {value?.icon && (
           <FormatPopover
@@ -466,17 +431,7 @@ function IndicatorPicker({
                 type="button"
                 title="Indicator colour"
                 data-testid={`cs-rule-indicator-color-${ruleId}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '2px 8px 2px 2px',
-                  background: 'var(--ck-bg, var(--bn-bg))',
-                  border: '1px solid var(--ck-border-hi, var(--bn-border))',
-                  borderRadius: 2,
-                  height: 28,
-                  cursor: 'pointer',
-                }}
+                className="inline-flex items-center gap-1.5 py-0.5 pr-2 pl-0.5 bg-background border border-[var(--ds-border-secondary)] rounded-sm h-7 cursor-pointer"
               >
                 <span
                   aria-hidden
@@ -484,12 +439,12 @@ function IndicatorPicker({
                     width: 18,
                     height: 18,
                     background: color,
-                    border: '1px solid var(--ck-border-hi, var(--bn-border))',
+                    border: '1px solid var(--ds-border-secondary)',
                     borderRadius: 2,
                     display: 'inline-block',
                   }}
                 />
-                <Caps size={9} color="var(--ck-t2)">
+                <Caps size={9} color="var(--ds-text-muted)">
                   {color.startsWith('#') ? color.toUpperCase() : 'COLOR'}
                 </Caps>
               </button>
@@ -513,11 +468,11 @@ function IndicatorPicker({
             height: 28,
             padding: '0 10px',
             background: 'transparent',
-            border: '1px solid var(--ck-border-hi)',
+            border: '1px solid var(--ds-border-secondary)',
             borderRadius: 2,
-            color: value?.icon ? 'var(--ck-red, var(--bn-red))' : 'var(--ck-t3)',
+            color: value?.icon ? 'var(--ds-accent-negative)' : 'var(--ds-text-faint)',
             cursor: value?.icon ? 'pointer' : 'default',
-            fontFamily: 'var(--ck-font-sans)',
+            fontFamily: 'var(--ds-font-sans)',
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: '0.08em',
@@ -532,8 +487,8 @@ function IndicatorPicker({
 
       {/* Target + Position — only meaningful when an icon is picked */}
       {value?.icon && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="flex items-center gap-3.5 flex-wrap">
+          <div className="flex items-center gap-2">
             <SubLabel>TARGET</SubLabel>
             <PillToggleGroup>
               {(
@@ -562,7 +517,7 @@ function IndicatorPicker({
               ))}
             </PillToggleGroup>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="flex items-center gap-2">
             <SubLabel>POSITION</SubLabel>
             <PillToggleGroup>
               {(
@@ -599,12 +554,8 @@ function IndicatorPicker({
         <div key={group}>
           <SubLabel>{INDICATOR_GROUP_LABELS[group] ?? group}</SubLabel>
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(28px, 1fr))',
-              gap: 4,
-              marginTop: 4,
-            }}
+            className="grid gap-1 mt-1"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(28px, 1fr))' }}
           >
             {icons.map((i) => {
               const active = value?.icon === i.key;
@@ -628,11 +579,11 @@ function IndicatorPicker({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: active ? 'var(--ck-green-bg)' : 'var(--ck-bg)',
-                    border: `1px solid ${active ? 'var(--ck-green)' : 'var(--ck-border-hi)'}`,
+                    background: active ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
+                    border: `1px solid ${active ? 'var(--ds-accent-positive)' : 'var(--ds-border-secondary)'}`,
                     borderRadius: 2,
                     cursor: 'pointer',
-                    color: active ? 'var(--ck-green)' : 'var(--ck-t1)',
+                    color: active ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
                     padding: 0,
                     transition: 'background 120ms, border-color 120ms',
                   }}
@@ -650,7 +601,7 @@ function IndicatorPicker({
         </div>
       ))}
 
-      <Caps size={9} color="var(--ck-t3)">
+      <Caps size={9} color="var(--ds-text-faint)">
         Shown as a 12×12 badge on the top-right of every cell (and column header) currently matching this rule.
       </Caps>
     </div>
@@ -664,18 +615,13 @@ export function ConditionalStylingPanel() {
   return (
     <div
       data-testid="cs-panel"
-      style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}
+      className="grid h-full"
+      style={{ gridTemplateColumns: '220px 1fr' }}
     >
-      <aside
-        style={{
-          borderRight: '1px solid var(--ck-border)',
-          overflowY: 'auto',
-          background: 'var(--ck-surface)',
-        }}
-      >
+      <aside className="border-r border-border overflow-y-auto bg-card">
         <ConditionalStylingList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
       </aside>
-      <section style={{ overflowY: 'auto' }}>
+      <section className="overflow-y-auto">
         <ConditionalStylingEditor gridId="" selectedId={selectedId} />
       </section>
     </div>

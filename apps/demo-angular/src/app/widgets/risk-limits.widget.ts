@@ -8,15 +8,15 @@ import { CommonModule } from '@angular/common';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;overflow-y:auto">
         <div
           *ngFor="let l of limits"
-          style="padding:10px 14px;border-bottom:1px solid var(--bn-border)"
+          style="padding:10px 14px;border-bottom:1px solid var(--ds-border-primary)"
         >
           <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-            <span style="font-size:11px;color:var(--bn-t1);font-family:JetBrains Mono,monospace">{{
+            <span style="font-size:11px;color:var(--ds-text-secondary);font-family:JetBrains Mono,monospace">{{
               l.label
             }}</span>
             <span
@@ -25,7 +25,7 @@ import { CommonModule } from '@angular/common';
               >{{ getPct(l).toFixed(0) }}%</span
             >
           </div>
-          <div style="height:5px;border-radius:2px;background:var(--bn-bg2);overflow:hidden">
+          <div style="height:5px;border-radius:2px;background:var(--ds-surface-secondary);overflow:hidden">
             <div
               [style.width.%]="getPct(l)"
               [style.background]="getColor(l)"
@@ -33,10 +33,10 @@ import { CommonModule } from '@angular/common';
             ></div>
           </div>
           <div style="display:flex;justify-content:space-between;margin-top:4px">
-            <span style="font-size:11px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">{{
+            <span style="font-size:11px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace">{{
               fmtVal(l.used, l.unit)
             }}</span>
-            <span style="font-size:11px;color:var(--bn-t3);font-family:JetBrains Mono,monospace"
+            <span style="font-size:11px;color:var(--ds-text-faint);font-family:JetBrains Mono,monospace"
               >/ {{ fmtVal(l.limit, l.unit) }}</span
             >
           </div>
@@ -60,7 +60,7 @@ export class RiskLimitsWidget {
   }
   getColor(l: any) {
     const pct = this.getPct(l);
-    return pct > 85 ? 'var(--bn-red)' : pct > 65 ? 'var(--bn-amber)' : 'var(--bn-green)';
+    return pct > 85 ? 'var(--ds-accent-negative)' : pct > 65 ? 'var(--ds-accent-warning)' : 'var(--ds-accent-positive)';
   }
   fmtVal(v: number, unit: string) {
     // "$" prefix only, "$K"/"$M" → prefix $ + suffix K/M, "yr" → suffix only

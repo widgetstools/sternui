@@ -18,7 +18,7 @@ const totalDv01All = BUCKET_DETAIL.reduce((a, d) => a + d.dv01, 0);
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;padding:8px 6px 0">
         <p-chart
@@ -30,10 +30,10 @@ const totalDv01All = BUCKET_DETAIL.reduce((a, d) => a + d.dv01, 0);
         />
       </div>
       <div
-        style="display:flex;gap:14px;padding:6px 14px;border-top:1px solid var(--bn-border);flex-shrink:0"
+        style="display:flex;gap:14px;padding:6px 14px;border-top:1px solid var(--ds-border-primary);flex-shrink:0"
       >
         <div *ngFor="let s of summary" style="display:flex;align-items:center;gap:4px">
-          <span style="font-size:9px;color:var(--bn-t2)">{{ s.l }}</span>
+          <span style="font-size:9px;color:var(--ds-text-muted)">{{ s.l }}</span>
           <span class="font-mono-fi font-semibold" style="font-size:11px" [style.color]="s.c">{{
             s.v
           }}</span>
@@ -47,13 +47,13 @@ export class DurationBucketsWidget {
   @Input() panel: any;
 
   summary = [
-    { l: 'Total DV01', v: `$${(totalDv01All / 1000).toFixed(1)}K`, c: '#3b82f6' },
-    { l: 'Avg Dur', v: '4.82yr', c: '#22d3ee' },
-    { l: 'Bonds', v: String(BUCKET_DETAIL.reduce((a, d) => a + d.bonds, 0)), c: 'var(--bn-t0)' },
+    { l: 'Total DV01', v: `$${(totalDv01All / 1000).toFixed(1)}K`, c: 'var(--ds-accent-info)' },
+    { l: 'Avg Dur', v: '4.82yr', c: 'var(--ds-accent-info)' },
+    { l: 'Bonds', v: String(BUCKET_DETAIL.reduce((a, d) => a + d.bonds, 0)), c: 'var(--ds-text-primary)' },
     {
       l: 'Wt Avg OAS',
       v: `+${Math.round(BUCKET_DETAIL.reduce((a, d) => a + d.avgOas * d.bonds, 0) / BUCKET_DETAIL.reduce((a, d) => a + d.bonds, 0))}bp`,
-      c: '#ff8c42',
+      c: 'var(--ds-accent-warning)',
     },
   ];
 
@@ -88,7 +88,7 @@ export class DurationBucketsWidget {
         position: 'top' as const,
         align: 'end' as const,
         labels: {
-          color: '#8a8f98',
+          color: 'var(--ds-text-muted)',
           font: { size: 9, family: 'JetBrains Mono,monospace' },
           boxWidth: 10,
           padding: 8,
@@ -104,13 +104,13 @@ export class DurationBucketsWidget {
     },
     scales: {
       x: {
-        ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+        ticks: { color: 'var(--ds-text-muted)', font: { size: 9, family: 'JetBrains Mono,monospace' } },
         grid: { display: false },
       },
       dv01: {
         position: 'left' as const,
         ticks: {
-          color: '#8a8f98',
+          color: 'var(--ds-text-muted)',
           font: { size: 9, family: 'JetBrains Mono,monospace' },
           callback: (v: number) => `$${(v / 1000).toFixed(0)}K`,
         },
@@ -119,7 +119,7 @@ export class DurationBucketsWidget {
       oas: {
         position: 'right' as const,
         ticks: {
-          color: '#8a8f98',
+          color: 'var(--ds-text-muted)',
           font: { size: 9, family: 'JetBrains Mono,monospace' },
           callback: (v: number) => `${v}bp`,
         },

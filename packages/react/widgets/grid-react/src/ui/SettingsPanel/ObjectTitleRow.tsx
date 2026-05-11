@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /**
- * Editor identity row — Binance-style.
+ * Editor identity row.
  *
  * Renders a title input (or title node) on the left and a cluster of
  * actions on the right. Generous padding to match the reference screens;
@@ -24,16 +24,11 @@ export function ObjectTitleRow({ title, actions, ...rest }: ObjectTitleRowProps)
   return (
     <div
       data-testid={rest['data-testid']}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '20px 24px 12px',
-      }}
+      className="flex items-center gap-3 px-6 pt-5 pb-3"
     >
-      <div style={{ flex: 1, minWidth: 0 }}>{title}</div>
+      <div className="flex-1 min-w-0">{title}</div>
       {actions && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div className="flex items-center gap-2 flex-shrink-0">
           {actions}
         </div>
       )}

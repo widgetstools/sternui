@@ -54,10 +54,11 @@ export type {
 export {
   PortalContainerProvider,
   usePortalContainer,
+  useResolvedPortalContainer,
 } from './ui/PortalContainer';
 export type { PortalContainerProviderProps } from './ui/PortalContainer';
 
-// ─── Cockpit settings-panel primitives ───────────────────────────────────
+// ─── Settings-panel primitives ───────────────────────────────────────────
 export {
   DirtyDot,
   LedBar,
@@ -110,7 +111,7 @@ export type {
   StepperProps,
 } from './ui/SettingsPanel';
 
-// ─── shadcn primitives (gc-themed; distinct from @starui/ui) ─────────────
+// ─── shadcn primitives (ds-themed; distinct from @starui/ui) ─────────────
 export { Button, buttonVariants } from './ui/shadcn/button';
 export type { ButtonProps } from './ui/shadcn/button';
 export { GhostIconButton } from './ui/shadcn/ghost-icon-button';

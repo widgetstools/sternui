@@ -118,7 +118,7 @@ test.describe('hosted-markets-grid integration', () => {
   test('grid info popover surfaces path / instanceId / gridId', async ({ page }) => {
     await page.locator('[data-testid="grid-info-btn"]').click();
     // Popover content is unscoped — match by label cells.
-    const popover = page.locator('[data-gc-settings]').filter({ hasText: 'instanceId' });
+    const popover = page.locator('[data-ds-settings]').filter({ hasText: 'instanceId' });
     await expect(popover).toBeVisible();
     await expect(popover).toContainText('/blotters/marketsgrid');
     await expect(popover).toContainText(GRID_ID);

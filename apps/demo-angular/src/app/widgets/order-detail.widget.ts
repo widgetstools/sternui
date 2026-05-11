@@ -9,17 +9,17 @@ import { SharedStateService } from '../services/shared-state.service';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <ng-container *ngIf="shared.selectedOrder() as sel">
         <div
           style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px"
         >
           <div
-            style="padding:12px;border-radius:3px;border:1px solid var(--bn-border);background:var(--bn-bg2)"
+            style="padding:12px;border-radius:3px;border:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary)"
           >
             <div
-              style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:11px;color:#22d3ee;margin-bottom:5px"
+              style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:11px;color:var(--ds-accent-info);margin-bottom:5px"
             >
               {{ sel.bond }}
             </div>
@@ -34,7 +34,7 @@ import { SharedStateService } from '../services/shared-state.service';
             *ngFor="let item of getFields(sel)"
             style="display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid rgba(43,49,57,0.5)"
           >
-            <span style="font-size:9px;color:var(--bn-t1);font-family:JetBrains Mono,monospace">{{
+            <span style="font-size:9px;color:var(--ds-text-secondary);font-family:JetBrains Mono,monospace">{{
               item.label
             }}</span>
             <span
@@ -42,16 +42,16 @@ import { SharedStateService } from '../services/shared-state.service';
               [style.color]="
                 item.label === 'Side'
                   ? item.value === 'Buy'
-                    ? 'var(--bn-green)'
-                    : 'var(--bn-red)'
-                  : 'var(--bn-t0)'
+                    ? 'var(--ds-accent-positive)'
+                    : 'var(--ds-accent-negative)'
+                  : 'var(--ds-text-primary)'
               "
               >{{ item.value }}</span
             >
           </div>
           <button
             *ngIf="sel.status === 'Pending' || sel.status === 'Partial'"
-            style="width:100%;padding:7px;border-radius:3px;border:1px solid rgba(255,77,109,0.3);background:rgba(255,77,109,0.1);color:var(--bn-red);font-family:JetBrains Mono,monospace;font-weight:700;font-size:11px;cursor:pointer;margin-top:4px"
+            style="width:100%;padding:7px;border-radius:3px;border:1px solid rgba(255,77,109,0.3);background:rgba(255,77,109,0.1);color:var(--ds-accent-negative);font-family:JetBrains Mono,monospace;font-weight:700;font-size:11px;cursor:pointer;margin-top:4px"
           >
             CANCEL ORDER
           </button>
@@ -61,7 +61,7 @@ import { SharedStateService } from '../services/shared-state.service';
         *ngIf="!shared.selectedOrder()"
         style="flex:1;display:flex;align-items:center;justify-content:center"
       >
-        <span style="font-size:11px;color:var(--bn-t3);font-family:JetBrains Mono,monospace"
+        <span style="font-size:11px;color:var(--ds-text-faint);font-family:JetBrains Mono,monospace"
           >Click a row to view detail</span
         >
       </div>

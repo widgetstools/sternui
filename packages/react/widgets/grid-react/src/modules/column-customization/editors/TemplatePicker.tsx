@@ -22,7 +22,7 @@ export function TemplatePicker({
   const available = Object.values(allTemplates).filter((t) => !applied.has(t.id));
   if (available.length === 0) {
     return (
-      <Caps size={9} color="var(--ck-t3)">
+      <Caps size={9} color="var(--ds-text-faint)">
         {Object.keys(allTemplates).length === 0
           ? 'No templates exist yet — save one from the Formatting Toolbar.'
           : 'All templates already applied.'}

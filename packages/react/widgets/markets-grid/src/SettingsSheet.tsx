@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import './grid-chrome.css';
 import {
-  V2_SHEET_STYLE_ID,
-  v2SheetCSS,
   isOpenFin,
   type AnyModule,
 } from '@starui/core';
@@ -66,19 +65,6 @@ export interface SettingsSheetProps {
  */
 export type SettingsSheetHandle = PoppableHandle;
 
-function ensureStyles() {
-  if (typeof document === 'undefined') return;
-  // Inject the cockpit popout stylesheet. MarketsGrid's top-level
-  // ensureCockpitStyles already covers the cockpit tokens; this
-  // function stays because the sheet itself may mount before
-  // MarketsGrid's effect runs on cold-mount edge cases.
-  if (!document.getElementById(V2_SHEET_STYLE_ID)) {
-    const v2style = document.createElement('style');
-    v2style.id = V2_SHEET_STYLE_ID;
-    v2style.textContent = v2SheetCSS;
-    document.head.appendChild(v2style);
-  }
-}
 
 export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>(function SettingsSheet({
   modules,
@@ -131,10 +117,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   }, [initialModuleId, panelModules.length]);
 
   useEffect(() => {
-    if (open) ensureStyles();
-  }, [open]);
-
-  useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -171,9 +153,9 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     // custom titlebar would just duplicate it there.
     const frameless = popped && isOpenFin();
     const sheetClasses = [
-      'gc-sheet',
-      'gc-sheet-v2',
-      'gc-popout',
+      'ds-sheet',
+      'ds-sheet-v2',
+      'ds-popout',
       maximized && !popped ? 'is-maximized' : '',
       popped ? 'is-popped' : '',
       frameless ? 'is-frameless' : '',
@@ -196,7 +178,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                redundant there and stays hidden (inline mode keeps
                its original behavior). */}
           <header
-            className="gc-popout-title"
+            className="ds-popout-title"
             style={frameless ? ({ WebkitAppRegion: 'drag' } as CSSProperties) : undefined}
           >
             {/* Brand cluster shown inline AND in frameless popped
@@ -205,10 +187,10 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 already labels the window. */}
             {(!popped || frameless) && (
               <>
-                <GripHorizontal size={14} color="var(--ck-t3)" />
-                <span style={{ color: 'var(--ck-green)', fontSize: 11 }}>●</span>
-                <span className="gc-popout-title-text">Grid Customizer</span>
-                <span className="gc-popout-title-sub">v2.3.0</span>
+                <GripHorizontal size={14} color="var(--ds-text-faint)" />
+                <span className="text-[var(--ds-accent-positive)] text-[11px]">●</span>
+                <span className="ds-popout-title-text">Grid Customizer</span>
+                <span className="ds-popout-title-sub">v2.3.0</span>
               </>
             )}
 
@@ -223,27 +205,19 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="gc-popout-module-btn"
+                    className="ds-popout-module-btn"
                     aria-expanded={moduleMenuOpen}
                     data-testid="v2-settings-module-dropdown"
                     style={frameless ? ({ WebkitAppRegion: 'no-drag' } as CSSProperties) : undefined}
                   >
                     <span>{activeModule.name}</span>
-                    <ChevronDown size={11} strokeWidth={2} color="var(--ck-t2)" />
+                    <ChevronDown size={11} strokeWidth={2} color="var(--ds-text-muted)" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
                   align="start"
                   sideOffset={6}
-                  className="gc-sheet-v2"
-                  style={{
-                    padding: 4,
-                    width: 220,
-                    background: 'var(--ck-card)',
-                    border: '1px solid var(--ck-border-hi)',
-                    borderRadius: 2,
-                    boxShadow: 'var(--ck-popout-shadow)',
-                  }}
+                  className="ds-sheet-v2 p-1 w-[220px] bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-secondary)] rounded-sm shadow-[var(--ds-elevation-overlay)]"
                 >
                   {panelModules.map((m) => {
                     const selected = m.id === activeId;
@@ -251,7 +225,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                       <button
                         key={m.id}
                         type="button"
-                        className="gc-popout-module-menu-item"
+                        className="ds-popout-module-menu-item"
                         aria-selected={selected}
                         data-testid={`v2-settings-nav-menu-${m.id}`}
                         onClick={() => {
@@ -267,9 +241,9 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               </Popover>
             )}
 
-            <span style={{ flex: 1 }} />
-            <span className="gc-popout-title-status">
-              DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ck-amber)' : 'var(--ck-t1)' }}>
+            <span className="flex-1" />
+            <span className="ds-popout-title-status">
+              DIRTY=<strong style={{ color: dirtyCount > 0 ? 'var(--ds-accent-warning)' : 'var(--ds-text-secondary)' }}>
                 {String(dirtyCount).padStart(2, '0')}
               </strong>
             </span>
@@ -287,13 +261,13 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             >
               <button
                 type="button"
-                className="gc-popout-title-btn"
+                className="ds-popout-title-btn"
                 onClick={() => setHelpOpen((v) => !v)}
                 title={helpOpen ? 'Back to settings' : 'Formats & expressions help'}
                 aria-label={helpOpen ? 'Back to settings' : 'Open formats and expressions help'}
                 aria-pressed={helpOpen}
                 data-testid="v2-settings-help-btn"
-                style={helpOpen ? { color: 'var(--ck-green)' } : undefined}
+                style={helpOpen ? { color: 'var(--ds-accent-positive)' } : undefined}
               >
                 <HelpCircle size={12} strokeWidth={2} />
               </button>
@@ -302,7 +276,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               {!popped && (
                 <button
                   type="button"
-                  className="gc-popout-title-btn"
+                  className="ds-popout-title-btn"
                   onClick={() => setMaximized((v) => !v)}
                   title={maximized ? 'Restore window size' : 'Maximize'}
                   aria-label={maximized ? 'Restore window size' : 'Maximize'}
@@ -314,7 +288,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                   inline; hides itself when popped (the OS window
                   chrome takes over). */}
               <PopoutButton
-                className="gc-popout-title-btn"
+                className="ds-popout-title-btn"
                 title="Open in a separate window"
                 data-testid="v2-settings-popout-btn"
               />
@@ -326,7 +300,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               {(!popped || frameless) && (
                 <button
                   type="button"
-                  className="gc-popout-title-btn"
+                  className="ds-popout-title-btn"
                   onClick={() => {
                     if (frameless) {
                       // Popped + OpenFin: user clicked our custom X.
@@ -366,18 +340,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             // a non-zero hit area keep programmatic clicks working for
             // screen readers / e2e tests. The dropdown above remains the
             // visible UX for real users.
-            style={{
-              position: 'absolute',
-              top: 4,
-              left: 4,
-              width: 1,
-              height: 1,
-              opacity: 0,
-              overflow: 'hidden',
-              pointerEvents: 'auto',
-              whiteSpace: 'nowrap',
-              zIndex: 0,
-            }}
+            className="absolute top-1 left-1 w-px h-px opacity-0 overflow-hidden pointer-events-auto whitespace-nowrap z-0"
             data-testid="v2-settings-nav"
           >
             {panelModules.map((m) => (
@@ -388,7 +351,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
                 aria-selected={m.id === activeId}
                 tabIndex={-1}
                 onClick={() => setActiveId(m.id)}
-                style={{ width: 1, height: 1, padding: 0, border: 'none', background: 'transparent' }}
+                className="w-px h-px p-0 border-none bg-transparent"
               >
                 {m.name}
               </button>
@@ -397,7 +360,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
 
           {/* ── Body ───────────────────────────────────────────── */}
           <main
-            className="gc-popout-body"
+            className="ds-popout-body"
             data-layout={helpOpen ? 'help' : hasMasterDetail ? 'master-detail' : 'editor-only'}
           >
             {helpOpen ? (
@@ -405,7 +368,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             ) : (
               <>
             {hasMasterDetail && ListPane && activeModule && (
-              <aside className="gc-popout-list" data-testid="v2-settings-list">
+              <aside className="ds-popout-list" data-testid="v2-settings-list">
                 <ListPane
                   gridId={gridId}
                   selectedId={selectedId}
@@ -415,36 +378,30 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
             )}
 
             <section
-              className="gc-popout-editor"
+              className="ds-popout-editor"
               data-testid="v2-settings-content"
               data-active-module={activeModule?.id ?? ''}
             >
               {hasMasterDetail && EditorPane ? (
                 // Module-specific testid wrapper — back-compat alias for the
                 // legacy flat panel testids (`cs-panel` / `cg-panel` / `cc-panel`).
-                // The wrapper is a flex column so the editor's `gc-editor-header`
-                // + `gc-editor-scroll` children layout correctly (replaces the
+                // The wrapper is a flex column so the editor's `ds-editor-header`
+                // + `ds-editor-scroll` children layout correctly (replaces the
                 // previous `display: contents` hoist).
                 <div
                   data-testid={PANEL_TESTID_BY_MODULE_ID[activeId] ?? ''}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flex: 1,
-                    minHeight: 0,
-                    overflow: 'hidden',
-                  }}
+                  className="flex flex-col flex-1 min-h-0 overflow-hidden"
                 >
                   <EditorPane gridId={gridId} selectedId={selectedId} />
                 </div>
               ) : LegacyPanel ? (
                 <LegacyPanel gridId={gridId} />
               ) : (
-                <div style={{ padding: 24 }}>
-                  <div className="gc-caps" style={{ fontSize: 10, marginBottom: 6 }}>
+                <div className="p-6">
+                  <div className="ds-caps text-[10px] mb-1.5">
                     NO EDITOR
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+                  <div className="text-xs text-muted-foreground">
                     {activeModule?.name ?? 'This module'} has no settings UI registered.
                   </div>
                 </div>
@@ -455,16 +412,16 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
           </main>
 
           {/* ── Footer ─────────────────────────────────────────── */}
-          <footer className="gc-popout-footer">
+          <footer className="ds-popout-footer">
             {/* Keyboard shortcut hints — the per-card Save pills on
                 every editor already signal "save each rule
                 individually", so the redundant copy line was dropped
                 when the popout narrowed to 820px (it was pushing the
                 Done button off-screen). */}
-            <span style={{ whiteSpace: 'nowrap' }}>
+            <span className="whitespace-nowrap">
               ⌘ S = SAVE CARD · ⌘ ⏎ = SAVE ALL · ⌫ = DELETE · ESC = CLOSE
             </span>
-            <span style={{ flex: 1 }} />
+            <span className="flex-1" />
             <SharpBtn
               variant="ghost"
               onClick={onClose}
@@ -491,7 +448,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
   return (
     <Poppable
       ref={ref}
-      name={`gc-popout-${gridId}`}
+      name={`ds-popout-${gridId}`}
       // Suffix the OS window title with gridId so users with
       // multiple grids (two-grid dashboard) can tell popout windows
       // apart in the OS taskbar / window menu.
@@ -509,7 +466,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
     >
       {({ popped, PopoutButton, close }) => (
         <div
-          data-gc-settings=""
+          data-ds-settings=""
           data-testid="v2-settings-sheet"
           data-popped={popped ? 'true' : undefined}
         >
@@ -517,7 +474,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
               overlay when popped. */}
           {!popped && (
             <div
-              className="gc-popout-backdrop"
+              className="ds-popout-backdrop"
               onClick={onClose}
               data-testid="v2-settings-overlay"
             />

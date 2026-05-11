@@ -5,7 +5,7 @@ import { VAR_DATA } from '../services/trading-data.service';
   selector: 'var-trend-widget',
   standalone: true,
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
-  template: `<div style="flex:1;position:relative;background:var(--bn-bg1)">
+  template: `<div style="flex:1;position:relative;background:var(--ds-surface-primary)">
     <canvas #canvas style="width:100%;height:100%;display:block"></canvas>
   </div>`,
 })
@@ -40,7 +40,7 @@ export class VarTrendWidget implements AfterViewInit, OnDestroy {
     const pad = { l: 50, r: 16, t: 12, b: 20 };
     ctx.clearRect(0, 0, W, H);
     const g = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-    ctx.fillStyle = g('--bn-bg1');
+    ctx.fillStyle = g('--ds-surface-primary');
     ctx.fillRect(0, 0, W, H);
 
     const minV = Math.min(...VAR_DATA.map((d) => d.var));
@@ -50,7 +50,7 @@ export class VarTrendWidget implements AfterViewInit, OnDestroy {
     const yOf = (v: number) => pad.t + (1 - (v - minV) / (maxV - minV)) * (H - pad.t - pad.b);
 
     // Grid
-    ctx.strokeStyle = g('--bn-bg2');
+    ctx.strokeStyle = g('--ds-surface-secondary');
     ctx.lineWidth = 0.5;
     for (let i = 1; i <= 3; i++) {
       const y = pad.t + ((H - pad.t - pad.b) * i) / 4;
@@ -59,7 +59,7 @@ export class VarTrendWidget implements AfterViewInit, OnDestroy {
       ctx.lineTo(W - pad.r, y);
       ctx.stroke();
       const val = maxV - ((maxV - minV) * i) / 4;
-      ctx.fillStyle = g('--bn-t2');
+      ctx.fillStyle = g('--ds-text-muted');
       ctx.font = '8px JetBrains Mono,monospace';
       ctx.textAlign = 'right';
       ctx.fillText(`$${Math.abs(val).toFixed(0)}K`, pad.l - 4, y + 3);
@@ -67,7 +67,7 @@ export class VarTrendWidget implements AfterViewInit, OnDestroy {
 
     // Line
     ctx.beginPath();
-    ctx.strokeStyle = '#ff8c42';
+    ctx.strokeStyle = 'var(--ds-accent-warning)';
     ctx.lineWidth = 1.5;
     VAR_DATA.forEach((d, i) => {
       i === 0 ? ctx.moveTo(xOf(i), yOf(d.var)) : ctx.lineTo(xOf(i), yOf(d.var));

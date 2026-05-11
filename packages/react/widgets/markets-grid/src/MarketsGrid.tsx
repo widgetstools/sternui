@@ -10,6 +10,7 @@ import {
   type ReactElement,
   type RefAttributes,
 } from 'react';
+import './grid-chrome.css';
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
 import type { GridReadyEvent } from 'ag-grid-community';
@@ -17,8 +18,6 @@ import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import {
   MemoryAdapter,
-  cockpitCSS,
-  COCKPIT_STYLE_ID,
   type AnyModule,
   type StorageAdapter,
 } from '@starui/core';
@@ -31,7 +30,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  DirtyDot,
   GridProvider,
   Input,
   Popover,
@@ -52,7 +50,7 @@ import {
   useProfileManager,
 } from '@starui/grid-react';
 import {
-  Save, Check, Settings as SettingsIcon, Brush,
+  Save, Check, Settings as SettingsIcon, SlidersHorizontal,
   Wrench,
   Database,
   FileText,
@@ -92,20 +90,6 @@ function ensureAgGridRegistered() {
 // at most once per page session even across many grid mounts. Reset
 // only if the module is reloaded (HMR / a fresh page).
 let _memoryAdapterWarned = false;
-
-/**
- * Inject the cockpit design-system stylesheet once per document. Idempotent —
- * subsequent grids reuse the single `<style id="gc-cockpit-styles">` node.
- * SSR-safe: no-ops when `document` is undefined.
- */
-function ensureCockpitStyles() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(COCKPIT_STYLE_ID)) return;
-  const el = document.createElement('style');
-  el.id = COCKPIT_STYLE_ID;
-  el.textContent = cockpitCSS;
-  document.head.appendChild(el);
-}
 
 /**
  * Default module list — every shipped module, ordered the way the user's
@@ -173,7 +157,6 @@ function MarketsGridInner<TData = unknown>(
   } = props;
 
   ensureAgGridRegistered();
-  ensureCockpitStyles();
 
   const gridRef = useRef<AgGridReact<TData>>(null);
 
@@ -552,13 +535,13 @@ function Host<TData>({
     setSettingsOpen(true);
   }, []);
 
-  // Formatting toolbar — always starts hidden. The Brush button on the
+  // Formatting toolbar — always starts hidden. The toolbar-control button on the
   // FiltersToolbar toggles it. The `showFormattingToolbar` prop only
-  // controls whether the feature is available (i.e. whether the Brush
+  // controls whether the feature is available (i.e. whether the formatter
   // pill + floating panel exist); it doesn't pre-open the toolbar.
   const [styleToolbarOpen, setStyleToolbarOpen] = useState(false);
   // Imperative handle into the FormattingToolbar — same pattern as
-  // sheetRef. The brush button uses `focusIfPopped()` to raise a
+  // sheetRef. The toolbar-control button uses `focusIfPopped()` to raise a
   // buried popout window before falling through to toggle.
   const toolbarRef = useRef<FormattingToolbarHandle>(null);
 
@@ -686,14 +669,14 @@ function Host<TData>({
            — a developer/support affordance, not surfaced to end users. */}
       {headerExtras ? (
         <div
-          className="gc-toolbar-primary gc-primary-row"
+          className="ds-toolbar-primary ds-primary-row"
           data-grid-header-extras
         >
           {headerExtras}
         </div>
       ) : null}
       {showToolbar && (
-        <div className="gc-toolbar-primary gc-primary-row">
+        <div className="ds-toolbar-primary ds-primary-row">
           {/* LEFT-MOST — editable caption surfaced when the host's
                OpenFin tab strip is hidden. Click reveals an inline edit
                icon; clicking the icon swaps the label for an input.
@@ -708,35 +691,35 @@ function Host<TData>({
           {/* LEFT — filters carousel (flex:1, collapses/expands via its
                own chevron; formatter-toolbar toggle no longer lives
                inside it). */}
-          <div className="gc-primary-filters">
+          <div className="ds-primary-filters">
             {showFiltersToolbar ? (
               <FiltersToolbar />
             ) : (
-              <div className="gc-primary-filters-empty" />
+              <div className="ds-primary-filters-empty" />
             )}
           </div>
 
           {/* RIGHT — action cluster. A single thin divider leads the
                group (instead of a full-height border on every button),
                then evenly-spaced icon buttons with matching chrome. */}
-          <div className="gc-primary-actions">
+          <div className="ds-primary-actions">
             {showFormattingToolbar && (
               <button
                 type="button"
-                className="gc-primary-action"
+                className="ds-primary-action"
                 onClick={handleToggleStyleToolbar}
                 title={styleToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
                 data-testid="style-toolbar-toggle"
                 data-active={styleToolbarOpen ? 'true' : 'false'}
                 aria-pressed={styleToolbarOpen}
               >
-                <Brush size={14} strokeWidth={2} />
+                <SlidersHorizontal size={14} strokeWidth={2} />
               </button>
             )}
 
             {showProfileSelector && (
               <>
-                {showFormattingToolbar && <span className="gc-primary-divider" aria-hidden />}
+                {showFormattingToolbar && <span className="ds-primary-divider" aria-hidden />}
                 <ProfileSelector
                   profiles={profiles.profiles}
                   activeProfileId={profiles.activeProfileId ?? ''}
@@ -789,7 +772,7 @@ function Host<TData>({
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `gc-profile-${fileStem}.json`;
+                      a.download = `ds-profile-${fileStem}.json`;
                       document.body.appendChild(a);
                       a.click();
                       a.remove();
@@ -817,35 +800,26 @@ function Host<TData>({
 
             {showSaveButton && (
               <>
-                <span className="gc-primary-divider" aria-hidden />
+                <span className="ds-primary-divider" aria-hidden />
                 <button
                   type="button"
-                  className="gc-primary-action gc-primary-save"
+                  className="ds-primary-action ds-primary-save"
                   onClick={handleSaveAll}
                   title={isDirty ? 'Save all settings (unsaved changes)' : 'Save all settings'}
                   data-testid="save-all-btn"
                   data-state={saveFlash ? 'saved' : isDirty ? 'dirty' : 'idle'}
                 >
                   {saveFlash ? <Check size={14} strokeWidth={2.5} /> : <Save size={14} strokeWidth={2} />}
-                  {/* Dirty indicator — small pulsed teal dot top-right of
-                      the icon. Shown only when unsaved and NOT actively
-                      flashing (to avoid stacking indicators during the
-                      600ms post-save flash). */}
-                  {isDirty && !saveFlash && (
-                    <span className="gc-primary-save-dirty" data-testid="save-all-dirty">
-                      <DirtyDot title="Unsaved changes" />
-                    </span>
-                  )}
                 </button>
               </>
             )}
 
             {showSettingsButton && (
               <>
-                <span className="gc-primary-divider" aria-hidden />
+                <span className="ds-primary-divider" aria-hidden />
                 <button
                   type="button"
-                  className="gc-primary-action"
+                  className="ds-primary-action"
                   onClick={handleOpenSettings}
                   title="Open settings"
                   data-testid="v2-settings-open-btn"
@@ -879,7 +853,7 @@ function Host<TData>({
 
       {/* FormattingToolbar — pinned as a second toolbar row directly
            beneath the FiltersToolbar. Visibility is bound to the
-           existing Brush toggle in the FiltersToolbar
+           existing formatter toggle in the FiltersToolbar
            (`styleToolbarOpen`). When the viewport is narrow the
            toolbar's flex-wrap kicks in and the row grows vertically
            (1 row → 2 rows) so no content is clipped.
@@ -889,7 +863,7 @@ function Host<TData>({
            overlap narrow grid columns in multi-grid dashboards. */}
       {showFormattingToolbar && styleToolbarOpen && (
         <div
-          className="gc-tb-pinned"
+          className="ds-tb-pinned"
           data-testid="formatting-toolbar-pinned"
           style={{ flexShrink: 0 }}
         >
@@ -1059,12 +1033,12 @@ function GridInfoButton({
   const resolvedInstanceId = instanceId ?? gridId;
   return (
     <>
-      <span className="gc-primary-divider" aria-hidden />
+      <span className="ds-primary-divider" aria-hidden />
       <Popover>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="gc-primary-action"
+            className="ds-primary-action"
             title="Grid info"
             aria-label="Grid info"
             data-testid="grid-info-btn"
@@ -1076,14 +1050,14 @@ function GridInfoButton({
           align="end"
           sideOffset={6}
           className="w-[360px] p-0 text-xs"
-          data-gc-settings
+          data-ds-settings
         >
           {componentName && (
             <div
               className="px-3 py-2 border-b text-[13px] font-semibold"
               style={{
-                color: 'var(--bn-t0)',
-                borderColor: 'var(--bn-border)',
+                color: 'var(--ds-text-primary)',
+                borderColor: 'var(--ds-border-primary)',
               }}
             >
               {componentName}
@@ -1112,7 +1086,7 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
           fontWeight: 600,
           letterSpacing: 0.6,
           textTransform: 'uppercase',
-          color: 'var(--bn-t3, var(--muted-foreground))',
+          color: 'var(--ds-text-faint)',
           width: 80,
         }}
       >
@@ -1122,8 +1096,10 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
         className="min-w-0 truncate"
         title={value}
         style={{
-          color: 'var(--bn-t0, var(--foreground))',
-          fontFamily: mono ? "'JetBrains Mono', 'IBM Plex Mono', monospace" : 'inherit',
+          color: 'var(--ds-text-primary)',
+          fontFamily: mono
+            ? "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"
+            : 'inherit',
           fontSize: 12,
         }}
       >
@@ -1139,7 +1115,7 @@ function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined })
 
   return (
     <>
-      <span className="gc-primary-divider" aria-hidden />
+      <span className="ds-primary-divider" aria-hidden />
       {visible.map((action) => {
         const Icon = resolveAdminActionIcon(action.icon);
         // Tooltip shows label and description stacked. Native `title`
@@ -1151,7 +1127,7 @@ function AdminActionButtons({ actions }: { actions: AdminAction[] | undefined })
           <button
             key={action.id}
             type="button"
-            className="gc-primary-action"
+            className="ds-primary-action"
             onClick={() => { void action.onClick(); }}
             title={title}
             aria-label={action.label}
@@ -1272,7 +1248,7 @@ function EditableCaption({
         marginRight: 8,
         fontSize: 12,
         fontWeight: 600,
-        color: 'var(--bn-t0, #d8dee9)',
+        color: 'var(--ds-text-primary)',
       }}
     >
       <span data-testid="grid-caption-text">{value}</span>
@@ -1294,7 +1270,7 @@ function EditableCaption({
           padding: 0,
           background: 'transparent',
           border: 'none',
-          color: 'var(--bn-t2, #7a8494)',
+          color: 'var(--ds-text-muted)',
           cursor: 'pointer',
         }}
       >

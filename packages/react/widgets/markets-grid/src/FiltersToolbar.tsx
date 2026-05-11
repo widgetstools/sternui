@@ -494,7 +494,7 @@ export function FiltersToolbar() {
 
   return (
     <div
-      className="gc-toolbar-content gc-filters-bar"
+      className="ds-toolbar-content ds-filters-bar"
       data-testid="filters-toolbar"
       data-expanded={expanded ? 'true' : 'false'}
     >
@@ -504,7 +504,7 @@ export function FiltersToolbar() {
           toolbar-visibility module. */}
       <button
         type="button"
-        className="gc-filters-collapse"
+        className="ds-filters-collapse"
         onClick={toggleExpanded}
         title={expanded ? 'Collapse filter pills' : 'Expand filter pills'}
         aria-expanded={expanded}
@@ -522,23 +522,23 @@ export function FiltersToolbar() {
       {!expanded && (
         <button
           type="button"
-          className="gc-filters-summary"
+          className="ds-filters-summary"
           onClick={toggleExpanded}
           data-testid="filters-summary-chip"
           title="Click to expand filter pills"
         >
           {filters.length === 0 ? (
-            <span className="gc-filters-summary-empty">No filters</span>
+            <span className="ds-filters-summary-empty">No filters</span>
           ) : (
             <>
-              <span className="gc-filters-summary-count">
+              <span className="ds-filters-summary-count">
                 {filters.length}
               </span>
-              <span className="gc-filters-summary-label">
+              <span className="ds-filters-summary-label">
                 filter{filters.length === 1 ? '' : 's'}
               </span>
               {activeCount > 0 && (
-                <span className="gc-filters-summary-active">
+                <span className="ds-filters-summary-active">
                   · {activeCount} active
                 </span>
               )}
@@ -550,7 +550,7 @@ export function FiltersToolbar() {
       {expanded && canScrollLeft && (
         <button
           type="button"
-          className="gc-filters-caret"
+          className="ds-filters-caret"
           onClick={() => scrollBy(-1)}
           title="Scroll left"
           data-testid="filters-caret-left"
@@ -559,7 +559,7 @@ export function FiltersToolbar() {
         </button>
       )}
       {expanded && (
-      <div ref={scrollRef} className="gc-filter-scroll">
+      <div ref={scrollRef} className="ds-filter-scroll">
         {filters.map((f) => {
           if (renameId === f.id) {
             return (
@@ -568,7 +568,7 @@ export function FiltersToolbar() {
                 ref={renameInputRef}
                 defaultValue={f.label}
                 autoFocus
-                className="gc-filter-rename-input"
+                className="ds-filter-rename-input"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleConfirmRename(f.id, (e.target as HTMLInputElement).value);
                   if (e.key === 'Escape') setRenameId(null);
@@ -580,13 +580,13 @@ export function FiltersToolbar() {
           return (
             <div
               key={f.id}
-              className={`gc-filter-pill group ${f.active ? 'gc-filter-active' : 'gc-filter-inactive'}`}
+              className={`ds-filter-pill group ${f.active ? 'ds-filter-active' : 'ds-filter-inactive'}`}
               data-testid={`filter-pill-${f.id}`}
               data-active={f.active}
             >
               <button
                 type="button"
-                className="gc-filter-pill-btn"
+                className="ds-filter-pill-btn"
                 onClick={() => handleToggle(f.id)}
                 title={
                   filterCounts[f.id] != null
@@ -597,17 +597,17 @@ export function FiltersToolbar() {
                 <span className="truncate">{f.label}</span>
                 {filterCounts[f.id] != null && (
                   <span
-                    className="gc-filter-pill-count"
+                    className="ds-filter-pill-count"
                     data-testid={`filter-pill-count-${f.id}`}
                   >
                     {filterCounts[f.id]}
                   </span>
                 )}
               </button>
-              <span className="gc-filter-pill-actions">
+              <span className="ds-filter-pill-actions">
                 <button
                   type="button"
-                  className="gc-filter-pill-action"
+                  className="ds-filter-pill-action"
                   onClick={(e) => { e.stopPropagation(); setRenameId(f.id); }}
                   title="Rename"
                 >
@@ -615,7 +615,7 @@ export function FiltersToolbar() {
                 </button>
                 <button
                   type="button"
-                  className="gc-filter-pill-action gc-filter-pill-action-remove"
+                  className="ds-filter-pill-action ds-filter-pill-action-remove"
                   onClick={(e) => { e.stopPropagation(); handleRemove(f.id); }}
                   title="Remove"
                 >
@@ -629,7 +629,7 @@ export function FiltersToolbar() {
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="gc-filter-pill-menu"
+                    className="ds-filter-pill-menu"
                     onClick={(e) => e.stopPropagation()}
                     title="Edit saved filter"
                     data-testid={`filter-pill-menu-${f.id}`}
@@ -664,7 +664,7 @@ export function FiltersToolbar() {
       {expanded && canScrollRight && (
         <button
           type="button"
-          className="gc-filters-caret"
+          className="ds-filters-caret"
           onClick={() => scrollBy(1)}
           title="Scroll right"
           data-testid="filters-caret-right"
@@ -676,25 +676,25 @@ export function FiltersToolbar() {
       {/* Sticky action cluster — always visible even when the pill row
           scrolls OR is collapsed. Clear + add remain reachable so the
           user can manage pills from the compact view too.
-          `.gc-filters-actions` is a flex-shrink:0 group; the
+          `.ds-filters-actions` is a flex-shrink:0 group; the
           Brush / formatter-toolbar toggle no longer lives here — it
           sits in the primary row's right-side action cluster
           (MarketsGrid) where it's decoupled from filter semantics. */}
-      <div className="gc-filters-actions">
+      <div className="ds-filters-actions">
         {filters.length > 0 && (
           <button
             type="button"
-            className="gc-filters-clear-btn"
+            className="ds-filters-clear-btn"
             onClick={handleDeactivateAll}
             title="Clear all filters"
           >
-            <FunnelX size={16} strokeWidth={2.75} />
+            <FunnelX size={18} strokeWidth={3} />
           </button>
         )}
 
         <button
           type="button"
-          className="gc-filters-add-btn"
+          className="ds-filters-add-btn"
           onClick={handleAdd}
           disabled={!hasNewFilter}
           data-testid="filters-add-btn"
@@ -709,7 +709,7 @@ export function FiltersToolbar() {
             cursor: hasNewFilter ? 'pointer' : 'not-allowed',
           }}
         >
-          <FunnelPlus size={16} strokeWidth={2.75} />
+          <FunnelPlus size={18} strokeWidth={3} />
         </button>
       </div>
     </div>
@@ -754,7 +754,7 @@ function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModel
     <div className="flex flex-col">
       <div
         className="px-3 py-2 border-b text-[10px] font-bold uppercase tracking-wider opacity-60"
-        style={{ borderColor: 'var(--bn-border)' }}
+        style={{ borderColor: 'var(--ds-border-primary)' }}
       >
         {label}
       </div>
@@ -764,13 +764,13 @@ function FilterModelEditor({ label, filterModel, onSave, onCancel }: FilterModel
         spellCheck={false}
         rows={10}
         className="font-mono text-[11px] leading-snug rounded-none border-0 border-b resize-none focus-visible:ring-0 focus-visible:ring-offset-0 max-h-[280px]"
-        style={{ borderColor: 'var(--bn-border)' }}
+        style={{ borderColor: 'var(--ds-border-primary)' }}
         data-testid="filter-pill-details-textarea"
       />
       {!parsed.ok && (
         <div
           className="px-3 py-1.5 text-[10px] font-medium border-b"
-          style={{ color: 'var(--bn-red, #f87171)', borderColor: 'var(--bn-border)' }}
+          style={{ color: 'var(--ds-accent-negative)', borderColor: 'var(--ds-border-primary)' }}
           data-testid="filter-pill-details-error"
         >
           {parsed.error}

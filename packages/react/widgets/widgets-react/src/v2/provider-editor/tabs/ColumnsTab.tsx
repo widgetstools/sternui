@@ -20,13 +20,20 @@ import type {
   ICellRendererParams,
   RowDragEndEvent,
 } from 'ag-grid-community';
-import { AllCommunityModule, themeQuartz } from 'ag-grid-community';
+import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
+import {
+  MultiFilterModule,
+  SetFilterModule,
+  StatusBarModule,
+} from 'ag-grid-enterprise';
 import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useTheme } from '@starui/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ColumnDefinition } from '@starui/shared-types';
 import { normalizeKeyColumns } from '@starui/shared-types';
 import { agGridLightParams, agGridDarkParams } from '@starui/design-system/adapters/ag-grid';
 import { MultiSelect } from '../MultiSelect.js';
+
+ModuleRegistry.registerModules([MultiFilterModule, SetFilterModule, StatusBarModule]);
 
 
 const CELL_TYPES: ReadonlyArray<NonNullable<ColumnDefinition['cellDataType']>> = [
@@ -52,9 +59,35 @@ export interface ColumnsTabProps {
 
 export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: ColumnsTabProps) {
   const { resolvedTheme } = useTheme();
-  const gridTheme = themeQuartz.withParams(
-    resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams,
+  const gridTheme = useMemo(
+    () => themeQuartz.withParams(resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams),
+    [resolvedTheme],
   );
+
+  const defaultColDef = useMemo<ColDef>(() => ({
+    sortable: true,
+    resizable: true,
+    filter: 'agMultiColumnFilter',
+    filterParams: {
+      filters: [
+        {
+          filter: 'agTextColumnFilter',
+          filterParams: { buttons: ['reset'], debounceMs: 200 },
+        },
+        { filter: 'agSetColumnFilter' },
+      ],
+    },
+    floatingFilter: true,
+    suppressHeaderMenuButton: true,
+  }), []);
+
+  const statusBar = useMemo(() => ({
+    statusPanels: [
+      { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' as const },
+      { statusPanel: 'agSelectedRowCountComponent', align: 'center' as const },
+      { statusPanel: 'agAggregationComponent', align: 'right' as const },
+    ],
+  }), []);
 
   // Form state for adding new columns
   const [newFieldName, setNewFieldName] = useState('');
@@ -227,11 +260,8 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
             onRowDragEnd={onRowDragEnd}
             headerHeight={28}
             rowHeight={32}
-            defaultColDef={{
-              resizable: true,
-              sortable: false,
-              suppressHeaderMenuButton: true,
-            }}
+            defaultColDef={defaultColDef}
+            statusBar={statusBar}
             suppressContextMenu
           />
         </div>

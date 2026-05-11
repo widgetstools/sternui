@@ -31,6 +31,7 @@ import type {
   GridOptions,
 } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
+import { agGridBlotterDarkParams, agGridBlotterLightParams } from '@starui/design-system/adapters/ag-grid';
 import { AgGridReact } from 'ag-grid-react';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
@@ -173,7 +174,7 @@ function DepthBarRenderer(props: ICellRendererParams<LadderRow>) {
           justifyContent: 'flex-end',
           paddingRight: 8,
           fontVariantNumeric: 'tabular-nums',
-          color: isAsk ? '#fca5a5' : '#5eead4',
+          color: isAsk ? 'var(--ds-overlay-negative-soft)' : 'var(--ds-overlay-positive-soft)',
         }}
       >
         {props.value != null ? props.valueFormatted ?? String(props.value) : ''}
@@ -196,7 +197,7 @@ function PriceCellRenderer(props: ICellRendererParams<LadderRow>) {
           width: '100%', height: '100%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
-          color: '#94a3b8', fontWeight: 600,
+          color: 'var(--ds-text-muted)', fontWeight: 600,
         }}
       >
         ↕ Spread · {row.spreadTxt}
@@ -231,7 +232,7 @@ function PriceCellRenderer(props: ICellRendererParams<LadderRow>) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 700,
           fontVariantNumeric: 'tabular-nums',
-          color: isAsk ? '#fecaca' : '#99f6e4',
+          color: isAsk ? 'var(--ds-overlay-negative-soft)' : 'var(--ds-overlay-positive-soft)',
           letterSpacing: '0.01em',
         }}
       >
@@ -242,48 +243,29 @@ function PriceCellRenderer(props: ICellRendererParams<LadderRow>) {
 }
 
 // ─── Grid config ──────────────────────────────────────────────────────
+//
+// Built from @starui/design-system/adapters/ag-grid blotter params
+// (reference-aligned Chroma Desk ultra-density) + depth-view overrides.
+// MarketDepth sits between blotter (22/26) and standard (28/32) — use
+// blotter as the base and override row/header heights to 24/28.
 
-const darkDepthTheme = themeQuartz.withParams({
+const depthOverrides = {
   fontFamily: "'JetBrains Mono', monospace",
   fontSize: 11,
   headerFontSize: 9,
   headerFontWeight: 700,
   rowHeight: 24,
   headerHeight: 28,
-  backgroundColor: '#0b0e11',
-  foregroundColor: '#e2e8f0',
-  headerBackgroundColor: '#111418',
-  headerTextColor: '#64748b',
-  oddRowBackgroundColor: '#0b0e11',
-  rowHoverColor: '#111418',
   borderColor: 'transparent',
   columnBorder: false,
   wrapperBorder: false,
   cellHorizontalPaddingScale: 0.5,
   spacing: 5,
   borderRadius: 0,
-});
+};
 
-const lightDepthTheme = themeQuartz.withParams({
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 11,
-  headerFontSize: 9,
-  headerFontWeight: 700,
-  rowHeight: 24,
-  headerHeight: 28,
-  backgroundColor: '#fafafa',
-  foregroundColor: '#27272a',
-  headerBackgroundColor: '#f0f0f2',
-  headerTextColor: '#6b7280',
-  oddRowBackgroundColor: '#fafafa',
-  rowHoverColor: '#f0f0f2',
-  borderColor: 'transparent',
-  columnBorder: false,
-  wrapperBorder: false,
-  cellHorizontalPaddingScale: 0.5,
-  spacing: 5,
-  borderRadius: 0,
-});
+const darkDepthTheme  = themeQuartz.withParams({ ...agGridBlotterDarkParams,  ...depthOverrides });
+const lightDepthTheme = themeQuartz.withParams({ ...agGridBlotterLightParams, ...depthOverrides });
 
 const columnDefs: ColDef<LadderRow>[] = [
   {
@@ -305,7 +287,7 @@ const columnDefs: ColDef<LadderRow>[] = [
     valueGetter: (p) => (p.data?.kind === 'bid' ? p.data.orders : null),
     cellStyle: {
       textAlign: 'center',
-      color: '#64748b',
+      color: 'var(--ds-text-muted)',
       fontVariantNumeric: 'tabular-nums',
     },
   },
@@ -336,7 +318,7 @@ const columnDefs: ColDef<LadderRow>[] = [
     valueGetter: (p) => (p.data?.kind === 'ask' ? p.data.orders : null),
     cellStyle: {
       textAlign: 'center',
-      color: '#64748b',
+      color: 'var(--ds-text-muted)',
       fontVariantNumeric: 'tabular-nums',
     },
   },
@@ -359,7 +341,7 @@ function L1Bar({ book }: { book: SymbolBook | null }) {
   if (!book) return null;
   const l1 = book.l1;
   const dir = l1.change > 0 ? 'up' : l1.change < 0 ? 'down' : 'flat';
-  const dirColor = dir === 'up' ? '#2dd4bf' : dir === 'down' ? '#f87171' : '#94a3b8';
+  const dirColor = dir === 'up' ? 'var(--ds-accent-positive)' : dir === 'down' ? 'var(--ds-accent-negative)' : 'var(--ds-text-muted)';
 
   return (
     <div
@@ -378,7 +360,7 @@ function L1Bar({ book }: { book: SymbolBook | null }) {
         <div
           style={{
             fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: '#64748b', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600,
+            color: 'var(--ds-text-muted)', fontFamily: 'var(--ds-font-sans)', fontWeight: 600,
           }}
         >
           Last
@@ -419,7 +401,7 @@ function L1Bar({ book }: { book: SymbolBook | null }) {
           price={l1.bestBid}
           size={l1.bidSize}
           align="right"
-          tintColor="#2dd4bf"
+          tintColor="var(--ds-accent-positive)"
         />
         <div
           style={{
@@ -432,7 +414,7 @@ function L1Bar({ book }: { book: SymbolBook | null }) {
           price={l1.bestAsk}
           size={l1.askSize}
           align="left"
-          tintColor="#f87171"
+          tintColor="var(--ds-accent-negative)"
         />
       </div>
 
@@ -472,7 +454,7 @@ function InsideCell({
       <div
         style={{
           fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase',
-          color: '#64748b', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600,
+          color: 'var(--ds-text-muted)', fontFamily: 'var(--ds-font-sans)', fontWeight: 600,
         }}
       >
         {label}
@@ -493,7 +475,7 @@ function InsideCell({
         style={{
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 10,
-          color: '#94a3b8',
+          color: 'var(--ds-text-muted)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
@@ -509,7 +491,7 @@ function Metric({ label, value }: { label: string; value: string }) {
       <span
         style={{
           fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase',
-          color: '#475569', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600,
+          color: 'var(--ds-text-secondary)', fontFamily: 'var(--ds-font-sans)', fontWeight: 600,
         }}
       >
         {label}
@@ -519,7 +501,7 @@ function Metric({ label, value }: { label: string; value: string }) {
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 13,
           fontWeight: 600,
-          color: '#cbd5e1',
+          color: 'var(--ds-border-secondary)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
@@ -579,7 +561,7 @@ function SymbolChips({
         padding: '10px 20px',
         borderBottom: '1px solid rgba(100,116,139,0.18)',
         overflowX: 'auto',
-        background: '#0b0e11',
+        background: 'var(--ds-surface-ground)',
       }}
     >
       {symbols.map((spec) => {
@@ -601,10 +583,10 @@ function SymbolChips({
               background: isActive
                 ? 'linear-gradient(180deg, rgba(45,212,191,0.12), rgba(45,212,191,0.02))'
                 : 'rgba(17,20,24,0.5)',
-              color: isActive ? '#5eead4' : '#cbd5e1',
+              color: isActive ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-border-secondary)',
               cursor: 'pointer',
               transition: 'all 150ms',
-              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontFamily: 'var(--ds-font-sans)',
               flexShrink: 0,
             }}
           >
@@ -616,7 +598,7 @@ function SymbolChips({
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: 10,
                 fontVariantNumeric: 'tabular-nums',
-                color: up ? '#2dd4bf' : dn ? '#f87171' : '#94a3b8',
+                color: up ? 'var(--ds-accent-positive)' : dn ? 'var(--ds-accent-negative)' : 'var(--ds-text-muted)',
                 fontWeight: 600,
               }}
             >
@@ -679,8 +661,8 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
     suppressRowHoverHighlight: false,
     animateRows: false,
     rowClassRules: {
-      'gc-depth-spread-row': (p) => p.data?.kind === 'spread',
-      'gc-depth-touch': (p) => p.data?.kind !== 'spread' && (p.data?.levelsFromTouch ?? 99) === 0,
+      'ds-depth-spread-row': (p) => p.data?.kind === 'spread',
+      'ds-depth-touch': (p) => p.data?.kind !== 'spread' && (p.data?.levelsFromTouch ?? 99) === 0,
     },
   }), []);
 
@@ -691,8 +673,8 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
     <div
       style={{
         display: 'flex', flexDirection: 'column', height: '100%',
-        background: isDark ? '#0b0e11' : '#fafafa',
-        color: isDark ? '#e2e8f0' : '#18181b',
+        background: isDark ? 'var(--ds-surface-ground)' : 'var(--ds-surface-ground)',
+        color: isDark ? 'var(--ds-text-primary)' : 'var(--ds-surface-secondary)',
       }}
     >
       {/* Depth-view styles — scoped classnames that ride on top of the
@@ -702,12 +684,12 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           0%   { opacity: 1; }
           100% { opacity: 0; }
         }
-        .gc-depth-spread-row .ag-cell {
+        .ds-depth-spread-row .ag-cell {
           background: rgba(100,116,139,0.06) !important;
           border-top: 1px solid rgba(100,116,139,0.25) !important;
           border-bottom: 1px solid rgba(100,116,139,0.25) !important;
         }
-        .gc-depth-touch .ag-cell {
+        .ds-depth-touch .ag-cell {
           background: rgba(45,212,191,0.04);
         }
       `}</style>
@@ -718,14 +700,14 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 20px',
           borderBottom: '1px solid rgba(100,116,139,0.18)',
-          background: isDark ? '#0b0e11' : '#fafafa',
+          background: isDark ? 'var(--ds-surface-ground)' : 'var(--ds-surface-ground)',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span
             style={{
               fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase',
-              color: '#64748b', fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 700,
+              color: 'var(--ds-text-muted)', fontFamily: 'var(--ds-font-sans)', fontWeight: 700,
             }}
           >
             Market Depth · Level II
@@ -733,8 +715,8 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           <span
             style={{
               fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em',
-              fontFamily: "'IBM Plex Sans', sans-serif",
-              color: isDark ? '#f1f5f9' : '#18181b',
+              fontFamily: 'var(--ds-font-sans)',
+              color: isDark ? 'var(--ds-surface-secondary)' : 'var(--ds-surface-secondary)',
             }}
           >
             {symbol}
@@ -756,9 +738,9 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
             background: running
               ? 'linear-gradient(180deg, rgba(45,212,191,0.15), rgba(45,212,191,0.03))'
               : 'rgba(17,20,24,0.5)',
-            color: running ? '#5eead4' : '#94a3b8',
+            color: running ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-text-muted)',
             cursor: 'pointer',
-            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontFamily: 'var(--ds-font-sans)',
             fontSize: 10,
             fontWeight: 700,
             letterSpacing: '0.12em',
@@ -768,8 +750,8 @@ export function MarketDepth({ isDark }: { isDark: boolean }) {
           <span
             style={{
               width: 6, height: 6, borderRadius: '50%',
-              background: running ? '#2dd4bf' : '#64748b',
-              boxShadow: running ? '0 0 8px #2dd4bf' : 'none',
+              background: running ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
+              boxShadow: running ? '0 0 8px var(--ds-accent-positive)' : 'none',
               animation: running ? 'gcTickPulse 1.4s ease-in-out infinite' : undefined,
             }}
           />

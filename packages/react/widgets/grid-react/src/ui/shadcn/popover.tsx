@@ -23,7 +23,7 @@
 import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from './utils';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
 
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -37,24 +37,24 @@ const PopoverContent = React.forwardRef<
   // Route the Radix portal into the PortalContainer context's target
   // (popout body when inside PopoutPortal, document.body otherwise).
   // Undefined = Radix falls back to its own default.
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
   return (
-  <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
+  <PopoverPrimitive.Portal container={portalContainer}>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
       sideOffset={sideOffset}
       collisionPadding={8}
-      data-gc-settings=""
+      data-ds-settings=""
       className={cn(
         // Base layout
         'z-[2147483647] w-72 rounded-md p-2.5',
         // Theme — use gc-* vars with dark fallbacks for portal context
-        'bg-[var(--gc-surface,#161a1e)] text-[var(--gc-text,#eaecef)]',
-        'border border-[var(--gc-border,#313944)]',
-        'shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.02)_inset]',
+        'bg-[var(--ds-surface-primary)] text-[var(--ds-text-primary)]',
+        'border border-[var(--ds-border-primary)]',
+        'shadow-card',
         // Font
-        'font-[var(--gc-font,"Geist","Inter",-apple-system,sans-serif)] text-[11px]',
+        'font-[var(--ds-font-sans)] text-[11px]',
         // Animations
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
@@ -80,8 +80,8 @@ const PopoverContent = React.forwardRef<
       // (spread last). `outline: none` suppresses the browser's
       // default focus ring on the Radix-focused Content element.
       style={{
-        background: 'var(--gc-surface, var(--bn-bg1, #161a1e))',
-        color: 'var(--gc-text, var(--bn-t0, #eaecef))',
+        background: 'var(--ds-surface-primary)',
+        color: 'var(--ds-text-primary)',
         outline: 'none',
         ...style,
       }}

@@ -85,7 +85,7 @@ export async function createProfile(page: Page, name: string): Promise<void> {
   await page.waitForTimeout(300);
   // Force AG-Grid to re-evaluate row/cell class rules. The profile
   // switch swaps the underlying state, but AG-Grid caches per-row
-  // class sets; without a redraw, stale `.gc-rule-*` classes from the
+  // class sets; without a redraw, stale `.ds-rule-*` classes from the
   // previous profile can linger on visible rows until the next natural
   // redraw (sort, scroll, etc.). The inline hook doesn't wait on a
   // specific DOM change — just gives AG-Grid's sync render loop a tick.
@@ -277,7 +277,7 @@ export async function readCellFontWeight(page: Page, colId: string): Promise<str
 /** How many rows in the grid carry the conditional-styling rule class. */
 export async function countRowsWithRuleClass(page: Page, ruleId: string): Promise<number> {
   return page.evaluate((id) => {
-    return document.querySelectorAll(`.ag-row.gc-rule-${id}`).length;
+    return document.querySelectorAll(`.ag-row.ds-rule-${id}`).length;
   }, ruleId);
 }
 

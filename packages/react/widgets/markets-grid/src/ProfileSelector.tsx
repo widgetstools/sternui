@@ -125,7 +125,7 @@ export function ProfileSelector({
   };
 
   return (
-    <div className="gc-profile-selector">
+    <div className="ds-profile-selector">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -135,34 +135,31 @@ export function ProfileSelector({
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 28, padding: '0 10px 0 8px',
-              background: 'var(--bn-bg1, #161a1e)',
-              border: '1px solid var(--bn-border, #313944)',
+              background: 'var(--ds-surface-primary)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 6,
-              color: active ? 'var(--bn-t0, #eaecef)' : 'var(--bn-t2, #a0a8b4)',
+              color: active ? 'var(--ds-text-primary)' : 'var(--ds-text-muted)',
               cursor: 'pointer',
               fontSize: 11,
               lineHeight: 1,
               transition: 'border-color 120ms, background 120ms',
             }}
           >
-            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <User size={12} strokeWidth={1.75} style={{ opacity: 0.75 }} />
+            <span className="relative inline-flex items-center">
+              <User size={12} strokeWidth={1.75} className="opacity-75" />
               <span
                 aria-label={isDirty ? 'unsaved changes' : 'saved'}
                 style={{
                   position: 'absolute', top: -2, right: -3,
                   width: 6, height: 6, borderRadius: '50%',
                   background: active
-                    ? (isDirty ? 'var(--bn-yellow, #f0b90b)' : 'var(--bn-blue, #14b8a6)')
-                    : 'var(--bn-t2, #6b7280)',
-                  boxShadow: '0 0 0 1.5px var(--bn-bg1, #161a1e)',
+                    ? (isDirty ? 'var(--ds-accent-warning)' : 'var(--ds-accent-info)')
+                    : 'var(--ds-text-muted)',
+                  boxShadow: '0 0 0 1.5px var(--ds-surface-primary)',
                 }}
               />
             </span>
-            <span style={{
-              maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              fontWeight: 500, letterSpacing: 0.1,
-            }}>
+            <span className="max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[0.1px]">
               {triggerLabel}
             </span>
             <ChevronDown
@@ -190,15 +187,15 @@ export function ProfileSelector({
           }}
         >
           {/* Header */}
-          <div className="gc-ps-header">
-            <span className="gc-ps-header-label">Profiles</span>
-            <span className="gc-ps-header-count">{profiles.length}</span>
+          <div className="ds-ps-header">
+            <span className="ds-ps-header-label">Profiles</span>
+            <span className="ds-ps-header-count">{profiles.length}</span>
           </div>
 
           {/* List */}
-          <div className="gc-ps-list">
+          <div className="ds-ps-list">
             {profiles.length === 0 ? (
-              <div className="gc-ps-empty">
+              <div className="ds-ps-empty">
                 No profiles yet — create one below
               </div>
             ) : profiles.map((p) => {
@@ -212,7 +209,7 @@ export function ProfileSelector({
                   tabIndex={0}
                   data-testid={`profile-row-${p.id}`}
                   data-row-hover-target=""
-                  className="gc-ps-row"
+                  className="ds-ps-row"
                   data-active={isActive ? 'true' : undefined}
                   onClick={() => { if (!isRenaming) { onLoad(p.id); setOpen(false); } }}
                   onKeyDown={(e) => { if (!isRenaming && e.key === 'Enter') { onLoad(p.id); setOpen(false); } }}
@@ -223,9 +220,9 @@ export function ProfileSelector({
                     borderRadius: 6,
                     cursor: 'pointer',
                     background: isActive
-                      ? 'color-mix(in srgb, var(--bn-blue, #14b8a6) 8%, transparent)'
+                      ? 'color-mix(in srgb, var(--ds-accent-info) 8%, transparent)'
                       : 'transparent',
-                    color: 'var(--bn-t0, #eaecef)',
+                    color: 'var(--ds-text-primary)',
                     fontSize: 11,
                     transition: 'background 120ms',
                   }}
@@ -236,16 +233,16 @@ export function ProfileSelector({
                     style={{
                       position: 'absolute', left: 2, top: 7, bottom: 7,
                       width: 2, borderRadius: 2,
-                      background: isActive ? 'var(--bn-blue, #14b8a6)' : 'transparent',
+                      background: isActive ? 'var(--ds-accent-info)' : 'transparent',
                     }}
                   />
 
                   {/* Leading indicator */}
-                  <span className="gc-ps-row-indicator">
+                  <span className="ds-ps-row-indicator">
                     {isActive ? (
-                      <Check size={12} strokeWidth={2.5} style={{ color: 'var(--bn-blue, #14b8a6)' }} />
+                      <Check size={12} strokeWidth={2.5} className="text-[var(--ds-accent-info)]" />
                     ) : (
-                      <span className="gc-ps-row-dot" />
+                      <span className="ds-ps-row-dot" />
                     )}
                   </span>
 
@@ -266,10 +263,10 @@ export function ProfileSelector({
                       onBlur={() => { void commitRename(); }}
                       style={{
                         flex: 1, minWidth: 0, height: 22, padding: '0 6px',
-                        background: 'var(--bn-bg, #0b0e11)',
-                        border: '1px solid color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))',
+                        background: 'var(--ds-surface-ground)',
+                        border: '1px solid color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))',
                         borderRadius: 4,
-                        color: 'var(--bn-t0, #eaecef)',
+                        color: 'var(--ds-text-primary)',
                         fontSize: 11,
                         fontWeight: isActive ? 600 : 450,
                         letterSpacing: 0.1,
@@ -280,7 +277,7 @@ export function ProfileSelector({
                     <span style={{
                       flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       fontWeight: isActive ? 600 : 450,
-                      color: isActive ? 'var(--bn-t0, #eaecef)' : 'var(--bn-t0, #d7dde5)',
+                      color: isActive ? 'var(--ds-text-primary)' : 'var(--ds-text-primary)',
                       letterSpacing: 0.1,
                     }}>
                       {p.name}
@@ -292,11 +289,7 @@ export function ProfileSelector({
                     <span
                       title="Unsaved changes"
                       aria-label="unsaved"
-                      style={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        background: 'var(--bn-yellow, #f0b90b)',
-                        flexShrink: 0,
-                      }}
+                      className="w-1.5 h-1.5 rounded-full bg-[var(--ds-accent-warning)] shrink-0"
                     />
                   )}
 
@@ -377,12 +370,7 @@ export function ProfileSelector({
                   {isRenaming ? null : isReserved ? (
                     <span
                       title="Built-in default profile"
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: 22, height: 22,
-                        color: 'var(--bn-t1, #a7b0bd)',
-                        opacity: 0.55,
-                      }}
+                      className="flex items-center justify-center w-[22px] h-[22px] text-[var(--ds-text-secondary)] opacity-[0.55]"
                     >
                       <Lock size={12} strokeWidth={2.25} />
                     </span>
@@ -411,31 +399,23 @@ export function ProfileSelector({
           </div>
 
           {/* Separator */}
-          <div style={{
-            height: 1,
-            background: 'color-mix(in srgb, var(--bn-border, #313944) 60%, transparent)',
-          }} />
+          <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
 
           {/* Create new */}
-          <div style={{ padding: '10px 10px 12px' }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              color: 'var(--bn-t1, #a7b0bd)',
-              marginBottom: 6,
-            }}>
+          <div className="px-2.5 pt-2.5 pb-3">
+            <div className="text-[10px] font-semibold tracking-[0.6px] uppercase text-[var(--ds-text-secondary)] mb-1.5">
               Save current as
             </div>
             <div
               style={{
                 display: 'flex', alignItems: 'center',
-                background: 'var(--bn-bg, #0b0e11)',
+                background: 'var(--ds-surface-ground)',
                 border: `1px solid ${inputFocused
-                  ? 'color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))'
-                  : 'var(--bn-border, #313944)'}`,
+                  ? 'color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))'
+                  : 'var(--ds-border-primary)'}`,
                 borderRadius: 6,
                 boxShadow: inputFocused
-                  ? '0 0 0 3px color-mix(in srgb, var(--bn-blue, #14b8a6) 14%, transparent)'
+                  ? '0 0 0 3px color-mix(in srgb, var(--ds-accent-info) 14%, transparent)'
                   : 'none',
                 transition: 'border-color 120ms, box-shadow 120ms',
                 overflow: 'hidden',
@@ -454,15 +434,7 @@ export function ProfileSelector({
                 placeholder="New profile name"
                 autoFocus
                 data-testid="profile-name-input"
-                style={{
-                  flex: 1, minWidth: 0, height: 30, padding: '0 10px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--bn-t0, #eaecef)',
-                  fontSize: 11,
-                  outline: 'none',
-                  letterSpacing: 0.1,
-                }}
+                className="flex-1 min-w-0 h-[30px] px-2.5 bg-transparent border-none text-foreground text-[11px] outline-none tracking-[0.1px]"
               />
               <button
                 type="button"
@@ -473,10 +445,10 @@ export function ProfileSelector({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   height: 30, padding: '0 12px',
-                  background: canCreate ? 'var(--bn-blue, #14b8a6)' : 'transparent',
-                  color: canCreate ? '#0b0e11' : 'var(--bn-t2, #6b7280)',
+                  background: canCreate ? 'var(--ds-accent-info)' : 'transparent',
+                  color: canCreate ? 'hsl(var(--primary-foreground))' : 'var(--ds-text-muted)',
                   border: 'none',
-                  borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--bn-border, #313944)'}`,
+                  borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--ds-border-primary)'}`,
                   fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
                   cursor: canCreate ? 'pointer' : 'not-allowed',
                   transition: 'background 120ms, color 120ms',
@@ -493,14 +465,8 @@ export function ProfileSelector({
               need the feature. */}
           {(onExport || onImport) && (
             <>
-              <div style={{
-                height: 1,
-                background: 'color-mix(in srgb, var(--bn-border, #313944) 60%, transparent)',
-              }} />
-              <div style={{
-                display: 'flex', gap: 6,
-                padding: '8px 10px 10px',
-              }}>
+              <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
+              <div className="flex gap-1.5 px-2.5 pt-2 pb-2.5">
                 {onExport && (
                   <button
                     type="button"
@@ -512,20 +478,20 @@ export function ProfileSelector({
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                       height: 28,
                       background: 'transparent',
-                      border: '1px solid var(--bn-border, #313944)',
+                      border: '1px solid var(--ds-border-primary)',
                       borderRadius: 6,
-                      color: 'var(--bn-t0, #eaecef)',
+                      color: 'var(--ds-text-primary)',
                       fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
                       cursor: 'pointer',
                       transition: 'border-color 120ms, background 120ms, color 120ms',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))';
-                      e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
+                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))';
+                      e.currentTarget.style.color = 'var(--ds-accent-info)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--bn-border, #313944)';
-                      e.currentTarget.style.color = 'var(--bn-t0, #eaecef)';
+                      e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
+                      e.currentTarget.style.color = 'var(--ds-text-primary)';
                     }}
                   >
                     <Download size={12} strokeWidth={1.75} />
@@ -539,7 +505,7 @@ export function ProfileSelector({
                       type="file"
                       accept="application/json,.json"
                       data-testid="profile-import-file"
-                      style={{ display: 'none' }}
+                      className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) void onImport(file);
@@ -558,20 +524,20 @@ export function ProfileSelector({
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                         height: 28,
                         background: 'transparent',
-                        border: '1px solid var(--bn-border, #313944)',
+                        border: '1px solid var(--ds-border-primary)',
                         borderRadius: 6,
-                        color: 'var(--bn-t0, #eaecef)',
+                        color: 'var(--ds-text-primary)',
                         fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
                         cursor: 'pointer',
                         transition: 'border-color 120ms, background 120ms, color 120ms',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--bn-blue, #14b8a6) 55%, var(--bn-border, #313944))';
-                        e.currentTarget.style.color = 'var(--bn-blue, #14b8a6)';
+                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))';
+                        e.currentTarget.style.color = 'var(--ds-accent-info)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--bn-border, #313944)';
-                        e.currentTarget.style.color = 'var(--bn-t0, #eaecef)';
+                        e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
+                        e.currentTarget.style.color = 'var(--ds-text-primary)';
                       }}
                     >
                       <Upload size={12} strokeWidth={1.75} />

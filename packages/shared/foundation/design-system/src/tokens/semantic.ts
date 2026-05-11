@@ -1,31 +1,40 @@
 // ─────────────────────────────────────────────────────────────
 //  FI Design System — Semantic Tokens
 //  Maps primitives to purpose-driven roles.
-//  Each color scheme (dark/light) gets its own mappings.
 //
 //  Design intent:
-//    - Punchy, saturated accents — colors pop against neutral chrome.
+//    - Exchange-terminal accents — colors pop against neutral chrome.
 //    - No earthy tones or brown/copper. Warning is pure orange.
 //    - Dark: cool charcoal grounds, vivid accents.
 //    - Light: cool off-white (never cream), charcoal text, vivid
-//      accents that stay WCAG AA on the light ground.
+//      accents that stay readable on the light ground.
+//
+//  CVD (color-vision-deficiency) remains an opt-in override layer.
 // ─────────────────────────────────────────────────────────────
 
-import { colors, typography, radius, spacing, opacity, transition } from './primitives';
+import { colors, typography, radius, spacing, opacity, transition, shadow } from './primitives';
 
 // ── Color Scheme Type ──
 export interface ColorScheme {
+  primary: {
+    color:      string;  // brand primary: CTA, focus, active nav
+    hover:      string;
+    foreground: string;
+    soft:       string;
+    ring:       string;
+  };
   surface: {
     ground:    string;  // page/app background
     primary:   string;  // card/panel background
     secondary: string;  // hover, header background
     tertiary:  string;  // active/pressed, accent bg
+    quaternary:string;  // accent band
   };
   text: {
     primary:   string;  // main body text
     secondary: string;  // labels, descriptions
     muted:     string;  // captions, timestamps
-    faint:     string;  // disabled, placeholder
+    faint:     string;  // disabled, placeholder, UI-only
   };
   border: {
     primary:   string;  // panel borders, dividers
@@ -36,8 +45,8 @@ export interface ColorScheme {
     positiveHover: string;
     negative:      string;  // sell, loss, error
     negativeHover: string;
-    warning:       string;  // caution, pending (pure orange, never brown)
-    info:          string;  // BRAND / primary / informational / links
+    warning:       string;  // caution, pending (pure amber)
+    info:          string;  // informational / links / pending statuses
     infoHover:     string;
     highlight:     string;  // emphasis, selected
     purple:        string;  // tertiary accent
@@ -54,6 +63,7 @@ export interface ColorScheme {
     disabledBg:   string;
     disabledFg:   string;
     hoverOverlay: string;
+    selection:    string;
   };
   overlay: {
     positiveSoft:  string;
@@ -67,124 +77,170 @@ export interface ColorScheme {
     neutralSoft:   string;
     neutralRing:   string;
   };
+  cvd: {
+    // Deuteranopia/protanopia-safe alternates (blue buy, orange sell).
+    buy:  string;
+    sell: string;
+  };
   scrollbar: string;
+  elevation: {
+    card:    string;  // drop shadow
+    overlay: string;  // dialog / popover
+    glow:    string;  // focus glow
+  };
 }
 
-// ── Dark Scheme ─────────────────────────────────────────────
-// Deep cool charcoal chrome + vibrant saturated accents.
-export const dark: ColorScheme = {
+// ── Light Scheme ────────────────────────────────────────────
+// Cool clinical: airy #F8F9FB canvas, white cards, quiet dividers,
+// cobalt primary accents, and rationed semantic color.
+export const light: ColorScheme = {
+  primary: {
+    color:      colors.brand.light,       // #2952cc — cobalt
+    hover:      colors.brand.lightHov,    // #1f3f9e
+    foreground: '#ffffff',
+    soft:       'rgba(41,82,204,0.08)',
+    ring:       'rgba(41,82,204,0.24)',
+  },
   surface: {
-    ground:    colors.charcoal[975],  // #0a0e14
-    primary:   colors.charcoal[950],  // #121820 — card
-    secondary: colors.charcoal[925],  // #1a212b — hover/header
-    tertiary:  colors.charcoal[900],  // #242c38 — pressed
+    ground:     colors.paper[100],   // #f8f9fb — cool clinical canvas
+    primary:    colors.paper[50],    // #ffffff — card / grid cells
+    secondary:  colors.paper[200],   // #f3f5f8 — raised header / hover
+    tertiary:   colors.paper[300],   // #edf1f5 — pressed
+    quaternary: colors.paper[400],   // #e5eaf1 — accent band
   },
   text: {
-    primary:   '#e6e9ef',             // warm off-white (never pure white)
-    secondary: '#a7b0bd',
-    muted:     colors.charcoal[500],  // #6b7280
-    faint:     colors.charcoal[700],  // #4d586a
+    primary:   colors.ink[0],        // #111827
+    secondary: colors.ink[1],        // #4b5563
+    muted:     colors.ink[2],        // #6b7280
+    faint:     colors.ink[3],        // #9aa3af
   },
   border: {
-    primary:   colors.charcoal[850],  // #2e3744
-    secondary: colors.charcoal[800],  // #323b49
+    primary:   colors.paper[500],    // #d8dee8
+    secondary: colors.paper[600],    // #c4ccd8
   },
   accent: {
-    positive:      colors.teal[400],   // #14d9a0 — vivid teal
-    positiveHover: colors.teal[500],   // #0fb88a
-    negative:      colors.red[400],    // #ff4d6d — vivid coral
-    negativeHover: colors.red[500],    // #e8304e
-    warning:       colors.orange[500], // #ff8c42 — pure orange
-    info:          colors.blue[500],   // #3b82f6 — punchy brand
-    infoHover:     colors.blue[600],   // #2563eb
-    highlight:     colors.cyan[400],   // #22d3ee — bright cyan
-    purple:        colors.purple[400], // #a855f7
+    positive:      colors.teal.light,       // #1f7a5c
+    positiveHover: colors.teal.lightHov,    // #176247
+    negative:      colors.rose.light,       // #a43f4b
+    negativeHover: colors.rose.lightHov,    // #84313b
+    warning:       colors.amber.light,      // #8a5f1f — muted ochre
+    info:          colors.cyan.light,       // #3d6f99 — informational accent
+    infoHover:     colors.cyan.lightHov,    // #315a7c
+    highlight:     colors.cyan.highlightLight, // #06b6d4
+    purple:        colors.purple.light,     // #7c3aed
   },
   action: {
-    buyBg:    colors.teal[500],   // #0fb88a
+    buyBg:    colors.teal.light,
     buyText:  '#ffffff',
-    sellBg:   colors.red[500],    // #e8304e
+    sellBg:   colors.rose.light,
     sellText: '#ffffff',
   },
   state: {
-    focusRing:    colors.blue[500],
-    focusRingBg:  'rgba(59,130,246,0.30)',       // blue-500 @ 30%
-    disabledBg:   colors.charcoal[900],
-    disabledFg:   colors.charcoal[700],
-    hoverOverlay: 'rgba(255,255,255,0.05)',
+    focusRing:    colors.brand.light,
+    focusRingBg:  'rgba(41,82,204,0.14)',
+    disabledBg:   colors.paper[200],
+    disabledFg:   colors.ink[3],
+    hoverOverlay: 'rgba(0,0,0,0.045)',
+    selection:    'rgba(41,82,204,0.10)',
   },
   overlay: {
-    positiveSoft:  'rgba(20,217,160,0.15)',  // teal-400 @ 15%
-    positiveRing:  'rgba(20,217,160,0.35)',
-    negativeSoft:  'rgba(255,77,109,0.15)',  // red-400 @ 15%
-    negativeRing:  'rgba(255,77,109,0.35)',
-    warningSoft:   'rgba(255,140,66,0.15)',  // orange-500 @ 15%
-    warningRing:   'rgba(255,140,66,0.38)',
-    infoSoft:      'rgba(59,130,246,0.15)',  // blue-500 @ 15%
-    infoRing:      'rgba(59,130,246,0.35)',
-    neutralSoft:   'rgba(107,114,128,0.20)', // charcoal-500 @ 20%
-    neutralRing:   'rgba(107,114,128,0.30)',
+    positiveSoft:  'rgba(31,122,92,0.08)',
+    positiveRing:  'rgba(31,122,92,0.22)',
+    negativeSoft:  'rgba(164,63,75,0.08)',
+    negativeRing:  'rgba(164,63,75,0.24)',
+    warningSoft:   'rgba(138,95,31,0.08)',
+    warningRing:   'rgba(138,95,31,0.24)',
+    infoSoft:      'rgba(61,111,153,0.08)',
+    infoRing:      'rgba(61,111,153,0.24)',
+    neutralSoft:   'rgba(75,85,99,0.05)',
+    neutralRing:   'rgba(75,85,99,0.14)',
   },
-  scrollbar: colors.charcoal[800],
+  cvd: {
+    buy:  colors.cvd.buyLight,    // #1e4fb8
+    sell: colors.cvd.sellLight,   // #c2410c
+  },
+  scrollbar: colors.paper[600],
+  elevation: {
+    card:    shadow.sm,
+    overlay: shadow.md,
+    glow:    `0 0 0 3px rgba(41,82,204,0.12)`,
+  },
 };
 
-// ── Light Scheme ────────────────────────────────────────────
-// Cool off-white (NOT cream, NOT warm) + charcoal text + vivid
-// accents that pop without glare. WCAG AA across all text tiers.
-export const light: ColorScheme = {
+// ── Dark Scheme ─────────────────────────────────────────────
+// Deep cool charcoal chrome with electric exchange-terminal accents.
+export const dark: ColorScheme = {
+  primary: {
+    color:      colors.brand.dark,       // #00d5ff — electric cyan brand
+    hover:      colors.brand.darkHov,    // #48e6ff
+    foreground: '#061c28',
+    soft:       'rgba(0,213,255,0.18)',
+    ring:       'rgba(0,213,255,0.46)',
+  },
   surface: {
-    ground:    colors.charcoal[50],   // #f3f5f9 — cool off-white
-    primary:   '#fbfcfd',             // soft paper-cool (not pure #fff)
-    secondary: colors.charcoal[100],  // #ebeef3
-    tertiary:  colors.charcoal[150],  // #dde2ea
+    ground:     colors.graphite[975], // #0a0e14
+    primary:    colors.graphite[950], // #121820  card
+    secondary:  colors.graphite[900], // #1a212b  hover
+    tertiary:   colors.graphite[850], // #242c38  pressed
+    quaternary: colors.graphite[800], // #242c38  accent band
   },
   text: {
-    primary:   '#1a1f2e',             // deep cool charcoal (never pure black)
-    secondary: colors.charcoal[600],  // #4f5665
-    muted:     colors.charcoal[500],  // #6b7280 — AA on off-white
-    faint:     colors.charcoal[400],  // #9ca3af
+    primary:   colors.graphite[50],   // #e6e9ef
+    secondary: colors.graphite[300],  // #a7b0bd
+    muted:     colors.graphite[400],  // #6b7280
+    faint:     colors.graphite[500],  // #4d586a
   },
   border: {
-    primary:   colors.charcoal[200],  // #d9dee8
-    secondary: colors.charcoal[300],  // #c3cad7
+    primary:   colors.graphite[600],  // #2e3744
+    secondary: colors.graphite[700],  // #323b49
   },
   accent: {
-    positive:      colors.teal[600],   // #0ea870 — vivid emerald
-    positiveHover: colors.teal[700],   // #0b8959
-    negative:      colors.red[600],    // #e02e47 — vivid pink-red
-    negativeHover: colors.red[700],    // #b81e37
-    warning:       colors.orange[600], // #e86a1c — vivid orange (no brown)
-    info:          colors.blue[600],   // #2563eb — punchy brand
-    infoHover:     colors.blue[700],   // #1d4ed8
-    highlight:     colors.cyan[500],   // #06b6d4
-    purple:        colors.purple[600], // #7c3aed
+    positive:      colors.teal.dark,     // #00f5a0
+    positiveHover: colors.teal.darkHov,  // #31ffc1
+    negative:      colors.rose.dark,     // #ff3366
+    negativeHover: colors.rose.darkHov,  // #ff5c85
+    warning:       colors.amber.dark,    // #ff9f1a — restrained orange
+    info:          colors.cyan.dark,     // #48e6ff — informational accent
+    infoHover:     colors.cyan.darkHov,  // #7eeeff
+    highlight:     colors.cyan.highlightDark, // #00e5ff
+    purple:        colors.purple.dark,   // #b56cff
   },
   action: {
-    buyBg:    colors.teal[600],   // #0ea870
-    buyText:  '#ffffff',
-    sellBg:   colors.red[600],    // #e02e47
-    sellText: '#ffffff',
+    buyBg:    colors.teal.dark,
+    buyText:  '#061c28',
+    sellBg:   colors.rose.dark,
+    sellText: '#061c28',
   },
   state: {
-    focusRing:    colors.blue[600],
-    focusRingBg:  'rgba(37,99,235,0.22)',       // blue-600 @ 22%
-    disabledBg:   colors.charcoal[100],
-    disabledFg:   colors.charcoal[400],
-    hoverOverlay: 'rgba(0,0,0,0.045)',
+    focusRing:    colors.brand.dark,
+    focusRingBg:  'rgba(0,213,255,0.30)',
+    disabledBg:   colors.graphite[850],
+    disabledFg:   colors.graphite[500],
+    hoverOverlay: 'rgba(255,255,255,0.05)',
+    selection:    'rgba(0,213,255,0.24)',
   },
   overlay: {
-    positiveSoft:  'rgba(14,168,112,0.12)',  // teal-600 @ 12%
-    positiveRing:  'rgba(14,168,112,0.32)',
-    negativeSoft:  'rgba(224,46,71,0.10)',   // red-600 @ 10%
-    negativeRing:  'rgba(224,46,71,0.32)',
-    warningSoft:   'rgba(232,106,28,0.12)',  // orange-600 @ 12%
-    warningRing:   'rgba(232,106,28,0.35)',
-    infoSoft:      'rgba(37,99,235,0.10)',   // blue-600 @ 10%
-    infoRing:      'rgba(37,99,235,0.32)',
-    neutralSoft:   'rgba(79,86,101,0.08)',   // charcoal-600 @ 8%
-    neutralRing:   'rgba(79,86,101,0.22)',
+    positiveSoft:  'rgba(0,245,160,0.18)',
+    positiveRing:  'rgba(0,245,160,0.45)',
+    negativeSoft:  'rgba(255,51,102,0.18)',
+    negativeRing:  'rgba(255,51,102,0.45)',
+    warningSoft:   'rgba(255,159,26,0.16)',
+    warningRing:   'rgba(255,159,26,0.38)',
+    infoSoft:      'rgba(72,230,255,0.16)',
+    infoRing:      'rgba(72,230,255,0.40)',
+    neutralSoft:   'rgba(107,114,128,0.20)',
+    neutralRing:   'rgba(107,114,128,0.30)',
   },
-  scrollbar: '#c3cad7',
+  cvd: {
+    buy:  colors.cvd.buyDark,    // #7aa6ff
+    sell: colors.cvd.sellDark,   // #ff9d4e
+  },
+  scrollbar: colors.graphite[700],
+  elevation: {
+    card:    shadow.sm,
+    overlay: shadow.lg,
+    glow:    `0 0 0 2px rgba(0,213,255,0.42), 0 0 28px rgba(0,213,255,0.20)`,
+  },
 };
 
 // ── Shared (non-theme-dependent) ──
@@ -194,6 +250,7 @@ export const shared = {
   spacing,
   opacity,
   transition,
+  shadow,
 } as const;
 
 export const semantic = { dark, light, shared } as const;

@@ -35,9 +35,9 @@ const SECTIONS: Array<{ id: SectionId; title: string }> = [
 export function HelpPanel() {
   const [active, setActive] = useState<SectionId>('overview');
   return (
-    <div data-testid="v2-settings-help" className="gc-help-shell">
+    <div data-testid="v2-settings-help" className="ds-help-shell">
       {/* Section rail */}
-      <nav className="gc-help-nav">
+      <nav className="ds-help-nav">
         {SECTIONS.map((s) => {
           const on = s.id === active;
           return (
@@ -55,9 +55,9 @@ export function HelpPanel() {
                 border: 'none',
                 borderRadius: 4,
                 background: on
-                  ? 'color-mix(in srgb, var(--ck-green) 10%, transparent)'
+                  ? 'color-mix(in srgb, var(--ds-accent-positive) 10%, transparent)'
                   : 'transparent',
-                color: on ? 'var(--ck-green)' : 'var(--ck-t1)',
+                color: on ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
                 fontSize: 11,
                 fontWeight: on ? 600 : 450,
                 letterSpacing: 0.12,
@@ -79,7 +79,7 @@ export function HelpPanel() {
             </button>
           );
         })}
-        <div className="gc-help-nav-footer">
+        <div className="ds-help-nav-footer">
           Full reference:
           <br />
           <code>docs/FORMATS_AND_EXPRESSIONS.md</code>
@@ -89,8 +89,7 @@ export function HelpPanel() {
       {/* Content pane */}
       <section
         data-testid="help-content"
-        className="gc-help-content"
-        style={{ padding: '20px 28px 32px', fontSize: 12.5, lineHeight: 1.6 }}
+        className="ds-help-content pt-5 px-7 pb-8 text-[12.5px] leading-relaxed"
       >
         {active === 'overview' && <Overview onNav={setActive} />}
         {active === 'excel' && <ExcelSection />}
@@ -107,15 +106,7 @@ export function HelpPanel() {
 
 function H1({ children }: { children: React.ReactNode }) {
   return (
-    <h1
-      style={{
-        fontSize: 18,
-        fontWeight: 700,
-        letterSpacing: 0.2,
-        margin: '0 0 4px',
-        color: 'var(--ck-t0)',
-      }}
-    >
+    <h1 className="text-[18px] font-bold tracking-[0.2px] mb-1 text-foreground">
       {children}
     </h1>
   );
@@ -123,17 +114,7 @@ function H1({ children }: { children: React.ReactNode }) {
 
 function H2({ children }: { children: React.ReactNode }) {
   return (
-    <h2
-      style={{
-        fontSize: 14,
-        fontWeight: 600,
-        letterSpacing: 0.15,
-        margin: '24px 0 8px',
-        color: 'var(--ck-t0)',
-        borderBottom: '1px solid var(--ck-border)',
-        paddingBottom: 4,
-      }}
-    >
+    <h2 className="text-[14px] font-semibold tracking-[0.15px] mt-6 mb-2 text-foreground border-b border-border pb-1">
       {children}
     </h2>
   );
@@ -141,38 +122,19 @@ function H2({ children }: { children: React.ReactNode }) {
 
 function H3({ children }: { children: React.ReactNode }) {
   return (
-    <h3
-      style={{
-        fontSize: 12,
-        fontWeight: 600,
-        letterSpacing: 0.2,
-        margin: '18px 0 6px',
-        color: 'var(--ck-t1)',
-        textTransform: 'uppercase',
-      }}
-    >
+    <h3 className="text-xs font-semibold tracking-[0.2px] mt-[18px] mb-1.5 text-[var(--ds-text-secondary)] uppercase">
       {children}
     </h3>
   );
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="gc-help-p">{children}</p>;
+  return <p className="ds-help-p">{children}</p>;
 }
 
 function Code({ children }: { children: React.ReactNode }) {
   return (
-    <code
-      style={{
-        display: 'inline-block',
-        padding: '1px 6px',
-        borderRadius: 3,
-        background: 'var(--ck-bg)',
-        border: '1px solid var(--ck-border)',
-        fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
-        fontSize: 11,
-      }}
-    >
+    <code className="inline-block px-1.5 py-px rounded-[3px] bg-background border border-border font-mono text-[11px]">
       {children}
     </code>
   );
@@ -180,20 +142,7 @@ function Code({ children }: { children: React.ReactNode }) {
 
 function Pre({ children }: { children: React.ReactNode }) {
   return (
-    <pre
-      style={{
-        margin: '8px 0 14px',
-        padding: '10px 12px',
-        borderRadius: 4,
-        background: 'var(--ck-bg)',
-        border: '1px solid var(--ck-border)',
-        fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
-        fontSize: 11,
-        lineHeight: 1.55,
-        color: 'var(--ck-t0)',
-        overflowX: 'auto',
-      }}
-    >
+    <pre className="my-2 mb-3.5 px-3 py-2.5 rounded bg-background border border-border font-mono text-[11px] leading-[1.55] text-foreground overflow-x-auto">
       {children}
     </pre>
   );
@@ -201,30 +150,13 @@ function Pre({ children }: { children: React.ReactNode }) {
 
 function Table({ rows, cols }: { cols: string[]; rows: Array<Array<React.ReactNode>> }) {
   return (
-    <table
-      style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        margin: '10px 0 14px',
-        fontSize: 11,
-      }}
-    >
+    <table className="w-full border-collapse my-2.5 mb-3.5 text-[11px]">
       <thead>
         <tr>
           {cols.map((c) => (
             <th
               key={c}
-              style={{
-                textAlign: 'left',
-                padding: '6px 8px',
-                borderBottom: '1px solid var(--ck-border-hi)',
-                fontWeight: 600,
-                fontSize: 10,
-                textTransform: 'uppercase',
-                letterSpacing: 0.25,
-                color: 'var(--ck-t2)',
-                background: 'var(--ck-surface)',
-              }}
+              className="text-left px-2 py-1.5 border-b border-[var(--ds-border-secondary)] font-semibold text-[10px] uppercase tracking-[0.25px] text-muted-foreground bg-[var(--ds-surface-secondary)]"
             >
               {c}
             </th>
@@ -237,12 +169,7 @@ function Table({ rows, cols }: { cols: string[]; rows: Array<Array<React.ReactNo
             {r.map((cell, j) => (
               <td
                 key={j}
-                style={{
-                  padding: '5px 8px',
-                  borderBottom: '1px solid var(--ck-border)',
-                  verticalAlign: 'top',
-                  color: 'var(--ck-t0)',
-                }}
+                className="px-2 py-[5px] border-b border-border align-top text-foreground"
               >
                 {cell}
               </td>
@@ -280,7 +207,7 @@ function Overview({ onNav }: { onNav: (id: SectionId) => void }) {
       />
 
       <H2>Jump to a section</H2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+      <div className="flex flex-col gap-1 mt-1.5">
         {SECTIONS.filter((s) => s.id !== 'overview').map((s) => (
           <button
             key={s.id}
@@ -289,20 +216,20 @@ function Overview({ onNav }: { onNav: (id: SectionId) => void }) {
             style={{
               textAlign: 'left',
               padding: '8px 10px',
-              border: '1px solid var(--ck-border)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 4,
               background: 'transparent',
-              color: 'var(--ck-t0)',
+              color: 'var(--ds-text-primary)',
               fontSize: 12,
               cursor: 'pointer',
               transition: 'border-color 120ms, background 120ms',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ck-green-dim)';
-              e.currentTarget.style.background = 'var(--ck-green-bg)';
+              e.currentTarget.style.borderColor = 'var(--ds-overlay-positive-ring)';
+              e.currentTarget.style.background = 'var(--ds-overlay-positive-soft)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--ck-border)';
+              e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
               e.currentTarget.style.background = 'transparent';
             }}
           >
@@ -685,14 +612,7 @@ function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }
     }
   };
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))',
-        gap: 6,
-        margin: '8px 0 16px',
-      }}
-    >
+    <div className="grid gap-1.5 my-2 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))' }}>
       {items.map((it, i) => {
         const copied = copiedIdx === i;
         return (
@@ -708,11 +628,11 @@ function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }
               justifyContent: 'center',
               gap: 2,
               padding: '8px 6px 6px',
-              background: copied ? 'var(--ck-green-bg, rgba(45,212,191,0.12))' : 'var(--ck-bg)',
+              background: copied ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
               border: '1px solid',
-              borderColor: copied ? 'var(--ck-green)' : 'var(--ck-border)',
+              borderColor: copied ? 'var(--ds-accent-positive)' : 'var(--ds-border-primary)',
               borderRadius: 4,
-              color: 'var(--ck-t0)',
+              color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               transition: 'all 120ms',
             }}
@@ -731,9 +651,9 @@ function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }
               style={{
                 fontSize: 9,
                 lineHeight: 1.2,
-                color: copied ? 'var(--ck-green)' : 'var(--ck-t2)',
+                color: copied ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
                 textAlign: 'center',
-                fontFamily: 'var(--ck-font-mono, monospace)',
+                fontFamily: 'var(--ds-font-mono)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -902,7 +822,7 @@ IFS([price] >= 105, "🟢", [price] >= 95, "🟡", "🔴")
 
 // mixed with text via CONCAT
 CONCAT("📈 ", [security], " ", [side])`}</Pre>
-      <p style={{ margin: '6px 0', color: 'var(--ck-t2)', fontSize: 11 }}>
+      <p className="my-1.5 text-muted-foreground text-[11px]">
         <strong>Tip:</strong> when you need group-row aggregation, use a
         numeric 1 / 2 / 3 (or N / S / E / W, etc.) from the expression and let
         the Excel format render the emoji — see the Traffic Light walkthrough.

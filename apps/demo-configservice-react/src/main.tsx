@@ -1,13 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-// FI Trading Terminal design-system themes. Imported BEFORE globals.css
-// so the demo's hex-encoded shadcn vars (in globals.css) take precedence
-// over the design system's HSL-triplet shadcn vars — we keep the demo's
-// teal brand while still inheriting the design system's order-book /
-// trade-ticket overlay tokens and legacy --fi-* aliases.
-import '@starui/design-system/themes/fi-dark.css';
-import '@starui/design-system/themes/fi-light.css';
+import { applyTheme, getTheme } from '@starui/design-system';
 import './globals.css';
+
+// Apply persisted theme before first render so there's no FOUC.
+applyTheme(getTheme());
 import { HostWrapper } from '@starui/host-wrapper-react';
 import { BrowserRuntime } from '@starui/runtime-browser';
 import { createConfigClient } from '@starui/config-service';

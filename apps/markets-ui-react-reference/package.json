@@ -29,7 +29,8 @@
     "@starui/runtime-port": "*",
     "@starui/icons-svg": "*",
     "@starui/openfin-platform": "*",
-    "@starui/tokens-primeng": "*",
+
+    "@starui/design-system": "*",
     "@starui/ui": "*",
     "@starui/workspace-setup-react": "*",
     "@tanstack/react-query": "^5.80.7",

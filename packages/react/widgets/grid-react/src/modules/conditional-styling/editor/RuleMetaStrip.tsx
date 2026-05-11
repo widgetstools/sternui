@@ -21,7 +21,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
   setDraft: (patch: Partial<ConditionalRule>) => void;
 }) {
   return (
-    <div className="gc-meta-grid">
+    <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
       <MetaCell
         label="STATUS"
         value={
@@ -31,7 +31,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
               checked={enabled}
               onChange={(e) => setDraft({ enabled: e.target.checked })}
             />
-            <Mono color={enabled ? 'var(--ck-green)' : 'var(--ck-t2)'}>
+            <Mono color={enabled ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)'}>
               {enabled ? 'ACTIVE' : 'MUTED'}
             </Mono>
           </span>
@@ -41,6 +41,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
         label="SCOPE"
         value={
           <Select
+            data-testid={`cs-rule-scope-${ruleId}`}
             value={scopeType}
             onChange={(e) => {
               const v = e.target.value;
@@ -96,7 +97,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
       />
       <MetaCell
         label="APPLIED"
-        value={<Mono color="var(--ck-amber)">{appliedCount} rows</Mono>}
+        value={<Mono color="var(--ds-accent-warning)">{appliedCount} rows</Mono>}
       />
     </div>
   );

@@ -33,14 +33,14 @@ export interface GhostIconButtonProps extends ButtonHTMLAttributes<HTMLButtonEle
  * inline keeps the package self-contained without forcing every
  * downstream app to wire up CSS bundling for our internal files.
  *
- * Resting color sits at the secondary text tier (--bn-t1). Variants
+ * Resting color sits at the secondary text tier (--ds-text-secondary). Variants
  * tint hover with the matching accent token via color-mix overlays so
  * theme switches update the highlight automatically. Sizes and the
  * reveal-on-row-hover affordance are driven by data-attributes so
  * variants compose cleanly without exploding the class list.
  */
 const GHOST_ICON_BUTTON_CSS = `
-.gc-gib {
+.ds-gib {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -50,44 +50,44 @@ const GHOST_ICON_BUTTON_CSS = `
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--bn-t1);
+  color: var(--ds-text-secondary);
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 120ms, color 120ms, opacity 120ms;
 }
-.gc-gib:focus-visible {
-  outline: 2px solid var(--bn-focus-ring, var(--bn-blue));
+.ds-gib:focus-visible {
+  outline: 2px solid var(--ds-accent-info);
   outline-offset: 1px;
 }
-.gc-gib:disabled {
+.ds-gib:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }
-.gc-gib[data-variant='default']:not(:disabled):hover,
-.gc-gib[data-variant='accent']:not(:disabled):hover {
-  background: color-mix(in srgb, var(--bn-blue) 14%, transparent);
-  color: var(--bn-blue);
+.ds-gib[data-variant='default']:not(:disabled):hover,
+.ds-gib[data-variant='accent']:not(:disabled):hover {
+  background: color-mix(in srgb, var(--ds-accent-info) 14%, transparent);
+  color: var(--ds-accent-info);
 }
-.gc-gib[data-variant='destructive']:not(:disabled):hover {
-  background: color-mix(in srgb, var(--bn-red) 14%, transparent);
-  color: var(--bn-red);
+.ds-gib[data-variant='destructive']:not(:disabled):hover {
+  background: color-mix(in srgb, var(--ds-accent-negative) 14%, transparent);
+  color: var(--ds-accent-negative);
 }
-.gc-gib[data-size='md'] {
+.ds-gib[data-size='md'] {
   width: 28px;
   height: 28px;
   border-radius: 6px;
 }
-.gc-gib[data-reveal='on-row-hover'] {
+.ds-gib[data-reveal='on-row-hover'] {
   opacity: 0;
 }
-[data-row-hover-target]:hover .gc-gib[data-reveal='on-row-hover'],
-.gc-gib[data-reveal='on-row-hover']:focus-visible,
-.gc-gib[data-reveal='on-row-hover'][data-revealed='true'] {
+[data-row-hover-target]:hover .ds-gib[data-reveal='on-row-hover'],
+.ds-gib[data-reveal='on-row-hover']:focus-visible,
+.ds-gib[data-reveal='on-row-hover'][data-revealed='true'] {
   opacity: 1;
 }
 `;
 
-const STYLE_TAG_ID = 'gc-ghost-icon-button-styles';
+const STYLE_TAG_ID = 'ds-ghost-icon-button-styles';
 
 /** Inject the stylesheet once per document. SSR-safe (no-op when
  *  `document` is undefined) and idempotent under React StrictMode's
@@ -142,7 +142,7 @@ export const GhostIconButton = forwardRef<HTMLButtonElement, GhostIconButtonProp
     <button
       ref={ref}
       type={type ?? 'button'}
-      className={cn('gc-gib', className)}
+      className={cn('ds-gib', className)}
       data-variant={variant}
       data-size={size}
       data-reveal={reveal}

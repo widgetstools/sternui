@@ -45,7 +45,7 @@ export interface ColorPickerPopoverProps {
    *  (e.g. "Text color", "Fill color") for disambiguation. */
   title?: string;
   /** Override the trigger's className. When provided, REPLACES the
-   *  default `gc-tbtn` chrome so callers can opt into their own
+   *  default `ds-tbtn` chrome so callers can opt into their own
    *  toolbar button styling (e.g. the formatter's `.fx-pill`). The
    *  size + disabled-opacity utilities are preserved either way. */
   triggerClassName?: string;
@@ -69,7 +69,7 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
           title={title}
           aria-label={title}
           className={cn(
-            triggerClassName ?? 'shrink-0 rounded-[4px] gc-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
+            triggerClassName ?? 'shrink-0 rounded-[4px] ds-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
             disabled && 'opacity-25 pointer-events-none',
           )}
         >
@@ -77,7 +77,7 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
             {icon}
             <span
               className="w-3.5 h-[2px] rounded-full transition-colors"
-              style={{ background: value || 'var(--bn-t2)' }}
+              style={{ background: value || 'var(--ds-text-muted)' }}
             />
           </span>
         </button>

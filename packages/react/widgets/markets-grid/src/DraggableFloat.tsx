@@ -174,8 +174,8 @@ export function DraggableFloat({
           top: pos.y,
           left: pos.x,
           zIndex,
-          background: 'var(--bn-bg1, #161a1e)',
-          border: '1px solid var(--bn-border, #313944)',
+          background: 'var(--ds-surface-primary)',
+          border: '1px solid var(--ds-border-primary)',
           borderRadius: 6,
           boxShadow:
             '0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) inset',
@@ -193,8 +193,8 @@ export function DraggableFloat({
               gap: 6,
               padding: '0 6px 0 4px',
               cursor: 'grab',
-              borderBottom: '1px solid var(--bn-border, #313944)',
-              background: 'var(--bn-bg1, #161a1e)',
+              borderBottom: '1px solid var(--ds-border-primary)',
+              background: 'var(--ds-surface-primary)',
               borderTopLeftRadius: 8,
               borderTopRightRadius: 8,
               userSelect: 'none',
@@ -205,7 +205,7 @@ export function DraggableFloat({
             <GripVertical
               size={11}
               strokeWidth={1.75}
-              style={{ color: 'var(--bn-t2, #a0a8b4)', opacity: 0.7 }}
+              style={{ color: 'var(--ds-text-muted)', opacity: 0.7 }}
             />
             <span
               style={{
@@ -213,7 +213,7 @@ export function DraggableFloat({
                 fontWeight: 600,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                color: 'var(--bn-t2, #a0a8b4)',
+                color: 'var(--ds-text-muted)',
                 flex: 1,
               }}
             >
@@ -265,7 +265,7 @@ function DragHandle({
         cursor: 'grab',
         userSelect: 'none',
         touchAction: 'none',
-        color: 'var(--bn-t2, #a0a8b4)',
+        color: 'var(--ds-text-muted)',
         ...style,
       }}
     >
@@ -310,19 +310,19 @@ function CloseButton({
         borderRadius: 4,
         background: 'transparent',
         border: 'none',
-        color: 'var(--bn-t0, #eaecef)',
+        color: 'var(--ds-text-primary)',
         cursor: 'pointer',
         transition: 'background 150ms, color 150ms',
         padding: 0,
         ...style,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'color-mix(in srgb, var(--bn-red, #ef4444) 14%, transparent)';
-        e.currentTarget.style.color = 'var(--bn-red, #ef4444)';
+        e.currentTarget.style.background = 'color-mix(in srgb, var(--ds-accent-negative) 14%, transparent)';
+        e.currentTarget.style.color = 'var(--ds-accent-negative)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = (style?.background as string) ?? 'transparent';
-        e.currentTarget.style.color = 'var(--bn-t0, #eaecef)';
+        e.currentTarget.style.color = 'var(--ds-text-primary)';
       }}
     >
       <XIcon size={size} strokeWidth={2.25} />

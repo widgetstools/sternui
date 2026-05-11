@@ -2,104 +2,125 @@
  * FI Design System — Light Theme
  * Generated from design-system/tokens/semantic.ts
  *
- * Cool off-white chrome (NOT cream, NOT warm) + deep charcoal text
- * + saturated vivid accents. No earthy tones, no brown, no yellow.
- * WCAG AA across all text tiers.
+ * Cool clinical light theme: #F8F9FB canvas, white cards, quiet
+ * dividers, slate text, and cobalt primary accents.
  */
 
 [data-theme="light"] {
   /* ── shadcn/ui overrides ── */
-  --background: 219 27% 96%;         /* #f3f5f9 */
-  --foreground: 223 28% 14%;         /* #1a1f2e */
-  --card: 216 25% 99%;               /* #fbfcfd */
-  --card-foreground: 223 28% 14%;
-  --popover: 216 25% 99%;
-  --popover-foreground: 223 28% 14%;
-  --primary: 221 83% 53%;            /* #2563eb — punchy blue brand */
+  --background: 220 27% 98%;         /* #f8f9fb */
+  --foreground: 221 39% 11%;         /* #111827 */
+  --card: 0 0% 100%;                 /* #ffffff */
+  --card-foreground: 221 39% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 221 39% 11%;
+  --primary: 225 67% 48%;            /* #2952cc — cobalt */
   --primary-foreground: 0 0% 100%;
-  --secondary: 219 22% 93%;          /* #ebeef3 */
-  --secondary-foreground: 220 13% 35%;
-  --muted: 219 22% 93%;
+  --secondary: 210 29% 95%;          /* #edf1f5 */
+  --secondary-foreground: 215 14% 34%;
+  --muted: 216 26% 96%;
   --muted-foreground: 220 9% 46%;    /* #6b7280 */
-  --accent: 219 22% 93%;
-  --accent-foreground: 223 28% 14%;
-  --destructive: 350 75% 52%;        /* #e02e47 */
+  --accent: 210 29% 95%;
+  --accent-foreground: 221 39% 11%;
+  --destructive: 353 44% 45%;        /* #a43f4b */
   --destructive-foreground: 0 0% 100%;
-  --border: 218 22% 88%;             /* #d9dee8 */
-  --input: 218 22% 88%;
-  --ring: 221 83% 53%;
+  --border: 218 26% 88%;             /* #d8dee8 */
+  --input: 218 26% 88%;
+  --ring: 225 67% 48%;
   --radius: 4px;
 
-  /* ── Surface (cool off-white; never cream) ── */
-  --bn-bg:      #f3f5f9;
-  --bn-bg1:     #fbfcfd;
-  --bn-bg2:     #ebeef3;
-  --bn-bg3:     #dde2ea;
+  /* ── Surface (cool clinical) ── */
+  --bn-bg:      #f8f9fb;
+  --bn-bg1:     #ffffff;
+  --bn-bg2:     #f3f5f8;
+  --bn-bg3:     #edf1f5;
 
-  /* ── Text (deep charcoal; never pure black) ── */
-  --bn-t0:      #1a1f2e;
-  --bn-t1:      #4f5665;
+  /* ── Text (cool slate; never pure black) ── */
+  --bn-t0:      #111827;
+  --bn-t1:      #4b5563;
   --bn-t2:      #6b7280;
-  --bn-t3:      #9ca3af;
+  --bn-t3:      #9aa3af;
 
-  /* ── Border (cool neutral) ── */
-  --bn-border:  #d9dee8;
-  --bn-border2: #c3cad7;
+  /* ── Border (quiet neutral) ── */
+  --bn-border:  #d8dee8;
+  --bn-border2: #c4ccd8;
 
-  /* ── Accent (vivid; WCAG AA on off-white) ── */
-  --bn-green:   #0ea870;
-  --bn-green2:  #0b8959;
-  --bn-red:     #e02e47;
-  --bn-red2:    #b81e37;
-  --bn-amber:   #e86a1c;    /* pure orange — warning semantic only */
-  --bn-blue:    #2563eb;    /* BRAND */
-  --bn-blue2:   #1d4ed8;
-  --bn-cyan:    #06b6d4;
+  /* ── Accent (cool clinical) ── */
+  --bn-green:   #1f7a5c;
+  --bn-green2:  #176247;
+  --bn-red:     #a43f4b;
+  --bn-red2:    #84313b;
+  --bn-amber:   #8a5f1f;    /* muted ochre — warning semantic only */
+  --bn-blue:    #2952cc;    /* PRIMARY BRAND */
+  --bn-blue2:   #1f3f9e;    /* PRIMARY HOVER */
+  --bn-info:    #3d6f99;    /* informational accent */
+  --bn-cyan:    #06b6d4;    /* highlight accent */
   --bn-purple:  #7c3aed;
 
   /* ── Actions ── */
-  --bn-buy-bg:   #0ea870;
-  --bn-sell-bg:  #e02e47;
+  --bn-buy-bg:   #1f7a5c;
+  --bn-sell-bg:  #a43f4b;
   --bn-cta-text: #ffffff;
-  --bn-logo-bg:  #fbfcfd;
+  --bn-logo-bg:  #ffffff;
 
   /* ── Interactive states ── */
-  --bn-focus-ring:    #2563eb;
-  --bn-focus-ring-bg: rgba(37,99,235,0.22);
-  --bn-disabled-bg:   #ebeef3;
-  --bn-disabled-fg:   #9ca3af;
+  --bn-focus-ring:    #2952cc;
+  --bn-focus-ring-bg: rgba(41,82,204,0.14);
+  --bn-disabled-bg:   #f3f5f8;
+  --bn-disabled-fg:   #9aa3af;
   --bn-hover-overlay: rgba(0,0,0,0.045);
+  --bn-selection:     rgba(41,82,204,0.10);
 
   /* ── Overlay tints ── */
-  --bn-positive-soft: rgba(14,168,112,0.12);
-  --bn-positive-ring: rgba(14,168,112,0.32);
-  --bn-negative-soft: rgba(224,46,71,0.10);
-  --bn-negative-ring: rgba(224,46,71,0.32);
-  --bn-warning-soft:  rgba(232,106,28,0.12);
-  --bn-warning-ring:  rgba(232,106,28,0.35);
-  --bn-info-soft:     rgba(37,99,235,0.10);
-  --bn-info-ring:     rgba(37,99,235,0.32);
-  --bn-neutral-soft:  rgba(79,86,101,0.08);
-  --bn-neutral-ring:  rgba(79,86,101,0.22);
+  --bn-positive-soft: rgba(31,122,92,0.08);
+  --bn-positive-ring: rgba(31,122,92,0.22);
+  --bn-negative-soft: rgba(164,63,75,0.08);
+  --bn-negative-ring: rgba(164,63,75,0.24);
+  --bn-warning-soft:  rgba(138,95,31,0.08);
+  --bn-warning-ring:  rgba(138,95,31,0.24);
+  --bn-info-soft:     rgba(61,111,153,0.08);
+  --bn-info-ring:     rgba(61,111,153,0.24);
+  --bn-neutral-soft:  rgba(75,85,99,0.05);
+  --bn-neutral-ring:  rgba(75,85,99,0.14);
 
-  /* ── Typography (parity with dark theme) ── */
-  --fi-mono: 'JetBrains Mono', monospace;
-  --fi-sans: 'Geist', sans-serif;
-  --fi-font-xs: 10px;
-  --fi-font-sm: 11px;
-  --fi-font-md: 13px;
-  --fi-font-lg: 18px;
+  /* ── CVD alternates ── */
+  --bn-cvd-buy:  #1e4fb8;
+  --bn-cvd-sell: #c2410c;
+
+  /* ── Typography ── */
+  --fi-sans:  'Geist', 'Inter', system-ui, sans-serif;
+  --fi-mono:  'JetBrains Mono', monospace;
+  --fi-serif: 'Geist', Georgia, serif;
+  --fi-font-2xs: 9px;
+  --fi-font-xs:  10px;
+  --fi-font-sm:  11px;
+  --fi-font-md:  13px;
+  --fi-font-lg:  18px;
+  --fi-font-xl:  20px;
+
+  /* ── Motion ── */
+  --fi-t-instant:   80ms cubic-bezier(0.4,0,0.6,1);
+  --fi-t-fast:      150ms ease;
+  --fi-t-normal:    200ms ease;
+  --fi-t-slow:      500ms ease-out;
+  --fi-t-emphasis:  640ms cubic-bezier(0.2,0.8,0.2,1);
+  --fi-t-tick:      900ms cubic-bezier(0.25,0.1,0.25,1);
+
+  /* ── Elevation ── */
+  --fi-shadow-card:    0 1px 2px rgba(15,23,42,0.08);
+  --fi-shadow-overlay: 0 1px 2px rgba(15,23,42,0.06), 0 10px 28px rgba(15,23,42,0.10);
+  --fi-glow-focus:     0 0 0 3px rgba(41,82,204,0.12);
 
   /* ── Order Book / Trade Ticket fills ── */
-  --ob-bid-fill:   rgba(14,168,112,0.14);
-  --ob-ask-fill:   rgba(224,46,71,0.12);
-  --tt-bid-strip:  rgba(37,99,235,0.10);
-  --tt-ask-strip:  rgba(224,46,71,0.10);
+  --ob-bid-fill:   rgba(31,122,92,0.10);
+  --ob-ask-fill:   rgba(164,63,75,0.09);
+  --tt-bid-strip:  rgba(41,82,204,0.08);
+  --tt-ask-strip:  rgba(164,63,75,0.08);
 
   /* ── Misc ── */
-  --scrollbar-thumb: #c3cad7;
+  --scrollbar-thumb: #c4ccd8;
 
-  /* ── Legacy aliases (parity with dark theme) ── */
+  /* ── Legacy aliases ── */
   --fi-bg0: var(--bn-bg);
   --fi-bg1: var(--bn-bg1);
   --fi-bg2: var(--bn-bg2);
@@ -115,9 +136,10 @@
   --fi-green: var(--bn-green);
   --fi-red: var(--bn-red);
   --fi-blue: var(--bn-blue);
+  --fi-info: var(--bn-info);
   --fi-amber: var(--bn-amber);
-  --bn-yellow: #ca8a04;        /* deeper yellow for light bg readability */
-  --fi-yellow: var(--bn-yellow);
+  --fi-yellow: var(--bn-amber);
+  --bn-yellow: var(--bn-amber);
   --fi-cyan: var(--bn-cyan);
   --fi-purple: var(--bn-purple);
   --fi-title: var(--bn-t0);

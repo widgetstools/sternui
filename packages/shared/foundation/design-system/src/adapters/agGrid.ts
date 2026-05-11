@@ -1,95 +1,74 @@
 // ─────────────────────────────────────────────────────────────
-//  FI Design System — AG Grid Adapter
-//  Exports raw param objects for light and dark modes.
-//  Each app wraps them with themeQuartz.withParams() locally
-//  (avoids importing ag-grid-community from the design system).
+//  AG Grid Theme Params — FI Design System
+//  Mirrors the fi-trading-terminal design-system reference and exports params for
+//  AG Grid v31+ Theming API (themeQuartz.withParams(params)).
+//
+//  Density:
+//    compact (standard) — rowHeight 28, headerHeight 32, fontSize 12
+//    comfort            — rowHeight 36, headerHeight 40, fontSize 13
+//    ultra (blotter)    — rowHeight 22, headerHeight 26, fontSize 11
 // ─────────────────────────────────────────────────────────────
 
-import { dark, light, shared } from '../tokens/semantic';
+import { dark, light, type ColorScheme } from '../tokens/semantic';
+import { typography } from '../tokens/primitives';
 
-// Note: AG-Grid v35 uses `headerTextColor` (not `headerForegroundColor`) and
-// has no `rowBorderColor` equivalent — those were renamed/removed between
-// v31 and v35. Keeping the adapter aligned with what the installed grid
-// actually accepts.
-export const agGridLightParams: Record<string, unknown> = {
-  backgroundColor:            light.surface.primary,
-  foregroundColor:            light.text.primary,
-  headerBackgroundColor:      light.surface.secondary,
-  headerTextColor:            light.text.secondary,
-  oddRowBackgroundColor:      light.surface.ground,
-  rowHoverColor:              light.surface.secondary,
-  selectedRowBackgroundColor: light.overlay.infoSoft,
-  borderColor:                light.border.primary,
-  fontFamily:                 shared.typography.fontFamily.mono,
-  fontSize:                   parseInt(shared.typography.fontSize.sm),
-  headerFontSize:             parseInt(shared.typography.fontSize.xs) + 1,
-  cellHorizontalPaddingScale: 0.6,
-  wrapperBorder:              false,
-  columnBorder:               false,
-};
+type Density = 'compact' | 'comfort' | 'ultra';
 
-export const agGridDarkParams: Record<string, unknown> = {
-  backgroundColor:            dark.surface.primary,
-  foregroundColor:            dark.text.primary,
-  headerBackgroundColor:      dark.surface.secondary,
-  headerTextColor:            dark.text.secondary,
-  oddRowBackgroundColor:      dark.surface.primary,
-  rowHoverColor:              dark.surface.secondary,
-  selectedRowBackgroundColor: dark.overlay.infoSoft,
-  borderColor:                dark.border.primary,
-  fontFamily:                 shared.typography.fontFamily.mono,
-  fontSize:                   parseInt(shared.typography.fontSize.sm),
-  headerFontSize:             parseInt(shared.typography.fontSize.xs) + 1,
-  cellHorizontalPaddingScale: 0.6,
-  wrapperBorder:              false,
-  columnBorder:               false,
-};
+function gridParams(
+  scheme: ColorScheme,
+  mode: 'dark' | 'light',
+  density: Density = 'compact',
+) {
+  const rowH    = density === 'ultra' ? 22 : density === 'comfort' ? 36 : 28;
+  const headerH = density === 'ultra' ? 26 : density === 'comfort' ? 40 : 32;
+  const fontPx  = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
+  const spacing = density === 'ultra' ? 4 : density === 'comfort' ? 8 : 6;
+  return {
+    // Ensure browser-native UI (including scrollbars) matches the theme.
+    browserColorScheme: mode,
+    // ── Typography ──
+    // Keep data cells monospace for tabular alignment, but render
+    // headers in sans to match the original design-system reference.
+    fontFamily:        typography.fontFamily.sans,
+    fontSize:          fontPx,
+    headerFontFamily:  typography.fontFamily.sans,
+    headerFontSize:    Math.max(10, fontPx - 1),
+    headerFontWeight:  600,
+    cellFontFamily:    typography.fontFamily.mono,
+    // ── Surfaces ──
+    backgroundColor:        scheme.surface.primary,
+    foregroundColor:        scheme.text.primary,
+    chromeBackgroundColor:  scheme.surface.secondary,
+    headerBackgroundColor:  scheme.surface.secondary,
+    headerTextColor:        scheme.text.secondary,
+    rowHoverColor:          scheme.surface.secondary,
+    selectedRowBackgroundColor: scheme.primary.soft,
+    // ── Borders & spacing ──
+    borderColor:        scheme.border.primary,
+    wrapperBorder:      false as const,
+    headerColumnBorder: false as const,
+    headerColumnResizeHandleColor: scheme.border.secondary,
+    headerColumnResizeHandleHeight: '45%',
+    headerColumnResizeHandleWidth: '1px',
+    rowBorder:          { style: 'solid' as const, width: 1, color: scheme.border.primary },
+    rowHeight:          rowH,
+    headerHeight:       headerH,
+    spacing,
+    borderRadius:       2,
+    // ── Focus ──
+    inputFocusBorder:   { style: 'solid' as const, width: 1, color: scheme.primary.color },
+    focusShadow:        `0 0 0 2px ${scheme.primary.ring}`,
+    // ── Range / selection ──
+    rangeSelectionBorderColor:     scheme.primary.color,
+    rangeSelectionBackgroundColor: scheme.primary.soft,
+    // ── Brand primary ──
+    accentColor:        scheme.primary.color,
+  };
+}
 
-// ─── Blotter preset ────────────────────────────────────────────
-//
-// Trading-blotter variant of the base preset. Distinct visual
-// identity: TEAL row selection (matches the buy/positive accent),
-// column borders ON, slightly tighter spacing, no rounded corners,
-// 10px header font, 11px body font.
-//
-// This is the canonical theme for `<HostedMarketsGrid>` and any
-// other blotter-style grid. Consumers wrap it once with
-// `themeQuartz.withParams(...)`. Update colors / spacing here and
-// every blotter picks the change up — no per-grid overrides.
-
-const blotterSharedParams = {
-  fontFamily:                 shared.typography.fontFamily.mono,
-  fontSize:                   11,
-  headerFontSize:             10,
-  iconSize:                   10,
-  cellHorizontalPaddingScale: 0.6,
-  wrapperBorder:              false,
-  columnBorder:               true,
-  spacing:                    6,
-  borderRadius:               0,
-  wrapperBorderRadius:        0,
-};
-
-export const agGridBlotterDarkParams: Record<string, unknown> = {
-  ...blotterSharedParams,
-  backgroundColor:            '#161a1e',
-  foregroundColor:            '#eaecef',
-  headerBackgroundColor:      '#1e2329',
-  headerTextColor:            '#a0a8b4',
-  oddRowBackgroundColor:      '#161a1e',
-  rowHoverColor:              '#1e2329',
-  selectedRowBackgroundColor: '#14b8a614',  // teal-500 @ ~8% — matches buy/positive accent
-  borderColor:                '#313944',
-};
-
-export const agGridBlotterLightParams: Record<string, unknown> = {
-  ...blotterSharedParams,
-  backgroundColor:            '#ffffff',
-  foregroundColor:            '#3b3b3b',
-  headerBackgroundColor:      '#f3f3f3',
-  headerTextColor:            '#616161',
-  oddRowBackgroundColor:      '#fafafa',
-  rowHoverColor:              '#f3f3f3',
-  selectedRowBackgroundColor: '#0d948814',  // teal-600 @ ~8%
-  borderColor:                '#e5e5e5',
-};
+export const agGridDarkParams         = gridParams(dark,  'dark',  'compact');
+export const agGridLightParams        = gridParams(light, 'light', 'compact');
+export const agGridComfortDarkParams  = gridParams(dark,  'dark',  'comfort');
+export const agGridComfortLightParams = gridParams(light, 'light', 'comfort');
+export const agGridBlotterDarkParams  = gridParams(dark,  'dark',  'ultra');
+export const agGridBlotterLightParams = gridParams(light, 'light', 'ultra');

@@ -30,7 +30,7 @@ interface IconPickerProps {
   onSelect: (iconId: string, svgDataUrl: string) => void;
   /** Currently selected iconId (e.g. "mkt:bond"). */
   selectedIcon?: string;
-  /** Color for the SVG data URL (default "#ffffff" for dark theme) */
+  /** Color for the SVG data URL (default "var(--ds-text-primary)" for dark theme) */
   color?: string;
 }
 
@@ -72,7 +72,7 @@ const ALL_ICONS = buildIconList();
 
 // ─── Component ──────────────────────────────────────────────────────
 
-export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPickerProps) {
+export function IconPicker({ onSelect, selectedIcon, color = "var(--ds-text-primary)" }: IconPickerProps) {
   const [search, setSearch] = useState("");
 
   // Filter icons based on search query
@@ -103,7 +103,7 @@ export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPi
     <div className="flex flex-col gap-2">
       {/* Search */}
       <div className="relative">
-        <Icon icon="lucide:search" style={{ width: 14, height: 14, color: "var(--de-text-tertiary)" }} />
+        <Icon icon="lucide:search" style={{ width: 14, height: 14 }} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -131,12 +131,10 @@ export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPi
                 "hover:bg-accent hover:border-accent transition-colors",
                 selectedIcon === icon.id && "bg-accent border-primary",
               )}
-              style={{ background: "var(--de-bg-surface, var(--card))", borderColor: "var(--de-border, var(--border))" }}
             >
               {icon.source === "market" ? (
                 <span
-                  className="text-foreground"
-                  style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+                  className="text-foreground w-4 h-4 flex items-center justify-center"
                   dangerouslySetInnerHTML={{
                     __html: MARKET_ICON_SVGS[icon.id.replace("mkt:", "")]
                       ?.replace(/width="24"/g, 'width="16"')
@@ -144,7 +142,7 @@ export function IconPicker({ onSelect, selectedIcon, color = "#ffffff" }: IconPi
                   }}
                 />
               ) : (
-                <Icon icon={icon.id} style={{ width: 16, height: 16, color: "var(--de-text-secondary, var(--muted-foreground))" }} />
+                <Icon icon={icon.id} style={{ width: 16, height: 16 }} className="text-muted-foreground" />
               )}
             </button>
           ))}

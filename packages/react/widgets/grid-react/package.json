@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@starui/design-system": "*",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0",
     "ag-grid-community": ">=35.0.0",
@@ -24,6 +25,7 @@
   "dependencies": {
     "@starui/core": "*",
     "@starui/shared-types": "*",
+    "@starui/ui": "*",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
     "class-variance-authority": "^0.7.1",
@@ -35,6 +37,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@starui/design-system": "*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "~16.2.0",

@@ -1,6 +1,5 @@
 /**
- * Small status dot — 6×6 filled circle. Replaces the previous phosphor
- * LED bar. Three states:
+ * Small status dot — 6×6 filled circle. Three states:
  *   - on + green (default)  — active / ok
  *   - on + amber            — pending / warning
  *   - off                   — muted
@@ -19,7 +18,14 @@ export interface LedBarProps {
 export function LedBar({ on = true, amber, title }: LedBarProps) {
   return (
     <span
-      className="gc-led"
+      className={[
+        'inline-block flex-shrink-0 w-0.5 h-3',
+        on
+          ? amber
+            ? 'bg-warning shadow-[0_0_4px_var(--ds-accent-warning)]'
+            : 'bg-success shadow-[0_0_4px_var(--ds-accent-positive)]'
+          : 'bg-border',
+      ].join(' ')}
       data-on={on ? 'true' : 'false'}
       data-amber={amber ? 'true' : 'false'}
       title={title}
@@ -38,7 +44,7 @@ export function DirtyDot({ hidden, title = 'Unsaved changes' }: DirtyDotProps) {
     return (
       <span
         aria-hidden
-        style={{ display: 'inline-block', width: 6, height: 6, visibility: 'hidden', flexShrink: 0 }}
+        className="inline-block w-1.5 h-1.5 invisible flex-shrink-0"
       />
     );
   }

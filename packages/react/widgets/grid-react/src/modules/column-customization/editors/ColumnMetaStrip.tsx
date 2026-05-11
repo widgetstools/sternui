@@ -12,16 +12,16 @@ export function ColumnMetaStrip({
   templateCount: number;
 }) {
   return (
-    <div className="gc-meta-grid">
-      <MetaCell label="COL ID" value={<Mono color="var(--ck-t0)">{colId}</Mono>} />
+    <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
+      <MetaCell label="COL ID" value={<Mono color="var(--ds-text-primary)">{colId}</Mono>} />
       <MetaCell
         label="TYPE"
-        value={<Mono color="var(--ck-t0)">{cellDataType ?? '—'}</Mono>}
+        value={<Mono color="var(--ds-text-primary)">{cellDataType ?? '—'}</Mono>}
       />
       <MetaCell
         label="OVERRIDES"
         value={
-          <Mono color={overrideCount > 0 ? 'var(--ck-amber)' : 'var(--ck-t3)'}>
+          <Mono color={overrideCount > 0 ? 'var(--ds-accent-warning)' : 'var(--ds-text-faint)'}>
             {overrideCount}
           </Mono>
         }
@@ -29,7 +29,7 @@ export function ColumnMetaStrip({
       <MetaCell
         label="TEMPLATES"
         value={
-          <Mono color={templateCount > 0 ? 'var(--ck-green)' : 'var(--ck-t3)'}>
+          <Mono color={templateCount > 0 ? 'var(--ds-accent-positive)' : 'var(--ds-text-faint)'}>
             {templateCount}
           </Mono>
         }

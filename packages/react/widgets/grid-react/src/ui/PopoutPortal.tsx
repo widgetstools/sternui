@@ -399,21 +399,19 @@ export function PopoutPortal({
   // Why NOT body: the demo loads two stylesheets that both define shadcn
   // tokens — fi-dark.css (design-system, HSL triplets like
   // `--card: 214 26% 10%`) and globals.css (demo, hex like
-  // `--card: #161a1e`). fi-dark.css uses selector `:root, [data-theme="dark"]`
+  // `--card: var(--ds-surface-primary)`). fi-dark.css uses selector `:root, [data-theme="dark"]`
   // while globals.css uses just `:root`.
   //
   // - On <html>: both rules match. globals.css is loaded LAST so its hex
-  //   value wins — `--card` resolves to #161a1e, `var(--bn-bg1)` is a valid
-  //   color, and descendants inherit correctly.
+  //   value wins — `--card` resolves correctly, and descendants inherit.
   // - If we ALSO set data-theme on <body>: fi-dark's `[data-theme="dark"]`
   //   rule matches body directly. globals.css's `:root` rule does NOT match
   //   body. So on body, fi-dark wins → `--card` is "214 26% 10%" (HSL
-  //   triplet meant for hsl(var(--bn-bg1))) → `var(--bn-bg1)` is an invalid
-  //   background value → transparent popovers.
+  //   triplet) → the background value is invalid → transparent popovers.
   //
   // Keeping data-theme only on <html> means body inherits the valid hex
   // via the normal CSS-var cascade. The descendant-form selectors in
-  // cockpit.ts (`[data-theme='light'] .gc-sheet-v2`) still match because
+  // cockpit.ts (`[data-theme='light'] .ds-sheet-v2`) still match because
   // body is a descendant of html.
   useEffect(() => {
     if (!popout) return;
@@ -600,24 +598,24 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
     } catch (err) { console.warn('[PopoutPortal] viewport meta inject failed:', err); }
 
     // Seed the popout's <body> with BOTH the cockpit scope class AND
-    // the gc-settings data-attr so every Radix portal target (we pass
+    // the ds-settings data-attr so every Radix portal target (we pass
     // `popout.document.body` as the container) inherits the full
-    // --ck-*, --gc-*, + Tailwind shadcn token stack. Without this, a
+    // --ds-*, + Tailwind shadcn token stack. Without this, a
     // FormatPopover opened from inside a popped settings sheet would
     // fall back to light-theme shadcn defaults — the user saw a white
     // rectangle in the middle of the Indicator section because the
-    // portaled color-picker content had no --gc-surface bound.
+    // portaled color-picker content had no design-system surface token bound.
     //
     // These are purely scoping hooks (no layout styles bound to them
     // at :root level), so adding them to <body> is harmless for any
     // direct-body consumers and fixes every downstream portal.
     try {
-      doc.body.classList.add('gc-sheet-v2');
-      doc.body.setAttribute('data-gc-settings', '');
+      doc.body.classList.add('ds-sheet-v2');
+      doc.body.setAttribute('data-ds-settings', '');
     } catch (err) { console.warn('[PopoutPortal] body scope tag failed:', err); }
 
     // Clone every stylesheet from the main document so our CSS-in-
-    // JS tokens (--bn-*, --ck-*, --primary) + cockpit runtime styles
+    // JS tokens (--ds-*, --primary) + runtime styles
     // + Tailwind bundle all resolve. Done BEFORE the reset so that
     // the popout-specific reset (`body { padding: 0 }`,
     // `[data-popout-root] { overflow: hidden }`) wins the cascade —
@@ -639,7 +637,7 @@ async function prepareDocument(popout: Window, title: string): Promise<void> {
       // cascade-only reset.
       reset.textContent = `
         html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; width: 100% !important; overflow: hidden !important; }
-        body { font-family: inherit; background: var(--bn-bg, #0b0e11); color: var(--bn-t0, #eaecef); }
+        body { font-family: inherit; background: var(--ds-surface-ground); color: var(--ds-text-primary); }
         [data-popout-root] { width: 100% !important; height: 100% !important; min-width: 0; min-height: 0; overflow: hidden !important; }
       `;
       doc.head.appendChild(reset);

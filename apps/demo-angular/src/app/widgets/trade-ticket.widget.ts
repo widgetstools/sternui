@@ -9,48 +9,48 @@ import { SharedStateService } from '../services/shared-state.service';
   imports: [CommonModule, FormsModule],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
-    <div style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1)">
+    <div style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary)">
       <!-- Security header -->
       <div
-        style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
+        style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0;background:rgba(0,188,212,0.04)"
       >
-        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--bn-cyan)"
+        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--ds-accent-info)"
           >{{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}</span
         >
-        <span class="font-mono-fi font-semibold" style="font-size:11px;color:var(--bn-t0)">{{
+        <span class="font-mono-fi font-semibold" style="font-size:11px;color:var(--ds-text-primary)">{{
           mid.toFixed(3)
         }}</span>
       </div>
       <!-- Bid / Ask strip -->
       <div
-        style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bn-border);flex-shrink:0"
+        style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--ds-border-primary);flex-shrink:0"
       >
         <div
           class="font-mono-fi"
-          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--bn-blue)"
+          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-bid-strip);color:var(--ds-accent-info)"
         >
-          <span style="font-size:9px;color:var(--bn-t2);display:block">BID</span>
+          <span style="font-size:9px;color:var(--ds-text-muted);display:block">BID</span>
           {{ bond.bid.toFixed(3) }}
         </div>
         <div
           class="font-mono-fi"
-          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--bn-red)"
+          style="font-size:11px;font-weight:600;text-align:center;padding:6px 0;background:var(--tt-ask-strip);color:var(--ds-accent-negative)"
         >
-          <span style="font-size:9px;color:var(--bn-t2);display:block">ASK</span>
+          <span style="font-size:9px;color:var(--ds-text-muted);display:block">ASK</span>
           {{ bond.ask.toFixed(3) }}
         </div>
       </div>
       <!-- Buy/Sell toggle -->
       <div
-        style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--bn-border);flex-shrink:0"
+        style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0"
       >
         <button
           (click)="side = 'BUY'"
           style="padding:8px;font-size:11px;font-weight:700;letter-spacing:0.06em;border:none;cursor:pointer;transition:all 150ms"
-          [style.color]="side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-t2)'"
+          [style.color]="side === 'BUY' ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)'"
           [style.background]="side === 'BUY' ? 'rgba(20,217,160,0.08)' : 'transparent'"
           [style.borderBottom]="
-            side === 'BUY' ? '2px solid var(--bn-green)' : '2px solid transparent'
+            side === 'BUY' ? '2px solid var(--ds-accent-positive)' : '2px solid transparent'
           "
         >
           BUY
@@ -58,10 +58,10 @@ import { SharedStateService } from '../services/shared-state.service';
         <button
           (click)="side = 'SELL'"
           style="padding:8px;font-size:11px;font-weight:700;letter-spacing:0.06em;border:none;cursor:pointer;transition:all 150ms"
-          [style.color]="side === 'SELL' ? 'var(--bn-red)' : 'var(--bn-t2)'"
+          [style.color]="side === 'SELL' ? 'var(--ds-accent-negative)' : 'var(--ds-text-muted)'"
           [style.background]="side === 'SELL' ? 'rgba(255,77,109,0.08)' : 'transparent'"
           [style.borderBottom]="
-            side === 'SELL' ? '2px solid var(--bn-red)' : '2px solid transparent'
+            side === 'SELL' ? '2px solid var(--ds-accent-negative)' : '2px solid transparent'
           "
         >
           SELL
@@ -77,15 +77,15 @@ import { SharedStateService } from '../services/shared-state.service';
             (click)="orderType = t"
             class="order-type-tab"
             [style.fontSize.px]="11"
-            [style.color]="orderType === t ? 'var(--bn-blue)' : 'var(--bn-t2)'"
-            [style.borderBottomColor]="orderType === t ? 'var(--bn-blue)' : 'transparent'"
+            [style.color]="orderType === t ? 'var(--ds-accent-info)' : 'var(--ds-text-muted)'"
+            [style.borderBottomColor]="orderType === t ? 'var(--ds-accent-info)' : 'transparent'"
           >
             {{ t }}
           </button>
         </div>
         <!-- Stop price -->
         <div *ngIf="orderType === 'Stop-Limit'">
-          <label style="font-size:9px;color:var(--bn-t2);display:block;margin-bottom:2px"
+          <label style="font-size:9px;color:var(--ds-text-muted);display:block;margin-bottom:2px"
             >Stop Price</label
           >
           <div style="position:relative">
@@ -96,14 +96,14 @@ import { SharedStateService } from '../services/shared-state.service';
               [(ngModel)]="stopPrice"
             />
             <span
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--bn-t2)"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ds-text-muted)"
               >USD</span
             >
           </div>
         </div>
         <!-- Price -->
         <div *ngIf="orderType !== 'Market'">
-          <label style="font-size:9px;color:var(--bn-t2);display:block;margin-bottom:2px">{{
+          <label style="font-size:9px;color:var(--ds-text-muted);display:block;margin-bottom:2px">{{
             orderType === 'Stop-Limit' ? 'Limit Price' : 'Price'
           }}</label>
           <div style="position:relative">
@@ -114,20 +114,20 @@ import { SharedStateService } from '../services/shared-state.service';
               [(ngModel)]="price"
             />
             <span
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--bn-t2)"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ds-text-muted)"
               >USD</span
             >
           </div>
         </div>
         <div
           *ngIf="orderType === 'Market'"
-          style="padding:6px 10px;border-radius:3px;background:var(--bn-bg2);font-size:11px;color:var(--bn-t1);font-family:JetBrains Mono,monospace"
+          style="padding:6px 10px;border-radius:3px;background:var(--ds-surface-secondary);font-size:11px;color:var(--ds-text-secondary);font-family:JetBrains Mono,monospace"
         >
           Market - Best available price
         </div>
         <!-- Amount -->
         <div>
-          <label style="font-size:9px;color:var(--bn-t2);display:block;margin-bottom:2px"
+          <label style="font-size:9px;color:var(--ds-text-muted);display:block;margin-bottom:2px"
             >Notional</label
           >
           <div style="position:relative">
@@ -138,7 +138,7 @@ import { SharedStateService } from '../services/shared-state.service';
               [(ngModel)]="amount"
             />
             <span
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--bn-t2)"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ds-text-muted)"
               >MM</span
             >
           </div>
@@ -149,11 +149,11 @@ import { SharedStateService } from '../services/shared-state.service';
             *ngFor="let p of pcts"
             (click)="handlePct(p)"
             style="flex:1;padding:4px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;transition:all 150ms"
-            [style.background]="pct === p ? 'var(--bn-bg3)' : 'transparent'"
-            [style.borderColor]="'var(--bn-border2)'"
-            [style.border]="'1px solid var(--bn-border2)'"
+            [style.background]="pct === p ? 'var(--ds-surface-tertiary)' : 'transparent'"
+            [style.borderColor]="'var(--ds-border-secondary)'"
+            [style.border]="'1px solid var(--ds-border-secondary)'"
             [style.color]="
-              pct === p ? (side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)') : 'var(--bn-t2)'
+              pct === p ? (side === 'BUY' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)') : 'var(--ds-text-muted)'
             "
           >
             {{ p }}%
@@ -161,7 +161,7 @@ import { SharedStateService } from '../services/shared-state.service';
         </div>
         <!-- TIF -->
         <div>
-          <label style="font-size:9px;color:var(--bn-t2);display:block;margin-bottom:2px"
+          <label style="font-size:9px;color:var(--ds-text-muted);display:block;margin-bottom:2px"
             >Time in Force</label
           >
           <div style="display:flex;gap:4px">
@@ -169,9 +169,9 @@ import { SharedStateService } from '../services/shared-state.service';
               *ngFor="let t of tifs"
               (click)="tif = t"
               class="font-mono-fi"
-              style="flex:1;padding:4px;border-radius:4px;font-size:9px;font-weight:500;border:1px solid var(--bn-border2);cursor:pointer;transition:all 150ms"
-              [style.background]="tif === t ? 'var(--bn-bg3)' : 'transparent'"
-              [style.color]="tif === t ? 'var(--bn-t0)' : 'var(--bn-t2)'"
+              style="flex:1;padding:4px;border-radius:4px;font-size:9px;font-weight:500;border:1px solid var(--ds-border-secondary);cursor:pointer;transition:all 150ms"
+              [style.background]="tif === t ? 'var(--ds-surface-tertiary)' : 'transparent'"
+              [style.color]="tif === t ? 'var(--ds-text-primary)' : 'var(--ds-text-muted)'"
             >
               {{ t }}
             </button>
@@ -180,18 +180,18 @@ import { SharedStateService } from '../services/shared-state.service';
         <!-- Total -->
         <div
           *ngIf="orderType !== 'Market' && total"
-          style="display:flex;justify-content:space-between;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--bn-t1);padding:4px 0"
+          style="display:flex;justify-content:space-between;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--ds-text-secondary);padding:4px 0"
         >
           <span>Est. Total</span>
-          <span style="color:var(--bn-t0)">\${{ total }} USD</span>
+          <span style="color:var(--ds-text-primary)">\${{ total }} USD</span>
         </div>
         <!-- Summary -->
         <div
-          style="padding:6px 8px;border-radius:3px;background:var(--bn-bg2);font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace;line-height:1.6"
-          [style.borderLeft]="'3px solid ' + (side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)')"
+          style="padding:6px 8px;border-radius:3px;background:var(--ds-surface-secondary);font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace;line-height:1.6"
+          [style.borderLeft]="'3px solid ' + (side === 'BUY' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)')"
         >
           <span
-            [style.color]="side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)'"
+            [style.color]="side === 'BUY' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)'"
             style="font-weight:700"
             >{{ side }}</span
           >

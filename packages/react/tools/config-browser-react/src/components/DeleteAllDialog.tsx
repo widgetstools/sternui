@@ -48,65 +48,40 @@ export function DeleteAllDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="delete-all-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        fontFamily: "var(--de-font)",
-      }}
+      className="fixed inset-0 bg-background/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
       onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 520,
-          maxWidth: "90vw",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--de-bg)",
-          border: "1px solid var(--de-danger, #f87171)",
-          borderRadius: "var(--de-radius-md, 8px)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
-          overflow: "hidden",
-        }}
+        className="w-[520px] max-w-[90vw] flex flex-col bg-[var(--de-bg)] border border-[var(--de-danger,var(--ds-accent-negative))] rounded-[var(--de-radius-md,8px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
       >
         {/* Header */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--de-border)",
-            background: "color-mix(in srgb, var(--de-danger, #f87171) 8%, var(--de-bg))",
-          }}
+          className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-[var(--de-border)] bg-[color-mix(in_srgb,var(--de-danger,var(--ds-accent-negative))_8%,var(--de-bg))]"
         >
           <Icon
             icon="lucide:alert-triangle"
-            style={{ width: 16, height: 16, color: "var(--de-danger, #f87171)" }}
+            style={{ width: 16, height: 16 }}
+            className="text-[var(--de-danger,var(--ds-accent-negative))]"
           />
           <span
             id="delete-all-title"
-            style={{ fontSize: 13, fontWeight: 600, color: "var(--de-text)" }}
+            className="text-[13px] font-semibold text-[var(--de-text)]"
           >
             Delete all rows in {tableLabel}
           </span>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 12, color: "var(--de-text-secondary)", lineHeight: 1.55 }}>
+        <div className="px-[18px] py-4 flex flex-col gap-[14px]">
+          <div className="text-[12px] text-[var(--de-text-secondary)] leading-[1.55]">
             This will permanently delete{" "}
-            <strong style={{ color: "var(--de-text)" }}>{rowCount}</strong> row
+            <strong className="text-[var(--de-text)]">{rowCount}</strong> row
             {rowCount === 1 ? "" : "s"}
             {scope ? (
               <>
                 {" "}scoped to{" "}
-                <code style={{ fontFamily: "var(--de-mono)", color: "var(--de-text)" }}>{scope}</code>
+                <code className="font-[var(--de-mono)] text-[var(--de-text)]">{scope}</code>
               </>
             ) : null}
             . The rows are removed from the local Dexie database and (if configured) from the
@@ -140,7 +115,7 @@ export function DeleteAllDialog({
             description={
               <>
                 Type{" "}
-                <code style={{ fontFamily: "var(--de-mono)", color: "var(--de-text)" }}>
+                <code className="font-[var(--de-mono)] text-[var(--de-text)]">
                   {tableLabel}
                 </code>{" "}
                 exactly (case-insensitive).
@@ -158,7 +133,7 @@ export function DeleteAllDialog({
                 fontSize: 12,
                 fontFamily: "var(--de-mono)",
                 background: "var(--de-bg-surface)",
-                border: `1px solid ${typedMatches ? "var(--de-success, #4ade80)" : "var(--de-border)"}`,
+                border: `1px solid ${typedMatches ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-border)"}`,
                 color: "var(--de-text)",
               }}
             />
@@ -167,19 +142,12 @@ export function DeleteAllDialog({
 
         {/* Footer */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 18px",
-            borderTop: "1px solid var(--de-border)",
-            background: "var(--de-bg-surface)",
-          }}
+          className="flex items-center gap-2 px-[18px] py-3 border-t border-[var(--de-border)] bg-[var(--de-bg-surface)]"
         >
           <span
             style={{
               fontSize: 11,
-              color: canDelete ? "var(--de-danger, #f87171)" : "var(--de-text-tertiary)",
+              color: canDelete ? "var(--de-danger, var(--ds-accent-negative))" : "var(--de-text-tertiary)",
               fontFamily: "var(--de-mono)",
             }}
           >
@@ -191,7 +159,7 @@ export function DeleteAllDialog({
                   ? "Confirmation required"
                   : "—"}
           </span>
-          <div style={{ flex: 1 }} />
+          <div className="flex-1" />
           <button onClick={onCancel} style={cancelButton()}>
             Cancel
           </button>
@@ -229,7 +197,7 @@ function Step({
         gap: 12,
         padding: "12px 14px",
         background: "var(--de-bg-surface)",
-        border: `1px solid ${done ? "var(--de-success, #4ade80)" : "var(--de-border)"}`,
+        border: `1px solid ${done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-border)"}`,
         borderRadius: "var(--de-radius-sm)",
         transition: "border-color 100ms",
       }}
@@ -239,8 +207,8 @@ function Step({
           width: 22,
           height: 22,
           borderRadius: "50%",
-          background: done ? "var(--de-success, #4ade80)" : "var(--de-bg)",
-          color: done ? "var(--bn-cta-text, #fff)" : "var(--de-text-secondary)",
+          background: done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-bg)",
+          color: done ? "var(--ds-text-primary)" : "var(--de-text-secondary)",
           fontSize: 11,
           fontWeight: 700,
           display: "flex",
@@ -252,10 +220,10 @@ function Step({
       >
         {done ? <Icon icon="lucide:check" style={{ width: 12, height: 12 }} /> : number}
       </div>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--de-text)" }}>{title}</div>
-          <div style={{ fontSize: 11, color: "var(--de-text-tertiary)", marginTop: 2 }}>
+          <div className="text-[12px] font-semibold text-[var(--de-text)]">{title}</div>
+          <div className="text-[11px] text-[var(--de-text-tertiary)] mt-0.5">
             {description}
           </div>
         </div>
@@ -274,8 +242,8 @@ function stepButton(done: boolean): React.CSSProperties {
     padding: "0 12px",
     border: "1px solid var(--de-border)",
     borderRadius: "var(--de-radius-sm)",
-    background: done ? "color-mix(in srgb, var(--de-success, #4ade80) 12%, var(--de-bg))" : "var(--de-bg)",
-    color: done ? "var(--de-success, #4ade80)" : "var(--de-text-secondary)",
+    background: done ? "color-mix(in srgb, var(--de-success, var(--ds-accent-positive)) 12%, var(--de-bg))" : "var(--de-bg)",
+    color: done ? "var(--de-success, var(--ds-accent-positive))" : "var(--de-text-secondary)",
     fontSize: 12,
     fontWeight: 500,
     cursor: "pointer",
@@ -308,8 +276,8 @@ function dangerButton(enabled: boolean): React.CSSProperties {
     padding: "0 14px",
     border: "none",
     borderRadius: "var(--de-radius-sm)",
-    background: enabled ? "var(--de-danger, #f87171)" : "color-mix(in srgb, var(--de-danger, #f87171) 30%, transparent)",
-    color: "var(--bn-cta-text, #fff)",
+    background: enabled ? "var(--de-danger, var(--ds-accent-negative))" : "color-mix(in srgb, var(--de-danger, var(--ds-accent-negative)) 30%, transparent)",
+    color: "hsl(var(--destructive-foreground))",
     fontSize: 12,
     fontWeight: 600,
     cursor: enabled ? "pointer" : "not-allowed",

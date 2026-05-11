@@ -195,129 +195,63 @@ export function ConfigBrowserPanel() {
     <div
       data-dock-editor
       data-theme={theme}
-      style={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--de-bg-deep)",
-        overflow: "hidden",
-        fontFamily: "var(--de-font)",
-      }}
+      className="fixed inset-0 flex flex-col bg-[var(--de-bg-deep)] overflow-hidden font-[var(--de-font)]"
     >
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 20px",
-          borderBottom: "1px solid var(--de-border)",
-          background: "var(--de-bg)",
-        }}
-      >
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-[var(--de-border)] bg-[var(--de-bg)]">
         <Icon
           icon="lucide:database"
-          style={{ width: 18, height: 18, color: "var(--de-accent)" }}
+          className="w-[18px] h-[18px] text-[var(--de-accent)]"
         />
-        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--de-text)" }}>
+        <span className="text-[14px] font-semibold text-[var(--de-text)]">
           Config Browser
         </span>
 
-        <span
-          style={{
-            fontSize: 10,
-            fontFamily: "var(--de-mono)",
-            padding: "3px 8px",
-            borderRadius: "var(--de-radius-sm)",
-            background: "var(--de-bg-surface)",
-            color: "var(--de-text-tertiary)",
-            border: "1px solid var(--de-border)",
-          }}
-        >
+        <span className="text-[10px] font-[var(--de-mono)] px-2 py-[3px] rounded-[var(--de-radius-sm)] bg-[var(--de-bg-surface)] text-[var(--de-text-tertiary)] border border-[var(--de-border)]">
           appId: {hostEnv.appId || "—"}
         </span>
 
         {restUrl ? (
           <span
             title={`Writes mirror to ${restUrl}. Reads still come from local Dexie.`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 10,
-              fontFamily: "var(--de-mono)",
-              padding: "3px 8px",
-              borderRadius: "var(--de-radius-sm)",
-              background: "color-mix(in srgb, var(--de-success, #22c55e) 12%, var(--de-bg-surface))",
-              color: "var(--de-success, #22c55e)",
-              border: "1px solid color-mix(in srgb, var(--de-success, #22c55e) 35%, var(--de-border))",
-            }}
+            className="inline-flex items-center gap-1.5 text-[10px] font-[var(--de-mono)] px-2 py-[3px] rounded-[var(--de-radius-sm)] bg-[color-mix(in_srgb,var(--de-success,var(--ds-accent-positive))_12%,var(--de-bg-surface))] text-[var(--de-success,var(--ds-accent-positive))] border border-[color-mix(in_srgb,var(--de-success,var(--ds-accent-positive))_35%,var(--de-border))]"
           >
-            <Icon icon="lucide:cloud" style={{ width: 12, height: 12 }} />
+            <Icon icon="lucide:cloud" className="w-3 h-3" />
             <span>connected · {restUrl}</span>
           </span>
         ) : (
           <span
             title="ConfigManager is in local-only mode (no restUrl) — Dexie only."
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 10,
-              fontFamily: "var(--de-mono)",
-              padding: "3px 8px",
-              borderRadius: "var(--de-radius-sm)",
-              background: "var(--de-bg-surface)",
-              color: "var(--de-text-tertiary)",
-              border: "1px solid var(--de-border)",
-            }}
+            className="inline-flex items-center gap-1.5 text-[10px] font-[var(--de-mono)] px-2 py-[3px] rounded-[var(--de-radius-sm)] bg-[var(--de-bg-surface)] text-[var(--de-text-tertiary)] border border-[var(--de-border)]"
           >
-            <Icon icon="lucide:cloud-off" style={{ width: 12, height: 12 }} />
+            <Icon icon="lucide:cloud-off" className="w-3 h-3" />
             <span>local only</span>
           </span>
         )}
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title="Toggle theme"
-          style={{
-            background: "var(--de-bg-surface)",
-            border: "1px solid var(--de-border)",
-            borderRadius: "var(--de-radius-sm)",
-            padding: 6,
-            cursor: "pointer",
-            color: "var(--de-text-secondary)",
-            display: "flex",
-          }}
+          className="bg-[var(--de-bg-surface)] border border-[var(--de-border)] rounded-[var(--de-radius-sm)] p-1.5 cursor-pointer text-[var(--de-text-secondary)] flex"
         >
           <Icon
             icon={theme === "dark" ? "lucide:sun" : "lucide:moon"}
-            style={{ width: 15, height: 15 }}
+            className="w-[15px] h-[15px]"
           />
         </button>
       </div>
 
       {/* Body: sidebar + main */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+      <div className="flex-1 min-h-0 flex">
         <TableSidebar
           selected={selected.key}
           counts={counts}
           onSelect={setSelected}
         />
 
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-            background: "var(--de-bg-deep)",
-            position: "relative",
-          }}
-        >
+        <div className="flex-1 min-w-0 flex flex-col bg-[var(--de-bg-deep)] relative">
           <Toolbar
             table={selected}
             rowCount={rows.length}
@@ -335,62 +269,27 @@ export function ConfigBrowserPanel() {
             type="file"
             accept="application/json,.json"
             onChange={handleImportFile}
-            style={{ display: "none" }}
+            className="hidden"
           />
 
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-              padding: "8px 12px 12px 12px",
-            }}
-          >
+          <div className="flex-1 min-h-0 flex flex-col pt-2 px-3 pb-3">
             {isLoading ? (
-              <div
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 13,
-                  color: "var(--de-text-tertiary)",
-                }}
-              >
+              <div className="flex-1 flex items-center justify-center text-[13px] text-[var(--de-text-tertiary)]">
                 Loading…
               </div>
             ) : rows.length === 0 ? (
-              <div
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 12,
-                }}
-              >
+              <div className="flex-1 flex flex-col items-center justify-center gap-3">
                 <Icon
                   icon="lucide:inbox"
-                  style={{ width: 40, height: 40, color: "var(--de-text-ghost)" }}
+                  className="w-10 h-10 text-[var(--de-text-ghost)]"
                 />
-                <div style={{ fontSize: 13, color: "var(--de-text-tertiary)" }}>
+                <div className="text-[13px] text-[var(--de-text-tertiary)]">
                   No rows in {selected.label}
                   {selected.scopable && hostEnv.appId ? ` for ${hostEnv.appId}` : ""}
                 </div>
                 <button
                   onClick={openCreate}
-                  style={{
-                    background: "var(--de-accent)",
-                    color: "var(--bn-cta-text, #fff)",
-                    border: "none",
-                    borderRadius: "var(--de-radius-sm)",
-                    padding: "8px 16px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
+                  className="bg-primary text-primary-foreground border-none rounded-[var(--de-radius-sm)] px-4 py-2 text-xs font-semibold cursor-pointer hover:bg-primary/90"
                 >
                   Add first row
                 </button>
@@ -442,25 +341,13 @@ export function ConfigBrowserPanel() {
       )}
 
       {/* Footer */}
-      <div
-        style={{
-          padding: "8px 20px",
-          borderTop: "1px solid var(--de-border)",
-          background: "var(--de-bg)",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          fontSize: 10,
-          color: "var(--de-text-tertiary)",
-          fontFamily: "var(--de-mono)",
-        }}
-      >
+      <div className="px-5 py-2 border-t border-[var(--de-border)] bg-[var(--de-bg)] flex items-center gap-3 text-[10px] text-[var(--de-text-tertiary)] font-[var(--de-mono)]">
         <span>{rows.length} rows</span>
         <span>·</span>
         <span>dexie · marketsui-config</span>
         <span>·</span>
         <span>{restUrl ? `REST → ${restUrl}` : "local only"}</span>
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         <span>{selected.description}</span>
       </div>
 

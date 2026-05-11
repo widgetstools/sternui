@@ -13,7 +13,7 @@ import {
  *
  *   - Empty state → add rule → rename → enable/disable → scope change →
  *     column picker → priority → delete → persistence
- *   - `gc-rule-<id>` class application (cellClassRules / rowClassRules)
+ *   - `ds-rule-<id>` class application (cellClassRules / rowClassRules)
  *     proves the transform pipeline is wired through to AG-Grid
  *   - No-columns warning for cell-scope rules with no target columns
  *   - Flash band gating (on scope + enabled)
@@ -56,7 +56,7 @@ async function toggleSwitch(page: Page, testid: string): Promise<void> {
 
 /** Reads the SCOPE Select (it has no testid — find via the MetaCell label). */
 function scopeSelect(page: Page) {
-  return page.locator('.gc-meta-cell', { hasText: 'SCOPE' }).locator('select');
+  return page.locator('.ds-meta-cell', { hasText: 'SCOPE' }).locator('select');
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ test.describe('v2 — conditional-styling panel', () => {
     ).toHaveValue('High-Yield Alert');
   });
 
-  test('row-scope rule applies gc-rule class to every row', async ({ page }) => {
+  test('row-scope rule applies ds-rule class to every row', async ({ page }) => {
     // Fresh rule defaults to scope.type=row + expression=true + enabled=true.
     // `addRule` writes directly to committed state (not draft), so the
     // transform installs rowClassRules immediately — no SAVE click needed.
@@ -103,27 +103,27 @@ test.describe('v2 — conditional-styling panel', () => {
 
     // At least one row carries the class. Row-class application lands
     // after the next modelUpdated / cellClassRules tick.
-    const rowsWithRule = page.locator(`.ag-row.gc-rule-${id}`);
+    const rowsWithRule = page.locator(`.ag-row.ds-rule-${id}`);
     await expect(rowsWithRule.first()).toBeVisible({ timeout: 3000 });
   });
 
-  test('cell-scope rule applies gc-rule class only to picked columns', async ({ page }) => {
+  test('cell-scope rule applies ds-rule class only to picked columns', async ({ page }) => {
     const id = await addRule(page);
     // Change to cell scope and pick the `side` column.
     await scopeSelect(page).selectOption('cell');
-    // The column picker's Select has className gc-cs-col-add (no testid).
+    // The column picker's Select has className ds-cs-col-add (no testid).
     // Scope our locator to the editor to avoid the one in the SCOPE meta.
     const editor = page.locator('[data-testid="cs-rule-editor"]');
-    await editor.locator('.gc-cs-col-add').selectOption('side');
+    await editor.locator('.ds-cs-col-add').selectOption('side');
     await saveRule(page, id);
     await closeSettingsSheet(page);
 
     // `side` cells carry the class; other columns don't.
-    const sideCells = page.locator(`.ag-cell.gc-rule-${id}[col-id="side"]`);
+    const sideCells = page.locator(`.ag-cell.ds-rule-${id}[col-id="side"]`);
     await expect(sideCells.first()).toBeVisible({ timeout: 3000 });
 
     // Another column should NOT carry the class (rule scope is cell+side only).
-    const venueWithRule = page.locator(`.ag-cell.gc-rule-${id}[col-id="venue"]`);
+    const venueWithRule = page.locator(`.ag-cell.ds-rule-${id}[col-id="venue"]`);
     await expect(venueWithRule).toHaveCount(0);
   });
 
@@ -141,13 +141,13 @@ test.describe('v2 — conditional-styling panel', () => {
     await closeSettingsSheet(page);
 
     // Rule is active by default — the reinject pipeline writes a CSS rule
-    // keyed under the rule id into a per-module <style data-gc-module="…">.
+    // keyed under the rule id into a per-module <style data-ds-module="…">.
     const cssIncludesRule = async () =>
       page.evaluate((rid) => {
         const el = document.querySelector(
-          'style[data-gc-module="conditional-styling"]',
+          'style[data-ds-module="conditional-styling"]',
         ) as HTMLStyleElement | null;
-        return !!el && (el.textContent ?? '').includes(`gc-rule-${rid}`);
+        return !!el && (el.textContent ?? '').includes(`ds-rule-${rid}`);
       }, id);
     expect(await cssIncludesRule()).toBe(true);
 
@@ -156,14 +156,14 @@ test.describe('v2 — conditional-styling panel', () => {
     await openPanel(page, 'conditional-styling');
     await page.locator(`[data-testid="cs-rule-card-${id}"]`).click();
     const statusSwitch = page
-      .locator('.gc-meta-cell', { hasText: 'STATUS' })
+      .locator('.ds-meta-cell', { hasText: 'STATUS' })
       .locator('input[type="checkbox"]');
     await statusSwitch.locator('..').click();
     await saveRule(page, id);
     await closeSettingsSheet(page);
 
     // After commit + reinjectAllRules, the CSS for this rule is gone. The
-    // `.gc-rule-<id>` class may linger on previously-painted DOM rows
+    // `.ds-rule-<id>` class may linger on previously-painted DOM rows
     // until AG-Grid's next redraw, which is AG-Grid's behaviour — the
     // VISUAL styling is what matters for the user and that's stripped
     // here because the CSS rule is gone.
@@ -244,7 +244,7 @@ test.describe('v2 — conditional-styling panel', () => {
 
     // Grid still paints the rule's rows.
     await expect(
-      page.locator(`.ag-row.gc-rule-${id}`).first(),
+      page.locator(`.ag-row.ds-rule-${id}`).first(),
     ).toBeVisible({ timeout: 3000 });
 
     // Panel still shows the rule with its renamed title.

@@ -39,7 +39,6 @@ export interface RowProps {
 function Row({ label, hint, control, ...rest }: RowProps) {
   return (
     <div
-      className="gc-option-row"
       data-testid={rest['data-testid']}
       style={{
         display: 'grid',
@@ -48,16 +47,16 @@ function Row({ label, hint, control, ...rest }: RowProps) {
         columnGap: 20,
         rowGap: 4,
         padding: '8px 0',
-        borderBottom: '1px solid color-mix(in srgb, var(--ck-border) 50%, transparent)',
+        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 50%, transparent)',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{
           fontSize: 10, fontWeight: 600, letterSpacing: 0.12,
-          textTransform: 'uppercase', color: 'var(--ck-t2)',
+          textTransform: 'uppercase', color: 'var(--ds-text-muted)',
         }}>{label}</span>
         {hint && (
-          <span style={{ fontSize: 10, color: 'var(--ck-t3)', lineHeight: 1.35 }}>{hint}</span>
+          <span className="text-[10px] text-muted leading-[1.35]">{hint}</span>
         )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{control}</div>
@@ -68,7 +67,7 @@ function Row({ label, hint, control, ...rest }: RowProps) {
 // ─── Control primitives ────────────────────────────────────────────────
 //
 // Each thin control aligns v2's inline patterns. Size + padding + colour
-// come from the Cockpit `--ck-*` token system on `.gc-sheet-v2` so the
+// come from the Cockpit `--ck-*` token system on `.ds-sheet-v2` so the
 // look is unchanged from v2-baseline.
 
 export function BoolControl({ checked, onChange, testId }: {

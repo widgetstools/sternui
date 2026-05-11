@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 /**
  * Public props for <ExpressionEditor>.
  *
@@ -38,6 +40,10 @@ export interface ExpressionEditorProps {
   warnDeprecated?: boolean;
   /** Read-only mode. */
   readOnly?: boolean;
+  /** Optional host class (e.g. flex child, `min-h-0`, utility layout). */
+  className?: string;
+  /** Merged onto the Monaco host after built-in layout styles; last wins for duplicate keys. */
+  style?: CSSProperties;
   /** Test id passthrough. */
   'data-testid'?: string;
 }

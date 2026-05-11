@@ -102,8 +102,8 @@ const FULL_BLEED_STYLE = {
   inset: 0,
   display: 'flex' as const,
   flexDirection: 'column' as const,
-  background: 'var(--bn-bg)',
-  color: 'var(--bn-t0)',
+  background: 'var(--ds-surface-ground)',
+  color: 'var(--ds-text-primary)',
   overflow: 'hidden' as const,
 };
 
@@ -119,7 +119,7 @@ const LOADING_STYLE = {
   justifyContent: 'center' as const,
   height: '100%',
   fontSize: 12,
-  color: 'var(--bn-t2, #7a8494)',
+  color: 'var(--ds-text-muted)',
 };
 
 export function HostedMarketsGrid<

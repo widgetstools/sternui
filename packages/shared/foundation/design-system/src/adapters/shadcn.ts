@@ -5,8 +5,26 @@
 //  Drop this output into your globals.css / index.css.
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+//  Unified CSS Generator
+//  Emits the entire theme.css consumed by every app.
+//
+//  Layer order:
+//    1. FI Design System · Dark — :root + [data-theme="dark"]
+//    2. FI Design System · Light — [data-theme="light"]
+//    3. CVD override (dark) — [data-theme="dark"][data-cvd="on"]
+//    4. CVD override (light) — [data-theme="light"][data-cvd="on"]
+//
+//  Each base block emits THREE token namespaces:
+//    --ds-*       source tokens (hex / rgba)
+//    --*          shadcn-compat HSL channel aliases
+//    --p-*        PrimeNG / tailwindcss-primeui aliases
+// ─────────────────────────────────────────────────────────────
+
 import { dark, light, shared } from '../tokens/semantic';
 import type { ColorScheme } from '../tokens/semantic';
+import { colors, typography, radius, transition } from '../tokens/primitives';
+import { hexToHslChannel } from '../internal/wcag';
 
 // Convert hex to HSL string (e.g. "210 14% 23%") for shadcn CSS vars
 function hexToHsl(hex: string): string {
@@ -25,7 +43,10 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%`;
 }
 
-function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
+function schemeVars(scheme: ColorScheme, mode: 'dark' | 'light') {
+  const primaryFg = hexToHsl(scheme.primary.foreground);
+  const destructiveFg =
+    mode === 'dark' ? '343 75% 9%' : '0 0% 100%';
   return `
     /* ── shadcn/ui overrides ── */
     --background: ${hexToHsl(scheme.surface.ground)};
@@ -34,8 +55,8 @@ function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
     --card-foreground: ${hexToHsl(scheme.text.primary)};
     --popover: ${hexToHsl(scheme.surface.primary)};
     --popover-foreground: ${hexToHsl(scheme.text.primary)};
-    --primary: ${hexToHsl(scheme.accent.info)};
-    --primary-foreground: 0 0% 100%;
+    --primary: ${hexToHsl(scheme.primary.color)};
+    --primary-foreground: ${primaryFg};
     --secondary: ${hexToHsl(scheme.surface.tertiary)};
     --secondary-foreground: ${hexToHsl(scheme.text.secondary)};
     --muted: ${hexToHsl(scheme.surface.secondary)};
@@ -43,89 +64,13 @@ function schemeVars(scheme: ColorScheme, _mode: 'dark'|'light') {
     --accent: ${hexToHsl(scheme.surface.tertiary)};
     --accent-foreground: ${hexToHsl(scheme.text.primary)};
     --destructive: ${hexToHsl(scheme.accent.negative)};
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: ${destructiveFg};
     --border: ${hexToHsl(scheme.border.primary)};
     --input: ${hexToHsl(scheme.border.primary)};
-    --ring: ${hexToHsl(scheme.accent.info)};
+    --ring: ${hexToHsl(scheme.primary.color)};
     --radius: ${shared.radius.lg};
 
-    /* ── FI Design System tokens ── */
-    --bn-bg:      ${scheme.surface.ground};
-    --bn-bg1:     ${scheme.surface.primary};
-    --bn-bg2:     ${scheme.surface.secondary};
-    --bn-bg3:     ${scheme.surface.tertiary};
-    --bn-border:  ${scheme.border.primary};
-    --bn-border2: ${scheme.border.secondary};
-    --bn-t0:      ${scheme.text.primary};
-    --bn-t1:      ${scheme.text.secondary};
-    --bn-t2:      ${scheme.text.muted};
-    --bn-t3:      ${scheme.text.faint};
-    --bn-green:   ${scheme.accent.positive};
-    --bn-green2:  ${scheme.accent.positiveHover};
-    --bn-red:     ${scheme.accent.negative};
-    --bn-red2:    ${scheme.accent.negativeHover};
-    --bn-amber:   ${scheme.accent.warning};
-    --bn-blue:    ${scheme.accent.info};
-    --bn-blue2:   ${scheme.accent.infoHover};
-    --bn-cyan:    ${scheme.accent.highlight};
-    --bn-purple:  ${scheme.accent.purple};
-    --bn-buy-bg:  ${scheme.action.buyBg};
-    --bn-sell-bg: ${scheme.action.sellBg};
-    --bn-cta-text: #ffffff;
-    --bn-logo-bg: ${scheme.surface.ground};
-    --scrollbar-thumb: ${scheme.scrollbar};
-
-    /* ── Interactive states ── */
-    --bn-focus-ring:    ${scheme.state.focusRing};
-    --bn-focus-ring-bg: ${scheme.state.focusRingBg};
-    --bn-disabled-bg:   ${scheme.state.disabledBg};
-    --bn-disabled-fg:   ${scheme.state.disabledFg};
-    --bn-hover-overlay: ${scheme.state.hoverOverlay};
-
-    /* ── Overlay tints ── */
-    --bn-positive-soft: ${scheme.overlay.positiveSoft};
-    --bn-positive-ring: ${scheme.overlay.positiveRing};
-    --bn-negative-soft: ${scheme.overlay.negativeSoft};
-    --bn-negative-ring: ${scheme.overlay.negativeRing};
-    --bn-warning-soft:  ${scheme.overlay.warningSoft};
-    --bn-warning-ring:  ${scheme.overlay.warningRing};
-    --bn-info-soft:     ${scheme.overlay.infoSoft};
-    --bn-info-ring:     ${scheme.overlay.infoRing};
-    --bn-neutral-soft:  ${scheme.overlay.neutralSoft};
-    --bn-neutral-ring:  ${scheme.overlay.neutralRing};
-
-    /* ── Typography ── */
-    --fi-mono: ${shared.typography.fontFamily.mono};
-    --fi-sans: ${shared.typography.fontFamily.sans};
-    --fi-font-xs: ${shared.typography.fontSize.xs};
-    --fi-font-sm: ${shared.typography.fontSize.sm};
-    --fi-font-md: ${shared.typography.fontSize.md};
-    --fi-font-lg: ${shared.typography.fontSize.lg};
-
-    /* ── Legacy aliases ── */
-    --fi-bg0: var(--bn-bg);
-    --fi-bg1: var(--bn-bg1);
-    --fi-bg2: var(--bn-bg2);
-    --fi-bg3: var(--bn-bg3);
-    --fi-bg4: var(--bn-bg3);
-    --fi-border: var(--bn-border);
-    --fi-border2: var(--bn-border2);
-    --fi-border3: var(--bn-border2);
-    --fi-t0: var(--bn-t0);
-    --fi-t1: var(--bn-t1);
-    --fi-t2: var(--bn-t2);
-    --fi-t3: var(--bn-t3);
-    --fi-green: var(--bn-green);
-    --fi-red: var(--bn-red);
-    --fi-blue: var(--bn-blue);
-    --fi-amber: var(--bn-amber);
-    --fi-yellow: var(--bn-amber);
-    --bn-yellow: var(--bn-amber);
-    --fi-cyan: var(--bn-cyan);
-    --fi-purple: var(--bn-purple);
-    --fi-title: var(--bn-t0);
-    --fi-col-header: var(--bn-t1);
-    --divider: 1px solid var(--bn-border);`;
+    --scrollbar-thumb: ${scheme.scrollbar};`;
 }
 
 /** Generate the full CSS block for both themes */
@@ -142,4 +87,177 @@ export function generateShadcnCSS(): string {
 /** Get token values for a specific scheme (for JS consumers) */
 export function getShadcnTokens(mode: 'dark' | 'light') {
   return mode === 'dark' ? dark : light;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Unified CSS Generator — Task 9
+// ─────────────────────────────────────────────────────────────
+
+/** Dark red ink on electric destructive — matches fi-dark.css --destructive-foreground */
+const DARK_DESTRUCTIVE_FOREGROUND_CHANNELS = '343 75% 9%';
+
+function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
+  const primaryFg = hexToHslChannel(scheme.primary.foreground);
+  const destructiveFg =
+    mode === 'dark' ? DARK_DESTRUCTIVE_FOREGROUND_CHANNELS : '0 0% 100%';
+  const successFg = hexToHslChannel(scheme.action.buyText);
+  const warningFg =
+    mode === 'dark' ? hexToHslChannel(colors.ink[0]) : '0 0% 100%';
+
+  return `
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           ${scheme.primary.color};
+    --ds-primary-hover:     ${scheme.primary.hover};
+    --ds-primary-foreground:${scheme.primary.foreground};
+    --ds-primary-soft:      ${scheme.primary.soft};
+    --ds-primary-ring:      ${scheme.primary.ring};
+
+    --ds-surface-ground:     ${scheme.surface.ground};
+    --ds-surface-primary:    ${scheme.surface.primary};
+    --ds-surface-secondary:  ${scheme.surface.secondary};
+    --ds-surface-tertiary:   ${scheme.surface.tertiary};
+    --ds-surface-quaternary: ${scheme.surface.quaternary};
+
+    --ds-text-primary:   ${scheme.text.primary};
+    --ds-text-secondary: ${scheme.text.secondary};
+    --ds-text-muted:     ${scheme.text.muted};
+    --ds-text-faint:     ${scheme.text.faint};
+
+    --ds-border-primary:   ${scheme.border.primary};
+    --ds-border-secondary: ${scheme.border.secondary};
+
+    --ds-accent-positive:       ${scheme.accent.positive};
+    --ds-accent-positive-hover: ${scheme.accent.positiveHover};
+    --ds-accent-negative:       ${scheme.accent.negative};
+    --ds-accent-negative-hover: ${scheme.accent.negativeHover};
+    --ds-accent-warning:        ${scheme.accent.warning};
+    --ds-accent-info:           ${scheme.accent.info};
+    --ds-accent-info-hover:     ${scheme.accent.infoHover};
+    --ds-accent-highlight:      ${scheme.accent.highlight};
+    --ds-accent-purple:         ${scheme.accent.purple};
+
+    --ds-action-buy-bg:    ${scheme.action.buyBg};
+    --ds-action-buy-fg:    ${scheme.action.buyText};
+    --ds-action-sell-bg:   ${scheme.action.sellBg};
+    --ds-action-sell-fg:   ${scheme.action.sellText};
+
+    --ds-state-focus-ring:    ${scheme.state.focusRing};
+    --ds-state-focus-ring-bg: ${scheme.state.focusRingBg};
+    --ds-state-disabled-bg:   ${scheme.state.disabledBg};
+    --ds-state-disabled-fg:   ${scheme.state.disabledFg};
+    --ds-state-hover-overlay: ${scheme.state.hoverOverlay};
+    --ds-state-selection:     ${scheme.state.selection};
+
+    --ds-overlay-positive-soft:  ${scheme.overlay.positiveSoft};
+    --ds-overlay-positive-ring:  ${scheme.overlay.positiveRing};
+    --ds-overlay-negative-soft:  ${scheme.overlay.negativeSoft};
+    --ds-overlay-negative-ring:  ${scheme.overlay.negativeRing};
+    --ds-overlay-warning-soft:   ${scheme.overlay.warningSoft};
+    --ds-overlay-warning-ring:   ${scheme.overlay.warningRing};
+    --ds-overlay-info-soft:      ${scheme.overlay.infoSoft};
+    --ds-overlay-info-ring:      ${scheme.overlay.infoRing};
+    --ds-overlay-neutral-soft:   ${scheme.overlay.neutralSoft};
+    --ds-overlay-neutral-ring:   ${scheme.overlay.neutralRing};
+
+    --ds-scrollbar:  ${scheme.scrollbar};
+
+    --ds-elevation-card:    ${scheme.elevation.card};
+    --ds-elevation-overlay: ${scheme.elevation.overlay};
+    --ds-elevation-glow:    ${scheme.elevation.glow};
+
+    /* ── shadcn-compat HSL channel aliases ── */
+    --background:           ${hexToHslChannel(scheme.surface.ground)};
+    --foreground:           ${hexToHslChannel(scheme.text.primary)};
+    --card:                 ${hexToHslChannel(scheme.surface.primary)};
+    --card-foreground:      ${hexToHslChannel(scheme.text.primary)};
+    --popover:              ${hexToHslChannel(scheme.surface.primary)};
+    --popover-foreground:   ${hexToHslChannel(scheme.text.primary)};
+    --primary:              ${hexToHslChannel(scheme.primary.color)};
+    --primary-foreground:   ${primaryFg};
+    --secondary:            ${hexToHslChannel(scheme.surface.tertiary)};
+    --secondary-foreground: ${hexToHslChannel(scheme.text.secondary)};
+    --muted:                ${hexToHslChannel(scheme.surface.secondary)};
+    --muted-foreground:     ${hexToHslChannel(scheme.text.muted)};
+    --accent:               ${hexToHslChannel(scheme.surface.tertiary)};
+    --accent-foreground:    ${hexToHslChannel(scheme.text.primary)};
+    --destructive:          ${hexToHslChannel(scheme.accent.negative)};
+    --destructive-foreground: ${destructiveFg};
+    --success:              ${hexToHslChannel(scheme.accent.positive)};
+    --success-foreground:   ${successFg};
+    --warning:              ${hexToHslChannel(scheme.accent.warning)};
+    --warning-foreground:   ${warningFg};
+    --info:                 ${hexToHslChannel(scheme.accent.info)};
+    --info-foreground:      ${primaryFg};
+    --border:               ${hexToHslChannel(scheme.border.primary)};
+    --input:                ${hexToHslChannel(scheme.border.primary)};
+    --ring:                 ${hexToHslChannel(scheme.primary.color)};
+
+    --surface-50:  ${hexToHslChannel(scheme.surface.primary)};
+    --surface-100: ${hexToHslChannel(scheme.surface.secondary)};
+    --surface-200: ${hexToHslChannel(scheme.surface.tertiary)};
+    --surface-300: ${hexToHslChannel(scheme.surface.quaternary)};
+    --surface-400: ${hexToHslChannel(scheme.border.secondary)};
+    --surface-500: ${hexToHslChannel(scheme.border.primary)};
+    --surface-600: ${hexToHslChannel(scheme.text.faint)};
+    --surface-700: ${hexToHslChannel(scheme.text.muted)};
+    --surface-800: ${hexToHslChannel(scheme.text.secondary)};
+    --surface-900: ${hexToHslChannel(scheme.text.primary)};
+    --surface-950: ${hexToHslChannel(scheme.surface.ground)};
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        ${scheme.primary.color};
+    --p-primary-color-text:   ${scheme.primary.foreground};
+    --p-surface-50:           ${scheme.surface.primary};
+    --p-surface-100:          ${scheme.surface.secondary};
+    --p-surface-200:          ${scheme.surface.tertiary};
+    --p-surface-900:          ${scheme.text.primary};
+    --p-surface-950:          ${scheme.surface.ground};
+    --p-text-color:           ${scheme.text.primary};
+    --p-text-muted-color:     ${scheme.text.muted};
+    --p-content-background:   ${scheme.surface.primary};
+    --p-content-border-color: ${scheme.border.primary};
+    --p-content-color:        ${scheme.text.primary};
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  ${typography.fontFamily.sans};
+    --ds-font-mono:  ${typography.fontFamily.mono};
+    --ds-font-serif: ${typography.fontFamily.serif};
+    --ds-radius-sm:  ${radius.sm};
+    --ds-radius-md:  ${radius.md};
+    --ds-radius-lg:  ${radius.lg};
+    --ds-radius-xl:  ${radius.xl};
+    --radius:        ${radius.md};
+
+    /* ── Motion vars ── */
+    --ds-tx-fast:   ${transition.fast};
+    --ds-tx-normal: ${transition.normal};
+    --ds-tx-slow:   ${transition.slow};`;
+}
+
+function cvdOverride(scheme: ColorScheme): string {
+  return `
+    --ds-accent-positive:       ${scheme.cvd.buy};
+    --ds-accent-positive-hover: ${scheme.cvd.buy};
+    --ds-accent-negative:       ${scheme.cvd.sell};
+    --ds-accent-negative-hover: ${scheme.cvd.sell};
+    --ds-action-buy-bg:         ${scheme.cvd.buy};
+    --ds-action-sell-bg:        ${scheme.cvd.sell};
+    --success:                  ${hexToHslChannel(scheme.cvd.buy)};
+    --destructive:              ${hexToHslChannel(scheme.cvd.sell)};`;
+}
+
+export function generateUnifiedCSS(): string {
+  return `@layer base {
+  :root, [data-theme="dark"] {${dsVars(dark, 'dark')}
+  }
+
+  [data-theme="light"] {${dsVars(light, 'light')}
+  }
+
+  [data-theme="dark"][data-cvd="on"] {${cvdOverride(dark)}
+  }
+
+  [data-theme="light"][data-cvd="on"] {${cvdOverride(light)}
+  }
+}`;
 }

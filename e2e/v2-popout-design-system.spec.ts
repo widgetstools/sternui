@@ -7,7 +7,7 @@ import { bootCleanDemo } from './helpers/settingsSheet';
  * Regression guard for the class of bug where popover / dropdown /
  * dialog primitives in a popped-out OS window (OpenFin + browser
  * window.open) render with transparent backgrounds because the
- * `var(--gc-surface, ...)` token chain resolves to an invalid value
+ * `var(--ds-surface, ...)` token chain resolves to an invalid value
  * (most often an HSL triplet from the design-system theme that was
  * meant to be consumed as `hsl(var(--card))`).
  *
@@ -21,7 +21,7 @@ import { bootCleanDemo } from './helpers/settingsSheet';
  * tokens via the normal cascade.
  *
  * Assertions below lock in the fix at multiple levels:
- *   - Popout body's computed `--gc-surface` is a valid hex color
+ *   - Popout body's computed `--ds-surface` is a valid hex color
  *     (starts with "#"), NOT an HSL triplet like "214 26% 10%".
  *   - A popover opened inside the popped panel has a non-transparent
  *     computed background-color.
@@ -58,17 +58,17 @@ async function readPoppedPopoverBg(popup: Page): Promise<PopoverBgResult> {
   const presetBtn = popup.locator('button[title="Presets"]').first();
   await expect(presetBtn).toBeVisible({ timeout: 2000 });
   await presetBtn.click();
-  // Radix popover content should render with data-gc-settings.
+  // Radix popover content should render with data-ds-settings.
   await popup.waitForTimeout(300);
 
   return popup.evaluate(() => {
     const wrapper = document.querySelector('[data-radix-popper-content-wrapper]');
-    const content = wrapper?.querySelector('[data-gc-settings]') as HTMLElement | null;
+    const content = wrapper?.querySelector('[data-ds-settings]') as HTMLElement | null;
     if (!content) return { computedBg: '(no content)', gcSurface: '', card: '', popover: '' };
     const cs = getComputedStyle(content);
     return {
       computedBg: cs.backgroundColor,
-      gcSurface: cs.getPropertyValue('--gc-surface').trim(),
+      gcSurface: cs.getPropertyValue('--ds-surface').trim(),
       card: cs.getPropertyValue('--card').trim(),
       popover: cs.getPropertyValue('--popover').trim(),
     };
@@ -78,13 +78,13 @@ async function readPoppedPopoverBg(popup: Page): Promise<PopoverBgResult> {
 test.describe('v2 popout — design-system parity', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
-  test('popout body\'s --gc-surface resolves to a valid hex color, not an HSL triplet', async ({ page, context }) => {
+  test('popout body\'s --ds-surface resolves to a valid hex color, not an HSL triplet', async ({ page, context }) => {
     const popup = await openToolbarAndPop(page, context);
 
     const bodyTokens = await popup.evaluate(() => {
       const s = getComputedStyle(document.body);
       return {
-        gcSurface: s.getPropertyValue('--gc-surface').trim(),
+        gcSurface: s.getPropertyValue('--ds-surface').trim(),
         card: s.getPropertyValue('--card').trim(),
         popover: s.getPropertyValue('--popover').trim(),
         bgColor: s.backgroundColor,
@@ -93,9 +93,9 @@ test.describe('v2 popout — design-system parity', () => {
       };
     });
 
-    // `--gc-surface` is the cockpit-design-system token meant to be
+    // `--ds-surface` is the cockpit-design-system token meant to be
     // consumed as a hex color. fi-dark.css sets `--bn-bg1: #121820`
-    // and cockpit.ts sets `--gc-surface: var(--bn-bg1, #161a1e)`, so
+    // and cockpit.ts sets `--ds-surface: var(--bn-bg1, #161a1e)`, so
     // the resolved value must be hex.
     expect(bodyTokens.gcSurface).toMatch(/^#[0-9a-fA-F]{3,8}$/);
     // `--card` and `--popover` are shadcn HSL-triplet tokens by design
@@ -122,7 +122,7 @@ test.describe('v2 popout — design-system parity', () => {
     // Should be a valid opaque rgb() — no leaky alpha.
     expect(result.computedBg).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
     // Dark-theme surface resolves to fi-dark.css's `--bn-bg1: #121820`
-    // = rgb(18, 24, 32) via `--gc-surface: var(--bn-bg1, …)`.
+    // = rgb(18, 24, 32) via `--ds-surface: var(--bn-bg1, …)`.
     expect(result.computedBg).toBe('rgb(18, 24, 32)');
   });
 
@@ -187,7 +187,7 @@ test.describe('v2 popout — design-system parity', () => {
 
       const excelRefBg = await popup.evaluate(() => {
         const wrapper = document.querySelector('[data-radix-popper-content-wrapper]');
-        const content = wrapper?.querySelector('[data-gc-settings]') as HTMLElement | null;
+        const content = wrapper?.querySelector('[data-ds-settings]') as HTMLElement | null;
         return content ? getComputedStyle(content).backgroundColor : '';
       });
       // Same tokens → same computed bg.

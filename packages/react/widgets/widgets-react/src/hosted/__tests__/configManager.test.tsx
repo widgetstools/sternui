@@ -18,7 +18,7 @@ const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -44,7 +44,7 @@ describe('HostedMarketsGrid — ConfigManager + loading guard (rows 5, 10)', () 
       />,
     );
     expect(await findByText(/Connecting to ConfigService/i)).toBeTruthy();
-    expect(queryByTestId('mgc-stub')).toBeNull();
+    expect(queryByTestId('mds-stub')).toBeNull();
   });
 
   it('forwards the resolved ConfigManager-backed identity once available', async () => {
@@ -56,7 +56,7 @@ describe('HostedMarketsGrid — ConfigManager + loading guard (rows 5, 10)', () 
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     expect(mgcProps[mgcProps.length - 1].instanceId).toBe('cm-2');
     expect(mgcProps[mgcProps.length - 1].componentName).toBe('CMTest');
   });

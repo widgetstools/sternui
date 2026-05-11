@@ -116,7 +116,7 @@ export default function RenameViewTab() {
   return (
     <div
       className="fixed inset-0 flex flex-col overflow-hidden rounded-md border border-border bg-popover text-foreground shadow-2xl"
-      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
+      style={{ fontFamily: 'var(--ds-font-sans)' }}
     >
       {/* Header — small page icon + title, mirrors "Save Page As" */}
       <div

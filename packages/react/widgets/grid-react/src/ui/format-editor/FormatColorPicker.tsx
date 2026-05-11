@@ -32,7 +32,7 @@ const PRESETS = [
 
 // ─── Recent colors (localStorage) ────────────────────────────────────────────
 
-const LS_KEY = 'gc-recent-colors';
+const LS_KEY = 'ds-recent-colors';
 const MAX_RECENT = 10;
 
 function getRecent(): string[] {
@@ -208,7 +208,7 @@ export function FormatColorPicker({
     borderRadius: 4,
     padding: 0,
     cursor: 'pointer',
-    border: selected ? '2px solid var(--gc-positive, #2dd4bf)' : '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+    border: selected ? '2px solid var(--ds-accent-positive)' : '1px solid var(--ds-border-primary)',
     background: c,
     boxShadow: selected
       ? '0 0 0 2px rgba(45,212,191,0.20)'
@@ -218,7 +218,7 @@ export function FormatColorPicker({
   });
 
   return (
-    <div onClick={(e) => e.stopPropagation()} style={{ width: '100%' }}>
+    <div onClick={(e) => e.stopPropagation()} className="w-full">
       {/* SV Pad */}
       <div
         ref={padRef}
@@ -237,8 +237,8 @@ export function FormatColorPicker({
           background: `hsl(${h}, 100%, 50%)`,
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, #fff, transparent)' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #000, transparent)' }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-white to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
         <div
           style={{
             position: 'absolute',
@@ -290,7 +290,7 @@ export function FormatColorPicker({
       </div>
 
       {/* Preset swatches (8×2) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 3, marginBottom: 6 }}>
+      <div className="grid grid-cols-8 gap-[3px] mb-1.5">
         {PRESETS.map((c) => (
           <button key={c} onClick={() => selectPreset(c)} onMouseDown={(e) => e.preventDefault()} style={swatchStyle(c, hex.toLowerCase() === c.toLowerCase())} />
         ))}
@@ -298,20 +298,11 @@ export function FormatColorPicker({
 
       {/* Recent colors */}
       {recent.length > 0 && (
-        <div style={{ marginBottom: 6 }}>
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--gc-text-dim, #64748b)',
-              marginBottom: 3,
-            }}
-          >
+        <div className="mb-1.5">
+          <div className="text-[10px] font-semibold tracking-[0.06em] uppercase text-muted-foreground mb-[3px]">
             Recent
           </div>
-          <div style={{ display: 'flex', gap: 3 }}>
+          <div className="flex gap-[3px]">
             {recent.slice(0, 8).map((c) => (
               <button
                 key={c}
@@ -323,7 +314,7 @@ export function FormatColorPicker({
                   borderRadius: 4,
                   padding: 0,
                   cursor: 'pointer',
-                  border: hex.toLowerCase() === c.toLowerCase() ? '2px solid var(--gc-positive, #2dd4bf)' : '1px solid var(--gc-border, rgba(255,255,255,0.08))',
+                  border: hex.toLowerCase() === c.toLowerCase() ? '2px solid var(--ds-accent-positive)' : '1px solid var(--ds-border-primary)',
                   background: c,
                 }}
               />
@@ -333,7 +324,7 @@ export function FormatColorPicker({
       )}
 
       {/* Bottom bar: pipette + chip + hex input + clear */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <div className="flex items-center gap-[5px]">
         {/* Native color picker (pipette) */}
         <label
           style={{
@@ -347,17 +338,17 @@ export function FormatColorPicker({
             position: 'relative',
             overflow: 'hidden',
             background: hex,
-            border: '1px solid var(--gc-border, rgba(255,255,255,0.12))',
+            border: '1px solid var(--ds-border-primary)',
             flexShrink: 0,
           }}
           title="Pick any color"
         >
-          <Pipette size={10} strokeWidth={1.5} style={{ color: '#fff', opacity: 0.8 }} />
+          <Pipette size={10} strokeWidth={1.5} className="text-white opacity-80" />
           <input
             type="color"
             value={hex}
             onChange={(e) => selectPreset(e.target.value)}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
         </label>
 
@@ -366,20 +357,7 @@ export function FormatColorPicker({
           type="text"
           value={hex}
           onChange={(e) => handleHexInput(e.target.value)}
-          style={{
-            flex: 1,
-            height: 22,
-            border: '1px solid var(--gc-border, rgba(255,255,255,0.08))',
-            borderRadius: 4,
-            background: 'var(--gc-bg, #0c1018)',
-            color: 'var(--gc-text, #e2e8f0)',
-            fontSize: 11,
-            fontWeight: 500,
-            fontFamily: 'var(--gc-font-mono)',
-            padding: '0 8px',
-            outline: 'none',
-            minWidth: 0,
-          }}
+          className="flex-1 h-[22px] border border-border rounded bg-background text-foreground text-[11px] font-medium font-mono px-2 outline-none min-w-0"
         />
 
         {/* Clear */}
@@ -391,19 +369,7 @@ export function FormatColorPicker({
             }}
             onMouseDown={(e) => e.preventDefault()}
             title="Clear color"
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              background: 'rgba(248,113,113,0.08)',
-              border: 'none',
-              color: 'var(--gc-negative, #f87171)',
-              flexShrink: 0,
-            }}
+            className="w-[22px] h-[22px] rounded flex items-center justify-center cursor-pointer bg-[rgba(248,113,113,0.08)] border-none text-[var(--ds-accent-negative)] shrink-0"
           >
             <X size={10} strokeWidth={2} />
           </button>

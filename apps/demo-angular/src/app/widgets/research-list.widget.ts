@@ -10,7 +10,7 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div
         style="display:flex;align-items:center;justify-content:space-between;padding:4px 10px;flex-shrink:0"
@@ -21,15 +21,15 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
             (click)="shared.researchFilter.set(s)"
             class="font-mono-fi"
             style="font-size:9px;padding:2px 8px;border-radius:2px;cursor:pointer"
-            [style.background]="shared.researchFilter() === s ? 'var(--bn-border)' : 'transparent'"
-            [style.border]="'1px solid var(--bn-border)'"
-            [style.color]="shared.researchFilter() === s ? 'var(--bn-t0)' : 'var(--bn-t1)'"
+            [style.background]="shared.researchFilter() === s ? 'var(--ds-border-primary)' : 'transparent'"
+            [style.border]="'1px solid var(--ds-border-primary)'"
+            [style.color]="shared.researchFilter() === s ? 'var(--ds-text-primary)' : 'var(--ds-text-secondary)'"
           >
             {{ s }}
           </button>
         </div>
         <span
-          style="font-size:11px;color:var(--bn-t2);font-family:JetBrains Mono,monospace;flex-shrink:0;margin-left:8px"
+          style="font-size:11px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace;flex-shrink:0;margin-left:8px"
           >{{ filteredNotes.length }} notes</span
         >
       </div>
@@ -39,10 +39,10 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
           (click)="shared.selectedNote.set(note)"
           style="margin:6px 8px;padding:12px;border-radius:3px;cursor:pointer;transition:border-color .15s"
           [style.background]="
-            shared.selectedNote().id === note.id ? 'var(--bn-bg2)' : 'var(--bn-bg1)'
+            shared.selectedNote().id === note.id ? 'var(--ds-surface-secondary)' : 'var(--ds-surface-primary)'
           "
           [style.border]="
-            '1px solid ' + (shared.selectedNote().id === note.id ? '#ff8c42' : 'var(--bn-border)')
+            '1px solid ' + (shared.selectedNote().id === note.id ? 'var(--ds-accent-warning)' : 'var(--ds-border-primary)')
           "
         >
           <div
@@ -50,11 +50,11 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
           >
             <div>
               <span
-                style="font-size:11px;font-weight:700;color:#22d3ee;font-family:JetBrains Mono,monospace"
+                style="font-size:11px;font-weight:700;color:var(--ds-accent-info);font-family:JetBrains Mono,monospace"
                 >{{ note.ticker }}</span
               >
               <span
-                style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace;margin-left:8px"
+                style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace;margin-left:8px"
                 >{{ note.date }}</span
               >
             </div>
@@ -67,16 +67,16 @@ import { RESEARCH_NOTES } from '../services/trading-data.service';
             >
           </div>
           <div
-            style="font-size:11px;color:var(--bn-t0);line-height:1.4;margin-bottom:5px;font-family:JetBrains Mono,monospace"
+            style="font-size:11px;color:var(--ds-text-primary);line-height:1.4;margin-bottom:5px;font-family:JetBrains Mono,monospace"
           >
             {{ note.title }}
           </div>
           <div style="display:flex;gap:6px;align-items:center">
-            <span style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">{{
+            <span style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace">{{
               note.author
             }}</span>
             <span
-              style="font-size:9px;padding:0 4px;border-radius:2px;background:var(--bn-bg2);color:var(--bn-t1);border:1px solid var(--bn-border);font-family:JetBrains Mono,monospace"
+              style="font-size:9px;padding:0 4px;border-radius:2px;background:var(--ds-surface-secondary);color:var(--ds-text-secondary);border:1px solid var(--ds-border-primary);font-family:JetBrains Mono,monospace"
               >{{ note.sector }}</span
             >
           </div>
@@ -98,10 +98,10 @@ export class ResearchListWidget {
 
   ratingColor(r: string) {
     return r === 'Overweight'
-      ? 'var(--bn-green)'
+      ? 'var(--ds-accent-positive)'
       : r === 'Underweight'
-        ? 'var(--bn-red)'
-        : '#ff8c42';
+        ? 'var(--ds-accent-negative)'
+        : 'var(--ds-accent-warning)';
   }
   ratingBg(r: string) {
     return r === 'Overweight'

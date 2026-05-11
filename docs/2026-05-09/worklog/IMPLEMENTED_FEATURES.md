@@ -3,6 +3,209 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-11 — Light-mode toolbar and page-header chrome polish
+
+`@starui/markets-grid` light-mode header/toolbars now use the cool-clinical
+primary brand treatment for active controls, focus-like borders, and filter
+pills use bright cyan/violet accents instead of earthy warning tones. The
+primary toolbar row and formatter toolbar get a subtle elevated white surface,
+calmer borders, centered icon-button spacing, reduced light-mode glow, and
+cleaner hover/active states. Demo React page headers and dashboard panel
+headers now use concrete `--ds-*` color variables instead of raw shadcn HSL
+channels, so their light-mode chrome matches the grid. Green/red/orange remain
+reserved for trading and semantic states.
+
+The save icon no longer overlays the legacy dirty LED/bar when settings are
+unsaved; the dirty state remains represented by the save button state/title
+without adding a stray vertical mark beside the icon.
+
+The formatter-toolbar visibility toggle now uses a sliders icon instead of the
+brush glyph, making the action read as “show formatting controls” rather than
+paint/apply styling.
+
+Formatter toolbar and popout icons now use brighter cyan/violet icon tokens
+with subtle glow and stronger hover/active treatment, so glyphs read clearly
+against the cool-clinical light chrome and the darker terminal theme.
+
+The filter-pill deactivate/create controls now use slightly larger, bolder
+funnel icons and roomier hit targets so those actions stand out in the filter
+toolbar.
+
+AG Grid header column separators are now disabled through the design-system AG
+Grid theme params (`headerColumnBorder: false`) instead of CSS overrides. Header
+resize handles remain enabled through `headerColumnResizeHandle*` theme params as
+a subtle 1px resize affordance, keeping the change aligned with AG Grid's v33+
+theme-object API.
+
+## 2026-05-11 — Primary button label ink on dark (unified `theme.css`)
+
+`generateUnifiedCSS()` previously emitted `--primary-foreground: 0 0% 100%` for
+both themes, so shadcn default buttons (`bg-primary text-primary-foreground`)
+showed white on signature cyan despite **fi-dark.css** using dark ink (`201 74% 9%`).
+The adapter now sets dark-theme `--primary-foreground`, `--destructive-foreground`,
+`--info-foreground`, `--success-foreground`, `--warning-foreground`, and
+`--p-primary-color-text` per Chroma Desk (vivid fills → dark labels; light theme
+unchanged for blue primary). `componentTokens().button.primary.color` matches for
+the dark brand cyan. **`@starui/grid-react`** `AlertDialogAction` now uses
+`bg-primary text-primary-foreground` / `bg-destructive text-destructive-foreground`
+instead of raw `--ds-accent-*` + `text-white` / `--ds-surface-ground`.
+**`@starui/markets-grid`** `ProfileSelector` “Save” pill uses
+`hsl(var(--primary-foreground))` on `var(--ds-accent-info)`. **`@starui/config-browser`**
+inline chrome (`Toolbar`, `RowDrawer`, `ImportPreviewDialog`, `DeleteAllDialog`,
+`TableSidebar`) stopped using **`var(--ds-text-primary)`** on **`var(--de-accent)`**
+/ destructive fills (that painted light body text on vivid cyan/red); labels now use
+**`hsl(var(--primary-foreground))`** / **`hsl(var(--destructive-foreground))`**.
+**`apps/markets-ui-react-reference`** Tailwind **`content`** includes
+**`packages/react/tools/config-browser-react/src`** so JIT keeps **`bg-primary`** /
+**`text-primary-foreground`** on **`ConfigBrowserPanel`**; local **`button.tsx`**
+destructive variant uses **`text-destructive-foreground`**. Verification:
+`npm run build && npm test --workspace=@starui/design-system`,
+`npm run test --workspace=@starui/grid-react --workspace=@starui/markets-grid`,
+`npm run build -w @starui/markets-ui-react-reference`.
+
+## 2026-05-11 — Design-system dependency contract (`check-design-system-deps`)
+
+Any workspace package whose `src/` references unified tokens (`--ds-*`) or
+imports `@starui/design-system` must declare `@starui/design-system` in
+`dependencies`, `peerDependencies`, or `devDependencies`. **`@starui/grid-react`**
+and **`@starui/markets-grid`** now list it as **peer** (+ **dev** for tests).
+**`packages/angular/**`** is excluded until Angular DS work lands. Root
+**`npm run check-ds`** runs **`tools/scripts/check-design-system-deps.ts`**
+after **`check-ds-tokens`**. Verification: `npm run check-ds`.
+
+## 2026-05-11 — Modal scrims + elevation: `@starui/ui` + grid-react primitives
+
+**`@starui/ui`** `Dialog` / `Sheet` / `Drawer` / `AlertDialog` overlays use **`bg-background/80`**
+instead of **`bg-black/80`**; sheet + dialog + alert content use **`shadow-overlay`**
+(`--ds-elevation-overlay`) instead of **`shadow-lg`**.
+
+**`@starui/grid-react`** `AlertDialog` overlay **`bg-background/60`**; content **`shadow-overlay`**.
+**`Popover`**, **`FormatDropdown`**, **`FormatPopover`** use **`shadow-card`**;
+**`ToggleGroup`** active item uses **`shadow-sm`** instead of arbitrary RGBA.
+
+Verification: `npm run test --workspace=@starui/grid-react`, `npm run typecheck -w @starui/ui`.
+
+## 2026-05-11 — Config Browser modals: token backdrop + elevation
+
+**`ImportPreviewDialog`** / **`DeleteAllDialog`** replace **`bg-black/55`** with
+**`bg-background/55`** (semantic scrim via shadcn **`--background`**) and
+**`shadow-[0_20px_60px_rgba(0,0,0,0.45)]`** with **`shadow-[var(--ds-elevation-overlay)]`**.
+Verification: `npm run typecheck -w @starui/config-browser`.
+
+## 2026-05-11 — Remove legacy `@starui/ui` Stern / Coinbase CSS theme
+
+Deleted **`packages/react/ui/src/styles/stern-theme.css`** (duplicate Tailwind +
+Coinbase-style `:root` vars). Apps already import **`@starui/design-system/css`**;
+**`@starui/ui`** no longer exports **`./styles`**. **`ThemeProvider`** default
+**`storageKey`** is **`marketsui-theme`** (was **`stern-theme`**). Package metadata
+and **`check-ds-tokens`** allowlist updated. Verification:
+`npx turbo typecheck build --filter=@starui/ui`.
+
+## 2026-05-11 — Typography: IBM Plex Sans + JetBrains Mono (canonical)
+
+`typography.fontFamily` in `@starui/design-system` primitives: **sans** =
+IBM Plex Sans stack, **mono** = JetBrains Mono with **IBM Plex Mono** fallback,
+**serif** = system Georgia stack. Legacy `--fi-sans` / `--fi-mono` in `fi-dark.css`
+/ `fi-light.css` aligned. Apps import Google Fonts for Plex Sans + Plex Mono +
+JetBrains; demo `index.html` drops Geist CDN. Demo chrome uses `var(--ds-font-sans)`;
+`markets-grid` formatter aliases `--fx-font-*` to `--ds-font-*`; grid-react
+expression palette/help overlays use `var(--ds-font-sans)`. Verification:
+`npm run build && npm test --workspace=@starui/design-system`,
+`npm test --workspace=@starui/markets-grid`.
+
+## 2026-05-11 — AG Grid adapter: JetBrains Mono (replace IBM Plex Mono)
+
+`@starui/design-system/adapters/ag-grid` `fontFamily.googleFont` now matches
+the Chroma Desk voice in `typography.fontFamily.mono` (JetBrains Mono) for both
+dark and light Quartz params; `agGridLightParams` gains the same `fontFamily`
+so Stern / config-browser light grids are not silent-default to a different face.
+`MarketsGrid` mono inline stack, `formatter.css` `--fx-font-mono`, and the
+demo-react fixture banner align with the mono stack (IBM Plex Mono as secondary
+fallback). Verification: `npm test --workspace=@starui/design-system`,
+`npm test --workspace=@starui/markets-grid` (if touched tests).
+
+## 2026-05-11 — Body font-size: `--ds-font-size-body` (fix invalid `font-size: var(--ds-font-sans)`)
+
+`--ds-font-sans` is the sans **font-family** stack; several app `body` rules
+mistakenly used it for `font-size`, which is not a valid length and produced
+weak/inconsistent root typography next to dense AG Grid chrome. `@starui/design-system`
+now emits `--ds-font-size-2xs` … `--ds-font-size-4xl` plus `--ds-font-size-body`
+(12px, aligned with `typography.fontSize.sm`); unified `base.css` sets
+`font-size: var(--ds-font-size-body)` on `html, body`. Updated:
+`apps/demo-react`, `apps/demo-configservice-react`, `apps/markets-ui-react-reference`,
+`apps/config-admin-web`, `apps/demo-angular` global styles; Angular
+`design-system.widget` embedded CSS examples use `--ds-font-size-xs` /
+`--ds-font-size-2xl`. Verification: `npm run build && npm test --workspace=@starui/design-system`.
+
+## 2026-05-11 — Expression editor thin Monaco shell (modular)
+
+The expression editor is a thin wrapper around stock Monaco: navigation,
+selection, Backspace/Delete, and Enter stay on Monaco defaults. Tab, Shift+Tab, Control/Cmd+Space, arrows (with Shift), Home/End (with Shift
+when the suggest list is open), and Backspace/Delete are re-bound through
+`editor.addCommand` in `expressionEditorKeyBridges.ts` plus model edits in
+`expressionEditorDeletion.ts`, so popped-out settings shells still route keys to
+Monaco (suggest navigation, caret moves, deletion) instead of losing them to the
+host; DSL registration covers language, completions, diagnostics, per-document overflow
+widget host + token-aligned CSS, optional empty-model placeholder decoration,
+and palette chords (Ctrl/Cmd+Shift+C/F, F1).
+
+Implementation is split into small modules (`monacoEnvironment.ts`,
+`expressionEditorKeyBridges.ts`, `expressionEditorPlaceholder.ts`,
+`expressionEditorPaletteCommands.ts`) so the React inner stays mount/dispose +
+theme observer + palettes. The public props
+gain optional `className` and `style` on the Monaco host (and fallback input) so
+callers can use `width: 100%`, flex, or `min-h-0` without forking the component.
+
+Completion auto-triggering does not fire on plain spaces (no `[positionId]` Tab
+artifacts at line end unless IntelliSense is open). Whitespace rendering stays
+off for the compact surface; Monaco `guides` (indent + bracket pair guides) are
+disabled so leading spaces never paint guide columns. Injected document styles
+keep a single visible caret in popouts.
+
+Playwright `e2e/v2-expression-editor.spec.ts` asserts the same keyboard and
+suggest flows in both inline and popped-out windows, plus focused-row index
+(`.monaco-list-row.focused`) after ↑/↓ and Home, and ←/→ caret moves without
+length drift. Auxiliary `window.open` popouts register an Escape →
+`hideSuggestWidget` bridge so the suggest list can be dismissed reliably.
+
+Verification: `npm run typecheck -w @starui/grid-react`, `npm test -w
+@starui/grid-react -- monacoEnvironment`, and `npx playwright test
+e2e/v2-expression-editor.spec.ts`.
+
+## 2026-05-11 — Expression engine nested dotted field refs
+
+Square-bracket column references now handle nested dot paths whose segments
+start with numbers, such as `[analytics.keyRateDuration.3Y]`. The parser keeps
+the canonical bracket syntax while preserving array-literal parsing for
+expressions like `[1, 2, 3]`; evaluation already uses `getValueByPath`, so the
+resolved path still prefers flat literal keys before walking nested row
+objects. Aggregation functions that consume direct column refs, for example
+`SUM([analytics.keyRateDuration.3Y])`, use the same nested path resolution
+across `ctx.allRows`.
+
+Verification: `npm run test -w @starui/core --
+src/expression/expressionEngine.test.ts`.
+
+## 2026-05-11 — Expression editor popout regression E2E coverage
+
+Added Playwright regression coverage for the conditional-styling expression
+editor in both inline Grid Customizer dialogs and popped-out browser windows.
+The spec verifies the Monaco caret remains visible/blinking, Space inserts at
+the visible cursor without whitespace glyph artifacts, arrow keys keep moving
+the caret, Tab/Enter accept column completions without focus escaping,
+Option+Esc/Alt+Esc opens the suggestion list, and suggestion-list arrows stay
+routed to Monaco while suggestions are open.
+
+The new popped-out coverage exposed one remaining cross-document styling gap:
+Monaco's lazy-loaded CSS can land in the opener document instead of the popout
+document. `editorDom` now installs the critical expression-editor Monaco styles
+into the editor's owning document, preserving the existing CSS import while
+making cursor and suggestion styling deterministic in real popouts.
+
+Verification: `npm run test -w @starui/grid-react --
+ExpressionEditor/editorDom.test.ts` and `npx playwright test
+e2e/v2-expression-editor.spec.ts --project=chromium`.
+
 ## 2026-05-08 — Config-manager redesign Session 17: ConfigBrowser "Export all" → admin one-shot bundle import
 
 One-step Dexie → REST seeding path. The in-app `ConfigBrowser` already
@@ -1513,6 +1716,22 @@ management, Escape dismiss, and accessibility out of the box.
   cursor. Fix: body-mounted `data-gc-monaco-overflow` container with
   `overflowWidgetsDomNode` pointing to it; sheet-scoped `--ck-*` tokens
   rebound on the host so the widget paints with a solid background.
+- **Popout-safe DOM context** — `<ExpressionEditor>` now resolves Monaco
+  helper DOM from the editor host's `ownerDocument`. When the Grid
+  Customizer is portaled into a browser/OpenFin popout, overflow widgets,
+  placeholder styles, palette listeners, and help-overlay listeners bind to
+  the popout document/window instead of the parent document.
+- **Popout keyboard completion** — popup-hosted editors keep the Monaco
+  textarea focused while accepting column suggestions. `Enter` uses Monaco's
+  suggestion acceptance; `Tab` is captured on the editor document/window and
+  falls back to the focused `[column]` suggestion so focus does not advance
+  into the next input control. When the suggestion widget is visible, Up/Down
+  route to Monaco's previous/next suggestion actions; otherwise
+  Arrow/Home/End keys have a popup-safe navigation fallback through Monaco's
+  `setPosition`. Space is inserted through Monaco's model position, avoiding
+  the popup hidden-textarea selection drift that inserted spaces at the start
+  of the expression. The Monaco caret uses native blink mode, and whitespace
+  glyph rendering is disabled so typed spaces don't look like extra carets.
 - **Live draft propagation** — both the calc-column editor and the
   conditional-styling rule editor now wire `<ExpressionEditor onChange>`
   into `useDraftModuleItem.setDraft`. Previously only `onCommit`
@@ -3549,3 +3768,174 @@ brings in the full bundle — workspaces, registry, blotter
 profile-sets, and `gridLevelData` — so opening a saved workspace on the
 new machine restores the same data-provider selection it had on the
 source machine.
+
+---
+
+## Unified Design-System Token Sweep (2026-05-09)
+
+Every legacy CSS variable family (`--bn-*`, `--fi-*`, `--gc-*`, `--ck-*`,
+`--mdl-*`) and every hardcoded hex colour outside the design-system package
+has been replaced with the unified `--ds-*` token set across the entire
+monorepo. The lint gate `npm run check-ds` (`npx tsx tools/scripts/check-ds-tokens.ts`)
+now exits clean (zero violations).
+
+Key changes:
+- **`packages/react/widgets/markets-grid/`** — all CSS and TSX files swept;
+  `--bn-*`/`--gc-*`/`--fi-*` vars replaced with `--ds-*` equivalents in
+  `marketsGrid.css`, `formatter.css`, `ProfileSelector.css`, `HelpPanel.css`,
+  and all `.tsx` component files.
+- **`packages/react/widgets/widgets-react/`** — `sternAgGridTheme.ts`
+  updated to use `var(--ds-surface-primary)` etc. in `themeQuartz.withParams()`.
+  `HostedMarketsGrid.tsx`, `LoadingOverlay.tsx`, `useColorLinking.ts` swept.
+- **`packages/shared/core/`** — `injectEditorStyles.ts` scrollbar/editor CSS
+  updated; `excelFormatter.ts` Excel color map updated.
+- **`packages/react/widgets/grid-react/`** — shadcn primitives
+  (`alert-dialog.tsx`, `popover.tsx`, `select.tsx`, `ghost-icon-button.tsx`,
+  `PopoutPortal.tsx`) swept.
+- **`packages/react/tools/`** — `config-browser-react` and
+  `workspace-setup-react` fully swept.
+- **`packages/angular/tools/config-browser-angular/`** — Angular template
+  inline styles swept.
+- **`apps/demo-react/`**, **`apps/demo-configservice-react/`**,
+  **`apps/demo-angular/`**, **`apps/config-admin-web/`**,
+  **`apps/markets-ui-react-reference/`** — all app-level CSS, SCSS, and
+  component files swept.
+- **`tools/scripts/check-ds-tokens.ts`** — ALLOW_PATHS extended for
+  legitimate data files (color-picker swatches, Monaco editor token theme,
+  OpenFin API hex, console.log `%c` debug colors, WCAG test fixtures, demo
+  fixture data, Recharts SVG attribute selectors).
+
+Token mapping used (partial):
+
+| Legacy | Unified |
+|--------|---------|
+| `--bn-bg` / `--fi-bg1` | `--ds-surface-primary` |
+| `--bn-bg2` / `--fi-bg2` | `--ds-surface-secondary` |
+| `--fi-bg0` | `--ds-surface-ground` |
+| `--fi-bg3` | `--ds-surface-tertiary` |
+| `--bn-t0` / `--fi-t0` | `--ds-text-primary` |
+| `--bn-t1` / `--fi-t1` | `--ds-text-secondary` |
+| `--bn-t2` / `--fi-t2` | `--ds-text-muted` |
+| `--fi-t3` | `--ds-text-faint` |
+| `--bn-border` / `--fi-border` | `--ds-border-primary` |
+| `--fi-border2` | `--ds-border-secondary` |
+| `--bn-green` / `--fi-green` | `--ds-accent-positive` |
+| `--bn-red` / `--fi-red` | `--ds-accent-negative` |
+| `--bn-blue` / `--fi-blue` | `--ds-accent-info` |
+| `--fi-amber` | `--ds-accent-warning` |
+| `--fi-sans` | `--ds-font-sans` |
+| `--fi-mono` | `--ds-font-mono` |
+
+## 2026-05-09 — Unified Chroma Desk Design System
+
+- Single token tree at `packages/shared/foundation/design-system/src/tokens/`
+- Three adapters generate Tailwind preset, PrimeNG preset, AG Grid params from the same source
+- Bundled stylesheet at `@starui/design-system/css` — imported once per app
+- Theme matrix: `<html data-theme="dark|light" [data-cvd="on"]>` = 4 combos
+- Single `.ds-scrollbar` utility (theme-aware via color-mix)
+- `tailwindcss-primeui` plugin gives Angular/PrimeNG templates the same utility class vocabulary as React/shadcn
+- `applyTheme()` / `getTheme()` helpers persist user preference to localStorage
+- `check-ds-tokens` lint script gates CI: forbids hardcoded hex, inline styles, legacy CSS vars
+- Build-time WCAG contrast audit codifies AAA body / AA chrome thresholds
+- Replaces deleted: `@starui/tokens-primeng` package, Cockpit stylesheet (`packages/shared/core/src/css/cockpit.ts`)
+- See `docs/2026-05-09/architecture-and-design/DESIGN_SYSTEM.md`
+
+## 2026-05-09 — Grid Customizer popout chrome visual regression fix
+
+- **Root cause**: `cockpit.ts` deletion (Task 17) + Phase 6 var sweeps removed structural chrome classes without recreating them. Popout rendered as a flat unstyled vertical stack.
+- **Fix**: `packages/react/widgets/markets-grid/src/grid-chrome.css` — new scoped CSS file that recreates `.gc-sheet`, `.gc-popout`, `.gc-popout-title*`, `.gc-popout-module-btn`, `.gc-popout-body`, `.gc-popout-list*`, `.gc-popout-editor`, `.gc-editor-header`, `.gc-editor-scroll`, `.gc-popout-footer`, `.gc-caps`, `.gc-mono`, `.gc-led`, themed scrollbars for list/body/formatting-toolbar.
+- All colour refs use `var(--ds-*)` tokens; light-mode override blocks dropped (theme switching handled automatically by unified CSS adapter).
+- Imported in `SettingsSheet.tsx` and `MarketsGrid.tsx`; Vite deduplicates.
+- Same pattern as `BorderStyleEditor.css` fix on this branch.
+- `check-ds-tokens`: clean; typecheck: clean; 68 tests passing.
+
+## 2026-05-11 — `@starui/ui` portals respect popped-out / OpenFin windows
+
+- **`packages/react/ui/src/portal-container.tsx`** — Shared
+  `PortalContainerProvider` + `usePortalContainer()` (same contract as the
+  former grid-local context).
+- **Radix `Portal` `container` prop** threaded through `@starui/ui`:
+  `popover`, `dropdown-menu` (content + submenus), `context-menu` (content +
+  submenus), `menubar` (content + submenus), `select`, `dialog`,
+  `alert-dialog`, `sheet`, `drawer`, `hover-card`, `tooltip`.
+- **`packages/react/widgets/grid-react/src/ui/PortalContainer.tsx`** — Now
+  re-exports from `@starui/ui` so `PopoutPortal` and `@starui/ui` share one
+  React context; overlays/menus mount into the popout `document.body` instead
+  of the parent shell.
+- **`packages/react/ui/src/index.ts`** — Exports `PortalContainerProvider`,
+  `usePortalContainer`, `useResolvedPortalContainer`,
+  `PortalContainerProviderProps`.
+- **`useResolvedPortalContainer()`** — When no provider wraps the tree, returns
+  `document.body` immediately so Radix `Portal` gets an explicit container on
+  the first paint (omitting `container` relied on Radix’s deferred mount and
+  broke overlays/popovers on the parent shell). Popout paths still pass an
+  explicit child `body` via `PortalContainerProvider`.
+- **Portaled z-index vs Grid Customizer chrome** — `markets-grid`
+  `grid-chrome.css` uses `.ds-popout-backdrop` at **10000** and `.ds-popout` at
+  **10001**. Radix surfaces portaled to `document.body` used shadcn’s default
+  **`z-50`**, so selects/menus drew **behind** the backdrop on the parent page.
+  `@starui/ui` portaled primitives now use **`z-[11000]`** so dropdowns,
+  popovers, dialogs, etc. stack above that sheet.
+
+## 2026-05-11 — `@starui/grid-react` Select uses `@starui/ui` (Radix)
+
+- **`packages/react/widgets/grid-react/src/ui/shadcn/select.tsx`** — Replaced the
+  token-styled native `<select>` wrapper with Radix/shadcn primitives from
+  `@starui/ui` (`Select`, `SelectTrigger`, `SelectValue`, `SelectContent`,
+  `SelectItem`). Call sites keep legacy `<option>` children and
+  `onChange({ target: { value } })`; empty-string option values round-trip via
+  an internal sentinel because Radix forbids `SelectItem value=""`.
+- **`@starui/ui`** added as a workspace dependency of `@starui/grid-react`.
+- **Tests** — `GridOptionsPanel.test.tsx` and `ConditionalStylingPanel.test.tsx`
+  updated for combobox interaction; `RuleMetaStrip` exposes
+  `data-testid="cs-rule-scope-<ruleId>"`; `src/test/setup.ts` polyfills
+  `hasPointerCapture` / `setPointerCapture` for jsdom + user-event.
+
+## 2026-05-11 — `@starui/design-system` synced from `fi-trading-terminal`
+
+- Primitive and semantic tokens now follow the `/Users/develop/wfh/fi-trading-terminal/design-system` direction: cool off-white light chrome, deep charcoal dark chrome, saturated blue primary, teal positive, red negative, pure orange warning, Geist sans, and JetBrains Mono.
+- The monorepo token contract is preserved (`--ds-*`, shadcn HSL aliases, PrimeNG bridge vars, CVD overrides, elevations) while the checked-in `fi-light.css` and `fi-dark.css` mirror the imported palette.
+- Light-theme trading accents use darker stops from the same hue families so the existing contrast audit remains green.
+
+## 2026-05-11 — Exchange-terminal color pop
+
+- Dark mode now uses electric exchange accents: cyan primary/focus, neon teal buy/positive, hot red sell/negative, bright orange warning, and a stronger cyan focus glow.
+- Light mode keeps the same energy with high-contrast blue, teal, red, and restrained orange stops that still pass the design-system contrast audit.
+- Dark-mode primary/destructive/action foregrounds use deep ink on electric fills so the saturated colors pop without sacrificing button readability.
+
+## 2026-05-11 — Primary and accent token roles separated
+
+- `ColorScheme` now has an explicit `primary` block for brand CTA, focus, active navigation, framework primary hooks, AG Grid accent color, and selected-state styling.
+- `accent.info` is reserved for informational/status usage such as pending badges, live status chips, and the Tailwind/shadcn `info` semantic color.
+- Shadcn, PrimeNG, AG Grid, and component tokens now consume `scheme.primary` for primary/focus behavior instead of borrowing `scheme.accent.info`.
+- Contract tests assert that primary brand colors remain distinct from informational accents in both dark and light themes.
+
+## 2026-05-11 — Sophisticated light-mode surface polish
+
+- Light mode now uses an “Arctic glass” surface scale: cooler blue-gray app ground, crisp white cards/grid cells, lifted header/hover surfaces, and clearer pressed/accent bands.
+- Text and border ramps were deepened so the grid chrome reads sharper and less washed out in dense financial layouts.
+- Light elevations now use subtle slate-blue shadows instead of flat generic gray shadows, adding depth without making the UI feel heavy.
+
+## 2026-05-11 — Formatting toolbar alignment polish
+
+- The in-grid formatting toolbar now has consistent vertical padding and centered wrapped rows so icon buttons no longer cling to the top edge.
+- Toolbar dividers now align to the control centerline instead of stretching through the full row height.
+- The popout trigger is separated into a fixed right-edge action lane with its own divider and vertical centering.
+
+## 2026-05-11 — Low-glare comfort light theme
+
+- Light mode now uses warm-neutral “comfort paper” surfaces instead of the cooler, brighter Arctic glass palette to reduce glare during long sessions.
+- Light-mode text stays high contrast but avoids harsh black-on-white; muted/faint text was softened for older-eye readability.
+- Light-mode primary and semantic accents were desaturated and overlay strengths reduced so status colors remain clear without visual vibration.
+
+## 2026-05-11 — Mercury-inspired light theme
+
+- Light mode was refined toward Mercury’s visual language: airy limestone workspace, white cards, quiet dividers, graphite text, and soft periwinkle primary actions.
+- Status accents now use calm teal, rose, ochre, and slate-blue tones with lighter overlays so dense grids feel less noisy.
+- The light theme keeps the primary/accent role split and continues to pass the design-system contrast audit.
+
+## 2026-05-11 — Cool-clinical light theme direction
+
+- Light mode now follows the preferred cool-clinical reference: `#F8F9FB` canvas, crisp white cards/cells, quiet cool-gray dividers, and slate text.
+- Primary brand color is cobalt (`#2952CC`) with subdued focus/selection tints, matching the reference without over-saturating the workspace.
+- Semantic colors remain rationed and muted so dense tables feel calm rather than visually noisy.

@@ -36,3 +36,8 @@ apps/config-service-server/data/*.db
 # Local dotenv overrides — `.env.example` is the tracked template
 .env.local
 .env.*.local
+
+# User reference materials (kept locally, not committed)
+Markets Design System-latest/
+Markets Design System-latest.zip
+Markets Design System*.zip

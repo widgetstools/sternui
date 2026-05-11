@@ -30,7 +30,7 @@ export interface CompactColorFieldProps {
 }
 
 const CHECKERBOARD =
-  'conic-gradient(var(--ck-t3, #4a5360) 0 25%, var(--ck-border, #2d3339) 0 50%, var(--ck-t3, #4a5360) 0 75%, var(--ck-border, #2d3339) 0) 0 0 / 6px 6px';
+  'conic-gradient(var(--ds-text-faint) 0 25%, var(--ds-border-primary) 0 50%, var(--ds-text-faint) 0 75%, var(--ds-border-primary) 0) 0 0 / 6px 6px';
 
 export function CompactColorField({
   value,
@@ -90,8 +90,8 @@ export function CompactColorField({
         height: 28,
         padding: '0 8px',
         borderRadius: 2,
-        background: 'var(--ck-bg, #111417)',
-        border: '1px solid var(--ck-border, #2d3339)',
+        background: 'var(--ds-surface-ground)',
+        border: '1px solid var(--ds-border-primary)',
         transition: 'border-color 120ms',
         cursor: disabled ? 'not-allowed' : 'text',
         opacity: disabled ? 0.55 : 1,
@@ -127,7 +127,7 @@ export function CompactColorField({
               borderRadius: 0,
               padding: 0,
               cursor: disabled ? 'not-allowed' : 'pointer',
-              border: '1px solid var(--ck-border-hi, #3a4149)',
+              border: '1px solid var(--ds-border-secondary)',
               background: hasValue ? resolvedHex || (value as string) : CHECKERBOARD,
               position: 'relative',
               overflow: 'hidden',
@@ -136,7 +136,7 @@ export function CompactColorField({
             {!hasValue && (
               <Pipette
                 size={8}
-                color="var(--ck-t2, #6b7480)"
+                color="var(--ds-text-muted)"
                 style={{ position: 'absolute', top: 2, left: 2 }}
               />
             )}
@@ -177,8 +177,8 @@ export function CompactColorField({
           height: 26,
           border: 'none',
           background: 'transparent',
-          color: hasValue ? 'var(--ck-t0, #e5e7ea)' : 'var(--ck-t3, #4a5360)',
-          fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
+          color: hasValue ? 'var(--ds-text-primary)' : 'var(--ds-text-faint)',
+          fontFamily: 'var(--ds-font-mono)',
           fontSize: 11,
           fontWeight: 500,
           outline: 'none',
@@ -190,9 +190,9 @@ export function CompactColorField({
 
       <span
         style={{
-          fontFamily: 'var(--ck-font-mono, "IBM Plex Mono", monospace)',
+          fontFamily: 'var(--ds-font-mono)',
           fontSize: 11,
-          color: 'var(--ck-t1, #9ba3ad)',
+          color: 'var(--ds-text-secondary)',
           fontVariantNumeric: 'tabular-nums',
           minWidth: 28,
           textAlign: 'right',
@@ -217,7 +217,7 @@ export function CompactColorField({
             justifyContent: 'center',
             border: 'none',
             background: 'transparent',
-            color: 'var(--ck-t2, #6b7480)',
+            color: 'var(--ds-text-muted)',
             cursor: disabled ? 'not-allowed' : 'pointer',
             borderRadius: 2,
             flexShrink: 0,
@@ -242,7 +242,7 @@ export function CompactColorField({
             justifyContent: 'center',
             border: 'none',
             background: 'transparent',
-            color: 'var(--ck-t2, #6b7480)',
+            color: 'var(--ds-text-muted)',
             cursor: disabled ? 'not-allowed' : 'pointer',
             borderRadius: 2,
             flexShrink: 0,
@@ -317,7 +317,7 @@ function CompactColorFieldPopover({
                 fontWeight: 600,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                color: 'var(--bn-t2, #7a8494)',
+                color: 'var(--ds-text-muted)',
               }}
             >
               Alpha
@@ -325,8 +325,8 @@ function CompactColorFieldPopover({
             <span
               style={{
                 fontSize: 11,
-                fontFamily: 'var(--gc-font-mono, ui-monospace, SFMono-Regular, monospace)',
-                color: 'var(--bn-t1, #9a9a9a)',
+                fontFamily: 'var(--ds-font-mono)',
+                color: 'var(--ds-text-secondary)',
                 fontVariantNumeric: 'tabular-nums',
               }}
             >
@@ -345,7 +345,7 @@ function CompactColorFieldPopover({
             }}
             style={{
               width: '100%',
-              accentColor: 'var(--bn-green, #2dd4bf)',
+              accentColor: 'var(--ds-accent-positive)',
               cursor: 'pointer',
             }}
           />
@@ -360,7 +360,7 @@ function CompactColorFieldPopover({
                 fontWeight: 600,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                color: 'var(--bn-t2, #7a8494)',
+                color: 'var(--ds-text-muted)',
                 marginBottom: 4,
               }}
             >
@@ -381,8 +381,8 @@ function CompactColorFieldPopover({
                     cursor: 'pointer',
                     border:
                       value?.toLowerCase() === c.toLowerCase()
-                        ? '2px solid var(--bn-green, #2dd4bf)'
-                        : '1px solid var(--bn-border-soft, rgba(255,255,255,0.08))',
+                        ? '2px solid var(--ds-accent-positive)'
+                        : '1px solid var(--ds-border-primary)',
                     background: c,
                   }}
                 />

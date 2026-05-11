@@ -94,9 +94,9 @@ function showTooltip(show: GroupChildShow | undefined): string {
 
 function showAccentColor(show: GroupChildShow | undefined): string {
   const mode = show ?? 'always';
-  if (mode === 'open') return 'var(--ck-green)';
-  if (mode === 'closed') return 'var(--ck-amber)';
-  return 'var(--ck-t2)';
+  if (mode === 'open') return 'var(--ds-accent-positive)';
+  if (mode === 'closed') return 'var(--ds-accent-warning)';
+  return 'var(--ds-text-muted)';
 }
 
 // ─── headerStyle ↔ StyleEditorValue ────────────────────────────────────
@@ -188,30 +188,18 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
 
   return (
     <>
-      <div className="gc-popout-list-header">
+      <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Groups</Caps>
-        <Mono color="var(--ck-t3)" size={11}>
+        <Mono color="var(--ds-text-faint)" size={11}>
           {String(flat.length).padStart(2, '0')}
         </Mono>
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
         <button
           type="button"
           onClick={addTopLevelGroup}
           title="Add group"
           data-testid="cg-add-group-btn"
-          style={{
-            width: 22,
-            height: 22,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--ck-green-bg)',
-            color: 'var(--ck-green)',
-            border: '1px solid var(--ck-green-dim)',
-            borderRadius: 2,
-            cursor: 'pointer',
-            padding: 0,
-          }}
+          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-overlay-positive-soft)] text-[var(--ds-accent-positive)] border border-[var(--ds-overlay-positive-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
         </button>
@@ -228,18 +216,10 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
               data-testid={`cg-group-${fg.node.groupId}`}
               style={{ paddingLeft: 10 + fg.depth * 18 }}
             >
-              <span style={{ width: 2, display: 'inline-flex' }}>
+              <span className="w-0.5 inline-flex">
                 <DirtyListLed groupId={fg.node.groupId} />
               </span>
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 {fg.node.headerName}
               </span>
             </CockpitListItem>
@@ -265,11 +245,11 @@ export function ColumnGroupsEditor({ selectedId }: EditorPaneProps) {
 
   if (!selectedId) {
     return (
-      <div style={{ padding: '32px 24px' }}>
+      <div className="px-6 py-8">
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No group selected
         </Caps>
-        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+        <div className="text-xs text-muted-foreground">
           Select a group from the list, or press <Mono size={11}>+</Mono> to add one.
         </div>
       </div>
@@ -422,15 +402,9 @@ const GroupEditor = memo(function GroupEditor({
   return (
     <div
       data-testid={`cg-group-editor-${node.groupId}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
+      className="flex flex-col flex-1 min-h-0 overflow-hidden"
     >
-      <div className="gc-editor-header">
+      <div className="shrink-0 bg-background border-b border-border">
         <ObjectTitleRow
           title={
             <TitleInput
@@ -480,8 +454,8 @@ const GroupEditor = memo(function GroupEditor({
         />
       </div>
 
-      <div className="gc-editor-scroll">
-        <div className="gc-meta-grid">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+        <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
           <MetaCell
             label="OPEN BY DEFAULT"
             value={
@@ -528,13 +502,13 @@ const GroupEditor = memo(function GroupEditor({
                 padding: '0 10px',
                 height: 24,
                 fontSize: 10,
-                color: 'var(--ck-t1)',
+                color: 'var(--ds-text-secondary)',
                 background: 'transparent',
-                border: '1px solid var(--ck-border-hi)',
+                border: '1px solid var(--ds-border-secondary)',
                 borderRadius: 2,
                 cursor: canAddSubgroup ? 'pointer' : 'not-allowed',
                 opacity: canAddSubgroup ? 1 : 0.35,
-                fontFamily: 'var(--ck-font-sans)',
+                fontFamily: 'var(--ds-font-sans)',
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
@@ -544,7 +518,7 @@ const GroupEditor = memo(function GroupEditor({
             </button>
           }
         >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          <div className="flex flex-wrap gap-1 items-center">
             {columnChildren.map((c) => {
               const info = columns.find((a) => a.colId === c.colId);
               const show = c.show ?? 'always';
@@ -555,18 +529,7 @@ const GroupEditor = memo(function GroupEditor({
                   data-show={show}
                   data-testid={`cg-chip-${node.groupId}-${c.colId}`}
                   title={showTooltip(show)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '3px 4px 3px 8px',
-                    borderRadius: 2,
-                    background: 'var(--ck-bg)',
-                    border: '1px solid var(--ck-border-hi)',
-                    fontFamily: 'var(--ck-font-mono)',
-                    fontSize: 11,
-                    color: 'var(--ck-t0)',
-                  }}
+                  className="inline-flex items-center gap-[5px] pt-[3px] pr-1 pb-[3px] pl-2 rounded-sm bg-background border border-[var(--ds-border-secondary)] font-mono text-[11px] text-foreground"
                 >
                   {info?.headerName ?? c.colId}
                   <button
@@ -594,14 +557,7 @@ const GroupEditor = memo(function GroupEditor({
                     type="button"
                     onClick={() => removeColumn(c.colId)}
                     title="Remove"
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: 'var(--ck-t2)',
-                      padding: 0,
-                      lineHeight: 1,
-                    }}
+                    className="bg-transparent border-none cursor-pointer text-muted-foreground p-0 leading-none"
                   >
                     <XIcon size={11} />
                   </button>
@@ -637,7 +593,7 @@ const GroupEditor = memo(function GroupEditor({
           data-testid={`cg-hdr-style-${node.groupId}`}
         />
 
-        <div style={{ height: 20 }} />
+        <div className="h-5" />
       </div>
     </div>
   );
@@ -650,18 +606,13 @@ export function ColumnGroupsPanel() {
   return (
     <div
       data-testid="cg-panel"
-      style={{ display: 'grid', gridTemplateColumns: '220px 1fr', height: '100%' }}
+      className="grid h-full"
+      style={{ gridTemplateColumns: '220px 1fr' }}
     >
-      <aside
-        style={{
-          borderRight: '1px solid var(--ck-border)',
-          overflowY: 'auto',
-          background: 'var(--ck-surface)',
-        }}
-      >
+      <aside className="border-r border-border overflow-y-auto bg-card">
         <ColumnGroupsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />
       </aside>
-      <section style={{ overflowY: 'auto' }}>
+      <section className="overflow-y-auto">
         <ColumnGroupsEditor gridId="" selectedId={selectedId} />
       </section>
     </div>

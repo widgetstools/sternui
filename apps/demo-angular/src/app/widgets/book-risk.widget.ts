@@ -8,7 +8,7 @@ import { fiGridTheme } from '../services/ag-grid-theme';
 import { RISK_POSITIONS, BONDS } from '../services/trading-data.service';
 import { BookNameRenderer, OasValueRenderer, PnlValueRenderer } from '../services/cell-renderers';
 
-const HEAT_COLORS = ['#3b82f6', '#22d3ee', '#ff8c42', '#e86a1c', 'var(--bn-red)', '#e8304e'];
+const HEAT_COLORS = ['var(--ds-accent-info)', 'var(--ds-accent-info)', 'var(--ds-accent-warning)', 'var(--ds-accent-warning)', 'var(--ds-accent-negative)', 'var(--ds-accent-negative)'];
 const heatLevel = (oas: number) =>
   oas < 20 ? 0 : oas < 50 ? 1 : oas < 100 ? 2 : oas < 150 ? 3 : oas < 250 ? 4 : 5;
 
@@ -22,7 +22,7 @@ LicenseManager.setLicenseKey('');
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;overflow:hidden">
         <ag-grid-angular
@@ -36,7 +36,7 @@ LicenseManager.setLicenseKey('');
         />
       </div>
       <!-- OAS heatmap -->
-      <div style="border-top:1px solid var(--bn-border);flex-shrink:0">
+      <div style="border-top:1px solid var(--ds-border-primary);flex-shrink:0">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px">
           <div
             *ngFor="let b of heatBonds"
@@ -50,7 +50,7 @@ LicenseManager.setLicenseKey('');
             >
               {{ b.ticker }}
             </div>
-            <div style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace">
+            <div style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace">
               {{ b.oas > 0 ? '+' + b.oas : b.oas }}
             </div>
           </div>
@@ -85,7 +85,7 @@ export class BookRiskWidget {
       headerName: 'DV01',
       flex: 0.7,
       type: 'numericColumn',
-      cellStyle: { color: '#3b82f6' },
+      cellStyle: { color: 'var(--ds-accent-info)' },
       valueFormatter: (p) => p.value?.toLocaleString(),
     },
     {

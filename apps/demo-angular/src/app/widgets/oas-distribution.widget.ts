@@ -12,7 +12,7 @@ const sorted = [...OAS_DATA].sort((a, b) => b.oas - a.oas);
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;padding:8px 6px">
         <p-chart
@@ -36,7 +36,7 @@ export class OasDistributionWidget implements OnInit {
   ngOnInit() {
     const colors = sorted.map((d) => {
       if ((d as any).color && !(d as any).color.startsWith('var(')) return (d as any).color;
-      return '#3b82f6';
+      return 'var(--ds-accent-info)';
     });
 
     this.chartData = {
@@ -74,14 +74,14 @@ export class OasDistributionWidget implements OnInit {
       scales: {
         x: {
           ticks: {
-            color: '#8a8f98',
+            color: 'var(--ds-text-muted)',
             font: { size: 9, family: 'JetBrains Mono,monospace' },
             callback: (v: number) => `+${v}bp`,
           },
           grid: { color: 'rgba(255,255,255,0.06)' },
         },
         y: {
-          ticks: { color: '#8a8f98', font: { size: 9, family: 'JetBrains Mono,monospace' } },
+          ticks: { color: 'var(--ds-text-muted)', font: { size: 9, family: 'JetBrains Mono,monospace' } },
           grid: { display: false },
         },
       },

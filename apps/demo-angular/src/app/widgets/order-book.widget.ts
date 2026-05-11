@@ -67,9 +67,9 @@ function genLevels(
 }
 
 const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
-  STREAM: { bg: 'rgba(20,217,160,0.12)', color: 'var(--bn-green)' },
-  RFQ: { bg: 'rgba(59,130,246,0.12)', color: 'var(--bn-blue)' },
-  IND: { bg: 'rgba(255,140,66,0.12)', color: 'var(--bn-amber)' },
+  STREAM: { bg: 'rgba(20,217,160,0.12)', color: 'var(--ds-accent-positive)' },
+  RFQ: { bg: 'rgba(59,130,246,0.12)', color: 'var(--ds-accent-info)' },
+  IND: { bg: 'rgba(255,140,66,0.12)', color: 'var(--ds-accent-warning)' },
 };
 
 @Component({
@@ -78,36 +78,36 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
   imports: [CommonModule, FormsModule],
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
-    <div style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1)">
+    <div style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary)">
       <!-- Instrument context bar -->
       <div
-        style="display:flex;align-items:center;gap:12px;padding:6px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0;background:rgba(0,188,212,0.04)"
+        style="display:flex;align-items:center;gap:12px;padding:6px 12px;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0;background:rgba(0,188,212,0.04)"
       >
-        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--bn-cyan)">
+        <span class="font-mono-fi font-bold" style="font-size:9px;color:var(--ds-accent-info)">
           {{ bond.ticker }} {{ bond.cpn }} {{ bond.mat }}
         </span>
-        <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">{{ bond.issuer }}</span>
-        <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)"
+        <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)">{{ bond.issuer }}</span>
+        <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)"
           >CUSIP {{ bond.cusip }}</span
         >
-        <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t1)">{{ bond.rtg }}</span>
+        <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-secondary)">{{ bond.rtg }}</span>
         <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">OAS </span>
-            <span style="color:var(--bn-amber);font-weight:600">{{
+            <span style="color:var(--ds-text-muted)">OAS </span>
+            <span style="color:var(--ds-accent-warning);font-weight:600">{{
               bond.oas > 0 ? '+' + bond.oas : bond.oas
             }}</span>
           </span>
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">DUR </span>
-            <span style="color:#3b82f6;font-weight:600">{{ bond.dur }}</span>
+            <span style="color:var(--ds-text-muted)">DUR </span>
+            <span style="color:var(--ds-accent-info);font-weight:600">{{ bond.dur }}</span>
           </span>
         </div>
       </div>
 
       <!-- Toolbar -->
       <div
-        style="display:flex;align-items:center;justify-content:space-between;padding:4px 12px;border-bottom:1px solid var(--bn-border);flex-shrink:0"
+        style="display:flex;align-items:center;justify-content:space-between;padding:4px 12px;border-bottom:1px solid var(--ds-border-primary);flex-shrink:0"
       >
         <div style="display:flex;align-items:center;gap:4px">
           <button
@@ -116,34 +116,34 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             [attr.aria-label]="'Show ' + opt.v"
             [attr.title]="'Show ' + opt.v"
             style="width:24px;height:20px;border-radius:4px;font-size:11px;border:none;cursor:pointer"
-            [style.background]="view === opt.v ? 'var(--bn-bg3)' : 'transparent'"
+            [style.background]="view === opt.v ? 'var(--ds-surface-tertiary)' : 'transparent'"
             [style.color]="
               opt.v === 'asks'
-                ? 'var(--bn-red)'
+                ? 'var(--ds-accent-negative)'
                 : opt.v === 'bids'
-                  ? 'var(--bn-green)'
-                  : 'var(--bn-t1)'
+                  ? 'var(--ds-accent-positive)'
+                  : 'var(--ds-text-secondary)'
             "
           >
             {{ opt.icon }}
           </button>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2)">
+          <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted)">
             {{ asks().length + bids().length }} levels
           </span>
           <span
             class="live-dot"
-            style="width:5px;height:5px;border-radius:50%;background:var(--bn-green);display:inline-block"
+            style="width:5px;height:5px;border-radius:50%;background:var(--ds-accent-positive);display:inline-block"
           ></span>
-          <span class="font-mono-fi" style="font-size:9px;color:var(--bn-green)">LIVE</span>
+          <span class="font-mono-fi" style="font-size:9px;color:var(--ds-accent-positive)">LIVE</span>
         </div>
       </div>
 
       <!-- Column headers -->
       <div
         class="ob-grid-cols"
-        style="display:grid;padding:4px 8px;background:var(--bn-bg2);flex-shrink:0"
+        style="display:grid;padding:4px 8px;background:var(--ds-surface-secondary);flex-shrink:0"
       >
         <div class="col-hdr" style="text-align:left">Dealer</div>
         <div class="col-hdr" style="text-align:right">Price</div>
@@ -163,7 +163,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
           <div style="margin-top:auto">
             <div
               class="font-mono-fi"
-              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-red);letter-spacing:0.06em"
+              style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--ds-accent-negative);letter-spacing:0.06em"
             >
               OFFERS (ASK)
             </div>
@@ -174,19 +174,19 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
               style="display:grid;padding:2px 8px;cursor:pointer;position:relative"
               [style.--fill-pct]="a.pct + '%'"
             >
-              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">
+              <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-secondary)">
                 {{ a.dealer }}
               </div>
-              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-red);text-align:right">
+              <div class="font-mono-fi" style="font-size:11px;color:var(--ds-accent-negative);text-align:right">
                 {{ a.price.toFixed(3) }}
               </div>
-              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+              <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
                 {{ a.yield.toFixed(3) }}
               </div>
-              <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+              <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
                 {{ a.face.toFixed(1) }}
               </div>
-              <div class="font-mono-fi" style="font-size:11px;color:#3b82f6;text-align:right">
+              <div class="font-mono-fi" style="font-size:11px;color:var(--ds-accent-info);text-align:right">
                 {{ a.dv01.toFixed(1) }}
               </div>
               <div style="text-align:center">
@@ -206,27 +206,27 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
         <!-- Spread bar -->
         <div
           *ngIf="view === 'both'"
-          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);border-bottom:1px solid var(--bn-border);flex-shrink:0;background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--bn-bg2), rgba(255,77,109,0.08))"
+          style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--ds-border-primary);border-bottom:1px solid var(--ds-border-primary);flex-shrink:0;background:linear-gradient(90deg, rgba(20,217,160,0.08), var(--ds-surface-secondary), rgba(255,77,109,0.08))"
         >
           <span class="font-mono-fi font-bold" style="font-size:11px" [style.color]="spreadColor()">
             {{ mid().toFixed(3) }}
           </span>
-          <span class="font-mono-fi" style="font-size:9px;color:var(--bn-t2);margin-left:12px">
+          <span class="font-mono-fi" style="font-size:9px;color:var(--ds-text-muted);margin-left:12px">
             ≈ {{ '$' + mid().toFixed(3) }}
           </span>
           <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
             <span class="font-mono-fi" style="font-size:9px">
-              <span style="color:var(--bn-t2)">Spread </span>
-              <span style="color:var(--bn-amber);font-weight:600">{{ spread().toFixed(3) }}</span>
-              <span style="color:var(--bn-t2)"> ({{ spreadPct() }}%)</span>
+              <span style="color:var(--ds-text-muted)">Spread </span>
+              <span style="color:var(--ds-accent-warning);font-weight:600">{{ spread().toFixed(3) }}</span>
+              <span style="color:var(--ds-text-muted)"> ({{ spreadPct() }}%)</span>
             </span>
             <span class="font-mono-fi" style="font-size:9px">
-              <span style="color:var(--bn-t2)">Mid Yld </span>
-              <span style="color:#22d3ee;font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
+              <span style="color:var(--ds-text-muted)">Mid Yld </span>
+              <span style="color:var(--ds-accent-info);font-weight:600">{{ bond.ytm.toFixed(3) }}</span>
             </span>
             <span class="font-mono-fi" style="font-size:9px">
-              <span style="color:var(--bn-t2)">Z-Spd </span>
-              <span style="color:#a855f7;font-weight:600">{{ bond.gSpd }}</span>
+              <span style="color:var(--ds-text-muted)">Z-Spd </span>
+              <span style="color:var(--ds-accent-info);font-weight:600">{{ bond.gSpd }}</span>
             </span>
             <span [style.color]="spreadColor()" style="font-size:9px;font-weight:700">
               {{ spread() < 0 ? '↓' : '↑' }}
@@ -238,7 +238,7 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
         <div *ngIf="view === 'both' || view === 'bids'" style="flex:1;overflow-y:auto;min-height:0">
           <div
             class="font-mono-fi"
-            style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--bn-green);letter-spacing:0.06em"
+            style="padding:2px 8px;font-size:9px;font-weight:700;color:var(--ds-accent-positive);letter-spacing:0.06em"
           >
             BIDS
           </div>
@@ -249,17 +249,17 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             style="display:grid;padding:2px 8px;cursor:pointer;position:relative"
             [style.--fill-pct]="b.pct + '%'"
           >
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">{{ b.dealer }}</div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-green);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-secondary)">{{ b.dealer }}</div>
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-accent-positive);text-align:right">
               {{ b.price.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
               {{ b.yield.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
               {{ b.face.toFixed(1) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:#3b82f6;text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-accent-info);text-align:right">
               {{ b.dv01.toFixed(1) }}
             </div>
             <div style="text-align:center">
@@ -278,39 +278,39 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
 
       <!-- Aggregate DV01 footer -->
       <div
-        style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--bn-border);background:var(--bn-bg2);flex-shrink:0"
+        style="display:flex;align-items:center;padding:6px 12px;border-top:1px solid var(--ds-border-primary);background:var(--ds-surface-secondary);flex-shrink:0"
       >
         <div style="display:flex;align-items:center;gap:16px">
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">BID DV01 </span>
-            <span style="color:var(--bn-green);font-weight:600">{{ '$' + bidDv01() + 'K' }}</span>
+            <span style="color:var(--ds-text-muted)">BID DV01 </span>
+            <span style="color:var(--ds-accent-positive);font-weight:600">{{ '$' + bidDv01() + 'K' }}</span>
           </span>
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">ASK DV01 </span>
-            <span style="color:var(--bn-red);font-weight:600">{{ '$' + askDv01() + 'K' }}</span>
+            <span style="color:var(--ds-text-muted)">ASK DV01 </span>
+            <span style="color:var(--ds-accent-negative);font-weight:600">{{ '$' + askDv01() + 'K' }}</span>
           </span>
         </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">MIN SIZE </span>
-            <span style="color:var(--bn-t1);font-weight:600">{{ minSize() }}MM</span>
+            <span style="color:var(--ds-text-muted)">MIN SIZE </span>
+            <span style="color:var(--ds-text-secondary);font-weight:600">{{ minSize() }}MM</span>
           </span>
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">FIRM </span>
-            <span style="color:var(--bn-green);font-weight:600">{{ firmCount() }}</span>
+            <span style="color:var(--ds-text-muted)">FIRM </span>
+            <span style="color:var(--ds-accent-positive);font-weight:600">{{ firmCount() }}</span>
           </span>
           <span class="font-mono-fi" style="font-size:9px">
-            <span style="color:var(--bn-t2)">SETTLE </span>
-            <span style="color:var(--bn-t1);font-weight:600">T+1</span>
+            <span style="color:var(--ds-text-muted)">SETTLE </span>
+            <span style="color:var(--ds-text-secondary);font-weight:600">T+1</span>
           </span>
         </div>
       </div>
 
       <!-- Recent trades -->
       <div
-        style="border-top:1px solid var(--bn-border);flex-shrink:0;max-height:160px;overflow:hidden;display:flex;flex-direction:column"
+        style="border-top:1px solid var(--ds-border-primary);flex-shrink:0;max-height:160px;overflow:hidden;display:flex;flex-direction:column"
       >
-        <div class="ob-trades-cols" style="display:grid;padding:4px 8px;background:var(--bn-bg2)">
+        <div class="ob-trades-cols" style="display:grid;padding:4px 8px;background:var(--ds-surface-secondary)">
           <div class="col-hdr" style="text-align:left">Side</div>
           <div class="col-hdr" style="text-align:left">Cpty</div>
           <div class="col-hdr" style="text-align:right">Price</div>
@@ -327,21 +327,21 @@ const BADGE_STYLES: Record<QuoteType, { bg: string; color: string }> = {
             <div
               class="font-mono-fi"
               style="font-size:11px;font-weight:700"
-              [style.color]="t.side === 'BUY' ? 'var(--bn-green)' : 'var(--bn-red)'"
+              [style.color]="t.side === 'BUY' ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)'"
             >
               {{ t.side }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t1)">{{ t.dealer }}</div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-secondary)">{{ t.dealer }}</div>
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
               {{ t.price.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
               {{ t.yield.toFixed(3) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t0);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-primary);text-align:right">
               {{ t.face.toFixed(1) }}
             </div>
-            <div class="font-mono-fi" style="font-size:11px;color:var(--bn-t2);text-align:right">
+            <div class="font-mono-fi" style="font-size:11px;color:var(--ds-text-muted);text-align:right">
               {{ t.time }}
             </div>
           </div>
@@ -370,7 +370,7 @@ export class OrderBookWidget implements OnInit, OnDestroy {
   mid = signal(100);
   spread = signal(0);
   spreadPct = signal('0');
-  spreadColor = signal('var(--bn-green)');
+  spreadColor = signal('var(--ds-accent-positive)');
 
   // Aggregate computed signals
   bidDv01 = signal('0');
@@ -443,8 +443,8 @@ export class OrderBookWidget implements OnInit, OnDestroy {
       this.spreadPct.set(((sp / this.mid()) * 100).toFixed(4));
       this.spreadColor.set(
         bidsVal[0]?.price > asksVal[asksVal.length - 1]?.price
-          ? 'var(--bn-red)'
-          : 'var(--bn-green)',
+          ? 'var(--ds-accent-negative)'
+          : 'var(--ds-accent-positive)',
       );
     }
   }

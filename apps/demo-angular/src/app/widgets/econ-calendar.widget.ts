@@ -9,7 +9,7 @@ import { ECON_EVENTS } from '../services/trading-data.service';
   host: { style: 'display:flex;flex-direction:column;height:100%;width:100%' },
   template: `
     <div
-      style="display:flex;flex-direction:column;height:100%;background:var(--bn-bg1);overflow:hidden"
+      style="display:flex;flex-direction:column;height:100%;background:var(--ds-surface-primary);overflow:hidden"
     >
       <div style="flex:1;overflow-y:auto">
         <div
@@ -17,22 +17,22 @@ import { ECON_EVENTS } from '../services/trading-data.service';
           style="display:flex;align-items:flex-start;gap:8px;padding:7px 14px;border-bottom:1px solid rgba(43,49,57,0.5)"
         >
           <span
-            style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace;flex-shrink:0;width:36px"
+            style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace;flex-shrink:0;width:36px"
             >{{ e.time }}</span
           >
           <div style="flex:1">
-            <div style="font-size:11px;color:var(--bn-t0);font-family:JetBrains Mono,monospace">
+            <div style="font-size:11px;color:var(--ds-text-primary);font-family:JetBrains Mono,monospace">
               {{ e.event }}
             </div>
             <div style="display:flex;gap:8px;margin-top:2px">
-              <span style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace"
-                >Act: <span style="color:var(--bn-green)">{{ e.actual }}</span></span
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace"
+                >Act: <span style="color:var(--ds-accent-positive)">{{ e.actual }}</span></span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace"
-                >Exp: <span style="color:var(--bn-t1)">{{ e.exp }}</span></span
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace"
+                >Exp: <span style="color:var(--ds-text-secondary)">{{ e.exp }}</span></span
               >
-              <span style="font-size:9px;color:var(--bn-t2);font-family:JetBrains Mono,monospace"
-                >Prev: <span style="color:var(--bn-t1)">{{ e.prev }}</span></span
+              <span style="font-size:9px;color:var(--ds-text-muted);font-family:JetBrains Mono,monospace"
+                >Prev: <span style="color:var(--ds-text-secondary)">{{ e.prev }}</span></span
               >
             </div>
           </div>
@@ -53,7 +53,7 @@ export class EconCalendarWidget {
   @Input() panel: any;
   events = ECON_EVENTS;
   impactColor(i: string) {
-    return i === 'High' ? 'var(--bn-red)' : i === 'Med' ? '#ff8c42' : 'var(--bn-green)';
+    return i === 'High' ? 'var(--ds-accent-negative)' : i === 'Med' ? 'var(--ds-accent-warning)' : 'var(--ds-accent-positive)';
   }
   impactBg(i: string) {
     return this.impactColor(i) + '20';

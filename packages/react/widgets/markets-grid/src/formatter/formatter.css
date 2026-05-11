@@ -7,35 +7,38 @@
  * finished with refined-broadsheet typography.
  *
  *   Display caps (module eyebrow): JetBrains Mono 10px / 0.18em / 500
- *   Body labels:                   IBM Plex Sans 10–11px / 0.04em / 500
- *   Numerics + readouts:           JetBrains Mono / tabular-nums
- *   Accent (active state):         phosphor-teal #3ee5c4 — ring only
- *   Live preview tint:             warm amber #ffb454
+ *   Body labels:                   var(--ds-font-sans) 10–11px / 0.04em / 500
+ *   Numerics + readouts:           var(--ds-font-mono) / tabular-nums
+ *   Accent (active state):         phosphor-teal (--ds-accent-positive) — ring only
+ *   Live preview tint:             warm amber (--ds-accent-warning)
  *
  * Naming: `.fx-*` — short, self-namespaced, doesn't collide with the
- * legacy `.gc-tb-*` selectors during the transition.
+ * legacy `.ds-tb-*` selectors during the transition.
  */
 
 /* ─── Tokens — bind to host theme via [data-theme] cascade ─────── */
 
 .fx-shell {
-  --fx-bg:           var(--gc-surface, #11161b);
-  --fx-bg-soft:      var(--gc-surface-2, #161b21);
-  --fx-bg-sunken:    var(--gc-surface-3, #0c1015);
-  --fx-line:         var(--gc-border, #1f262e);
-  --fx-line-strong:  var(--gc-border-2, #2a323c);
+  --fx-bg:           var(--ds-surface-ground);
+  --fx-bg-soft:      var(--ds-surface-primary);
+  --fx-bg-sunken:    var(--ds-surface-ground);
+  --fx-line:         var(--ds-border-primary);
+  --fx-line-strong:  var(--ds-border-secondary);
 
-  --fx-ink:          var(--gc-text, #e7eaee);
-  --fx-ink-soft:     var(--gc-text-muted, #8a93a0);
-  --fx-ink-faint:    var(--gc-text-faint, #5a626d);
+  --fx-ink:          var(--ds-text-primary);
+  --fx-ink-soft:     var(--ds-text-muted);
+  --fx-ink-faint:    var(--ds-text-faint);
 
-  --fx-accent:       #3ee5c4;
-  --fx-accent-soft:  rgba(62, 229, 196, 0.10);
-  --fx-accent-line:  rgba(62, 229, 196, 0.55);
-  --fx-amber:        #ffb454;
-  --fx-amber-soft:   rgba(255, 180, 84, 0.08);
-  --fx-amber-line:   rgba(255, 180, 84, 0.32);
-  --fx-danger:       #f87171;
+  --fx-accent:       var(--ds-primary);
+  --fx-accent-soft:  var(--ds-primary-soft);
+  --fx-accent-line:  var(--ds-primary-ring);
+  --fx-icon-rest:    color-mix(in srgb, var(--ds-accent-highlight) 74%, var(--fx-ink));
+  --fx-icon-pop:     var(--ds-accent-highlight);
+  --fx-icon-glow:    drop-shadow(0 0 5px color-mix(in srgb, var(--ds-accent-highlight) 58%, transparent));
+  --fx-amber:        var(--ds-accent-warning);
+  --fx-amber-soft:   var(--ds-overlay-warning-soft);
+  --fx-amber-line:   var(--ds-overlay-warning-ring);
+  --fx-danger:       var(--ds-accent-negative);
 
   --fx-radius:       3px;
   --fx-radius-lg:    4px;
@@ -46,8 +49,8 @@
   --fx-pill-h:       24px;
   --fx-pill-h-lg:    28px;
 
-  --fx-font-sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --fx-font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --fx-font-sans:    var(--ds-font-sans);
+  --fx-font-mono:    var(--ds-font-mono);
 
   /* Internal sizing knobs the layouts use — both surfaces share. */
   --fx-icon:         13px;
@@ -60,22 +63,27 @@
   background: var(--fx-bg);
 }
 
-/* Light theme — softer line + inverted accent contrast. */
+/* Light theme — ds-* vars already resolve per-theme via [data-theme].
+   Only override fx-* tokens that need light-specific tuning beyond
+   what the ds-* cascade provides. */
 [data-theme='light'] .fx-shell {
-  --fx-bg:           #ffffff;
-  --fx-bg-soft:      #f8f9fb;
-  --fx-bg-sunken:    #f1f3f5;
-  --fx-line:         #e3e6eb;
-  --fx-line-strong:  #d2d6dd;
-  --fx-ink:          #1c2128;
-  --fx-ink-soft:     #5a626d;
-  --fx-ink-faint:    #8a93a0;
-  --fx-accent:       #0d9488;
-  --fx-accent-soft:  rgba(13, 148, 136, 0.10);
-  --fx-accent-line:  rgba(13, 148, 136, 0.55);
-  --fx-amber:        #b45309;
-  --fx-amber-soft:   rgba(180, 83, 9, 0.08);
-  --fx-amber-line:   rgba(180, 83, 9, 0.32);
+  --fx-bg:           var(--ds-surface-ground);
+  --fx-bg-soft:      var(--ds-surface-primary);
+  --fx-bg-sunken:    var(--ds-surface-secondary);
+  --fx-line:         var(--ds-border-primary);
+  --fx-line-strong:  var(--ds-border-secondary);
+  --fx-ink:          var(--ds-text-primary);
+  --fx-ink-soft:     var(--ds-text-muted);
+  --fx-ink-faint:    var(--ds-text-faint);
+  --fx-accent:       var(--ds-primary);
+  --fx-accent-soft:  var(--ds-primary-soft);
+  --fx-accent-line:  var(--ds-primary-ring);
+  --fx-icon-rest:    color-mix(in srgb, var(--ds-accent-purple) 72%, var(--ds-text-primary));
+  --fx-icon-pop:     var(--ds-accent-highlight);
+  --fx-icon-glow:    drop-shadow(0 1px 2px rgba(15, 23, 42, 0.14));
+  --fx-amber:        var(--ds-accent-warning);
+  --fx-amber-soft:   var(--ds-overlay-warning-soft);
+  --fx-amber-line:   var(--ds-overlay-warning-ring);
 }
 
 /* ─── Shell ─────────────────────────────────────────────────────── */
@@ -92,13 +100,25 @@
 .fx-shell--horizontal {
   display: flex;
   align-items: center;
-  gap: var(--fx-px-comfy);
-  padding: 0 12px;
+  align-content: center;
+  column-gap: var(--fx-px-comfy);
+  row-gap: 6px;
+  padding: 6px 48px 6px 12px;
   min-height: 48px;
   border-bottom: 1px solid var(--fx-line);
   flex-wrap: wrap;
-  width: max-content;
-  max-width: calc(100vw - 96px);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[data-theme='light'] .fx-shell--horizontal {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--ds-surface-primary) 90%, var(--ds-surface-secondary)) 0%,
+      var(--ds-surface-primary) 100%);
+  border-bottom-color: color-mix(in srgb, var(--ds-border-primary) 84%, var(--ds-primary) 16%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.86) inset, 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 /* Panel variant — full vertical layout.
@@ -131,6 +151,10 @@
   display: flex;
   align-items: center;
   gap: var(--fx-px-tight);
+}
+
+.fx-shell--horizontal .fx-module {
+  min-height: var(--fx-pill-h);
 }
 
 /* Vertical-mode module — section card with eyebrow header. */
@@ -185,6 +209,7 @@
 .fx-module__body {
   display: flex;
   align-items: center;
+  align-content: center;
   flex-wrap: wrap;
   gap: var(--fx-px-tight);
 }
@@ -219,11 +244,9 @@
   background: transparent;
   border: 1px solid var(--fx-line);
   border-radius: var(--fx-radius);
-  /* High-contrast resting state — the previous `--fx-ink-soft` washed
-   * the icon glyphs into the surrounding chrome. Toolbar actions are
-   * the primary thing the eye should land on, so we bump default ink
-   * to `--fx-ink` (the brightest) and lean on the active phosphor-teal
-   * + amber accents for state. Disabled state still drops opacity. */
+  /* High-contrast resting state — icons get their own brighter token
+   * below so toolbar actions read crisply in both inline and popout
+   * modes. Disabled state still drops opacity. */
   color: var(--fx-ink);
   font-family: var(--fx-font-sans);
   font-size: 11px;
@@ -231,11 +254,45 @@
   user-select: none;
   transition: color 120ms, border-color 120ms, background 120ms, transform 80ms;
   position: relative;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+[data-theme='light'] .fx-pill {
+  background: color-mix(in srgb, var(--ds-surface-primary) 72%, var(--ds-surface-secondary));
+  border-color: color-mix(in srgb, var(--fx-line) 86%, var(--ds-primary) 14%);
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
+}
+
+.fx-pill > svg,
+.fx-scope > svg,
+.fx-popout > svg {
+  display: block;
+  flex-shrink: 0;
+  color: var(--fx-icon-rest);
+  filter: var(--fx-icon-glow);
+  opacity: 0.96;
+  stroke-width: 2.15;
+  transition: color 120ms, filter 120ms, opacity 120ms, transform 120ms;
 }
 .fx-pill:hover:not(:disabled) {
   color: var(--fx-accent);
   border-color: var(--fx-accent-line);
   background: var(--fx-bg-soft);
+}
+
+.fx-pill:hover:not(:disabled) > svg,
+.fx-scope:hover > svg,
+.fx-popout:hover > svg {
+  color: var(--fx-icon-pop);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ds-accent-highlight) 68%, transparent));
+  opacity: 1;
+  transform: translateY(-0.5px);
+}
+
+[data-theme='light'] .fx-pill:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ds-primary) 8%, var(--ds-surface-primary));
+  border-color: color-mix(in srgb, var(--ds-primary) 34%, var(--ds-border-primary));
 }
 
 .fx-pill:active:not(:disabled) {
@@ -248,9 +305,21 @@
   background: var(--fx-accent-soft);
   box-shadow: inset 0 0 0 1px var(--fx-accent-line);
 }
+.fx-pill[data-on='true'] > svg,
+.fx-pill[aria-pressed='true'] > svg,
+.fx-split .fx-pill[data-on='true'] > svg,
+.fx-split .fx-pill[aria-pressed='true'] > svg {
+  color: var(--fx-icon-pop);
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--ds-accent-highlight) 72%, transparent));
+  opacity: 1;
+}
 .fx-pill:disabled {
   opacity: 0.38;
   cursor: not-allowed;
+}
+.fx-pill:disabled > svg {
+  filter: none;
+  opacity: 0.72;
 }
 .fx-pill:focus-visible {
   outline: 1px solid var(--fx-accent);
@@ -505,9 +574,10 @@
 
 .fx-shell--horizontal > .fx-divider {
   width: 1px;
-  align-self: stretch;
+  align-self: center;
+  height: 20px;
   background: var(--fx-line);
-  margin: 2px 4px;
+  margin: 0 4px;
   flex-shrink: 0;
 }
 .fx-shell--vertical > .fx-divider {
@@ -573,10 +643,11 @@
 
 .fx-popout {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: var(--fx-pill-h);
+  height: var(--fx-pill-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -588,10 +659,23 @@
   transition: all 120ms;
   z-index: 3;
 }
+
+.fx-popout::before {
+  content: '';
+  position: absolute;
+  left: -11px;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: var(--fx-line);
+  pointer-events: none;
+}
+
 .fx-popout:hover {
   color: var(--fx-accent);
   border-color: var(--fx-accent-line);
   background: var(--fx-accent-soft);
+  transform: translateY(-50%);
 }
 
 /* ─── Vertical-mode body / scroll container ────────────────────── */

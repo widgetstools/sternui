@@ -16,7 +16,7 @@ vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     // Mimic real container behavior: onReady fires once after mount.
     setTimeout(() => props.onReady?.(fakeHandle), 0);
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -74,7 +74,7 @@ describe('HostedMarketsGrid — workspace-save wiring', () => {
         configManager={fakeConfigManager}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     // Wait for the deferred onReady() in the stub to fire.
     await new Promise((r) => setTimeout(r, 5));
 

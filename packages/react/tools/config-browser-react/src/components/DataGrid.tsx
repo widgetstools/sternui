@@ -3,9 +3,14 @@ import { useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import type { CellStyle, ColDef, GridOptions, RowClickedEvent } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
+import {
+  MultiFilterModule,
+  SetFilterModule,
+  StatusBarModule,
+} from "ag-grid-enterprise";
 import { agGridThemeFor } from "../agGridTheme";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+ModuleRegistry.registerModules([AllCommunityModule, MultiFilterModule, SetFilterModule, StatusBarModule]);
 
 interface DataGridProps {
   rows: any[];
@@ -36,9 +41,6 @@ export function DataGrid({
     return ordered.map((key) => ({
       field: key,
       headerName: key,
-      sortable: true,
-      filter: true,
-      resizable: true,
       pinned: key === primaryKey ? "left" : undefined,
       width: key === primaryKey ? 220 : undefined,
       valueFormatter: (params) => {
@@ -56,22 +58,44 @@ export function DataGrid({
           return { color: "var(--de-text-ghost)", fontStyle: "italic" } as CellStyle;
         }
         if (typeof params.value === "object") {
-          return { fontFamily: "var(--fi-mono)", color: "var(--de-text-secondary)" } as CellStyle;
+          return { fontFamily: "var(--ds-font-mono)", color: "var(--de-text-secondary)" } as CellStyle;
         }
         if (key === primaryKey) {
-          return { fontFamily: "var(--fi-mono)", fontWeight: "600" } as CellStyle;
+          return { fontFamily: "var(--ds-font-mono)", fontWeight: "600" } as CellStyle;
         }
         return null;
       },
     }));
   }, [rows, primaryKey]);
 
+  const defaultColDef = useMemo<ColDef>(() => ({
+    sortable: true,
+    resizable: true,
+    filter: "agMultiColumnFilter",
+    filterParams: {
+      filters: [
+        {
+          filter: "agTextColumnFilter",
+          filterParams: { buttons: ["reset"], debounceMs: 200 },
+        },
+        { filter: "agSetColumnFilter" },
+      ],
+    },
+    floatingFilter: true,
+    minWidth: 80,
+    flex: 1,
+  }), []);
+
+  const statusBar = useMemo(() => ({
+    statusPanels: [
+      { statusPanel: "agTotalAndFilteredRowCountComponent", align: "left" as const },
+      { statusPanel: "agSelectedRowCountComponent", align: "center" as const },
+      { statusPanel: "agAggregationComponent", align: "right" as const },
+    ],
+  }), []);
+
   const gridOptions = useMemo<GridOptions>(
     () => ({
-      defaultColDef: {
-        minWidth: 80,
-        flex: 1,
-      },
       rowHeight: 32,
       headerHeight: 34,
       suppressCellFocus: true,
@@ -91,6 +115,8 @@ export function DataGrid({
         theme={agGridThemeFor(theme)}
         rowData={rows}
         columnDefs={columnDefs}
+        defaultColDef={defaultColDef}
+        statusBar={statusBar}
         gridOptions={gridOptions}
         quickFilterText={quickFilter}
         onRowClicked={handleRowClick}

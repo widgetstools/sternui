@@ -374,8 +374,8 @@ function ApplyOrClearButton({
 }) {
   const accentColor =
     accent === 'green'
-      ? 'var(--ck-green, var(--bn-blue))'
-      : 'var(--ck-red, var(--bn-red))';
+      ? 'var(--ds-accent-info)'
+      : 'var(--ds-accent-negative)';
   return (
     <button
       type="button"
@@ -392,9 +392,9 @@ function ApplyOrClearButton({
         height: 26,
         padding: 0,
         background: 'transparent',
-        border: '1px solid var(--ck-border-hi, var(--bn-border))',
+        border: '1px solid var(--ds-border-secondary)',
         borderRadius: 2,
-        color: disabled ? 'var(--ck-t3)' : accentColor,
+        color: disabled ? 'var(--ds-text-faint)' : accentColor,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.4 : 1,
         transition: 'background 100ms, border-color 100ms, color 100ms',
@@ -442,19 +442,19 @@ function CompactFormatterPicker({
             gap: 6,
             height: 26,
             padding: '0 8px',
-            background: 'var(--ck-bg, var(--bn-bg))',
+            background: 'var(--ds-surface-ground)',
             border: `1px solid ${
-              value ? 'var(--ck-green-dim, var(--bn-border))' : 'var(--ck-border-hi, var(--bn-border))'
+              value ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
             }`,
             borderRadius: 2,
-            color: value ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t0, var(--bn-t0))',
-            fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
+            color: value ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
+            fontFamily: 'var(--ds-font-sans)',
             fontSize: 11,
             cursor: 'pointer',
             transition: 'background 120ms, border-color 120ms, color 120ms',
           }}
         >
-          <Hash size={12} strokeWidth={1.75} style={{ opacity: 0.7 }} />
+          <Hash size={12} strokeWidth={1.75} className="opacity-70" />
           <span
             style={{
               maxWidth: 140,
@@ -463,37 +463,24 @@ function CompactFormatterPicker({
               textOverflow: 'ellipsis',
               fontFamily:
                 activePreset || !value
-                  ? 'var(--ck-font-sans, sans-serif)'
-                  : 'var(--ck-font-mono, monospace)',
+                  ? 'var(--ds-font-sans)'
+                  : 'var(--ds-font-mono)',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
             {triggerCaption(value, activePreset)}
           </span>
-          <ChevronDown size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
+          <ChevronDown size={11} strokeWidth={1.75} className="opacity-50" />
         </button>
       }
     >
       {({ close }) => (
       <div
         data-testid={testId}
-        style={{
-          // Fill the popover Content (which is flex-column / overflow:
-          // hidden / capped at the viewport-available height). With
-          // `flex: 1` + `min-height: 0` the preset grid below can be
-          // the single scrollable region — header/footer chrome stays
-          // pinned, no doubled scrollbar on the outer popover.
-          flex: 1,
-          minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-          padding: 2,
-        }}
+        className="flex-1 min-h-0 flex flex-col gap-2.5 font-sans p-0.5"
       >
         {/* Top bar — current / preview / clear (fixed-height shrinker) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div className="flex items-center gap-2 shrink-0">
           <SubLabel>CURRENT</SubLabel>
           <span
             style={{
@@ -503,14 +490,14 @@ function CompactFormatterPicker({
               height: 22,
               padding: '0 8px',
               background: preview
-                ? 'var(--ck-green-bg, color-mix(in srgb, var(--bn-blue) 10%, transparent))'
-                : 'var(--ck-bg, var(--bn-bg))',
+                ? 'var(--ds-overlay-info-soft)'
+                : 'var(--ds-surface-ground)',
               border: `1px dashed ${
-                preview ? 'var(--ck-green-dim, var(--bn-border))' : 'var(--ck-border-hi, var(--bn-border))'
+                preview ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
               }`,
               borderRadius: 2,
-              color: preview ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t3)',
-              fontFamily: 'var(--ck-font-mono, monospace)',
+              color: preview ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
+              fontFamily: 'var(--ds-font-mono)',
               fontSize: 11,
               fontVariantNumeric: 'tabular-nums',
               flex: 1,
@@ -539,9 +526,9 @@ function CompactFormatterPicker({
               height: 22,
               padding: 0,
               background: 'transparent',
-              border: '1px solid var(--ck-border-hi, var(--bn-border))',
+              border: '1px solid var(--ds-border-secondary)',
               borderRadius: 2,
-              color: value ? 'var(--ck-red, var(--bn-red))' : 'var(--ck-t3)',
+              color: value ? 'var(--ds-accent-negative)' : 'var(--ds-text-faint)',
               cursor: value ? 'pointer' : 'default',
               opacity: value ? 1 : 0.4,
             }}
@@ -556,29 +543,13 @@ function CompactFormatterPicker({
             the divider+custom-Excel block below; if it still overflows
             the available space, only THIS section scrolls. */}
         <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            overflowY: 'auto',
-            paddingRight: 2,
-            scrollbarColor: 'var(--gc-border, #313944) transparent',
-            scrollbarWidth: 'thin',
-          }}
+          className="flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto pr-0.5"
+          style={{ scrollbarColor: 'var(--ds-border-primary) transparent', scrollbarWidth: 'thin' }}
         >
           {Object.entries(groups).map(([groupKey, items]) => (
             <div key={groupKey}>
               <SubLabel>{GROUP_LABELS[groupKey] ?? groupKey.toUpperCase()}</SubLabel>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 4,
-                  marginTop: 4,
-                }}
-              >
+              <div className="grid grid-cols-2 gap-1 mt-1">
                 {items.map((p) => {
                   const active = activePreset?.id === p.id;
                   return (
@@ -595,26 +566,26 @@ function CompactFormatterPicker({
                         gap: 2,
                         padding: '6px 8px',
                         background: active
-                          ? 'var(--ck-green-bg, color-mix(in srgb, var(--bn-blue) 14%, transparent))'
-                          : 'var(--ck-bg, var(--bn-bg))',
+                          ? 'var(--ds-overlay-info-soft)'
+                          : 'var(--ds-surface-ground)',
                         border: `1px solid ${
-                          active ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-border-hi, var(--bn-border))'
+                          active ? 'var(--ds-accent-info)' : 'var(--ds-border-primary)'
                         }`,
                         borderRadius: 2,
-                        color: active ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t0, var(--bn-t0))',
+                        color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontFamily: 'inherit',
                         fontSize: 11,
                       }}
                     >
-                      <span style={{ fontWeight: 600, lineHeight: 1.1 }}>{p.label}</span>
+                      <span className="font-semibold leading-[1.1]">{p.label}</span>
                       {p.hint ? (
                         <span
                           style={{
-                            fontFamily: 'var(--ck-font-mono, monospace)',
-                            fontSize: 9,
-                            color: active ? 'var(--ck-green, var(--bn-blue))' : 'var(--ck-t3)',
+                            fontFamily: 'var(--ds-font-mono)',
+                            fontSize: 10,
+                            color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -631,31 +602,24 @@ function CompactFormatterPicker({
             </div>
           ))}
           {presets.length === 0 ? (
-            <Caps size={10} color="var(--ck-t3)">
+            <Caps size={10} color="var(--ds-text-faint)">
               No presets for this data type — use the custom format below.
             </Caps>
           ) : null}
         </div>
 
-        <div style={{ height: 1, background: 'var(--ck-border, var(--bn-border))', flexShrink: 0 }} />
+        <div className="h-px bg-border shrink-0" />
 
         {/* Custom Excel input + info (fixed-height shrinker — never collapses) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+        <div className="flex flex-col gap-1 shrink-0">
           <SubLabel>Custom Excel format</SubLabel>
 
           {/* Currency symbol quick-insert — one click swaps the symbol
                in the current format, or seeds `${symbol}#,##0.00` if
                the input is empty. Saves users from hunting for the
                right keyboard shortcut (especially ₹ / €). */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Caps size={9} color="var(--ck-t3)" style={{ paddingRight: 4 }}>
+          <div className="flex items-center gap-1 flex-wrap">
+            <Caps size={9} color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
               SYMBOL
             </Caps>
             {CURRENCY_QUICK_INSERT.map((c) => (
@@ -677,23 +641,23 @@ function CompactFormatterPicker({
                   minWidth: 26,
                   height: 22,
                   padding: '0 6px',
-                  background: 'var(--ck-bg, var(--bn-bg))',
-                  border: '1px solid var(--ck-border-hi, var(--bn-border))',
+                  background: 'var(--ds-surface-ground)',
+                  border: '1px solid var(--ds-border-primary)',
                   borderRadius: 2,
-                  color: 'var(--ck-t0, var(--bn-t0))',
+                  color: 'var(--ds-text-primary)',
                   cursor: 'pointer',
-                  fontFamily: 'var(--ck-font-mono, monospace)',
+                  fontFamily: 'var(--ds-font-mono)',
                   fontSize: 11,
                   lineHeight: 1,
                   transition: 'background 100ms, border-color 100ms',
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    'var(--ck-surface-hover, var(--bn-bg3))';
+                    'var(--ds-surface-tertiary)';
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    'var(--ck-bg, var(--bn-bg))';
+                    'var(--ds-surface-ground)';
                 }}
               >
                 {c.label}
@@ -701,8 +665,8 @@ function CompactFormatterPicker({
             ))}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ flex: 1 }}>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1">
               <IconInput
                 icon={<Hash size={12} strokeWidth={2} />}
                 value={draftExcel}
@@ -763,9 +727,9 @@ function CompactFormatterPicker({
               data-testid={testId ? `${testId}-info` : undefined}
             />
           </div>
-          <Caps size={9} color="var(--ck-t3)">
+          <Caps size={9} color="var(--ds-text-faint)">
             {EXCEL_EXAMPLES.length} categories of example formats in the{' '}
-            <Info size={9} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+            <Info size={9} strokeWidth={2} className="inline align-middle" />{' '}
             reference.
           </Caps>
         </div>
@@ -809,12 +773,7 @@ function InlineFormatterPicker({
     return (
       <div
         data-testid={testId}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          width: '100%',
-        }}
+        className="flex flex-col gap-1.5 w-full"
       >
         {/* Preset row — full-width dropdown trigger */}
         <FormatDropdown<string>
@@ -840,35 +799,27 @@ function InlineFormatterPicker({
                 width: '100%',
                 height: rowHeight,
                 padding: '0 8px 0 10px',
-                background: 'var(--bn-bg)',
-                border: '1px solid var(--bn-border)',
+                background: 'var(--ds-surface-ground)',
+                border: '1px solid var(--ds-border-primary)',
                 borderRadius: 3,
-                color: 'var(--bn-t0)',
+                color: 'var(--ds-text-primary)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 fontSize: 11,
                 letterSpacing: '0.02em',
               }}
             >
-              <span
-                style={{
-                  flex: 1,
-                  textAlign: 'left',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
+              <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
                 {activePreset?.label ?? 'Preset…'}
               </span>
-              <ChevronDown size={12} strokeWidth={1.75} style={{ opacity: 0.6 }} />
+              <ChevronDown size={12} strokeWidth={1.75} className="opacity-60" />
             </button>
           }
         />
 
         {/* Custom format row — input grows, info tooltip pinned right */}
-        <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex gap-1.5 w-full">
+          <div className="flex-1 min-w-0">
             <IconInput
               icon={<Hash size={12} strokeWidth={2} />}
               value={draftExcel}
@@ -909,36 +860,13 @@ function InlineFormatterPicker({
         onClick={() => setExpanded(true)}
         title="Expand format picker"
         data-testid={testId ? `${testId}-collapsed` : undefined}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          height: 28,
-          padding: '0 8px',
-          background: 'var(--ck-bg, var(--bn-bg))',
-          border: '1px solid var(--ck-border-hi, var(--bn-border))',
-          borderRadius: 2,
-          color: 'var(--ck-t0, var(--bn-t0))',
-          fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-          fontSize: 11,
-          cursor: 'pointer',
-          transition: 'background 120ms, border-color 120ms',
-        }}
+        className="inline-flex items-center gap-1.5 h-7 px-2 bg-background border border-border rounded-sm text-foreground font-sans text-[11px] cursor-pointer transition-[background,border-color] duration-120"
       >
-        <Hash size={12} strokeWidth={1.75} style={{ opacity: 0.6 }} />
-        <span
-          style={{
-            maxWidth: 140,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            fontFamily: 'var(--ck-font-mono, monospace)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
+        <Hash size={12} strokeWidth={1.75} className="opacity-60" />
+        <span className="max-w-[140px] whitespace-nowrap overflow-hidden text-ellipsis font-mono tabular-nums">
           {triggerCaption(value, activePreset)}
         </span>
-        <ChevronDown size={11} strokeWidth={1.75} style={{ opacity: 0.5 }} />
+        <ChevronDown size={11} strokeWidth={1.75} className="opacity-50" />
       </button>
     );
   }
@@ -946,16 +874,7 @@ function InlineFormatterPicker({
   return (
     <div
       data-testid={testId}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: 4,
-        background: 'var(--ck-card, transparent)',
-        border: '1px solid var(--ck-border, var(--bn-border))',
-        borderRadius: 2,
-        fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-      }}
+      className="inline-flex items-center gap-1.5 p-1 bg-[var(--ds-surface-secondary)] border border-border rounded-sm font-sans"
     >
       <button
         type="button"
@@ -970,7 +889,7 @@ function InlineFormatterPicker({
           padding: 0,
           background: 'transparent',
           border: 'none',
-          color: 'var(--ck-t2, var(--bn-t2))',
+          color: 'var(--ds-text-muted)',
           cursor: 'pointer',
         }}
       >
@@ -1001,33 +920,25 @@ function InlineFormatterPicker({
               minWidth: 120,
               maxWidth: 240,
               padding: '0 6px 0 10px',
-              background: 'var(--ck-bg, var(--bn-bg))',
-              border: '1px solid var(--ck-border-hi, var(--bn-border))',
+              background: 'var(--ds-surface-ground)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 2,
-              color: 'var(--ck-t0, var(--bn-t0))',
+              color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               fontFamily: 'inherit',
               fontSize: 11,
               letterSpacing: '0.02em',
             }}
           >
-            <span
-              style={{
-                flex: 1,
-                textAlign: 'left',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+            <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
               {activePreset?.label ?? 'Preset…'}
             </span>
-            <ChevronDown size={12} strokeWidth={1.75} style={{ opacity: 0.6 }} />
+            <ChevronDown size={12} strokeWidth={1.75} className="opacity-60" />
           </button>
         }
       />
 
-      <div style={{ width: 180 }}>
+      <div className="w-[180px]">
         <IconInput
           icon={<Hash size={12} strokeWidth={2} />}
           value={draftExcel}
@@ -1066,11 +977,11 @@ function InlineFormatterPicker({
             gap: 4,
             height: rowHeight,
             padding: '0 8px',
-            background: 'var(--ck-green-bg, color-mix(in srgb, var(--bn-blue) 10%, transparent))',
-            border: '1px dashed var(--ck-green-dim, var(--bn-border))',
+            background: 'var(--ds-overlay-info-soft)',
+            border: '1px dashed var(--ds-border-secondary)',
             borderRadius: 2,
-            color: 'var(--ck-green, var(--bn-blue))',
-            fontFamily: 'var(--ck-font-mono, monospace)',
+            color: 'var(--ds-accent-info)',
+            fontFamily: 'var(--ds-font-mono)',
             fontSize: 11,
             fontVariantNumeric: 'tabular-nums',
             whiteSpace: 'nowrap',
@@ -1080,7 +991,7 @@ function InlineFormatterPicker({
           }}
           title={`Preview: ${preview}`}
         >
-          <Caps size={9} color="var(--ck-green)">
+          <Caps size={9} color="var(--ds-accent-info)">
             PREVIEW
           </Caps>
           {preview}

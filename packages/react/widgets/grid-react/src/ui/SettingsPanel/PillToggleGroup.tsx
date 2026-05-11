@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 /**
- * Cockpit sharp-toggle group — 28×26 butt-joined buttons inside a hairline
+ * Sharp-toggle group — 28×26 butt-joined buttons inside a hairline
  * TGroup shell. Replaces the previous pill-rounded look with the trading
  * terminal's square-edged aesthetic.
  *
@@ -19,17 +19,8 @@ export function PillToggleGroup({ children, style }: PillToggleGroupProps) {
   return (
     <div
       role="group"
-      className="gc-tgroup"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 1,
-        padding: '2px 4px',
-        background: 'var(--ck-bg, #111417)',
-        border: '1px solid var(--ck-border, #2d3339)',
-        borderRadius: 2,
-        ...style,
-      }}
+      className="inline-flex items-center gap-px px-1 py-0.5 bg-background border border-border rounded-sm"
+      style={style}
     >
       {children}
     </div>
@@ -66,7 +57,7 @@ export function PillToggleBtn({
       title={title}
       disabled={disabled}
       data-testid={rest['data-testid']}
-      className="gc-tbtn"
+      className="min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-secondary px-1.5 rounded-sm text-[length:var(--ds-font-size-sm)] hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-overlay-positive-soft)] aria-pressed:text-success disabled:opacity-45 disabled:cursor-not-allowed"
       style={{
         width: 28,
         height: 26,

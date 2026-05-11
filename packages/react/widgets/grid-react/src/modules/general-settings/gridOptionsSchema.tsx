@@ -49,7 +49,7 @@ export const GRID_OPTIONS_SCHEMA: readonly BandSchema[] = [
                   min={1}
                   testId="go-page-size"
                 />
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--ck-t2)' }}>
+                <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <BoolControl
                     checked={s.paginationAutoPageSize}
                     onChange={(v) => update('paginationAutoPageSize', v)}

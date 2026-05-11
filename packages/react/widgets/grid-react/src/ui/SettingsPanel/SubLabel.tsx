@@ -1,8 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 /**
- * Tracked-out small-caps sub-label used above controls inside an
- * editor band. 10px uppercase +0.1em.
+ * Tracked-out small-caps sub-label used above controls inside an editor band.
  */
 
 export interface SubLabelProps {
@@ -15,23 +14,11 @@ export interface SubLabelProps {
 export function SubLabel({ children, style, action }: SubLabelProps) {
   return (
     <div
-      className="gc-caps"
-      style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 8,
-        fontSize: 10,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        color: 'var(--ck-t2)',
-        margin: '0 0 6px',
-        fontWeight: 600,
-        ...style,
-      }}
+      className="flex items-baseline justify-between gap-2 font-semibold uppercase text-muted-foreground mb-1.5 text-[length:var(--ds-font-size-sm)] tracking-[0.1em]"
+      style={style}
     >
       <span>{children}</span>
-      {action && <span style={{ color: 'var(--ck-t3)' }}>{action}</span>}
+      {action && <span className="text-muted-foreground/60">{action}</span>}
     </div>
   );
 }

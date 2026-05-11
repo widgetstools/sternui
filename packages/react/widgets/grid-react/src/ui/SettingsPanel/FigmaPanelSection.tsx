@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 /**
- * Cockpit numbered band — the settings editor's section heading voice.
+ * Numbered band section — the settings editor's section heading voice.
  * Replaces the old Figma-panel-section chrome with the trading-terminal
  * numbered-header look: `01 TITLE ────────────`.
  *
@@ -23,7 +23,7 @@ export interface FigmaPanelSectionProps {
   /** Right-aligned header actions (GhostIcon buttons, typically). */
   actions?: ReactNode;
   children?: ReactNode;
-  /** Optional numeric prefix shown in Plex Mono before the title. */
+  /** Optional numeric prefix shown in JetBrains Mono before the title. */
   index?: string;
   'data-testid'?: string;
 }
@@ -60,25 +60,27 @@ export function FigmaPanelSection({
 
   return (
     <section
-      className="gc-band"
+      className="px-5 pt-3.5 pb-1"
       data-testid={rest['data-testid']}
-      style={{ padding: '14px 20px 4px' }}
     >
       <header
         onClick={toggle}
-        className="gc-band-header"
-        style={{ cursor: 'pointer', userSelect: 'none' }}
+        className="flex items-center gap-3 mb-3 cursor-pointer select-none"
       >
-        <span style={{ color: 'var(--ck-t2, #6b7480)', display: 'inline-flex' }}>
+        <span className="text-muted-foreground inline-flex">
           {isCollapsed ? <ChevronRight size={11} strokeWidth={2.25} /> : <ChevronDown size={11} strokeWidth={2.25} />}
         </span>
-        <span className="gc-band-index">{resolvedIndex}</span>
-        <span className="gc-band-title">{title}</span>
-        <span className="gc-band-rule" />
+        <span className="font-mono text-xs text-muted-foreground tabular-nums tracking-[0.06em]">
+          {resolvedIndex}
+        </span>
+        <span className="font-semibold text-xs uppercase tracking-widest text-secondary">
+          {title}
+        </span>
+        <span className="flex-1 h-px bg-border" />
         {actions && (
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            className="inline-flex items-center gap-1"
           >
             {actions}
           </div>

@@ -135,7 +135,7 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       // produce class names that survive the CSS-selector parser.
       const safeId = cssEscapeColId(v.colId);
       if (assignment?.cellStyleOverrides !== undefined) {
-        const cls = `gc-col-c-${safeId}`;
+        const cls = `ds-col-c-${safeId}`;
         const existing = base.cellClass;
         layered.cellClass = Array.isArray(existing) ? [...existing, cls]
           : typeof existing === 'string' ? [existing, cls] : cls;
@@ -147,7 +147,7 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
         assignment?.headerStyleOverrides !== undefined ||
         assignment?.cellStyleOverrides?.alignment?.horizontal !== undefined;
       if (needsHeaderClass) {
-        const cls = `gc-hdr-c-${safeId}`;
+        const cls = `ds-hdr-c-${safeId}`;
         const existing = base.headerClass;
         layered.headerClass = Array.isArray(existing) ? [...existing, cls]
           : typeof existing === 'string' ? [existing, cls] : cls;

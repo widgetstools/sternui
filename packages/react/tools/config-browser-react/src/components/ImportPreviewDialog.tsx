@@ -44,51 +44,23 @@ export function ImportPreviewDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-preview-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        fontFamily: "var(--de-font)",
-      }}
+      className="fixed inset-0 bg-background/55 flex items-center justify-center z-[1000] font-[var(--de-font)]"
       onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 520,
-          maxWidth: "90vw",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--de-bg)",
-          border: "1px solid var(--de-border)",
-          borderRadius: "var(--de-radius-md, 8px)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
-          overflow: "hidden",
-        }}
+        className="w-[520px] max-w-[90vw] max-h-[90vh] flex flex-col bg-[var(--de-bg)] border border-[var(--de-border)] rounded-[var(--de-radius-md,8px)] shadow-[var(--ds-elevation-overlay)] overflow-hidden"
       >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--de-border)",
-          }}
-        >
-          <Icon icon="lucide:upload" style={{ width: 16, height: 16, color: "var(--de-accent)" }} />
-          <span id="import-preview-title" style={{ fontSize: 13, fontWeight: 600, color: "var(--de-text)" }}>
+        <div className="flex items-center gap-2.5 px-[18px] py-[14px] border-b border-[var(--de-border)]">
+          <Icon icon="lucide:upload" style={{ width: 16, height: 16 }} className="text-[var(--de-accent)]" />
+          <span id="import-preview-title" className="text-[13px] font-semibold text-[var(--de-text)]">
             Import preview · {tableLabel}
           </span>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "16px 18px", overflow: "auto", flex: 1 }}>
+        <div className="px-[18px] py-4 overflow-auto flex-1">
           <SummaryGrid
             total={preview.rows.length}
             fresh={preview.fresh.length}
@@ -98,7 +70,7 @@ export function ImportPreviewDialog({
           />
 
           {/* Mode selector */}
-          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="mt-[18px] flex flex-col gap-2">
             <ModeRadio
               checked={mode === "skip-existing"}
               onChange={() => setMode("skip-existing")}
@@ -118,20 +90,12 @@ export function ImportPreviewDialog({
 
           {preview.invalid.length > 0 && (
             <div
-              style={{
-                marginTop: 14,
-                padding: "10px 12px",
-                background: "var(--de-bg-surface)",
-                border: "1px solid var(--de-border)",
-                borderRadius: "var(--de-radius-sm)",
-                fontSize: 11,
-                color: "var(--de-text-secondary)",
-              }}
+              className="mt-[14px] px-3 py-2.5 bg-[var(--de-bg-surface)] border border-[var(--de-border)] rounded-[var(--de-radius-sm)] text-[11px] text-[var(--de-text-secondary)]"
             >
-              <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--de-text)" }}>
+              <div className="font-semibold mb-1 text-[var(--de-text)]">
                 {preview.invalid.length} invalid row{preview.invalid.length === 1 ? "" : "s"} (will be ignored)
               </div>
-              <ul style={{ margin: 0, paddingLeft: 18, fontFamily: "var(--de-mono)" }}>
+              <ul className="m-0 pl-[18px] font-[var(--de-mono)]">
                 {preview.invalid.slice(0, 5).map((inv, i) => (
                   <li key={i}>{inv.reason}</li>
                 ))}
@@ -143,19 +107,12 @@ export function ImportPreviewDialog({
 
         {/* Footer */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 18px",
-            borderTop: "1px solid var(--de-border)",
-            background: "var(--de-bg-surface)",
-          }}
+          className="flex items-center gap-2 px-[18px] py-3 border-t border-[var(--de-border)] bg-[var(--de-bg-surface)]"
         >
-          <span style={{ fontSize: 11, color: "var(--de-text-tertiary)", fontFamily: "var(--de-mono)" }}>
+          <span className="text-[11px] text-[var(--de-text-tertiary)] font-[var(--de-mono)]">
             {willImport} import · {willSkip} skip · {preview.invalid.length} invalid
           </span>
-          <div style={{ flex: 1 }} />
+          <div className="flex-1" />
           <DialogButton onClick={onCancel} title="Cancel">Cancel</DialogButton>
           <DialogButton
             onClick={() => onConfirm(mode)}
@@ -186,15 +143,15 @@ function SummaryGrid({
 }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "var(--de-text-secondary)", marginBottom: 10 }}>
-        Parsed <strong style={{ color: "var(--de-text)" }}>{total}</strong> row
+      <div className="text-[12px] text-[var(--de-text-secondary)] mb-2.5">
+        Parsed <strong className="text-[var(--de-text)]">{total}</strong> row
         {total === 1 ? "" : "s"}. Conflicts detected by primary key{" "}
-        <code style={{ fontFamily: "var(--de-mono)", color: "var(--de-text)" }}>{primaryKey}</code>.
+        <code className="font-[var(--de-mono)] text-[var(--de-text)]">{primaryKey}</code>.
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-        <StatCell label="New" value={fresh} accent="var(--de-success, #4ade80)" />
-        <StatCell label="Will overwrite" value={conflicts} accent="var(--de-warning, #fbbf24)" />
-        <StatCell label="Invalid" value={invalid} accent="var(--de-danger, #f87171)" />
+      <div className="grid grid-cols-3 gap-2">
+        <StatCell label="New" value={fresh} accent="var(--de-success, var(--ds-accent-positive))" />
+        <StatCell label="Will overwrite" value={conflicts} accent="var(--ds-accent-warning)" />
+        <StatCell label="Invalid" value={invalid} accent="var(--de-danger, var(--ds-accent-negative))" />
       </div>
     </div>
   );
@@ -203,17 +160,12 @@ function SummaryGrid({
 function StatCell({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
     <div
-      style={{
-        padding: "10px 12px",
-        background: "var(--de-bg-surface)",
-        border: "1px solid var(--de-border)",
-        borderRadius: "var(--de-radius-sm)",
-      }}
+      className="px-3 py-2.5 bg-[var(--de-bg-surface)] border border-[var(--de-border)] rounded-[var(--de-radius-sm)]"
     >
-      <div style={{ fontSize: 18, fontWeight: 700, color: accent, fontFamily: "var(--de-mono)" }}>
+      <div className="text-[18px] font-bold font-[var(--de-mono)]" style={{ color: accent }}>
         {value}
       </div>
-      <div style={{ fontSize: 10, color: "var(--de-text-tertiary)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+      <div className="text-[10px] text-[var(--de-text-tertiary)] uppercase tracking-[0.4px]">
         {label}
       </div>
     </div>
@@ -256,17 +208,18 @@ function ModeRadio({
         disabled={disabled}
         style={{ marginTop: 2, accentColor: "var(--de-accent)" }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--de-text)" }}>{title}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[12px] font-semibold text-[var(--de-text)]">{title}</span>
           {warning && (
             <Icon
               icon="lucide:alert-triangle"
-              style={{ width: 12, height: 12, color: "var(--de-warning, #fbbf24)" }}
+              style={{ width: 12, height: 12 }}
+              className="text-[var(--ds-accent-warning)]"
             />
           )}
         </div>
-        <div style={{ fontSize: 11, color: "var(--de-text-tertiary)", marginTop: 2 }}>{description}</div>
+        <div className="text-[11px] text-[var(--de-text-tertiary)] mt-0.5">{description}</div>
       </div>
     </label>
   );
@@ -296,7 +249,7 @@ function DialogButton({
         border: primary ? "none" : "1px solid var(--de-border)",
         borderRadius: "var(--de-radius-sm)",
         background: primary ? "var(--de-accent)" : "var(--de-bg)",
-        color: primary ? "var(--bn-cta-text, #fff)" : "var(--de-text-secondary)",
+        color: primary ? "hsl(var(--primary-foreground))" : "var(--de-text-secondary)",
         fontSize: 12,
         fontWeight: primary ? 600 : 500,
         cursor: disabled ? "not-allowed" : "pointer",

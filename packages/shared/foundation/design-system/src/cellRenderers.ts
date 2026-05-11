@@ -28,7 +28,7 @@ export class SideCellRenderer implements ICellRendererComp {
     this.eGui = el('span', {
       fontSize: '10px', fontWeight: '700', letterSpacing: '0.05em',
       fontFamily: MONO,
-      color: isBuy ? 'var(--bn-green)' : 'var(--bn-red)',
+      color: isBuy ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)',
     }, isBuy ? 'BUY' : 'SELL');
   }
   getGui() { return this.eGui; }
@@ -38,11 +38,11 @@ export class SideCellRenderer implements ICellRendererComp {
 // ── Status Badge (Filled / Partial / Pending / Cancelled) ──
 // Backgrounds/borders reference overlay tokens so both themes work.
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  Filled:    { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)', border: 'var(--bn-positive-ring)' },
-  Partial:   { bg: 'var(--bn-warning-soft)',  color: 'var(--bn-amber)', border: 'var(--bn-warning-ring)'  },
-  Pending:   { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',  border: 'var(--bn-info-ring)'     },
-  Cancelled: { bg: 'var(--bn-negative-soft)', color: 'var(--bn-red)',   border: 'var(--bn-negative-ring)' },
-  Working:   { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',  border: 'var(--bn-info-ring)'     },
+  Filled:    { bg: 'var(--ds-overlay-positive-soft)', color: 'var(--ds-accent-positive)', border: 'var(--ds-overlay-positive-ring)' },
+  Partial:   { bg: 'var(--ds-overlay-warning-soft)',  color: 'var(--ds-accent-warning)',  border: 'var(--ds-overlay-warning-ring)'  },
+  Pending:   { bg: 'var(--ds-overlay-info-soft)',     color: 'var(--ds-accent-info)',     border: 'var(--ds-overlay-info-ring)'     },
+  Cancelled: { bg: 'var(--ds-overlay-negative-soft)', color: 'var(--ds-accent-negative)', border: 'var(--ds-overlay-negative-ring)' },
+  Working:   { bg: 'var(--ds-overlay-info-soft)',     color: 'var(--ds-accent-info)',     border: 'var(--ds-overlay-info-ring)'     },
 };
 
 export class StatusBadgeRenderer implements ICellRendererComp {
@@ -63,7 +63,7 @@ export class ColoredValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const v = Number(params.value);
-    const color = v >= 0 ? 'var(--bn-green)' : 'var(--bn-red)';
+    const color = v >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)';
     const prefix = v > 0 ? '+' : '';
     this.eGui = el('span', { fontFamily: MONO, color }, `${prefix}${params.valueFormatted || params.value}`);
   }
@@ -76,7 +76,7 @@ export class OasValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const v = Number(params.value);
-    const color = v > 80 ? 'var(--bn-amber)' : 'var(--bn-green)';
+    const color = v > 80 ? 'var(--ds-accent-warning)' : 'var(--ds-accent-positive)';
     this.eGui = el('span', { fontFamily: MONO, color }, v > 0 ? `+${v}` : String(v));
   }
   getGui() { return this.eGui; }
@@ -89,7 +89,7 @@ export class SignedValueRenderer implements ICellRendererComp {
   init(params: ICellRendererParams) {
     const v = Number(params.value);
     const prefix = v > 0 ? '+' : '';
-    this.eGui = el('span', { fontFamily: MONO, color: 'var(--bn-t1)' }, `${prefix}${params.valueFormatted || params.value}`);
+    this.eGui = el('span', { fontFamily: MONO, color: 'var(--ds-text-secondary)' }, `${prefix}${params.valueFormatted || params.value}`);
   }
   getGui() { return this.eGui; }
   refresh() { return false; }
@@ -101,7 +101,7 @@ export class TickerCellRenderer implements ICellRendererComp {
   init(params: ICellRendererParams) {
     this.eGui = el('span', {
       fontFamily: MONO, fontWeight: '700', fontSize: '11px',
-      color: 'var(--bn-cyan)',
+      color: 'var(--ds-accent-highlight)',
     }, params.value);
   }
   getGui() { return this.eGui; }
@@ -111,11 +111,11 @@ export class TickerCellRenderer implements ICellRendererComp {
 // ── Rating Badge (Aaa, Aa1, A2, Baa1, Ba2 etc.) ──
 // aaa/aa → positive, a → positive (slightly softer), bbb → warning, hy → negative.
 const RTG_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  aaa: { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)',  border: 'var(--bn-positive-ring)' },
-  aa:  { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)',  border: 'var(--bn-positive-ring)' },
-  a:   { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',   border: 'var(--bn-info-ring)'     },
-  bbb: { bg: 'var(--bn-warning-soft)',  color: 'var(--bn-amber)',  border: 'var(--bn-warning-ring)'  },
-  hy:  { bg: 'var(--bn-negative-soft)', color: 'var(--bn-red)',    border: 'var(--bn-negative-ring)' },
+  aaa: { bg: 'var(--ds-overlay-positive-soft)', color: 'var(--ds-accent-positive)', border: 'var(--ds-overlay-positive-ring)' },
+  aa:  { bg: 'var(--ds-overlay-positive-soft)', color: 'var(--ds-accent-positive)', border: 'var(--ds-overlay-positive-ring)' },
+  a:   { bg: 'var(--ds-overlay-info-soft)',     color: 'var(--ds-accent-info)',     border: 'var(--ds-overlay-info-ring)'     },
+  bbb: { bg: 'var(--ds-overlay-warning-soft)',  color: 'var(--ds-accent-warning)',  border: 'var(--ds-overlay-warning-ring)'  },
+  hy:  { bg: 'var(--ds-overlay-negative-soft)', color: 'var(--ds-accent-negative)', border: 'var(--ds-overlay-negative-ring)' },
 };
 
 export class RatingBadgeRenderer implements ICellRendererComp {
@@ -138,7 +138,7 @@ export class PnlValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const v = Number(params.value);
-    const color = v >= 0 ? 'var(--bn-green)' : 'var(--bn-red)';
+    const color = v >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)';
     this.eGui = el('span', { fontFamily: MONO, color }, `${v >= 0 ? '+' : ''}${v}K`);
   }
   getGui() { return this.eGui; }
@@ -151,7 +151,7 @@ export class FilledAmountRenderer implements ICellRendererComp {
   init(params: ICellRendererParams) {
     const filled = params.value;
     const qty = params.data?.qty;
-    const color = filled === qty ? 'var(--bn-green)' : 'var(--bn-amber)';
+    const color = filled === qty ? 'var(--ds-accent-positive)' : 'var(--ds-accent-warning)';
     this.eGui = el('span', { fontFamily: MONO, color }, String(filled));
   }
   getGui() { return this.eGui; }
@@ -162,7 +162,7 @@ export class FilledAmountRenderer implements ICellRendererComp {
 export class BookNameRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
-    this.eGui = el('span', { fontFamily: MONO, color: 'var(--bn-cyan)' }, params.value);
+    this.eGui = el('span', { fontFamily: MONO, color: 'var(--ds-accent-highlight)' }, params.value);
   }
   getGui() { return this.eGui; }
   refresh() { return false; }
@@ -173,7 +173,7 @@ export class ChangeValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const v = Number(params.value);
-    const color = v >= 0 ? 'var(--bn-green)' : 'var(--bn-red)';
+    const color = v >= 0 ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)';
     const prefix = v >= 0 ? '+' : '';
     this.eGui = el('span', { fontFamily: MONO, color }, `${prefix}${v.toFixed(2)}`);
   }
@@ -186,7 +186,7 @@ export class YtdValueRenderer implements ICellRendererComp {
   private eGui!: HTMLElement;
   init(params: ICellRendererParams) {
     const isPositive = String(params.value).startsWith('+');
-    const color = isPositive ? 'var(--bn-green)' : 'var(--bn-red)';
+    const color = isPositive ? 'var(--ds-accent-positive)' : 'var(--ds-accent-negative)';
     this.eGui = el('span', { fontFamily: MONO, color }, params.value);
   }
   getGui() { return this.eGui; }
@@ -195,9 +195,9 @@ export class YtdValueRenderer implements ICellRendererComp {
 
 // ── RFQ Status (LIVE / DONE / STALE) ──
 const RFQ_STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  live:  { bg: 'var(--bn-info-soft)',     color: 'var(--bn-blue)',  border: 'var(--bn-info-ring)'     },
-  done:  { bg: 'var(--bn-positive-soft)', color: 'var(--bn-green)', border: 'var(--bn-positive-ring)' },
-  stale: { bg: 'var(--bn-neutral-soft)',  color: 'var(--bn-t2)',    border: 'var(--bn-neutral-ring)'  },
+  live:  { bg: 'var(--ds-overlay-info-soft)',     color: 'var(--ds-accent-info)',    border: 'var(--ds-overlay-info-ring)'     },
+  done:  { bg: 'var(--ds-overlay-positive-soft)', color: 'var(--ds-accent-positive)', border: 'var(--ds-overlay-positive-ring)' },
+  stale: { bg: 'var(--ds-overlay-neutral-soft)',  color: 'var(--ds-text-muted)',     border: 'var(--ds-overlay-neutral-ring)'  },
 };
 
 export class RfqStatusRenderer implements ICellRendererComp {

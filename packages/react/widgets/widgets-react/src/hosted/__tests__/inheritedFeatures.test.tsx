@@ -20,7 +20,7 @@ const mgcProps: any[] = [];
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
   MarketsGridContainer: (props: any) => {
     mgcProps.push(props);
-    return <div data-testid="mgc-stub" />;
+    return <div data-testid="mds-stub" />;
   },
 }));
 
@@ -55,7 +55,7 @@ describe('HostedMarketsGrid — inherited features props passthrough (rows 17-20
         onError={onError}
       />,
     );
-    await waitFor(() => getByTestId('mgc-stub'));
+    await waitFor(() => getByTestId('mds-stub'));
     const last = mgcProps[mgcProps.length - 1];
     expect(last.historicalDateAppDataRef).toBe('positions.asOfDate');
     expect(last.adminActions).toBe(adminActions);

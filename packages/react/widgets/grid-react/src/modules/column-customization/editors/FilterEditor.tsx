@@ -176,11 +176,11 @@ export function FilterEditor({
                         textTransform: 'uppercase',
                         borderRadius: 3,
                         border: '1px solid',
-                        borderColor: active ? 'var(--ck-green)' : 'var(--ck-border)',
+                        borderColor: active ? 'var(--ds-accent-positive)' : 'var(--ds-border-primary)',
                         background: active
-                          ? 'var(--ck-green-bg, rgba(45,212,191,0.12))'
-                          : 'var(--ck-bg, transparent)',
-                        color: active ? 'var(--ck-green)' : 'var(--ck-t1, var(--bn-t2))',
+                          ? 'var(--ds-overlay-positive-soft)'
+                          : 'transparent',
+                        color: active ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
                         cursor: 'pointer',
                         transition: 'all 120ms',
                       }}
@@ -365,8 +365,8 @@ function MultiFilterEditor({
                   alignItems: 'center',
                   padding: '4px 6px',
                   borderRadius: 3,
-                  border: '1px solid var(--ck-border)',
-                  background: 'var(--ck-card, transparent)',
+                  border: '1px solid var(--ds-border-primary)',
+                  background: 'var(--ds-surface-secondary)',
                 }}
               >
                 <Select
@@ -416,7 +416,7 @@ function MultiFilterEditor({
                     height: 22,
                     border: 'none',
                     background: 'transparent',
-                    color: 'var(--ck-t2, var(--bn-t2))',
+                    color: 'var(--ds-text-muted)',
                     cursor: 'pointer',
                     borderRadius: 3,
                   }}

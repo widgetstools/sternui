@@ -46,8 +46,8 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
         gap: 6,
         flexWrap: 'wrap',
         padding: '6px 8px',
-        background: 'var(--ck-card, #22262b)',
-        border: '1px solid var(--ck-border, #2d3339)',
+        background: 'var(--ds-surface-secondary)',
+        border: '1px solid var(--ds-border-primary)',
         borderRadius: 2,
       }}
     >
@@ -124,7 +124,7 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
             onChange({ fontSize: Number.isFinite(n) && n > 0 ? n : undefined });
           }}
         />
-        <Caps size={10} color="var(--ck-t3)" style={{ paddingRight: 4 }}>
+        <Caps size={10} color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
           PX
         </Caps>
       </TGroup>

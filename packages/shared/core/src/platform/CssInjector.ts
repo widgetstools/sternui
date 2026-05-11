@@ -42,8 +42,8 @@ export class CssInjector implements CssHandle {
     if (typeof document === 'undefined') return null;
     if (this.styleEl) return this.styleEl;
     const el = document.createElement('style');
-    el.setAttribute('data-gc-grid', this.gridId);
-    el.setAttribute('data-gc-module', this.moduleId);
+    el.setAttribute('data-ds-grid', this.gridId);
+    el.setAttribute('data-ds-module', this.moduleId);
     document.head.appendChild(el);
     this.styleEl = el;
     return el;

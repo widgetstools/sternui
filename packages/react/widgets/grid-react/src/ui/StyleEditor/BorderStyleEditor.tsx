@@ -2,12 +2,290 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, RemoveFormatting } from 'lucide-react';
 import { FormatColorPicker, FormatDropdown, FormatPopover } from '../format-editor';
 import type { BorderSpec } from '@starui/core';
-// Styles for `.gc-be-*` chrome live in `packages/core/src/css/cockpit.ts`
-// (appended to the `cockpitCSS` template literal). Host apps inject
-// `cockpitCSS` once via `ensureCockpitStyles()` — no separate CSS
-// import needed here, which keeps the tsc+vite lib build clean (tsc
-// doesn't copy sibling CSS files into dist/). Dark + light mode aware
-// via `[data-theme="light"]` overrides.
+
+/**
+ * Token-driven stylesheet for `BorderStyleEditor`.
+ *
+ * Authored as a string + injected once at module load (rather than as
+ * a separate `.css` file imported from the TSX) because Vite's
+ * chunk-splitting can place the CSS import in an arbitrary lazy chunk.
+ * In the OpenFin reference app build, BorderStyleEditor.css landed in
+ * the ColumnGroupsPanel chunk — panels that reach BorderStyleEditor
+ * through other entry points (column-customization, conditional-styling,
+ * calculated-columns) rendered unstyled. Inlining the CSS via a
+ * <style> tag injected at module load makes the styles self-contained
+ * and immune to chunk-splitting, matching the pattern already used by
+ * GhostIconButton.
+ */
+const BORDER_STYLE_EDITOR_CSS = `
+/* BorderStyleEditor — scoped to .ds-be-editor.
+   All values reference --ds-* vars from @starui/design-system/css. */
+
+.ds-be-editor {
+  /* Local variable shortcuts for readability */
+  --be-bg-card:     var(--ds-surface-secondary);
+  --be-bg-sunken:   var(--ds-surface-tertiary);
+  --be-bg-hover:    var(--ds-state-hover-overlay);
+  --be-line:        var(--ds-border-secondary);
+  --be-line-strong: var(--ds-border-primary);
+  --be-ink-0:       var(--ds-text-primary);
+  --be-ink-1:       var(--ds-text-secondary);
+  --be-ink-2:       var(--ds-text-muted);
+  --be-ink-3:       var(--ds-text-faint);
+  --be-accent:      var(--ds-accent-info);
+  --be-red:         var(--ds-accent-negative);
+  --be-r:           var(--ds-radius-sm);
+  --be-h-ctrl:      26px;
+  --be-h-preview:   26px;
+  --be-font-mono:   var(--ds-font-mono);
+  --be-font-sans:   var(--ds-font-sans);
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  row-gap: 6px;
+  padding: 6px 8px;
+  background: var(--be-bg-card);
+  border: 1px solid var(--be-line-strong);
+  border-radius: var(--be-r);
+  font-family: var(--be-font-mono);
+  font-feature-settings: 'tnum' 1;
+  color: var(--be-ink-0);
+}
+
+.ds-be-editor .ds-be-preview {
+  width: 56px;
+  height: var(--be-h-preview);
+  border: 1px solid var(--be-line-strong);
+  border-radius: var(--be-r);
+  background: var(--be-bg-sunken);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 4px;
+}
+
+.ds-be-editor .ds-be-preview-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-be-editor .ds-be-div {
+  width: 1px;
+  height: 18px;
+  background: var(--be-line-strong);
+  flex-shrink: 0;
+}
+
+.ds-be-editor .ds-be-sides {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 2px;
+  background: var(--be-bg-sunken);
+  border: 1px solid var(--be-line);
+  border-radius: var(--be-r);
+  height: var(--be-h-ctrl);
+}
+
+.ds-be-editor .ds-be-side {
+  width: 24px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  color: var(--be-ink-1);
+  font-family: var(--be-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  border: 1px dashed var(--be-line);
+  border-radius: 1px;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ds-be-editor .ds-be-side:hover:not(:disabled) {
+  background: var(--be-bg-hover);
+  color: var(--be-ink-0);
+}
+
+.ds-be-editor .ds-be-side[data-on='true'] {
+  color: var(--be-accent);
+  border-color: transparent;
+}
+
+.ds-be-editor .ds-be-side[data-on='true'][data-side='A'] {
+  border: 2px solid var(--be-accent);
+}
+
+.ds-be-editor .ds-be-side[data-on='true'][data-side='T'] {
+  border-top: 2px solid var(--be-accent);
+}
+
+.ds-be-editor .ds-be-side[data-on='true'][data-side='B'] {
+  border-bottom: 2px solid var(--be-accent);
+}
+
+.ds-be-editor .ds-be-side[data-on='true'][data-side='L'] {
+  border-left: 2px solid var(--be-accent);
+}
+
+.ds-be-editor .ds-be-side[data-on='true'][data-side='R'] {
+  border-right: 2px solid var(--be-accent);
+}
+
+.ds-be-editor .ds-be-side[data-selected='true'] {
+  background: color-mix(in srgb, var(--be-accent) 16%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--be-accent) 60%, transparent),
+              0 0 0 2px var(--be-bg-card);
+  color: var(--be-accent);
+}
+
+.ds-be-editor .ds-be-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--be-h-ctrl);
+  padding: 0 6px 0 4px;
+  background: var(--be-bg-sunken);
+  border: 1px solid var(--be-line);
+  border-radius: var(--be-r);
+  cursor: pointer;
+  color: var(--be-ink-0);
+  font-family: var(--be-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.ds-be-editor .ds-be-color:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--be-accent) 45%, transparent);
+}
+
+.ds-be-editor .ds-be-color .ds-be-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 1px;
+  border: 1px solid var(--be-line-strong);
+  flex-shrink: 0;
+}
+
+.ds-be-editor .ds-be-color .ds-be-caret,
+.ds-be-editor .ds-be-chip .ds-be-caret {
+  width: 9px;
+  height: 9px;
+  color: var(--be-ink-2);
+  flex-shrink: 0;
+}
+
+.ds-be-editor .ds-be-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--be-h-ctrl);
+  padding: 0 6px 0 8px;
+  background: var(--be-bg-sunken);
+  border: 1px solid var(--be-line);
+  border-radius: var(--be-r);
+  cursor: pointer;
+  color: var(--be-ink-0);
+  font-family: var(--be-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.ds-be-editor .ds-be-chip:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--be-accent) 45%, transparent);
+}
+
+.ds-be-editor .ds-be-stroke {
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  color: var(--be-ink-0);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.ds-be-editor .ds-be-stroke[data-style='dashed'] {
+  background: none;
+  border-top: 2px dashed var(--be-ink-0);
+  height: 0;
+}
+
+.ds-be-editor .ds-be-stroke[data-style='dotted'] {
+  background: none;
+  border-top: 2px dotted var(--be-ink-0);
+  height: 0;
+}
+
+.ds-be-editor .ds-be-clear {
+  width: 26px;
+  height: var(--be-h-ctrl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--be-red);
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  border-radius: var(--be-r);
+}
+
+.ds-be-editor .ds-be-clear:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--be-red) 12%, transparent);
+  border-color: color-mix(in srgb, var(--be-red) 35%, transparent);
+}
+
+.ds-be-editor .ds-be-clear:disabled {
+  color: var(--be-ink-3);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ds-be-editor button:focus-visible {
+  outline: 2px solid var(--be-accent);
+  outline-offset: 1px;
+}
+`;
+
+const STYLE_TAG_ID = 'ds-border-style-editor-styles';
+
+/** Inject the stylesheet once per document. SSR-safe (no-op when
+ *  `document` is undefined) and idempotent under React StrictMode's
+ *  double-render. */
+function ensureStylesInjected(): void {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(STYLE_TAG_ID)) return;
+  const style = document.createElement('style');
+  style.id = STYLE_TAG_ID;
+  style.textContent = BORDER_STYLE_EDITOR_CSS;
+  document.head.appendChild(style);
+}
+
+ensureStylesInjected();
 
 /**
  * Shared border style editor — the single source of truth for every
@@ -246,7 +524,7 @@ export function BorderStyleEditor({
   const previewSide = (spec: BorderSpec | undefined) =>
     spec
       ? `${spec.width}px ${spec.style} ${spec.color}`
-      : '1px dashed var(--be-line)';
+      : '1px dashed var(--ds-border-secondary)';
 
   const edgeIsOn = (key: 'all' | Edge): boolean =>
     key === 'all' ? allOn : Boolean(borders[key]);
@@ -256,11 +534,11 @@ export function BorderStyleEditor({
     (key === 'all' ? true : Boolean(borders[key]) || selectedEdge === key);
 
   return (
-    <div className="gc-be-editor" data-v2-border-host="" data-testid={rest['data-testid']}>
+    <div className="ds-be-editor" data-v2-border-host="" data-testid={rest['data-testid']}>
       {/* ── Preview ────────────────────────────────────────────── */}
-      <div className="gc-be-preview" data-testid="gc-be-preview">
+      <div className="ds-be-preview" data-testid="ds-be-preview">
         <span
-          className="gc-be-preview-inner"
+          className="ds-be-preview-inner"
           style={{
             borderTop: previewSide(borders.top),
             borderRight: previewSide(borders.right),
@@ -270,10 +548,10 @@ export function BorderStyleEditor({
         />
       </div>
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Side preset buttons: A T B L R ────────────────────── */}
-      <div className="gc-be-sides" role="group" aria-label="Border sides">
+      <div className="ds-be-sides" role="group" aria-label="Border sides">
         {SIDE_BUTTONS.map(({ key, letter }) => {
           const on = edgeIsOn(key);
           const selected = edgeIsSelected(key);
@@ -291,11 +569,11 @@ export function BorderStyleEditor({
             <button
               key={key}
               type="button"
-              className="gc-be-side"
+              className="ds-be-side"
               data-side={letter}
               data-on={on ? 'true' : undefined}
               data-selected={selected ? 'true' : undefined}
-              data-testid={`gc-be-side-${letter.toLowerCase()}`}
+              data-testid={`ds-be-side-${letter.toLowerCase()}`}
               title={title}
               aria-pressed={on}
               onClick={() => (key === 'all' ? handleAllClick() : handleEdgeClick(key))}
@@ -307,7 +585,7 @@ export function BorderStyleEditor({
         })}
       </div>
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Color trigger ──────────────────────────────────────── */}
       <FormatPopover
@@ -315,18 +593,18 @@ export function BorderStyleEditor({
         trigger={
           <button
             type="button"
-            className="gc-be-color"
+            className="ds-be-color"
             title="Border colour"
-            data-testid="gc-be-color"
+            data-testid="ds-be-color"
             onMouseDown={(e) => e.preventDefault()}
           >
             <span
-              className="gc-be-swatch"
+              className="ds-be-swatch"
               aria-hidden
               style={{ background: anchor.color }}
             />
             <span>{normalizedHex}</span>
-            <ChevronDown className="gc-be-caret" strokeWidth={1.75} />
+            <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
           </button>
         }
       >
@@ -339,7 +617,7 @@ export function BorderStyleEditor({
         />
       </FormatPopover>
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Style dropdown ─────────────────────────────────────── */}
       <FormatDropdown<BorderStyle>
@@ -350,23 +628,23 @@ export function BorderStyleEditor({
         trigger={
           <button
             type="button"
-            className="gc-be-chip"
+            className="ds-be-chip"
             title="Border style"
-            data-testid="gc-be-style"
+            data-testid="ds-be-style"
             onMouseDown={(e) => e.preventDefault()}
           >
             <span
-              className="gc-be-stroke"
+              className="ds-be-stroke"
               aria-hidden
               data-style={anchor.style}
             />
             <span>{STYLE_OPTIONS.find((o) => o.value === anchor.style)?.label ?? 'Solid'}</span>
-            <ChevronDown className="gc-be-caret" strokeWidth={1.75} />
+            <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
           </button>
         }
       />
 
-      <span aria-hidden className="gc-be-div" />
+      <span aria-hidden className="ds-be-div" />
 
       {/* ── Width dropdown ─────────────────────────────────────── */}
       <FormatDropdown<number>
@@ -377,13 +655,13 @@ export function BorderStyleEditor({
         trigger={
           <button
             type="button"
-            className="gc-be-chip"
+            className="ds-be-chip"
             title="Border width"
-            data-testid="gc-be-width"
+            data-testid="ds-be-width"
             onMouseDown={(e) => e.preventDefault()}
           >
             <span>{Math.max(1, Math.min(5, anchor.width || 1))} PX</span>
-            <ChevronDown className="gc-be-caret" strokeWidth={1.75} />
+            <ChevronDown className="ds-be-caret" strokeWidth={1.75} />
           </button>
         }
       />
@@ -393,13 +671,13 @@ export function BorderStyleEditor({
           "clear styles" rather than the ambiguous generic X. */}
       <button
         type="button"
-        className="gc-be-clear"
+        className="ds-be-clear"
         onClick={clearAll}
         onMouseDown={(e) => e.preventDefault()}
         disabled={!hasAny}
         aria-label="Clear all borders"
         title="Clear all borders"
-        data-testid="gc-be-clear"
+        data-testid="ds-be-clear"
       >
         <RemoveFormatting size={14} strokeWidth={1.75} />
       </button>

@@ -48,7 +48,7 @@ export const FlashBand = memo(function FlashBand({
           }}
           data-testid={`cs-rule-flash-enabled-${ruleId}`}
         />
-        <Mono color={flash?.enabled ? 'var(--ck-green)' : 'var(--ck-t2)'} size={11}>
+        <Mono color={flash?.enabled ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)'} size={11}>
           {flash?.enabled ? 'ON' : 'OFF'}
         </Mono>
 
@@ -94,13 +94,13 @@ export const FlashBand = memo(function FlashBand({
           </>
         )}
         {flash?.enabled && scopeType === 'row' && (
-          <Caps size={10} color="var(--ck-t2)">
+          <Caps size={10} color="var(--ds-text-muted)">
             TARGETS ENTIRE ROW
           </Caps>
         )}
       </div>
       <div style={{ marginTop: 8 }}>
-        <Caps size={9} color="var(--ck-t3)">
+        <Caps size={9} color="var(--ds-text-faint)">
           Flashes AG-Grid's built-in highlight when a cell value change causes this rule to match.
         </Caps>
       </div>

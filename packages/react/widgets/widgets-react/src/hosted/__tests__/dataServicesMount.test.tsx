@@ -20,10 +20,10 @@ vi.mock('../../v2/markets-grid-container/index.js', () => ({
     try {
       const ctx = useDataServices();
       captureClient = ctx.client;
-      return <div data-testid="mgc-stub" data-has-dp="true" />;
+      return <div data-testid="mds-stub" data-has-dp="true" />;
     } catch {
       throwsOnRead = true;
-      return <div data-testid="mgc-stub" data-has-dp="false" />;
+      return <div data-testid="mds-stub" data-has-dp="false" />;
     }
   },
 }));
@@ -76,7 +76,7 @@ describe('HostedMarketsGrid — DataServices mount (row 9)', () => {
       />,
     );
     const stub = await waitFor(() => {
-      const el = getByTestId('mgc-stub');
+      const el = getByTestId('mds-stub');
       if (el.getAttribute('data-has-dp') !== 'true') throw new Error('not yet');
       return el;
     });
@@ -93,7 +93,7 @@ describe('HostedMarketsGrid — DataServices mount (row 9)', () => {
         configManager={fakeConfigManager}
       />,
     );
-    const stub = await waitFor(() => getByTestId('mgc-stub'));
+    const stub = await waitFor(() => getByTestId('mds-stub'));
     expect(stub.getAttribute('data-has-dp')).toBe('false');
     expect(throwsOnRead).toBe(true);
   });

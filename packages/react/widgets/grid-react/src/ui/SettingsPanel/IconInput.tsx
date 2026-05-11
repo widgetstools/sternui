@@ -1,17 +1,12 @@
 import { forwardRef, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 /**
- * Cockpit input pill — sharp 2px corners, `--ck-bg` inset, phosphor focus
- * ring, Plex Sans body / Plex Mono monospace option.
+ * Input pill — sharp 2px corners, bg-background inset, design-system focus
+ * ring, sans/mono font option.
  *
  * Commit model: local draft + commit on blur / Enter. Consumers hook
  * the commit to their `useModuleDraft().setDraft` so keystroke thrash
  * is bounded to this field.
- *
- * Not wrapping the shadcn `<Input>` any more — the extra forwardRef layer
- * didn't buy anything once the sheet's scoped CSS unified input sizing,
- * and keeping this component self-contained makes the cockpit rules
- * (height 28, inner font 12, color tokens) the single source of truth.
  */
 
 export interface IconInputProps {
@@ -69,34 +64,17 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
 
   return (
     <div
-      className="gc-icon-pill"
       data-error={error ? 'true' : 'false'}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        flex: 1,
-        minWidth: 0,
-        height: 28,
-        borderRadius: 2,
-        background: 'var(--ck-bg, #111417)',
-        border: `1px solid ${error ? 'var(--ck-red, #f87171)' : 'var(--ck-border, #2d3339)'}`,
-        padding: '0 8px',
-        gap: 6,
-        opacity: disabled ? 0.5 : 1,
-        cursor: disabled ? 'not-allowed' : 'text',
-        transition: 'border-color 120ms',
-        ...style,
-      }}
+      className={[
+        'inline-flex items-center flex-1 min-w-0 h-7 rounded-sm bg-background border px-2 gap-1.5 transition-colors duration-[120ms]',
+        error ? 'border-destructive' : 'border-border',
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-text',
+        'focus-within:border-primary',
+      ].join(' ')}
+      style={style}
     >
       {icon && (
-        <span
-          style={{
-            color: 'var(--ck-t3, #4a5360)',
-            display: 'inline-flex',
-            flexShrink: 0,
-            fontSize: 11,
-          }}
-        >
+        <span className="text-muted-foreground inline-flex flex-shrink-0 text-xs">
           {icon}
         </span>
       )}
@@ -119,32 +97,14 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
         }}
         data-testid={rest['data-testid']}
         aria-label={rest['aria-label']}
-        style={{
-          flex: 1,
-          minWidth: 0,
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          height: 'auto',
-          padding: 0,
-          color: 'var(--ck-t0, #e5e7ea)',
-          fontFamily: monospace
-            ? 'var(--ck-font-mono, "IBM Plex Mono", monospace)'
-            : 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-          fontSize: 12,
-          fontVariantNumeric: monospace || numeric ? 'tabular-nums' : undefined,
-        }}
+        className={[
+          'flex-1 min-w-0 bg-transparent border-none outline-none h-auto p-0 text-foreground text-xs',
+          monospace || numeric ? 'font-mono tabular-nums' : 'font-sans',
+        ].join(' ')}
+        style={{ fontSize: 12 }}
       />
       {suffix && (
-        <span
-          className="gc-caps"
-          style={{
-            color: 'var(--ck-t3, #4a5360)',
-            fontSize: 9,
-            letterSpacing: '0.08em',
-            flexShrink: 0,
-          }}
-        >
+        <span className="font-semibold uppercase text-muted-foreground flex-shrink-0 tracking-[0.08em] text-[9px]">
           {suffix}
         </span>
       )}

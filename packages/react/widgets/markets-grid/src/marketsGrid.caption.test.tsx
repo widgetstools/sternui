@@ -31,8 +31,6 @@ vi.mock('@starui/core', async () => {
   return {
     ...actual,
     MemoryAdapter: class { async loadGridLevelData() { return null; } async saveGridLevelData() {} },
-    cockpitCSS: '',
-    COCKPIT_STYLE_ID: 'gc-cockpit-styles',
   };
 });
 
@@ -140,7 +138,7 @@ describe('MarketsGrid — tabs-hidden caption', () => {
     // The caption must be the FIRST child of the primary toolbar row
     // so it lands at the left edge, before the filters carousel.
     const toolbar = container.querySelector(
-      '[data-grid-id="caption-test"] > .gc-toolbar-primary',
+      '[data-grid-id="caption-test"] > .ds-toolbar-primary',
     );
     expect(toolbar?.firstElementChild).toBe(node);
   });

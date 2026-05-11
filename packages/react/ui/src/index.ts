@@ -1,5 +1,4 @@
-// @starui/ui — Stern Design System
-// Coinbase-inspired UI components built on shadcn/ui + Tailwind CSS
+// @starui/ui — shadcn/Radix primitives; theme tokens from @starui/design-system/css
 
 // ============================================================================
 // Utilities
@@ -11,6 +10,16 @@ export { cn } from './lib/utils.js';
 // ============================================================================
 export { ThemeProvider, useTheme } from './providers/ThemeProvider.js';
 export type { Theme, ThemeProviderProps } from './providers/ThemeProvider.js';
+
+// ============================================================================
+// Portal target (detached windows / OpenFin popouts)
+// ============================================================================
+export {
+  PortalContainerProvider,
+  usePortalContainer,
+  useResolvedPortalContainer,
+  type PortalContainerProviderProps,
+} from './portal-container.js';
 
 // ============================================================================
 // Components

@@ -88,9 +88,9 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
       data-testid="go-panel"
       style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
     >
-      <div className="gc-editor-header">
+      <div className="shrink-0 bg-background border-b border-border">
         <ObjectTitleRow
-          title={<span style={{ fontWeight: 600, fontSize: 13 }}>Grid Options</span>}
+          title={<span style={{ fontWeight: 600, fontSize: 12 }}>Grid Options</span>}
           actions={
             <>
               <SharpBtn
@@ -117,12 +117,11 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
       </div>
 
       <div
-        className="gc-editor-search"
         style={{
           flexShrink: 0,
           padding: '8px 16px',
-          background: 'var(--ck-bg)',
-          borderBottom: '1px solid var(--ck-border)',
+          background: 'var(--ds-surface-ground)',
+          borderBottom: '1px solid var(--ds-border-primary)',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -150,18 +149,18 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
         )}
       </div>
 
-      <div className="gc-editor-scroll">
-        <div className="gc-meta-grid">
-          <MetaCell label="SCHEMA" value={<Mono color="var(--ck-t0)">v2</Mono>} />
-          <MetaCell label="OVERRIDES" value={<Mono color="var(--ck-t0)">{overrides}</Mono>} />
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+        <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
+          <MetaCell label="SCHEMA" value={<Mono color="var(--ds-text-primary)">v2</Mono>} />
+          <MetaCell label="OVERRIDES" value={<Mono color="var(--ds-text-primary)">{overrides}</Mono>} />
           <MetaCell
             label="DIRTY"
-            value={<Mono color={dirty ? 'var(--ck-amber)' : 'var(--ck-t3)'}>{dirty ? 'YES' : '—'}</Mono>}
+            value={<Mono color={dirty ? 'var(--ds-accent-warning)' : 'var(--ds-text-faint)'}>{dirty ? 'YES' : '—'}</Mono>}
           />
           <MetaCell
             label="QUICK FILTER"
             value={
-              <Mono color={draft.quickFilterText ? 'var(--ck-amber)' : 'var(--ck-t3)'}>
+              <Mono color={draft.quickFilterText ? 'var(--ds-accent-warning)' : 'var(--ds-text-faint)'}>
                 {draft.quickFilterText ? 'SET' : '—'}
               </Mono>
             }
@@ -174,7 +173,7 @@ export const GridOptionsPanel = memo(function GridOptionsPanel() {
             style={{
               padding: '24px 16px',
               fontSize: 11,
-              color: 'var(--ck-t3)',
+              color: 'var(--ds-text-faint)',
               textAlign: 'center',
               letterSpacing: 0.12,
               textTransform: 'uppercase',

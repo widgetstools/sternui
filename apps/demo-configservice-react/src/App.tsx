@@ -17,6 +17,7 @@ import {
 } from '@starui/openfin-platform/config';
 import { createConfigBrowserAction } from '@starui/config-browser';
 import { Sun, Moon, User, Database } from 'lucide-react';
+import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -86,46 +87,26 @@ function initialView(): View {
 }
 
 // ─── AG-Grid Themes ─────────────────────────────────────────────────────────
+//
+// Built from @starui/design-system/adapters/ag-grid (reference-aligned
+// Chroma Desk params) + app-specific tuning (mono font, smaller icons,
+// tighter cell padding, sharp corners). Theme attribute on <html> drives
+// the underlying --ds-* CSS vars; these params just point at them.
 
-const sharedParams = {
+const sharedParamOverrides = {
   fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 11,       // primitives.typography.fontSize.sm (11px)
-  headerFontSize: 10,  // primitives.typography.fontSize.xs + 1 (9+1=10)
-  // Scale AG-Grid's built-in glyphs (sort arrow, filter funnel, menu
-  // hamburger, sidebar chevrons, etc.) down to match the dense FI
-  // blotter type stack. Applies to both light and dark variants.
+  fontSize: 11,
+  headerFontSize: 10,
   iconSize: 10,
   cellHorizontalPaddingScale: 0.6,
-  wrapperBorder: false,
-  columnBorder: true,
   spacing: 6,
   borderRadius: 0,
   wrapperBorderRadius: 0,
+  columnBorder: true,
 };
 
-const darkTheme = themeQuartz.withParams({
-  ...sharedParams,
-  backgroundColor: '#161a1e',
-  foregroundColor: '#eaecef',
-  headerBackgroundColor: '#1e2329',
-  headerTextColor: '#a0a8b4',
-  oddRowBackgroundColor: '#161a1e',
-  rowHoverColor: '#1e2329',
-  selectedRowBackgroundColor: '#14b8a614',
-  borderColor: '#313944',
-});
-
-const lightTheme = themeQuartz.withParams({
-  ...sharedParams,
-  backgroundColor: '#ffffff',
-  foregroundColor: '#3b3b3b',
-  headerBackgroundColor: '#f3f3f3',
-  headerTextColor: '#616161',
-  oddRowBackgroundColor: '#fafafa',
-  rowHoverColor: '#f3f3f3',
-  selectedRowBackgroundColor: '#0d948814',
-  borderColor: '#e5e5e5',
-});
+const darkTheme  = themeQuartz.withParams({ ...agGridDarkParams,  ...sharedParamOverrides });
+const lightTheme = themeQuartz.withParams({ ...agGridLightParams, ...sharedParamOverrides });
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────
 
@@ -417,10 +398,13 @@ function AppInner() {
   }, []);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ds-surface-ground)' }}>
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '6px 12px', borderBottom: '1px solid var(--border)', background: 'var(--card)',
+        padding: '8px 12px',
+        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%)',
+        background: 'linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%, var(--ds-surface-primary) 100%)',
+        boxShadow: '0 1px 0 rgba(255, 255, 255, 0.86) inset, 0 1px 2px rgba(15, 23, 42, 0.05)',
         gap: 12,
       }}>
         {/* View switcher — Single Grid vs Dashboard. Pins the demo to
@@ -453,16 +437,16 @@ function AppInner() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 height: 26, padding: '0 10px', borderRadius: 5,
-                border: '1px solid var(--border)',
+              border: '1px solid var(--ds-border-primary)',
                 background: ticking
-                  ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)'
-                  : 'var(--secondary)',
-                color: ticking ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
+                  ? 'color-mix(in srgb, var(--ds-accent-positive) 14%, transparent)'
+                : 'var(--ds-surface-secondary)',
+              color: ticking ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontFamily: 'var(--ds-font-sans)',
                 cursor: 'pointer',
                 transition: 'all 150ms',
               }}
@@ -471,8 +455,8 @@ function AppInner() {
               <span
                 style={{
                   width: 7, height: 7, borderRadius: '50%',
-                  background: ticking ? '#2dd4bf' : '#64748b',
-                  boxShadow: ticking ? '0 0 8px #2dd4bf' : 'none',
+                  background: ticking ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
+                  boxShadow: ticking ? '0 0 8px var(--ds-accent-positive)' : 'none',
                   animation: ticking ? 'gcTickPulse 1.4s ease-in-out infinite' : undefined,
                 }}
               />
@@ -486,12 +470,12 @@ function AppInner() {
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               height: 26, padding: '0 10px', borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--secondary)',
-              color: 'var(--muted-foreground)',
+              border: '1px solid var(--ds-border-primary)',
+              background: 'var(--ds-surface-secondary)',
+              color: 'var(--ds-text-muted)',
               fontSize: 10, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontFamily: 'var(--ds-font-sans)',
             }}
           >
             <Database size={11} strokeWidth={2} />
@@ -506,13 +490,13 @@ function AppInner() {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               height: 26, padding: '0 4px 0 10px', borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--secondary)',
-              color: 'var(--foreground)',
+              border: '1px solid var(--ds-border-primary)',
+              background: 'var(--ds-surface-secondary)',
+              color: 'var(--ds-text-primary)',
             }}
             data-testid="user-switcher"
           >
-            <User size={11} strokeWidth={2} style={{ color: 'var(--muted-foreground)' }} />
+            <User size={11} strokeWidth={2} style={{ color: 'var(--ds-text-muted)' }} />
             {DEMO_USERS.map((u) => (
               <button
                 key={u.id}
@@ -525,12 +509,12 @@ function AppInner() {
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontFamily: 'var(--ds-font-sans)',
                   borderRadius: 3,
                   border: '1px solid transparent',
-                  color: userId === u.id ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
+                  color: userId === u.id ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
                   background: userId === u.id
-                    ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)'
+                    ? 'var(--ds-primary-soft)'
                     : 'transparent',
                   cursor: 'pointer',
                   transition: 'all 120ms',
@@ -546,9 +530,9 @@ function AppInner() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: 26, height: 26, borderRadius: 5,
-              border: '1px solid var(--border)',
-              background: 'var(--secondary)',
-              color: 'var(--foreground)',
+              border: '1px solid var(--ds-border-primary)',
+              background: 'var(--ds-surface-secondary)',
+              color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               transition: 'all 150ms',
             }}
@@ -573,8 +557,8 @@ function AppInner() {
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 8,
-          color: 'var(--destructive, #ef4444)', fontSize: 12,
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          color: 'var(--ds-accent-negative)', fontSize: 12,
+          fontFamily: 'var(--ds-font-sans)',
         }}>
           <div style={{ fontWeight: 600 }}>ConfigService init failed</div>
           <div style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{cfgError.message}</div>
@@ -583,7 +567,7 @@ function AppInner() {
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--muted-foreground)', fontSize: 11,
-          fontFamily: "'IBM Plex Sans', sans-serif", letterSpacing: '0.08em',
+          fontFamily: 'var(--ds-font-sans)', letterSpacing: '0.08em',
           textTransform: 'uppercase',
         }}>
           {!configManager ? 'Initializing ConfigService…' : `Loading showcase for ${userId}…`}
@@ -654,12 +638,12 @@ function ViewTab({
         fontWeight: 700,
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: 'var(--ds-font-sans)',
         borderRadius: 4,
         border: '1px solid',
-        borderColor: active ? 'var(--bn-green, #2dd4bf)' : 'var(--border)',
-        color: active ? 'var(--bn-green, #2dd4bf)' : 'var(--muted-foreground)',
-        background: active ? 'color-mix(in srgb, var(--bn-green, #2dd4bf) 14%, transparent)' : 'transparent',
+        borderColor: active ? 'var(--ds-primary-ring)' : 'var(--ds-border-primary)',
+        color: active ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+        background: active ? 'var(--ds-primary-soft)' : 'var(--ds-surface-secondary)',
         cursor: 'pointer',
         transition: 'all 120ms',
       }}

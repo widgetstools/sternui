@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { usePortalContainer } from '../PortalContainer';
+import { useResolvedPortalContainer } from '../PortalContainer';
+import { getPortalDomContext } from './editorDom';
 
 /**
  * Generic keyboard-navigable palette modal.
@@ -43,7 +44,8 @@ export interface PaletteProps {
 }
 
 export function Palette({ title, placeholder, items, onPick, onClose, subtitle }: PaletteProps) {
-  const portalContainer = usePortalContainer();
+  const portalContainer = useResolvedPortalContainer();
+  const portalDom = getPortalDomContext(portalContainer);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -77,9 +79,9 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         return;
       }
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [filtered, selected, onPick, onClose]);
+    portalDom.window.addEventListener('keydown', onKey, true);
+    return () => portalDom.window.removeEventListener('keydown', onKey, true);
+  }, [filtered, selected, onPick, onClose, portalDom.window]);
 
   // Autofocus input on mount.
   useLayoutEffect(() => {
@@ -100,9 +102,9 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         onClose();
       }
     };
-    document.addEventListener('mousedown', onDown, true);
-    return () => document.removeEventListener('mousedown', onDown, true);
-  }, [onClose]);
+    portalDom.document.addEventListener('mousedown', onDown, true);
+    return () => portalDom.document.removeEventListener('mousedown', onDown, true);
+  }, [onClose, portalDom.document]);
 
   return createPortal(
     <div
@@ -120,18 +122,18 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         ref={shellRef}
         style={{
           width: 560, maxWidth: '92vw', maxHeight: '70vh',
-          background: 'var(--gc-surface, #161a1e)',
-          border: '1px solid var(--gc-border, #313944)',
+          background: 'var(--ds-surface-primary)',
+          border: '1px solid var(--ds-border-primary)',
           borderRadius: 8,
           boxShadow: '0 20px 48px rgba(0,0,0,0.5)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: "'Geist', 'Inter', -apple-system, sans-serif",
+          fontFamily: 'var(--ds-font-sans)',
         }}
       >
-        <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--gc-border, #313944)' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gc-text, #eaecef)', letterSpacing: 0.3 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: 10, color: 'var(--gc-text-dim, #7a8494)', marginTop: 2 }}>{subtitle}</div>}
+        <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--ds-border-primary)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ds-text-primary)', letterSpacing: 0.3 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 10, color: 'var(--ds-text-muted)', marginTop: 2 }}>{subtitle}</div>}
           <input
             ref={inputRef}
             value={filter}
@@ -139,9 +141,9 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
             placeholder={placeholder}
             style={{
               marginTop: 8, width: '100%', height: 28,
-              background: 'var(--gc-bg, #0b0e11)',
-              color: 'var(--gc-text, #eaecef)',
-              border: '1px solid var(--gc-border, #313944)',
+              background: 'var(--ds-surface-ground)',
+              color: 'var(--ds-text-primary)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 4, padding: '0 10px',
               fontSize: 12, outline: 'none',
               fontFamily: "'JetBrains Mono', Menlo, monospace",
@@ -153,7 +155,7 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
           style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}
         >
           {filtered.length === 0 && (
-            <div style={{ padding: '12px 14px', fontSize: 11, color: 'var(--gc-text-dim, #7a8494)' }}>
+            <div style={{ padding: '12px 14px', fontSize: 11, color: 'var(--ds-text-muted)' }}>
               No matches for <code>{filter}</code>.
             </div>
           )}
@@ -165,9 +167,9 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
               <div key={it.id} data-idx={idx}>
                 {showGroup && (
                   <div style={{
-                    padding: '8px 14px 4px', fontSize: 9, fontWeight: 600,
+                    padding: '8px 14px 4px', fontSize: 10, fontWeight: 600,
                     textTransform: 'uppercase', letterSpacing: 0.8,
-                    color: 'var(--gc-text-dim, #7a8494)',
+                    color: 'var(--ds-text-muted)',
                   }}>{it.group}</div>
                 )}
                 <div
@@ -176,25 +178,25 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
                   style={{
                     padding: '6px 14px',
                     cursor: 'pointer',
-                    background: isSelected ? 'var(--gc-accent-muted, rgba(240,185,11,0.10))' : 'transparent',
-                    borderLeft: isSelected ? '2px solid var(--gc-accent, #f0b90b)' : '2px solid transparent',
+                    background: isSelected ? 'var(--ds-overlay-info-soft)' : 'transparent',
+                    borderLeft: isSelected ? '2px solid var(--ds-accent-info)' : '2px solid transparent',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                     <span style={{
                       fontFamily: "'JetBrains Mono', Menlo, monospace",
                       fontSize: 12,
-                      color: isSelected ? 'var(--gc-accent, #f0b90b)' : 'var(--gc-text, #eaecef)',
+                      color: isSelected ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
                       fontWeight: 500,
                     }}>{it.label}</span>
                     {it.detail && (
-                      <span style={{ fontSize: 10, color: 'var(--gc-text-dim, #7a8494)' }}>{it.detail}</span>
+                      <span style={{ fontSize: 10, color: 'var(--ds-text-muted)' }}>{it.detail}</span>
                     )}
                   </div>
                   {isSelected && it.description && (
                     <div style={{
                       marginTop: 4, fontSize: 10, lineHeight: 1.5,
-                      color: 'var(--gc-text-muted, #a0a8b4)',
+                      color: 'var(--ds-text-secondary)',
                     }}>{it.description}</div>
                   )}
                 </div>
@@ -203,8 +205,8 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
           })}
         </div>
         <div style={{
-          padding: '6px 14px', borderTop: '1px solid var(--gc-border, #313944)',
-          fontSize: 9, color: 'var(--gc-text-faint, #4a5568)',
+          padding: '6px 14px', borderTop: '1px solid var(--ds-border-primary)',
+          fontSize: 10, color: 'var(--ds-text-faint)',
           display: 'flex', gap: 14,
         }}>
           <span><kbd style={kbdStyle}>↑↓</kbd> navigate</span>
@@ -213,16 +215,16 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
         </div>
       </div>
     </div>,
-    portalContainer ?? document.body,
+    portalContainer ?? portalDom.document.body,
   );
 }
 
 const kbdStyle: React.CSSProperties = {
   padding: '0 4px',
   borderRadius: 2,
-  background: 'var(--gc-surface-active, #2b3139)',
-  color: 'var(--gc-text-muted, #a0a8b4)',
+  background: 'var(--ds-surface-secondary)',
+  color: 'var(--ds-text-secondary)',
   fontFamily: "'JetBrains Mono', Menlo, monospace",
-  fontSize: 9,
-  border: '1px solid var(--gc-border, #313944)',
+  fontSize: 10,
+  border: '1px solid var(--ds-border-primary)',
 };

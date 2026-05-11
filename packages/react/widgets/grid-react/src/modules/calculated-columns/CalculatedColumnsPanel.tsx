@@ -94,9 +94,9 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
 
   return (
     <>
-      <div className="gc-popout-list-header">
+      <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Columns</Caps>
-        <Mono color="var(--ck-t3)" size={11}>
+        <Mono color="var(--ds-text-faint)" size={11}>
           {String(state.virtualColumns.length).padStart(2, '0')}
         </Mono>
         <span style={{ flex: 1 }} />
@@ -111,9 +111,9 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'var(--ck-green-bg)',
-            color: 'var(--ck-green)',
-            border: '1px solid var(--ck-green-dim)',
+            background: 'var(--ds-overlay-positive-soft)',
+            color: 'var(--ds-accent-positive)',
+            border: '1px solid var(--ds-overlay-positive-ring)',
             borderRadius: 2,
             cursor: 'pointer',
             padding: 0,
@@ -166,7 +166,7 @@ export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
         <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
           No column selected
         </Caps>
-        <div style={{ fontSize: 12, color: 'var(--ck-t2)' }}>
+        <div className="text-xs text-muted-foreground">
           Select a virtual column from the list, or press <Mono size={11}>+</Mono> to add one.
         </div>
       </div>
@@ -230,7 +230,7 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
         overflow: 'hidden',
       }}
     >
-      <div className="gc-editor-header">
+      <div className="shrink-0 bg-background border-b border-border">
         <ObjectTitleRow
           title={
             <TitleInput
@@ -258,8 +258,8 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
         />
       </div>
 
-      <div className="gc-editor-scroll">
-        <div className="gc-meta-grid">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+        <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
           <MetaCell
             label="COLUMN ID"
             value={
@@ -271,11 +271,11 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
               />
             }
           />
-          <MetaCell label="REFS" value={<Mono color="var(--ck-t0)">{baseCols.length} cols</Mono>} />
+          <MetaCell label="REFS" value={<Mono color="var(--ds-text-primary)">{baseCols.length} cols</Mono>} />
           <MetaCell
             label="FORMATTER"
             value={
-              <Mono color={draft.valueFormatterTemplate ? 'var(--ck-amber)' : 'var(--ck-t3)'}>
+              <Mono color={draft.valueFormatterTemplate ? 'var(--ds-accent-warning)' : 'var(--ds-text-faint)'}>
                 {draft.valueFormatterTemplate ? 'SET' : '—'}
               </Mono>
             }
@@ -289,9 +289,9 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
         <Band index="01" title="EXPRESSION">
           <div
             style={{
-              border: '1px solid var(--ck-border)',
+              border: '1px solid var(--ds-border-primary)',
               borderRadius: 2,
-              background: 'var(--ck-bg)',
+              background: 'var(--ds-surface-ground)',
               overflow: 'hidden',
             }}
           >
@@ -327,7 +327,7 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
             style={{
               marginTop: 8,
               fontSize: 10,
-              color: 'var(--ck-t3)',
+              color: 'var(--ds-text-faint)',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
             }}
@@ -359,9 +359,9 @@ export function CalculatedColumnsPanel() {
     >
       <aside
         style={{
-          borderRight: '1px solid var(--ck-border)',
+          borderRight: '1px solid var(--ds-border-primary)',
           overflowY: 'auto',
-          background: 'var(--ck-surface)',
+          background: 'var(--ds-surface-primary)',
         }}
       >
         <CalculatedColumnsList gridId="" selectedId={selectedId} onSelect={setSelectedId} />

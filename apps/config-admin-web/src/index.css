@@ -1,15 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Geist:wght@300;400;500;600&display=swap');
+@import '@starui/design-system/css';
 
-/* MarketsUI Design System Tokens — single source of truth for every app. */
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-dark.css';
-@import '../../../packages/shared/foundation/design-system/src/themes/fi-light.css';
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
-/* Theme-flipping scrollbar utilities (`.scrollbar-themed`, `.scrollbar-thin`).
-   Pulls from `--scrollbar-thumb` which fi-dark/fi-light define per theme. */
-@import '../../../packages/shared/foundation/design-system/src/themes/scrollbars.css';
-
-/* Tailwind v3 directives — utilities resolve via the shadcn-compatible
-   aliases exported by fi-dark.css / fi-light.css. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -30,10 +22,11 @@
     width: 100%;
   }
   body {
-    background: var(--bn-bg);
-    color: var(--bn-t0);
-    font-family: var(--fi-sans), -apple-system, sans-serif;
-    font-size: var(--fi-font-sm);
+    /* TODO: remove legacy references */
+    background: var(--ds-surface-ground);
+    color: var(--ds-text-primary);
+    font-family: var(--ds-font-sans), -apple-system, sans-serif;
+    font-size: var(--ds-font-size-body);
     margin: 0;
     -webkit-font-smoothing: antialiased;
   }

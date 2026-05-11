@@ -2,7 +2,7 @@
  * Dock-editor design tokens — 100% derived from @starui/design-system.
  *
  * Every `--de-*` variable in this block resolves to a design-system token
- * (`--bn-*` for colors/surfaces/text, `--fi-*` for typography). The
+ * (`--ds-*` unified token system). The
  * `--de-*` names are kept purely as internal aliases so the component
  * code can reference familiar semantic names (accent/danger/etc.) while
  * the resolved values come from the one source of truth.
@@ -20,40 +20,40 @@
 // render outside the component subtree still resolve every `--de-*` var.
 const EDITOR_CSS = `
 :root, [data-dock-editor] {
-  /* ── Typography aliases → @starui/design-system (--fi-*) ── */
-  --de-font: var(--fi-sans);
-  --de-mono: var(--fi-mono);
+  /* ── Typography aliases → @starui/design-system ── */
+  --de-font: var(--ds-font-sans);
+  --de-mono: var(--ds-font-mono);
 
-  /* ── Surface aliases → --bn-bg/--bn-bg1/--bn-bg2/--bn-bg3 ── */
-  --de-bg-deep:    var(--bn-bg);
-  --de-bg:         var(--bn-bg1);
-  --de-bg-raised:  var(--bn-bg1);
-  --de-bg-surface: var(--bn-bg2);
-  --de-bg-hover:   var(--bn-bg3);
-  --de-bg-active:  var(--bn-bg3);
+  /* ── Surface aliases → --ds-surface-* ── */
+  --de-bg-deep:    var(--ds-surface-ground);
+  --de-bg:         var(--ds-surface-primary);
+  --de-bg-raised:  var(--ds-surface-primary);
+  --de-bg-surface: var(--ds-surface-secondary);
+  --de-bg-hover:   var(--ds-surface-tertiary);
+  --de-bg-active:  var(--ds-surface-tertiary);
 
-  /* ── Border aliases → --bn-border/--bn-border2 ── */
-  --de-border:         var(--bn-border);
-  --de-border-subtle:  var(--bn-border);
-  --de-border-strong:  var(--bn-border2);
+  /* ── Border aliases → --ds-border-* ── */
+  --de-border:         var(--ds-border-primary);
+  --de-border-subtle:  var(--ds-border-primary);
+  --de-border-strong:  var(--ds-border-secondary);
 
-  /* ── Text aliases → --bn-t0..t3 ── */
-  --de-text:           var(--bn-t0);
-  --de-text-secondary: var(--bn-t1);
-  --de-text-tertiary:  var(--bn-t2);
-  --de-text-ghost:     var(--bn-t3);
+  /* ── Text aliases → --ds-text-* ── */
+  --de-text:           var(--ds-text-primary);
+  --de-text-secondary: var(--ds-text-secondary);
+  --de-text-tertiary:  var(--ds-text-muted);
+  --de-text-ghost:     var(--ds-text-faint);
 
   /* ── Semantic colors → design-system accents ──
-   * --de-accent is the PRIMARY BRAND accent — maps to --bn-blue
-   * (the design-system info/brand color). NOT --bn-amber (which is
+   * --de-accent is the PRIMARY BRAND accent — maps to --ds-accent-info
+   * (the design-system info/brand color). NOT --ds-accent-warning (which is
    * reserved for WARNING semantics). */
-  --de-accent:         var(--bn-blue);
-  --de-accent-dim:     var(--bn-info-soft);
-  --de-accent-subtle:  var(--bn-info-soft);
+  --de-accent:         var(--ds-accent-info);
+  --de-accent-dim:     var(--ds-overlay-info-soft);
+  --de-accent-subtle:  var(--ds-overlay-info-soft);
 
-  --de-danger:         var(--bn-red);
-  --de-danger-dim:     var(--bn-negative-soft);
-  --de-success:        var(--bn-green);
+  --de-danger:         var(--ds-accent-negative);
+  --de-danger-dim:     var(--ds-overlay-negative-soft);
+  --de-success:        var(--ds-accent-positive);
 
   /* ── Radii — kept as literal px (not a token category in design-system) ── */
   --de-radius-sm: 6px;
@@ -65,7 +65,7 @@ const EDITOR_CSS = `
   --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.3);
   --de-shadow-md:   0 4px 12px rgba(0,0,0,0.4);
   --de-shadow-lg:   0 8px 32px rgba(0,0,0,0.5);
-  --de-shadow-glow: 0 0 20px var(--bn-info-soft);
+  --de-shadow-glow: 0 0 20px var(--ds-overlay-info-soft);
 
   font-family: var(--de-font);
   color: var(--de-text);
@@ -76,7 +76,7 @@ const EDITOR_CSS = `
 /*
  * Light-theme shadow overrides. All color-bearing tokens above already
  * re-resolve when the root [data-theme] attribute flips, because they
- * delegate to --bn-*/--fi-* which are themed by the design-system CSS.
+ * delegate to --ds-* which are themed by the design-system CSS.
  */
 /* Match the root-level [data-theme="light"] selector so light-theme
    shadow overrides apply to portal content as well. */
@@ -84,7 +84,7 @@ const EDITOR_CSS = `
   --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.06);
   --de-shadow-md:   0 4px 12px rgba(0,0,0,0.08);
   --de-shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
-  --de-shadow-glow: 0 0 20px var(--bn-info-soft);
+  --de-shadow-glow: 0 0 20px var(--ds-overlay-info-soft);
 }
 
 @keyframes de-fade-in {
@@ -119,7 +119,7 @@ const EDITOR_CSS = `
 
 /* ── Themed scrollbars ───────────────────────────────────────────────
  * Used by .bn-scrollbar (any element that scrolls inside the editor
- * shells). Track + thumb derive from --bn-bg2 / --bn-border so they
+ * shells). Track + thumb derive from --ds-surface-secondary / --ds-border-primary so they
  * flip cleanly when [data-theme] changes on the document root.
  *
  * Pure-CSS approach so the same rule works in every browser the
@@ -128,7 +128,7 @@ const EDITOR_CSS = `
  */
 .bn-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: var(--bn-border2, var(--bn-border)) transparent;
+  scrollbar-color: var(--ds-border-secondary, var(--ds-border-primary)) transparent;
 }
 .bn-scrollbar::-webkit-scrollbar {
   width: 10px;
@@ -138,12 +138,12 @@ const EDITOR_CSS = `
   background: transparent;
 }
 .bn-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--bn-border2, var(--bn-border));
-  border: 2px solid var(--bn-bg);
+  background: var(--ds-border-secondary, var(--ds-border-primary));
+  border: 2px solid var(--ds-surface-ground);
   border-radius: 6px;
 }
 .bn-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--bn-t3, var(--bn-t2));
+  background: var(--ds-text-faint, var(--ds-text-muted));
 }
 .bn-scrollbar::-webkit-scrollbar-corner {
   background: transparent;

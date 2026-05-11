@@ -5,12 +5,11 @@ import { GhostIcon } from './GhostIcon';
 import { SharpBtn } from './Cockpit';
 
 /**
- * Cockpit ItemCard — kept as a cohesive title + body wrapper for callers
- * that still render lists of cards (e.g. legacy flat panels). The visual
- * treatment is now aligned with the editor's identity strip: Plex Sans
- * title + LED dirty + sharp SAVE + trash, no rounded pill.
+ * ItemCard — title + body wrapper for callers that render lists of cards
+ * (e.g. legacy flat panels). The visual treatment is aligned with the
+ * editor's identity strip: title + dirty dot + save + trash.
  *
- * New Cockpit surfaces prefer `ObjectTitleRow` + numbered `Band`s directly
+ * New surfaces prefer `ObjectTitleRow` + numbered `Band`s directly
  * rather than this card, but we keep ItemCard's API intact so nothing
  * breaks during the migration.
  */
@@ -53,24 +52,14 @@ export function ItemCard({
       data-testid={rest['data-testid']}
       data-dirty={dirty ? 'true' : 'false'}
       data-collapsed={collapsed ? 'true' : 'false'}
-      style={{
-        background: 'var(--ck-card, #22262b)',
-        border: '1px solid var(--ck-border, #2d3339)',
-        borderRadius: 2,
-        marginBottom: 8,
-        overflow: 'hidden',
-        ...style,
-      }}
+      className="bg-card border border-border rounded-sm mb-2 overflow-hidden"
+      style={style}
     >
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 12px',
-          borderBottom: hasBody ? '1px solid var(--ck-border, #2d3339)' : 'none',
-          background: 'var(--ck-card-hi, #2a2e34)',
-        }}
+        className={[
+          'flex items-center gap-2 px-3 py-2 bg-secondary',
+          hasBody ? 'border-b border-border' : '',
+        ].join(' ')}
       >
         {canToggle && (
           <button
@@ -78,37 +67,15 @@ export function ItemCard({
             onClick={onToggleCollapsed}
             aria-expanded={!collapsed}
             title={collapsed ? 'Expand' : 'Collapse'}
-            style={{
-              width: 18,
-              height: 18,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--ck-t2, #6b7480)',
-              cursor: 'pointer',
-              padding: 0,
-              borderRadius: 2,
-            }}
+            className="inline-flex items-center justify-center w-[18px] h-[18px] bg-transparent border-none text-muted-foreground cursor-pointer p-0 rounded-sm"
           >
             {collapsed ? <ChevronRight size={12} strokeWidth={2.25} /> : <ChevronDown size={12} strokeWidth={2.25} />}
           </button>
         )}
         {dirty && <DirtyDot />}
         <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            fontFamily: 'var(--ck-font-sans, "IBM Plex Sans", sans-serif)',
-            fontSize: 12,
-            fontWeight: 500,
-            color: 'var(--ck-t0, #e5e7ea)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            cursor: canToggle ? 'pointer' : 'default',
-          }}
+          className="flex-1 min-w-0 font-sans text-xs font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap"
+          style={{ cursor: canToggle ? 'pointer' : 'default' }}
           onClick={canToggle ? onToggleCollapsed : undefined}
         >
           {title}

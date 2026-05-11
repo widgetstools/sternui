@@ -8,7 +8,7 @@
  *   security/      expression-policy (CSP gate)
  *   history/       framework-agnostic undo/redo stack
  *   colDef/        AG-Grid column-def helpers (formatters, style→ag mappers)
- *   css/           cockpit/sheet stylesheets injected by host shells
+ *   css/           CSS injection utilities (injectEditorStyles)
  *   types/         shared TypeScript types
  *   utils/         openFin shim + small helpers
  *
@@ -122,11 +122,8 @@ export { openFinWindowOpener, isOpenFin } from './utils/openFin';
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type { CellStyleProperties, ThemeAwareStyle } from './types/common';
 
-// ─── Shared CSS / cockpit tokens ────────────────────────────────────────────
-export { cockpitCSS, COCKPIT_STYLE_ID, injectEditorStyles } from './css';
-// v2 name aliases for ported host chrome — SettingsSheet injects under
-// these names. Delete alongside the SettingsSheet rewrite in Phase 4.
-export { cockpitCSS as v2SheetCSS, COCKPIT_STYLE_ID as V2_SHEET_STYLE_ID } from './css';
+// ─── Shared CSS utilities ────────────────────────────────────────────────────
+export { injectEditorStyles } from './css';
 
 // ─── Shared colDef types + helpers ─────────────────────────────────────────
 //

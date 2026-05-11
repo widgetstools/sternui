@@ -41,72 +41,75 @@
 /* ─── Filter pill colour variables ─────────────────────────────────── */
 
 :root {
-  /* Active = brand-blue accent on tinted surface; inactive = neutral
-     muted token chip. Both resolve through design-system tokens so
-     dark/light flip cleanly when [data-theme] changes. */
-  --filter-active-bg: color-mix(in srgb, var(--bn-yellow, #facc15) 22%, transparent);
-  --filter-active-text: var(--bn-yellow, #facc15);
-  --filter-active-border: color-mix(in srgb, var(--bn-yellow, #facc15) 70%, transparent);
-  --filter-active-glow: 0 0 0 1px color-mix(in srgb, var(--bn-yellow, #facc15) 35%, transparent),
-                        0 0 8px color-mix(in srgb, var(--bn-yellow, #facc15) 45%, transparent),
-                        0 0 16px color-mix(in srgb, var(--bn-yellow, #facc15) 25%, transparent);
-  --filter-inactive-bg: var(--bn-bg3, #242c38);
-  --filter-inactive-text: var(--bn-t1, #a7b0bd);
-  --filter-inactive-border: var(--bn-border2, #323b49);
-  --filter-label-color: var(--bn-blue, #3b82f6);
+  /* Active filters use bright cool accents (cyan/violet), distinct from
+     earthy warning tones and from trading green/red semantics. */
+  --filter-active-bg: linear-gradient(135deg,
+                        color-mix(in srgb, var(--ds-accent-highlight) 20%, transparent),
+                        color-mix(in srgb, var(--ds-accent-purple) 16%, transparent));
+  --filter-active-text: var(--ds-accent-highlight);
+  --filter-active-border: color-mix(in srgb, var(--ds-accent-highlight) 62%, var(--ds-accent-purple));
+  --filter-active-glow: 0 0 0 1px color-mix(in srgb, var(--ds-accent-highlight) 36%, transparent),
+                        0 0 8px color-mix(in srgb, var(--ds-accent-highlight) 42%, transparent),
+                        0 0 16px color-mix(in srgb, var(--ds-accent-purple) 26%, transparent);
+  --filter-inactive-bg: var(--ds-surface-tertiary);
+  --filter-inactive-text: var(--ds-text-secondary);
+  --filter-inactive-border: var(--ds-border-secondary);
+  --filter-label-color: var(--ds-accent-info);
 }
 
 [data-theme="light"] {
-  --filter-active-bg: color-mix(in srgb, var(--bn-yellow, #ca8a04) 18%, transparent);
-  --filter-active-text: var(--bn-yellow, #ca8a04);
-  --filter-active-border: color-mix(in srgb, var(--bn-yellow, #ca8a04) 60%, transparent);
-  --filter-active-glow: 0 0 0 1px color-mix(in srgb, var(--bn-yellow, #ca8a04) 30%, transparent),
-                        0 0 6px color-mix(in srgb, var(--bn-yellow, #ca8a04) 35%, transparent);
-  --filter-inactive-bg: var(--bn-bg3, #e4e8ee);
-  --filter-inactive-text: var(--bn-t1, #4a5568);
-  --filter-inactive-border: var(--bn-border2, #c0c7d1);
-  --filter-label-color: var(--bn-blue, #2563eb);
+  --filter-active-bg: linear-gradient(135deg,
+                        color-mix(in srgb, var(--ds-accent-highlight) 16%, var(--ds-surface-primary)),
+                        color-mix(in srgb, var(--ds-accent-purple) 10%, var(--ds-surface-primary)));
+  --filter-active-text: var(--ds-accent-purple);
+  --filter-active-border: color-mix(in srgb, var(--ds-accent-highlight) 42%, var(--ds-accent-purple));
+  --filter-active-glow: 0 1px 2px rgba(15, 23, 42, 0.06),
+                        0 0 0 1px color-mix(in srgb, var(--ds-accent-highlight) 18%, transparent);
+  --filter-inactive-bg: var(--ds-surface-tertiary);
+  --filter-inactive-text: var(--ds-text-secondary);
+  --filter-inactive-border: var(--ds-border-secondary);
+  --filter-label-color: var(--ds-accent-info);
 }
 
 /* ─── Toolbar button theme styles (wrapped in @layer so Tailwind's
        base reset doesn't override them) ───────────────────────────── */
 
 @layer components {
-  .gc-tbtn {
-    color: var(--bn-t0);
+  .ds-tbtn {
+    color: var(--ds-text-primary);
     opacity: 0.55;
   }
-  .gc-tbtn:hover {
+  .ds-tbtn:hover {
     opacity: 1;
-    background: var(--bn-bg3);
+    background: var(--ds-surface-tertiary);
   }
-  .gc-toolbar-enabled .gc-tbtn {
+  .ds-toolbar-enabled .ds-tbtn {
     opacity: 0.85;
   }
-  .gc-toolbar-enabled .gc-tbtn:hover {
+  .ds-toolbar-enabled .ds-tbtn:hover {
     opacity: 1;
-    background: var(--bn-bg3);
+    background: var(--ds-surface-tertiary);
   }
-  .gc-tbtn-active {
+  .ds-tbtn-active {
     opacity: 1 !important;
-    background: color-mix(in srgb, var(--bn-blue) 15%, transparent);
-    color: var(--bn-blue) !important;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bn-blue) 30%, transparent);
+    background: var(--ds-primary-soft);
+    color: var(--ds-primary) !important;
+    box-shadow: inset 0 0 0 1px var(--ds-primary-ring);
   }
-  .gc-tbtn-active:hover {
-    background: color-mix(in srgb, var(--bn-blue) 22%, transparent);
+  .ds-tbtn-active:hover {
+    background: color-mix(in srgb, var(--ds-primary) 14%, transparent);
   }
-  .gc-toolbar-sep {
+  .ds-toolbar-sep {
     width: 1px;
-    background: var(--bn-border);
+    background: var(--ds-border-primary);
     flex-shrink: 0;
   }
-  .gc-toolbar-group-bg {
-    background: color-mix(in srgb, var(--bn-bg1) 60%, transparent);
+  .ds-toolbar-group-bg {
+    background: color-mix(in srgb, var(--ds-surface-primary) 60%, transparent);
   }
 
   /* Toolbar Switcher — dropdown */
-  .gc-switcher-trigger {
+  .ds-switcher-trigger {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -118,20 +121,20 @@
     border: none;
     background: transparent;
     cursor: pointer;
-    color: var(--bn-t2);
+    color: var(--ds-text-muted);
     transition: color 120ms ease;
   }
-  .gc-switcher-trigger:hover {
-    color: var(--bn-t0);
+  .ds-switcher-trigger:hover {
+    color: var(--ds-text-primary);
   }
-  .gc-switcher-dot {
+  .ds-switcher-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--sw-color, var(--bn-blue));
-    box-shadow: 0 0 4px color-mix(in srgb, var(--sw-color, var(--bn-blue)) 50%, transparent);
+    background: var(--sw-color, var(--ds-accent-info));
+    box-shadow: 0 0 4px color-mix(in srgb, var(--sw-color, var(--ds-accent-info)) 50%, transparent);
   }
-  .gc-switcher-menu {
+  .ds-switcher-menu {
     position: absolute;
     top: 100%;
     left: 0;
@@ -140,11 +143,11 @@
     flex-direction: column;
     padding: 4px;
     border-radius: 6px;
-    background: var(--bn-bg1);
-    border: 1px solid var(--bn-border);
+    background: var(--ds-surface-primary);
+    border: 1px solid var(--ds-border-primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.04);
   }
-  .gc-switcher-item {
+  .ds-switcher-item {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -154,34 +157,34 @@
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: var(--bn-t0);
+    color: var(--ds-text-primary);
     cursor: pointer;
     transition: background 100ms ease;
   }
-  .gc-switcher-item:hover {
-    background: var(--bn-bg3);
+  .ds-switcher-item:hover {
+    background: var(--ds-surface-tertiary);
   }
-  .gc-switcher-item-active {
-    color: var(--sw-color, var(--bn-t0));
-    background: color-mix(in srgb, var(--sw-color, var(--bn-blue)) 10%, transparent);
+  .ds-switcher-item-active {
+    color: var(--sw-color, var(--ds-text-primary));
+    background: color-mix(in srgb, var(--sw-color, var(--ds-accent-info)) 10%, transparent);
   }
-  .gc-switcher-item-dot {
+  .ds-switcher-item-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--sw-color, var(--bn-t2));
+    background: var(--sw-color, var(--ds-text-muted));
     flex-shrink: 0;
   }
-  .gc-switcher-item-active .gc-switcher-item-dot {
-    box-shadow: 0 0 3px color-mix(in srgb, var(--sw-color, var(--bn-blue)) 50%, transparent);
+  .ds-switcher-item-active .ds-switcher-item-dot {
+    box-shadow: 0 0 3px color-mix(in srgb, var(--sw-color, var(--ds-accent-info)) 50%, transparent);
   }
-  .gc-switcher-icon {
+  .ds-switcher-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .gc-switcher-item-icon {
+  .ds-switcher-item-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -197,16 +200,25 @@
    Must be OUTSIDE @layer so Tailwind's reset can't overwrite the
    flexbox layout. */
 
-.gc-primary-row {
+.ds-primary-row {
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
   height: 48px;
-  background: var(--bn-bg1, #161a1e);
-  border-bottom: 1px solid var(--bn-border, #313944);
+  background: var(--ds-surface-primary);
+  border-bottom: 1px solid var(--ds-border-primary);
 }
 
-.gc-primary-filters {
+[data-theme="light"] .ds-primary-row {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%,
+      var(--ds-surface-primary) 100%);
+  border-bottom-color: color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.88) inset, 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.ds-primary-filters {
   flex: 1 1 0px;
   min-width: 0;
   overflow-x: clip;
@@ -214,21 +226,21 @@
   align-items: center;
 }
 
-.gc-primary-filters-empty {
+.ds-primary-filters-empty {
   flex: 1 1 0px;
   height: 100%;
 }
 
-.gc-primary-actions {
+.ds-primary-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
+  gap: 6px;
+  padding: 0 10px;
   flex-shrink: 0;
 }
 
 /* Shared icon button for Brush / Save / Settings. */
-.gc-primary-action {
+.ds-primary-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -238,57 +250,49 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  color: var(--bn-t0, #eaecef);
+  color: var(--ds-text-primary);
   opacity: 0.78;
   cursor: pointer;
   flex-shrink: 0;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
-.gc-primary-action:hover {
-  color: var(--bn-blue, #3b82f6);
+.ds-primary-action:hover {
+  color: var(--ds-primary);
   opacity: 1;
-  background: color-mix(in srgb, var(--bn-blue, #3b82f6) 12%, transparent);
-  border-color: color-mix(in srgb, var(--bn-blue, #3b82f6) 35%, transparent);
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-primary-ring);
 }
-.gc-primary-action[aria-pressed='true'],
-.gc-primary-action[data-active='true'] {
-  color: var(--bn-green, #2dd4bf);
-  background: rgba(45, 212, 191, 0.12);
-  border-color: rgba(45, 212, 191, 0.35);
+.ds-primary-action[aria-pressed='true'],
+.ds-primary-action[data-active='true'] {
+  color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-primary-ring);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-primary) 12%, transparent);
 }
-.gc-primary-action[data-state='dirty'] {
-  color: var(--bn-yellow, #f0b90b);
+.ds-primary-action[data-state='dirty'] {
+  color: var(--ds-accent-warning);
 }
-.gc-primary-action[data-state='saved'] {
-  color: var(--bn-green, #2dd4bf);
+.ds-primary-action[data-state='saved'] {
+  color: var(--ds-accent-positive);
 }
 
-.gc-primary-save {
+.ds-primary-save {
   position: relative;
 }
-.gc-primary-save-dirty {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
 
-.gc-primary-divider {
+.ds-primary-divider {
   display: inline-block;
   width: 1px;
   height: 20px;
-  background: var(--bn-border, #313944);
-  opacity: 0.6;
-  margin: 0 2px;
+  background: var(--ds-border-secondary);
+  opacity: 0.75;
+  margin: 0 4px;
   flex-shrink: 0;
 }
 
 /* ─── Filters toolbar itself ───────────────────────────────────────── */
 
-.gc-filters-bar {
+.ds-filters-bar {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -298,16 +302,16 @@
   overflow: hidden;
 }
 
-.gc-filters-collapse {
+.ds-filters-collapse {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 32px;
   padding: 0;
-  background: var(--bn-bg2, #1a212b);
-  border: 1px solid var(--bn-border, #2e3744);
-  color: var(--bn-t0, #eaecef);
+  background: var(--ds-surface-secondary);
+  border: 1px solid var(--ds-border-primary);
+  color: var(--ds-text-primary);
   opacity: 0.85;
   cursor: pointer;
   flex-shrink: 0;
@@ -315,25 +319,25 @@
   margin-right: 4px;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
-.gc-filters-collapse:hover {
-  color: var(--bn-blue, #3b82f6);
+.ds-filters-collapse:hover {
+  color: var(--ds-primary);
   opacity: 1;
-  background: color-mix(in srgb, var(--bn-blue, #3b82f6) 14%, transparent);
-  border-color: color-mix(in srgb, var(--bn-blue, #3b82f6) 45%, transparent);
+  background: var(--ds-primary-soft);
+  border-color: var(--ds-primary-ring);
 }
 
 /* Summary chip (collapsed state) */
-.gc-filters-summary {
+.ds-filters-summary {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   height: 28px;
   padding: 0 10px;
-  background: var(--bn-bg3, #1e2329);
-  border: 1px solid var(--bn-border, #313944);
+  background: var(--ds-surface-tertiary);
+  border: 1px solid var(--ds-border-primary);
   border-radius: 13px;
-  color: var(--bn-t0, #eaecef);
-  font-family: var(--fi-sans, 'Geist', sans-serif);
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-sans);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -341,69 +345,69 @@
   flex-shrink: 0;
   transition: all 120ms ease;
 }
-.gc-filters-summary:hover {
-  border-color: var(--bn-border2, #3e4754);
-  background: var(--bn-bg2, #2b3139);
+.ds-filters-summary:hover {
+  border-color: var(--ds-border-secondary);
+  background: var(--ds-surface-secondary);
 }
-.gc-filters-summary-count {
+.ds-filters-summary-count {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: var(--bn-cyan, #22d3ee);
+  color: var(--ds-accent-info);
 }
-.gc-filters-summary-label {
-  color: var(--bn-t2, #a0a8b4);
+.ds-filters-summary-label {
+  color: var(--ds-text-muted);
 }
-.gc-filters-summary-active {
-  color: var(--bn-yellow, #f0b90b);
+.ds-filters-summary-active {
+  color: var(--ds-accent-warning);
   font-weight: 500;
 }
-.gc-filters-summary-empty {
-  color: var(--bn-t2, #a0a8b4);
+.ds-filters-summary-empty {
+  color: var(--ds-text-muted);
   font-style: italic;
 }
 
 /* Clear-all / Add-new sticky actions */
-.gc-filters-clear-btn {
+.ds-filters-clear-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   background: none;
   border: none;
-  color: #ef4444;
+  color: var(--ds-accent-negative);
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 3px;
   transition: color 120ms ease, background 120ms ease;
 }
-.gc-filters-clear-btn:hover {
+.ds-filters-clear-btn:hover {
   background: rgba(239, 68, 68, 0.10);
-  color: #dc2626;
+  color: var(--ds-accent-negative-hover);
 }
 
-.gc-filters-add-btn {
+.ds-filters-add-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   background: none;
   border: none;
-  color: #14b8a6;
+  color: var(--ds-accent-positive);
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 3px;
   transition: color 120ms ease, background 120ms ease;
 }
-.gc-filters-add-btn:hover:not(:disabled) {
+.ds-filters-add-btn:hover:not(:disabled) {
   background: rgba(20, 184, 166, 0.10);
-  color: #0d9488;
+  color: var(--ds-accent-positive-hover);
 }
 
-.gc-filter-scroll {
+.ds-filter-scroll {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -413,11 +417,11 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.gc-filter-scroll::-webkit-scrollbar {
+.ds-filter-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.gc-filter-pill {
+.ds-filter-pill {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -429,37 +433,50 @@
   font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  font-family: var(--fi-sans, 'Geist', sans-serif);
+  font-family: var(--ds-font-sans);
   white-space: nowrap;
   flex-shrink: 0;
   transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
   cursor: default;
 }
 
-.gc-filter-active {
+.ds-filter-active {
   background: var(--filter-active-bg);
   color: var(--filter-active-text);
   border-color: var(--filter-active-border);
   box-shadow: var(--filter-active-glow);
-  text-shadow: 0 0 8px color-mix(in srgb, var(--bn-yellow, #facc15) 50%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--ds-accent-highlight) 50%, transparent);
 }
-.gc-filter-active:hover {
-  background: color-mix(in srgb, var(--bn-yellow, #facc15) 32%, transparent);
-  border-color: color-mix(in srgb, var(--bn-yellow, #facc15) 85%, transparent);
+.ds-filter-active:hover {
+  background: linear-gradient(135deg,
+                color-mix(in srgb, var(--ds-accent-highlight) 28%, transparent),
+                color-mix(in srgb, var(--ds-accent-purple) 22%, transparent));
+  border-color: color-mix(in srgb, var(--ds-accent-highlight) 78%, var(--ds-accent-purple));
 }
 
-.gc-filter-inactive {
+[data-theme="light"] .ds-filter-active {
+  text-shadow: none;
+}
+
+[data-theme="light"] .ds-filter-active:hover {
+  background: linear-gradient(135deg,
+                color-mix(in srgb, var(--ds-accent-highlight) 22%, var(--ds-surface-primary)),
+                color-mix(in srgb, var(--ds-accent-purple) 14%, var(--ds-surface-primary)));
+  border-color: color-mix(in srgb, var(--ds-accent-highlight) 55%, var(--ds-accent-purple));
+}
+
+.ds-filter-inactive {
   background: var(--filter-inactive-bg);
   color: var(--filter-inactive-text);
   border-color: var(--filter-inactive-border);
 }
-.gc-filter-inactive:hover {
-  color: var(--bn-t0, #e6e9ef);
-  background: color-mix(in srgb, var(--bn-t0, #e6e9ef) 6%, var(--bn-bg3, #242c38));
-  border-color: color-mix(in srgb, var(--bn-t0, #e6e9ef) 22%, var(--bn-border2, #323b49));
+.ds-filter-inactive:hover {
+  color: var(--ds-text-primary);
+  background: color-mix(in srgb, var(--ds-text-primary) 6%, var(--ds-surface-tertiary));
+  border-color: color-mix(in srgb, var(--ds-text-primary) 22%, var(--ds-border-secondary));
 }
 
-.gc-filter-pill-btn {
+.ds-filter-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 0;
@@ -476,7 +493,7 @@
   flex: 1;
 }
 
-.gc-filter-pill-count {
+.ds-filter-pill-count {
   flex-shrink: 0;
   margin-left: 7px;
   padding: 0 6px;
@@ -494,18 +511,18 @@
   color: inherit;
   opacity: 0.9;
 }
-.gc-filter-active .gc-filter-pill-count {
-  background: color-mix(in srgb, var(--bn-yellow, #facc15) 25%, transparent);
-  color: var(--bn-yellow, #facc15);
+.ds-filter-active .ds-filter-pill-count {
+  background: color-mix(in srgb, var(--ds-accent-warning) 25%, transparent);
+  color: var(--ds-accent-warning);
   opacity: 1;
 }
-.gc-filter-inactive .gc-filter-pill-count {
-  background: color-mix(in srgb, var(--bn-t0, #e6e9ef) 10%, transparent);
-  color: var(--bn-t0, #e6e9ef);
+.ds-filter-inactive .ds-filter-pill-count {
+  background: color-mix(in srgb, var(--ds-text-primary) 10%, transparent);
+  color: var(--ds-text-primary);
   opacity: 0.95;
 }
 
-.gc-filter-pill-actions {
+.ds-filter-pill-actions {
   display: inline-flex;
   align-items: center;
   gap: 1px;
@@ -517,15 +534,15 @@
   flex-shrink: 0;
   pointer-events: none;
 }
-.gc-filter-pill:hover .gc-filter-pill-actions,
-.gc-filter-pill:focus-within .gc-filter-pill-actions {
+.ds-filter-pill:hover .ds-filter-pill-actions,
+.ds-filter-pill:focus-within .ds-filter-pill-actions {
   max-width: 60px;
   margin-left: 4px;
   opacity: 1;
   pointer-events: auto;
 }
 
-.gc-filter-pill-action {
+.ds-filter-pill-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -540,18 +557,18 @@
   cursor: pointer;
   transition: all 100ms ease;
 }
-.gc-filter-pill-action:hover {
+.ds-filter-pill-action:hover {
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
 }
-.gc-filter-pill-action-remove:hover {
-  color: var(--bn-red, #f87171);
+.ds-filter-pill-action-remove:hover {
+  color: var(--ds-accent-negative);
   background: rgba(248, 113, 113, 0.12);
 }
 
 /* Always-visible "show saved filter" menu trigger. Sits between the
    label-button and the hover-only rename/remove actions. */
-.gc-filter-pill-menu {
+.ds-filter-pill-menu {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -570,26 +587,26 @@
   pointer-events: none;
   transition: width 150ms ease, margin-left 150ms ease, opacity 120ms ease, background 100ms ease;
 }
-.gc-filter-pill:hover .gc-filter-pill-menu,
-.gc-filter-pill:focus-within .gc-filter-pill-menu,
-.gc-filter-pill-menu[data-state="open"] {
+.ds-filter-pill:hover .ds-filter-pill-menu,
+.ds-filter-pill:focus-within .ds-filter-pill-menu,
+.ds-filter-pill-menu[data-state="open"] {
   width: 16px;
   margin-left: 4px;
   opacity: 0.6;
   pointer-events: auto;
 }
-.gc-filter-pill-menu:hover,
-.gc-filter-pill-menu[data-state="open"] {
+.ds-filter-pill-menu:hover,
+.ds-filter-pill-menu[data-state="open"] {
   opacity: 1;
   background: rgba(255, 255, 255, 0.12);
 }
-[data-theme="light"] .gc-filter-pill-menu:hover,
-[data-theme="light"] .gc-filter-pill-menu[aria-expanded="true"] {
+[data-theme="light"] .ds-filter-pill-menu:hover,
+[data-theme="light"] .ds-filter-pill-menu[aria-expanded="true"] {
   background: rgba(0, 0, 0, 0.08);
 }
 
 
-.gc-filters-caret {
+.ds-filters-caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -599,17 +616,17 @@
   background: none;
   border: none;
   border-radius: 3px;
-  color: var(--bn-t2);
+  color: var(--ds-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   transition: color 100ms ease, background 100ms ease;
 }
-.gc-filters-caret:hover {
-  color: var(--bn-t0);
-  background: var(--bn-bg3);
+.ds-filters-caret:hover {
+  color: var(--ds-text-primary);
+  background: var(--ds-surface-tertiary);
 }
 
-.gc-filters-actions {
+.ds-filters-actions {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -617,7 +634,7 @@
   margin-left: 4px;
 }
 
-.gc-filters-icon-btn {
+.ds-filters-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -625,22 +642,22 @@
   height: 24px;
   padding: 0;
   background: none;
-  border: 1px solid var(--bn-border);
+  border: 1px solid var(--ds-border-primary);
   border-radius: 4px;
-  color: var(--bn-t2);
+  color: var(--ds-text-muted);
   cursor: pointer;
   transition: all 100ms ease;
 }
-.gc-filters-icon-btn:hover {
-  color: var(--bn-t0);
-  background: var(--bn-bg3);
-  border-color: var(--bn-t0, rgba(255,255,255,0.2));
+.ds-filters-icon-btn:hover {
+  color: var(--ds-text-primary);
+  background: var(--ds-surface-tertiary);
+  border-color: var(--ds-text-primary);
 }
-.gc-filters-icon-btn-confirm {
-  border-color: var(--bn-green, #2dd4bf);
+.ds-filters-icon-btn-confirm {
+  border-color: var(--ds-accent-positive);
 }
 
-.gc-filter-rename-input {
+.ds-filter-rename-input {
   height: 24px;
   width: 110px;
   min-width: 70px;
@@ -648,18 +665,18 @@
   padding: 0 8px;
   font-size: 11px;
   font-weight: 600;
-  font-family: var(--fi-sans, 'Geist', sans-serif);
+  font-family: var(--ds-font-sans);
   border-radius: 12px;
-  border: 1px solid var(--bn-blue);
-  background: var(--bn-bg);
-  color: var(--bn-t0);
+  border: 1px solid var(--ds-accent-info);
+  background: var(--ds-surface-ground);
+  color: var(--ds-text-primary);
   outline: none;
   flex-shrink: 0;
 }
 
 /* ─── Stacked toolbar slide-in animation ───────────────────────────── */
 
-@keyframes gc-slide-down {
+@keyframes ds-slide-down {
   from {
     opacity: 0;
     transform: translateY(-4px);
@@ -672,7 +689,7 @@
 
 /* ─── Toolbar visibility pills ─────────────────────────────────────── */
 
-.gc-toolbar-pills-dock {
+.ds-toolbar-pills-dock {
   position: absolute;
   top: 0;
   left: 50%;
@@ -681,8 +698,8 @@
   align-items: center;
   gap: 3px;
   padding: 2px 4px;
-  background: var(--bn-bg1, #161a1e);
-  border: 1px solid var(--bn-border, #313944);
+  background: var(--ds-surface-primary);
+  border: 1px solid var(--ds-border-primary);
   border-radius: 999px;
   z-index: 12;
   opacity: 0;
@@ -691,19 +708,19 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.18);
 }
 
-.gc-toolbar-primary:hover .gc-toolbar-pills-dock,
-.gc-toolbar-pills-dock:hover {
+.ds-toolbar-primary:hover .ds-toolbar-pills-dock,
+.ds-toolbar-pills-dock:hover {
   opacity: 1;
   pointer-events: auto;
 }
 
-.gc-pill {
+.ds-pill {
   height: 16px;
   padding: 0 6px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-family: var(--fi-sans, 'Geist', sans-serif);
+  font-family: var(--ds-font-sans);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -713,137 +730,34 @@
   cursor: pointer;
   transition: background 120ms, color 120ms, border-color 120ms;
   background: transparent;
-  color: var(--bn-t2, #a0a8b4);
+  color: var(--ds-text-muted);
   white-space: nowrap;
   line-height: 1;
 }
 
-.gc-pill > svg {
+.ds-pill > svg {
   width: 9px;
   height: 9px;
 }
 
-.gc-pill:hover {
-  background: color-mix(in srgb, var(--gc-pill-color) 14%, transparent);
-  color: var(--gc-pill-color);
-  border-color: color-mix(in srgb, var(--gc-pill-color) 45%, transparent);
+.ds-pill:hover {
+  background: color-mix(in srgb, var(--pill-color) 14%, transparent);
+  color: var(--pill-color);
+  border-color: color-mix(in srgb, var(--pill-color) 45%, transparent);
 }
 
-.gc-pill[data-active='true'] {
-  background: color-mix(in srgb, var(--gc-pill-color) 22%, transparent);
-  color: var(--gc-pill-color);
-  border-color: color-mix(in srgb, var(--gc-pill-color) 55%, transparent);
+.ds-pill[data-active='true'] {
+  background: color-mix(in srgb, var(--pill-color) 22%, transparent);
+  color: var(--pill-color);
+  border-color: color-mix(in srgb, var(--pill-color) 55%, transparent);
 }
 
-.gc-pill[data-active='true']:hover {
-  background: color-mix(in srgb, var(--gc-pill-color) 30%, transparent);
+.ds-pill[data-active='true']:hover {
+  background: color-mix(in srgb, var(--pill-color) 30%, transparent);
 }
 
 /* Stacked-toolbar close button (always visible) */
-.gc-stacked-close:hover {
-  background: color-mix(in srgb, var(--bn-red, #f87171) 12%, transparent) !important;
-  color: var(--bn-red, #f87171) !important;
-}
-
-/* ─── AG-Grid chrome tweaks the grid expects alongside this package ── */
-
-/* Scrollbar styling — AG-Grid scroll containers.
-   Must be outside @layer so it overrides AG-Grid's own rules. */
-.ag-body-viewport,
-.ag-body-vertical-scroll-viewport,
-.ag-body-horizontal-scroll-viewport,
-.ag-horizontal-left-spacer,
-.ag-horizontal-right-spacer,
-.ag-side-bar,
-.ag-popup,
-.ag-virtual-list-viewport,
-.ag-center-cols-viewport,
-.ag-sticky-top-viewport {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb, var(--bn-t2)) transparent;
-}
-
-.ag-body-viewport::-webkit-scrollbar,
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
-.ag-side-bar::-webkit-scrollbar,
-.ag-virtual-list-viewport::-webkit-scrollbar,
-.ag-center-cols-viewport::-webkit-scrollbar,
-.ag-sticky-top-viewport::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.ag-body-viewport::-webkit-scrollbar-track,
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
-.ag-side-bar::-webkit-scrollbar-track,
-.ag-virtual-list-viewport::-webkit-scrollbar-track,
-.ag-center-cols-viewport::-webkit-scrollbar-track,
-.ag-sticky-top-viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.ag-body-viewport::-webkit-scrollbar-thumb,
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
-.ag-side-bar::-webkit-scrollbar-thumb,
-.ag-virtual-list-viewport::-webkit-scrollbar-thumb,
-.ag-center-cols-viewport::-webkit-scrollbar-thumb,
-.ag-sticky-top-viewport::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, var(--bn-t2));
-  border-radius: 3px;
-}
-
-.ag-body-viewport::-webkit-scrollbar-thumb:hover,
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
-.ag-side-bar::-webkit-scrollbar-thumb:hover,
-.ag-virtual-list-viewport::-webkit-scrollbar-thumb:hover,
-.ag-center-cols-viewport::-webkit-scrollbar-thumb:hover,
-.ag-sticky-top-viewport::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, var(--bn-t0));
-}
-
-.ag-body-viewport::-webkit-scrollbar-corner,
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar-corner,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-:root {
-  --scrollbar-thumb: #4a5568;
-  --scrollbar-thumb-hover: #7a8494;
-}
-
-[data-theme="light"] {
-  --scrollbar-thumb: #c4c4c4;
-  --scrollbar-thumb-hover: #a0a0a0;
-}
-
-/* AG-Grid header buttons — hide until hover, keep slot width reserved
-   (prevents hover reflow of the adjacent column label). */
-.ag-header-cell-menu-button,
-.ag-header-cell-filter-button,
-.ag-floating-filter-button {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 150ms ease;
-}
-
-.ag-header-cell:hover .ag-header-cell-menu-button,
-.ag-header-cell:hover .ag-header-cell-filter-button,
-.ag-floating-filter:hover .ag-floating-filter-button {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.ag-header-cell-menu-button[aria-expanded='true'],
-.ag-header-cell-filter-button[aria-expanded='true'],
-.ag-floating-filter-button[aria-expanded='true'],
-.ag-header-cell:focus-within .ag-header-cell-menu-button,
-.ag-header-cell:focus-within .ag-header-cell-filter-button,
-.ag-floating-filter:focus-within .ag-floating-filter-button {
-  opacity: 1;
-  pointer-events: auto;
+.ds-stacked-close:hover {
+  background: color-mix(in srgb, var(--ds-accent-negative) 12%, transparent) !important;
+  color: var(--ds-accent-negative) !important;
 }

@@ -35,13 +35,13 @@ import { GhostIconButton } from '@starui/grid-react';
 // as `data-row-hover-target` for the GhostIconButton reveal, so its
 // hover feedback is part of the same primitive's behaviour. Idempotent
 // + SSR-safe per the same pattern GhostIconButton uses.
-const ROW_STYLE_ID = 'gc-tpl-row-styles';
+const ROW_STYLE_ID = 'ds-tpl-row-styles';
 if (typeof document !== 'undefined' && !document.getElementById(ROW_STYLE_ID)) {
   const style = document.createElement('style');
   style.id = ROW_STYLE_ID;
   style.textContent = `
-    .gc-tpl-row:not([data-active='true']):hover {
-      background: color-mix(in srgb, var(--bn-t0) 5%, transparent) !important;
+    .ds-tpl-row:not([data-active='true']):hover {
+      background: color-mix(in srgb, var(--ds-text-primary) 5%, transparent) !important;
     }
   `;
   document.head.appendChild(style);
@@ -136,7 +136,7 @@ function TemplateRow({
       data-testid={testId}
       data-row-hover-target=""
       data-active={isActive ? 'true' : undefined}
-      className="gc-tpl-row"
+      className="ds-tpl-row"
       role="button"
       tabIndex={isRenaming ? -1 : 0}
       onClick={() => { if (!isRenaming && !isPendingDelete && !disabled) onApply(); }}
@@ -157,7 +157,7 @@ function TemplateRow({
         borderRadius: 4,
         cursor: disabled ? 'not-allowed' : 'pointer',
         background: isActive
-          ? 'color-mix(in srgb, var(--bn-blue) 10%, transparent)'
+          ? 'color-mix(in srgb, var(--ds-accent-info) 10%, transparent)'
           : 'transparent',
         opacity: disabled ? 0.5 : 1,
         transition: 'background 120ms',
@@ -170,22 +170,16 @@ function TemplateRow({
         style={{
           position: 'absolute', left: 2, top: 6, bottom: 6,
           width: 2, borderRadius: 2,
-          background: isActive ? 'var(--bn-blue)' : 'transparent',
+          background: isActive ? 'var(--ds-accent-info)' : 'transparent',
         }}
       />
 
       {/* Leading check / dot */}
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 12, height: 12, flexShrink: 0,
-      }}>
+      <span className="inline-flex items-center justify-center w-3 h-3 shrink-0">
         {isActive ? (
-          <Check size={11} strokeWidth={2.5} style={{ color: 'var(--bn-blue)' }} />
+          <Check size={11} strokeWidth={2.5} className="text-[var(--ds-accent-info)]" />
         ) : (
-          <span style={{
-            width: 5, height: 5, borderRadius: '50%',
-            background: 'color-mix(in srgb, var(--bn-t2) 50%, transparent)',
-          }} />
+          <span className="w-[5px] h-[5px] rounded-full bg-[color-mix(in_srgb,var(--ds-text-muted)_50%,transparent)]" />
         )}
       </span>
 
@@ -206,10 +200,10 @@ function TemplateRow({
           onBlur={onCommitRename}
           style={{
             flex: 1, minWidth: 0, height: 22, padding: '0 6px',
-            background: 'var(--bn-bg)',
-            border: '1px solid color-mix(in srgb, var(--bn-blue) 55%, var(--bn-border))',
+            background: 'var(--ds-surface-ground)',
+            border: '1px solid color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))',
             borderRadius: 3,
-            color: 'var(--bn-t0)',
+            color: 'var(--ds-text-primary)',
             fontSize: 11,
             fontWeight: isActive ? 600 : 450,
             outline: 'none',
@@ -220,7 +214,7 @@ function TemplateRow({
           flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           fontSize: 11,
           fontWeight: isActive ? 600 : 450,
-          color: 'var(--bn-t0)',
+          color: 'var(--ds-text-primary)',
           letterSpacing: 0.1,
         }}>
           {name}
@@ -269,18 +263,7 @@ function TemplateRow({
               data-testid={`${testId}-delete-confirm`}
               title="Click to confirm delete"
               aria-label="Confirm delete template"
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                height: 22, padding: '0 8px',
-                border: '1px solid var(--bn-red)',
-                borderRadius: 3,
-                background: 'color-mix(in srgb, var(--bn-red) 18%, transparent)',
-                color: 'var(--bn-red)',
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
+              className="inline-flex items-center justify-center gap-1 h-[22px] px-2 border border-[var(--ds-accent-negative)] rounded-[3px] bg-[color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] text-[var(--ds-accent-negative)] text-[9px] font-bold tracking-[0.08em] uppercase cursor-pointer shrink-0"
             >
               <Trash2 size={10} strokeWidth={2.25} />
               <span>Delete</span>
@@ -401,10 +384,8 @@ export function TemplateManager({
   return (
     <div
       data-testid={`${testIdPrefix}-manager`}
+      className="flex flex-col gap-1.5"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
         minWidth: isCompact ? 320 : undefined,
         width: isCompact ? undefined : '100%',
       }}
@@ -413,11 +394,7 @@ export function TemplateManager({
       {!isEmpty && (
         <div
           data-testid={`${testIdPrefix}-list`}
-          style={{
-            display: 'flex', flexDirection: 'column', gap: 1,
-            maxHeight: 240, overflowY: 'auto',
-            paddingRight: 2,
-          }}
+          className="flex flex-col gap-px max-h-60 overflow-y-auto pr-0.5"
         >
           {templates.map((tpl) => (
             <TemplateRow
@@ -447,24 +424,15 @@ export function TemplateManager({
 
       {/* Separator — only when both list and footer have content. */}
       {!isEmpty && (
-        <div style={{
-          height: 1,
-          background: 'color-mix(in srgb, var(--bn-border) 60%, transparent)',
-          margin: '2px 0',
-        }} />
+        <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)] my-0.5" />
       )}
 
       {/* Save-as footer */}
       <div>
-        <div style={{
-          fontSize: 9, fontWeight: 600, letterSpacing: 0.6,
-          textTransform: 'uppercase',
-          color: 'var(--bn-t2)',
-          marginBottom: 4,
-        }}>
+        <div className="text-[9px] font-semibold tracking-[0.6px] uppercase text-muted-foreground mb-1">
           Save current as new
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="flex gap-1.5">
           <input
             type="text"
             value={saveName}
@@ -476,15 +444,7 @@ export function TemplateManager({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && saveName.trim()) onSave();
             }}
-            style={{
-              flex: 1, minWidth: 0, height: 28, padding: '0 10px',
-              border: '1px solid var(--bn-border)',
-              borderRadius: 3,
-              background: 'var(--bn-bg)',
-              color: 'var(--bn-t0)',
-              fontSize: 11,
-              outline: 'none',
-            }}
+            className="flex-1 min-w-0 h-7 px-2.5 border border-border rounded-[3px] bg-background text-foreground text-[11px] outline-none"
           />
           <button
             type="button"
@@ -498,13 +458,13 @@ export function TemplateManager({
               width: 28, height: 28,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               border: `1px solid ${saveConfirmed
-                ? 'color-mix(in srgb, var(--bn-blue) 40%, transparent)'
-                : 'var(--bn-border)'}`,
+                ? 'color-mix(in srgb, var(--ds-accent-info) 40%, transparent)'
+                : 'var(--ds-border-primary)'}`,
               borderRadius: 3,
               background: saveConfirmed
-                ? 'color-mix(in srgb, var(--bn-blue) 14%, transparent)'
+                ? 'color-mix(in srgb, var(--ds-accent-info) 14%, transparent)'
                 : 'transparent',
-              color: saveConfirmed ? 'var(--bn-blue)' : 'var(--bn-t1)',
+              color: saveConfirmed ? 'var(--ds-accent-info)' : 'var(--ds-text-secondary)',
               cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
               opacity: disabled || !saveName.trim() ? 0.3 : 1,
               transition: 'all 120ms',
@@ -524,14 +484,9 @@ export function TemplateManager({
       {capturableFields && capturableFields.length > 0 && (
         <div
           data-testid={`${testIdPrefix}-capture-hint`}
-          style={{
-            fontSize: 10,
-            color: 'var(--bn-t2)',
-            lineHeight: 1.4,
-            paddingTop: 2,
-          }}
+          className="text-[10px] text-muted-foreground leading-[1.4] pt-0.5"
         >
-          Will save: <span style={{ color: 'var(--bn-t1)', fontWeight: 500 }}>
+          Will save: <span className="text-[var(--ds-text-secondary)] font-medium">
             {capturableFields.join(' · ')}
           </span>
         </div>
@@ -541,14 +496,9 @@ export function TemplateManager({
       {isEmpty && (
         <div
           data-testid={`${testIdPrefix}-empty-hint`}
-          style={{
-            fontSize: 10,
-            color: 'var(--bn-t2)',
-            lineHeight: 1.4,
-            paddingTop: 2,
-          }}
+          className="text-[10px] text-muted-foreground leading-[1.4] pt-0.5"
         >
-          Name a style, then click <span style={{ fontWeight: 600, color: 'var(--bn-t1)' }}>+</span> to save your first template.
+          Name a style, then click <span className="font-semibold text-[var(--ds-text-secondary)]">+</span> to save your first template.
         </div>
       )}
     </div>
