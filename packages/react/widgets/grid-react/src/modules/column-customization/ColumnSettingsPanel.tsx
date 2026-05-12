@@ -8,12 +8,13 @@ import {
   useState,
   type RefObject,
 } from 'react';
+import { Search } from 'lucide-react';
 import type { EditorPaneProps, ListPaneProps } from '@starui/core';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
 import { useGridPlatform } from '../../hooks/GridProvider';
 import { useGridColumns, type GridColumnInfo } from '../../hooks/useGridColumns';
-import { Caps, CockpitList, CockpitListItem, LedBar, Mono } from '../../ui/SettingsPanel';
+import { Caps, CockpitList, CockpitListItem, IconInput, LedBar, Mono } from '../../ui/SettingsPanel';
 import type { StyleEditorValue } from '../../ui/StyleEditor';
 import type {
   ColumnAssignment,
@@ -81,9 +82,10 @@ type ColumnInfo = GridColumnInfo;
 const MODULE_ID = 'column-customization';
 const DIRTY_PREFIX = `${MODULE_ID}:`;
 
-// Row height matches `.ds-popout-list-item` (9px + 13px line + 9px ≈ 36).
+// Row height matches the shared sidebar item chrome (`h-8` = 32px)
+// plus the shared 1px inter-item list gap (`gap-px`).
 // Used for windowed layout math when the column count crosses the threshold.
-const ROW_HEIGHT = 36;
+const ROW_HEIGHT = 33;
 // Below this column count, every row renders — windowing is pure overhead.
 // Above it, we slice the visible range based on the scroll-parent's scrollTop.
 const VIRTUAL_THRESHOLD = 60;
@@ -193,14 +195,33 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
   const columns = useGridColumns();
   const [state] = useModuleState<ColumnCustomizationState>(MODULE_ID);
   const dirtyIds = useDirtyColIds();
+  const [query, setQuery] = useState('');
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredColumns = useMemo(() => {
+    if (!normalizedQuery) return columns;
+    return columns.filter((c) => {
+      const header = (c.headerName ?? '').toLowerCase();
+      const colId = c.colId.toLowerCase();
+      return header.includes(normalizedQuery) || colId.includes(normalizedQuery);
+    });
+  }, [columns, normalizedQuery]);
 
   // Auto-select the first column when the panel opens and nothing is
   // selected yet.
   useEffect(() => {
-    if (!selectedId && columns.length > 0) {
-      onSelect(columns[0].colId);
+    if (!selectedId && filteredColumns.length > 0) {
+      onSelect(filteredColumns[0].colId);
     }
-  }, [selectedId, columns, onSelect]);
+  }, [selectedId, filteredColumns, onSelect]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    if (filteredColumns.length === 0) return;
+    if (!filteredColumns.some((c) => c.colId === selectedId)) {
+      onSelect(filteredColumns[0].colId);
+    }
+  }, [selectedId, filteredColumns, onSelect]);
 
   // Precompute the override set once per assignments change. Replaces
   // an `Object.keys(...).some(...)` walk that ran for every list row on
@@ -222,12 +243,12 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
   // CockpitList renders a cmdk Command (a `<div>`); the windowing hook
   // walks up from this ref to find the scrolling ancestor.
   const listRef = useRef<HTMLDivElement | null>(null);
-  const virtualize = columns.length > VIRTUAL_THRESHOLD;
-  const range = useWindowedRange(listRef, columns.length, ROW_HEIGHT, virtualize);
-  const visible = virtualize ? columns.slice(range.start, range.end) : columns;
+  const virtualize = filteredColumns.length > VIRTUAL_THRESHOLD;
+  const range = useWindowedRange(listRef, filteredColumns.length, ROW_HEIGHT, virtualize);
+  const visible = virtualize ? filteredColumns.slice(range.start, range.end) : filteredColumns;
   const padTop = virtualize ? range.start * ROW_HEIGHT : 0;
   const padBottom = virtualize
-    ? Math.max(0, (columns.length - range.end) * ROW_HEIGHT)
+    ? Math.max(0, (filteredColumns.length - range.end) * ROW_HEIGHT)
     : 0;
 
   return (
@@ -235,8 +256,20 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
       <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
         <Caps size={11}>Columns</Caps>
         <Mono color="var(--ds-text-faint)" size={11}>
-          {String(columns.length).padStart(2, '0')}
+          {String(filteredColumns.length).padStart(2, '0')}
         </Mono>
+      </div>
+      <div className="sticky top-[41px] z-10 px-3 py-1.5 bg-[var(--ds-surface-ground)] border-b border-border">
+        <IconInput
+          value={query}
+          onChange={setQuery}
+          onCommit={setQuery}
+          icon={<Search size={12} strokeWidth={2} />}
+          placeholder="Filter columns…"
+          aria-label="Filter columns"
+          data-testid="cols-filter-input"
+          style={{ width: '100%' }}
+        />
       </div>
       <CockpitList ref={listRef}>
         {padTop > 0 && <div aria-hidden style={{ height: padTop }} />}
@@ -284,9 +317,9 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
           );
         })}
         {padBottom > 0 && <div aria-hidden style={{ height: padBottom }} />}
-        {columns.length === 0 && (
-          <div className="px-3 py-4 text-[11px] text-muted">
-            No columns available yet.
+        {filteredColumns.length === 0 && (
+          <div className="px-3 py-4 text-[11px] text-muted-foreground">
+            {columns.length === 0 ? 'No columns available yet.' : `No columns match "${query}".`}
           </div>
         )}
       </CockpitList>
@@ -413,14 +446,19 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
         onDiscard={discard}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
-        <ColumnMetaStrip
-          colId={col.colId}
-          cellDataType={col.cellDataType}
-          overrideCount={overrideCount}
-          templateCount={templates.length}
-        />
+      {/* Sticky info strip — pinned below the editor header so the
+       *  COL ID / TYPE / DIRTY / OVERRIDES / TEMPLATES context stays
+       *  visible while the band content scrolls. */}
+      <ColumnMetaStrip
+        colId={col.colId}
+        cellDataType={col.cellDataType}
+        overrideCount={overrideCount}
+        templateCount={templates.length}
+        dirty={dirty}
+        draft={draft}
+      />
 
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
         <HeaderBand
           colId={col.colId}
           hostHeaderName={col.headerName}

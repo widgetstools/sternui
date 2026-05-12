@@ -16,22 +16,195 @@ import { cssEscapeColId } from '../column-customization/transforms';
 import type {
   CellStyleProperties,
   ConditionalRule,
+  FlashColor,
+  FlashMode,
   FlashTarget,
   RuleIndicator,
 } from './state';
 import { findIndicatorIcon, iconAsDataUrl } from './indicatorIcons';
 
-// ─── Pulse keyframes (module-scoped, shipped once per grid) ────────────────
-
-const FLASH_PULSE_RULE_ID = '__flash-pulse-keyframes__';
-const FLASH_PULSE_CSS = `
-@keyframes ds-flash-pulse {
-  0%, 100% { box-shadow: inset 0 0 0 9999px var(--flash-color, rgba(251, 191, 36, 0.42)); }
-  50%      { box-shadow: inset 0 0 0 9999px transparent; }
+export interface CellDiffEntry {
+  oldValue: unknown;
+  newValue: unknown;
 }
-.ds-flash-pulse { animation: ds-flash-pulse var(--flash-period, 1s) infinite ease-in-out; }
-.ag-header-cell.ds-flash-hdr-pulse { animation: ds-flash-pulse var(--flash-period, 1s) infinite ease-in-out; }
+
+export type RowDiffMap = Map<string, CellDiffEntry>;
+export type RowDiffCache = WeakMap<object, RowDiffMap>;
+export type DiffCacheByApi = WeakMap<object, RowDiffCache>;
+export type TimedRuleStateByRule = Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>;
+export type TimedRuleStateByRowId = Map<string, TimedRuleStateByRule>;
+export type TimedRuleStateByApi = WeakMap<object, TimedRuleStateByRowId>;
+
+export const CONDITIONAL_DIFF_CACHE_KEY = 'conditional-styling:cell-diff-cache';
+export const CONDITIONAL_TIMED_RULE_CACHE_KEY = 'conditional-styling:timed-rule-cache';
+export const CONDITIONAL_TIMED_RULE_BUCKET_KEY = {} as const;
+const TRACE_PREFIX = '[conditional-styling:timed]';
+const timedRuleStateByRowId: TimedRuleStateByRowId = new Map();
+
+export function clearTimedRuleState(): void {
+  timedRuleStateByRowId.clear();
+}
+
+export function upsertTimedRowActivation(
+  rowId: string,
+  ruleId: string,
+  until: number,
+): void {
+  let byRule = timedRuleStateByRowId.get(rowId);
+  if (!byRule) {
+    byRule = new Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>();
+    timedRuleStateByRowId.set(rowId, byRule);
+  }
+  const prev = byRule.get(ruleId);
+  if (!prev) {
+    byRule.set(ruleId, { rowUntil: until, cellsUntil: new Map() });
+    traceTimed('upsertTimedRowRule:new', { rowId, ruleId, until });
+    return;
+  }
+  prev.rowUntil = Math.max(prev.rowUntil ?? 0, until);
+  traceTimed('upsertTimedRowRule:update', { rowId, ruleId, until: prev.rowUntil });
+}
+
+export function upsertTimedCellActivation(
+  rowId: string,
+  ruleId: string,
+  colId: string,
+  until: number,
+): void {
+  let byRule = timedRuleStateByRowId.get(rowId);
+  if (!byRule) {
+    byRule = new Map<string, { rowUntil?: number; cellsUntil: Map<string, number> }>();
+    timedRuleStateByRowId.set(rowId, byRule);
+  }
+  const prev = byRule.get(ruleId);
+  if (!prev) {
+    byRule.set(ruleId, { cellsUntil: new Map([[colId, until]]) });
+    traceTimed('upsertTimedCellRule:new', { rowId, ruleId, colId, until });
+    return;
+  }
+  prev.cellsUntil.set(colId, Math.max(prev.cellsUntil.get(colId) ?? 0, until));
+  traceTimed('upsertTimedCellRule:update', {
+    rowId,
+    ruleId,
+    colId,
+    until: prev.cellsUntil.get(colId),
+  });
+}
+
+/**
+ * Returns the earliest pending expiry timestamp (ms since epoch) across
+ * all timed activations, or `null` if nothing is currently active.
+ *
+ * Used by the coalesced expiry scheduler in `index.ts` to arm a single
+ * timer for the nearest activation instead of one timer per activation
+ * — keeps timer churn O(1) regardless of tick rate.
+ */
+export function getNextTimedExpiry(): number | null {
+  let next: number | null = null;
+  for (const byRule of timedRuleStateByRowId.values()) {
+    for (const entry of byRule.values()) {
+      if (entry.rowUntil != null && (next == null || entry.rowUntil < next)) {
+        next = entry.rowUntil;
+      }
+      for (const expiry of entry.cellsUntil.values()) {
+        if (next == null || expiry < next) next = expiry;
+      }
+    }
+  }
+  return next;
+}
+
+export function pruneTimedRuleState(activeRowIds: Set<string>): void {
+  const now = Date.now();
+  for (const [rowId, byRule] of timedRuleStateByRowId) {
+    if (!activeRowIds.has(rowId)) {
+      timedRuleStateByRowId.delete(rowId);
+      continue;
+    }
+    for (const [ruleId, entry] of byRule) {
+      if (entry.rowUntil != null && entry.rowUntil <= now) {
+        entry.rowUntil = undefined;
+      }
+      for (const [colId, expiry] of entry.cellsUntil) {
+        if (expiry <= now) entry.cellsUntil.delete(colId);
+      }
+      if (!entry.rowUntil && entry.cellsUntil.size === 0) {
+        byRule.delete(ruleId);
+      }
+    }
+    if (byRule.size === 0) {
+      timedRuleStateByRowId.delete(rowId);
+    }
+  }
+}
+
+// ─── Flash palette + base keyframes (module-scoped, shipped once per grid) ─
+
+/**
+ * Flash colour palette. Each entry ships a tuned alpha for both themes
+ * so the same named colour stays readable under light AND dark without
+ * per-rule colour math. Alphas were picked to leave cell text legible.
+ *
+ * Adding a new colour: append it to the {@link FlashColor} union, add the
+ * tuple here, and the editor's colour swatches pick it up automatically.
+ */
+export const FLASH_PALETTE: Record<FlashColor, { light: string; dark: string; swatch: string }> = {
+  amber:   { light: 'rgba(251, 191, 36, 0.42)',  dark: 'rgba(251, 191, 36, 0.32)',  swatch: '#fbbf24' },
+  emerald: { light: 'rgba(16, 185, 129, 0.38)',  dark: 'rgba(16, 185, 129, 0.32)',  swatch: '#10b981' },
+  rose:    { light: 'rgba(244, 63, 94, 0.38)',   dark: 'rgba(244, 63, 94, 0.34)',   swatch: '#f43f5e' },
+  sky:     { light: 'rgba(14, 165, 233, 0.38)',  dark: 'rgba(56, 189, 248, 0.32)',  swatch: '#0ea5e9' },
+  violet:  { light: 'rgba(139, 92, 246, 0.36)',  dark: 'rgba(167, 139, 250, 0.32)', swatch: '#8b5cf6' },
+  teal:    { light: 'rgba(20, 184, 166, 0.38)',  dark: 'rgba(45, 212, 191, 0.30)',  swatch: '#14b8a6' },
+  orange:  { light: 'rgba(249, 115, 22, 0.40)',  dark: 'rgba(251, 146, 60, 0.32)',  swatch: '#f97316' },
+  slate:   { light: 'rgba(100, 116, 139, 0.38)', dark: 'rgba(148, 163, 184, 0.30)', swatch: '#64748b' },
+};
+
+const DEFAULT_FLASH_COLOR: FlashColor = 'amber';
+const DEFAULT_FLASH_MODE: FlashMode = 'oneShot';
+const DEFAULT_FLASH_DURATION_MS = 700;
+
+/**
+ * Palette CSS rule — emits one `--ds-flash-<color>` variable per palette
+ * entry, branched on theme. Per-rule classes resolve their colour by
+ * referencing the variable instead of baking the RGBA in, so a global
+ * palette tweak takes effect without re-emitting per-rule classes.
+ */
+const FLASH_PALETTE_RULE_ID = '__flash-palette__';
+function buildFlashPaletteCss(): string {
+  const lightVars = Object.entries(FLASH_PALETTE)
+    .map(([name, c]) => `--ds-flash-${name}: ${c.light};`)
+    .join(' ');
+  const darkVars = Object.entries(FLASH_PALETTE)
+    .map(([name, c]) => `--ds-flash-${name}: ${c.dark};`)
+    .join(' ');
+  return `
+:root:not(.dark):not([data-theme="dark"]) { ${lightVars} }
+.dark, [data-theme="dark"] { ${darkVars} }
 `;
+}
+const FLASH_PALETTE_CSS = buildFlashPaletteCss();
+
+/**
+ * Per-rule animation keyframes. We mint a unique animation NAME per rule
+ * (`ds-flash-<safeRuleId>`) so two flashing rules on the same cell don't
+ * collide on the `animation` shorthand property — each gets its own
+ * `--ds-flash-color` reference baked into a private keyframes block.
+ *
+ * Both modes share the same keyframes shape (in → hold → out); pulse
+ * mode just repeats it. This keeps the generated CSS small and means a
+ * mode flip is a one-property change.
+ */
+function buildFlashKeyframesCss(safeRuleId: string): string {
+  const kf = `ds-flash-${safeRuleId}`;
+  return `
+@keyframes ${kf} {
+  0%   { box-shadow: inset 0 0 0 9999px transparent; }
+  25%  { box-shadow: inset 0 0 0 9999px var(--ds-flash-color); }
+  75%  { box-shadow: inset 0 0 0 9999px var(--ds-flash-color); }
+  100% { box-shadow: inset 0 0 0 9999px transparent; }
+}
+`;
+}
 
 // ─── CSS generation ────────────────────────────────────────────────────────
 
@@ -87,10 +260,15 @@ function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefin
     : ruleCls;
 
   const pos = indicator.position ?? 'top-right';
-  const anchor = pos === 'top-left' ? 'left: 2px' : 'right: 2px';
+  let anchor = 'top: 2px; right: 2px;';
+  if (pos === 'top-left') anchor = 'top: 2px; left: 2px;';
+  else if (pos === 'bottom-left') anchor = 'bottom: 2px; left: 2px;';
+  else if (pos === 'bottom-right') anchor = 'bottom: 2px; right: 2px;';
+  else if (pos === 'left-middle') anchor = 'top: 50%; left: 2px; transform: translateY(-50%);';
+  else if (pos === 'right-middle') anchor = 'top: 50%; right: 2px; transform: translateY(-50%);';
 
   return `${selector}::before {
-    content: ''; position: absolute; top: 2px; ${anchor};
+    content: ''; position: absolute; ${anchor}
     width: 12px; height: 12px;
     background-image: url("${url}");
     background-size: contain; background-repeat: no-repeat; background-position: center;
@@ -103,14 +281,21 @@ function buildCssText(
   scopeType: 'cell' | 'row',
   light: CellStyleProperties,
   dark: CellStyleProperties,
-  pulse: { enabled: boolean; scope: 'cell' | 'row'; target: FlashTarget } | null,
+  flash: {
+    enabled: boolean;
+    target: FlashTarget;
+    mode: FlashMode;
+    color: FlashColor;
+    durationMs: number;
+  } | null,
   indicator: RuleIndicator | undefined,
 ): string {
   // Encode rule id with the same helper column-customization uses so a
   // future rule.id with chars outside [A-Za-z0-9_-] still produces a
   // matching class + selector pair. base36 generateId() is currently
   // safe but defense-in-depth for legacy snapshots / future id schemes.
-  const cls = `.ds-rule-${cssEscapeColId(ruleId)}`;
+  const safeRuleId = cssEscapeColId(ruleId);
+  const cls = `.ds-rule-${safeRuleId}`;
   const lightProps = styleToCSS(light);
   const darkProps = styleToCSS(dark);
   const lines: string[] = [];
@@ -119,8 +304,31 @@ function buildCssText(
   if (darkProps) lines.push(`.dark ${cls}, [data-theme="dark"] ${cls} { ${darkProps} }`);
   if (lightProps && !darkProps) lines.push(`${cls} { ${lightProps} }`);
 
-  if (pulse?.enabled && (pulse.target === 'cells' || pulse.target === 'cells+headers' || pulse.target === 'row')) {
-    lines.push(`${cls} { animation: ds-flash-pulse var(--flash-period, 1s) infinite ease-in-out; }`);
+  if (flash?.enabled) {
+    // Scoped colour var: keeps two flashing rules on the same cell from
+    // overwriting each other's colour. The cascade still picks one
+    // `animation` winner (last-declared by priority), but each rule
+    // keeps its own colour identity in isolation.
+    const colorVar = `var(--ds-flash-${flash.color})`;
+    const animName = `ds-flash-${safeRuleId}`;
+    const iter = flash.mode === 'pulse' ? 'infinite' : '1';
+    const fill = flash.mode === 'pulse' ? 'none' : 'forwards';
+    const animDecl = `animation: ${animName} ${flash.durationMs}ms ease-in-out ${iter}; animation-fill-mode: ${fill};`;
+    const colorDecl = `--ds-flash-color: ${colorVar};`;
+
+    // Cell / row flash uses the rule's own class — the animation joins
+    // the existing per-rule cell styling naturally.
+    if (flash.target === 'cells' || flash.target === 'cells+headers' || flash.target === 'row') {
+      lines.push(`${cls} { ${colorDecl} ${animDecl} }`);
+    }
+    // Header flash uses a DEDICATED class so the rule's cell styling
+    // (background-color, borders, etc.) doesn't leak onto the header —
+    // only the colour-aware pulse is shared. Painted by index.ts's
+    // header DOM watcher (AG-Grid has no headerClassRules).
+    if (flash.target === 'headers' || flash.target === 'cells+headers') {
+      const hdrCls = `.ag-header-cell.ds-flash-hdr-${safeRuleId}`;
+      lines.push(`${hdrCls} { ${colorDecl} ${animDecl} }`);
+    }
   }
 
   const indicatorCss = indicatorOverlayCSS(cls, indicator);
@@ -148,15 +356,31 @@ function buildCssText(
 
 export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void {
   css.clear();
-  css.addRule(FLASH_PULSE_RULE_ID, FLASH_PULSE_CSS);
+  // Palette ships once — per-rule classes reference --ds-flash-<color>.
+  css.addRule(FLASH_PALETTE_RULE_ID, FLASH_PALETTE_CSS);
   for (const rule of rules) {
     if (!rule.enabled) continue;
-    const pulse = rule.flash?.enabled
-      ? { enabled: true, scope: rule.scope.type, target: rule.flash.target }
+    const safeRuleId = cssEscapeColId(rule.id);
+    const flash = rule.flash?.enabled
+      ? {
+          enabled: true,
+          target: rule.flash.target,
+          mode: rule.flash.mode ?? DEFAULT_FLASH_MODE,
+          color: rule.flash.color ?? DEFAULT_FLASH_COLOR,
+          durationMs:
+            typeof rule.flash.durationMs === 'number' && rule.flash.durationMs > 0
+              ? Math.round(rule.flash.durationMs)
+              : DEFAULT_FLASH_DURATION_MS,
+        }
       : null;
+    if (flash) {
+      // Per-rule keyframes — unique name so rules with different
+      // durationMs / mode don't fight over the shared `animation` slot.
+      css.addRule(`conditional-flash-kf-${rule.id}`, buildFlashKeyframesCss(safeRuleId));
+    }
     css.addRule(
       `conditional-${rule.id}`,
-      buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, pulse, rule.indicator),
+      buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, flash, rule.indicator),
     );
   }
 }
@@ -171,12 +395,33 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
 function buildCellClassPredicate(
   engine: ExpressionEngineLike,
   rule: ConditionalRule,
+  diffCacheByApi?: DiffCacheByApi,
+  timedRuleStateByApi?: TimedRuleStateByApi,
 ): ((params: CellClassParams) => boolean) | string {
+  const activeDurationMs = normalizeActiveDuration(rule.activeDurationMs);
+  if (activeDurationMs != null) {
+    return (params: CellClassParams) => {
+      const colId =
+        params.column && typeof params.column.getColId === 'function'
+          ? params.column.getColId()
+          : undefined;
+      if (!colId) return false;
+      return isTimedCellRuleActive(
+        timedRuleStateByApi,
+        params.api,
+        params.node,
+        rule.id,
+        colId,
+      );
+    };
+  }
+
+  const hasDiffRefs = /\.[ \t]*(old|new)\]/i.test(rule.expression);
   // Try the AG-string optimisation path — v3 engine exposes `tryCompileToAgString`
   // on the concrete class; ExpressionEngineLike is intentionally narrow, so we
   // fall through to the function form when the helper isn't there.
   const tryCompile = (engine as { tryCompileToAgString?: (ast: unknown) => string | null }).tryCompileToAgString;
-  if (typeof tryCompile === 'function') {
+  if (!hasDiffRefs && typeof tryCompile === 'function') {
     try {
       const ast = engine.parse(rule.expression);
       const agString = tryCompile(ast);
@@ -186,13 +431,26 @@ function buildCellClassPredicate(
     }
   }
   return (params: CellClassParams) => {
+    const data = params.data ?? {};
+    const rowDiffs = getOrCreateRowDiffs(params.api, params.node, diffCacheByApi);
+    const colId =
+      params.column && typeof params.column.getColId === 'function'
+        ? params.column.getColId()
+        : undefined;
+    if (rowDiffs && colId) {
+      syncRowDiffEntry(rowDiffs, colId, params.value);
+    }
+    const columns = buildColumnsContext(
+      data,
+      rowDiffs,
+    );
     try {
       return Boolean(
         engine.parseAndEvaluate(rule.expression, {
           x: params.value,
           value: params.value,
-          data: params.data ?? {},
-          columns: params.data ?? {},
+          data,
+          columns,
         }),
       );
     } catch {
@@ -204,15 +462,43 @@ function buildCellClassPredicate(
 export function buildRowClassPredicate(
   engine: ExpressionEngineLike,
   rule: ConditionalRule,
+  diffCacheByApi?: DiffCacheByApi,
+  timedRuleStateByApi?: TimedRuleStateByApi,
 ): (params: RowClassParams) => boolean {
+  const activeDurationMs = normalizeActiveDuration(rule.activeDurationMs);
+  if (activeDurationMs != null) {
+    return (params: RowClassParams) =>
+      isTimedRowRuleActive(
+        timedRuleStateByApi,
+        (params as RowClassParams & { api?: unknown }).api,
+        params.node,
+        rule.id,
+      );
+  }
+
   return (params: RowClassParams) => {
+    const data = params.data ?? {};
+    const rowDiffs = getOrCreateRowDiffs(
+      (params as RowClassParams & { api?: unknown }).api,
+      params.node,
+      diffCacheByApi,
+    );
+    if (rowDiffs) {
+      for (const [key, value] of Object.entries(data)) {
+        syncRowDiffEntry(rowDiffs, key, value);
+      }
+    }
+    const columns = buildColumnsContext(
+      data,
+      rowDiffs,
+    );
     try {
       return Boolean(
         engine.parseAndEvaluate(rule.expression, {
           x: null,
           value: null,
-          data: params.data ?? {},
-          columns: params.data ?? {},
+          data,
+          columns,
         }),
       );
     } catch {
@@ -227,6 +513,8 @@ export function applyCellRulesToDefs(
   defs: AnyColDef[],
   cellRules: ConditionalRule[],
   engine: ExpressionEngineLike,
+  diffCacheByApi?: DiffCacheByApi,
+  timedRuleStateByApi?: TimedRuleStateByApi,
 ): AnyColDef[] {
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
@@ -251,14 +539,15 @@ export function applyCellRulesToDefs(
     for (const rule of applicable) {
       // The KEY of cellClassRules is what AG-Grid stamps on the cell
       // DOM — must match the encoded selector emitted by buildCssText.
-      (cellClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] = buildCellClassPredicate(engine, rule);
+      (cellClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] =
+        buildCellClassPredicate(engine, rule, diffCacheByApi, timedRuleStateByApi);
     }
 
     // Per-rule value formatters — highest priority wins.
     const formatterRules = applicable.filter((r) => !!r.valueFormatter);
     if (formatterRules.length > 0) {
       const compiled = formatterRules.map((rule) => ({
-        predicate: buildCellClassPredicate(engine, rule),
+        predicate: buildCellClassPredicate(engine, rule, diffCacheByApi, timedRuleStateByApi),
         formatter: valueFormatterFromTemplate(rule.valueFormatter!),
         expression: rule.expression,
       }));
@@ -270,8 +559,13 @@ export function applyCellRulesToDefs(
           let matched = false;
           try {
             if (typeof c.predicate === 'string') {
+              const data = params.data ?? {};
+              const columns = buildColumnsContext(
+                data,
+                resolveRowDiffs(params.api, params.node, diffCacheByApi),
+              );
               matched = Boolean(engine.parseAndEvaluate(c.expression, {
-                x: params.value, value: params.value, data: params.data ?? {}, columns: params.data ?? {},
+                x: params.value, value: params.value, data, columns,
               }));
             } else {
               matched = Boolean(c.predicate(params as CellClassParams));
@@ -289,4 +583,165 @@ export function applyCellRulesToDefs(
 
     return { ...colDef, cellClassRules };
   });
+}
+
+function resolveRowDiffs(
+  api: unknown,
+  node: unknown,
+  diffCacheByApi?: DiffCacheByApi,
+): RowDiffMap | undefined {
+  if (!diffCacheByApi) return undefined;
+  if (!api || typeof api !== 'object') return undefined;
+  if (!node || typeof node !== 'object') return undefined;
+  return diffCacheByApi.get(api as object)?.get(node as object);
+}
+
+function getOrCreateRowDiffs(
+  api: unknown,
+  node: unknown,
+  diffCacheByApi?: DiffCacheByApi,
+): RowDiffMap | undefined {
+  if (!diffCacheByApi) return undefined;
+  if (!api || typeof api !== 'object') return undefined;
+  if (!node || typeof node !== 'object') return undefined;
+  let byRow = diffCacheByApi.get(api as object);
+  if (!byRow) {
+    byRow = new WeakMap<object, RowDiffMap>();
+    diffCacheByApi.set(api as object, byRow);
+  }
+  let rowDiffs = byRow.get(node as object);
+  if (!rowDiffs) {
+    rowDiffs = new Map<string, CellDiffEntry>();
+    byRow.set(node as object, rowDiffs);
+  }
+  return rowDiffs;
+}
+
+function syncRowDiffEntry(
+  rowDiffs: RowDiffMap,
+  colId: string,
+  value: unknown,
+): boolean {
+  const prev = rowDiffs.get(colId);
+  if (!prev) {
+    rowDiffs.set(colId, { oldValue: value, newValue: value });
+    return false;
+  }
+  if (Object.is(prev.newValue, value)) return false;
+  rowDiffs.set(colId, { oldValue: prev.newValue, newValue: value });
+  return true;
+}
+
+function buildColumnsContext(
+  data: Record<string, unknown>,
+  rowDiffs: RowDiffMap | undefined,
+): Record<string, unknown> {
+  const out = Object.create(data) as Record<string, unknown>;
+  if (!rowDiffs || rowDiffs.size === 0) return out;
+  for (const [colId, diff] of rowDiffs) {
+    out[`${colId}.old`] = diff.oldValue;
+    out[`${colId}.new`] = diff.newValue;
+  }
+  return out;
+}
+
+function normalizeActiveDuration(value: number | undefined): number | null {
+  if (!Number.isFinite(value)) return null;
+  const rounded = Math.round(value as number);
+  return rounded > 0 ? rounded : null;
+}
+
+function getTimedRuleState(
+  timedRuleStateByApi: TimedRuleStateByApi | undefined,
+  _api: unknown,
+  node: unknown,
+): TimedRuleStateByRule | undefined {
+  if (!timedRuleStateByApi) {
+    // ignore cache identity issues; module-level state is the source of truth
+  }
+  const rowId = resolveRowId(node);
+  if (!rowId) return undefined;
+  return timedRuleStateByRowId.get(rowId);
+}
+
+function isTimedCellRuleActive(
+  timedRuleStateByApi: TimedRuleStateByApi | undefined,
+  api: unknown,
+  node: unknown,
+  ruleId: string,
+  colId: string,
+): boolean {
+  const rowId = resolveRowId(node);
+  const stateByRule = getTimedRuleState(timedRuleStateByApi, api, node);
+  if (!stateByRule) {
+    traceTimed('predicate:cell no state', { rowId, ruleId, colId });
+    return false;
+  }
+  const entry = stateByRule.get(ruleId);
+  if (!entry) {
+    traceTimed('predicate:cell no rule entry', { rowId, ruleId, colId });
+    return false;
+  }
+  const expiry = entry.cellsUntil.get(colId);
+  if (!expiry) {
+    traceTimed('predicate:cell no column expiry', { rowId, ruleId, colId });
+    return false;
+  }
+  if (expiry > Date.now()) {
+    traceTimed('predicate:cell ACTIVE', { rowId, ruleId, colId, expiry });
+    return true;
+  }
+  entry.cellsUntil.delete(colId);
+  if (!entry.rowUntil && entry.cellsUntil.size === 0) stateByRule.delete(ruleId);
+  traceTimed('predicate:cell EXPIRED', { rowId, ruleId, colId, expiry });
+  return false;
+}
+
+function isTimedRowRuleActive(
+  timedRuleStateByApi: TimedRuleStateByApi | undefined,
+  api: unknown,
+  node: unknown,
+  ruleId: string,
+): boolean {
+  const rowId = resolveRowId(node);
+  const stateByRule = getTimedRuleState(timedRuleStateByApi, api, node);
+  if (!stateByRule) {
+    traceTimed('predicate:row no state', { rowId, ruleId });
+    return false;
+  }
+  const entry = stateByRule.get(ruleId);
+  if (!entry?.rowUntil) {
+    traceTimed('predicate:row no expiry', { rowId, ruleId });
+    return false;
+  }
+  if (entry.rowUntil > Date.now()) {
+    traceTimed('predicate:row ACTIVE', { rowId, ruleId, expiry: entry.rowUntil });
+    return true;
+  }
+  entry.rowUntil = undefined;
+  if (entry.cellsUntil.size === 0) stateByRule.delete(ruleId);
+  traceTimed('predicate:row EXPIRED', { rowId, ruleId });
+  return false;
+}
+
+function resolveRowId(node: unknown): string | null {
+  if (!node || typeof node !== 'object') return null;
+  const candidate = (node as { id?: unknown }).id;
+  return typeof candidate === 'string' && candidate.length > 0
+    ? candidate
+    : null;
+}
+
+function traceTimed(message: string, payload?: unknown): void {
+  try {
+    const flag = (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__;
+    if (flag === false) return;
+    if (payload === undefined) {
+      console.log(TRACE_PREFIX, message);
+      return;
+    }
+    console.log(TRACE_PREFIX, message, payload);
+  } catch {
+    // no-op
+  }
 }

@@ -25,11 +25,21 @@ export type RuleScope = { type: 'cell'; columns: string[] } | { type: 'row' };
 /**
  * Optional "flash on match" config for a rule.
  *
- * When `enabled` is true, the module subscribes to AG-Grid's
- * `cellValueChanged` event. Each time a cell value changes in a row for
- * which the rule now evaluates truthy, we fire a visible flash through
- * AG-Grid's `flashCells()` API (row/cells targets) and/or via a short
- * CSS animation on the header cell (headers target).
+ * Implementation note: this is a **CSS-keyframes** flash rendered through
+ * the rule's own injected class — NOT AG-Grid's native `api.flashCells()`.
+ * That choice is deliberate (see `transforms.ts`):
+ *   - lets us paint header surfaces (AG-Grid has no `headerClassRules`);
+ *   - gives each rule its own colour + timing instead of one global theme
+ *     param;
+ *   - composes naturally with `activeDurationMs` (class drop = animation
+ *     stop, no double-timer coordination);
+ *   - zero per-cell JS cost — the GPU drives the animation.
+ *
+ * Each rule emits its own animation name (`ds-flash-<ruleId>`) and its
+ * own scoped `--ds-flash-color` variable, so two flashing rules on the
+ * same cell stay visually independent. When more than one flash rule
+ * matches, the higher-priority rule wins the cascade (predictable, not a
+ * blended chaos).
  *
  * `target` is constrained by the rule's `scope`:
  *   - `scope.type === 'row'`   → only `'row'` makes sense.
@@ -40,13 +50,52 @@ export type RuleScope = { type: 'cell'; columns: string[] } | { type: 'row' };
  */
 export type FlashTarget = 'row' | 'cells' | 'headers' | 'cells+headers';
 
+/**
+ * How the flash plays:
+ *   - `oneShot` — single fade-in / fade-out on match. Default. Maps to the
+ *     intuitive "blink when value changes" UX.
+ *   - `pulse`   — continuous in/out pulse for as long as the rule matches.
+ *     Useful for "currently in alarm state" indicators. Loud at scale —
+ *     use sparingly.
+ */
+export type FlashMode = 'oneShot' | 'pulse';
+
+/**
+ * Named colour for the flash overlay. Each option ships matched
+ * light/dark CSS values (see `FLASH_PALETTE` in `transforms.ts`) so the
+ * pulse stays visible under both themes without per-rule colour tuning.
+ *
+ * Eight options chosen to span the trading-UI semantic spectrum
+ * (positive / negative / warning / info / neutral) plus aesthetic variety
+ * for cases where the rule's colour is just a visual ID, not a meaning.
+ */
+export type FlashColor =
+  | 'amber'    // default — warm yellow, neutral attention
+  | 'emerald'  // positive / gain
+  | 'rose'     // negative / loss / alert
+  | 'sky'      // info / neutral notification
+  | 'violet'   // tag colour, no semantic
+  | 'teal'     // secondary positive / cool
+  | 'orange'   // secondary warning
+  | 'slate';   // muted / "noted" without alarm
+
 export interface FlashConfig {
   enabled: boolean;
   target: FlashTarget;
-  /** Flash hold duration in ms (pre-fade). Default 500. */
-  flashDuration?: number;
-  /** Fade-out duration in ms. Default 1000. */
-  fadeDuration?: number;
+  /** How the flash plays. Default `'oneShot'`. */
+  mode?: FlashMode;
+  /**
+   * Named palette colour. Default `'amber'`. Resolves to a theme-aware
+   * CSS variable internally, so the same value works under light and
+   * dark themes.
+   */
+  color?: FlashColor;
+  /**
+   * Single duration in ms covering the full animation cycle
+   * (oneShot: in→hold→out; pulse: one full pulse iteration).
+   * Default 700.
+   */
+  durationMs?: number;
 }
 
 /**
@@ -56,8 +105,14 @@ export interface FlashConfig {
  */
 export type IndicatorTarget = 'cells' | 'headers' | 'cells+headers';
 
-/** Corner of the cell / header to anchor the badge at. */
-export type IndicatorPosition = 'top-left' | 'top-right';
+/** Anchor position of the badge on the cell / header surface. */
+export type IndicatorPosition =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'left-middle'
+  | 'right-middle';
 
 /**
  * Optional badge drawn on every cell and/or header that currently
@@ -77,7 +132,7 @@ export interface RuleIndicator {
   /** Where to paint. Default `cells+headers` — matches the zero-config
    *  behaviour that shipped first. */
   target?: IndicatorTarget;
-  /** Corner anchor. Default `top-right`. */
+  /** Badge anchor position. Default `top-right`. */
   position?: IndicatorPosition;
 }
 
@@ -91,11 +146,10 @@ export interface ConditionalRule {
   /** Free-form expression evaluated against `{ value, x, data, columns }`. */
   expression: string;
   style: ThemeAwareStyle;
-  /** Optional visible pulse when a cell-value change causes the rule to
-   *  evaluate truthy. Uses AG-Grid's `flashCells()` for row/cell targets
-   *  and a CSS keyframes animation for header targets. */
+  /** Optional visible flash when this rule matches a cell/row/header.
+   *  Pure CSS-keyframes implementation — see `FlashConfig` for the why. */
   flash?: FlashConfig;
-  /** Optional top-right badge drawn on every matching cell + header. */
+  /** Optional badge drawn on every matching cell + header. */
   indicator?: RuleIndicator;
   /**
    * Optional per-rule value formatter. Applies to cells matching the
@@ -109,6 +163,16 @@ export interface ConditionalRule {
    * author is valid here too (presets, excelFormat, expression, tick).
    */
   valueFormatter?: ValueFormatterTemplate;
+  /**
+   * Optional "style active window" in milliseconds.
+   *
+   * When set (> 0), the rule's style is applied for this duration after a
+   * value-change event causes the rule to match, then it reverts to the
+   * default style automatically.
+   *
+   * Unset / <= 0 keeps the existing persistent expression-driven behaviour.
+   */
+  activeDurationMs?: number;
 }
 
 export interface ConditionalStylingState {

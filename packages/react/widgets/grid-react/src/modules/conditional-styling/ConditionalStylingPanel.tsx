@@ -302,6 +302,7 @@ const RuleEditor = memo(function RuleEditor({
         <FlashBand
           ruleId={ruleId}
           flash={draft.flash}
+          activeDurationMs={draft.activeDurationMs}
           scopeType={draft.scope.type}
           setDraft={setDraft}
         />
@@ -392,9 +393,25 @@ function IndicatorPicker({
     return grouped;
   }, []);
 
-  const color = value?.color || '#f59e0b';
+  const color = value?.color || 'var(--ds-accent-warning)';
   const currentTarget: IndicatorTarget = value?.target ?? 'cells+headers';
   const currentPosition: IndicatorPosition = value?.position ?? 'top-right';
+  const POSITION_LABEL: Record<IndicatorPosition, string> = {
+    'top-left': 'TL',
+    'top-right': 'TR',
+    'bottom-left': 'BL',
+    'bottom-right': 'BR',
+    'left-middle': 'LM',
+    'right-middle': 'RM',
+  };
+  const POSITION_TITLE: Record<IndicatorPosition, string> = {
+    'top-left': 'Top left',
+    'top-right': 'Top right',
+    'bottom-left': 'Bottom left',
+    'bottom-right': 'Bottom right',
+    'left-middle': 'Left middle',
+    'right-middle': 'Right middle',
+  };
 
   const patch = (next: Partial<RuleIndicator>) => {
     if (!value?.icon) return;
@@ -407,14 +424,14 @@ function IndicatorPicker({
       <div className="flex items-center gap-2.5">
         <span
           aria-label="Current indicator"
-          className="w-7 h-7 inline-flex items-center justify-center border border-[var(--ds-border-secondary)] rounded-sm bg-background"
+          className="w-8 h-8 inline-flex items-center justify-center p-1 border border-[var(--ds-border-secondary)] rounded-sm bg-background"
         >
           {value?.icon ? (
             <IndicatorIconPreview iconKey={value.icon} color={color} size={14} />
           ) : (
-            <Caps size={9} color="var(--ds-text-faint)">
+            <span className="px-0.5 text-[8px] font-semibold uppercase tracking-[0.08em] leading-none text-muted-foreground">
               NONE
-            </Caps>
+            </span>
           )}
         </span>
         <Caps size={10} color="var(--ds-text-muted)">
@@ -524,13 +541,17 @@ function IndicatorPicker({
                 [
                   ['top-left', 'TL'],
                   ['top-right', 'TR'],
+                  ['bottom-left', 'BL'],
+                  ['bottom-right', 'BR'],
+                  ['left-middle', 'LM'],
+                  ['right-middle', 'RM'],
                 ] as ReadonlyArray<[IndicatorPosition, string]>
-              ).map(([v, label]) => (
+              ).map(([v]) => (
                 <PillToggleBtn
                   key={v}
                   active={currentPosition === v}
                   onClick={() => patch({ position: v })}
-                  title={v === 'top-left' ? 'Top left' : 'Top right'}
+                  title={POSITION_TITLE[v]}
                   style={{
                     height: 24,
                     fontSize: 10,
@@ -541,7 +562,7 @@ function IndicatorPicker({
                   }}
                   data-testid={`cs-rule-indicator-position-${v}-${ruleId}`}
                 >
-                  {label}
+                  {POSITION_LABEL[v]}
                 </PillToggleBtn>
               ))}
             </PillToggleGroup>
@@ -565,14 +586,19 @@ function IndicatorPicker({
                   type="button"
                   title={i.label}
                   aria-label={i.label}
-                  onClick={() =>
+                  aria-pressed={active ? 'true' : 'false'}
+                  onClick={() => {
+                    if (active) {
+                      onChange(undefined);
+                      return;
+                    }
                     onChange({
                       icon: i.key,
                       target: value?.target ?? 'cells+headers',
                       position: value?.position ?? 'top-right',
                       ...(value?.color ? { color: value.color } : {}),
-                    })
-                  }
+                    });
+                  }}
                   style={{
                     width: '100%',
                     height: 28,

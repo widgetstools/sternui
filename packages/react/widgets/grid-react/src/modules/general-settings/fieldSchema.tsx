@@ -18,51 +18,21 @@ import type { ReactNode } from 'react';
 import {
   Band,
   IconInput,
+  SettingsRow,
   SubLabel,
 } from '../../ui/SettingsPanel';
 import { Select, Switch } from '../../ui/shadcn';
 import type { GeneralSettingsState } from './state';
 
-// ─── Row primitive (local — matches v2's Row byte-for-byte) ────────────
+// ─── Row primitive ────────────────────────────────────────────────────
 //
-// Declared here rather than in the v3 SettingsPanel barrel because it's
-// panel-level chrome; no other panel uses it.
-
-export interface RowProps {
-  label: string;
-  hint?: string;
-  control: ReactNode;
-  /** Optional test id applied to the row `<div>`. */
-  'data-testid'?: string;
-}
-
-function Row({ label, hint, control, ...rest }: RowProps) {
-  return (
-    <div
-      data-testid={rest['data-testid']}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '180px 1fr',
-        alignItems: 'center',
-        columnGap: 20,
-        rowGap: 4,
-        padding: '8px 0',
-        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 50%, transparent)',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: 0.12,
-          textTransform: 'uppercase', color: 'var(--ds-text-muted)',
-        }}>{label}</span>
-        {hint && (
-          <span className="text-[10px] text-muted leading-[1.35]">{hint}</span>
-        )}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{control}</div>
-    </div>
-  );
-}
+// Re-export the shared `SettingsRow` under the `Row` name so the rest
+// of this file (and consumers of the public `RowProps` type) keep
+// reading naturally. Every editor in the Grid Customizer routes
+// through the same primitive — same label gutter, same alignment, same
+// hint placement.
+const Row = SettingsRow;
+export type { SettingsRowProps as RowProps } from '../../ui/SettingsPanel';
 
 // ─── Control primitives ────────────────────────────────────────────────
 //
@@ -293,17 +263,51 @@ export interface BandSchema {
   fields: ReadonlyArray<Field>;
 }
 
-// ─── Renderer ─────────────────────────────────────────────────────────
-
-function FieldRenderer({
-  field,
-  state,
-  update,
-}: {
+export interface FieldRendererProps {
   field: Field;
   state: GeneralSettingsState;
   update: <K extends StateKey>(key: K, value: GeneralSettingsState[K]) => void;
-}) {
+}
+
+// ─── Renderer ─────────────────────────────────────────────────────────
+
+/**
+ * Walk a band's field tree and return every declared `state` key that the
+ * panel writes to. Subsection / conditional containers are recursed into;
+ * `custom` fields are skipped (their key mapping is owned by the panel —
+ * see `CUSTOM_FIELD_STATE_KEYS` in GridOptionsPanel).
+ *
+ * Used to compute per-band "overrides" badges in the sidebar nav.
+ */
+export function collectFieldKeys(
+  fields: ReadonlyArray<Field>,
+): Array<keyof GeneralSettingsState> {
+  const out: Array<keyof GeneralSettingsState> = [];
+  for (const f of fields) {
+    switch (f.kind) {
+      case 'bool':
+      case 'num':
+      case 'optNum':
+      case 'text':
+      case 'select':
+        out.push(f.key as keyof GeneralSettingsState);
+        break;
+      case 'subsection':
+      case 'conditional':
+        out.push(...collectFieldKeys(f.fields));
+        break;
+      case 'custom':
+        break;
+    }
+  }
+  return out;
+}
+
+export function FieldRenderer({
+  field,
+  state,
+  update,
+}: FieldRendererProps) {
   switch (field.kind) {
     case 'bool': {
       const stored = state[field.key] as boolean;

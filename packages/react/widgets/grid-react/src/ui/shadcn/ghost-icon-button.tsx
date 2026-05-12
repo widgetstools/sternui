@@ -33,7 +33,8 @@ export interface GhostIconButtonProps extends ButtonHTMLAttributes<HTMLButtonEle
  * inline keeps the package self-contained without forcing every
  * downstream app to wire up CSS bundling for our internal files.
  *
- * Resting color sits at the secondary text tier (--ds-text-secondary). Variants
+ * Resting color sits near the primary text tier for reliable icon contrast
+ * in both dark and light themes. Variants
  * tint hover with the matching accent token via color-mix overlays so
  * theme switches update the highlight automatically. Sizes and the
  * reveal-on-row-hover affordance are driven by data-attributes so
@@ -50,7 +51,7 @@ const GHOST_ICON_BUTTON_CSS = `
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--ds-text-secondary);
+  color: var(--ds-text-primary);
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 120ms, color 120ms, opacity 120ms;

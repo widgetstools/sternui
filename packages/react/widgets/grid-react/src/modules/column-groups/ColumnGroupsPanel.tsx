@@ -44,10 +44,10 @@ import {
   CockpitList,
   CockpitListItem,
   LedBar,
-  MetaCell,
   Mono,
   ObjectTitleRow,
   SharpBtn,
+  SummaryChip,
   TitleInput,
 } from '../../ui/SettingsPanel';
 import { StyleEditor, type StyleEditorValue } from '../../ui/StyleEditor';
@@ -455,34 +455,50 @@ const GroupEditor = memo(function GroupEditor({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-4">
-        <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
-          <MetaCell
-            label="OPEN BY DEFAULT"
-            value={
+        <div className="sticky top-0 z-10 shrink-0 bg-card border-b border-border px-4 py-2 flex items-center gap-2 flex-wrap">
+          <div className="w-full flex items-center gap-2 flex-wrap">
+            <SummaryChip
+              label="OPEN BY DEFAULT"
+              tone={node.openByDefault ? 'positive' : 'neutral'}
+              value={node.openByDefault ? 'ON' : 'OFF'}
+            />
+            <SummaryChip
+              label="MARRY CHILDREN"
+              tone={node.marryChildren ? 'info' : 'neutral'}
+              value={node.marryChildren ? 'ON' : 'OFF'}
+            />
+            <SummaryChip
+              label="DEPTH"
+              value={<Mono>{String(depth).padStart(2, '0')}</Mono>}
+              tone="info"
+            />
+            <SummaryChip
+              label="CHILDREN"
+              value={
+                <Mono>
+                  {columnChildren.length} col · {subgroups.length} sub
+                </Mono>
+              }
+              tone={(columnChildren.length || subgroups.length) > 0 ? 'warning' : 'neutral'}
+            />
+          </div>
+
+          <div className="w-full mt-2 flex items-center gap-3 flex-wrap">
+            <div className="inline-flex items-center gap-2">
+              <Caps size={9}>OPEN BY DEFAULT</Caps>
               <Switch
                 checked={!!node.openByDefault}
                 onChange={() => updateDraft((n) => ({ ...n, openByDefault: !n.openByDefault }))}
               />
-            }
-          />
-          <MetaCell
-            label="MARRY CHILDREN"
-            value={
+            </div>
+            <div className="inline-flex items-center gap-2">
+              <Caps size={9}>MARRY CHILDREN</Caps>
               <Switch
                 checked={!!node.marryChildren}
                 onChange={() => updateDraft((n) => ({ ...n, marryChildren: !n.marryChildren }))}
               />
-            }
-          />
-          <MetaCell label="DEPTH" value={<Mono>{String(depth).padStart(2, '0')}</Mono>} />
-          <MetaCell
-            label="CHILDREN"
-            value={
-              <Mono>
-                {columnChildren.length} col · {subgroups.length} sub
-              </Mono>
-            }
-          />
+            </div>
+          </div>
         </div>
 
         <Band

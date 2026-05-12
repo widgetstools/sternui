@@ -155,7 +155,7 @@ export function TBtn({ active, onClick, children, title, width, disabled, ...res
       disabled={disabled}
       aria-pressed={active ? 'true' : undefined}
       className={cn(
-        'min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-secondary px-1.5 rounded-sm hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-overlay-positive-soft)] aria-pressed:text-success disabled:opacity-45 disabled:cursor-not-allowed',
+        'min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-foreground/85 px-1.5 rounded-sm hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-overlay-positive-soft)] aria-pressed:text-[color:var(--ds-accent-positive)] disabled:opacity-45 disabled:cursor-not-allowed',
         SETTINGS_UI_TEXT,
       )}
       data-testid={rest['data-testid']}

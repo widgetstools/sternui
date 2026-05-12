@@ -157,6 +157,114 @@ describe('ConditionalStylingPanel (v4)', () => {
     expect(r.flash?.target).toBe('cells');
   });
 
+  it('commits STYLE WINDOW (ms) as activeDurationMs on SAVE', () => {
+    render(<MasterDetail platform={platform} />);
+    const input = screen.getByTestId('cs-rule-style-window-ms-rule-one');
+    fireEvent.change(input, { target: { value: '750' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    act(() => screen.getByTestId('cs-rule-save-rule-one').click());
+    const r = platform.store.getModuleState<ConditionalStylingState>('conditional-styling').rules[0];
+    expect(r.activeDurationMs).toBe(750);
+  });
+
+  it('commits flash mode + color + durationMs from the editor on SAVE', () => {
+    // Seed an enabled flash so the mode/color/duration controls render.
+    platform.store.setModuleState<ConditionalStylingState>('conditional-styling', (s) => ({
+      ...s,
+      rules: s.rules.map((r) =>
+        r.id === 'rule-one' ? { ...r, flash: { enabled: true, target: 'row' } } : r,
+      ),
+    }));
+
+    render(<MasterDetail platform={platform} />);
+
+    act(() => screen.getByTestId('cs-rule-flash-mode-pulse-rule-one').click());
+    act(() => screen.getByTestId('cs-rule-flash-color-emerald-rule-one').click());
+    const dur = screen.getByTestId('cs-rule-flash-duration-rule-one');
+    fireEvent.change(dur, { target: { value: '1200' } });
+    fireEvent.keyDown(dur, { key: 'Enter' });
+
+    act(() => screen.getByTestId('cs-rule-save-rule-one').click());
+    const r = platform.store.getModuleState<ConditionalStylingState>('conditional-styling').rules[0];
+    expect(r.flash?.mode).toBe('pulse');
+    expect(r.flash?.color).toBe('emerald');
+    expect(r.flash?.durationMs).toBe(1200);
+  });
+
+  // ─── Legacy migration ──────────────────────────────────────────────
+
+  it('deserialize migrates legacy flashDuration + fadeDuration to durationMs', () => {
+    const raw = {
+      rules: [
+        {
+          id: 'rule-legacy',
+          name: 'legacy',
+          enabled: true,
+          priority: 0,
+          scope: { type: 'cell', columns: ['price'] },
+          expression: 'true',
+          style: { light: {}, dark: {} },
+          flash: { enabled: true, target: 'cells', flashDuration: 500, fadeDuration: 1000 },
+        },
+      ],
+    };
+    const result = conditionalStylingModule.deserialize!(raw) as ConditionalStylingState;
+    const f = result.rules[0].flash!;
+    expect(f.enabled).toBe(true);
+    expect(f.target).toBe('cells');
+    expect(f.mode).toBe('oneShot');
+    expect(f.color).toBe('amber');
+    expect(f.durationMs).toBe(1500);
+    expect((f as unknown as { flashDuration?: number }).flashDuration).toBeUndefined();
+    expect((f as unknown as { fadeDuration?: number }).fadeDuration).toBeUndefined();
+  });
+
+  it('deserialize accepts new mode/color/durationMs verbatim when valid', () => {
+    const raw = {
+      rules: [
+        {
+          id: 'rule-new',
+          name: 'new',
+          enabled: true,
+          priority: 0,
+          scope: { type: 'cell', columns: ['price'] },
+          expression: 'true',
+          style: { light: {}, dark: {} },
+          flash: { enabled: true, target: 'cells', mode: 'pulse', color: 'sky', durationMs: 900 },
+        },
+      ],
+    };
+    const result = conditionalStylingModule.deserialize!(raw) as ConditionalStylingState;
+    expect(result.rules[0].flash).toEqual({
+      enabled: true,
+      target: 'cells',
+      mode: 'pulse',
+      color: 'sky',
+      durationMs: 900,
+    });
+  });
+
+  it('deserialize coerces unknown color to amber and unknown mode to oneShot', () => {
+    const raw = {
+      rules: [
+        {
+          id: 'rule-bad',
+          name: 'bad',
+          enabled: true,
+          priority: 0,
+          scope: { type: 'cell', columns: ['price'] },
+          expression: 'true',
+          style: { light: {}, dark: {} },
+          flash: { enabled: true, target: 'cells', mode: 'wat', color: 'crimson' },
+        },
+      ],
+    };
+    const result = conditionalStylingModule.deserialize!(raw) as ConditionalStylingState;
+    expect(result.rules[0].flash?.mode).toBe('oneShot');
+    expect(result.rules[0].flash?.color).toBe('amber');
+  });
+
   // ─── Expression validation via the shared platform engine ─────────
 
   it('invalid expressions show the red error chip (validation via platform engine)', () => {
