@@ -71,7 +71,7 @@ const EXCEL_COLOR_MAP: Record<string, string> = {
  * character X in <fmt>` — including ordinary Unicode literals like `▲`,
  * `▼`, `—`, `±`, `°`. Excel itself requires these to be wrapped in quotes
  * (`"▲ "#,##0.00`), but format strings authored by humans / pasted from
- * Excel docs / saved in old profiles often skip the quotes. Rather than
+ * Excel docs / saved in old layouts often skip the quotes. Rather than
  * forcing every author to quote-escape, we walk the format and quote any
  * top-level (outside `"..."` and `[...]`) character SSF rejects.
  *
@@ -223,7 +223,7 @@ export function excelFormatter(format: string): Formatter {
 
   // Pre-sanitize so SSF doesn't choke on Unicode literals (`▲`, `▼`,
   // `—`, etc.) authored unquoted. Excel itself requires quoting, but
-  // legacy profiles + docs commonly omit it. The sanitizer wraps any
+  // legacy layouts + docs commonly omit it. The sanitizer wraps any
   // unrecognized top-level character in quotes; bracket / quote content
   // is left alone.
   const sanitized = sanitizeFormatForSSF(format);

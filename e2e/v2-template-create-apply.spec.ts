@@ -12,7 +12,7 @@ async function bootCleanConfigServiceDemo(page: Page): Promise<void> {
   await page.goto(CS_DEMO_URL);
   await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 15_000 });
   // Nuke the ConfigService Dexie DB + demo's localStorage flags so
-  // seed-config.json re-runs and no stale profiles leak in.
+  // seed-config.json re-runs and no stale layouts leak in.
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('marketsui-config');

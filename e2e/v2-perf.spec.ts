@@ -10,7 +10,7 @@ import { test, expect, type Page } from '@playwright/test';
  *      cold-cache runs would flake a tighter ceiling).
  *
  *   2. Auto-save latency — `module state change → IndexedDB write
- *      observable`. Bar: ≤ 1s round-trip from a profile-create click,
+ *      observable`. Bar: ≤ 1s round-trip from a layout-create click,
  *      catching a 700ms cushion above the 300ms debounce target.
  *
  * Each measurement runs 3× and takes the median to smooth jitter.
@@ -62,7 +62,7 @@ test.describe('perf canaries', () => {
     expect(med).toBeLessThan(ceiling);
   });
 
-  test('auto-save latency: profile creation observed in IndexedDB within 1s', async ({ page }) => {
+  test('auto-save latency: layout creation observed in IndexedDB within 1s', async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
@@ -79,13 +79,13 @@ test.describe('perf canaries', () => {
     await page.goto('/');
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
-    await page.waitForTimeout(400); // initial Default-profile auto-seed
+    await page.waitForTimeout(400); // initial Default-layout auto-seed
 
     const tStart = Date.now();
-    await page.locator('[data-testid="profile-selector-trigger"]').click();
-    await page.locator('[data-testid="profile-selector-popover"]').waitFor({ state: 'visible' });
-    await page.locator('[data-testid="profile-name-input"]').fill('Perf-Test');
-    await page.locator('[data-testid="profile-create-btn"]').click();
+    await page.locator('[data-testid="layout-selector-trigger"]').click();
+    await page.locator('[data-testid="layout-selector-popover"]').waitFor({ state: 'visible' });
+    await page.locator('[data-testid="layout-name-input"]').fill('Perf-Test');
+    await page.locator('[data-testid="layout-create-btn"]').click();
 
     // Poll IndexedDB until the new row appears (i.e., auto-save fired).
     const deadline = Date.now() + 2_000;
@@ -117,10 +117,10 @@ test.describe('perf canaries', () => {
     }
 
     // eslint-disable-next-line no-console
-    console.log(`[perf] auto-save observed ${observedMs}ms after profile create click`);
+    console.log(`[perf] auto-save observed ${observedMs}ms after layout create click`);
     expect(observedMs).toBeGreaterThan(-1);
     // Debounce target is 300ms; give a 700ms cushion for IndexedDB round-trip +
-    // the React render loop that writes the new profile id into localStorage.
+    // the React render loop that writes the new layout id into localStorage.
     expect(observedMs).toBeLessThan(1_000);
   });
 });

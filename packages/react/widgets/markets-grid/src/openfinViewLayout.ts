@@ -1,18 +1,23 @@
 import type { ActiveIdSource } from '@starui/core';
 
 /**
- * OpenFin per-view active-profile pointer source.
+ * OpenFin per-view active-layout pointer source.
  *
- * Stores the active profile id on the current view's `customData`. This
- * lets duplicated views show different profiles of the same MarketsGrid
+ * Stores the active layout id on the current view's `customData`. This
+ * lets duplicated views show different layouts of the same MarketsGrid
  * instance: each view carries its own override on `customData`, and the
  * platform's snapshot capture round-trips it through workspace
  * save/restore for free.
  *
+ * Wire-format note: the customData key remains `activeProfileId` for
+ * back-compat with existing workspace snapshots that already carry
+ * that field — renaming the key would invalidate persisted state on
+ * the user's machines. Only the in-code symbol/function names changed.
+ *
  * Returns `null` when `fin` is unavailable, so non-OpenFin hosts (browser,
  * Electron, tests) silently fall through to localStorage as before. Both
  * `read()` and `write()` swallow errors — the source is best-effort and
- * must never block ProfileManager boot or a profile commit.
+ * must never block LayoutManager boot or a layout commit.
  *
  * Read on grid mount:
  *   - When set, the manager prefers this id over the localStorage
@@ -26,7 +31,7 @@ import type { ActiveIdSource } from '@starui/core';
  *     from those same options, so the active id is captured into the
  *     workspace snapshot automatically.
  */
-export function createOpenFinViewProfileSource(): ActiveIdSource | null {
+export function createOpenFinViewLayoutSource(): ActiveIdSource | null {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const finGlobal = (globalThis as any).fin;
   if (!finGlobal?.me?.getOptions || !finGlobal?.me?.updateOptions) return null;

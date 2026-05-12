@@ -373,7 +373,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     };
 
     // Fire evaluate on every relevant data-side event — and once immediately
-    // so profile loads paint without waiting for a first event.
+    // so layout loads paint without waiting for a first event.
     disposers.push(platform.api.onReady(() => {
       processTimedActivations();
       evaluate();
@@ -625,7 +625,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
           // Legacy migration: pre-mode payloads carried `flashDuration` +
           // `fadeDuration` (AG-Grid's native two-knob shape, which we never
           // actually applied). Sum them into a single `durationMs` so old
-          // profiles keep a roughly-equivalent visible window.
+          // layouts keep a roughly-equivalent visible window.
           let migratedDurationMs: number | undefined;
           if (typeof durationMs === 'number' && durationMs > 0) {
             migratedDurationMs = Math.round(durationMs);

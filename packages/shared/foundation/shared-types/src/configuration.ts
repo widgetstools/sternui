@@ -175,8 +175,11 @@ export const COMPONENT_TYPES = {
   DOCK_CONFIG: 'dock-config',
   /** Persisted component-registry editor configuration (registry entries). */
   COMPONENT_REGISTRY: 'component-registry',
-  /** MarketsGrid profile-set bundle — one row per (appId, userId, instanceId). */
-  MARKETS_GRID_PROFILE_SET: 'markets-grid-profile-set',
+  /** MarketsGrid layout-set bundle — one row per (appId, userId, instanceId).
+   *  Wire value `'markets-grid-layout-set'` after the Profile → Layout rename;
+   *  pre-rename rows on disk carry `'markets-grid-profile-set'` and are
+   *  recognized by `layoutStorage.isLayoutSetRow` for back-compat. */
+  MARKETS_GRID_LAYOUT_SET: 'markets-grid-layout-set',
   SIMPLE_BLOTTER: 'simple-blotter',
   SIMPLE_BLOTTER_LAYOUT: 'simple-blotter-layout',
   CUSTOM: 'custom',

@@ -34,7 +34,7 @@ async function waitForGrid(page: Page) {
 async function clearV2(page: Page) {
   await page.evaluate(async () => {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
+      .filter((k) => k.startsWith('gc-active-layout:') || k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach((k) => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('gc-customizer-v2');
@@ -186,7 +186,7 @@ test.describe('v2 FormattingToolbar', () => {
     const colId = await getFirstDataColId(page);
     await selectCell(page, colId);
     await clickToolbarBtn(page, 'Bold');
-    // Profiles are explicit-save-only now. Without clicking Save, the
+    // Layouts are explicit-save-only now. Without clicking Save, the
     // Bold mutation would live only in memory and get thrown away by
     // the reload.
     await page.locator('[data-testid="save-all-btn"]').click();

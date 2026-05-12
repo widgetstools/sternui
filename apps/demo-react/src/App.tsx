@@ -2,15 +2,15 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/markets-grid';
-import { DexieAdapter, activeProfileKey } from '@starui/core';
-import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
+import { DexieAdapter, activeLayoutKey } from '@starui/core';
+import type { StorageAdapter, LayoutSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
 import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
 import { MarketDepth } from './MarketDepth';
-import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
+import { buildShowcasePayload, SHOWCASE_LAYOUT_NAME } from './showcaseLayout';
 import { Fixture } from './Fixture';
 import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
 
@@ -105,8 +105,8 @@ const defaultColDef: ColDef<Order> = {
 
 // ─── Showcase seeding ──────────────────────────────────────────────────
 //
-// On first boot (per gridId), seed the "Showcase" profile directly into
-// the Dexie store and flip the active-profile localStorage pointer so
+// On first boot (per gridId), seed the "Showcase" layout directly into
+// the Dexie store and flip the active-layout localStorage pointer so
 // MarketsGrid boots straight into the styled / calculated / tick-flashed
 // view. Skipped on subsequent loads (idempotent: we match by name).
 
@@ -122,8 +122,8 @@ async function ensureShowcaseSeed(adapter: StorageAdapter): Promise<void> {
     }
   } catch { /* access denied — press on */ }
 
-  const existing = await adapter.listProfiles(GRID_ID);
-  if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase())) {
+  const existing = await adapter.listLayouts(GRID_ID);
+  if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_LAYOUT_NAME.toLowerCase())) {
     try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
     return;
   }
@@ -131,20 +131,20 @@ async function ensureShowcaseSeed(adapter: StorageAdapter): Promise<void> {
   const payload = buildShowcasePayload(GRID_ID);
   const now = Date.now();
   const id = 'showcase';
-  const snap: ProfileSnapshot = {
+  const snap: LayoutSnapshot = {
     id,
     gridId: GRID_ID,
-    name: payload.profile.name,
-    state: payload.profile.state,
+    name: payload.layout.name,
+    state: payload.layout.state,
     createdAt: now,
     updatedAt: now,
   };
-  await adapter.saveProfile(snap);
+  await adapter.saveLayout(snap);
 
-  // Point the active-profile pointer at the fresh snapshot so the first
-  // MarketsGrid render lands here (avoids a default-profile → showcase
+  // Point the active-layout pointer at the fresh snapshot so the first
+  // MarketsGrid render lands here (avoids a default-layout → showcase
   // flicker). Safe even if the key's already set — we're on first boot.
-  try { localStorage.setItem(activeProfileKey(GRID_ID), id); } catch { /* */ }
+  try { localStorage.setItem(activeLayoutKey(GRID_ID), id); } catch { /* */ }
   try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
 }
 
@@ -172,8 +172,8 @@ function AppInner() {
     try { return localStorage.getItem('gc-ticking') !== 'off'; }
     catch { return true; }
   });
-  // Gate the first render until the showcase profile has been seeded;
-  // otherwise MarketsGrid briefly boots with the default profile and
+  // Gate the first render until the showcase layout has been seeded;
+  // otherwise MarketsGrid briefly boots with the default layout and
   // then flips, producing a visible style flash.
   const [seeded, setSeeded] = useState(false);
 
@@ -203,7 +203,7 @@ function AppInner() {
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
 
   // One-shot seed on mount. `ensureShowcaseSeed` is idempotent — it
-  // short-circuits on the per-grid flag or when the profile already
+  // short-circuits on the per-grid flag or when the layout already
   // exists in Dexie — so React 19 StrictMode double-mount is safe.
   useEffect(() => {
     let alive = true;

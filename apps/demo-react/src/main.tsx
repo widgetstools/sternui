@@ -17,7 +17,7 @@ applyTheme(getTheme());
 // configManager is a fresh local Dexie ConfigClient.
 //
 // At this stage NO leaf component reads `useHost()` yet — the demo
-// continues to use its existing `DexieAdapter` for ProfileManager
+// continues to use its existing `DexieAdapter` for LayoutManager
 // state and its hardcoded view/orders state. The wiring is here so
 // future commits can migrate identity reads (`appId` / `userId` /
 // `instanceId`) and config-driven persistence onto the seam without

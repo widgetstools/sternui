@@ -4,7 +4,7 @@
  *
  * AG-Grid + the design-system module bundle are heavy to mount in
  * jsdom, so we stub the AG-Grid React wrapper to a minimal element and
- * the GridProvider/useProfileManager pair to no-op shells. The caption
+ * the GridProvider/useLayoutManager pair to no-op shells. The caption
  * lives in MarketsGrid's outer Host shell, not inside AG-Grid, so the
  * stubs don't hide what's under test.
  */
@@ -43,17 +43,17 @@ vi.mock('@starui/grid-react', async () => {
     GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
     useGridPlatform: () => ({}),
-    useProfileManager: () => ({
-      profiles: [],
-      activeProfileId: null,
+    useLayoutManager: () => ({
+      layouts: [],
+      activeLayoutId: null,
       isDirty: false,
-      saveActiveProfile: vi.fn(),
-      loadProfile: vi.fn(),
-      createProfile: vi.fn(),
-      deleteProfile: vi.fn(),
-      cloneProfile: vi.fn(),
-      renameProfile: vi.fn(),
-      discardActiveProfile: vi.fn(),
+      saveActiveLayout: vi.fn(),
+      loadLayout: vi.fn(),
+      createLayout: vi.fn(),
+      deleteLayout: vi.fn(),
+      cloneLayout: vi.fn(),
+      renameLayout: vi.fn(),
+      discardActiveLayout: vi.fn(),
     }),
     captureGridStateInto: vi.fn(),
     DirtyDot: () => null,
@@ -100,7 +100,7 @@ vi.mock('./FormattingToolbar', () => ({
 vi.mock('./SettingsSheet', () => ({
   SettingsSheet: React.forwardRef(() => null),
 }));
-vi.mock('./ProfileSelector', () => ({ ProfileSelector: () => null }));
+vi.mock('./LayoutSelector', () => ({ LayoutSelector: () => null }));
 
 import { MarketsGrid } from './MarketsGrid';
 

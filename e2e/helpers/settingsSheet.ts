@@ -28,7 +28,7 @@ export const V2_PATH = '/';
 export async function waitForV2Grid(page: Page): Promise<void> {
   await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
   await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
-  await page.waitForTimeout(400); // initial Default-profile auto-seed
+  await page.waitForTimeout(400); // initial Default-layout auto-seed
 }
 
 export async function clearV2Storage(page: Page): Promise<void> {
@@ -40,13 +40,13 @@ export async function clearV2Storage(page: Page): Promise<void> {
       req.onblocked = () => resolve();
     });
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('gc-active-profile:'))
+      .filter((k) => k.startsWith('gc-active-layout:') || k.startsWith('gc-active-profile:'))
       .forEach((k) => localStorage.removeItem(k));
   });
 }
 
 /**
- * Boots the demo at a known-clean state: grid rendered, profile storage
+ * Boots the demo at a known-clean state: grid rendered, layout storage
  * wiped, fresh reload. Use this in `beforeEach` for any test that
  * depends on starting from no prior overrides.
  */

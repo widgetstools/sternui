@@ -14,7 +14,7 @@
 |---|---|---|
 | Vanilla / TypeScript | ⚪ | React-only by design |
 | React | ✅ | Core library shape |
-| Angular | ❌ | Would need parallel binding over `ProfileManager` / `useFormatter` |
+| Angular | ❌ | Would need parallel binding over `LayoutManager` / `useFormatter` |
 | Vue | ❌ | Same as Angular |
 | Integration primitives (GridId / PK / StateKey / Ready event) | ✅ | `gridId`, `rowIdField`, `platform.events` |
 
@@ -27,11 +27,11 @@
 | Table Layouts: order / visibility / sizing / pinning / sorting | ✅ | `grid-state` + `column-customization` |
 | Column Headers customization | ✅ | `headerName` / `headerTooltip` on assignment |
 | Filtering & Grouping as layout | 🟡 | Filters persist via `saved-filters`; row-grouping config lives on assignments but isn't promoted to a first-class "layout" |
-| Row Selection in layout | 🟡 | AG-Grid selection state exists; not restored on profile load |
-| **Layouts Wizard UI** | ❌ | We have a profile selector, not a layout-design wizard |
+| Row Selection in layout | 🟡 | AG-Grid selection state exists; not restored on layout load |
+| **Layouts Wizard UI** | ❌ | We have a layout selector, not a layout-design wizard |
 | **Pivot Layouts** (full sub-system) | ❌ | AG-Grid Enterprise pivot exists; no UI to save/reload pivot configs |
-| Default Layouts | 🟡 | Reserved "Default" profile exists; not quite the same semantics as "default for this user/role" |
-| **Synchronising layouts across windows** | 🟡 | Popout shares theme + portal context only; profile state is local to the browser |
+| Default Layouts | 🟡 | Reserved "Default" layout exists; not quite the same semantics as "default for this user/role" |
+| **Synchronising layouts across windows** | 🟡 | Popout shares theme + portal context only; layout state is local to the browser |
 | Row Groups (expand/collapse/format) | ✅ | AG-Grid handles |
 | **Aggregations — Grand Total Rows** | ❌ | AG-Grid pinned rows can do this but we don't surface it |
 | **Aggregations — Weighted Averages** | ❌ | High-value for FI (YTM weighted by notional); expression engine could express but no first-class agg kind |
@@ -163,7 +163,7 @@
 |---|---|---|
 | **Team Sharing — Active** (push configs) | ❌ | |
 | **Team Sharing — Referenced** (subscribe to team config) | ❌ | |
-| Custom team-sharing backend | ❌ | **Strategic gap** — profile import / export only, no subscription model |
+| Custom team-sharing backend | ❌ | **Strategic gap** — layout import / export only, no subscription model |
 | **Row Forms** (edit full row via form) | ❌ | |
 | **Schedules** (time-based triggers) | ❌ | |
 | **Reminders** | ❌ | |
@@ -184,7 +184,7 @@
 | State events | ✅ | `platform.events.on(...)` |
 | State migration + `schemaVersion` | ✅ | Per-module `migrate()` hook |
 | **Permissions / Entitlements — Module level** | ❌ | |
-| **Permissions / Entitlements — Object level** (per profile / query) | ❌ | |
+| **Permissions / Entitlements — Object level** (per layout / query) | ❌ | |
 | Default access levels | ❌ | |
 | Row / cell data management + transactions | ✅ | AG-Grid transaction API |
 | **SSRM — filtering / sort / pivot / group / exports** | 🟡 | AG-Grid Enterprise supports; our module pipeline untested against SSRM |
@@ -248,7 +248,7 @@
 
 - **Typography + visual design** of the formatter surface
 - **CSP posture** — CSP-safe expression engine by default + runtime policy gate (`configureExpressionPolicy`)
-- **Profile lifecycle** — clone + import / export + strict-mode profile-import validation
+- **Layout lifecycle** — clone + import / export + strict-mode layout-import validation
 - **Theming** — `--gc-*` token system + popout-parity
 - **Custom floating filters** — strictly better than AdapTable (AG-Grid's `floatingFilterComponent` passes through; AdapTable replaces AG-Grid's floating filter with its own fixed Filter Bar)
 - **Column groups, calculated columns (basic), conditional styling, column templates** — feature-complete for everyday use
@@ -256,6 +256,6 @@
 
 ### Bottom line
 
-**We're ~40 % of AdapTable's feature checklist by volume, but ~70 % of what a real FI trading desk uses day-to-day.** The surface that matters most to a bond trader — layouts, column styling, conditional styling, calculated columns, formatters, templates, popout, profiles — is solid. The surface that matters to Wells Fargo's platform team but that traders rarely touch — team sharing, entitlements, server-side eval, audit — is where the real work remains.
+**We're ~40 % of AdapTable's feature checklist by volume, but ~70 % of what a real FI trading desk uses day-to-day.** The surface that matters most to a bond trader — layouts, column styling, conditional styling, calculated columns, formatters, templates, popout — is solid. The surface that matters to Wells Fargo's platform team but that traders rarely touch — team sharing, entitlements, server-side eval, audit — is where the real work remains.
 
 For the prioritized roadmap of what to build next, see [`docs/ROADMAP.md`](./docs/ROADMAP.md).

@@ -51,7 +51,7 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
     // panel. (Earlier the module shipped a `grossPnl` demo seed; that
     // surfaced as an unwanted "Gross P&L" column in every grid that
     // didn't explicitly override it. Apps that want a fixture demo
-    // column should seed it through their showcase profile, not via
+    // column should seed it through their showcase layout, not via
     // this module's initial state.)
     virtualColumns: [],
   }),

@@ -36,7 +36,7 @@ import { useAppScope } from '../AppScopeContext';
  * the relationships an operator actually cares about:
  *
  *   - How many `appConfig` rows each app has (configs the app has
- *     persisted via MarketsGrid profiles, dock layouts, etc.).
+ *     persisted via MarketsGrid layouts, dock layouts, etc.).
  *   - How many `userProfile` rows are scoped to each app.
  *   - One-click drill-downs to those scoped views (sets the active
  *     `appId` in `<AppScopeProvider>` and routes to /configs or /users).

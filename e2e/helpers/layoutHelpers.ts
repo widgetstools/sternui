@@ -1,10 +1,10 @@
 import { expect, type Page, type Locator } from '@playwright/test';
 
 /**
- * Shared helpers for profile-lifecycle + isolation tests.
+ * Shared helpers for layout-lifecycle + isolation tests.
  *
  * Built on top of `settingsSheet.ts` (imported where needed by the
- * specs). This file focuses on the ProfileSelector surface and
+ * specs). This file focuses on the LayoutSelector surface and
  * direct IndexedDB probes — the settings-sheet helpers cover module
  * panel navigation.
  *
@@ -15,38 +15,38 @@ import { expect, type Page, type Locator } from '@playwright/test';
 
 // ─── Locators ──────────────────────────────────────────────────────
 
-export function profileTrigger(page: Page): Locator {
-  return page.locator('[data-testid="profile-selector-trigger"]');
+export function layoutTrigger(page: Page): Locator {
+  return page.locator('[data-testid="layout-selector-trigger"]');
 }
 
-export function profilePopover(page: Page): Locator {
-  return page.locator('[data-testid="profile-selector-popover"]');
+export function layoutPopover(page: Page): Locator {
+  return page.locator('[data-testid="layout-selector-popover"]');
 }
 
-export function profileRow(page: Page, id: string): Locator {
-  return page.locator(`[data-testid="profile-row-${id}"]`);
+export function layoutRow(page: Page, id: string): Locator {
+  return page.locator(`[data-testid="layout-row-${id}"]`);
 }
 
-export function profileCloneBtn(page: Page, id: string): Locator {
-  return page.locator(`[data-testid="profile-clone-${id}"]`);
+export function layoutCloneBtn(page: Page, id: string): Locator {
+  return page.locator(`[data-testid="layout-clone-${id}"]`);
 }
 
 /** Delete button is identified by its `title` attribute (no testid on
  *  the icon button itself — the confirm dialog carries the testids). */
-export function profileDeleteBtn(page: Page, id: string): Locator {
-  return profileRow(page, id).locator('button[title="Delete profile"]');
+export function layoutDeleteBtn(page: Page, id: string): Locator {
+  return layoutRow(page, id).locator('button[title="Delete layout"]');
 }
 
 export function deleteConfirmDialog(page: Page): Locator {
-  return page.locator('[data-testid="profile-delete-confirm"]');
+  return page.locator('[data-testid="layout-delete-confirm"]');
 }
 
 export function deleteConfirmBtn(page: Page): Locator {
-  return page.locator('[data-testid="profile-delete-confirm-btn"]');
+  return page.locator('[data-testid="layout-delete-confirm-btn"]');
 }
 
 export function deleteCancelBtn(page: Page): Locator {
-  return page.locator('[data-testid="profile-delete-cancel"]');
+  return page.locator('[data-testid="layout-delete-cancel"]');
 }
 
 export function saveAllBtn(page: Page): Locator {
@@ -55,92 +55,92 @@ export function saveAllBtn(page: Page): Locator {
 
 // ─── Actions ──────────────────────────────────────────────────────
 
-export async function openProfilePopover(page: Page): Promise<void> {
-  if (await profilePopover(page).isVisible().catch(() => false)) return;
-  await profileTrigger(page).click();
-  await expect(profilePopover(page)).toBeVisible();
+export async function openLayoutPopover(page: Page): Promise<void> {
+  if (await layoutPopover(page).isVisible().catch(() => false)) return;
+  await layoutTrigger(page).click();
+  await expect(layoutPopover(page)).toBeVisible();
 }
 
-export async function closeProfilePopover(page: Page): Promise<void> {
-  if (!(await profilePopover(page).isVisible().catch(() => false))) return;
+export async function closeLayoutPopover(page: Page): Promise<void> {
+  if (!(await layoutPopover(page).isVisible().catch(() => false))) return;
   // Escape dismisses the shadcn popover cleanly.
   await page.keyboard.press('Escape');
-  await expect(profilePopover(page)).toHaveCount(0);
+  await expect(layoutPopover(page)).toHaveCount(0);
 }
 
 /**
- * Create a new profile via the popover name input. Active profile
+ * Create a new layout via the popover name input. Active layout
  * flips to the newly-created one on success (that's how
- * `ProfileManager.create()` behaves).
+ * `LayoutManager.create()` behaves).
  */
-export async function createProfile(page: Page, name: string): Promise<void> {
-  await openProfilePopover(page);
-  await page.locator('[data-testid="profile-name-input"]').fill(name);
-  await page.locator('[data-testid="profile-create-btn"]').click();
-  await expect(profileTrigger(page)).toContainText(name);
+export async function createLayout(page: Page, name: string): Promise<void> {
+  await openLayoutPopover(page);
+  await page.locator('[data-testid="layout-name-input"]').fill(name);
+  await page.locator('[data-testid="layout-create-btn"]').click();
+  await expect(layoutTrigger(page)).toContainText(name);
   // Allow the platform resetAll + deserializeAll + transform pipeline
   // + AG-Grid redraw to settle. Without this small pause the next
   // cell-click can race with the grid's post-switch reconciliation
   // and skip cellFocused events that the formatter toolbar listens on.
   await page.waitForTimeout(300);
-  // Force AG-Grid to re-evaluate row/cell class rules. The profile
+  // Force AG-Grid to re-evaluate row/cell class rules. The layout
   // switch swaps the underlying state, but AG-Grid caches per-row
   // class sets; without a redraw, stale `.ds-rule-*` classes from the
-  // previous profile can linger on visible rows until the next natural
+  // previous layout can linger on visible rows until the next natural
   // redraw (sort, scroll, etc.). The inline hook doesn't wait on a
   // specific DOM change — just gives AG-Grid's sync render loop a tick.
   await forceGridRedraw(page);
 }
 
 /**
- * Switch to an existing profile by clicking its row. If the profile is
+ * Switch to an existing layout by clicking its row. If the layout is
  * dirty-prompting, the caller should handle the AlertDialog separately.
  */
 /**
- * Switch to a profile by id. If the current profile is dirty, the
+ * Switch to a layout by id. If the current layout is dirty, the
  * switch triggers an unsaved-changes AlertDialog — we answer
  * "discard" by default since test intent is almost always to move to
  * the saved snapshot of the target, not to preserve auto-dirtied
  * grid-state churn. Callers wanting save-and-switch should set
  * `onDirty: 'save'`.
  */
-export async function switchToProfile(
+export async function switchToLayout(
   page: Page,
   id: string,
   displayName: string,
   options: { onDirty?: 'discard' | 'save' } = {},
 ): Promise<void> {
-  await openProfilePopover(page);
-  await profileRow(page, id).click();
+  await openLayoutPopover(page);
+  await layoutRow(page, id).click();
   // If a dirty-prompt dialog opens, handle it; otherwise fall through.
   const dirtyDialog = page.locator('[role="alertdialog"]').filter({ hasText: /unsaved changes|discard|save/i }).first();
   if (await dirtyDialog.isVisible({ timeout: 500 }).catch(() => false)) {
     const label = options.onDirty === 'save' ? /save.*switch|save.*continue|save/i : /discard/i;
     await dirtyDialog.locator('button').filter({ hasText: label }).first().click();
   }
-  // The popover auto-closes on row click; the trigger reflects the new active profile.
-  await expect(profileTrigger(page)).toContainText(displayName);
-  // Same settle + redraw as createProfile, same rationale.
+  // The popover auto-closes on row click; the trigger reflects the new active layout.
+  await expect(layoutTrigger(page)).toContainText(displayName);
+  // Same settle + redraw as createLayout, same rationale.
   await page.waitForTimeout(300);
   await forceGridRedraw(page);
 }
 
 /**
- * Clone a profile by clicking its row's clone icon. Markets-grid's host
+ * Clone a layout by clicking its row's clone icon. Markets-grid's host
  * callback composes a de-duped "(copy)" / "(copy 2)" name from the
- * source; we wait for the active profile to flip to the new clone.
+ * source; we wait for the active layout to flip to the new clone.
  *
  * Returns the clone's display name (so the caller can key off it).
  */
-export async function cloneProfile(page: Page, sourceId: string, sourceName: string): Promise<string> {
-  await openProfilePopover(page);
-  await profileCloneBtn(page, sourceId).click();
-  // The clone becomes active after the async cloneProfile() completes.
+export async function cloneLayout(page: Page, sourceId: string, sourceName: string): Promise<string> {
+  await openLayoutPopover(page);
+  await layoutCloneBtn(page, sourceId).click();
+  // The clone becomes active after the async cloneLayout() completes.
   // `(copy)` / `(copy 2)` / `(copy 3)` are all valid suffixes depending
   // on how many siblings already exist — match the open-paren + "copy"
   // opening that's guaranteed across all variants.
-  await expect(profileTrigger(page)).toContainText('(copy', { timeout: 5000 });
-  const actual = (await profileTrigger(page).textContent())?.trim() ?? '';
+  await expect(layoutTrigger(page)).toContainText('(copy', { timeout: 5000 });
+  const actual = (await layoutTrigger(page).textContent())?.trim() ?? '';
   // Grid-settle wait + redraw, same rationale as create/switch.
   await page.waitForTimeout(300);
   await forceGridRedraw(page);
@@ -148,17 +148,17 @@ export async function cloneProfile(page: Page, sourceId: string, sourceName: str
 }
 
 /**
- * Delete a profile via its row's trash button + the AlertDialog
- * confirm. If the profile is active, Default becomes active afterward.
+ * Delete a layout via its row's trash button + the AlertDialog
+ * confirm. If the layout is active, Default becomes active afterward.
  */
-export async function deleteProfile(page: Page, id: string): Promise<void> {
-  await openProfilePopover(page);
-  await profileDeleteBtn(page, id).click();
+export async function deleteLayout(page: Page, id: string): Promise<void> {
+  await openLayoutPopover(page);
+  await layoutDeleteBtn(page, id).click();
   await expect(deleteConfirmDialog(page)).toBeVisible();
   await deleteConfirmBtn(page).click();
   await expect(deleteConfirmDialog(page)).toHaveCount(0);
   // Popover closes on open-before-dialog; wait for the row to be gone.
-  await expect(profileRow(page, id)).toHaveCount(0);
+  await expect(layoutRow(page, id)).toHaveCount(0);
 }
 
 /** Save all changes. Idempotent — no-op when there are no unsaved
@@ -211,13 +211,17 @@ export async function ensureSettingsSheetClosed(page: Page): Promise<void> {
 // ─── State probes ──────────────────────────────────────────────────
 
 /**
- * Read the full IndexedDB profiles table. Useful for asserting on
+ * Read the full IndexedDB layouts table. Useful for asserting on
  * disk-level persistence independent of the UI state.
  *
  * Returns an array of `{ id, name, state }` rows. `state` is the
  * serialized module-state envelope map.
+ *
+ * Wire-format note: the IndexedDB database name (`gc-customizer-v2`)
+ * and object-store name (`profiles`) are kept byte-identical for
+ * back-compat with on-disk data — only the in-code symbol names changed.
  */
-export async function readStoredProfiles(page: Page): Promise<Array<{ id: string; name: string; state: Record<string, unknown> }>> {
+export async function readStoredLayouts(page: Page): Promise<Array<{ id: string; name: string; state: Record<string, unknown> }>> {
   return page.evaluate(async () => {
     return new Promise<Array<{ id: string; name: string; state: Record<string, unknown> }>>((resolve) => {
       const req = indexedDB.open('gc-customizer-v2');
@@ -238,23 +242,31 @@ export async function readStoredProfiles(page: Page): Promise<Array<{ id: string
   });
 }
 
-/** Return the currently-active profile id for a given gridId. */
-export async function readActiveProfileId(page: Page, gridId = 'demo-blotter-v2'): Promise<string | null> {
-  return page.evaluate((g) => localStorage.getItem(`gc-active-profile:${g}`), gridId);
+/** Return the currently-active layout id for a given gridId.
+ *  Reads the post-rename `gc-active-layout:` pointer first, then falls
+ *  back to the pre-rename `gc-active-profile:` pointer for back-compat
+ *  with installs that still carry the legacy key. */
+export async function readActiveLayoutId(page: Page, gridId = 'demo-blotter-v2'): Promise<string | null> {
+  return page.evaluate(
+    (g) =>
+      localStorage.getItem(`gc-active-layout:${g}`) ??
+      localStorage.getItem(`gc-active-profile:${g}`),
+    gridId,
+  );
 }
 
 /**
- * Read a specific module's state out of a stored profile row. Returns
+ * Read a specific module's state out of a stored layout row. Returns
  * the unwrapped `data` payload (strips the `{v, data}` envelope), or
  * `undefined` if the module isn't present.
  */
-export async function readProfileModuleState<T = unknown>(
+export async function readLayoutModuleState<T = unknown>(
   page: Page,
-  profileId: string,
+  layoutId: string,
   moduleId: string,
 ): Promise<T | undefined> {
-  const profiles = await readStoredProfiles(page);
-  const p = profiles.find((x) => x.id === profileId);
+  const layouts = await readStoredLayouts(page);
+  const p = layouts.find((x) => x.id === layoutId);
   if (!p) return undefined;
   const envelope = p.state?.[moduleId] as { v?: number; data?: T } | undefined;
   return envelope?.data;
@@ -283,7 +295,7 @@ export async function countRowsWithRuleClass(page: Page, ruleId: string): Promis
 
 /**
  * Force AG-Grid to redraw all visible rows so cell/row-class rules are
- * re-evaluated. Used after profile switches where rowClassRules may
+ * re-evaluated. Used after layout switches where rowClassRules may
  * have changed but AG-Grid's cached per-row class set hasn't been
  * invalidated. Traverses React fibers to find the live GridApi.
  */

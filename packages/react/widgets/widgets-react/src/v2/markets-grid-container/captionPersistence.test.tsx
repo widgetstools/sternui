@@ -3,7 +3,7 @@
  * `gridLevelData`. The container stores the caption alongside the
  * `ProviderSelection` blob that already records picker state, so
  * caption edits survive reloads on the same ConfigService row that
- * holds the profile-set.
+ * holds the layout-set.
  *
  * To keep mocks small, these tests exercise the "no provider selected"
  * render path — caption + onCaptionChange flow through it identically.

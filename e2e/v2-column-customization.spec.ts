@@ -103,7 +103,7 @@ test.describe('v2 — column-customization panel', () => {
         .first(),
     ).toHaveText('QUANTITY', { timeout: 3000 });
 
-    // Profiles are explicit-save now — close the settings sheet so its
+    // Layouts are explicit-save now — close the settings sheet so its
     // overlay doesn't intercept, then click Save before reloading.
     await closeSettingsSheet(page);
     await page.locator('[data-testid="save-all-btn"]').click();

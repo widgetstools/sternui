@@ -48,7 +48,7 @@ export const DEFAULT_USER_ID = 'dev1';
  * site for the same reason userId overrides are: cross-machine imports
  * and legacy rows otherwise diverge the appId between the runtime
  * caller and the realign sweep, breaking the strict-equality ownership
- * check in `isProfileSetRow`. Replace this literal when multi-app
+ * check in `isLayoutSetRow`. Replace this literal when multi-app
  * support actually lands (until then, treating it as a constant
  * eliminates a whole class of "row exists but invisible" bugs).
  */

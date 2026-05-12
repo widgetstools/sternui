@@ -41,7 +41,7 @@ chrome and diff-aware styling"). Files: 28 changed, +2356 / −352.
 same row primitive + summary-chip primitive, and conditional-styling
 expressions can reference the **previous** value via `oldValue` /
 `[col].old` so price-up / price-down rules update immediately
-without a profile reload.
+without a layout reload.
 
 | Story | Title | SP |
 |---|---|---:|
@@ -114,13 +114,13 @@ memory bookkeeping under live ticks).
 **Ref:** commits `8ea371e` (+`marketsui-grid-edit-demo-ag35/index.html` + `grrid-config.json` 1037 lines) and `7dd1639` (`marketsgrid-overview.md` 202 lines + PDF).
 
 **Goal delivered:** zero-build single-page demo proving the grid +
-profile JSON can be loaded standalone, and a stakeholder-friendly
+layout JSON can be loaded standalone, and a stakeholder-friendly
 overview document for non-engineering audiences.
 
 | Story | Title | SP |
 |---|---|---:|
-| **STERN-R-C1** | Single-file `marketsui-grid-edit-demo-ag35/index.html` — standalone AG-Grid 35 demo bootstrap, no bundler. Used to validate that a profile snapshot generated from the React app loads cleanly outside the React shell | 3 |
-| **STERN-R-C2** | `grrid-config.json` — 1037-line representative profile snapshot covering every module (general-settings, column-customization, calculated-columns, column-groups, conditional-styling with timed window + new flash schema, grid-state, toolbar-visibility, saved-filters). Doubles as a regression-test fixture | 2 |
+| **STERN-R-C1** | Single-file `marketsui-grid-edit-demo-ag35/index.html` — standalone AG-Grid 35 demo bootstrap, no bundler. Used to validate that a layout snapshot generated from the React app loads cleanly outside the React shell | 3 |
+| **STERN-R-C2** | `grrid-config.json` — 1037-line representative layout snapshot covering every module (general-settings, column-customization, calculated-columns, column-groups, conditional-styling with timed window + new flash schema, grid-state, toolbar-visibility, saved-filters). Doubles as a regression-test fixture | 2 |
 | **STERN-R-C3** | `marketsgrid-overview.md` + matching PDF — 202-line stakeholder-facing overview of MarketsGrid: what it does, who it serves, how it sits in the FI Trading Terminal context. Suitable for sharing with product, design, and execs | 3 |
 
 **Acceptance — epic-level**

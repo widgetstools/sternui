@@ -1,10 +1,10 @@
 /* ───────────────────────────────────────────────────────────────────
- * ProfileSelector — profile picker popover chrome.
+ * LayoutSelector — layout picker popover chrome.
  *
  * AUDIT i5 partial migration: this stylesheet hosts the STATIC layout
  * and chrome that the component used to author inline. State-dependent
  * styles (active-row highlight, hover background, dirty-dot color)
- * remain inline in ProfileSelector.tsx because they branch on React
+ * remain inline in LayoutSelector.tsx because they branch on React
  * state and would require additional data-* attributes to hand off
  * cleanly to CSS. Migrating those is a cosmetic-only change best done
  * with a visual-regression verification pass.
@@ -14,11 +14,11 @@
  * defaults otherwise.
  * ─────────────────────────────────────────────────────────────────── */
 
-.ds-profile-selector {
+.ds-layout-selector {
   display: inline-flex;
 }
 
-/* Popover header row — "Profiles" caps + count on the right. */
+/* Popover header row — "Layouts" caps + count on the right. */
 .ds-ps-header {
   display: flex;
   align-items: center;
@@ -40,7 +40,7 @@
   color: var(--ds-text-muted);
 }
 
-/* Scrollable body wrapping the profile rows. */
+/* Scrollable body wrapping the layout rows. */
 .ds-ps-list {
   max-height: 288px;
   overflow-y: auto;
@@ -55,7 +55,7 @@
 }
 
 /* Leading 14×14 slot that holds either a check (active) or a dot
-   (inactive) before the profile name. */
+   (inactive) before the layout name. */
 .ds-ps-row-indicator {
   display: inline-flex;
   align-items: center;

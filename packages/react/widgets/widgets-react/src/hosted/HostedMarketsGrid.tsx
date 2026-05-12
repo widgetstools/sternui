@@ -143,7 +143,7 @@ export function HostedMarketsGrid<
   // Imperative handle to the underlying MarketsGrid — captured via
   // `onReady` because MarketsGridContainer is a plain function
   // component, not a forwardRef. The workspace-save callback reads it
-  // through the ref so the same `saveActiveProfile` code path the
+  // through the ref so the same `saveActiveLayout` code path the
   // toolbar Save button calls runs on `Save Workspace`.
   const gridRef = useRef<MarketsGridHandle | null>(null);
 
@@ -162,13 +162,13 @@ export function HostedMarketsGrid<
     console.log('Saving workspace…', { hasHandle: !!handle });
     // Prefer `saveAll` — same path as the toolbar Save button, so the
     // container's busy overlay and grid-state capture both run. Fall
-    // back to `profiles.saveActiveProfile` for older handle shapes.
+    // back to `layouts.saveActiveLayout` for older handle shapes.
     if (handle?.saveAll) {
       await handle.saveAll();
       return;
     }
-    if (handle?.profiles?.saveActiveProfile) {
-      await handle.profiles.saveActiveProfile();
+    if (handle?.layouts?.saveActiveLayout) {
+      await handle.layouts.saveActiveLayout();
     }
   }, []);
 

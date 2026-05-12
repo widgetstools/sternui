@@ -233,7 +233,7 @@ test.describe('v2 — column-groups panel', () => {
     await expect(save).toBeDisabled();
   });
 
-  test('group persists across reload (profile auto-save round-trip)', async ({ page }) => {
+  test('group persists across reload (layout auto-save round-trip)', async ({ page }) => {
     const id = await createGroupWithColumns(page, 'Persistent', ['side', 'quantity']);
     await closeSettingsSheet(page);
     // Explicit-save: click Save before reload.

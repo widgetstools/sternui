@@ -511,9 +511,9 @@ export function clearAllStylesReducer(
 }
 
 /**
- * Nuke every column-customization assignment in the active profile.
+ * Nuke every column-customization assignment in the active layout.
  * Used by the "Clear all styles" button on the formatter toolbar +
- * popped panel, which now wipes the whole profile's style state rather
+ * popped panel, which now wipes the whole layout's style state rather
  * than just the selected columns.
  *
  * What it does clear:
@@ -527,13 +527,13 @@ export function clearAllStylesReducer(
  *   - typeDefaults on the column-templates side (cross-module, not
  *     touched here).
  *   - Other module states (conditional-styling, calculated-columns,
- *     column-groups, etc.). If the user wants a full profile reset,
- *     that's a separate "reset profile" action.
+ *     column-groups, etc.). If the user wants a full layout reset,
+ *     that's a separate "reset layout" action.
  *
- * Returns a fresh `{ assignments: {} }`. Profile-level auto-save picks
+ * Returns a fresh `{ assignments: {} }`. Layout-level auto-save picks
  * it up through the normal module-state change pipeline.
  */
-export function clearAllStylesInProfileReducer(): (
+export function clearAllStylesInLayoutReducer(): (
   prev: ColumnCustomizationState | undefined,
 ) => ColumnCustomizationState {
   return (prev) => {

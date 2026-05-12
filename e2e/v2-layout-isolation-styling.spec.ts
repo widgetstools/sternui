@@ -1,31 +1,31 @@
 import { test, expect, type Page } from '@playwright/test';
 import { bootCleanDemo, openPanel, closeSettingsSheet } from './helpers/settingsSheet';
 import {
-  createProfile,
-  cloneProfile,
-  switchToProfile,
-  deleteProfile,
+  createLayout,
+  cloneLayout,
+  switchToLayout,
+  deleteLayout,
   saveAll,
-  readProfileModuleState,
-  readStoredProfiles,
+  readLayoutModuleState,
+  readStoredLayouts,
   countRowsWithRuleClass,
   readCellFontWeight,
-} from './helpers/profileHelpers';
+} from './helpers/layoutHelpers';
 
 /**
- * E2E — profile ISOLATION for styling-related modules.
+ * E2E — layout ISOLATION for styling-related modules.
  *
  * What we prove here:
  *   - Column customization (bold / colors / alignment / formatter)
- *     applied in profile A is NOT visible when the user switches to
- *     profile B. Switching back restores A's styling unchanged.
- *   - Conditional-styling rules live per-profile. Authoring a rule in
+ *     applied in layout A is NOT visible when the user switches to
+ *     layout B. Switching back restores A's styling unchanged.
+ *   - Conditional-styling rules live per-layout. Authoring a rule in
  *     A doesn't leak a row-class into B. Enabling a rule in B doesn't
  *     retroactively change A.
  *   - Clones inherit the source's styling at the moment of cloning,
  *     then diverge: edits to the clone don't leak back to the source.
  *   - Persistence via Save: assignments + rules survive a full
- *     profile-switch round-trip AND a page reload.
+ *     layout-switch round-trip AND a page reload.
  *
  * Tactic: all tests interact with the formatter toolbar (for column-
  * customization) and the conditional-styling panel's + button (for
@@ -89,53 +89,53 @@ async function saveRule(page: Page, ruleId: string): Promise<void> {
 
 // ─── Tests ─────────────────────────────────────────────────────────
 
-test.describe('v2 profile isolation — column customization (formatter toolbar)', () => {
+test.describe('v2 layout isolation — column customization (formatter toolbar)', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
-  test('bold applied in profile A is absent in profile B', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('bold applied in layout A is absent in layout B', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'price');
     await clickBold(page);
     expect(await readCellFontWeight(page, 'price')).toBe('700');
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     // Beta starts blank — bold should NOT be present on price.
     expect(await readCellFontWeight(page, 'price')).not.toBe('700');
 
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     expect(await readCellFontWeight(page, 'price')).toBe('700');
   });
 
   test('bold in A persists across full reload and still isolated from B', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'yield');
     await clickBold(page);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     await saveAll(page);
 
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]');
-    // Beta was the last-active profile — yield should NOT be bold.
+    // Beta was the last-active layout — yield should NOT be bold.
     expect(await readCellFontWeight(page, 'yield')).not.toBe('700');
 
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     expect(await readCellFontWeight(page, 'yield')).toBe('700');
   });
 
   test('clone inherits source styling, edits to clone do not leak back', async ({ page }) => {
-    await createProfile(page, 'Origin');
+    await createLayout(page, 'Origin');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'spread');
     await clickBold(page);
     await saveAll(page);
 
     // Clone Origin — clone should have bold on spread too.
-    await cloneProfile(page, 'origin', 'Origin');
+    await cloneLayout(page, 'origin', 'Origin');
     expect(await readCellFontWeight(page, 'spread')).toBe('700');
 
     // Add italic (another typography toggle) to the clone ONLY.
@@ -146,9 +146,9 @@ test.describe('v2 profile isolation — column customization (formatter toolbar)
     await saveAll(page);
 
     // Back to Origin — should have bold but NOT italic.
-    await switchToProfile(page, 'origin', 'Origin');
+    await switchToLayout(page, 'origin', 'Origin');
     expect(await readCellFontWeight(page, 'spread')).toBe('700');
-    const originState = await readProfileModuleState<{ assignments?: Record<string, unknown> }>(
+    const originState = await readLayoutModuleState<{ assignments?: Record<string, unknown> }>(
       page, 'origin', 'column-customization',
     );
     const spreadAssignment = (originState?.assignments as Record<string, { cellStyleOverrides?: { typography?: { italic?: boolean } } }> | undefined)?.spread;
@@ -156,13 +156,13 @@ test.describe('v2 profile isolation — column customization (formatter toolbar)
   });
 
   test('bold on different columns in A vs B is fully independent', async ({ page }) => {
-    await createProfile(page, 'AlphaPrice');
+    await createLayout(page, 'AlphaPrice');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'price');
     await clickBold(page);
     await saveAll(page);
 
-    await createProfile(page, 'BetaYield');
+    await createLayout(page, 'BetaYield');
     await clickColumnCell(page, 'yield');
     await clickBold(page);
     await saveAll(page);
@@ -172,19 +172,19 @@ test.describe('v2 profile isolation — column customization (formatter toolbar)
     expect(await readCellFontWeight(page, 'price')).not.toBe('700');
 
     // Alpha: price bold, yield not bold.
-    await switchToProfile(page, 'alphaprice', 'AlphaPrice');
+    await switchToLayout(page, 'alphaprice', 'AlphaPrice');
     expect(await readCellFontWeight(page, 'price')).toBe('700');
     expect(await readCellFontWeight(page, 'yield')).not.toBe('700');
   });
 
-  test('"Clear all styles" wipes only the active profile, not the others', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('"Clear all styles" wipes only the active layout, not the others', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'price');
     await clickBold(page);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     await clickColumnCell(page, 'yield');
     await clickBold(page);
     await saveAll(page);
@@ -197,12 +197,12 @@ test.describe('v2 profile isolation — column customization (formatter toolbar)
     await saveAll(page);
 
     // Alpha still has its bold-on-price.
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     expect(await readCellFontWeight(page, 'price')).toBe('700');
   });
 
   test('unsaved customization in A is discarded when switching to B (explicit-save contract)', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     await saveAll(page);
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'price');
@@ -211,19 +211,19 @@ test.describe('v2 profile isolation — column customization (formatter toolbar)
     // DO NOT click save. The explicit-save contract means switching
     // with unsaved edits pops a confirm dialog; answering "discard"
     // throws them away.
-    await createProfile(page, 'Beta'); // Creating also flips active; unsaved Alpha edits are thrown away.
+    await createLayout(page, 'Beta'); // Creating also flips active; unsaved Alpha edits are thrown away.
 
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     // Alpha's saved state had no bold — it should be back to default.
     expect(await readCellFontWeight(page, 'price')).not.toBe('700');
   });
 });
 
-test.describe('v2 profile isolation — conditional styling rules', () => {
+test.describe('v2 layout isolation — conditional styling rules', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
   test('rule created in A does not appear in B (row class gone after switch)', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     const ruleA = await addConditionalRule(page);
     await saveRule(page, ruleA);
     await closeSettingsSheet(page);
@@ -232,21 +232,21 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
     // Alpha has the rule → row class present.
     expect(await countRowsWithRuleClass(page, ruleA)).toBeGreaterThan(0);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     // Beta is blank — no rule-class rows.
     expect(await countRowsWithRuleClass(page, ruleA)).toBe(0);
   });
 
-  test('rule stored ONLY under the creating profile (disk check)', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('rule stored ONLY under the creating layout (disk check)', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const ruleA = await addConditionalRule(page);
     await saveRule(page, ruleA);
     await saveAll(page);
 
-    const alphaState = await readProfileModuleState<{ rules?: Array<{ id?: string }> }>(
+    const alphaState = await readLayoutModuleState<{ rules?: Array<{ id?: string }> }>(
       page, 'alpha', 'conditional-styling',
     );
-    const defaultState = await readProfileModuleState<{ rules?: Array<{ id?: string }> }>(
+    const defaultState = await readLayoutModuleState<{ rules?: Array<{ id?: string }> }>(
       page, '__default__', 'conditional-styling',
     );
     expect(alphaState?.rules?.some((r) => r.id === ruleA)).toBe(true);
@@ -254,14 +254,14 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
   });
 
   test('editing a rule in A does not mutate the same rule id if it appears in a clone', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     const ruleA = await addConditionalRule(page);
     // Name the rule "Original" in Alpha.
     await page.locator(`[data-testid="cs-rule-name-${ruleA}"]`).fill('Original');
     await saveRule(page, ruleA);
     await saveAll(page);
 
-    await cloneProfile(page, 'alpha', 'Alpha'); // now on "Alpha (copy)"
+    await cloneLayout(page, 'alpha', 'Alpha'); // now on "Alpha (copy)"
     // Verify the clone has the rule with name "Original".
     await openPanel(page, 'conditional-styling');
     await expect(page.locator(`[data-testid="cs-rule-name-${ruleA}"]`)).toHaveValue('Original');
@@ -270,22 +270,22 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
     await saveRule(page, ruleA);
     await saveAll(page);
 
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     await openPanel(page, 'conditional-styling');
     await page.locator(`[data-testid="cs-rule-card-${ruleA}"]`).click();
     await expect(page.locator(`[data-testid="cs-rule-name-${ruleA}"]`)).toHaveValue('Original');
   });
 
-  test('two profiles can both carry rules with the same rule id without collision', async ({ page }) => {
+  test('two layouts can both carry rules with the same rule id without collision', async ({ page }) => {
     // (Different rules happen to share an id shape if created in
-    // separate profiles — the transform pipeline processes each
-    // profile's rules independently, no global uniqueness needed.)
-    await createProfile(page, 'Alpha');
+    // separate layouts — the transform pipeline processes each
+    // layout's rules independently, no global uniqueness needed.)
+    await createLayout(page, 'Alpha');
     const ruleA = await addConditionalRule(page);
     await saveRule(page, ruleA);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     const ruleB = await addConditionalRule(page);
     await saveRule(page, ruleB);
     await saveAll(page);
@@ -299,12 +299,12 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
   });
 
   test('deleting a rule in A does not affect B', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     const ruleA = await addConditionalRule(page);
     await saveRule(page, ruleA);
     await saveAll(page);
 
-    await cloneProfile(page, 'alpha', 'Alpha'); // clone → "alpha-copy" with the same rule
+    await cloneLayout(page, 'alpha', 'Alpha'); // clone → "alpha-copy" with the same rule
 
     // On the clone, delete the rule.
     await openPanel(page, 'conditional-styling');
@@ -317,14 +317,15 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
     }
     await saveAll(page);
 
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     // Alpha still carries the rule class.
     await closeSettingsSheet(page);
     expect(await countRowsWithRuleClass(page, ruleA)).toBeGreaterThan(0);
   });
 
   test('rule persists through create/switch/reload cycle', async ({ page }) => {
-    await createProfile(page, 'Persistent');
+    // Sanity: ensure rule applies under the new layout AND survives reload.
+    await createLayout(page, 'Persistent');
     const ruleId = await addConditionalRule(page);
     await saveRule(page, ruleId);
     await saveAll(page);
@@ -334,12 +335,12 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
 
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]');
-    // Persistent is still the active profile after reload.
+    // Persistent is still the active layout after reload.
     expect(await countRowsWithRuleClass(page, ruleId)).toBeGreaterThan(0);
   });
 
-  test('multiple rules on one profile all apply; none leak to another profile', async ({ page }) => {
-    await createProfile(page, 'MultiRule');
+  test('multiple rules on one layout all apply; none leak to another layout', async ({ page }) => {
+    await createLayout(page, 'MultiRule');
     const r1 = await addConditionalRule(page);
     await saveRule(page, r1);
     const r2 = await addConditionalRule(page);
@@ -353,34 +354,34 @@ test.describe('v2 profile isolation — conditional styling rules', () => {
       expect(await countRowsWithRuleClass(page, id)).toBeGreaterThan(0);
     }
 
-    await createProfile(page, 'Clean');
+    await createLayout(page, 'Clean');
     for (const id of [r1, r2, r3]) {
       expect(await countRowsWithRuleClass(page, id)).toBe(0);
     }
   });
 
-  test('Default profile rules are independent of user profiles', async ({ page }) => {
+  test('Default layout rules are independent of user layouts', async ({ page }) => {
     // Add rule on Default.
     const defRule = await addConditionalRule(page);
     await saveRule(page, defRule);
     await saveAll(page);
     await closeSettingsSheet(page);
 
-    // Create another profile — new profile starts blank.
-    await createProfile(page, 'Fresh');
+    // Create another layout — new layout starts blank.
+    await createLayout(page, 'Fresh');
     expect(await countRowsWithRuleClass(page, defRule)).toBe(0);
 
-    await switchToProfile(page, '__default__', 'Default');
+    await switchToLayout(page, '__default__', 'Default');
     await closeSettingsSheet(page); // in case we dropped into a panel
     expect(await countRowsWithRuleClass(page, defRule)).toBeGreaterThan(0);
   });
 });
 
-test.describe('v2 profile isolation — multi-module combined styling', () => {
+test.describe('v2 layout isolation — multi-module combined styling', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
-  test('profile A has bold + rule; profile B has neither (combined DOM check)', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('layout A has bold + rule; layout B has neither (combined DOM check)', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'price');
     await clickBold(page);
@@ -392,25 +393,25 @@ test.describe('v2 profile isolation — multi-module combined styling', () => {
     expect(await readCellFontWeight(page, 'price')).toBe('700');
     expect(await countRowsWithRuleClass(page, ruleA)).toBeGreaterThan(0);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     expect(await readCellFontWeight(page, 'price')).not.toBe('700');
     expect(await countRowsWithRuleClass(page, ruleA)).toBe(0);
   });
 
-  test('stored profiles table reflects module state independence after multi-profile session', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('stored layouts table reflects module state independence after multi-layout session', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'quantity');
     await clickBold(page);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     const ruleB = await addConditionalRule(page);
     await saveRule(page, ruleB);
     await closeSettingsSheet(page);
     await saveAll(page);
 
-    const stored = await readStoredProfiles(page);
+    const stored = await readStoredLayouts(page);
     const alpha = stored.find((p) => p.id === 'alpha');
     const beta = stored.find((p) => p.id === 'beta');
 
@@ -425,18 +426,18 @@ test.describe('v2 profile isolation — multi-module combined styling', () => {
     expect(betaCs?.rules?.some((r) => r.id === ruleB)).toBe(true);
   });
 
-  test('deleting a profile also removes its module state from disk (no ghost state)', async ({ page }) => {
-    await createProfile(page, 'Doomed');
+  test('deleting a layout also removes its module state from disk (no ghost state)', async ({ page }) => {
+    await createLayout(page, 'Doomed');
     await openFormatterToolbar(page);
     await clickColumnCell(page, 'spread');
     await clickBold(page);
     await saveAll(page);
 
-    let stored = await readStoredProfiles(page);
+    let stored = await readStoredLayouts(page);
     expect(stored.map((p) => p.id)).toContain('doomed');
 
-    await deleteProfile(page, 'doomed');
-    stored = await readStoredProfiles(page);
+    await deleteLayout(page, 'doomed');
+    stored = await readStoredLayouts(page);
     expect(stored.map((p) => p.id)).not.toContain('doomed');
   });
 });

@@ -45,17 +45,17 @@ vi.mock('@starui/grid-react', async () => {
     GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
     useGridPlatform: () => ({}),
-    useProfileManager: () => ({
-      profiles: [],
-      activeProfileId: null,
+    useLayoutManager: () => ({
+      layouts: [],
+      activeLayoutId: null,
       isDirty: false,
-      saveActiveProfile: vi.fn(),
-      loadProfile: vi.fn(),
-      createProfile: vi.fn(),
-      deleteProfile: vi.fn(),
-      cloneProfile: vi.fn(),
-      renameProfile: vi.fn(),
-      discardActiveProfile: vi.fn(),
+      saveActiveLayout: vi.fn(),
+      loadLayout: vi.fn(),
+      createLayout: vi.fn(),
+      deleteLayout: vi.fn(),
+      cloneLayout: vi.fn(),
+      renameLayout: vi.fn(),
+      discardActiveLayout: vi.fn(),
     }),
     captureGridStateInto: vi.fn(),
     DirtyDot: () => null,
@@ -102,7 +102,7 @@ vi.mock('./FormattingToolbar', () => ({
 vi.mock('./SettingsSheet', () => ({
   SettingsSheet: React.forwardRef(() => null),
 }));
-vi.mock('./ProfileSelector', () => ({ ProfileSelector: () => null }));
+vi.mock('./LayoutSelector', () => ({ LayoutSelector: () => null }));
 
 import { MarketsGrid } from './MarketsGrid';
 
@@ -146,11 +146,12 @@ describe('MarketsGrid — MemoryAdapter fallback dev warning', () => {
 
   it('stays silent when a storage factory is provided', () => {
     const memoryFactory = vi.fn(() => ({
-      loadProfiles: async () => [],
-      saveProfile: async () => {},
-      deleteProfile: async () => {},
-      loadActiveProfileId: async () => null,
-      saveActiveProfileId: async () => {},
+      listLayouts: async () => [],
+      loadLayout: async () => null,
+      saveLayout: async () => {},
+      deleteLayout: async () => {},
+      loadGridLevelData: async () => null,
+      saveGridLevelData: async () => {},
     }));
 
     const { unmount } = render(

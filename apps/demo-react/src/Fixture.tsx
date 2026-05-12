@@ -1,34 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Theme } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/markets-grid';
-import { activeProfileKey } from '@starui/core';
-import type { ProfileSnapshot, StorageAdapter } from '@starui/core';
+import { activeLayoutKey } from '@starui/core';
+import type { LayoutSnapshot, StorageAdapter } from '@starui/core';
 
 import { generateNestedOrders, nestedColumnDefs } from './nestedData';
 import type { FixtureSpec } from './nestedFixtures';
 
 /**
- * Seed (upsert) the fixture's profile and flip the active-profile
+ * Seed (upsert) the fixture's layout and flip the active-layout
  * pointer so MarketsGrid boots straight into the styled state. Stable
- * id `${fixture.name}-profile` so re-seeds overwrite cleanly.
+ * id `${fixture.name}-layout` so re-seeds overwrite cleanly.
  */
 async function seedFixture(adapter: StorageAdapter, fixture: FixtureSpec): Promise<void> {
   // Seed the fixture state under id `__default__` so MarketsGrid's
-  // default-profile auto-seed becomes a no-op (its `if (existing)`
+  // default-layout auto-seed becomes a no-op (its `if (existing)`
   // guard short-circuits) — and we don't fight an active-pointer race
-  // with the host's "ensure default exists" step. The fixture profile
+  // with the host's "ensure default exists" step. The fixture layout
   // IS the default for this gridId.
   const now = Date.now();
-  const snap: ProfileSnapshot = {
+  const snap: LayoutSnapshot = {
     id: '__default__',
     gridId: fixture.gridId,
-    name: fixture.profile.profile.name,
-    state: fixture.profile.profile.state,
+    name: fixture.layout.layout.name,
+    state: fixture.layout.layout.state,
     createdAt: now,
     updatedAt: now,
   };
-  await adapter.saveProfile(snap);
-  try { localStorage.setItem(activeProfileKey(fixture.gridId), '__default__'); } catch { /* */ }
+  await adapter.saveLayout(snap);
+  try { localStorage.setItem(activeLayoutKey(fixture.gridId), '__default__'); } catch { /* */ }
 }
 
 interface FixtureProps {
@@ -46,7 +46,7 @@ const defaultColDef = {
 
 /**
  * Mounts MarketsGrid with the nested-fields dataset, seeded against the
- * fixture's pre-built profile. The component is intentionally minimal —
+ * fixture's pre-built layout. The component is intentionally minimal —
  * each spec is responsible for clearing IndexedDB before it runs (via
  * `bootCleanDemo`) so the seed is fresh for every test.
  *

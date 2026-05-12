@@ -19,7 +19,7 @@ import {
  * SetFilterHandler.validateModel iterates `model.values` without a null
  * check, so an entry whose `values` is anything other than an array
  * blows up the whole api.setState call. We drop just that entry, log
- * which colId was bad, and let the rest of the profile restore cleanly.
+ * which colId was bad, and let the rest of the layout restore cleanly.
  *
  * Recurses into multi-filter envelopes so a malformed set sub-filter
  * inside a multi-filter is dropped too. Returns a fresh object —
@@ -140,7 +140,7 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
   // check — a malformed pill (set-filter entry whose `values` got
   // serialized as undefined / non-array) crashes the entire restore and
   // takes the rest of the saved state down with it. Strip the bad
-  // entries so the rest of the profile loads cleanly. Same defensive
+  // entries so the rest of the layout loads cleanly. Same defensive
   // shape as FiltersToolbar's sanitizeFilterModel.
   const cleanedState = sanitizeGridState(saved.gridState);
 
@@ -252,7 +252,7 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
     };
     // First attempt on the next microtask — covers the common case
     // where the grid's first render has already settled by the time
-    // `applyGridState` is called (profile:loaded after grid:ready).
+    // `applyGridState` is called (layout:loaded after grid:ready).
     queueMicrotask(reorder);
     // Second attempt on `firstDataRendered` — covers cold-mount where
     // row data arrives after applyGridState. One-shot listener so we
@@ -321,7 +321,7 @@ export function applyGridState(api: GridApi, saved: SavedGridState): void {
 /**
  * Host-facing helper. Captures the current grid state and writes it into the
  * grid-state module slice on the store. Called by MarketsGrid's Save button
- * handler immediately before `profiles.saveActiveProfile()` — the subsequent
+ * handler immediately before `layouts.saveActiveLayout()` — the subsequent
  * `core.serializeAll()` that runs inside `persistSnapshot` then picks up the
  * just-captured state and persists it alongside every other module's state.
  */

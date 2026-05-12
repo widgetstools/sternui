@@ -11,7 +11,7 @@
 import type {
   ApplicationContext,
   ConfigManager,
-  ProfileStorageFactory,
+  LayoutStorageFactory,
 } from '@starui/config-service';
 
 /**
@@ -22,7 +22,7 @@ import type {
  *     constructed and `init()`-ed. Hosts that need direct access to
  *     auth tables (`appRegistry` / `userProfile` / `roles` /
  *     `permissions`) read it here.
- *   - `storage` — a ready-to-use `ProfileStorageFactory` for
+ *   - `storage` — a ready-to-use `LayoutStorageFactory` for
  *     `<MarketsGrid storage={...} />`. Pre-bound to the same
  *     `ConfigManager`; a host typically passes it straight through
  *     without re-creating it per blotter.
@@ -40,7 +40,7 @@ import type {
  */
 export interface ConfigServiceContextValue {
   configManager: ConfigManager;
-  storage: ProfileStorageFactory;
+  storage: LayoutStorageFactory;
   appId: string;
   userId: string;
   applicationContext: ApplicationContext;

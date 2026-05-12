@@ -17,7 +17,7 @@
  *
  *   1. configId === ${componentType}-${componentSubType} for templates,
  *      ${componentType}-${componentSubType} for the per-grid-instance
- *      profile-set row (since a single registered component = a single
+ *      layout-set row (since a single registered component = a single
  *      row in this storage).
  *   2. componentType === registeredIdentity.componentType  (ALWAYS)
  *   3. componentSubType === registeredIdentity.componentSubType  (ALWAYS)
@@ -29,10 +29,10 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createConfigServiceStorage } from './profileStorage';
+import { createConfigServiceStorage } from './layoutStorage';
 import type { AppConfigRow } from './types';
 import type { ConfigManager } from './ConfigManager';
-import type { ProfileSnapshot } from '@starui/core';
+import type { LayoutSnapshot } from '@starui/core';
 
 // ─── In-memory ConfigManager fake ───────────────────────────────────
 
@@ -56,7 +56,7 @@ const REGISTERED = {
   componentSubType: 'positions',
 };
 
-function snapshot(name: string, gridId: string): ProfileSnapshot {
+function snapshot(name: string, gridId: string): LayoutSnapshot {
   return {
     id: name === 'Default' ? '__default__' : `id-${name}`,
     gridId,
@@ -82,7 +82,7 @@ describe('createConfigServiceStorage — identity-aware persistence (TEST-LAUNCH
       registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
     });
 
-    await adapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await adapter.saveLayout(snapshot('Default', 'blotter-positions'));
 
     const row = cm.rows.get('blotter-positions')!;
     expect(row).toBeDefined();
@@ -101,7 +101,7 @@ describe('createConfigServiceStorage — identity-aware persistence (TEST-LAUNCH
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
 
-    await adapter.saveProfile(snapshot('Default', 'inst-uuid-7f3a'));
+    await adapter.saveLayout(snapshot('Default', 'inst-uuid-7f3a'));
 
     const row = cm.rows.get('inst-uuid-7f3a')!;
     expect(row.componentType).toBe('blotter');             // type still matches registered
@@ -117,7 +117,7 @@ describe('createConfigServiceStorage — identity-aware persistence (TEST-LAUNCH
       userId: 'dev1',
       registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: true },
     });
-    await adapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await adapter.saveLayout(snapshot('Default', 'blotter-positions'));
     expect(cm.rows.get('blotter-positions')!.singleton).toBe(true);
   });
 
@@ -130,14 +130,14 @@ describe('createConfigServiceStorage — identity-aware persistence (TEST-LAUNCH
       registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
     });
 
-    await adapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await adapter.saveLayout(snapshot('Default', 'blotter-positions'));
     await adapter.saveGridLevelData?.('blotter-positions', { liveProviderId: 'dp-xyz' });
 
     const row = cm.rows.get('blotter-positions')!;
     expect(row.componentType).toBe('blotter');
     expect(row.componentSubType).toBe('positions');
     expect(row.isTemplate).toBe(true);
-    // payload's gridLevelData is also persisted alongside the profiles
+    // payload's gridLevelData is also persisted alongside the layouts
     expect((row.payload as { gridLevelData?: { liveProviderId?: string } }).gridLevelData?.liveProviderId).toBe('dp-xyz');
   });
 });
@@ -157,7 +157,7 @@ describe('createConfigServiceStorage — visibility (Decision 6)', () => {
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
 
-    await adapter.saveProfile(snapshot('Default', 'fresh-instance'));
+    await adapter.saveLayout(snapshot('Default', 'fresh-instance'));
 
     expect(cm.rows.get('fresh-instance')!.isPublic).toBe(true);
   });
@@ -189,7 +189,7 @@ describe('createConfigServiceStorage — visibility (Decision 6)', () => {
       userId: 'dev1',
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
-    await adapter.saveProfile(snapshot('Aggressive', 'private-instance'));
+    await adapter.saveLayout(snapshot('Aggressive', 'private-instance'));
 
     expect(cm.rows.get('private-instance')!.isPublic).toBe(false);
   });
@@ -201,16 +201,52 @@ describe('createConfigServiceStorage — back-compat (NO identity supplied)', ()
   let cm: FakeManager;
   beforeEach(() => { cm = makeFakeConfigManager(); });
 
-  it('falls back to "markets-grid-profile-set" / "" / false when no registeredIdentity', async () => {
+  it('falls back to "markets-grid-layout-set" / "" / false when no registeredIdentity', async () => {
     const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
     const adapter = factory({ instanceId: 'legacy-instance', appId: 'TestApp', userId: 'dev1' });
 
-    await adapter.saveProfile(snapshot('Default', 'legacy-instance'));
+    await adapter.saveLayout(snapshot('Default', 'legacy-instance'));
 
     const row = cm.rows.get('legacy-instance')!;
-    expect(row.componentType).toBe('markets-grid-profile-set');
+    expect(row.componentType).toBe('markets-grid-layout-set');
     expect(row.componentSubType).toBe('');
     expect(row.isTemplate).toBe(false);
+  });
+
+  it('recognizes pre-rename rows wearing componentType="markets-grid-profile-set" and key "profiles"', async () => {
+    // Pre-rename row: legacy componentType + legacy payload key. The
+    // adapter must still find it on read and rewrite it on the next
+    // save into the new shape.
+    cm.rows.set('legacy-row', {
+      configId: 'legacy-row',
+      appId: 'TestApp',
+      userId: 'dev1',
+      isPublic: true,
+      displayText: 'pre-rename row',
+      componentType: 'markets-grid-profile-set',
+      componentSubType: '',
+      isTemplate: false,
+      singleton: false,
+      payload: { version: 1, profiles: [snapshot('Legacy', 'legacy-row')] },
+      createdBy: 'dev1',
+      updatedBy: 'dev1',
+      creationTime: '2026-01-01T00:00:00Z',
+      updatedTime: '2026-01-01T00:00:00Z',
+    });
+
+    const factory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
+    const adapter = factory({ instanceId: 'legacy-row', appId: 'TestApp', userId: 'dev1' });
+
+    const list = await adapter.listLayouts('legacy-row');
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toBe('Legacy');
+
+    await adapter.saveLayout(snapshot('Fresh', 'legacy-row'));
+    const row = cm.rows.get('legacy-row')!;
+    expect(row.componentType).toBe('markets-grid-layout-set');
+    const payload = row.payload as { layouts?: unknown; profiles?: unknown };
+    expect(Array.isArray(payload.layouts)).toBe(true);
+    expect(payload.profiles).toBeUndefined();
   });
 });
 
@@ -239,12 +275,12 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
 
-    expect(await adapter.listProfiles('inst-no-row')).toEqual([]);
+    expect(await adapter.listLayouts('inst-no-row')).toEqual([]);
     expect(await adapter.loadGridLevelData?.('inst-no-row')).toBeNull();
     expect(cm.rows.size).toBe(0);                             // adapter never auto-creates
   });
 
-  it('reads the launcher-cloned row verbatim — profiles AND gridLevelData', async () => {
+  it('reads the launcher-cloned row verbatim — layouts AND gridLevelData', async () => {
     // Simulate what `createComponentInstance` does at launch: copy
     // the template row's payload onto a fresh UUID-keyed row with
     // isTemplate: false. The view then reads its own row directly.
@@ -276,9 +312,9 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
 
-    const profiles = await adapter.listProfiles('inst-cloned');
-    expect(profiles).toHaveLength(1);
-    expect(profiles[0].name).toBe('Default');
+    const layouts = await adapter.listLayouts('inst-cloned');
+    expect(layouts).toHaveLength(1);
+    expect(layouts[0].name).toBe('Default');
 
     const gld = await adapter.loadGridLevelData?.('inst-cloned');
     expect(gld).toEqual({ liveProviderId: 'dp-xyz', mode: 'live' });
@@ -324,11 +360,11 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
 
-    const [profilesA, gldB] = await Promise.all([
-      adapterA.listProfiles('inst-race'),
+    const [layoutsA, gldB] = await Promise.all([
+      adapterA.listLayouts('inst-race'),
       adapterB.loadGridLevelData?.('inst-race'),
     ]);
-    expect(profilesA).toHaveLength(1);
+    expect(layoutsA).toHaveLength(1);
     expect(gldB).toEqual({ liveProviderId: 'dp-xyz', mode: 'live' });
   });
 
@@ -341,7 +377,7 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
       userId: 'dev1',
       registeredIdentity: { ...REGISTERED, isTemplate: true, singleton: false },
     });
-    await tAdapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await tAdapter.saveLayout(snapshot('Default', 'blotter-positions'));
 
     // Simulate launcher clone: copy the template row's payload onto
     // a per-instance UUID-keyed row with isTemplate: false.
@@ -354,23 +390,23 @@ describe('createConfigServiceStorage — read contract for pre-cloned instance r
     });
 
     // Now extend the template — should NOT touch the instance row.
-    await tAdapter.saveProfile(snapshot('Aggressive', 'blotter-positions'));
-    expect((await tAdapter.listProfiles('blotter-positions')).length).toBe(2);
+    await tAdapter.saveLayout(snapshot('Aggressive', 'blotter-positions'));
+    expect((await tAdapter.listLayouts('blotter-positions')).length).toBe(2);
 
     const iFactory = createConfigServiceStorage({ configManager: cm as unknown as ConfigManager });
     const iAdapter = iFactory({
       instanceId: 'inst-1', appId: 'TestApp', userId: 'dev1',
       registeredIdentity: { ...REGISTERED, isTemplate: false, singleton: false },
     });
-    const instProfiles = await iAdapter.listProfiles('inst-1');
-    expect(instProfiles).toHaveLength(1);                       // not 2
-    expect(instProfiles[0].name).toBe('Default');
+    const instLayouts = await iAdapter.listLayouts('inst-1');
+    expect(instLayouts).toHaveLength(1);                       // not 2
+    expect(instLayouts[0].name).toBe('Default');
   });
 });
 
 // ─── Smoke: replay the user-reported broken state ───────────────────
 
-describe('Smoke: a test-launched blotter saves its profile-set with the correct identity', () => {
+describe('Smoke: a test-launched blotter saves its layout-set with the correct identity', () => {
   it('produces a row exactly matching the user-asked-for shape', async () => {
     const cm = makeFakeConfigManager();
 
@@ -389,7 +425,7 @@ describe('Smoke: a test-launched blotter saves its profile-set with the correct 
       },
     });
 
-    await adapter.saveProfile(snapshot('Default', 'blotter-positions'));
+    await adapter.saveLayout(snapshot('Default', 'blotter-positions'));
 
     const row = cm.rows.get('blotter-positions')!;
     // Match the user's spec, field-by-field:

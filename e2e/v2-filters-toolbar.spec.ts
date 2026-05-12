@@ -12,7 +12,7 @@ import { test, expect, Page } from '@playwright/test';
  * Intentionally OMITTED vs v1 (deliberate cuts in v2):
  *  - row-count badges on pills (would re-couple v2 to rowData)
  *  - localStorage-key save assertions (`ds-filters:<gridId>` — v2 persists via
- *    profile snapshot in IndexedDB, no legacy keys are written)
+ *    layout snapshot in IndexedDB, no legacy keys are written)
  *  - toolbar-switcher dance — v2 renders FiltersToolbar inline, no pill click
  */
 
@@ -25,10 +25,11 @@ async function waitForGrid(page: Page) {
 
 async function clearV2Persistence(page: Page) {
   // v2 persists in IndexedDB via DexieAdapter. Wipe the gc-customizer-v2 db
-  // and the active-profile pointer so each test starts from a clean slate.
+  // and the active-layout pointer. Writes post-rename use `gc-active-layout:`;
+  // pre-rename `gc-active-profile:` keys are also cleared for back-compat.
   await page.evaluate(async () => {
     Object.keys(localStorage)
-      .filter(k => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
+      .filter(k => k.startsWith('gc-active-layout:') || k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach(k => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('gc-customizer-v2');

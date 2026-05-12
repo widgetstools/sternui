@@ -1,9 +1,9 @@
 /**
- * Showcase profile seed.
+ * Showcase layout seed.
  *
- * A pre-configured profile that exercises every visible feature of the
+ * A pre-configured layout that exercises every visible feature of the
  * Grid Customizer against the FI trading blotter. Imported on first boot
- * (when no `showcase-demo` profile is present in Dexie) so visitors land
+ * (when no `showcase-demo` layout is present in Dexie) so visitors land
  * directly on a coloured, emoji-labelled, live-ticking grid rather than
  * the plain "200 rows of text" starter state.
  *
@@ -14,14 +14,14 @@
  *     semaphore badges, flash on tick, and indicator glyphs.
  *   - Calculated columns using SUM / AVG / MIN / MAX column aggregates.
  *
- * Shape matches ExportedProfilePayload so `ProfileManager.import(...)`
+ * Shape matches ExportedLayoutPayload so `LayoutManager.import(...)`
  * consumes it directly.
  */
 
-import type { ExportedProfilePayload } from '@starui/core';
+import type { ExportedLayoutPayload } from '@starui/core';
 
-export const SHOWCASE_PROFILE_ID_HINT = 'showcase';
-export const SHOWCASE_PROFILE_NAME = 'Showcase';
+export const SHOWCASE_LAYOUT_ID_HINT = 'showcase';
+export const SHOWCASE_LAYOUT_NAME = 'Showcase';
 
 // Excel format tokens — square-bracket colour prefixes are an SSF
 // convention; the positive / negative / zero / text sections are
@@ -342,7 +342,7 @@ const calculatedColumnsState = {
 
 function buildSnapshot(gridId: string): ShowcaseSnapshot {
   return {
-    name: SHOWCASE_PROFILE_NAME,
+    name: SHOWCASE_LAYOUT_NAME,
     gridId,
     state: {
       'column-customization': { v: 1, data: columnCustomizationState },
@@ -353,15 +353,15 @@ function buildSnapshot(gridId: string): ShowcaseSnapshot {
 }
 
 /**
- * Produce an ExportedProfilePayload ready to hand to
- * `ProfileManager.import(payload, { name: 'Showcase' })`.
+ * Produce an `ExportedLayoutPayload` ready to hand to
+ * `LayoutManager.import(payload, { name: 'Showcase' })`.
  */
-export function buildShowcasePayload(gridId: string): ExportedProfilePayload {
+export function buildShowcasePayload(gridId: string): ExportedLayoutPayload {
   const snap = buildSnapshot(gridId);
   return {
     schemaVersion: 1,
-    kind: 'gc-profile',
+    kind: 'gc-layout',
     exportedAt: new Date().toISOString(),
-    profile: snap,
+    layout: snap,
   };
 }

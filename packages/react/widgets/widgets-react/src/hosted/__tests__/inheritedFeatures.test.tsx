@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Parity rows 17-20 — snapshot/live-update lifecycle (17), grid-level
- * provider persistence (18), profile manager / settings sheet / dirty
+ * provider persistence (18), layout manager / settings sheet / dirty
  * dot (19), and admin-actions / headerExtras / gridLevelData
  * passthrough (20) all live in MarketsGridContainer + MarketsGrid.
  *

@@ -6,11 +6,13 @@
  *     `headerExtras` slot — it lives inside the grid's own chrome,
  *     not as a separate strip above it.
  *   - Toolbar is visible by default. Alt+Shift+P toggles it off/on.
- *   - Provider selection persists at the GRID level (not per-profile)
- *     in the SAME storage row MarketsGrid uses for its profile-set,
+ *   - Provider selection persists at the GRID level (not per-layout)
+ *     in the SAME storage row MarketsGrid uses for its layout-set
+ *     (wire `componentType: 'markets-grid-layout-set'`, with
+ *     `'markets-grid-profile-set'` still accepted on read for back-compat),
  *     via the StorageAdapter's `loadGridLevelData / saveGridLevelData`
- *     methods. Profile switches preserve the selection because it's
- *     not stored in any individual profile.
+ *     methods. Layout switches preserve the selection because it's
+ *     not stored in any individual layout.
  *
  *   Persistence flow:
  *     - Container resolves the storage adapter from
@@ -21,8 +23,8 @@
  *       provider — no remount-on-load loop.
  *     - On every selection mutation, calls `saveGridLevelData(gridId,
  *       selection)`. The adapter writes back to the same bundled row
- *       that holds the profile-set (top-level field, not nested in a
- *       profile).
+ *       that holds the layout-set (top-level field, not nested in a
+ *       layout).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -133,7 +135,7 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // ── Storage adapter ──────────────────────────────────────────────
   //
-  // Same factory MarketsGrid uses for profile persistence; we resolve
+  // Same factory MarketsGrid uses for layout persistence; we resolve
   // a copy here to read/write the grid-level-data field of the same
   // row. Memoised on the identity-affecting tuple so a userId swap
   // (rare) rebuilds the adapter cleanly.
@@ -410,13 +412,13 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // every subscriber receives — so all connected windows show the
   // overlay together, not just the one that pressed the refresh button.
   const [isRefetching, setIsRefetching] = useState(false);
-  // Bubbled up from MarketsGrid whenever the active profile is being
+  // Bubbled up from MarketsGrid whenever the active layout is being
   // persisted (Save button or save-on-switch). We reuse the same
   // snapshot loading overlay component for visual consistency, just
   // with a "Saving…" caption.
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
   const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
-  const showLoadingOverlay = isLoadingSnapshot || isRefetching || isSavingProfile;
+  const showLoadingOverlay = isLoadingSnapshot || isRefetching || isSavingLayout;
 
   // Render-time log of the gating inputs so you can see WHY the
   // subscribe effect isn't firing yet (or that it IS gated correctly
@@ -861,19 +863,19 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
           adminActions={adminActionsWithRefresh}
           caption={effectiveCaption}
           onCaptionChange={handleCaptionChange}
-          onSavingChange={setIsSavingProfile}
+          onSavingChange={setIsSavingLayout}
         />
         {showLoadingOverlay && (
           <MarketsGridLoadingOverlay
             title={
-              isSavingProfile
+              isSavingLayout
                 ? 'Saving…'
                 : activeProviderName
                   ? `Loading ${activeProviderName}`
                   : 'Loading market data'
             }
-            message={isSavingProfile ? 'Persisting profile' : undefined}
-            rowCount={isSavingProfile ? undefined : loadRowCount}
+            message={isSavingLayout ? 'Persisting layout' : undefined}
+            rowCount={isSavingLayout ? undefined : loadRowCount}
           />
         )}
       </div>

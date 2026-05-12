@@ -1,20 +1,20 @@
 /**
- * Pre-configured profile bundles that drive the `?view=fixture&f=<name>`
+ * Pre-configured layout bundles that drive the `?view=fixture&f=<name>`
  * route in `App.tsx`. Each fixture gets:
  *
  *   - a unique gridId (so parallel Playwright workers can't collide
  *     in IndexedDB across fixtures within the same browser context),
- *   - a fresh ExportedProfilePayload that exercises one slice of the
+ *   - a fresh ExportedLayoutPayload that exercises one slice of the
  *     pipeline (formatter / cond-cell / cond-row / calc / groups), or
  *   - a kitchen-sink combo that turns every slice on at once.
  *
- * Profile shape mirrors `showcaseProfile.ts` exactly — the only
+ * Layout shape mirrors `showcaseLayout.ts` exactly — the only
  * difference is the gridId and the per-module data, which references
  * dot-notation colIds (`pricing.bid`, `ratings.sp`, …) so the recent
  * `cssEscapeColId` + `getValueByPath` fixes have a target to land on.
  */
 
-import type { ExportedProfilePayload } from '@starui/core';
+import type { ExportedLayoutPayload } from '@starui/core';
 
 export type FixtureName =
   | 'formatter'
@@ -28,8 +28,8 @@ export interface FixtureSpec {
   name: FixtureName;
   label: string;
   gridId: string;
-  /** Seeded directly into Dexie under `profile.id = `${name}-profile`. */
-  profile: ExportedProfilePayload;
+  /** Seeded into the storage adapter via `LayoutManager.import(...)`. */
+  layout: ExportedLayoutPayload;
 }
 
 // ─── Format tokens (shared by formatter + kitchen-sink) ───────────────
@@ -49,12 +49,12 @@ function envelope(state: Record<string, unknown>): Record<string, { v: number; d
   return out;
 }
 
-function payload(gridId: string, name: string, state: Record<string, unknown>): ExportedProfilePayload {
+function payload(gridId: string, name: string, state: Record<string, unknown>): ExportedLayoutPayload {
   return {
     schemaVersion: 1,
-    kind: 'gc-profile',
+    kind: 'gc-layout',
     exportedAt: new Date().toISOString(),
-    profile: { name, gridId, state: envelope(state) },
+    layout: { name, gridId, state: envelope(state) },
   };
 }
 
@@ -312,7 +312,7 @@ export const FIXTURES: Record<FixtureName, FixtureSpec> = Object.fromEntries(
     const gridId = `fixture-${name}`;
     return [
       name,
-      { name, label, gridId, profile: payload(gridId, `Fixture: ${label}`, state) },
+      { name, label, gridId, layout: payload(gridId, `Fixture: ${label}`, state) },
     ];
   }),
 ) as Record<FixtureName, FixtureSpec>;

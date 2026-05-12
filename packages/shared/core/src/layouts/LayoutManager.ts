@@ -1,8 +1,9 @@
 import type { GridPlatform } from '../platform/GridPlatform';
 import {
-  RESERVED_DEFAULT_PROFILE_ID,
-  activeProfileKey,
-  type ProfileSnapshot,
+  RESERVED_DEFAULT_LAYOUT_ID,
+  activeLayoutKey,
+  legacyActiveLayoutKey,
+  type LayoutSnapshot,
   type StorageAdapter,
 } from '../persistence/StorageAdapter';
 import type { SerializedState } from '../platform/types';
@@ -13,10 +14,10 @@ import {
   reportExpressionViolation,
   sanitizeExpressionFormatters,
 } from '../security/expressionPolicy';
-import type { ExportedProfilePayload, ProfileMeta } from './types';
+import type { ExportedLayoutPayload, LayoutMeta } from './types';
 
 /**
- * Pluggable source for the "which profile is active?" pointer.
+ * Pluggable source for the "which layout is active?" pointer.
  *
  * The default behaviour stores the active id in `localStorage` (one key
  * per `gridId`). A host can layer a higher-priority source on top — read
@@ -25,8 +26,10 @@ import type { ExportedProfilePayload, ProfileMeta } from './types';
  *
  * The intended use case is OpenFin: the markets-grid host injects a
  * source that reads/writes `activeProfileId` on the current view's
- * `customData`, so duplicated views can show different profiles of the
+ * `customData`, so duplicated views can show different layouts of the
  * same grid instance and survive a workspace save/restore round-trip.
+ * (The customData field name is preserved as `activeProfileId` for
+ * back-compat with existing workspace snapshots.)
  *
  * Read-only sources are supported (return `null` from `read()`, no-op
  * `write()`). When `read()` returns `null` the manager falls through to
@@ -39,7 +42,7 @@ export interface ActiveIdSource {
   write(id: string): Promise<void> | void;
 }
 
-export interface ProfileManagerOptions {
+export interface LayoutManagerOptions {
   platform: GridPlatform;
   adapter: StorageAdapter;
   autoSaveDebounceMs?: number;
@@ -49,34 +52,34 @@ export interface ProfileManagerOptions {
   activeIdSource?: ActiveIdSource;
 }
 
-export interface ProfileManagerState {
+export interface LayoutManagerState {
   activeId: string;
-  profiles: ProfileMeta[];
+  layouts: LayoutMeta[];
   isLoading: boolean;
   /** True when the live platform state has diverged from the last
-   *  successful persist on the active profile. Reset to false on boot,
+   *  successful persist on the active layout. Reset to false on boot,
    *  load, save, create, and import. */
   isDirty: boolean;
 }
 
-type Listener = (state: ProfileManagerState) => void;
+type Listener = (state: LayoutManagerState) => void;
 
 /**
- * Framework-free profile orchestration. Owns:
- *   - the reserved Default profile (auto-created on boot),
- *   - the active-profile pointer (one localStorage key per grid),
+ * Framework-free layout orchestration. Owns:
+ *   - the reserved Default layout (auto-created on boot),
+ *   - the active-layout pointer (one localStorage key per grid),
  *   - the auto-save engine,
  *   - export/import JSON payloads.
  *
- * React binding: `useProfileManager(…)` wraps this into a hook. An Angular
+ * React binding: `useLayoutManager(…)` wraps this into a hook. An Angular
  * binding wraps the same class with signals.
  */
-export class ProfileManager {
+export class LayoutManager {
   private readonly platform: GridPlatform;
   private readonly adapter: StorageAdapter;
-  private state: ProfileManagerState = {
-    activeId: RESERVED_DEFAULT_PROFILE_ID,
-    profiles: [],
+  private state: LayoutManagerState = {
+    activeId: RESERVED_DEFAULT_LAYOUT_ID,
+    layouts: [],
     isLoading: true,
     isDirty: false,
   };
@@ -99,7 +102,7 @@ export class ProfileManager {
    *  nested or interleaved calls safely. */
   private dirtySuppressDepth = 0;
 
-  constructor(opts: ProfileManagerOptions) {
+  constructor(opts: LayoutManagerOptions) {
     this.platform = opts.platform;
     this.adapter = opts.adapter;
     this.autoSaveDebounceMs = opts.autoSaveDebounceMs ?? 300;
@@ -137,7 +140,7 @@ export class ProfileManager {
     return () => this.listeners.delete(fn);
   }
 
-  getState(): ProfileManagerState {
+  getState(): LayoutManagerState {
     return this.state;
   }
 
@@ -151,7 +154,7 @@ export class ProfileManager {
    *      caller has torn us down in the meantime. Without this, a stale
    *      manager can keep mutating the shared platform store after
    *      `dispose()` has been called — the exact bug family that caused
-   *      the StrictMode profile-list regression. */
+   *      the StrictMode layout-list regression. */
   async boot(): Promise<void> {
     if (this.disposed || this.booted) return;
     this.booted = true;
@@ -159,20 +162,20 @@ export class ProfileManager {
     try {
       const { gridId } = this.platform;
 
-      // Ensure the Default profile row exists.
-      let def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+      // Ensure the Default layout row exists.
+      let def = await this.adapter.loadLayout(gridId, RESERVED_DEFAULT_LAYOUT_ID);
       if (this.disposed) return;
       if (!def) {
         const now = Date.now();
         def = {
-          id: RESERVED_DEFAULT_PROFILE_ID,
+          id: RESERVED_DEFAULT_LAYOUT_ID,
           gridId,
           name: 'Default',
           state: {},
           createdAt: now,
           updatedAt: now,
         };
-        await this.adapter.saveProfile(def);
+        await this.adapter.saveLayout(def);
         if (this.disposed) return;
       }
 
@@ -184,12 +187,12 @@ export class ProfileManager {
       if (this.disposed) return;
       const lsId = readActiveId(gridId);
       const candidates: string[] = [];
-      if (sourceId && sourceId !== RESERVED_DEFAULT_PROFILE_ID) candidates.push(sourceId);
-      if (lsId && lsId !== RESERVED_DEFAULT_PROFILE_ID && lsId !== sourceId) candidates.push(lsId);
-      let resolvedId = RESERVED_DEFAULT_PROFILE_ID;
-      let snapshot: ProfileSnapshot = def;
+      if (sourceId && sourceId !== RESERVED_DEFAULT_LAYOUT_ID) candidates.push(sourceId);
+      if (lsId && lsId !== RESERVED_DEFAULT_LAYOUT_ID && lsId !== sourceId) candidates.push(lsId);
+      let resolvedId = RESERVED_DEFAULT_LAYOUT_ID;
+      let snapshot: LayoutSnapshot = def;
       for (const cand of candidates) {
-        const row = await this.adapter.loadProfile(gridId, cand);
+        const row = await this.adapter.loadLayout(gridId, cand);
         if (this.disposed) return;
         if (row) {
           resolvedId = cand;
@@ -197,8 +200,8 @@ export class ProfileManager {
           break;
         }
       }
-      if (resolvedId === RESERVED_DEFAULT_PROFILE_ID) {
-        writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
+      if (resolvedId === RESERVED_DEFAULT_LAYOUT_ID) {
+        writeActiveId(gridId, RESERVED_DEFAULT_LAYOUT_ID);
       }
 
       // Apply state + announce. Suppress dirty-marking while the store
@@ -214,9 +217,9 @@ export class ProfileManager {
       this.updateState({ activeId: resolvedId, isDirty: false });
       writeActiveId(gridId, resolvedId);
       await this.writeSourceId(resolvedId);
-      this.platform.events.emit('profile:loaded', { gridId, profileId: resolvedId });
+      this.platform.events.emit('layout:loaded', { gridId, layoutId: resolvedId });
 
-      // Refresh profile list.
+      // Refresh layout list.
       await this.refresh();
       if (this.disposed) return;
       this.updateState({ isLoading: false });
@@ -242,7 +245,7 @@ export class ProfileManager {
       }
     } catch (err) {
       if (this.disposed) return;
-      console.warn('[profiles] boot failed:', err);
+      console.warn('[layouts] boot failed:', err);
       this.updateState({ isLoading: false });
     }
   }
@@ -259,14 +262,14 @@ export class ProfileManager {
     if (this.state.isDirty) this.updateState({ isDirty: false });
   }
 
-  /** Throw away in-memory changes and reload the active profile from
-   *  disk. Used by the "Discard changes" action on profile switch /
+  /** Throw away in-memory changes and reload the active layout from
+   *  disk. Used by the "Discard changes" action on layout switch /
    *  beforeunload prompts. */
   async discard(): Promise<void> {
     if (this.disposed) return;
     const { gridId } = this.platform;
     const id = this.state.activeId;
-    const snap = await this.adapter.loadProfile(gridId, id);
+    const snap = await this.adapter.loadLayout(gridId, id);
     if (this.disposed) return;
     this.autoSave?.cancelScheduled();
     this.dirtySuppressDepth++;
@@ -278,33 +281,33 @@ export class ProfileManager {
     }
     this.autoSave?.cancelScheduled();
     this.updateState({ isDirty: false });
-    this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+    this.platform.events.emit('layout:loaded', { gridId, layoutId: id });
   }
 
-  /** Load a profile by id. Replaces the in-memory store + flips the
+  /** Load a layout by id. Replaces the in-memory store + flips the
    *  active pointer.
    *
    *  Behavior with auto-save disabled (the default now): any unsaved
-   *  edits on the OUTGOING profile are thrown away — callers that want
+   *  edits on the OUTGOING layout are thrown away — callers that want
    *  to preserve them must call `save()` BEFORE `load()`. The
    *  markets-grid host pops an AlertDialog on switch-while-dirty so
    *  the user makes this choice explicitly.
    *
    *  Behavior with auto-save enabled (legacy / tests): pending writes
-   *  are flushed to the OUTGOING profile before the pointer flips, so
+   *  are flushed to the OUTGOING layout before the pointer flips, so
    *  in-flight edits land on the right snapshot. `skipFlush` opts out
    *  (used by `remove()` so we don't resurrect the just-deleted
-   *  profile).
+   *  layout).
    *
    *  Ordering contract (critical for state isolation):
    *    1. Settle any pending auto-save first (flush or cancel).
    *    2. Flip the active-id pointer BEFORE mutating the platform
    *       store. resetAll() + deserializeAll() trigger subscriptions;
    *       if the pointer is still on the old id a persist would write
-   *       the NEW state into the OLD profile's snapshot.
+   *       the NEW state into the OLD layout's snapshot.
    *    3. cancelScheduled() AGAIN after the mutations: even with the
    *       order above we want a clean slate on the newly-active
-   *       profile.
+   *       layout.
    */
   async load(id: string, opts?: { skipFlush?: boolean }): Promise<void> {
     if (this.autoSave) {
@@ -312,8 +315,8 @@ export class ProfileManager {
       else await this.autoSave.flushNow();
     }
     const { gridId } = this.platform;
-    const snap = await this.adapter.loadProfile(gridId, id);
-    if (!snap) throw new Error(`[profiles] No profile "${id}" for grid "${gridId}"`);
+    const snap = await this.adapter.loadLayout(gridId, id);
+    if (!snap) throw new Error(`[layouts] No layout "${id}" for grid "${gridId}"`);
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
@@ -331,21 +334,21 @@ export class ProfileManager {
     // we just loaded is already on disk — no reason to re-write it.
     this.autoSave?.cancelScheduled();
     this.updateState({ isDirty: false });
-    this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+    this.platform.events.emit('layout:loaded', { gridId, layoutId: id });
     await this.refresh();
   }
 
-  /** Create a new profile, seeded from the module's `getInitialState()` for
+  /** Create a new layout, seeded from the module's `getInitialState()` for
    *  every module (so it's a true blank slate, not a clone of the current).
    *
-   *  Ordering contract (prevents the "phantom profile on create" bug):
-   *   1. Flush any pending auto-save against the OLD profile so its
+   *  Ordering contract (prevents the "phantom layout on create" bug):
+   *   1. Flush any pending auto-save against the OLD layout so its
    *      in-memory edits aren't leaked into the new one.
    *   2. Capture a blank snapshot from a temporarily-reset store, then
-   *      restore the OLD store state. This means the new profile's
+   *      restore the OLD store state. This means the new layout's
    *      on-disk row reflects fresh module defaults and the current
-   *      profile's UI state doesn't flicker.
-   *   3. Write the new profile row to IDB.
+   *      layout's UI state doesn't flicker.
+   *   3. Write the new layout row to IDB.
    *   4. ONLY THEN flip `activeId` + localStorage pointer + hydrate
    *      the store from the new blank state. If step 4 happened
    *      before step 3, a concurrent save() (or legacy auto-save
@@ -354,21 +357,21 @@ export class ProfileManager {
    *      implicit-upsert — write a ghost snapshot using whatever
    *      state happened to be in memory at that moment.
    */
-  async create(name: string, options?: { id?: string }): Promise<ProfileMeta> {
+  async create(name: string, options?: { id?: string }): Promise<LayoutMeta> {
     const id = options?.id ?? slugId(name);
-    if (id === RESERVED_DEFAULT_PROFILE_ID) {
-      throw new Error(`[profiles] Cannot reuse reserved id "${RESERVED_DEFAULT_PROFILE_ID}"`);
+    if (id === RESERVED_DEFAULT_LAYOUT_ID) {
+      throw new Error(`[layouts] Cannot reuse reserved id "${RESERVED_DEFAULT_LAYOUT_ID}"`);
     }
     const { gridId } = this.platform;
 
-    // Step 1 — flush old-profile's pending debounce (legacy only).
+    // Step 1 — flush old-layout's pending debounce (legacy only).
     if (this.autoSave) await this.autoSave.flushNow();
 
     // Step 2 — capture a blank snapshot WITHOUT mutating the live
     // store yet. We take a copy of the current serialized state,
     // reset → serialize → restore, all while dirty is suppressed so
     // the user's current edits aren't tripped as "dirty" by this
-    // round-trip. This keeps the current profile's UI intact until
+    // round-trip. This keeps the current layout's UI intact until
     // the commit (step 3) succeeds.
     const savedState = this.platform.serializeAll();
     this.dirtySuppressDepth++;
@@ -381,10 +384,10 @@ export class ProfileManager {
       this.dirtySuppressDepth--;
     }
 
-    // Step 3 — commit the new profile row. If this throws, the
+    // Step 3 — commit the new layout row. If this throws, the
     // active-id pointer is unchanged and no phantom lingers.
     const now = Date.now();
-    const snap: ProfileSnapshot = {
+    const snap: LayoutSnapshot = {
       id,
       gridId,
       name: name.trim() || id,
@@ -392,7 +395,7 @@ export class ProfileManager {
       createdAt: now,
       updatedAt: now,
     };
-    await this.adapter.saveProfile(snap);
+    await this.adapter.saveLayout(snap);
 
     // Step 4 — flip pointer + hydrate the live store from the blank
     // snapshot. Same shape as `load()`.
@@ -409,51 +412,51 @@ export class ProfileManager {
     this.autoSave?.cancelScheduled();
     this.updateState({ isDirty: false });
 
-    this.platform.events.emit('profile:saved', { gridId, profileId: id });
-    this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+    this.platform.events.emit('layout:saved', { gridId, layoutId: id });
+    this.platform.events.emit('layout:loaded', { gridId, layoutId: id });
     await this.refresh();
     return toMeta(snap);
   }
 
-  /** Delete a profile. Default is immutable; falls back to Default on delete
-   *  of the currently-active profile.
+  /** Delete a layout. Default is immutable; falls back to Default on delete
+   *  of the currently-active layout.
    *
-   *  Ordering contract (critical — prevents the "phantom profile
+   *  Ordering contract (critical — prevents the "phantom layout
    *  resurrects on delete" bug):
-   *   1. If deleting the active profile, flip `activeId` to Default
+   *   1. If deleting the active layout, flip `activeId` to Default
    *      BEFORE touching the adapter. This closes the race window
    *      where `state.activeId` points to a doomed id — any
    *      concurrent save() in that window would write to the
-   *      about-to-be-deleted profile and, combined with the
+   *      about-to-be-deleted layout and, combined with the
    *      now-removed `persistActive` resurrect path, would resurrect
    *      it.
    *   2. Cancel any pending auto-save (would target the old id).
    *   3. Delete the row.
    *   4. Hydrate the platform store from Default (same logic as
-   *      `load()`), but skip the flush since the old profile is gone.
+   *      `load()`), but skip the flush since the old layout is gone.
    */
   async remove(id: string): Promise<void> {
-    if (id === RESERVED_DEFAULT_PROFILE_ID) return;
+    if (id === RESERVED_DEFAULT_LAYOUT_ID) return;
     const { gridId } = this.platform;
     const wasActive = this.state.activeId === id;
 
     if (wasActive) {
       // Flip the pointer FIRST so any concurrent persist() targets
       // Default (always exists) rather than the doomed id.
-      this.updateState({ activeId: RESERVED_DEFAULT_PROFILE_ID });
-      writeActiveId(gridId, RESERVED_DEFAULT_PROFILE_ID);
-      await this.writeSourceId(RESERVED_DEFAULT_PROFILE_ID);
+      this.updateState({ activeId: RESERVED_DEFAULT_LAYOUT_ID });
+      writeActiveId(gridId, RESERVED_DEFAULT_LAYOUT_ID);
+      await this.writeSourceId(RESERVED_DEFAULT_LAYOUT_ID);
     }
     this.autoSave?.cancelScheduled();
 
-    await this.adapter.deleteProfile(gridId, id);
-    this.platform.events.emit('profile:deleted', { gridId, profileId: id });
+    await this.adapter.deleteLayout(gridId, id);
+    this.platform.events.emit('layout:deleted', { gridId, layoutId: id });
 
     if (wasActive) {
       // Hydrate the store from Default. `load()` would do this but
       // we've already flipped activeId, so we inline the hydrate to
       // avoid a redundant updateState → double-notify of listeners.
-      const def = await this.adapter.loadProfile(gridId, RESERVED_DEFAULT_PROFILE_ID);
+      const def = await this.adapter.loadLayout(gridId, RESERVED_DEFAULT_LAYOUT_ID);
       if (def) {
         this.dirtySuppressDepth++;
         try {
@@ -464,9 +467,9 @@ export class ProfileManager {
         }
         this.autoSave?.cancelScheduled();
         this.updateState({ isDirty: false });
-        this.platform.events.emit('profile:loaded', {
+        this.platform.events.emit('layout:loaded', {
           gridId,
-          profileId: RESERVED_DEFAULT_PROFILE_ID,
+          layoutId: RESERVED_DEFAULT_LAYOUT_ID,
         });
       }
     }
@@ -474,13 +477,13 @@ export class ProfileManager {
   }
 
   async rename(id: string, name: string): Promise<void> {
-    if (id === RESERVED_DEFAULT_PROFILE_ID) {
-      throw new Error('[profiles] Cannot rename Default');
+    if (id === RESERVED_DEFAULT_LAYOUT_ID) {
+      throw new Error('[layouts] Cannot rename Default');
     }
     const { gridId } = this.platform;
-    const existing = await this.adapter.loadProfile(gridId, id);
+    const existing = await this.adapter.loadLayout(gridId, id);
     if (!existing) return;
-    await this.adapter.saveProfile({
+    await this.adapter.saveLayout({
       ...existing,
       name: name.trim() || id,
       updatedAt: Date.now(),
@@ -489,18 +492,18 @@ export class ProfileManager {
   }
 
   /**
-   * Clone an existing profile into a new one with a fresh id + name.
+   * Clone an existing layout into a new one with a fresh id + name.
    * Activates the clone afterwards so the user can immediately edit
    * without switching.
    *
    * Source-state semantics:
-   *   - If `sourceId` IS the currently active profile, the clone
+   *   - If `sourceId` IS the currently active layout, the clone
    *     captures the LIVE in-memory state (including unsaved edits).
    *     Any pending auto-save is flushed first so recent debounced
    *     edits are included. Matches the "clone what I'm looking at"
    *     mental model users expect.
-   *   - If `sourceId` is a non-active profile, the clone captures the
-   *     snapshot on disk. Prevents surprising cross-profile captures.
+   *   - If `sourceId` is a non-active layout, the clone captures the
+   *     snapshot on disk. Prevents surprising cross-layout captures.
    *
    * Errors:
    *   - `sourceId` not found → throws.
@@ -512,17 +515,17 @@ export class ProfileManager {
    * Side effects mirror `create()`:
    *   - Flips `activeId` to the clone and hydrates the live store
    *     from its state.
-   *   - Emits `profile:saved` + `profile:loaded`.
+   *   - Emits `layout:saved` + `layout:loaded`.
    *   - Clears the dirty flag (the clone starts clean relative to
    *     its own snapshot).
    */
-  async clone(sourceId: string, name: string, options?: { id?: string }): Promise<ProfileMeta> {
+  async clone(sourceId: string, name: string, options?: { id?: string }): Promise<LayoutMeta> {
     const id = options?.id ?? slugId(name);
-    if (id === RESERVED_DEFAULT_PROFILE_ID) {
-      throw new Error(`[profiles] Cannot clone onto reserved id "${RESERVED_DEFAULT_PROFILE_ID}"`);
+    if (id === RESERVED_DEFAULT_LAYOUT_ID) {
+      throw new Error(`[layouts] Cannot clone onto reserved id "${RESERVED_DEFAULT_LAYOUT_ID}"`);
     }
     if (id === sourceId) {
-      throw new Error(`[profiles] Clone target id must differ from source id "${sourceId}"`);
+      throw new Error(`[layouts] Clone target id must differ from source id "${sourceId}"`);
     }
     const { gridId } = this.platform;
 
@@ -534,9 +537,9 @@ export class ProfileManager {
       if (this.autoSave) await this.autoSave.flushNow();
       sourceState = this.platform.serializeAll();
     } else {
-      const srcSnap = await this.adapter.loadProfile(gridId, sourceId);
+      const srcSnap = await this.adapter.loadLayout(gridId, sourceId);
       if (!srcSnap) {
-        throw new Error(`[profiles] Source profile "${sourceId}" not found`);
+        throw new Error(`[layouts] Source layout "${sourceId}" not found`);
       }
       sourceState = srcSnap.state;
     }
@@ -551,9 +554,9 @@ export class ProfileManager {
         ? structuredClone(sourceState)
         : JSON.parse(JSON.stringify(sourceState));
 
-    // Step 3 — commit the new profile row.
+    // Step 3 — commit the new layout row.
     const now = Date.now();
-    const snap: ProfileSnapshot = {
+    const snap: LayoutSnapshot = {
       id,
       gridId,
       name: name.trim() || id,
@@ -561,7 +564,7 @@ export class ProfileManager {
       createdAt: now,
       updatedAt: now,
     };
-    await this.adapter.saveProfile(snap);
+    await this.adapter.saveLayout(snap);
 
     // Step 4 — flip pointer + hydrate from the cloned state. Same
     // shape as create()'s activation step.
@@ -578,30 +581,35 @@ export class ProfileManager {
     this.autoSave?.cancelScheduled();
     this.updateState({ isDirty: false });
 
-    this.platform.events.emit('profile:saved', { gridId, profileId: id });
-    this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+    this.platform.events.emit('layout:saved', { gridId, layoutId: id });
+    this.platform.events.emit('layout:loaded', { gridId, layoutId: id });
     await this.refresh();
     return toMeta(snap);
   }
 
-  /** Snapshot a profile as a portable JSON payload. Flushes any pending
-   *  auto-save first so the payload reflects the latest edits. */
-  async export(id?: string): Promise<ExportedProfilePayload> {
+  /** Snapshot a layout as a portable JSON payload. Flushes any pending
+   *  auto-save first so the payload reflects the latest edits.
+   *
+   *  Emits the current canonical wire format (`kind: 'gc-layout'`,
+   *  `layout: {...}`). `.import()` still accepts the pre-rename
+   *  `kind: 'gc-profile'` / `profile: {...}` shape for back-compat
+   *  with previously-exported files. */
+  async export(id?: string): Promise<ExportedLayoutPayload> {
     const targetId = id ?? this.state.activeId;
     await this.autoSave?.flushNow();
-    const snap = await this.adapter.loadProfile(this.platform.gridId, targetId);
-    if (!snap) throw new Error(`[profiles] No profile "${targetId}" to export`);
+    const snap = await this.adapter.loadLayout(this.platform.gridId, targetId);
+    if (!snap) throw new Error(`[layouts] No layout "${targetId}" to export`);
     return {
       schemaVersion: 1,
-      kind: 'gc-profile',
+      kind: 'gc-layout',
       exportedAt: new Date().toISOString(),
-      profile: { name: snap.name, gridId: snap.gridId, state: snap.state },
+      layout: { name: snap.name, gridId: snap.gridId, state: snap.state },
     };
   }
 
   /** Import a previously-exported payload. Always additive — unique id +
    *  name on collision so imports never overwrite. Activates the new
-   *  profile unless `activate: false`.
+   *  layout unless `activate: false`.
    *
    *  Expression-policy enforcement:
    *    - In `'strict'` mode, payloads containing any
@@ -617,30 +625,30 @@ export class ProfileManager {
   async import(
     payload: unknown,
     options?: { name?: string; activate?: boolean; sanitize?: boolean },
-  ): Promise<ProfileMeta> {
+  ): Promise<LayoutMeta> {
     const parsed = validatePayload(payload);
 
     // Policy gate — runs before storage writes so rejections leave no
-    // trace on disk. `sanitize` mutates `parsed.profile.state` in place.
+    // trace on disk. `sanitize` mutates `parsed.layout.state` in place.
     const policy = getExpressionPolicy();
     if (policy.mode !== 'allow') {
-      const hit = findExpressionFormatter(parsed.profile.state);
+      const hit = findExpressionFormatter(parsed.layout.state);
       if (hit != null) {
         reportExpressionViolation({
-          kind: 'profileImport',
+          kind: 'layoutImport',
           expression: hit,
           reason: policy.mode === 'strict'
             ? (options?.sanitize
                 ? 'strict-mode sanitized expression-kind formatter on import'
-                : 'strict-mode rejected profile import with expression-kind formatter')
+                : 'strict-mode rejected layout import with expression-kind formatter')
             : 'warn-mode observed expression-kind formatter in import payload',
         });
         if (policy.mode === 'strict') {
           if (options?.sanitize) {
-            sanitizeExpressionFormatters(parsed.profile.state);
+            sanitizeExpressionFormatters(parsed.layout.state);
           } else {
             throw new Error(
-              `[profiles] Import blocked by strict expression policy: payload contains ` +
+              `[layouts] Import blocked by strict expression policy: payload contains ` +
                 `a kind:'expression' valueFormatter which requires unsafe-eval. ` +
                 `Pass { sanitize: true } to strip it, or relax the policy via ` +
                 `configureExpressionPolicy({ mode: 'allow' }). Expression: ${hit}`,
@@ -651,11 +659,11 @@ export class ProfileManager {
     }
 
     const { gridId } = this.platform;
-    const existing = await this.adapter.listProfiles(gridId);
+    const existing = await this.adapter.listLayouts(gridId);
     const existingIds = new Set(existing.map((p) => p.id));
     const existingNames = new Set(existing.map((p) => p.name.toLowerCase()));
 
-    let name = options?.name?.trim() || parsed.profile.name || 'Imported profile';
+    let name = options?.name?.trim() || parsed.layout.name || 'Imported layout';
     if (existingNames.has(name.toLowerCase())) {
       let n = 2;
       while (existingNames.has(`${name} (imported ${n})`.toLowerCase())) n++;
@@ -666,21 +674,21 @@ export class ProfileManager {
       slugId(name) || `imported-${Date.now().toString(36)}`;
     let id = baseId;
     let counter = 2;
-    while (existingIds.has(id) || id === RESERVED_DEFAULT_PROFILE_ID) {
+    while (existingIds.has(id) || id === RESERVED_DEFAULT_LAYOUT_ID) {
       id = `${baseId}-${counter++}`;
     }
 
     const now = Date.now();
-    const snap: ProfileSnapshot = {
+    const snap: LayoutSnapshot = {
       id,
       gridId,
       name,
-      state: parsed.profile.state,
+      state: parsed.layout.state,
       createdAt: now,
       updatedAt: now,
     };
-    await this.adapter.saveProfile(snap);
-    this.platform.events.emit('profile:saved', { gridId, profileId: id });
+    await this.adapter.saveLayout(snap);
+    this.platform.events.emit('layout:saved', { gridId, layoutId: id });
     await this.refresh();
 
     if (options?.activate !== false) {
@@ -697,7 +705,7 @@ export class ProfileManager {
       }
       this.autoSave?.cancelScheduled();
       this.updateState({ isDirty: false });
-      this.platform.events.emit('profile:loaded', { gridId, profileId: id });
+      this.platform.events.emit('layout:loaded', { gridId, layoutId: id });
     }
     return toMeta(snap);
   }
@@ -715,38 +723,38 @@ export class ProfileManager {
   // ─── Internals ───────────────────────────────────────────────────────────
 
   private async refresh(): Promise<void> {
-    const list = await this.adapter.listProfiles(this.platform.gridId);
-    this.updateState({ profiles: list.map(toMeta).sort(byName) });
+    const list = await this.adapter.listLayouts(this.platform.gridId);
+    this.updateState({ layouts: list.map(toMeta).sort(byName) });
   }
 
   private async persistActive(state: Record<string, SerializedState>): Promise<void> {
     const id = this.state.activeId;
     const { gridId } = this.platform;
-    const existing = await this.adapter.loadProfile(gridId, id);
+    const existing = await this.adapter.loadLayout(gridId, id);
 
     // Safety: persistActive runs either from the auto-save debounce
-    // callback or from save(). If the active profile no longer exists
+    // callback or from save(). If the active layout no longer exists
     // on disk — because another tab deleted it, or because the user
     // just removed it and we raced the state flip — writing a fresh
-    // snapshot here would RESURRECT the profile with whatever
-    // in-memory state we happen to hold. That's the "phantom profiles
+    // snapshot here would RESURRECT the layout with whatever
+    // in-memory state we happen to hold. That's the "phantom layouts
     // appear when I delete" bug. Refuse the write; the manager will
     // re-reconcile on the next load/create, and the UI can show "this
-    // profile no longer exists" if needed.
+    // layout no longer exists" if needed.
     //
-    // The reserved Default profile is the one exception: boot()
+    // The reserved Default layout is the one exception: boot()
     // guarantees it exists, and re-seeding it on a missing row is
     // always safe (the row could only be missing from external
     // storage corruption / manual DB editing).
-    if (!existing && id !== RESERVED_DEFAULT_PROFILE_ID) {
+    if (!existing && id !== RESERVED_DEFAULT_LAYOUT_ID) {
       console.warn(
-        `[profiles] refusing to persist active profile "${id}" — no such row on disk (was it deleted elsewhere?)`,
+        `[layouts] refusing to persist active layout "${id}" — no such row on disk (was it deleted elsewhere?)`,
       );
       return;
     }
 
     const now = Date.now();
-    const next: ProfileSnapshot = existing
+    const next: LayoutSnapshot = existing
       ? { ...existing, state, updatedAt: now }
       : {
           id,
@@ -756,16 +764,16 @@ export class ProfileManager {
           createdAt: now,
           updatedAt: now,
         };
-    await this.adapter.saveProfile(next);
+    await this.adapter.saveLayout(next);
     // In the auto-save codepath, clearing dirty here keeps the flag in
     // sync without depending on save() being called explicitly.
     if (!this.disposed && this.state.isDirty) {
       this.updateState({ isDirty: false });
     }
-    this.platform.events.emit('profile:saved', { gridId, profileId: id });
+    this.platform.events.emit('layout:saved', { gridId, layoutId: id });
   }
 
-  private updateState(patch: Partial<ProfileManagerState>): void {
+  private updateState(patch: Partial<LayoutManagerState>): void {
     this.state = { ...this.state, ...patch };
     for (const fn of this.listeners) fn(this.state);
   }
@@ -773,17 +781,17 @@ export class ProfileManager {
 
 // ─── Local helpers ──────────────────────────────────────────────────────────
 
-function toMeta(snap: ProfileSnapshot): ProfileMeta {
+function toMeta(snap: LayoutSnapshot): LayoutMeta {
   return {
     id: snap.id,
     name: snap.name,
     createdAt: snap.createdAt,
     updatedAt: snap.updatedAt,
-    isDefault: snap.id === RESERVED_DEFAULT_PROFILE_ID,
+    isDefault: snap.id === RESERVED_DEFAULT_LAYOUT_ID,
   };
 }
 
-function byName(a: ProfileMeta, b: ProfileMeta): number {
+function byName(a: LayoutMeta, b: LayoutMeta): number {
   if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
   return a.name.localeCompare(b.name);
 }
@@ -799,7 +807,9 @@ function slugId(name: string): string {
 function readActiveId(gridId: string): string | null {
   if (typeof localStorage === 'undefined') return null;
   try {
-    return localStorage.getItem(activeProfileKey(gridId));
+    const current = localStorage.getItem(activeLayoutKey(gridId));
+    if (current !== null) return current;
+    return localStorage.getItem(legacyActiveLayoutKey(gridId));
   } catch {
     return null;
   }
@@ -808,44 +818,45 @@ function readActiveId(gridId: string): string | null {
 function writeActiveId(gridId: string, id: string): void {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(activeProfileKey(gridId), id);
+    localStorage.setItem(activeLayoutKey(gridId), id);
+    try { localStorage.removeItem(legacyActiveLayoutKey(gridId)); } catch { /* ignore */ }
   } catch {
     /* ignore — private mode etc. */
   }
 }
 
-function validatePayload(raw: unknown): ExportedProfilePayload {
+function validatePayload(raw: unknown): ExportedLayoutPayload {
   if (!raw || typeof raw !== 'object') {
-    throw new Error('[profiles] Import payload is not an object');
+    throw new Error('[layouts] Import payload is not an object');
   }
   const obj = raw as Record<string, unknown>;
-  if (obj.kind !== 'gc-profile') {
-    throw new Error('[profiles] Not a gc-profile export');
+  if (obj.kind !== 'gc-layout' && obj.kind !== 'gc-profile') {
+    throw new Error('[layouts] Not a gc-layout export');
   }
   if (typeof obj.schemaVersion !== 'number' || obj.schemaVersion < 1) {
-    throw new Error('[profiles] Unsupported schemaVersion');
+    throw new Error('[layouts] Unsupported schemaVersion');
   }
-  const profile = obj.profile as Record<string, unknown> | undefined;
-  if (!profile || typeof profile !== 'object') {
-    throw new Error('[profiles] Missing profile body');
+  const body = (obj.layout ?? obj.profile) as Record<string, unknown> | undefined;
+  if (!body || typeof body !== 'object') {
+    throw new Error('[layouts] Missing layout body');
   }
-  if (typeof profile.name !== 'string' || !profile.name.trim()) {
-    throw new Error('[profiles] Missing profile.name');
+  if (typeof body.name !== 'string' || !body.name.trim()) {
+    throw new Error('[layouts] Missing layout.name');
   }
-  if (typeof profile.gridId !== 'string') {
-    throw new Error('[profiles] Missing profile.gridId');
+  if (typeof body.gridId !== 'string') {
+    throw new Error('[layouts] Missing layout.gridId');
   }
-  if (!profile.state || typeof profile.state !== 'object') {
-    throw new Error('[profiles] Missing profile.state');
+  if (!body.state || typeof body.state !== 'object') {
+    throw new Error('[layouts] Missing layout.state');
   }
   return {
     schemaVersion: 1,
-    kind: 'gc-profile',
+    kind: 'gc-layout',
     exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : new Date().toISOString(),
-    profile: {
-      name: profile.name.trim(),
-      gridId: profile.gridId,
-      state: profile.state as Record<string, SerializedState>,
+    layout: {
+      name: body.name.trim(),
+      gridId: body.gridId,
+      state: body.state as Record<string, SerializedState>,
     },
   };
 }

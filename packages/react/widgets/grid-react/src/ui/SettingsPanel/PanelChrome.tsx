@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
  * Deprecated in the redesign.
  *
  * The popout shell (`SettingsSheet`) now owns the window chrome (drag
- * title bar, profile/dirty readout, close/maximize) that this component
+ * title bar, layout/dirty readout, close/maximize) that this component
  * used to paint. Leaving this stub so existing callers don't crash —
  * it renders nothing by default.
  *

@@ -21,7 +21,7 @@
 13. [Export & Clipboard](#13-export--clipboard)
 14. [Performance Optimization](#14-performance-optimization)
 15. [Theming & Visual Customization](#15-theming--visual-customization)
-16. [Grid Settings Profiles](#16-grid-settings-profiles)
+16. [Grid Settings Layouts](#16-grid-settings-layouts)
 17. [Expression Editor](#17-expression-editor)
 
 ---
@@ -250,7 +250,7 @@ All conditions written in the **Expression Editor** (see §17) support:
 - Calculated column participates in row grouping aggregation
 
 ### Lifecycle
-- Stored as part of profile (see §16)
+- Stored as part of layout (see §16)
 - Recalculated on every `cellValueChanged` and `applyTransaction` update
 - Does not trigger `undoRedoCellEditing` stack (read-only virtual column)
 
@@ -282,10 +282,10 @@ All conditions written in the **Expression Editor** (see §17) support:
 - Export/import Named Queries as JSON
 
 ### Filter Persistence
-- `filterModel` saved as part of profile state
+- `filterModel` saved as part of layout state
 - `cacheQuickFilter: true` for performance
 - External filter integration (`isExternalFilterPresent` / `doesExternalFilterPass`)
-- Filter state survives profile save/load
+- Filter state survives layout save/load
 - `onFilterChanged` event subscriptions for downstream reactions
 
 ### Advanced Filter
@@ -611,19 +611,19 @@ gridApi.getCurrentRedoSize()     // Number of available redos
 - Focused cell border color
 - Font family, size, line height
 
-### Theme Profiles
-- Multiple named visual themes saved alongside grid settings profiles
+### Theme Layouts
+- Multiple named visual themes saved alongside grid settings layouts
 - Export/import themes as JSON
 - Preview panel shows live grid with theme applied
 
 ---
 
-## 16. Grid Settings Profiles
+## 16. Grid Settings Layouts
 
 > Save, load, and share full grid configuration snapshots.
 
-### Profile Contents
-A profile captures the complete state of all customization layers:
+### Layout Contents
+A layout captures the complete state of all customization layers:
 - `gridOptions` overrides
 - `defaultColDef` overrides
 - Column definitions (widths, visibility, pin, sort, format, editor, renderer)
@@ -642,28 +642,28 @@ A profile captures the complete state of all customization layers:
 | Backend | Environment | Notes |
 |---|---|---|
 | Dexie IndexedDB | Dev / local | Zero-config, offline-capable |
-| REST API | Production | Central profile server; team sharing |
+| REST API | Production | Central layout server; team sharing |
 | JSON file import | Any | Manual backup / migration |
 | Local Storage | Fallback | Limited size; sync only |
 
-### Profile Management UI
-- Named profiles list (create, rename, duplicate, delete)
-- Set default profile (loaded on grid init)
-- Profile version history (last N snapshots)
-- Role-based default profiles (different defaults per user role)
-- Share profile with team (requires REST backend)
-- Export profile as JSON / import from JSON
-- Profile diff viewer (compare two profiles)
+### Layout Management UI
+- Named layouts list (create, rename, duplicate, delete)
+- Set default layout (loaded on grid init)
+- Layout version history (last N snapshots)
+- Role-based default layouts (different defaults per user role)
+- Share layout with team (requires REST backend)
+- Export layout as JSON / import from JSON
+- Layout diff viewer (compare two layouts)
 
-### Profile API
+### Layout API
 ```ts
-profileService.save(profileName, gridState)
-profileService.load(profileName): GridState
-profileService.list(): ProfileMeta[]
-profileService.delete(profileName)
-profileService.setDefault(profileName)
-profileService.export(profileName): JSON
-profileService.import(json): void
+layoutService.save(layoutName, gridState)
+layoutService.load(layoutName): GridState
+layoutService.list(): LayoutMeta[]
+layoutService.delete(layoutName)
+layoutService.setDefault(layoutName)
+layoutService.export(layoutName): JSON
+layoutService.import(json): void
 ```
 
 ---

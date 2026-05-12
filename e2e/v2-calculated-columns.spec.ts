@@ -15,7 +15,7 @@ import {
  *   `getInitialState`. The panel surfaces it correctly (editor mounts,
  *   state reads through, rename / delete round-trip). AG-Grid's own
  *   column-state machinery handles the grid-side rendering — depending
- *   on profile / grid-state interaction the seed may or may not
+ *   on layout / grid-state interaction the seed may or may not
  *   appear in the main header on first render. We verify grid-side
  *   integration via the `[col-id="<id>"]` header presence AFTER the
  *   user adds their own virtual column via the UI (which is the path
@@ -82,7 +82,7 @@ test.describe('v2 — calculated-columns panel', () => {
     await bootCleanDemo(page);
   });
 
-  test('fresh profile seeds the demo grossPnl virtual column in the panel', async ({ page }) => {
+  test('fresh layout seeds the demo grossPnl virtual column in the panel', async ({ page }) => {
     await openPanel(page, 'calculated-columns');
     await expect(page.locator(`[data-testid="cc-virtual-${SEED_COL_ID}"]`)).toBeVisible();
     await expect(
@@ -199,7 +199,7 @@ test.describe('v2 — calculated-columns panel', () => {
       .fill('Persistent Name');
     await saveVirtual(page, SEED_COL_ID);
     await closeSettingsSheet(page);
-    // Profiles are explicit-save now — click Save before reloading or
+    // Layouts are explicit-save now — click Save before reloading or
     // the rename evaporates with the in-memory state.
     await page.locator('[data-testid="save-all-btn"]').click();
     await page.waitForTimeout(200);

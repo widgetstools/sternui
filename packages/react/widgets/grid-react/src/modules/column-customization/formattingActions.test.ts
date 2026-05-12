@@ -22,7 +22,7 @@ import {
   applyTypographyReducer,
   clearAllBordersReducer,
   clearAllStylesReducer,
-  clearAllStylesInProfileReducer,
+  clearAllStylesInLayoutReducer,
   removeTemplateRefFromAssignmentsReducer,
   mergeOverrides,
   overrideKey,
@@ -429,26 +429,26 @@ describe('clearAllStylesReducer', () => {
   });
 });
 
-// ─── Profile-wide clear ────────────────────────────────────────────────
+// ─── Layout-wide clear ────────────────────────────────────────────────
 
-describe('clearAllStylesInProfileReducer', () => {
+describe('clearAllStylesInLayoutReducer', () => {
   it('wipes every column assignment', () => {
     let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
     state = applyColorsReducer(['quantity'], 'cell', { text: '#f00' })(state);
     state = applyTemplateToColumnsReducer(['spread'], 'tpl-x')(state);
     expect(Object.keys(state.assignments).sort()).toEqual(['price', 'quantity', 'spread']);
 
-    const next = clearAllStylesInProfileReducer()(state);
+    const next = clearAllStylesInLayoutReducer()(state);
     expect(next.assignments).toEqual({});
   });
 
   it('returns the same reference when assignments is already empty', () => {
-    const next = clearAllStylesInProfileReducer()(EMPTY);
+    const next = clearAllStylesInLayoutReducer()(EMPTY);
     expect(next).toBe(EMPTY);
   });
 
   it('tolerates undefined prev', () => {
-    const next = clearAllStylesInProfileReducer()(undefined);
+    const next = clearAllStylesInLayoutReducer()(undefined);
     expect(next.assignments).toEqual({});
   });
 });

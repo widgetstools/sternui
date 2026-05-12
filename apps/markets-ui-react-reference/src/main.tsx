@@ -184,7 +184,7 @@ root.render(
             <Route path="/views/view2" element={<View2 />} />
 
             {/* Blotters — MarketsGrid hosted inside the reference app.
-                DexieAdapter persists profile state locally; theme flows
+                DexieAdapter persists layout state locally; theme flows
                 through the ambient <ThemeProvider>. */}
             <Route
               path="/blotters/marketsgrid"

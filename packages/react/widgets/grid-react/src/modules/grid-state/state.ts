@@ -2,13 +2,13 @@
  * Grid State — captures the native AG-Grid state (column order / visibility /
  * width / sort / filter / column-groups / pagination / sidebar / focus /
  * selection / etc.) plus a viewport anchor + quick filter text, so that the
- * user's exact configuration is restored when a profile is reloaded.
+ * user's exact configuration is restored when a layout is reloaded.
  *
  * Unlike every other v2 module, this one's state is NOT authored in a
  * settings panel — it's captured from the live grid API when the user
  * explicitly clicks Save (see `captureGridStateInto` in ./helpers). The
  * module then replays it through `api.setState()` on `grid:ready` or
- * `profile:loaded`.
+ * `layout:loaded`.
  *
  * The `GridState` type comes from ag-grid-community and is already JSON-safe.
  */
@@ -35,7 +35,7 @@ export interface SavedGridState {
 
 export interface GridStateState {
   /** Most recent capture — null until the user clicks Save for the first time
-   *  (or until a profile with saved state is loaded). */
+   *  (or until a layout with saved state is loaded). */
   saved: SavedGridState | null;
 }
 

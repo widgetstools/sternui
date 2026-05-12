@@ -3,6 +3,96 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-12 — Rename: Profile → Layout (grid layout management)
+
+Repository-wide rename of the grid layout / profile-management domain from
+`Profile*` to `Layout*` to disambiguate from the auth-identity domain
+(`UserProfile`, `userProfiles` — left entirely untouched). Touches every
+package that produced or consumed the old vocabulary plus the e2e specs and
+demo apps.
+
+**Code symbol renames:**
+
+- `ProfileManager` / `ProfileManagerState` / `ProfileManagerOptions` →
+  `LayoutManager` / `LayoutManagerState` / `LayoutManagerOptions`
+- `ProfileMeta` / `ProfileSnapshot` / `ExportedProfilePayload` →
+  `LayoutMeta` / `LayoutSnapshot` / `ExportedLayoutPayload`
+- `useProfileManager` / `UseProfileManagerResult` →
+  `useLayoutManager` / `UseLayoutManagerResult`
+- `ProfileSelector` (and `ProfileSelectorProps`) →
+  `LayoutSelector` / `LayoutSelectorProps`
+- `RESERVED_DEFAULT_PROFILE_ID` → `RESERVED_DEFAULT_LAYOUT_ID`
+- `activeProfileKey()` → `activeLayoutKey()` (function name; localStorage
+  key string `gc-active-profile:` deliberately unchanged for back-compat)
+- `MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE` →
+  `MARKETS_GRID_LAYOUT_SET_COMPONENT_TYPE`
+  (constant name; underlying string `'markets-grid-profile-set'` kept as the
+  on-the-wire ConfigService component type)
+- `MARKETS_GRID_PROFILE_SET` (enum constant) → `MARKETS_GRID_LAYOUT_SET`
+- `StorageAdapter` method renames: `loadProfile` → `loadLayout`,
+  `saveProfile` → `saveLayout`, `deleteProfile` → `deleteLayout`,
+  `listProfiles` → `listLayouts`; matching parameter rename
+  `profileId` → `layoutId`
+- `MarketsGridHandle.profiles` → `MarketsGridHandle.layouts` (consumers
+  call `layouts.saveActiveLayout()` etc.)
+- `ProfileStorageFactory` → `LayoutStorageFactory`
+- `ProfileSetVersionConflictError` → `LayoutSetVersionConflictError`
+- `createOpenFinViewProfileSource()` → `createOpenFinViewLayoutSource()`
+- `clearAllStylesInProfileReducer` → `clearAllStylesInLayoutReducer`
+- Event names: `profile:loaded` / `profile:saved` / `profile:deleted` →
+  `layout:loaded` / `layout:saved` / `layout:deleted`
+
+**File renames (already staged via `git mv`):**
+
+- `packages/shared/core/src/profiles/` → `packages/shared/core/src/layouts/`
+  (with `ProfileManager.ts` → `LayoutManager.ts`, ditto tests)
+- `packages/shared/core/src/security/profileImportGate.test.ts` →
+  `layoutImportGate.test.ts`
+- `packages/react/widgets/grid-react/src/hooks/useProfileManager.ts` →
+  `useLayoutManager.ts`
+- `packages/react/widgets/markets-grid/src/ProfileSelector.*` →
+  `LayoutSelector.*`; `openfinViewProfile.ts` → `openfinViewLayout.ts`
+- `packages/shared/services/config-service/src/profileStorage.ts` →
+  `layoutStorage.ts` (with `profileStorage.identity.test.ts` →
+  `layoutStorage.identity.test.ts`)
+- `apps/demo-react/src/showcaseProfile.ts` /
+  `apps/demo-configservice-react/src/showcaseProfile.ts` →
+  `showcaseLayout.ts`
+- `e2e/v2-profile-{lifecycle,stress,isolation-structure,isolation-styling}.spec.ts`
+  → `v2-layout-…spec.ts`; `e2e/helpers/profileHelpers.ts` →
+  `layoutHelpers.ts`
+
+**Wire values deliberately preserved** (the dual-read shim layer lands in a
+follow-up commit and depends on these staying byte-identical):
+
+- `'markets-grid-profile-set'` — ConfigService `componentType` discriminator
+- `'gc-active-profile:'` — localStorage active-pointer prefix
+- `'gc-profile'` — exported JSON `kind` field value
+- `profiles: LayoutSnapshot[]` — persisted bundle field name inside the
+  ConfigService `markets-grid-profile-set` payload
+- OpenFin `customData.activeProfileId` — workspace-snapshot pointer
+- IndexedDB `profiles` object-store name in Dexie
+
+**UI strings:** every visible "Profile" / "Profiles" string in the grid
+toolbar, popover, alert dialogs, tooltips, `aria-label`s, `title`s,
+`placeholder`s, and `data-testid`s flipped to "Layout" / "Layouts"
+(`layout-selector-trigger`, `layout-row-…`, `layout-name-input`,
+`layout-create-btn`, `layout-switch-confirm`, etc.). The user-identity
+"User Profiles" tab in the Config Browser remains unchanged.
+
+**Untouched (auth-identity domain):**
+
+`UserProfile` / `UserProfileRow` / `LoggedInUserProfile`, the `userProfiles`
+table and validation in `@starui/config-editor-ui` and
+`@starui/config-service-server`, `IAuthStorage` / `SqliteAuthStorage`
+methods, `AuthService`, `RoleAssignmentMatrix`, and the related app-context
+/ impersonation tests.
+
+`npx turbo typecheck` clean across every workspace after the rename. The
+dual-read back-compat shim for legacy on-disk artefacts (Dexie rows written
+under the old `componentType`/`kind` strings, OpenFin snapshots written by
+older builds) is a separate follow-up.
+
 ## 2026-05-11 — Light-mode toolbar and page-header chrome polish
 
 `@starui/markets-grid` light-mode header/toolbars now use the cool-clinical
@@ -49,7 +139,7 @@ unchanged for blue primary). `componentTokens().button.primary.color` matches fo
 the dark brand cyan. **`@starui/grid-react`** `AlertDialogAction` now uses
 `bg-primary text-primary-foreground` / `bg-destructive text-destructive-foreground`
 instead of raw `--ds-accent-*` + `text-white` / `--ds-surface-ground`.
-**`@starui/markets-grid`** `ProfileSelector` “Save” pill uses
+**`@starui/markets-grid`** `LayoutSelector` (then named `ProfileSelector`) “Save” pill uses
 `hsl(var(--primary-foreground))` on `var(--ds-accent-info)`. **`@starui/config-browser`**
 inline chrome (`Toolbar`, `RowDrawer`, `ImportPreviewDialog`, `DeleteAllDialog`,
 `TableSidebar`) stopped using **`var(--ds-text-primary)`** on **`var(--de-accent)`**

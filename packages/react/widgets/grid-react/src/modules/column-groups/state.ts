@@ -3,7 +3,7 @@
  *
  * Lets the user compose base columns into named, nestable groups (AG-Grid's
  * `ColGroupDef`) from a settings-panel editor. Groups persist into the active
- * profile; reloading the app with the same profile restores them.
+ * layout; reloading the app with the same layout restores them.
  *
  * State shape mirrors AG-Grid's own `(ColDef | ColGroupDef)[]` tree so the
  * transform is almost a direct map:
@@ -127,7 +127,7 @@ export const INITIAL_COLUMN_GROUPS: ColumnGroupsState = {
 // ─── Defensive deserialize shape check ─────────────────────────────────────
 //
 // The module's `deserialize` uses this so we never crash on a malformed
-// profile snapshot (e.g. schema drift, hand-edited IndexedDB, etc.).
+// layout snapshot (e.g. schema drift, hand-edited IndexedDB, etc.).
 
 export function isColumnGroupsState(value: unknown): value is ColumnGroupsState {
   if (!value || typeof value !== 'object') return false;

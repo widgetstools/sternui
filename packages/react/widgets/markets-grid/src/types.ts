@@ -1,10 +1,10 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
 import type { AnyModule, AppDataLookup, GridPlatform, StorageAdapter } from '@starui/core';
-import type { UseProfileManagerResult } from '@starui/grid-react';
+import type { UseLayoutManagerResult } from '@starui/grid-react';
 
 /**
  * One saved filter pinned to the toolbar. Shape is stable across
- * schema versions so on-disk profile snapshots load cleanly.
+ * schema versions so on-disk layout snapshots load cleanly.
  */
 export interface SavedFilter {
   id: string;
@@ -18,7 +18,7 @@ export interface SavedFilter {
  * app configures the grid.
  */
 export interface MarketsGridProps<TData = unknown> {
-  /** Unique id per grid instance. Profile snapshots key off this. */
+  /** Unique id per grid instance. Layout snapshots key off this. */
   gridId: string;
   /** Row data. Kept reactive — swapping triggers the usual AG-Grid diff. */
   rowData: TData[];
@@ -54,8 +54,8 @@ export interface MarketsGridProps<TData = unknown> {
   showSaveButton?: boolean;
   /** Settings button on the toolbar. Defaults to `true`. */
   showSettingsButton?: boolean;
-  /** Profile selector pill. Defaults to `true`. */
-  showProfileSelector?: boolean;
+  /** Layout selector pill. Defaults to `true`. */
+  showLayoutSelector?: boolean;
   /** AG-Grid sidebar config. */
   sideBar?: SideBarDef | boolean;
   /** AG-Grid status bar config. */
@@ -95,7 +95,7 @@ export interface MarketsGridProps<TData = unknown> {
 
   /**
    * App identity — required when `storage` is a ConfigService-backed
-   * factory. Scopes all profile writes so they land on the right app's
+   * factory. Scopes all layout writes so they land on the right app's
    * rows and never leak across apps sharing the same ConfigService.
    *
    * Typed as optional because pure-local-storage consumers don't need
@@ -106,8 +106,8 @@ export interface MarketsGridProps<TData = unknown> {
 
   /**
    * User identity — required when `storage` is a ConfigService-backed
-   * factory. Scopes profile writes to the signed-in user so different
-   * users on the same machine see independent profile sets.
+   * factory. Scopes layout writes to the signed-in user so different
+   * users on the same machine see independent layout sets.
    *
    * Typed as optional because pure-local-storage consumers don't need
    * it, but a runtime assertion inside `<MarketsGrid>` throws loudly
@@ -139,9 +139,9 @@ export interface MarketsGridProps<TData = unknown> {
 
   /**
    * Fires once per mount after: (1) AG-Grid is ready, (2) GridPlatform is
-   * mounted, (3) the active profile has been applied. Receives a single
+   * mounted, (3) the active layout has been applied. Receives a single
    * `MarketsGridHandle` aggregating AG-Grid's `GridApi`, our `GridPlatform`,
-   * and the active `ProfileManager`.
+   * and the active `LayoutManager`.
    *
    * Equivalent to reading `ref.current` — same handle instance.
    */
@@ -158,10 +158,10 @@ export interface MarketsGridProps<TData = unknown> {
   adminActions?: AdminAction[];
 
   /**
-   * Opaque, top-level data persisted alongside the grid's profile-set
+   * Opaque, top-level data persisted alongside the grid's layout-set
    * in the same backing storage row — but at the grid level, NOT
-   * inside any particular profile. Used for state that must survive
-   * profile switches (e.g. v2's data-provider selection:
+   * inside any particular layout. Used for state that must survive
+   * layout switches (e.g. v2's data-provider selection:
    * `{ liveProviderId, historicalProviderId, mode }`).
    *
    * Treat this as a controlled prop: pass the current value in via
@@ -235,13 +235,13 @@ export interface MarketsGridProps<TData = unknown> {
    * blur, or focus loss with non-empty content). The grid maintains
    * the editable value as local state seeded from the `caption` prop;
    * supplying this callback lets the host persist the override (e.g.
-   * via `gridLevelData` or a profile field). When omitted, edits are
+   * via `gridLevelData` or a layout field). When omitted, edits are
    * still applied locally but won't survive a remount.
    */
   onCaptionChange?: (next: string) => void;
 
   /**
-   * Fires `true` when the grid begins persisting the active profile
+   * Fires `true` when the grid begins persisting the active layout
    * (Save button click or save-on-switch flow) and `false` once the
    * write resolves or rejects. Container shells use this to overlay a
    * busy indicator that mirrors the snapshot-loading overlay.
@@ -285,19 +285,19 @@ export interface MarketsGridHandle {
   gridApi: GridApi;
   /** Our module-system handle — module state, transforms, expression engine. */
   platform: GridPlatform;
-  /** The hook-shaped profile manager — `{ activeProfileId, profiles,
-   *  isDirty, saveActiveProfile(), loadProfile(id), cloneProfile(…),
-   *  deleteProfile(…), renameProfile(…), exportProfile(), importProfile(),
-   *  … }`. This is `UseProfileManagerResult` (from @starui/core) rather
-   *  than the raw ProfileManager class — matches how consumers already
-   *  interact with profiles via the useProfileManager hook. */
-  profiles: UseProfileManagerResult;
+  /** The hook-shaped layout manager — `{ activeLayoutId, layouts,
+   *  isDirty, saveActiveLayout(), loadLayout(id), cloneLayout(…),
+   *  deleteLayout(…), renameLayout(…), exportLayout(), importLayout(),
+   *  … }`. This is `UseLayoutManagerResult` (from `@starui/grid-react`)
+   *  rather than the raw LayoutManager class — matches how consumers
+   *  already interact with layouts via the useLayoutManager hook. */
+  layouts: UseLayoutManagerResult;
   /**
    * Same code path the toolbar Save button uses — captures native AG-Grid
    * state into the grid-state module slice, then flushes the active
-   * profile via `profiles.saveActiveProfile()`, then plays the post-save
+   * layout via `layouts.saveActiveLayout()`, then plays the post-save
    * UI flash. Hosts (e.g. OpenFin "Save Workspace") should prefer this
-   * over calling `profiles.saveActiveProfile()` directly so the busy
+   * over calling `layouts.saveActiveLayout()` directly so the busy
    * overlay and grid-state capture both run.
    */
   saveAll: () => Promise<void>;

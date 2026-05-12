@@ -108,7 +108,7 @@ ensureStylesInjected();
  * Ghost-styled icon button for compact row / toolbar actions.
  *
  * Replaces the inline-styled hover/reveal pattern that was duplicated
- * across the profile selector, filter pills, and rule rows. Color and
+ * across the layout selector, filter pills, and rule rows. Color and
  * sizing flow from `--bn-*` tokens, so dark/light themes adapt without
  * caller intervention.
  *

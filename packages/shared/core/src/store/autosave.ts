@@ -24,7 +24,7 @@ export interface AutoSaveHandle {
   /** Cancel debounce and persist immediately. Resolves once the write
    *  (and any coalesced follow-up) settles. Safe from a Save button. */
   flushNow(): Promise<void>;
-  /** Cancel the debounce without persisting. Used by delete-profile: a
+  /** Cancel the debounce without persisting. Used by delete-layout: a
    *  flush would recreate the just-deleted record. */
   cancelScheduled(): void;
 }

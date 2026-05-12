@@ -320,7 +320,7 @@
   <div class="cover-tagline">An institutional-grade AG-Grid customization platform purpose-built for capital&nbsp;markets trading desks.</div>
   <div class="cover-rule"></div>
   <div class="cover-blurb">
-    Profile-driven personalization, calculated columns with a real expression engine, conditional styling, enterprise persistence, and a cockpit-style settings UI — all behind a single <code style="background:rgba(255,255,255,0.18);color:#fcd34d;border-radius:3px;padding:1px 5px;">&lt;MarketsGrid&gt;</code> component.
+    Layout-driven personalization, calculated columns with a real expression engine, conditional styling, enterprise persistence, and a cockpit-style settings UI — all behind a single <code style="background:rgba(255,255,255,0.18);color:#fcd34d;border-radius:3px;padding:1px 5px;">&lt;MarketsGrid&gt;</code> component.
   </div>
   <div class="cover-foot">
     <div class="brand">MarketsUI Platform</div>
@@ -333,7 +333,7 @@
   <div class="highlights-eyebrow">At a glance</div>
   <h2>Everything a trading-desk grid needs, in one component</h2>
   <p class="highlights-lead">
-    MarketsGrid layers a profile-driven customization platform on top of AG-Grid Enterprise.
+    MarketsGrid layers a layout-driven customization platform on top of AG-Grid Enterprise.
     Traders save and switch full grid personalities; analysts author calculated columns,
     conditional styling, and reusable column templates; operators get enterprise-grade
     persistence, role-based config, and OpenFin-aware popouts — without bespoke wiring per desk.
@@ -341,8 +341,8 @@
 
   <div class="pillars">
     <div class="pillar">
-      <h3>Profile-driven personalization</h3>
-      <p>Full grid state — columns, filters, sort, groups, pivot, viewport, sidebar — saved per profile and switched in a click. Import / export, clone, dirty tracking, and OpenFin per-view active profile resolution out of the box.</p>
+      <h3>Layout-driven personalization</h3>
+      <p>Full grid state — columns, filters, sort, groups, pivot, viewport, sidebar — saved per layout and switched in a click. Import / export, clone, dirty tracking, and OpenFin per-view active layout resolution out of the box.</p>
     </div>
     <div class="pillar">
       <h3>Live calculated &amp; conditional</h3>
@@ -350,7 +350,7 @@
     </div>
     <div class="pillar">
       <h3>Enterprise-ready persistence</h3>
-      <p>Pluggable storage adapters: in-memory, Dexie / IndexedDB, or REST-backed config service with role-based identity. Auto-save with debounce, explicit save semantics on grid state, and round-trip safe profile import / export.</p>
+      <p>Pluggable storage adapters: in-memory, Dexie / IndexedDB, or REST-backed config service with role-based identity. Auto-save with debounce, explicit save semantics on grid state, and round-trip safe layout import / export.</p>
     </div>
   </div>
 
@@ -358,7 +358,7 @@
     <div class="stat"><div class="num">9</div><div class="label">Customization modules</div></div>
     <div class="stat"><div class="num">40+</div><div class="label">Expression functions</div></div>
     <div class="stat"><div class="num">30+</div><div class="label">Format presets</div></div>
-    <div class="stat"><div class="num">100%</div><div class="label">Profile round-trip</div></div>
+    <div class="stat"><div class="num">100%</div><div class="label">Layout round-trip</div></div>
   </div>
 
   <div class="who">
@@ -376,13 +376,13 @@
     module, and capability shipped by MarketsGrid in the current build —
     compiled by reading the source under <code>packages/markets-grid/</code>,
     <code>packages/core/src/modules/</code>, <code>packages/core/src/expression/</code>,
-    <code>packages/core/src/ui/</code>, and <code>packages/core/src/profiles/</code>.
+    <code>packages/core/src/ui/</code>, and <code>packages/core/src/layouts/</code>.
     No marketing prose — just what the code actually does.
   </div>
   <h2>1. <code>&lt;MarketsGrid&gt;</code> — public component</h2>
 <h3>Props (<code>MarketsGridProps</code>)</h3>
 <ul>
-<li><code>gridId</code> — keys profile storage per instance</li>
+<li><code>gridId</code> — keys layout storage per instance</li>
 <li><code>rowData</code> — row array</li>
 <li><code>columnDefs</code> — base column definitions</li>
 <li><code>modules</code> — module list (defaults to <code>DEFAULT_MODULES</code>)</li>
@@ -394,14 +394,14 @@
 <li><code>sideBar</code> — <code>SideBarDef | boolean</code></li>
 <li><code>statusBar</code></li>
 <li><code>showToolbar</code>, <code>showFiltersToolbar</code>, <code>showFormattingToolbar</code></li>
-<li><code>showSaveButton</code>, <code>showSettingsButton</code>, <code>showProfileSelector</code></li>
+<li><code>showSaveButton</code>, <code>showSettingsButton</code>, <code>showLayoutSelector</code></li>
 <li><code>storageAdapter</code> — single <code>StorageAdapter</code> instance</li>
 <li><code>storage</code> — <code>StorageAdapterFactory</code> (closes over <code>appId / userId</code>; precedence over <code>storageAdapter</code>)</li>
 <li><code>instanceId</code> — stable per-instance identity (defaults to <code>gridId</code>)</li>
 <li><code>appId</code>, <code>userId</code></li>
 <li><code>autoSaveDebounceMs</code> (default 300)</li>
 <li><code>onGridReady</code> — passthrough</li>
-<li><code>onReady</code> — fires once after AG-Grid ready + platform mount + active profile applied</li>
+<li><code>onReady</code> — fires once after AG-Grid ready + platform mount + active layout applied</li>
 <li><code>adminActions</code> — entries in Settings Tools menu</li>
 <li><code>gridLevelData</code> + <code>onGridLevelDataLoad</code> — opaque per-grid blob</li>
 <li><code>headerExtras</code> — ReactNode slot above toolbars</li>
@@ -411,7 +411,7 @@
 <ul>
 <li><code>gridApi</code> — AG-Grid <code>GridApi</code></li>
 <li><code>platform</code> — <code>GridPlatform</code></li>
-<li><code>profiles</code> — <code>UseProfileManagerResult</code></li>
+<li><code>layouts</code> — <code>UseLayoutManagerResult</code></li>
 </ul>
 <h3>Public types exported from <code>packages/markets-grid/src</code></h3>
 <ul>
@@ -444,18 +444,18 @@
 <li>Per-module back-compat <code>data-testid</code>s</li>
 </ul>
 </li>
-<li><code>ProfileSelector</code><ul>
+<li><code>LayoutSelector</code><ul>
 <li>Dropdown + create / load / delete / clone / rename</li>
 <li>Per-row Export, footer Export-active + Import</li>
-<li>Dirty indicator on active profile</li>
+<li>Dirty indicator on active layout</li>
 </ul>
 </li>
-<li>Save button — captures grid state via <code>captureGridStateInto</code>, calls <code>profiles.save()</code>, dirty-dot, success flash</li>
+<li>Save button — captures grid state via <code>captureGridStateInto</code>, calls <code>layouts.save()</code>, dirty-dot, success flash</li>
 <li>Settings button — opens sheet inline or refocuses popped window</li>
 </ul>
 <hr>
 <h2>3. Modules in <code>DEFAULT_MODULES</code></h2>
-<p>Wired in priority order; each ships in every profile snapshot.</p>
+<p>Wired in priority order; each ships in every layout snapshot.</p>
 <table>
 <thead>
 <tr>
@@ -644,7 +644,7 @@
 <li><code>applyHeaderNameReducer</code>, <code>applyEditableReducer</code></li>
 <li><code>applyFormatterReducer</code></li>
 <li><code>applyTemplateToColumnsReducer</code>, <code>removeTemplateRefFromAssignmentsReducer</code></li>
-<li><code>clearAllStylesReducer</code>, <code>clearAllStylesInProfileReducer</code></li>
+<li><code>clearAllStylesReducer</code>, <code>clearAllStylesInLayoutReducer</code></li>
 <li><code>writeOverridesReducer</code> (cell vs header)</li>
 <li><code>mergeOverrides</code>, <code>stripUndefined</code>, <code>overrideKey</code></li>
 </ul>
@@ -732,8 +732,8 @@
 </ul>
 <h3>Replay</h3>
 <ul>
-<li>On <code>onGridReady</code> (cold mount) and <code>profile:loaded</code></li>
-<li>Empty / new profile clears via <code>api.setState({})</code> + clear quickFilterText</li>
+<li>On <code>onGridReady</code> (cold mount) and <code>layout:loaded</code></li>
+<li>Empty / new layout clears via <code>api.setState({})</code> + clear quickFilterText</li>
 <li>Selection column re-pinned + reordered post-<code>setState</code> via <code>applyColumnState</code> deferred to microtask + <code>firstDataRendered</code></li>
 <li>Stale saved order merged with live column set (saved IDs first, then new IDs appended)</li>
 </ul>
@@ -742,7 +742,7 @@
 <ul>
 <li>Opaque host-defined state (<code>filters: unknown[]</code>)</li>
 <li>Host shape (<code>markets-grid/src/types.ts</code>): <code>{ id, label, filterModel, active }</code></li>
-<li>No transforms / SettingsPanel; ships in profile snapshot for round-trip</li>
+<li>No transforms / SettingsPanel; ships in layout snapshot for round-trip</li>
 <li>Pure logic in <code>filtersToolbarLogic.ts</code> — <code>generateLabel</code>, <code>doesRowMatchFilterModel</code>, <code>filterModelsEqual</code>, <code>mergeFilterModels</code>, <code>subtractFilterModel</code>, <code>isNewFilter</code></li>
 </ul>
 <hr>
@@ -878,8 +878,8 @@
 <li>Opt-in <code>sections={[…]}</code> API</li>
 </ul>
 <hr>
-<h2>18. ProfileManager — public methods</h2>
-<p><code>packages/core/src/profiles/ProfileManager.ts</code>:</p>
+<h2>18. LayoutManager — public methods</h2>
+<p><code>packages/core/src/layouts/LayoutManager.ts</code>:</p>
 <h3>Lifecycle</h3>
 <ul>
 <li><code>boot()</code> — resolve active id (ActiveIdSource → localStorage → reserved Default), load snapshot, wire auto-save / dirty tracker</li>
@@ -888,7 +888,7 @@
 <h3>State</h3>
 <ul>
 <li><code>subscribe(listener)</code> → unsubscribe</li>
-<li><code>getState()</code> → <code>{ activeId, profiles[], isLoading, isDirty }</code></li>
+<li><code>getState()</code> → <code>{ activeId, layouts[], isLoading, isDirty }</code></li>
 </ul>
 <h3>Operations</h3>
 <ul>
@@ -902,25 +902,25 @@
 </ul>
 <h3>Import / Export</h3>
 <ul>
-<li><code>export(id?)</code> → <code>ExportedProfilePayload</code></li>
+<li><code>export(id?)</code> → <code>ExportedLayoutPayload</code></li>
 <li><code>import(payload, { name?, activate?, sanitize? })</code></li>
 </ul>
 <h3>Identity sources</h3>
 <ul>
-<li>Pluggable <code>ActiveIdSource</code> (e.g. <code>createOpenFinViewProfileSource()</code> for per-view active profile in OpenFin)</li>
+<li>Pluggable <code>ActiveIdSource</code> (e.g. <code>createOpenFinViewLayoutSource()</code> for per-view active layout in OpenFin)</li>
 </ul>
 <h3>Constants</h3>
 <ul>
-<li><code>RESERVED_DEFAULT_PROFILE_ID</code>, <code>activeProfileKey</code></li>
+<li><code>RESERVED_DEFAULT_LAYOUT_ID</code>, <code>activeLayoutKey</code> (the underlying localStorage prefix <code>'gc-active-profile:'</code> is preserved as a wire value)</li>
 </ul>
 <hr>
 <h2>19. Storage adapters</h2>
 <ul>
-<li><code>StorageAdapter</code> interface — <code>loadProfile</code>, <code>saveProfile</code>, <code>deleteProfile</code>, <code>listProfiles</code>, <code>loadGridLevelData?</code>, <code>saveGridLevelData?</code></li>
+<li><code>StorageAdapter</code> interface — <code>loadLayout</code>, <code>saveLayout</code>, <code>deleteLayout</code>, <code>listLayouts</code>, <code>loadGridLevelData?</code>, <code>saveGridLevelData?</code></li>
 <li><code>MemoryAdapter</code> — ephemeral</li>
 <li><code>DexieAdapter</code> — IndexedDB</li>
 <li><code>StorageAdapterFactory</code> — <code>(opts: { instanceId, appId?, userId? }) =&gt; StorageAdapter</code></li>
-<li>ConfigService factory (separate package <code>@starui/config-service</code>) — bundles all profiles into one <code>AppConfigRow</code> with <code>componentType: &#39;markets-grid-profile-set&#39;</code></li>
+<li>ConfigService factory (separate package <code>@starui/config-service</code>) — bundles all layouts into one <code>AppConfigRow</code> with <code>componentType: &#39;markets-grid-profile-set&#39;</code> (string literal preserved as the on-wire discriminator)</li>
 </ul>
 <hr>
 <h2>20. AdminAction (Settings Tools menu)</h2>
@@ -935,7 +935,7 @@
 <p><code>configureExpressionPolicy({ mode, onViolation })</code>:</p>
 <ul>
 <li>Modes — <code>allow</code> (default) / <code>warn</code> / <code>strict</code></li>
-<li>Strict mode — <code>valueFormatterFromTemplate</code> returns identity for <code>kind: &#39;expression&#39;</code>; <code>ProfileManager.import</code> rejects expression-kind templates</li>
+<li>Strict mode — <code>valueFormatterFromTemplate</code> returns identity for <code>kind: &#39;expression&#39;</code>; <code>LayoutManager.import</code> rejects expression-kind templates</li>
 <li><code>import({ sanitize: true })</code> rewrites expression templates to <code>{ kind: &#39;preset&#39;, presetId: &#39;num-integer&#39; }</code> (or equivalent)</li>
 <li>Two enforcement points — runtime compile + import-time scan</li>
 <li><code>onViolation({ kind, expression, reason })</code> observer; errors swallowed</li>
@@ -952,7 +952,7 @@
 <li><code>GridProvider</code>, <code>useGridPlatform</code></li>
 <li><code>useModuleState</code>, <code>useModuleDraft</code></li>
 <li><code>useGridApi</code>, <code>useGridEvent</code>, <code>useGridColumns</code></li>
-<li><code>useProfileManager</code></li>
+<li><code>useLayoutManager</code></li>
 <li><code>useDirty</code>, <code>useDirtyCount</code></li>
 <li><code>useUndoRedo</code>, <code>HistoryStack</code></li>
 </ul>
@@ -980,9 +980,9 @@
 <hr>
 <h2>23. Cross-cutting invariants (from code)</h2>
 <ul>
-<li>Single source of truth — IndexedDB profile snapshots (<code>gc-customizer-v2</code>)</li>
+<li>Single source of truth — IndexedDB layout snapshots (<code>gc-customizer-v2</code>)</li>
 <li>Per-module <code>schemaVersion</code> with optional <code>migrate(raw, fromVersion)</code></li>
-<li>Save path — Save click → <code>captureGridStateInto</code> → <code>serializeAll</code> → persist → <code>profile:saved</code> event</li>
+<li>Save path — Save click → <code>captureGridStateInto</code> → <code>serializeAll</code> → persist → <code>layout:saved</code> event</li>
 <li>Auto-save 300ms debounce, opt-in (<code>disableAutoSave: true</code> is the production default)</li>
 <li><code>grid-state</code> only writes on explicit Save</li>
 <li>Cross-module state read exclusively via <code>ctx.getModuleState&lt;T&gt;(moduleId)</code> — modules never import each other</li>

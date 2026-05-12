@@ -7,15 +7,15 @@
  * settings-panel primitives, hooks, or module definitions.
  *
  * `@starui/core` remains framework-agnostic vanilla TS: GridPlatform,
- * ProfileManager, expression engine, persistence adapters, etc.
+ * LayoutManager, expression engine, persistence adapters, etc.
  */
 
 // ─── React bindings ──────────────────────────────────────────────────────
 export { GridProvider, useGridPlatform } from './hooks/GridProvider';
 export { useModuleState } from './hooks/useModuleState';
 export { useGridApi, useGridEvent } from './hooks/useGridApi';
-export { useProfileManager } from './hooks/useProfileManager';
-export type { UseProfileManagerResult } from './hooks/useProfileManager';
+export { useLayoutManager } from './hooks/useLayoutManager';
+export type { UseLayoutManagerResult } from './hooks/useLayoutManager';
 export type { GridCoreLike } from './hooks/GridContext';
 export { useDirty, useDirtyCount, type DirtyHandle } from './hooks/useDirty';
 export {
@@ -263,7 +263,7 @@ export {
   applyTemplateToColumnsReducer,
   removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,
-  clearAllStylesInProfileReducer,
+  clearAllStylesInLayoutReducer,
   type TargetKind,
   type ColumnAssignment,
   type ColumnCustomizationAssignment,

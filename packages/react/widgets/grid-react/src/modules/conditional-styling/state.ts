@@ -7,7 +7,7 @@
  * theme switch via `:root.dark` selectors without recomputing rules.
  *
  * `CellStyleProperties` / `ThemeAwareStyle` / `ConditionalRule` are
- * re-exported from `@starui/core` so on-disk profile
+ * re-exported from `@starui/core` so on-disk layout
  * snapshots from prior schema versions load cleanly without an
  * intermediate migration step.
  */

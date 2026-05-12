@@ -65,7 +65,7 @@ When mounted inside an OpenFin workspace, `<HostedMarketsGrid>` connects
 to the platform-side `marketsui-workspace-save-channel` (see
 [`useWorkspaceSaveEvent`](./useWorkspaceSaveEvent.ts)) and registers an
 awaited flush callback. The callback runs the same code path the
-toolbar **Save** button uses — `MarketsGridHandle.profiles.saveActiveProfile()`
+toolbar **Save** button uses — `MarketsGridHandle.layouts.saveActiveLayout()`
 — so any column / filter / formatting edits that haven't been saved
 explicitly still round-trip through OpenFin's *Save Workspace*. The
 platform `dispatch` blocks on each connected view's promise before
@@ -78,7 +78,7 @@ The remaining props are forwarded verbatim — selected highlights:
 
 | Prop | Type | Purpose |
 |---|---|---|
-| `gridId` | `string` | Required by `MarketsGrid`; keys profile and view-state rows. |
+| `gridId` | `string` | Required by `MarketsGrid`; keys layout and view-state rows. |
 | `historicalDateAppDataRef` | `string?` | `'appDataProviderName.key'` target for the historical date picker. |
 | `onEditProvider` | `(id: string) => void` | Open the provider editor. The reference app forwards this to `data-services-popout.ts` to launch a popout window. |
 | `onError` | `(err: Error) => void` | Stream-error sink. Defaults to `console.error`. |
@@ -143,12 +143,12 @@ Two distinct layers of persistence flow through the wrapper:
   `gridLevelData` under the key `markets-grid-provider-selection`.
   Persisted on every change via the ConfigService adapter; survives
   refresh and OpenFin workspace restore.
-- **Profile-scoped state** (column customisation, conditional styling,
+- **Layout-scoped state** (column customisation, conditional styling,
   calculated columns, sort/filter overrides, etc.) lives inside each
-  profile row managed by the profile manager. Switching profiles
+  layout row managed by the layout manager. Switching layouts
   swaps that whole bundle; grid-level provider selection is
-  intentionally *not* part of the profile so a user can pin a
-  provider once and try several profiles against it.
+  intentionally *not* part of the layout so a user can pin a
+  provider once and try several layouts against it.
 
 When `withStorage` is true and the ConfigManager + registered identity
 both resolve, every adapter call carries the four registered-component
@@ -188,7 +188,7 @@ at the wrapper boundary, with inherited rows additionally covered by
 | 16 | Provider picker (Alt+Shift+P, ProviderToolbar) | `provider-picker.test.tsx` |
 | 17 | Snapshot + live-update subscription lifecycle | `inherited-features.test.tsx` (+ MGC) |
 | 18 | Grid-level provider persistence | `inherited-features.test.tsx` (+ MGC) |
-| 19 | Profile manager / settings sheet / dirty dot | `inherited-features.test.tsx` (+ MG) |
+| 19 | Layout manager / settings sheet / dirty dot | `inherited-features.test.tsx` (+ MG) |
 | 20 | Admin actions, headerExtras, gridLevelData passthrough | `inherited-features.test.tsx` |
 | 21 | Toolbar ⓘ popover surfaces componentName | `grid-info-popover.test.tsx` |
 
@@ -231,7 +231,7 @@ export function HostedBlotter() {
     withStorage: true,
     theme: 'auto',
     onWorkspaceSave: async () => {
-      await gridRef.current?.profiles.saveActiveProfile();
+      await gridRef.current?.layouts.saveActiveLayout();
     },
   });
 

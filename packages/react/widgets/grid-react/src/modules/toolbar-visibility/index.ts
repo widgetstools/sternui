@@ -3,12 +3,12 @@
  * the user has shown in the host app.
  *
  * Hidden module — no SettingsPanel, never appears in the settings nav.
- * Lives in the per-profile snapshot so toolbar layout round-trips cleanly
- * across profile load / save.
+ * Lives in the per-layout snapshot so toolbar layout round-trips cleanly
+ * across layout load / save.
  *
  * Missing keys in `visible` mean "use the host's default" — we deliberately
  * do NOT seed `false` for unknown toolbars so a host that adds a new
- * toolbar id later doesn't have to migrate every old profile.
+ * toolbar id later doesn't have to migrate every old layout.
  */
 import type { Module } from '@starui/core';
 

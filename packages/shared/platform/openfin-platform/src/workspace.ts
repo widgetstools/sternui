@@ -123,7 +123,7 @@ function applyLocalDataTheme(isDark: boolean): void {
  * propagates onto every appConfig row — diverging the realign-time
  * `(appId, userId)` from the runtime caller's `(appId, userId)` and
  * silently breaking the strict-equality ownership check in
- * `isProfileSetRow`. Pinning matches every other resolution site
+ * `isLayoutSetRow`. Pinning matches every other resolution site
  * (runtime-port, registry-host-env, useHostedIdentity).
  *
  * Replace the literals when real multi-app + SSO support actually
@@ -202,7 +202,7 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   // pair seeded into the config service:
   //   • appId  = "TestApp"  (the only row in appRegistry seed)
   //   • userId = "dev1"     (the only row in userProfiles seed)
-  // Dock, registry, MarketsGrid profiles, and any future per-app config
+  // Dock, registry, MarketsGrid layouts, and any future per-app config
   // all land in one scope bucket — visible together in the Config Browser.
   // Decoupled from `fin.me.identity.uuid` deliberately: the platform's
   // OpenFin uuid is a runtime detail; the config-service identity is the

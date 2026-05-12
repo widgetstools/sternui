@@ -80,7 +80,7 @@ export default function ImportConfig() {
 
       // Bulk-import every supported section. The helper re-owns appConfig
       // rows (rewrites appId/userId to the local host environment) so
-      // workspaces, registries, and per-instance markets-grid-profile-set
+      // workspaces, registries, and per-instance markets-grid-layout-set
       // rows — including the `gridLevelData` that carries data-provider
       // selection — become readable on this machine. userProfile rows are
       // intentionally excluded from auto-import (see `importConfigBundle`).

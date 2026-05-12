@@ -4,8 +4,8 @@
  * focus / selection) plus a viewport anchor + quick-filter text.
  *
  * Capture happens ONLY on explicit Save (see `captureGridStateInto`).
- * Replay fires on grid-ready (cold mount with a pre-loaded profile) and
- * on `profile:loaded` (profile switch while the grid is already mounted).
+ * Replay fires on grid-ready (cold mount with a pre-loaded layout) and
+ * on `layout:loaded` (layout switch while the grid is already mounted).
  *
  * Priority 200 — runs AFTER every column-structure module so replay sees
  * the final column set before re-applying colIds in the saved state.
@@ -33,15 +33,15 @@ export const gridStateModule: Module<GridStateState> = {
   getInitialState: () => ({ ...INITIAL_GRID_STATE }),
 
   activate(platform: PlatformHandle<GridStateState>): () => void {
-    // Replay on grid-ready for the cold-mount case (profile loaded before
+    // Replay on grid-ready for the cold-mount case (layout loaded before
     // the grid existed).
     const disposeReady = platform.api.onReady((api) => {
       const state = platform.getState();
       if (state.saved) applyGridState(api, state.saved);
     });
 
-    // Replay on profile:loaded — profile switched while the grid is live.
-    const disposeProfile = platform.events.on('profile:loaded', () => {
+    // Replay on layout:loaded — layout switched while the grid is live.
+    const disposeLayout = platform.events.on('layout:loaded', () => {
       const api = platform.api.api;
       if (!api) return;
       const state = platform.getState();
@@ -49,9 +49,9 @@ export const gridStateModule: Module<GridStateState> = {
         applyGridState(api, state.saved);
         return;
       }
-      // Freshly-loaded / newly-created profile has no saved state —
+      // Freshly-loaded / newly-created layout has no saved state —
       // reset the live grid so columns / sort / filters from the
-      // previous profile don't leak through (AG-Grid owns native state,
+      // previous layout don't leak through (AG-Grid owns native state,
       // not module transforms).
       try {
         api.setState({});
@@ -63,7 +63,7 @@ export const gridStateModule: Module<GridStateState> = {
 
     return () => {
       disposeReady();
-      disposeProfile();
+      disposeLayout();
     };
   },
 

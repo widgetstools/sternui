@@ -22,7 +22,7 @@ import {
 import type { SavedFilter } from './types';
 
 /**
- * ToolbarVisibilityState is the per-profile key/value used to persist
+ * ToolbarVisibilityState is the per-layout key/value used to persist
  * collapse/expand state for the filter pill row. Imported inline (the
  * module's TS interface isn't on the public core barrel) so we don't
  * take a hard dep on the module's shape — only the boolean slot we
@@ -150,8 +150,8 @@ export function FiltersToolbar() {
   const api = useGridApi();
 
   // Persisted collapse/expand state — piggy-backs on the
-  // `toolbar-visibility` module that ships in every profile. Missing key
-  // defaults to EXPANDED so existing profiles get the familiar layout.
+  // `toolbar-visibility` module that ships in every layout. Missing key
+  // defaults to EXPANDED so existing layouts get the familiar layout.
   const [tbvState, setTbvState] = useModuleState<ToolbarVisibilityLike>('toolbar-visibility');
   const expanded = tbvState?.visible?.[FILTERS_EXPANDED_KEY] !== false;
   const toggleExpanded = useCallback(() => {
@@ -163,14 +163,14 @@ export function FiltersToolbar() {
       },
     }));
   }, [setTbvState]);
-  // Filters live in the per-profile saved-filters module. Reading and writing
+  // Filters live in the per-layout saved-filters module. Reading and writing
   // through `useModuleState` is the ONLY channel — no refs, no events. The
   // auto-save engine picks up changes and persists them on a debounce.
   const [filtersState, setFiltersState] = useModuleState<SavedFiltersState>('saved-filters');
 
   // Normalize a raw record off the store: coerce `active`, default
   // missing `filterModel`, and run AG-Grid-shape repair so a stale
-  // pill from an older profile (set-filter `values` serialized as
+  // pill from an older layout (set-filter `values` serialized as
   // `{0:..,1:..}` or undefined, multi-filter children with malformed
   // children, etc.) doesn't crash AG-Grid mid-render. Idempotent —
   // safe to run on every render and on every write back.
@@ -294,13 +294,13 @@ export function FiltersToolbar() {
   const [hasNewFilter, setHasNewFilter] = useState(false);
 
   // Latest filters captured in a ref so platform-level listeners
-  // (profile:loaded, firstDataRendered) can reach the freshest list
+  // (layout:loaded, firstDataRendered) can reach the freshest list
   // without re-registering on every change.
   const filtersRef = useRef(filters);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
 
   // Compute and push the merged active filter model into a live api.
-  // Centralised so the React effect, profile:loaded listener, and
+  // Centralised so the React effect, layout:loaded listener, and
   // firstDataRendered listener all use the exact same code path.
   const pushActiveFilterModel = useCallback((liveApi: import('ag-grid-community').GridApi) => {
     const list = filtersRef.current;
@@ -331,10 +331,10 @@ export function FiltersToolbar() {
     pushActiveFilterModel(api);
   }, [api, filters, pushActiveFilterModel]);
 
-  // ─── Re-push on profile:loaded ──────────────────────────────────────────
+  // ─── Re-push on layout:loaded ───────────────────────────────────────────
   // The `grid-state` module restores AG-Grid's *native* filter model via
-  // `api.setState(savedGridState)` on `profile:loaded`. When the loaded
-  // profile has no captured grid-state (state.saved === null), grid-state
+  // `api.setState(savedGridState)` on `layout:loaded`. When the loaded
+  // layout has no captured grid-state (state.saved === null), grid-state
   // calls `api.setState({})` which CLEARS the filter — so the saved-filter
   // pills' active set must be re-pushed AFTER that runs. Listener
   // registration here happens after `grid-state.activate()` (modules
@@ -342,16 +342,16 @@ export function FiltersToolbar() {
   // listeners in registration order — so this listener runs after
   // grid-state's, guaranteeing the saved-filter model wins.
   useEffect(() => {
-    return platform.events.on('profile:loaded', () => {
+    return platform.events.on('layout:loaded', () => {
       const liveApi = platform.api.api;
       if (liveApi) pushActiveFilterModel(liveApi);
     });
   }, [platform, pushActiveFilterModel]);
 
   // ─── Re-push once on firstDataRendered ──────────────────────────────────
-  // Cold-mount safety net: at first profile-load, setFilterModel may run
+  // Cold-mount safety net: at first layout-load, setFilterModel may run
   // before AG-Grid has fully registered its columns (column transforms
-  // can race with profile deserialize). Re-applying once after AG-Grid
+  // can race with layout deserialize). Re-applying once after AG-Grid
   // signals firstDataRendered ensures the active pill's filter is live
   // by the time the user sees rows.
   useEffect(() => {
@@ -384,7 +384,7 @@ export function FiltersToolbar() {
         };
         disposers.push(platform.api.on('filterChanged', check));
         // Run once up front so the flag reflects any model the grid
-        // already carries at mount (e.g. after profile load restored it).
+        // already carries at mount (e.g. after layout load restored it).
         check();
       }),
     );

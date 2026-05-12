@@ -215,7 +215,7 @@ export async function launchRegisteredComponent(
  *
  * Why eager: a single hosted MarketsGrid builds two storage adapters
  * (one in MarketsGridContainer for gridLevelData, one in <MarketsGrid>
- * for profiles). With lazy seeding both adapters would race the seed
+ * for layouts). With lazy seeding both adapters would race the seed
  * write and the loser threw VersionConflict. Cloning at launch makes
  * the row exist before any consumer reads it — read paths simplify to
  * "getConfig by id" and the race vanishes.

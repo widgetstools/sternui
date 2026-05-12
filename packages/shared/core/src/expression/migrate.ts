@@ -3,7 +3,7 @@
  *
  * The canonical column-reference syntax is now `[columnId]`. The previous
  * syntax `{columnId}` remains parseable indefinitely for backward compat —
- * these helpers rewrite stored profiles on load so the editor surface shows
+ * these helpers rewrite stored layouts on load so the editor surface shows
  * the new syntax consistently.
  *
  * Safe to apply to strings that are already in the new syntax (no-op when

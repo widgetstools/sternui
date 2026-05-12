@@ -29,7 +29,7 @@ export function makeId(): string {
 
 /**
  * Synthesize a human-readable label from a filter model. Stable
- * heuristic so auto-named labels look the same after a profile
+ * heuristic so auto-named labels look the same after a layout
  * round-trip.
  */
 export function generateLabel(
@@ -317,7 +317,7 @@ function deepEqualFilter(a: unknown, b: unknown): boolean {
 
 /**
  * Combine N filter models with column-level OR and cross-column AND. The
- * E2E "saved filters per profile" suite depends on two active "set"
+ * E2E "saved filters per layout" suite depends on two active "set"
  * filters unioning their values rather than the second clobbering the
  * first, hence the explicit set-union path.
  */

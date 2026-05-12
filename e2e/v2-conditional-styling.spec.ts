@@ -227,7 +227,7 @@ test.describe('v2 — conditional-styling panel', () => {
     ).toBeVisible();
   });
 
-  test('rule persists across reload (profile auto-save round-trip)', async ({ page }) => {
+  test('rule persists across reload (layout auto-save round-trip)', async ({ page }) => {
     const id = await addRule(page);
     await page
       .locator(`[data-testid="cs-rule-name-${id}"]`)

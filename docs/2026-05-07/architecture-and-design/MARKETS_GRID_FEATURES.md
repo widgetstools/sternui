@@ -1,6 +1,6 @@
 # MarketsGrid — Code-Derived Feature Inventory
 
-Compiled by reading the source under `packages/markets-grid/`, `packages/core/src/modules/`, `packages/core/src/expression/`, `packages/core/src/ui/`, and `packages/core/src/profiles/`. Reflects what actually exists in the current build (`MarketsGrid.DEFAULT_MODULES`), not historical refactor passes.
+Compiled by reading the source under `packages/markets-grid/`, `packages/core/src/modules/`, `packages/core/src/expression/`, `packages/core/src/ui/`, and `packages/core/src/layouts/`. Reflects what actually exists in the current build (`MarketsGrid.DEFAULT_MODULES`), not historical refactor passes.
 
 ---
 
@@ -8,7 +8,7 @@ Compiled by reading the source under `packages/markets-grid/`, `packages/core/sr
 
 ### Props (`MarketsGridProps`)
 
-- `gridId` — keys profile storage per instance
+- `gridId` — keys layout storage per instance
 - `rowData` — row array
 - `columnDefs` — base column definitions
 - `modules` — module list (defaults to `DEFAULT_MODULES`)
@@ -20,14 +20,14 @@ Compiled by reading the source under `packages/markets-grid/`, `packages/core/sr
 - `sideBar` — `SideBarDef | boolean`
 - `statusBar`
 - `showToolbar`, `showFiltersToolbar`, `showFormattingToolbar`
-- `showSaveButton`, `showSettingsButton`, `showProfileSelector`
+- `showSaveButton`, `showSettingsButton`, `showLayoutSelector`
 - `storageAdapter` — single `StorageAdapter` instance
 - `storage` — `StorageAdapterFactory` (closes over `appId / userId`; precedence over `storageAdapter`)
 - `instanceId` — stable per-instance identity (defaults to `gridId`)
 - `appId`, `userId`
 - `autoSaveDebounceMs` (default 300)
 - `onGridReady` — passthrough
-- `onReady` — fires once after AG-Grid ready + platform mount + active profile applied
+- `onReady` — fires once after AG-Grid ready + platform mount + active layout applied
 - `adminActions` — entries in Settings Tools menu
 - `gridLevelData` + `onGridLevelDataLoad` — opaque per-grid blob
 - `headerExtras` — ReactNode slot above toolbars
@@ -37,7 +37,7 @@ Compiled by reading the source under `packages/markets-grid/`, `packages/core/sr
 
 - `gridApi` — AG-Grid `GridApi`
 - `platform` — `GridPlatform`
-- `profiles` — `UseProfileManagerResult`
+- `layouts` — `UseLayoutManagerResult`
 
 ### Public types exported from `packages/markets-grid/src`
 
@@ -65,18 +65,18 @@ Compiled by reading the source under `packages/markets-grid/`, `packages/core/sr
   - Renders flat `SettingsPanel` or master-detail `ListPane` + `EditorPane`
   - `<PopoutPortal>` support (separate OS window)
   - Per-module back-compat `data-testid`s
-- `ProfileSelector`
+- `LayoutSelector`
   - Dropdown + create / load / delete / clone / rename
   - Per-row Export, footer Export-active + Import
-  - Dirty indicator on active profile
-- Save button — captures grid state via `captureGridStateInto`, calls `profiles.save()`, dirty-dot, success flash
+  - Dirty indicator on active layout
+- Save button — captures grid state via `captureGridStateInto`, calls `layouts.save()`, dirty-dot, success flash
 - Settings button — opens sheet inline or refocuses popped window
 
 ---
 
 ## 3. Modules in `DEFAULT_MODULES`
 
-Wired in priority order; each ships in every profile snapshot.
+Wired in priority order; each ships in every layout snapshot.
 
 | # | Module id | Priority | Schema | Has SettingsPanel |
 |---|---|---|---|---|
@@ -196,7 +196,7 @@ Wired in priority order; each ships in every profile snapshot.
 - `applyHeaderNameReducer`, `applyEditableReducer`
 - `applyFormatterReducer`
 - `applyTemplateToColumnsReducer`, `removeTemplateRefFromAssignmentsReducer`
-- `clearAllStylesReducer`, `clearAllStylesInProfileReducer`
+- `clearAllStylesReducer`, `clearAllStylesInLayoutReducer`
 - `writeOverridesReducer` (cell vs header)
 - `mergeOverrides`, `stripUndefined`, `overrideKey`
 
@@ -280,8 +280,8 @@ Wired in priority order; each ships in every profile snapshot.
 - `quickFilter`
 
 ### Replay
-- On `onGridReady` (cold mount) and `profile:loaded`
-- Empty / new profile clears via `api.setState({})` + clear quickFilterText
+- On `onGridReady` (cold mount) and `layout:loaded`
+- Empty / new layout clears via `api.setState({})` + clear quickFilterText
 - Selection column re-pinned + reordered post-`setState` via `applyColumnState` deferred to microtask + `firstDataRendered`
 - Stale saved order merged with live column set (saved IDs first, then new IDs appended)
 
@@ -291,7 +291,7 @@ Wired in priority order; each ships in every profile snapshot.
 
 - Opaque host-defined state (`filters: unknown[]`)
 - Host shape (`markets-grid/src/types.ts`): `{ id, label, filterModel, active }`
-- No transforms / SettingsPanel; ships in profile snapshot for round-trip
+- No transforms / SettingsPanel; ships in layout snapshot for round-trip
 - Pure logic in `filtersToolbarLogic.ts` — `generateLabel`, `doesRowMatchFilterModel`, `filterModelsEqual`, `mergeFilterModels`, `subtractFilterModel`, `isNewFilter`
 
 ---
@@ -419,9 +419,9 @@ Wired in priority order; each ships in every profile snapshot.
 
 ---
 
-## 18. ProfileManager — public methods
+## 18. LayoutManager — public methods
 
-`packages/core/src/profiles/ProfileManager.ts`:
+`packages/core/src/layouts/LayoutManager.ts`:
 
 ### Lifecycle
 - `boot()` — resolve active id (ActiveIdSource → localStorage → reserved Default), load snapshot, wire auto-save / dirty tracker
@@ -429,7 +429,7 @@ Wired in priority order; each ships in every profile snapshot.
 
 ### State
 - `subscribe(listener)` → unsubscribe
-- `getState()` → `{ activeId, profiles[], isLoading, isDirty }`
+- `getState()` → `{ activeId, layouts[], isLoading, isDirty }`
 
 ### Operations
 - `save()` — flush debounce + persist
@@ -441,24 +441,24 @@ Wired in priority order; each ships in every profile snapshot.
 - `clone(sourceId, name, { id? })`
 
 ### Import / Export
-- `export(id?)` → `ExportedProfilePayload`
+- `export(id?)` → `ExportedLayoutPayload`
 - `import(payload, { name?, activate?, sanitize? })`
 
 ### Identity sources
-- Pluggable `ActiveIdSource` (e.g. `createOpenFinViewProfileSource()` for per-view active profile in OpenFin)
+- Pluggable `ActiveIdSource` (e.g. `createOpenFinViewLayoutSource()` for per-view active layout in OpenFin)
 
 ### Constants
-- `RESERVED_DEFAULT_PROFILE_ID`, `activeProfileKey`
+- `RESERVED_DEFAULT_LAYOUT_ID`, `activeLayoutKey` (the localStorage key string `gc-active-profile:` is preserved as a wire value)
 
 ---
 
 ## 19. Storage adapters
 
-- `StorageAdapter` interface — `loadProfile`, `saveProfile`, `deleteProfile`, `listProfiles`, `loadGridLevelData?`, `saveGridLevelData?`
+- `StorageAdapter` interface — `loadLayout`, `saveLayout`, `deleteLayout`, `listLayouts`, `loadGridLevelData?`, `saveGridLevelData?`
 - `MemoryAdapter` — ephemeral
 - `DexieAdapter` — IndexedDB
 - `StorageAdapterFactory` — `(opts: { instanceId, appId?, userId? }) => StorageAdapter`
-- ConfigService factory (separate package `@starui/config-service`) — bundles all profiles into one `AppConfigRow` with `componentType: 'markets-grid-profile-set'`
+- ConfigService factory (separate package `@starui/config-service`) — bundles all layouts into one `AppConfigRow` with `componentType: 'markets-grid-profile-set'` (string literal preserved as the on-wire discriminator)
 
 ---
 
@@ -476,7 +476,7 @@ Wired in priority order; each ships in every profile snapshot.
 `configureExpressionPolicy({ mode, onViolation })`:
 
 - Modes — `allow` (default) / `warn` / `strict`
-- Strict mode — `valueFormatterFromTemplate` returns identity for `kind: 'expression'`; `ProfileManager.import` rejects expression-kind templates
+- Strict mode — `valueFormatterFromTemplate` returns identity for `kind: 'expression'`; `LayoutManager.import` rejects expression-kind templates
 - `import({ sanitize: true })` rewrites expression templates to `{ kind: 'preset', presetId: 'num-integer' }` (or equivalent)
 - Two enforcement points — runtime compile + import-time scan
 - `onViolation({ kind, expression, reason })` observer; errors swallowed
@@ -493,7 +493,7 @@ Wired in priority order; each ships in every profile snapshot.
 - `GridProvider`, `useGridPlatform`
 - `useModuleState`, `useModuleDraft`
 - `useGridApi`, `useGridEvent`, `useGridColumns`
-- `useProfileManager`
+- `useLayoutManager`
 - `useDirty`, `useDirtyCount`
 - `useUndoRedo`, `HistoryStack`
 
@@ -518,9 +518,9 @@ Wired in priority order; each ships in every profile snapshot.
 
 ## 23. Cross-cutting invariants (from code)
 
-- Single source of truth — IndexedDB profile snapshots (`gc-customizer-v2`)
+- Single source of truth — IndexedDB layout snapshots (`gc-customizer-v2`)
 - Per-module `schemaVersion` with optional `migrate(raw, fromVersion)`
-- Save path — Save click → `captureGridStateInto` → `serializeAll` → persist → `profile:saved` event
+- Save path — Save click → `captureGridStateInto` → `serializeAll` → persist → `layout:saved` event
 - Auto-save 300ms debounce, opt-in (`disableAutoSave: true` is the production default)
 - `grid-state` only writes on explicit Save
 - Cross-module state read exclusively via `ctx.getModuleState<T>(moduleId)` — modules never import each other

@@ -92,20 +92,21 @@ export type {
   UserProfileRow,
 } from './types';
 
-// ─── MarketsGrid profile storage (StorageAdapter factory) ───────────
+// ─── MarketsGrid layout storage (StorageAdapter factory) ────────────
 // ConfigService-backed persistence for <MarketsGrid>. Pass the factory
-// to MarketsGrid's `storage` prop to opt-in to cross-device profile
+// to MarketsGrid's `storage` prop to opt-in to cross-device layout
 // sync scoped by (appId, userId, instanceId).
 export {
   createConfigServiceStorage,
-  migrateProfilesToConfigService,
-  ProfileSetVersionConflictError,
-  MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
-  /** @deprecated alias for `MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE` — same value */
-  MARKETS_GRID_PROFILE_COMPONENT_TYPE,
+  migrateLayoutsToConfigService,
+  LayoutSetVersionConflictError,
+  MARKETS_GRID_LAYOUT_SET_COMPONENT_TYPE,
+  LEGACY_MARKETS_GRID_LAYOUT_SET_COMPONENT_TYPE,
+  /** @deprecated alias for `MARKETS_GRID_LAYOUT_SET_COMPONENT_TYPE` — same value */
+  MARKETS_GRID_LAYOUT_COMPONENT_TYPE,
   type ConfigServiceStorageOptions,
-  type ProfileStorageFactory,
-  type ProfileStorageFactoryOpts,
-  type ProfileSnapshot,
+  type LayoutStorageFactory,
+  type LayoutStorageFactoryOpts,
+  type LayoutSnapshot,
   type StorageAdapter,
-} from './profileStorage';
+} from './layoutStorage';

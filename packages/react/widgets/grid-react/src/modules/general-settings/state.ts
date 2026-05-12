@@ -181,7 +181,7 @@ export interface GeneralSettingsState {
   /** Allow dragging this column into the values / aggregations panel. */
   enableValue: boolean;
 
-  // Legacy / shared flags (kept on the state so existing profiles
+  // Legacy / shared flags (kept on the state so existing layouts
   // migrate additively)
   enableCellTextSelection: boolean;
   suppressDragLeaveHidesColumns: boolean;

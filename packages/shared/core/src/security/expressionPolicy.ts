@@ -9,7 +9,7 @@
  *
  * Deployments running under a `script-src` Content Security Policy
  * that forbids `unsafe-eval` must set the policy to `'strict'` at boot
- * so the adapter refuses to compile (and the profile importer refuses
+ * so the adapter refuses to compile (and the layout importer refuses
  * to accept) expression-kind templates. The runtime falls back to an
  * identity formatter in that case — values still render, they just
  * aren't transformed.
@@ -28,12 +28,12 @@ export type ExpressionPolicyMode =
    *  internal builds. */
   | 'allow'
   /** Compile and run, but emit a one-shot `console.warn` per unique
-   *  expression string. Useful during migration: legacy profiles keep
+   *  expression string. Useful during migration: legacy layouts keep
    *  working while new code paths get visibility into which
    *  expressions still need porting. */
   | 'warn'
   /** Never compile expression-kind formatters; substitute an identity
-   *  formatter at the adapter. Profile imports containing
+   *  formatter at the adapter. Layout imports containing
    *  expression-kind templates are rejected outright unless the caller
    *  opts into `{ sanitize: true }`. Required for CSP-hardened
    *  deployments. */
@@ -41,11 +41,11 @@ export type ExpressionPolicyMode =
 
 export interface ExpressionPolicyViolation {
   /** Which surface triggered the violation. `valueFormatter` fires at
-   *  runtime when the adapter is asked to compile; `profileImport` fires
-   *  synchronously inside `ProfileManager.import` before any state is
+   *  runtime when the adapter is asked to compile; `layoutImport` fires
+   *  synchronously inside `LayoutManager.import` before any state is
    *  written to storage. */
-  kind: 'valueFormatter' | 'profileImport';
-  /** The violating expression string, when available. `profileImport`
+  kind: 'valueFormatter' | 'layoutImport';
+  /** The violating expression string, when available. `layoutImport`
    *  violations may omit this if the offending payload was malformed. */
   expression?: string;
   /** Short human-readable reason. Stable across versions — safe to key
@@ -75,7 +75,7 @@ const warnedExpressions = new Set<string>();
 
 /**
  * Install a security policy. Call at application boot, before any
- * `<MarketsGrid>` mounts or any profile import runs.
+ * `<MarketsGrid>` mounts or any layout import runs.
  *
  * Partial updates merge onto the existing policy — pass
  * `{ mode: 'strict' }` to flip the mode while keeping an existing
@@ -106,7 +106,7 @@ export function __resetExpressionPolicyForTests(): void {
 
 /**
  * Emit a violation to the policy's observer + (in `'warn'` mode)
- * console. Called from the adapter and the profile importer.
+ * console. Called from the adapter and the layout importer.
  * @internal
  */
 export function reportExpressionViolation(v: ExpressionPolicyViolation): void {
@@ -129,7 +129,7 @@ export function reportExpressionViolation(v: ExpressionPolicyViolation): void {
 /**
  * Depth-first walk looking for `{ kind: 'expression', expression: string }`
  * shapes anywhere in `value`. Returns the first violating expression
- * string, or `null` if none found. Used by `ProfileManager.import` to
+ * string, or `null` if none found. Used by `LayoutManager.import` to
  * gate payloads in `'strict'` mode.
  *
  * Keyed on shape-match rather than path so the check works against any
@@ -167,7 +167,7 @@ export function findExpressionFormatter(
 
 /**
  * Walk `value` and replace every `{ kind: 'expression', ... }` in-place
- * with a safe identity-formatter stand-in. Invoked by the profile
+ * with a safe identity-formatter stand-in. Invoked by the layout
  * importer when `sanitize: true` is passed under `'strict'` mode.
  *
  * The replacement is `{ kind: 'preset', preset: 'number', options: { decimals: 0 } }`

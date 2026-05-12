@@ -4,7 +4,7 @@ import {
   createConfigServiceStorage,
   type ApplicationContext,
   type ConfigManager,
-  type ProfileStorageFactory,
+  type LayoutStorageFactory,
 } from '@starui/config-service';
 import { DataServicesService } from '@starui/data-services-angular';
 
@@ -48,11 +48,11 @@ export class ConfigServiceClient implements OnDestroy {
   });
 
   /**
-   * Pre-bound `ProfileStorageFactory` ready to hand to
+   * Pre-bound `LayoutStorageFactory` ready to hand to
    * `<MarketsGrid storage={...} />`. Constructed once against the
    * same `ConfigManager` this client owns.
    */
-  readonly storage: ProfileStorageFactory = createConfigServiceStorage({
+  readonly storage: LayoutStorageFactory = createConfigServiceStorage({
     configManager: this.configManager,
   });
 

@@ -186,7 +186,7 @@ The reference applications serve **three purposes simultaneously:**
 | AG-Grid Blotter | Full `BlotterComponent` with live data, all 8 config editor panels open and functional |
 | Column groups | Nested hierarchy, all three styling levels, conditional styles, open/closed state persistence |
 | Expression engine | Calculated columns, conditional styling, named queries, flash rules — all using `ExpressionEditorReact` |
-| Profiles | Save, load, export, import. Load from remote URL. |
+| Layouts | Save, load, export, import. Load from remote URL. |
 | AppDataProvider | `UserSettings` panel sets `deskId` — Credit Blotter and Risk Heatmap both react via `{{UserSettings.deskId}}` |
 | Theme switching | Dock toggle switches all components simultaneously via `ThemeService` |
 | Permissions | `usePermissions()` gating column editing and config editor access by role |
@@ -617,7 +617,7 @@ interface BlotterConfig {
   calculatedCols:   CalculatedColumn[];        // virtual columns via expressions
   namedQueries:     NamedQuery[];              // saved filter combinations (OR combined)
   entitlements:     EntitlementRule[];         // cell editing rules
-  profiles:         ConfigProfile[];           // named config snapshots
+  layouts:          ConfigLayout[];            // named config snapshots
   gridOptions:      Partial<GridOptions>;      // AG-Grid gridOptions overrides
 }
 ```
@@ -766,7 +766,7 @@ const onColumnGroupOpened = (event: ColumnGroupOpenedEvent) => {
 | 5 | Calculated Columns | Virtual columns via `ExpressionEditor`. Full 60+ function library. |
 | 6 | Named Queries | Create/save filter combinations via expression editor or by saving current grid filters. Multiple queries combined with OR. |
 | 7 | Flash & Entitlements | Cell/row flash conditions, flash style (color, duration, animation). Editing entitlements based on row values or REST responses. |
-| 8 | Profiles | Save entire config as named profiles. Load, delete, export to JSON, import from JSON, load from remote URL. |
+| 8 | Layouts | Save entire config as named layouts. Load, delete, export to JSON, import from JSON, load from remote URL. |
 
 ### 9.2 Expression Engine Function Library
 

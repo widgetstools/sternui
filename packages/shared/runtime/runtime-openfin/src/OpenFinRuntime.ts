@@ -141,7 +141,8 @@ export class OpenFinRuntime implements RuntimePort {
    *  saved value has actually changed since the last apply. The
    *  changed-only guard matters because the customData poll fires for
    *  ANY customData mutation (including unrelated keys like
-   *  `activeProfileId`); without it, every profile switch would clobber
+   *  `activeProfileId` — preserved wire key for the active-layout id);
+   *  without it, every layout switch would clobber
    *  whatever dynamic title the page is currently showing. */
   private applyTitleFromCustomData(cd: Readonly<Record<string, unknown>>): void {
     const saved = this.readSavedTitle(cd);

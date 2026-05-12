@@ -32,7 +32,7 @@ import {
   applyHeaderNameReducer,
   applyTemplateToColumnsReducer,
   applyTypographyReducer,
-  clearAllStylesInProfileReducer,
+  clearAllStylesInLayoutReducer,
   clearAllStylesReducer,
   pickTemplateFields,
   removeTemplateRefFromAssignmentsReducer,
@@ -424,7 +424,7 @@ export function useFormatter(): UseFormatterResult {
   }, [setTplState, setCustStateWithHistory]);
 
   const confirmClearAll = useCallback(() => {
-    setCustStateWithHistory(clearAllStylesInProfileReducer());
+    setCustStateWithHistory(clearAllStylesInLayoutReducer());
     flashClear();
   }, [setCustStateWithHistory, flashClear]);
 

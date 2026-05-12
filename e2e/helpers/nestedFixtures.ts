@@ -8,16 +8,18 @@ import { expect, type Page } from '@playwright/test';
  * collide on shared selectors.
  *
  * Boot pattern:
- *   1. Wipe the v2 IndexedDB + localStorage active-profile pointers.
+ *   1. Wipe the v2 IndexedDB + localStorage active-layout pointers
+ *      (writes go to `gc-active-layout:` after the Profile→Layout rename;
+ *      pre-rename keys at `gc-active-profile:` are still recognized).
  *   2. Navigate to `?view=fixture&f=<name>`.
  *   3. Wait for the fixture banner + grid rows.
  *   4. Force a redraw (via the shared `forceGridRedraw` helper) — newly
  *      seeded conditional-styling rules occasionally need one nudge to
  *      re-evaluate row class predicates that AG-Grid's first render
- *      computed before the profile state landed.
+ *      computed before the layout state landed.
  */
 
-import { forceGridRedraw } from './profileHelpers';
+import { forceGridRedraw } from './layoutHelpers';
 
 export type FixtureName =
   | 'formatter'
@@ -38,7 +40,7 @@ export async function clearFixtureStorage(page: Page): Promise<void> {
       req.onblocked = () => resolve();
     });
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-showcase-seeded:'))
+      .filter((k) => k.startsWith('gc-active-layout:') || k.startsWith('gc-active-profile:') || k.startsWith('gc-showcase-seeded:'))
       .forEach((k) => localStorage.removeItem(k));
   });
 }
@@ -59,7 +61,7 @@ export async function bootFixture(page: Page, name: FixtureName): Promise<string
   await page.waitForSelector(`[data-testid="fixture-banner"][data-fixture-name="${name}"]`, { timeout: 10_000 });
   await page.waitForSelector(`[data-grid-id="${FIXTURE_GRID_ID(name)}"]`, { timeout: 10_000 });
   await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
-  // Settle: profile load + transform pipeline + AG-Grid first paint.
+  // Settle: layout load + transform pipeline + AG-Grid first paint.
   await page.waitForTimeout(500);
   await forceGridRedraw(page);
   return FIXTURE_GRID_ID(name);

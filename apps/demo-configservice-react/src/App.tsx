@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@starui/markets-grid';
-import { activeProfileKey } from '@starui/core';
-import type { ProfileSnapshot } from '@starui/core';
+import { activeLayoutKey } from '@starui/core';
+import type { LayoutSnapshot } from '@starui/core';
 import {
   createConfigManager,
   createConfigServiceStorage,
@@ -22,18 +22,18 @@ import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapt
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
 import { MarketDepth } from './MarketDepth';
-import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
+import { buildShowcasePayload, SHOWCASE_LAYOUT_NAME } from './showcaseLayout';
 
 // ─── ConfigService integration ─────────────────────────────────────────
 //
 // This demo swaps the plain-`DexieAdapter` wiring from apps/demo-react
 // for the ConfigService-backed `createConfigServiceStorage` factory.
-// Profiles are persisted as `AppConfigRow` rows scoped by
+// Layouts are persisted as `AppConfigRow` rows scoped by
 // `(appId, userId, instanceId)`. A user switcher in the header lets you
-// flip between two demo users and watch each user's profile set come
+// flip between two demo users and watch each user's layout set come
 // and go — proving that userId scoping works end-to-end.
 //
-// ConfigManager runs in pure-Dexie mode (no REST endpoint). All profile
+// ConfigManager runs in pure-Dexie mode (no REST endpoint). All layout
 // rows live in IndexedDB under the `marketsui-config` database; they
 // survive reload and persist across browser sessions just like Dexie,
 // but now MarketsGrid is decoupled from the storage medium and the
@@ -44,7 +44,7 @@ import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
 // `dev1` is its default user with developer + admin role permissions.
 // Alice / Bob are demo-only alternates kept alongside so the per-user
 // scoping mechanism is visible even to first-time visitors — they
-// have no seed rows, just MarketsGrid profile-set rows they create.
+// have no seed rows, just MarketsGrid layout-set rows they create.
 const APP_ID = 'TestApp';
 const DEMO_USERS = [
   { id: 'dev1',  label: 'dev1' },
@@ -63,10 +63,10 @@ function initialUser(): DemoUserId {
   return 'dev1';
 }
 
-/** User-scoped active-profile key. Keeps Alice's "last open profile"
+/** User-scoped active-layout key. Keeps Alice's "last open layout"
  *  from leaking into Bob's session on the same device. */
-function scopedActiveProfileKey(gridId: string, userId: DemoUserId): string {
-  return `${activeProfileKey(gridId)}:${userId}`;
+function scopedActiveLayoutKey(gridId: string, userId: DemoUserId): string {
+  return `${activeLayoutKey(gridId)}:${userId}`;
 }
 
 type View = 'single' | 'dashboard' | 'depth';
@@ -152,27 +152,29 @@ const defaultColDef: ColDef<Order> = {
 
 // ─── Showcase seeding ──────────────────────────────────────────────────
 //
-// On first boot (per gridId), seed the "Showcase" profile directly into
-// the Dexie store and flip the active-profile localStorage pointer so
+// On first boot (per gridId), seed the "Showcase" layout directly into
+// the Dexie store and flip the active-layout localStorage pointer so
 // MarketsGrid boots straight into the styled / calculated / tick-flashed
 // view. Skipped on subsequent loads (idempotent: we match by name).
 
 const GRID_ID = 'demo-blotter-v2';
 // Seed flag is per-user so each demo user sees the showcase on first
-// open — proves that profile data is user-scoped. Without this, Alice
-// would seed the profile, Bob would switch in and find it already
+// open — proves that layout data is user-scoped. Without this, Alice
+// would seed the layout, Bob would switch in and find it already
 // present (because we DO share the Dexie physical db), giving the
-// false impression that Bob inherits Alice's profile.
+// false impression that Bob inherits Alice's layout.
 function seedFlagKey(userId: DemoUserId): string {
   return `demo-cs-showcase-seeded:${GRID_ID}:${userId}`;
 }
 
 /**
- * First-boot seed of the "Showcase" profile for a user. Writes
+ * First-boot seed of the "Showcase" layout for a user. Writes
  * through the same `storage` factory MarketsGrid uses, so the
  * resulting row is a real ConfigService `AppConfigRow` — you can
  * inspect it via the ConfigBrowser (once wired) to see the exact
- * `componentType: "markets-grid-profile"` / composite configId shape.
+ * `componentType: "markets-grid-layout-set"` / composite configId shape.
+ * Pre-rename rows wearing `'markets-grid-profile-set'` are still
+ * recognized on read for back-compat.
  */
 async function ensureShowcaseSeedFor(
   userId: DemoUserId,
@@ -188,8 +190,8 @@ async function ensureShowcaseSeedFor(
   // Seed via the same factory MarketsGrid uses — passes the full
   // identity triple so the row is correctly scoped to (TestApp, userId).
   const adapter = storage({ instanceId: GRID_ID, appId: APP_ID, userId });
-  const existing = await adapter.listProfiles(GRID_ID);
-  if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase())) {
+  const existing = await adapter.listLayouts(GRID_ID);
+  if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_LAYOUT_NAME.toLowerCase())) {
     try { localStorage.setItem(flagKey, '1'); } catch { /* */ }
     return;
   }
@@ -197,19 +199,19 @@ async function ensureShowcaseSeedFor(
   const payload = buildShowcasePayload(GRID_ID);
   const now = Date.now();
   const id = 'showcase';
-  const snap: ProfileSnapshot = {
+  const snap: LayoutSnapshot = {
     id,
     gridId: GRID_ID,
-    name: payload.profile.name,
-    state: payload.profile.state,
+    name: payload.layout.name,
+    state: payload.layout.state,
     createdAt: now,
     updatedAt: now,
   };
-  await adapter.saveProfile(snap);
+  await adapter.saveLayout(snap);
 
-  // Point the user-scoped active-profile pointer at the fresh snapshot
+  // Point the user-scoped active-layout pointer at the fresh snapshot
   // so the first MarketsGrid render for this user lands on the showcase.
-  try { localStorage.setItem(scopedActiveProfileKey(GRID_ID, userId), id); } catch { /* */ }
+  try { localStorage.setItem(scopedActiveLayoutKey(GRID_ID, userId), id); } catch { /* */ }
   try { localStorage.setItem(flagKey, '1'); } catch { /* */ }
 }
 
@@ -236,12 +238,12 @@ function AppInner() {
     try { return localStorage.getItem('gc-ticking') !== 'off'; }
     catch { return true; }
   });
-  // Gate the first render until the showcase profile has been seeded;
-  // otherwise MarketsGrid briefly boots with the default profile and
+  // Gate the first render until the showcase layout has been seeded;
+  // otherwise MarketsGrid briefly boots with the default layout and
   // then flips, producing a visible style flash.
   const [seeded, setSeeded] = useState(false);
   // Active user — flips the factory's closure, effectively replacing
-  // every MarketsGrid's view of what profiles exist. Persisted so
+  // every MarketsGrid's view of what layouts exist. Persisted so
   // reload keeps you as the same user.
   const [userId, setUserId] = useState<DemoUserId>(initialUser);
   // ConfigManager is created once per mount in dev (Dexie-only mode —
@@ -285,10 +287,11 @@ function AppInner() {
   // `seedConfigUrl` points at public/seed-config.json which
   // ConfigManager fetches ONCE on first boot (Dexie tables empty) and
   // uses to populate appRegistry / userProfiles / roles / permissions.
+  // (userProfiles is the auth-identity domain — distinct from grid layouts.)
   // Subsequent boots skip the fetch.
   //
   // Awaiting init gates the storage factory behind a loaded
-  // configuration — MarketsGrid's first listProfiles call doesn't
+  // configuration — MarketsGrid's first listLayouts call doesn't
   // race a half-initialized Dexie table.
   //
   // Also publish the instance to @starui/openfin-platform's shared
@@ -360,7 +363,7 @@ function AppInner() {
     }),
   ], []);
 
-  // One-shot seed of the Showcase profile per user. Seeds via the same
+  // One-shot seed of the Showcase layout per user. Seeds via the same
   // ConfigService factory MarketsGrid uses — the resulting row is a
   // real AppConfigRow you can inspect through the Config Browser.
   useEffect(() => {
@@ -467,10 +470,10 @@ function AppInner() {
               {ticking ? 'LIVE' : 'PAUSED'}
             </button>
           )}
-          {/* ConfigService indicator — visual proof that profiles are
+          {/* ConfigService indicator — visual proof that layouts are
               being persisted through the factory, not a direct adapter. */}
           <span
-            title="Profiles persist via @starui/config-service — scoped by (appId, userId, instanceId)"
+            title="Layouts persist via @starui/config-service — scoped by (appId, userId, instanceId)"
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               height: 26, padding: '0 10px', borderRadius: 5,
@@ -486,11 +489,11 @@ function AppInner() {
             ConfigService
           </span>
 
-          {/* User switcher — flips the factory closure so profiles
+          {/* User switcher — flips the factory closure so layouts
               scope to a different userId. Effectively replaces every
-              grid's profile set without unmounting. */}
+              grid's layout set without unmounting. */}
           <div
-            title="Active user. Profiles are scoped per-user; switching reveals a different profile set."
+            title="Active user. Layouts are scoped per-user; switching reveals a different layout set."
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               height: 26, padding: '0 4px 0 10px', borderRadius: 5,

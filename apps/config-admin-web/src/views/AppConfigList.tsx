@@ -36,7 +36,7 @@ import { useAppScope } from '../AppScopeContext';
  * The four list editors elsewhere in the admin SPA cover the auth
  * tables (apps / users / roles / permissions). This is the missing
  * fifth surface: the table where component instances + templates
- * persist their saved state — MarketsGrid profiles, dock layouts,
+ * persist their saved state — MarketsGrid layouts, dock layouts,
  * order tickets, etc. Without this the operator can register apps
  * and grant roles but can't actually inspect or repair what an app
  * has saved.

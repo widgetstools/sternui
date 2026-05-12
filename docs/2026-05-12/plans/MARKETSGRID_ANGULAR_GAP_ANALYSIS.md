@@ -24,19 +24,19 @@ Method:
 |---|---|---|---|
 | Foundation | `@starui/shared-types`, `@starui/design-system`, `@starui/icons-svg`, `@starui/ui` (shadcn primitives), `@starui/widget-sdk` | same — `@starui/design-system` already ships PrimeNG preset (see `apps/demo-angular/src/app/app.config.ts` ll. 4-7) | Present |
 | Runtime | `@starui/runtime-port`, `@starui/runtime-browser`, `@starui/runtime-openfin`, `@starui/openfin-platform` | reuses identical vanilla packages | Present |
-| Vanilla core | `@starui/core` (GridPlatform, ProfileManager, expression engine, persistence adapters, history stack — see `packages/shared/core/src/index.ts`) | reuses identical vanilla package | Present |
+| Vanilla core | `@starui/core` (GridPlatform, LayoutManager, expression engine, persistence adapters, history stack — see `packages/shared/core/src/index.ts`) | reuses identical vanilla package | Present |
 | Vanilla services | `@starui/component-host`, `@starui/config-service`, `@starui/data-services` | reuses identical vanilla packages | Present |
 | Service DI shells | `@starui/host-wrapper-react`, `@starui/config-service-react`, `@starui/data-services-react` | `@starui/host-wrapper-angular` (134 LOC `HostService.ts`), `@starui/config-service-angular` (102 LOC `ConfigServiceClient.ts` + tested), `@starui/data-services-angular` (5 `inject-*` helpers) | **Present — Angular parity already shipped here.** |
 | Operator tools | `@starui/config-browser` (react), `@starui/workspace-setup-react`, `@starui/config-editor-ui` | `@starui/config-browser-angular` (594 LOC, AG-Grid based) | Config browser parity ✓. Workspace setup + config-editor-ui have no Angular twin (out of scope for grid epic). |
 | Grid React surface | `@starui/grid-react` (162 `.ts` + 250 `.tsx` files across `hooks/`, `modules/{9 modules}/`, `ui/{SettingsPanel,StyleEditor,FormatterPicker,ExpressionEditor,format-editor,ColorPicker,shadcn,PopoutPortal,Poppable,PortalContainer}`) | **Nothing.** No `@starui/grid-angular` exists. | **MISSING — biggest gap.** |
-| Grid host component | `@starui/markets-grid` (`MarketsGrid.tsx` 1281 LOC + 18 sibling files: `FiltersToolbar`, `FormattingToolbar`, `SettingsSheet`, `ProfileSelector`, `HelpPanel`, `TemplateManager`, `DraggableFloat`, `useGridHost`, `streamSafeFloatingFilter[Dom]?` ×3, `formatter/*`, `formatterPresets`, `openfinViewProfile`, etc.) | **Nothing.** | **MISSING — primary deliverable.** |
+| Grid host component | `@starui/markets-grid` (`MarketsGrid.tsx` 1281 LOC + 18 sibling files: `FiltersToolbar`, `FormattingToolbar`, `SettingsSheet`, `LayoutSelector`, `HelpPanel`, `TemplateManager`, `DraggableFloat`, `useGridHost`, `streamSafeFloatingFilter[Dom]?` ×3, `formatter/*`, `formatterPresets`, `openfinViewLayout`, etc.) | **Nothing.** | **MISSING — primary deliverable.** |
 | Demo apps | `apps/demo-react`, `apps/demo-configservice-react`, `apps/markets-ui-react-reference` | `apps/demo-angular` exists (38 files), but it's a standalone PrimeNG/Aura trading dashboard with raw `ag-grid-angular` widgets — does NOT mount any future `<stern-markets-grid>` | **Partial — host shell + theming wired, MarketsGrid integration missing.** |
 | Generic widgets | `@starui/widgets-react` | `@starui/widgets-angular` — has `DataProviderEditor` (216+233+197+394 LOC = 1040 LOC across 4 files) and `DockConfigurator` (373+134+116 LOC = 623 LOC across 3 files), plus `field-inference.service` and `data-provider.service` | Two named widgets at parity. **No grid surface here.** |
 
 ### Key takeaways
 
 1. **The Layer-1 / Layer-2 / Layer-3 vanilla foundation is fully shared.**
-   The hard architectural work — extracting GridPlatform, ProfileManager,
+   The hard architectural work — extracting GridPlatform, LayoutManager,
    ConfigService, DataServices, RuntimePort to vanilla — already
    happened and Angular benefits for free.
 2. **DI shells are already at parity.** `host-wrapper-angular`,
@@ -109,14 +109,14 @@ SettingsPanel: ColumnSettingsPanel,
 | `useGridPlatform` (`hooks/GridProvider.tsx`) | reads the `GridPlatform` from React context | `GridPlatformService` (`@Injectable`) — needed |
 | `useModuleState` (`hooks/useModuleState.ts`) | subscribes to a module slice | Signal-backed `moduleState<T>(id)` from `GridPlatformService` |
 | `useGridApi` / `useGridEvent` (`hooks/useGridApi.ts`) | accesses AG-Grid API + subscribes to grid events | `inject(GridApiToken)` + RxJS `gridEvent$(name)` |
-| `useProfileManager` (`hooks/useProfileManager.ts`) | profile-manager-as-hook surface | `ProfileManagerService` (already vanilla state machine; thin shell) |
+| `useLayoutManager` (`hooks/useLayoutManager.ts`) | layout-manager-as-hook surface | `LayoutManagerService` (already vanilla state machine; thin shell) |
 | `useDirty` / `useDirtyCount` (`hooks/useDirty.ts`) | subscribes to DirtyBus | Signal-backed `dirty$(key)` |
 | `useGridColumns` (`hooks/useGridColumns.ts`) | column list subscription | Signal-backed `columns()` |
 | `useModuleDraft` (`hooks/useModuleDraft.ts`) | local draft buffer + undo/redo | needed for every Angular editor pane |
 | `useUndoRedo` (`hooks/useUndoRedo.ts`) | thin shell over `@starui/core`'s `HistoryStack` | direct use of `HistoryStack` (already vanilla) |
 
 **Coverage:** the underlying vanilla state machines all live in
-`@starui/core` (`GridPlatform`, `ProfileManager`, `DirtyBus`,
+`@starui/core` (`GridPlatform`, `LayoutManager`, `DirtyBus`,
 `HistoryStack`). The hooks are pure adapters. Angular twins are short
 files — ~30-60 LOC each — that subscribe via `signal()` or
 `new Observable()`. Total ≈ 8 files, ~400 LOC.
@@ -188,7 +188,7 @@ Files under `packages/react/widgets/markets-grid/src/`:
 | `FiltersToolbar.tsx` | ≈700 | Saved-filter pill carousel + actions | Hand-port |
 | `FormattingToolbar.tsx` | ≈600 | Pinned + draggable floating toolbar | Hand-port |
 | `SettingsSheet.tsx` | ≈400 | Cockpit drawer host | Hand-port |
-| `ProfileSelector.tsx` | ≈500 | Dropdown w/ rename/clone/import/export | Hand-port |
+| `LayoutSelector.tsx` | ≈500 | Dropdown w/ rename/clone/import/export | Hand-port |
 | `HelpPanel.tsx` | ≈300 | Help overlay | Hand-port |
 | `TemplateManager.tsx` | ≈300 | Template inline manager | Hand-port |
 | `DraggableFloat.tsx` | ≈200 | Draggable float wrapper | CDK drag-drop |
@@ -197,8 +197,8 @@ Files under `packages/react/widgets/markets-grid/src/`:
 | `formatter/*` (Formatter.tsx, modules/, primitives.tsx, state.ts) | ≈1400 | The Formatter sub-tool (Context · Type · Format · Paint · Clear · Library) | Largest sub-port. State (`formatter/state.ts`) is already vanilla. |
 | `formatterPresets.ts` | ≈300 | Preset catalog | Already vanilla; reused as-is |
 | `filtersToolbarLogic.ts` | ≈200 | Pure-logic helpers (`generateLabel`, `doesRowMatchFilterModel`, etc.) | Already vanilla; reused as-is |
-| `openfinViewProfile.ts` | ≈100 | OpenFin profile source helper | Already vanilla |
-| `grid-chrome.css`, `styles/marketsGrid.css`, `HelpPanel.css`, `ProfileSelector.css` | n/a | CSS | Reused as-is |
+| `openfinViewLayout.ts` | ≈100 | OpenFin layout source helper | Already vanilla |
+| `grid-chrome.css`, `styles/marketsGrid.css`, `HelpPanel.css`, `LayoutSelector.css` | n/a | CSS | Reused as-is |
 | `types.ts`, `index.ts` | 384 | Public surface | Hand-port shape; types already vanilla |
 | **`markets-grid` total** | **≈8000 LOC** | | |
 
@@ -219,7 +219,7 @@ shell × 4, tailwind/angular config).
 **Not wired:**
 - No `@starui/markets-grid-angular` package to consume (doesn't exist)
 - No `@starui/grid-react`-equivalent panels
-- No profile management
+- No layout management
 - No saved filters / formatting toolbar / settings sheet / column customizer
 - `LicenseManager.setLicenseKey('')` on every widget — license wiring deferred
 
@@ -254,7 +254,7 @@ These are not gaps; they're scope-fences for the epic.
 | Conditional styling's DOM watcher interacts with AG-Grid header DOM | Per PR #2: differential class mutations on `.ag-header-cell` outside Angular's change-detection awareness. Needs `runOutsideAngular` wrapping or zoneless verification. | **Low — recipe known** |
 | `streamSafeFloatingFilter` rendering | React uses `IFloatingFilterReactComp`; Angular needs `IFloatingFilterAngularComp`. The pure DOM/state piece (`streamSafeFloatingFilterDom.ts`) is already framework-agnostic so it can be reused. | **Low** |
 | Schema migrations (e.g. PR #2's `flashDuration` → `durationMs`) | Tests live in `grid-react`'s vitest suite. If logic stays in `grid-react` under bucket-A Option-A, the tests stay where they are. Angular shell calls the shared deserializer. | **Low** |
-| Profile-snapshot byte-for-byte round-trip between shells | Same serializer (vanilla). Easy to enforce via a golden-file test. | **Low** |
+| Layout-snapshot byte-for-byte round-trip between shells | Same serializer (vanilla). Easy to enforce via a golden-file test. | **Low** |
 | `ag-grid-angular` v35 with zoneless change detection | `apps/demo-angular` uses zoneless and AG-Grid 35.1.0 already — works in the existing demo. | **Low — already proven** |
 
 ---
@@ -269,7 +269,7 @@ Now that the gaps are evidence-based:
 | B | `@starui/markets-grid-angular` skeleton + host component + DI services | **30** | 34 | −4 |
 | C | Settings cockpit & panel primitives (Angular hand-port of `SettingsPanel/`) | **34** | 29 | +5 |
 | D | Module panels × 5 + shared editors (StyleEditor, FormatterPicker, ExpressionEditor in Angular) | **89** | 89 | 0 |
-| E | Host chrome (FiltersToolbar, FormattingToolbar, ProfileSelector, SettingsSheet, HelpPanel, Formatter) | **55** | 42 | +13 |
+| E | Host chrome (FiltersToolbar, FormattingToolbar, LayoutSelector, SettingsSheet, HelpPanel, Formatter) | **55** | 42 | +13 |
 | F | AG-Grid Angular integration polish (floating filters, theme, header DOM, license) | **24** | 24 | 0 |
 | G | `apps/demo-angular` MarketsGrid integration (evolve existing demo, not rebuild) | **13** | 24 | −11 |
 | H | Test infra, e2e, docs, release pipeline | **31** | 31 | 0 |
@@ -306,9 +306,9 @@ Net change is small (−29 SP), but the **shape** changes materially:
    `grid-react` / `grid-angular` subpackages? Or keep the asymmetric
    name? Affects every Jira story description.
 5. **Demo parity vs. demo isolation** — should the Angular demo aim
-   for **byte-identical profile round-trip** with the React demo
+   for **byte-identical layout round-trip** with the React demo
    (requires shared snapshot), or just **feature parity** (each demo
-   can write its own profiles)? Affects Epic G scope.
+   can write its own layouts)? Affects Epic G scope.
 
 Resolve these in a 30-minute sync, then I can rewrite the backlog
 file with concrete, sized stories — this time grounded in the evidence

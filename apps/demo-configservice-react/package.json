@@ -2,7 +2,7 @@
   "name": "@starui/demo-configservice-react",
   "private": true,
   "version": "0.1.0",
-  "description": "Integration demo: MarketsGrid + @starui/config-service storage factory — profile persistence scoped by (appId, userId, instanceId) through the ConfigService, with a user switcher that shows per-user profile isolation.",
+  "description": "Integration demo: MarketsGrid + @starui/config-service storage factory — layout persistence scoped by (appId, userId, instanceId) through the ConfigService, with a user switcher that shows per-user layout isolation.",
   "type": "module",
   "scripts": {
     "dev": "vite",

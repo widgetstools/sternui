@@ -195,7 +195,7 @@
 }
 
 /* ─── Primary toolbar row (filters + right action cluster) ──────────
-   Unifies the filters toolbar, formatter-toolbar toggle, profile
+   Unifies the filters toolbar, formatter-toolbar toggle, layout
    selector, save button, and settings icon into a single 44px strip.
    Must be OUTSIDE @layer so Tailwind's reset can't overwrite the
    flexbox layout. */

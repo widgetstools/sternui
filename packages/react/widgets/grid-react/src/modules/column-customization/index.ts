@@ -43,11 +43,11 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     //   - schemaVersion 6 (parked column_settings branch) introduced
     //     synthetic FilterKinds 'streamSafeMultiColumnFilter' and
     //     'streamSafeMultiNumberColumnFilter' + a `floatingFilterStyle`
-    //     field. main never shipped those, so a v6 profile arriving
+    //     field. main never shipped those, so a v6 layout arriving
     //     here gets the synthetic kinds rewritten back to plain
     //     'agMultiColumnFilter' (and the floatingFilterStyle field is
     //     dropped — main has no place to honour it). This rescues the
-    //     user's other settings instead of nuking the profile when
+    //     user's other settings instead of nuking the layout when
     //     they switch between branches.
     if (fromVersion >= 1 && fromVersion <= 6) {
       if (!raw || typeof raw !== 'object') {
@@ -188,6 +188,6 @@ export {
   applyTemplateToColumnsReducer,
   removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,
-  clearAllStylesInProfileReducer,
+  clearAllStylesInLayoutReducer,
   type TargetKind,
 } from './formattingActions';

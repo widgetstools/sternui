@@ -5,11 +5,11 @@ import type { ConfigManager } from '@starui/config-service';
 
 // Container stub fires onReady on mount with a fake MarketsGridHandle so
 // HostedMarketsGrid can capture it into its ref.
-const saveActiveProfile = vi.fn().mockResolvedValue(undefined);
+const saveActiveLayout = vi.fn().mockResolvedValue(undefined);
 const fakeHandle = {
   gridApi: {} as any,
   platform: {} as any,
-  profiles: { saveActiveProfile } as any,
+  layouts: { saveActiveLayout } as any,
 };
 
 vi.mock('../../v2/markets-grid-container/index.js', () => ({
@@ -55,7 +55,7 @@ const fakeConfigManager = {
 } as unknown as ConfigManager;
 
 beforeEach(() => {
-  saveActiveProfile.mockClear();
+  saveActiveLayout.mockClear();
   capturedOnSave = undefined;
 });
 
@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 describe('HostedMarketsGrid — workspace-save wiring', () => {
-  it('calls saveActiveProfile through the captured grid handle', async () => {
+  it('calls saveActiveLayout through the captured grid handle', async () => {
     const { getByTestId } = render(
       <HostedMarketsGrid
         gridId="g"
@@ -80,7 +80,7 @@ describe('HostedMarketsGrid — workspace-save wiring', () => {
 
     expect(typeof capturedOnSave).toBe('function');
     await capturedOnSave!();
-    expect(saveActiveProfile).toHaveBeenCalledTimes(1);
+    expect(saveActiveLayout).toHaveBeenCalledTimes(1);
   });
 
   it('is a no-op when onReady has not fired yet', async () => {
@@ -95,6 +95,6 @@ describe('HostedMarketsGrid — workspace-save wiring', () => {
     );
     expect(typeof capturedOnSave).toBe('function');
     await capturedOnSave!();
-    expect(saveActiveProfile).not.toHaveBeenCalled();
+    expect(saveActiveLayout).not.toHaveBeenCalled();
   });
 });

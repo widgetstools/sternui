@@ -2,18 +2,18 @@
  * Two-grid dashboard — visual reference for a multi-grid layout.
  *
  * Two `<MarketsGrid>` instances sit side by side. Each has:
- *   - a unique `gridId` → independent IndexedDB profiles, independent
+ *   - a unique `gridId` → independent IndexedDB layouts, independent
  *     platform, independent DirtyBus, independent toolbars.
  *   - its own rowData + chrome label so users can see at a glance which
  *     dataset they're looking at.
  *   - the full feature set (filters toolbar, formatting toolbar,
- *     settings sheet, profile selector).
+ *     settings sheet, layout selector).
  *
  * Why this exists: the FormattingToolbar refactor (steps 1-7) made every
  * toolbar fully context-driven — no prop-threaded store, no shared
  * references between grids. This page is the visual proof. Formatting
  * column `price` as bold+red on grid A leaves grid B untouched; grid B
- * can have its own saved templates, its own profile, its own overrides.
+ * can have its own saved templates, its own layout, its own overrides.
  *
  * This is also the harness the end-to-end isolation spec targets
  * (`e2e/v2-two-grid-isolation.spec.ts`).
@@ -37,7 +37,7 @@ export function Dashboard({ theme, columnDefs, defaultColDef }: DashboardProps) 
 
   // One storage adapter, shared across both grids. The `MarketsGrid` host
   // scopes everything it writes by `gridId`, so two grids sharing one
-  // IndexedDB adapter still have fully independent profile state.
+  // IndexedDB adapter still have fully independent layout state.
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
 
   return (

@@ -1,7 +1,7 @@
 {
   "name": "@starui/core",
   "version": "0.1.0",
-  "description": "MarketsUI core — GridPlatform, modules, ProfileManager, HistoryStack, ExpressionEngine. Framework-agnostic TypeScript foundation.",
+  "description": "MarketsUI core — GridPlatform, modules, LayoutManager, HistoryStack, ExpressionEngine. Framework-agnostic TypeScript foundation.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

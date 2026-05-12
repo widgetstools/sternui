@@ -67,7 +67,7 @@ export interface UseHostedIdentityResult {
  * ignored at runtime so persistence always lands under the same scope.
  * Cross-machine imports and legacy rows otherwise diverge the appId
  * between writers and readers, breaking the strict-equality ownership
- * check in `isProfileSetRow`. Replace this literal when real multi-app
+ * check in `isLayoutSetRow`. Replace this literal when real multi-app
  * support lands.
  */
 const DEFAULT_APP_ID = 'TestApp';

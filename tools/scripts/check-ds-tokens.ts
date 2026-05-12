@@ -89,10 +89,10 @@ const ALLOW_PATHS = [
   'packages/react/widgets/grid-react/src/modules/column-templates/snapshotTemplate.test.ts',
   'packages/react/widgets/widgets-react/src/hosted/__tests__/useColorLinking.test.tsx',
   'packages/react/widgets/widgets-react/src/hosted/useColorLinking.ts', // OpenFin color group values (hex) are platform-provided
-  // --- Demo app profile/fixture data files: hex values are user-chosen cell colors stored as data ---
-  'apps/demo-react/src/showcaseProfile.ts',
+  // --- Demo app layout/fixture data files: hex values are user-chosen cell colors stored as data ---
+  'apps/demo-react/src/showcaseLayout.ts',
   'apps/demo-react/src/nestedFixtures.ts',
-  'apps/demo-configservice-react/src/showcaseProfile.ts',
+  'apps/demo-configservice-react/src/showcaseLayout.ts',
   'apps/demo-angular/src/app/services/trading-data.service.ts',
   // --- Design system showcase: displays raw hex values intentionally ---
   'apps/demo-angular/src/app/widgets/design-system.widget.ts',

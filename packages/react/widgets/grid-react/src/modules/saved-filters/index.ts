@@ -4,7 +4,7 @@
  * Core does not interpret the FILTER MODEL inside each record (that is
  * AG-Grid-specific and lives in the host's `<FiltersToolbar>`), but it
  * DOES validate the wrapper shape (`id`, `label`, `active`, `filterModel`)
- * so legacy / malformed entries from older profile snapshots are dropped
+ * so legacy / malformed entries from older layout snapshots are dropped
  * or normalized at load time instead of poisoning runtime state.
  */
 import type { Module } from '@starui/core';
@@ -64,7 +64,7 @@ export const savedFiltersModule: Module<SavedFiltersState> = {
   // v1 → v2: added structural validation. The on-disk shape is
   // unchanged, but v1 snapshots may carry malformed entries (missing
   // `active`, null `filterModel`, etc.) — `migrate` runs them through
-  // the same validator as v2 so legacy profiles load cleanly.
+  // the same validator as v2 so legacy layouts load cleanly.
   schemaVersion: 2,
   priority: 1001,
 

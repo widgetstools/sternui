@@ -3,7 +3,7 @@
  *
  *   platform/      framework-agnostic runtime (GridPlatform, store, events, api hub)
  *   expression/    CSP-safe expression engine
- *   profiles/      ProfileManager (storage-agnostic state machine)
+ *   layouts/       LayoutManager (storage-agnostic state machine)
  *   persistence/   StorageAdapter implementations (Memory, Dexie)
  *   security/      expression-policy (CSP gate)
  *   history/       framework-agnostic undo/redo stack
@@ -62,21 +62,22 @@ export type { AutoSaveHandle, AutoSaveOptions } from './store/autosave';
 export {
   MemoryAdapter,
   DexieAdapter,
-  RESERVED_DEFAULT_PROFILE_ID,
-  activeProfileKey,
-  type ProfileSnapshot,
+  RESERVED_DEFAULT_LAYOUT_ID,
+  activeLayoutKey,
+  legacyActiveLayoutKey,
+  type LayoutSnapshot,
   type StorageAdapter,
 } from './persistence';
 
-// ─── Profile manager ────────────────────────────────────────────────────────
-export { ProfileManager } from './profiles';
+// ─── Layout manager ─────────────────────────────────────────────────────────
+export { LayoutManager } from './layouts';
 export type {
   ActiveIdSource,
-  ProfileManagerOptions,
-  ProfileManagerState,
-  ProfileMeta,
-  ExportedProfilePayload,
-} from './profiles';
+  LayoutManagerOptions,
+  LayoutManagerState,
+  LayoutMeta,
+  ExportedLayoutPayload,
+} from './layouts';
 
 // ─── Security policy ────────────────────────────────────────────────────────
 //

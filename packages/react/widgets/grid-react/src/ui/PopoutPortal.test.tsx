@@ -212,7 +212,7 @@ describe('PopoutPortal', () => {
     expect(fake.document.title).toBe('Grid Customizer — grid-A');
 
     // Prop change should update the popout's doc title (e.g. caller
-    // swapped the active gridId or appended a profile name).
+    // swapped the active gridId or appended a layout name).
     rerender(
       <PopoutPortal name="title-a" title="Grid Customizer — grid-B" onClose={() => {}}>
         <div />

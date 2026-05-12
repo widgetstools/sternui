@@ -9,7 +9,7 @@ import { test, expect, type Page } from '@playwright/test';
  *   - dashboard-equities-v2  (Equities Blotter — 300 equity orders)
  *
  * Each grid owns its own `GridPlatform` → its own DirtyBus, ApiHub,
- * module stores, toolbars, profile adapters. The refactor's step 7 made
+ * module stores, toolbars, layout adapters. The refactor's step 7 made
  * every toolbar context-driven; this spec verifies that formatting grid
  * A leaves grid B visually AND semantically untouched.
  *
@@ -25,7 +25,7 @@ import { test, expect, type Page } from '@playwright/test';
 async function clearV2(page: Page) {
   await page.evaluate(async () => {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
+      .filter((k) => k.startsWith('gc-active-layout:') || k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach((k) => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
       const req = indexedDB.deleteDatabase('gc-customizer-v2');
@@ -52,7 +52,7 @@ async function waitForBothGrids(page: Page) {
     },
     { timeout: 15_000 },
   );
-  // Plus a small settling delay — profile auto-seed + initial
+  // Plus a small settling delay — layout auto-seed + initial
   // columnEverythingChanged events.
   await page.waitForTimeout(500);
 }
@@ -158,7 +158,7 @@ test.describe('Two-grid dashboard — cross-grid isolation', () => {
     await selectCellInGrid(page, 'dashboard-equities-v2', 'quantity');
     await clickToolbarBtn(page, 'dashboard-equities-v2', 'Italic');
 
-    // Profiles are explicit-save-only. Click each grid's own Save
+    // Layouts are explicit-save-only. Click each grid's own Save
     // button so both snapshots land in IndexedDB before the reload.
     // Each grid renders its own Save button scoped under its
     // `[data-grid-id]` root.

@@ -101,7 +101,7 @@ const presetRegistry: Record<PresetId, PresetFactory> = {
 
 // ─── Expression branch (CSP-unsafe; cached per expression string) ───────────
 
-// Unbounded — fine for user-authored templates (handful per profile). Revisit
+// Unbounded — fine for user-authored templates (handful per layout). Revisit
 // with an LRU if expressions ever come from programmatic / less-trusted sources.
 const expressionCache = new Map<string, Formatter>();
 
@@ -159,7 +159,7 @@ export function valueFormatterFromTemplate(t: ValueFormatterTemplate): Formatter
   // kind: 'expression' — subject to the security policy. Strict mode
   // refuses to compile (returns an identity formatter) so deployments
   // running under a `script-src` CSP that forbids `unsafe-eval` stay
-  // safe even when legacy profiles carry expression-kind templates.
+  // safe even when legacy layouts carry expression-kind templates.
   const policy = getExpressionPolicy();
   if (policy.mode === 'strict') {
     reportExpressionViolation({

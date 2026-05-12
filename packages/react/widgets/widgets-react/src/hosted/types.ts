@@ -24,7 +24,7 @@ export type { ConfigManager, StorageAdapterFactory };
  */
 export interface HostedContext {
   /**
-   * Per-instance identifier — keys profile storage, view-state rows,
+   * Per-instance identifier — keys layout storage, view-state rows,
    * and any per-window persisted state.
    *
    * Resolution priority (handled by `useHostedIdentity`):
@@ -78,8 +78,8 @@ export interface HostedContext {
  *
  * Returned as `null` outside OpenFin or when launched without a
  * registered-component customData payload — in that case the storage
- * factory falls back to its legacy hardcoded discriminator
- * (`"markets-grid-profile-set"`).
+ * factory falls back to its hardcoded discriminator
+ * (`"markets-grid-layout-set"`).
  */
 export interface RegisteredComponentMetadata {
   /** Registry entry's primary type discriminator (e.g. "MarketsGrid"). */

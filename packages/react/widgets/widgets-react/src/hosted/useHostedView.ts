@@ -28,7 +28,7 @@ export interface UseHostedViewArgs extends UseHostedIdentityArgs {
   /**
    * Async flush callback invoked when the OpenFin platform dispatches
    * `'workspace-saving'`. The promise this returns blocks the snapshot
-   * capture, so keep it bounded (e.g. one `saveActiveProfile()` call).
+   * capture, so keep it bounded (e.g. one `saveActiveLayout()` call).
    */
   onWorkspaceSave?: WorkspaceSaveCallback;
   /** Optional companion options forwarded to {@link useWorkspaceSaveEvent}. */

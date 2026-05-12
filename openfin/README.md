@@ -63,7 +63,7 @@ When launched via OpenFin:
   of the browser tab shell
 
 Everything else is identical to the browser version — same state,
-same profiles, same grid — because the only runtime split is inside
+same layouts, same grid — because the only runtime split is inside
 `openFinWindowOpener()`.
 
 ## Manual launch

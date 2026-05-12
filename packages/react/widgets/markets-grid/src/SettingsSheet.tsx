@@ -29,7 +29,7 @@ import { HelpPanel } from './HelpPanel';
  *
  * Chrome:
  *   - Title bar: terminal ticker with grip + green dot + "GRID CUSTOMIZER v2.3.0"
- *     + profile status + dirty count + maximise + close.
+ *     + layout status + dirty count + maximise + close.
  *   - Body: 3-col grid (module rail, items list, editor).
  *   - Footer: save-per-rule keyboard hints + Done CTA.
  */

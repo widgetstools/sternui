@@ -39,7 +39,7 @@ packages/
 | Package | What it does |
 |---|---|
 | `@starui/shared-types` | Cross-cutting interfaces (IDataProvider, WidgetContext, FieldNode…) |
-| `@starui/core` | Module system, ProfileManager, ExpressionEngine, settings primitives |
+| `@starui/core` | Module system, LayoutManager, ExpressionEngine, settings primitives |
 | `@starui/design-system` | Tailwind config, terminal palette, cockpit styles, tokens |
 | `@starui/icons-svg` | Shared icon bundle |
 | `@starui/config-service` | Dexie + REST dual-mode config storage |
@@ -162,7 +162,7 @@ so each route's view file only owns its own content.
 - **`appId`/`userId`** resolved the same way (OpenFin customData → defaults
   baked from `seed-config.json`).
 - **`ConfigManager` singleton** — same Dexie connection every other piece
-  of the platform writes through, so a hosted component's profile rows
+  of the platform writes through, so a hosted component's layout rows
   appear in the Config Browser alongside dock + registry rows.
 - **`StorageAdapterFactory`** — opt-in via `withStorage`; only created
   when the inner component reads/writes the host's ConfigService.

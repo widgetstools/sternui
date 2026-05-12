@@ -69,7 +69,7 @@ export function __resetPopoutPortalState(): void {
  *
  * Because the portal keeps the children attached to the parent's React
  * root, they continue to share context (GridProvider, theme, store,
- * profile-manager) and state updates flow instantly between the main
+ * layout-manager) and state updates flow instantly between the main
  * window and the popout — no BroadcastChannel or IndexedDB round-trip
  * needed. The popout is effectively "another monitor" for the same
  * React tree.
@@ -428,7 +428,7 @@ export function PopoutPortal({
   // ── Keep the popout's document.title in sync with the `title` prop.
   // prepareDocument seeds the initial title once on window creation;
   // this effect picks up subsequent prop changes (e.g. the caller
-  // appends a gridId suffix, or the active profile's name changes).
+  // appends a gridId suffix, or the active layout's name changes).
   useEffect(() => {
     if (!popout) return;
     try { popout.document.title = title; } catch { /* cross-origin / closed */ }

@@ -50,9 +50,9 @@ export interface PlatformEventMap {
   'grid:destroyed': { gridId: string };
   'module:registered': { gridId: string; moduleId: string };
   'module:stateChanged': { gridId: string; moduleId: string };
-  'profile:loaded': { gridId: string; profileId: string };
-  'profile:saved': { gridId: string; profileId: string };
-  'profile:deleted': { gridId: string; profileId: string };
+  'layout:loaded': { gridId: string; layoutId: string };
+  'layout:saved': { gridId: string; layoutId: string };
+  'layout:deleted': { gridId: string; layoutId: string };
 }
 
 export interface EventBus<M> {

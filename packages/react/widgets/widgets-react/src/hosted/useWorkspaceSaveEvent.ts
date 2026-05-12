@@ -8,7 +8,7 @@ const WORKSPACE_SAVE_CHANNEL = 'marketsui-workspace-save-channel';
 /**
  * Async flush callback. The promise this returns is awaited by the
  * platform-side dispatch — keep its work bounded (a single
- * `saveActiveProfile` call, etc.) so workspace save doesn't stall.
+ * `saveActiveLayout` call, etc.) so workspace save doesn't stall.
  */
 export type WorkspaceSaveCallback = () => void | Promise<void>;
 

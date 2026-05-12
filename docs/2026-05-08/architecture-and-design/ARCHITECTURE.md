@@ -29,7 +29,7 @@ inject the differences.
 │  Layer 4  Framework adapter:  React        |  Angular        │  swappable
 ├──────────────────────────────────────────────────────────────┤
 │  Layer 3  Component domain:                                  │
-│            MarketsGrid, DataProvider, Profile,               │
+│            MarketsGrid, DataProvider, Layout,                │
 │            ConfigBrowser, DataProviderEditor,                │  agnostic
 │            WorkspaceSetup                                    │
 ├──────────────────────────────────────────────────────────────┤

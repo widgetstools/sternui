@@ -26,7 +26,7 @@ each split into role-based sub-buckets (per
 [`docs/plans/plan-2026-05-07/code-organization.md`](./docs/plans/plan-2026-05-07/code-organization.md)):
 
 - `packages/shared/` — vanilla TS, framework-agnostic
-  - `core/` — grid platform (GridPlatform, ProfileManager, expression engine, persistence, etc.)
+  - `core/` — grid platform (GridPlatform, LayoutManager, expression engine, persistence, etc.)
   - `foundation/` — pure leaves: `shared-types`, `design-system`, `icons-svg`, `tokens-primeng`
   - `runtime/` — `runtime-port` (interface) + `runtime-browser` / `runtime-openfin` impls
   - `services/` — vanilla services: `config-service`, `data-services`, `component-host`

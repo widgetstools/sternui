@@ -3,7 +3,7 @@
  *
  * Modal confirmation prompt with focus trap, dismissible via Escape, and
  * portal-rendered over the page. Use for *destructive* confirmations
- * (deleting a profile, discarding unsaved changes) where the user must
+ * (deleting a layout, discarding unsaved changes) where the user must
  * take an explicit action — AlertDialog is deliberately harder to dismiss
  * than a plain Dialog.
  *
@@ -19,7 +19,7 @@
  *     </AlertDialogTrigger>
  *     <AlertDialogContent>
  *       <AlertDialogHeader>
- *         <AlertDialogTitle>Delete profile?</AlertDialogTitle>
+ *         <AlertDialogTitle>Delete layout?</AlertDialogTitle>
  *         <AlertDialogDescription>
  *           "Trading Desk" will be permanently removed.
  *         </AlertDialogDescription>

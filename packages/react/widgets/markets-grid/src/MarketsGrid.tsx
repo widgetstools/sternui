@@ -47,7 +47,7 @@ import {
   toolbarVisibilityModule,
   useGridApi,
   useGridPlatform,
-  useProfileManager,
+  useLayoutManager,
 } from '@starui/grid-react';
 import {
   Save, Check, Settings as SettingsIcon, SlidersHorizontal,
@@ -75,8 +75,8 @@ import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
 import { SettingsSheet, type SettingsSheetHandle } from './SettingsSheet';
-import { ProfileSelector } from './ProfileSelector';
-import { createOpenFinViewProfileSource } from './openfinViewProfile';
+import { LayoutSelector } from './LayoutSelector';
+import { createOpenFinViewLayoutSource } from './openfinViewLayout';
 
 let _agRegistered = false;
 function ensureAgGridRegistered() {
@@ -93,7 +93,7 @@ let _memoryAdapterWarned = false;
 
 /**
  * Default module list — every shipped module, ordered the way the user's
- * profile round-trips expect. Hosts can pass `modules` to override.
+ * layout round-trips expect. Hosts can pass `modules` to override.
  *
  * grid-state MUST run last (priority 200) so replay sees the finalized
  * column set from every structure module.
@@ -133,7 +133,7 @@ function MarketsGridInner<TData = unknown>(
     showFormattingToolbar = false,
     showSaveButton = true,
     showSettingsButton = true,
-    showProfileSelector = true,
+    showLayoutSelector = true,
     storageAdapter,
     autoSaveDebounceMs,
     onGridReady: onGridReadyProp,
@@ -196,7 +196,7 @@ function MarketsGridInner<TData = unknown>(
   // scope the factory defaults to — usually "dev-host" — and get
   // mixed across users). Surface it loudly so the developer catches
   // the misconfiguration on first mount rather than shipping to
-  // users who then wonder why profiles vanish.
+  // users who then wonder why layouts vanish.
   if (storage && (!appId || !userId)) {
     throw new Error(
       '<MarketsGrid storage={...}> requires `appId` and `userId` props. ' +
@@ -217,10 +217,10 @@ function MarketsGridInner<TData = unknown>(
 
   // Dev-only nudge — when neither a `storage` factory nor a direct
   // `storageAdapter` is wired, the inner Host falls through to a
-  // `MemoryAdapter` and every profile / layout / grid-level-data
-  // change vanishes on reload. This is the half-day gotcha every new
-  // framework consumer hits exactly once. Fire a single warn per
-  // page session, only outside production builds.
+  // `MemoryAdapter` and every layout / grid-level-data change vanishes
+  // on reload. This is the half-day gotcha every new framework
+  // consumer hits exactly once. Fire a single warn per page session,
+  // only outside production builds.
   if (
     !storage &&
     !storageAdapter &&
@@ -232,7 +232,7 @@ function MarketsGridInner<TData = unknown>(
     // eslint-disable-next-line no-console
     console.warn(
       '[MarketsGrid] No storage prop provided. Using in-memory storage — ' +
-      'profiles, layouts and grid-level-data WILL be lost on reload. ' +
+      'layouts and grid-level-data WILL be lost on reload. ' +
       'Wire @starui/config-service via createConfigServiceStorage(...) to persist.',
     );
   }
@@ -258,7 +258,7 @@ function MarketsGridInner<TData = unknown>(
         showFormattingToolbar={showFormattingToolbar}
         showSaveButton={showSaveButton}
         showSettingsButton={showSettingsButton}
-        showProfileSelector={showProfileSelector}
+        showLayoutSelector={showLayoutSelector}
         modules={modules}
         className={className}
         rootStyle={rootStyle}
@@ -292,7 +292,7 @@ export const MarketsGrid = forwardRef(MarketsGridInner) as <TData = unknown>(
 
 /**
  * Inner shell — runs INSIDE the GridProvider so it can call hooks
- * (`useProfileManager`, `useGridApi`, `useGridPlatform`). Split from the
+ * (`useLayoutManager`, `useGridApi`, `useGridPlatform`). Split from the
  * outer MarketsGrid because those hooks need the provider context.
  */
 function Host<TData>({
@@ -314,7 +314,7 @@ function Host<TData>({
   showFormattingToolbar,
   showSaveButton,
   showSettingsButton,
-  showProfileSelector,
+  showLayoutSelector,
   modules,
   className,
   rootStyle,
@@ -354,7 +354,7 @@ function Host<TData>({
   showFormattingToolbar: boolean;
   showSaveButton: boolean;
   showSettingsButton: boolean;
-  showProfileSelector: boolean;
+  showLayoutSelector: boolean;
   modules: AnyModule[];
   className: string | undefined;
   rootStyle: React.CSSProperties;
@@ -452,21 +452,21 @@ function Host<TData>({
     void adapter.saveGridLevelData(gridId, gridLevelData);
   }, [gridLevelData, gridId]);
 
-  // Profiles are explicit-save-only. Auto-save used to debounce every
-  // keystroke into the active profile; that was confusing in practice —
-  // users lost the mental model of "my profile = my saved state". With
-  // `disableAutoSave`, the ProfileManager instead tracks a dirty flag
-  // the Save button consumes (and the profile-switch / beforeunload
+  // Layouts are explicit-save-only. Auto-save used to debounce every
+  // keystroke into the active layout; that was confusing in practice —
+  // users lost the mental model of "my layout = my saved state". With
+  // `disableAutoSave`, the LayoutManager instead tracks a dirty flag
+  // the Save button consumes (and the layout-switch / beforeunload
   // guards below consult).
-  // Per-view active-profile override for OpenFin. When the host runs
+  // Per-view active-layout override for OpenFin. When the host runs
   // inside OpenFin (`fin.me` reachable), each view stores its own
-  // `activeProfileId` on `customData` — duplicated views can show
-  // different profiles of the same grid instance, and the workspace
-  // snapshot round-trips the override automatically. Outside OpenFin
-  // the factory returns `null` and the manager falls back to its
-  // localStorage pointer as before.
-  const openfinSourceRef = useRef(createOpenFinViewProfileSource());
-  const profiles = useProfileManager({
+  // `activeProfileId` on `customData` (wire-format kept as-is for
+  // back-compat) — duplicated views can show different layouts of the
+  // same grid instance, and the workspace snapshot round-trips the
+  // override automatically. Outside OpenFin the factory returns `null`
+  // and the manager falls back to its localStorage pointer as before.
+  const openfinSourceRef = useRef(createOpenFinViewLayoutSource());
+  const layouts = useLayoutManager({
     adapter: adapterRef.current,
     autoSaveDebounceMs,
     disableAutoSave: true,
@@ -479,7 +479,7 @@ function Host<TData>({
   // ── Imperative handle ─────────────────────────────────────────────
   // Populated once AG-Grid's onGridReady has fired (api becomes non-null)
   // which in turn has already let GridPlatform run the module pipeline,
-  // including the active profile apply. Consumers reading `ref.current`
+  // including the active layout apply. Consumers reading `ref.current`
   // before this see `null` (React ref semantics); after this see the
   // stable handle. `onReady` fires exactly once per mount.
   const handleRef = useRef<MarketsGridHandle | null>(null);
@@ -489,12 +489,12 @@ function Host<TData>({
   // button — including the busy-overlay flip via `onSavingChange`.
   const saveAllRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const saveAll = useCallback(() => saveAllRef.current(), []);
-  handleRef.current = api ? { gridApi: api, platform, profiles, saveAll } : null;
+  handleRef.current = api ? { gridApi: api, platform, layouts, saveAll } : null;
 
   useImperativeHandle(
     forwardedRef,
     () => handleRef.current as MarketsGridHandle,
-    [api, platform, profiles],
+    [api, platform, layouts],
   );
 
   const readyFiredRef = useRef(false);
@@ -556,7 +556,7 @@ function Host<TData>({
   const handleSaveAll = useCallback(async () => {
     // Capture native AG-Grid state (column order / widths / sort / filters /
     // pagination / selection / viewport) into the grid-state module slice
-    // BEFORE persisting — the subsequent saveActiveProfile flush then picks
+    // BEFORE persisting — the subsequent saveActiveLayout flush then picks
     // up this fresh capture alongside every other module's state. Auto-save
     // deliberately never runs this path; grid state is explicit-save-only.
     if (api) {
@@ -565,9 +565,9 @@ function Host<TData>({
     }
     onSavingChange?.(true);
     try {
-      await profiles.saveActiveProfile();
+      await layouts.saveActiveLayout();
     } catch (err) {
-      console.warn('[markets-grid] saveActiveProfile failed:', err);
+      console.warn('[markets-grid] saveActiveLayout failed:', err);
       onSavingChange?.(false);
       return;
     }
@@ -575,17 +575,17 @@ function Host<TData>({
     setSaveFlash(true);
     if (saveFlashTimer.current) clearTimeout(saveFlashTimer.current);
     saveFlashTimer.current = setTimeout(() => setSaveFlash(false), 600);
-  }, [profiles, api, platform, onSavingChange]);
+  }, [layouts, api, platform, onSavingChange]);
 
   // Keep the handle's saveAll bridge pointed at the latest closure.
   saveAllRef.current = handleSaveAll;
 
-  // Active profile dirty state — wired to the Save button indicator,
-  // the profile-switch AlertDialog, and the beforeunload warning.
-  const isDirty = profiles.isDirty;
+  // Active layout dirty state — wired to the Save button indicator,
+  // the layout-switch AlertDialog, and the beforeunload warning.
+  const isDirty = layouts.isDirty;
 
   // Warn the user if they try to close / reload the tab while their
-  // active profile has unsaved edits. The `returnValue` string is
+  // active layout has unsaved edits. The `returnValue` string is
   // ignored by every modern browser (they show a generic message) but
   // it's required for the prompt to appear at all.
   useEffect(() => {
@@ -599,23 +599,23 @@ function Host<TData>({
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  // Profile-switch unsaved-changes prompt state. When the user picks a
-  // different profile from the switcher AND there are unsaved edits,
+  // Layout-switch unsaved-changes prompt state. When the user picks a
+  // different layout from the switcher AND there are unsaved edits,
   // we stash the target id here and open an AlertDialog offering
   // Save / Discard / Cancel. The Dialog's action handlers finalise the
   // switch; with no dirty edits the switch goes through directly.
   const [pendingSwitch, setPendingSwitch] = useState<null | { id: string }>(null);
 
-  const requestLoadProfile = useCallback(
+  const requestLoadLayout = useCallback(
     (id: string) => {
-      if (id === profiles.activeProfileId) return;
-      if (profiles.isDirty) {
+      if (id === layouts.activeLayoutId) return;
+      if (layouts.isDirty) {
         setPendingSwitch({ id });
         return;
       }
-      void profiles.loadProfile(id);
+      void layouts.loadLayout(id);
     },
-    [profiles],
+    [layouts],
   );
 
   const confirmSwitchSave = useCallback(async () => {
@@ -628,11 +628,11 @@ function Host<TData>({
       // the snapshot lands — otherwise a Save-then-Switch would persist
       // stale grid-state.
       await handleSaveAll();
-      await profiles.loadProfile(targetId);
+      await layouts.loadLayout(targetId);
     } catch (err) {
       console.warn('[markets-grid] save-and-switch failed:', err);
     }
-  }, [pendingSwitch, handleSaveAll, profiles]);
+  }, [pendingSwitch, handleSaveAll, layouts]);
 
   const confirmSwitchDiscard = useCallback(async () => {
     if (!pendingSwitch) return;
@@ -640,15 +640,15 @@ function Host<TData>({
     setPendingSwitch(null);
     try {
       // Discard in-memory edits (reverts to the last-saved snapshot of
-      // the outgoing profile) BEFORE loading the new one. The discard
+      // the outgoing layout) BEFORE loading the new one. The discard
       // is technically optional since load() also replaces state, but
       // it keeps semantics clean: dirty=false is observable in between.
-      await profiles.discardActiveProfile();
-      await profiles.loadProfile(targetId);
+      await layouts.discardActiveLayout();
+      await layouts.loadLayout(targetId);
     } catch (err) {
       console.warn('[markets-grid] discard-and-switch failed:', err);
     }
-  }, [pendingSwitch, profiles]);
+  }, [pendingSwitch, layouts]);
 
   // NOTE: the `coreShim` (minimal `{ gridId, getGridApi }` handle) is
   // gone as of the toolbar refactor's step 7. FormattingToolbar + its
@@ -717,62 +717,62 @@ function Host<TData>({
               </button>
             )}
 
-            {showProfileSelector && (
+            {showLayoutSelector && (
               <>
                 {showFormattingToolbar && <span className="ds-primary-divider" aria-hidden />}
-                <ProfileSelector
-                  profiles={profiles.profiles}
-                  activeProfileId={profiles.activeProfileId ?? ''}
+                <LayoutSelector
+                  layouts={layouts.layouts}
+                  activeLayoutId={layouts.activeLayoutId ?? ''}
                   isDirty={isDirty}
-                  onCreate={(name) => profiles.createProfile(name)}
-                  onLoad={(id) => requestLoadProfile(id)}
-                  onDelete={(id) => profiles.deleteProfile(id)}
+                  onCreate={(name) => layouts.createLayout(name)}
+                  onLoad={(id) => requestLoadLayout(id)}
+                  onDelete={(id) => layouts.deleteLayout(id)}
                   onClone={async (id) => {
                     // Compose a unique " (copy)" name, de-duping against
-                    // existing profiles so consecutive clones produce
+                    // existing layouts so consecutive clones produce
                     // "…(copy)", "…(copy 2)", "…(copy 3)". The manager
                     // throws on id collision, so we also suffix the id
                     // deterministically via the default slug; if it
                     // still collides (edge case: user already made a
                     // "<foo>-copy"), bump the suffix until it's free.
                     try {
-                      const src = profiles.profiles.find((p) => p.id === id);
+                      const src = layouts.layouts.find((p) => p.id === id);
                       if (!src) return;
-                      const existingNames = new Set(profiles.profiles.map((p) => p.name));
+                      const existingNames = new Set(layouts.layouts.map((p) => p.name));
                       let candidate = `${src.name} (copy)`;
                       let n = 2;
                       while (existingNames.has(candidate)) {
                         candidate = `${src.name} (copy ${n})`;
                         n++;
                       }
-                      await profiles.cloneProfile(id, candidate);
+                      await layouts.cloneLayout(id, candidate);
                     } catch (err) {
-                      console.warn('[markets-grid] profile clone failed:', err);
-                      window.alert(`Could not clone profile: ${err instanceof Error ? err.message : String(err)}`);
+                      console.warn('[markets-grid] layout clone failed:', err);
+                      window.alert(`Could not clone layout: ${err instanceof Error ? err.message : String(err)}`);
                     }
                   }}
                   onRename={async (id, name) => {
                     try {
-                      await profiles.renameProfile(id, name);
+                      await layouts.renameLayout(id, name);
                     } catch (err) {
-                      console.warn('[markets-grid] profile rename failed:', err);
-                      window.alert(`Could not rename profile: ${err instanceof Error ? err.message : String(err)}`);
+                      console.warn('[markets-grid] layout rename failed:', err);
+                      window.alert(`Could not rename layout: ${err instanceof Error ? err.message : String(err)}`);
                     }
                   }}
                   onExport={async (id) => {
                     try {
-                      const payload = await profiles.exportProfile(id);
-                      const fileStem = (payload.profile.name || id)
+                      const payload = await layouts.exportLayout(id);
+                      const fileStem = (payload.layout.name || id)
                         .toLowerCase()
                         .replace(/[^a-z0-9-]+/g, '-')
                         .replace(/^-+|-+$/g, '')
-                        .slice(0, 60) || 'profile';
+                        .slice(0, 60) || 'layout';
                       const json = JSON.stringify(payload, null, 2);
                       const blob = new Blob([json], { type: 'application/json' });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `ds-profile-${fileStem}.json`;
+                      a.download = `ds-layout-${fileStem}.json`;
                       document.body.appendChild(a);
                       a.click();
                       a.remove();
@@ -780,18 +780,18 @@ function Host<TData>({
                       // browser has a frame to initiate the download.
                       setTimeout(() => URL.revokeObjectURL(url), 1000);
                     } catch (err) {
-                      console.warn('[markets-grid] profile export failed:', err);
-                      window.alert(`Could not export profile: ${err instanceof Error ? err.message : String(err)}`);
+                      console.warn('[markets-grid] layout export failed:', err);
+                      window.alert(`Could not export layout: ${err instanceof Error ? err.message : String(err)}`);
                     }
                   }}
                   onImport={async (file) => {
                     try {
                       const text = await file.text();
                       const payload = JSON.parse(text);
-                      await profiles.importProfile(payload);
+                      await layouts.importLayout(payload);
                     } catch (err) {
-                      console.warn('[markets-grid] profile import failed:', err);
-                      window.alert(`Could not import profile: ${err instanceof Error ? err.message : String(err)}`);
+                      console.warn('[markets-grid] layout import failed:', err);
+                      window.alert(`Could not import layout: ${err instanceof Error ? err.message : String(err)}`);
                     }
                   }}
                 />
@@ -931,8 +931,8 @@ function Host<TData>({
         initialModuleId="conditional-styling"
       />
 
-      {/* Unsaved-changes prompt fired by the profile switcher when the
-          user picks a different profile while the active one is dirty.
+      {/* Unsaved-changes prompt fired by the layout switcher when the
+          user picks a different layout while the active one is dirty.
           Three explicit actions — we never silently drop edits. */}
       <AlertDialog
         open={pendingSwitch !== null}
@@ -940,20 +940,20 @@ function Host<TData>({
           if (!open) setPendingSwitch(null);
         }}
       >
-        <AlertDialogContent data-testid="profile-switch-confirm">
+        <AlertDialogContent data-testid="layout-switch-confirm">
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes in the current profile. What do you want to
+              You have unsaved changes in the current layout. What do you want to
               do before switching?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="profile-switch-cancel">
+            <AlertDialogCancel data-testid="layout-switch-cancel">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              data-testid="profile-switch-discard"
+              data-testid="layout-switch-discard"
               onClick={(e) => {
                 e.preventDefault();
                 void confirmSwitchDiscard();
@@ -962,7 +962,7 @@ function Host<TData>({
               Discard changes
             </AlertDialogAction>
             <AlertDialogAction
-              data-testid="profile-switch-save"
+              data-testid="layout-switch-save"
               onClick={(e) => {
                 e.preventDefault();
                 void confirmSwitchSave();

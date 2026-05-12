@@ -130,7 +130,7 @@ test.describe('v2 — column-templates (indirect editor)', () => {
     await openFormattingToolbar(page);
   });
 
-  test('templates menu shows "no templates yet" copy on a fresh profile', async ({ page }) => {
+  test('templates menu shows "no templates yet" copy on a fresh layout', async ({ page }) => {
     await selectCell(page, 'quantity');
     // Open the "Apply a saved template" popover — the item list.
     await page.locator('[data-testid="templates-menu-trigger"]').click();
@@ -227,7 +227,7 @@ test.describe('v2 — column-templates (indirect editor)', () => {
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
 
     // Venue still bold after reload — both the template definition and
-    // its application to venue round-tripped through the profile.
+    // its application to venue round-tripped through the layout.
     expect(['700', 'bold']).toContain(await getCellStyle(page, 'venue', 'font-weight'));
 
     // Templates menu still lists the template.

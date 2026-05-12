@@ -2,16 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GridPlatform } from '../platform/GridPlatform';
 import { MemoryAdapter } from '../persistence/MemoryAdapter';
 import type { Module } from '../platform/types';
-import { ProfileManager } from '../profiles/ProfileManager';
+import { LayoutManager } from '../layouts/LayoutManager';
 import {
   __resetExpressionPolicyForTests,
   configureExpressionPolicy,
 } from './expressionPolicy';
-import type { ExportedProfilePayload } from '../profiles/types';
+import type {
+  ExportedLayoutPayload,
+  LegacyExportedLayoutPayload,
+} from '../layouts/types';
 
 /**
  * Integration tests for the expression-policy gate in
- * `ProfileManager.import`. Verifies that strict-mode rejects unsafe
+ * `LayoutManager.import`. Verifies that strict-mode rejects unsafe
  * payloads before any storage write, that `sanitize: true` strips the
  * offending templates, and that allow / warn modes leave imports
  * untouched.
@@ -40,16 +43,16 @@ function makeStyleModule(): Module<StyleState> {
 function makeManager() {
   const adapter = new MemoryAdapter();
   const platform = new GridPlatform({ gridId: 'g1', modules: [makeStyleModule()] });
-  const manager = new ProfileManager({ platform, adapter, disableAutoSave: true });
+  const manager = new LayoutManager({ platform, adapter, disableAutoSave: true });
   return { adapter, platform, manager };
 }
 
-function payloadWithExpression(): ExportedProfilePayload {
+function payloadWithExpression(): ExportedLayoutPayload {
   return {
     schemaVersion: 1,
-    kind: 'gc-profile',
+    kind: 'gc-layout',
     exportedAt: new Date().toISOString(),
-    profile: {
+    layout: {
       name: 'Imported',
       gridId: 'g1',
       state: {
@@ -66,12 +69,12 @@ function payloadWithExpression(): ExportedProfilePayload {
   };
 }
 
-function cleanPayload(): ExportedProfilePayload {
+function cleanPayload(): ExportedLayoutPayload {
   return {
     schemaVersion: 1,
-    kind: 'gc-profile',
+    kind: 'gc-layout',
     exportedAt: new Date().toISOString(),
-    profile: {
+    layout: {
       name: 'Clean',
       gridId: 'g1',
       state: {
@@ -88,7 +91,7 @@ function cleanPayload(): ExportedProfilePayload {
   };
 }
 
-describe('ProfileManager.import — expression policy gate', () => {
+describe('LayoutManager.import — expression policy gate', () => {
   afterEach(() => __resetExpressionPolicyForTests());
 
   describe('allow mode (default)', () => {
@@ -98,7 +101,7 @@ describe('ProfileManager.import — expression policy gate', () => {
       const { manager, adapter } = makeManager();
       await manager.boot();
       const meta = await manager.import(payloadWithExpression());
-      const saved = await adapter.loadProfile('g1', meta.id);
+      const saved = await adapter.loadLayout('g1', meta.id);
       expect(saved).toBeTruthy();
       const rules = (saved!.state.style.data as { rules: Array<{ valueFormatter: { kind: string } }> }).rules;
       expect(rules[0].valueFormatter.kind).toBe('expression');
@@ -124,8 +127,8 @@ describe('ProfileManager.import — expression policy gate', () => {
 
       expect(observer).toHaveBeenCalled();
       const kind = observer.mock.calls[0][0].kind;
-      expect(kind).toBe('profileImport');
-      const saved = await adapter.loadProfile('g1', meta.id);
+      expect(kind).toBe('layoutImport');
+      const saved = await adapter.loadLayout('g1', meta.id);
       const rules = (saved!.state.style.data as { rules: Array<{ valueFormatter: { kind: string } }> }).rules;
       // Still expression — warn mode doesn't rewrite.
       expect(rules[0].valueFormatter.kind).toBe('expression');
@@ -142,8 +145,8 @@ describe('ProfileManager.import — expression policy gate', () => {
         /strict expression policy/i,
       );
 
-      // Storage contains only the auto-created Default profile.
-      const list = await adapter.listProfiles('g1');
+      // Storage contains only the auto-created Default layout.
+      const list = await adapter.listLayouts('g1');
       expect(list.find((p) => p.name === 'Imported')).toBeUndefined();
     });
 
@@ -157,7 +160,7 @@ describe('ProfileManager.import — expression policy gate', () => {
 
       expect(observer).toHaveBeenCalledOnce();
       expect(observer.mock.calls[0][0]).toMatchObject({
-        kind: 'profileImport',
+        kind: 'layoutImport',
         expression: "x+'bp'",
       });
     });
@@ -168,9 +171,35 @@ describe('ProfileManager.import — expression policy gate', () => {
       await manager.boot();
 
       const meta = await manager.import(cleanPayload());
-      const saved = await adapter.loadProfile('g1', meta.id);
+      const saved = await adapter.loadLayout('g1', meta.id);
       expect(saved).toBeTruthy();
       expect(saved!.name).toBe('Clean');
+    });
+
+    it('accepts pre-rename legacy payloads (kind: gc-profile + profile:) for back-compat', async () => {
+      configureExpressionPolicy({ mode: 'strict' });
+      const { manager, adapter } = makeManager();
+      await manager.boot();
+
+      const legacy: LegacyExportedLayoutPayload = {
+        schemaVersion: 1,
+        kind: 'gc-profile',
+        exportedAt: new Date().toISOString(),
+        profile: {
+          name: 'Legacy',
+          gridId: 'g1',
+          state: {
+            style: {
+              v: 1,
+              data: { rules: [{ id: 'r1', valueFormatter: { kind: 'preset' } }] },
+            },
+          },
+        },
+      };
+      const meta = await manager.import(legacy);
+      const saved = await adapter.loadLayout('g1', meta.id);
+      expect(saved).toBeTruthy();
+      expect(saved!.name).toBe('Legacy');
     });
 
     it('with sanitize:true, rewrites expression templates and completes the import', async () => {
@@ -182,7 +211,7 @@ describe('ProfileManager.import — expression policy gate', () => {
 
       const meta = await manager.import(payloadWithExpression(), { sanitize: true });
 
-      const saved = await adapter.loadProfile('g1', meta.id);
+      const saved = await adapter.loadLayout('g1', meta.id);
       expect(saved).toBeTruthy();
       const rules = (saved!.state.style.data as {
         rules: Array<{ valueFormatter: { kind: string; preset?: string } }>;

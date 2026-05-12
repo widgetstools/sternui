@@ -16,7 +16,7 @@
  * Why this exists: the Import Config dialog historically only persisted
  * the `dock-config` row, silently dropping every other row in the
  * export. That broke import-from-Windows workflows because workspaces,
- * registries, and per-instance markets-grid-profile-set rows (which
+ * registries, and per-instance markets-grid-layout-set rows (which
  * carry `gridLevelData` — i.e. the data-provider selection) never made
  * it across machines.
  *

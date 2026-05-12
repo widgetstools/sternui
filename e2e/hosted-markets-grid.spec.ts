@@ -7,14 +7,16 @@ import { test, expect, type Page } from '@playwright/test';
  * http://localhost:5174 — the route that hosts a MarketsGrid via
  * `HostedFeatureView` today (pre-migration) and `<HostedMarketsGrid>`
  * post-session-7. The spec must remain green through that swap; the
- * assertions all hit the wrapper boundary (grid mount, profile
+ * assertions all hit the wrapper boundary (grid mount, layout
  * selector, provider-picker chord, info popover, theme flip) and the
  * inner `MarketsGrid` selectors which are framework-stable.
  *
  * Storage hygiene: the reference app's ConfigManager singleton resolves
  * to the Dexie database `marketsui-config`. We wipe it (and the
- * `gc-active-profile:*` localStorage pointers + the `theme` key) before
- * each test so order-independence holds.
+ * `gc-active-layout:*` localStorage pointers (and pre-rename
+ * `gc-active-profile:*` keys for back-compat) — wire-format kept for
+ * back-compat — plus the `theme` key) before each test so
+ * order-independence holds.
  *
  * Coverage notes:
  *   - "Grid renders" asserts the `data-grid-id` wrapper + AG-Grid root
@@ -44,7 +46,7 @@ async function clearReferenceStorage(page: Page): Promise<void> {
       req.onblocked = () => resolve();
     });
     Object.keys(localStorage)
-      .filter((k) => k.startsWith('gc-active-profile:') || k === 'theme' || k === 'hosted-mg.legacy-cleanup')
+      .filter((k) => k.startsWith('gc-active-layout:') || k.startsWith('gc-active-profile:') || k === 'theme' || k === 'hosted-mg.legacy-cleanup')
       .forEach((k) => localStorage.removeItem(k));
   }, DEXIE_DB_NAME);
 }
@@ -53,10 +55,10 @@ async function waitForBlotter(page: Page): Promise<void> {
   await page.waitForSelector(`[data-grid-id="${GRID_ID}"]`, { timeout: 20_000 });
   // AG-Grid's root wrapper renders even without rows (placeholder grid).
   await page.waitForSelector(`[data-grid-id="${GRID_ID}"] .ag-root-wrapper`, { timeout: 15_000 });
-  // Profile selector trigger is the most reliable "MarketsGrid toolbar
-  // mounted" signal — appears once profiles have loaded from storage
+  // Layout selector trigger is the most reliable "MarketsGrid toolbar
+  // mounted" signal — appears once layouts have loaded from storage
   // (Default is auto-seeded if none exist).
-  await page.waitForSelector('[data-testid="profile-selector-trigger"]', { timeout: 15_000 });
+  await page.waitForSelector('[data-testid="layout-selector-trigger"]', { timeout: 15_000 });
 }
 
 async function bootCleanBlotter(page: Page): Promise<void> {
@@ -72,29 +74,29 @@ test.describe('hosted-markets-grid integration', () => {
     await bootCleanBlotter(page);
   });
 
-  test('grid mounts and shows the Default profile', async ({ page }) => {
+  test('grid mounts and shows the Default layout', async ({ page }) => {
     await expect(page.locator(`[data-grid-id="${GRID_ID}"]`)).toBeVisible();
     await expect(page.locator(`[data-grid-id="${GRID_ID}"] .ag-root-wrapper`)).toBeVisible();
-    await expect(page.locator('[data-testid="profile-selector-trigger"]')).toContainText('Default');
+    await expect(page.locator('[data-testid="layout-selector-trigger"]')).toContainText('Default');
     // Save indicator should NOT show a dirty dot in a clean boot state.
     await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
   });
 
-  test('profile lifecycle — create, switch back, dirty dot stays clear', async ({ page }) => {
-    const trigger = page.locator('[data-testid="profile-selector-trigger"]');
+  test('layout lifecycle — create, switch back, dirty dot stays clear', async ({ page }) => {
+    const trigger = page.locator('[data-testid="layout-selector-trigger"]');
 
-    // Create a new profile via the popover.
+    // Create a new layout via the popover.
     await trigger.click();
-    await expect(page.locator('[data-testid="profile-selector-popover"]')).toBeVisible();
-    await page.locator('[data-testid="profile-name-input"]').fill('E2E-Hosted');
-    await page.locator('[data-testid="profile-create-btn"]').click();
+    await expect(page.locator('[data-testid="layout-selector-popover"]')).toBeVisible();
+    await page.locator('[data-testid="layout-name-input"]').fill('E2E-Hosted');
+    await page.locator('[data-testid="layout-create-btn"]').click();
     await expect(trigger).toContainText('E2E-Hosted');
-    // ProfileManager.create() is an explicit write — no dirty dot.
+    // LayoutManager.create() is an explicit write — no dirty dot.
     await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
 
     // Switch back to Default.
     await trigger.click();
-    await page.locator('[data-testid="profile-row-__default__"]').click();
+    await page.locator('[data-testid="layout-row-__default__"]').click();
     await expect(trigger).toContainText('Default');
     await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
   });

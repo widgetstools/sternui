@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { ChevronDown, Check, Plus, Trash2, Lock, User, Download, Upload, Copy, Pencil, X } from 'lucide-react';
-import { RESERVED_DEFAULT_PROFILE_ID, type ProfileMeta } from '@starui/core';
+import { RESERVED_DEFAULT_LAYOUT_ID, type LayoutMeta } from '@starui/core';
 // Static-layout styles — AUDIT i5 partial migration. State-dependent
-// styles stay inline (see ProfileSelector.css for rationale).
-import './ProfileSelector.css';
+// styles stay inline (see LayoutSelector.css for rationale).
+import './LayoutSelector.css';
 import {
   Popover,
   PopoverTrigger,
@@ -19,49 +19,49 @@ import {
   GhostIconButton,
 } from '@starui/grid-react';
 
-export interface ProfileSelectorProps {
-  profiles: ProfileMeta[];
-  activeProfileId: string;
+export interface LayoutSelectorProps {
+  layouts: LayoutMeta[];
+  activeLayoutId: string;
   isDirty: boolean;
   onCreate: (name: string) => void | Promise<unknown>;
   onLoad: (id: string) => void | Promise<unknown>;
   onDelete: (id: string) => void | Promise<unknown>;
   /**
-   * Optional: called per-profile from the row's clone button. Suggested
-   * implementation: dispatch `cloneProfile(sourceId, name)`. The parent
+   * Optional: called per-layout from the row's clone button. Suggested
+   * implementation: dispatch `cloneLayout(sourceId, name)`. The parent
    * decides the default name ("Source Name (copy)" is conventional).
    * Omit to hide the clone affordance.
    */
   onClone?: (id: string) => void | Promise<unknown>;
   /**
-   * Optional: called when the user finishes inline-renaming a profile
-   * row. Receives the profile id and the trimmed new name. Implementations
-   * should dispatch `renameProfile(id, name)`. Omit to hide the rename
-   * affordance. The reserved Default profile is never renameable.
+   * Optional: called when the user finishes inline-renaming a layout
+   * row. Receives the layout id and the trimmed new name. Implementations
+   * should dispatch `renameLayout(id, name)`. Omit to hide the rename
+   * affordance. The reserved Default layout is never renameable.
    */
   onRename?: (id: string, name: string) => void | Promise<unknown>;
   /**
-   * Optional: called per-profile from the row's download button AND from the
+   * Optional: called per-layout from the row's download button AND from the
    * footer "Export active" action. Implementations should download a JSON
    * file. Omit to hide the export affordances.
    */
   onExport?: (id: string) => void | Promise<unknown>;
   /**
    * Optional: called from the footer "Import…" action with a File the user
-   * picked. Implementations should parse the JSON and call the profile
-   * manager's importProfile. Omit to hide the import affordance.
+   * picked. Implementations should parse the JSON and call the layout
+   * manager's importLayout. Omit to hide the import affordance.
    */
   onImport?: (file: File) => void | Promise<unknown>;
 }
 
 /**
- * Compact profile picker for the toolbar. Built on the shared shadcn Popover
+ * Compact layout picker for the toolbar. Built on the shared shadcn Popover
  * so outside-click, Escape, portal rendering, and collision detection are
  * consistent with the rest of the app.
  */
-export function ProfileSelector({
-  profiles,
-  activeProfileId,
+export function LayoutSelector({
+  layouts,
+  activeLayoutId,
   isDirty,
   onCreate,
   onLoad,
@@ -70,7 +70,7 @@ export function ProfileSelector({
   onRename,
   onExport,
   onImport,
-}: ProfileSelectorProps) {
+}: LayoutSelectorProps) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -78,13 +78,13 @@ export function ProfileSelector({
   const [renameDraft, setRenameDraft] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Pending-delete drives the shadcn AlertDialog. We track the FULL row
-  // (not just the id) so the dialog can render the profile's display name
-  // without having to re-lookup from `profiles` after the delete has
+  // (not just the id) so the dialog can render the layout's display name
+  // without having to re-lookup from `layouts` after the delete has
   // already removed it from the list.
-  const [pendingDelete, setPendingDelete] = useState<ProfileMeta | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<LayoutMeta | null>(null);
 
-  const active = profiles.find((p) => p.id === activeProfileId);
-  const triggerLabel = active?.name ?? 'No profile';
+  const active = layouts.find((p) => p.id === activeLayoutId);
+  const triggerLabel = active?.name ?? 'No layout';
   const canCreate = newName.trim().length > 0;
 
   const handleCreate = async () => {
@@ -101,7 +101,7 @@ export function ProfileSelector({
 
   const commitRename = async () => {
     if (!renamingId || !onRename) return cancelRename();
-    const target = profiles.find((p) => p.id === renamingId);
+    const target = layouts.find((p) => p.id === renamingId);
     const next = renameDraft.trim();
     // No-op when blank or unchanged — quietly cancel rather than fire a
     // pointless write.
@@ -111,7 +111,7 @@ export function ProfileSelector({
     try {
       await onRename(id, next);
     } catch (err) {
-      console.warn('[markets-grid] profile rename failed:', err);
+      console.warn('[markets-grid] layout rename failed:', err);
     }
   };
 
@@ -125,13 +125,13 @@ export function ProfileSelector({
   };
 
   return (
-    <div className="ds-profile-selector">
+    <div className="ds-layout-selector">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            title={active ? (isDirty ? `${active.name} (unsaved changes)` : active.name) : 'Select or create a profile'}
-            data-testid="profile-selector-trigger"
+            title={active ? (isDirty ? `${active.name} (unsaved changes)` : active.name) : 'Select or create a layout'}
+            data-testid="layout-selector-trigger"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 28, padding: '0 10px 0 8px',
@@ -177,7 +177,7 @@ export function ProfileSelector({
         <PopoverContent
           align="end"
           sideOffset={6}
-          data-testid="profile-selector-popover"
+          data-testid="layout-selector-popover"
           className="!p-0 !w-auto"
           style={{
             minWidth: 288,
@@ -188,26 +188,26 @@ export function ProfileSelector({
         >
           {/* Header */}
           <div className="ds-ps-header">
-            <span className="ds-ps-header-label">Profiles</span>
-            <span className="ds-ps-header-count">{profiles.length}</span>
+            <span className="ds-ps-header-label">Layouts</span>
+            <span className="ds-ps-header-count">{layouts.length}</span>
           </div>
 
           {/* List */}
           <div className="ds-ps-list">
-            {profiles.length === 0 ? (
+            {layouts.length === 0 ? (
               <div className="ds-ps-empty">
-                No profiles yet — create one below
+                No layouts yet — create one below
               </div>
-            ) : profiles.map((p) => {
-              const isActive = p.id === activeProfileId;
-              const isReserved = p.id === RESERVED_DEFAULT_PROFILE_ID;
+            ) : layouts.map((p) => {
+              const isActive = p.id === activeLayoutId;
+              const isReserved = p.id === RESERVED_DEFAULT_LAYOUT_ID;
               const isRenaming = renamingId === p.id;
               return (
                 <div
                   key={p.id}
                   role="button"
                   tabIndex={0}
-                  data-testid={`profile-row-${p.id}`}
+                  data-testid={`layout-row-${p.id}`}
                   data-row-hover-target=""
                   className="ds-ps-row"
                   data-active={isActive ? 'true' : undefined}
@@ -252,7 +252,7 @@ export function ProfileSelector({
                       type="text"
                       value={renameDraft}
                       autoFocus
-                      data-testid={`profile-rename-input-${p.id}`}
+                      data-testid={`layout-rename-input-${p.id}`}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => setRenameDraft(e.target.value)}
                       onKeyDown={(e) => {
@@ -295,7 +295,7 @@ export function ProfileSelector({
 
                   {/* Per-row rename button — switches the row into
                       inline-edit mode. Hidden for the reserved Default
-                      profile (renaming would break the lookup contract). */}
+                      layout (renaming would break the lookup contract). */}
                   {onRename && !isReserved && !isRenaming && (
                     <GhostIconButton
                       reveal="on-row-hover"
@@ -305,8 +305,8 @@ export function ProfileSelector({
                         setRenameDraft(p.name);
                       }}
                       title={`Rename "${p.name}"`}
-                      aria-label={`Rename profile ${p.name}`}
-                      data-testid={`profile-rename-${p.id}`}
+                      aria-label={`Rename layout ${p.name}`}
+                      data-testid={`layout-rename-${p.id}`}
                     >
                       <Pencil size={12} strokeWidth={2.25} />
                     </GhostIconButton>
@@ -324,13 +324,13 @@ export function ProfileSelector({
                       }}
                       title="Cancel rename"
                       aria-label="Cancel rename"
-                      data-testid={`profile-rename-cancel-${p.id}`}
+                      data-testid={`layout-rename-cancel-${p.id}`}
                     >
                       <X size={12} strokeWidth={2.25} />
                     </GhostIconButton>
                   )}
 
-                  {/* Per-row clone button — duplicates the profile with
+                  {/* Per-row clone button — duplicates the layout with
                       a "(copy)" suffix and activates it. Revealed on
                       hover just like export/delete. */}
                   {onClone && !isRenaming && (
@@ -342,8 +342,8 @@ export function ProfileSelector({
                         setOpen(false);
                       }}
                       title={`Clone "${p.name}"`}
-                      aria-label={`Clone profile ${p.name}`}
-                      data-testid={`profile-clone-${p.id}`}
+                      aria-label={`Clone layout ${p.name}`}
+                      data-testid={`layout-clone-${p.id}`}
                     >
                       <Copy size={12} strokeWidth={2.25} />
                     </GhostIconButton>
@@ -358,8 +358,8 @@ export function ProfileSelector({
                         onExport(p.id);
                       }}
                       title={`Export "${p.name}" as JSON`}
-                      aria-label={`Export profile ${p.name}`}
-                      data-testid={`profile-export-${p.id}`}
+                      aria-label={`Export layout ${p.name}`}
+                      data-testid={`layout-export-${p.id}`}
                     >
                       <Download size={12} strokeWidth={2.25} />
                     </GhostIconButton>
@@ -369,7 +369,7 @@ export function ProfileSelector({
                       the input owns the row's right edge. */}
                   {isRenaming ? null : isReserved ? (
                     <span
-                      title="Built-in default profile"
+                      title="Built-in default layout"
                       className="flex items-center justify-center w-[22px] h-[22px] text-[var(--ds-text-secondary)] opacity-[0.55]"
                     >
                       <Lock size={12} strokeWidth={2.25} />
@@ -380,15 +380,15 @@ export function ProfileSelector({
                       reveal="on-row-hover"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Close the profile popover as we open the confirm
+                        // Close the layout popover as we open the confirm
                         // dialog — otherwise clicks inside the dialog would
                         // fall through to the popover's dismiss layer and
                         // race with the AlertDialog's focus trap.
                         setOpen(false);
                         setPendingDelete(p);
                       }}
-                      title="Delete profile"
-                      aria-label={`Delete profile ${p.name}`}
+                      title="Delete layout"
+                      aria-label={`Delete layout ${p.name}`}
                     >
                       <Trash2 size={12} strokeWidth={2.25} />
                     </GhostIconButton>
@@ -431,17 +431,17 @@ export function ProfileSelector({
                   if (e.key === 'Enter') handleCreate();
                   if (e.key === 'Escape') { setNewName(''); (e.currentTarget as HTMLInputElement).blur(); }
                 }}
-                placeholder="New profile name"
+                placeholder="New layout name"
                 autoFocus
-                data-testid="profile-name-input"
+                data-testid="layout-name-input"
                 className="flex-1 min-w-0 h-[30px] px-2.5 bg-transparent border-none text-foreground text-[11px] outline-none tracking-[0.1px]"
               />
               <button
                 type="button"
                 onClick={handleCreate}
                 disabled={!canCreate}
-                title="Save current state as new profile"
-                data-testid="profile-create-btn"
+                title="Save current state as new layout"
+                data-testid="layout-create-btn"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   height: 30, padding: '0 12px',
@@ -470,9 +470,9 @@ export function ProfileSelector({
                 {onExport && (
                   <button
                     type="button"
-                    onClick={() => { onExport(activeProfileId); }}
-                    title="Export the active profile to a JSON file"
-                    data-testid="profile-export-active-btn"
+                    onClick={() => { onExport(activeLayoutId); }}
+                    title="Export the active layout to a JSON file"
+                    data-testid="layout-export-active-btn"
                     style={{
                       flex: 1,
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
@@ -504,7 +504,7 @@ export function ProfileSelector({
                       ref={fileInputRef}
                       type="file"
                       accept="application/json,.json"
-                      data-testid="profile-import-file"
+                      data-testid="layout-import-file"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -517,8 +517,8 @@ export function ProfileSelector({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      title="Import a profile from a JSON file"
-                      data-testid="profile-import-btn"
+                      title="Import a layout from a JSON file"
+                      data-testid="layout-import-btn"
                       style={{
                         flex: 1,
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
@@ -551,7 +551,7 @@ export function ProfileSelector({
         </PopoverContent>
       </Popover>
 
-      {/* Delete-profile confirmation — shadcn AlertDialog replaces the
+      {/* Delete-layout confirmation — shadcn AlertDialog replaces the
           native window.confirm so the flow matches the rest of the app's
           design system AND doesn't block the renderer while the prompt
           is open (window.confirm freezes everything including pending
@@ -560,22 +560,22 @@ export function ProfileSelector({
         open={pendingDelete != null}
         onOpenChange={(nextOpen: boolean) => { if (!nextOpen) setPendingDelete(null); }}
       >
-        <AlertDialogContent data-testid="profile-delete-confirm">
+        <AlertDialogContent data-testid="layout-delete-confirm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete profile?</AlertDialogTitle>
+            <AlertDialogTitle>Delete layout?</AlertDialogTitle>
             <AlertDialogDescription>
               &quot;{pendingDelete?.name ?? ''}&quot; will be permanently removed.
               This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="profile-delete-cancel">
+            <AlertDialogCancel data-testid="layout-delete-cancel">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={handleConfirmDelete}
-              data-testid="profile-delete-confirm-btn"
+              data-testid="layout-delete-confirm-btn"
             >
               Delete
             </AlertDialogAction>

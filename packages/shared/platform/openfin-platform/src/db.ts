@@ -4,16 +4,18 @@
 // registry-editor persistence. Both save as `AppConfigRow` rows
 // through the generic `ConfigManager.saveConfig()` API — mirroring
 // MarketsGrid's `createConfigServiceStorage(...)` pattern in
-// `packages/config-service/src/profileStorage.ts`.
+// `packages/config-service/src/layoutStorage.ts`.
 //
-// Shared invariants with MarketsGrid profile rows:
+// Shared invariants with MarketsGrid layout rows:
 //   • `componentType` is a kebab-case domain discriminator
 //     (e.g. `'dock-config'`, `'component-registry'`) matching the
 //     canonical constants exported from `@starui/shared-types`.
 //   • `(appId, userId, configId)` triple uniquely identifies a row
 //     from a given owner's point of view. The Config Browser shows
-//     dock + registry rows alongside MarketsGrid profile-set rows
-//     with no special casing.
+//     dock + registry rows alongside MarketsGrid layout-set rows
+//     (wire `componentType: 'markets-grid-layout-set'`, with pre-rename
+//     `'markets-grid-profile-set'` still accepted on read) with no
+//     special casing.
 //   • `creationTime` is preserved across overwrites; `updatedTime`
 //     is refreshed on every save.
 //
@@ -121,7 +123,7 @@ const LEGACY_DEFAULT_SCOPE: Required<ConfigScope> = { appId: 'system', userId: '
  * Live default scope. Platform shells call `setPlatformDefaultScope()`
  * during `initWorkspace()` so that all save/load calls in this module
  * default to the platform's own `(appId, userId)` — keeping dock,
- * registry, MarketsGrid profiles, and any other per-app config under
+ * registry, MarketsGrid layouts, and any other per-app config under
  * one scope key. Until the platform sets it, we behave like the legacy
  * `system/system` default for bit-for-bit back-compat with rows
  * written before this refactor.

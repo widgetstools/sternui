@@ -1,23 +1,23 @@
 import { test, expect, type Page } from '@playwright/test';
 import { bootCleanDemo, openPanel, closeSettingsSheet } from './helpers/settingsSheet';
 import {
-  createProfile,
-  cloneProfile,
-  switchToProfile,
+  createLayout,
+  cloneLayout,
+  switchToLayout,
   saveAll,
-  readProfileModuleState,
-  readStoredProfiles,
+  readLayoutModuleState,
+  readStoredLayouts,
   calculatedColumnHeaderVisible,
   columnGroupHeaderVisible,
-} from './helpers/profileHelpers';
+} from './helpers/layoutHelpers';
 
 /**
- * E2E — profile ISOLATION for structure modules (column groups +
+ * E2E — layout ISOLATION for structure modules (column groups +
  * calculated columns).
  *
  * Same philosophy as the styling spec — UI interaction + disk +
- * grid-DOM assertions, each test proves a structural edit in profile
- * A does not appear in profile B. Clones start as a faithful copy
+ * grid-DOM assertions, each test proves a structural edit in layout
+ * A does not appear in layout B. Clones start as a faithful copy
  * and diverge on edit.
  */
 
@@ -94,29 +94,29 @@ async function saveVirtual(page: Page, colId: string): Promise<void> {
 
 // ─── Tests ─────────────────────────────────────────────────────────
 
-test.describe('v2 profile isolation — column groups', () => {
+test.describe('v2 layout isolation — column groups', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
   test('group created in A does not render a group header in B', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     const gid = await createGroupWithColumns(page, 'Pricing', ['price', 'yield']);
     await closeSettingsSheet(page);
     await saveAll(page);
 
     expect(await columnGroupHeaderVisible(page, gid)).toBe(true);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     expect(await columnGroupHeaderVisible(page, gid)).toBe(false);
   });
 
-  test('group state stored ONLY under the creating profile (disk check)', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('group state stored ONLY under the creating layout (disk check)', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const gid = await createGroupWithColumns(page, 'AlphaGroup', ['price']);
     await saveAll(page);
 
     type GState = { groups?: Array<{ groupId?: string }> };
-    const alphaState = await readProfileModuleState<GState>(page, 'alpha', 'column-groups');
-    const defaultState = await readProfileModuleState<GState>(page, '__default__', 'column-groups');
+    const alphaState = await readLayoutModuleState<GState>(page, 'alpha', 'column-groups');
+    const defaultState = await readLayoutModuleState<GState>(page, '__default__', 'column-groups');
     const hasIn = (s: GState | undefined, id: string) =>
       !!s?.groups?.some((n) => n.groupId === id);
     expect(hasIn(alphaState, gid)).toBe(true);
@@ -124,11 +124,11 @@ test.describe('v2 profile isolation — column groups', () => {
   });
 
   test('clone inherits column groups, edits to clone diverge from source', async ({ page }) => {
-    await createProfile(page, 'Origin');
+    await createLayout(page, 'Origin');
     const gid = await createGroupWithColumns(page, 'Original', ['price']);
     await saveAll(page);
 
-    await cloneProfile(page, 'origin', 'Origin');
+    await cloneLayout(page, 'origin', 'Origin');
 
     // Rename the group in the clone.
     await openPanel(page, 'column-groups');
@@ -138,19 +138,19 @@ test.describe('v2 profile isolation — column groups', () => {
     await saveAll(page);
 
     // Back to Origin — original name preserved.
-    await switchToProfile(page, 'origin', 'Origin');
+    await switchToLayout(page, 'origin', 'Origin');
     await openPanel(page, 'column-groups');
     await page.locator(`[data-testid="cg-group-${gid}"]`).click();
     await expect(page.locator(`[data-testid="cg-name-${gid}"]`)).toHaveValue('Original');
   });
 
-  test('two profiles can each carry distinct groups without cross-contamination', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('two layouts can each carry distinct groups without cross-contamination', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const alphaGid = await createGroupWithColumns(page, 'APricing', ['price']);
     await closeSettingsSheet(page);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     const betaGid = await createGroupWithColumns(page, 'BMarkers', ['yield']);
     await closeSettingsSheet(page);
     await saveAll(page);
@@ -160,17 +160,17 @@ test.describe('v2 profile isolation — column groups', () => {
     expect(await columnGroupHeaderVisible(page, alphaGid)).toBe(false);
 
     // Flip to Alpha.
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     expect(await columnGroupHeaderVisible(page, alphaGid)).toBe(true);
     expect(await columnGroupHeaderVisible(page, betaGid)).toBe(false);
   });
 
   test('group deletion in A leaves B unaffected', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     const gid = await createGroupWithColumns(page, 'Delete-Me', ['price']);
     await saveAll(page);
 
-    await cloneProfile(page, 'alpha', 'Alpha');
+    await cloneLayout(page, 'alpha', 'Alpha');
     // On the clone, delete the group.
     await openPanel(page, 'column-groups');
     await page.locator(`[data-testid="cg-group-${gid}"]`).click();
@@ -184,13 +184,13 @@ test.describe('v2 profile isolation — column groups', () => {
     expect(await columnGroupHeaderVisible(page, gid)).toBe(false);
 
     // Back to Alpha — group still there.
-    await switchToProfile(page, 'alpha', 'Alpha');
+    await switchToLayout(page, 'alpha', 'Alpha');
     await closeSettingsSheet(page);
     expect(await columnGroupHeaderVisible(page, gid)).toBe(true);
   });
 
-  test('group persists through reload and remains profile-scoped', async ({ page }) => {
-    await createProfile(page, 'Persistent');
+  test('group persists through reload and remains layout-scoped', async ({ page }) => {
+    await createLayout(page, 'Persistent');
     const gid = await createGroupWithColumns(page, 'StickyGroup', ['price', 'yield']);
     await saveAll(page);
     await closeSettingsSheet(page);
@@ -200,11 +200,11 @@ test.describe('v2 profile isolation — column groups', () => {
     expect(await columnGroupHeaderVisible(page, gid)).toBe(true);
   });
 
-  test('Default profile column groups are separate from user profile groups', async ({ page }) => {
+  test('Default layout column groups are separate from user layout groups', async ({ page }) => {
     const defGid = await createGroupWithColumns(page, 'DefaultGroup', ['price']);
     await saveAll(page);
 
-    await createProfile(page, 'Fresh');
+    await createLayout(page, 'Fresh');
     expect(await columnGroupHeaderVisible(page, defGid)).toBe(false);
     // `Fresh` gets auto-dirtied by the grid-state module when AG-Grid
     // sees the column-state change from Default's groups to an empty
@@ -212,12 +212,12 @@ test.describe('v2 profile isolation — column groups', () => {
     // the unsaved-changes AlertDialog.
     await saveAll(page);
 
-    await switchToProfile(page, '__default__', 'Default');
+    await switchToLayout(page, '__default__', 'Default');
     expect(await columnGroupHeaderVisible(page, defGid)).toBe(true);
   });
 
-  test('multiple groups on one profile all render; none bleed to another', async ({ page }) => {
-    await createProfile(page, 'Multi');
+  test('multiple groups on one layout all render; none bleed to another', async ({ page }) => {
+    await createLayout(page, 'Multi');
     const g1 = await createGroupWithColumns(page, 'G1', ['price']);
     const g2 = await createGroupWithColumns(page, 'G2', ['yield']);
     const g3 = await createGroupWithColumns(page, 'G3', ['spread']);
@@ -226,7 +226,7 @@ test.describe('v2 profile isolation — column groups', () => {
 
     for (const id of [g1, g2, g3]) expect(await columnGroupHeaderVisible(page, id)).toBe(true);
 
-    await createProfile(page, 'Clean');
+    await createLayout(page, 'Clean');
     for (const id of [g1, g2, g3]) expect(await columnGroupHeaderVisible(page, id)).toBe(false);
   });
 });
@@ -237,37 +237,37 @@ test.describe('v2 profile isolation — column groups', () => {
  * appear in the filter tool panel + the settings-panel rail) but the
  * MAIN grid header only reflects them after an explicit column-state
  * nudge. This is documented in v2-calculated-columns.spec.ts as a
- * "deferred" interaction with the grid-state module. Profile isolation
+ * "deferred" interaction with the grid-state module. Layout isolation
  * tests below therefore assert on the MODULE STATE on disk (the
  * primary source of truth) rather than main-header DOM presence.
  */
 type VState = { virtualColumns?: Array<{ colId?: string }> };
 
-test.describe('v2 profile isolation — calculated columns', () => {
+test.describe('v2 layout isolation — calculated columns', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
-  test('virtual column created in A is stored ONLY in A, not in a sibling profile', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('virtual column created in A is stored ONLY in A, not in a sibling layout', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
-    const alphaCc = await readProfileModuleState<VState>(page, 'alpha', 'calculated-columns');
+    const alphaCc = await readLayoutModuleState<VState>(page, 'alpha', 'calculated-columns');
     expect(alphaCc?.virtualColumns?.some((v) => v.colId === vid)).toBe(true);
 
-    await createProfile(page, 'Beta');
-    const betaCc = await readProfileModuleState<VState>(page, 'beta', 'calculated-columns');
+    await createLayout(page, 'Beta');
+    const betaCc = await readLayoutModuleState<VState>(page, 'beta', 'calculated-columns');
     expect(betaCc?.virtualColumns?.some((v) => v.colId === vid) ?? false).toBe(false);
   });
 
-  test('virtual column absent from Default profile state after creating under user profile', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('virtual column absent from Default layout state after creating under user layout', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
-    const alphaState = await readProfileModuleState<VState>(page, 'alpha', 'calculated-columns');
-    const defaultState = await readProfileModuleState<VState>(page, '__default__', 'calculated-columns');
+    const alphaState = await readLayoutModuleState<VState>(page, 'alpha', 'calculated-columns');
+    const defaultState = await readLayoutModuleState<VState>(page, '__default__', 'calculated-columns');
     const hasCol = (s: VState | undefined, id: string) =>
       !!s?.virtualColumns?.some((v) => v.colId === id);
     expect(hasCol(alphaState, vid)).toBe(true);
@@ -275,17 +275,17 @@ test.describe('v2 profile isolation — calculated columns', () => {
   });
 
   test('clone preserves virtual columns; editing the clone does not mutate source', async ({ page }) => {
-    await createProfile(page, 'Origin');
+    await createLayout(page, 'Origin');
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
-    await cloneProfile(page, 'origin', 'Origin');
-    const cloneState = await readProfileModuleState<VState>(page, 'origin-copy', 'calculated-columns');
+    await cloneLayout(page, 'origin', 'Origin');
+    const cloneState = await readLayoutModuleState<VState>(page, 'origin-copy', 'calculated-columns');
     expect(cloneState?.virtualColumns?.some((v) => v.colId === vid)).toBe(true);
 
     // Origin state snapshot before the clone's edit.
-    const before = await readProfileModuleState<VState>(page, 'origin', 'calculated-columns');
+    const before = await readLayoutModuleState<VState>(page, 'origin', 'calculated-columns');
     const beforeCount = before?.virtualColumns?.length ?? 0;
 
     // Add an additional virtual column ONLY to the clone.
@@ -294,18 +294,18 @@ test.describe('v2 profile isolation — calculated columns', () => {
     await saveAll(page);
 
     // Origin must still have exactly the same number of virtuals as before.
-    const after = await readProfileModuleState<VState>(page, 'origin', 'calculated-columns');
+    const after = await readLayoutModuleState<VState>(page, 'origin', 'calculated-columns');
     expect(after?.virtualColumns?.length).toBe(beforeCount);
     expect(after?.virtualColumns?.some((v) => v.colId === vid2) ?? false).toBe(false);
   });
 
   test('deleting a virtual column in clone does not remove it from source', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+    await createLayout(page, 'Alpha');
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
-    await cloneProfile(page, 'alpha', 'Alpha');
+    await cloneLayout(page, 'alpha', 'Alpha');
 
     // Delete on the clone.
     await openPanel(page, 'calculated-columns');
@@ -315,26 +315,26 @@ test.describe('v2 profile isolation — calculated columns', () => {
     if (await confirm.count() > 0) await confirm.first().click();
     await saveAll(page);
 
-    const cloneState = await readProfileModuleState<VState>(page, 'alpha-copy', 'calculated-columns');
+    const cloneState = await readLayoutModuleState<VState>(page, 'alpha-copy', 'calculated-columns');
     expect(cloneState?.virtualColumns?.some((v) => v.colId === vid) ?? false).toBe(false);
 
-    const alphaState = await readProfileModuleState<VState>(page, 'alpha', 'calculated-columns');
+    const alphaState = await readLayoutModuleState<VState>(page, 'alpha', 'calculated-columns');
     expect(alphaState?.virtualColumns?.some((v) => v.colId === vid)).toBe(true);
   });
 
-  test('two profiles with distinct virtual columns — each state contains only its own', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('two layouts with distinct virtual columns — each state contains only its own', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const vidA = await addVirtualColumn(page);
     await saveVirtual(page, vidA);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     const vidB = await addVirtualColumn(page);
     await saveVirtual(page, vidB);
     await saveAll(page);
 
-    const alphaState = await readProfileModuleState<VState>(page, 'alpha', 'calculated-columns');
-    const betaState = await readProfileModuleState<VState>(page, 'beta', 'calculated-columns');
+    const alphaState = await readLayoutModuleState<VState>(page, 'alpha', 'calculated-columns');
+    const betaState = await readLayoutModuleState<VState>(page, 'beta', 'calculated-columns');
 
     expect(alphaState?.virtualColumns?.some((v) => v.colId === vidA)).toBe(true);
     if (vidA !== vidB) {
@@ -347,19 +347,19 @@ test.describe('v2 profile isolation — calculated columns', () => {
   });
 
   test('virtual column persists through reload (module state restored)', async ({ page }) => {
-    await createProfile(page, 'Persistent');
+    await createLayout(page, 'Persistent');
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
     await page.reload();
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]');
-    const state = await readProfileModuleState<VState>(page, 'persistent', 'calculated-columns');
+    const state = await readLayoutModuleState<VState>(page, 'persistent', 'calculated-columns');
     expect(state?.virtualColumns?.some((v) => v.colId === vid)).toBe(true);
   });
 
-  test('N virtual columns on one profile are all stored; none leak to another', async ({ page }) => {
-    await createProfile(page, 'MultiVirtual');
+  test('N virtual columns on one layout are all stored; none leak to another', async ({ page }) => {
+    await createLayout(page, 'MultiVirtual');
     const ids: string[] = [];
     for (let i = 0; i < 3; i++) {
       const id = await addVirtualColumn(page);
@@ -368,53 +368,53 @@ test.describe('v2 profile isolation — calculated columns', () => {
     }
     await saveAll(page);
 
-    const multiState = await readProfileModuleState<VState>(page, 'multivirtual', 'calculated-columns');
+    const multiState = await readLayoutModuleState<VState>(page, 'multivirtual', 'calculated-columns');
     for (const id of ids) {
       expect(multiState?.virtualColumns?.some((v) => v.colId === id)).toBe(true);
     }
 
-    await createProfile(page, 'Clean');
-    const cleanState = await readProfileModuleState<VState>(page, 'clean', 'calculated-columns');
+    await createLayout(page, 'Clean');
+    const cleanState = await readLayoutModuleState<VState>(page, 'clean', 'calculated-columns');
     for (const id of ids) {
       expect(cleanState?.virtualColumns?.some((v) => v.colId === id) ?? false).toBe(false);
     }
   });
 });
 
-test.describe('v2 profile isolation — groups + virtuals combined', () => {
+test.describe('v2 layout isolation — groups + virtuals combined', () => {
   test.beforeEach(async ({ page }) => { await bootCleanDemo(page); });
 
-  test('profile with both groups and virtuals stores both; sibling profile stores neither', async ({ page }) => {
-    await createProfile(page, 'Rich');
+  test('layout with both groups and virtuals stores both; sibling layout stores neither', async ({ page }) => {
+    await createLayout(page, 'Rich');
     const gid = await createGroupWithColumns(page, 'RichGroup', ['price']);
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
-    // Group header is reliably visible on the active profile (groups
+    // Group header is reliably visible on the active layout (groups
     // render without a column-state nudge); virtual columns need the
     // nudge, so we only disk-assert those.
     expect(await columnGroupHeaderVisible(page, gid)).toBe(true);
-    const richVc = await readProfileModuleState<VState>(page, 'rich', 'calculated-columns');
+    const richVc = await readLayoutModuleState<VState>(page, 'rich', 'calculated-columns');
     expect(richVc?.virtualColumns?.some((v) => v.colId === vid)).toBe(true);
 
-    await createProfile(page, 'Empty');
+    await createLayout(page, 'Empty');
     expect(await columnGroupHeaderVisible(page, gid)).toBe(false);
-    const emptyVc = await readProfileModuleState<VState>(page, 'empty', 'calculated-columns');
+    const emptyVc = await readLayoutModuleState<VState>(page, 'empty', 'calculated-columns');
     expect(emptyVc?.virtualColumns?.some((v) => v.colId === vid) ?? false).toBe(false);
   });
 
-  test('stored profiles table reflects module independence for structure modules', async ({ page }) => {
-    await createProfile(page, 'Alpha');
+  test('stored layouts table reflects module independence for structure modules', async ({ page }) => {
+    await createLayout(page, 'Alpha');
     const gid = await createGroupWithColumns(page, 'AlphaGroup', ['price']);
     await saveAll(page);
 
-    await createProfile(page, 'Beta');
+    await createLayout(page, 'Beta');
     const vid = await addVirtualColumn(page);
     await saveVirtual(page, vid);
     await saveAll(page);
 
-    const stored = await readStoredProfiles(page);
+    const stored = await readStoredLayouts(page);
     const alpha = stored.find((p) => p.id === 'alpha');
     const beta = stored.find((p) => p.id === 'beta');
 
