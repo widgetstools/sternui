@@ -193,7 +193,7 @@ export function LayoutSelector({
           </div>
 
           {/* List */}
-          <div className="ds-ps-list">
+          <div className="ds-ps-list ds-scrollbar">
             {layouts.length === 0 ? (
               <div className="ds-ps-empty">
                 No layouts yet — create one below
