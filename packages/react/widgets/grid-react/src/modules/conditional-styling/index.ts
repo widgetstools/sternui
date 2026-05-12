@@ -20,6 +20,8 @@ import {
 import {
   applyCellRulesToDefs,
   buildRowClassPredicate,
+  CONDITIONAL_DIFF_CACHE_KEY,
+  type DiffCacheByApi,
   reinjectAllRules,
 } from './transforms';
 import { cssEscapeColId } from '../column-customization/transforms';
@@ -49,6 +51,34 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
    */
   activate(platform: PlatformHandle<ConditionalStylingState>): () => void {
     const disposers: Array<() => void> = [];
+    let refreshRaf: number | null = null;
+    const diffCacheByApi = platform.resources.cache<object, WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>>(
+      CONDITIONAL_DIFF_CACHE_KEY,
+    );
+
+    const refreshGridVisuals = () => {
+      const api = platform.api.api;
+      if (!api) return;
+      try { api.refreshCells({ force: true }); } catch { /* grid mid-teardown */ }
+      try { api.redrawRows(); } catch { /* grid mid-teardown */ }
+      try {
+        if (typeof api.refreshHeader === 'function') api.refreshHeader();
+      } catch {
+        /* grid mid-teardown */
+      }
+    };
+
+    const scheduleRefresh = () => {
+      if (typeof window === 'undefined') {
+        refreshGridVisuals();
+        return;
+      }
+      if (refreshRaf != null) window.cancelAnimationFrame(refreshRaf);
+      refreshRaf = window.requestAnimationFrame(() => {
+        refreshRaf = null;
+        refreshGridVisuals();
+      });
+    };
 
     /**
      * Re-evaluate which columns should currently paint the header-flash
@@ -60,6 +90,7 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     const evaluate = () => {
       const api = platform.api.api;
       if (!api || typeof document === 'undefined') return;
+      const rowDiffCache = diffCacheByApi.get(api as object);
       const state = platform.getState();
       const engine = platform.resources.expression();
 
@@ -91,8 +122,12 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         api.forEachNodeAfterFilter((node) => {
           if (match) return;
           const data = node.data ?? {};
+          const columns = buildColumnsContextFromDiffs(
+            data,
+            rowDiffCache?.get(node as object),
+          );
           try {
-            if (engine.parseAndEvaluate(rule.expression, { x: null, value: null, data, columns: data })) {
+            if (engine.parseAndEvaluate(rule.expression, { x: null, value: null, data, columns })) {
               match = true;
             }
           } catch { /* swallow per-row */ }
@@ -133,14 +168,54 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
 
     // Fire evaluate on every relevant data-side event — and once immediately
     // so profile loads paint without waiting for a first event.
-    disposers.push(platform.api.onReady(() => evaluate()));
+    disposers.push(platform.api.onReady(() => {
+      evaluate();
+      scheduleRefresh();
+    }));
     disposers.push(platform.api.on('modelUpdated', evaluate));
     disposers.push(platform.api.on('filterChanged', evaluate));
     disposers.push(platform.api.on('cellValueChanged', evaluate));
+    disposers.push(platform.api.onReady((api) => {
+      let rowDiffCache = diffCacheByApi.get(api as object);
+      if (!rowDiffCache) {
+        rowDiffCache = new WeakMap();
+        diffCacheByApi.set(api as object, rowDiffCache);
+      }
+      const onCellValueChanged = (event: {
+        node?: unknown;
+        column?: { getColId?: () => string };
+        oldValue?: unknown;
+        newValue?: unknown;
+      }) => {
+        const node = event.node;
+        const getColId = event.column?.getColId;
+        if (!node || typeof node !== 'object' || typeof getColId !== 'function') return;
+        const colId = getColId();
+        if (!colId) return;
+        let rowDiffs = rowDiffCache!.get(node as object);
+        if (!rowDiffs) {
+          rowDiffs = new Map();
+          rowDiffCache!.set(node as object, rowDiffs);
+        }
+        rowDiffs.set(colId, { oldValue: event.oldValue, newValue: event.newValue });
+        evaluate();
+        scheduleRefresh();
+      };
+      api.addEventListener('cellValueChanged', onCellValueChanged);
+      disposers.push(() => {
+        api.removeEventListener('cellValueChanged', onCellValueChanged);
+      });
+    }));
     // Rule-list changes: state subscription.
-    disposers.push(platform.subscribe(() => evaluate()));
+    disposers.push(platform.subscribe(() => {
+      evaluate();
+      scheduleRefresh();
+    }));
 
     return () => {
+      if (refreshRaf != null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(refreshRaf);
+      }
       for (const d of disposers) { try { d(); } catch { /* swallow */ } }
       if (typeof document !== 'undefined') {
         document.querySelectorAll('.ag-header-cell.ds-flash-hdr-pulse').forEach((el) => {
@@ -153,12 +228,15 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
   transformColumnDefs(defs, state, ctx) {
     const css = ctx.resources.css(CSS_HANDLE_KEY);
     reinjectAllRules(css, state.rules);
+    const diffCacheByApi = ctx.resources.cache<object, WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>>(
+      CONDITIONAL_DIFF_CACHE_KEY,
+    ) as DiffCacheByApi;
 
     const cellRules = state.rules
       .filter((r) => r.enabled && r.scope.type === 'cell')
       .sort((a, b) => a.priority - b.priority);
     if (cellRules.length === 0) return defs;
-    return applyCellRulesToDefs(defs, cellRules, ctx.resources.expression());
+    return applyCellRulesToDefs(defs, cellRules, ctx.resources.expression(), diffCacheByApi);
   },
 
   transformGridOptions(opts, state, ctx) {
@@ -166,6 +244,9 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       .filter((r) => r.enabled && r.scope.type === 'row')
       .sort((a, b) => a.priority - b.priority);
     const engine = ctx.resources.expression();
+    const diffCacheByApi = ctx.resources.cache<object, WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>>(
+      CONDITIONAL_DIFF_CACHE_KEY,
+    ) as DiffCacheByApi;
     // Always emit rowClassRules so the host's setGridOption sync clears
     // stale predicates when a rule's scope flips row→cell.
     const rowClassRules: NonNullable<typeof opts.rowClassRules> = {
@@ -174,7 +255,8 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     for (const rule of rowRules) {
       // KEY must match the encoded selector emitted by buildCssText —
       // see cssEscapeColId in column-customization for the rationale.
-      (rowClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] = buildRowClassPredicate(engine, rule);
+      (rowClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] =
+        buildRowClassPredicate(engine, rule, diffCacheByApi);
     }
     return { ...opts, rowClassRules };
   },
@@ -212,8 +294,21 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
           if (typeof icon === 'string' && icon.length > 0) {
             const normalizedTarget: 'cells' | 'headers' | 'cells+headers' =
               target === 'cells' || target === 'headers' || target === 'cells+headers' ? target : 'cells+headers';
-            const normalizedPosition: 'top-left' | 'top-right' =
-              position === 'top-left' ? 'top-left' : 'top-right';
+            const normalizedPosition:
+              | 'top-left'
+              | 'top-right'
+              | 'bottom-left'
+              | 'bottom-right'
+              | 'left-middle'
+              | 'right-middle' =
+              position === 'top-left' ||
+              position === 'top-right' ||
+              position === 'bottom-left' ||
+              position === 'bottom-right' ||
+              position === 'left-middle' ||
+              position === 'right-middle'
+                ? position
+                : 'top-right';
             next = {
               ...next,
               indicator: {
@@ -264,3 +359,16 @@ export { INDICATOR_ICONS, findIndicatorIcon } from './indicatorIcons';
 export type { IndicatorIconDef } from './indicatorIcons';
 export { INITIAL_CONDITIONAL_STYLING } from './state';
 export { toStyleEditorValue, fromStyleEditorValue } from './styleBridge';
+
+function buildColumnsContextFromDiffs(
+  data: Record<string, unknown>,
+  rowDiffs: Map<string, { oldValue: unknown; newValue: unknown }> | undefined,
+): Record<string, unknown> {
+  const out = Object.create(data) as Record<string, unknown>;
+  if (!rowDiffs || rowDiffs.size === 0) return out;
+  for (const [colId, diff] of rowDiffs) {
+    out[`${colId}.old`] = diff.oldValue;
+    out[`${colId}.new`] = diff.newValue;
+  }
+  return out;
+}

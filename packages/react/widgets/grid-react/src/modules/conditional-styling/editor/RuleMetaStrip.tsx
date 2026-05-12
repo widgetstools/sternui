@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { IconInput, LedBar, MetaCell, Mono } from '../../../ui/SettingsPanel';
+import { CircleDot, Sliders, Target } from 'lucide-react';
+import { Caps, IconInput, LedBar, Mono, SummaryChip } from '../../../ui/SettingsPanel';
 import { Select, Switch } from '../../../ui/shadcn';
 import type { ConditionalRule, FlashTarget } from '../state';
 
@@ -20,26 +21,48 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
   appliedCount: number;
   setDraft: (patch: Partial<ConditionalRule>) => void;
 }) {
+  const scopeLabel = scopeType === 'row' ? 'ROW' : 'CELL';
+
   return (
-    <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
-      <MetaCell
-        label="STATUS"
-        value={
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <LedBar on={enabled} />
-            <Switch
-              checked={enabled}
-              onChange={(e) => setDraft({ enabled: e.target.checked })}
-            />
-            <Mono color={enabled ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)'}>
-              {enabled ? 'ACTIVE' : 'MUTED'}
-            </Mono>
-          </span>
-        }
-      />
-      <MetaCell
-        label="SCOPE"
-        value={
+    <div className="sticky top-0 z-10 shrink-0 bg-card border-b border-border px-4 py-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <SummaryChip
+          icon={<CircleDot size={11} strokeWidth={2} />}
+          label="STATUS"
+          tone={enabled ? 'positive' : 'neutral'}
+          value={enabled ? 'ACTIVE' : 'MUTED'}
+        />
+        <SummaryChip
+          icon={<Target size={11} strokeWidth={2} />}
+          label="SCOPE"
+          tone="info"
+          value={scopeLabel}
+        />
+        <SummaryChip
+          icon={<Sliders size={11} strokeWidth={2} />}
+          label="PRIORITY"
+          tone="warning"
+          value={priority}
+        />
+        <SummaryChip
+          label="APPLIED"
+          value={<Mono color="var(--ds-accent-warning)">{appliedCount} ROWS</Mono>}
+          tone={appliedCount > 0 ? 'warning' : 'neutral'}
+        />
+      </div>
+
+      <div className="mt-2 flex items-center gap-3 flex-wrap">
+        <div className="inline-flex items-center gap-2">
+          <Caps size={9}>STATUS</Caps>
+          <LedBar on={enabled} />
+          <Switch
+            checked={enabled}
+            onChange={(e) => setDraft({ enabled: e.target.checked })}
+          />
+        </div>
+
+        <div className="inline-flex items-center gap-2">
+          <Caps size={9}>SCOPE</Caps>
           <Select
             data-testid={`cs-rule-scope-${ruleId}`}
             value={scopeType}
@@ -49,10 +72,6 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
                 v === 'row'
                   ? { type: 'row' as const }
                   : { type: 'cell' as const, columns: [] };
-              // Flash target is scope-constrained: row → 'row',
-              // cell → 'cells' | 'headers' | 'cells+headers'. Flip
-              // the target with the scope so the stored config never
-              // becomes invalid.
               const nextFlash = flash
                 ? {
                     ...flash,
@@ -66,22 +85,15 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
                 : undefined;
               setDraft({ scope: nextScope, flash: nextFlash });
             }}
-            style={{
-              width: '100%',
-              height: 28,
-              fontSize: 11,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-            }}
+            style={{ width: 88, height: 24, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
           >
             <option value="cell">CELL</option>
             <option value="row">ROW</option>
           </Select>
-        }
-      />
-      <MetaCell
-        label="PRIORITY"
-        value={
+        </div>
+
+        <div className="inline-flex items-center gap-2">
+          <Caps size={9}>PRIORITY</Caps>
           <IconInput
             numeric
             value={String(priority)}
@@ -92,13 +104,10 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
               }
             }}
             data-testid={`cs-rule-priority-${ruleId}`}
+            style={{ width: 72 }}
           />
-        }
-      />
-      <MetaCell
-        label="APPLIED"
-        value={<Mono color="var(--ds-accent-warning)">{appliedCount} rows</Mono>}
-      />
+        </div>
+      </div>
     </div>
   );
 });

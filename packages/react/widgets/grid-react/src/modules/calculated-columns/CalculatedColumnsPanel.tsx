@@ -36,10 +36,10 @@ import {
   CockpitListItem,
   IconInput,
   LedBar,
-  MetaCell,
   Mono,
   ObjectTitleRow,
   SharpBtn,
+  SummaryChip,
   TitleInput,
 } from '../../ui/SettingsPanel';
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
@@ -259,31 +259,48 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-4">
-        <div className="grid grid-cols-4 gap-x-5 px-6 pt-3 pb-4 border-b border-border bg-card">
-          <MetaCell
-            label="COLUMN ID"
-            value={
-              <IconInput
-                value={draft.colId}
-                onCommit={(v) => setDraft({ colId: v })}
-                monospace
-                data-testid={`cc-virtual-colid-${colId}`}
-              />
-            }
-          />
-          <MetaCell label="REFS" value={<Mono color="var(--ds-text-primary)">{baseCols.length} cols</Mono>} />
-          <MetaCell
-            label="FORMATTER"
-            value={
-              <Mono color={draft.valueFormatterTemplate ? 'var(--ds-accent-warning)' : 'var(--ds-text-faint)'}>
-                {draft.valueFormatterTemplate ? 'SET' : '—'}
-              </Mono>
-            }
-          />
-          <MetaCell
-            label="WIDTH"
-            value={<Mono>{draft.initialWidth ? `${draft.initialWidth}px` : 'AUTO'}</Mono>}
-          />
+        <div className="sticky top-0 z-10 shrink-0 bg-card border-b border-border px-4 py-2 flex items-center gap-2 flex-wrap">
+          <div className="w-full flex items-center gap-2 flex-wrap">
+            <SummaryChip
+              label="COLUMN ID"
+              tone="primary"
+              value={
+                <span className="max-w-[220px] truncate inline-block align-middle">
+                  {draft.colId}
+                </span>
+              }
+              title={draft.colId}
+            />
+            <SummaryChip
+              label="REFS"
+              value={<Mono color="var(--ds-text-primary)">{baseCols.length} COLS</Mono>}
+              tone="info"
+            />
+            <SummaryChip
+              label="FORMATTER"
+              value={
+                <Mono color={draft.valueFormatterTemplate ? 'var(--ds-accent-warning)' : 'var(--ds-text-faint)'}>
+                  {draft.valueFormatterTemplate ? 'SET' : '—'}
+                </Mono>
+              }
+              tone={draft.valueFormatterTemplate ? 'warning' : 'neutral'}
+            />
+            <SummaryChip
+              label="WIDTH"
+              value={<Mono>{draft.initialWidth ? `${draft.initialWidth}px` : 'AUTO'}</Mono>}
+              tone={draft.initialWidth ? 'info' : 'neutral'}
+            />
+          </div>
+          <div className="w-full mt-2 flex items-center gap-2">
+            <Caps size={9}>COLUMN ID</Caps>
+            <IconInput
+              value={draft.colId}
+              onCommit={(v) => setDraft({ colId: v })}
+              monospace
+              data-testid={`cc-virtual-colid-${colId}`}
+              style={{ width: 220 }}
+            />
+          </div>
         </div>
 
         <Band index="01" title="EXPRESSION">
@@ -323,15 +340,7 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
             onChange={(next) => setDraft({ valueFormatterTemplate: next })}
             data-testid={`cc-virtual-fmt-${colId}`}
           />
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 10,
-              color: 'var(--ds-text-faint)',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-            }}
-          >
+          <div className="mt-2 text-xs text-muted-foreground tracking-[0.06em] uppercase">
             OPTIONAL · APPLIED TO THE COMPUTED VALUE BEFORE DISPLAY
           </div>
         </Band>

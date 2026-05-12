@@ -36,7 +36,7 @@ export function GhostIcon({
       aria-label={rest['aria-label'] ?? title}
       disabled={disabled}
       data-testid={rest['data-testid']}
-      className="inline-flex items-center justify-center flex-shrink-0 w-[22px] h-[22px] rounded-sm p-0 bg-transparent border-none text-secondary hover:text-foreground hover:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors duration-[120ms]"
+      className="inline-flex items-center justify-center flex-shrink-0 w-[22px] h-[22px] rounded-sm p-0 bg-transparent border-none text-foreground/85 hover:text-foreground hover:bg-muted disabled:text-muted-foreground/80 disabled:cursor-not-allowed transition-colors duration-[120ms]"
       style={style}
     >
       {children}

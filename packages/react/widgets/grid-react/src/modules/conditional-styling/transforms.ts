@@ -21,6 +21,17 @@ import type {
 } from './state';
 import { findIndicatorIcon, iconAsDataUrl } from './indicatorIcons';
 
+export interface CellDiffEntry {
+  oldValue: unknown;
+  newValue: unknown;
+}
+
+export type RowDiffMap = Map<string, CellDiffEntry>;
+export type RowDiffCache = WeakMap<object, RowDiffMap>;
+export type DiffCacheByApi = WeakMap<object, RowDiffCache>;
+
+export const CONDITIONAL_DIFF_CACHE_KEY = 'conditional-styling:cell-diff-cache';
+
 // ─── Pulse keyframes (module-scoped, shipped once per grid) ────────────────
 
 const FLASH_PULSE_RULE_ID = '__flash-pulse-keyframes__';
@@ -87,10 +98,15 @@ function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefin
     : ruleCls;
 
   const pos = indicator.position ?? 'top-right';
-  const anchor = pos === 'top-left' ? 'left: 2px' : 'right: 2px';
+  let anchor = 'top: 2px; right: 2px;';
+  if (pos === 'top-left') anchor = 'top: 2px; left: 2px;';
+  else if (pos === 'bottom-left') anchor = 'bottom: 2px; left: 2px;';
+  else if (pos === 'bottom-right') anchor = 'bottom: 2px; right: 2px;';
+  else if (pos === 'left-middle') anchor = 'top: 50%; left: 2px; transform: translateY(-50%);';
+  else if (pos === 'right-middle') anchor = 'top: 50%; right: 2px; transform: translateY(-50%);';
 
   return `${selector}::before {
-    content: ''; position: absolute; top: 2px; ${anchor};
+    content: ''; position: absolute; ${anchor}
     width: 12px; height: 12px;
     background-image: url("${url}");
     background-size: contain; background-repeat: no-repeat; background-position: center;
@@ -171,12 +187,14 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
 function buildCellClassPredicate(
   engine: ExpressionEngineLike,
   rule: ConditionalRule,
+  diffCacheByApi?: DiffCacheByApi,
 ): ((params: CellClassParams) => boolean) | string {
+  const hasDiffRefs = /\.[ \t]*(old|new)\]/i.test(rule.expression);
   // Try the AG-string optimisation path — v3 engine exposes `tryCompileToAgString`
   // on the concrete class; ExpressionEngineLike is intentionally narrow, so we
   // fall through to the function form when the helper isn't there.
   const tryCompile = (engine as { tryCompileToAgString?: (ast: unknown) => string | null }).tryCompileToAgString;
-  if (typeof tryCompile === 'function') {
+  if (!hasDiffRefs && typeof tryCompile === 'function') {
     try {
       const ast = engine.parse(rule.expression);
       const agString = tryCompile(ast);
@@ -186,13 +204,26 @@ function buildCellClassPredicate(
     }
   }
   return (params: CellClassParams) => {
+    const data = params.data ?? {};
+    const rowDiffs = getOrCreateRowDiffs(params.api, params.node, diffCacheByApi);
+    const colId =
+      params.column && typeof params.column.getColId === 'function'
+        ? params.column.getColId()
+        : undefined;
+    if (rowDiffs && colId) {
+      syncRowDiffEntry(rowDiffs, colId, params.value);
+    }
+    const columns = buildColumnsContext(
+      data,
+      rowDiffs,
+    );
     try {
       return Boolean(
         engine.parseAndEvaluate(rule.expression, {
           x: params.value,
           value: params.value,
-          data: params.data ?? {},
-          columns: params.data ?? {},
+          data,
+          columns,
         }),
       );
     } catch {
@@ -204,15 +235,31 @@ function buildCellClassPredicate(
 export function buildRowClassPredicate(
   engine: ExpressionEngineLike,
   rule: ConditionalRule,
+  diffCacheByApi?: DiffCacheByApi,
 ): (params: RowClassParams) => boolean {
   return (params: RowClassParams) => {
+    const data = params.data ?? {};
+    const rowDiffs = getOrCreateRowDiffs(
+      (params as RowClassParams & { api?: unknown }).api,
+      params.node,
+      diffCacheByApi,
+    );
+    if (rowDiffs) {
+      for (const [key, value] of Object.entries(data)) {
+        syncRowDiffEntry(rowDiffs, key, value);
+      }
+    }
+    const columns = buildColumnsContext(
+      data,
+      rowDiffs,
+    );
     try {
       return Boolean(
         engine.parseAndEvaluate(rule.expression, {
           x: null,
           value: null,
-          data: params.data ?? {},
-          columns: params.data ?? {},
+          data,
+          columns,
         }),
       );
     } catch {
@@ -227,6 +274,7 @@ export function applyCellRulesToDefs(
   defs: AnyColDef[],
   cellRules: ConditionalRule[],
   engine: ExpressionEngineLike,
+  diffCacheByApi?: DiffCacheByApi,
 ): AnyColDef[] {
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
@@ -251,14 +299,15 @@ export function applyCellRulesToDefs(
     for (const rule of applicable) {
       // The KEY of cellClassRules is what AG-Grid stamps on the cell
       // DOM — must match the encoded selector emitted by buildCssText.
-      (cellClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] = buildCellClassPredicate(engine, rule);
+      (cellClassRules as Record<string, unknown>)[`ds-rule-${cssEscapeColId(rule.id)}`] =
+        buildCellClassPredicate(engine, rule, diffCacheByApi);
     }
 
     // Per-rule value formatters — highest priority wins.
     const formatterRules = applicable.filter((r) => !!r.valueFormatter);
     if (formatterRules.length > 0) {
       const compiled = formatterRules.map((rule) => ({
-        predicate: buildCellClassPredicate(engine, rule),
+        predicate: buildCellClassPredicate(engine, rule, diffCacheByApi),
         formatter: valueFormatterFromTemplate(rule.valueFormatter!),
         expression: rule.expression,
       }));
@@ -270,8 +319,13 @@ export function applyCellRulesToDefs(
           let matched = false;
           try {
             if (typeof c.predicate === 'string') {
+              const data = params.data ?? {};
+              const columns = buildColumnsContext(
+                data,
+                resolveRowDiffs(params.api, params.node, diffCacheByApi),
+              );
               matched = Boolean(engine.parseAndEvaluate(c.expression, {
-                x: params.value, value: params.value, data: params.data ?? {}, columns: params.data ?? {},
+                x: params.value, value: params.value, data, columns,
               }));
             } else {
               matched = Boolean(c.predicate(params as CellClassParams));
@@ -289,4 +343,63 @@ export function applyCellRulesToDefs(
 
     return { ...colDef, cellClassRules };
   });
+}
+
+function resolveRowDiffs(
+  api: unknown,
+  node: unknown,
+  diffCacheByApi?: DiffCacheByApi,
+): RowDiffMap | undefined {
+  if (!diffCacheByApi) return undefined;
+  if (!api || typeof api !== 'object') return undefined;
+  if (!node || typeof node !== 'object') return undefined;
+  return diffCacheByApi.get(api as object)?.get(node as object);
+}
+
+function getOrCreateRowDiffs(
+  api: unknown,
+  node: unknown,
+  diffCacheByApi?: DiffCacheByApi,
+): RowDiffMap | undefined {
+  if (!diffCacheByApi) return undefined;
+  if (!api || typeof api !== 'object') return undefined;
+  if (!node || typeof node !== 'object') return undefined;
+  let byRow = diffCacheByApi.get(api as object);
+  if (!byRow) {
+    byRow = new WeakMap<object, RowDiffMap>();
+    diffCacheByApi.set(api as object, byRow);
+  }
+  let rowDiffs = byRow.get(node as object);
+  if (!rowDiffs) {
+    rowDiffs = new Map<string, CellDiffEntry>();
+    byRow.set(node as object, rowDiffs);
+  }
+  return rowDiffs;
+}
+
+function syncRowDiffEntry(
+  rowDiffs: RowDiffMap,
+  colId: string,
+  value: unknown,
+): void {
+  const prev = rowDiffs.get(colId);
+  if (!prev) {
+    rowDiffs.set(colId, { oldValue: value, newValue: value });
+    return;
+  }
+  if (Object.is(prev.newValue, value)) return;
+  rowDiffs.set(colId, { oldValue: prev.newValue, newValue: value });
+}
+
+function buildColumnsContext(
+  data: Record<string, unknown>,
+  rowDiffs: RowDiffMap | undefined,
+): Record<string, unknown> {
+  const out = Object.create(data) as Record<string, unknown>;
+  if (!rowDiffs || rowDiffs.size === 0) return out;
+  for (const [colId, diff] of rowDiffs) {
+    out[`${colId}.old`] = diff.oldValue;
+    out[`${colId}.new`] = diff.newValue;
+  }
+  return out;
 }

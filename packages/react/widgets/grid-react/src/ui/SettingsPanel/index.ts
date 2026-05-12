@@ -26,6 +26,12 @@ export { ItemCard, type ItemCardProps } from './ItemCard';
 export { ObjectTitleRow, type ObjectTitleRowProps } from './ObjectTitleRow';
 export { TitleInput, type TitleInputProps } from './TitleInput';
 export { PanelChrome, type PanelChromeProps } from './PanelChrome';
+export { SettingsRow, type SettingsRowProps } from './SettingsRow';
+export {
+  SummaryChip,
+  type SummaryChipProps,
+  type SummaryChipTone,
+} from './SummaryChip';
 export { TabStrip, type TabStripProps, type TabItem } from './TabStrip';
 export {
   CockpitList,

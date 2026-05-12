@@ -1798,6 +1798,90 @@ is addressable from one screen.
   outright rather than leaving a `{ colId }`-only stub. Auto-save
   picks the commit up on the usual 300ms debounce.
 
+- **Sticky chip-strip summary (v5)** — the legacy 4-column meta grid
+  (`COL ID / TYPE / OVERRIDES / TEMPLATES`) became a wrap-flexed strip
+  of `<SummaryChip>` chips pinned BELOW the editor header (outside the
+  scrolling band container, so it stays visible while bands scroll).
+  Always-on chips: COL ID, TYPE, DIRTY, OVERRIDES, TEMPLATES. Tone is
+  driven by state so the eye latches on edits — DIRTY/OVERRIDES warm to
+  warning amber, TEMPLATES warm to positive teal when non-zero, TYPE
+  warms to info cyan when a `cellDataType` is detected. Conditional
+  chips surface PINNED (`LEFT` / `RIGHT` / `ON`), HIDDEN, and FILTER
+  (with short-name TEXT / NUMBER / DATE / SET / MULTI / STREAM TEXT
+  / STREAM NUM / OFF / CUSTOM) when the column has that state set.
+  Implementation lives in `ColumnMetaStrip.tsx`; the chip primitive is
+  shared with `GridOptionsPanel` (`SettingsPanel/SummaryChip.tsx`).
+
+- **Unified row primitive (v5)** — every label-and-control row in the
+  Grid Customizer (Grid Options field rows + all six Column Settings
+  band sub-editors: HeaderBand, LayoutBand, TemplatesBand,
+  RowGroupingEditor, FilterEditor, CellEditorEditor) now routes through
+  one shared `<SettingsRow>` in `SettingsPanel/SettingsRow.tsx`. Same
+  160px fixed label gutter, same compact 6px vertical padding, same
+  10px uppercase Caps label, same `--ds-border-primary` divider, same
+  `items-center` alignment so the label TEXT lines up vertically with
+  the control TEXT regardless of which control kind sits in the row
+  (Switch / IconInput / Select / TriStateToggle / read-only pill).
+  When a hint is present it drops onto a second grid row in column 2
+  only — it never pushes the label off-centre relative to the control.
+  Rows without a hint stay tight at one line; rows with a hint grow by
+  exactly the hint's own line height. The old `editors/Row.tsx`
+  inside column-customization is reduced to a 2-line re-export so the
+  six band imports keep working without changes.
+
+- **Unified sticky summary strips across editors (v5)** — the remaining
+  Grid Customizer editors now use the same summary-strip visual language
+  as Grid Options (`bg-card` + `border-b` strip with wrap-flexed
+  `<SummaryChip>` entries and shared semantic tones). `RuleMetaStrip`
+  (conditional-styling), `CalculatedColumnsPanel` meta strip, and
+  `ColumnGroupsPanel` meta strip were migrated from legacy `MetaCell`
+  grids to chip strips and made `sticky top-0 z-10` inside their
+  scroll containers. Accent semantics are now consistent across all
+  editors: primary for identity/anchor state, info for contextual
+  metadata, warning for attention/overrides/counts, positive for active
+  confirmation states.
+
+- **Token-only accent references + hint legibility pass (v5)** — removed
+  local accent utility drift from SettingsPanel controls so pressed/active
+  states now resolve directly via `--ds-accent-positive` and
+  `--ds-overlay-positive-soft` (no implicit `text-success` class path).
+  Conditional-styling indicator defaults now source warning accent from
+  `var(--ds-accent-warning)` instead of a local hex. Shared row hints in
+  `SettingsRow` were bumped to a more legible DS-driven treatment
+  (`text-[11px]`, `text-muted-foreground`, `leading-relaxed`) so helper
+  descriptions under labels/inputs read consistently across all editors.
+
+- **Icon contrast pass for light/dark parity (v5)** — icon-bearing
+  primitives used across Grid Customizer editors (`SummaryChip`,
+  `GhostIcon`, `Cockpit` toggle buttons, `PillToggleBtn`,
+  `GhostIconButton`) were tuned to a stronger DS-driven resting ink
+  (`text-foreground/85` or `--ds-text-primary`) and full icon opacity.
+  This removes low-contrast icon states in dark mode while preserving
+  semantic accent hover/pressed colours via existing DS overlay tokens.
+
+- **Sidebar filter + shared row chrome unification (v5)** — Column
+  Settings list rail now includes a sticky top search field
+  (`cols-filter-input`) that filters by both `headerName` and `colId`,
+  keeps selection valid when filters narrow, and preserves windowed list
+  performance against the filtered slice. Sidebar item styling for all
+  grid-customizer editors that use the shared list rail
+  (`ColumnSettings`, `ConditionalStyling`, `CalculatedColumns`,
+  `ColumnGroups`) is now centralized in `CockpitListItem` with one DS
+  token-driven style contract (same active surface, same left-accent
+  border token, same hover/selected treatment), eliminating per-editor
+  drift.
+
+- **Immediate diff-aware conditional expressions (v5)** — conditional
+  styling now captures per-cell `{oldValue,newValue}` on
+  `cellValueChanged` and injects them into expression context as
+  dotted column refs (`[price.old]`, `[price.new]`) while preserving
+  existing `[price]` semantics. Diff refs are available to both cell
+  and row predicates; AG-string compilation is skipped only for rules
+  that reference `.old` / `.new` so performance optimisations remain for
+  non-diff rules. Rule commits now schedule an immediate grid refresh
+  (`refreshCells`, `redrawRows`, `refreshHeader`) so indicator/style
+  changes appear without requiring full grid save/reload.
+
 - **Works for virtual columns** — calculated columns land in
   `api.getColumns()` once `calculated-columns.transformColumnDefs`
   has run at priority 15, so they show in the list automatically.
@@ -2293,6 +2377,21 @@ pixel-for-pixel — the renderer emits the same `<Band>` + `<Row>` markup
 v2 used; tests cover all seven field kinds (bool / num / optNum / text
 / select / invert / conditional / custom). 10 integration tests added
 (`GridOptionsPanel.test.tsx`).
+
+**v5 sidebar-nav layout** — the flat scrolling list became a left
+sidebar + content split. The 10 category bands (ESSENTIALS, ROW
+GROUPING, …, PERFORMANCE) live in a fixed-width left rail with a small
+override-count badge per band; clicking a band scrolls its content into
+view and an IntersectionObserver passively updates the active highlight
+as the user scrolls (jsdom-safe — guarded). The summary strip
+(SCHEMA / OVERRIDES / DIRTY / QUICK FILTER + an extra SEARCHING chip
+while a filter is active) is now a sticky chip row pinned below the
+search bar, formatted with semantic Tailwind classes and the
+`--ds-overlay-{warning,info,primary}-soft/-ring` token surfaces so it
+renders correctly in both dark and light. Row padding tightened (160px
+label column, 5px vertical padding) for a denser body. Field-key
+collection is centralised in `collectFieldKeys` on the schema module
+(used by per-band override counters).
 
 ### 1.12 Formatter Toolbar + FormatterPicker
 

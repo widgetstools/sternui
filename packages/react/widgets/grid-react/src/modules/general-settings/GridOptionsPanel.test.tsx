@@ -43,13 +43,17 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
 
   // ─── Structure / render ────────────────────────────────────────────
 
-  it('renders the panel shell + all 8 bands', () => {
+  it('renders the panel shell + all bands (sidebar + content)', () => {
     mount(platform);
     expect(screen.getByTestId('go-panel')).toBeTruthy();
     expect(screen.getByTestId('go-save-btn')).toBeTruthy();
     expect(screen.getByTestId('go-discard-btn')).toBeTruthy();
+    // Sidebar + sticky summary chip strip both wire through.
+    expect(screen.getByTestId('go-band-nav')).toBeTruthy();
+    expect(screen.getByTestId('go-summary-strip')).toBeTruthy();
 
-    // Band titles — pure visual check that the schema wired through.
+    // Band titles render twice — once as a sidebar nav item, once as
+    // the in-content section header anchor.
     for (const title of [
       'ESSENTIALS',
       'ROW GROUPING',
@@ -60,7 +64,7 @@ describe('GridOptionsPanel (v4 schema-driven)', () => {
       'DEFAULT COLDEF',
       'PERFORMANCE (ADVANCED)',
     ]) {
-      expect(screen.getByText(title)).toBeTruthy();
+      expect(screen.getAllByText(title).length).toBeGreaterThanOrEqual(2);
     }
   });
 

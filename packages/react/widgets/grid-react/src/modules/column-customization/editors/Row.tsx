@@ -1,41 +1,12 @@
-import { Caps } from '../../../ui/SettingsPanel';
-
 /**
- * Row — shared layout primitive for every control in the column-settings
- * editor bands. 180px caps-label + hint stack on the left, flex control
- * row on the right. Used by FilterEditor, RowGroupingEditor, and the
- * band bodies inside ColumnSettingsEditorInner.
+ * Row — local re-export of the canonical `SettingsRow` primitive.
  *
- * Extracted from ColumnSettingsPanel.tsx during the AUDIT M3 split so
- * sibling editor files can import the same layout shell without pulling
- * the panel in.
+ * Every band sub-editor in column-customization (HeaderBand,
+ * LayoutBand, TemplatesBand, RowGroupingEditor, FilterEditor,
+ * CellEditorEditor) imports `Row` from this module. They now resolve
+ * to the same `SettingsRow` that the Grid Options panel uses, so the
+ * label gutter, vertical alignment, divider, and hint placement are
+ * identical across editors.
  */
-export interface RowProps {
-  label: string;
-  hint?: string;
-  control: React.ReactNode;
-}
-
-export function Row({ label, hint, control }: RowProps) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '180px 1fr',
-        alignItems: 'center',
-        columnGap: 20,
-        rowGap: 4,
-        padding: '8px 0',
-        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 50%, transparent)',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Caps size={10}>{label}</Caps>
-        {hint && (
-          <span className="text-[10px] text-muted leading-[1.35]">{hint}</span>
-        )}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{control}</div>
-    </div>
-  );
-}
+export { SettingsRow as Row } from '../../../ui/SettingsPanel';
+export type { SettingsRowProps as RowProps } from '../../../ui/SettingsPanel';

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketsUI · Grid Edit Subsystem · AG Grid 35</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@35.2.1/styles/ag-grid.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@35.2.1/styles/ag-theme-quartz.css">
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@35.2.1/dist/ag-grid-community.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-enterprise@35.2.1/dist/ag-grid-enterprise.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1014;
+    --bg-elev: #14181f;
+    --bg-elev-2: #1c2230;
+    --rule: #2a3342;
+    --rule-soft: #1e2532;
+    --ink: #d8dee9;
+    --ink-mute: #8b95a7;
+    --ink-dim: #5a6376;
+    --accent: #ffb454;
+    --accent-soft: #ffb45422;
+    --pending: #facc15;
+    --pending-bg: #facc1518;
+    --commit: #4ade80;
+    --commit-bg: #4ade8018;
+    --danger: #f87171;
+    --danger-bg: #f8717118;
+    --link: #7dd3fc;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .brand .name { font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+  .brand .desk { color: var(--ink-mute); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+  .status { display: flex; gap: 16px; align-items: center; font-size: 11px; color: var(--ink-mute); }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--commit);
+    display: inline-block;
+    margin-right: 5px;
+    box-shadow: 0 0 6px var(--commit);
+  }
+
+  .toolbar {
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 11.5px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.12s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:disabled:hover { border-color: var(--rule); color: var(--ink); }
+  .btn.primary { background: var(--accent); color: #0d1014; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { background: #ffc875; }
+  .btn.primary:disabled { background: var(--bg-elev-2); color: var(--ink-dim); border-color: var(--rule); }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+  .btn.danger:hover { background: var(--danger-bg); }
+  .divider { width: 1px; height: 22px; background: var(--rule); margin: 0 4px; }
+  .pending-counter {
+    font-size: 11px;
+    color: var(--pending);
+    margin-left: 8px;
+    padding: 4px 10px;
+    background: var(--pending-bg);
+    border: 1px solid var(--pending);
+    border-radius: 2px;
+    display: none;
+  }
+  .pending-counter.visible { display: inline-block; }
+  .hint {
+    margin-left: auto;
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    overflow: hidden;
+  }
+  .grid-wrap { overflow: hidden; position: relative; }
+  #blotter { width: 100%; height: 100%; }
+
+  aside {
+    background: var(--bg-elev);
+    border-left: 1px solid var(--rule);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel { border-bottom: 1px solid var(--rule); padding: 14px 16px; }
+  .panel h3 {
+    font-size: 10px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .keymap { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 11px; }
+  .keymap kbd {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--rule);
+    padding: 2px 6px;
+    border-radius: 2px;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+
+  .log { flex: 1; overflow-y: auto; padding: 14px 16px; font-size: 11px; }
+  .log-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--rule-soft); }
+  .log-entry .time { color: var(--ink-dim); font-size: 10px; margin-right: 8px; }
+  .log-entry .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-right: 6px;
+  }
+  .log-entry .tag.intent  { background: var(--accent-soft); color: var(--accent); }
+  .log-entry .tag.commit  { background: var(--commit-bg); color: var(--commit); }
+  .log-entry .tag.undo    { background: rgba(125,211,252,0.15); color: var(--link); }
+  .log-entry .tag.reject  { background: var(--danger-bg); color: var(--danger); }
+  .log-entry .tag.tick    { background: rgba(192,132,252,0.15); color: #c084fc; }
+  .log-entry .tag.stream  { background: rgba(139,149,167,0.15); color: var(--ink-mute); }
+  .log-entry .detail { color: var(--ink-mute); font-size: 10.5px; margin-top: 2px; margin-left: 4px; }
+
+  .cell-pending {
+    background-color: var(--pending-bg) !important;
+    color: var(--pending) !important;
+    position: relative;
+    border-left: 2px solid var(--pending) !important;
+  }
+  .cell-pending::after {
+    content: "◆";
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: 7px;
+    color: var(--pending);
+    opacity: 0.8;
+  }
+  .cell-committing {
+    background-color: var(--pending-bg) !important;
+    color: var(--pending) !important;
+    border-left: 2px solid var(--pending) !important;
+    animation: pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  .cell-committed-flash {
+    background-color: var(--commit-bg) !important;
+    color: var(--commit) !important;
+    transition: background-color 0.6s, color 0.6s;
+  }
+  .cell-conflict {
+    background-color: var(--danger-bg) !important;
+    color: var(--danger) !important;
+    position: relative;
+  }
+  .cell-conflict::after {
+    content: "⚠";
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: 9px;
+  }
+  .cell-rejected {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--danger-bg),
+      var(--danger-bg) 4px,
+      transparent 4px,
+      transparent 8px
+    ) !important;
+    color: var(--danger) !important;
+    border-left: 2px solid var(--danger) !important;
+  }
+  .tick-up { animation: tickUp 0.7s; }
+  .tick-down { animation: tickDown 0.7s; }
+  @keyframes tickUp {
+    0% { background-color: rgba(74, 222, 128, 0.35); }
+    100% { background-color: transparent; }
+  }
+  @keyframes tickDown {
+    0% { background-color: rgba(248, 113, 113, 0.35); }
+    100% { background-color: transparent; }
+  }
+  .side-buy { color: var(--commit); font-weight: 700; }
+  .side-sell { color: var(--danger); font-weight: 700; }
+  .linked-col-header::before { content: "🔗 "; color: var(--link); margin-right: 2px; }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-elev);
+    border: 1px solid var(--accent);
+    color: var(--ink);
+    padding: 12px 24px;
+    border-radius: 3px;
+    font-size: 12px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  }
+  #toast.visible { opacity: 1; }
+  #toast.danger { border-color: var(--danger); color: var(--danger); }
+  #toast.success { border-color: var(--commit); color: var(--commit); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="name">MarketsUI</span>
+    <span class="desk">IG Credit · NY · AG Grid 35</span>
+  </div>
+  <div class="status">
+    <span><span class="dot"></span>ViewServer connected</span>
+    <span id="trader-name">Trader: A. Mehta</span>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button class="btn" id="btn-stream-toggle">Pause stream</button>
+  <button class="btn" id="btn-theme-toggle">Switch to light theme</button>
+  <button class="btn" id="btn-tick-up">Tick Up (Alt+↑)</button>
+  <button class="btn" id="btn-tick-down">Tick Down (Alt+↓)</button>
+  <div class="divider"></div>
+  <button class="btn" id="btn-undo">Undo (Ctrl+Z)</button>
+  <button class="btn" id="btn-redo">Redo (Ctrl+Y)</button>
+  <div class="divider"></div>
+  <button class="btn primary" id="btn-commit">Commit (Ctrl+Enter)</button>
+  <button class="btn danger" id="btn-cancel">Discard (Esc)</button>
+  <span class="pending-counter" id="pending-counter">0 pending</span>
+  <span class="hint">Range-select cells, then Alt+↑/↓ or edit directly</span>
+</div>
+
+<main>
+  <div class="grid-wrap">
+    <div id="blotter" class="ag-theme-quartz"></div>
+  </div>
+  <aside>
+    <div class="panel">
+      <h3>Keyboard shortcuts</h3>
+      <div class="keymap">
+        <kbd>F2</kbd><span>Edit cell</span>
+        <kbd>Alt+↑/↓</kbd><span>Tick selection ±1</span>
+        <kbd>Alt+Shift+↑/↓</kbd><span>Tick ±5</span>
+        <kbd>Ctrl+Enter</kbd><span>Commit batch</span>
+        <kbd>Esc</kbd><span>Discard pending</span>
+        <kbd>Ctrl+Z</kbd><span>Undo</span>
+        <kbd>Ctrl+Y</kbd><span>Redo</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Linkage rules (active)</h3>
+      <div style="font-size:11px;color:var(--ink-mute);line-height:1.6;">
+        <div>· <span style="color: var(--link)">bid ↔ ask</span> preserve_spread</div>
+        <div>· <span style="color: var(--link)">spread → price</span> derive_from_anchor</div>
+        <div>· FF warn &gt; 10bp · reject &gt; 25bp</div>
+      </div>
+    </div>
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;padding-bottom:0;">
+      <h3>Activity log</h3>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const { ModuleRegistry, AllEnterpriseModule, createGrid, themeQuartz } = agGrid;
+if (ModuleRegistry && AllEnterpriseModule) {
+  ModuleRegistry.registerModules([AllEnterpriseModule]);
+}
+
+const theme = themeQuartz
+  .withParams({
+    accentColor: "#8AAAA7",
+    backgroundColor: "#F7F7F7",
+    borderColor: "#23202029",
+    browserColorScheme: "light",
+    buttonBorderRadius: 2,
+    cellTextColor: "#000000",
+    checkboxBorderRadius: 2,
+    columnBorder: true,
+    fontFamily: { googleFont: "Inter" },
+    fontSize: 14,
+    headerBackgroundColor: "#EFEFEFD6",
+    headerFontFamily: { googleFont: "Inter" },
+    headerFontSize: 14,
+    headerFontWeight: 500,
+    iconButtonBorderRadius: 1,
+    iconSize: 12,
+    inputBorderRadius: 2,
+    oddRowBackgroundColor: "#EEF1F1E8",
+    spacing: 6,
+    wrapperBorderRadius: 2
+  }, "light")
+  .withParams({
+    accentColor: "#8AAAA7",
+    backgroundColor: "#1f2836",
+    borderRadius: 2,
+    checkboxBorderRadius: 2,
+    columnBorder: true,
+    browserColorScheme: "dark",
+    chromeBackgroundColor: { ref: "foregroundColor", mix: 0.07, onto: "backgroundColor" },
+    fontFamily: { googleFont: "Inter" },
+    fontSize: 14,
+    foregroundColor: "#FFF",
+    headerFontFamily: { googleFont: "Inter" },
+    headerFontSize: 14,
+    iconSize: 12,
+    inputBorderRadius: 2,
+    oddRowBackgroundColor: "#2A2E35",
+    spacing: 6,
+    wrapperBorderRadius: 2
+  }, "dark");
+
+function setDarkMode(enabled) {
+  document.body.dataset.agThemeMode = enabled ? "dark" : "light";
+}
+setDarkMode(true);
+
+class PendingEditBuffer {
+  constructor() { this.entries = new Map(); this.listeners = new Set(); }
+  key(rowId, colId) { return rowId + "|" + colId; }
+  has(rowId, colId) { return this.entries.has(this.key(rowId, colId)); }
+  get(rowId, colId) { return this.entries.get(this.key(rowId, colId)); }
+  size() { return this.entries.size; }
+  all() { return Array.from(this.entries.values()); }
+  set(entry) { this.entries.set(this.key(entry.rowId, entry.colId), entry); this.notify(); }
+  delete(rowId, colId) { this.entries.delete(this.key(rowId, colId)); this.notify(); }
+  clear() { this.entries.clear(); this.notify(); }
+  setState(rowId, colId, state) { const e = this.get(rowId, colId); if (e) { e.state = state; this.notify(); } }
+  notify() { this.listeners.forEach((fn) => fn(this)); }
+  subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+}
+
+class UndoStack {
+  constructor() {
+    this.working = [];
+    this.committed = [];
+    this.redoStack = [];
+    this.listeners = new Set();
+  }
+  pushWorking(frame) { this.working.push(frame); this.redoStack.length = 0; this.notify(); }
+  promoteToCommitted(intentId) {
+    const idx = this.working.findIndex((f) => f.intentId === intentId);
+    if (idx >= 0) {
+      const frame = this.working.splice(idx, 1)[0];
+      frame.tier = "committed";
+      this.committed.push(frame);
+      this.notify();
+    }
+  }
+  popForUndo() {
+    if (this.working.length > 0) return { frame: this.working.pop(), tier: "working" };
+    if (this.committed.length > 0) return { frame: this.committed[this.committed.length - 1], tier: "committed" };
+    return null;
+  }
+  consumeCommittedTop() { if (this.committed.length > 0) { const f = this.committed.pop(); this.notify(); return f; } return null; }
+  pushRedo(frame) { this.redoStack.push(frame); this.notify(); }
+  popRedo() { return this.redoStack.pop(); }
+  canUndo() { return this.working.length > 0 || this.committed.length > 0; }
+  canRedo() { return this.redoStack.length > 0; }
+  clearWorkingOnDiscard() { this.working = []; this.notify(); }
+  subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+  notify() { this.listeners.forEach((fn) => fn(this)); }
+}
+
+const COLUMNS = {
+  bid: { warn: 1.0, reject: 3.0, unit: "pts" },
+  ask: { warn: 1.0, reject: 3.0, unit: "pts" },
+  spread: { warn: 10, reject: 25, unit: "bp" },
+  size: { warn: 50, reject: 999, unit: "mm" }
+};
+const TICK_SIZE = { bid: 0.125, ask: 0.125, spread: 0.5, size: 1 };
+const LINKAGE = {
+  bid: { paired: ["ask"], strategy: "preserve_spread" },
+  ask: { paired: ["bid"], strategy: "preserve_spread" },
+  spread: {
+    paired: ["bid"],
+    strategy: "derive_anchor",
+    formula: (newSpread, row) => {
+      const dPrice = -(newSpread - row.spread) * 0.05;
+      return { bid: round(row.bid + dPrice, 3) };
+    }
+  }
+};
+function round(v, dp) { const p = Math.pow(10, dp); return Math.round(v * p) / p; }
+
+const SEED_ROWS = [
+  { id: "r1", cusip: "037833DT8", issuer: "AAPL 4.65 02/29", side: "B", size: 5, bid: 99.875, ask: 100.0, spread: 78, yield: 4.75, last: 99.85, model: 99.88 },
+  { id: "r2", cusip: "459200JX0", issuer: "IBM 4.50 02/26", side: "B", size: 10, bid: 99.25, ask: 99.375, spread: 92, yield: 4.92, last: 99.2, model: 99.27 },
+  { id: "r3", cusip: "594918BR4", issuer: "MSFT 3.30 02/27", side: "S", size: 3, bid: 96.5, ask: 96.625, spread: 65, yield: 4.21, last: 96.51, model: 96.55 },
+  { id: "r4", cusip: "478160CN2", issuer: "JNJ 4.95 06/33", side: "B", size: 7, bid: 101.125, ask: 101.25, spread: 88, yield: 4.81, last: 101.1, model: 101.13 },
+  { id: "r5", cusip: "14913R2D9", issuer: "CAT 5.20 09/31", side: "B", size: 5, bid: 102.0, ask: 102.125, spread: 105, yield: 4.95, last: 101.97, model: 102.02 },
+  { id: "r6", cusip: "24422EUM9", issuer: "JD 4.10 03/30", side: "S", size: 2, bid: 95.875, ask: 96.0, spread: 145, yield: 5.35, last: 95.85, model: 95.9 },
+  { id: "r7", cusip: "254687FK7", issuer: "DIS 3.80 05/29", side: "B", size: 8, bid: 96.25, ask: 96.375, spread: 110, yield: 5.05, last: 96.22, model: 96.26 },
+  { id: "r8", cusip: "345370DA0", issuer: "F 4.95 03/30", side: "B", size: 12, bid: 94.5, ask: 94.75, spread: 215, yield: 6.15, last: 94.45, model: 94.55 },
+  { id: "r9", cusip: "375558BS4", issuer: "GILD 5.25 12/29", side: "S", size: 4, bid: 100.625, ask: 100.75, spread: 95, yield: 5.05, last: 100.62, model: 100.65 },
+  { id: "r10", cusip: "38141GVR1", issuer: "GS 4.75 02/29", side: "B", size: 15, bid: 99.5, ask: 99.625, spread: 118, yield: 5.1, last: 99.48, model: 99.52 }
+];
+
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+function fmtPrice(v) { return v == null ? "" : Number(v).toFixed(3); }
+function fmtSpread(v) { return v == null ? "" : "+" + Number(v).toFixed(1); }
+function fmtSize(v) { return v == null ? "" : v + "MM"; }
+
+function log(kind, msg, detail) {
+  const el = document.getElementById("log");
+  const t = new Date().toLocaleTimeString("en-US", { hour12: false });
+  const div = document.createElement("div");
+  div.className = "log-entry";
+  div.innerHTML = `<span class="time">${t}</span><span class="tag ${kind}">${kind}</span><span class="msg">${msg}</span>${detail ? `<div class="detail">${detail}</div>` : ""}`;
+  el.insertBefore(div, el.firstChild);
+  while (el.children.length > 60) el.removeChild(el.lastChild);
+}
+
+function toast(msg, kind) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "visible" + (kind ? " " + kind : "");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.className = ""; }, 2200);
+}
+
+class EditCoordinator {
+  constructor(buffer, undo, gridApi) {
+    this.buffer = buffer;
+    this.undo = undo;
+    this.gridApi = gridApi;
+    this.rowMap = new Map();
+    this.streamingSuspended = new Set();
+  }
+  setRows(rows) { this.rowMap.clear(); rows.forEach((r) => this.rowMap.set(r.id, r)); }
+  getRow(rowId) { return this.rowMap.get(rowId); }
+  isSuspended(rowId, colId) { return this.streamingSuspended.has(rowId + "|" + colId); }
+  validate(edit) {
+    const meta = COLUMNS[edit.colId];
+    if (!meta) return { state: "VALID" };
+    const baseline = this.getRow(edit.rowId)[edit.colId];
+    const delta = Math.abs(edit.value - baseline);
+    if (delta > meta.reject) return { state: "REJECTED", reason: `Δ ${delta.toFixed(2)} ${meta.unit} exceeds reject threshold ${meta.reject}` };
+    if (delta > meta.warn) return { state: "VALID", warn: `Δ ${delta.toFixed(2)} ${meta.unit} > warn ${meta.warn}` };
+    return { state: "VALID" };
+  }
+  stage(intent) {
+    const intentId = intent.intentId || ("i_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7));
+    const edits = [{ rowId: intent.rowId, colId: intent.colId, value: intent.value }];
+    const row = this.getRow(intent.rowId);
+    const link = LINKAGE[intent.colId];
+    if (link && intent.applyLinkage !== false) {
+      if (link.strategy === "preserve_spread") {
+        const delta = intent.value - row[intent.colId];
+        link.paired.forEach((pCol) => edits.push({ rowId: intent.rowId, colId: pCol, value: round(row[pCol] + delta, 3) }));
+      } else if (link.strategy === "derive_anchor" && link.formula) {
+        const derived = link.formula(intent.value, row);
+        Object.entries(derived).forEach(([pCol, pVal]) => {
+          edits.push({ rowId: intent.rowId, colId: pCol, value: pVal });
+          if (pCol === "bid") {
+            const dBid = pVal - row.bid;
+            edits.push({ rowId: intent.rowId, colId: "ask", value: round(row.ask + dBid, 3) });
+          }
+        });
+      }
+    }
+    for (const ed of edits) {
+      const v = this.validate(ed);
+      if (v.state === "REJECTED") { toast(`Rejected: ${v.reason}`, "danger"); log("reject", `Edit rejected on ${ed.colId}: ${v.reason}`); return null; }
+    }
+    const reverse = [];
+    for (const ed of edits) {
+      const existing = this.buffer.get(ed.rowId, ed.colId);
+      const before = existing ? existing.before : this.getRow(ed.rowId)[ed.colId];
+      reverse.push({ rowId: ed.rowId, colId: ed.colId, before, after: ed.value });
+      this.buffer.set({ rowId: ed.rowId, colId: ed.colId, before, value: ed.value, state: "VALID", intentId, timestamp: Date.now() });
+    }
+    this.undo.pushWorking({ intentId, timestamp: Date.now(), origin: intent.origin || "cellEditor", tier: "working", edits: reverse });
+    this.refreshCells(edits);
+    log("intent", `${intent.origin || "edit"} -> ${edits.length} cell(s) staged`);
+    return intentId;
+  }
+  refreshCells(edits) {
+    const rowIds = [...new Set(edits.map((e) => e.rowId))];
+    const cols = [...new Set(edits.map((e) => e.colId))];
+    const nodes = rowIds.map((id) => this.gridApi.getRowNode(id)).filter(Boolean);
+    this.gridApi.refreshCells({ rowNodes: nodes, columns: cols, force: true });
+  }
+  tickRange(direction, multiplier = 1) {
+    const ranges = this.gridApi.getCellRanges();
+    if (!ranges || ranges.length === 0) { toast("Select a range first"); return; }
+    const intentId = "tick_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+    let count = 0;
+    for (const range of ranges) {
+      const startRow = Math.min(range.startRow.rowIndex, range.endRow.rowIndex);
+      const endRow = Math.max(range.startRow.rowIndex, range.endRow.rowIndex);
+      for (const col of range.columns) {
+        const colId = col.getColId();
+        if (!TICK_SIZE[colId]) continue;
+        const tick = TICK_SIZE[colId] * multiplier * (direction === "up" ? 1 : -1);
+        for (let i = startRow; i <= endRow; i++) {
+          const node = this.gridApi.getDisplayedRowAtIndex(i);
+          if (!node || !node.data) continue;
+          const row = node.data;
+          const current = this.buffer.has(row.id, colId) ? this.buffer.get(row.id, colId).value : row[colId];
+          const newVal = round(current + tick, colId === "spread" ? 1 : 3);
+          const id = this.stage({ rowId: row.id, colId, value: newVal, intentId, origin: "pairedTick" });
+          if (id) count++;
+        }
+      }
+    }
+    if (count > 0) log("tick", `Tick ${direction} x${multiplier} -> ${count} edit(s)`);
+  }
+  async commit() {
+    if (this.buffer.size() === 0) { toast("Nothing to commit"); return; }
+    for (const e of this.buffer.all()) {
+      const v = this.validate({ rowId: e.rowId, colId: e.colId, value: e.value });
+      if (v.state === "REJECTED") { toast("Batch aborted: validation failed"); return; }
+    }
+    const all = this.buffer.all();
+    const intentIds = [...new Set(all.map((e) => e.intentId))];
+    all.forEach((e) => { this.buffer.setState(e.rowId, e.colId, "COMMITTING"); this.streamingSuspended.add(e.rowId + "|" + e.colId); });
+    this.refreshCells(all);
+    log("commit", `Phase 2 -> ViewServer (${all.length} cells COMMITTING)`);
+    await sleep(700 + Math.random() * 400);
+    const updatesByRow = new Map();
+    for (const e of all) {
+      if (!updatesByRow.has(e.rowId)) updatesByRow.set(e.rowId, { ...this.getRow(e.rowId) });
+      updatesByRow.get(e.rowId)[e.colId] = e.value;
+    }
+    const transactionUpdates = [];
+    for (const updated of updatesByRow.values()) {
+      this.rowMap.set(updated.id, updated);
+      transactionUpdates.push(updated);
+    }
+    this.gridApi.applyTransactionAsync({ update: transactionUpdates });
+    const cells = all.map((e) => ({ rowId: e.rowId, colId: e.colId }));
+    cells.forEach((c) => this.buffer.setState(c.rowId, c.colId, "COMMITTED_FLASH"));
+    this.refreshCells(cells);
+    setTimeout(() => {
+      cells.forEach((c) => this.buffer.delete(c.rowId, c.colId));
+      cells.forEach((c) => this.streamingSuspended.delete(c.rowId + "|" + c.colId));
+      this.refreshCells(cells);
+      intentIds.forEach((id) => this.undo.promoteToCommitted(id));
+      log("commit", `Phase 3 complete (${all.length} cells acknowledged)`);
+      toast("Committed", "success");
+    }, 700);
+  }
+  cancel() {
+    if (this.buffer.size() === 0) return;
+    const cells = this.buffer.all().map((e) => ({ rowId: e.rowId, colId: e.colId }));
+    this.buffer.clear();
+    this.undo.clearWorkingOnDiscard();
+    this.refreshCells(cells);
+    log("undo", `Discarded ${cells.length} pending edit(s)`);
+  }
+  undoOne() {
+    const popped = this.undo.popForUndo();
+    if (!popped) return toast("Nothing to undo");
+    const { frame, tier } = popped;
+    if (tier === "working") {
+      const cells = [];
+      for (const ed of frame.edits) {
+        if (ed.before === this.getRow(ed.rowId)[ed.colId]) this.buffer.delete(ed.rowId, ed.colId);
+        else this.buffer.set({ rowId: ed.rowId, colId: ed.colId, before: this.getRow(ed.rowId)[ed.colId], value: ed.before, state: "VALID", intentId: "undo_restore", timestamp: Date.now() });
+        cells.push({ rowId: ed.rowId, colId: ed.colId });
+      }
+      this.refreshCells(cells);
+      this.undo.pushRedo(frame);
+      log("undo", `Undid working frame (${frame.edits.length} cell(s))`);
+    } else {
+      this.undo.consumeCommittedTop();
+      const reverseIntent = "undo_" + Date.now();
+      for (const ed of frame.edits) {
+        const row = this.getRow(ed.rowId);
+        this.buffer.set({ rowId: ed.rowId, colId: ed.colId, before: row[ed.colId], value: ed.before, state: "VALID", intentId: reverseIntent, timestamp: Date.now() });
+      }
+      this.refreshCells(frame.edits);
+      this.undo.pushRedo(frame);
+      toast("Compensating undo staged - review and commit");
+      log("undo", `Compensating edit staged from committed history (${frame.edits.length} cell(s))`);
+    }
+  }
+  redoOne() {
+    const frame = this.undo.popRedo();
+    if (!frame) return toast("Nothing to redo");
+    const cells = [];
+    for (const ed of frame.edits) {
+      const row = this.getRow(ed.rowId);
+      this.buffer.set({ rowId: ed.rowId, colId: ed.colId, before: row[ed.colId], value: ed.after, state: "VALID", intentId: frame.intentId + "_redo", timestamp: Date.now() });
+      cells.push({ rowId: ed.rowId, colId: ed.colId });
+    }
+    this.undo.pushWorking({ ...frame, intentId: frame.intentId + "_redo", tier: "working" });
+    this.refreshCells(cells);
+    log("undo", `Redo (${frame.edits.length} cell(s))`);
+  }
+}
+
+const buffer = new PendingEditBuffer();
+const undoStack = new UndoStack();
+let coordinator = null;
+let gridApi = null;
+let streamPaused = false;
+
+function pendingCellClass(params) {
+  if (!coordinator) return null;
+  const e = buffer.get(params.data.id, params.colDef.field);
+  if (!e) return null;
+  if (e.state === "COMMITTING") return "cell-committing";
+  if (e.state === "COMMITTED_FLASH") return "cell-committed-flash";
+  if (e.state === "REJECTED") return "cell-rejected";
+  if (e.conflict) return "cell-conflict";
+  return "cell-pending";
+}
+function pendingValueGetter(field) {
+  return (params) => {
+    const e = buffer.get(params.data.id, field);
+    if (e && (e.state === "VALID" || e.state === "COMMITTING" || e.state === "COMMITTED_FLASH")) return e.value;
+    return params.data[field];
+  };
+}
+function pendingValueSetter(field) {
+  return (params) => {
+    const newVal = parseFloat(params.newValue);
+    if (Number.isNaN(newVal)) return false;
+    coordinator.stage({ rowId: params.data.id, colId: field, value: newVal, origin: "cellEditor" });
+    return false;
+  };
+}
+
+const columnDefs = [
+  { field: "cusip", headerName: "CUSIP", width: 110, pinned: "left", editable: false },
+  { field: "issuer", headerName: "Issuer", width: 200, pinned: "left", editable: false },
+  { field: "side", headerName: "Side", width: 60, editable: false, cellClass: (p) => p.value === "B" ? "side-buy" : "side-sell", valueFormatter: (p) => p.value === "B" ? "BUY" : "SELL" },
+  { field: "size", headerName: "Size", width: 80, editable: true, valueGetter: pendingValueGetter("size"), valueSetter: pendingValueSetter("size"), cellClass: pendingCellClass, valueFormatter: (p) => fmtSize(p.value), type: "numericColumn" },
+  { field: "bid", headerName: "Bid", width: 95, editable: true, headerClass: "linked-col-header", valueGetter: pendingValueGetter("bid"), valueSetter: pendingValueSetter("bid"), cellClass: pendingCellClass, valueFormatter: (p) => fmtPrice(p.value), type: "numericColumn" },
+  { field: "ask", headerName: "Ask", width: 95, editable: true, headerClass: "linked-col-header", valueGetter: pendingValueGetter("ask"), valueSetter: pendingValueSetter("ask"), cellClass: pendingCellClass, valueFormatter: (p) => fmtPrice(p.value), type: "numericColumn" },
+  { field: "spread", headerName: "Spread", width: 90, editable: true, headerClass: "linked-col-header", valueGetter: pendingValueGetter("spread"), valueSetter: pendingValueSetter("spread"), cellClass: pendingCellClass, valueFormatter: (p) => fmtSpread(p.value), type: "numericColumn" },
+  { field: "yield", headerName: "Yield %", width: 85, editable: false, valueFormatter: (p) => p.value ? p.value.toFixed(3) : "", cellStyle: { color: "var(--ink-mute)" }, type: "numericColumn" },
+  { field: "last", headerName: "Last", width: 85, editable: false, valueFormatter: (p) => fmtPrice(p.value), cellStyle: { color: "var(--ink-mute)" }, type: "numericColumn" },
+  { field: "model", headerName: "Model FV", width: 90, editable: false, valueFormatter: (p) => fmtPrice(p.value), cellStyle: { color: "var(--link)" }, type: "numericColumn" }
+];
+
+const gridOptions = {
+  theme,
+  columnDefs,
+  rowData: SEED_ROWS,
+  getRowId: (p) => p.data.id,
+  defaultColDef: {
+    sortable: true,
+    filter: true,
+    resizable: true,
+    suppressMovable: false,
+    suppressKeyboardEvent: (params) => {
+      const e = params.event;
+      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) return true;
+      if (e.ctrlKey && ["z", "Z", "y", "Y"].includes(e.key)) return true;
+      if (e.ctrlKey && e.key === "Enter" && !params.editing) return true;
+      return false;
+    }
+  },
+  cellSelection: true,
+  rowSelection: { mode: "multiRow" },
+  animateRows: false,
+  asyncTransactionWaitMillis: 50,
+  onGridReady: (params) => {
+    gridApi = params.api;
+    coordinator = new EditCoordinator(buffer, undoStack, gridApi);
+    coordinator.setRows(SEED_ROWS);
+    buffer.subscribe(updatePendingCounter);
+    undoStack.subscribe(updateUndoButtons);
+    updatePendingCounter();
+    updateUndoButtons();
+    log("intent", "Grid ready - 10 rows seeded", "AG Grid 35 enterprise + theme params");
+    startStreaming();
+  }
+};
+
+let streamTimer = null;
+function startStreaming() {
+  if (streamTimer) return;
+  streamTimer = setInterval(() => {
+    if (streamPaused || !gridApi) return;
+    const row = SEED_ROWS[Math.floor(Math.random() * SEED_ROWS.length)];
+    const col = ["bid", "ask", "spread"][Math.floor(Math.random() * 3)];
+    const pending = buffer.get(row.id, col);
+    if (pending) {
+      pending.conflict = true;
+      buffer.notify();
+      coordinator.refreshCells([{ rowId: row.id, colId: col }]);
+      log("stream", `Conflict: underlying ticked on ${row.cusip}/${col}`);
+      return;
+    }
+    if (coordinator.isSuspended(row.id, col)) return;
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    const tick = (col === "spread" ? 0.5 : 0.0625) * dir;
+    const newVal = round(row[col] + tick, col === "spread" ? 1 : 4);
+    row[col] = newVal;
+    coordinator.rowMap.set(row.id, row);
+    const node = gridApi.getRowNode(row.id);
+    if (node) {
+      node.setDataValue(col, newVal);
+      const cellEl = document.querySelector(`[row-id="${row.id}"] [col-id="${col}"]`);
+      if (cellEl) {
+        cellEl.classList.remove("tick-up", "tick-down");
+        void cellEl.offsetWidth;
+        cellEl.classList.add(dir > 0 ? "tick-up" : "tick-down");
+      }
+    }
+  }, 1500);
+}
+
+function updatePendingCounter() {
+  const n = buffer.size();
+  const el = document.getElementById("pending-counter");
+  el.textContent = `${n} pending`;
+  el.classList.toggle("visible", n > 0);
+  document.getElementById("btn-commit").disabled = n === 0;
+  document.getElementById("btn-cancel").disabled = n === 0;
+}
+function updateUndoButtons() {
+  document.getElementById("btn-undo").disabled = !undoStack.canUndo();
+  document.getElementById("btn-redo").disabled = !undoStack.canRedo();
+}
+
+document.getElementById("btn-tick-up").onclick = () => coordinator?.tickRange("up", 1);
+document.getElementById("btn-tick-down").onclick = () => coordinator?.tickRange("down", 1);
+document.getElementById("btn-undo").onclick = () => coordinator?.undoOne();
+document.getElementById("btn-redo").onclick = () => coordinator?.redoOne();
+document.getElementById("btn-commit").onclick = () => coordinator?.commit();
+document.getElementById("btn-cancel").onclick = () => coordinator?.cancel();
+document.getElementById("btn-stream-toggle").onclick = (e) => {
+  streamPaused = !streamPaused;
+  e.target.textContent = streamPaused ? "Resume stream" : "Pause stream";
+};
+
+let darkMode = true;
+document.getElementById("btn-theme-toggle").onclick = (e) => {
+  darkMode = !darkMode;
+  setDarkMode(darkMode);
+  e.target.textContent = darkMode ? "Switch to light theme" : "Switch to dark theme";
+};
+
+document.addEventListener("keydown", (e) => {
+  const inGridEditor = !!document.querySelector(".ag-cell-edit-input:focus, .ag-cell-edit-wrapper input:focus");
+  if (e.altKey && e.key === "ArrowUp") { e.preventDefault(); coordinator?.tickRange("up", e.shiftKey ? 5 : 1); }
+  else if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); coordinator?.tickRange("down", e.shiftKey ? 5 : 1); }
+  else if (e.ctrlKey && (e.key === "z" || e.key === "Z")) { if (!inGridEditor) { e.preventDefault(); coordinator?.undoOne(); } }
+  else if (e.ctrlKey && (e.key === "y" || e.key === "Y")) { if (!inGridEditor) { e.preventDefault(); coordinator?.redoOne(); } }
+  else if (e.ctrlKey && e.key === "Enter") { if (!inGridEditor) { e.preventDefault(); coordinator?.commit(); } }
+  else if (e.key === "Escape" && !inGridEditor) { if (buffer.size() > 0) { e.preventDefault(); coordinator?.cancel(); } }
+});
+
+setInterval(() => {
+  document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-US", { hour12: false });
+}, 1000);
+
+createGrid(document.getElementById("blotter"), gridOptions);
+</script>
+</body>
+</html>

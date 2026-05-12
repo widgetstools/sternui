@@ -56,8 +56,14 @@ export interface FlashConfig {
  */
 export type IndicatorTarget = 'cells' | 'headers' | 'cells+headers';
 
-/** Corner of the cell / header to anchor the badge at. */
-export type IndicatorPosition = 'top-left' | 'top-right';
+/** Anchor position of the badge on the cell / header surface. */
+export type IndicatorPosition =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'left-middle'
+  | 'right-middle';
 
 /**
  * Optional badge drawn on every cell and/or header that currently
@@ -77,7 +83,7 @@ export interface RuleIndicator {
   /** Where to paint. Default `cells+headers` — matches the zero-config
    *  behaviour that shipped first. */
   target?: IndicatorTarget;
-  /** Corner anchor. Default `top-right`. */
+  /** Badge anchor position. Default `top-right`. */
   position?: IndicatorPosition;
 }
 
@@ -95,7 +101,7 @@ export interface ConditionalRule {
    *  evaluate truthy. Uses AG-Grid's `flashCells()` for row/cell targets
    *  and a CSS keyframes animation for header targets. */
   flash?: FlashConfig;
-  /** Optional top-right badge drawn on every matching cell + header. */
+  /** Optional badge drawn on every matching cell + header. */
   indicator?: RuleIndicator;
   /**
    * Optional per-rule value formatter. Applies to cells matching the

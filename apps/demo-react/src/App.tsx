@@ -15,6 +15,7 @@ import { Fixture } from './Fixture';
 import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
 
 type View = 'single' | 'dashboard' | 'depth' | 'fixture';
+const LIVE_TICK_INTERVAL_MS = 300;
 
 /**
  * Initial view comes from `?view=...` (falls back to single).
@@ -229,7 +230,7 @@ function AppInner() {
       if (!api) return;
       try { api.applyTransactionAsync({ update: updates }); }
       catch { /* grid tearing down — drop the batch */ }
-    }, 800);
+    }, LIVE_TICK_INTERVAL_MS);
     return stop;
   }, [ticking, view, rowData]);
 
