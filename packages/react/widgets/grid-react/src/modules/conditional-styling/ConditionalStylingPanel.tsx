@@ -302,6 +302,7 @@ const RuleEditor = memo(function RuleEditor({
         <FlashBand
           ruleId={ruleId}
           flash={draft.flash}
+          activeDurationMs={draft.activeDurationMs}
           scopeType={draft.scope.type}
           setDraft={setDraft}
         />

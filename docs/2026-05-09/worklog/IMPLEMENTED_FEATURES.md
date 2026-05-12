@@ -4038,3 +4038,51 @@ Token mapping used (partial):
 - Light mode now follows the preferred cool-clinical reference: `#F8F9FB` canvas, crisp white cards/cells, quiet cool-gray dividers, and slate text.
 - Primary brand color is cobalt (`#2952CC`) with subdued focus/selection tints, matching the reference without over-saturating the workspace.
 - Semantic colors remain rationed and muted so dense tables feel calm rather than visually noisy.
+
+## 2026-05-12 — Conditional styling timed revert window
+
+- `@starui/grid-react` conditional rules now support an optional per-rule
+  `activeDurationMs` window. When set, a rule applies style for the
+  configured milliseconds after a value-change event causes a match, then
+  the cell/row reverts to default styling automatically.
+- `ConditionalStylingPanel` exposes this as **STYLE WINDOW (MS)** in the
+  `FLASH ON MATCH` band (`cs-rule-style-window-ms-<ruleId>`), with blank
+  meaning persistent behaviour.
+- Runtime stores timed activations per grid API + row node and uses the
+  existing rule class predicates to gate style visibility until expiry;
+  expiry schedules a lightweight refresh so the revert is visible without
+  manual interaction.
+
+## 2026-05-12 — Conditional styling: per-rule flash (mode / colour / duration)
+
+- `@starui/grid-react` `FlashConfig` is now a real, applied schema. New
+  fields:
+  - `mode: 'oneShot' | 'pulse'` (default `oneShot` — single fade-in/out
+    on match; `pulse` keeps pulsing while the rule matches).
+  - `color: FlashColor` — one of eight theme-aware palette names:
+    `amber`, `emerald`, `rose`, `sky`, `violet`, `teal`, `orange`,
+    `slate`. Default `amber`. Light/dark alphas tuned per colour so the
+    pulse stays visible (and text stays legible) under both themes.
+  - `durationMs` — single ms value covering one full animation cycle
+    (default 700). Replaces the old unused `flashDuration` +
+    `fadeDuration` pair.
+- **Per-rule isolation**: each enabled flash rule emits its own
+  `@keyframes ds-flash-<ruleId>` block and a scoped `--ds-flash-color`
+  on its own class, so two flashing rules on the same cell keep distinct
+  colours and timings — no global animation, no shared variables.
+- **Header flash** now uses a dedicated `.ds-flash-hdr-<ruleId>` class
+  (per-rule), so the rule's full cell styling no longer leaks onto
+  header cells; only the colour-aware pulse does.
+- `ConditionalStylingPanel` `FLASH ON MATCH` band now exposes:
+  `cs-rule-flash-mode-<mode>-<ruleId>`,
+  `cs-rule-flash-color-<color>-<ruleId>` swatches (×8), and
+  `cs-rule-flash-duration-<ruleId>` (ms).
+- `deserialize` migration: legacy `{ flashDuration, fadeDuration }`
+  payloads are summed into `durationMs`; unknown `mode`/`color` values
+  fall back to `oneShot` / `amber`. Eight passing tests cover commit +
+  migration + bad-input coercion.
+- Implementation is **not** AG-Grid's `api.flashCells()` — that was
+  documented as the intent but never wired. Keeping the CSS-keyframes
+  path lets us paint headers, give each rule its own colour, and
+  compose with `activeDurationMs` for free. Stale docstrings in
+  `state.ts` corrected accordingly.

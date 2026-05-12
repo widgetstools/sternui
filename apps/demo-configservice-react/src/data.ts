@@ -145,6 +145,8 @@ export interface TickOptions {
   spreadDrift?: number;
   /** Max absolute yield drift per tick, in percent. Default 0.05. */
   yieldDrift?: number;
+  /** Minimum gap between updates for the same row id. Default 500ms (~2/sec). */
+  minRowUpdateIntervalMs?: number;
 }
 
 /**
@@ -165,25 +167,52 @@ export function startLiveTicking(
     priceDrift = 0.25,
     spreadDrift = 3,
     yieldDrift = 0.05,
+    minRowUpdateIntervalMs = 500,
   } = opts;
 
   // Keep a working copy indexed by id so repeated ticks on the same row
   // accumulate rather than each tick reverting to the seed.
   const byId = new Map<string, Order>(rows.map((r) => [r.id, { ...r }]));
+  const ids = Array.from(byId.keys());
+  let cursor = 0;
+  const directionById = new Map<string, 1 | -1>(ids.map((id, i) => [id, i % 2 === 0 ? 1 : -1]));
+  const lastUpdatedAtById = new Map<string, number>();
+
+  // Fisher-Yates shuffle.
+  const shuffleIds = () => {
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = ids[i];
+      ids[i] = ids[j];
+      ids[j] = tmp;
+    }
+  };
+  shuffleIds();
 
   const handle = setInterval(() => {
     const updates: Order[] = [];
-    const ids = Array.from(byId.keys());
-    const seen = new Set<string>();
-
-    for (let i = 0; i < mutationsPerTick; i++) {
-      const id = ids[Math.floor(Math.random() * ids.length)];
-      if (seen.has(id)) continue;
-      seen.add(id);
+    const count = Math.min(mutationsPerTick, ids.length);
+    let attempts = 0;
+    const maxAttempts = ids.length * 3;
+    while (updates.length < count && attempts < maxAttempts) {
+      attempts++;
+      if (cursor >= ids.length) {
+        cursor = 0;
+        shuffleIds();
+      }
+      const id = ids[cursor++];
       const current = byId.get(id);
       if (!current) continue;
+      const now = Date.now();
+      const last = lastUpdatedAtById.get(id) ?? 0;
+      if (now - last < minRowUpdateIntervalMs) continue;
 
-      const dPrice = (Math.random() - 0.5) * 2 * priceDrift;
+      // Enforce per-row 50/50 green/red by alternating each row's sign
+      // on every hit (rather than a global sign that can bias by row).
+      const sign = directionById.get(id) ?? 1;
+      const dPriceMagnitude = Math.max(0.01, Math.random() * priceDrift);
+      const dPrice = sign * dPriceMagnitude;
+      directionById.set(id, sign === 1 ? -1 : 1);
       const dSpread = Math.round((Math.random() - 0.5) * 2 * spreadDrift);
       const dYield = (Math.random() - 0.5) * 2 * yieldDrift;
 
@@ -214,6 +243,7 @@ export function startLiveTicking(
         notional: Math.round(current.quantity * nextPrice * 10) / 10,
       };
       byId.set(id, next);
+      lastUpdatedAtById.set(id, now);
       updates.push(next);
     }
 

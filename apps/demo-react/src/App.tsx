@@ -230,7 +230,10 @@ function AppInner() {
       if (!api) return;
       try { api.applyTransactionAsync({ update: updates }); }
       catch { /* grid tearing down — drop the batch */ }
-    }, LIVE_TICK_INTERVAL_MS);
+    }, LIVE_TICK_INTERVAL_MS, {
+      mutationsPerTick: 10,
+      minRowUpdateIntervalMs: 500,
+    });
     return stop;
   }, [ticking, view, rowData]);
 
