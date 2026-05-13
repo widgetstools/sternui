@@ -762,6 +762,29 @@
   color: var(--ds-accent-negative) !important;
 }
 
+/* AG Grid header controls — keep affordance slots reserved, but reveal
+   the icons only when the user interacts with the owning header cell. */
+[data-grid-id] .ag-header-cell-menu-button,
+[data-grid-id] .ag-header-cell-filter-button,
+[data-grid-id] .ag-floating-filter-button {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+[data-grid-id] .ag-header-cell:hover .ag-header-cell-menu-button,
+[data-grid-id] .ag-header-cell:hover .ag-header-cell-filter-button,
+[data-grid-id] .ag-floating-filter:hover .ag-floating-filter-button,
+[data-grid-id] .ag-header-cell:focus-within .ag-header-cell-menu-button,
+[data-grid-id] .ag-header-cell:focus-within .ag-header-cell-filter-button,
+[data-grid-id] .ag-floating-filter:focus-within .ag-floating-filter-button,
+[data-grid-id] .ag-header-cell-menu-button[aria-expanded='true'],
+[data-grid-id] .ag-header-cell-filter-button[aria-expanded='true'],
+[data-grid-id] .ag-floating-filter-button[aria-expanded='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Formatter toolbar global header-case toggle. This is display-only:
    `headerName` values remain unchanged, so turning the toggle off restores
    the authored camelCase / Title Case captions. */

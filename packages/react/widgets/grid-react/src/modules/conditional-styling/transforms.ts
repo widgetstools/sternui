@@ -368,7 +368,11 @@ function borderOverlayCSS(selector: string, style: CellStyleProperties): string 
   return `${selector}::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-sizing: border-box; z-index: 1; ${parts.join('; ')}; }`;
 }
 
-function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefined): string {
+function indicatorOverlayCSS(
+  ruleCls: string,
+  indicator: RuleIndicator | undefined,
+  scopeType: 'cell' | 'row',
+): string {
   if (!indicator) return '';
   const def = findIndicatorIcon(indicator.icon);
   if (!def) return '';
@@ -376,10 +380,11 @@ function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefin
   const url = iconAsDataUrl(def, color);
 
   const target = indicator.target ?? 'cells+headers';
-  const selector =
-    target === 'cells' ? `.ag-cell${ruleCls}`
-    : target === 'headers' ? `.ag-header-cell${ruleCls}`
-    : ruleCls;
+  const selectors = scopeType === 'row'
+    ? [`.ag-row${ruleCls} .ag-cell`]
+    : target === 'cells' ? [`.ag-cell${ruleCls}`]
+    : target === 'headers' ? [`.ag-header-cell${ruleCls}`]
+    : [`.ag-cell${ruleCls}`, `.ag-header-cell${ruleCls}`];
 
   const pos = indicator.position ?? 'top-right';
   let anchor = 'top: 2px; right: 2px;';
@@ -389,7 +394,7 @@ function indicatorOverlayCSS(ruleCls: string, indicator: RuleIndicator | undefin
   else if (pos === 'left-middle') anchor = 'top: 50%; left: 2px; transform: translateY(-50%);';
   else if (pos === 'right-middle') anchor = 'top: 50%; right: 2px; transform: translateY(-50%);';
 
-  return `${selector}::before {
+  return `${selectors.map((selector) => `${selector}::before`).join(', ')} {
     content: ''; position: absolute; ${anchor}
     width: 12px; height: 12px;
     background-image: url("${url}");
@@ -418,13 +423,14 @@ function buildCssText(
   // safe but defense-in-depth for legacy snapshots / future id schemes.
   const safeRuleId = cssEscapeColId(ruleId);
   const cls = `.ds-rule-${safeRuleId}`;
+  const surfaceSelector = scopeType === 'row' ? `.ag-row${cls} .ag-cell` : `.ag-cell${cls}`;
   const lightProps = styleToCSS(light);
   const darkProps = styleToCSS(dark);
   const lines: string[] = [];
 
-  if (lightProps) lines.push(`:root:not(.dark):not([data-theme="dark"]) ${cls} { ${lightProps} }`);
-  if (darkProps) lines.push(`.dark ${cls}, [data-theme="dark"] ${cls} { ${darkProps} }`);
-  if (lightProps && !darkProps) lines.push(`${cls} { ${lightProps} }`);
+  if (lightProps) lines.push(`:root:not(.dark):not([data-theme="dark"]) ${surfaceSelector} { ${lightProps} }`);
+  if (darkProps) lines.push(`.dark ${surfaceSelector}, [data-theme="dark"] ${surfaceSelector} { ${darkProps} }`);
+  if (lightProps && !darkProps) lines.push(`${surfaceSelector} { ${lightProps} }`);
 
   if (flash?.enabled) {
     // Scoped colour var: keeps two flashing rules on the same cell from
@@ -441,7 +447,7 @@ function buildCssText(
     // Cell / row flash uses the rule's own class — the animation joins
     // the existing per-rule cell styling naturally.
     if (flash.target === 'cells' || flash.target === 'cells+headers' || flash.target === 'row') {
-      lines.push(`${cls} { ${colorDecl} ${animDecl} }`);
+      lines.push(`${surfaceSelector} { ${colorDecl} ${animDecl} }`);
     }
     // Header flash uses a DEDICATED class so the rule's cell styling
     // (background-color, borders, etc.) doesn't leak onto the header —
@@ -453,7 +459,7 @@ function buildCssText(
     }
   }
 
-  const indicatorCss = indicatorOverlayCSS(cls, indicator);
+  const indicatorCss = indicatorOverlayCSS(cls, indicator, scopeType);
   if (indicatorCss) lines.push(indicatorCss);
 
   // Row-scope separator kill — the theme's `.ag-row` border-bottom visibly
@@ -462,14 +468,14 @@ function buildCssText(
     lines.push(`.ag-row${cls} { border-color: transparent !important; }`);
   }
 
-  const lightBorder = borderOverlayCSS(`:root:not(.dark):not([data-theme="dark"]) ${cls}`, light);
-  const darkBorder1 = borderOverlayCSS(`.dark ${cls}`, dark);
-  const darkBorder2 = borderOverlayCSS(`[data-theme="dark"] ${cls}`, dark);
+  const lightBorder = borderOverlayCSS(`:root:not(.dark):not([data-theme="dark"]) ${surfaceSelector}`, light);
+  const darkBorder1 = borderOverlayCSS(`.dark ${surfaceSelector}`, dark);
+  const darkBorder2 = borderOverlayCSS(`[data-theme="dark"] ${surfaceSelector}`, dark);
   if (lightBorder) lines.push(lightBorder);
   if (darkBorder1) lines.push(darkBorder1);
   if (darkBorder2) lines.push(darkBorder2);
   if (lightBorder && !darkBorder1 && !darkBorder2) {
-    const fallback = borderOverlayCSS(cls, light);
+    const fallback = borderOverlayCSS(surfaceSelector, light);
     if (fallback) lines.push(fallback);
   }
 

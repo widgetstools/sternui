@@ -27,6 +27,28 @@ trigger (Type), border trigger (Paint), currency chevron + tick chevron
 trigger buttons (`ColorPickerPopover`). Alignment buttons retitled
 `Align left/center/right` for self-description.
 
+## 2026-05-13 — Restore hover-only AG Grid header controls
+
+`@starui/markets-grid` once again scopes AG Grid column header menu,
+filter, and floating-filter buttons under `[data-grid-id]` so their slots
+stay reserved but the icons remain hidden until hover, focus, or an
+expanded menu/filter state. This restores the pre-regression browser and
+OpenFin affordance behavior without reintroducing broad global `.ag-*`
+overrides.
+
+## 2026-05-13 — Scope conditional-styling rule CSS to grid surfaces
+
+Conditional-styling rule CSS now emits cell-scope styles against
+`.ag-cell.ds-rule-*` and row-scope styles against `.ag-row.ds-rule-* .ag-cell`
+instead of broad `.ds-rule-*` selectors. Indicator badges keep their own
+cell/header pseudo-element selectors, so saving a rule with text colour or
+indicator colour can no longer bleed that colour across unrelated grid
+surfaces before profile reload.
+
+Regression coverage in `@starui/grid-react` now asserts text attributes,
+target-column predicates, indicator coexistence, row-scope styling, and flash
+CSS generation for the conditional-styling transform.
+
 ## 2026-05-13 — Split global formatter into number + date slots
 
 The CELLS + ALL scope now renders TWO formatter dropdowns side-by-side —
