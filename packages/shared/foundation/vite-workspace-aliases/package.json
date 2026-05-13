@@ -1,0 +1,35 @@
+{
+  "name": "@starui/vite-workspace-aliases",
+  "version": "1.0.0",
+  "description": "Auto-discover @starui/* workspace packages and emit Vite alias entries that resolve every declared export to its src/ file. Eliminates per-app vite.config alias drift.",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "vite",
+    "workspace",
+    "alias",
+    "monorepo",
+    "starui"
+  ],
+  "author": "MarketsUI Platform",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "rimraf": "^5.0.5"
+  }
+}

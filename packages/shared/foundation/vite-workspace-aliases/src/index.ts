@@ -51,7 +51,6 @@ interface PackageJson {
   exports?: Record<string, string | { import?: string; default?: string; types?: string }>;
 }
 
-/** Read package.json safely; return null on any failure. */
 function readPkgJson(path: string): PackageJson | null {
   try {
     return JSON.parse(readFileSync(path, 'utf-8')) as PackageJson;
@@ -60,7 +59,6 @@ function readPkgJson(path: string): PackageJson | null {
   }
 }
 
-/** Resolve the first existing candidate path. */
 function probeSource(base: string): string | null {
   // Probe order matters:
   //   1. The base path verbatim — for packages whose `exports` map
@@ -86,8 +84,9 @@ function probeSource(base: string): string | null {
   return null;
 }
 
-/** Pull the runtime target out of an export-map entry. */
-function targetFromExport(entry: PackageJson['exports'] extends infer E ? E extends Record<string, infer V> ? V : never : never): string | null {
+function targetFromExport(
+  entry: string | { import?: string; default?: string; types?: string } | undefined,
+): string | null {
   if (typeof entry === 'string') return entry;
   if (entry && typeof entry === 'object') {
     return entry.import ?? entry.default ?? null;
@@ -126,7 +125,7 @@ export interface AliasEntry {
  * prefix matching: an alias `@starui/foo` would also match
  * `@starui/foo/bar`, replacing the prefix and producing a wrong
  * path like `<foo-src>/index.ts/bar`. Each entry uses an
- * **anchored regex** (`^@marketsui\/foo$` etc.) so an alias matches
+ * **anchored regex** (`^@starui\/foo$` etc.) so an alias matches
  * its exact specifier and nothing else; subpath imports fall through
  * to their own dedicated entries (or to Vite's default resolver).
  */
@@ -224,7 +223,6 @@ export function buildPackageAliases(opts: BuildAliasesOptions): AliasEntry[] {
   return Object.entries(map)
     .sort(([a], [b]) => b.length - a.length)
     .map(([find, replacement]) => ({
-      // Escape regex specials in the package name (slashes, dots).
       find: new RegExp(`^${find.replace(/[.+*?^$()[\]{}|\\/]/g, '\\$&')}$`),
       replacement,
     }));
