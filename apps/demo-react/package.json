@@ -14,6 +14,7 @@
     "@starui/design-system": "*",
     "@starui/host-wrapper-react": "*",
     "@starui/markets-grid": "*",
+    "@starui/ui": "*",
     "@starui/runtime-browser": "*",
     "@starui/runtime-port": "*",
 

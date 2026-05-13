@@ -4,6 +4,7 @@ import { MarketsGrid } from '@starui/markets-grid';
 import { DexieAdapter, activeProfileKey } from '@starui/core';
 import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
+import { Button, cn } from '@starui/ui';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -248,53 +249,42 @@ function AppInner() {
               dot when paused. Placed next to the row-count so users
               immediately see the "live" state of the showcase. */}
           {view === 'single' && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setTicking((t) => !t)}
               data-testid="tick-toggle"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                height: 26, padding: '0 10px', borderRadius: 5,
-              border: '1px solid var(--ds-border-primary)',
-                background: ticking
-                  ? 'color-mix(in srgb, var(--ds-accent-positive) 14%, transparent)'
-                : 'var(--ds-surface-secondary)',
-              color: ticking ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                fontFamily: 'var(--ds-font-sans)',
-                cursor: 'pointer',
-                transition: 'all 150ms',
-              }}
+              data-live={ticking ? 'true' : 'false'}
               title={ticking ? 'Pause live ticking' : 'Resume live ticking'}
+              className={cn(
+                'h-[26px] gap-1.5 px-2.5 text-[10px] font-bold uppercase tracking-[0.08em]',
+                'transition-colors',
+                ticking
+                  ? 'border-border bg-[color-mix(in_srgb,var(--ds-accent-positive)_14%,transparent)] text-[color:var(--ds-accent-positive)] hover:bg-[color-mix(in_srgb,var(--ds-accent-positive)_22%,transparent)]'
+                  : 'border-border bg-secondary text-muted-foreground hover:bg-secondary/80',
+              )}
             >
               <span
-                style={{
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: ticking ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)',
-                  boxShadow: ticking ? '0 0 8px var(--ds-accent-positive)' : 'none',
-                  animation: ticking ? 'gcTickPulse 1.4s ease-in-out infinite' : undefined,
-                }}
+                aria-hidden
+                className={cn(
+                  'inline-block h-1.5 w-1.5 rounded-full transition-shadow',
+                  ticking
+                    ? 'bg-[color:var(--ds-accent-positive)] shadow-[0_0_8px_var(--ds-accent-positive)] animate-[gcTickPulse_1.4s_ease-in-out_infinite]'
+                    : 'bg-muted-foreground',
+                )}
               />
               {ticking ? 'LIVE' : 'PAUSED'}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => setIsDark(!isDark)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 26, height: 26, borderRadius: 5,
-              border: '1px solid var(--ds-border-primary)',
-              background: 'var(--ds-surface-secondary)',
-              color: 'var(--ds-text-primary)',
-              cursor: 'pointer',
-              transition: 'all 150ms',
-            }}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="h-[26px] w-[26px]"
           >
             {isDark ? <Sun size={13} strokeWidth={1.75} /> : <Moon size={13} strokeWidth={1.75} />}
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -375,28 +365,21 @@ function ViewTab({
   testId?: string;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant={active ? 'secondary' : 'ghost'}
+      size="sm"
       onClick={onClick}
       data-testid={testId}
       data-active={active ? 'true' : 'false'}
-      style={{
-        padding: '4px 10px',
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        fontFamily: 'var(--ds-font-sans)',
-        borderRadius: 4,
-        border: '1px solid',
-        borderColor: active ? 'var(--ds-primary-ring)' : 'var(--ds-border-primary)',
-        color: active ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
-        background: active ? 'var(--ds-primary-soft)' : 'var(--ds-surface-secondary)',
-        cursor: 'pointer',
-        transition: 'all 120ms',
-      }}
+      className={cn(
+        'h-[26px] rounded px-2.5 text-[10px] font-bold uppercase tracking-[0.08em]',
+        'transition-colors',
+        active
+          ? 'border border-[color:var(--ds-primary-ring)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]'
+          : 'border border-border bg-secondary text-muted-foreground hover:bg-accent',
+      )}
     >
       {children}
-    </button>
+    </Button>
   );
 }
