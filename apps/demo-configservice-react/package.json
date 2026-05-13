@@ -15,6 +15,7 @@
     "@starui/markets-grid": "*",
     "@starui/config-service": "*",
     "@starui/config-browser": "*",
+    "@starui/app-shell-react": "*",
     "@starui/host-wrapper-react": "*",
     "@starui/openfin-platform": "*",
     "@starui/runtime-browser": "*",

@@ -1,0 +1,60 @@
+{
+  "name": "@starui/app-shell-react",
+  "version": "0.1.0",
+  "description": "React AppShell component — collapses the three-app boot order (apply theme → runtime → ConfigManager → DataServices → HostWrapper) into one declarative root. Apps opt into the providers they use.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@starui/host-wrapper-react": "0.1.0",
+    "@starui/runtime-port": "0.1.0"
+  },
+  "peerDependencies": {
+    "@starui/config-service": "1.0.0",
+    "@starui/config-service-react": "*",
+    "@starui/data-services": "*",
+    "@starui/data-services-react": "*",
+    "@starui/design-system": "*",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@starui/config-service-react": { "optional": true },
+    "@starui/data-services": { "optional": true },
+    "@starui/data-services-react": { "optional": true }
+  },
+  "devDependencies": {
+    "@starui/config-service": "*",
+    "@starui/config-service-react": "*",
+    "@starui/data-services": "*",
+    "@starui/data-services-react": "*",
+    "@starui/design-system": "*",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "~16.2.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.2",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "license": "MIT"
+}

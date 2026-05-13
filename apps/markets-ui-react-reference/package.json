@@ -21,6 +21,7 @@
     "@starui/data-services": "*",
     "@starui/data-services-react": "*",
     "@starui/grid-react": "*",
+    "@starui/app-shell-react": "*",
     "@starui/host-wrapper-react": "*",
     "@starui/markets-grid": "*",
     "@starui/widgets-react": "*",

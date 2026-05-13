@@ -12,6 +12,7 @@
     "@starui/config-service": "*",
     "@starui/core": "*",
     "@starui/design-system": "*",
+    "@starui/app-shell-react": "*",
     "@starui/host-wrapper-react": "*",
     "@starui/markets-grid": "*",
     "@starui/ui": "*",
