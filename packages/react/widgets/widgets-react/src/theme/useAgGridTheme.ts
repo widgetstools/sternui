@@ -1,23 +1,19 @@
 /**
- * useAgGridTheme — returns the correct Stern AG Grid theme based on the current
- * dark/light mode from next-themes.
+ * useAgGridTheme — returns the same AG Grid `Theme` instances as `MarketsGrid`.
+ *
+ * Delegates to `useGridTheme()` from `@starui/markets-grid`, which reads
+ * `[data-theme]` on `<html>` (MutationObserver) so the grid tracks the host
+ * shell — not `next-themes`' resolved class on `<body>`, which can disagree
+ * with `data-theme` in embedded / docked surfaces.
  *
  * Usage:
  *   const { theme } = useAgGridTheme();
  *   <AgGridReact theme={theme} ... />
  */
 
-import { useMemo } from 'react';
-import { useTheme } from '@starui/ui';
-import { sternDarkTheme, sternLightTheme } from './sternAgGridTheme.js';
+import { useGridTheme } from '@starui/markets-grid';
 
 export function useAgGridTheme() {
-  const { resolvedTheme } = useTheme();
-
-  const theme = useMemo(
-    () => (resolvedTheme === 'light' ? sternLightTheme : sternDarkTheme),
-    [resolvedTheme]
-  );
-
+  const theme = useGridTheme();
   return { theme };
 }

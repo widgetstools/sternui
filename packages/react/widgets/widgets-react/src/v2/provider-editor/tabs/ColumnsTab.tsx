@@ -2,7 +2,7 @@
  * ColumnsTab — review + lightly edit the column definitions chosen on
  * FieldsTab.
  *
- * Uses AG-Grid (Community) for display so the list scales to hundreds
+ * Uses AG-Grid for display so the list scales to hundreds
  * of columns without DOM bloat. Features:
  *   - drag-to-reorder rows
  *   - inline edit for Header Name
@@ -20,21 +20,13 @@ import type {
   ICellRendererParams,
   RowDragEndEvent,
 } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
-import {
-  MultiFilterModule,
-  SetFilterModule,
-  StatusBarModule,
-} from 'ag-grid-enterprise';
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useTheme } from '@starui/ui';
+import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@starui/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { ColumnDefinition } from '@starui/shared-types';
 import { normalizeKeyColumns } from '@starui/shared-types';
-import { agGridLightParams, agGridDarkParams } from '@starui/design-system/adapters/ag-grid';
 import { MultiSelect } from '../MultiSelect.js';
-
-ModuleRegistry.registerModules([MultiFilterModule, SetFilterModule, StatusBarModule]);
-
+import { ensureProviderEditorAgGridModules } from '../ensureProviderEditorAgGridModules.js';
+import { useAgGridTheme } from '../../../theme/useAgGridTheme.js';
 
 const CELL_TYPES: ReadonlyArray<NonNullable<ColumnDefinition['cellDataType']>> = [
   'text', 'number', 'boolean', 'date', 'dateString', 'object',
@@ -58,11 +50,8 @@ export interface ColumnsTabProps {
 }
 
 export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: ColumnsTabProps) {
-  const { resolvedTheme } = useTheme();
-  const gridTheme = useMemo(
-    () => themeQuartz.withParams(resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams),
-    [resolvedTheme],
-  );
+  ensureProviderEditorAgGridModules();
+  const { theme: gridTheme } = useAgGridTheme();
 
   const defaultColDef = useMemo<ColDef>(() => ({
     sortable: true,
@@ -250,7 +239,6 @@ export function ColumnsTab({ columns, onChange, keyColumn, onKeyColumnChange }: 
         <div className="flex-1 min-h-0">
           <AgGridReact<RowData>
             theme={gridTheme}
-            modules={[AllCommunityModule]}
             rowData={rowData}
             columnDefs={colDefs}
             getRowId={getRowId}

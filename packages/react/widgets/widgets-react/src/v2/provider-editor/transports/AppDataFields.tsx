@@ -15,18 +15,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, CellValueChangedEvent, GetRowIdParams, ICellRendererParams } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
-import {
-  MultiFilterModule,
-  SetFilterModule,
-  StatusBarModule,
-} from 'ag-grid-enterprise';
-import { Button, Input, Label, useTheme } from '@starui/ui';
+import { Button, Input, Label } from '@starui/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { AppDataVariable, AppDataProviderConfig } from '@starui/shared-types';
-import { agGridLightParams, agGridDarkParams } from '@starui/design-system/adapters/ag-grid';
-
-ModuleRegistry.registerModules([MultiFilterModule, SetFilterModule, StatusBarModule]);
+import { useAgGridTheme } from '../../../theme/useAgGridTheme.js';
+import { ensureProviderEditorAgGridModules } from '../ensureProviderEditorAgGridModules.js';
 
 export interface AppDataFieldsProps {
   cfg: AppDataProviderConfig;
@@ -36,11 +29,8 @@ export interface AppDataFieldsProps {
 type RowData = AppDataVariable & { _rowId: string };
 
 export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
-  const { resolvedTheme } = useTheme();
-  const gridTheme = useMemo(
-    () => themeQuartz.withParams(resolvedTheme === 'light' ? agGridLightParams : agGridDarkParams),
-    [resolvedTheme],
-  );
+  ensureProviderEditorAgGridModules();
+  const { theme: gridTheme } = useAgGridTheme();
 
   const defaultColDef = useMemo<ColDef>(() => ({
     sortable: true,
@@ -242,7 +232,6 @@ export function AppDataFields({ cfg, onChange }: AppDataFieldsProps) {
         <div className="flex-1 min-h-0">
           <AgGridReact<RowData>
             theme={gridTheme}
-            modules={[AllCommunityModule]}
             rowData={rowData}
             columnDefs={colDefs}
             getRowId={getRowId}
