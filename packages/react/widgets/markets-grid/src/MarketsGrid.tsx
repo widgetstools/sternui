@@ -18,6 +18,7 @@ import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
 import { useGridTheme } from './theme/useGridTheme.js';
 import {
+  LocalStorageBundleAdapter,
   MemoryAdapter,
   type AnyModule,
   type StorageAdapter,
@@ -73,8 +74,10 @@ import {
 import type {
   AdminAction,
   MarketsGridHandle,
+  MarketsGridLocalStorageConfig,
   MarketsGridProps,
 } from './types';
+import { isMarketsGridLocalStorageStorageFactory } from './createMarketsGridLocalStorageStorage';
 import { useGridHost } from './useGridHost';
 import { FiltersToolbar } from './FiltersToolbar';
 import { FormattingToolbar, type FormattingToolbarHandle } from './FormattingToolbar';
@@ -268,12 +271,16 @@ function MarketsGridInner<TData = unknown>(
   // mixed across users). Surface it loudly so the developer catches
   // the misconfiguration on first mount rather than shipping to
   // users who then wonder why profiles vanish.
-  if (storage && (!appId || !userId)) {
+  if (
+    storage &&
+    (!appId || !userId) &&
+    !isMarketsGridLocalStorageStorageFactory(storage)
+  ) {
     throw new Error(
-      '<MarketsGrid storage={...}> requires `appId` and `userId` props. ' +
-      'ConfigService-backed factories scope rows by (appId, userId, instanceId); ' +
-      'without both identities the factory cannot produce a correctly-scoped adapter. ' +
-      `Received: appId=${JSON.stringify(appId)}, userId=${JSON.stringify(userId)}.`,
+      '<MarketsGrid storage={...}> requires `appId` and `userId` props unless `storage` is ' +
+        '`createMarketsGridLocalStorageStorage()`. ConfigService-backed factories scope rows by ' +
+        '(appId, userId, instanceId); without both identities the factory cannot produce a correctly-scoped adapter. ' +
+        `Received: appId=${JSON.stringify(appId)}, userId=${JSON.stringify(userId)}.`,
     );
   }
 
@@ -282,9 +289,9 @@ function MarketsGridInner<TData = unknown>(
   // triple; factories can ignore `appId`/`userId` if they only key on
   // instanceId (local-storage, in-memory), or honor them (ConfigService).
   const resolvedAdapter = useMemo<StorageAdapter | undefined>(() => {
-    if (storage) return storage({ instanceId: effectiveInstanceId, appId, userId });
+    if (storage) return storage({ instanceId: effectiveInstanceId, appId, userId, gridId });
     return storageAdapter as StorageAdapter | undefined;
-  }, [storage, storageAdapter, effectiveInstanceId, appId, userId]);
+  }, [storage, storageAdapter, effectiveInstanceId, appId, userId, gridId]);
 
   // Dev-only nudge — when neither a `storage` factory nor a direct
   // `storageAdapter` is wired, the inner Host falls through to a
@@ -562,7 +569,21 @@ function Host<TData>({
   // button — including the busy-overlay flip via `onSavingChange`.
   const saveAllRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const saveAll = useCallback(() => saveAllRef.current(), []);
-  handleRef.current = api ? { gridApi: api, platform, profiles, saveAll } : null;
+  const bundleAdapter =
+    adapterRef.current instanceof LocalStorageBundleAdapter ? adapterRef.current : null;
+  const bundleHandle = bundleAdapter
+    ? {
+        getConfig: () => bundleAdapter.readConfig(),
+        setConfig: async (config: MarketsGridLocalStorageConfig) => {
+          await bundleAdapter.applySerializedConfig(config);
+          const nextActive = bundleAdapter.readConfig().activeProfileId;
+          await profiles.loadProfile(nextActive);
+        },
+      }
+    : {};
+  handleRef.current = api
+    ? { gridApi: api, platform, profiles, saveAll, ...bundleHandle }
+    : null;
 
   useImperativeHandle(
     forwardedRef,

@@ -1,9 +1,19 @@
-# Implemented Features
+## 2026-05-13 — MarketsGrid localStorage bundle + getConfig / setConfig
 
-AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
-FI Trading Terminal.
+Hosts that do not use ConfigService can pass
+`storage={createMarketsGridLocalStorageStorage()}` on `<MarketsGrid>` so the
+full profile set, active profile id, and grid-level data persist in a single
+`localStorage` JSON document keyed as `markets-grid-bundle:${gridId}` (with
+`gc-active-profile:${gridId}` kept in sync for ProfileManager).
 
-## 2026-05-13 — Clone conditional-styling rules
+`StorageAdapterFactory` call sites now receive `gridId` in the opts object
+alongside `instanceId`, `appId`, and `userId`.
+
+When the bundle factory is in use, the imperative grid handle exposes
+`getConfig()` and `setConfig(...)` backed by `@starui/core`'s
+`LocalStorageBundleAdapter`. ConfigService-backed `storage` factories still
+require `appId` and `userId`; the local bundle factory does not.
+
 
 The conditional-styling rule list now exposes a clone action for each rule.
 Cloning creates a full copy of the selected rule's expression, scope, style,

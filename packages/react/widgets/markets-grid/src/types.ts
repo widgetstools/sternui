@@ -1,6 +1,14 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type { AnyModule, AppDataLookup, GridPlatform, StorageAdapter } from '@starui/core';
+import type {
+  AnyModule,
+  AppDataLookup,
+  GridPlatform,
+  MarketsGridLocalStorageConfig,
+  StorageAdapter,
+} from '@starui/core';
 import type { UseProfileManagerResult } from '@starui/grid-react';
+
+export type { MarketsGridLocalStorageConfig } from '@starui/core';
 
 /**
  * One saved filter pinned to the toolbar. Shape is stable across
@@ -118,22 +126,25 @@ export interface MarketsGridProps<TData = unknown> {
   /**
    * Storage adapter factory. When provided, takes precedence over
    * `storageAdapter`. Called internally with
-   * `{ instanceId, appId, userId }` — consumers using
+   * `{ instanceId, appId, userId, gridId }` — consumers using
    * `createConfigServiceStorage()` get scoped writes without having
    * to re-close the factory on every userId change.
    *
-   * Required companion props when this is set:
+   * Required companion props when this is set (unless the factory is
+   * `createMarketsGridLocalStorageStorage()`, which keys only by grid):
    *   - `appId`   — non-empty string
    *   - `userId`  — non-empty string
-   * MarketsGrid throws at mount time if either is missing.
+   * MarketsGrid throws at mount time if either is missing for other factories.
    *
    * Typical construction at app bootstrap:
    *   const storage = createConfigServiceStorage({ configManager });
    *   <MarketsGrid ... storage={storage} appId={...} userId={userId} />
    *
+   * Local-only persistence (no ConfigService):
+   *   <MarketsGrid storage={createMarketsGridLocalStorageStorage()} ... />
+   *
    * Same factory can be reused across many grids; each receives its
-   * own `StorageAdapter` closed over the resolved
-   * (instanceId, appId, userId) triple.
+   * own `StorageAdapter` closed over the resolved opts.
    */
   storage?: StorageAdapterFactory;
 
@@ -251,18 +262,22 @@ export interface MarketsGridProps<TData = unknown> {
 
 /**
  * Options passed into a `StorageAdapterFactory` at call time. MarketsGrid
- * populates `instanceId` from `instanceId ?? gridId`; `appId` and `userId`
- * come straight from the corresponding props.
+ * populates `instanceId` from `instanceId ?? gridId`, passes `gridId` from
+ * the `gridId` prop, and forwards `appId` / `userId` from props.
  */
 export interface StorageAdapterFactoryOpts {
   /** Resolved instance id — `instanceId ?? gridId`. Always present. */
   instanceId: string;
   /** Consumer-supplied app identity. Required for ConfigService-backed
-   *  factories; factories that key only on instanceId (local storage,
-   *  in-memory) can ignore. */
+   *  factories; factories that key only on grid (local bundle) can ignore. */
   appId?: string;
   /** Consumer-supplied user identity. Same story as `appId`. */
   userId?: string;
+  /**
+   * Same value as `<MarketsGrid gridId>`. Passed to storage factories so
+   * adapters can key rows by the grid scope (not only the host instance id).
+   */
+  gridId?: string;
 }
 
 /**
@@ -270,7 +285,7 @@ export interface StorageAdapterFactoryOpts {
  * Typically produced by helpers like `createConfigServiceStorage()`.
  *
  * MarketsGrid calls the factory ONCE when the effective opts change
- * (instanceId, appId, or userId swap). Same factory can produce many
+ * (instanceId, appId, userId, or gridId swap). Same factory can produce many
  * independently-scoped adapters across the app's grid instances.
  */
 export type StorageAdapterFactory = (opts: StorageAdapterFactoryOpts) => StorageAdapter;
@@ -301,6 +316,18 @@ export interface MarketsGridHandle {
    * overlay and grid-state capture both run.
    */
   saveAll: () => Promise<void>;
+
+  /**
+   * When `storage={createMarketsGridLocalStorageStorage()}` — returns the
+   * persisted bundle (all profiles, active profile id, grid-level data).
+   */
+  getConfig?: () => MarketsGridLocalStorageConfig;
+
+  /**
+   * When using `createMarketsGridLocalStorageStorage()` — replaces the
+   * bundle in localStorage and reloads the active profile into the grid.
+   */
+  setConfig?: (config: MarketsGridLocalStorageConfig) => Promise<void>;
 }
 
 /**

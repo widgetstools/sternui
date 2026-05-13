@@ -1,0 +1,33 @@
+import { LocalStorageBundleAdapter, type StorageAdapter } from '@starui/core';
+import type { StorageAdapterFactory, StorageAdapterFactoryOpts } from './types';
+
+const MARKETS_GRID_LOCAL_STORAGE_FACTORY_BRAND = Symbol.for(
+  'starui.marketsGrid.localStorageBundleFactory',
+);
+
+export function isMarketsGridLocalStorageStorageFactory(
+  storage: StorageAdapterFactory | undefined,
+): boolean {
+  return (
+    typeof storage === 'function' &&
+    MARKETS_GRID_LOCAL_STORAGE_FACTORY_BRAND in storage &&
+    (storage as unknown as Record<symbol, boolean>)[MARKETS_GRID_LOCAL_STORAGE_FACTORY_BRAND] === true
+  );
+}
+
+/**
+ * Factory for `<MarketsGrid storage={...} />` that persists the full profile
+ * set and grid-level data under one localStorage key per grid, without
+ * ConfigService. Requires neither `appId` nor `userId`.
+ *
+ * Scopes storage with `gridId` from factory opts (`StorageAdapterFactoryOpts.gridId`;
+ * MarketsGrid passes `gridId` explicitly; falls back to `instanceId`).
+ */
+export function createMarketsGridLocalStorageStorage(): StorageAdapterFactory {
+  function factory(opts: StorageAdapterFactoryOpts): StorageAdapter {
+    const gridId = opts.gridId ?? opts.instanceId;
+    return new LocalStorageBundleAdapter(gridId);
+  }
+  (factory as unknown as Record<symbol, boolean>)[MARKETS_GRID_LOCAL_STORAGE_FACTORY_BRAND] = true;
+  return factory as StorageAdapterFactory;
+}
