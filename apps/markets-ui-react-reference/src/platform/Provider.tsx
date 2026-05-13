@@ -40,7 +40,7 @@ function Provider() {
         // Exposes a small set of WorkspacePlatform.Storage operations over
         // an OpenFin Channel so out-of-runtime test code (e2e-openfin/)
         // can drive saved-workspace lifecycle. See e2e-openfin/README.md.
-        return import("../test-bridge/install").then((m) => m.installTestBridge());
+        return import("@starui/host-wrapper-react/test-bridge").then((m) => m.installTestBridge());
       })
       .catch((err) => {
         console.error("Failed to initialize workspace platform:", err);

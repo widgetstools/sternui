@@ -67,8 +67,20 @@ export interface SurfaceSpec {
   readonly width?: number;
   /** Window/dialog dimensions in CSS pixels. */
   readonly height?: number;
-  /** Window/modal title. */
+  /** Window/modal title (display text). */
   readonly title?: string;
+  /**
+   * Stable window name used for de-duplication. A second openSurface()
+   * call with the same `windowName` focuses the existing window (and
+   * navigates it if the URL has changed) instead of spawning a duplicate.
+   *
+   * - OpenFin: passed as the window `name` on `fin.Window.create({...})`.
+   * - Browser: passed as the second arg to `window.open(url, name, ...)`.
+   *
+   * Falls back to `title` when omitted; falls back to `'_blank'` when
+   * both are absent (every call spawns a new window).
+   */
+  readonly windowName?: string;
   /** Forwarded payload — appears as `customData` on OpenFin views; query string on browser. */
   readonly customData?: Readonly<Record<string, unknown>>;
 }

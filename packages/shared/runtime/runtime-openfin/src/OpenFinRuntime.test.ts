@@ -57,14 +57,89 @@ describe('OpenFinRuntime', () => {
   });
 
   describe('openSurface', () => {
-    it('throws for popout/modal until createView is wired', async () => {
+    it('popout creates a named window via fin.Window.create + returns a SurfaceHandle', async () => {
+      const createCalls: Array<Record<string, unknown>> = [];
+      const closedListeners = new Set<() => void>();
+      const fakeWin = {
+        on: (event: string, fn: () => void) => {
+          if (event === 'closed') closedListeners.add(fn);
+        },
+        removeListener: () => {},
+        close: () => { closedListeners.forEach((fn) => fn()); },
+        setAsForeground: () => {},
+      };
       const fakeView = { identity: { name: 'v' }, getOptions: async () => ({}) };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (globalThis as any).fin = { View: { getCurrentSync: () => fakeView } };
+      (globalThis as any).fin = {
+        me: { identity: { uuid: 'app1' } },
+        View: { getCurrentSync: () => fakeView },
+        Window: {
+          // wrapSync throws when window doesn't exist → falls through to create()
+          wrapSync: () => { throw new Error('not-found'); },
+          create: async (opts: Record<string, unknown>) => {
+            createCalls.push(opts);
+            return fakeWin;
+          },
+        },
+      };
       rt = await OpenFinRuntime.create();
-      await expect(rt.openSurface({ kind: 'popout', url: '/x' })).rejects.toThrow(
-        /openSurface\(kind=popout\) is not yet implemented/,
-      );
+
+      const handle = await rt.openSurface({
+        kind: 'popout',
+        url: 'https://example/x',
+        windowName: 'data-providers',
+        width: 800,
+        height: 600,
+        customData: { providerId: 'p1' },
+      });
+
+      expect(createCalls).toHaveLength(1);
+      expect(createCalls[0]).toMatchObject({
+        name: 'data-providers',
+        url: 'https://example/x',
+        defaultWidth: 800,
+        defaultHeight: 600,
+        customData: { providerId: 'p1' },
+      });
+      expect(handle.kind).toBe('popout');
+      expect(handle.id).toBe('data-providers');
+
+      // onClosed fires when fin emits 'closed'
+      let closed = 0;
+      handle.onClosed(() => closed++);
+      closedListeners.forEach((fn) => fn());
+      expect(closed).toBe(1);
+    });
+
+    it('popout focuses + navigates the existing window when one is found', async () => {
+      const navigateCalls: string[] = [];
+      const fakeExisting = {
+        getInfo: async () => ({ url: 'https://example/old' }),
+        setAsForeground: async () => {},
+        navigate: async (url: string) => { navigateCalls.push(url); },
+        on: () => {},
+        removeListener: () => {},
+        close: () => {},
+      };
+      const fakeView = { identity: { name: 'v' }, getOptions: async () => ({}) };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).fin = {
+        me: { identity: { uuid: 'app1' } },
+        View: { getCurrentSync: () => fakeView },
+        Window: {
+          wrapSync: () => fakeExisting,
+          create: async () => { throw new Error('should not be called'); },
+        },
+      };
+      rt = await OpenFinRuntime.create();
+
+      await rt.openSurface({
+        kind: 'popout',
+        url: 'https://example/new',
+        windowName: 'data-providers',
+      });
+
+      expect(navigateCalls).toEqual(['https://example/new']);
     });
 
     it('inpage delegates to options.openInPage when registered', async () => {
