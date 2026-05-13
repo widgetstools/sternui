@@ -7,10 +7,11 @@
  * header (panel) via the stylesheet.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Pencil, Lock, Undo2, Redo2 } from 'lucide-react';
+import { CaseUpper, Pencil, Lock, Undo2, Redo2 } from 'lucide-react';
 import { Tooltip } from '@starui/grid-react';
 import {
   ColumnLabel,
+  Hair,
   Pill,
   ScopeToggle,
 } from '../primitives';
@@ -170,6 +171,21 @@ export function ModuleContext({ state, actions }: Props) {
         ) : (
           <Lock size={12} strokeWidth={1.75} />
         )}
+      </Pill>
+
+      <Hair />
+      <Pill
+        tooltip={
+          state.headerCaseUppercase
+            ? 'Headers UPPERCASE — click to restore original case'
+            : 'Make all column headers UPPERCASE'
+        }
+        active={state.headerCaseUppercase}
+        onClick={actions.toggleHeaderCaseUppercase}
+        data-testid="formatting-toggle-header-case"
+        aria-label="Toggle header case (uppercase / original)"
+      >
+        <CaseUpper size={13} strokeWidth={2} />
       </Pill>
 
       <div style={{ display: 'inline-flex', gap: 4 }}>

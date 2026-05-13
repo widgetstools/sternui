@@ -3,6 +3,34 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-12 — Formatter toolbar: all-column header controls
+
+`@starui/markets-grid` formatter toolbar now supports grid-wide header
+formatting from the existing header target. When the formatter target is
+`HEADER`, the font-size picker and text-colour picker apply to every AG Grid
+column returned by `api.getColumns()` instead of only the currently focused
+column. Writes still use the existing column-customization reducers and persist
+as per-column `headerStyleOverrides`, so saved layouts round-trip through the
+same styling pipeline as ordinary selected-column edits.
+
+The header font-size picker is enabled in header mode even when no active cell
+range exists, and the text-colour picker follows the same rule. Cell target
+behaviour is unchanged: font size and text colour still apply only to the
+active formatter column scope.
+
+The toolbar also adds a `CaseUpper` pill in the context cluster. It toggles the
+new `general-settings.headerCaseUppercase` flag, which the MarketsGrid root
+reflects as `data-header-case="upper"`. `marketsGrid.css` consumes that
+attribute with a display-only `text-transform: uppercase` rule for
+`.ag-header-cell-text` and `.ag-header-group-text`, preserving the underlying
+`headerName` values so disabling the toggle restores the authored camelCase /
+Title Case captions.
+
+Integration coverage verifies that header font size writes to all columns,
+header text colour writes to all columns, and the case pill remains available
+without a selected column while keeping `aria-pressed` and the persisted
+settings flag in sync.
+
 ## 2026-05-11 — Light-mode toolbar and page-header chrome polish
 
 `@starui/markets-grid` light-mode header/toolbars now use the cool-clinical

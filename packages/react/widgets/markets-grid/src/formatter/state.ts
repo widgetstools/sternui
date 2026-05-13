@@ -34,6 +34,8 @@ import {
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
   clearAllStylesReducer,
+  GENERAL_SETTINGS_MODULE_ID,
+  INITIAL_GENERAL_SETTINGS,
   pickTemplateFields,
   removeTemplateRefFromAssignmentsReducer,
   removeTemplateReducer,
@@ -49,12 +51,14 @@ import {
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type FilterKind,
+  type GeneralSettingsState,
 } from '@starui/grid-react';
 import {
   numberTemplate,
   templateDecimals,
 } from '../formatterPresets';
 import {
+  readAllColumnIds,
   readCellDataType,
   readFirstRowValue,
   readHeaderName,
@@ -137,6 +141,8 @@ export interface FormatterState {
    *  the TemplateManager's "what will be saved" hint. Empty when the
    *  column has nothing template-eligible. */
   capturableFields: ReadonlyArray<string>;
+  /** Grid-wide header caption presentation toggle. */
+  headerCaseUppercase: boolean;
 }
 
 export interface FormatterActions {
@@ -204,6 +210,8 @@ export interface FormatterActions {
   setFilterPrimaryKind: (kind: FilterKind | undefined) => void;
   /** Toggle the floating-filter row on every targeted column. */
   toggleFloatingFilter: () => void;
+  /** Toggle every column header caption between natural case and UPPERCASE. */
+  toggleHeaderCaseUppercase: () => void;
 }
 
 export interface UseFormatterResult {
@@ -240,6 +248,10 @@ export function useFormatter(): UseFormatterResult {
 
   const [custState, setCustState] = useModuleState<ColumnCustomizationState>('column-customization');
   const [tplState, setTplState] = useModuleState<ColumnTemplatesState>('column-templates');
+  const [generalSettingsState, setGeneralSettingsState] = useModuleState<GeneralSettingsState>(
+    GENERAL_SETTINGS_MODULE_ID,
+  );
+  const headerCaseUppercase = !!generalSettingsState?.headerCaseUppercase;
 
   const undoRedo = useUndoRedo<ColumnCustomizationState | undefined>(
     custState,
@@ -358,8 +370,12 @@ export function useFormatter(): UseFormatterResult {
   }, [setCustStateWithHistory, fmt.underline]);
 
   const setFontSizePx = useCallback((px: number) => {
-    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { fontSize: px }));
-  }, [setCustStateWithHistory]);
+    const ids = targetRef.current === 'header'
+      ? readAllColumnIds(platform.api.api)
+      : colIdsRef.current;
+    if (!ids.length) return;
+    setCustStateWithHistory(applyTypographyReducer(ids, targetRef.current, { fontSize: px }));
+  }, [setCustStateWithHistory, platform]);
 
   const toggleAlign = useCallback((h: 'left' | 'center' | 'right') => {
     const next = fmt.horizontal === h ? undefined : h;
@@ -367,8 +383,12 @@ export function useFormatter(): UseFormatterResult {
   }, [setCustStateWithHistory, fmt.horizontal]);
 
   const setTextColor = useCallback((c: string | undefined) => {
-    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { text: c || undefined }));
-  }, [setCustStateWithHistory]);
+    const ids = targetRef.current === 'header'
+      ? readAllColumnIds(platform.api.api)
+      : colIdsRef.current;
+    if (!ids.length) return;
+    setCustStateWithHistory(applyColorsReducer(ids, targetRef.current, { text: c || undefined }));
+  }, [setCustStateWithHistory, platform]);
 
   const setBgColor = useCallback((c: string | undefined) => {
     setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { background: c || undefined }));
@@ -518,6 +538,13 @@ export function useFormatter(): UseFormatterResult {
     );
   }, [setCustStateWithHistory, editorAndFilter.floatingFilterOn]);
 
+  const toggleHeaderCaseUppercase = useCallback(() => {
+    setGeneralSettingsState((prev) => {
+      const base = prev ?? INITIAL_GENERAL_SETTINGS;
+      return { ...base, headerCaseUppercase: !base.headerCaseUppercase };
+    });
+  }, [setGeneralSettingsState]);
+
   // Decimals — read the live state so consecutive clicks compound on
   // the latest committed formatter.
   const getCurrentDecimals = useCallback((): number => {
@@ -645,6 +672,7 @@ export function useFormatter(): UseFormatterResult {
       filterIsCustom: editorAndFilter.filterIsCustom,
       floatingFilterOn: editorAndFilter.floatingFilterOn,
       capturableFields,
+      headerCaseUppercase,
     },
     actions: {
       setTarget,
@@ -680,6 +708,7 @@ export function useFormatter(): UseFormatterResult {
       setCellEditorValues,
       setFilterPrimaryKind,
       toggleFloatingFilter,
+      toggleHeaderCaseUppercase,
     },
   };
 }

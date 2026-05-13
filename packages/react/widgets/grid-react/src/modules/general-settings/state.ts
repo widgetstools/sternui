@@ -106,6 +106,10 @@ export interface GeneralSettingsState {
   // ─── Tier 5 — Styling ────────────────────────────────────────────────────
   suppressRowHoverHighlight: boolean;
   columnHoverHighlight: boolean;
+  /** Render all AG Grid column header captions in uppercase. The authored
+   *  `headerName` values remain unchanged so switching this off restores the
+   *  original camelCase / Title Case captions. */
+  headerCaseUppercase: boolean;
 
   // ─── Default ColDef ──────────────────────────────────────────────────────
   //
@@ -288,6 +292,7 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Tier 5
   suppressRowHoverHighlight: false,
   columnHoverHighlight: false,
+  headerCaseUppercase: false,
 
   // Default ColDef — sizing
   defaultResizable: true,

@@ -23,6 +23,7 @@ export function ModuleType({
   actions: FormatterActions;
 }) {
   const { fmt, disabled, isHeader } = state;
+  const controlDisabled = isHeader ? false : disabled;
   const [sizeOpen, setSizeOpen] = useState(false);
   const fontSizeLabel = fmt.fontSize != null ? String(fmt.fontSize) : '11';
 
@@ -60,7 +61,7 @@ export function ModuleType({
         onOpenChange={setSizeOpen}
         trigger={
           <button
-            disabled={disabled || isHeader}
+            disabled={controlDisabled}
             type="button"
             className="fx-pill fx-pill--text"
             title="Font size (px)"

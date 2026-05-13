@@ -20,13 +20,14 @@ export function ModulePaint({
   state: FormatterState;
   actions: FormatterActions;
 }) {
-  const { fmt, disabled } = state;
+  const { fmt, disabled, isHeader } = state;
   const [borderOpen, setBorderOpen] = useState(false);
+  const colorDisabled = isHeader ? false : disabled;
 
   return (
     <Module index="03" label="Paint">
       <ColorPickerPopover
-        disabled={disabled}
+        disabled={colorDisabled}
         value={fmt.color}
         icon={<Type size={13} strokeWidth={2.25} />}
         onChange={(c) => actions.setTextColor(c)}

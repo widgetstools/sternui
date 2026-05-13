@@ -22,9 +22,12 @@ import { GridPlatform } from '@starui/core';
 import {
   columnCustomizationModule,
   columnTemplatesModule,
+  generalSettingsModule,
+  GENERAL_SETTINGS_MODULE_ID,
   GridProvider,
   type ColumnCustomizationState,
   type ColumnTemplatesState,
+  type GeneralSettingsState,
 } from '@starui/grid-react';
 import { FormattingToolbar } from './FormattingToolbar';
 
@@ -93,7 +96,7 @@ function makeFakeApi(cols: FakeCol[], activeColIds: string[]) {
 function makePlatform() {
   return new GridPlatform({
     gridId: 'test-grid',
-    modules: [columnTemplatesModule, columnCustomizationModule],
+    modules: [generalSettingsModule, columnTemplatesModule, columnCustomizationModule],
   });
 }
 
@@ -130,6 +133,10 @@ function getAssignment(platform: GridPlatform, colId: string) {
 
 function getTplState(platform: GridPlatform) {
   return platform.store.getModuleState<ColumnTemplatesState>('column-templates');
+}
+
+function getGeneralState(platform: GridPlatform) {
+  return platform.store.getModuleState<GeneralSettingsState>(GENERAL_SETTINGS_MODULE_ID);
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────
@@ -282,6 +289,81 @@ describe('FormattingToolbar — target switcher', () => {
 
     expect(getAssignment(platform, 'price')?.cellStyleOverrides).toBeUndefined();
     expect(getAssignment(platform, 'price')?.headerStyleOverrides?.typography?.bold).toBe(true);
+  });
+});
+
+describe('FormattingToolbar — all-header controls', () => {
+  let platform: GridPlatform;
+  beforeEach(() => { platform = makePlatform(); });
+
+  async function switchToHeaderTarget() {
+    await waitFor(() =>
+      expect(screen.getByTestId('formatting-target-toggle').getAttribute('aria-checked')).toBe('false'),
+    );
+    act(() => fireEvent.click(screen.getByTestId('formatting-target-toggle')));
+    await waitFor(() =>
+      expect(screen.getByTestId('formatting-target-toggle').getAttribute('aria-checked')).toBe('true'),
+    );
+  }
+
+  it('header font size writes to every grid column, not just the active column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    await switchToHeaderTarget();
+
+    const sizeButton = screen.getByTestId('fmt-panel-font-size') as HTMLButtonElement;
+    expect(sizeButton.disabled).toBe(false);
+    act(() => fireEvent.click(sizeButton));
+    const option = await screen.findByText('16px');
+    act(() => fireEvent.click(option));
+
+    expect(getAssignment(platform, 'price')?.headerStyleOverrides?.typography?.fontSize).toBe(16);
+    expect(getAssignment(platform, 'quantity')?.headerStyleOverrides?.typography?.fontSize).toBe(16);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides).toBeUndefined();
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides).toBeUndefined();
+  });
+
+  it('header text color writes to every grid column', async () => {
+    const fake = makeFakeApi(COLS, ['price']);
+    mountToolbar({ platform, api: fake.api });
+
+    await switchToHeaderTarget();
+
+    const textColor = screen.getByRole('button', { name: 'Text color' });
+    act(() => {
+      fireEvent.pointerDown(textColor);
+      fireEvent.click(textColor);
+    });
+    const input = await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('input[type="text"][value="#000000"]');
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    act(() => fireEvent.change(input, { target: { value: '#ef4444' } }));
+
+    expect(getAssignment(platform, 'price')?.headerStyleOverrides?.colors?.text).toBe('#ef4444');
+    expect(getAssignment(platform, 'quantity')?.headerStyleOverrides?.colors?.text).toBe('#ef4444');
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides).toBeUndefined();
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides).toBeUndefined();
+  });
+
+  it('header case toggle flips the grid-wide general-settings flag', async () => {
+    const fake = makeFakeApi(COLS, []);
+    mountToolbar({ platform, api: fake.api });
+
+    const pill = await screen.findByTestId('formatting-toggle-header-case');
+    expect((pill as HTMLButtonElement).disabled).toBe(false);
+    expect(getGeneralState(platform).headerCaseUppercase).toBe(false);
+    expect(pill.getAttribute('aria-pressed')).toBe('false');
+
+    act(() => fireEvent.mouseDown(pill));
+    expect(getGeneralState(platform).headerCaseUppercase).toBe(true);
+    expect(pill.getAttribute('aria-pressed')).toBe('true');
+
+    act(() => fireEvent.mouseDown(pill));
+    expect(getGeneralState(platform).headerCaseUppercase).toBe(false);
+    expect(pill.getAttribute('aria-pressed')).toBe('false');
   });
 });
 

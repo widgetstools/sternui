@@ -63,6 +63,17 @@ export function readHeaderName(api: GridApi | null, colId: string): string | und
   }
 }
 
+export function readAllColumnIds(api: GridApi | null): string[] {
+  if (!api) return [];
+  try {
+    return (api.getColumns() ?? [])
+      .map((col) => col.getColId())
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 export function readFirstRowValue(api: GridApi | null, colId: string): unknown {
   if (!api) return undefined;
   try {

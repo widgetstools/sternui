@@ -761,3 +761,12 @@
   background: color-mix(in srgb, var(--ds-accent-negative) 12%, transparent) !important;
   color: var(--ds-accent-negative) !important;
 }
+
+/* Formatter toolbar global header-case toggle. This is display-only:
+   `headerName` values remain unchanged, so turning the toggle off restores
+   the authored camelCase / Title Case captions. */
+[data-grid-id][data-header-case='upper'] .ag-header-cell-text,
+[data-grid-id][data-header-case='upper'] .ag-header-group-text {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

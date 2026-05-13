@@ -42,12 +42,15 @@ import {
   columnTemplatesModule,
   conditionalStylingModule,
   generalSettingsModule,
+  GENERAL_SETTINGS_MODULE_ID,
   gridStateModule,
   savedFiltersModule,
   toolbarVisibilityModule,
   useGridApi,
   useGridPlatform,
+  useModuleState,
   useProfileManager,
+  type GeneralSettingsState,
 } from '@starui/grid-react';
 import {
   Save, Check, Settings as SettingsIcon, SlidersHorizontal,
@@ -475,6 +478,8 @@ function Host<TData>({
 
   const platform = useGridPlatform();
   const api = useGridApi();
+  const [generalSettings] = useModuleState<GeneralSettingsState>(GENERAL_SETTINGS_MODULE_ID);
+  const headerCaseAttr = generalSettings?.headerCaseUppercase ? 'upper' : undefined;
 
   // ── Imperative handle ─────────────────────────────────────────────
   // Populated once AG-Grid's onGridReady has fired (api becomes non-null)
@@ -660,6 +665,7 @@ function Host<TData>({
       className={className}
       style={rootStyle}
       data-grid-id={gridId}
+      data-header-case={headerCaseAttr}
     >
       {/* Header extras — slot for consumer-supplied chrome that needs
            to live INSIDE the grid's frame but ABOVE the filters/format
