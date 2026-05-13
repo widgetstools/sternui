@@ -1,20 +1,23 @@
 /**
  * dataServices.mainThread.ts — bootstrap the per-app data-services
- * bundle (SharedWorker client + AppDataMirror + ConfigManager).
+ * bundle for this app.
  *
- * The `new SharedWorker(new URL(...))` literal must stay co-located
- * with its target file so Vite's worker plugin emits a separate
- * worker chunk and rewrites the URL. The construction stays here;
- * `bootstrapDataServices()` wraps the worker into a `DataServices`
- * bundle consumed by the rest of the app.
+ * Delegates to `createDataServicesClient` (in `@starui/data-services`)
+ * which owns the SharedWorker construction + `bootstrapDataServices`
+ * wrapping. The previous in-app worker file
+ * (`dataServices.sharedWorker.ts`) and the manual `new SharedWorker(...)`
+ * call site have moved into the package's default worker entry.
+ *
+ * Apps that need a bespoke worker (extra services, custom hub wiring)
+ * should keep their own worker file and use the lower-level
+ * `bootstrapDataServices(...)` API directly.
  *
  * Consumers import `dataServices` (the bundle) and pass it to
  * `<DataServicesProvider services={dataServices}>` /
  * `<HostedMarketsGrid dataServices={dataServices}>`.
  */
 
-import { bootstrapDataServices } from '@starui/data-services';
-import { createConfigManager } from '@starui/config-service';
+import { createDataServicesClient } from '@starui/data-services';
 import { getConfigServiceRestUrlFromManifest } from '@starui/openfin-platform/config';
 import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 
@@ -29,31 +32,8 @@ const APP_ID = 'TestApp';
 // in lockstep. Out of OpenFin → `undefined` → local-only.
 const CONFIG_SERVICE_REST_URL = await getConfigServiceRestUrlFromManifest();
 
-// Forward the resolved URL to the SharedWorker via a query-string param.
-// SharedWorkers can't read OpenFin's `fin` global (no access to the
-// host window), so the main thread does the manifest read once and
-// inlines the result onto the worker's scriptURL where the worker can
-// read it back from `self.location.search`. The first tab to spawn the
-// worker fixes the URL — subsequent tabs with the same `name` reuse
-// that running worker, so the URL stays consistent.
-const workerUrl = new URL('./dataServices.sharedWorker.ts', import.meta.url);
-if (CONFIG_SERVICE_REST_URL) {
-  workerUrl.searchParams.set('configServiceRestUrl', CONFIG_SERVICE_REST_URL);
-}
-
-const worker = new SharedWorker(workerUrl, {
-  type: 'module',
-  name: `mkt-data-services:${APP_ID}`,
-});
-
-worker.addEventListener('error', (ev) => {
-  // eslint-disable-next-line no-console
-  console.error('[data-services SharedWorker] error event', ev);
-});
-
-export const dataServices = bootstrapDataServices({
+export const dataServices = createDataServicesClient({
   appName: APP_ID,
-  worker,
-  configManager: createConfigManager({ configServiceRestUrl: CONFIG_SERVICE_REST_URL }),
   userId: LOGGED_IN_USER_ID,
+  configServiceRestUrl: CONFIG_SERVICE_REST_URL,
 });

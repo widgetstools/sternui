@@ -11,3 +11,8 @@ export {
   type BootstrapDataServicesOpts,
   type DataServices,
 } from './bootstrap.js';
+
+export {
+  createDataServicesClient,
+  type CreateDataServicesClientOpts,
+} from './createDataServicesClient.js';

@@ -68,6 +68,8 @@ export {
   bootstrapDataServices,
   type BootstrapDataServicesOpts,
   type DataServices,
+  createDataServicesClient,
+  type CreateDataServicesClientOpts,
 } from './bootstrap/index.js';
 
 // Client — SharedWorker MessagePort wrapper. Most consumers reach the

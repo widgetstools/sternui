@@ -2,11 +2,11 @@ import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
 import { defineConfig } from "vite";
 import { resolve } from "path";
-import { buildPackageAliases } from "./vitePackageAliases";
+import { buildPackageAliases } from "@starui/vite-workspace-aliases";
 
 // Auto-discover every `@starui/*` workspace package and produce
 // one alias entry per export (`.`, `./v2`, `./v2/client`, …) → its
-// source path. See `./vitePackageAliases.ts` for the algorithm.
+// source path. See `@starui/vite-workspace-aliases` for the algorithm.
 //
 // Why: source-side edits to any workspace package were only visible
 // after a full `turbo build` round-trip — the `package.json` `exports`
