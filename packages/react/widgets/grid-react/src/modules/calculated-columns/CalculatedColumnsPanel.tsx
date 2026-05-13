@@ -22,7 +22,7 @@
  * `cc-*` test-ids are preserved character-for-character.
  */
 import { memo, useCallback, useEffect, useState } from 'react';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { ExpressionEditor } from '../../ui/ExpressionEditor';
 import type { EditorPaneProps, ListPaneProps } from '@starui/core';
 import { useModuleState } from '../../hooks/useModuleState';
@@ -43,6 +43,7 @@ import {
   TitleInput,
 } from '../../ui/SettingsPanel';
 import { FormatterPicker, type FormatterPickerDataType } from '../../ui/FormatterPicker';
+import { Tooltip } from '../../ui/shadcn/tooltip';
 import type { CalculatedColumnsState, VirtualColumnDef } from './state';
 
 const MODULE_ID = 'calculated-columns';
@@ -82,6 +83,23 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
     }));
     onSelect(id);
   }, [setState, onSelect]);
+
+  const deleteVirtualColumn = useCallback((colId: string) => {
+    const deleteIndex = state.virtualColumns.findIndex((column) => column.colId === colId);
+    if (deleteIndex === -1) return;
+
+    const nextSelection = selectedId === colId
+      ? state.virtualColumns[deleteIndex + 1]?.colId
+        ?? state.virtualColumns[deleteIndex - 1]?.colId
+        ?? null
+      : selectedId;
+
+    setState((prev) => ({
+      ...prev,
+      virtualColumns: prev.virtualColumns.filter((column) => column.colId !== colId),
+    }));
+    onSelect(nextSelection);
+  }, [selectedId, state.virtualColumns, setState, onSelect]);
 
   // Auto-select the first item when the sheet opens with no selection —
   // avoids dumping the user onto the empty-state pane for an existing
@@ -147,6 +165,20 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
               >
                 {v.headerName || '(unnamed)'}
               </span>
+              <Tooltip content="Delete">
+                <button
+                  type="button"
+                  aria-label="Delete"
+                  data-testid={`cc-virtual-delete-${v.colId}`}
+                  className="w-6 h-6 inline-flex items-center justify-center rounded-sm text-muted-foreground cursor-pointer p-0 transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary-ring)]"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    deleteVirtualColumn(v.colId);
+                  }}
+                >
+                  <Trash2 size={14} strokeWidth={2} />
+                </button>
+              </Tooltip>
             </CockpitListItem>
           );
         })}
@@ -158,7 +190,7 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
 // ─── Editor pane ───────────────────────────────────────────────────────
 
 export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
-  const [state, setState] = useModuleState<CalculatedColumnsState>(MODULE_ID);
+  const [state] = useModuleState<CalculatedColumnsState>(MODULE_ID);
 
   if (!selectedId) {
     return (
@@ -175,27 +207,15 @@ export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
 
   if (!state.virtualColumns.some((v) => v.colId === selectedId)) return null;
 
-  const removeVirtualColumn = (colId: string) => {
-    setState((prev) => ({
-      ...prev,
-      virtualColumns: prev.virtualColumns.filter((c) => c.colId !== colId),
-    }));
-    // Dirty bus cleanup happens automatically when `useModuleDraft` unmounts
-    // its key — but the panel may still be mounted (selectedId clears
-    // separately). Explicitly clear so the list LED drops immediately.
-  };
-
-  return <VirtualColumnEditor colId={selectedId} onDelete={() => removeVirtualColumn(selectedId)} />;
+  return <VirtualColumnEditor colId={selectedId} />;
 }
 
 // ─── Per-virtual-column editor ─────────────────────────────────────────
 
 const VirtualColumnEditor = memo(function VirtualColumnEditor({
   colId,
-  onDelete,
 }: {
   colId: string;
-  onDelete: () => void;
 }) {
   // Live base-column list (ApiHub-wired, fingerprint-cached).
   const baseCols = useGridColumns();
@@ -204,7 +224,7 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
     [baseCols],
   );
 
-  const { draft, setDraft, dirty, save, missing } = useModuleDraft<
+  const { draft, setDraft, dirty, save, discard, missing } = useModuleDraft<
     CalculatedColumnsState,
     VirtualColumnDef
   >({
@@ -243,15 +263,20 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
           actions={
             <>
               <SharpBtn
+                variant="ghost"
+                disabled={!dirty}
+                onClick={discard}
+                data-testid={`cc-virtual-reset-${colId}`}
+              >
+                <RotateCcw size={13} strokeWidth={2} /> RESET
+              </SharpBtn>
+              <SharpBtn
                 variant={dirty ? 'action' : 'ghost'}
                 disabled={!dirty}
                 onClick={save}
                 data-testid={`cc-virtual-save-${colId}`}
               >
                 <Save size={13} strokeWidth={2} /> SAVE
-              </SharpBtn>
-              <SharpBtn variant="danger" onClick={onDelete} data-testid={`cc-virtual-delete-${colId}`}>
-                <Trash2 size={13} strokeWidth={2} /> DELETE
               </SharpBtn>
             </>
           }

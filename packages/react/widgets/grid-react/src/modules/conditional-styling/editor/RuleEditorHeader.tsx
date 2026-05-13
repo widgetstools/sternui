@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Save, Trash2 } from 'lucide-react';
+import { RotateCcw, Save } from 'lucide-react';
 import { ObjectTitleRow, SharpBtn, TitleInput } from '../../../ui/SettingsPanel';
 
 export const RuleEditorHeader = memo(function RuleEditorHeader({
@@ -7,15 +7,15 @@ export const RuleEditorHeader = memo(function RuleEditorHeader({
   name,
   dirty,
   onNameChange,
+  onReset,
   onSave,
-  onDelete,
 }: {
   ruleId: string;
   name: string;
   dirty: boolean;
   onNameChange: (next: string) => void;
+  onReset: () => void;
   onSave: () => void;
-  onDelete: () => void;
 }) {
   return (
     <div className="shrink-0 bg-background border-b border-border">
@@ -31,19 +31,20 @@ export const RuleEditorHeader = memo(function RuleEditorHeader({
         actions={
           <>
             <SharpBtn
+              variant="ghost"
+              disabled={!dirty}
+              onClick={onReset}
+              data-testid={`cs-rule-reset-${ruleId}`}
+            >
+              <RotateCcw size={13} strokeWidth={2} /> RESET
+            </SharpBtn>
+            <SharpBtn
               variant={dirty ? 'action' : 'ghost'}
               disabled={!dirty}
               onClick={onSave}
               data-testid={`cs-rule-save-${ruleId}`}
             >
               <Save size={13} strokeWidth={2} /> SAVE
-            </SharpBtn>
-            <SharpBtn
-              variant="danger"
-              onClick={onDelete}
-              data-testid={`cs-rule-delete-${ruleId}`}
-            >
-              <Trash2 size={13} strokeWidth={2} /> DELETE
             </SharpBtn>
           </>
         }

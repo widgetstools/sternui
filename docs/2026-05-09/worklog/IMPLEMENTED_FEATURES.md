@@ -3,6 +3,23 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-13 — Clone conditional-styling rules
+
+The conditional-styling rule list now exposes a clone action for each rule.
+Cloning creates a full copy of the selected rule's expression, scope, style,
+flash, indicator, and formatter settings, inserts it directly after the source
+rule, selects it for editing, and forces the clone to start inactive.
+
+Rule deletion also lives on the rule item now, beside clone, so users can
+remove a style rule from the list without first opening it in the editor. The
+Conditional Styling, Column Groups, and Calculated Columns editors now expose a
+dirty-state `RESET` action immediately before `SAVE`, letting users discard
+unsaved edits without closing the dialog.
+
+Clone generation assigns a fresh rule id, derives a non-colliding `Copy` name
+(`Copy 2`, `Copy 3`, etc. when needed), and shifts later priorities so the new
+rule can sit beside its source without priority collisions.
+
 ## 2026-05-13 — Theme-aware tooltips on every formatter button
 
 The shared `<Tooltip>` primitive in `@starui/grid-react` now binds its
