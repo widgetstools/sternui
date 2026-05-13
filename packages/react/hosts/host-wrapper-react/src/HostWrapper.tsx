@@ -114,6 +114,7 @@ export function HostWrapper({
       // is stable per `resolved`, so `bind` produces a function we can
       // safely include in the memoized value without thrashing
       // consumers that put these in dependency arrays).
+      setTheme: runtime.setTheme.bind(runtime),
       onThemeChanged: runtime.onThemeChanged.bind(runtime),
       onWindowShown: runtime.onWindowShown.bind(runtime),
       onWindowClosing: runtime.onWindowClosing.bind(runtime),

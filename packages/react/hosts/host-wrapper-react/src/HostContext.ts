@@ -33,6 +33,14 @@ export interface HostContextValue extends IdentitySnapshot {
   readonly configUrl?: string;
 
   /**
+   * Set the active theme. Convenience over `runtime.setTheme(...)` —
+   * exposed on the context so toggle callbacks don't need a separate
+   * runtime reference. Identical semantics: writes DOM + storage,
+   * broadcasts to peer windows, fires `onThemeChanged` subscribers.
+   */
+  setTheme(theme: Theme): void;
+
+  /**
    * Subscribe to theme changes. Convenience over `runtime.onThemeChanged`
    * — exposed on the context so callers don't need a separate runtime
    * import.

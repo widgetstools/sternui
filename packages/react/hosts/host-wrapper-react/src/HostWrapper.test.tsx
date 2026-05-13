@@ -42,6 +42,10 @@ class FakeRuntime implements RuntimePort {
     return this.theme;
   }
 
+  setTheme(t: Theme): void {
+    this.setThemeForTest(t);
+  }
+
   setThemeForTest(t: Theme): void {
     this.theme = t;
     for (const fn of this.themeListeners) fn(t);

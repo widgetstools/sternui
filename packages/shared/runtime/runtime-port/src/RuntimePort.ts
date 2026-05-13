@@ -54,10 +54,30 @@ export interface RuntimePort {
   getTheme(): Theme;
 
   /**
-   * Subscribe to theme changes.
-   * - OpenFin: bridges to the platform-level theme broadcast.
-   * - Browser: tracks `prefers-color-scheme` AND any explicit
-   *   `[data-theme]` attribute set on `document.documentElement`.
+   * Set the active theme. The runtime is the single writer:
+   *
+   *   1. Updates `[data-theme]` on `document.documentElement`.
+   *   2. Persists to the canonical `THEME_STORAGE_KEY` localStorage key.
+   *   3. Broadcasts to peer windows:
+   *      - Browser: a `BroadcastChannel` named `THEME_BROADCAST_CHANNEL`.
+   *      - OpenFin: the `theme-changed` IAB topic.
+   *   4. Notifies local `onThemeChanged` subscribers.
+   *
+   * Idempotent — setting the same theme twice is a no-op (no events
+   * re-fire, no peer notifications).
+   *
+   * No-op when called after `dispose()`.
+   */
+  setTheme(theme: Theme): void;
+
+  /**
+   * Subscribe to theme changes from ANY source — local `setTheme()`,
+   * peer-window broadcasts, external `[data-theme]` mutations, or
+   * OS `prefers-color-scheme` flips (browser only, when no
+   * persisted preference exists).
+   *
+   * The runtime arbitrates these inputs through one internal state
+   * value; subscribers see one consistent stream of changes.
    */
   onThemeChanged(fn: (theme: Theme) => void): Unsubscribe;
 

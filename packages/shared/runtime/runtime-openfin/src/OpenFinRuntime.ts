@@ -8,6 +8,7 @@ import type {
   Theme,
   Unsubscribe,
 } from '@starui/runtime-port';
+import { THEME_STORAGE_KEY } from '@starui/runtime-port';
 import type { IdentityOverrides } from '@starui/runtime-browser';
 import { resolveOpenFinIdentity, getCurrentView, isOpenFin } from './identity.js';
 import { openOpenFinPopout } from './popout.js';
@@ -101,6 +102,7 @@ export class OpenFinRuntime implements RuntimePort {
     if (isOpenFin()) {
       this.attachViewWatchers();
       this.attachPlatformWorkspaceWatcher();
+      this.attachThemeBroadcastListener();
     }
   }
 
@@ -281,15 +283,67 @@ export class OpenFinRuntime implements RuntimePort {
 
   // ─── internals ───────────────────────────────────────────────────────
 
+  /**
+   * Resolve the initial theme value at construct time. Precedence:
+   *   1. `[data-theme]` on `<html>` — explicit programmatic write
+   *      (design-system's `applyTheme()` runs before us).
+   *   2. localStorage `THEME_STORAGE_KEY` — last persisted choice.
+   *   3. `'light'` — final fallback (OpenFin has no OS `prefers-color-scheme`
+   *      semantic; dock/IAB owns runtime updates).
+   */
   private detectTheme(): Theme {
     if (typeof document !== 'undefined') {
       const explicit = document.documentElement.getAttribute('data-theme');
       if (explicit === 'dark' || explicit === 'light') return explicit;
     }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+        if (stored === 'dark' || stored === 'light') return stored;
+      } catch {
+        /* swallow */
+      }
+    }
     return 'light';
   }
 
-  private setTheme(theme: Theme): void {
+  /**
+   * Public `RuntimePort.setTheme` — single writer. Writes DOM +
+   * storage, broadcasts to peer windows via the OpenFin IAB topic
+   * `theme-changed`, then fires local subscribers. Idempotent.
+   */
+  setTheme(theme: Theme): void {
+    if (this.disposed) return;
+    if (theme === this.currentTheme) return;
+    this.writeTheme(theme);
+    this.broadcastTheme(theme);
+    this.applyThemeChange(theme);
+  }
+
+  private writeTheme(theme: Theme): void {
+    if (typeof document !== 'undefined') {
+      try { document.documentElement.setAttribute('data-theme', theme); } catch { /* swallow */ }
+      // Defensive: some AG-Grid integrations read body.dataset.agThemeMode.
+      try { document.body.dataset['agThemeMode'] = theme; } catch { /* swallow */ }
+    }
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* swallow */ }
+    }
+  }
+
+  private broadcastTheme(theme: Theme): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finGlobal = (globalThis as any).fin;
+    const iab = finGlobal?.InterApplicationBus;
+    if (!iab?.publish) return;
+    try {
+      void iab.publish('theme-changed', { theme, isDark: theme === 'dark' });
+    } catch {
+      /* swallow — best-effort broadcast */
+    }
+  }
+
+  private applyThemeChange(theme: Theme): void {
     if (theme === this.currentTheme) return;
     this.currentTheme = theme;
     for (const fn of this.themeListeners) {
@@ -299,9 +353,37 @@ export class OpenFinRuntime implements RuntimePort {
 
   private attachThemeWatcher(): void {
     if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
-    const observer = new MutationObserver(() => this.setTheme(this.detectTheme()));
+    const observer = new MutationObserver(() => this.applyThemeChange(this.detectTheme()));
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     this.disposers.push(() => observer.disconnect());
+  }
+
+  /**
+   * Subscribe to the OpenFin IAB `theme-changed` topic. Peer windows
+   * publishing through `setTheme()` reach us here; we write DOM +
+   * storage locally so other watchers (CSS-driven UI, MutationObserver)
+   * see a consistent state, then update internal state. No re-publish
+   * (IAB already fanned out to all subscribers).
+   */
+  private attachThemeBroadcastListener(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finGlobal = (globalThis as any).fin;
+    const iab = finGlobal?.InterApplicationBus;
+    if (!iab?.subscribe || !finGlobal?.me?.identity?.uuid) return;
+    const handler = (msg: unknown) => {
+      const next = readThemePayload(msg);
+      if (!next) return;
+      this.writeTheme(next);
+      this.applyThemeChange(next);
+    };
+    try {
+      void iab.subscribe({ uuid: '*' }, 'theme-changed', handler);
+      this.disposers.push(() => {
+        try { void iab.unsubscribe({ uuid: '*' }, 'theme-changed', handler); } catch { /* swallow */ }
+      });
+    } catch {
+      /* swallow — IAB not reachable */
+    }
   }
 
   private attachViewWatchers(): void {
@@ -417,6 +499,20 @@ export class OpenFinRuntime implements RuntimePort {
       // it themselves until they upgrade.
     }
   }
+}
+
+/**
+ * Read a theme value out of a `theme-changed` IAB payload. The dock
+ * historically published `{ isDark: boolean }`; the runtime publishes
+ * `{ theme: 'dark' | 'light', isDark }` for forward compat. Accepts
+ * either shape so cross-version windows keep syncing.
+ */
+function readThemePayload(msg: unknown): Theme | null {
+  if (!msg || typeof msg !== 'object') return null;
+  const m = msg as { theme?: unknown; isDark?: unknown };
+  if (m.theme === 'dark' || m.theme === 'light') return m.theme;
+  if (typeof m.isDark === 'boolean') return m.isDark ? 'dark' : 'light';
+  return null;
 }
 
 /** Shallow-equal helper — sufficient for customData payloads which are

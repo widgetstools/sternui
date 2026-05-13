@@ -23,6 +23,7 @@ function makeRuntime(): RuntimePort {
     }),
     openSurface: async () => { throw new Error('not used'); },
     getTheme: () => 'light',
+    setTheme: () => {},
     onThemeChanged: () => () => {},
     onWindowShown: () => () => {},
     onWindowClosing: () => () => {},

@@ -108,7 +108,9 @@ function applyLocalDataTheme(isDark: boolean): void {
     const theme = isDark ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", theme);
     document.body.dataset["agThemeMode"] = theme;
-    try { localStorage.setItem("theme", theme); } catch { /* non-browser or locked */ }
+    // Canonical `starui:theme` key — same key the `RuntimePort`
+    // implementations read/write so windows agree across reloads.
+    try { localStorage.setItem("starui:theme", theme); } catch { /* non-browser or locked */ }
   } catch {
     /* not running in a DOM-capable context */
   }

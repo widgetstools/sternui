@@ -41,3 +41,4 @@ apps/config-service-server/data/*.db
 Markets Design System-latest/
 Markets Design System-latest.zip
 Markets Design System*.zip
+.app-shell-pr-body.md
