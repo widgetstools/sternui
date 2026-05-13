@@ -1,3 +1,14 @@
+## 2026-05-13 — Data Provider editor grids use MarketsGrid AG Grid theme
+
+`@starui/widgets-react` `ColumnsTab` and `AppDataFields` resolve the AG Grid
+`theme` via `useGridTheme()` from `@starui/markets-grid` (through the package
+`useAgGridTheme()` hook), matching `MarketsGrid` stern Quartz tokens and
+following `[data-theme]` on `<html>`. The shared `useAgGridTheme()` hook no
+longer keys only on `next-themes` — fixing dark grids inside a light
+`data-theme` shell. Editor grids register `AllEnterpriseModule` once and no
+longer pass `modules={[AllCommunityModule]}`, so multi-filters, set filters,
+and status bar panels load correctly.
+
 ## 2026-05-13 — MarketsGrid localStorage bundle + getConfig / setConfig
 
 Hosts that do not use ConfigService can pass
@@ -14,6 +25,7 @@ When the bundle factory is in use, the imperative grid handle exposes
 `LocalStorageBundleAdapter`. ConfigService-backed `storage` factories still
 require `appId` and `userId`; the local bundle factory does not.
 
+## 2026-05-13 — Clone conditional-styling rules
 
 The conditional-styling rule list now exposes a clone action for each rule.
 Cloning creates a full copy of the selected rule's expression, scope, style,

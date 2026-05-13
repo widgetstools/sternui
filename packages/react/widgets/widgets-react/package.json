@@ -49,10 +49,8 @@
     "@openfin/workspace-platform": "23.0.20",
     "@starui/markets-grid": "*"
   },
-  "peerDependenciesMeta": {
-    "@starui/markets-grid": { "optional": true }
-  },
   "dependencies": {
+    "@starui/markets-grid": "*",
     "@starui/config-service": "*",
     "@starui/data-services": "*",
     "@starui/design-system": "*",
@@ -69,6 +67,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
     "ag-grid-react": "35.1.0",
     "rimraf": "^5.0.5",
     "typescript": "~5.9.3",
