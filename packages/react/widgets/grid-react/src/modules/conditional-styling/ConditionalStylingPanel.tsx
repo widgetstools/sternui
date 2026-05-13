@@ -29,7 +29,7 @@
  * All `cs-*` testIds preserved.
  */
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 import { FormatColorPicker, FormatPopover } from '../../ui/format-editor';
 import type { EditorPaneProps, ListPaneProps } from '@starui/core';
 import { useGridPlatform } from '../../hooks/GridProvider';
@@ -49,6 +49,7 @@ import {
   SubLabel,
 } from '../../ui/SettingsPanel';
 import { StyleEditor } from '../../ui/StyleEditor';
+import { Tooltip } from '../../ui/shadcn/tooltip';
 import type {
   ConditionalRule,
   ConditionalStylingState,
@@ -69,6 +70,27 @@ const MODULE_ID = 'conditional-styling';
 
 function generateId(): string {
   return `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function makeUniqueRuleId(rules: ConditionalRule[]): string {
+  const existingIds = new Set(rules.map((rule) => rule.id));
+  let id = generateId();
+  while (existingIds.has(id)) id = generateId();
+  return id;
+}
+
+function makeUniqueCloneName(sourceName: string, rules: ConditionalRule[]): string {
+  const existingNames = new Set(rules.map((rule) => rule.name));
+  const baseName = `${sourceName} Copy`;
+  if (!existingNames.has(baseName)) return baseName;
+
+  let copyIndex = 2;
+  while (existingNames.has(`${baseName} ${copyIndex}`)) copyIndex += 1;
+  return `${baseName} ${copyIndex}`;
+}
+
+function copyRule(rule: ConditionalRule): ConditionalRule {
+  return JSON.parse(JSON.stringify(rule)) as ConditionalRule;
 }
 
 // ─── Dirty LED for the list rail ───────────────────────────────────────
@@ -97,6 +119,51 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
     setState((prev) => ({ ...prev, rules: [...prev.rules, newRule] }));
     onSelect(newRule.id);
   }, [state.rules.length, setState, onSelect]);
+
+  const cloneRule = useCallback((sourceRuleId: string) => {
+    const nextId = makeUniqueRuleId(state.rules);
+    setState((prev) => {
+      const sourceIndex = prev.rules.findIndex((rule) => rule.id === sourceRuleId);
+      if (sourceIndex === -1) return prev;
+
+      const source = prev.rules[sourceIndex];
+      const clone: ConditionalRule = {
+        ...copyRule(source),
+        id: nextId,
+        name: makeUniqueCloneName(source.name, prev.rules),
+        enabled: false,
+        priority: source.priority + 1,
+      };
+      const shiftedRules = prev.rules.map((rule) =>
+        rule.priority > source.priority ? { ...rule, priority: rule.priority + 1 } : rule,
+      );
+
+      return {
+        ...prev,
+        rules: [
+          ...shiftedRules.slice(0, sourceIndex + 1),
+          clone,
+          ...shiftedRules.slice(sourceIndex + 1),
+        ],
+      };
+    });
+    onSelect(nextId);
+  }, [state.rules, setState, onSelect]);
+
+  const deleteRule = useCallback((ruleId: string) => {
+    const deleteIndex = state.rules.findIndex((rule) => rule.id === ruleId);
+    if (deleteIndex === -1) return;
+
+    const nextSelection = selectedId === ruleId
+      ? state.rules[deleteIndex + 1]?.id ?? state.rules[deleteIndex - 1]?.id ?? null
+      : selectedId;
+
+    setState((prev) => ({
+      ...prev,
+      rules: prev.rules.filter((rule) => rule.id !== ruleId),
+    }));
+    onSelect(nextSelection);
+  }, [selectedId, state.rules, setState, onSelect]);
 
   useEffect(() => {
     if (!selectedId && state.rules.length > 0) {
@@ -129,6 +196,8 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
             rule={r}
             active={r.id === selectedId}
             onSelect={() => onSelect(r.id)}
+            onClone={() => cloneRule(r.id)}
+            onDelete={() => deleteRule(r.id)}
           />
         ))}
       </CockpitList>
@@ -145,10 +214,14 @@ const RuleRow = memo(function RuleRow({
   rule,
   active,
   onSelect,
+  onClone,
+  onDelete,
 }: {
   rule: ConditionalRule;
   active: boolean;
   onSelect: () => void;
+  onClone: () => void;
+  onDelete: () => void;
 }) {
   return (
     <CockpitListItem
@@ -164,6 +237,34 @@ const RuleRow = memo(function RuleRow({
       <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
         {rule.name}
       </span>
+      <Tooltip content="Clone">
+        <button
+          type="button"
+          aria-label="Clone"
+          data-testid={`cs-rule-clone-${rule.id}`}
+          className="w-6 h-6 inline-flex items-center justify-center rounded-sm text-muted-foreground cursor-pointer p-0 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary-ring)]"
+          onClick={(event) => {
+            event.stopPropagation();
+            onClone();
+          }}
+        >
+          <Copy size={14} strokeWidth={2} />
+        </button>
+      </Tooltip>
+      <Tooltip content="Delete">
+        <button
+          type="button"
+          aria-label="Delete"
+          data-testid={`cs-rule-delete-${rule.id}`}
+          className="w-6 h-6 inline-flex items-center justify-center rounded-sm text-muted-foreground cursor-pointer p-0 transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary-ring)]"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2 size={14} strokeWidth={2} />
+        </button>
+      </Tooltip>
     </CockpitListItem>
   );
 });
@@ -171,7 +272,7 @@ const RuleRow = memo(function RuleRow({
 // ─── Editor pane ───────────────────────────────────────────────────────
 
 export function ConditionalStylingEditor({ selectedId }: EditorPaneProps) {
-  const [state, setState] = useModuleState<ConditionalStylingState>(MODULE_ID);
+  const [state] = useModuleState<ConditionalStylingState>(MODULE_ID);
 
   if (!selectedId) {
     return (
@@ -188,21 +289,15 @@ export function ConditionalStylingEditor({ selectedId }: EditorPaneProps) {
 
   if (!state.rules.some((r) => r.id === selectedId)) return null;
 
-  const removeRule = (ruleId: string) => {
-    setState((prev) => ({ ...prev, rules: prev.rules.filter((r) => r.id !== ruleId) }));
-  };
-
-  return <RuleEditor ruleId={selectedId} onDelete={() => removeRule(selectedId)} />;
+  return <RuleEditor ruleId={selectedId} />;
 }
 
 // ─── RuleEditor — orchestrator (sub-bands live in ./editor/) ──────────
 
 const RuleEditor = memo(function RuleEditor({
   ruleId,
-  onDelete,
 }: {
   ruleId: string;
-  onDelete: () => void;
 }) {
   const platform = useGridPlatform();
   const engine = platform.resources.expression();
@@ -219,7 +314,7 @@ const RuleEditor = memo(function RuleEditor({
     [columns],
   );
 
-  const { draft, setDraft, dirty, save, missing } = useModuleDraft<
+  const { draft, setDraft, dirty, save, discard, missing } = useModuleDraft<
     ConditionalStylingState,
     ConditionalRule
   >({
@@ -251,8 +346,8 @@ const RuleEditor = memo(function RuleEditor({
         name={draft.name}
         dirty={dirty}
         onNameChange={(name) => setDraft({ name })}
+        onReset={discard}
         onSave={save}
-        onDelete={onDelete}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-4">

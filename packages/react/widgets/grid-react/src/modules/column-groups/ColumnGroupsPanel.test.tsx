@@ -8,8 +8,8 @@
  *    delete, subgroup add.
  */
 import * as React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { GridPlatform } from '@starui/core';
 import { GridProvider } from '../../hooks/GridProvider';
 import { ColumnGroupsEditor, ColumnGroupsList } from './ColumnGroupsPanel';
@@ -42,7 +42,21 @@ function MasterDetail({ platform }: { platform: GridPlatform }) {
 
 describe('ColumnGroupsPanel (v4)', () => {
   let platform: GridPlatform;
+  beforeAll(() => {
+    if (!globalThis.ResizeObserver) {
+      globalThis.ResizeObserver = class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      };
+    }
+    if (!HTMLElement.prototype.scrollIntoView) {
+      HTMLElement.prototype.scrollIntoView = () => {};
+    }
+  });
+
   beforeEach(() => { platform = makePlatform(); });
+  afterEach(cleanup);
 
   // ─── Structure ────────────────────────────────────────────────────
 
@@ -110,6 +124,24 @@ describe('ColumnGroupsPanel (v4)', () => {
     expect(platform.resources.dirty().isDirty('column-groups:g-alpha')).toBe(false);
   });
 
+  it('RESET discards unsaved group edits without closing the editor', () => {
+    render(<MasterDetail platform={platform} />);
+    const name = screen.getByTestId('cg-name-g-alpha') as HTMLInputElement;
+
+    fireEvent.change(name, { target: { value: 'Unsaved Group' } });
+    expect(platform.resources.dirty().isDirty('column-groups:g-alpha')).toBe(true);
+
+    act(() => screen.getByTestId('cg-reset-g-alpha').click());
+
+    expect(name.value).toBe('Alpha');
+    expect(platform.resources.dirty().isDirty('column-groups:g-alpha')).toBe(false);
+    expect(screen.getByTestId('cg-group-editor-g-alpha')).toBeTruthy();
+    expect(
+      platform.store.getModuleState<ColumnGroupsState>('column-groups')
+        .groups.find((g) => g.groupId === 'g-alpha')!.headerName,
+    ).toBe('Alpha');
+  });
+
   // ─── Structural ops ───────────────────────────────────────────────
 
   it('move-down swaps the committed tree order', () => {
@@ -122,8 +154,18 @@ describe('ColumnGroupsPanel (v4)', () => {
     expect(ids).toEqual(['g-beta', 'g-alpha']);
   });
 
-  it('DELETE removes the group from module state', () => {
-    render(<MasterDetail platform={platform} />);
+  it('DELETE removes the group directly from the list item', () => {
+    render(
+      <GridProvider platform={platform}>
+        <ColumnGroupsList
+          gridId="test-grid"
+          selectedId={null}
+          onSelect={() => {}}
+        />
+      </GridProvider>,
+    );
+    expect(screen.queryByTestId('cg-group-editor-g-alpha')).toBeNull();
+
     act(() => screen.getByTestId('cg-delete-g-alpha').click());
 
     const ids = platform.store

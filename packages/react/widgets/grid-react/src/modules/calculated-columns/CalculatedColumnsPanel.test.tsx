@@ -13,8 +13,8 @@
  * Mounts the full module (`calculatedColumnsModule`) so we're testing
  * the same surface the settings sheet would render.
  */
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { GridPlatform } from '@starui/core';
 import { GridProvider } from '../../hooks/GridProvider';
 import {
@@ -61,7 +61,21 @@ import * as React from 'react';
 
 describe('CalculatedColumnsPanel (v4)', () => {
   let platform: GridPlatform;
+  beforeAll(() => {
+    if (!globalThis.ResizeObserver) {
+      globalThis.ResizeObserver = class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      };
+    }
+    if (!HTMLElement.prototype.scrollIntoView) {
+      HTMLElement.prototype.scrollIntoView = () => {};
+    }
+  });
+
   beforeEach(() => { platform = makePlatform(); });
+  afterEach(cleanup);
 
   // ─── List pane ─────────────────────────────────────────────────────
 
@@ -100,8 +114,18 @@ describe('CalculatedColumnsPanel (v4)', () => {
 
   // ─── Editor pane ───────────────────────────────────────────────────
 
-  it('DELETE removes the selected column from module state', () => {
-    render(<MasterDetail platform={platform} />);
+  it('DELETE removes the selected column directly from the list item', () => {
+    render(
+      <GridProvider platform={platform}>
+        <CalculatedColumnsList
+          gridId="test-grid"
+          selectedId={null}
+          onSelect={() => {}}
+        />
+      </GridProvider>,
+    );
+    expect(screen.queryByTestId('cc-virtual-editor-grossPnl')).toBeNull();
+
     act(() => screen.getByTestId('cc-virtual-delete-grossPnl').click());
 
     const cols = platform.store.getModuleState<CalculatedColumnsState>(
@@ -127,6 +151,24 @@ describe('CalculatedColumnsPanel (v4)', () => {
     ).toBe('Gross P&L');
     // SAVE enabled.
     expect((screen.getByTestId('cc-virtual-save-grossPnl') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('RESET discards unsaved column edits without closing the editor', () => {
+    render(<MasterDetail platform={platform} />);
+    const header = screen.getByTestId('cc-virtual-header-grossPnl') as HTMLInputElement;
+
+    fireEvent.change(header, { target: { value: 'Unsaved Column' } });
+    expect(platform.resources.dirty().isDirty('calculated-columns:grossPnl')).toBe(true);
+
+    act(() => screen.getByTestId('cc-virtual-reset-grossPnl').click());
+
+    expect(header.value).toBe('Gross P&L');
+    expect(platform.resources.dirty().isDirty('calculated-columns:grossPnl')).toBe(false);
+    expect(screen.getByTestId('cc-virtual-editor-grossPnl')).toBeTruthy();
+    expect(
+      platform.store.getModuleState<CalculatedColumnsState>('calculated-columns')
+        .virtualColumns.find((c) => c.colId === 'grossPnl')!.headerName,
+    ).toBe('Gross P&L');
   });
 
   it('dirty state registers on the per-platform DirtyBus under `calculated-columns:<colId>`', () => {

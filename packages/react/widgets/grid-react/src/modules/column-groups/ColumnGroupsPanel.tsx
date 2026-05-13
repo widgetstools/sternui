@@ -28,11 +28,13 @@ import {
   FolderPlus,
   Lock,
   Plus,
+  RotateCcw,
   Save,
   Trash2,
   X as XIcon,
 } from 'lucide-react';
 import { Select, Switch } from '../../ui/shadcn';
+import { Tooltip } from '../../ui/shadcn/tooltip';
 import type { EditorPaneProps, ListPaneProps } from '@starui/core';
 import { useModuleState } from '../../hooks/useModuleState';
 import { useModuleDraft } from '../../hooks/useModuleDraft';
@@ -182,6 +184,18 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
     onSelect(newGroupId);
   }, [setState, onSelect]);
 
+  const deleteGroup = useCallback((groupId: string, path: Path) => {
+    const deleteIndex = flat.findIndex((entry) => entry.node.groupId === groupId);
+    if (deleteIndex === -1) return;
+
+    const nextSelection = selectedId === groupId
+      ? flat[deleteIndex + 1]?.node.groupId ?? flat[deleteIndex - 1]?.node.groupId ?? null
+      : selectedId;
+
+    setState((prev) => ({ ...prev, groups: deleteGroupAtPath(prev.groups, path) }));
+    onSelect(nextSelection);
+  }, [flat, selectedId, setState, onSelect]);
+
   useEffect(() => {
     if (!selectedId && flat.length > 0) onSelect(flat[0].node.groupId);
   }, [selectedId, flat, onSelect]);
@@ -222,6 +236,20 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
               <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 {fg.node.headerName}
               </span>
+              <Tooltip content="Delete">
+                <button
+                  type="button"
+                  aria-label="Delete"
+                  data-testid={`cg-delete-${fg.node.groupId}`}
+                  className="w-6 h-6 inline-flex items-center justify-center rounded-sm text-muted-foreground cursor-pointer p-0 transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary-ring)]"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    deleteGroup(fg.node.groupId, fg.path);
+                  }}
+                >
+                  <Trash2 size={14} strokeWidth={2} />
+                </button>
+              </Tooltip>
             </CockpitListItem>
           );
         })}
@@ -264,9 +292,6 @@ export function ColumnGroupsEditor({ selectedId }: EditorPaneProps) {
   if (!selectedEntry) return null;
   const path = selectedEntry.path;
 
-  const onDeleteNode = (p: Path) => {
-    setState((prev) => ({ ...prev, groups: deleteGroupAtPath(prev.groups, p) }));
-  };
   const onMoveNode = (p: Path, direction: -1 | 1) => {
     setState((prev) => ({ ...prev, groups: moveGroupAtPath(prev.groups, p, direction) }));
   };
@@ -278,7 +303,6 @@ export function ColumnGroupsEditor({ selectedId }: EditorPaneProps) {
       path={path}
       columns={columns}
       unassignedColIds={unassignedColIds}
-      onDeleteNode={onDeleteNode}
       onMoveNode={onMoveNode}
       depth={selectedEntry.depth}
       isFirst={selectedEntry.siblingIndex === 0}
@@ -295,7 +319,6 @@ interface GroupEditorProps {
   depth: number;
   columns: readonly GridColumnInfo[];
   unassignedColIds: Set<string>;
-  onDeleteNode: (path: Path) => void;
   onMoveNode: (path: Path, direction: -1 | 1) => void;
   isFirst: boolean;
   isLast: boolean;
@@ -307,7 +330,6 @@ const GroupEditor = memo(function GroupEditor({
   depth,
   columns,
   unassignedColIds,
-  onDeleteNode,
   onMoveNode,
   isFirst,
   isLast,
@@ -315,7 +337,7 @@ const GroupEditor = memo(function GroupEditor({
   // Draft for the selected group node. `selectItem` walks the tree to
   // find the node by id; `commitItem` writes the edited node back at the
   // same path. Same Save/Dirty flow the other editors use.
-  const { draft, setDraft, dirty, save, missing } = useModuleDraft<
+  const { draft, setDraft, dirty, save, discard, missing } = useModuleDraft<
     ColumnGroupsState,
     ColumnGroupNode
   >({
@@ -435,19 +457,20 @@ const GroupEditor = memo(function GroupEditor({
                 <ArrowDown size={11} strokeWidth={2} />
               </SharpBtn>
               <SharpBtn
+                variant="ghost"
+                disabled={!dirty}
+                onClick={discard}
+                data-testid={`cg-reset-${node.groupId}`}
+              >
+                <RotateCcw size={13} strokeWidth={2} /> RESET
+              </SharpBtn>
+              <SharpBtn
                 variant={dirty ? 'action' : 'ghost'}
                 disabled={!dirty}
                 onClick={save}
                 data-testid={`cg-save-${node.groupId}`}
               >
                 <Save size={13} strokeWidth={2} /> SAVE
-              </SharpBtn>
-              <SharpBtn
-                variant="danger"
-                onClick={() => onDeleteNode(path)}
-                data-testid={`cg-delete-${node.groupId}`}
-              >
-                <Trash2 size={13} strokeWidth={2} /> DELETE
               </SharpBtn>
             </>
           }

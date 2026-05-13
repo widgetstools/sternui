@@ -9,9 +9,9 @@
  *    shared ExpressionEngineLike (not a local `new ExpressionEngine()`)
  */
 import * as React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { GridPlatform } from '@starui/core';
 import { GridProvider } from '../../hooks/GridProvider';
 import {
@@ -57,7 +57,30 @@ function MasterDetail({ platform }: { platform: GridPlatform }) {
 
 describe('ConditionalStylingPanel (v4)', () => {
   let platform: GridPlatform;
+  beforeAll(() => {
+    if (!globalThis.ResizeObserver) {
+      globalThis.ResizeObserver = class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      };
+    }
+    if (!HTMLElement.prototype.scrollIntoView) {
+      HTMLElement.prototype.scrollIntoView = () => {};
+    }
+    if (!HTMLElement.prototype.hasPointerCapture) {
+      HTMLElement.prototype.hasPointerCapture = () => false;
+    }
+    if (!HTMLElement.prototype.setPointerCapture) {
+      HTMLElement.prototype.setPointerCapture = () => {};
+    }
+    if (!HTMLElement.prototype.releasePointerCapture) {
+      HTMLElement.prototype.releasePointerCapture = () => {};
+    }
+  });
+
   beforeEach(() => { platform = makePlatform(); });
+  afterEach(cleanup);
 
   // ─── List pane ─────────────────────────────────────────────────────
 
@@ -84,6 +107,52 @@ describe('ConditionalStylingPanel (v4)', () => {
       'conditional-styling',
     ).rules.length;
     expect(after).toBe(before + 1);
+  });
+
+  it('CLONE copies the selected rule as an inactive rule with a unique id and name', () => {
+    platform.store.setModuleState<ConditionalStylingState>('conditional-styling', (s) => ({
+      ...s,
+      rules: [
+        {
+          ...s.rules[0],
+          scope: { type: 'cell', columns: ['side'] },
+          style: {
+            light: { color: 'green', fontWeight: '700' },
+            dark: { color: 'green', fontWeight: '700' },
+          },
+          indicator: { icon: 'arrow-up', color: 'green', target: 'cells' },
+        },
+        {
+          ...s.rules[0],
+          id: 'rule-copy-existing',
+          name: 'High Yield Highlight Copy',
+          enabled: false,
+          priority: 6,
+        },
+      ],
+    }));
+    render(<MasterDetail platform={platform} />);
+
+    act(() => screen.getByTestId('cs-rule-clone-rule-one').click());
+
+    const rules = platform.store.getModuleState<ConditionalStylingState>('conditional-styling').rules;
+    expect(rules).toHaveLength(3);
+    const source = rules[0];
+    const clone = rules[1];
+    const existingCopy = rules[2];
+    expect(clone.id).not.toBe(source.id);
+    expect(clone.enabled).toBe(false);
+    expect(clone.priority).toBe(6);
+    expect(existingCopy.priority).toBe(7);
+    expect(clone.name).toBe('High Yield Highlight Copy 2');
+    expect(new Set(rules.map((r) => r.id)).size).toBe(rules.length);
+    expect(new Set(rules.map((r) => r.name)).size).toBe(rules.length);
+    expect(clone.scope).toEqual(source.scope);
+    expect(clone.style).toEqual(source.style);
+    expect(clone.indicator).toEqual(source.indicator);
+    expect((screen.getByTestId(`cs-rule-name-${clone.id}`) as HTMLInputElement).value).toBe(
+      clone.name,
+    );
   });
 
   // ─── Draft / SAVE / dirty-bus ──────────────────────────────────────
@@ -120,8 +189,36 @@ describe('ConditionalStylingPanel (v4)', () => {
     expect(platform.resources.dirty().isDirty('conditional-styling:rule-one')).toBe(false);
   });
 
-  it('DELETE removes the rule from module state', () => {
+  it('RESET discards unsaved rule edits without closing the editor', () => {
     render(<MasterDetail platform={platform} />);
+    const name = screen.getByTestId('cs-rule-name-rule-one') as HTMLInputElement;
+
+    fireEvent.change(name, { target: { value: 'Unsaved Name' } });
+    expect(platform.resources.dirty().isDirty('conditional-styling:rule-one')).toBe(true);
+
+    act(() => screen.getByTestId('cs-rule-reset-rule-one').click());
+
+    expect(name.value).toBe('High Yield Highlight');
+    expect(platform.resources.dirty().isDirty('conditional-styling:rule-one')).toBe(false);
+    expect(screen.getByTestId('cs-rule-editor')).toBeTruthy();
+    expect(
+      platform.store.getModuleState<ConditionalStylingState>('conditional-styling')
+        .rules[0].name,
+    ).toBe('High Yield Highlight');
+  });
+
+  it('DELETE removes a rule directly from the list item', () => {
+    render(
+      <GridProvider platform={platform}>
+        <ConditionalStylingList
+          gridId="test-grid"
+          selectedId={null}
+          onSelect={() => {}}
+        />
+      </GridProvider>,
+    );
+
+    expect(screen.queryByTestId('cs-rule-editor')).toBeNull();
     act(() => screen.getByTestId('cs-rule-delete-rule-one').click());
 
     expect(
