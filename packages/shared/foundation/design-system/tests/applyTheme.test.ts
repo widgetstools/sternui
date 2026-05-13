@@ -35,18 +35,47 @@ describe('applyTheme', () => {
     expect(document.documentElement.removeAttribute).toHaveBeenCalledWith('data-cvd');
   });
 
-  it('persists choice to localStorage under "@starui/theme"', () => {
+  it('persists theme under the canonical "starui:theme" key as a bare string', () => {
     applyTheme({ theme: 'light', cvd: true });
-    expect(localStorage.getItem('@starui/theme')).toBe(JSON.stringify({ theme: 'light', cvd: true }));
+    // Theme reducer expects the canonical key to hold just 'dark' | 'light'
+    // — same value the RuntimePort reads/writes on every cross-window
+    // broadcast. CVD goes under a separate key so the theme key stays
+    // a plain string.
+    expect(localStorage.getItem('starui:theme')).toBe('light');
+    expect(localStorage.getItem('starui:cvd')).toBe('on');
   });
 
-  it('getTheme reads back persisted value', () => {
+  it('clears "starui:cvd" when cvd is false', () => {
+    applyTheme({ theme: 'light', cvd: true });
     applyTheme({ theme: 'light', cvd: false });
-    expect(getTheme()).toEqual({ theme: 'light', cvd: false });
+    expect(localStorage.getItem('starui:cvd')).toBeNull();
+  });
+
+  it('getTheme reads back theme + cvd from canonical keys', () => {
+    applyTheme({ theme: 'light', cvd: true });
+    expect(getTheme()).toEqual({ theme: 'light', cvd: true });
+  });
+
+  it('getTheme omits cvd when not persisted', () => {
+    applyTheme({ theme: 'light', cvd: false });
+    expect(getTheme()).toEqual({ theme: 'light' });
   });
 
   it('getTheme returns dark default when nothing persisted', () => {
-    localStorage.removeItem('@starui/theme');
+    localStorage.removeItem('starui:theme');
+    localStorage.removeItem('starui:cvd');
     expect(getTheme()).toEqual({ theme: 'dark' });
+  });
+
+  it('migrates from the legacy "@starui/theme" JSON blob on first read', () => {
+    // Pre-existing user with the old JSON-blob storage layout.
+    localStorage.setItem('@starui/theme', JSON.stringify({ theme: 'light', cvd: true }));
+    expect(getTheme()).toEqual({ theme: 'light', cvd: true });
+    // The next applyTheme() rewrites under the canonical keys and clears
+    // the legacy blob so we don't keep reading it.
+    applyTheme({ theme: 'light', cvd: true });
+    expect(localStorage.getItem('starui:theme')).toBe('light');
+    expect(localStorage.getItem('starui:cvd')).toBe('on');
+    expect(localStorage.getItem('@starui/theme')).toBeNull();
   });
 });
