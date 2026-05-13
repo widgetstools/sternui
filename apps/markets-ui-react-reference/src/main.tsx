@@ -7,6 +7,7 @@ import "./index.css";
 import { applyTheme, getTheme } from "@starui/design-system";
 applyTheme(getTheme());
 
+import { AppShell } from "@starui/app-shell-react";
 import { HostWrapper } from "@starui/host-wrapper-react";
 import { BrowserRuntime } from "@starui/runtime-browser";
 import { OpenFinRuntime, isOpenFin } from "@starui/runtime-openfin";
@@ -120,11 +121,15 @@ const IDENTITY = { userId: LOGGED_IN_USER_ID, displayName: LOGGED_IN_USER_ID };
 const REST_URL = await getConfigServiceRestUrlFromManifest();
 
 /**
- * Inner half of `ViewRoutesLayout` — runs inside
- * `<ConfigServiceProvider>` so it can read the live ConfigManager and
- * derive a stable `ConfigClient` for `<HostWrapper>`.
+ * `HostWrapperWithProviderClient` — reads the live ConfigManager out
+ * of `useConfigService()` (set up by the surrounding ConfigServiceProvider)
+ * and derives a stable `ConfigClient` for `<HostWrapper>`.
+ *
+ * Wrapped via `<AppShell>`'s `hostWrapper` render-prop so the shell's
+ * provider order (DataServicesProvider → ConfigServiceProvider →
+ * HostWrapper) stays declarative — see `ViewRoutesLayout` below.
  */
-function HostWrapperWithProviderClient() {
+function HostWrapperWithProviderClient({ children }: { children: React.ReactNode }) {
   const { configManager } = useConfigService();
   const configClient = useMemo(
     () => createConfigClient({ configManager }),
@@ -132,26 +137,32 @@ function HostWrapperWithProviderClient() {
   );
   return (
     <HostWrapper runtime={runtimePromise} configManager={configClient}>
-      <Outlet />
+      {children}
     </HostWrapper>
   );
 }
 
 /**
- * Layout for every non-platform-provider route. Wraps with
- * `<DataServicesProvider>` (so views can read `useDataServices()`)
- * and `<ConfigServiceProvider>` (which publishes ApplicationContext
- * and exposes the ConfigManager + storage factory). The hidden
- * `/platform/provider` window deliberately stays OUTSIDE — it owns
- * the platform's ConfigManager singleton via `bootstrapPlatform()`.
+ * Layout for every non-platform-provider route. `<AppShell>` collapses
+ * the provider stack (DataServicesProvider → ConfigServiceProvider →
+ * HostWrapper) so this stays declarative. The hidden `/platform/provider`
+ * window deliberately stays OUTSIDE — it owns the platform's
+ * ConfigManager singleton via `bootstrapPlatform()`.
  */
 function ViewRoutesLayout() {
   return (
-    <DataServicesProvider services={dataServices}>
-      <ConfigServiceProvider identity={IDENTITY} appId={APP_ID} restUrl={REST_URL}>
-        <HostWrapperWithProviderClient />
-      </ConfigServiceProvider>
-    </DataServicesProvider>
+    <AppShell
+      runtime={runtimePromise}
+      dataServicesProvider={<DataServicesProvider services={dataServices} />}
+      configServiceProvider={
+        <ConfigServiceProvider identity={IDENTITY} appId={APP_ID} restUrl={REST_URL} />
+      }
+      hostWrapper={(children) => (
+        <HostWrapperWithProviderClient>{children}</HostWrapperWithProviderClient>
+      )}
+    >
+      <Outlet />
+    </AppShell>
   );
 }
 
