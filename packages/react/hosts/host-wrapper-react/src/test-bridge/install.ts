@@ -2,20 +2,30 @@
 declare const fin: any;
 
 /**
- * Test bridge — exposes a small set of WorkspacePlatform.Storage operations
- * over an OpenFin Channel so that out-of-runtime test code (vitest specs in
- * `e2e-openfin/` driven via @openfin/node-adapter) can drive saved-workspace
- * lifecycle without needing direct access to the in-runtime
- * `@openfin/workspace-platform` module.
+ * Test bridge — exposes a small set of WorkspacePlatform.Storage
+ * operations over an OpenFin Channel so out-of-runtime test code
+ * (vitest specs in `e2e-openfin/` driven via `@openfin/node-adapter`)
+ * can drive saved-workspace lifecycle without needing direct access
+ * to the in-runtime `@openfin/workspace-platform` module.
  *
- * Loaded lazily ONLY in dev mode (via `import.meta.env.DEV`). Code-split out
- * of any production bundle. The IAB channel name `marketsui-test-bridge` is
- * what the e2e-openfin specs connect to.
+ * Loaded lazily ONLY in dev/test builds (callers gate on
+ * `import.meta.env.DEV` or equivalent). Code-split out of any
+ * production bundle. The IAB channel name `marketsui-test-bridge`
+ * is what the e2e-openfin specs connect to.
  *
- * Contract — every action returns `{ ok: true, data? }` on success or
- * `{ ok: false, error: string }` on failure. Errors are caught and turned
- * into structured responses so the test runner doesn't see opaque IAB
- * timeouts when the platform throws.
+ * No-ops when `fin` is undefined (running in a plain browser, e.g.
+ * during demo-react smoke runs). That keeps the call site uniform:
+ * every app can call `installTestBridge()` unconditionally; the
+ * function decides whether to register the channel.
+ *
+ * Contract — every action returns `{ ok: true, data? }` on success
+ * or `{ ok: false, error: string }` on failure. Errors are caught
+ * and turned into structured responses so the test runner doesn't
+ * see opaque IAB timeouts when the platform throws.
+ *
+ * Previously lived in `apps/markets-ui-react-reference/src/test-bridge/`.
+ * Moved here so future apps (Angular, demo-react in OpenFin shell) can
+ * reuse the bridge without copying it.
  */
 
 const CHANNEL_NAME = 'marketsui-test-bridge';
@@ -80,5 +90,6 @@ export async function installTestBridge(): Promise<void> {
   provider.register('ping', async () => ({ ok: true, data: 'pong' }));
 
   installed = true;
+  // eslint-disable-next-line no-console
   console.log(`[test-bridge] installed channel '${CHANNEL_NAME}'`);
 }

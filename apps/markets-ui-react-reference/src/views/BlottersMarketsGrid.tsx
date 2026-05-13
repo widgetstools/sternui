@@ -4,8 +4,9 @@
  * full-bleed layout, legacy cleanup) to `<HostedMarketsGrid>`.
  */
 
-import type { ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
+import { useHost } from '@starui/host-wrapper-react';
 import { dataServices } from '../dataServices.mainThread';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
@@ -17,6 +18,18 @@ const DEFAULT_COL_DEF = {
 };
 
 function BlottersMarketsGrid(): ReactNode {
+  // Runtime port (OpenFin or Browser) — used to open the data-provider
+  // editor popout via the single transport-agnostic `openSurface()` API.
+  // The previous `isOpenFin()` branching inside `dataProvidersPopout`
+  // is gone; the helper delegates to whichever runtime is mounted.
+  const { runtime } = useHost();
+  const handleEditProvider = useCallback(
+    (providerId: string) => {
+      void openProviderEditorPopout(runtime, { providerId });
+    },
+    [runtime],
+  );
+
   return (
     <HostedMarketsGrid
       componentName="MarketsGrid"
@@ -33,7 +46,7 @@ function BlottersMarketsGrid(): ReactNode {
       dataServicesMode="eager"
       gridId="markets-ui-reference-blotter"
       historicalDateAppDataRef="positions.asOfDate"
-      onEditProvider={(providerId) => openProviderEditorPopout({ providerId })}
+      onEditProvider={handleEditProvider}
       showFiltersToolbar
       showFormattingToolbar
       defaultColDef={DEFAULT_COL_DEF}

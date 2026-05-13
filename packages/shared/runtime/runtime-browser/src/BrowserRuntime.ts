@@ -102,13 +102,21 @@ export class BrowserRuntime implements RuntimePort {
     const features: string[] = [];
     if (spec.width !== undefined) features.push(`width=${spec.width}`);
     if (spec.height !== undefined) features.push(`height=${spec.height}`);
-    const win = window.open(url, spec.title ?? '_blank', features.join(','));
+    // `windowName` is the de-dup key; falls back to `title` for
+    // backwards-compat with callers from before the field existed,
+    // then to `_blank` (every call spawns a new window).
+    const name = spec.windowName ?? spec.title ?? '_blank';
+    const win = window.open(url, name, features.join(','));
 
     if (!win) {
       throw new Error('[BrowserRuntime] window.open returned null (popup blocked?).');
     }
 
-    return this.makeSurfaceHandle(spec.kind, win, spec.title ?? 'browser-surface');
+    // Newly-opened windows benefit from an explicit `focus()` because
+    // some browsers leave the opener focused when the popup is small.
+    try { win.focus(); } catch { /* swallow */ }
+
+    return this.makeSurfaceHandle(spec.kind, win, name);
   }
 
   getTheme(): Theme {

@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./test-bridge": {
+      "types": "./dist/test-bridge/index.d.ts",
+      "import": "./dist/test-bridge/index.js",
+      "require": "./dist/test-bridge/index.js"
     }
   },
   "scripts": {

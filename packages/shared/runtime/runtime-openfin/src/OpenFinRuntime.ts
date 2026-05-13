@@ -10,6 +10,7 @@ import type {
 } from '@starui/runtime-port';
 import type { IdentityOverrides } from '@starui/runtime-browser';
 import { resolveOpenFinIdentity, getCurrentView, isOpenFin } from './identity.js';
+import { openOpenFinPopout } from './popout.js';
 
 export interface OpenFinRuntimeOptions {
   /** Mount-prop fallbacks for identity resolution. View customData wins when present. */
@@ -207,14 +208,20 @@ export class OpenFinRuntime implements RuntimePort {
       throw new Error('[OpenFinRuntime] cannot open a fin surface — `fin` is not available.');
     }
 
-    // Defer the actual createView/createWindow API surface to a future
-    // commit — for now, surface a helpful error. Apps still using the
-    // existing PlatformAdapter.openWidget() path are unaffected by this.
-    throw new Error(
-      `[OpenFinRuntime] openSurface(kind=${spec.kind}) is not yet implemented. ` +
-        `Use the existing platform adapter (@starui/openfin-platform) ` +
-        `or register an in-page handler.`,
-    );
+    // `kind: 'popout' | 'modal'` both open a child window. Modal is
+    // currently aliased to popout (no `frame: false, modalParent`
+    // wiring yet — separate TODO at file head).
+    const name = spec.windowName ?? spec.title ?? '_blank';
+    return openOpenFinPopout(spec.kind, {
+      name,
+      url: spec.url,
+      // Sensible defaults match the platform's tool windows (1180×760
+      // for data-providers, etc.). Callers passing explicit dimensions
+      // win.
+      width: spec.width ?? 1180,
+      height: spec.height ?? 760,
+      customData: spec.customData,
+    });
   }
 
   getTheme(): Theme {

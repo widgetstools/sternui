@@ -1,24 +1,20 @@
 /**
  * data-providers-popout — open the DataProvider editor as a popout.
  *
- * Strategy:
- *   1. Inside OpenFin → same path as the dock: `openDataProvidersToolWindow`
- *      from `@starui/openfin-platform` (manifest `providerUrl` origin,
- *      named window `data-providers`, `customData` scope, optional `?id=`).
- *      No IAB / cross-window handoff — the selected provider is URL-only.
- *   2. Outside OpenFin (plain browser, vite dev server) →
- *      `window.open(url, name, features)` with name `data-providers`.
+ * Single transport: delegates to `runtime.openSurface({ kind: 'popout' })`
+ * regardless of host (OpenFin / browser). The runtime port owns the
+ * named-window dedup, focus-on-reopen, and customData encoding.
  *
- * Both paths use the same fixed window name so a second click focuses
- * the existing popout instead of spawning a duplicate. Optional
- * `providerId` is forwarded as a `?id=` query parameter — the editor
- * snaps to that row on mount.
+ * Optional `providerId` is forwarded on the URL (`?id=…`) so the
+ * editor snaps to that row on mount — see `views/DataProviders.tsx`
+ * which reads it via `useSearchParams`.
  *
- * The route the popout opens (`/dataproviders`) is already wired in
- * `App.tsx` and renders the v2 DataProviderEditor.
+ * Previously this helper branched on `isOpenFin()` to call either
+ * `window.open()` or `@starui/openfin-platform/openDataProvidersToolWindow`.
+ * That duplication is gone; the runtime port is the single seam.
  */
 
-import { openDataProvidersToolWindow } from '@starui/openfin-platform';
+import type { RuntimePort } from '@starui/runtime-port';
 
 const POPOUT_NAME = 'data-providers';
 const POPOUT_WIDTH = 1180;
@@ -31,34 +27,36 @@ export interface OpenProviderEditorOpts {
   route?: string;
 }
 
-export async function openProviderEditorPopout(opts: OpenProviderEditorOpts = {}): Promise<void> {
+export async function openProviderEditorPopout(
+  runtime: RuntimePort,
+  opts: OpenProviderEditorOpts = {},
+): Promise<void> {
   const route = opts.route ?? '/dataproviders';
   const url = buildUrl(route, opts.providerId);
-
-  if (isOpenFin()) {
-    await openDataProvidersToolWindow({ providerId: opts.providerId });
-    return;
-  }
-  openInBrowser(url);
+  await runtime.openSurface({
+    kind: 'popout',
+    url,
+    windowName: POPOUT_NAME,
+    width: POPOUT_WIDTH,
+    height: POPOUT_HEIGHT,
+    // Forwarded so the OpenFin path stamps it onto window.customData
+    // (matching the dock's openDataProvidersToolWindow contract).
+    // The browser path serialises this to `?data=<base64>` — the
+    // editor reads providerId from `?id=` so the customData copy
+    // is redundant on the browser side, but harmless.
+    customData: opts.providerId ? { providerId: opts.providerId } : undefined,
+  });
 }
-
-// ─── helpers ──────────────────────────────────────────────────────
 
 function buildUrl(route: string, providerId?: string): string {
+  // Both OpenFin views and the browser load from the same origin
+  // (Vite app origin = OpenFin manifest providerUrl origin), so
+  // `window.location.origin` is correct in both contexts. The
+  // historical `resolveProviderOrigin()` indirection in
+  // `@starui/openfin-platform` exists for the platform provider
+  // window, which may run in a different document context — views
+  // don't have that problem.
   const origin = window.location.origin;
-  // Some routers prefer hash-based deep links; the reference app uses
-  // BrowserRouter, so we keep `?id=` on the path. The editor reads it
-  // out of `useSearchParams` (or whatever the popout shell does).
   const qs = providerId ? `?id=${encodeURIComponent(providerId)}` : '';
   return `${origin}${route}${qs}`;
-}
-
-function isOpenFin(): boolean {
-  return typeof (globalThis as { fin?: unknown }).fin !== 'undefined';
-}
-
-function openInBrowser(url: string): void {
-  const features = `width=${POPOUT_WIDTH},height=${POPOUT_HEIGHT},resizable=yes,scrollbars=no`;
-  const w = window.open(url, POPOUT_NAME, features);
-  if (w && !w.closed) w.focus();
 }
