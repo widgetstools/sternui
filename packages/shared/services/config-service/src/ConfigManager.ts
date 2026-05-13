@@ -570,7 +570,7 @@ export class ConfigManager {
     this.stampWrite(config, isInsert);
 
     if (this.restUrl) {
-      await this.syncToRest('upsert', 'appConfig', config.configId, config, {
+      await this.syncToRest('upsert', 'configurations', config.configId, config, {
         ifMatch: options?.expectedUpdatedTime,
       });
     }
@@ -583,7 +583,7 @@ export class ConfigManager {
    */
   async deleteConfig(configId: string): Promise<void> {
     if (this.restUrl) {
-      await this.syncToRest("delete", "appConfig", configId, undefined);
+      await this.syncToRest("delete", "configurations", configId, undefined);
     }
     await this.db.appConfig.delete(configId);
   }
