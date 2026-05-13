@@ -23,6 +23,7 @@ import type {
   CellStyleOverrides,
   ColumnDataType,
 } from '@starui/core';
+import { mergeThemedStyle } from '@starui/core';
 import type { ColumnTemplate, ColumnTemplatesState } from './state';
 
 export function resolveTemplates(
@@ -75,12 +76,21 @@ function applyOver(
   target: ColumnAssignment,
   source: ApplyOverSource,
 ): ColumnAssignment {
-  // Per-field merge for styling.
+  // Per-field merge for styling — merge per-theme so a dark-only template
+  // doesn't bleed onto the light slot of a later template.
   if (source.cellStyleOverrides !== undefined) {
-    target.cellStyleOverrides = mergeStyle(target.cellStyleOverrides, source.cellStyleOverrides);
+    target.cellStyleOverrides = mergeThemedStyle(
+      target.cellStyleOverrides,
+      source.cellStyleOverrides,
+      mergeStyle,
+    );
   }
   if (source.headerStyleOverrides !== undefined) {
-    target.headerStyleOverrides = mergeStyle(target.headerStyleOverrides, source.headerStyleOverrides);
+    target.headerStyleOverrides = mergeThemedStyle(
+      target.headerStyleOverrides,
+      source.headerStyleOverrides,
+      mergeStyle,
+    );
   }
   // Last-writer-wins for everything else.
   // `cellEditor` lives on the narrowed ColumnAssignment from
@@ -115,9 +125,11 @@ function applyOver(
 
 function mergeStyle(
   base: CellStyleOverrides | undefined,
-  top: CellStyleOverrides,
-): CellStyleOverrides {
+  top: CellStyleOverrides | undefined,
+): CellStyleOverrides | undefined {
+  if (!base && !top) return undefined;
   if (!base) return top;
+  if (!top) return base;
   return {
     typography: base.typography || top.typography
       ? { ...base.typography, ...top.typography }

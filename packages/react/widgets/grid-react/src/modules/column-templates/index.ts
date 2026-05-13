@@ -8,6 +8,7 @@
  * settled by the time the customization walker reads it.
  */
 import type { Module } from '@starui/core';
+import { migrateThemedStyle } from '@starui/core';
 import {
   INITIAL_COLUMN_TEMPLATES,
   type ColumnDataType,
@@ -33,11 +34,27 @@ export const columnTemplatesModule: Module<ColumnTemplatesState> = {
   deserialize: (data) => {
     if (!data || typeof data !== 'object') return { templates: {}, typeDefaults: {} };
     const raw = data as Partial<ColumnTemplatesState>;
+    const templates =
+      raw.templates && typeof raw.templates === 'object' && !Array.isArray(raw.templates)
+        ? { ...(raw.templates as Record<string, ColumnTemplate>) }
+        : {};
+    // Lift legacy flat style overrides into the themed `{ dark, light }`
+    // wrapper. Same-value-in-both-slots so existing templates render
+    // identically until the user authors per-theme variants.
+    for (const id of Object.keys(templates)) {
+      const t = templates[id];
+      if (!t) continue;
+      const cell = migrateThemedStyle(t.cellStyleOverrides as never);
+      const hdr = migrateThemedStyle(t.headerStyleOverrides as never);
+      const merged = { ...t };
+      if (cell !== undefined) merged.cellStyleOverrides = cell;
+      else delete merged.cellStyleOverrides;
+      if (hdr !== undefined) merged.headerStyleOverrides = hdr;
+      else delete merged.headerStyleOverrides;
+      templates[id] = merged;
+    }
     return {
-      templates:
-        raw.templates && typeof raw.templates === 'object' && !Array.isArray(raw.templates)
-          ? (raw.templates as Record<string, ColumnTemplate>)
-          : {},
+      templates,
       typeDefaults:
         raw.typeDefaults && typeof raw.typeDefaults === 'object' && !Array.isArray(raw.typeDefaults)
           ? (raw.typeDefaults as Partial<Record<ColumnDataType, string>>)

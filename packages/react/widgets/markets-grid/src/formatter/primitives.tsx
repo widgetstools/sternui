@@ -142,7 +142,11 @@ export function ColumnLabel({
   );
 }
 
-// ─── Scope toggle — CELL ⇄ HEADER ─────────────────────────────────
+// ─── Scope toggle — CELL ⇄ HEADER (legacy single-label form) ──────
+//
+// Kept for the vertical popped panel and any consumer still using the
+// arrow-swap presentation. Horizontal toolbar uses `SegmentedToggle`
+// below for a clearer dual-label look.
 
 export function ScopeToggle({
   target,
@@ -169,6 +173,81 @@ export function ScopeToggle({
       <span>{target.toUpperCase()}</span>
       <ArrowLeftRight size={9} strokeWidth={2} className="fx-scope__swap" aria-hidden />
     </button>
+  );
+}
+
+// ─── SegmentedToggle — two-icon switch with both options visible ──
+//
+// Icon-only segmented control. Both options show simultaneously; the
+// active option is filled, the inactive option is dim. Each option
+// carries its own tooltip so the meaning is one hover away. Used for
+// CELLS ⇄ HEADERS and SELECTED ⇄ ALL — same shape, different icons.
+// Stays compact (≈64px wide) so it doesn't dominate the toolbar.
+
+export interface SegmentedToggleOption<T extends string> {
+  value: T;
+  /** Pre-rendered icon node — use a lucide icon at `size={14}`. */
+  icon: React.ReactNode;
+  /** Hover tooltip — describes what the option means. */
+  tooltip: string;
+  /** Optional ARIA label override; defaults to the tooltip. */
+  ariaLabel?: string;
+  testId?: string;
+}
+
+export function SegmentedToggle<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  variant,
+  testId,
+}: {
+  value: T;
+  options: [SegmentedToggleOption<T>, SegmentedToggleOption<T>];
+  onChange: (next: T) => void;
+  ariaLabel: string;
+  /** Cosmetic — drives the data-attribute used by CSS for distinct
+   *  hue/weight (still monochromatic, just different shade emphasis). */
+  variant?: 'target' | 'scope';
+  testId?: string;
+}) {
+  return (
+    <div
+      className="fx-seg"
+      role="radiogroup"
+      aria-label={ariaLabel}
+      data-variant={variant}
+      data-testid={testId}
+    >
+      {options.map((opt) => {
+        const isActive = opt.value === value;
+        const btn = (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={opt.ariaLabel ?? opt.tooltip}
+            data-active={isActive ? 'true' : undefined}
+            data-testid={opt.testId}
+            className="fx-seg__opt"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isActive) onChange(opt.value);
+            }}
+          >
+            {opt.icon}
+          </button>
+        );
+        return (
+          <Tooltip key={opt.value} content={opt.tooltip}>
+            {btn}
+          </Tooltip>
+        );
+      })}
+    </div>
   );
 }
 

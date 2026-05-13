@@ -95,11 +95,11 @@ export interface ColorScheme {
 // cobalt primary accents, and rationed semantic color.
 export const light: ColorScheme = {
   primary: {
-    color:      colors.brand.light,       // #2952cc — cobalt
-    hover:      colors.brand.lightHov,    // #1f3f9e
+    color:      colors.brand.light,       // #6b6498 — deep greyish lavender
+    hover:      colors.brand.lightHov,    // #544e7c
     foreground: '#ffffff',
-    soft:       'rgba(41,82,204,0.08)',
-    ring:       'rgba(41,82,204,0.24)',
+    soft:       'rgba(107,100,152,0.10)',
+    ring:       'rgba(107,100,152,0.30)',
   },
   surface: {
     ground:     colors.paper[100],   // #f8f9fb — cool clinical canvas
@@ -137,11 +137,11 @@ export const light: ColorScheme = {
   },
   state: {
     focusRing:    colors.brand.light,
-    focusRingBg:  'rgba(41,82,204,0.14)',
+    focusRingBg:  'rgba(107,100,152,0.16)',
     disabledBg:   colors.paper[200],
     disabledFg:   colors.ink[3],
     hoverOverlay: 'rgba(0,0,0,0.045)',
-    selection:    'rgba(41,82,204,0.10)',
+    selection:    'rgba(107,100,152,0.12)',
   },
   overlay: {
     positiveSoft:  'rgba(31,122,92,0.08)',
@@ -163,7 +163,7 @@ export const light: ColorScheme = {
   elevation: {
     card:    shadow.sm,
     overlay: shadow.md,
-    glow:    `0 0 0 3px rgba(41,82,204,0.12)`,
+    glow:    `0 0 0 3px rgba(107,100,152,0.16)`,
   },
 };
 
@@ -171,11 +171,11 @@ export const light: ColorScheme = {
 // Deep cool charcoal chrome with electric exchange-terminal accents.
 export const dark: ColorScheme = {
   primary: {
-    color:      colors.brand.dark,       // #00d5ff — electric cyan brand
-    hover:      colors.brand.darkHov,    // #48e6ff
-    foreground: '#061c28',
-    soft:       'rgba(0,213,255,0.18)',
-    ring:       'rgba(0,213,255,0.46)',
+    color:      colors.brand.dark,       // #b5add8 — pale greyish lavender
+    hover:      colors.brand.darkHov,    // #c9c2e4
+    foreground: '#1a1726',               // dark plum for AA contrast on the pale lavender
+    soft:       'rgba(181,173,216,0.22)',
+    ring:       'rgba(181,173,216,0.44)',
   },
   surface: {
     ground:     colors.graphite[975], // #0a0e14
@@ -213,11 +213,11 @@ export const dark: ColorScheme = {
   },
   state: {
     focusRing:    colors.brand.dark,
-    focusRingBg:  'rgba(0,213,255,0.30)',
+    focusRingBg:  'rgba(181,173,216,0.30)',
     disabledBg:   colors.graphite[850],
     disabledFg:   colors.graphite[500],
     hoverOverlay: 'rgba(255,255,255,0.05)',
-    selection:    'rgba(0,213,255,0.24)',
+    selection:    'rgba(181,173,216,0.24)',
   },
   overlay: {
     positiveSoft:  'rgba(0,245,160,0.18)',
@@ -239,7 +239,7 @@ export const dark: ColorScheme = {
   elevation: {
     card:    shadow.sm,
     overlay: shadow.lg,
-    glow:    `0 0 0 2px rgba(0,213,255,0.42), 0 0 28px rgba(0,213,255,0.20)`,
+    glow:    `0 0 0 2px rgba(181,173,216,0.42), 0 0 28px rgba(181,173,216,0.20)`,
   },
 };
 

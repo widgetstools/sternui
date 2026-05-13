@@ -13,6 +13,7 @@ import type {
   ColumnCustomizationState,
   ValueFormatterTemplate,
 } from './state';
+import type { ThemedCellStyleOverrides } from '@starui/core';
 import {
   applyAlignmentReducer,
   applyBordersReducer,
@@ -31,6 +32,15 @@ import {
 } from './formattingActions';
 
 const EMPTY: ColumnCustomizationState = { assignments: {} };
+
+// Per-column overrides are theme-keyed; vitest runs without a `data-theme`
+// so the active theme resolves to `'dark'`. `themed(flat)` mirrors the
+// migration of legacy flat overrides — duplicates the payload into both
+// slots so reducers that target the active slot see the same value as
+// before themed storage existed.
+function themed(flat: CellStyleOverrides): ThemedCellStyleOverrides {
+  return { dark: flat, light: flat };
+}
 
 // ─── Tiny helpers ──────────────────────────────────────────────────────
 
@@ -111,13 +121,19 @@ describe('writeOverridesReducer', () => {
     expect(reducer(EMPTY)).toBe(EMPTY);
   });
 
-  it('seeds a fresh assignment when the column has none', () => {
+  it('seeds a fresh assignment when the column has none — writes go to the active theme slot only', () => {
     const reducer = writeOverridesReducer(['price'], 'cell', {
       typography: { bold: true },
     });
     const next = reducer(EMPTY);
+    // jsdom has no `[data-theme]` so the active theme resolves to `'dark'`;
+    // the inactive `light` slot stays absent — per-theme persistence is
+    // the contract.
     expect(next.assignments).toEqual({
-      price: { colId: 'price', cellStyleOverrides: { typography: { bold: true } } },
+      price: {
+        colId: 'price',
+        cellStyleOverrides: { dark: { typography: { bold: true } } },
+      },
     });
   });
 
@@ -133,8 +149,8 @@ describe('writeOverridesReducer', () => {
 
     expect(afterHeader.assignments['price']).toEqual({
       colId: 'price',
-      cellStyleOverrides: { colors: { text: '#ff0000' } },
-      headerStyleOverrides: { colors: { text: '#00ff00' } },
+      cellStyleOverrides: { dark: { colors: { text: '#ff0000' } } },
+      headerStyleOverrides: { dark: { colors: { text: '#00ff00' } } },
     });
   });
 
@@ -143,10 +159,10 @@ describe('writeOverridesReducer', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: {
+          cellStyleOverrides: themed({
             typography: { bold: true },
             colors: { text: '#000' },
-          },
+          }),
         },
       },
     };
@@ -154,18 +170,26 @@ describe('writeOverridesReducer', () => {
       colors: { background: '#fff' },
     })(seed);
 
+    // Seed populated BOTH theme slots, but the write only updates the
+    // active (`dark`) slot — `light` is preserved exactly as seeded.
     expect(next.assignments['price'].cellStyleOverrides).toEqual({
-      typography: { bold: true },
-      colors: { text: '#000', background: '#fff' },
+      dark: {
+        typography: { bold: true },
+        colors: { text: '#000', background: '#fff' },
+      },
+      light: {
+        typography: { bold: true },
+        colors: { text: '#000' },
+      },
     });
   });
 
-  it('clearing the last leaf of a section drops the section entirely', () => {
+  it('clearing the last leaf in the active theme drops only that slot — the inactive slot survives', () => {
     const seed: ColumnCustomizationState = {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
         },
       },
     };
@@ -173,7 +197,11 @@ describe('writeOverridesReducer', () => {
       typography: { bold: undefined },
     })(seed);
 
-    expect(next.assignments['price']).toEqual({ colId: 'price' });
+    // `dark` is now empty so its slot drops; `light` still holds the seed.
+    expect(next.assignments['price']).toEqual({
+      colId: 'price',
+      cellStyleOverrides: { light: { typography: { bold: true } } },
+    });
   });
 
   it('applies the same patch to every listed column', () => {
@@ -181,8 +209,8 @@ describe('writeOverridesReducer', () => {
       typography: { bold: true },
     })(EMPTY);
 
-    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
-    expect(next.assignments['quantity'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
+    expect(next.assignments['quantity'].cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
   });
 
   it('leaves OTHER columns in the assignments map untouched', () => {
@@ -203,7 +231,7 @@ describe('writeOverridesReducer', () => {
     const next = writeOverridesReducer(['price'], 'cell', {
       typography: { bold: true },
     })(undefined);
-    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
   });
 
   it('preserves unrelated state keys on the root (filter / rowGrouping ambient)', () => {
@@ -228,7 +256,7 @@ describe('applyTypographyReducer', () => {
     const next = applyTypographyReducer(['price'], 'cell', { bold: true, fontSize: 14 })(
       EMPTY,
     );
-    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.typography).toEqual({
       bold: true,
       fontSize: 14,
     });
@@ -242,7 +270,7 @@ describe('applyTypographyReducer', () => {
 
   it('writes to header when target is "header"', () => {
     const next = applyTypographyReducer(['price'], 'header', { italic: true })(EMPTY);
-    expect(next.assignments['price'].headerStyleOverrides?.typography).toEqual({ italic: true });
+    expect(next.assignments['price'].headerStyleOverrides?.dark?.typography).toEqual({ italic: true });
     expect(next.assignments['price'].cellStyleOverrides).toBeUndefined();
   });
 });
@@ -251,7 +279,7 @@ describe('applyColorsReducer', () => {
   it('merges text + background independently', () => {
     const seed = applyColorsReducer(['price'], 'cell', { text: '#ff0000' })(EMPTY);
     const next = applyColorsReducer(['price'], 'cell', { background: '#eeeeee' })(seed);
-    expect(next.assignments['price'].cellStyleOverrides?.colors).toEqual({
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.colors).toEqual({
       text: '#ff0000',
       background: '#eeeeee',
     });
@@ -263,7 +291,7 @@ describe('applyColorsReducer', () => {
       background: '#eeeeee',
     })(EMPTY);
     const next = applyColorsReducer(['price'], 'cell', { text: undefined })(seed);
-    expect(next.assignments['price'].cellStyleOverrides?.colors).toEqual({
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.colors).toEqual({
       background: '#eeeeee',
     });
   });
@@ -272,7 +300,7 @@ describe('applyColorsReducer', () => {
 describe('applyAlignmentReducer', () => {
   it('sets horizontal alignment', () => {
     const next = applyAlignmentReducer(['price'], 'cell', { horizontal: 'right' })(EMPTY);
-    expect(next.assignments['price'].cellStyleOverrides?.alignment?.horizontal).toBe('right');
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.alignment?.horizontal).toBe('right');
   });
 
   it('undefined clears the alignment entirely', () => {
@@ -289,20 +317,20 @@ describe('applyBordersReducer', () => {
 
   it('sets one side', () => {
     const next = applyBordersReducer(['price'], 'cell', ['top'], spec)(EMPTY);
-    expect(next.assignments['price'].cellStyleOverrides?.borders?.top).toEqual(spec);
-    expect(next.assignments['price'].cellStyleOverrides?.borders?.right).toBeUndefined();
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.borders?.top).toEqual(spec);
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.borders?.right).toBeUndefined();
   });
 
   it('sets multiple sides in one call', () => {
     const next = applyBordersReducer(['price'], 'cell', ['top', 'bottom'], spec)(EMPTY);
-    expect(next.assignments['price'].cellStyleOverrides?.borders?.top).toEqual(spec);
-    expect(next.assignments['price'].cellStyleOverrides?.borders?.bottom).toEqual(spec);
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.borders?.top).toEqual(spec);
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.borders?.bottom).toEqual(spec);
   });
 
   it('clears a single side when spec is undefined', () => {
     const seed = applyBordersReducer(['price'], 'cell', ['top', 'bottom'], spec)(EMPTY);
     const next = applyBordersReducer(['price'], 'cell', ['top'], undefined)(seed);
-    expect(next.assignments['price'].cellStyleOverrides?.borders).toEqual({ bottom: spec });
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.borders).toEqual({ bottom: spec });
   });
 });
 
@@ -325,8 +353,10 @@ describe('clearAllBordersReducer', () => {
     let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
     state = applyBordersReducer(['price'], 'cell', ['top'], spec2)(state);
     const next = clearAllBordersReducer(['price'], 'cell')(state);
+    // Reducers wrote only to the active (`dark`) slot — the `light`
+    // slot was never seeded so it stays absent.
     expect(next.assignments['price'].cellStyleOverrides).toEqual({
-      typography: { bold: true },
+      dark: { typography: { bold: true } },
     });
   });
 });
@@ -356,7 +386,7 @@ describe('applyFormatterReducer', () => {
     let state = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
     state = applyTemplateToColumnsReducer(['price'], 'tpl-abc')(state);
     const next = applyFormatterReducer(['price'], tpl)(state);
-    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
     expect(next.assignments['price'].templateIds).toEqual(['tpl-abc']);
     expect(next.assignments['price'].valueFormatterTemplate).toEqual(tpl);
   });
@@ -391,7 +421,7 @@ describe('applyTemplateToColumnsReducer', () => {
   it('preserves overrides when setting a template', () => {
     const seed = applyTypographyReducer(['price'], 'cell', { bold: true })(EMPTY);
     const next = applyTemplateToColumnsReducer(['price'], 'tpl-x')(seed);
-    expect(next.assignments['price'].cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
     expect(next.assignments['price'].templateIds).toEqual(['tpl-x']);
   });
 });
@@ -419,7 +449,7 @@ describe('clearAllStylesReducer', () => {
 
     const next = clearAllStylesReducer(['price'])(state);
     expect(next.assignments['price']).toEqual({ colId: 'price' });
-    expect(next.assignments['quantity'].cellStyleOverrides?.typography).toEqual({
+    expect(next.assignments['quantity'].cellStyleOverrides?.dark?.typography).toEqual({
       italic: true,
     });
   });
@@ -496,7 +526,7 @@ describe('removeTemplateRefFromAssignmentsReducer', () => {
     state = applyTemplateToColumnsReducer(['price'], 'tpl-x')(state);
 
     const next = removeTemplateRefFromAssignmentsReducer('tpl-x')(state);
-    expect(next.assignments['price'].cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(next.assignments['price'].cellStyleOverrides?.dark?.typography?.bold).toBe(true);
     expect(next.assignments['price'].templateIds).toBeUndefined();
   });
 });

@@ -32,7 +32,7 @@ const BORDER_STYLE_EDITOR_CSS = `
   --be-ink-1:       var(--ds-text-secondary);
   --be-ink-2:       var(--ds-text-muted);
   --be-ink-3:       var(--ds-text-faint);
-  --be-accent:      var(--ds-accent-info);
+  --be-accent:      var(--ds-primary);
   --be-red:         var(--ds-accent-negative);
   --be-r:           var(--ds-radius-sm);
   --be-h-ctrl:      26px;

@@ -117,7 +117,7 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
           onClick={addRule}
           title="Add rule"
           data-testid="cs-add-rule-btn"
-          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-overlay-positive-soft)] text-[var(--ds-accent-positive)] border border-[var(--ds-overlay-positive-ring)] rounded-sm cursor-pointer p-0"
+          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-primary-soft)] text-[var(--ds-primary)] border border-[var(--ds-primary-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
         </button>
@@ -605,11 +605,11 @@ function IndicatorPicker({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: active ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
-                    border: `1px solid ${active ? 'var(--ds-accent-positive)' : 'var(--ds-border-secondary)'}`,
+                    background: active ? 'var(--ds-primary-soft)' : 'var(--ds-surface-ground)',
+                    border: `1px solid ${active ? 'var(--ds-primary)' : 'var(--ds-border-secondary)'}`,
                     borderRadius: 2,
                     cursor: 'pointer',
-                    color: active ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
+                    color: active ? 'var(--ds-primary)' : 'var(--ds-text-secondary)',
                     padding: 0,
                     transition: 'background 120ms, border-color 120ms',
                   }}

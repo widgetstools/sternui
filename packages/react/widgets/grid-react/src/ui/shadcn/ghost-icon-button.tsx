@@ -57,7 +57,7 @@ const GHOST_ICON_BUTTON_CSS = `
   transition: background-color 120ms, color 120ms, opacity 120ms;
 }
 .ds-gib:focus-visible {
-  outline: 2px solid var(--ds-accent-info);
+  outline: 2px solid var(--ds-primary);
   outline-offset: 1px;
 }
 .ds-gib:disabled {
@@ -66,8 +66,8 @@ const GHOST_ICON_BUTTON_CSS = `
 }
 .ds-gib[data-variant='default']:not(:disabled):hover,
 .ds-gib[data-variant='accent']:not(:disabled):hover {
-  background: color-mix(in srgb, var(--ds-accent-info) 14%, transparent);
-  color: var(--ds-accent-info);
+  background: color-mix(in srgb, var(--ds-primary) 14%, transparent);
+  color: var(--ds-primary);
 }
 .ds-gib[data-variant='destructive']:not(:disabled):hover {
   background: color-mix(in srgb, var(--ds-accent-negative) 14%, transparent);

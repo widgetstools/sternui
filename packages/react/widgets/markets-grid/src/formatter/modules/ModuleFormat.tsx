@@ -13,6 +13,7 @@ import type { ValueFormatterTemplate } from '@starui/core';
 import {
   PopoverCompat as Popover,
   FormatterPicker,
+  Tooltip,
 } from '@starui/grid-react';
 import {
   BPS_TEMPLATE,
@@ -45,9 +46,15 @@ export function ModuleFormat({
   state: FormatterState;
   actions: FormatterActions;
 }) {
-  const { fmt, disabled, isHeader, pickerDataType } = state;
+  const { fmt, disabled, isHeader, pickerDataType, scope } = state;
   const vft = fmt.valueFormatterTemplate;
-  const fmtDisabled = disabled || isHeader || pickerDataType !== 'number';
+  // Per-column (SELECTED): formatter only makes sense for `number` columns.
+  // Global (ALL + CELLS): formatter is always available — the transform
+  // filters at apply time so it only lands on number / date / string
+  // columns. Headers never carry formatters in either scope.
+  const fmtDisabled =
+    isHeader ||
+    (scope === 'selected' && (disabled || pickerDataType !== 'number'));
 
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [tickMenuOpen, setTickMenuOpen] = useState(false);
@@ -67,16 +74,18 @@ export function ModuleFormat({
           open={currencyOpen}
           onOpenChange={setCurrencyOpen}
           trigger={
-            <button
-              type="button"
-              disabled={fmtDisabled}
-              aria-label="Currency menu"
-              className="fx-pill fx-pill--narrow"
-              data-testid="fmt-currency-menu"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            >
-              <ChevronDown size={9} strokeWidth={2} />
-            </button>
+            <Tooltip content="Pick a currency (USD, EUR, GBP, JPY, basis points)">
+              <button
+                type="button"
+                disabled={fmtDisabled}
+                aria-label="Currency menu"
+                className="fx-pill fx-pill--narrow"
+                data-testid="fmt-currency-menu"
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                <ChevronDown size={9} strokeWidth={2} />
+              </button>
+            </Tooltip>
           }
         >
           <Menu>
@@ -162,17 +171,18 @@ export function ModuleFormat({
           open={tickMenuOpen}
           onOpenChange={setTickMenuOpen}
           trigger={
-            <button
-              type="button"
-              disabled={fmtDisabled}
-              aria-label="Tick precision"
-              className="fx-pill fx-pill--narrow"
-              data-testid="fmt-tick-menu-trigger"
-              title="Tick precision"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            >
-              <ChevronDown size={9} strokeWidth={1.75} />
-            </button>
+            <Tooltip content="Tick precision — choose denominator (32, 64, 128, 256)">
+              <button
+                type="button"
+                disabled={fmtDisabled}
+                aria-label="Tick precision"
+                className="fx-pill fx-pill--narrow"
+                data-testid="fmt-tick-menu-trigger"
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                <ChevronDown size={9} strokeWidth={1.75} />
+              </button>
+            </Tooltip>
           }
         >
           <Menu className="min-w-[180px]">
@@ -196,15 +206,42 @@ export function ModuleFormat({
 
       <Hair />
 
-      {/* Full Excel / preset picker — chip popover (provided by core). */}
-      <FormatterPicker
-        dataType={pickerDataType}
-        value={vft}
-        onChange={(next) => actions.doFormat(next)}
-        defaultCollapsed
-        compact
-        data-testid="fmt-picker-toolbar"
-      />
+      {/*
+        CELLS + ALL scope renders TWO pickers — Number and Date — so the
+        user can author a global number format AND a global date format
+        without first selecting a column of the matching type. Other
+        scopes keep a single picker driven by the active column's
+        `pickerDataType`.
+      */}
+      {scope === 'all' && !isHeader ? (
+        <>
+          <FormatterPicker
+            dataType="number"
+            value={state.globalNumberFormatter}
+            onChange={(next) => actions.doFormat(next, 'number')}
+            defaultCollapsed
+            compact
+            data-testid="fmt-picker-toolbar-number"
+          />
+          <FormatterPicker
+            dataType="date"
+            value={state.globalDateFormatter}
+            onChange={(next) => actions.doFormat(next, 'date')}
+            defaultCollapsed
+            compact
+            data-testid="fmt-picker-toolbar-date"
+          />
+        </>
+      ) : (
+        <FormatterPicker
+          dataType={pickerDataType}
+          value={vft}
+          onChange={(next) => actions.doFormat(next)}
+          defaultCollapsed
+          compact
+          data-testid="fmt-picker-toolbar"
+        />
+      )}
     </Module>
   );
 }

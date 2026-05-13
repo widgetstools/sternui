@@ -53,7 +53,7 @@ export function HelpPanel() {
                 width: '100%',
                 padding: '7px 10px',
                 border: 'none',
-                borderRadius: 4,
+                borderRadius: 2,
                 background: on
                   ? 'color-mix(in srgb, var(--ds-accent-positive) 10%, transparent)'
                   : 'transparent',
@@ -217,7 +217,7 @@ function Overview({ onNav }: { onNav: (id: SectionId) => void }) {
               textAlign: 'left',
               padding: '8px 10px',
               border: '1px solid var(--ds-border-primary)',
-              borderRadius: 4,
+              borderRadius: 2,
               background: 'transparent',
               color: 'var(--ds-text-primary)',
               fontSize: 12,
@@ -631,7 +631,7 @@ function EmojiGrid({ items }: { items: Array<{ emoji: string; label: string }> }
               background: copied ? 'var(--ds-overlay-positive-soft)' : 'var(--ds-surface-ground)',
               border: '1px solid',
               borderColor: copied ? 'var(--ds-accent-positive)' : 'var(--ds-border-primary)',
-              borderRadius: 4,
+              borderRadius: 2,
               color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               transition: 'all 120ms',

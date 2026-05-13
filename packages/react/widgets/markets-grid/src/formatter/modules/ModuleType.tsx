@@ -9,7 +9,7 @@ import {
   AlignCenter, AlignLeft, AlignRight,
   Bold, ChevronDown, Italic, Underline,
 } from 'lucide-react';
-import { PopoverCompat as Popover } from '@starui/grid-react';
+import { PopoverCompat as Popover, Tooltip } from '@starui/grid-react';
 import { Hair, Menu, MenuItem, Module, Pill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
@@ -23,6 +23,7 @@ export function ModuleType({
   actions: FormatterActions;
 }) {
   const { fmt, disabled, isHeader } = state;
+  const controlDisabled = isHeader ? false : disabled;
   const [sizeOpen, setSizeOpen] = useState(false);
   const fontSizeLabel = fmt.fontSize != null ? String(fmt.fontSize) : '11';
 
@@ -42,13 +43,13 @@ export function ModuleType({
       <Hair />
 
       {/* Align L/C/R */}
-      <Pill disabled={disabled} tooltip="Left" active={fmt.horizontal === 'left'} onClick={() => actions.toggleAlign('left')}>
+      <Pill disabled={disabled} tooltip="Align left" active={fmt.horizontal === 'left'} onClick={() => actions.toggleAlign('left')}>
         <AlignLeft size={13} strokeWidth={1.75} />
       </Pill>
-      <Pill disabled={disabled} tooltip="Center" active={fmt.horizontal === 'center'} onClick={() => actions.toggleAlign('center')}>
+      <Pill disabled={disabled} tooltip="Align center" active={fmt.horizontal === 'center'} onClick={() => actions.toggleAlign('center')}>
         <AlignCenter size={13} strokeWidth={1.75} />
       </Pill>
-      <Pill disabled={disabled} tooltip="Right" active={fmt.horizontal === 'right'} onClick={() => actions.toggleAlign('right')}>
+      <Pill disabled={disabled} tooltip="Align right" active={fmt.horizontal === 'right'} onClick={() => actions.toggleAlign('right')}>
         <AlignRight size={13} strokeWidth={1.75} />
       </Pill>
 
@@ -59,19 +60,20 @@ export function ModuleType({
         open={sizeOpen}
         onOpenChange={setSizeOpen}
         trigger={
-          <button
-            disabled={disabled || isHeader}
-            type="button"
-            className="fx-pill fx-pill--text"
-            title="Font size (px)"
-            aria-label="Font size"
-            data-testid="fmt-panel-font-size"
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          >
-            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fontSizeLabel}</span>
-            <span style={{ opacity: 0.6, marginLeft: 2 }}>PX</span>
-            <ChevronDown size={9} strokeWidth={2} style={{ marginLeft: 3 }} />
-          </button>
+          <Tooltip content="Font size in pixels">
+            <button
+              disabled={controlDisabled}
+              type="button"
+              className="fx-pill fx-pill--text"
+              aria-label="Font size"
+              data-testid="fmt-panel-font-size"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fontSizeLabel}</span>
+              <span style={{ opacity: 0.6, marginLeft: 2 }}>PX</span>
+              <ChevronDown size={9} strokeWidth={2} style={{ marginLeft: 3 }} />
+            </button>
+          </Tooltip>
         }
       >
         <Menu>

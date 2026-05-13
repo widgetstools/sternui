@@ -22,6 +22,7 @@ import {
   Input,
   PopoverCompat as Popover,
   Select,
+  Tooltip,
   parseValuesSource,
   useAppDataKeys,
   useAppDataLookup,
@@ -112,16 +113,18 @@ export function ModuleEditorFilter({
           open={editorOpen}
           onOpenChange={setEditorOpen}
           trigger={
-            <button
-              type="button"
-              disabled={moduleDisabled}
-              aria-label="Cell editor menu"
-              className="fx-pill fx-pill--narrow"
-              data-testid="fmt-editor-menu-trigger"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            >
-              <ChevronDown size={9} strokeWidth={2} />
-            </button>
+            <Tooltip content="Choose cell editor type (text, number, select, date, …)">
+              <button
+                type="button"
+                disabled={moduleDisabled}
+                aria-label="Cell editor menu"
+                className="fx-pill fx-pill--narrow"
+                data-testid="fmt-editor-menu-trigger"
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                <ChevronDown size={9} strokeWidth={2} />
+              </button>
+            </Tooltip>
           }
         >
           <Menu className="min-w-[160px]">
@@ -156,16 +159,17 @@ export function ModuleEditorFilter({
             open={valuesOpen}
             onOpenChange={setValuesOpen}
             trigger={
-              <button
-                type="button"
-                aria-label="Configure editor values"
-                className="fx-pill fx-pill--narrow"
-                data-testid="fmt-editor-values-trigger"
-                title="Configure values source"
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              >
-                <MoreVertical size={11} strokeWidth={2} />
-              </button>
+              <Tooltip content="Configure editor values (static list or app-data binding)">
+                <button
+                  type="button"
+                  aria-label="Configure editor values"
+                  className="fx-pill fx-pill--narrow"
+                  data-testid="fmt-editor-values-trigger"
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                >
+                  <MoreVertical size={11} strokeWidth={2} />
+                </button>
+              </Tooltip>
             }
           >
             <ValuesSourcePopover
@@ -211,16 +215,18 @@ export function ModuleEditorFilter({
           open={filterOpen}
           onOpenChange={setFilterOpen}
           trigger={
-            <button
-              type="button"
-              disabled={moduleDisabled}
-              aria-label="Filter kind menu"
-              className="fx-pill fx-pill--narrow"
-              data-testid="fmt-filter-menu-trigger"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            >
-              <ChevronDown size={9} strokeWidth={2} />
-            </button>
+            <Tooltip content="Choose filter type (text or number — both add a Set filter)">
+              <button
+                type="button"
+                disabled={moduleDisabled}
+                aria-label="Filter kind menu"
+                className="fx-pill fx-pill--narrow"
+                data-testid="fmt-filter-menu-trigger"
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                <ChevronDown size={9} strokeWidth={2} />
+              </button>
+            </Tooltip>
           }
         >
           <Menu className="min-w-[180px]">

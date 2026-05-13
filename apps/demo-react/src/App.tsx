@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
-import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/markets-grid';
 import { DexieAdapter, activeProfileKey } from '@starui/core';
 import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
-import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -39,28 +37,6 @@ function initialFixtureName(): FixtureName | null {
   const f = new URLSearchParams(window.location.search).get('f');
   return isFixtureName(f) ? f : null;
 }
-
-// ─── AG-Grid Themes ─────────────────────────────────────────────────────────
-//
-// Built from @starui/design-system/adapters/ag-grid (reference-aligned
-// Chroma Desk params) + app-specific tuning (mono font, smaller icons,
-// tighter cell padding, sharp corners). Theme attribute on <html> drives
-// the underlying --ds-* CSS vars; these params just point at them.
-
-const sharedParamOverrides = {
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 11,
-  headerFontSize: 10,
-  iconSize: 10,
-  cellHorizontalPaddingScale: 0.6,
-  spacing: 6,
-  borderRadius: 0,
-  wrapperBorderRadius: 0,
-  columnBorder: true,
-};
-
-const darkTheme  = themeQuartz.withParams({ ...agGridDarkParams,  ...sharedParamOverrides });
-const lightTheme = themeQuartz.withParams({ ...agGridLightParams, ...sharedParamOverrides });
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────
 
@@ -198,8 +174,6 @@ function AppInner() {
     window.history.replaceState(null, '', next);
   }, [view]);
 
-  const theme = isDark ? darkTheme : lightTheme;
-
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
 
   // One-shot seed on mount. `ensureShowcaseSeed` is idempotent — it
@@ -246,9 +220,8 @@ function AppInner() {
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '8px 12px',
-        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%)',
-        background: 'linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%, var(--ds-surface-primary) 100%)',
-        boxShadow: '0 1px 0 rgba(255, 255, 255, 0.86) inset, 0 1px 2px rgba(15, 23, 42, 0.05)',
+        borderBottom: '1px solid var(--ds-border-primary)',
+        background: 'var(--ds-surface-primary)',
         gap: 12,
       }}>
         {/* View switcher — Single Grid vs Dashboard. Pins the demo to
@@ -347,7 +320,6 @@ function AppInner() {
       ) : view === 'fixture' && fixtureName ? (
         <Fixture
           fixture={FIXTURES[fixtureName]}
-          theme={theme}
           storageAdapter={storageAdapter}
         />
       ) : view === 'fixture' ? (
@@ -368,7 +340,6 @@ function AppInner() {
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
-            theme={theme}
             rowIdField="id"
             storageAdapter={storageAdapter}
             showFiltersToolbar
@@ -384,7 +355,7 @@ function AppInner() {
           />
         </div>
       ) : view === 'dashboard' ? (
-        <Dashboard theme={theme} columnDefs={columnDefs} defaultColDef={defaultColDef} />
+        <Dashboard columnDefs={columnDefs} defaultColDef={defaultColDef} />
       ) : (
         <MarketDepth isDark={isDark} />
       )}

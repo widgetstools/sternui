@@ -4,7 +4,7 @@ exports[`primengPreset > matches snapshot 1`] = `
 {
   "components": {
     "button": {
-      "borderRadius": "3px",
+      "borderRadius": "2px",
       "fontWeight": "600",
       "paddingX": "16px",
       "paddingY": "8px",
@@ -24,8 +24,8 @@ exports[`primengPreset > matches snapshot 1`] = `
   },
   "primitive": {
     "borderRadius": {
-      "lg": "4px",
-      "md": "3px",
+      "lg": "2px",
+      "md": "2px",
       "none": "0px",
       "sm": "2px",
       "xl": "6px",
@@ -135,16 +135,16 @@ exports[`primengPreset > matches snapshot 1`] = `
       "500": "var(--ds-accent-info)",
     },
     "primary": {
-      "100": "#2952cc",
-      "200": "#2952cc",
-      "300": "#2952cc",
-      "400": "#1f3f9e",
-      "50": "#2952cc",
+      "100": "#6b6498",
+      "200": "#6b6498",
+      "300": "#6b6498",
+      "400": "#544e7c",
+      "50": "#6b6498",
       "500": "var(--ds-primary)",
       "600": "var(--ds-primary-hover)",
-      "700": "#1f3f9e",
-      "800": "#1f3f9e",
-      "900": "#1f3f9e",
+      "700": "#544e7c",
+      "800": "#544e7c",
+      "900": "#544e7c",
     },
     "success": {
       "500": "var(--ds-accent-positive)",

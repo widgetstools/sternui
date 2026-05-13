@@ -34,6 +34,8 @@ import {
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
   clearAllStylesReducer,
+  GENERAL_SETTINGS_MODULE_ID,
+  INITIAL_GENERAL_SETTINGS,
   pickTemplateFields,
   removeTemplateRefFromAssignmentsReducer,
   removeTemplateReducer,
@@ -49,12 +51,14 @@ import {
   type ColumnCustomizationState,
   type ColumnTemplatesState,
   type FilterKind,
+  type GeneralSettingsState,
 } from '@starui/grid-react';
 import {
   numberTemplate,
   templateDecimals,
 } from '../formatterPresets';
 import {
+  readAllColumnIds,
   readCellDataType,
   readFirstRowValue,
   readHeaderName,
@@ -62,6 +66,7 @@ import {
   useColumnFormatting,
   useFlashConfirm,
   type ResolvedFormatting,
+  type ScopeKind,
   type TargetKind,
 } from '../formattingToolbarHooks';
 
@@ -78,6 +83,10 @@ export interface FormatterState {
    *  cellStyleOverrides or headerStyleOverrides. Formatters are
    *  always cell-scope (headers have no formatter). */
   target: TargetKind;
+  /** Selected-column override vs global baseline. `'all'` writes to
+   *  `globalCellStyle` / `globalHeaderStyle`; `'selected'` writes per-
+   *  column. Per-column wins over global at render time. */
+  scope: ScopeKind;
   /** True when no column is selected. Modules use this to disable. */
   disabled: boolean;
   /** True when target = 'header'. Format module disables itself. */
@@ -137,10 +146,23 @@ export interface FormatterState {
    *  the TemplateManager's "what will be saved" hint. Empty when the
    *  column has nothing template-eligible. */
   capturableFields: ReadonlyArray<string>;
+  /** Grid-wide header caption presentation toggle. */
+  headerCaseUppercase: boolean;
+  /** Grid-wide cell-tooltip toggle. When on, every cell shows its
+   *  displayed value as a hover tooltip via AG-Grid's
+   *  `defaultColDef.tooltipValueGetter`. */
+  showCellTooltips: boolean;
+  /** Global number-formatter for the CELLS + ALL scope. Surfaces the
+   *  current `globalCellNumberFormatter` slot so the toolbar's number
+   *  dropdown can highlight what's already applied. */
+  globalNumberFormatter?: ValueFormatterTemplate;
+  /** Global date-formatter for the CELLS + ALL scope. */
+  globalDateFormatter?: ValueFormatterTemplate;
 }
 
 export interface FormatterActions {
   setTarget: (t: TargetKind) => void;
+  setScope: (s: ScopeKind) => void;
   toggleBold: () => void;
   toggleItalic: () => void;
   toggleUnderline: () => void;
@@ -151,7 +173,7 @@ export interface FormatterActions {
   applyBordersMap: (
     next: { top?: BorderSpec; right?: BorderSpec; bottom?: BorderSpec; left?: BorderSpec },
   ) => void;
-  doFormat: (t: ValueFormatterTemplate | undefined) => void;
+  doFormat: (t: ValueFormatterTemplate | undefined, kind?: 'number' | 'date') => void;
   decreaseDecimals: () => void;
   increaseDecimals: () => void;
   applyTemplate: (tplId: string) => void;
@@ -204,6 +226,9 @@ export interface FormatterActions {
   setFilterPrimaryKind: (kind: FilterKind | undefined) => void;
   /** Toggle the floating-filter row on every targeted column. */
   toggleFloatingFilter: () => void;
+  /** Toggle every column header caption between natural case and UPPERCASE. */
+  toggleHeaderCaseUppercase: () => void;
+  toggleCellTooltips: () => void;
 }
 
 export interface UseFormatterResult {
@@ -227,8 +252,18 @@ export function useFormatter(): UseFormatterResult {
   const targetRef = useRef(target);
   targetRef.current = target;
 
-  const fmt = useColumnFormatting(colIds, target);
-  const disabled = colIds.length === 0;
+  // Default scope is SELECTED so the most common edit (style this column)
+  // is the no-extra-clicks path; users opt into ALL to push a baseline
+  // across the grid.
+  const [scope, setScope] = useState<ScopeKind>('selected');
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+
+  const fmt = useColumnFormatting(colIds, target, scope);
+  // The selected-scope branch needs a selected column to make sense.
+  // Global scope is always available — disable only when the user is
+  // in SELECTED mode without a column.
+  const disabled = scope === 'selected' && colIds.length === 0;
   const isHeader = target === 'header';
 
   const [clearConfirmed, flashClear] = useFlashConfirm();
@@ -240,6 +275,11 @@ export function useFormatter(): UseFormatterResult {
 
   const [custState, setCustState] = useModuleState<ColumnCustomizationState>('column-customization');
   const [tplState, setTplState] = useModuleState<ColumnTemplatesState>('column-templates');
+  const [generalSettingsState, setGeneralSettingsState] = useModuleState<GeneralSettingsState>(
+    GENERAL_SETTINGS_MODULE_ID,
+  );
+  const headerCaseUppercase = !!generalSettingsState?.headerCaseUppercase;
+  const showCellTooltips = !!generalSettingsState?.showCellTooltips;
 
   const undoRedo = useUndoRedo<ColumnCustomizationState | undefined>(
     custState,
@@ -346,37 +386,48 @@ export function useFormatter(): UseFormatterResult {
   // ─── Reducers ────────────────────────────────────────────────────
 
   const toggleBold = useCallback(() => {
-    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true }));
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { bold: fmt.bold ? undefined : true }, scopeRef.current));
   }, [setCustStateWithHistory, fmt.bold]);
 
   const toggleItalic = useCallback(() => {
-    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { italic: fmt.italic ? undefined : true }));
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { italic: fmt.italic ? undefined : true }, scopeRef.current));
   }, [setCustStateWithHistory, fmt.italic]);
 
   const toggleUnderline = useCallback(() => {
-    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { underline: fmt.underline ? undefined : true }));
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { underline: fmt.underline ? undefined : true }, scopeRef.current));
   }, [setCustStateWithHistory, fmt.underline]);
 
   const setFontSizePx = useCallback((px: number) => {
-    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { fontSize: px }));
+    if (scopeRef.current === 'selected' && colIdsRef.current.length === 0) return;
+    setCustStateWithHistory(applyTypographyReducer(colIdsRef.current, targetRef.current, { fontSize: px }, scopeRef.current));
   }, [setCustStateWithHistory]);
 
   const toggleAlign = useCallback((h: 'left' | 'center' | 'right') => {
     const next = fmt.horizontal === h ? undefined : h;
-    setCustStateWithHistory(applyAlignmentReducer(colIdsRef.current, targetRef.current, { horizontal: next }));
+    setCustStateWithHistory(applyAlignmentReducer(colIdsRef.current, targetRef.current, { horizontal: next }, scopeRef.current));
   }, [setCustStateWithHistory, fmt.horizontal]);
 
   const setTextColor = useCallback((c: string | undefined) => {
-    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { text: c || undefined }));
+    if (scopeRef.current === 'selected' && colIdsRef.current.length === 0) return;
+    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { text: c || undefined }, scopeRef.current));
   }, [setCustStateWithHistory]);
 
   const setBgColor = useCallback((c: string | undefined) => {
-    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { background: c || undefined }));
+    setCustStateWithHistory(applyColorsReducer(colIdsRef.current, targetRef.current, { background: c || undefined }, scopeRef.current));
   }, [setCustStateWithHistory]);
 
-  const doFormat = useCallback((t: ValueFormatterTemplate | undefined) => {
-    setCustStateWithHistory(applyFormatterReducer(colIdsRef.current, t));
-  }, [setCustStateWithHistory]);
+  const doFormat = useCallback(
+    (t: ValueFormatterTemplate | undefined, kind: 'number' | 'date' = 'number') => {
+      // Global scope routes by `kind` — number presets land on the
+      // global number-formatter slot, date presets on the date slot.
+      // Per-column writes ignore `kind` and use the column's single
+      // `valueFormatterTemplate` slot.
+      setCustStateWithHistory(
+        applyFormatterReducer(colIdsRef.current, t, scopeRef.current, kind),
+      );
+    },
+    [setCustStateWithHistory],
+  );
 
   const applyTemplate = useCallback((tplId: string) => {
     setCustStateWithHistory(applyTemplateToColumnsReducer(colIdsRef.current, tplId));
@@ -518,9 +569,35 @@ export function useFormatter(): UseFormatterResult {
     );
   }, [setCustStateWithHistory, editorAndFilter.floatingFilterOn]);
 
+  const toggleHeaderCaseUppercase = useCallback(() => {
+    setGeneralSettingsState((prev) => {
+      const base = prev ?? INITIAL_GENERAL_SETTINGS;
+      return { ...base, headerCaseUppercase: !base.headerCaseUppercase };
+    });
+  }, [setGeneralSettingsState]);
+
+  const toggleCellTooltips = useCallback(() => {
+    setGeneralSettingsState((prev) => {
+      const base = prev ?? INITIAL_GENERAL_SETTINGS;
+      return { ...base, showCellTooltips: !base.showCellTooltips };
+    });
+  }, [setGeneralSettingsState]);
+
   // Decimals — read the live state so consecutive clicks compound on
   // the latest committed formatter.
+  //
+  // Scope-aware:
+  //   - `'selected'` reads the active column's resolved template; falls
+  //     back to inspecting the first row's value when the column has no
+  //     formatter yet.
+  //   - `'all'` reads `globalCellNumberFormatter` (writes from the
+  //     +/- buttons land there too). Default to `2` when no global
+  //     number formatter has been authored yet.
   const getCurrentDecimals = useCallback((): number => {
+    if (scopeRef.current === 'all') {
+      const d = templateDecimals(custState?.globalCellNumberFormatter);
+      return d ?? 2;
+    }
     const ids = colIdsRef.current;
     if (!ids.length) return 2;
     const a = custState?.assignments?.[ids[0]];
@@ -539,12 +616,13 @@ export function useFormatter(): UseFormatterResult {
   }, [custState, tplState, platform]);
 
   const decreaseDecimals = useCallback(() => {
-    if (!colIdsRef.current.length) return;
+    // SELECTED requires at least one column focused; ALL never does.
+    if (scopeRef.current === 'selected' && !colIdsRef.current.length) return;
     doFormat(numberTemplate(getCurrentDecimals() - 1));
   }, [doFormat, getCurrentDecimals]);
 
   const increaseDecimals = useCallback(() => {
-    if (!colIdsRef.current.length) return;
+    if (scopeRef.current === 'selected' && !colIdsRef.current.length) return;
     doFormat(numberTemplate(getCurrentDecimals() + 1));
   }, [doFormat, getCurrentDecimals]);
 
@@ -573,7 +651,7 @@ export function useFormatter(): UseFormatterResult {
       const hasAny = toClear.length > 0 || Object.keys(toSet).length > 0;
       if (hasAny) undoRedo.push();
       if (toClear.length) {
-        setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, toClear, undefined));
+        setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, toClear, undefined, scopeRef.current));
       }
       const bySpec = new Map<string, Array<'top' | 'right' | 'bottom' | 'left'>>();
       for (const [side, spec] of Object.entries(toSet) as Array<[
@@ -587,7 +665,7 @@ export function useFormatter(): UseFormatterResult {
       }
       for (const [, list] of bySpec) {
         if (list.length) {
-          setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, list, toSet[list[0]]!));
+          setCustState(applyBordersReducer(colIdsRef.current, targetRef.current, list, toSet[list[0]]!, scopeRef.current));
         }
       }
     },
@@ -622,6 +700,7 @@ export function useFormatter(): UseFormatterResult {
       colLabel,
       pickerDataType,
       target,
+      scope,
       disabled,
       isHeader,
       fmt,
@@ -645,9 +724,14 @@ export function useFormatter(): UseFormatterResult {
       filterIsCustom: editorAndFilter.filterIsCustom,
       floatingFilterOn: editorAndFilter.floatingFilterOn,
       capturableFields,
+      headerCaseUppercase,
+      showCellTooltips,
+      globalNumberFormatter: custState?.globalCellNumberFormatter,
+      globalDateFormatter: custState?.globalCellDateFormatter,
     },
     actions: {
       setTarget,
+      setScope,
       toggleBold,
       toggleItalic,
       toggleUnderline,
@@ -680,6 +764,8 @@ export function useFormatter(): UseFormatterResult {
       setCellEditorValues,
       setFilterPrimaryKind,
       toggleFloatingFilter,
+      toggleHeaderCaseUppercase,
+      toggleCellTooltips,
     },
   };
 }

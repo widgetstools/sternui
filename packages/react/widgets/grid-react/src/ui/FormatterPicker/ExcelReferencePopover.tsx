@@ -123,7 +123,7 @@ export function ExcelReferencePopover({
                         style={{
                           fontFamily: 'var(--ds-font-mono)',
                           fontSize: 11,
-                          color: 'var(--ds-accent-info)',
+                          color: 'var(--ds-primary)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',

@@ -5,8 +5,10 @@ import type {
   CellStyleOverrides,
   ValueFormatterTemplate,
 } from '@starui/core';
+import { resolveActiveStyle } from '@starui/core';
 import {
   resolveTemplates,
+  useActiveThemeMode,
   useGridPlatform,
   useModuleState,
   type ColumnCustomizationState,
@@ -60,6 +62,17 @@ export function readHeaderName(api: GridApi | null, colId: string): string | und
     return api.getColumn(colId)?.getColDef()?.headerName ?? undefined;
   } catch {
     return undefined;
+  }
+}
+
+export function readAllColumnIds(api: GridApi | null): string[] {
+  if (!api) return [];
+  try {
+    return (api.getColumns() ?? [])
+      .map((col) => col.getColId())
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+  } catch {
+    return [];
   }
 }
 
@@ -146,6 +159,13 @@ export function useActiveColumns(): string[] {
 
 export type TargetKind = 'cell' | 'header';
 
+/**
+ * Scope of a write — `'selected'` writes per-column overrides on the
+ * focused column(s); `'all'` writes to the global baseline that applies
+ * to every column. Per-column wins over global at render time.
+ */
+export type ScopeKind = 'selected' | 'all';
+
 export interface ResolvedFormatting {
   bold: boolean;
   italic: boolean;
@@ -167,30 +187,65 @@ export interface ResolvedFormatting {
   editable?: boolean;
 }
 
-export function useColumnFormatting(colIds: string[], target: TargetKind): ResolvedFormatting {
+export function useColumnFormatting(
+  colIds: string[],
+  target: TargetKind,
+  scope: ScopeKind = 'selected',
+): ResolvedFormatting {
   // Everything the hook needs comes from the platform context: module
   // state for the resolved assignment + live GridApi for the column's
   // cellDataType. The component no longer threads a `core` prop.
   const platform = useGridPlatform();
   const [cust] = useModuleState<ColumnCustomizationState>('column-customization');
   const [tpls] = useModuleState<ColumnTemplatesState>('column-templates');
+  // Subscribe to `[data-theme]` so the readout refreshes when the host
+  // flips themes — the inactive slot's values shouldn't appear in the
+  // toolbar's on/off / colour-swatch readouts.
+  const themeMode = useActiveThemeMode();
 
   return useMemo(() => {
     const empty: ResolvedFormatting = { bold: false, italic: false, underline: false, borders: {} };
-    if (!colIds.length || !cust) return empty;
-    const a = cust.assignments?.[colIds[0]];
-    if (!a) return empty;
+    if (!cust) return empty;
 
-    // Look up the colDef's cellDataType so resolveTemplates can apply a
-    // matching typeDefault (e.g. numeric columns inherit a right-align
-    // style).
-    const t = readCellDataType(platform.api.api, colIds[0]);
-    const dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined =
-      t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean' ? t : undefined;
+    let themedStyle: import('@starui/core').ThemedCellStyleOverrides | undefined;
+    let valueFormatterTemplate: ValueFormatterTemplate | undefined;
+    let headerName: string | undefined;
+    let editable: boolean | undefined;
 
-    const resolved = resolveTemplates(a, tpls ?? { templates: {}, typeDefaults: {} }, dataType);
+    if (scope === 'all') {
+      // Global readout — read the matching state-root slot. The toolbar
+      // surfaces what's applied to every column as the baseline. The
+      // value-formatter readout reflects the *number* slot — that's the
+      // one the quick-action buttons (currency, %, #, etc.) target. The
+      // date dropdown reads its own slot directly off state.scope='all'.
+      themedStyle =
+        target === 'header' ? cust.globalHeaderStyle : cust.globalCellStyle;
+      valueFormatterTemplate = cust.globalCellNumberFormatter;
+    } else {
+      if (!colIds.length) return empty;
+      const a = cust.assignments?.[colIds[0]];
+      if (!a) return empty;
+
+      // Look up the colDef's cellDataType so resolveTemplates can apply
+      // a matching typeDefault (e.g. numeric columns inherit a right-
+      // align style).
+      const t = readCellDataType(platform.api.api, colIds[0]);
+      const dataType: 'numeric' | 'date' | 'string' | 'boolean' | undefined =
+        t === 'numeric' || t === 'date' || t === 'string' || t === 'boolean' ? t : undefined;
+
+      const resolved = resolveTemplates(a, tpls ?? { templates: {}, typeDefaults: {} }, dataType);
+      themedStyle =
+        target === 'header' ? resolved.headerStyleOverrides : resolved.cellStyleOverrides;
+      valueFormatterTemplate = resolved.valueFormatterTemplate;
+      headerName = resolved.headerName;
+      editable = resolved.editable;
+    }
+
+    // Read the active theme's slot — the toolbar's readout reflects the
+    // styling that's currently visible, even though the inactive slot
+    // still lives in the profile.
     const style: CellStyleOverrides | undefined =
-      target === 'header' ? resolved.headerStyleOverrides : resolved.cellStyleOverrides;
+      resolveActiveStyle(themedStyle, themeMode);
 
     return {
       bold: !!style?.typography?.bold,
@@ -200,17 +255,17 @@ export function useColumnFormatting(colIds: string[], target: TargetKind): Resol
       color: style?.colors?.text,
       background: style?.colors?.background,
       horizontal: style?.alignment?.horizontal,
-      valueFormatterTemplate: resolved.valueFormatterTemplate,
+      valueFormatterTemplate,
+      headerName,
+      editable,
       borders: {
         top: style?.borders?.top,
         right: style?.borders?.right,
         bottom: style?.borders?.bottom,
         left: style?.borders?.left,
       },
-      headerName: resolved.headerName,
-      editable: resolved.editable,
     };
-  }, [cust, tpls, colIds, target, platform]);
+  }, [cust, tpls, colIds, target, scope, platform, themeMode]);
 }
 
 // ─── Flash confirm — 400ms checkmark after a successful action ──────────

@@ -22,8 +22,8 @@
  *    …) are kept; see `RowGroupingTemplate`.
  */
 import type {
-  CellStyleOverrides,
   ColumnDataType,
+  ThemedCellStyleOverrides,
   ValueFormatterTemplate,
 } from '@starui/core';
 import type {
@@ -45,9 +45,10 @@ export interface ColumnTemplate {
   readonly id: string;
   name: string;
   description?: string;
-  // Styling
-  cellStyleOverrides?: CellStyleOverrides;
-  headerStyleOverrides?: CellStyleOverrides;
+  // Styling — themed so a template can describe different colours for
+  // dark vs light hosts and `resolveTemplates` merges per-theme.
+  cellStyleOverrides?: ThemedCellStyleOverrides;
+  headerStyleOverrides?: ThemedCellStyleOverrides;
   // Formatting
   valueFormatterTemplate?: ValueFormatterTemplate;
   // Behavior flags

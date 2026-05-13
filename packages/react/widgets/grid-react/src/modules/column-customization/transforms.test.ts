@@ -41,7 +41,7 @@ function makeState(template: { kind: 'excelFormat'; format: string } | undefined
 }
 
 function applyAndGetCellStyle(state: ColumnCustomizationState, sourceColDef: ColDef = { colId: 'price' }): ColDef['cellStyle'] {
-  const [out] = applyAssignments([sourceColDef], state.assignments, EMPTY_TEMPLATES, NOOP_ENGINE);
+  const [out] = applyAssignments([sourceColDef], state, EMPTY_TEMPLATES, NOOP_ENGINE);
   return (out as ColDef).cellStyle;
 }
 
@@ -95,7 +95,7 @@ describe('applyAssignments — cellStyle emission for Excel format color tags', 
     const source: ColDef = { colId: 'price', cellStyle: userCellStyle };
     const state: ColumnCustomizationState = { assignments: {} };
 
-    const [out] = applyAssignments([source], state.assignments, EMPTY_TEMPLATES, NOOP_ENGINE);
+    const [out] = applyAssignments([source], state, EMPTY_TEMPLATES, NOOP_ENGINE);
     // No assignment → transform returns the input def unchanged (same reference).
     expect(out).toBe(source);
   });
@@ -107,7 +107,7 @@ describe('applyAssignments — cellStyle emission for Excel format color tags', 
     const source: ColDef = { colId: 'price', cellStyle: userCellStyle };
     const state = makeState({ kind: 'excelFormat', format: '#,##0.00' });
 
-    const [out] = applyAssignments([source], state.assignments, EMPTY_TEMPLATES, NOOP_ENGINE);
+    const [out] = applyAssignments([source], state, EMPTY_TEMPLATES, NOOP_ENGINE);
     expect((out as ColDef).cellStyle).toBe(userCellStyle);
   });
 });

@@ -29,25 +29,32 @@
   --fx-ink-soft:     var(--ds-text-muted);
   --fx-ink-faint:    var(--ds-text-faint);
 
-  --fx-accent:       var(--ds-primary);
-  --fx-accent-soft:  var(--ds-primary-soft);
-  --fx-accent-line:  var(--ds-primary-ring);
-  --fx-icon-rest:    color-mix(in srgb, var(--ds-accent-highlight) 74%, var(--fx-ink));
-  --fx-icon-pop:     var(--ds-accent-highlight);
-  --fx-icon-glow:    drop-shadow(0 0 5px color-mix(in srgb, var(--ds-accent-highlight) 58%, transparent));
+  /* Monochromatic — formatter icons + active fills are derived only
+   * from foreground ink. No accent / brand hue anywhere in the toolbar
+   * chrome. Active = bright ink; inactive = muted ink; indeterminate
+   * = half-tone ink. */
+  --fx-accent:       var(--ds-text-primary);
+  --fx-accent-soft:  color-mix(in srgb, var(--ds-text-primary) 14%, transparent);
+  --fx-accent-line:  color-mix(in srgb, var(--ds-text-primary) 32%, transparent);
+  --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 64%, transparent);
+  --fx-icon-pop:     var(--ds-text-primary);
+  --fx-icon-glow:    none;
   --fx-amber:        var(--ds-accent-warning);
   --fx-amber-soft:   var(--ds-overlay-warning-soft);
   --fx-amber-line:   var(--ds-overlay-warning-ring);
   --fx-danger:       var(--ds-accent-negative);
 
-  --fx-radius:       3px;
-  --fx-radius-lg:    4px;
+  /* Standard rectangular formatter chrome — locked to the DS 2px
+   * baseline. Pill-shaped or fully-round affordances reach for
+   * `radius.full` directly via inline styles. */
+  --fx-radius:       2px;
+  --fx-radius-lg:    2px;
   --fx-px-tight:     6px;
   --fx-px-comfy:     10px;
   --fx-px-loose:     16px;
 
-  --fx-pill-h:       24px;
-  --fx-pill-h-lg:    28px;
+  --fx-pill-h:       28px;
+  --fx-pill-h-lg:    30px;
 
   --fx-font-sans:    var(--ds-font-sans);
   --fx-font-mono:    var(--ds-font-mono);
@@ -75,12 +82,14 @@
   --fx-ink:          var(--ds-text-primary);
   --fx-ink-soft:     var(--ds-text-muted);
   --fx-ink-faint:    var(--ds-text-faint);
-  --fx-accent:       var(--ds-primary);
-  --fx-accent-soft:  var(--ds-primary-soft);
-  --fx-accent-line:  var(--ds-primary-ring);
-  --fx-icon-rest:    color-mix(in srgb, var(--ds-accent-purple) 72%, var(--ds-text-primary));
-  --fx-icon-pop:     var(--ds-accent-highlight);
-  --fx-icon-glow:    drop-shadow(0 1px 2px rgba(15, 23, 42, 0.14));
+  /* Monochromatic — same derivation as dark, just resolves against the
+   * light foreground. */
+  --fx-accent:       var(--ds-text-primary);
+  --fx-accent-soft:  color-mix(in srgb, var(--ds-text-primary) 8%, transparent);
+  --fx-accent-line:  color-mix(in srgb, var(--ds-text-primary) 26%, transparent);
+  --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 56%, transparent);
+  --fx-icon-pop:     var(--ds-text-primary);
+  --fx-icon-glow:    none;
   --fx-amber:        var(--ds-accent-warning);
   --fx-amber-soft:   var(--ds-overlay-warning-soft);
   --fx-amber-line:   var(--ds-overlay-warning-ring);
@@ -95,17 +104,20 @@
 
 /* Toolbar variant — single horizontal row, dense.
    Height matches the primary toolbar row (48px) so stacked rows share
-   the same rhythm. flex-wrap kept for narrow viewports — when the
+   the same rhythm. Background tracks `.ds-primary-row` exactly so the
+   filters bar, formatter toolbar, and primary action row read as one
+   continuous surface. flex-wrap kept for narrow viewports — when the
    row wraps, height becomes a min-height implicitly. */
 .fx-shell--horizontal {
   display: flex;
   align-items: center;
   align-content: center;
-  column-gap: var(--fx-px-comfy);
+  column-gap: 8px;
   row-gap: 6px;
   padding: 6px 48px 6px 12px;
   min-height: 48px;
-  border-bottom: 1px solid var(--fx-line);
+  background: var(--ds-surface-primary);
+  border-bottom: 1px solid var(--ds-border-primary);
   flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
@@ -115,10 +127,10 @@
 [data-theme='light'] .fx-shell--horizontal {
   background:
     linear-gradient(180deg,
-      color-mix(in srgb, var(--ds-surface-primary) 90%, var(--ds-surface-secondary)) 0%,
+      color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%,
       var(--ds-surface-primary) 100%);
-  border-bottom-color: color-mix(in srgb, var(--ds-border-primary) 84%, var(--ds-primary) 16%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.86) inset, 0 1px 2px rgba(15, 23, 42, 0.05);
+  border-bottom-color: color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.88) inset, 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 /* Panel variant — full vertical layout.
@@ -155,6 +167,18 @@
 
 .fx-shell--horizontal .fx-module {
   min-height: var(--fx-pill-h);
+}
+
+/* Horizontal mode — pills stay as individual outlined chips inside the
+ * module, with comfortable breathing room between them. The module
+ * itself stays unstyled (no container chrome) so adjacent modules
+ * separate visually via the `.fx-divider` element only. */
+.fx-shell--horizontal .fx-module__body {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 /* Vertical-mode module — section card with eyebrow header. */
@@ -241,27 +265,26 @@
   height: var(--fx-pill-h);
   min-width: var(--fx-pill-h);
   padding: 0 6px;
+  /* Flat — no gradient, no shadow, transparent fill. The border is
+   * what defines the chip. */
   background: transparent;
-  border: 1px solid var(--fx-line);
+  border: 1.5px solid var(--fx-line-strong);
   border-radius: var(--fx-radius);
-  /* High-contrast resting state — icons get their own brighter token
-   * below so toolbar actions read crisply in both inline and popout
-   * modes. Disabled state still drops opacity. */
   color: var(--fx-ink);
   font-family: var(--fx-font-sans);
   font-size: 11px;
   cursor: pointer;
   user-select: none;
-  transition: color 120ms, border-color 120ms, background 120ms, transform 80ms;
+  transition: color 120ms, border-color 120ms, background 120ms;
   position: relative;
   line-height: 1;
   flex-shrink: 0;
 }
 
 [data-theme='light'] .fx-pill {
-  background: color-mix(in srgb, var(--ds-surface-primary) 72%, var(--ds-surface-secondary));
-  border-color: color-mix(in srgb, var(--fx-line) 86%, var(--ds-primary) 14%);
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--ds-text-primary) 32%, transparent);
+  box-shadow: none;
 }
 
 .fx-pill > svg,
@@ -270,47 +293,48 @@
   display: block;
   flex-shrink: 0;
   color: var(--fx-icon-rest);
-  filter: var(--fx-icon-glow);
+  /* Monochromatic — no drop-shadow glow on icons. */
+  filter: none;
   opacity: 0.96;
-  stroke-width: 2.15;
-  transition: color 120ms, filter 120ms, opacity 120ms, transform 120ms;
+  stroke-width: 2;
+  transition: color 120ms, opacity 120ms;
 }
+
 .fx-pill:hover:not(:disabled) {
-  color: var(--fx-accent);
-  border-color: var(--fx-accent-line);
-  background: var(--fx-bg-soft);
+  color: var(--fx-ink);
+  border-color: var(--fx-ink);
+  background: transparent;
 }
 
 .fx-pill:hover:not(:disabled) > svg,
 .fx-scope:hover > svg,
 .fx-popout:hover > svg {
   color: var(--fx-icon-pop);
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ds-accent-highlight) 68%, transparent));
+  filter: none;
   opacity: 1;
-  transform: translateY(-0.5px);
 }
 
 [data-theme='light'] .fx-pill:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ds-primary) 8%, var(--ds-surface-primary));
-  border-color: color-mix(in srgb, var(--ds-primary) 34%, var(--ds-border-primary));
+  background: transparent;
+  border-color: var(--ds-text-primary);
 }
 
-.fx-pill:active:not(:disabled) {
-  transform: scale(0.96);
-}
 .fx-pill[data-on='true'],
 .fx-pill[aria-pressed='true'] {
-  color: var(--fx-accent);
-  border-color: var(--fx-accent-line);
-  background: var(--fx-accent-soft);
-  box-shadow: inset 0 0 0 1px var(--fx-accent-line);
+  /* Active = flat ink fill with surface-coloured glyph. No shadow,
+   * no glow — just a strong border + solid fill. */
+  color: var(--ds-surface-primary);
+  border-color: var(--fx-ink);
+  background: var(--fx-ink);
+  box-shadow: none;
 }
+
 .fx-pill[data-on='true'] > svg,
 .fx-pill[aria-pressed='true'] > svg,
 .fx-split .fx-pill[data-on='true'] > svg,
 .fx-split .fx-pill[aria-pressed='true'] > svg {
-  color: var(--fx-icon-pop);
-  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--ds-accent-highlight) 72%, transparent));
+  color: var(--ds-surface-primary);
+  filter: none;
   opacity: 1;
 }
 .fx-pill:disabled {
@@ -347,10 +371,10 @@
   align-items: stretch;
   border-radius: var(--fx-radius);
   overflow: hidden;
-  border: 1px solid var(--fx-line);
+  border: 1.5px solid var(--fx-line-strong);
 }
 .fx-split:hover {
-  border-color: var(--fx-line-strong);
+  border-color: var(--fx-ink);
 }
 .fx-split .fx-pill {
   border: none;
@@ -360,21 +384,105 @@
 }
 .fx-split .fx-pill[data-on='true'],
 .fx-split .fx-pill[aria-pressed='true'] {
-  background: var(--fx-accent-soft);
-  color: var(--fx-accent);
-  box-shadow: inset 0 0 0 1px var(--fx-accent-line);
+  background: var(--fx-ink);
+  color: var(--ds-surface-primary);
+  box-shadow: none;
 }
 .fx-split .fx-pill + .fx-pill {
-  border-left: 1px solid var(--fx-line);
+  border-left: 1.5px solid var(--fx-line-strong);
 }
 
-/* ─── Context strip — column label + scope + undo/redo + preview ─ */
+/* ─── Context strip — target/scope segments + column label + lock + history ─ */
 
 .fx-ctx {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+/* ─── SegmentedToggle — dual-label switch ─────────────────────────
+ *
+ * Bigger than `.fx-pill` so target + scope read as the FIRST thing
+ * on the toolbar. Both labels render simultaneously; the active one
+ * gets a solid monochromatic fill, the inactive label sits as muted
+ * text against the same container. Two variants — `target` and
+ * `scope` — differ only by data-attribute hooks so they can be told
+ * apart by tests without colour-coding.
+ */
+.fx-seg {
+  display: inline-flex;
+  align-items: stretch;
+  height: 28px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--fx-ink) 6%, transparent);
+  border: 1px solid var(--fx-line);
+  border-radius: var(--fx-radius-lg);
+  flex-shrink: 0;
+  isolation: isolate;
+}
+
+[data-theme='light'] .fx-seg {
+  background: color-mix(in srgb, var(--fx-ink) 4%, var(--ds-surface-primary));
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
+}
+
+.fx-seg__opt {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  border-radius: var(--fx-radius);
+  color: var(--fx-icon-rest);
+  cursor: pointer;
+  user-select: none;
+  transition: color 120ms, background 120ms, box-shadow 120ms;
+}
+
+.fx-seg__opt > svg {
+  display: block;
+  flex-shrink: 0;
+  transition: color 120ms;
+}
+
+.fx-seg__opt:hover:not([data-active='true']) {
+  color: var(--fx-ink);
+}
+
+.fx-seg__opt[data-active='true'] {
+  /* Filled monochromatic chip — ink fill with surface-coloured glyph,
+   * never an accent colour. Inset "lift" shadow distinguishes the
+   * active option from the empty side. */
+  color: var(--ds-surface-primary);
+  background: var(--fx-ink);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--fx-ink) 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--ds-surface-primary) 22%, transparent);
+}
+
+[data-theme='light'] .fx-seg__opt[data-active='true'] {
+  color: var(--ds-surface-primary);
+  background: var(--ds-text-primary);
+  box-shadow:
+    0 1px 1px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.fx-seg__opt:focus-visible {
+  outline: 1px solid var(--fx-ink);
+  outline-offset: 1px;
+}
+
+/* When SELECTED scope is active but the user has no column focused,
+ * the segment chip still shows but the rest of the toolbar greys
+ * out via per-pill `disabled` — the chips themselves stay enabled
+ * so the user can switch to ALL. */
+.fx-ctx[data-scope='all'] ~ * .fx-pill:disabled,
+.fx-ctx[data-scope='all'] ~ * .fx-split:has(.fx-pill:disabled) {
+  /* No-op — kept here to anchor future scope-aware disabled rules. */
 }
 
 /* Vertical context strip = sticky header.
@@ -426,7 +534,8 @@
 .fx-col__dot {
   width: 6px;
   height: 6px;
-  border-radius: 3px;
+  /* Fully round indicator — `radius.full` semantics. */
+  border-radius: 50%;
   background: var(--fx-accent);
   box-shadow: 0 0 6px var(--fx-accent);
   flex-shrink: 0;
@@ -575,9 +684,9 @@
 .fx-shell--horizontal > .fx-divider {
   width: 1px;
   align-self: center;
-  height: 20px;
-  background: var(--fx-line);
-  margin: 0 4px;
+  height: 18px;
+  background: color-mix(in srgb, var(--fx-line) 70%, transparent);
+  margin: 0 2px;
   flex-shrink: 0;
 }
 .fx-shell--vertical > .fx-divider {
@@ -643,9 +752,12 @@
 
 .fx-popout {
   position: absolute;
-  top: 50%;
+  /* Pinned to the FIRST row of the toolbar — shell padding (6px) + half
+   * the pill (14px) puts the centre at 20px from the top, which keeps
+   * the popout aligned with the first row regardless of whether the
+   * shell has wrapped. */
+  top: 10px;
   right: 12px;
-  transform: translateY(-50%);
   width: var(--fx-pill-h);
   height: var(--fx-pill-h);
   display: inline-flex;
@@ -656,7 +768,7 @@
   background: var(--fx-bg-soft);
   color: var(--fx-ink-soft);
   cursor: pointer;
-  transition: all 120ms;
+  transition: color 120ms, border-color 120ms, background 120ms;
   z-index: 3;
 }
 
@@ -675,7 +787,6 @@
   color: var(--fx-accent);
   border-color: var(--fx-accent-line);
   background: var(--fx-accent-soft);
-  transform: translateY(-50%);
 }
 
 /* ─── Vertical-mode body / scroll container ────────────────────── */
@@ -693,7 +804,7 @@
 }
 .fx-body::-webkit-scrollbar-thumb {
   background: var(--fx-line-strong);
-  border-radius: 4px;
+  border-radius: var(--fx-radius);
 }
 .fx-body::-webkit-scrollbar-track {
   background: transparent;

@@ -14,3 +14,4 @@ export {
   type UseModuleDraftResult,
 } from './useModuleDraft';
 export { useUndoRedo, type UseUndoRedoResult } from './useUndoRedo';
+export { useActiveThemeMode } from './useActiveThemeMode';

@@ -199,7 +199,7 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
           onClick={addTopLevelGroup}
           title="Add group"
           data-testid="cg-add-group-btn"
-          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-overlay-positive-soft)] text-[var(--ds-accent-positive)] border border-[var(--ds-overlay-positive-ring)] rounded-sm cursor-pointer p-0"
+          className="w-[22px] h-[22px] inline-flex items-center justify-center bg-[var(--ds-primary-soft)] text-[var(--ds-primary)] border border-[var(--ds-primary-ring)] rounded-sm cursor-pointer p-0"
         >
           <Plus size={11} strokeWidth={2.5} />
         </button>

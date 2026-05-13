@@ -142,7 +142,7 @@
     display: flex;
     flex-direction: column;
     padding: 4px;
-    border-radius: 6px;
+    border-radius: 2px;
     background: var(--ds-surface-primary);
     border: 1px solid var(--ds-border-primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.04);
@@ -155,7 +155,7 @@
     height: 28px;
     padding: 0;
     border: none;
-    border-radius: 4px;
+    border-radius: 2px;
     background: transparent;
     color: var(--ds-text-primary);
     cursor: pointer;
@@ -249,7 +249,7 @@
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 2px;
   color: var(--ds-text-primary);
   opacity: 0.78;
   cursor: pointer;
@@ -315,7 +315,7 @@
   opacity: 0.85;
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 2px;
   margin-right: 4px;
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 }
@@ -352,7 +352,7 @@
 .ds-filters-summary-count {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: var(--ds-accent-info);
+  color: var(--ds-primary);
 }
 .ds-filters-summary-label {
   color: var(--ds-text-muted);
@@ -379,7 +379,7 @@
   color: var(--ds-accent-negative);
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: color 120ms ease, background 120ms ease;
 }
 .ds-filters-clear-btn:hover {
@@ -399,7 +399,7 @@
   color: var(--ds-accent-positive);
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: color 120ms ease, background 120ms ease;
 }
 .ds-filters-add-btn:hover:not(:disabled) {
@@ -428,7 +428,7 @@
   justify-content: center;
   height: 28px;
   padding: 0 11px;
-  border-radius: 6px;
+  border-radius: 2px;
   border: 1px solid;
   font-size: 11.5px;
   font-weight: 500;
@@ -551,7 +551,7 @@
   padding: 0;
   background: none;
   border: none;
-  border-radius: 3px;
+  border-radius: 2px;
   color: inherit;
   opacity: 0.6;
   cursor: pointer;
@@ -578,7 +578,7 @@
   padding: 0;
   background: none;
   border: none;
-  border-radius: 3px;
+  border-radius: 2px;
   color: inherit;
   opacity: 0;
   cursor: pointer;
@@ -615,7 +615,7 @@
   padding: 0;
   background: none;
   border: none;
-  border-radius: 3px;
+  border-radius: 2px;
   color: var(--ds-text-muted);
   cursor: pointer;
   flex-shrink: 0;
@@ -643,7 +643,7 @@
   padding: 0;
   background: none;
   border: 1px solid var(--ds-border-primary);
-  border-radius: 4px;
+  border-radius: 2px;
   color: var(--ds-text-muted);
   cursor: pointer;
   transition: all 100ms ease;
@@ -667,7 +667,7 @@
   font-weight: 600;
   font-family: var(--ds-font-sans);
   border-radius: 12px;
-  border: 1px solid var(--ds-accent-info);
+  border: 1px solid var(--ds-primary);
   background: var(--ds-surface-ground);
   color: var(--ds-text-primary);
   outline: none;
@@ -726,7 +726,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 2px;
   cursor: pointer;
   transition: background 120ms, color 120ms, border-color 120ms;
   background: transparent;
@@ -760,4 +760,36 @@
 .ds-stacked-close:hover {
   background: color-mix(in srgb, var(--ds-accent-negative) 12%, transparent) !important;
   color: var(--ds-accent-negative) !important;
+}
+
+/* AG Grid header controls — keep affordance slots reserved, but reveal
+   the icons only when the user interacts with the owning header cell. */
+[data-grid-id] .ag-header-cell-menu-button,
+[data-grid-id] .ag-header-cell-filter-button,
+[data-grid-id] .ag-floating-filter-button {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+[data-grid-id] .ag-header-cell:hover .ag-header-cell-menu-button,
+[data-grid-id] .ag-header-cell:hover .ag-header-cell-filter-button,
+[data-grid-id] .ag-floating-filter:hover .ag-floating-filter-button,
+[data-grid-id] .ag-header-cell:focus-within .ag-header-cell-menu-button,
+[data-grid-id] .ag-header-cell:focus-within .ag-header-cell-filter-button,
+[data-grid-id] .ag-floating-filter:focus-within .ag-floating-filter-button,
+[data-grid-id] .ag-header-cell-menu-button[aria-expanded='true'],
+[data-grid-id] .ag-header-cell-filter-button[aria-expanded='true'],
+[data-grid-id] .ag-floating-filter-button[aria-expanded='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Formatter toolbar global header-case toggle. This is display-only:
+   `headerName` values remain unchanged, so turning the toggle off restores
+   the authored camelCase / Title Case captions. */
+[data-grid-id][data-header-case='upper'] .ag-header-cell-text,
+[data-grid-id][data-header-case='upper'] .ag-header-group-text {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }

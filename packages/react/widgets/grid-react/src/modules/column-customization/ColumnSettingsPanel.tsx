@@ -16,6 +16,11 @@ import { useGridPlatform } from '../../hooks/GridProvider';
 import { useGridColumns, type GridColumnInfo } from '../../hooks/useGridColumns';
 import { Caps, CockpitList, CockpitListItem, IconInput, LedBar, Mono } from '../../ui/SettingsPanel';
 import type { StyleEditorValue } from '../../ui/StyleEditor';
+import {
+  patchActiveStyle,
+  resolveActiveStyle,
+} from '@starui/core';
+import { useActiveThemeMode } from '../../hooks/useActiveThemeMode';
 import type {
   ColumnAssignment,
   ColumnCustomizationState,
@@ -402,25 +407,47 @@ const ColumnSettingsEditorInner = memo(function ColumnSettingsEditorInner({
     [draft.templateIds, setDraft],
   );
 
-  // Bridge the flat `CellStyleOverrides` ↔ `StyleEditorValue`. Local to
-  // this module so column-customization doesn't have to leak `borders` /
-  // `fontSize` shape decisions into the editor.
-  const cellStyleValue = toStyleEditorValue(draft.cellStyleOverrides);
+  // Bridge the themed-shape state ↔ `StyleEditorValue`. The panel always
+  // edits the active host theme's slot — the inactive slot is preserved
+  // unchanged through `patchActiveStyle`, so a user adjusting colours in
+  // dark doesn't clobber their light-theme overrides. The active theme
+  // is reactive so flipping `data-theme` re-renders the editor against
+  // the right slot.
+  const activeTheme = useActiveThemeMode();
+  const cellStyleValue = toStyleEditorValue(
+    resolveActiveStyle(draft.cellStyleOverrides, activeTheme),
+  );
   const setCellStyle = useCallback(
     (patch: Partial<StyleEditorValue>) => {
       const merged = { ...cellStyleValue, ...patch };
-      setDraft({ cellStyleOverrides: fromStyleEditorValue(merged) });
+      const nextFlat = fromStyleEditorValue(merged);
+      setDraft({
+        cellStyleOverrides: patchActiveStyle(
+          draft.cellStyleOverrides,
+          activeTheme,
+          nextFlat,
+        ),
+      });
     },
-    [cellStyleValue, setDraft],
+    [cellStyleValue, draft.cellStyleOverrides, activeTheme, setDraft],
   );
 
-  const headerStyleValue = toStyleEditorValue(draft.headerStyleOverrides);
+  const headerStyleValue = toStyleEditorValue(
+    resolveActiveStyle(draft.headerStyleOverrides, activeTheme),
+  );
   const setHeaderStyle = useCallback(
     (patch: Partial<StyleEditorValue>) => {
       const merged = { ...headerStyleValue, ...patch };
-      setDraft({ headerStyleOverrides: fromStyleEditorValue(merged) });
+      const nextFlat = fromStyleEditorValue(merged);
+      setDraft({
+        headerStyleOverrides: patchActiveStyle(
+          draft.headerStyleOverrides,
+          activeTheme,
+          nextFlat,
+        ),
+      });
     },
-    [headerStyleValue, setDraft],
+    [headerStyleValue, draft.headerStyleOverrides, activeTheme, setDraft],
   );
 
   const overrideCount = countOverrides(draft);

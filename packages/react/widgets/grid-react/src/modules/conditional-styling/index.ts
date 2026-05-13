@@ -35,10 +35,12 @@ import {
   applyCellRulesToDefs,
   buildRowClassPredicate,
   clearTimedRuleState,
+  collectAndPruneExpiredTimedEntries,
   CONDITIONAL_DIFF_CACHE_KEY,
   type DiffCacheByApi,
   getNextTimedExpiry,
   pruneTimedRuleState,
+  pruneTimedRuleStateByRuleSet,
   upsertTimedCellActivation,
   upsertTimedRowActivation,
   reinjectAllRules,
@@ -111,6 +113,78 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         refreshGridVisuals();
       });
     };
+
+    // Targeted-refresh batcher. Multiple expiry / activation events
+    // within a frame accumulate into the pending set; the rAF flush
+    // calls `api.refreshCells({ rowNodes, columns, force: true })`
+    // once with the merged surface. Avoids re-painting every visible
+    // cell when only a handful of rows / cols actually changed state.
+    const pendingTargetedRowIds = new Set<string>();
+    const pendingTargetedColIds = new Set<string>();
+    let pendingTargetedFullRow = false;
+    let targetedRefreshRaf: number | null = null;
+    const flushTargetedRefresh = () => {
+      targetedRefreshRaf = null;
+      const api = platform.api.api;
+      if (!api) {
+        pendingTargetedRowIds.clear();
+        pendingTargetedColIds.clear();
+        pendingTargetedFullRow = false;
+        return;
+      }
+      const rowIds = [...pendingTargetedRowIds];
+      const colIds = [...pendingTargetedColIds];
+      const fullRow = pendingTargetedFullRow;
+      pendingTargetedRowIds.clear();
+      pendingTargetedColIds.clear();
+      pendingTargetedFullRow = false;
+      if (rowIds.length === 0 && colIds.length === 0 && !fullRow) return;
+      try {
+        const rowNodes = rowIds
+          .map((id) => api.getRowNode?.(id))
+          .filter((n): n is NonNullable<typeof n> => !!n);
+        if (rowNodes.length === 0) return;
+        const params: Record<string, unknown> = { rowNodes, force: true };
+        // When at least one entry was row-scope, refresh ALL columns for
+        // those rows — the row's class membership flipped, every cell
+        // needs to re-evaluate. Cell-scope-only entries restrict to
+        // their explicit column set.
+        if (!fullRow && colIds.length > 0) params.columns = colIds;
+        api.refreshCells(params as never);
+      } catch {
+        /* grid mid-teardown */
+      }
+    };
+    const scheduleTargetedRefresh = (
+      rowIds: Iterable<string>,
+      colIds: Iterable<string>,
+      includesRowScope: boolean,
+    ) => {
+      let added = false;
+      for (const id of rowIds) {
+        if (!pendingTargetedRowIds.has(id)) {
+          pendingTargetedRowIds.add(id);
+          added = true;
+        }
+      }
+      for (const id of colIds) {
+        if (!pendingTargetedColIds.has(id)) {
+          pendingTargetedColIds.add(id);
+          added = true;
+        }
+      }
+      if (includesRowScope) {
+        pendingTargetedFullRow = true;
+        added = true;
+      }
+      if (!added) return;
+      if (typeof window === 'undefined') {
+        flushTargetedRefresh();
+        return;
+      }
+      if (targetedRefreshRaf != null) return; // already scheduled
+      targetedRefreshRaf = window.requestAnimationFrame(flushTargetedRefresh);
+    };
     /**
      * Rearm the single coalesced expiry timer. Called after every batch of
      * activations (and after each expiry fires) so the timer always points
@@ -145,8 +219,25 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         expiryTimer = null;
         expiryTimerFiresAt = null;
         traceTimed('expiry refresh fired');
+        // Collect the exact (rowId, colIds) pairs that just expired,
+        // prune them in one pass, then target-refresh just those rows
+        // / columns instead of force-refreshing the entire grid.
+        const expired = collectAndPruneExpiredTimedEntries();
+        const rowIds = new Set<string>();
+        const colIds = new Set<string>();
+        for (const e of expired.rowScope) rowIds.add(e.rowId);
+        for (const e of expired.cellScope) {
+          rowIds.add(e.rowId);
+          for (const c of e.colIds) colIds.add(c);
+        }
+        const includesRowScope = expired.rowScope.length > 0;
+        // Header flash / indicator badge classes are managed via the
+        // DOM watcher inside `evaluate()`; we still need to call it so
+        // the header treatments flip with the cells.
         evaluate();
-        scheduleRefresh();
+        if (rowIds.size > 0 || includesRowScope) {
+          scheduleTargetedRefresh(rowIds, colIds, includesRowScope);
+        }
         // Chain to the next pending expiry (if any) so a long ticking
         // window keeps cascading without piling up timers.
         armNextExpiry();
@@ -527,8 +618,24 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         api.removeEventListener('cellValueChanged', onCellValueChanged);
       });
     }));
-    // Rule-list changes: state subscription.
+    // Rule-list changes: state subscription. Reconcile the timed-rule
+    // state with the new rule set first — without this, a profile
+    // switch that drops the previous profile's timed rules leaves
+    // stale `rowUntil` / `cellsUntil` entries in the module-scoped map.
+    // `getNextTimedExpiry()` keeps returning a non-null timestamp,
+    // the coalesced timer fires, re-arms with delay 8ms, and loops
+    // forever — visible as repeated `armNextExpiry / expiry refresh
+    // fired` traces with the same `firesAt` value.
     disposers.push(platform.subscribe(() => {
+      const state = platform.getState();
+      const activeTimedRuleIds = new Set<string>();
+      for (const r of state.rules) {
+        if (r.enabled && normalizeDuration(r.activeDurationMs) != null) {
+          activeTimedRuleIds.add(r.id);
+        }
+      }
+      pruneTimedRuleStateByRuleSet(activeTimedRuleIds);
+      armNextExpiry();
       evaluate();
       scheduleRefresh();
     }));
@@ -537,6 +644,13 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       if (refreshRaf != null && typeof window !== 'undefined') {
         window.cancelAnimationFrame(refreshRaf);
       }
+      if (targetedRefreshRaf != null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(targetedRefreshRaf);
+        targetedRefreshRaf = null;
+      }
+      pendingTargetedRowIds.clear();
+      pendingTargetedColIds.clear();
+      pendingTargetedFullRow = false;
       if (expiryTimer != null) {
         clearTimeout(expiryTimer);
         expiryTimer = null;
@@ -761,10 +875,18 @@ function resolveRowId(node: unknown): string | null {
     : null;
 }
 
+/**
+ * Trace helper for the timed-rule subsystem.
+ *
+ * Off by default — `setTimeout` + `cellValueChanged` paths fire dozens
+ * to hundreds of trace points per second under live ticks. Opt in
+ * explicitly per session by setting
+ * `window.__CS_TIMED_TRACE__ = true` in the DevTools console.
+ */
 function traceTimed(message: string, payload?: unknown): void {
   try {
     const flag = (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__;
-    if (flag === false) return;
+    if (flag !== true) return;
     if (payload === undefined) {
       console.log(TRACE_PREFIX, message);
       return;

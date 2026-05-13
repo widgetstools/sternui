@@ -235,6 +235,20 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
         enableRowGroup: s.enableRowGroup,
         enablePivot: s.enablePivot,
         enableValue: s.enableValue,
+        // Cell tooltip — show every cell's displayed value on hover. AG-Grid
+        // calls `tooltipValueGetter` on each cell and reads `params.valueFormatted`
+        // first so a `valueFormatter` chain (currency, date, etc.) is what the
+        // user sees in the tooltip rather than the raw underlying value.
+        // Returning `null` for empty cells suppresses the tooltip.
+        tooltipValueGetter: s.showCellTooltips
+          ? (params: { value: unknown; valueFormatted?: string | null }) => {
+              const formatted = params.valueFormatted;
+              const out = formatted != null && formatted !== '' ? formatted : params.value;
+              if (out == null) return null;
+              const str = String(out);
+              return str === '' ? null : str;
+            }
+          : undefined,
         ...opts.defaultColDef,
       },
 

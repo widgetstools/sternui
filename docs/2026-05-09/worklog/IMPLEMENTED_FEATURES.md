@@ -3,6 +3,196 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-13 — Theme-aware tooltips on every formatter button
+
+The shared `<Tooltip>` primitive in `@starui/grid-react` now binds its
+surface to the design-system `--popover` / `--popover-foreground` /
+`--border` HSL tokens instead of the inverted `bg-foreground` /
+`text-background` Tailwind pair. Result: dark theme renders a dark
+tooltip with light text (matching native browser tooltips), light theme
+renders a light tooltip with dark text — both with a subtle border and
+elevation shadow so the surface is legible against similar-coloured
+chrome.
+
+Tooltip is now `forwardRef` so it can sit inside Radix
+`<PopoverTrigger asChild>` (and equivalent dropdown / hover-card
+triggers) without dropping the cloned ref + merged handlers.
+
+Every chevron / popover-trigger button in the formatter toolbar that
+previously used the native `title=` attribute now wraps its trigger in
+the styled `<Tooltip>` for visual + behavioural consistency: font-size
+trigger (Type), border trigger (Paint), currency chevron + tick chevron
+(Format), editor chevron + filter chevron + values-source `⋮`
+(Editor & Filter), templates trigger (Library), and both colour-picker
+trigger buttons (`ColorPickerPopover`). Alignment buttons retitled
+`Align left/center/right` for self-description.
+
+## 2026-05-13 — Restore hover-only AG Grid header controls
+
+`@starui/markets-grid` once again scopes AG Grid column header menu,
+filter, and floating-filter buttons under `[data-grid-id]` so their slots
+stay reserved but the icons remain hidden until hover, focus, or an
+expanded menu/filter state. This restores the pre-regression browser and
+OpenFin affordance behavior without reintroducing broad global `.ag-*`
+overrides.
+
+## 2026-05-13 — Scope conditional-styling rule CSS to grid surfaces
+
+Conditional-styling rule CSS now emits cell-scope styles against
+`.ag-cell.ds-rule-*` and row-scope styles against `.ag-row.ds-rule-* .ag-cell`
+instead of broad `.ds-rule-*` selectors. Indicator badges keep their own
+cell/header pseudo-element selectors, so saving a rule with text colour or
+indicator colour can no longer bleed that colour across unrelated grid
+surfaces before profile reload.
+
+Regression coverage in `@starui/grid-react` now asserts text attributes,
+target-column predicates, indicator coexistence, row-scope styling, and flash
+CSS generation for the conditional-styling transform.
+
+## 2026-05-13 — Split global formatter into number + date slots
+
+The CELLS + ALL scope now renders TWO formatter dropdowns side-by-side —
+one driven by `dataType="number"` (writes to the new
+`globalCellNumberFormatter`) and one by `dataType="date"` (writes to
+`globalCellDateFormatter`). Users no longer need to first select a
+number or date column to author a global format — both slots persist
+independently in the same profile.
+
+Type-coherent routing at render time: the transform applies
+`globalCellNumberFormatter` only to columns whose `cellDataType` is
+`'number'` (or undefined), and `globalCellDateFormatter` only to
+columns whose `cellDataType` is `'date'`. String and boolean columns
+skip both global slots; per-column `valueFormatterTemplate` still wins
+over the global baselines when set.
+
+Reducer API: `applyFormatterReducer` gained an optional `kind?:
+FormatterKind` parameter (`'number' | 'date'`, default `'number'`).
+The `doFormat` action on `FormatterActions` mirrors the same default.
+Quick-action pills (`$`, `%`, `#`, decimal +/-, tick) pass nothing
+extra and stay number-focused, as do all SELECTED-scope writes.
+
+schemaVersion bumped 8 → 9. The migration lifts the v8
+`globalCellFormatter` field into the matching slot: date / datetime
+presets → `globalCellDateFormatter`; everything else (currency /
+percent / number / tick / expression / excelFormat) →
+`globalCellNumberFormatter`.
+
+## 2026-05-13 — Explicit target + scope in formatter toolbar
+
+The formatter toolbar now exposes target (cells vs headers) and scope
+(selected columns vs every column) as two prominent dual-label segmented
+toggles at the very start of the strip. Both labels render simultaneously
+with monochromatic active fills (no accent colour anywhere in the toolbar
+chrome — ink-on-ink contrast only). The four resulting scopes —
+SELECTED+CELLS, SELECTED+HEADERS, ALL+CELLS, ALL+HEADERS — fully decouple
+*what* is being edited from *which columns* it affects.
+
+State shape gains three optional fields at the column-customization root:
+`globalCellStyle`, `globalHeaderStyle`, `globalCellFormatter`. The
+transform emits CSS for the global baselines using broad selectors
+(`html[data-theme="…"] .ag-cell`, `… .ag-header-cell`) before per-column
+rules; per-column selectors chain `.ag-cell.ds-col-c-{id}` for higher
+specificity so a per-column setting always wins over the global baseline.
+Both slots survive theme switching via the existing CSS cascade trick.
+
+The global cell formatter is type-bound: applied only to columns whose
+`cellDataType` is `'number'`, `'date'`, or `'string'`. Boolean and unknown
+columns silently skip — no warnings, just a no-op for that column.
+Per-column `valueFormatterTemplate` still wins when set.
+
+Column-customization schemaVersion bumped 7 → 8; the migration is a no-op
+for the new fields (they remain undefined until the user authors one).
+The reducer API gained an optional `scope?: ScopeKind` parameter on
+`writeOverridesReducer`, `applyTypographyReducer`, `applyColorsReducer`,
+`applyAlignmentReducer`, `applyBordersReducer`, `clearAllBordersReducer`,
+and `applyFormatterReducer`; default is `'selected'` so existing callers
+unchanged. Formatter monochromatic palette: `--fx-icon-rest` becomes
+muted ink, `--fx-icon-pop` becomes full ink, `--fx-icon-glow` is `none`,
+`--fx-accent` derives from `--ds-text-primary` rather than the brand
+primary. Active states use a solid ink fill with a contrasted text
+colour — no cyan/coloured highlight.
+
+## 2026-05-13 — Per-theme column styling in profile state
+
+Per-column styling (`cellStyleOverrides` / `headerStyleOverrides`) now stores
+its values under a theme-keyed wrapper `{ dark?, light? }`. The user can set
+red headers in dark mode and blue headers in light mode and have both persist
+in the same profile without one clobbering the other.
+
+Shape change lives in [`packages/shared/core/src/colDef/types.ts`](../../packages/shared/core/src/colDef/types.ts).
+New helpers in [`themedStyle.ts`](../../packages/shared/core/src/colDef/themedStyle.ts) cover the read/write/merge/migrate paths:
+
+- `getActiveTheme()` reads `[data-theme]` on `<html>` and resolves to `'dark'`
+  by default (also the SSR / no-document fallback).
+- `resolveActiveStyle(themed, mode)` pulls the slot for a given theme.
+- `patchActiveStyle(themed, mode, next)` writes one slot, preserves the other,
+  and drops the field entirely when both slots clear.
+- `mergeThemedStyle(a, b, mergeOne)` merges slot-by-slot, so template chains
+  don't bleed a `dark`-only template's styling onto a `light` slot.
+- `migrateThemedStyle(value)` lifts legacy flat overrides into the wrapper —
+  used by the column-customization + column-templates `deserialize` paths.
+
+Reducers in [`formattingActions.ts`](../../packages/react/widgets/grid-react/src/modules/column-customization/formattingActions.ts) route through `patchActiveStyle` so every formatter-toolbar
+write targets the active theme's slot only. The transform in
+[`transforms.ts`](../../packages/react/widgets/grid-react/src/modules/column-customization/transforms.ts) emits CSS rules for BOTH slots scoped by
+`html[data-theme="dark"]` / `html[data-theme="light"]`, so flipping the host
+theme is a pure cascade event — no colDef rebuild required. `resolveTemplates`
+uses `mergeThemedStyle` for the same per-slot composition.
+
+Editor surfaces (ColumnSettingsPanel, formatter toolbar) subscribe via the
+new `useActiveThemeMode` hook so on/off swatches and colour pickers reflect
+the currently visible slot. Column-customization bumps its schemaVersion to
+7; the migrate path lifts legacy flat shapes into `{ dark: <flat>, light:
+<flat> }` so existing profiles render identically until the user diverges
+them. The deserialize path applies the same lift defensively for snapshots
+that arrive at the same schema version but with legacy data.
+
+## 2026-05-12 — MarketsGrid owns the canonical AG Grid theme
+
+`@starui/markets-grid` now ships the canonical `sternDarkTheme` and
+`sternLightTheme` (built on `themeQuartz`) plus a `useGridTheme` hook that
+reads `[data-theme]` on `<html>` reactively via `MutationObserver`. MarketsGrid
+resolves the theme internally — apps no longer need to construct or pass a
+`theme` prop; flipping `data-theme` is the only knob. The prop remains
+optional for one-off overrides so existing callers (reference app, OpenFin
+shells) continue to work unchanged.
+
+Both themes define a symmetric set of text-colour params (`foregroundColor`,
+`cellTextColor`, `headerTextColor`) so swapping `data-theme` no longer leaks
+one mode's text colour into the other. `@starui/widgets-react` re-exports the
+themes from markets-grid for back-compat. demo-react now omits the theme prop
+and relies on the internal resolver; the formatter toolbar, grid customizer,
+and per-profile persistence are unaffected — all per-column styling still
+flows through profile state, not theme params.
+
+## 2026-05-12 — Formatter toolbar: all-column header controls
+
+`@starui/markets-grid` formatter toolbar now supports grid-wide header
+formatting from the existing header target. When the formatter target is
+`HEADER`, the font-size picker and text-colour picker apply to every AG Grid
+column returned by `api.getColumns()` instead of only the currently focused
+column. Writes still use the existing column-customization reducers and persist
+as per-column `headerStyleOverrides`, so saved layouts round-trip through the
+same styling pipeline as ordinary selected-column edits.
+
+The header font-size picker is enabled in header mode even when no active cell
+range exists, and the text-colour picker follows the same rule. Cell target
+behaviour is unchanged: font size and text colour still apply only to the
+active formatter column scope.
+
+The toolbar also adds a `CaseUpper` pill in the context cluster. It toggles the
+new `general-settings.headerCaseUppercase` flag, which the MarketsGrid root
+reflects as `data-header-case="upper"`. `marketsGrid.css` consumes that
+attribute with a display-only `text-transform: uppercase` rule for
+`.ag-header-cell-text` and `.ag-header-group-text`, preserving the underlying
+`headerName` values so disabling the toggle restores the authored camelCase /
+Title Case captions.
+
+Integration coverage verifies that header font size writes to all columns,
+header text colour writes to all columns, and the case pill remains available
+without a selected column while keeping `aria-pressed` and the persisted
+settings flag in sync.
+
 ## 2026-05-11 — Light-mode toolbar and page-header chrome polish
 
 `@starui/markets-grid` light-mode header/toolbars now use the cool-clinical

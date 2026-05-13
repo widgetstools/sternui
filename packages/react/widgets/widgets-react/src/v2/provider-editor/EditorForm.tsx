@@ -240,7 +240,7 @@ export function EditorForm({ initial, userId, onCancel, onSaved }: EditorFormPro
 
           {isExisting && (
             <TabsContent value="diagnostics" className="flex-1 min-h-0 overflow-hidden m-0 mt-3">
-              <DiagnosticsTab providerId={provider.providerId ?? null} />
+              <DiagnosticsTab providerId={provider.providerId ?? null} cfg={provider.config} />
             </TabsContent>
           )}
         </Tabs>

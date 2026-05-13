@@ -36,7 +36,7 @@ const TONE_CLASSES: Record<SummaryChipTone, string> = {
   neutral:
     'bg-muted/40 text-muted-foreground border-[color:var(--ds-border-primary)]',
   primary:
-    'bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary-color)] border-[color:var(--ds-primary-ring)]',
+    'bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)] border-[color:var(--ds-primary-ring)]',
   info: 'bg-[var(--ds-overlay-info-soft)] text-[color:var(--ds-accent-info)] border-[color:var(--ds-overlay-info-ring)]',
   warning:
     'bg-[var(--ds-overlay-warning-soft)] text-[color:var(--ds-accent-warning)] border-[color:var(--ds-overlay-warning-ring)]',

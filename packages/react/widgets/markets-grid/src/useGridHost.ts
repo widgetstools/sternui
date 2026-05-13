@@ -35,6 +35,28 @@ const INITIAL_ONLY_GRID_OPTIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Whether the value (or any nested value, up to a shallow guard depth)
+ * is a function. Function-valued grid options (`rowClassRules`,
+ * `getRowClass`, `getRowStyle`, value getters, etc.) lose their bodies
+ * under `JSON.stringify` — every payload hashes to the same string
+ * regardless of which predicates it carries. The diff path in
+ * `useGridHost` uses this to force-sync those keys on every change.
+ */
+function containsFunction(value: unknown, depth = 0): boolean {
+  if (typeof value === 'function') return true;
+  if (depth > 4) return false;
+  if (Array.isArray(value)) {
+    return value.some((v) => containsFunction(v, depth + 1));
+  }
+  if (value && typeof value === 'object') {
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      if (containsFunction(v, depth + 1)) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Binds a `GridPlatform` instance to the React lifecycle:
  *   - Constructs once per MarketsGrid instance. Shared across renders.
  *   - Subscribes to the store and bumps a tick so `columnDefs` / `gridOptions`
@@ -108,8 +130,17 @@ export function useGridHost(opts: {
     for (const [key, value] of Object.entries(gridOptions)) {
       const json = JSON.stringify(value) ?? 'undefined';
       next[key] = json;
-      if (prev[key] === json) continue;
       if (INITIAL_ONLY_GRID_OPTIONS.has(key)) continue;
+      // JSON.stringify drops function values, so any option whose
+      // payload contains function-typed predicates (e.g.
+      // `rowClassRules: { 'ds-rule-X': (params) => boolean }`,
+      // `getRowClass`, `getRowStyle`, the `cellStyle` color resolver)
+      // ALWAYS hashes to the same string — old and new look identical
+      // and the diff incorrectly says "no change". Without an explicit
+      // sync the live grid keeps the old predicates and only picks up
+      // the new ones on a full remount (page reload). Force-sync those
+      // keys so changes flow through to AG-Grid immediately.
+      if (!containsFunction(value) && prev[key] === json) continue;
       dirty = true;
       (api.setGridOption as (k: string, v: unknown) => void)(key, value);
     }

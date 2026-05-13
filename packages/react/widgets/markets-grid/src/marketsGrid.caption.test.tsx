@@ -43,6 +43,8 @@ vi.mock('@starui/grid-react', async () => {
     GridProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useGridApi: () => null,
     useGridPlatform: () => ({}),
+    useModuleState: () => [undefined, vi.fn()],
+    GENERAL_SETTINGS_MODULE_ID: 'general-settings',
     useProfileManager: () => ({
       profiles: [],
       activeProfileId: null,

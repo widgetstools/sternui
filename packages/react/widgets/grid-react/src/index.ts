@@ -28,6 +28,7 @@ export {
   type UseModuleDraftResult,
 } from './hooks/useModuleDraft';
 export { useUndoRedo, type UseUndoRedoResult } from './hooks/useUndoRedo';
+export { useActiveThemeMode } from './hooks/useActiveThemeMode';
 
 // Back-compat alias — preserved from the old core barrel. Some
 // markets-grid helpers still thread `GridCore` (the minimal

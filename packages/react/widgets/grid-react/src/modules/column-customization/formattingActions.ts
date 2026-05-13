@@ -32,16 +32,45 @@ import type {
   FilterKind,
   ValueFormatterTemplate,
 } from './state';
+import {
+  getActiveTheme,
+  patchActiveStyle,
+  resolveActiveStyle,
+} from '@starui/core';
 
 export const COLUMN_CUSTOMIZATION_MODULE_ID = 'column-customization';
 
 /** Where a cell-vs-header override lives inside a ColumnAssignment. */
 export type TargetKind = 'cell' | 'header';
 
+/**
+ * Whether a write is scoped to the user's selected columns (lands on
+ * `assignments[colId]`) or applied as a global baseline across every
+ * column (lands on `globalCellStyle` / `globalHeaderStyle`). Per-column
+ * overrides win over the global baseline at render time.
+ */
+export type ScopeKind = 'selected' | 'all';
+
+/**
+ * Which value-formatter slot a write targets — `'number'` writes to
+ * `globalCellNumberFormatter` (number columns) and `'date'` writes to
+ * `globalCellDateFormatter` (date columns). Only relevant for the
+ * `'all'` scope on formatters; per-column writes land on the column's
+ * single `valueFormatterTemplate` regardless of kind.
+ */
+export type FormatterKind = 'number' | 'date';
+
 export function overrideKey(
   target: TargetKind,
 ): 'cellStyleOverrides' | 'headerStyleOverrides' {
   return target === 'header' ? 'headerStyleOverrides' : 'cellStyleOverrides';
+}
+
+/** Which top-level state field holds the global baseline for a target. */
+export function globalKey(
+  target: TargetKind,
+): 'globalCellStyle' | 'globalHeaderStyle' {
+  return target === 'header' ? 'globalHeaderStyle' : 'globalCellStyle';
 }
 
 /**
@@ -96,31 +125,57 @@ export function mergeOverrides(
 // ─── Writers: style overrides ──────────────────────────────────────────
 
 /**
- * Build a reducer that merges `patch` into the cell-or-header overrides
- * of every listed column. Empty `colIds` is a no-op: the reducer
- * returns the same state reference so React / Zustand subscribers
- * don't tick.
+ * Build a reducer that merges `patch` into the cell-or-header overrides.
+ *
+ * Scope semantics:
+ *   - `'selected'` (default) — applies to every listed column's per-column
+ *     assignment slot. Empty `colIds` is a no-op.
+ *   - `'all'` — applies to the matching global state field
+ *     (`globalCellStyle` / `globalHeaderStyle`). `colIds` is ignored.
+ *
+ * Both paths route through the active theme via `patchActiveStyle` so the
+ * inactive theme's slot stays untouched.
  */
 export function writeOverridesReducer(
   colIds: readonly string[],
   target: TargetKind,
   patch: Partial<CellStyleOverrides>,
+  scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
   return (prev) => {
     // Seed a fresh state when prev is undefined so reducers work on
     // first-write paths. Callers that care about identity still get a
     // new object when there's real work to do.
     const base: ColumnCustomizationState = prev ?? { assignments: {} };
+    const theme = getActiveTheme();
+
+    if (scope === 'all') {
+      // Global baseline — single themed slot at the state root, no per-
+      // column traversal. Active-theme merge preserves the inactive slot.
+      const gKey = globalKey(target);
+      const currentActive = resolveActiveStyle(base[gKey], theme);
+      const mergedActive = mergeOverrides(currentActive, patch);
+      const mergedThemed = patchActiveStyle(base[gKey], theme, mergedActive);
+      const next: ColumnCustomizationState = { ...base };
+      if (mergedThemed === undefined) delete next[gKey];
+      else next[gKey] = mergedThemed;
+      return next;
+    }
+
     if (colIds.length === 0) return base;
 
     const key = overrideKey(target);
     const assignments = { ...base.assignments };
     for (const colId of colIds) {
       const a: ColumnAssignment = assignments[colId] ?? { colId };
-      const merged = mergeOverrides(a[key], patch);
+      // Pull the active-theme slot, merge the patch, write it back —
+      // the other theme's slot is preserved untouched.
+      const currentActive = resolveActiveStyle(a[key], theme);
+      const mergedActive = mergeOverrides(currentActive, patch);
+      const mergedThemed = patchActiveStyle(a[key], theme, mergedActive);
       const next: ColumnAssignment = { ...a };
-      if (merged === undefined) delete next[key];
-      else next[key] = merged;
+      if (mergedThemed === undefined) delete next[key];
+      else next[key] = mergedThemed;
       assignments[colId] = next;
     }
     return { ...base, assignments };
@@ -137,8 +192,9 @@ export function applyTypographyReducer(
     underline?: boolean | undefined;
     fontSize?: number | undefined;
   },
+  scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
-  return writeOverridesReducer(colIds, target, { typography: patch });
+  return writeOverridesReducer(colIds, target, { typography: patch }, scope);
 }
 
 /** Colors-only convenience — merges `{ colors: patch }`. */
@@ -146,8 +202,9 @@ export function applyColorsReducer(
   colIds: readonly string[],
   target: TargetKind,
   patch: { text?: string | undefined; background?: string | undefined },
+  scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
-  return writeOverridesReducer(colIds, target, { colors: patch });
+  return writeOverridesReducer(colIds, target, { colors: patch }, scope);
 }
 
 /** Horizontal-alignment convenience — merges `{ alignment: patch }`. */
@@ -155,8 +212,9 @@ export function applyAlignmentReducer(
   colIds: readonly string[],
   target: TargetKind,
   patch: { horizontal?: 'left' | 'center' | 'right' | undefined },
+  scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
-  return writeOverridesReducer(colIds, target, { alignment: patch });
+  return writeOverridesReducer(colIds, target, { alignment: patch }, scope);
 }
 
 /**
@@ -169,22 +227,25 @@ export function applyBordersReducer(
   target: TargetKind,
   sides: ReadonlyArray<'top' | 'right' | 'bottom' | 'left'>,
   spec: BorderSpec | undefined,
+  scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
   const borders: NonNullable<CellStyleOverrides['borders']> = {};
   for (const side of sides) borders[side] = spec;
-  return writeOverridesReducer(colIds, target, { borders });
+  return writeOverridesReducer(colIds, target, { borders }, scope);
 }
 
 /** Clear every border side (top/right/bottom/left) in one shot. */
 export function clearAllBordersReducer(
   colIds: readonly string[],
   target: TargetKind,
+  scope: ScopeKind = 'selected',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
   return applyBordersReducer(
     colIds,
     target,
     ['top', 'right', 'bottom', 'left'],
     undefined,
+    scope,
   );
 }
 
@@ -412,16 +473,36 @@ export function applyFloatingFilterReducer(
 // ─── Writers: formatter + templates + reset ───────────────────────────
 
 /**
- * Set (or clear with `template: undefined`) the `valueFormatterTemplate`
- * on each listed column. Lives on the assignment root, not inside a
- * cell/header section.
+ * Set (or clear with `template: undefined`) the `valueFormatterTemplate`.
+ *
+ * Scope:
+ *   - `'selected'` (default) — writes to each listed column's
+ *     assignment. `kind` is ignored: per-column columns carry a single
+ *     `valueFormatterTemplate` regardless of number-vs-date intent.
+ *   - `'all'` — writes to `globalCellNumberFormatter` or
+ *     `globalCellDateFormatter` depending on `kind`. Caller MUST pass
+ *     the right kind so the picker's preset lands in the type-matched
+ *     slot (currency / % → number; date / datetime → date). `colIds`
+ *     is ignored in this branch.
  */
 export function applyFormatterReducer(
   colIds: readonly string[],
   template: ValueFormatterTemplate | undefined,
+  scope: ScopeKind = 'selected',
+  kind: FormatterKind = 'number',
 ): (prev: ColumnCustomizationState | undefined) => ColumnCustomizationState {
   return (prev) => {
     const base: ColumnCustomizationState = prev ?? { assignments: {} };
+
+    if (scope === 'all') {
+      const key: 'globalCellNumberFormatter' | 'globalCellDateFormatter' =
+        kind === 'date' ? 'globalCellDateFormatter' : 'globalCellNumberFormatter';
+      const next: ColumnCustomizationState = { ...base };
+      if (template === undefined) delete next[key];
+      else next[key] = template;
+      return next;
+    }
+
     if (colIds.length === 0) return base;
 
     const assignments = { ...base.assignments };

@@ -14,12 +14,14 @@ import { useState } from 'react';
 import { Badge, Button, Separator } from '@starui/ui';
 import { Loader2, RefreshCw, Square } from 'lucide-react';
 import { useDataServices, useProviderStats, type ProviderStats, type ProviderStatus } from '@starui/data-services-react/runtime';
+import type { ProviderConfig } from '@starui/shared-types';
 
 export interface DiagnosticsTabProps {
   providerId: string | null;
+  cfg: ProviderConfig | null;
 }
 
-export function DiagnosticsTab({ providerId }: DiagnosticsTabProps) {
+export function DiagnosticsTab({ providerId, cfg }: DiagnosticsTabProps) {
   if (!providerId) {
     return (
       <div className="flex items-center justify-center h-full p-8">
@@ -30,10 +32,10 @@ export function DiagnosticsTab({ providerId }: DiagnosticsTabProps) {
       </div>
     );
   }
-  return <Live providerId={providerId} />;
+  return <Live providerId={providerId} cfg={cfg} />;
 }
 
-function Live({ providerId }: { providerId: string }) {
+function Live({ providerId, cfg }: { providerId: string; cfg: ProviderConfig | null }) {
   const { client } = useDataServices();
   const [stats, setStats] = useState<ProviderStats | null>(null);
   const [stopping, setStopping] = useState(false);
@@ -43,9 +45,10 @@ function Live({ providerId }: { providerId: string }) {
 
   const onRestart = () => {
     // Send a no-op data attach with __refresh; the Hub forwards into
-    // provider.restart(extra). We discard the subId immediately.
+    // provider.restart(extra) when running, or uses cfg to cold-start
+    // a stopped provider. We discard the subId immediately.
     const noop = { onDelta: () => undefined, onStatus: (s: ProviderStatus, err?: string) => setStatusBanner({ status: s, error: err }) };
-    const sub = client.attach(providerId, undefined, noop, { extra: { __refresh: Date.now() } });
+    const sub = client.attach(providerId, cfg ?? undefined, noop, { extra: { __refresh: Date.now() } });
     setTimeout(() => client.detach(sub), 200);
   };
 

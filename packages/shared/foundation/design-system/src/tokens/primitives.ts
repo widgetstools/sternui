@@ -71,12 +71,15 @@ export const colors = {
     dark:     '#ff9f1a',
   },
   // ── Brand / info ─────────────────────────────────────────
-  // Primary brand: cobalt in light mode, electric cyan in dark mode.
+  // Primary brand: greyish lavender — separate per-mode shades chosen
+  // for AA contrast against each surface tier. Light = deeper lavender
+  // on white; dark = paler lavender on charcoal. Hover states walk one
+  // step in the direction that increases contrast.
   brand: {
-    light:    '#2952cc',
-    lightHov: '#1f3f9e',
-    dark:     '#00d5ff',
-    darkHov:  '#48e6ff',
+    light:    '#6b6498',  // deep greyish lavender — CTA on white
+    lightHov: '#544e7c',  // darker on hover (light mode)
+    dark:     '#b5add8',  // pale greyish lavender — CTA on charcoal
+    darkHov:  '#c9c2e4',  // lighter on hover (dark mode)
   },
   // ── Info / highlight ─────────────────────────────────────
   // Info is a semantic status/link accent, separate from primary brand.
@@ -163,11 +166,24 @@ export const spacing = {
   10:  40,
 } as const;
 
+// Design-system radius scale.
+//
+// Standard rectangular components (buttons, inputs, cards, panels,
+// tooltips, popovers, badges, table rows, etc.) all land on the same
+// 2px baseline — `sm`, `md`, and `lg` resolve to the same value so a
+// component asking for "medium" radius doesn't accidentally read as
+// rounder than its peers. Cases that legitimately need higher radii
+// (skeleton loaders, banners, fully-rounded shapes) opt in via `xl`
+// or `full`.
+//
+// Inherently round / pill-shaped controls — pills, avatars, checkbox
+// ticks, toggle-switch tracks + knobs, radio buttons, progress bar
+// caps — should reach for `radius.full` directly.
 export const radius = {
   none: '0px',
   sm:   '2px',
-  md:   '3px',
-  lg:   '4px',
+  md:   '2px',
+  lg:   '2px',
   xl:   '6px',
   full: '9999px',
 } as const;

@@ -9,6 +9,7 @@ import {
   Popover as RadixPopover,
   PopoverContent as RadixPopoverContent,
   PopoverTrigger as RadixPopoverTrigger,
+  Tooltip,
 } from '@starui/grid-react';
 import { Hair, Module } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
@@ -20,13 +21,14 @@ export function ModulePaint({
   state: FormatterState;
   actions: FormatterActions;
 }) {
-  const { fmt, disabled } = state;
+  const { fmt, disabled, isHeader } = state;
   const [borderOpen, setBorderOpen] = useState(false);
+  const colorDisabled = isHeader ? false : disabled;
 
   return (
     <Module index="03" label="Paint">
       <ColorPickerPopover
-        disabled={disabled}
+        disabled={colorDisabled}
         value={fmt.color}
         icon={<Type size={13} strokeWidth={2.25} />}
         onChange={(c) => actions.setTextColor(c)}
@@ -48,16 +50,17 @@ export function ModulePaint({
 
       <RadixPopover open={borderOpen} onOpenChange={setBorderOpen}>
         <RadixPopoverTrigger asChild>
-          <button
-            type="button"
-            disabled={disabled}
-            aria-label="Cell borders"
-            title="Cell borders"
-            className="fx-pill"
-            onMouseDown={(e) => { e.preventDefault(); }}
-          >
-            <SquareDashed size={13} strokeWidth={1.75} />
-          </button>
+          <Tooltip content="Cell borders — set per-edge style, width, and colour">
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label="Cell borders"
+              className="fx-pill"
+              onMouseDown={(e) => { e.preventDefault(); }}
+            >
+              <SquareDashed size={13} strokeWidth={1.75} />
+            </button>
+          </Tooltip>
         </RadixPopoverTrigger>
         <RadixPopoverContent
           align="start"

@@ -149,14 +149,14 @@ function BandNavItem({ band, active, overrides, onClick }: BandNavItemProps) {
         'group w-full h-8 flex items-center gap-2 pl-2.5 pr-2 text-left rounded-sm transition-colors',
         'border-l-2 transition-colors',
         active
-          ? 'bg-[var(--ds-primary-soft)] border-l-[color:var(--ds-accent-positive)] text-foreground'
+          ? 'bg-[var(--ds-primary-soft)] border-l-[color:var(--ds-primary)] text-foreground'
           : 'border-l-transparent text-foreground/90 hover:bg-muted/60 hover:text-foreground',
       )}
     >
       <span
         className={cn(
           'font-mono tabular-nums text-[10px] leading-none w-5 shrink-0',
-          active ? 'text-[color:var(--ds-accent-positive)]' : 'opacity-70',
+          active ? 'text-[color:var(--ds-primary)]' : 'opacity-70',
         )}
       >
         {band.index}

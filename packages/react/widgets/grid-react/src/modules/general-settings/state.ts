@@ -106,6 +106,15 @@ export interface GeneralSettingsState {
   // ─── Tier 5 — Styling ────────────────────────────────────────────────────
   suppressRowHoverHighlight: boolean;
   columnHoverHighlight: boolean;
+  /** Render all AG Grid column header captions in uppercase. The authored
+   *  `headerName` values remain unchanged so switching this off restores the
+   *  original camelCase / Title Case captions. */
+  headerCaseUppercase: boolean;
+  /** Show every cell's value as a hover tooltip. Wired to AG-Grid via
+   *  `defaultColDef.tooltipValueGetter` so truncated cell content stays
+   *  readable on hover without per-column configuration. Off by default —
+   *  flipped via the formatter toolbar's "tooltip" pill. */
+  showCellTooltips: boolean;
 
   // ─── Default ColDef ──────────────────────────────────────────────────────
   //
@@ -288,6 +297,8 @@ export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Tier 5
   suppressRowHoverHighlight: false,
   columnHoverHighlight: false,
+  headerCaseUppercase: false,
+  showCellTooltips: false,
 
   // Default ColDef — sizing
   defaultResizable: true,

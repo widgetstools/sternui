@@ -52,7 +52,7 @@ export function ClearAllDialog({
           <AlertDialogDescription>
             This removes every column's cell + header styling, value
             formatters, border overrides, filter config, and template
-            references from the active profile. Saved templates are not
+            references from the active layout. Saved templates are not
             affected. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -94,7 +94,7 @@ export function ClearSelectedDialog({
           <AlertDialogDescription>
             This removes the cell + header styling, value formatter,
             border overrides, filter config, and template references
-            from {scopeLabel} in the active profile. Saved templates
+            from {scopeLabel} in the active layout. Saved templates
             and other columns are not affected. This action cannot be
             undone (use Undo if you change your mind).
           </AlertDialogDescription>
