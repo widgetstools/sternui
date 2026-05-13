@@ -30,6 +30,7 @@ import {
 import { launchApp, launchRegisteredComponent } from '../launch';
 import { getPlatformDefaultScope } from '../db';
 import { createRenameViewTabAction } from './viewTabRename';
+import { openDataProvidersToolWindow } from '../openChildToolWindow.js';
 
 export interface CustomActionDeps {
   /** Coalescing wrapper around the dark/light theme flip. */
@@ -258,10 +259,7 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
       ) {
         return;
       }
-      const scope = getPlatformDefaultScope();
-      await openChildWindow('data-providers', '/dataproviders', 1180, 760, {
-        customData: { appId: scope.appId, userId: scope.userId },
-      });
+      await openDataProvidersToolWindow();
     },
 
     // ── Open the config browser window ──

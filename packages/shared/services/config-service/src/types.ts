@@ -364,6 +364,14 @@ export interface AppDataMirrorHandle {
   set(name: string, key: string, value: unknown): Promise<void>;
   get(name: string, key: string): unknown;
   ready(): Promise<void>;
+  /**
+   * When implemented (real `AppDataMirror`), writes every key for a
+   * named row in **one** hub round-trip. `ConfigManager` uses this for
+   * `ApplicationContext` so cold windows do not queue four IndexedDB
+   * writes behind a busy SharedWorker. Minimal test fakes may omit it
+   * and fall back to four sequential `set` calls.
+   */
+  publishNamedRow?(name: string, values: Record<string, unknown>): Promise<void>;
 }
 
 /**

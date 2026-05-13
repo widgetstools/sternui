@@ -132,6 +132,10 @@ export class ConfigManager {
   private dataServices: DataServicesHandle | undefined;
   private drainIntervalId: ReturnType<typeof setInterval> | undefined;
   private isInitialized = false;
+  /** True after `dispose()` — IndexedDB is closed; `init()` becomes a no-op. */
+  private disposed = false;
+  /** Single-flight guard so concurrent `init()` calls share one bootstrap. */
+  private initInFlight: Promise<void> | undefined;
 
   constructor(options: ConfigManagerOptions = {}) {
     this.db = new ConfigDatabase();
@@ -387,31 +391,64 @@ export class ConfigManager {
    * loop that retries failed remote writes.
    *
    * Safe to call multiple times — only runs once.
+   *
+   * If `dispose()` runs while this promise is pending (e.g. React Strict
+   * Mode effect cleanup), the bootstrap exits without throwing and
+   * leaves `isInitialized` false so a fresh manager instance can own
+   * the database on the next mount.
    */
   async init(): Promise<void> {
+    if (this.disposed) {
+      return;
+    }
     if (this.isInitialized) {
       return;
     }
-    this.isInitialized = true;
-
-    // Seed the database if it's empty and a seed URL is provided
-    await this.seedIfEmpty();
-
-    // Publish ApplicationContext into AppData (Session 7). Sequenced
-    // AFTER seeding so `LoggedInUserProfile` resolves against the
-    // freshly-seeded auth tables on first run, and BEFORE the REST
-    // drain so consumers reading via the mirror see identity from the
-    // very first render.
-    await this.publishApplicationContext();
-
-    // In REST mode, start the background sync drain loop
-    if (this.restUrl) {
-      this.startSyncDrain();
+    if (this.initInFlight) {
+      await this.initInFlight;
+      return;
     }
+    this.initInFlight = this.performInit();
+    try {
+      await this.initInFlight;
+    } finally {
+      this.initInFlight = undefined;
+    }
+  }
 
-    console.log(
-      `ConfigManager initialized (mode: ${this.restUrl ? "REST" : "local"})`,
-    );
+  private async performInit(): Promise<void> {
+    try {
+      // Seed the database if it's empty and a seed URL is provided
+      await this.seedIfEmpty();
+      if (this.disposed) {
+        return;
+      }
+
+      // Publish ApplicationContext into AppData (Session 7). Sequenced
+      // AFTER seeding so `LoggedInUserProfile` resolves against the
+      // freshly-seeded auth tables on first run, and BEFORE the REST
+      // drain so consumers reading via the mirror see identity from the
+      // very first render.
+      await this.publishApplicationContext();
+      if (this.disposed) {
+        return;
+      }
+
+      // In REST mode, start the background sync drain loop
+      if (this.restUrl) {
+        this.startSyncDrain();
+      }
+
+      this.isInitialized = true;
+      console.log(
+        `ConfigManager initialized (mode: ${this.restUrl ? "REST" : "local"})`,
+      );
+    } catch (err) {
+      if (this.disposed) {
+        return;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -431,6 +468,9 @@ export class ConfigManager {
 
     const appData = this.dataServices.appData;
     await appData.ready();
+    if (this.disposed) {
+      return;
+    }
 
     const profile = await this.computeLoggedInUserProfile();
     const loggedInUser: ApplicationContext['LoggedInUser'] = {
@@ -440,9 +480,24 @@ export class ConfigManager {
         : {}),
     };
 
+    const contextValues: Record<string, unknown> = {
+      AppId: this.appId,
+      LoggedInUser: loggedInUser,
+      ImpersonatedUser: null,
+      LoggedInUserProfile: profile,
+    };
+
+    const publishRow = appData.publishNamedRow?.bind(appData);
+    if (publishRow) {
+      await publishRow(APPLICATION_CONTEXT_NAME, contextValues);
+      return;
+    }
+
     // Sequential — `AppDataMirror.set` reads `byName` after each
     // round-trip, so awaiting in order keeps the four keys on a
-    // single row instead of racing four inserts.
+    // single row instead of racing four inserts. (Fallback when the
+    // mirror does not implement `publishNamedRow`, e.g. minimal test
+    // fakes.)
     await appData.set(APPLICATION_CONTEXT_NAME, 'AppId', this.appId);
     await appData.set(APPLICATION_CONTEXT_NAME, 'LoggedInUser', loggedInUser);
     await appData.set(APPLICATION_CONTEXT_NAME, 'ImpersonatedUser', null);
@@ -490,6 +545,11 @@ export class ConfigManager {
    * Stops the PENDING_SYNC drain loop and closes the database.
    */
   dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    this.isInitialized = false;
     if (this.drainIntervalId !== undefined) {
       clearInterval(this.drainIntervalId);
       this.drainIntervalId = undefined;

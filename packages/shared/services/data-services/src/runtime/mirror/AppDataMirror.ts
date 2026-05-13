@@ -182,6 +182,29 @@ export class AppDataMirror {
     return config;
   }
 
+  /**
+   * Writes every key for a named AppData row in **one** hub round-trip.
+   * Used by `ConfigManager.publishApplicationContext` so a new window
+   * does not queue four separate IndexedDB writes behind a busy
+   * SharedWorker (e.g. a large grid subscription in another view).
+   *
+   * Merges with any existing row by `name` so unrelated keys stay
+   * intact; keys in `values` overwrite / add.
+   */
+  async publishNamedRow(name: string, values: Record<string, unknown>): Promise<void> {
+    const row = this.byName.get(name);
+    const config: AppDataConfig = row
+      ? { ...rowToConfig(row), values: { ...row.values, ...values } }
+      : {
+          configId: '',
+          name,
+          isPublic: false,
+          values: { ...values },
+          userId: this.userId === PUBLIC_USER_ID ? PUBLIC_USER_ID : this.userId,
+        };
+    await this.upsertConfig(config);
+  }
+
   /** Delete an AppData row by configId. Hub removes from IndexedDB
    *  and broadcasts the delete delta. */
   async remove(configId: string): Promise<void> {

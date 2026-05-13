@@ -68,6 +68,11 @@ function createFakeAppData(): AppDataMirrorHandle & {
     ready() {
       return readyPromise;
     },
+    async publishNamedRow(name, values) {
+      for (const [key, value] of Object.entries(values)) {
+        await handle.set(name, key, value);
+      }
+    },
   };
   return Object.assign(handle, { store, readyResolve });
 }

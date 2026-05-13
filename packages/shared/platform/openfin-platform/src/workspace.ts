@@ -40,6 +40,10 @@ import { createWorkspacePersistenceOverride } from './workspacePersistence';
 import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
 import { DEFAULT_APP_ID, DEFAULT_USER_ID } from './registryHostEnv';
+import {
+  openChildToolWindow as openChildWindow,
+  openDataProvidersToolWindow,
+} from './openChildToolWindow.js';
 
 /**
  * Read the current theme from this window's documentElement.
@@ -472,10 +476,7 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
   },
 
   [ACTION_OPEN_DATA_PROVIDERS]: async () => {
-    const scope = getPlatformDefaultScope();
-    await openChildWindow("data-providers", "/dataproviders", 1180, 760, {
-      customData: { appId: scope.appId, userId: scope.userId },
-    });
+    await openDataProvidersToolWindow();
   },
 
   [ACTION_OPEN_CONFIG_BROWSER]: async () => {
@@ -584,69 +585,6 @@ const dockActionHandlers: Record<string, (customData?: any) => Promise<void>> = 
     }
   },
 };
-
-/**
- * Open or bring-to-front a child window (dock editor, registry editor, import config).
- *
- * `wrapSync` never throws — it just returns a handle. To decide whether the
- * window actually exists we call `getInfo()`, which resolves only for real
- * windows. This avoids a silent-failure mode where a handle claims to
- * succeed `setAsForeground()` on a non-existent window and nothing opens.
- */
-async function openChildWindow(
-  name: string,
-  path: string,
-  width: number,
-  height: number,
-  extraOptions?: Record<string, any>,
-): Promise<void> {
-  console.log(`[openChildWindow] Opening "${name}" at "${path}"`);
-
-  // 1. Does the window actually exist? Use getInfo to probe.
-  // The probe THROWS when the window doesn't exist — that's the success path
-  // here (we'll fall through and create it). We swallow the error and log a
-  // plain message so it doesn't render as a red stack trace in DevTools.
-  try {
-    const existing = fin.Window.wrapSync({ uuid: fin.me.identity.uuid, name });
-    await existing.getInfo();              // throws if the window doesn't exist
-    await existing.setAsForeground();
-    console.log(`[openChildWindow] Brought existing "${name}" to front.`);
-    return;
-  } catch {
-    console.debug(`[openChildWindow] "${name}" does not exist; will create.`);
-  }
-
-  // 2. Create a new window.
-  let origin: string;
-  try {
-    const app = await fin.Application.getCurrent();
-    const manifest: Record<string, unknown> = await app.getManifest();
-    const platformConfig = manifest["platform"] as Record<string, string> | undefined;
-    const providerUrl = platformConfig?.["providerUrl"] ?? "";
-    origin = new URL(providerUrl).origin;
-  } catch (originErr) {
-    console.error(`[openChildWindow] Could not determine origin for "${name}"`, originErr);
-    return;
-  }
-
-  try {
-    await fin.Window.create({
-      name,
-      url: `${origin}${path}`,
-      defaultWidth: width,
-      defaultHeight: height,
-      autoShow: true,
-      frame: true,
-      resizable: true,
-      saveWindowState: true,
-      contextMenu: true,
-      ...extraOptions,
-    });
-    console.log(`[openChildWindow] Created window "${name}" at ${origin}${path}`);
-  } catch (createErr) {
-    console.error(`[openChildWindow] Failed to create "${name}"`, createErr);
-  }
-}
 
 // ─── Workspace component registration ────────────────────────────────
 

@@ -84,7 +84,8 @@ const LOADING = <div style={{ padding: 16 }}>Loading...</div>;
 // is here so future commits can migrate identity reads onto it.
 async function createRuntimeForViews(): Promise<RuntimePort> {
   if (isOpenFin()) {
-    return OpenFinRuntime.create();
+    const rt = await OpenFinRuntime.create();
+    return rt;
   }
   return new BrowserRuntime({
     identity: {

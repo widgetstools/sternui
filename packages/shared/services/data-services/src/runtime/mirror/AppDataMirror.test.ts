@@ -136,6 +136,41 @@ describe('AppDataMirror — single-mirror', () => {
     });
   });
 
+  it('publishNamedRow merges keys in a single hub upsert', async () => {
+    await rig.hydrate();
+    const hub = rig.hub;
+    let hubUpserts = 0;
+    const orig = hub.handleAppDataRequest.bind(hub);
+    hub.handleAppDataRequest = (port, req) => {
+      if (req.kind === 'appdata-set') hubUpserts++;
+      return orig(port, req);
+    };
+    try {
+      const m = rig.mountMirror();
+      await m.attach();
+      await m.ready();
+
+      hubUpserts = 0;
+      await m.publishNamedRow('ApplicationContext', {
+        hostName: 'h',
+        hostVersion: 'v',
+        appName: 'a',
+        appVersion: '1',
+      });
+      expect(hubUpserts).toBe(1);
+      expect(m.get('ApplicationContext', 'hostName')).toBe('h');
+      expect(m.get('ApplicationContext', 'appVersion')).toBe('1');
+
+      hubUpserts = 0;
+      await m.set('Other', 'x', 1);
+      await m.set('Other', 'y', 2);
+      await m.set('Other', 'z', 3);
+      expect(hubUpserts).toBe(3);
+    } finally {
+      hub.handleAppDataRequest = orig;
+    }
+  });
+
   it('subscribe fires after each mutation', async () => {
     const m = rig.mountMirror();
     await m.attach();

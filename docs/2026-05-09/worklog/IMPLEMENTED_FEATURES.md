@@ -1,3 +1,54 @@
+## 2026-05-13 — Data provider editor: same OpenFin path as dock (manifest URL + `?id=`)
+
+`openProviderEditorPopout` no longer builds the URL from `window.location.origin`
+inside OpenFin. Workspace **Views** often run at an origin or path that is not
+the Vite app root, so the old code could open the wrong document or a cold
+second app — feeling like a long hang before the editor appeared. The grid
+toolbar now calls `openDataProvidersToolWindow()` from `@starui/openfin-platform`,
+which matches the dock: manifest `platform.providerUrl` origin, window name
+`data-providers`, the same `customData` scope (`appId` / `userId`), and optional
+`?id=<providerId>` on the path. There is **no** separate IAB/context channel;
+selection is URL-only (`DataProviders.tsx` → `initialProviderId`).
+
+Shared helpers: `openChildToolWindow` (focus + `navigate` when the target URL
+differs) lives in `openChildToolWindow.ts`; dock handlers and
+`ACTION_OPEN_DATA_PROVIDERS` use it.
+
+Touched: `apps/markets-ui-react-reference/src/dataProvidersPopout.ts`,
+`packages/shared/platform/openfin-platform/src/{openChildToolWindow.ts,workspace.ts,internal/customActions.ts,index.ts}`.
+
+Temporary `[data-providers-trace]` / `traceDataProvidersWindow` instrumentation
+used while debugging popout timing has been **removed** (no dedicated trace
+module; `openChildToolWindow` keeps normal `console.log` / `console.debug` only).
+
+## 2026-05-13 — ApplicationContext: one AppData upsert (`publishNamedRow`)
+
+`ConfigManager.publishApplicationContext()` used to `await` four sequential
+`appData.set()` calls. Each round-trip queues on the SharedWorker; opening the
+Data Providers tool window while a large grid is busy could stall `init()` for
+several seconds before the lazy UI chunk loaded. `AppDataMirror` now implements
+`publishNamedRow(name, values)` — a single `upsertConfig` that merges keys into
+the named row. `AppDataMirrorHandle` exposes it optionally; test fakes can omit
+it and keep the four-`set` fallback.
+
+Touched: `packages/shared/services/config-service/src/{types.ts,ConfigManager.ts,configManager.applicationContext.test.ts,configManager.impersonation.test.ts}`,
+`packages/shared/services/data-services/src/runtime/mirror/{AppDataMirror.ts,AppDataMirror.test.ts}`.
+
+## 2026-05-13 — ConfigManager init vs dispose race (StrictMode / effect cleanup)
+
+`ConfigManager.init()` no longer sets `isInitialized` before async work finishes.
+A `disposed` flag plus single-flight `initInFlight` lets `dispose()` close Dexie
+while `init()` is pending without surfacing Dexie `DatabaseClosedError` to the
+console: aborted inits resolve quietly, `publishApplicationContext` returns
+after `appData.ready()` if the manager was torn down, and `dispose()` is
+idempotent. Fixes noisy errors and perceived stalls when React Strict Mode or
+`ConfigServiceProvider` effect cleanup disposes a manager whose `init()` is
+still running.
+
+Touched: `packages/shared/services/config-service/src/ConfigManager.ts`,
+`packages/shared/services/config-service/src/configManager.applicationContext.test.ts`
+(repair accidental raw NUL bytes in fake AppData key delimiter + new test).
+
 ## 2026-05-13 — Data Provider editor grids use MarketsGrid AG Grid theme
 
 `@starui/widgets-react` `ColumnsTab` and `AppDataFields` resolve the AG Grid

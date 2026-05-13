@@ -2,11 +2,12 @@
  * data-providers-popout — open the DataProvider editor as a popout.
  *
  * Strategy:
- *   1. Inside OpenFin → `fin.Window.create({...})`. Plain fin.Window
- *      (NOT a workspace platform window) so closing it does not trip
- *      the dock's auto-quit logic.
+ *   1. Inside OpenFin → same path as the dock: `openDataProvidersToolWindow`
+ *      from `@starui/openfin-platform` (manifest `providerUrl` origin,
+ *      named window `data-providers`, `customData` scope, optional `?id=`).
+ *      No IAB / cross-window handoff — the selected provider is URL-only.
  *   2. Outside OpenFin (plain browser, vite dev server) →
- *      `window.open(url, name, features)`.
+ *      `window.open(url, name, features)` with name `data-providers`.
  *
  * Both paths use the same fixed window name so a second click focuses
  * the existing popout instead of spawning a duplicate. Optional
@@ -17,7 +18,9 @@
  * `App.tsx` and renders the v2 DataProviderEditor.
  */
 
-const POPOUT_NAME = 'marketsui-data-provider-editor';
+import { openDataProvidersToolWindow } from '@starui/openfin-platform';
+
+const POPOUT_NAME = 'data-providers';
 const POPOUT_WIDTH = 1180;
 const POPOUT_HEIGHT = 760;
 
@@ -33,7 +36,7 @@ export async function openProviderEditorPopout(opts: OpenProviderEditorOpts = {}
   const url = buildUrl(route, opts.providerId);
 
   if (isOpenFin()) {
-    await openInOpenFin(url);
+    await openDataProvidersToolWindow({ providerId: opts.providerId });
     return;
   }
   openInBrowser(url);
@@ -52,74 +55,6 @@ function buildUrl(route: string, providerId?: string): string {
 
 function isOpenFin(): boolean {
   return typeof (globalThis as { fin?: unknown }).fin !== 'undefined';
-}
-
-// Loose surface for the bits we touch on `fin`. The ambient `fin`
-// global ships from `src/types/fin.d.ts` (typed via `@openfin/core`),
-// but pinning to that type drags the whole OpenFin type surface
-// across release boundaries — opt for a minimal hand-rolled subset
-// instead so the helper stays version-tolerant.
-interface FinWindowHandle {
-  isShowing(): Promise<boolean>;
-  bringToFront(): Promise<unknown>;
-  focus(): Promise<unknown>;
-  show(): Promise<unknown>;
-  navigate(url: string): Promise<unknown>;
-}
-interface FinSurface {
-  me: { identity: { uuid: string } };
-  Window: {
-    wrap(id: { uuid: string; name: string }): Promise<FinWindowHandle>;
-    create(opts: Record<string, unknown>): Promise<unknown>;
-  };
-}
-
-async function openInOpenFin(url: string): Promise<void> {
-  // `fin` is a true global (declared as `const fin` in fin.d.ts —
-  // not a property on `window`). Reach through `globalThis` so the
-  // ambient declaration isn't strictly required at type-check time.
-  const fin = (globalThis as unknown as { fin?: FinSurface }).fin;
-  if (!fin) {
-    openInBrowser(url);
-    return;
-  }
-  try {
-    const existing = await fin.Window.wrap({
-      uuid: fin.me.identity.uuid,
-      name: POPOUT_NAME,
-    });
-    // If the window exists, just focus it.
-    if (await existing.isShowing()) {
-      await existing.bringToFront();
-      await existing.focus();
-      // Reload to the requested URL so a subsequent open with a
-      // different providerId re-targets the form.
-      await existing.navigate(url);
-      return;
-    }
-    await existing.show();
-    await existing.bringToFront();
-  } catch {
-    try {
-      await fin.Window.create({
-        name: POPOUT_NAME,
-        url,
-        defaultWidth: POPOUT_WIDTH,
-        defaultHeight: POPOUT_HEIGHT,
-        defaultCentered: true,
-        autoShow: true,
-        frame: true,
-        resizable: true,
-        saveWindowState: false,
-      });
-    } catch (err) {
-      // OpenFin failed → fall back to plain browser window so the
-      // user still gets somewhere to author their providers.
-      // eslint-disable-next-line no-console
-      console.warn('[provider-editor-popout] fin.Window.create failed; falling back to window.open', err);
-      openInBrowser(url);
-    }
-  }
 }
 
 function openInBrowser(url: string): void {
