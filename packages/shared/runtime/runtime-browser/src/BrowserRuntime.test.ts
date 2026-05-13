@@ -80,6 +80,39 @@ describe('BrowserRuntime', () => {
 
       expect(observed).toEqual([]);
     });
+
+    it('setTheme writes [data-theme], localStorage, and fires subscribers', async () => {
+      document.documentElement.setAttribute('data-theme', 'light');
+      window.localStorage.removeItem('starui:theme');
+      rt = new BrowserRuntime({ url: 'http://localhost/' });
+      const observed: Theme[] = [];
+      rt.onThemeChanged((t) => observed.push(t));
+
+      rt.setTheme('dark');
+      // setTheme is synchronous; MutationObserver may also fire,
+      // but applyThemeChange dedups so we only get one emit.
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+      expect(window.localStorage.getItem('starui:theme')).toBe('dark');
+      expect(observed).toEqual(['dark']);
+    });
+
+    it('setTheme is idempotent — no events fire for the current theme', () => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      rt = new BrowserRuntime({ url: 'http://localhost/' });
+      const observed: Theme[] = [];
+      rt.onThemeChanged((t) => observed.push(t));
+      rt.setTheme('dark');
+      expect(observed).toEqual([]);
+    });
+
+    it('detectTheme falls back to localStorage when [data-theme] is absent', () => {
+      document.documentElement.removeAttribute('data-theme');
+      window.localStorage.setItem('starui:theme', 'dark');
+      rt = new BrowserRuntime({ url: 'http://localhost/' });
+      expect(rt.getTheme()).toBe('dark');
+    });
   });
 
   describe('window lifecycle', () => {

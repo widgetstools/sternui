@@ -25,28 +25,13 @@ export function ConfigBrowserPopout() {
     document.title = 'Config Browser · MarketsGrid Demo';
   }, []);
 
-  // Match the demo's default theme so the popup doesn't flash-of-light
-  // before any user toggle. Read from localStorage (same shared storage
-  // the demo app uses for its `gc-theme` key) so both windows stay in
-  // lockstep when the user toggles in the parent.
-  useEffect(() => {
-    const apply = () => {
-      let theme = 'dark';
-      try {
-        const stored = localStorage.getItem('gc-theme');
-        if (stored === 'light') theme = 'light';
-      } catch { /* ignore */ }
-      document.documentElement.setAttribute('data-theme', theme);
-    };
-    apply();
-    // Repaint on `storage` events — fires when the OTHER window
-    // (the parent demo) flips the theme key, giving cross-window sync.
-    const handler = (e: StorageEvent) => {
-      if (e.key === 'gc-theme') apply();
-    };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
-  }, []);
+  // Theme sync is owned by the runtime. The popup is mounted under the
+  // same `<AppShell>` as the parent app, so its `BrowserRuntime`
+  // listens to the `starui:theme` BroadcastChannel and applies updates
+  // from the parent window automatically. Initial paint reads from the
+  // canonical localStorage key via `applyTheme(getTheme())` in main.tsx.
+  // Previously this component hand-rolled `localStorage` + a `storage`
+  // event listener against the legacy `gc-theme` key.
 
   return (
     <div style={{

@@ -17,6 +17,7 @@ import {
 } from '@starui/openfin-platform/config';
 import { createConfigBrowserAction } from '@starui/config-browser';
 import { Sun, Moon, User, Database } from 'lucide-react';
+import { useHost } from '@starui/host-wrapper-react';
 import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
@@ -221,10 +222,13 @@ export function App() {
 
 function AppInner() {
   const [rowData] = useState(() => generateOrders(500));
-  const [isDark, setIsDark] = useState(() => {
-    try { return localStorage.getItem('gc-theme') !== 'light'; }
-    catch { return true; }
-  });
+  // Theme flows through the runtime's single state holder; `setTheme`
+  // writes DOM + localStorage (`starui:theme`) + cross-window broadcast
+  // in one call. The previous `gc-theme` key and manual setAttribute
+  // are gone — both windows (App and ConfigBrowserPopout) read the
+  // same canonical key.
+  const { theme, setTheme } = useHost();
+  const isDark = theme === 'dark';
   const [view, setView] = useState<View>(initialView);
   // Grid API captured via onGridReady — used to stream tick updates
   // through applyTransactionAsync without replacing rowData.
@@ -250,12 +254,8 @@ function AppInner() {
   const [configManager, setConfigManager] = useState<ConfigManager | null>(null);
   const [cfgError, setCfgError] = useState<Error | null>(null);
 
-  // Apply data-theme attribute to root and persist preference
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    try { localStorage.setItem('gc-theme', isDark ? 'dark' : 'light'); }
-    catch { /* */ }
-  }, [isDark]);
+  // Theme writes are owned by the runtime — see `setTheme` from
+  // `useHost()` below. No local effect needed.
 
   // Reflect the view in the URL so reloads / shared links land in the
   // same mode. `replaceState` to avoid polluting browser history on
@@ -270,7 +270,7 @@ function AppInner() {
     window.history.replaceState(null, '', next);
   }, [view]);
 
-  const theme = isDark ? darkTheme : lightTheme;
+  const agTheme = isDark ? darkTheme : lightTheme;
 
   // Init ConfigManager once on mount. Mode is env-driven:
   //
@@ -530,7 +530,7 @@ function AppInner() {
           </div>
 
           <button
-            onClick={() => setIsDark(!isDark)}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: 26, height: 26, borderRadius: 5,
@@ -583,7 +583,7 @@ function AppInner() {
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
-            theme={theme}
+            theme={agTheme}
             rowIdField="id"
             storage={storage}
             appId={APP_ID}
@@ -603,7 +603,7 @@ function AppInner() {
         </div>
       ) : view === 'dashboard' ? (
         <Dashboard
-          theme={theme}
+          theme={agTheme}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           storage={storage}

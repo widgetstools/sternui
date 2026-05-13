@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import App from "./App";
-import { ThemeProvider } from "./context/ThemeContext";
 import "./index.css";
 import { applyTheme, getTheme } from "@starui/design-system";
 applyTheme(getTheme());
@@ -172,60 +171,58 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 root.render(
   <React.StrictMode>
-    <ThemeProvider>
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Routes>
-          {/* OpenFin platform provider — runs in a hidden window on
-              startup. Does its own bootstrap; NOT wrapped in
-              HostWrapper. */}
-          <Route path="/platform/provider" element={<Provider />} />
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <Routes>
+        {/* OpenFin platform provider — runs in a hidden window on
+            startup. Does its own bootstrap; NOT wrapped in
+            HostWrapper. */}
+        <Route path="/platform/provider" element={<Provider />} />
 
-          {/* Every other route — view + editor windows — gets the
-              HostWrapper seam via the layout route. */}
-          <Route element={<ViewRoutesLayout />}>
-            {/* Main app shell */}
-            <Route path="/" element={<App />} />
+        {/* Every other route — view + editor windows — gets the
+            HostWrapper seam via the layout route. */}
+        <Route element={<ViewRoutesLayout />}>
+          {/* Main app shell */}
+          <Route path="/" element={<App />} />
 
-            {/* Sample views — launched as OpenFin Views from the dock */}
-            <Route path="/views/view1" element={<View1 />} />
-            <Route path="/views/view2" element={<View2 />} />
+          {/* Sample views — launched as OpenFin Views from the dock */}
+          <Route path="/views/view1" element={<View1 />} />
+          <Route path="/views/view2" element={<View2 />} />
 
-            {/* Blotters — MarketsGrid hosted inside the reference app.
-                DexieAdapter persists profile state locally; theme flows
-                through the ambient <ThemeProvider>. */}
-            <Route
-              path="/blotters/marketsgrid"
-              element={
-                <React.Suspense fallback={LOADING}>
-                  <BlottersMarketsGrid />
-                </React.Suspense>
-              }
-            />
+          {/* Blotters — MarketsGrid hosted inside the reference app.
+              DexieAdapter persists profile state locally; theme flows
+              through the runtime port (BrowserRuntime / OpenFinRuntime). */}
+          <Route
+            path="/blotters/marketsgrid"
+            element={
+              <React.Suspense fallback={LOADING}>
+                <BlottersMarketsGrid />
+              </React.Suspense>
+            }
+          />
 
-            {/* DataProvider admin — author STOMP / REST / Mock providers
-                that any blotter in this app can later bind to. */}
-            <Route
-              path="/dataproviders"
-              element={
-                <React.Suspense fallback={LOADING}>
-                  <DataProviders />
-                </React.Suspense>
-              }
-            />
+          {/* DataProvider admin — author STOMP / REST / Mock providers
+              that any blotter in this app can later bind to. */}
+          <Route
+            path="/dataproviders"
+            element={
+              <React.Suspense fallback={LOADING}>
+                <DataProviders />
+              </React.Suspense>
+            }
+          />
 
-            {/* Utility windows — opened by dock toolbar buttons */}
-            <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
-            <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
-            <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
-            <Route path="/rename-view-tab"  element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+          {/* Utility windows — opened by dock toolbar buttons */}
+          <Route path="/config-browser"   element={<React.Suspense fallback={LOADING}><ConfigBrowser /></React.Suspense>} />
+          <Route path="/import-config"    element={<React.Suspense fallback={LOADING}><ImportConfig /></React.Suspense>} />
+          <Route path="/workspace-setup"  element={<React.Suspense fallback={LOADING}><WorkspaceSetup /></React.Suspense>} />
+          <Route path="/rename-view-tab"  element={<React.Suspense fallback={LOADING}><RenameViewTab /></React.Suspense>} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>,
 );

@@ -5,6 +5,7 @@ import { DexieAdapter, activeProfileKey } from '@starui/core';
 import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
 import { Button, cn } from '@starui/ui';
+import { useHost } from '@starui/host-wrapper-react';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -133,10 +134,13 @@ export function App() {
 
 function AppInner() {
   const [rowData] = useState(() => generateOrders(500));
-  const [isDark, setIsDark] = useState(() => {
-    try { return localStorage.getItem('gc-theme') !== 'light'; }
-    catch { return true; }
-  });
+  // Theme flows through the runtime's single state holder — `useHost()`
+  // returns the live value and gives us `setTheme` as a one-call writer
+  // that updates DOM, localStorage (`starui:theme`), and broadcasts to
+  // peer windows. The previous `gc-theme` localStorage key + manual
+  // `setAttribute` is gone; the runtime owns all three.
+  const { theme, setTheme } = useHost();
+  const isDark = theme === 'dark';
   const [view, setView] = useState<View>(initialView);
   const [fixtureName] = useState<FixtureName | null>(initialFixtureName);
   // Grid API captured via onGridReady — used to stream tick updates
@@ -153,13 +157,6 @@ function AppInner() {
   // otherwise MarketsGrid briefly boots with the default profile and
   // then flips, producing a visible style flash.
   const [seeded, setSeeded] = useState(false);
-
-  // Apply data-theme attribute to root and persist preference
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    try { localStorage.setItem('gc-theme', isDark ? 'dark' : 'light'); }
-    catch { /* */ }
-  }, [isDark]);
 
   // Reflect the view in the URL so reloads / shared links land in the
   // same mode. `replaceState` to avoid polluting browser history on
@@ -279,7 +276,7 @@ function AppInner() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setIsDark(!isDark)}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             className="h-[26px] w-[26px]"
           >

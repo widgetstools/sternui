@@ -6,6 +6,10 @@ import type {
   Theme,
   Unsubscribe,
 } from '@starui/runtime-port';
+import {
+  THEME_BROADCAST_CHANNEL,
+  THEME_STORAGE_KEY,
+} from '@starui/runtime-port';
 import { resolveBrowserIdentity, type IdentityOverrides } from './identity.js';
 
 export interface BrowserRuntimeOptions {
@@ -64,6 +68,14 @@ export class BrowserRuntime implements RuntimePort {
   private currentTheme: Theme;
   private disposed = false;
 
+  /**
+   * Cross-window theme broadcast channel. Used to keep peer tabs /
+   * popouts on the same origin in lockstep without each one re-
+   * persisting (the channel echoes back to peers; the local writer
+   * already updated its own state).
+   */
+  private themeBroadcast: BroadcastChannel | null = null;
+
   constructor(private readonly options: BrowserRuntimeOptions = {}) {
     const url = options.url ?? (typeof window !== 'undefined' ? window.location.href : '');
     const search = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
@@ -72,6 +84,7 @@ export class BrowserRuntime implements RuntimePort {
 
     if (typeof window !== 'undefined') {
       this.attachThemeWatchers();
+      this.attachThemeBroadcast();
       this.attachVisibilityWatcher();
       this.attachUnloadWatcher();
     }
@@ -182,10 +195,26 @@ export class BrowserRuntime implements RuntimePort {
 
   // ─── internals ───────────────────────────────────────────────────────
 
+  /**
+   * Resolve the initial theme value at construct time. Precedence:
+   *   1. `[data-theme]` on `<html>` — explicit programmatic write
+   *      (e.g. design-system's `applyTheme()` ran before us).
+   *   2. localStorage `THEME_STORAGE_KEY` — last persisted choice.
+   *   3. `prefers-color-scheme` — OS preference.
+   *   4. `'light'` — final fallback.
+   */
   private detectTheme(): Theme {
     if (typeof document !== 'undefined') {
       const explicit = document.documentElement.getAttribute('data-theme');
       if (explicit === 'dark' || explicit === 'light') return explicit;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+        if (stored === 'dark' || stored === 'light') return stored;
+      } catch {
+        /* storage access denied — fall through */
+      }
     }
     if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -193,7 +222,48 @@ export class BrowserRuntime implements RuntimePort {
     return 'light';
   }
 
-  private setTheme(theme: Theme): void {
+  /**
+   * Public `RuntimePort.setTheme` — the single writer. Updates DOM,
+   * storage, and the cross-window broadcast channel, then fires local
+   * subscribers. Idempotent; no-op when disposed.
+   */
+  setTheme(theme: Theme): void {
+    if (this.disposed) return;
+    if (theme === this.currentTheme) return;
+    this.writeTheme(theme);
+    // Notify peer tabs/popouts. The receiving runtime calls
+    // `applyThemeChange` directly (no re-broadcast).
+    if (this.themeBroadcast) {
+      try { this.themeBroadcast.postMessage(theme); } catch { /* swallow */ }
+    }
+    this.applyThemeChange(theme);
+  }
+
+  /**
+   * Internal: write the theme to DOM + localStorage. Skipped for
+   * peer-received broadcasts (they reach `applyThemeChange` directly).
+   */
+  private writeTheme(theme: Theme): void {
+    if (typeof document !== 'undefined') {
+      try { document.documentElement.setAttribute('data-theme', theme); } catch { /* swallow */ }
+      // Defensive: some AG-Grid integrations read body.dataset.agThemeMode.
+      // Mirroring `[data-theme]` here matches the previous platform
+      // behaviour (`@starui/openfin-platform/workspace.ts` writes it too).
+      try { document.body.dataset['agThemeMode'] = theme; } catch { /* swallow */ }
+    }
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* swallow */ }
+    }
+  }
+
+  /**
+   * Internal: update state + notify subscribers. Used by `setTheme`,
+   * by the broadcast-channel listener, by the MutationObserver, and
+   * by the `matchMedia` listener. The DOM/storage writes are NOT
+   * done here — that's `writeTheme`'s job — so peer-received changes
+   * don't loop back through the broadcast channel.
+   */
+  private applyThemeChange(theme: Theme): void {
     if (theme === this.currentTheme) return;
     this.currentTheme = theme;
     for (const fn of this.themeListeners) {
@@ -210,7 +280,7 @@ export class BrowserRuntime implements RuntimePort {
     //     resyncs to OS preference.
     if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = () => this.setTheme(this.detectTheme());
+      const handler = () => this.applyThemeChange(this.detectTheme());
       // Some browsers (older Safari) need addListener; modern uses addEventListener.
       if (typeof mq.addEventListener === 'function') {
         mq.addEventListener('change', handler);
@@ -223,11 +293,42 @@ export class BrowserRuntime implements RuntimePort {
       }
     }
 
-    // (2) [data-theme] mutations on <html>.
+    // (2) [data-theme] mutations on <html>. External callers writing
+    //     directly to the attribute (legacy code paths, browser
+    //     extensions) sync into our state via this observer.
     if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
-      const observer = new MutationObserver(() => this.setTheme(this.detectTheme()));
+      const observer = new MutationObserver(() => this.applyThemeChange(this.detectTheme()));
       observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
       this.disposers.push(() => observer.disconnect());
+    }
+  }
+
+  /**
+   * Open a BroadcastChannel so peer tabs / popouts on the same origin
+   * stay in lockstep. Incoming messages update DOM + storage + local
+   * state (via the observer + `applyThemeChange`); we don't echo them
+   * back — the channel itself fans out to peers.
+   */
+  private attachThemeBroadcast(): void {
+    if (typeof BroadcastChannel === 'undefined') return;
+    try {
+      this.themeBroadcast = new BroadcastChannel(THEME_BROADCAST_CHANNEL);
+      this.themeBroadcast.addEventListener('message', (ev: MessageEvent) => {
+        const next = ev.data;
+        if (next !== 'dark' && next !== 'light') return;
+        // Peer broadcast → write DOM + storage locally so other watchers
+        // (CSS-driven UI, MutationObserver) see a consistent state, then
+        // update internal state. No re-broadcast (the channel already
+        // fanned out).
+        this.writeTheme(next);
+        this.applyThemeChange(next);
+      });
+      this.disposers.push(() => {
+        try { this.themeBroadcast?.close(); } catch { /* swallow */ }
+        this.themeBroadcast = null;
+      });
+    } catch {
+      /* BroadcastChannel unsupported / locked down — no-op */
     }
   }
 

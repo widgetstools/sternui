@@ -15,6 +15,10 @@ export type {
   Unsubscribe,
 } from './types.js';
 
-export { LOGGED_IN_USER_ID } from './types.js';
+export {
+  LOGGED_IN_USER_ID,
+  THEME_STORAGE_KEY,
+  THEME_BROADCAST_CHANNEL,
+} from './types.js';
 
 export type { RuntimePort } from './RuntimePort.js';

@@ -17,6 +17,27 @@ export const LOGGED_IN_USER_ID = 'dev1';
 
 export type Theme = 'light' | 'dark';
 
+/**
+ * Canonical localStorage key for the persisted theme.
+ *
+ * Single source of truth: every runtime + the design-system's
+ * `applyTheme()` / `getTheme()` read and write to this one key.
+ * Previously apps used divergent keys (`gc-theme`, `theme`,
+ * `@starui/theme`); a window persisting one key wouldn't see the
+ * preference set by another, so theme would silently reset on a
+ * cross-window navigation.
+ */
+export const THEME_STORAGE_KEY = 'starui:theme';
+
+/**
+ * BroadcastChannel name used by `BrowserRuntime` to keep multiple
+ * tabs / popouts in lockstep. The receiving runtime applies the
+ * payload without re-broadcasting (the channel itself fans-out to
+ * peers; echoing back would loop). OpenFin uses its own IAB topic
+ * and ignores this channel.
+ */
+export const THEME_BROADCAST_CHANNEL = 'starui:theme';
+
 export type Unsubscribe = () => void;
 
 /**

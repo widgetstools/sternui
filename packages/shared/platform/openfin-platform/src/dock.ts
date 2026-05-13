@@ -753,14 +753,23 @@ function buildDock3Override() {
 
             // Side effects we own (SDK doesn't know about these):
             //   • Provider window's data-theme attribute (drives our CSS vars)
+            //   • body.dataset.agThemeMode (some AG-Grid integrations read it)
+            //   • Persist to the canonical `starui:theme` storage key — same
+            //     key the `RuntimePort` implementations read/write so a
+            //     provider-window write is visible to child windows on next
+            //     boot.
             //   • Dock icon variants (we manage {dark, light} per icon)
-            //   • IAB notify our content child windows (dock editor, etc.)
-            try { document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light"); } catch { /* */ }
-            try { localStorage.setItem("theme", isDark ? "dark" : "light"); } catch { /* */ }
+            //   • IAB notify content child windows. Payload includes both
+            //     `theme` (new schema) and `isDark` (legacy) so windows
+            //     running pre-runtime-reducer code stay in sync.
+            const themeStr = isDark ? "dark" : "light";
+            try { document.documentElement.setAttribute("data-theme", themeStr); } catch { /* */ }
+            try { document.body.dataset["agThemeMode"] = themeStr; } catch { /* */ }
+            try { localStorage.setItem("starui:theme", themeStr); } catch { /* */ }
             await applyDock3Config();
-            console.log(`[Dock3 theme] About to publish IAB '${IAB_THEME_CHANGED}' with { isDark: ${isDark} } from uuid='${fin.me?.identity?.uuid}'.`);
+            console.log(`[Dock3 theme] About to publish IAB '${IAB_THEME_CHANGED}' with { theme: '${themeStr}', isDark: ${isDark} } from uuid='${fin.me?.identity?.uuid}'.`);
             try {
-              await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
+              await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { theme: themeStr, isDark });
               console.log("[Dock3 theme] IAB publish resolved.");
             } catch (iabErr) {
               console.warn("[Dock3 theme] IAB publish failed:", iabErr);
