@@ -232,13 +232,14 @@ describe('FormattingToolbar — alignment', () => {
   it.each(['Left', 'Center', 'Right'] as const)(
     '"%s" alignment button writes alignment.horizontal',
     async (label) => {
+      const buttonName = `Align ${label.toLowerCase()}`;
       const fake = makeFakeApi(COLS, ['price']);
       mountToolbar({ platform, api: fake.api });
 
       await waitFor(() =>
-        expect((screen.getByRole('button', { name: label }) as HTMLButtonElement).disabled).toBe(false),
+        expect((screen.getByRole('button', { name: buttonName }) as HTMLButtonElement).disabled).toBe(false),
       );
-      act(() => fireEvent.mouseDown(screen.getByRole('button', { name: label })));
+      act(() => fireEvent.mouseDown(screen.getByRole('button', { name: buttonName })));
 
       expect(
         getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.alignment?.horizontal,
@@ -251,14 +252,14 @@ describe('FormattingToolbar — alignment', () => {
     mountToolbar({ platform, api: fake.api });
 
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Center' }) as HTMLButtonElement).disabled).toBe(false),
+      expect((screen.getByRole('button', { name: 'Align center' }) as HTMLButtonElement).disabled).toBe(false),
     );
-    act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Center' })));
+    act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Align center' })));
     expect(
       getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.alignment?.horizontal,
     ).toBe('center');
 
-    act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Center' })));
+    act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Align center' })));
     expect(getAssignment(platform, 'price')).toEqual({ colId: 'price' });
   });
 });

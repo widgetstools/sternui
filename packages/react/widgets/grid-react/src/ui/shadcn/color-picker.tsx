@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './utils';
+import { Tooltip } from './tooltip';
 import { FormatColorPicker } from '../format-editor/FormatColorPicker';
 import { FormatPopover } from '../format-editor/FormatPopover';
 
@@ -64,23 +65,24 @@ export function ColorPickerPopover({ value, onChange, icon, disabled, allowClear
   return (
     <FormatPopover
       trigger={
-        <button
-          disabled={disabled}
-          title={title}
-          aria-label={title}
-          className={cn(
-            triggerClassName ?? 'shrink-0 rounded-[4px] ds-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
-            disabled && 'opacity-25 pointer-events-none',
-          )}
-        >
-          <span className="flex flex-col items-center gap-[1px]">
-            {icon}
-            <span
-              className="w-3.5 h-[2px] rounded-full transition-colors"
-              style={{ background: value || 'var(--ds-text-muted)' }}
-            />
-          </span>
-        </button>
+        <Tooltip content={title}>
+          <button
+            disabled={disabled}
+            aria-label={title}
+            className={cn(
+              triggerClassName ?? 'shrink-0 rounded-[4px] ds-tbtn transition-all duration-150 inline-flex items-center justify-center w-7 h-7',
+              disabled && 'opacity-25 pointer-events-none',
+            )}
+          >
+            <span className="flex flex-col items-center gap-[1px]">
+              {icon}
+              <span
+                className="w-3.5 h-[2px] rounded-full transition-colors"
+                style={{ background: value || 'var(--ds-text-muted)' }}
+              />
+            </span>
+          </button>
+        </Tooltip>
       }
       width={240}
     >

@@ -8,7 +8,7 @@
  */
 import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
-import { PopoverCompat as Popover } from '@starui/grid-react';
+import { PopoverCompat as Popover, Tooltip } from '@starui/grid-react';
 import { TemplateManager } from '../../TemplateManager';
 import { Module, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
@@ -83,18 +83,19 @@ export function ModuleLibrary({
           open={open}
           onOpenChange={setOpen}
           trigger={
-            <button
-              type="button"
-              className="fx-pill"
-              aria-label="Templates"
-              title="Templates"
-              data-testid="templates-menu-trigger"
-              disabled={state.disabled}
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            >
-              <LayoutTemplate size={13} strokeWidth={1.75} />
-              <ChevronDown size={9} strokeWidth={2} />
-            </button>
+            <Tooltip content="Column templates — apply, save, rename, or delete reusable styling presets">
+              <button
+                type="button"
+                className="fx-pill"
+                aria-label="Templates"
+                data-testid="templates-menu-trigger"
+                disabled={state.disabled}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                <LayoutTemplate size={13} strokeWidth={1.75} />
+                <ChevronDown size={9} strokeWidth={2} />
+              </button>
+            </Tooltip>
           }
         >
           <div

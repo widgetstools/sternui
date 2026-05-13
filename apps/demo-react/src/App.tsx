@@ -220,9 +220,8 @@ function AppInner() {
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '8px 12px',
-        borderBottom: '1px solid color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%)',
-        background: 'linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%, var(--ds-surface-primary) 100%)',
-        boxShadow: '0 1px 0 rgba(255, 255, 255, 0.86) inset, 0 1px 2px rgba(15, 23, 42, 0.05)',
+        borderBottom: '1px solid var(--ds-border-primary)',
+        background: 'var(--ds-surface-primary)',
         gap: 12,
       }}>
         {/* View switcher — Single Grid vs Dashboard. Pins the demo to

@@ -3,6 +3,30 @@
 AG-Grid Customization Platform — an AdapTable alternative for the MarketsUI
 FI Trading Terminal.
 
+## 2026-05-13 — Theme-aware tooltips on every formatter button
+
+The shared `<Tooltip>` primitive in `@starui/grid-react` now binds its
+surface to the design-system `--popover` / `--popover-foreground` /
+`--border` HSL tokens instead of the inverted `bg-foreground` /
+`text-background` Tailwind pair. Result: dark theme renders a dark
+tooltip with light text (matching native browser tooltips), light theme
+renders a light tooltip with dark text — both with a subtle border and
+elevation shadow so the surface is legible against similar-coloured
+chrome.
+
+Tooltip is now `forwardRef` so it can sit inside Radix
+`<PopoverTrigger asChild>` (and equivalent dropdown / hover-card
+triggers) without dropping the cloned ref + merged handlers.
+
+Every chevron / popover-trigger button in the formatter toolbar that
+previously used the native `title=` attribute now wraps its trigger in
+the styled `<Tooltip>` for visual + behavioural consistency: font-size
+trigger (Type), border trigger (Paint), currency chevron + tick chevron
+(Format), editor chevron + filter chevron + values-source `⋮`
+(Editor & Filter), templates trigger (Library), and both colour-picker
+trigger buttons (`ColorPickerPopover`). Alignment buttons retitled
+`Align left/center/right` for self-description.
+
 ## 2026-05-13 — Split global formatter into number + date slots
 
 The CELLS + ALL scope now renders TWO formatter dropdowns side-by-side —

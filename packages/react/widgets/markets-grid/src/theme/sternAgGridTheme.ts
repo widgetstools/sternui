@@ -35,7 +35,11 @@ export const sternDarkTheme = themeQuartz.withParams({
   chromeBackgroundColor: '#1A1A1B',
   columnBorder:          true,
   foregroundColor:       '#FFF',
-  headerBackgroundColor: '#2324278F',
+  // Solid cool blue-grey for the header strip, 10% darker than the
+  // previous `#1F242B` (each RGB channel × 0.9). Blue channel still
+  // sits clearly ahead of red so the tone reads unambiguously cool —
+  // just deeper, more separation from the cell surface below.
+  headerBackgroundColor: '#1C2027',
   headerFontWeight:      500,
   headerTextColor:       '#E3E3E3',
   spacing:               6,
