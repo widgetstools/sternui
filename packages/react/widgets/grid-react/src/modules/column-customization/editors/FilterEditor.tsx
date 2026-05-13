@@ -176,11 +176,11 @@ export function FilterEditor({
                         textTransform: 'uppercase',
                         borderRadius: 3,
                         border: '1px solid',
-                        borderColor: active ? 'var(--ds-accent-positive)' : 'var(--ds-border-primary)',
+                        borderColor: active ? 'var(--ds-primary)' : 'var(--ds-border-primary)',
                         background: active
-                          ? 'var(--ds-overlay-positive-soft)'
+                          ? 'var(--ds-primary-soft)'
                           : 'transparent',
-                        color: active ? 'var(--ds-accent-positive)' : 'var(--ds-text-secondary)',
+                        color: active ? 'var(--ds-primary)' : 'var(--ds-text-secondary)',
                         cursor: 'pointer',
                         transition: 'all 120ms',
                       }}

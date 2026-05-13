@@ -7,13 +7,24 @@
  * header (panel) via the stylesheet.
  */
 import { useEffect, useRef, useState } from 'react';
-import { CaseUpper, Pencil, Lock, Undo2, Redo2 } from 'lucide-react';
+import {
+  CaseUpper,
+  Grid2x2,
+  Lock,
+  MessageSquareText,
+  MousePointer2,
+  PanelTop,
+  Pencil,
+  Redo2,
+  Table2,
+  Undo2,
+} from 'lucide-react';
 import { Tooltip } from '@starui/grid-react';
 import {
   ColumnLabel,
   Hair,
   Pill,
-  ScopeToggle,
+  SegmentedToggle,
 } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
@@ -99,45 +110,52 @@ function InlineColumnLabel({
 
 export function ModuleContext({ state, actions }: Props) {
   return (
-    <div className="fx-ctx" data-module-index="01">
-      <ScopeToggle
-        target={state.target}
-        onToggle={() => actions.setTarget(state.target === 'cell' ? 'header' : 'cell')}
+    <div className="fx-ctx" data-module-index="01" data-target={state.target} data-scope={state.scope}>
+      {/* Two compact icon-only toggles — first thing the eye lands on.
+          Together they answer "what am I editing?" (cells vs headers)
+          and "for which columns?" (selected vs every column). Each
+          option carries a tooltip so the meaning is one hover away. */}
+      <SegmentedToggle
+        value={state.target}
+        options={[
+          {
+            value: 'cell',
+            icon: <Table2 size={14} strokeWidth={1.75} aria-hidden />,
+            tooltip: 'Edit cell styling',
+            testId: 'formatting-target-cell',
+          },
+          {
+            value: 'header',
+            icon: <PanelTop size={14} strokeWidth={1.75} aria-hidden />,
+            tooltip: 'Edit header styling',
+            testId: 'formatting-target-header',
+          },
+        ]}
+        onChange={(next) => actions.setTarget(next)}
+        ariaLabel="Edit target — cells or headers"
+        variant="target"
         testId="formatting-target-toggle"
       />
-      {/* Hidden siblings preserve the legacy testids that integration
-          tests query (`formatting-target-cell`, `formatting-target-header`).
-          They flip the scope to a specific value programmatically without
-          having to multi-click the toggle. */}
-      <button
-        type="button"
-        data-testid="formatting-target-cell"
-        onClick={() => actions.setTarget('cell')}
-        onMouseDown={(e) => e.preventDefault()}
-        tabIndex={-1}
-        aria-hidden
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          opacity: 0,
-          pointerEvents: state.target === 'cell' ? 'none' : 'auto',
-        }}
-      />
-      <button
-        type="button"
-        data-testid="formatting-target-header"
-        onClick={() => actions.setTarget('header')}
-        onMouseDown={(e) => e.preventDefault()}
-        tabIndex={-1}
-        aria-hidden
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          opacity: 0,
-          pointerEvents: state.target === 'header' ? 'none' : 'auto',
-        }}
+      <SegmentedToggle
+        value={state.scope}
+        options={[
+          {
+            value: 'selected',
+            icon: <MousePointer2 size={14} strokeWidth={1.75} aria-hidden />,
+            tooltip: 'Apply to selected column(s)',
+            testId: 'formatting-scope-selected',
+          },
+          {
+            value: 'all',
+            icon: <Grid2x2 size={14} strokeWidth={1.75} aria-hidden />,
+            tooltip: 'Apply to every column (global baseline)',
+            testId: 'formatting-scope-all',
+          },
+        ]}
+        onChange={(next) => actions.setScope(next)}
+        ariaLabel="Edit scope — selected columns or all columns"
+        variant="scope"
+        testId="formatting-scope-toggle"
       />
 
       {state.singleColumnSelected ? (
@@ -186,6 +204,20 @@ export function ModuleContext({ state, actions }: Props) {
         aria-label="Toggle header case (uppercase / original)"
       >
         <CaseUpper size={13} strokeWidth={2} />
+      </Pill>
+
+      <Pill
+        tooltip={
+          state.showCellTooltips
+            ? 'Cell tooltips ON — hover shows each cell\'s value. Click to turn off.'
+            : 'Show cell value as a hover tooltip across every column'
+        }
+        active={state.showCellTooltips}
+        onClick={actions.toggleCellTooltips}
+        data-testid="formatting-toggle-cell-tooltips"
+        aria-label="Toggle cell tooltips"
+      >
+        <MessageSquareText size={12} strokeWidth={1.75} />
       </Pill>
 
       <div style={{ display: 'inline-flex', gap: 4 }}>

@@ -85,7 +85,7 @@
 .ds-popout-body::-webkit-scrollbar-thumb,
 .ds-popout-body main::-webkit-scrollbar-thumb {
   background: var(--ds-border-secondary);
-  border-radius: 4px;
+  border-radius: 2px;
 }
 .ds-formatting-toolbar::-webkit-scrollbar-thumb:hover,
 .ds-popout-list-items::-webkit-scrollbar-thumb:hover,
@@ -127,7 +127,7 @@
   max-height: 94vh;
   background: var(--ds-surface-ground);
   border: 1px solid var(--ds-border-secondary);
-  border-radius: 4px;
+  border-radius: 2px;
   display: flex;
   flex-direction: column;
   color: var(--ds-text-primary);
@@ -284,7 +284,7 @@
 
 .ds-popout-module-menu-item[aria-selected='true'] {
   background: var(--ds-surface-tertiary);
-  border-left-color: var(--ds-accent-positive);
+  border-left-color: var(--ds-primary);
 }
 
 /* ── Body (2-column grid: items list + editor) ─────────────────────────────*/
@@ -353,7 +353,7 @@
 /* Persistent "this card is open" marker */
 .ds-popout-list-item[data-active='true'] {
   background: var(--ds-surface-primary);
-  border-left-color: var(--ds-accent-positive);
+  border-left-color: var(--ds-primary);
 }
 
 /* Keyboard / mouse highlight — same tint as :hover */

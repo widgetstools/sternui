@@ -31,6 +31,15 @@ import {
 } from '@starui/grid-react';
 import { FormattingToolbar } from './FormattingToolbar';
 
+// Per-column overrides are theme-keyed in profile state. jsdom has no
+// `[data-theme]` so the active theme resolves to `'dark'` — seed both
+// slots in setup so reducers reading the active slot see the legacy
+// flat shape.
+function themed(flat: any): any {
+  return { dark: flat, light: flat };
+}
+
+
 // ─── Fake GridApi harness ─────────────────────────────────────────────
 
 interface FakeCol {
@@ -160,7 +169,7 @@ describe('FormattingToolbar — typography', () => {
       fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' }));
     });
 
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
   });
 
   it('Bold is idempotent-toggle: second click clears it', async () => {
@@ -170,7 +179,7 @@ describe('FormattingToolbar — typography', () => {
 
     await waitFor(() => expect(bold().disabled).toBe(false));
     act(() => fireEvent.mouseDown(bold()));
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
 
     // Second click clears.
     act(() => fireEvent.mouseDown(bold()));
@@ -187,7 +196,7 @@ describe('FormattingToolbar — typography', () => {
     );
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Italic' })));
 
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.italic).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.italic).toBe(true);
   });
 
   it('Underline button writes typography.underline', async () => {
@@ -199,7 +208,7 @@ describe('FormattingToolbar — typography', () => {
     );
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Underline' })));
 
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.underline).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.underline).toBe(true);
   });
 
   it('writes to multiple columns when more than one is in the active range', async () => {
@@ -211,8 +220,8 @@ describe('FormattingToolbar — typography', () => {
     );
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
 
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
-    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
   });
 });
 
@@ -232,7 +241,7 @@ describe('FormattingToolbar — alignment', () => {
       act(() => fireEvent.mouseDown(screen.getByRole('button', { name: label })));
 
       expect(
-        getAssignment(platform, 'price')?.cellStyleOverrides?.alignment?.horizontal,
+        getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.alignment?.horizontal,
       ).toBe(label.toLowerCase());
     },
   );
@@ -246,7 +255,7 @@ describe('FormattingToolbar — alignment', () => {
     );
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Center' })));
     expect(
-      getAssignment(platform, 'price')?.cellStyleOverrides?.alignment?.horizontal,
+      getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.alignment?.horizontal,
     ).toBe('center');
 
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Center' })));
@@ -267,7 +276,7 @@ describe('FormattingToolbar — target switcher', () => {
     );
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
 
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
     expect(getAssignment(platform, 'price')?.headerStyleOverrides).toBeUndefined();
   });
 
@@ -279,38 +288,41 @@ describe('FormattingToolbar — target switcher', () => {
       expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
     );
 
-    // Open the target switcher popover and pick header.
-    const toggle = screen.getByTestId('formatting-target-toggle');
-    act(() => fireEvent.click(toggle));
-    const headerOpt = await screen.findByTestId('formatting-target-header');
-    act(() => fireEvent.click(headerOpt));
+    // The segmented toggle renders both options at all times. Pick
+    // the HEADER side via mousedown to mirror real-user input.
+    act(() => fireEvent.mouseDown(screen.getByTestId('formatting-target-header')));
 
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
 
     expect(getAssignment(platform, 'price')?.cellStyleOverrides).toBeUndefined();
-    expect(getAssignment(platform, 'price')?.headerStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.headerStyleOverrides?.dark?.typography?.bold).toBe(true);
   });
 });
 
-describe('FormattingToolbar — all-header controls', () => {
+describe('FormattingToolbar — ALL + HEADER scope writes to globalHeaderStyle', () => {
   let platform: GridPlatform;
   beforeEach(() => { platform = makePlatform(); });
 
-  async function switchToHeaderTarget() {
-    await waitFor(() =>
-      expect(screen.getByTestId('formatting-target-toggle').getAttribute('aria-checked')).toBe('false'),
-    );
-    act(() => fireEvent.click(screen.getByTestId('formatting-target-toggle')));
-    await waitFor(() =>
-      expect(screen.getByTestId('formatting-target-toggle').getAttribute('aria-checked')).toBe('true'),
-    );
+  // The toolbar now has two explicit segmented toggles instead of an
+  // implicit "header mode → broadcast" shortcut. The user picks
+  // HEADERS + ALL to apply a baseline across every column; writes
+  // land on `globalHeaderStyle` rather than each column's
+  // `headerStyleOverrides`. Per-column rules win over the global
+  // baseline at render time via more-specific CSS selectors.
+  async function switchToHeaderAndAll() {
+    act(() => fireEvent.mouseDown(screen.getByTestId('formatting-target-header')));
+    act(() => fireEvent.mouseDown(screen.getByTestId('formatting-scope-all')));
+    await waitFor(() => {
+      expect(screen.getByTestId('formatting-target-header').getAttribute('data-active')).toBe('true');
+      expect(screen.getByTestId('formatting-scope-all').getAttribute('data-active')).toBe('true');
+    });
   }
 
-  it('header font size writes to every grid column, not just the active column', async () => {
+  it('header font size lands on globalHeaderStyle, not per-column overrides', async () => {
     const fake = makeFakeApi(COLS, ['price']);
     mountToolbar({ platform, api: fake.api });
 
-    await switchToHeaderTarget();
+    await switchToHeaderAndAll();
 
     const sizeButton = screen.getByTestId('fmt-panel-font-size') as HTMLButtonElement;
     expect(sizeButton.disabled).toBe(false);
@@ -318,17 +330,19 @@ describe('FormattingToolbar — all-header controls', () => {
     const option = await screen.findByText('16px');
     act(() => fireEvent.click(option));
 
-    expect(getAssignment(platform, 'price')?.headerStyleOverrides?.typography?.fontSize).toBe(16);
-    expect(getAssignment(platform, 'quantity')?.headerStyleOverrides?.typography?.fontSize).toBe(16);
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides).toBeUndefined();
-    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides).toBeUndefined();
+    const cust = platform.store.getModuleState<ColumnCustomizationState>('column-customization');
+    expect(cust?.globalHeaderStyle?.dark?.typography?.fontSize).toBe(16);
+    // Per-column overrides for either column must NOT be set —
+    // global means "every column, no per-column entries needed".
+    expect(getAssignment(platform, 'price')?.headerStyleOverrides).toBeUndefined();
+    expect(getAssignment(platform, 'quantity')?.headerStyleOverrides).toBeUndefined();
   });
 
-  it('header text color writes to every grid column', async () => {
+  it('header text color lands on globalHeaderStyle, not per-column overrides', async () => {
     const fake = makeFakeApi(COLS, ['price']);
     mountToolbar({ platform, api: fake.api });
 
-    await switchToHeaderTarget();
+    await switchToHeaderAndAll();
 
     const textColor = screen.getByRole('button', { name: 'Text color' });
     act(() => {
@@ -342,10 +356,10 @@ describe('FormattingToolbar — all-header controls', () => {
     });
     act(() => fireEvent.change(input, { target: { value: '#ef4444' } }));
 
-    expect(getAssignment(platform, 'price')?.headerStyleOverrides?.colors?.text).toBe('#ef4444');
-    expect(getAssignment(platform, 'quantity')?.headerStyleOverrides?.colors?.text).toBe('#ef4444');
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides).toBeUndefined();
-    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides).toBeUndefined();
+    const cust = platform.store.getModuleState<ColumnCustomizationState>('column-customization');
+    expect(cust?.globalHeaderStyle?.dark?.colors?.text).toBe('#ef4444');
+    expect(getAssignment(platform, 'price')?.headerStyleOverrides).toBeUndefined();
+    expect(getAssignment(platform, 'quantity')?.headerStyleOverrides).toBeUndefined();
   });
 
   it('header case toggle flips the grid-wide general-settings flag', async () => {
@@ -377,7 +391,7 @@ describe('FormattingToolbar — templates', () => {
         'tpl-red': {
           id: 'tpl-red',
           name: 'Red text',
-          cellStyleOverrides: { colors: { text: '#ff0000' } },
+          cellStyleOverrides: themed({ colors: { text: '#ff0000' } }),
           createdAt: 1,
           updatedAt: 1,
         },
@@ -413,7 +427,7 @@ describe('FormattingToolbar — templates', () => {
 
     // Lay down some style on `price` first.
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
 
     // Open the unified Templates popover (save-as input lives inside
     // the same popover as the template list, via TemplateManager),
@@ -428,7 +442,7 @@ describe('FormattingToolbar — templates', () => {
     expect(Object.keys(templates).length).toBe(2);
     const saved = Object.values(templates).find((t) => t.name === 'Bold Style');
     expect(saved).toBeDefined();
-    expect(saved!.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(saved!.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
     expect(saved!.description).toBe('Saved from price');
   });
 
@@ -465,7 +479,7 @@ describe('FormattingToolbar — clear flows', () => {
       expect((screen.getByRole('button', { name: 'Bold' }) as HTMLButtonElement).disabled).toBe(false),
     );
     act(() => fireEvent.mouseDown(screen.getByRole('button', { name: 'Bold' })));
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
 
     // Open clear-all dialog from the toolbar.
     act(() => {
@@ -494,12 +508,12 @@ describe('FormattingToolbar — clear flows', () => {
       ...(prev ?? { assignments: {} }),
       assignments: {
         ...(prev?.assignments ?? {}),
-        quantity: { colId: 'quantity', cellStyleOverrides: { typography: { bold: true } } },
+        quantity: { colId: 'quantity', cellStyleOverrides: themed({ typography: { bold: true } }) },
       },
     }));
 
-    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.typography?.bold).toBe(true);
-    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'price')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
 
     act(() => {
       fireEvent.click(screen.getByTestId('formatting-clear-selected'));
@@ -510,7 +524,7 @@ describe('FormattingToolbar — clear flows', () => {
     });
 
     expect(getAssignment(platform, 'price')).toEqual({ colId: 'price' });
-    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.typography?.bold).toBe(true);
+    expect(getAssignment(platform, 'quantity')?.cellStyleOverrides?.dark?.typography?.bold).toBe(true);
   });
 });
 

@@ -78,6 +78,18 @@ const ICONS: ReadonlyArray<IndicatorIconDef> = [
     body: '<path d="m7 6 5 5 5-5"/><path d="m7 13 5 5 5-5"/>',
   },
   {
+    key: 'triangle-up-solid',
+    label: 'Triangle up',
+    group: 'direction',
+    body: '<polygon points="12 4 4 20 20 20" fill="currentColor" stroke="none"/>',
+  },
+  {
+    key: 'triangle-down-solid',
+    label: 'Triangle down',
+    group: 'direction',
+    body: '<polygon points="4 4 20 4 12 20" fill="currentColor" stroke="none"/>',
+  },
+  {
     key: 'corner-triangle-top-right-solid',
     label: 'Corner TR solid',
     group: 'direction',

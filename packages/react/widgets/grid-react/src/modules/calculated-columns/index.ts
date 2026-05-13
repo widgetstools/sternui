@@ -142,10 +142,13 @@ export const calculatedColumnsModule: Module<CalculatedColumnsState> = {
       }
 
       // Header class when the user either set header styling OR set cell
-      // alignment (headers inherit the cell's alignment by default).
+      // alignment in EITHER theme slot (headers inherit the cell's
+      // alignment by default).
+      const cellAlignmentAny =
+        assignment?.cellStyleOverrides?.dark?.alignment?.horizontal !== undefined ||
+        assignment?.cellStyleOverrides?.light?.alignment?.horizontal !== undefined;
       const needsHeaderClass =
-        assignment?.headerStyleOverrides !== undefined ||
-        assignment?.cellStyleOverrides?.alignment?.horizontal !== undefined;
+        assignment?.headerStyleOverrides !== undefined || cellAlignmentAny;
       if (needsHeaderClass) {
         const cls = `ds-hdr-c-${safeId}`;
         const existing = base.headerClass;

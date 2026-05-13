@@ -374,7 +374,7 @@ function ApplyOrClearButton({
 }) {
   const accentColor =
     accent === 'green'
-      ? 'var(--ds-accent-info)'
+      ? 'var(--ds-primary)'
       : 'var(--ds-accent-negative)';
   return (
     <button
@@ -447,7 +447,7 @@ function CompactFormatterPicker({
               value ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
             }`,
             borderRadius: 2,
-            color: value ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
+            color: value ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
             fontFamily: 'var(--ds-font-sans)',
             fontSize: 11,
             cursor: 'pointer',
@@ -490,13 +490,13 @@ function CompactFormatterPicker({
               height: 22,
               padding: '0 8px',
               background: preview
-                ? 'var(--ds-overlay-info-soft)'
+                ? 'var(--ds-primary-soft)'
                 : 'var(--ds-surface-ground)',
               border: `1px dashed ${
                 preview ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
               }`,
               borderRadius: 2,
-              color: preview ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
+              color: preview ? 'var(--ds-primary)' : 'var(--ds-text-faint)',
               fontFamily: 'var(--ds-font-mono)',
               fontSize: 11,
               fontVariantNumeric: 'tabular-nums',
@@ -566,13 +566,13 @@ function CompactFormatterPicker({
                         gap: 2,
                         padding: '6px 8px',
                         background: active
-                          ? 'var(--ds-overlay-info-soft)'
+                          ? 'var(--ds-primary-soft)'
                           : 'var(--ds-surface-ground)',
                         border: `1px solid ${
-                          active ? 'var(--ds-accent-info)' : 'var(--ds-border-primary)'
+                          active ? 'var(--ds-primary)' : 'var(--ds-border-primary)'
                         }`,
                         borderRadius: 2,
-                        color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
+                        color: active ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontFamily: 'inherit',
@@ -585,7 +585,7 @@ function CompactFormatterPicker({
                           style={{
                             fontFamily: 'var(--ds-font-mono)',
                             fontSize: 10,
-                            color: active ? 'var(--ds-accent-info)' : 'var(--ds-text-faint)',
+                            color: active ? 'var(--ds-primary)' : 'var(--ds-text-faint)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -977,10 +977,10 @@ function InlineFormatterPicker({
             gap: 4,
             height: rowHeight,
             padding: '0 8px',
-            background: 'var(--ds-overlay-info-soft)',
+            background: 'var(--ds-primary-soft)',
             border: '1px dashed var(--ds-border-secondary)',
             borderRadius: 2,
-            color: 'var(--ds-accent-info)',
+            color: 'var(--ds-primary)',
             fontFamily: 'var(--ds-font-mono)',
             fontSize: 11,
             fontVariantNumeric: 'tabular-nums',
@@ -991,7 +991,7 @@ function InlineFormatterPicker({
           }}
           title={`Preview: ${preview}`}
         >
-          <Caps size={9} color="var(--ds-accent-info)">
+          <Caps size={9} color="var(--ds-primary)">
             PREVIEW
           </Caps>
           {preview}

@@ -14,8 +14,8 @@
   --card-foreground: 220 16% 92%;
   --popover: 214 26% 10%;
   --popover-foreground: 220 16% 92%;
-  --primary: 190 100% 50%;           /* #00d5ff — electric cyan brand */
-  --primary-foreground: 201 74% 9%;
+  --primary: 251 36% 76%;            /* #b5add8 — pale greyish lavender brand */
+  --primary-foreground: 264 25% 12%;
   --secondary: 215 22% 18%;          /* #242c38 */
   --secondary-foreground: 216 15% 70%;
   --muted: 215 24% 14%;              /* #1a212b */
@@ -26,8 +26,8 @@
   --destructive-foreground: 343 75% 9%;
   --border: 216 22% 22%;             /* #323b49 */
   --input: 216 22% 22%;
-  --ring: 190 100% 50%;
-  --radius: 4px;
+  --ring: 251 36% 76%;
+  --radius: 2px;
 
   /* ── Surface ── */
   --bn-bg:      #0a0e14;
@@ -51,8 +51,8 @@
   --bn-red:     #ff3366;
   --bn-red2:    #ff5c85;
   --bn-amber:   #ff9f1a;    /* restrained orange — warning semantic only */
-  --bn-blue:    #00d5ff;    /* PRIMARY BRAND */
-  --bn-blue2:   #48e6ff;    /* PRIMARY HOVER */
+  --bn-blue:    #b5add8;    /* PRIMARY BRAND — pale greyish lavender */
+  --bn-blue2:   #c9c2e4;    /* PRIMARY HOVER */
   --bn-info:    #48e6ff;    /* informational accent */
   --bn-cyan:    #00e5ff;    /* highlight accent */
   --bn-purple:  #b56cff;
@@ -60,16 +60,16 @@
   /* ── Actions ── */
   --bn-buy-bg:   #00f5a0;
   --bn-sell-bg:  #ff3366;
-  --bn-cta-text: #061c28;
+  --bn-cta-text: #1a1726;
   --bn-logo-bg:  #0a0e14;
 
   /* ── Interactive states ── */
-  --bn-focus-ring:    #00d5ff;
-  --bn-focus-ring-bg: rgba(0,213,255,0.30);
+  --bn-focus-ring:    #b5add8;
+  --bn-focus-ring-bg: rgba(181,173,216,0.30);
   --bn-disabled-bg:   #242c38;
   --bn-disabled-fg:   #4d586a;
   --bn-hover-overlay: rgba(255,255,255,0.05);
-  --bn-selection:     rgba(0,213,255,0.24);
+  --bn-selection:     rgba(181,173,216,0.24);
 
   /* ── Overlay tints (badge / fill / chip) ── */
   --bn-positive-soft: rgba(0,245,160,0.18);
@@ -109,12 +109,12 @@
   /* ── Elevation ── */
   --fi-shadow-card:    0 1px 2px rgba(0,0,0,0.15);
   --fi-shadow-overlay: 0 4px 12px rgba(0,0,0,0.25);
-  --fi-glow-focus:     0 0 0 2px rgba(0,213,255,0.42), 0 0 28px rgba(0,213,255,0.20);
+  --fi-glow-focus:     0 0 0 2px rgba(181,173,216,0.42), 0 0 28px rgba(181,173,216,0.20);
 
   /* ── Order Book / Trade Ticket fills ── */
   --ob-bid-fill:   rgba(0,245,160,0.20);
   --ob-ask-fill:   rgba(255,51,102,0.20);
-  --tt-bid-strip:  rgba(0,213,255,0.14);
+  --tt-bid-strip:  rgba(181,173,216,0.14);
   --tt-ask-strip:  rgba(255,51,102,0.16);
 
   /* ── Misc ── */

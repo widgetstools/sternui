@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Theme } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/markets-grid';
 import { activeProfileKey } from '@starui/core';
 import type { ProfileSnapshot, StorageAdapter } from '@starui/core';
@@ -33,7 +32,6 @@ async function seedFixture(adapter: StorageAdapter, fixture: FixtureSpec): Promi
 
 interface FixtureProps {
   fixture: FixtureSpec;
-  theme: Theme;
   storageAdapter: StorageAdapter;
 }
 
@@ -55,7 +53,7 @@ const defaultColDef = {
  * across page loads. Edge-case rows (`EDGE-NULL-PRICING`, etc.) are
  * always at the front of the dataset — see `nestedData.ts`.
  */
-export function Fixture({ fixture, theme, storageAdapter }: FixtureProps) {
+export function Fixture({ fixture, storageAdapter }: FixtureProps) {
   const rowData = useMemo(() => generateNestedOrders(60), []);
   const columnDefs = useMemo(() => nestedColumnDefs(), []);
   const [seeded, setSeeded] = useState(false);
@@ -107,7 +105,6 @@ export function Fixture({ fixture, theme, storageAdapter }: FixtureProps) {
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          theme={theme}
           rowIdField="id"
           storageAdapter={storageAdapter}
           showFiltersToolbar

@@ -57,7 +57,7 @@ export function PillToggleBtn({
       title={title}
       disabled={disabled}
       data-testid={rest['data-testid']}
-      className="min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-foreground/85 px-1.5 rounded-sm text-[length:var(--ds-font-size-sm)] hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-overlay-positive-soft)] aria-pressed:text-[color:var(--ds-accent-positive)] disabled:opacity-45 disabled:cursor-not-allowed"
+      className="min-w-8 h-7 inline-flex items-center justify-center bg-transparent text-foreground/85 px-1.5 rounded-sm text-[length:var(--ds-font-size-sm)] hover:text-foreground hover:bg-muted aria-pressed:bg-[var(--ds-primary-soft)] aria-pressed:text-[color:var(--ds-primary)] disabled:opacity-45 disabled:cursor-not-allowed"
       style={{
         width: 28,
         height: 26,

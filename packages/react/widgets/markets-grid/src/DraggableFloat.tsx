@@ -176,7 +176,7 @@ export function DraggableFloat({
           zIndex,
           background: 'var(--ds-surface-primary)',
           border: '1px solid var(--ds-border-primary)',
-          borderRadius: 6,
+          borderRadius: 2,
           boxShadow:
             '0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) inset',
           maxWidth: 'calc(100vw - 16px)',
@@ -307,7 +307,7 @@ function CloseButton({
         justifyContent: 'center',
         minWidth: 22,
         minHeight: 22,
-        borderRadius: 4,
+        borderRadius: 2,
         background: 'transparent',
         border: 'none',
         color: 'var(--ds-text-primary)',

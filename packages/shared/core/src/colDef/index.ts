@@ -8,10 +8,20 @@ export type {
   CellStyleOverrides,
   ColumnAssignment,
   ColumnDataType,
+  GridThemeMode,
   PresetId,
+  ThemedCellStyleOverrides,
   TickToken,
   ValueFormatterTemplate,
 } from './types';
+
+export {
+  getActiveTheme,
+  mergeThemedStyle,
+  migrateThemedStyle,
+  patchActiveStyle,
+  resolveActiveStyle,
+} from './themedStyle';
 
 // ─── Writers / adapters ─────────────────────────────────────────────────────
 export {

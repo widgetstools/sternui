@@ -15,6 +15,7 @@ import type {
 } from '@starui/core';
 import type {
   ColumnAssignment,
+  ColumnCustomizationState,
   ColumnFilterConfig,
   RowGroupingConfig,
 } from './state';
@@ -24,6 +25,57 @@ import {
   valueFormatterFromTemplate,
   excelFormatColorResolver,
 } from '@starui/core';
+import type { GridThemeMode, ValueFormatterTemplate } from '@starui/core';
+
+// ─── Runtime value-type dispatcher for the global cell formatters ─────────
+//
+// Applied to columns that have no per-column `valueFormatterTemplate` and
+// no explicit `cellDataType`. Dispatches per render by inspecting the
+// raw value: dates / date-strings hit the date formatter; numbers (and
+// strings parseable as numbers in number-cell columns) hit the number
+// formatter; anything else passes through unchanged so a string column
+// like "country = Apple" keeps its text instead of being formatted into
+// empty space.
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}([T ].*)?$/;
+
+function buildSafeGlobalFormatter(
+  numberTemplate: ValueFormatterTemplate | undefined,
+  dateTemplate: ValueFormatterTemplate | undefined,
+): (params: { value: unknown; data?: unknown }) => string {
+  const numFmt = numberTemplate
+    ? valueFormatterFromTemplate(numberTemplate)
+    : undefined;
+  const dateFmt = dateTemplate
+    ? valueFormatterFromTemplate(dateTemplate)
+    : undefined;
+  return (params) => {
+    const v = params.value;
+    if (v == null) return '';
+    // Native Date — date formatter wins.
+    if (v instanceof Date) {
+      return dateFmt
+        ? dateFmt(params as Parameters<typeof dateFmt>[0])
+        : String(v);
+    }
+    // Numbers → number formatter (or pass through).
+    if (typeof v === 'number') {
+      return numFmt
+        ? numFmt(params as Parameters<typeof numFmt>[0])
+        : String(v);
+    }
+    // Strings — sniff ISO-date prefix before reaching for the date
+    // formatter. Avoid running a number formatter on arbitrary text
+    // ("Apple" → NaN → empty cell, which was the original bug).
+    if (typeof v === 'string') {
+      if (dateFmt && ISO_DATE_RE.test(v)) {
+        return dateFmt(params as Parameters<typeof dateFmt>[0]);
+      }
+      return v;
+    }
+    return String(v);
+  };
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -125,19 +177,59 @@ function headerAlignCSS(selector: string, horizontal: string): string {
 }
 
 /**
- * Re-inject all CSS rules for every assigned column. Called on every
- * transform pass — the handle is keyed by colId, so re-applying just
- * replaces the old text.
+ * Re-inject all CSS rules for every assigned column AND the global
+ * baselines. Called on every transform pass — the handle is keyed by
+ * colId, so re-applying just replaces the old text.
+ *
+ * Layering order in the stylesheet (later overrides earlier when
+ * specificity ties):
+ *   1. `globalCellStyle` → `.ag-cell` (broad, all cells)
+ *   2. `globalHeaderStyle` → `.ag-header-cell` (broad, all headers)
+ *   3. Per-column rules with chained selectors `.ag-cell.ds-col-c-{id}`
+ *      and `.ag-header-cell.ds-hdr-c-{id}` — higher specificity than the
+ *      global selectors, so per-column always wins for the column it
+ *      targets while inheriting unset properties from the global slot.
  */
 export function reinjectCSS(
   cells: CssHandle,
   headers: CssHandle,
-  assignments: Record<string, ColumnAssignment>,
+  state: ColumnCustomizationState,
   templatesState: ColumnTemplatesState,
   defs: AnyColDef[],
 ): void {
+  const assignments = state.assignments;
   cells.clear();
   headers.clear();
+
+  // 1. Global baselines — emit FIRST, broad selector so every cell /
+  //    header inherits. Per-column rules below win via more specific
+  //    chained-class selectors.
+  for (const mode of ['dark', 'light'] as GridThemeMode[]) {
+    const themeSel = `html[data-theme="${mode}"]`;
+    const gCell = state.globalCellStyle?.[mode];
+    const gHdr = state.globalHeaderStyle?.[mode];
+
+    if (gCell) {
+      const css = styleOverridesToCSS(gCell);
+      if (css) cells.addRule(`cell-all-${mode}`, `${themeSel} .ag-cell { ${css} }`);
+      const border = borderOverlayFromOverrides(`${themeSel} .ag-cell`, gCell);
+      if (border) cells.addRule(`cell-all-bo-${mode}`, border);
+    }
+    if (gHdr) {
+      const css = styleOverridesToCSS(gHdr);
+      if (css) headers.addRule(`hdr-all-${mode}`, `${themeSel} .ag-header-cell { ${css} }`);
+      const border = borderOverlayFromOverrides(`${themeSel} .ag-header-cell`, gHdr);
+      if (border) headers.addRule(`hdr-all-bo-${mode}`, border);
+    }
+    const globalHdrAlign =
+      gHdr?.alignment?.horizontal ?? gCell?.alignment?.horizontal;
+    if (globalHdrAlign) {
+      headers.addRule(
+        `hdr-all-align-${mode}`,
+        headerAlignCSS(`${themeSel} .ag-header-cell`, globalHdrAlign),
+      );
+    }
+  }
 
   // colId → cellDataType so `resolveTemplates` can pick the right
   // typeDefault. Virtual columns (appended later in the pipeline) are
@@ -158,7 +250,9 @@ export function reinjectCSS(
   collectDataTypes(defs);
 
   // Iterate assignments keyed by colId — not `defs` — so virtual columns
-  // still get their cellStyleOverrides injected.
+  // still get their cellStyleOverrides injected. Emit rules for BOTH
+  // theme slots, scoped by `html[data-theme="…"]`, so flipping the host
+  // theme is a pure CSS cascade event — no colDef rebuild needed.
   for (const colId of Object.keys(assignments)) {
     if (!colId) continue; // empty key is meaningless; skip defensively
     const a = assignments[colId];
@@ -175,28 +269,41 @@ export function reinjectCSS(
     const cellCls = `ds-col-c-${safeId}`;
     const hdrCls = `ds-hdr-c-${safeId}`;
 
-    if (resolved?.cellStyleOverrides) {
-      const css = styleOverridesToCSS(resolved.cellStyleOverrides);
-      if (css) cells.addRule(`cell-${colId}`, `.${cellCls} { ${css} }`);
-      const border = borderOverlayFromOverrides(`.${cellCls}`, resolved.cellStyleOverrides);
-      if (border) cells.addRule(`cell-bo-${colId}`, border);
-    }
+    for (const mode of ['dark', 'light'] as GridThemeMode[]) {
+      const themeSel = `html[data-theme="${mode}"]`;
+      const cellStyle = resolved?.cellStyleOverrides?.[mode];
+      const headerStyle = resolved?.headerStyleOverrides?.[mode];
 
-    if (resolved?.headerStyleOverrides) {
-      const css = styleOverridesToCSS(resolved.headerStyleOverrides);
-      if (css) headers.addRule(`hdr-${colId}`, `.${hdrCls} { ${css} }`);
-      const border = borderOverlayFromOverrides(`.${hdrCls}`, resolved.headerStyleOverrides);
-      if (border) headers.addRule(`hdr-bo-${colId}`, border);
-    }
+      // Chain AG-Grid's base class so per-column selectors out-specific
+      // the global-baseline rules emitted above.
+      const cellSel = `${themeSel} .ag-cell.${cellCls}`;
+      const hdrSel = `${themeSel} .ag-header-cell.${hdrCls}`;
 
-    // Header alignment inherits the cell's unless overridden. Without
-    // this the header-align class has nothing to target when the user
-    // only aligned the cell.
-    const effectiveHeaderAlign =
-      resolved?.headerStyleOverrides?.alignment?.horizontal ??
-      resolved?.cellStyleOverrides?.alignment?.horizontal;
-    if (effectiveHeaderAlign) {
-      headers.addRule(`hdr-align-${colId}`, headerAlignCSS(`.${hdrCls}`, effectiveHeaderAlign));
+      if (cellStyle) {
+        const css = styleOverridesToCSS(cellStyle);
+        if (css) cells.addRule(`cell-${colId}-${mode}`, `${cellSel} { ${css} }`);
+        const border = borderOverlayFromOverrides(cellSel, cellStyle);
+        if (border) cells.addRule(`cell-bo-${colId}-${mode}`, border);
+      }
+
+      if (headerStyle) {
+        const css = styleOverridesToCSS(headerStyle);
+        if (css) headers.addRule(`hdr-${colId}-${mode}`, `${hdrSel} { ${css} }`);
+        const border = borderOverlayFromOverrides(hdrSel, headerStyle);
+        if (border) headers.addRule(`hdr-bo-${colId}-${mode}`, border);
+      }
+
+      // Header alignment inherits the cell's unless overridden. Without
+      // this the header-align class has nothing to target when the user
+      // only aligned the cell.
+      const effectiveHeaderAlign =
+        headerStyle?.alignment?.horizontal ?? cellStyle?.alignment?.horizontal;
+      if (effectiveHeaderAlign) {
+        headers.addRule(
+          `hdr-align-${colId}-${mode}`,
+          headerAlignCSS(hdrSel, effectiveHeaderAlign),
+        );
+      }
     }
   }
 }
@@ -438,16 +545,45 @@ function buildValuesGetter(
 
 // ─── Walker: merge assignments into ColDefs ────────────────────────────────
 
+/**
+ * Per-column memo of the last emitted ColDef. Keyed by the *source*
+ * colDef reference + the inputs that materially affect the output, so
+ * a re-run with identical inputs reuses the previous output reference.
+ *
+ * Why this matters: when the walker emits a fresh `{...colDef}` (or
+ * fresh `filterParams`) on each transform pass — even when the result
+ * is structurally equal — AG-Grid's `colDefChanged → filterParamsChanged`
+ * pipeline fires and the SetFilterHandler re-runs `validateModel`
+ * against the current applied filter. In AG-Grid 35.1 that path crashes
+ * on a transient `model.values is not iterable` from internal multi-
+ * filter state. Returning the same reference when nothing actually
+ * changed sidesteps the whole re-validation.
+ *
+ * The cache lives outside the function so it persists across calls
+ * within a grid; the input WeakMap keys ensure entries are GC'd when
+ * the source colDef is dropped.
+ */
+const COL_DEF_MEMO: WeakMap<
+  AnyColDef,
+  { signature: string; output: AnyColDef }
+> = new WeakMap();
+
 export function applyAssignments(
   defs: AnyColDef[],
-  assignments: Record<string, ColumnAssignment>,
+  state: ColumnCustomizationState,
   templatesState: ColumnTemplatesState,
   engine: ExpressionEngineLike,
   appData?: AppDataLookup,
 ): AnyColDef[] {
+  const assignments = state.assignments;
+  const globalNumberFormatter = state.globalCellNumberFormatter;
+  const globalDateFormatter = state.globalCellDateFormatter;
+  const hasGlobalCellStyle = state.globalCellStyle !== undefined;
+  const hasGlobalHeaderStyle = state.globalHeaderStyle !== undefined;
+
   return defs.map((def) => {
     if ('children' in def && Array.isArray(def.children)) {
-      const next = applyAssignments(def.children, assignments, templatesState, engine, appData);
+      const next = applyAssignments(def.children, state, templatesState, engine, appData);
       const unchanged =
         next.length === def.children.length && next.every((c, i) => c === def.children[i]);
       return unchanged ? def : { ...def, children: next };
@@ -457,7 +593,140 @@ export function applyAssignments(
     const colId = colDef.colId ?? colDef.field;
     if (!colId) return def;
     const a = assignments[colId];
-    if (!a) return def;
+
+    // Type-coherent global formatter dispatch:
+    //   - Explicit `cellDataType === 'number'` → number slot only.
+    //   - Explicit `cellDataType === 'date' | 'dateString'` → date slot
+    //     only.
+    //   - Explicit `'text' | 'string' | 'boolean'` → no global formatter
+    //     (strings can't be coerced to numbers without producing empty
+    //     output; booleans aren't formattable either way).
+    //   - No explicit cellDataType → install a runtime dispatcher that
+    //     inspects the value type at render time and picks the right
+    //     formatter (number for numbers, date for Date instances and
+    //     ISO-date strings, passthrough otherwise). This is what makes
+    //     the global formatters apply to demo/data grids that haven't
+    //     hand-set cellDataType on every column.
+    //   Per-column `valueFormatterTemplate` still wins when set.
+    const cdt = colDef.cellDataType;
+    const isNumberCol = cdt === 'number';
+    const isDateCol = cdt === 'date' || cdt === 'dateString';
+    const isUntypedCol = cdt === undefined;
+    const hasAnyGlobal =
+      globalNumberFormatter !== undefined || globalDateFormatter !== undefined;
+
+    const effectiveGlobalFormatter: ValueFormatterTemplate | undefined =
+      a?.valueFormatterTemplate === undefined
+        ? isNumberCol
+          ? globalNumberFormatter
+          : isDateCol
+            ? globalDateFormatter
+            : undefined
+        : undefined;
+
+    const effectiveGlobalRuntimeFmt: ((p: { value: unknown }) => string) | undefined =
+      a?.valueFormatterTemplate === undefined && isUntypedCol && hasAnyGlobal
+        ? buildSafeGlobalFormatter(globalNumberFormatter, globalDateFormatter)
+        : undefined;
+
+    // Fast-path: no per-column assignment AND no global signal that
+    // changes THIS column's ColDef → return the original reference.
+    //
+    // Global styles (`globalCellStyle` / `globalHeaderStyle`) apply via
+    // CSS (broad selectors emitted by `reinjectCSS` above), NOT via
+    // per-column colDef mutation, so they don't need to flow through
+    // the walker for every column. Emitting fresh colDef objects when
+    // nothing actually changes triggers AG-Grid's `colDefChanged` →
+    // `filterParamsChanged` path on every transform pass and can blow
+    // up existing set-filter models that AG-Grid re-validates.
+    if (
+      !a &&
+      effectiveGlobalFormatter === undefined &&
+      effectiveGlobalRuntimeFmt === undefined
+    ) {
+      return def;
+    }
+    // Per-column memo — recompute only when the inputs that affect the
+    // emitted colDef change. Signature includes the per-column
+    // assignment, the templates state (chain resolution depends on it),
+    // and the global signals that the helper consumes. JSON-stringify
+    // is fine because the inputs are plain JSON; the resulting string
+    // is small (one column's slice of state).
+    const signature = computeSignature(
+      a,
+      templatesState,
+      effectiveGlobalFormatter,
+      hasGlobalCellStyle,
+      hasGlobalHeaderStyle,
+      colDef.cellDataType,
+    );
+    const cached = COL_DEF_MEMO.get(colDef);
+    if (cached && cached.signature === signature) {
+      return cached.output;
+    }
+
+    const sourceAssignment: ColumnAssignment = a ?? { colId };
+    const output = applyAssignmentToColDef(
+      colDef,
+      sourceAssignment,
+      templatesState,
+      engine,
+      appData,
+      effectiveGlobalFormatter,
+      effectiveGlobalRuntimeFmt,
+      hasGlobalCellStyle,
+      hasGlobalHeaderStyle,
+    );
+    COL_DEF_MEMO.set(colDef, { signature, output });
+    return output;
+  });
+}
+
+/**
+ * Cheap structural signature for the inputs that affect a column's
+ * emitted colDef. Same inputs → same string → memo hit.
+ */
+function computeSignature(
+  a: ColumnAssignment | undefined,
+  templatesState: ColumnTemplatesState,
+  globalFormatter: ValueFormatterTemplate | undefined,
+  hasGlobalCellStyle: boolean,
+  hasGlobalHeaderStyle: boolean,
+  cellDataType: unknown,
+): string {
+  // Templates state is a single object reference per profile; JSON of
+  // its content captures changes when the user edits a template chain.
+  // The helper has no other input variability (engine / appData are
+  // grid-level singletons and don't drift mid-session).
+  return JSON.stringify({
+    a,
+    t: templatesState,
+    g: globalFormatter,
+    s: hasGlobalCellStyle,
+    h: hasGlobalHeaderStyle,
+    c: cellDataType,
+  });
+}
+
+/**
+ * Per-column walker body. Pulled out so global-only paths (no per-column
+ * assignment but a global signal applies) can run the same merge logic
+ * with a synthetic `{ colId }` assignment.
+ */
+function applyAssignmentToColDef(
+  colDef: ColDef,
+  a: ColumnAssignment,
+  templatesState: ColumnTemplatesState,
+  engine: ExpressionEngineLike,
+  appData?: AppDataLookup,
+  globalFormatter?: import('./state').ValueFormatterTemplate,
+  globalRuntimeFormatter?: (p: { value: unknown }) => string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _hasGlobalCellStyle?: boolean,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _hasGlobalHeaderStyle?: boolean,
+): ColDef {
+    const colId = a.colId;
 
     const resolved = resolveTemplates(
       a,
@@ -488,9 +757,15 @@ export function applyAssignments(
       applyRowGroupingConfigToColDef(merged, resolved.rowGrouping as RowGroupingConfig, engine);
     }
 
-    // Value formatter.
-    if (resolved.valueFormatterTemplate !== undefined) {
-      merged.valueFormatter = valueFormatterFromTemplate(resolved.valueFormatterTemplate);
+    // Value formatter — per-column takes precedence; falls back to the
+    // already-resolved global formatter (number or date, picked by the
+    // caller based on this column's `cellDataType`). If the column is
+    // untyped, the caller supplies a runtime dispatcher that picks
+    // number vs. date by inspecting the value at render time.
+    const effectiveFormatter =
+      resolved.valueFormatterTemplate ?? globalFormatter;
+    if (effectiveFormatter !== undefined) {
+      merged.valueFormatter = valueFormatterFromTemplate(effectiveFormatter);
 
       // Excel color tags — `[Red]`, `[Green]` etc. in the format string —
       // only affect text semantics in SSF. Emit a `cellStyle` fn that
@@ -509,8 +784,8 @@ export function applyAssignments(
       // injected `.ds-col-c-{colId}` rule, which an empty inline color
       // cascades through.
       const colorResolver =
-        resolved.valueFormatterTemplate.kind === 'excelFormat'
-          ? excelFormatColorResolver(resolved.valueFormatterTemplate.format)
+        effectiveFormatter.kind === 'excelFormat'
+          ? excelFormatColorResolver(effectiveFormatter.format)
           : undefined;
       if (colorResolver) {
         merged.cellStyle = (params) => {
@@ -524,6 +799,13 @@ export function applyAssignments(
         // should own color lifecycle).
         merged.cellStyle = () => ({ color: '' });
       }
+    } else if (globalRuntimeFormatter !== undefined) {
+      // No template-based formatter applies, but a global value-type
+      // dispatcher was supplied for this untyped column. Plant it as
+      // the valueFormatter — it'll pick number vs. date per cell at
+      // render time, falling back to passthrough for unrecognised
+      // value types.
+      merged.valueFormatter = globalRuntimeFormatter as ColDef['valueFormatter'];
     }
 
     if (resolved.cellEditorName !== undefined) merged.cellEditor = resolved.cellEditorName;
@@ -592,12 +874,16 @@ export function applyAssignments(
     }
 
     // Header class: emit whenever we'll inject a header rule — either the
-    // header has overrides, OR the cell has alignment (which the header
-    // inherits by default). Without this the header-align rule has no
-    // target on the DOM.
+    // header has overrides in EITHER theme slot, OR the cell has alignment
+    // in EITHER theme slot (which the header inherits by default). Without
+    // this the header-align rule has no target on the DOM. Emit eagerly
+    // (covering both themes) so a `data-theme` flip doesn't require
+    // re-emitting the colDef just to attach the class.
+    const cellAlignmentAny =
+      resolved?.cellStyleOverrides?.dark?.alignment?.horizontal !== undefined ||
+      resolved?.cellStyleOverrides?.light?.alignment?.horizontal !== undefined;
     const needsHeaderClass =
-      resolved?.headerStyleOverrides !== undefined ||
-      resolved?.cellStyleOverrides?.alignment?.horizontal !== undefined;
+      resolved?.headerStyleOverrides !== undefined || cellAlignmentAny;
     if (needsHeaderClass) {
       const cls = `ds-hdr-c-${safeId}`;
       const existing = colDef.headerClass;
@@ -609,5 +895,4 @@ export function applyAssignments(
     }
 
     return merged;
-  });
 }

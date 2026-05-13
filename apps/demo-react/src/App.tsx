@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
-import { themeQuartz } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/markets-grid';
 import { DexieAdapter, activeProfileKey } from '@starui/core';
 import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
-import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -39,28 +37,6 @@ function initialFixtureName(): FixtureName | null {
   const f = new URLSearchParams(window.location.search).get('f');
   return isFixtureName(f) ? f : null;
 }
-
-// ─── AG-Grid Themes ─────────────────────────────────────────────────────────
-//
-// Built from @starui/design-system/adapters/ag-grid (reference-aligned
-// Chroma Desk params) + app-specific tuning (mono font, smaller icons,
-// tighter cell padding, sharp corners). Theme attribute on <html> drives
-// the underlying --ds-* CSS vars; these params just point at them.
-
-const sharedParamOverrides = {
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 11,
-  headerFontSize: 10,
-  iconSize: 10,
-  cellHorizontalPaddingScale: 0.6,
-  spacing: 6,
-  borderRadius: 0,
-  wrapperBorderRadius: 0,
-  columnBorder: true,
-};
-
-const darkTheme  = themeQuartz.withParams({ ...agGridDarkParams,  ...sharedParamOverrides });
-const lightTheme = themeQuartz.withParams({ ...agGridLightParams, ...sharedParamOverrides });
 
 // ─── Column Definitions (plain — no renderers, no formatters, no styles) ─────
 
@@ -197,8 +173,6 @@ function AppInner() {
     const next = `${window.location.pathname}${q.toString() ? `?${q}` : ''}`;
     window.history.replaceState(null, '', next);
   }, [view]);
-
-  const theme = isDark ? darkTheme : lightTheme;
 
   const storageAdapter = useMemo(() => new DexieAdapter(), []);
 
@@ -347,7 +321,6 @@ function AppInner() {
       ) : view === 'fixture' && fixtureName ? (
         <Fixture
           fixture={FIXTURES[fixtureName]}
-          theme={theme}
           storageAdapter={storageAdapter}
         />
       ) : view === 'fixture' ? (
@@ -368,7 +341,6 @@ function AppInner() {
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
-            theme={theme}
             rowIdField="id"
             storageAdapter={storageAdapter}
             showFiltersToolbar
@@ -384,7 +356,7 @@ function AppInner() {
           />
         </div>
       ) : view === 'dashboard' ? (
-        <Dashboard theme={theme} columnDefs={columnDefs} defaultColDef={defaultColDef} />
+        <Dashboard columnDefs={columnDefs} defaultColDef={defaultColDef} />
       ) : (
         <MarketDepth isDark={isDark} />
       )}

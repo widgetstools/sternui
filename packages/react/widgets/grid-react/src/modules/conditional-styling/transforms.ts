@@ -41,8 +41,28 @@ export const CONDITIONAL_TIMED_RULE_BUCKET_KEY = {} as const;
 const TRACE_PREFIX = '[conditional-styling:timed]';
 const timedRuleStateByRowId: TimedRuleStateByRowId = new Map();
 
+// Cached earliest pending expiry across the whole map. `null` means "no
+// entries pending"; `undefined` means "stale — recompute on next read".
+// Updated incrementally on insert (cheap O(1) min-check) and invalidated
+// wholesale on any prune (recomputed lazily via a single map walk when
+// `getNextTimedExpiry` is next called). Keeps `armNextExpiry` O(1) in
+// the hot insert path and bounds the walk to once per prune burst.
+let cachedNextExpiry: number | null | undefined = null;
+
 export function clearTimedRuleState(): void {
   timedRuleStateByRowId.clear();
+  cachedNextExpiry = null;
+}
+
+function noteExpiryInserted(at: number): void {
+  if (cachedNextExpiry === undefined) return; // already stale
+  if (cachedNextExpiry === null || at < cachedNextExpiry) {
+    cachedNextExpiry = at;
+  }
+}
+
+function invalidateExpiryCache(): void {
+  cachedNextExpiry = undefined;
 }
 
 export function upsertTimedRowActivation(
@@ -58,10 +78,12 @@ export function upsertTimedRowActivation(
   const prev = byRule.get(ruleId);
   if (!prev) {
     byRule.set(ruleId, { rowUntil: until, cellsUntil: new Map() });
+    noteExpiryInserted(until);
     traceTimed('upsertTimedRowRule:new', { rowId, ruleId, until });
     return;
   }
   prev.rowUntil = Math.max(prev.rowUntil ?? 0, until);
+  noteExpiryInserted(prev.rowUntil);
   traceTimed('upsertTimedRowRule:update', { rowId, ruleId, until: prev.rowUntil });
 }
 
@@ -79,10 +101,12 @@ export function upsertTimedCellActivation(
   const prev = byRule.get(ruleId);
   if (!prev) {
     byRule.set(ruleId, { cellsUntil: new Map([[colId, until]]) });
+    noteExpiryInserted(until);
     traceTimed('upsertTimedCellRule:new', { rowId, ruleId, colId, until });
     return;
   }
   prev.cellsUntil.set(colId, Math.max(prev.cellsUntil.get(colId) ?? 0, until));
+  noteExpiryInserted(prev.cellsUntil.get(colId) ?? until);
   traceTimed('upsertTimedCellRule:update', {
     rowId,
     ruleId,
@@ -100,6 +124,9 @@ export function upsertTimedCellActivation(
  * — keeps timer churn O(1) regardless of tick rate.
  */
 export function getNextTimedExpiry(): number | null {
+  // Fast path — cache valid → O(1).
+  if (cachedNextExpiry !== undefined) return cachedNextExpiry;
+  // Cold path — recompute by walking the map once.
   let next: number | null = null;
   for (const byRule of timedRuleStateByRowId.values()) {
     for (const entry of byRule.values()) {
@@ -111,31 +138,126 @@ export function getNextTimedExpiry(): number | null {
       }
     }
   }
+  cachedNextExpiry = next;
   return next;
 }
 
 export function pruneTimedRuleState(activeRowIds: Set<string>): void {
   const now = Date.now();
+  let mutated = false;
   for (const [rowId, byRule] of timedRuleStateByRowId) {
     if (!activeRowIds.has(rowId)) {
       timedRuleStateByRowId.delete(rowId);
+      mutated = true;
       continue;
     }
     for (const [ruleId, entry] of byRule) {
       if (entry.rowUntil != null && entry.rowUntil <= now) {
         entry.rowUntil = undefined;
+        mutated = true;
       }
       for (const [colId, expiry] of entry.cellsUntil) {
-        if (expiry <= now) entry.cellsUntil.delete(colId);
+        if (expiry <= now) {
+          entry.cellsUntil.delete(colId);
+          mutated = true;
+        }
       }
       if (!entry.rowUntil && entry.cellsUntil.size === 0) {
         byRule.delete(ruleId);
+        mutated = true;
       }
     }
     if (byRule.size === 0) {
       timedRuleStateByRowId.delete(rowId);
+      mutated = true;
     }
   }
+  if (mutated) invalidateExpiryCache();
+}
+
+/**
+ * Drop timed-state entries whose rule no longer exists in the active set
+ * (e.g. after a profile load that removes / replaces the prior profile's
+ * rules). Without this, stale entries from the previous profile keep
+ * `getNextTimedExpiry()` returning a non-null timestamp, the coalesced
+ * expiry timer arms with delay 0/8 ms, fires, re-evaluates against an
+ * empty rule set, and re-arms forever — visible in the console as a
+ * tight `armNextExpiry` / `expiry refresh fired` loop.
+ *
+ * Pass the current set of timed rule ids (rules with `activeDurationMs`).
+ * Any entry keyed by a rule outside that set is dropped wholesale.
+ */
+export function pruneTimedRuleStateByRuleSet(activeTimedRuleIds: Set<string>): void {
+  let mutated = false;
+  for (const [rowId, byRule] of timedRuleStateByRowId) {
+    for (const ruleId of byRule.keys()) {
+      if (!activeTimedRuleIds.has(ruleId)) {
+        byRule.delete(ruleId);
+        mutated = true;
+      }
+    }
+    if (byRule.size === 0) {
+      timedRuleStateByRowId.delete(rowId);
+      mutated = true;
+    }
+  }
+  if (mutated) invalidateExpiryCache();
+}
+
+/**
+ * Collect the (rowId, colIds) pairs whose entries are expired (until ≤
+ * now), then drop those entries. Used by the expiry timer to compute
+ * the targeted refresh surface AND clear the state in one pass —
+ * cheaper than a follow-up `pruneTimedRuleState(activeRowIds)` walk.
+ *
+ * `rowScope` carries entries that had `rowUntil` set (row-scope rules);
+ * the caller refreshes the entire row's currently visible cells.
+ * `cellScope` carries entries that had `cellsUntil` set (cell-scope
+ * rules); the caller refreshes the precise (rowId, colId) pairs.
+ */
+export function collectAndPruneExpiredTimedEntries(): {
+  rowScope: Array<{ rowId: string }>;
+  cellScope: Array<{ rowId: string; colIds: string[] }>;
+} {
+  const now = Date.now();
+  const rowScope: Array<{ rowId: string }> = [];
+  const cellScope: Array<{ rowId: string; colIds: string[] }> = [];
+  let mutated = false;
+
+  for (const [rowId, byRule] of timedRuleStateByRowId) {
+    let rowExpiredForThisRow = false;
+    const cellColsExpiredForThisRow = new Set<string>();
+
+    for (const [ruleId, entry] of byRule) {
+      if (entry.rowUntil != null && entry.rowUntil <= now) {
+        rowExpiredForThisRow = true;
+        entry.rowUntil = undefined;
+        mutated = true;
+      }
+      for (const [colId, expiry] of entry.cellsUntil) {
+        if (expiry <= now) {
+          cellColsExpiredForThisRow.add(colId);
+          entry.cellsUntil.delete(colId);
+          mutated = true;
+        }
+      }
+      if (!entry.rowUntil && entry.cellsUntil.size === 0) {
+        byRule.delete(ruleId);
+        mutated = true;
+      }
+    }
+
+    if (rowExpiredForThisRow) rowScope.push({ rowId });
+    if (cellColsExpiredForThisRow.size > 0) {
+      cellScope.push({ rowId, colIds: [...cellColsExpiredForThisRow] });
+    }
+    if (byRule.size === 0) {
+      timedRuleStateByRowId.delete(rowId);
+      mutated = true;
+    }
+  }
+  if (mutated) invalidateExpiryCache();
+  return { rowScope, cellScope };
 }
 
 // ─── Flash palette + base keyframes (module-scoped, shipped once per grid) ─
@@ -732,10 +854,19 @@ function resolveRowId(node: unknown): string | null {
     : null;
 }
 
+/**
+ * Trace helper for the timed-rule subsystem.
+ *
+ * Off by default — `setTimeout` + `cellValueChanged` paths fire dozens
+ * to hundreds of trace points per second under live ticks, and the
+ * resulting `console.log` storm is one of the bigger CPU costs in
+ * production. Opt in explicitly per session by setting
+ * `window.__CS_TIMED_TRACE__ = true` in the DevTools console.
+ */
 function traceTimed(message: string, payload?: unknown): void {
   try {
     const flag = (globalThis as { __CS_TIMED_TRACE__?: boolean }).__CS_TIMED_TRACE__;
-    if (flag === false) return;
+    if (flag !== true) return;
     if (payload === undefined) {
       console.log(TRACE_PREFIX, message);
       return;

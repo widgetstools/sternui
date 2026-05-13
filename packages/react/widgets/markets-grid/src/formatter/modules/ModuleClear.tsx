@@ -54,8 +54,8 @@ export function ModuleClear({
       data-testid={orientation === 'horizontal' ? 'formatting-clear-all' : 'fmt-panel-clear-all'}
       className="fx-destruct"
       data-confirmed={state.clearConfirmed ? 'true' : undefined}
-      title="Clear every column's styling, value formatter, borders, filter config, and template references from this profile"
-      aria-label="Clear all styles in this profile"
+      title="Clear every column's styling, value formatter, borders, filter config, and template references from this layout"
+      aria-label="Clear all styles in this layout"
     >
       {state.clearConfirmed
         ? <Check size={13} strokeWidth={2.5} />
@@ -68,7 +68,7 @@ export function ModuleClear({
     return (
       <>
         <Tooltip content={selectedTitle}>{SelBtn}</Tooltip>
-        <Tooltip content="Clear all styles in this profile">{AllBtn}</Tooltip>
+        <Tooltip content="Clear all styles in this layout">{AllBtn}</Tooltip>
       </>
     );
   }

@@ -46,6 +46,25 @@ export interface CellStyleOverrides {
   };
 }
 
+// ─── Theme-keyed wrapper ───────────────────────────────────────────────────
+//
+// Per-column styling that differs by host theme. Reducers write to the
+// slot matching `[data-theme]` at write-time; the transform reads the
+// matching slot at colDef-build time. Both slots persist independently
+// inside the profile, so the user can set red headers in dark and blue
+// headers in light without one clobbering the other.
+//
+// Legacy profiles stored a flat `CellStyleOverrides`. `migrateThemedStyle`
+// (in `themedStyle.ts`) lifts those into `{ dark, light }` at load time
+// — same colour appears in both modes until the user diverges them.
+
+export type GridThemeMode = 'dark' | 'light';
+
+export interface ThemedCellStyleOverrides {
+  dark?: CellStyleOverrides;
+  light?: CellStyleOverrides;
+}
+
 // ─── Value formatter template ──────────────────────────────────────────────
 //
 // Discriminated union covering four formatter sources:
@@ -101,9 +120,10 @@ export interface ColumnAssignment {
   resizable?: boolean;
   editable?: boolean;
 
-  // Appearance + formatting (merged per-field by column-templates)
-  cellStyleOverrides?: CellStyleOverrides;
-  headerStyleOverrides?: CellStyleOverrides;
+  // Appearance + formatting. Themed so styling differs by host theme;
+  // reducers and transforms route via `[data-theme]`.
+  cellStyleOverrides?: ThemedCellStyleOverrides;
+  headerStyleOverrides?: ThemedCellStyleOverrides;
   valueFormatterTemplate?: ValueFormatterTemplate;
 
   // Template references — later wins on resolve.

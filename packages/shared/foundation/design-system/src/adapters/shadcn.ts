@@ -222,11 +222,12 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-font-sans:  ${typography.fontFamily.sans};
     --ds-font-mono:  ${typography.fontFamily.mono};
     --ds-font-serif: ${typography.fontFamily.serif};
-    --ds-radius-sm:  ${radius.sm};
-    --ds-radius-md:  ${radius.md};
-    --ds-radius-lg:  ${radius.lg};
-    --ds-radius-xl:  ${radius.xl};
-    --radius:        ${radius.md};
+    --ds-radius-sm:   ${radius.sm};
+    --ds-radius-md:   ${radius.md};
+    --ds-radius-lg:   ${radius.lg};
+    --ds-radius-xl:   ${radius.xl};
+    --ds-radius-full: ${radius.full};
+    --radius:         ${radius.md};
 
     /* ── Motion vars ── */
     --ds-tx-fast:   ${transition.fast};

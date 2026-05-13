@@ -11,6 +11,7 @@
  * grid is destroyed.
  */
 import type { Module } from '@starui/core';
+import { migrateThemedStyle } from '@starui/core';
 import {
   INITIAL_COLUMN_CUSTOMIZATION,
   type ColumnCustomizationState,
@@ -30,7 +31,7 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
   id: COLUMN_CUSTOMIZATION_MODULE_ID,
   name: 'Column Settings',
   code: '04',
-  schemaVersion: 5,
+  schemaVersion: 9,
   dependencies: [COLUMN_TEMPLATES_MODULE_ID],
   priority: 10,
 
@@ -46,10 +47,25 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     //     field. main never shipped those, so a v6 profile arriving
     //     here gets the synthetic kinds rewritten back to plain
     //     'agMultiColumnFilter' (and the floatingFilterStyle field is
-    //     dropped — main has no place to honour it). This rescues the
-    //     user's other settings instead of nuking the profile when
-    //     they switch between branches.
-    if (fromVersion >= 1 && fromVersion <= 6) {
+    //     dropped — main has no place to honour it).
+    //   - schemaVersion 7 lifted `cellStyleOverrides` and
+    //     `headerStyleOverrides` from flat `CellStyleOverrides` into
+    //     a theme-keyed `{ dark, light }` wrapper so per-column styling
+    //     can differ by host theme. Flat values are duplicated into
+    //     both slots on migration — same look as before until the user
+    //     diverges them.
+    //   - schemaVersion 8 added three optional state-root fields:
+    //     `globalCellStyle`, `globalHeaderStyle`, `globalCellFormatter`.
+    //     Older snapshots had no global baseline, so the migration is a
+    //     no-op for these — they remain undefined and the toolbar treats
+    //     the profile as "no global signal" until the user authors one.
+    //   - schemaVersion 9 split `globalCellFormatter` into a number slot
+    //     (`globalCellNumberFormatter`) and a date slot
+    //     (`globalCellDateFormatter`) so both can coexist in one
+    //     profile. v8 snapshots that carried `globalCellFormatter` lift
+    //     it into the matching slot based on the template's preset:
+    //     date / datetime → date slot; everything else → number slot.
+    if (fromVersion >= 1 && fromVersion <= 9) {
       if (!raw || typeof raw !== 'object') {
         console.warn(
           '[column-customization]',
@@ -58,21 +74,57 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
         return { ...INITIAL_COLUMN_CUSTOMIZATION };
       }
       const cloned = JSON.parse(JSON.stringify(raw)) as {
-        assignments?: Record<string, { filter?: { kind?: string; floatingFilterStyle?: string } }>;
+        assignments?: Record<string, Record<string, unknown>>;
+        globalCellFormatter?: { kind?: string; preset?: string } & Record<string, unknown>;
+        globalCellNumberFormatter?: unknown;
+        globalCellDateFormatter?: unknown;
       };
-      if (fromVersion === 6 && cloned.assignments && typeof cloned.assignments === 'object') {
+
+      // v8→v9: split the single `globalCellFormatter` into number-vs-date
+      // slots. Route by preset: date / datetime presets land on the
+      // date slot; everything else (currency / percent / number / tick /
+      // expression / excelFormat) lands on the number slot. excelFormat
+      // strings can technically describe dates but the heuristic isn't
+      // worth its complexity — operators can re-pick the format if it
+      // was authored as a date in v8.
+      if (fromVersion <= 8 && cloned.globalCellFormatter) {
+        const gf = cloned.globalCellFormatter;
+        const isDate =
+          gf.kind === 'preset' && (gf.preset === 'date' || gf.preset === 'datetime');
+        if (isDate) cloned.globalCellDateFormatter = gf;
+        else cloned.globalCellNumberFormatter = gf;
+        delete cloned.globalCellFormatter;
+      }
+
+      if (cloned.assignments && typeof cloned.assignments === 'object') {
         for (const colId of Object.keys(cloned.assignments)) {
           const a = cloned.assignments[colId];
-          const filter = a?.filter as { kind?: string; floatingFilterStyle?: string } | undefined;
-          if (!filter || typeof filter !== 'object') continue;
-          const k = filter.kind;
-          if (k === 'streamSafeMultiColumnFilter' || k === 'streamSafeMultiNumberColumnFilter') {
-            filter.kind = 'agMultiColumnFilter';
+          if (!a) continue;
+
+          if (fromVersion === 6) {
+            const filter = a.filter as { kind?: string; floatingFilterStyle?: string } | undefined;
+            if (filter && typeof filter === 'object') {
+              const k = filter.kind;
+              if (k === 'streamSafeMultiColumnFilter' || k === 'streamSafeMultiNumberColumnFilter') {
+                filter.kind = 'agMultiColumnFilter';
+              }
+              if ('floatingFilterStyle' in filter) {
+                delete (filter as { floatingFilterStyle?: unknown }).floatingFilterStyle;
+              }
+            }
           }
-          // floatingFilterStyle is unknown to v5 — drop it. delete is fine
-          // on the optional field; downstream readers ignore unknown keys
-          // anyway but stripping keeps the snapshot clean.
-          if ('floatingFilterStyle' in filter) delete (filter as { floatingFilterStyle?: unknown }).floatingFilterStyle;
+
+          // Lift legacy flat style overrides into the themed wrapper.
+          // `migrateThemedStyle` is a no-op for already-themed values.
+          if (fromVersion <= 6) {
+            const migratedCell = migrateThemedStyle(a.cellStyleOverrides as never);
+            if (migratedCell) a.cellStyleOverrides = migratedCell as never;
+            else delete a.cellStyleOverrides;
+
+            const migratedHdr = migrateThemedStyle(a.headerStyleOverrides as never);
+            if (migratedHdr) a.headerStyleOverrides = migratedHdr as never;
+            else delete a.headerStyleOverrides;
+          }
         }
       }
       return cloned as ColumnCustomizationState;
@@ -99,16 +151,24 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     // `.ds-col-c-{colId}` rules in the page stylesheet.
     const cells = ctx.resources.css(`${COLUMN_CUSTOMIZATION_MODULE_ID}-cells`);
     const headers = ctx.resources.css(`${COLUMN_CUSTOMIZATION_MODULE_ID}-headers`);
-    reinjectCSS(cells, headers, state.assignments, templatesState, defs);
+    reinjectCSS(cells, headers, state, templatesState, defs);
 
     // Walker emits cellClass / headerClass (NOT cellStyle / headerStyle) so
-    // the CSS rules above take effect without per-row recomputation.
-    // Fast-path: skip the walker when there's nothing to merge — `defs`
-    // is returned as-is, same reference, so AG-Grid sees no change.
-    if (Object.keys(state.assignments).length === 0) return defs;
+    // the CSS rules above take effect without per-row recomputation. The
+    // global formatter (when set) also needs the walker to plant
+    // `valueFormatter` on every compatible column, so we run the walker
+    // unconditionally when either per-column assignments or any global
+    // baseline is present.
+    const hasAnyState =
+      Object.keys(state.assignments).length > 0 ||
+      state.globalCellStyle !== undefined ||
+      state.globalHeaderStyle !== undefined ||
+      state.globalCellNumberFormatter !== undefined ||
+      state.globalCellDateFormatter !== undefined;
+    if (!hasAnyState) return defs;
     return applyAssignments(
       defs,
-      state.assignments,
+      state,
       templatesState,
       ctx.resources.expression(),
       ctx.resources.appData?.(),
@@ -126,10 +186,30 @@ export const columnCustomizationModule: Module<ColumnCustomizationState> = {
     // loads cleanly without dropping the rest of the state.
     const { templates: _drop, ...rest } = raw as { templates?: unknown };
     void _drop;
-    return {
+    // Defensive theming lift — covers same-schema-version snapshots that
+    // still carry the legacy flat shape (e.g. profiles written by the
+    // module before the schemaVersion was bumped). Already-themed
+    // values are passed through unchanged by `migrateThemedStyle`.
+    const next: ColumnCustomizationState = {
       ...INITIAL_COLUMN_CUSTOMIZATION,
       ...(rest as Partial<ColumnCustomizationState>),
     };
+    if (next.assignments && typeof next.assignments === 'object') {
+      const lifted: Record<string, never> = {};
+      for (const [colId, a] of Object.entries(next.assignments)) {
+        if (!a) continue;
+        const cell = migrateThemedStyle(a.cellStyleOverrides as never);
+        const hdr = migrateThemedStyle(a.headerStyleOverrides as never);
+        const merged = { ...a };
+        if (cell !== undefined) merged.cellStyleOverrides = cell;
+        else delete merged.cellStyleOverrides;
+        if (hdr !== undefined) merged.headerStyleOverrides = hdr;
+        else delete merged.headerStyleOverrides;
+        (lifted as Record<string, unknown>)[colId] = merged;
+      }
+      next.assignments = lifted as never;
+    }
+    return next;
   },
 
   // v4: native master-detail — the settings sheet picks these up
@@ -170,6 +250,7 @@ export {
 } from './editors/CellEditorEditor';
 export {
   overrideKey,
+  globalKey,
   stripUndefined,
   mergeOverrides,
   writeOverridesReducer,
@@ -190,4 +271,6 @@ export {
   clearAllStylesReducer,
   clearAllStylesInProfileReducer,
   type TargetKind,
+  type ScopeKind,
+  type FormatterKind,
 } from './formattingActions';

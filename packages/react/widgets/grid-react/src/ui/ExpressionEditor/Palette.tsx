@@ -178,15 +178,15 @@ export function Palette({ title, placeholder, items, onPick, onClose, subtitle }
                   style={{
                     padding: '6px 14px',
                     cursor: 'pointer',
-                    background: isSelected ? 'var(--ds-overlay-info-soft)' : 'transparent',
-                    borderLeft: isSelected ? '2px solid var(--ds-accent-info)' : '2px solid transparent',
+                    background: isSelected ? 'var(--ds-primary-soft)' : 'transparent',
+                    borderLeft: isSelected ? '2px solid var(--ds-primary)' : '2px solid transparent',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                     <span style={{
                       fontFamily: "'JetBrains Mono', Menlo, monospace",
                       fontSize: 12,
-                      color: isSelected ? 'var(--ds-accent-info)' : 'var(--ds-text-primary)',
+                      color: isSelected ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
                       fontWeight: 500,
                     }}>{it.label}</span>
                     {it.detail && (

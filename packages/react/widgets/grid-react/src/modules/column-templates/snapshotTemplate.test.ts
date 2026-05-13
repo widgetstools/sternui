@@ -15,6 +15,7 @@ import type {
   ColumnTemplate,
   ColumnTemplatesState,
 } from './state';
+import type { CellStyleOverrides, ThemedCellStyleOverrides } from '@starui/core';
 import {
   addTemplateReducer,
   pickTemplateFields,
@@ -24,6 +25,15 @@ import {
   snapshotTemplateUpdate,
   updateTemplateReducer,
 } from './snapshotTemplate';
+
+// Per-column overrides are theme-keyed; vitest runs without a `data-theme`
+// attribute so `getActiveTheme()` resolves to `'dark'`. Setting both slots
+// to the same value mirrors the migration of legacy flat overrides — any
+// path that reads the active slot sees the same payload as before themed
+// storage existed.
+function themed(flat: CellStyleOverrides): ThemedCellStyleOverrides {
+  return { dark: flat, light: flat };
+}
 
 // Deterministic deps so id + timestamps are pinnable.
 const pinnedDeps = (now = 1_700_000_000_000, suffix = 'abcd') => ({
@@ -38,7 +48,7 @@ describe('snapshotTemplate — early outs', () => {
     assignments: {
       price: {
         colId: 'price',
-        cellStyleOverrides: { typography: { bold: true } },
+        cellStyleOverrides: themed({ typography: { bold: true } }),
       },
     },
   };
@@ -88,7 +98,7 @@ describe('snapshotTemplate — happy paths', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true, fontSize: 14 } },
+          cellStyleOverrides: themed({ typography: { bold: true, fontSize: 14 } }),
         },
       },
     };
@@ -100,7 +110,7 @@ describe('snapshotTemplate — happy paths', () => {
     expect(tpl!.description).toBe('Saved from price');
     expect(tpl!.createdAt).toBe(1_700_000_000_000);
     expect(tpl!.updatedAt).toBe(1_700_000_000_000);
-    expect(tpl!.cellStyleOverrides?.typography).toEqual({ bold: true, fontSize: 14 });
+    expect(tpl!.cellStyleOverrides?.dark?.typography).toEqual({ bold: true, fontSize: 14 });
     expect(tpl!.headerStyleOverrides).toBeUndefined();
     expect(tpl!.valueFormatterTemplate).toBeUndefined();
   });
@@ -110,7 +120,7 @@ describe('snapshotTemplate — happy paths', () => {
       assignments: {
         price: {
           colId: 'price',
-          headerStyleOverrides: { alignment: { horizontal: 'right' } },
+          headerStyleOverrides: themed({ alignment: { horizontal: 'right' } }),
         },
       },
     };
@@ -118,7 +128,7 @@ describe('snapshotTemplate — happy paths', () => {
 
     expect(tpl).toBeDefined();
     expect(tpl!.cellStyleOverrides).toBeUndefined();
-    expect(tpl!.headerStyleOverrides?.alignment).toEqual({ horizontal: 'right' });
+    expect(tpl!.headerStyleOverrides?.dark?.alignment).toEqual({ horizontal: 'right' });
   });
 
   it('captures valueFormatterTemplate when only a formatter is set', () => {
@@ -151,7 +161,7 @@ describe('snapshotTemplate — happy paths', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
         },
       },
     };
@@ -171,7 +181,7 @@ describe('snapshotTemplate — happy paths', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
         },
       },
     };
@@ -191,7 +201,7 @@ describe('snapshotTemplate — happy paths', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
         },
       },
     };
@@ -215,7 +225,7 @@ describe('snapshotTemplate — resolved effective appearance', () => {
     const baseTpl: ColumnTemplate = {
       id: 'base',
       name: 'Base bold',
-      cellStyleOverrides: { typography: { bold: true } },
+      cellStyleOverrides: themed({ typography: { bold: true } }),
       createdAt: 0,
       updatedAt: 0,
     };
@@ -229,7 +239,7 @@ describe('snapshotTemplate — resolved effective appearance', () => {
         price: {
           colId: 'price',
           templateIds: ['base'],
-          cellStyleOverrides: { typography: { italic: true } },
+          cellStyleOverrides: themed({ typography: { italic: true } }),
         },
       },
     };
@@ -238,7 +248,7 @@ describe('snapshotTemplate — resolved effective appearance', () => {
     expect(tpl).toBeDefined();
     // Both the template's bold AND the assignment's italic should be
     // captured — that's the "effective appearance" contract.
-    expect(tpl!.cellStyleOverrides?.typography).toEqual({ bold: true, italic: true });
+    expect(tpl!.cellStyleOverrides?.dark?.typography).toEqual({ bold: true, italic: true });
   });
 
   it('folds in a typeDefault when templateIds is unset AND dataType is provided', () => {
@@ -261,14 +271,14 @@ describe('snapshotTemplate — resolved effective appearance', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
           // NOTE: no templateIds field at all — triggers the typeDefault.
         },
       },
     };
     const tpl = snapshotTemplate(cust, tpls, 'price', 'Combined', 'numeric', pinnedDeps());
 
-    expect(tpl!.cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(tpl!.cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
     expect(tpl!.valueFormatterTemplate).toEqual({
       kind: 'preset',
       preset: 'number',
@@ -296,13 +306,13 @@ describe('snapshotTemplate — resolved effective appearance', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
         },
       },
     };
     const tpl = snapshotTemplate(cust, tpls, 'price', 'NoType', undefined, pinnedDeps());
 
-    expect(tpl!.cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(tpl!.cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
     expect(tpl!.valueFormatterTemplate).toBeUndefined();
   });
 
@@ -311,13 +321,13 @@ describe('snapshotTemplate — resolved effective appearance', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
         },
       },
     };
     const tpl = snapshotTemplate(cust, undefined, 'price', 'X', undefined, pinnedDeps());
     expect(tpl).toBeDefined();
-    expect(tpl!.cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(tpl!.cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
   });
 });
 
@@ -327,7 +337,7 @@ describe('addTemplateReducer', () => {
   const makeTpl = (id: string): ColumnTemplate => ({
     id,
     name: `Template ${id}`,
-    cellStyleOverrides: { typography: { bold: true } },
+    cellStyleOverrides: themed({ typography: { bold: true } }),
     createdAt: 1,
     updatedAt: 1,
   });
@@ -381,7 +391,7 @@ describe('removeTemplateReducer', () => {
   const makeTpl = (id: string): ColumnTemplate => ({
     id,
     name: `Template ${id}`,
-    cellStyleOverrides: { typography: { bold: true } },
+    cellStyleOverrides: themed({ typography: { bold: true } }),
     createdAt: 1,
     updatedAt: 1,
   });
@@ -535,8 +545,8 @@ describe('snapshotTemplate — full capture pipeline', () => {
       assignments: {
         price: {
           colId: 'price',
-          cellStyleOverrides: { typography: { bold: true } },
-          headerStyleOverrides: { colors: { background: '#000' } },
+          cellStyleOverrides: themed({ typography: { bold: true } }),
+          headerStyleOverrides: themed({ colors: { background: '#000' } }),
           valueFormatterTemplate: {
             kind: 'preset',
             preset: 'currency',
@@ -569,8 +579,8 @@ describe('snapshotTemplate — full capture pipeline', () => {
 
     const tpl = snapshotTemplate(cust, tpls, 'price', 'Full price', undefined, pinnedDeps());
     expect(tpl).toBeDefined();
-    expect(tpl!.cellStyleOverrides?.typography).toEqual({ bold: true });
-    expect(tpl!.headerStyleOverrides?.colors).toEqual({ background: '#000' });
+    expect(tpl!.cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
+    expect(tpl!.headerStyleOverrides?.dark?.colors).toEqual({ background: '#000' });
     expect(tpl!.valueFormatterTemplate?.kind).toBe('preset');
     expect(tpl!.editable).toBe(true);
     expect(tpl!.sortable).toBe(false);
@@ -641,7 +651,7 @@ describe('updateTemplateReducer', () => {
     id: 't1',
     name: 'Bold',
     description: 'Saved from price',
-    cellStyleOverrides: { typography: { bold: true } },
+    cellStyleOverrides: themed({ typography: { bold: true } }),
     createdAt: 1000,
     updatedAt: 1000,
   };
@@ -696,7 +706,7 @@ describe('renameTemplateReducer', () => {
   const t1: ColumnTemplate = {
     id: 't1',
     name: 'Old',
-    cellStyleOverrides: { typography: { bold: true } },
+    cellStyleOverrides: themed({ typography: { bold: true } }),
     createdAt: 1000,
     updatedAt: 1000,
   };
@@ -706,7 +716,7 @@ describe('renameTemplateReducer', () => {
     const next = renameTemplateReducer('t1', '  New name  ', { now: () => 2000 })(state);
     expect(next.templates.t1.name).toBe('New name');
     expect(next.templates.t1.updatedAt).toBe(2000);
-    expect(next.templates.t1.cellStyleOverrides?.typography).toEqual({ bold: true });
+    expect(next.templates.t1.cellStyleOverrides?.dark?.typography).toEqual({ bold: true });
   });
 
   it('rejects empty / whitespace-only name (no-op)', () => {

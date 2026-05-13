@@ -112,9 +112,9 @@ export function ensureExpressionEditorMonacoStyle(doc: Document): void {
 }
 
 .monaco-editor .suggest-widget .monaco-list-row.focused {
-  background: var(--ds-overlay-info-soft) !important;
+  background: var(--ds-primary-soft) !important;
   color: var(--ds-text-primary) !important;
-  border-left: 2px solid var(--ds-accent-info) !important;
+  border-left: 2px solid var(--ds-primary) !important;
 }`;
   doc.head.appendChild(style);
 }

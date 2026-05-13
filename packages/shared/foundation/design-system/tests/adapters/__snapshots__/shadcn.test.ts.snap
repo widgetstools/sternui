@@ -4,11 +4,11 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 "@layer base {
   :root, [data-theme="dark"] {
     /* ── FI Design System source tokens ── */
-    --ds-primary:           #00d5ff;
-    --ds-primary-hover:     #48e6ff;
-    --ds-primary-foreground:#061c28;
-    --ds-primary-soft:      rgba(0,213,255,0.18);
-    --ds-primary-ring:      rgba(0,213,255,0.46);
+    --ds-primary:           #b5add8;
+    --ds-primary-hover:     #c9c2e4;
+    --ds-primary-foreground:#1a1726;
+    --ds-primary-soft:      rgba(181,173,216,0.22);
+    --ds-primary-ring:      rgba(181,173,216,0.44);
 
     --ds-surface-ground:     #0a0e14;
     --ds-surface-primary:    #121820;
@@ -39,12 +39,12 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-action-sell-bg:   #ff3366;
     --ds-action-sell-fg:   #061c28;
 
-    --ds-state-focus-ring:    #00d5ff;
-    --ds-state-focus-ring-bg: rgba(0,213,255,0.30);
+    --ds-state-focus-ring:    #b5add8;
+    --ds-state-focus-ring-bg: rgba(181,173,216,0.30);
     --ds-state-disabled-bg:   #242c38;
     --ds-state-disabled-fg:   #4d586a;
     --ds-state-hover-overlay: rgba(255,255,255,0.05);
-    --ds-state-selection:     rgba(0,213,255,0.24);
+    --ds-state-selection:     rgba(181,173,216,0.24);
 
     --ds-overlay-positive-soft:  rgba(0,245,160,0.18);
     --ds-overlay-positive-ring:  rgba(0,245,160,0.45);
@@ -61,7 +61,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
     --ds-elevation-card:    0 1px 2px rgba(15,23,42,0.08);
     --ds-elevation-overlay: 0 4px 12px rgba(0,0,0,0.25);
-    --ds-elevation-glow:    0 0 0 2px rgba(0,213,255,0.42), 0 0 28px rgba(0,213,255,0.20);
+    --ds-elevation-glow:    0 0 0 2px rgba(181,173,216,0.42), 0 0 28px rgba(181,173,216,0.20);
 
     /* ── shadcn-compat HSL channel aliases ── */
     --background:           216 33% 6%;
@@ -70,8 +70,8 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --card-foreground:      220 22% 92%;
     --popover:              214 28% 10%;
     --popover-foreground:   220 22% 92%;
-    --primary:              190 100% 50%;
-    --primary-foreground:   201 74% 9%;
+    --primary:              251 36% 76%;
+    --primary-foreground:   252 25% 12%;
     --secondary:            216 22% 18%;
     --secondary-foreground: 215 14% 70%;
     --muted:                215 25% 14%;
@@ -85,10 +85,10 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --warning:              35 100% 55%;
     --warning-foreground:   221 39% 11%;
     --info:                 188 100% 64%;
-    --info-foreground:      201 74% 9%;
+    --info-foreground:      252 25% 12%;
     --border:               215 19% 22%;
     --input:                215 19% 22%;
-    --ring:                 190 100% 50%;
+    --ring:                 251 36% 76%;
 
     --surface-50:  214 28% 10%;
     --surface-100: 215 25% 14%;
@@ -103,8 +103,8 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --surface-950: 216 33% 6%;
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
-    --p-primary-color:        #00d5ff;
-    --p-primary-color-text:   #061c28;
+    --p-primary-color:        #b5add8;
+    --p-primary-color-text:   #1a1726;
     --p-surface-50:           #121820;
     --p-surface-100:          #1a212b;
     --p-surface-200:          #242c38;
@@ -120,11 +120,12 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-font-sans:  'Geist', 'Inter', system-ui, sans-serif;
     --ds-font-mono:  'JetBrains Mono', monospace;
     --ds-font-serif: 'Geist', Georgia, serif;
-    --ds-radius-sm:  2px;
-    --ds-radius-md:  3px;
-    --ds-radius-lg:  4px;
-    --ds-radius-xl:  6px;
-    --radius:        3px;
+    --ds-radius-sm:   2px;
+    --ds-radius-md:   2px;
+    --ds-radius-lg:   2px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         2px;
 
     /* ── Motion vars ── */
     --ds-tx-fast:   140ms cubic-bezier(0.4,0,0.2,1);
@@ -134,11 +135,11 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
   [data-theme="light"] {
     /* ── FI Design System source tokens ── */
-    --ds-primary:           #2952cc;
-    --ds-primary-hover:     #1f3f9e;
+    --ds-primary:           #6b6498;
+    --ds-primary-hover:     #544e7c;
     --ds-primary-foreground:#ffffff;
-    --ds-primary-soft:      rgba(41,82,204,0.08);
-    --ds-primary-ring:      rgba(41,82,204,0.24);
+    --ds-primary-soft:      rgba(107,100,152,0.10);
+    --ds-primary-ring:      rgba(107,100,152,0.30);
 
     --ds-surface-ground:     #f8f9fb;
     --ds-surface-primary:    #ffffff;
@@ -169,12 +170,12 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-action-sell-bg:   #a43f4b;
     --ds-action-sell-fg:   #ffffff;
 
-    --ds-state-focus-ring:    #2952cc;
-    --ds-state-focus-ring-bg: rgba(41,82,204,0.14);
+    --ds-state-focus-ring:    #6b6498;
+    --ds-state-focus-ring-bg: rgba(107,100,152,0.16);
     --ds-state-disabled-bg:   #f3f5f8;
     --ds-state-disabled-fg:   #9aa3af;
     --ds-state-hover-overlay: rgba(0,0,0,0.045);
-    --ds-state-selection:     rgba(41,82,204,0.10);
+    --ds-state-selection:     rgba(107,100,152,0.12);
 
     --ds-overlay-positive-soft:  rgba(31,122,92,0.08);
     --ds-overlay-positive-ring:  rgba(31,122,92,0.22);
@@ -191,7 +192,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
     --ds-elevation-card:    0 1px 2px rgba(15,23,42,0.08);
     --ds-elevation-overlay: 0 1px 2px rgba(15,23,42,0.06), 0 10px 28px rgba(15,23,42,0.10);
-    --ds-elevation-glow:    0 0 0 3px rgba(41,82,204,0.12);
+    --ds-elevation-glow:    0 0 0 3px rgba(107,100,152,0.16);
 
     /* ── shadcn-compat HSL channel aliases ── */
     --background:           220 27% 98%;
@@ -200,7 +201,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --card-foreground:      221 39% 11%;
     --popover:              0 0% 100%;
     --popover-foreground:   221 39% 11%;
-    --primary:              225 67% 48%;
+    --primary:              248 21% 49%;
     --primary-foreground:   0 0% 100%;
     --secondary:            210 29% 95%;
     --secondary-foreground: 215 14% 34%;
@@ -218,7 +219,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --info-foreground:      0 0% 100%;
     --border:               218 26% 88%;
     --input:                218 26% 88%;
-    --ring:                 225 67% 48%;
+    --ring:                 248 21% 49%;
 
     --surface-50:  0 0% 100%;
     --surface-100: 216 26% 96%;
@@ -233,7 +234,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --surface-950: 220 27% 98%;
 
     /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
-    --p-primary-color:        #2952cc;
+    --p-primary-color:        #6b6498;
     --p-primary-color-text:   #ffffff;
     --p-surface-50:           #ffffff;
     --p-surface-100:          #f3f5f8;
@@ -250,11 +251,12 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-font-sans:  'Geist', 'Inter', system-ui, sans-serif;
     --ds-font-mono:  'JetBrains Mono', monospace;
     --ds-font-serif: 'Geist', Georgia, serif;
-    --ds-radius-sm:  2px;
-    --ds-radius-md:  3px;
-    --ds-radius-lg:  4px;
-    --ds-radius-xl:  6px;
-    --radius:        3px;
+    --ds-radius-sm:   2px;
+    --ds-radius-md:   2px;
+    --ds-radius-lg:   2px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         2px;
 
     /* ── Motion vars ── */
     --ds-tx-fast:   140ms cubic-bezier(0.4,0,0.2,1);

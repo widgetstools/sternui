@@ -14,7 +14,7 @@
   --card-foreground: 221 39% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 221 39% 11%;
-  --primary: 225 67% 48%;            /* #2952cc — cobalt */
+  --primary: 248 21% 49%;            /* #6b6498 — deep greyish lavender */
   --primary-foreground: 0 0% 100%;
   --secondary: 210 29% 95%;          /* #edf1f5 */
   --secondary-foreground: 215 14% 34%;
@@ -26,8 +26,8 @@
   --destructive-foreground: 0 0% 100%;
   --border: 218 26% 88%;             /* #d8dee8 */
   --input: 218 26% 88%;
-  --ring: 225 67% 48%;
-  --radius: 4px;
+  --ring: 248 21% 49%;
+  --radius: 2px;
 
   /* ── Surface (cool clinical) ── */
   --bn-bg:      #f8f9fb;
@@ -51,8 +51,8 @@
   --bn-red:     #a43f4b;
   --bn-red2:    #84313b;
   --bn-amber:   #8a5f1f;    /* muted ochre — warning semantic only */
-  --bn-blue:    #2952cc;    /* PRIMARY BRAND */
-  --bn-blue2:   #1f3f9e;    /* PRIMARY HOVER */
+  --bn-blue:    #6b6498;    /* PRIMARY BRAND — deep greyish lavender */
+  --bn-blue2:   #544e7c;    /* PRIMARY HOVER */
   --bn-info:    #3d6f99;    /* informational accent */
   --bn-cyan:    #06b6d4;    /* highlight accent */
   --bn-purple:  #7c3aed;
@@ -64,12 +64,12 @@
   --bn-logo-bg:  #ffffff;
 
   /* ── Interactive states ── */
-  --bn-focus-ring:    #2952cc;
-  --bn-focus-ring-bg: rgba(41,82,204,0.14);
+  --bn-focus-ring:    #6b6498;
+  --bn-focus-ring-bg: rgba(107,100,152,0.16);
   --bn-disabled-bg:   #f3f5f8;
   --bn-disabled-fg:   #9aa3af;
   --bn-hover-overlay: rgba(0,0,0,0.045);
-  --bn-selection:     rgba(41,82,204,0.10);
+  --bn-selection:     rgba(107,100,152,0.12);
 
   /* ── Overlay tints ── */
   --bn-positive-soft: rgba(31,122,92,0.08);
@@ -109,12 +109,12 @@
   /* ── Elevation ── */
   --fi-shadow-card:    0 1px 2px rgba(15,23,42,0.08);
   --fi-shadow-overlay: 0 1px 2px rgba(15,23,42,0.06), 0 10px 28px rgba(15,23,42,0.10);
-  --fi-glow-focus:     0 0 0 3px rgba(41,82,204,0.12);
+  --fi-glow-focus:     0 0 0 3px rgba(107,100,152,0.16);
 
   /* ── Order Book / Trade Ticket fills ── */
   --ob-bid-fill:   rgba(31,122,92,0.10);
   --ob-ask-fill:   rgba(164,63,75,0.09);
-  --tt-bid-strip:  rgba(41,82,204,0.08);
+  --tt-bid-strip:  rgba(107,100,152,0.10);
   --tt-ask-strip:  rgba(164,63,75,0.08);
 
   /* ── Misc ── */

@@ -84,7 +84,7 @@ export function ProfileSelector({
   const [pendingDelete, setPendingDelete] = useState<ProfileMeta | null>(null);
 
   const active = profiles.find((p) => p.id === activeProfileId);
-  const triggerLabel = active?.name ?? 'No profile';
+  const triggerLabel = active?.name ?? 'No layout';
   const canCreate = newName.trim().length > 0;
 
   const handleCreate = async () => {
@@ -130,14 +130,14 @@ export function ProfileSelector({
         <PopoverTrigger asChild>
           <button
             type="button"
-            title={active ? (isDirty ? `${active.name} (unsaved changes)` : active.name) : 'Select or create a profile'}
+            title={active ? (isDirty ? `${active.name} (unsaved changes)` : active.name) : 'Select or create a layout'}
             data-testid="profile-selector-trigger"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               height: 28, padding: '0 10px 0 8px',
               background: 'var(--ds-surface-primary)',
               border: '1px solid var(--ds-border-primary)',
-              borderRadius: 6,
+              borderRadius: 2,
               color: active ? 'var(--ds-text-primary)' : 'var(--ds-text-muted)',
               cursor: 'pointer',
               fontSize: 11,
@@ -153,7 +153,7 @@ export function ProfileSelector({
                   position: 'absolute', top: -2, right: -3,
                   width: 6, height: 6, borderRadius: '50%',
                   background: active
-                    ? (isDirty ? 'var(--ds-accent-warning)' : 'var(--ds-accent-info)')
+                    ? (isDirty ? 'var(--ds-accent-warning)' : 'var(--ds-primary)')
                     : 'var(--ds-text-muted)',
                   boxShadow: '0 0 0 1.5px var(--ds-surface-primary)',
                 }}
@@ -178,17 +178,16 @@ export function ProfileSelector({
           align="end"
           sideOffset={6}
           data-testid="profile-selector-popover"
-          className="!p-0 !w-auto"
+          className="ds-ps-shell !p-0 !w-auto"
           style={{
             minWidth: 288,
             maxWidth: 'min(340px, calc(100vw - 24px))',
-            overflow: 'hidden',
-            borderRadius: 8,
+            borderRadius: 2,
           }}
         >
           {/* Header */}
           <div className="ds-ps-header">
-            <span className="ds-ps-header-label">Profiles</span>
+            <span className="ds-ps-header-label">Layouts</span>
             <span className="ds-ps-header-count">{profiles.length}</span>
           </div>
 
@@ -196,7 +195,7 @@ export function ProfileSelector({
           <div className="ds-ps-list">
             {profiles.length === 0 ? (
               <div className="ds-ps-empty">
-                No profiles yet — create one below
+                No layouts yet — create one below
               </div>
             ) : profiles.map((p) => {
               const isActive = p.id === activeProfileId;
@@ -217,10 +216,10 @@ export function ProfileSelector({
                     position: 'relative',
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '7px 8px 7px 10px',
-                    borderRadius: 6,
+                    borderRadius: 2,
                     cursor: 'pointer',
                     background: isActive
-                      ? 'color-mix(in srgb, var(--ds-accent-info) 8%, transparent)'
+                      ? 'var(--ds-primary-soft)'
                       : 'transparent',
                     color: 'var(--ds-text-primary)',
                     fontSize: 11,
@@ -233,14 +232,14 @@ export function ProfileSelector({
                     style={{
                       position: 'absolute', left: 2, top: 7, bottom: 7,
                       width: 2, borderRadius: 2,
-                      background: isActive ? 'var(--ds-accent-info)' : 'transparent',
+                      background: isActive ? 'var(--ds-primary)' : 'transparent',
                     }}
                   />
 
                   {/* Leading indicator */}
                   <span className="ds-ps-row-indicator">
                     {isActive ? (
-                      <Check size={12} strokeWidth={2.5} className="text-[var(--ds-accent-info)]" />
+                      <Check size={12} strokeWidth={2.5} className="text-[var(--ds-primary)]" />
                     ) : (
                       <span className="ds-ps-row-dot" />
                     )}
@@ -264,8 +263,8 @@ export function ProfileSelector({
                       style={{
                         flex: 1, minWidth: 0, height: 22, padding: '0 6px',
                         background: 'var(--ds-surface-ground)',
-                        border: '1px solid color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))',
-                        borderRadius: 4,
+                        border: '1px solid color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))',
+                        borderRadius: 2,
                         color: 'var(--ds-text-primary)',
                         fontSize: 11,
                         fontWeight: isActive ? 600 : 450,
@@ -305,7 +304,7 @@ export function ProfileSelector({
                         setRenameDraft(p.name);
                       }}
                       title={`Rename "${p.name}"`}
-                      aria-label={`Rename profile ${p.name}`}
+                      aria-label={`Rename layout ${p.name}`}
                       data-testid={`profile-rename-${p.id}`}
                     >
                       <Pencil size={12} strokeWidth={2.25} />
@@ -342,7 +341,7 @@ export function ProfileSelector({
                         setOpen(false);
                       }}
                       title={`Clone "${p.name}"`}
-                      aria-label={`Clone profile ${p.name}`}
+                      aria-label={`Clone layout ${p.name}`}
                       data-testid={`profile-clone-${p.id}`}
                     >
                       <Copy size={12} strokeWidth={2.25} />
@@ -358,7 +357,7 @@ export function ProfileSelector({
                         onExport(p.id);
                       }}
                       title={`Export "${p.name}" as JSON`}
-                      aria-label={`Export profile ${p.name}`}
+                      aria-label={`Export layout ${p.name}`}
                       data-testid={`profile-export-${p.id}`}
                     >
                       <Download size={12} strokeWidth={2.25} />
@@ -369,7 +368,7 @@ export function ProfileSelector({
                       the input owns the row's right edge. */}
                   {isRenaming ? null : isReserved ? (
                     <span
-                      title="Built-in default profile"
+                      title="Built-in default layout"
                       className="flex items-center justify-center w-[22px] h-[22px] text-[var(--ds-text-secondary)] opacity-[0.55]"
                     >
                       <Lock size={12} strokeWidth={2.25} />
@@ -387,8 +386,8 @@ export function ProfileSelector({
                         setOpen(false);
                         setPendingDelete(p);
                       }}
-                      title="Delete profile"
-                      aria-label={`Delete profile ${p.name}`}
+                      title="Delete layout"
+                      aria-label={`Delete layout ${p.name}`}
                     >
                       <Trash2 size={12} strokeWidth={2.25} />
                     </GhostIconButton>
@@ -398,7 +397,9 @@ export function ProfileSelector({
             })}
           </div>
 
-          {/* Separator */}
+          {/* Footer — Save current as + (optional) Export / Import.
+              Sits below the scrolling list, never scrolls itself. */}
+          <div className="ds-ps-footer">
           <div className="h-px bg-[color-mix(in_srgb,var(--ds-border-primary)_60%,transparent)]" />
 
           {/* Create new */}
@@ -411,11 +412,11 @@ export function ProfileSelector({
                 display: 'flex', alignItems: 'center',
                 background: 'var(--ds-surface-ground)',
                 border: `1px solid ${inputFocused
-                  ? 'color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))'
+                  ? 'color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))'
                   : 'var(--ds-border-primary)'}`,
-                borderRadius: 6,
+                borderRadius: 2,
                 boxShadow: inputFocused
-                  ? '0 0 0 3px color-mix(in srgb, var(--ds-accent-info) 14%, transparent)'
+                  ? '0 0 0 3px color-mix(in srgb, var(--ds-primary) 18%, transparent)'
                   : 'none',
                 transition: 'border-color 120ms, box-shadow 120ms',
                 overflow: 'hidden',
@@ -431,7 +432,7 @@ export function ProfileSelector({
                   if (e.key === 'Enter') handleCreate();
                   if (e.key === 'Escape') { setNewName(''); (e.currentTarget as HTMLInputElement).blur(); }
                 }}
-                placeholder="New profile name"
+                placeholder="New layout name"
                 autoFocus
                 data-testid="profile-name-input"
                 className="flex-1 min-w-0 h-[30px] px-2.5 bg-transparent border-none text-foreground text-[11px] outline-none tracking-[0.1px]"
@@ -440,13 +441,13 @@ export function ProfileSelector({
                 type="button"
                 onClick={handleCreate}
                 disabled={!canCreate}
-                title="Save current state as new profile"
+                title="Save current state as new layout"
                 data-testid="profile-create-btn"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   height: 30, padding: '0 12px',
-                  background: canCreate ? 'var(--ds-accent-info)' : 'transparent',
-                  color: canCreate ? 'hsl(var(--primary-foreground))' : 'var(--ds-text-muted)',
+                  background: canCreate ? 'var(--ds-primary)' : 'transparent',
+                  color: canCreate ? 'var(--ds-primary-foreground)' : 'var(--ds-text-muted)',
                   border: 'none',
                   borderLeft: `1px solid ${canCreate ? 'transparent' : 'var(--ds-border-primary)'}`,
                   fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
@@ -471,7 +472,7 @@ export function ProfileSelector({
                   <button
                     type="button"
                     onClick={() => { onExport(activeProfileId); }}
-                    title="Export the active profile to a JSON file"
+                    title="Export the active layout to a JSON file"
                     data-testid="profile-export-active-btn"
                     style={{
                       flex: 1,
@@ -479,15 +480,15 @@ export function ProfileSelector({
                       height: 28,
                       background: 'transparent',
                       border: '1px solid var(--ds-border-primary)',
-                      borderRadius: 6,
+                      borderRadius: 2,
                       color: 'var(--ds-text-primary)',
                       fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
                       cursor: 'pointer',
                       transition: 'border-color 120ms, background 120ms, color 120ms',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))';
-                      e.currentTarget.style.color = 'var(--ds-accent-info)';
+                      e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))';
+                      e.currentTarget.style.color = 'var(--ds-primary)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
@@ -517,7 +518,7 @@ export function ProfileSelector({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      title="Import a profile from a JSON file"
+                      title="Import a layout from a JSON file"
                       data-testid="profile-import-btn"
                       style={{
                         flex: 1,
@@ -525,15 +526,15 @@ export function ProfileSelector({
                         height: 28,
                         background: 'transparent',
                         border: '1px solid var(--ds-border-primary)',
-                        borderRadius: 6,
+                        borderRadius: 2,
                         color: 'var(--ds-text-primary)',
                         fontSize: 11, fontWeight: 500, letterSpacing: 0.15,
                         cursor: 'pointer',
                         transition: 'border-color 120ms, background 120ms, color 120ms',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))';
-                        e.currentTarget.style.color = 'var(--ds-accent-info)';
+                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))';
+                        e.currentTarget.style.color = 'var(--ds-primary)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = 'var(--ds-border-primary)';
@@ -548,6 +549,7 @@ export function ProfileSelector({
               </div>
             </>
           )}
+          </div>
         </PopoverContent>
       </Popover>
 
@@ -562,7 +564,7 @@ export function ProfileSelector({
       >
         <AlertDialogContent data-testid="profile-delete-confirm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete profile?</AlertDialogTitle>
+            <AlertDialogTitle>Delete layout?</AlertDialogTitle>
             <AlertDialogDescription>
               &quot;{pendingDelete?.name ?? ''}&quot; will be permanently removed.
               This cannot be undone.

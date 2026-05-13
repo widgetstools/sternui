@@ -19,19 +19,18 @@
  * (`e2e/v2-two-grid-isolation.spec.ts`).
  */
 import { useMemo, useState } from 'react';
-import type { ColDef, Theme } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { MarketsGrid } from '@starui/markets-grid';
 import { DexieAdapter } from '@starui/core';
 
 import { generateOrders, generateEquityOrders, type Order } from './data';
 
 export interface DashboardProps {
-  theme: Theme;
   columnDefs: ColDef<Order>[];
   defaultColDef: ColDef<Order>;
 }
 
-export function Dashboard({ theme, columnDefs, defaultColDef }: DashboardProps) {
+export function Dashboard({ columnDefs, defaultColDef }: DashboardProps) {
   const [ratesData] = useState(() => generateOrders(500));
   const [equityData] = useState(() => generateEquityOrders(300));
 
@@ -58,7 +57,6 @@ export function Dashboard({ theme, columnDefs, defaultColDef }: DashboardProps) 
         rowData={ratesData}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        theme={theme}
         storageAdapter={storageAdapter}
       />
       <GridPanel
@@ -67,7 +65,6 @@ export function Dashboard({ theme, columnDefs, defaultColDef }: DashboardProps) 
         rowData={equityData}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        theme={theme}
         storageAdapter={storageAdapter}
       />
     </div>
@@ -80,7 +77,6 @@ interface GridPanelProps {
   rowData: Order[];
   columnDefs: ColDef<Order>[];
   defaultColDef: ColDef<Order>;
-  theme: Theme;
   storageAdapter: DexieAdapter;
 }
 
@@ -90,7 +86,6 @@ function GridPanel({
   rowData,
   columnDefs,
   defaultColDef,
-  theme,
   storageAdapter,
 }: GridPanelProps) {
   return (
@@ -141,7 +136,6 @@ function GridPanel({
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          theme={theme}
           rowIdField="id"
           storageAdapter={storageAdapter}
           showFiltersToolbar

@@ -136,7 +136,9 @@ export type {
   CellStyleOverrides,
   ColumnAssignment as BaseColumnAssignment,
   ColumnDataType,
+  GridThemeMode,
   PresetId,
+  ThemedCellStyleOverrides,
   TickToken,
   ValueFormatterTemplate,
 } from './colDef';
@@ -148,4 +150,9 @@ export {
   tickFormatter,
   presetToExcelFormat,
   cellStyleToAgStyle,
+  getActiveTheme,
+  mergeThemedStyle,
+  migrateThemedStyle,
+  patchActiveStyle,
+  resolveActiveStyle,
 } from './colDef';

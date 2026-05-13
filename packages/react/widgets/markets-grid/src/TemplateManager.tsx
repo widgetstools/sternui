@@ -154,10 +154,10 @@ function TemplateRow({
         gap: 6,
         height: 30,
         padding: '0 6px 0 10px',
-        borderRadius: 4,
+        borderRadius: 2,
         cursor: disabled ? 'not-allowed' : 'pointer',
         background: isActive
-          ? 'color-mix(in srgb, var(--ds-accent-info) 10%, transparent)'
+          ? 'color-mix(in srgb, var(--ds-primary) 10%, transparent)'
           : 'transparent',
         opacity: disabled ? 0.5 : 1,
         transition: 'background 120ms',
@@ -170,14 +170,14 @@ function TemplateRow({
         style={{
           position: 'absolute', left: 2, top: 6, bottom: 6,
           width: 2, borderRadius: 2,
-          background: isActive ? 'var(--ds-accent-info)' : 'transparent',
+          background: isActive ? 'var(--ds-primary)' : 'transparent',
         }}
       />
 
       {/* Leading check / dot */}
       <span className="inline-flex items-center justify-center w-3 h-3 shrink-0">
         {isActive ? (
-          <Check size={11} strokeWidth={2.5} className="text-[var(--ds-accent-info)]" />
+          <Check size={11} strokeWidth={2.5} className="text-[var(--ds-primary)]" />
         ) : (
           <span className="w-[5px] h-[5px] rounded-full bg-[color-mix(in_srgb,var(--ds-text-muted)_50%,transparent)]" />
         )}
@@ -201,8 +201,8 @@ function TemplateRow({
           style={{
             flex: 1, minWidth: 0, height: 22, padding: '0 6px',
             background: 'var(--ds-surface-ground)',
-            border: '1px solid color-mix(in srgb, var(--ds-accent-info) 55%, var(--ds-border-primary))',
-            borderRadius: 3,
+            border: '1px solid color-mix(in srgb, var(--ds-primary) 55%, var(--ds-border-primary))',
+            borderRadius: 2,
             color: 'var(--ds-text-primary)',
             fontSize: 11,
             fontWeight: isActive ? 600 : 450,
@@ -458,13 +458,13 @@ export function TemplateManager({
               width: 28, height: 28,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               border: `1px solid ${saveConfirmed
-                ? 'color-mix(in srgb, var(--ds-accent-info) 40%, transparent)'
+                ? 'color-mix(in srgb, var(--ds-primary) 40%, transparent)'
                 : 'var(--ds-border-primary)'}`,
-              borderRadius: 3,
+              borderRadius: 2,
               background: saveConfirmed
-                ? 'color-mix(in srgb, var(--ds-accent-info) 14%, transparent)'
+                ? 'color-mix(in srgb, var(--ds-primary) 14%, transparent)'
                 : 'transparent',
-              color: saveConfirmed ? 'var(--ds-accent-info)' : 'var(--ds-text-secondary)',
+              color: saveConfirmed ? 'var(--ds-primary)' : 'var(--ds-text-secondary)',
               cursor: disabled || !saveName.trim() ? 'not-allowed' : 'pointer',
               opacity: disabled || !saveName.trim() ? 0.3 : 1,
               transition: 'all 120ms',

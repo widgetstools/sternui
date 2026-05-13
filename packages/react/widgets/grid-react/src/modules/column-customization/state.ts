@@ -10,6 +10,7 @@ import type {
   BorderSpec,
   CellStyleOverrides,
   PresetId,
+  ThemedCellStyleOverrides,
   TickToken,
   ValueFormatterTemplate,
 } from '@starui/core';
@@ -17,7 +18,7 @@ import type {
 // Re-export shared colDef types from this module's state.ts so v2 panels
 // that import from `./state` (and can't easily be rewritten to reach into
 // colDef directly) keep working.
-export type { BorderSpec, CellStyleOverrides, PresetId, TickToken, ValueFormatterTemplate };
+export type { BorderSpec, CellStyleOverrides, PresetId, ThemedCellStyleOverrides, TickToken, ValueFormatterTemplate };
 
 // ─── Filter config ──────────────────────────────────────────────────────────
 
@@ -174,6 +175,32 @@ export type ColumnAssignment = Omit<BaseAssignment, 'filter' | 'rowGrouping'> & 
 export interface ColumnCustomizationState {
   /** colId → assignment. Missing key = no overrides for that column. */
   assignments: Record<string, ColumnAssignment>;
+  /**
+   * Global baseline applied to every column's cells. Per-column entries in
+   * `assignments[colId].cellStyleOverrides` take precedence — the transform
+   * layers `globalCellStyle → per-column` so a colour set globally is the
+   * default and a per-column setting overrides it for that column only.
+   * Themed so dark and light persist independently.
+   */
+  globalCellStyle?: ThemedCellStyleOverrides;
+  /** Same as `globalCellStyle` but for column headers. */
+  globalHeaderStyle?: ThemedCellStyleOverrides;
+  /**
+   * Global value-formatter for **number** columns — applied only to
+   * columns whose `cellDataType` is `'number'` (or undefined, when the
+   * column hasn't declared a type). Per-column `valueFormatterTemplate`
+   * still wins over this when set.
+   */
+  globalCellNumberFormatter?: ValueFormatterTemplate;
+  /**
+   * Global value-formatter for **date** columns — applied to columns
+   * whose `cellDataType` is `'date'` (native Date instances) or
+   * `'dateString'` (ISO-style date strings, common in JSON payloads).
+   * Plain `'string'` / `'text'` columns are excluded so a date preset
+   * never silently tries to parse non-date text. Per-column
+   * `valueFormatterTemplate` still wins.
+   */
+  globalCellDateFormatter?: ValueFormatterTemplate;
 }
 
 export const INITIAL_COLUMN_CUSTOMIZATION: ColumnCustomizationState = {
