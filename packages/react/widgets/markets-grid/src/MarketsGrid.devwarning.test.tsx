@@ -35,6 +35,7 @@ vi.mock('@starui/core', async () => {
   return {
     ...actual,
     MemoryAdapter: class { async loadGridLevelData() { return null; } async saveGridLevelData() {} },
+    LocalStorageBundleAdapter: class LocalStorageBundleAdapter {},
   };
 });
 

@@ -6,3 +6,8 @@ export {
   type ProfileSnapshot,
   type StorageAdapter,
 } from './StorageAdapter';
+export {
+  LocalStorageBundleAdapter,
+  marketsGridLocalStorageBundleKey,
+  type MarketsGridLocalStorageConfig,
+} from './LocalStorageBundleAdapter';

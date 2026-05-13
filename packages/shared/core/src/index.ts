@@ -62,8 +62,11 @@ export type { AutoSaveHandle, AutoSaveOptions } from './store/autosave';
 export {
   MemoryAdapter,
   DexieAdapter,
+  LocalStorageBundleAdapter,
+  marketsGridLocalStorageBundleKey,
   RESERVED_DEFAULT_PROFILE_ID,
   activeProfileKey,
+  type MarketsGridLocalStorageConfig,
   type ProfileSnapshot,
   type StorageAdapter,
 } from './persistence';
