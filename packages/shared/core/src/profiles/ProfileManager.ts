@@ -92,6 +92,12 @@ export class ProfileManager {
    *  every store change is already persisted so there's no reason to
    *  mark anything dirty. */
   private dirtyUnsubscribe: (() => void) | null = null;
+  /** Unsubscribe handle for the adapter's external-change channel
+   *  (`StorageAdapter.subscribeToChanges`). Refreshes the in-memory
+   *  profile list whenever another tab / device writes to the same
+   *  scope. Only installed when the adapter implements the optional
+   *  capability — see `docs/PROFILE-STATE-CONSOLIDATION.md`. */
+  private changesUnsubscribe: (() => void) | null = null;
   /** Counter that suppresses dirty-marking inside `load()` / `create()` /
    *  `import()` / `boot()` — those flows synchronously mutate the
    *  platform store as they apply a snapshot, which would otherwise
@@ -239,6 +245,23 @@ export class ProfileManager {
             persist: (snap) => this.persistActive(snap),
           });
         }
+      }
+
+      // Subscribe to external changes (adapter capability — currently
+      // implemented only by `createConfigServiceStorage`). Fires when
+      // another tab writes the same bundled row, so the profile picker
+      // reflects the new list without a manual reload. We do NOT
+      // re-hydrate the active profile's snapshot here — local edits
+      // would be clobbered. The user reloads explicitly if they want
+      // to pick up the other tab's state.
+      if (!this.disposed && this.adapter.subscribeToChanges) {
+        this.changesUnsubscribe = this.adapter.subscribeToChanges(gridId, () => {
+          if (this.disposed) return;
+          // Best-effort refresh; failures must not crash the listener.
+          void this.refresh().catch((err) => {
+            console.warn('[profiles] cross-tab refresh failed:', err);
+          });
+        });
       }
     } catch (err) {
       if (this.disposed) return;
@@ -709,6 +732,8 @@ export class ProfileManager {
     this.autoSave = null;
     this.dirtyUnsubscribe?.();
     this.dirtyUnsubscribe = null;
+    this.changesUnsubscribe?.();
+    this.changesUnsubscribe = null;
     this.listeners.clear();
   }
 

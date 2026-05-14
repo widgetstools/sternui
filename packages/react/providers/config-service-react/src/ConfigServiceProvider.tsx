@@ -19,6 +19,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   createConfigManager,
   createConfigServiceStorage,
+  migrateLegacyProfilesIfNeeded,
   type AppIdentity,
 } from '@starui/config-service';
 import { useDataServices } from '@starui/data-services-react';
@@ -100,7 +101,32 @@ export function ConfigServiceProvider({
 
     manager
       .init()
-      .then(() => {
+      .then(async () => {
+        if (disposed) {
+          manager.dispose();
+          return;
+        }
+        // First-boot migration: copy any rows from the legacy
+        // `gc-customizer-v2` Dexie DB into ConfigService's bundled
+        // row. Idempotent — guarded by a localStorage flag, no-op on
+        // every subsequent boot. See
+        // `docs/PROFILE-STATE-CONSOLIDATION.md` (Session 3.2).
+        try {
+          const result = await migrateLegacyProfilesIfNeeded(manager);
+          if (result.ranThisBoot && result.copied > 0) {
+            // eslint-disable-next-line no-console
+            console.info(
+              `[profile-migration-v1] copied ${result.copied} legacy profile(s) ` +
+                `across ${Object.keys(result.perGrid).length} grid(s) into ConfigService.`,
+            );
+          }
+        } catch (err) {
+          // Migration is best-effort — failures here must not block
+          // bootstrap. The internal helper already logs + flips the
+          // flag, but we double-catch in case of an unexpected throw.
+          // eslint-disable-next-line no-console
+          console.warn('[profile-migration-v1] unexpected failure:', err);
+        }
         if (disposed) {
           manager.dispose();
           return;

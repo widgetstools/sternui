@@ -103,9 +103,41 @@ export {
   MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE,
   /** @deprecated alias for `MARKETS_GRID_PROFILE_SET_COMPONENT_TYPE` — same value */
   MARKETS_GRID_PROFILE_COMPONENT_TYPE,
+  CONFIG_SERVICE_ADAPTER_BRAND,
+  getConfigServiceAdapterBrand,
   type ConfigServiceStorageOptions,
   type ProfileStorageFactory,
   type ProfileStorageFactoryOpts,
   type ProfileSnapshot,
+  type RegisteredComponentIdentity,
   type StorageAdapter,
 } from './profileStorage';
+
+// ─── ConfigManager.profiles namespace ────────────────────────────────
+// First-class API for reading/writing the bundled profile-set row
+// without going through StorageAdapter. Same Dexie row, identical
+// semantics. See docs/PROFILE-STATE-CONSOLIDATION.md.
+export type {
+  ProfilesNamespace,
+  ProfilesScope,
+  ProfilesSaveOptions,
+} from './profiles';
+
+// ─── Profile-state consolidation migration (Session 3.2) ────────────
+// One-shot copy from the legacy `gc-customizer-v2` Dexie DB into the
+// ConfigService bundled row. Runs once on `<ConfigServiceProvider>`
+// mount; idempotent via a localStorage flag.
+export {
+  migrateLegacyProfilesIfNeeded,
+  PROFILE_MIGRATION_V1_FLAG,
+  LEGACY_PROFILES_DB_NAME,
+  LEGACY_PROFILES_TABLE,
+  type MigrationOptions,
+  type MigrationResult,
+} from './migrations/profiles-v1';
+
+// ─── Change notifier (advanced — reserved for tests) ────────────────
+// Cross-tab + same-tab event bus that backs `ConfigManager.profiles.
+// subscribe`. Not part of the public API for production callers; used
+// in tests that simulate two managers sharing one BroadcastChannel.
+export { ChangeNotifier } from './changeNotifier';

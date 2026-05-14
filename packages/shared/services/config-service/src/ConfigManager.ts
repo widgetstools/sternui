@@ -16,8 +16,10 @@
 // empty, the ConfigManager fetches the seed file and populates the
 // APP_REGISTRY, USER_PROFILE, and ROLES tables.
 
+import { ChangeNotifier } from './changeNotifier';
 import { ConfigDatabase } from './db';
 import { OptimisticLockError } from './errors';
+import { createProfilesNamespace, type ProfilesNamespace } from './profiles';
 import type {
   AppConfigRow,
   AppIdentity,
@@ -136,6 +138,13 @@ export class ConfigManager {
   private disposed = false;
   /** Single-flight guard so concurrent `init()` calls share one bootstrap. */
   private initInFlight: Promise<void> | undefined;
+  /** Cross-tab + same-tab change notifier. Posted to from `saveConfig`
+   *  and `deleteConfig`; subscribed by `profiles.subscribe`. */
+  private readonly changeNotifier: ChangeNotifier;
+  /** First-class `profiles` namespace — see `./profiles.ts` and
+   *  `docs/PROFILE-STATE-CONSOLIDATION.md` for the API. Backed by the
+   *  same bundled row that `createConfigServiceStorage` writes. */
+  readonly profiles: ProfilesNamespace;
 
   constructor(options: ConfigManagerOptions = {}) {
     this.db = new ConfigDatabase();
@@ -144,6 +153,8 @@ export class ConfigManager {
     this.appId = options.appId ?? DEFAULT_APP_ID;
     this.identity = options.identity ?? DEFAULT_IDENTITY;
     this.dataServices = options.dataServices;
+    this.changeNotifier = new ChangeNotifier();
+    this.profiles = createProfilesNamespace(this, this.changeNotifier);
   }
 
   // ─── Identity accessors ──────────────────────────────────────────
@@ -554,6 +565,7 @@ export class ConfigManager {
       clearInterval(this.drainIntervalId);
       this.drainIntervalId = undefined;
     }
+    this.changeNotifier.dispose();
     this.db.close();
   }
 
@@ -635,6 +647,11 @@ export class ConfigManager {
       });
     }
     await this.db.appConfig.put(config);
+    // Cross-tab + same-tab notify (Session 3.2). Subscribers via
+    // `profiles.subscribe(scope, fn)` get a callback whenever a write
+    // touches their `configId`. Fired AFTER Dexie's write resolves so
+    // a refetch from the listener sees the new row.
+    this.changeNotifier.notify(config.configId);
   }
 
   /**
@@ -646,6 +663,7 @@ export class ConfigManager {
       await this.syncToRest("delete", "configurations", configId, undefined);
     }
     await this.db.appConfig.delete(configId);
+    this.changeNotifier.notify(configId);
   }
 
   /**

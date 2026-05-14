@@ -56,6 +56,21 @@ export interface StorageAdapter {
    * mutates `gridLevelData` via the `<MarketsGrid>` prop.
    */
   saveGridLevelData?(gridId: string, data: unknown): Promise<void>;
+
+  /**
+   * Subscribe to external changes affecting `gridId`'s persisted state.
+   * Fires whenever any writer (this tab, another tab, REST sync) updates
+   * the underlying row. Returns an unsubscribe function.
+   *
+   * `ProfileManager.boot()` wires this when present so cross-tab edits
+   * become visible without a manual reload — the `profile-state-
+   * consolidation` audit (Risk #6, "Two-tab race") closes here.
+   *
+   * Optional: adapters that don't have a notification channel
+   * (Memory, LocalStorageBundle, the legacy DexieAdapter) omit it and
+   * `ProfileManager` silently skips the wiring.
+   */
+  subscribeToChanges?(gridId: string, fn: () => void): () => void;
 }
 
 /** Sentinel id for the auto-managed Default profile. Reserved — `createProfile`
