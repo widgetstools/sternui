@@ -19,12 +19,12 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@angular/common": ">=21.0.0",
-    "@angular/core": ">=21.0.0",
+    "@angular/common": "^21.1.0",
+    "@angular/core": "^21.1.0",
     "@starui/data-services": "*",
     "@starui/runtime-port": "*",
     "@starui/shared-types": "*",
-    "rxjs": ">=7.0.0"
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@angular/common": "21.1.0",
@@ -35,7 +35,7 @@
     "@starui/runtime-port": "*",
     "@starui/shared-types": "*",
     "ng-packagr": "^17.3.0",
-    "rimraf": "^5.0.5",
+    "rimraf": "^6.0.1",
     "rxjs": "~7.8.2",
     "typescript": "~5.9.3"
   },

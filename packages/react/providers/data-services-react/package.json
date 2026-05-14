@@ -27,7 +27,7 @@
     "@starui/shared-types": "*"
   },
   "peerDependencies": {
-    "react": ">=19.0.0",
+    "react": "^19.2.5",
     "@starui/config-service": "*"
   },
   "peerDependenciesMeta": {
@@ -38,7 +38,7 @@
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
-    "jsdom": "^29.0.0",
+    "jsdom": "^29.0.2",
     "react": "~19.2.5",
     "react-dom": "~19.2.5",
     "rimraf": "^6.0.1",

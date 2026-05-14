@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@openfin/core": "43.101.4",
-    "rimraf": "^5.0.5",
+    "rimraf": "^6.0.1",
     "typescript": "~5.9.3",
     "vitest": "^4.1.4"
   },
