@@ -16,21 +16,42 @@ repo root (the worktree at `/Users/develop/wfh/sternui/.claude/worktrees/kind-ba
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) — layer + import diagram
 - The PR descriptions on the five merged PRs (#7–#9 and `feat/popout-transport-unified`, `feat/theme-reducer`) — context on what already changed
 
-**Verification baseline every session must hit:**
-- `npm run typecheck -w <affected-app>` clean
-- Unit tests on every touched package — at minimum the existing baselines (see "Test baselines" below)
-- `npx playwright test e2e/v2-two-grid-isolation.spec.ts e2e/design-system-smoke.spec.ts` — 5/5 pass
-- The dev server for the affected app boots HTTP 200
+**Verification baseline every session must hit (in this order):**
 
-**Test baselines (as of theme-reducer PR):**
+1. `npm run typecheck -w <affected-app>` — clean
+2. Unit tests on every touched package — at minimum the existing baselines (see "Test baselines" below)
+3. `npx playwright test e2e/v2-two-grid-isolation.spec.ts e2e/design-system-smoke.spec.ts` — 5/5 pass
+4. **`npx turbo typecheck build test` — all green across every workspace package.** This is non-negotiable. The per-package `tsc --noEmit` is looser than `tsc -b` with project references, and per-package `vitest run` misses regressions in adjacent packages. **Two of the audit PRs initially broke main because this step was skipped.**
+5. The dev server for the affected app boots HTTP 200
+
+**Test baselines (as of `fix/main-build-after-merge` PR):**
 - `runtime-port` 7/7
 - `runtime-browser` 22/22
 - `runtime-openfin` 18/18
 - `host-wrapper-react` 5/5
 - `app-shell-react` 5/5
 - `data-services` 117/117
+- `design-system` 127/127
 - `core` (ProfileManager) — run `npm test -w @starui/core` to capture current pass count before any session touches it
-- Demo-react e2e: 5/5 in `v2-two-grid-isolation` + `design-system-smoke`
+- Full `npx turbo test`: **42/42 tasks pass**
+- Full `npx turbo build`: **33/33 tasks pass**
+- Full `npx turbo typecheck`: **55/55 tasks pass**
+- Full Playwright suite (`npx playwright test`): **193/193 pass** (2 skipped)
+- Demo-react focused e2e: 5/5 in `v2-two-grid-isolation` + `design-system-smoke`
+
+**Worktree trap (read before any session that adds a new `@starui/*` package):**
+
+The repo is typically used with `git worktree` — the main checkout at `~/wfh/sternui` and additional worktrees under `~/wfh/sternui/.claude/worktrees/`. Each worktree carries its **own** `node_modules` directory. When a session adds a new workspace package, the npm install inside that session's worktree creates the symlink only there — every other worktree still has stale `node_modules` and can't resolve the new `@starui/*` import.
+
+**Mitigation:** any PR that adds or renames a workspace package must include in its description:
+
+> After merging, run `npm ci --legacy-peer-deps` in every active worktree (the main checkout PLUS any active feature worktree) before running `npm run build`.
+
+This is also true on CI runners (each CI job does its own checkout + install, so they're fine) — but local dev hits the trap whenever a developer maintains multiple worktrees and merges between them.
+
+Sessions in this worklog that add new packages: **none of the deferred refactors below add a new workspace package by default.** If Session 1.2 / 1.3 / 2.x decide to extract a sub-package, the author of that session must:
+1. Update the PR description with the warning above.
+2. Run `npx turbo build` from a clean install before pushing — this proves the package resolves end-to-end.
 
 ---
 
@@ -82,6 +103,7 @@ repo root (the worktree at `/Users/develop/wfh/sternui/.claude/worktrees/kind-ba
 - `npm test -w @starui/markets-grid` — all new tests pass on the unmodified code
 - Run twice in a row to ensure no flakiness (Dexie / jsdom occasionally races)
 - Open the failing assertions deliberately by hand-mutating one production line and confirming the test catches it; then revert
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package. Don't skip this even when only test files changed; tsc project-ref resolution is what catches edge cases.
 
 **Commit:** `test(markets-grid): characterisation tests for MarketsGrid controller surface`. Push as `feat/marketsgrid-split-tests`. Open PR. Land before Session 1.2.
 
@@ -127,6 +149,7 @@ Start with the merged characterisation tests as the safety net.
 - `npm test -w @starui/markets-grid` — every characterisation test from Session 1.1 still passes
 - `npm run typecheck -w @starui/demo-react -w @starui/demo-configservice-react -w @starui/markets-ui-react-reference` — clean
 - E2E: `npx playwright test e2e/v2-two-grid-isolation.spec.ts e2e/design-system-smoke.spec.ts` — 5/5
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(markets-grid): extract useMarketsGridController hook`. Push as `feat/marketsgrid-controller-hook`. PR.
 
@@ -160,6 +183,7 @@ Final cleanup pass.
 - E2E full regression suite — `npx playwright test` (NOT just the smoke spec — this is the last MarketsGrid step so run the full e2e once)
 - File sizes: `wc -l packages/react/widgets/markets-grid/src/MarketsGrid.tsx` should report under 400
 - Run a dev server for `markets-ui-react-reference` and click through manually: open a profile, edit it, save, clone, rename, export, import. Each interaction should behave identically to before.
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(markets-grid): extract ProfileBar + AdminActions view components`. PR.
 
@@ -202,6 +226,7 @@ Three large files, each in a different package. They're independent — can be d
 - `npm test -w @starui/markets-grid`
 - `npm run typecheck` on all three apps
 - Dev-server smoke: open the HelpPanel manually (find the trigger in `MarketsGrid.tsx` — look for `<HelpPanel>` references). Every section renders, the right body shows when navigated.
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(markets-grid): split HelpPanel — content to data, JSX to shell`. PR.
 
@@ -237,6 +262,7 @@ Three large files, each in a different package. They're independent — can be d
 - `npm test -w @starui/markets-grid`
 - E2E full regression
 - Dev server smoke: open a grid, apply a filter, clear it, pin a column. Behaviour identical.
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(markets-grid): extract useFilterModel from FiltersToolbar`. PR.
 
@@ -278,6 +304,7 @@ Three large files, each in a different package. They're independent — can be d
 - `npm test -w @starui/grid-react`
 - E2E full regression
 - Dev server smoke: open the formatter picker on a number column, a date column, a string column. Each should offer the same options as before.
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(grid-react): table-driven FormatterPicker — column-type adapters`. PR.
 
@@ -347,6 +374,7 @@ Three large files, each in a different package. They're independent — can be d
 **Verify:**
 - The design doc compiles in someone's head: the next agent can read it and start Session 3.2 without re-doing the audit.
 - The doc explicitly states the storage choice and the migration script's shape (even if not yet written).
+- **Final gate (defensive):** `npx turbo typecheck build test` — green. Docs-only PRs shouldn't regress code, but the full-turbo run catches any unexpected branch drift before pushing.
 
 **Commit:** `docs: profile state consolidation design`. PR. Land before Session 3.2.
 
@@ -384,6 +412,7 @@ Three large files, each in a different package. They're independent — can be d
   - Boot once — migration should run silently
   - Save a profile, reload, profile still there
   - Open the ConfigBrowser popout, the profile rows are visible (they weren't before — that's the audit symptom this PR closes)
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(core): ProfileManager backed by ConfigManager — single source of truth`. PR.
 
@@ -415,6 +444,7 @@ Three large files, each in a different package. They're independent — can be d
 - E2E full regression
 - Dev server smoke on **every** app: demo-react, demo-configservice-react, markets-ui-react-reference. Open a profile, edit, save, switch profile, clone, rename, export, import. Every interaction must behave identically to before.
 - Check `wc -l` for the deleted files. The PR should remove > 850 LOC net.
+- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
 
 **Commit:** `refactor(core): remove ProfileManager — consumers use ConfigManager directly`. PR.
 
