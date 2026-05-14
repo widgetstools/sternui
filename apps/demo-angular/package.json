@@ -10,37 +10,15 @@
   "private": true,
   "packageManager": "npm@11.3.0",
   "//dependencies-registry-notes": {
-    "description": "Packages below may need version adjustments depending on corporate artifactory availability.",
-    "bundled-locally": {
-      "@widgetstools/angular-dock-manager": "Not on corporate registry — packed from npm public v1.0.0",
-      "@widgetstools/dock-manager-core": "Not on corporate registry — packed from npm public v1.0.0"
-    },
-    "pinning-strategy": "Use exact pins for Angular core and AG Grid; tilde (~) for PrimeNG/Chart.js. Prevents pulling bleeding-edge versions not yet mirrored to corporate artifactory.",
-    "downgraded-for-registry": {
-      "@angular/*": {
-        "public-latest": "21.2.8",
-        "corporate": "21.1.0 (pinned exact — downgraded per request)"
-      },
-      "@angular/build": {
-        "public-latest": "21.2.7",
-        "corporate": "21.1.0"
-      },
-      "@angular/cli": {
-        "public-latest": "21.2.7",
-        "corporate": "21.1.0"
-      },
-      "@primeng/themes": {
-        "public": "^21.0.4",
-        "corporate": "~20.3.0"
-      },
-      "ag-grid-*": {
-        "public": "35.2.1",
-        "corporate": "35.1.0 (pinned exact)"
-      },
-      "chart.js": {
-        "public": "^4.5.1",
-        "corporate": "~4.4.8 (established stable)"
-      }
+    "description": "All packages resolve from the public npm registry. Versions are pinned to the stable line for each major rather than tracking latest, so the app does not pull bleeding-edge releases.",
+    "pinning-strategy": "Exact pins for Angular core, AG Grid, and @widgetstools dock-manager; tilde (~) for PrimeNG runtime and Chart.js. Update intentionally, not automatically.",
+    "stable-vs-latest": {
+      "@angular/*": "21.1.0 stable (public latest is 21.2.x — intentionally trailing)",
+      "@angular/build": "21.1.0 (public latest 21.2.x)",
+      "@angular/cli": "21.1.0 (public latest 21.2.x)",
+      "@primeng/themes": "20.3.0 (kept on the 20 line to match the installed @primeuix/themes 1.2.5 transitive; bump to 21.x when PrimeNG runtime moves up)",
+      "ag-grid-*": "35.1.0 (public latest 35.2.x)",
+      "chart.js": "~4.4.9 (public latest 4.5.x)"
     }
   },
   "dependencies": {
@@ -58,9 +36,9 @@
     "@angular/forms": "21.1.0",
     "@angular/platform-browser": "21.1.0",
     "@angular/router": "21.1.0",
-    "@primeng/themes": "file:../../libs/primeng-themes-20.3.0.tgz",
-    "@widgetstools/angular-dock-manager": "file:../../libs/widgetstools-angular-dock-manager-1.0.0.tgz",
-    "@widgetstools/dock-manager-core": "file:../../libs/widgetstools-dock-manager-core-1.0.0.tgz",
+    "@primeng/themes": "20.3.0",
+    "@widgetstools/angular-dock-manager": "1.0.0",
+    "@widgetstools/dock-manager-core": "1.0.0",
     "ag-grid-angular": "35.1.0",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
@@ -75,8 +53,5 @@
     "@angular/compiler-cli": "21.1.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.3"
-  },
-  "overrides": {
-    "@primeuix/themes": "2.0.3"
   }
 }
