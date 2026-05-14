@@ -318,7 +318,8 @@ async function createComponentInstance(
   const resolvedUrl = resolveHostUrl(entry.hostUrl);
 
   if (opts.asWindow) {
-    return fin.Window.create({
+    const platform = getCurrentSync();
+    return platform.createWindow({
       url: resolvedUrl,
       name: `registered-${entry.id}-${instanceId}`,
       defaultWidth: 1200,

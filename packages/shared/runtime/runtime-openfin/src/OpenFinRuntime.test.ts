@@ -57,7 +57,7 @@ describe('OpenFinRuntime', () => {
   });
 
   describe('openSurface', () => {
-    it('popout creates a named window via fin.Window.create + returns a SurfaceHandle', async () => {
+    it('popout creates a named platform window via Platform.createWindow + returns a SurfaceHandle', async () => {
       const createCalls: Array<Record<string, unknown>> = [];
       const closedListeners = new Set<() => void>();
       const fakeWin = {
@@ -69,18 +69,21 @@ describe('OpenFinRuntime', () => {
         setAsForeground: () => {},
       };
       const fakeView = { identity: { name: 'v' }, getOptions: async () => ({}) };
+      const fakePlatform = {
+        createWindow: async (opts: Record<string, unknown>) => {
+          createCalls.push(opts);
+          return fakeWin;
+        },
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).fin = {
         me: { identity: { uuid: 'app1' } },
         View: { getCurrentSync: () => fakeView },
         Window: {
-          // wrapSync throws when window doesn't exist → falls through to create()
+          // wrapSync throws when window doesn't exist → falls through to Platform.createWindow
           wrapSync: () => { throw new Error('not-found'); },
-          create: async (opts: Record<string, unknown>) => {
-            createCalls.push(opts);
-            return fakeWin;
-          },
         },
+        Platform: { getCurrentSync: () => fakePlatform },
       };
       rt = await OpenFinRuntime.create();
 
@@ -122,14 +125,17 @@ describe('OpenFinRuntime', () => {
         close: () => {},
       };
       const fakeView = { identity: { name: 'v' }, getOptions: async () => ({}) };
+      const fakePlatform = {
+        createWindow: async () => { throw new Error('should not be called'); },
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).fin = {
         me: { identity: { uuid: 'app1' } },
         View: { getCurrentSync: () => fakeView },
         Window: {
           wrapSync: () => fakeExisting,
-          create: async () => { throw new Error('should not be called'); },
         },
+        Platform: { getCurrentSync: () => fakePlatform },
       };
       rt = await OpenFinRuntime.create();
 
