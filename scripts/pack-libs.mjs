@@ -3,27 +3,25 @@
  * pack-libs.mjs — produce tarballs for every workspace library package.
  *
  * Per docs/plans/plan-2026-05-07/code-organization.md Decision 13 and
- * code-organization-implementation.md Task 12 (PR-11): new reference
- * apps consume libraries via .tgz tarballs (`file:` deps in their
- * package.json) rather than via workspace symlinks, so packaging bugs
- * surface during local dev — same shape consumers see.
+ * code-organization-implementation.md Task 12 (PR-11): reference apps
+ * (apps/demo-react) consume libraries via .tgz tarballs (`file:` deps
+ * in their package.json) rather than via workspace symlinks, so
+ * packaging bugs surface during local dev — same shape consumers see.
  *
  * Usage:
  *   npm run pack:libs
  *
  * Output:
- *   /lib/<scope>-<name>-<version>.tgz   (one per workspace library)
- *   /lib/manifest.json                   (package-name → tarball-filename map)
+ *   /libs/<scope>-<name>-<version>.tgz   (one per workspace library)
+ *   /libs/manifest.json                   (package-name → tarball-filename map)
  *
  * Reference app deps then look like:
- *   "@starui/markets-grid-react": "file:../../lib/starui-markets-grid-react-1.0.0.tgz"
- * plus an `overrides` block enumerating every transitive workspace dep
- * (the manifest makes that block trivial to generate).
+ *   "@starui/markets-grid": "file:../../libs/starui-markets-grid-0.1.0.tgz"
  *
- * Apps (private packages whose name does not start with @starui/) are
- * skipped — only publishable libraries are packed.
+ * Apps (paths NOT under packages/) are skipped — only publishable
+ * libraries are packed.
  *
- * Idempotent and safe to re-run; the lib/ directory is wiped on each run.
+ * Idempotent and safe to re-run; the libs/ directory is wiped on each run.
  */
 
 import { execSync } from 'node:child_process';
@@ -38,7 +36,7 @@ import {
 import { join, relative, resolve } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
-const LIB_DIR = join(REPO_ROOT, 'lib');
+const LIBS_DIR = join(REPO_ROOT, 'libs');
 
 function log(msg) {
   process.stdout.write(`[pack-libs] ${msg}\n`);
@@ -112,7 +110,7 @@ function packToTarball(dir) {
   // npm pack --json prints a JSON array of { id, name, version, filename, ... }
   // on stdout; warnings go to stderr (inherited).
   const stdout = execSync(
-    `npm pack --pack-destination "${LIB_DIR}" --json`,
+    `npm pack --pack-destination "${LIBS_DIR}" --json`,
     { cwd: dir, stdio: ['ignore', 'pipe', 'inherit'] },
   ).toString();
   // Some npm versions prepend non-JSON noise; locate the first '['.
@@ -126,16 +124,16 @@ function packToTarball(dir) {
 
 function main() {
   log(`repo root: ${REPO_ROOT}`);
-  log(`lib dir:   ${LIB_DIR}`);
+  log(`libs dir:  ${LIBS_DIR}`);
 
   // Step 1 — ensure every package's dist/ is fresh.
   log('running: npx turbo run build');
   execSync('npx turbo run build', { cwd: REPO_ROOT, stdio: 'inherit' });
 
-  // Step 2 — wipe and recreate lib/.
-  log('recreating lib/ directory');
-  rmSync(LIB_DIR, { recursive: true, force: true });
-  mkdirSync(LIB_DIR, { recursive: true });
+  // Step 2 — wipe and recreate libs/.
+  log('recreating libs/ directory');
+  rmSync(LIBS_DIR, { recursive: true, force: true });
+  mkdirSync(LIBS_DIR, { recursive: true });
 
   // Step 3 — discover and pack each workspace library.
   const packages = discoverPackages().map(readPackageInfo);
@@ -169,9 +167,9 @@ function main() {
   const sortedManifest = Object.fromEntries(
     Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)),
   );
-  const manifestPath = join(LIB_DIR, 'manifest.json');
+  const manifestPath = join(LIBS_DIR, 'manifest.json');
   writeFileSync(manifestPath, JSON.stringify(sortedManifest, null, 2) + '\n');
-  log(`wrote: lib/manifest.json (${Object.keys(sortedManifest).length} entries)`);
+  log(`wrote: libs/manifest.json (${Object.keys(sortedManifest).length} entries)`);
 
   log(`done — packed ${packed}, skipped ${skipped}`);
 }
