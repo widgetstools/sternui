@@ -1,22 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MarketsGrid } from '@starui/markets-grid';
+import { MarketsGrid, type StorageAdapterFactory } from '@starui/markets-grid';
 import { activeProfileKey } from '@starui/core';
-import type { ProfileSnapshot, StorageAdapter } from '@starui/core';
+import type { ProfileSnapshot } from '@starui/core';
 
 import { generateNestedOrders, nestedColumnDefs } from './nestedData';
 import type { FixtureSpec } from './nestedFixtures';
+import { APP_ID, DEMO_USER_ID } from './App';
 
 /**
  * Seed (upsert) the fixture's profile and flip the active-profile
  * pointer so MarketsGrid boots straight into the styled state. Stable
  * id `${fixture.name}-profile` so re-seeds overwrite cleanly.
  */
-async function seedFixture(adapter: StorageAdapter, fixture: FixtureSpec): Promise<void> {
+async function seedFixture(
+  storage: StorageAdapterFactory,
+  fixture: FixtureSpec,
+): Promise<void> {
   // Seed the fixture state under id `__default__` so MarketsGrid's
   // default-profile auto-seed becomes a no-op (its `if (existing)`
   // guard short-circuits) — and we don't fight an active-pointer race
   // with the host's "ensure default exists" step. The fixture profile
   // IS the default for this gridId.
+  const adapter = storage({
+    instanceId: fixture.gridId,
+    appId: APP_ID,
+    userId: DEMO_USER_ID,
+  });
   const now = Date.now();
   const snap: ProfileSnapshot = {
     id: '__default__',
@@ -32,7 +41,7 @@ async function seedFixture(adapter: StorageAdapter, fixture: FixtureSpec): Promi
 
 interface FixtureProps {
   fixture: FixtureSpec;
-  storageAdapter: StorageAdapter;
+  storage: StorageAdapterFactory;
 }
 
 const defaultColDef = {
@@ -53,18 +62,18 @@ const defaultColDef = {
  * across page loads. Edge-case rows (`EDGE-NULL-PRICING`, etc.) are
  * always at the front of the dataset — see `nestedData.ts`.
  */
-export function Fixture({ fixture, storageAdapter }: FixtureProps) {
+export function Fixture({ fixture, storage }: FixtureProps) {
   const rowData = useMemo(() => generateNestedOrders(60), []);
   const columnDefs = useMemo(() => nestedColumnDefs(), []);
   const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    seedFixture(storageAdapter, fixture).finally(() => {
+    seedFixture(storage, fixture).finally(() => {
       if (alive) setSeeded(true);
     });
     return () => { alive = false; };
-  }, [storageAdapter, fixture]);
+  }, [storage, fixture]);
 
   if (!seeded) {
     return (
@@ -106,7 +115,9 @@ export function Fixture({ fixture, storageAdapter }: FixtureProps) {
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           rowIdField="id"
-          storageAdapter={storageAdapter}
+          storage={storage}
+          appId={APP_ID}
+          userId={DEMO_USER_ID}
           showFiltersToolbar
           showFormattingToolbar
           sideBar={{ toolPanels: ['columns', 'filters'] }}

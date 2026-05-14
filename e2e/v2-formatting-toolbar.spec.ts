@@ -37,12 +37,16 @@ async function clearV2(page: Page) {
       .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach((k) => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('gc-customizer-v2');
+      const req = indexedDB.deleteDatabase('marketsui-config');
       req.onsuccess = () => resolve();
       req.onerror = () => resolve();
       req.onblocked = () => resolve();
     });
   });
+  // Reset the one-shot legacy-migration flag so a fresh wipe followed
+  // by a reload re-evaluates the migration — keeps test setup boundaries
+  // crisp even though demo-react has no legacy data to migrate.
+  await page.evaluate(() => localStorage.removeItem('profile-migration-v1'));
 }
 
 /** Open the pinned FormattingToolbar. It sits beneath the FiltersToolbar,

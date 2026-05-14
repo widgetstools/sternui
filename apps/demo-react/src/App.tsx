@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
-import { MarketsGrid } from '@starui/markets-grid';
-import { DexieAdapter, activeProfileKey } from '@starui/core';
-import type { StorageAdapter, ProfileSnapshot } from '@starui/core';
+import { MarketsGrid, type StorageAdapterFactory } from '@starui/markets-grid';
+import { activeProfileKey } from '@starui/core';
+import type { ProfileSnapshot } from '@starui/core';
 import { Sun, Moon } from 'lucide-react';
 import { Button, cn } from '@starui/ui';
 import { useHost } from '@starui/host-wrapper-react';
@@ -13,6 +13,13 @@ import { MarketDepth } from './MarketDepth';
 import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
 import { Fixture } from './Fixture';
 import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
+
+/** App identity used by main.tsx (runtime) and by the storage factory.
+ *  Exported so the entry file can mirror them onto BrowserRuntime's
+ *  identity option — keeps the (appId, userId, instanceId) tuple in
+ *  one place. */
+export const APP_ID = 'demo-react';
+export const DEMO_USER_ID = 'demo-user';
 
 type View = 'single' | 'dashboard' | 'depth' | 'fixture';
 const LIVE_TICK_INTERVAL_MS = 300;
@@ -83,15 +90,16 @@ const defaultColDef: ColDef<Order> = {
 
 // ─── Showcase seeding ──────────────────────────────────────────────────
 //
-// On first boot (per gridId), seed the "Showcase" profile directly into
-// the Dexie store and flip the active-profile localStorage pointer so
-// MarketsGrid boots straight into the styled / calculated / tick-flashed
-// view. Skipped on subsequent loads (idempotent: we match by name).
+// On first boot (per gridId), seed the "Showcase" profile through the
+// same storage factory MarketsGrid uses and flip the active-profile
+// localStorage pointer so MarketsGrid boots straight into the styled /
+// calculated / tick-flashed view. Skipped on subsequent loads
+// (idempotent: we match by name).
 
 const GRID_ID = 'demo-blotter-v2';
 const SEEDED_FLAG_KEY = `gc-showcase-seeded:${GRID_ID}`;
 
-async function ensureShowcaseSeed(adapter: StorageAdapter): Promise<void> {
+async function ensureShowcaseSeed(storage: StorageAdapterFactory): Promise<void> {
   // One-shot guard: if the flag's set, bail. We still check storage in
   // case the user manually cleared IndexedDB but kept localStorage.
   try {
@@ -100,6 +108,7 @@ async function ensureShowcaseSeed(adapter: StorageAdapter): Promise<void> {
     }
   } catch { /* access denied — press on */ }
 
+  const adapter = storage({ instanceId: GRID_ID, appId: APP_ID, userId: DEMO_USER_ID });
   const existing = await adapter.listProfiles(GRID_ID);
   if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase())) {
     try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
@@ -128,11 +137,46 @@ async function ensureShowcaseSeed(adapter: StorageAdapter): Promise<void> {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-export function App() {
-  return <AppInner />;
+export interface AppProps {
+  /** Storage factory resolved from main.tsx after ConfigManager.init. */
+  storageReady: Promise<StorageAdapterFactory>;
 }
 
-function AppInner() {
+export function App({ storageReady }: AppProps) {
+  // Gate the inner app on storage resolution. storageReady is a stable
+  // module-level promise from main.tsx so this useEffect runs once.
+  // Note: the factory is itself a function, so we must call setState
+  // with `() => factory` — otherwise React treats the factory as an
+  // updater and invokes it with the previous state, which throws when
+  // the factory dereferences scope.instanceId on `null`.
+  const [storage, setStorage] = useState<StorageAdapterFactory | null>(null);
+  useEffect(() => {
+    let alive = true;
+    storageReady.then((s) => { if (alive) setStorage(() => s); });
+    return () => { alive = false; };
+  }, [storageReady]);
+
+  if (!storage) {
+    return (
+      <div
+        data-testid="storage-loading"
+        style={{
+          height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--muted-foreground)', fontSize: 11,
+          fontFamily: 'var(--ds-font-sans)', letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          background: 'var(--ds-surface-ground)',
+        }}
+      >
+        Initializing storage…
+      </div>
+    );
+  }
+
+  return <AppInner storage={storage} />;
+}
+
+function AppInner({ storage }: { storage: StorageAdapterFactory }) {
   const [rowData] = useState(() => generateOrders(500));
   // Theme flows through the runtime's single state holder — `useHost()`
   // returns the live value and gives us `setTheme` as a one-call writer
@@ -172,18 +216,16 @@ function AppInner() {
     window.history.replaceState(null, '', next);
   }, [view]);
 
-  const storageAdapter = useMemo(() => new DexieAdapter(), []);
-
   // One-shot seed on mount. `ensureShowcaseSeed` is idempotent — it
   // short-circuits on the per-grid flag or when the profile already
-  // exists in Dexie — so React 19 StrictMode double-mount is safe.
+  // exists in the bundled row — so React 19 StrictMode double-mount is safe.
   useEffect(() => {
     let alive = true;
-    ensureShowcaseSeed(storageAdapter).finally(() => {
+    ensureShowcaseSeed(storage).finally(() => {
       if (alive) setSeeded(true);
     });
     return () => { alive = false; };
-  }, [storageAdapter]);
+  }, [storage]);
 
   // Persist the tick-toggle preference.
   useEffect(() => {
@@ -307,7 +349,7 @@ function AppInner() {
       ) : view === 'fixture' && fixtureName ? (
         <Fixture
           fixture={FIXTURES[fixtureName]}
-          storageAdapter={storageAdapter}
+          storage={storage}
         />
       ) : view === 'fixture' ? (
         <div
@@ -328,7 +370,9 @@ function AppInner() {
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             rowIdField="id"
-            storageAdapter={storageAdapter}
+            storage={storage}
+            appId={APP_ID}
+            userId={DEMO_USER_ID}
             showFiltersToolbar
             showFormattingToolbar
             onGridReady={handleGridReady}
@@ -342,7 +386,7 @@ function AppInner() {
           />
         </div>
       ) : view === 'dashboard' ? (
-        <Dashboard columnDefs={columnDefs} defaultColDef={defaultColDef} />
+        <Dashboard columnDefs={columnDefs} defaultColDef={defaultColDef} storage={storage} />
       ) : (
         <MarketDepth isDark={isDark} />
       )}

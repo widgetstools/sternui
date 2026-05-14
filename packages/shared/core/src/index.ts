@@ -61,7 +61,6 @@ export type { AutoSaveHandle, AutoSaveOptions } from './store/autosave';
 // ─── Persistence adapters ───────────────────────────────────────────────────
 export {
   MemoryAdapter,
-  DexieAdapter,
   LocalStorageBundleAdapter,
   marketsGridLocalStorageBundleKey,
   RESERVED_DEFAULT_PROFILE_ID,

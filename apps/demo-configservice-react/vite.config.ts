@@ -14,9 +14,10 @@ const workspaceAliases = buildPackageAliases({
 
 export default defineConfig({
   plugins: [react()],
-  // Port 5190 is owned by apps/demo-react (the plain-DexieAdapter demo).
-  // 5191 = the ConfigService-backed sibling; separate port = both can
-  // run concurrently for side-by-side comparison.
+  // Port 5190 is owned by apps/demo-react (fixtures + showcase demo,
+  // single-user). 5191 = the ConfigService-backed sibling that surfaces
+  // the user-switcher and Config Browser; separate port = both can run
+  // concurrently for side-by-side comparison.
   server: { port: 5191, open: true },
   resolve: {
     extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],

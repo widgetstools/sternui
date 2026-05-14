@@ -70,11 +70,12 @@ test.describe('perf canaries', () => {
     // Clear db so the create is observable against a clean slate.
     await page.evaluate(async () => {
       await new Promise<void>((resolve) => {
-        const req = indexedDB.deleteDatabase('gc-customizer-v2');
+        const req = indexedDB.deleteDatabase('marketsui-config');
         req.onsuccess = () => resolve();
         req.onerror = () => resolve();
         req.onblocked = () => resolve();
       });
+      localStorage.removeItem('profile-migration-v1');
     });
     await page.goto('/');
     await page.waitForSelector('[data-grid-id="demo-blotter-v2"]', { timeout: 10_000 });
@@ -93,17 +94,21 @@ test.describe('perf canaries', () => {
     while (Date.now() < deadline) {
       const found = await page.evaluate(async () => {
         return new Promise<boolean>((resolve) => {
-          const req = indexedDB.open('gc-customizer-v2');
+          const req = indexedDB.open('marketsui-config');
           req.onerror = () => resolve(false);
           req.onsuccess = () => {
             const db = req.result;
-            if (!db.objectStoreNames.contains('profiles')) { db.close(); resolve(false); return; }
-            const tx = db.transaction('profiles', 'readonly');
-            const req2 = tx.objectStore('profiles').getAll();
+            if (!db.objectStoreNames.contains('appConfig')) { db.close(); resolve(false); return; }
+            const tx = db.transaction('appConfig', 'readonly');
+            const req2 = tx.objectStore('appConfig').getAll();
             req2.onsuccess = () => {
-              const rows = (req2.result as Array<{ name?: string }>) || [];
+              const rows = (req2.result as Array<{ payload?: { profiles?: Array<{ name?: string }> } }>) || [];
               db.close();
-              resolve(rows.some((r) => r.name === 'Perf-Test'));
+              const hit = rows.some((r) =>
+                Array.isArray(r.payload?.profiles)
+                && (r.payload!.profiles as Array<{ name?: string }>).some((p) => p.name === 'Perf-Test'),
+              );
+              resolve(hit);
             };
             req2.onerror = () => { db.close(); resolve(false); };
           };

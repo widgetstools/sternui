@@ -32,9 +32,11 @@ export function profileCloneBtn(page: Page, id: string): Locator {
 }
 
 /** Delete button is identified by its `title` attribute (no testid on
- *  the icon button itself — the confirm dialog carries the testids). */
+ *  the icon button itself — the confirm dialog carries the testids).
+ *  The UI title is "Delete layout" — the row terminology shifted from
+ *  "profile" to "layout" in the ProfileSelector chrome rewrite. */
 export function profileDeleteBtn(page: Page, id: string): Locator {
-  return profileRow(page, id).locator('button[title="Delete profile"]');
+  return profileRow(page, id).locator('button[title="Delete layout"]');
 }
 
 export function deleteConfirmDialog(page: Page): Locator {
@@ -211,25 +213,45 @@ export async function ensureSettingsSheetClosed(page: Page): Promise<void> {
 // ─── State probes ──────────────────────────────────────────────────
 
 /**
- * Read the full IndexedDB profiles table. Useful for asserting on
- * disk-level persistence independent of the UI state.
+ * Read every profile stored in the `marketsui-config` IndexedDB,
+ * flattening across the bundled `appConfig` rows. Useful for asserting
+ * on disk-level persistence independent of the UI state.
  *
- * Returns an array of `{ id, name, state }` rows. `state` is the
- * serialized module-state envelope map.
+ * Returns an array of `{ id, name, state, gridId }` rows. `state` is
+ * the serialized module-state envelope map. The `gridId` field is the
+ * snapshot's own `gridId` — handy for filtering by grid in
+ * two-grid-isolation specs.
+ *
+ * Filters by demo-react's `(appId='demo-react', userId='demo-user')`
+ * scope so other apps' rows (none today, but the helper is
+ * future-proofed) don't show up.
  */
-export async function readStoredProfiles(page: Page): Promise<Array<{ id: string; name: string; state: Record<string, unknown> }>> {
+export async function readStoredProfiles(page: Page): Promise<Array<{ id: string; name: string; state: Record<string, unknown>; gridId: string }>> {
   return page.evaluate(async () => {
-    return new Promise<Array<{ id: string; name: string; state: Record<string, unknown> }>>((resolve) => {
-      const req = indexedDB.open('gc-customizer-v2');
+    return new Promise<Array<{ id: string; name: string; state: Record<string, unknown>; gridId: string }>>((resolve) => {
+      const req = indexedDB.open('marketsui-config');
       req.onsuccess = () => {
         const db = req.result;
-        if (!db.objectStoreNames.contains('profiles')) { resolve([]); return; }
-        const tx = db.transaction('profiles', 'readonly');
-        const rq = tx.objectStore('profiles').getAll();
+        if (!db.objectStoreNames.contains('appConfig')) { resolve([]); return; }
+        const tx = db.transaction('appConfig', 'readonly');
+        const rq = tx.objectStore('appConfig').getAll();
         rq.onsuccess = () => {
-          resolve((rq.result as Array<{ id: string; name: string; state: Record<string, unknown> }>).map(
-            (p) => ({ id: p.id, name: p.name, state: p.state }),
-          ));
+          const rows = (rq.result ?? []) as Array<{
+            appId?: string;
+            userId?: string;
+            componentType?: string;
+            payload?: { profiles?: Array<{ id: string; gridId: string; name: string; state: Record<string, unknown> }> };
+          }>;
+          const out: Array<{ id: string; name: string; state: Record<string, unknown>; gridId: string }> = [];
+          for (const row of rows) {
+            if (row.appId !== 'demo-react' || row.userId !== 'demo-user') continue;
+            const arr = row.payload?.profiles;
+            if (!Array.isArray(arr)) continue;
+            for (const p of arr) {
+              out.push({ id: p.id, gridId: p.gridId, name: p.name, state: p.state });
+            }
+          }
+          resolve(out);
         };
         rq.onerror = () => resolve([]);
       };

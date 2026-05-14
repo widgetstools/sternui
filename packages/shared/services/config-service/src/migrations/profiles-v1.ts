@@ -2,8 +2,9 @@
  * Profile-state consolidation — first-boot migration (Session 3.2).
  *
  * Copies any rows still sitting in the legacy `gc-customizer-v2` Dexie
- * database (the `DexieAdapter`'s store) into the ConfigService bundled
- * row via the existing `migrateProfilesToConfigService` helper.
+ * database (the previous `DexieAdapter` store, removed in Session 3.3)
+ * into the ConfigService bundled row via the existing
+ * `migrateProfilesToConfigService` helper.
  *
  * Triggered ONCE per device from `<ConfigServiceProvider>` after
  * `ConfigManager.init()` resolves. Idempotent via a

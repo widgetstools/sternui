@@ -420,35 +420,64 @@ Three large files, each in a different package. They're independent — can be d
 
 ---
 
-### Session 3.3 — Migrate consumers off the façade + delete ProfileManager
+### Session 3.3 — Remove DexieAdapter + migrate apps/demo-react onto ConfigService
 
-**Prerequisite:** Session 3.2 merged. Migration has run in any user environment that booted in between.
+**Note on revised scope.** The original framing ("delete ProfileManager") was
+revised out by the [profile-state design doc](./PROFILE-STATE-CONSOLIDATION.md):
+ProfileManager owns ~850 LOC of ordering-contract code the audit symptoms
+directly depend on, so it stays. What Session 3.3 actually deletes is the
+legacy `DexieAdapter` and its remaining consumer wiring in `apps/demo-react`.
+Session 3.2's commit message labels these as the in-scope items for 3.3.
+
+**Prerequisite:** Session 3.2 merged. Migration has run on any user environment
+that booted in between.
 
 **What to do:**
 
-1. Find every `import { ProfileManager } from '@starui/core'` (or similar):
-   ```bash
-   grep -rln "from '@starui/core'.*ProfileManager\|ProfileManager.*from '@starui/core'" packages apps \
-     --include="*.ts" --include="*.tsx" | grep -v node_modules | grep -v dist
-   ```
-2. Replace with direct `configManager.profiles.*` calls (or whatever API name 3.1 settled on). The hook surface in `@starui/grid-react`'s `useProfileManager` becomes a thin wrapper over the new API.
-3. Delete `packages/shared/core/src/profiles/ProfileManager.ts` and the façade. Keep `types.ts` (the `ProfileSnapshot` type is still useful).
-4. Update the `@starui/core` barrel to stop exporting `ProfileManager`.
-5. Update consumer docstrings to reference the new API.
+1. Migrate `apps/demo-react` off `new DexieAdapter()` onto the
+   `createConfigServiceStorage({ configManager })` factory pattern. Build the
+   inner `ConfigManager` at module scope in `main.tsx`, run
+   `migrateLegacyProfilesIfNeeded(...)` once after `init()`, and pass the
+   resolved `storage` factory to `<App>` (gate the inner app on the resolution).
+2. Update `App.tsx`, `Dashboard.tsx`, `Fixture.tsx` to use `storage={factory} +
+   appId + userId` on `<MarketsGrid>` instead of `storageAdapter={instance}`.
+3. Rewrite the e2e helper `readStoredProfiles` to read from
+   `marketsui-config.appConfig`, flattening across the bundled
+   `payload.profiles[]` arrays. Update every `indexedDB.deleteDatabase('gc-customizer-v2')`
+   call in the e2e suite to wipe `marketsui-config` and remove the
+   `profile-migration-v1` localStorage flag.
+4. Delete `packages/shared/core/src/persistence/DexieAdapter.ts` and the two
+   barrel re-exports (`persistence/index.ts` + `@starui/core` top-level
+   `index.ts`). Drop the now-unused `dexie` dependency from
+   `packages/shared/core/package.json`.
+5. Update stale comments in `StorageAdapter.ts`, `markets-grid/types.ts`,
+   `useMarketsGridController.ts`, `profiles-v1.ts`, the demo-configservice
+   header comment, and the reference-app blotter route caption.
 
-**Migration concern:** Sessions 3.2 and 3.3 must be merged separately — never combine them in one PR. The reason: if 3.3 ships before the migration in 3.2 has run on user devices, users lose their profiles. The two-step merge ensures every user boots once on the façade (which triggers migration) before the façade is removed.
+**Migration concern:** Sessions 3.2 and 3.3 must be merged separately — never
+combine them in one PR. The reason: if 3.3 ships before the migration in 3.2
+has run on user devices, users lose their profiles. The two-step merge ensures
+every user boots once with the migration trigger before the legacy DB is
+unreachable from the codebase.
 
 **Verify:**
 - `npm test` (every package) — green
 - `npm run typecheck` (every app) — clean
 - E2E full regression
-- Dev server smoke on **every** app: demo-react, demo-configservice-react, markets-ui-react-reference. Open a profile, edit, save, switch profile, clone, rename, export, import. Every interaction must behave identically to before.
-- Check `wc -l` for the deleted files. The PR should remove > 850 LOC net.
-- **Final gate:** `npx turbo typecheck build test` — green across every workspace package
+- Dev server smoke on **every** app: demo-react, demo-configservice-react,
+  markets-ui-react-reference. Open a profile, edit, save, switch profile,
+  clone, rename, export, import. Every interaction must behave identically to
+  before.
+- **Final gate:** `npx turbo typecheck build test` — green across every
+  workspace package
 
-**Commit:** `refactor(core): remove ProfileManager — consumers use ConfigManager directly`. PR.
+**Commit:** `refactor(core): remove DexieAdapter — apps/demo-react on
+ConfigService factory`. PR.
 
-**Out of scope:** Removing other modules from `@starui/core`. Renaming `ProfileSnapshot`. Touching the AppData mirror.
+**Out of scope:** Removing other modules from `@starui/core`. Renaming
+`ProfileSnapshot`. Touching the AppData mirror. Dropping the legacy
+`gc-customizer-v2` IndexedDB at runtime (the migration leaves it on disk for
+rollback safety; a future cleanup PR can drop it after soak).
 
 ---
 
