@@ -28,12 +28,13 @@ async function clearV2(page: Page) {
       .filter((k) => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach((k) => localStorage.removeItem(k));
     return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('gc-customizer-v2');
+      const req = indexedDB.deleteDatabase('marketsui-config');
       req.onsuccess = () => resolve();
       req.onerror = () => resolve();
       req.onblocked = () => resolve();
     });
   });
+  await page.evaluate(() => localStorage.removeItem('profile-migration-v1'));
 }
 
 async function waitForBothGrids(page: Page) {

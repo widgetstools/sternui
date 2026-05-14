@@ -2,8 +2,8 @@
  * Two-grid dashboard — visual reference for a multi-grid layout.
  *
  * Two `<MarketsGrid>` instances sit side by side. Each has:
- *   - a unique `gridId` → independent IndexedDB profiles, independent
- *     platform, independent DirtyBus, independent toolbars.
+ *   - a unique `gridId` → independent profiles, independent platform,
+ *     independent DirtyBus, independent toolbars.
  *   - its own rowData + chrome label so users can see at a glance which
  *     dataset they're looking at.
  *   - the full feature set (filters toolbar, formatting toolbar,
@@ -18,27 +18,26 @@
  * This is also the harness the end-to-end isolation spec targets
  * (`e2e/v2-two-grid-isolation.spec.ts`).
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
-import { MarketsGrid } from '@starui/markets-grid';
-import { DexieAdapter } from '@starui/core';
+import { MarketsGrid, type StorageAdapterFactory } from '@starui/markets-grid';
 
 import { generateOrders, generateEquityOrders, type Order } from './data';
+import { APP_ID, DEMO_USER_ID } from './App';
 
 export interface DashboardProps {
   columnDefs: ColDef<Order>[];
   defaultColDef: ColDef<Order>;
+  storage: StorageAdapterFactory;
 }
 
-export function Dashboard({ columnDefs, defaultColDef }: DashboardProps) {
+export function Dashboard({ columnDefs, defaultColDef, storage }: DashboardProps) {
   const [ratesData] = useState(() => generateOrders(500));
   const [equityData] = useState(() => generateEquityOrders(300));
 
-  // One storage adapter, shared across both grids. The `MarketsGrid` host
-  // scopes everything it writes by `gridId`, so two grids sharing one
-  // IndexedDB adapter still have fully independent profile state.
-  const storageAdapter = useMemo(() => new DexieAdapter(), []);
-
+  // One storage factory, shared across both grids. The `MarketsGrid`
+  // host calls the factory with the per-grid identity tuple so the two
+  // grids end up with fully independent, instance-scoped adapters.
   return (
     <div
       data-testid="two-grid-dashboard"
@@ -57,7 +56,7 @@ export function Dashboard({ columnDefs, defaultColDef }: DashboardProps) {
         rowData={ratesData}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        storageAdapter={storageAdapter}
+        storage={storage}
       />
       <GridPanel
         label="EQUITIES BLOTTER"
@@ -65,7 +64,7 @@ export function Dashboard({ columnDefs, defaultColDef }: DashboardProps) {
         rowData={equityData}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        storageAdapter={storageAdapter}
+        storage={storage}
       />
     </div>
   );
@@ -77,7 +76,7 @@ interface GridPanelProps {
   rowData: Order[];
   columnDefs: ColDef<Order>[];
   defaultColDef: ColDef<Order>;
-  storageAdapter: DexieAdapter;
+  storage: StorageAdapterFactory;
 }
 
 function GridPanel({
@@ -86,7 +85,7 @@ function GridPanel({
   rowData,
   columnDefs,
   defaultColDef,
-  storageAdapter,
+  storage,
 }: GridPanelProps) {
   return (
     <section
@@ -137,7 +136,9 @@ function GridPanel({
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           rowIdField="id"
-          storageAdapter={storageAdapter}
+          storage={storage}
+          appId={APP_ID}
+          userId={DEMO_USER_ID}
           showFiltersToolbar
           showFormattingToolbar
           sideBar={{ toolPanels: ['columns', 'filters'] }}

@@ -94,7 +94,9 @@ export function useMarketsGridController(
   // Construct a fallback adapter ONCE when the host doesn't provide one.
   // MemoryAdapter means changes don't persist across reloads — fine for
   // demos, tests, and consumers that want ephemeral state. Production
-  // apps should pass `new DexieAdapter()`.
+  // apps should pass a `storage` factory built from
+  // `createConfigServiceStorage({ configManager })`
+  // (see apps/demo-react and apps/demo-configservice-react).
   const adapterRef = useRef<StorageAdapter | null>(null);
   if (!adapterRef.current) adapterRef.current = storageAdapter ?? new MemoryAdapter();
 

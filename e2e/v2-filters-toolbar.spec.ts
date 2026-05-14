@@ -24,14 +24,16 @@ async function waitForGrid(page: Page) {
 }
 
 async function clearV2Persistence(page: Page) {
-  // v2 persists in IndexedDB via DexieAdapter. Wipe the gc-customizer-v2 db
-  // and the active-profile pointer so each test starts from a clean slate.
+  // demo-react persists in IndexedDB via @starui/config-service's bundled
+  // appConfig row. Wipe the marketsui-config db and the active-profile
+  // pointer so each test starts from a clean slate.
   await page.evaluate(async () => {
     Object.keys(localStorage)
       .filter(k => k.startsWith('gc-active-profile:') || k.startsWith('gc-state:') || k.startsWith('ds-grid:'))
       .forEach(k => localStorage.removeItem(k));
+    localStorage.removeItem('profile-migration-v1');
     return new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('gc-customizer-v2');
+      const req = indexedDB.deleteDatabase('marketsui-config');
       req.onsuccess = () => resolve();
       req.onerror = () => resolve();
       req.onblocked = () => resolve();

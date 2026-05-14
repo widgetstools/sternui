@@ -34,7 +34,7 @@ export async function waitForV2Grid(page: Page): Promise<void> {
 export async function clearV2Storage(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase('gc-customizer-v2');
+      const req = indexedDB.deleteDatabase('marketsui-config');
       req.onsuccess = () => resolve();
       req.onerror = () => resolve();
       req.onblocked = () => resolve();
@@ -42,6 +42,7 @@ export async function clearV2Storage(page: Page): Promise<void> {
     Object.keys(localStorage)
       .filter((k) => k.startsWith('gc-active-profile:'))
       .forEach((k) => localStorage.removeItem(k));
+    localStorage.removeItem('profile-migration-v1');
   });
 }
 

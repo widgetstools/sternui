@@ -194,8 +194,9 @@ root.render(
           <Route path="/views/view2" element={<View2 />} />
 
           {/* Blotters — MarketsGrid hosted inside the reference app.
-              DexieAdapter persists profile state locally; theme flows
-              through the runtime port (BrowserRuntime / OpenFinRuntime). */}
+              @starui/config-service persists profile state locally
+              (bundled appConfig rows in IndexedDB); theme flows through
+              the runtime port (BrowserRuntime / OpenFinRuntime). */}
           <Route
             path="/blotters/marketsgrid"
             element={

@@ -19,9 +19,12 @@ export interface ProfileSnapshot {
  *
  * Implementations:
  *  - `MemoryAdapter` — in-memory, used for tests + hosts that don't want
- *    IndexedDB.
- *  - `DexieAdapter`  — IndexedDB-backed, same storage format as v2 so
- *    existing users' profiles keep loading (decision locked in the plan).
+ *    persistence.
+ *  - `LocalStorageBundleAdapter` — localStorage-backed bundle, used by
+ *    the offline reference app.
+ *  - `createConfigServiceStorage(...)` from `@starui/config-service` —
+ *    the canonical IndexedDB-backed factory; bundles every profile for
+ *    a `(appId, userId, instanceId)` tuple into one `appConfig` row.
  */
 export interface StorageAdapter {
   loadProfile(gridId: string, profileId: string): Promise<ProfileSnapshot | null>;
@@ -67,8 +70,8 @@ export interface StorageAdapter {
    * consolidation` audit (Risk #6, "Two-tab race") closes here.
    *
    * Optional: adapters that don't have a notification channel
-   * (Memory, LocalStorageBundle, the legacy DexieAdapter) omit it and
-   * `ProfileManager` silently skips the wiring.
+   * (Memory, LocalStorageBundle) omit it and `ProfileManager` silently
+   * skips the wiring.
    */
   subscribeToChanges?(gridId: string, fn: () => void): () => void;
 }

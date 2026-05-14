@@ -27,12 +27,15 @@ import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
 
 // ─── ConfigService integration ─────────────────────────────────────────
 //
-// This demo swaps the plain-`DexieAdapter` wiring from apps/demo-react
-// for the ConfigService-backed `createConfigServiceStorage` factory.
+// Both this demo and apps/demo-react use the ConfigService-backed
+// `createConfigServiceStorage` factory. This one adds a multi-user
+// switcher in the header so you can flip between three demo users and
+// watch each user's profile set come and go — proving that userId
+// scoping works end-to-end. (apps/demo-react is single-user and adds
+// the fixture views the e2e suite drives.)
+//
 // Profiles are persisted as `AppConfigRow` rows scoped by
-// `(appId, userId, instanceId)`. A user switcher in the header lets you
-// flip between two demo users and watch each user's profile set come
-// and go — proving that userId scoping works end-to-end.
+// `(appId, userId, instanceId)`.
 //
 // ConfigManager runs in pure-Dexie mode (no REST endpoint). All profile
 // rows live in IndexedDB under the `marketsui-config` database; they

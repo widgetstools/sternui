@@ -76,7 +76,9 @@ export interface MarketsGridProps<TData = unknown> {
   headerHeight?: number;
   /** Enable row animations. Defaults to `true`. */
   animateRows?: boolean;
-  /** Host can provide its own storage adapter (DexieAdapter, MemoryAdapter, …).
+  /** Host can provide its own storage adapter (MemoryAdapter,
+   *  LocalStorageBundleAdapter, …). For ConfigService-backed
+   *  persistence prefer the `storage` factory prop below.
    *  When omitted, MarketsGrid uses an in-memory adapter scoped to the current session. */
   storageAdapter?: unknown;
   /** Auto-save debounce in ms. Defaults to 300. */
