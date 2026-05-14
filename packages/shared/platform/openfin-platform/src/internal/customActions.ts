@@ -169,7 +169,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
           return;
         }
 
-        await fin.Window.create({
+        const platform = getCurrentSync();
+        await platform.createWindow({
           name: 'dock-editor',
           url: `${origin}/dock-editor`,
           defaultWidth: 720,
@@ -215,7 +216,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
           return;
         }
 
-        await fin.Window.create({
+        const platform = getCurrentSync();
+        await platform.createWindow({
           name: 'registry-editor',
           url: `${origin}/registry-editor`,
           defaultWidth: 800,
@@ -302,7 +304,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
           return;
         }
 
-        await fin.Window.create({
+        const platform = getCurrentSync();
+        await platform.createWindow({
           name: 'config-browser',
           url: `${origin}/config-browser`,
           defaultWidth: 1100,
@@ -437,7 +440,8 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
           return;
         }
 
-        await fin.Window.create({
+        const platform = getCurrentSync();
+        await platform.createWindow({
           name: 'import-config',
           url: `${origin}/import-config`,
           defaultWidth: 400,

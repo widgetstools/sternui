@@ -33,12 +33,15 @@ async function resolveProviderOrigin(): Promise<string | undefined> {
 }
 
 /**
- * Open or focus a named OpenFin child window at `path` (may include
+ * Open or focus a named OpenFin platform window at `path` (may include
  * `?query`). Uses manifest-derived origin (not `window.location`).
  *
- * When the window already exists: foreground it and `navigate` to
- * the target URL when it differs — so e.g. `/dataproviders?id=…`
- * updates when opening from the grid toolbar.
+ * Creation goes through `fin.Platform.getCurrentSync().createWindow(...)`
+ * so the window is workspace-aware (saveable in `Platform.snapshot()`
+ * restore, dockable with platform views). When the window already
+ * exists: foreground it and `navigate` to the target URL when it
+ * differs — so e.g. `/dataproviders?id=…` updates when opening from
+ * the grid toolbar.
  */
 export async function openChildToolWindow(
   name: string,
@@ -71,7 +74,8 @@ export async function openChildToolWindow(
   }
 
   try {
-    await fin.Window.create({
+    const platform = fin.Platform.getCurrentSync();
+    await platform.createWindow({
       name,
       url,
       defaultWidth: width,
@@ -83,7 +87,7 @@ export async function openChildToolWindow(
       contextMenu: true,
       ...extraOptions,
     });
-    console.log(`[openChildToolWindow] Created window "${name}" at ${url}`);
+    console.log(`[openChildToolWindow] Created platform window "${name}" at ${url}`);
   } catch (createErr) {
     console.error(`[openChildToolWindow] Failed to create "${name}"`, createErr);
   }

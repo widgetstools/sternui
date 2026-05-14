@@ -1,16 +1,19 @@
 /// <reference path="./fin.d.ts" />
 
 /**
- * popout.ts — open or focus a named OpenFin child window for the
+ * popout.ts — open or focus a named OpenFin platform window for the
  * `RuntimePort.openSurface({ kind: 'popout' })` contract.
  *
- * Mirrors the existing `@starui/openfin-platform/openChildToolWindow`
- * behaviour (manifest-origin resolution, named-window dedup, navigate
- * on URL change) so the migration is behaviour-preserving. Lives in
- * `runtime-openfin` so the runtime port can implement openSurface
- * without taking a dependency on the platform package — the platform
- * package will eventually call into the runtime, not the other way
- * round.
+ * Creation goes through `fin.Platform.getCurrentSync().createWindow(...)`
+ * so the resulting window is workspace-aware: it participates in
+ * `Platform.snapshot()` save/restore, can be docked with platform views,
+ * and shows up in workspace tooling. Existing-window dedup still uses
+ * `fin.Window.wrapSync({ uuid, name })`, which is identity-based and
+ * agnostic to how the window was created.
+ *
+ * Lives in `runtime-openfin` so the runtime port can implement
+ * openSurface without taking a dependency on the platform package —
+ * the platform package calls into the runtime, not the other way round.
  *
  * Returns a `SurfaceHandle` whose `close`/`focus` map to OpenFin
  * window APIs and whose `onClosed` listens for the window's
@@ -73,8 +76,10 @@ export async function openOpenFinPopout(
       await win.navigate(opts.url);
     }
   } catch {
-    // No existing window — create one.
-    win = await fin.Window.create({
+    // No existing window — create one via the platform so it's
+    // workspace-aware (saveable in Platform snapshots, dockable).
+    const platform = fin.Platform.getCurrentSync();
+    win = await platform.createWindow({
       name: opts.name,
       url: opts.url,
       defaultWidth: opts.width,
