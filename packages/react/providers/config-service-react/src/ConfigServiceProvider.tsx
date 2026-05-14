@@ -46,7 +46,14 @@ export interface ConfigServiceProviderProps {
   /** Optional REST base URL. When set, writes go to REST first and
    *  Dexie second; reads stay local for speed. */
   restUrl?: string;
-  children: ReactNode;
+  /**
+   * React children. Optional at the type level so callers (notably
+   * `<AppShell>`) can pass a pre-bound element without children and
+   * let the shell inject them via `React.cloneElement`. Runtime
+   * behaviour is unchanged — the body still renders `{children}`,
+   * which is harmless when undefined.
+   */
+  children?: ReactNode;
 }
 
 /**

@@ -67,7 +67,14 @@ export interface DataServicesProviderProps {
   /** Override the user id stamped on AppData rows authored from this
    *  tree. Defaults to the bootstrap's userId via `LOGGED_IN_USER_ID`. */
   userId?: string;
-  children: ReactNode;
+  /**
+   * React children. Optional at the type level so callers (notably
+   * `<AppShell>`) can pass a pre-bound element without children and
+   * let the shell inject them via `React.cloneElement`. Runtime
+   * behaviour is unchanged — the body still renders `{children}`,
+   * which is harmless when undefined.
+   */
+  children?: ReactNode;
 }
 
 export function DataServicesProvider({ services, mode = 'lazy', userId, children }: DataServicesProviderProps) {
