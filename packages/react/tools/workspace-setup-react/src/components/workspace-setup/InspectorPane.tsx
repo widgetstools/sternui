@@ -28,7 +28,7 @@ import {
   deriveTemplateConfigId,
   ACTION_LAUNCH_COMPONENT,
 } from "@starui/openfin-platform/config";
-import { Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
+import { Checkbox, Input, Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
 import type { EditorSelection } from "./types";
 import { IconPicker } from "../IconPicker";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
@@ -287,11 +287,11 @@ function ComponentForm({
           />
           <div className="flex-1">
             <Field label="Name">
-              <input
+              <Input
                 value={entry.displayName}
                 onChange={(e) => onChange({ displayName: e.target.value })}
                 placeholder="e.g. Risk Dashboard"
-                className="w-full rounded-md px-2 py-1 text-xs outline-none bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)] text-foreground"
+                className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none bg-[var(--ds-surface-secondary)] border-[var(--ds-border-primary)] text-foreground"
               />
             </Field>
           </div>
@@ -300,19 +300,19 @@ function ComponentForm({
         {/* Type / SubType */}
         <div className="grid grid-cols-2 gap-2">
           <Field label="Type">
-            <input
+            <Input
               value={entry.componentType}
               onChange={(e) => handleTypeChange("componentType", e.target.value)}
               placeholder="GRID"
-              className="w-full rounded-md px-2 py-1 text-xs outline-none bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)] text-foreground"
+              className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none bg-[var(--ds-surface-secondary)] border-[var(--ds-border-primary)] text-foreground"
             />
           </Field>
           <Field label="SubType">
-            <input
+            <Input
               value={entry.componentSubType}
               onChange={(e) => handleTypeChange("componentSubType", e.target.value)}
               placeholder="CREDIT"
-              className="w-full rounded-md px-2 py-1 text-xs outline-none bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)] text-foreground"
+              className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none bg-[var(--ds-surface-secondary)] border-[var(--ds-border-primary)] text-foreground"
             />
           </Field>
         </div>
@@ -328,11 +328,11 @@ function ComponentForm({
 
         {/* Host URL */}
         <Field label="Host URL">
-          <input
+          <Input
             value={entry.hostUrl}
             onChange={(e) => onChange({ hostUrl: e.target.value })}
             placeholder="https://..."
-            className="w-full rounded-md px-2 py-1 text-xs outline-none font-mono bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)] text-foreground"
+            className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none font-mono bg-[var(--ds-surface-secondary)] border-[var(--ds-border-primary)] text-foreground"
           />
         </Field>
 
@@ -357,17 +357,17 @@ function ComponentForm({
               External component hints (optional)
             </div>
             <Field label="App ID">
-              <input
+              <Input
                 value={entry.appId}
                 onChange={(e) => onChange({ appId: e.target.value })}
-                className="w-full rounded-md px-2 py-1 text-xs outline-none font-mono bg-background border border-[var(--ds-border-primary)] text-foreground"
+                className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none font-mono bg-background border-[var(--ds-border-primary)] text-foreground"
               />
             </Field>
             <Field label="ConfigService URL">
-              <input
+              <Input
                 value={entry.configServiceUrl}
                 onChange={(e) => onChange({ configServiceUrl: e.target.value })}
-                className="w-full rounded-md px-2 py-1 text-xs outline-none font-mono bg-background border border-[var(--ds-border-primary)] text-foreground"
+                className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none font-mono bg-background border-[var(--ds-border-primary)] text-foreground"
               />
             </Field>
           </div>
@@ -569,10 +569,10 @@ function DockItemInspector({
           <IconField iconId={iconId} onChange={setIconId} />
           <div className="flex-1">
             <Field label="Label">
-              <input
+              <Input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                className="w-full rounded-md px-2 py-1 text-xs outline-none bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)] text-foreground"
+                className="h-auto w-full rounded-md px-2 py-1 text-xs shadow-none bg-[var(--ds-surface-secondary)] border-[var(--ds-border-primary)] text-foreground"
               />
             </Field>
           </div>
@@ -655,11 +655,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (next: boolean) => void }) {
   return (
     <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
+      <Checkbox
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded"
+        onCheckedChange={(next) => onChange(next === true)}
       />
       <span className="text-xs text-[var(--ds-text-secondary)]">{label}</span>
     </label>

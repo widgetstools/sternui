@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
 import {
   Band,
   Caps,
@@ -33,13 +34,18 @@ const DEFAULT_FLASH_MODE: FlashMode = 'oneShot';
 const DEFAULT_DURATION_MS = 700;
 
 const PILL_BTN_STYLE = {
-  height: 24,
-  fontSize: 10,
-  fontWeight: 600,
-  letterSpacing: '0.06em',
-  padding: '0 10px',
+  height: controls.xs.height,
+  fontSize: typography.fontSize.xs,
+  fontWeight: typography.fontWeight.semibold,
+  letterSpacing: typography.letterSpacing.widest,
+  padding: `0 ${controls.xs.paddingX}`,
   minWidth: 56,
 } as const;
+
+// Color-swatch dimensions intentionally match the xs control tier so
+// the swatches sit flush with the adjacent pill toggles on the same row.
+const SWATCH_SIZE = controls.xs.height;
+const SWATCH_MIN_LABEL_WIDTH = 72;
 
 export const FlashBand = memo(function FlashBand({
   ruleId,
@@ -99,7 +105,7 @@ export const FlashBand = memo(function FlashBand({
               {enabled ? 'ON' : 'OFF'}
             </Mono>
             {enabled && scopeType === 'cell' && (
-              <PillToggleGroup style={{ marginLeft: 12 }}>
+              <PillToggleGroup style={{ marginLeft: spacing[3] }}>
                 {(
                   [
                     ['cells', 'CELLS'],
@@ -120,7 +126,7 @@ export const FlashBand = memo(function FlashBand({
               </PillToggleGroup>
             )}
             {enabled && scopeType === 'row' && (
-              <Caps size={10} color="var(--ds-text-muted)" style={{ marginLeft: 12 }}>
+              <Caps size={10} color="var(--ds-text-muted)" style={{ marginLeft: spacing[3] }}>
                 ENTIRE ROW
               </Caps>
             )}
@@ -150,7 +156,7 @@ export const FlashBand = memo(function FlashBand({
                     key={value}
                     active={currentMode === value}
                     onClick={() => setDraft({ flash: patchFlash({ mode: value }) })}
-                    style={{ ...PILL_BTN_STYLE, minWidth: 72 }}
+                    style={{ ...PILL_BTN_STYLE, minWidth: SWATCH_MIN_LABEL_WIDTH }}
                     data-testid={`cs-rule-flash-mode-${value}-${ruleId}`}
                   >
                     {label}
@@ -169,7 +175,7 @@ export const FlashBand = memo(function FlashBand({
               <div
                 role="radiogroup"
                 aria-label="Flash colour"
-                style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
+                style={{ display: 'inline-flex', gap: spacing[1.5], alignItems: 'center' }}
               >
                 {FLASH_COLOR_ORDER.map((name) => {
                   const isActive = currentColor === name;
@@ -188,15 +194,15 @@ export const FlashBand = memo(function FlashBand({
                         // shift layout — outline lives OUTSIDE the box
                         // border via box-shadow, which doesn't take
                         // layout space.
-                        width: 22,
-                        height: 22,
-                        borderRadius: 6,
+                        width: SWATCH_SIZE,
+                        height: SWATCH_SIZE,
+                        borderRadius: radius.xl,
                         padding: 0,
                         background: FLASH_PALETTE[name].swatch,
-                        border: '1px solid rgba(0,0,0,0.18)',
+                        border: '1px solid var(--ds-border-secondary)',
                         boxShadow: isActive
-                          ? '0 0 0 2px var(--ds-bg-elevated, var(--ds-bg-primary, #000)), 0 0 0 4px var(--ds-accent-positive, #10b981)'
-                          : 'inset 0 0 0 1px rgba(255,255,255,0.18)',
+                          ? '0 0 0 2px var(--ds-surface-primary), 0 0 0 4px var(--ds-accent-positive)'
+                          : 'inset 0 0 0 1px var(--ds-border-primary)',
                         cursor: 'pointer',
                         outline: 'none',
                         transition: 'transform 100ms ease-out, box-shadow 100ms ease-out',
@@ -205,13 +211,13 @@ export const FlashBand = memo(function FlashBand({
                       onFocus={(e) => {
                         if (!isActive) {
                           e.currentTarget.style.boxShadow =
-                            'inset 0 0 0 1px rgba(255,255,255,0.4), 0 0 0 2px var(--ds-accent-positive, #10b981)';
+                            'inset 0 0 0 1px var(--ds-border-primary), 0 0 0 2px var(--ds-accent-positive)';
                         }
                       }}
                       onBlur={(e) => {
                         if (!isActive) {
                           e.currentTarget.style.boxShadow =
-                            'inset 0 0 0 1px rgba(255,255,255,0.18)';
+                            'inset 0 0 0 1px var(--ds-border-primary)';
                         }
                       }}
                     />

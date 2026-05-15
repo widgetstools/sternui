@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Input } from '../shadcn/input';
+import { Textarea } from '../shadcn/textarea';
 import { cn } from '../shadcn/utils';
 import type { ExpressionEditorProps, ExpressionEditorHandle } from './types';
 
@@ -82,7 +83,7 @@ export function FallbackInput({
 
   if (multiline) {
     return (
-      <textarea
+      <Textarea
         ref={(el) => { inputRef.current = el; }}
         {...commonProps}
         rows={lines}
@@ -92,12 +93,7 @@ export function FallbackInput({
             commit();
           }
         }}
-        className={cn(
-          'w-full rounded border bg-card px-2 py-1 text-foreground font-mono',
-          'placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring',
-          'border-border',
-          className,
-        )}
+        className={cn('font-mono', className)}
       />
     );
   }

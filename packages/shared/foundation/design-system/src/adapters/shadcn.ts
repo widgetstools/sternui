@@ -24,6 +24,7 @@
 import { dark, light, shared } from '../tokens/semantic';
 import type { ColorScheme } from '../tokens/semantic';
 import { colors, typography, radius, transition } from '../tokens/primitives';
+import { controls } from '../tokens/controls';
 import { hexToHslChannel } from '../internal/wcag';
 
 // Convert hex to HSL string (e.g. "210 14% 23%") for shadcn CSS vars
@@ -232,7 +233,33 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     /* ── Motion vars ── */
     --ds-tx-fast:   ${transition.fast};
     --ds-tx-normal: ${transition.normal};
-    --ds-tx-slow:   ${transition.slow};`;
+    --ds-tx-slow:   ${transition.slow};
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       ${controls.xs.height};
+    --ds-control-xs-padding-x:    ${controls.xs.paddingX};
+    --ds-control-xs-gap:          ${controls.xs.gap};
+    --ds-control-xs-font-size:    ${controls.xs.fontSize};
+    --ds-control-xs-icon-size:    ${controls.xs.iconSize};
+    --ds-control-xs-radius:       ${controls.xs.borderRadius};
+    --ds-control-sm-height:       ${controls.sm.height};
+    --ds-control-sm-padding-x:    ${controls.sm.paddingX};
+    --ds-control-sm-gap:          ${controls.sm.gap};
+    --ds-control-sm-font-size:    ${controls.sm.fontSize};
+    --ds-control-sm-icon-size:    ${controls.sm.iconSize};
+    --ds-control-sm-radius:       ${controls.sm.borderRadius};
+    --ds-control-md-height:       ${controls.md.height};
+    --ds-control-md-padding-x:    ${controls.md.paddingX};
+    --ds-control-md-gap:          ${controls.md.gap};
+    --ds-control-md-font-size:    ${controls.md.fontSize};
+    --ds-control-md-icon-size:    ${controls.md.iconSize};
+    --ds-control-md-radius:       ${controls.md.borderRadius};
+    --ds-control-lg-height:       ${controls.lg.height};
+    --ds-control-lg-padding-x:    ${controls.lg.paddingX};
+    --ds-control-lg-gap:          ${controls.lg.gap};
+    --ds-control-lg-font-size:    ${controls.lg.fontSize};
+    --ds-control-lg-icon-size:    ${controls.lg.iconSize};
+    --ds-control-lg-radius:       ${controls.lg.borderRadius};`;
 }
 
 function cvdOverride(scheme: ColorScheme): string {

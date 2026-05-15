@@ -10,9 +10,12 @@
 
 import { typography, radius, spacing } from './primitives';
 import type { ColorScheme } from './semantic';
+import { controls } from './controls';
 
 export function componentTokens(scheme: ColorScheme) {
   return {
+    control: controls,
+
     button: {
       fontFamily:    typography.fontFamily.sans,
       fontSize:      typography.fontSize.md,

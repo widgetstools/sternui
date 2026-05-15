@@ -131,6 +131,32 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-tx-fast:   140ms cubic-bezier(0.4,0,0.2,1);
     --ds-tx-normal: 220ms cubic-bezier(0.4,0,0.2,1);
     --ds-tx-slow:   420ms cubic-bezier(0.4,0,0.2,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    11px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       2px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    11px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       2px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       2px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       2px;
   }
 
   [data-theme="light"] {
@@ -262,6 +288,32 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-tx-fast:   140ms cubic-bezier(0.4,0,0.2,1);
     --ds-tx-normal: 220ms cubic-bezier(0.4,0,0.2,1);
     --ds-tx-slow:   420ms cubic-bezier(0.4,0,0.2,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    11px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       2px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    11px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       2px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       2px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       2px;
   }
 
   [data-theme="dark"][data-cvd="on"] {
