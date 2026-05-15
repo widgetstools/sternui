@@ -133,7 +133,7 @@ export function ComponentsPane({
               style={{
                 background: isSelected ? "var(--ds-surface-tertiary)" : "transparent",
                 borderColor: "var(--ds-border-primary)",
-                borderLeft: isSelected ? "2px solid var(--ds-accent-info, var(--ds-accent-info))" : "2px solid transparent",
+                borderLeft: isSelected ? "2px solid var(--de-accent)" : "2px solid transparent",
               }}
             >
               <ComponentIcon iconId={entry.iconId} />
@@ -211,8 +211,8 @@ function FilterChip({
       onClick={() => onChange(value)}
       className="rounded-md px-2 py-0.5 text-[10px] font-medium border border-[var(--ds-border-primary)]"
       style={{
-        background: active ? "var(--ds-accent-info)" : "var(--ds-surface-secondary)",
-        color: active ? "var(--ds-surface-ground)" : "var(--ds-text-secondary)",
+        background: active ? "var(--de-accent)" : "var(--ds-surface-secondary)",
+        color: active ? "var(--de-accent-foreground)" : "var(--ds-text-secondary)",
       }}
     >
       {label}

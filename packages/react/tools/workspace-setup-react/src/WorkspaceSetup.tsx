@@ -402,7 +402,7 @@ function WorkspaceSetupBody({ scope }: { scope: ConfigScope }) {
           type="button"
           onClick={() => { void handleSaveAll(); }}
           disabled={!isDirty}
-          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 bg-[var(--ds-accent-info)] text-[var(--ds-surface-ground)]"
+          className="rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 bg-[var(--de-accent)] text-[var(--de-accent-foreground)]"
         >
           Save
         </button>

@@ -387,7 +387,7 @@ function ComponentForm({
               type="button"
               onClick={() => void onTest(entry)}
               disabled={!entry.hostUrl}
-              className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 bg-[var(--ds-accent-info)] text-[var(--ds-surface-ground)]"
+              className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 bg-[var(--de-accent)] text-[var(--de-accent-foreground)]"
             >
               <PlayCircle className="w-3 h-3" /> Configure Component
             </button>
