@@ -101,7 +101,7 @@ export const FlashBand = memo(function FlashBand({
               }}
               data-testid={`cs-rule-flash-enabled-${ruleId}`}
             />
-            <Mono color={enabled ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)'} size={11}>
+            <Mono color={enabled ? 'var(--ds-accent-positive)' : 'var(--ds-text-muted)'}>
               {enabled ? 'ON' : 'OFF'}
             </Mono>
             {enabled && scopeType === 'cell' && (
@@ -126,7 +126,7 @@ export const FlashBand = memo(function FlashBand({
               </PillToggleGroup>
             )}
             {enabled && scopeType === 'row' && (
-              <Caps size={10} color="var(--ds-text-muted)" style={{ marginLeft: spacing[3] }}>
+              <Caps size="xs" color="var(--ds-text-muted)" style={{ marginLeft: spacing[3] }}>
                 ENTIRE ROW
               </Caps>
             )}

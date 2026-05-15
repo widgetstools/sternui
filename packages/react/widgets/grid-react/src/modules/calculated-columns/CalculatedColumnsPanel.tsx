@@ -113,8 +113,8 @@ export function CalculatedColumnsList({ selectedId, onSelect }: ListPaneProps) {
   return (
     <>
       <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
-        <Caps size={11}>Columns</Caps>
-        <Mono color="var(--ds-text-faint)" size={11}>
+        <Caps>Columns</Caps>
+        <Mono color="var(--ds-text-faint)">
           {String(state.virtualColumns.length).padStart(2, '0')}
         </Mono>
         <span style={{ flex: 1 }} />
@@ -195,11 +195,11 @@ export function CalculatedColumnsEditor({ selectedId }: EditorPaneProps) {
   if (!selectedId) {
     return (
       <div style={{ padding: '32px 24px' }}>
-        <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
+        <Caps size="xs" style={{ marginBottom: 8, display: 'block' }}>
           No column selected
         </Caps>
         <div className="text-xs text-muted-foreground">
-          Select a virtual column from the list, or press <Mono size={11}>+</Mono> to add one.
+          Select a virtual column from the list, or press <Mono>+</Mono> to add one.
         </div>
       </div>
     );
@@ -317,7 +317,7 @@ const VirtualColumnEditor = memo(function VirtualColumnEditor({
             />
           </div>
           <div className="w-full mt-2 flex items-center gap-2">
-            <Caps size={9}>COLUMN ID</Caps>
+            <Caps size="2xs">COLUMN ID</Caps>
             <IconInput
               value={draft.colId}
               onCommit={(v) => setDraft({ colId: v })}

@@ -8,6 +8,7 @@ import {
   Strikethrough,
   Underline,
 } from 'lucide-react';
+import { radius, spacing } from '@starui/design-system/tokens';
 import {
   Band,
   Caps,
@@ -43,12 +44,12 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
+        gap: spacing[1.5],
         flexWrap: 'wrap',
-        padding: '6px 8px',
+        padding: `${spacing[1.5]}px ${spacing[2]}px`,
         background: 'var(--ds-surface-secondary)',
         border: '1px solid var(--ds-border-primary)',
-        borderRadius: 2,
+        borderRadius: radius.md,
       }}
     >
       <PillToggleGroup>
@@ -112,7 +113,7 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
       <TDivider />
 
       <TGroup>
-        <Caps size={10} style={{ paddingLeft: 4 }}>
+        <Caps size="xs" style={{ paddingLeft: 4 }}>
           SZ
         </Caps>
         <Stepper
@@ -124,13 +125,13 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
             onChange({ fontSize: Number.isFinite(n) && n > 0 ? n : undefined });
           }}
         />
-        <Caps size={10} color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
+        <Caps size="xs" color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
           PX
         </Caps>
       </TGroup>
 
       <TGroup>
-        <Caps size={10} style={{ paddingLeft: 4 }}>
+        <Caps size="xs" style={{ paddingLeft: 4 }}>
           WT
         </Caps>
         <Stepper

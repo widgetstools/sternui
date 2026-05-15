@@ -223,6 +223,15 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-font-sans:  ${typography.fontFamily.sans};
     --ds-font-mono:  ${typography.fontFamily.mono};
     --ds-font-serif: ${typography.fontFamily.serif};
+    --ds-font-size-2xs: ${typography.fontSize['2xs']};
+    --ds-font-size-xs:  ${typography.fontSize.xs};
+    --ds-font-size-sm:  ${typography.fontSize.sm};
+    --ds-font-size-md:  ${typography.fontSize.md};
+    --ds-font-size-lg:  ${typography.fontSize.lg};
+    --ds-font-size-xl:  ${typography.fontSize.xl};
+    --ds-font-size-2xl: ${typography.fontSize['2xl']};
+    --ds-font-size-3xl: ${typography.fontSize['3xl']};
+    --ds-font-size-4xl: ${typography.fontSize['4xl']};
     --ds-radius-sm:   ${radius.sm};
     --ds-radius-md:   ${radius.md};
     --ds-radius-lg:   ${radius.lg};

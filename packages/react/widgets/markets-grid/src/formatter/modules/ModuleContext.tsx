@@ -7,6 +7,7 @@
  * header (panel) via the stylesheet.
  */
 import { useEffect, useRef, useState } from 'react';
+import { spacing } from '@starui/design-system/tokens';
 import {
   CaseUpper,
   Grid2x2,
@@ -220,7 +221,7 @@ export function ModuleContext({ state, actions }: Props) {
         <MessageSquareText size={12} strokeWidth={1.75} />
       </Pill>
 
-      <div style={{ display: 'inline-flex', gap: 4 }}>
+      <div style={{ display: 'inline-flex', gap: spacing[1] }}>
         <Pill
           tooltip="Undo"
           disabled={!state.canUndo}

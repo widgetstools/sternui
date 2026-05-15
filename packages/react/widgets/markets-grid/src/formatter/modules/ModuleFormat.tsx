@@ -6,6 +6,7 @@
  * disables the whole module since headers don't carry formatters.
  */
 import { useState } from 'react';
+import { spacing } from '@starui/design-system/tokens';
 import {
   ArrowLeft, ArrowRight, ChevronDown, DollarSign, Hash, Percent,
 } from 'lucide-react';
@@ -129,13 +130,13 @@ export function ModuleFormat({
 
       {/* Decimals ±. */}
       <Pill disabled={fmtDisabled} tooltip="Fewer decimals" onClick={actions.decreaseDecimals} variant="text">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing.px }}>
           <ArrowLeft size={9} strokeWidth={2} />
           .0
         </span>
       </Pill>
       <Pill disabled={fmtDisabled} tooltip="More decimals" onClick={actions.increaseDecimals} variant="text">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing.px }}>
           .0
           <ArrowRight size={9} strokeWidth={2} />
         </span>

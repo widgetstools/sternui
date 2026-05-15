@@ -10,6 +10,7 @@ import {
   type ImportConfigBundleResult,
 } from "@starui/openfin-platform/config";
 import { UPLOAD_SVG } from "@starui/icons-svg/all-icons";
+import { spacing, typography } from "@starui/design-system/tokens";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -140,10 +141,10 @@ export default function ImportConfig() {
     <div style={{
       position: "fixed", inset: 0,
       background: bg, color: textPrimary,
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontFamily: "var(--ds-font-sans)",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      gap: 24, padding: 32,
+      gap: spacing[6], padding: spacing[8],
     }}>
       {/* Icon */}
       <div style={{
@@ -164,10 +165,19 @@ export default function ImportConfig() {
 
       {/* Title */}
       <div style={{ textAlign: "center" }}>
-        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: textPrimary }}>
+        <h1 style={{
+          fontSize: typography.fontSize.lg,
+          fontWeight: typography.fontWeight.semibold,
+          margin: 0,
+          color: textPrimary,
+        }}>
           Import Config
         </h1>
-        <p style={{ fontSize: 13, color: textSecondary, margin: "6px 0 0" }}>
+        <p style={{
+          fontSize: typography.fontSize.md,
+          color: textSecondary,
+          margin: `${spacing[1.5]}px 0 0`,
+        }}>
           Select a previously exported config JSON file
         </p>
       </div>
@@ -178,7 +188,8 @@ export default function ImportConfig() {
         style={{
           width: "100%", maxWidth: 320,
           border: `1.5px dashed ${fileName ? accentColor : border}`,
-          borderRadius: "var(--de-radius-md)", padding: "20px 16px",
+          borderRadius: "var(--de-radius-md)",
+          padding: `${spacing[5]}px ${spacing[4]}px`,
           textAlign: "center", cursor: "pointer",
           background: fileName ? `${accentColor}10` : surface,
           transition: "all 0.15s",
@@ -192,11 +203,15 @@ export default function ImportConfig() {
         }}
       >
         {fileName ? (
-          <span style={{ fontSize: 13, color: accentColor, fontWeight: 500 }}>
+          <span style={{
+            fontSize: typography.fontSize.md,
+            color: accentColor,
+            fontWeight: typography.fontWeight.medium,
+          }}>
             {fileName}
           </span>
         ) : (
-          <span style={{ fontSize: 13, color: textSecondary }}>
+          <span style={{ fontSize: typography.fontSize.md, color: textSecondary }}>
             Click to select a <strong style={{ color: textPrimary }}>.json</strong> file
           </span>
         )}
@@ -213,7 +228,9 @@ export default function ImportConfig() {
       {/* Status message */}
       {message && (
         <p style={{
-          fontSize: 13, textAlign: "center", margin: 0,
+          fontSize: typography.fontSize.md,
+          textAlign: "center",
+          margin: 0,
           color: status === "success" ? successColor : dangerColor,
         }}>
           {message}
@@ -228,7 +245,9 @@ export default function ImportConfig() {
           }
         }}
         style={{
-          padding: "8px 24px", fontSize: 13, fontWeight: 500,
+          padding: `${spacing[2]}px ${spacing[6]}px`,
+          fontSize: typography.fontSize.md,
+          fontWeight: typography.fontWeight.medium,
           border: `1px solid ${border}`, borderRadius: "var(--de-radius-sm)",
           background: "transparent", color: textSecondary,
           cursor: "pointer", transition: "all 0.12s",

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { CircleDot, Sliders, Target } from 'lucide-react';
+import { controls, typography } from '@starui/design-system/tokens';
 import { Caps, IconInput, LedBar, Mono, SummaryChip } from '../../../ui/SettingsPanel';
 import { Select, Switch } from '../../../ui/shadcn';
 import type { ConditionalRule, FlashTarget } from '../state';
@@ -53,7 +54,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
 
       <div className="mt-2 flex items-center gap-3 flex-wrap">
         <div className="inline-flex items-center gap-2">
-          <Caps size={9}>STATUS</Caps>
+          <Caps size="2xs">STATUS</Caps>
           <LedBar on={enabled} />
           <Switch
             checked={enabled}
@@ -62,7 +63,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
         </div>
 
         <div className="inline-flex items-center gap-2">
-          <Caps size={9}>SCOPE</Caps>
+          <Caps size="2xs">SCOPE</Caps>
           <Select
             data-testid={`cs-rule-scope-${ruleId}`}
             value={scopeType}
@@ -85,7 +86,13 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
                 : undefined;
               setDraft({ scope: nextScope, flash: nextFlash });
             }}
-            style={{ width: 88, height: 24, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+            style={{
+              width: 88,
+              height: controls.xs.height,
+              fontSize: typography.fontSize.xs,
+              letterSpacing: typography.letterSpacing.widest,
+              textTransform: 'uppercase',
+            }}
           >
             <option value="cell">CELL</option>
             <option value="row">ROW</option>
@@ -93,7 +100,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
         </div>
 
         <div className="inline-flex items-center gap-2">
-          <Caps size={9}>PRIORITY</Caps>
+          <Caps size="2xs">PRIORITY</Caps>
           <IconInput
             numeric
             value={String(priority)}
