@@ -86,7 +86,7 @@ export function FormatSection({
     >
       {presets.length > 0 && (
         <>
-          <Caps size={10} style={{ paddingLeft: 4 }}>
+          <Caps size="xs" style={{ paddingLeft: 4 }}>
             PRESET
           </Caps>
           <PillToggleGroup>
@@ -111,7 +111,7 @@ export function FormatSection({
           <TDivider />
         </>
       )}
-      <Caps size={10}>EXCEL</Caps>
+      <Caps size="xs">EXCEL</Caps>
       <IconInput
         icon={<Hash size={12} strokeWidth={2} />}
         value={excelFormat}

@@ -53,7 +53,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
 
       <div className="mt-2 flex items-center gap-3 flex-wrap">
         <div className="inline-flex items-center gap-2">
-          <Caps size={9}>STATUS</Caps>
+          <Caps size="2xs">STATUS</Caps>
           <LedBar on={enabled} />
           <Switch
             checked={enabled}
@@ -62,7 +62,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
         </div>
 
         <div className="inline-flex items-center gap-2">
-          <Caps size={9}>SCOPE</Caps>
+          <Caps size="2xs">SCOPE</Caps>
           <Select
             data-testid={`cs-rule-scope-${ruleId}`}
             value={scopeType}
@@ -93,7 +93,7 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
         </div>
 
         <div className="inline-flex items-center gap-2">
-          <Caps size={9}>PRIORITY</Caps>
+          <Caps size="2xs">PRIORITY</Caps>
           <IconInput
             numeric
             value={String(priority)}

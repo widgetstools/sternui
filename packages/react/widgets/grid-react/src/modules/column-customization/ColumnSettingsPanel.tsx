@@ -259,8 +259,8 @@ export function ColumnSettingsList({ selectedId, onSelect }: ListPaneProps) {
   return (
     <>
       <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
-        <Caps size={11}>Columns</Caps>
-        <Mono color="var(--ds-text-faint)" size={11}>
+        <Caps>Columns</Caps>
+        <Mono color="var(--ds-text-faint)">
           {String(filteredColumns.length).padStart(2, '0')}
         </Mono>
       </div>
@@ -340,7 +340,7 @@ export function ColumnSettingsEditor({ selectedId }: EditorPaneProps) {
   if (!selectedId) {
     return (
       <div style={{ padding: '32px 24px' }}>
-        <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
+        <Caps size="xs" style={{ marginBottom: 8, display: 'block' }}>
           No column selected
         </Caps>
         <div className="text-xs text-muted-foreground">

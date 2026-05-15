@@ -229,7 +229,7 @@ export function CompactFormatterPicker({
             </div>
           ))}
           {presets.length === 0 ? (
-            <Caps size={10} color="var(--ds-text-faint)">
+            <Caps size="xs" color="var(--ds-text-faint)">
               No presets for this data type — use the custom format below.
             </Caps>
           ) : null}
@@ -246,7 +246,7 @@ export function CompactFormatterPicker({
                the input is empty. Saves users from hunting for the
                right keyboard shortcut (especially ₹ / €). */}
           <div className="flex items-center gap-1 flex-wrap">
-            <Caps size={9} color="var(--ds-text-faint)" style={{ paddingRight: spacing[1] }}>
+            <Caps size="2xs" color="var(--ds-text-faint)" style={{ paddingRight: spacing[1] }}>
               SYMBOL
             </Caps>
             {CURRENCY_QUICK_INSERT.map((c) => (
@@ -354,7 +354,7 @@ export function CompactFormatterPicker({
               data-testid={testId ? `${testId}-info` : undefined}
             />
           </div>
-          <Caps size={9} color="var(--ds-text-faint)">
+          <Caps size="2xs" color="var(--ds-text-faint)">
             {EXCEL_EXAMPLES.length} categories of example formats in the{' '}
             <Info size={9} strokeWidth={2} className="inline align-middle" />{' '}
             reference.

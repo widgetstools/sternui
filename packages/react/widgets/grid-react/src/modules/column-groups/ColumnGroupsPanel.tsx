@@ -203,8 +203,8 @@ export function ColumnGroupsList({ selectedId, onSelect }: ListPaneProps) {
   return (
     <>
       <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
-        <Caps size={11}>Groups</Caps>
-        <Mono color="var(--ds-text-faint)" size={11}>
+        <Caps>Groups</Caps>
+        <Mono color="var(--ds-text-faint)">
           {String(flat.length).padStart(2, '0')}
         </Mono>
         <span className="flex-1" />
@@ -274,11 +274,11 @@ export function ColumnGroupsEditor({ selectedId }: EditorPaneProps) {
   if (!selectedId) {
     return (
       <div className="px-6 py-8">
-        <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
+        <Caps size="xs" style={{ marginBottom: 8, display: 'block' }}>
           No group selected
         </Caps>
         <div className="text-xs text-muted-foreground">
-          Select a group from the list, or press <Mono size={11}>+</Mono> to add one.
+          Select a group from the list, or press <Mono>+</Mono> to add one.
         </div>
       </div>
     );
@@ -508,14 +508,14 @@ const GroupEditor = memo(function GroupEditor({
 
           <div className="w-full mt-2 flex items-center gap-3 flex-wrap">
             <div className="inline-flex items-center gap-2">
-              <Caps size={9}>OPEN BY DEFAULT</Caps>
+              <Caps size="2xs">OPEN BY DEFAULT</Caps>
               <Switch
                 checked={!!node.openByDefault}
                 onChange={() => updateDraft((n) => ({ ...n, openByDefault: !n.openByDefault }))}
               />
             </div>
             <div className="inline-flex items-center gap-2">
-              <Caps size={9}>MARRY CHILDREN</Caps>
+              <Caps size="2xs">MARRY CHILDREN</Caps>
               <Switch
                 checked={!!node.marryChildren}
                 onChange={() => updateDraft((n) => ({ ...n, marryChildren: !n.marryChildren }))}

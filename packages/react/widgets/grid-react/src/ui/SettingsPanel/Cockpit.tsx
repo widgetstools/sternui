@@ -1,7 +1,19 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { controls } from '@starui/design-system/tokens';
+import { controls, typography } from '@starui/design-system/tokens';
 import { Input } from '../shadcn';
 import { cn } from '../shadcn/utils';
+
+/**
+ * Typography token key — every Caps/Mono `size` prop should reach for one of
+ * these instead of a px literal. `'sm'` matches the chrome default and is
+ * usually unnecessary (drop the prop entirely).
+ */
+export type CapsMonoSize = keyof typeof typography.fontSize;
+
+function resolveTypographySize(size: CapsMonoSize | number | undefined): string | number | undefined {
+  if (size === undefined) return undefined;
+  return typeof size === 'number' ? size : typography.fontSize[size];
+}
 
 /**
  * Settings-shell atoms (Tailwind + `--ds-*` tokens; avoid inline font metrics).
@@ -25,20 +37,25 @@ const SETTINGS_UI_TEXT = 'text-[length:var(--ds-font-size-sm)]';
 
 export interface CapsProps {
   children: ReactNode;
-  /** Rare px override (prefer tokens); maps to `fontSize` when set. */
-  size?: number;
+  /**
+   * Typography token key (`'2xs'`, `'xs'`, `'sm'`, …) or a px number for
+   * the rare bespoke override. Omit to inherit the chrome default
+   * (`SETTINGS_UI_TEXT` → `'sm'` / 11px).
+   */
+  size?: CapsMonoSize | number;
   color?: string;
   letterSpacing?: string;
   style?: CSSProperties;
 }
 
 export function Caps({ children, size, color, letterSpacing = '0.1em', style }: CapsProps) {
+  const fontSize = resolveTypographySize(size);
   return (
     <span
       className={cn('font-semibold uppercase text-muted-foreground', SETTINGS_UI_TEXT)}
       style={{
         letterSpacing,
-        ...(size !== undefined ? { fontSize: size } : {}),
+        ...(fontSize !== undefined ? { fontSize } : {}),
         ...(color ? { color } : {}),
         ...style,
       }}
@@ -50,18 +67,22 @@ export function Caps({ children, size, color, letterSpacing = '0.1em', style }: 
 
 export interface MonoProps {
   children: ReactNode;
-  /** Rare px override (prefer tokens). */
-  size?: number;
+  /**
+   * Typography token key (`'2xs'`, `'xs'`, `'sm'`, …) or a px number for
+   * the rare bespoke override. Omit to inherit the chrome default.
+   */
+  size?: CapsMonoSize | number;
   color?: string;
   style?: CSSProperties;
 }
 
 export function Mono({ children, size, color, style }: MonoProps) {
+  const fontSize = resolveTypographySize(size);
   return (
     <span
       className={cn('font-mono tabular-nums text-foreground', SETTINGS_UI_TEXT)}
       style={{
-        ...(size !== undefined ? { fontSize: size } : {}),
+        ...(fontSize !== undefined ? { fontSize } : {}),
         ...(color ? { color } : {}),
         ...style,
       }}

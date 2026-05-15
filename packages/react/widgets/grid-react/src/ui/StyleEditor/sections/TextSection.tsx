@@ -113,7 +113,7 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
       <TDivider />
 
       <TGroup>
-        <Caps size={10} style={{ paddingLeft: 4 }}>
+        <Caps size="xs" style={{ paddingLeft: 4 }}>
           SZ
         </Caps>
         <Stepper
@@ -125,13 +125,13 @@ export function TextSection({ value, onChange, inlineBody, index = '02' }: TextS
             onChange({ fontSize: Number.isFinite(n) && n > 0 ? n : undefined });
           }}
         />
-        <Caps size={10} color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
+        <Caps size="xs" color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
           PX
         </Caps>
       </TGroup>
 
       <TGroup>
-        <Caps size={10} style={{ paddingLeft: 4 }}>
+        <Caps size="xs" style={{ paddingLeft: 4 }}>
           WT
         </Caps>
         <Stepper

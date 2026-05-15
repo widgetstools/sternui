@@ -269,7 +269,7 @@ export function InlineFormatterPicker({
           }}
           title={`Preview: ${preview}`}
         >
-          <Caps size={9} color="var(--ds-primary)">
+          <Caps size="2xs" color="var(--ds-primary)">
             PREVIEW
           </Caps>
           {preview}

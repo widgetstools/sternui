@@ -34,7 +34,7 @@ export function TemplatesBand({
         }
         control={
           templates.length === 0 ? (
-            <Caps size={10} color="var(--ds-text-faint)">
+            <Caps size="xs" color="var(--ds-text-faint)">
               —
             </Caps>
           ) : (

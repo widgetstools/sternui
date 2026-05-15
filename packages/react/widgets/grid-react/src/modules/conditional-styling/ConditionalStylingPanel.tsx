@@ -174,8 +174,8 @@ export function ConditionalStylingList({ selectedId, onSelect }: ListPaneProps) 
   return (
     <>
       <div className="flex items-center gap-2.5 sticky top-0 bg-background border-b border-border px-4 pt-3.5 pb-2.5">
-        <Caps size={11}>Rules</Caps>
-        <Mono color="var(--ds-text-faint)" size={11}>
+        <Caps>Rules</Caps>
+        <Mono color="var(--ds-text-faint)">
           {String(state.rules.length).padStart(2, '0')}
         </Mono>
         <span className="flex-1" />
@@ -277,11 +277,11 @@ export function ConditionalStylingEditor({ selectedId }: EditorPaneProps) {
   if (!selectedId) {
     return (
       <div className="px-6 py-8">
-        <Caps size={10} style={{ marginBottom: 8, display: 'block' }}>
+        <Caps size="xs" style={{ marginBottom: 8, display: 'block' }}>
           No rule selected
         </Caps>
         <div className="text-xs text-muted-foreground">
-          Select a rule from the list, or press <Mono size={11}>+</Mono> to add one.
+          Select a rule from the list, or press <Mono>+</Mono> to add one.
         </div>
       </div>
     );
@@ -529,7 +529,7 @@ function IndicatorPicker({
             </span>
           )}
         </span>
-        <Caps size={10} color="var(--ds-text-muted)">
+        <Caps size="xs" color="var(--ds-text-muted)">
           {value?.icon ? findIndicatorIcon(value.icon)?.label ?? value.icon : 'No indicator'}
         </Caps>
 
@@ -556,7 +556,7 @@ function IndicatorPicker({
                     display: 'inline-block',
                   }}
                 />
-                <Caps size={9} color="var(--ds-text-muted)">
+                <Caps size="2xs" color="var(--ds-text-muted)">
                   {color.startsWith('#') ? color.toUpperCase() : 'COLOR'}
                 </Caps>
               </button>
@@ -722,7 +722,7 @@ function IndicatorPicker({
         </div>
       ))}
 
-      <Caps size={9} color="var(--ds-text-faint)">
+      <Caps size="2xs" color="var(--ds-text-faint)">
         Shown as a 12×12 badge on the top-right of every cell (and column header) currently matching this rule.
       </Caps>
     </div>
