@@ -47,4 +47,6 @@ export type {
 export { probeRest } from './transports/rest.js';
 export type { ProbeResult as RestProbeResult } from './transports/rest.js';
 
+export { probeMock } from './transports/mock.js';
+
 export { inferFields, type InferOptions } from './inferFields.js';

@@ -24,6 +24,7 @@ export * from './runtime/index.js';
 export {
   probeStomp,
   probeRest,
+  probeMock,
   inferFields,
   type StompProbeResult,
   type StompProbeOpts,

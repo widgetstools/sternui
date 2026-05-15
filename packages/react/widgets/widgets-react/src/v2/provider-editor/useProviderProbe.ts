@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { probeStomp, probeRest, inferFields } from '@starui/data-services';
+import { probeStomp, probeRest, probeMock, inferFields } from '@starui/data-services';
 import { resolveCfg } from '@starui/data-services/runtime';
 import { useAppDataStore } from '@starui/data-services-react/runtime';
 import type { ProviderConfig, FieldNode } from '@starui/shared-types';
@@ -119,7 +119,7 @@ async function probeOnce(
   switch (cfg.providerType) {
     case 'stomp': return probeStomp(cfg, opts);
     case 'rest':  return probeRest(cfg);
-    case 'mock':  return { ok: true, rows: [] };
+    case 'mock':  return probeMock(cfg, { maxRows: opts.maxRows });
     case 'appdata': return { ok: true, rows: [] };
     default:      return { ok: false, error: `Probe not implemented for ${cfg.providerType}` };
   }
