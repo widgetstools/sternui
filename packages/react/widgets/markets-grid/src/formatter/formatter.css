@@ -29,13 +29,14 @@
   --fx-ink-soft:     var(--ds-text-muted);
   --fx-ink-faint:    var(--ds-text-faint);
 
-  /* Monochromatic — formatter icons + active fills are derived only
-   * from foreground ink. No accent / brand hue anywhere in the toolbar
-   * chrome. Active = bright ink; inactive = muted ink; indeterminate
-   * = half-tone ink. */
-  --fx-accent:       var(--ds-text-primary);
-  --fx-accent-soft:  color-mix(in srgb, var(--ds-text-primary) 14%, transparent);
-  --fx-accent-line:  color-mix(in srgb, var(--ds-text-primary) 32%, transparent);
+  /* Active state uses the brand primary (greyish lavender) so the
+   * toolbar reads as part of the same family as every other React
+   * surface (Workspace Setup / Config Browser / grid customizer).
+   * Inactive icons stay monochromatic (muted ink) for density. */
+  --fx-accent:       var(--ds-primary);
+  --fx-accent-fg:    var(--ds-primary-foreground);
+  --fx-accent-soft:  var(--ds-primary-soft);
+  --fx-accent-line:  var(--ds-primary-ring);
   --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 64%, transparent);
   --fx-icon-pop:     var(--ds-text-primary);
   --fx-icon-glow:    none;
@@ -82,11 +83,12 @@
   --fx-ink:          var(--ds-text-primary);
   --fx-ink-soft:     var(--ds-text-muted);
   --fx-ink-faint:    var(--ds-text-faint);
-  /* Monochromatic — same derivation as dark, just resolves against the
-   * light foreground. */
-  --fx-accent:       var(--ds-text-primary);
-  --fx-accent-soft:  color-mix(in srgb, var(--ds-text-primary) 8%, transparent);
-  --fx-accent-line:  color-mix(in srgb, var(--ds-text-primary) 26%, transparent);
+  /* Light theme — same derivation as dark, brand primary still drives
+   * the active state. */
+  --fx-accent:       var(--ds-primary);
+  --fx-accent-fg:    var(--ds-primary-foreground);
+  --fx-accent-soft:  var(--ds-primary-soft);
+  --fx-accent-line:  var(--ds-primary-ring);
   --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 56%, transparent);
   --fx-icon-pop:     var(--ds-text-primary);
   --fx-icon-glow:    none;
@@ -321,11 +323,12 @@
 
 .fx-pill[data-on='true'],
 .fx-pill[aria-pressed='true'] {
-  /* Active = flat ink fill with surface-coloured glyph. No shadow,
-   * no glow — just a strong border + solid fill. */
-  color: var(--ds-surface-primary);
-  border-color: var(--fx-ink);
-  background: var(--fx-ink);
+  /* Active = brand-primary fill with primary-foreground glyph so the
+   * toolbar's "this is on" reads in the same colour family as every
+   * other active CTA in the app. */
+  color: var(--fx-accent-fg);
+  border-color: var(--fx-accent);
+  background: var(--fx-accent);
   box-shadow: none;
 }
 
@@ -333,7 +336,7 @@
 .fx-pill[aria-pressed='true'] > svg,
 .fx-split .fx-pill[data-on='true'] > svg,
 .fx-split .fx-pill[aria-pressed='true'] > svg {
-  color: var(--ds-surface-primary);
+  color: var(--fx-accent-fg);
   filter: none;
   opacity: 1;
 }
@@ -384,8 +387,8 @@
 }
 .fx-split .fx-pill[data-on='true'],
 .fx-split .fx-pill[aria-pressed='true'] {
-  background: var(--fx-ink);
-  color: var(--ds-surface-primary);
+  background: var(--fx-accent);
+  color: var(--fx-accent-fg);
   box-shadow: none;
 }
 .fx-split .fx-pill + .fx-pill {
@@ -453,26 +456,26 @@
 }
 
 .fx-seg__opt[data-active='true'] {
-  /* Filled monochromatic chip — ink fill with surface-coloured glyph,
-   * never an accent colour. Inset "lift" shadow distinguishes the
-   * active option from the empty side. */
-  color: var(--ds-surface-primary);
-  background: var(--fx-ink);
+  /* Filled chip — brand-primary fill with primary-foreground glyph,
+   * matching every other active CTA in the app. Inset "lift" shadow
+   * distinguishes the active option from the empty side. */
+  color: var(--fx-accent-fg);
+  background: var(--fx-accent);
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--fx-ink) 18%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--ds-surface-primary) 22%, transparent);
+    0 1px 0 color-mix(in srgb, var(--fx-accent) 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--fx-accent-fg) 22%, transparent);
 }
 
 [data-theme='light'] .fx-seg__opt[data-active='true'] {
-  color: var(--ds-surface-primary);
-  background: var(--ds-text-primary);
+  color: var(--fx-accent-fg);
+  background: var(--fx-accent);
   box-shadow:
     0 1px 1px rgba(15, 23, 42, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .fx-seg__opt:focus-visible {
-  outline: 1px solid var(--fx-ink);
+  outline: 1px solid var(--fx-accent);
   outline-offset: 1px;
 }
 
