@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { CircleDot, Sliders, Target } from 'lucide-react';
+import { controls, typography } from '@starui/design-system/tokens';
 import { Caps, IconInput, LedBar, Mono, SummaryChip } from '../../../ui/SettingsPanel';
 import { Select, Switch } from '../../../ui/shadcn';
 import type { ConditionalRule, FlashTarget } from '../state';
@@ -85,7 +86,13 @@ export const RuleMetaStrip = memo(function RuleMetaStrip({
                 : undefined;
               setDraft({ scope: nextScope, flash: nextFlash });
             }}
-            style={{ width: 88, height: 24, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+            style={{
+              width: 88,
+              height: controls.xs.height,
+              fontSize: typography.fontSize.xs,
+              letterSpacing: typography.letterSpacing.widest,
+              textTransform: 'uppercase',
+            }}
           >
             <option value="cell">CELL</option>
             <option value="row">ROW</option>

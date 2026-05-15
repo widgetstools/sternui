@@ -18,6 +18,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Filter, FilterX, MoreVertical, Pencil, X } from 'lucide-react';
+import { spacing, typography } from '@starui/design-system/tokens';
 import {
   Input,
   PopoverCompat as Popover,
@@ -104,9 +105,9 @@ export function ModuleEditorFilter({
           onClick={() => setEditorOpen(true)}
           data-testid="fmt-editor-pill"
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[1], whiteSpace: 'nowrap' }}>
             <Pencil size={12} strokeWidth={1.75} />
-            <span style={{ fontSize: 10, fontWeight: 500 }}>{editorLabel(cellEditorKind)}</span>
+            <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>{editorLabel(cellEditorKind)}</span>
           </span>
         </Pill>
         <Popover
@@ -204,9 +205,9 @@ export function ModuleEditorFilter({
           onClick={() => setFilterOpen(true)}
           data-testid="fmt-filter-pill"
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[1], whiteSpace: 'nowrap' }}>
             <Filter size={12} strokeWidth={1.75} />
-            <span style={{ fontSize: 10, fontWeight: 500 }}>
+            <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>
               {filterLabel(filterPrimaryKind, filterIsCustom)}
             </span>
           </span>
@@ -325,7 +326,7 @@ function ValuesSourcePopover({
   return (
     <div
       className="fx-menu"
-      style={{ width: 320, padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}
+      style={{ width: 320, padding: spacing[2.5], display: 'flex', flexDirection: 'column', gap: spacing[2.5] }}
       data-testid="fmt-editor-values-popover"
       onKeyDown={(e) => {
         if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); }
@@ -333,7 +334,7 @@ function ValuesSourcePopover({
       }}
     >
       {/* Mode toggle row */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: spacing[1.5] }}>
         <button
           type="button"
           className="fx-pill fx-pill--text"
@@ -357,8 +358,8 @@ function ValuesSourcePopover({
       </div>
 
       {draftMode === 'static' && (
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, opacity: 0.7 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+          <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.semibold, letterSpacing: 0.4, opacity: 0.7 }}>
             VALUES (comma-separated)
           </span>
           <Input
@@ -373,8 +374,8 @@ function ValuesSourcePopover({
 
       {draftMode === 'appdata' && (
         <>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, opacity: 0.7 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+            <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.semibold, letterSpacing: 0.4, opacity: 0.7 }}>
               PROVIDER
             </span>
             {lookup ? (
@@ -404,8 +405,8 @@ function ValuesSourcePopover({
           </label>
 
           {lookup && draftParsed.providerName && (
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, opacity: 0.7 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: spacing[1] }}>
+              <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.semibold, letterSpacing: 0.4, opacity: 0.7 }}>
                 KEY
               </span>
               <Select
@@ -428,7 +429,7 @@ function ValuesSourcePopover({
 
       {/* Confirm / Cancel footer — explicit commit so accidental dropdown
           changes don't write to the column until the user confirms. */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginTop: 2 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[0.5] }}>
         <button
           type="button"
           className="fx-pill"
