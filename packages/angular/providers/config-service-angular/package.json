@@ -4,10 +4,10 @@
   "description": "Angular adapter for @starui/config-service — provideConfigService() factory + ConfigServiceClient injectable. Mirrors @starui/config-service-react over the same vanilla TS core.",
   "type": "module",
   "main": "dist/fesm2022/starui-config-service-angular.mjs",
-  "types": "dist/index.d.ts",
+  "types": "dist/types/starui-config-service-angular.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/types/starui-config-service-angular.d.ts",
       "import": "./dist/fesm2022/starui-config-service-angular.mjs",
       "default": "./dist/fesm2022/starui-config-service-angular.mjs"
     }
@@ -20,21 +20,21 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@angular/common": ">=21.0.0",
-    "@angular/core": ">=21.0.0",
+    "@angular/common": "^21.2.13",
+    "@angular/core": "^21.2.13",
     "@starui/config-service": "*",
     "@starui/data-services-angular": "*"
   },
   "devDependencies": {
-    "@angular/common": "21.1.0",
-    "@angular/compiler": "21.1.0",
-    "@angular/compiler-cli": "21.1.0",
-    "@angular/core": "21.1.0",
+    "@angular/common": "^21.2.13",
+    "@angular/compiler": "^21.2.13",
+    "@angular/compiler-cli": "^21.2.13",
+    "@angular/core": "^21.2.13",
     "@starui/data-services-angular": "*",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.2",
-    "ng-packagr": "^17.3.0",
-    "rimraf": "^5.0.5",
+    "ng-packagr": "^21.2.3",
+    "rimraf": "^6.0.1",
     "rxjs": "~7.8.2",
     "typescript": "~5.9.3",
     "vitest": "^4.1.4",

@@ -31,12 +31,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: npm ci (legacy peer deps)
-        # --legacy-peer-deps is required because several corporate-bundled
-        # .tgz dependencies (lucide-react, @widgetstools/dock-manager,
-        # @primeng/themes) declare peer ranges that conflict with our
-        # React 19 / Angular 21 pins. Documented in docs/DEPS_STANDARD.md.
-        run: npm ci --legacy-peer-deps
+      - name: npm ci
+        run: npm ci
 
   typecheck:
     name: Typecheck (all packages)
@@ -48,7 +44,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - name: Turbo typecheck
         run: npx turbo typecheck
 
@@ -62,7 +58,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - name: Turbo build
         run: npx turbo build
       - name: Upload demo-react bundle
@@ -83,7 +79,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - name: Turbo test
         run: npx turbo test
 
@@ -108,8 +104,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: npm ci (legacy peer deps)
-        run: npm ci --legacy-peer-deps
+      - name: npm ci
+        run: npm ci
 
       - name: Turbo typecheck + build
         run: npx turbo typecheck build

@@ -28,15 +28,20 @@ jobs:
           cache: npm
 
       - name: npm ci
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
       - name: Build dependencies
-        # Turbo builds all workspace packages demo-react depends on so
-        # the dev server boots against fresh dist output.
-        run: npx turbo build --filter=@starui/demo-react...
+        # Build EVERY workspace package — Playwright's webServer config
+        # in playwright.config.ts starts dev servers for demo-react,
+        # demo-configservice-react, AND markets-ui-react-reference. The
+        # other two still import @starui/vite-workspace-aliases in their
+        # vite.config.ts, and that package has main:"dist/index.js" so
+        # its dist/ must exist before the dev server tries to load it.
+        # The previous `--filter=@starui/demo-react...` was too narrow.
+        run: npx turbo build
 
       - name: Run Playwright
         run: npx playwright test

@@ -24,9 +24,9 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "ag-grid-community": ">=35.0.0",
-    "ag-grid-enterprise": ">=35.0.0",
-    "ag-grid-react": ">=35.0.0"
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-enterprise": "^35.1.0",
+    "ag-grid-react": "^35.1.0"
   },
   "dependencies": {
     "@starui/shared-types": "*",

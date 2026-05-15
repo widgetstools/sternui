@@ -31,19 +31,20 @@
   },
   "peerDependencies": {
     "@starui/config-service": "1.0.0",
-    "react": ">=19.0.0",
-    "react-dom": ">=19.0.0"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@openfin/workspace-platform": "23.0.20",
     "@starui/config-service": "*",
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/react": "~16.2.0",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.0.2",
     "react": "~19.2.5",
     "react-dom": "~19.2.5",
-    "rimraf": "^5.0.5",
+    "rimraf": "^6.0.1",
     "typescript": "~5.9.3",
     "vitest": "^4.1.4"
   },

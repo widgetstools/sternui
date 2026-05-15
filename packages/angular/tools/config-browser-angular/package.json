@@ -17,12 +17,12 @@
     "rxjs": "~7.8.2"
   },
   "peerDependencies": {
-    "@angular/common": ">=21.0.0",
-    "@angular/core": ">=21.0.0",
-    "@angular/forms": ">=21.0.0",
-    "ag-grid-angular": ">=35.0.0",
-    "ag-grid-community": ">=35.0.0",
-    "primeng": ">=21.0.0",
+    "@angular/common": "^21.2.13",
+    "@angular/core": "^21.2.13",
+    "@angular/forms": "^21.2.13",
+    "ag-grid-angular": "^35.1.0",
+    "ag-grid-community": "^35.1.0",
+    "primeng": "^21.1.7",
     "@primeuix/themes": ">=1.0.0"
   }
 }

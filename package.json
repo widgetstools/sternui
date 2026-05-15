@@ -57,11 +57,17 @@
     "rimraf": "^6.0.1",
     "tailwindcss": "3.4.1",
     "tailwindcss-animate": "^1.0.7",
-    "turbo": "^2.5.0",
+    "turbo": "^2.9.14",
     "wait-on": "^8.0.0"
   },
-  "overrides": {
-    "@openfin/core": "43.101.4"
+  "//optionalDependencies-note": "Workaround for npm 10.x bug (https://github.com/npm/cli/issues/4828) — when package-lock.json is generated on one platform, `npm ci` on a different platform skips installing rollup's platform-specific native binaries from vite/rollup's nested optionalDependencies. Declaring them explicitly here forces npm ci to install whichever one matches the current platform (each binary's package.json carries its own `os`/`cpu` constraints, so only one actually installs). Without this, CI fails with 'Cannot find module @rollup/rollup-linux-x64-gnu'.",
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "4.60.4",
+    "@rollup/rollup-darwin-x64": "4.60.4",
+    "@rollup/rollup-linux-arm64-gnu": "4.60.4",
+    "@rollup/rollup-linux-x64-gnu": "4.60.4",
+    "@rollup/rollup-win32-arm64-msvc": "4.60.4",
+    "@rollup/rollup-win32-x64-msvc": "4.60.4"
   },
   "engines": {
     "node": ">=20.0.0"

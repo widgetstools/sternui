@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "Stern Angular component library — DockConfigurator and DataProviderEditor",
   "type": "module",
-  "main": "dist/fesm2022/stern-angular.mjs",
-  "types": "dist/index.d.ts",
+  "main": "dist/fesm2022/starui-widgets-angular.mjs",
+  "types": "dist/types/starui-widgets-angular.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/fesm2022/stern-angular.mjs"
+      "types": "./dist/types/starui-widgets-angular.d.ts",
+      "import": "./dist/fesm2022/starui-widgets-angular.mjs",
+      "default": "./dist/fesm2022/starui-widgets-angular.mjs"
     }
   },
   "scripts": {
@@ -17,25 +19,25 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@angular/common": ">=21.0.0",
-    "@angular/core": ">=21.0.0",
-    "@angular/forms": ">=21.0.0",
-    "ag-grid-angular": ">=35.0.0",
-    "ag-grid-community": ">=35.0.0",
-    "ag-grid-enterprise": ">=35.0.0",
-    "@stomp/stompjs": ">=7.0.0",
+    "@angular/common": "^21.2.13",
+    "@angular/core": "^21.2.13",
+    "@angular/forms": "^21.2.13",
+    "ag-grid-angular": "^35.1.0",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-enterprise": "^35.1.0",
+    "@stomp/stompjs": "^7.3.0",
     "@starui/shared-types": "1.0.0",
     "@starui/data-services": "*",
     "@starui/data-services-angular": "*",
     "@starui/widget-sdk": "1.0.0",
-    "rxjs": ">=7.0.0"
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@angular/common": "21.1.0",
-    "@angular/compiler": "21.1.0",
-    "@angular/compiler-cli": "21.1.0",
-    "@angular/core": "21.1.0",
-    "@angular/forms": "21.1.0",
+    "@angular/common": "^21.2.13",
+    "@angular/compiler": "^21.2.13",
+    "@angular/compiler-cli": "^21.2.13",
+    "@angular/core": "^21.2.13",
+    "@angular/forms": "^21.2.13",
     "@starui/data-services": "*",
     "@starui/data-services-angular": "*",
     "@starui/shared-types": "*",
@@ -44,8 +46,8 @@
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
     "@stomp/stompjs": "^7.3.0",
-    "ng-packagr": "^17.3.0",
-    "rimraf": "^5.0.5",
+    "ng-packagr": "^21.2.3",
+    "rimraf": "^6.0.1",
     "rxjs": "~7.8.2",
     "typescript": "~5.9.3"
   },

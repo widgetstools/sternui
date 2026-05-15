@@ -8,16 +8,22 @@ first-class workspaces under `@starui/*`.
 
 - [`README.md`](./README.md) — quick orientation, scripts, getting started
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — layer model + import rules
-- [`docs/DEPS_STANDARD.md`](./docs/DEPS_STANDARD.md) — canonical dep versions
 - [`docs/IMPLEMENTED_FEATURES.md`](./docs/IMPLEMENTED_FEATURES.md) — kept in lockstep with code (update on every feature add/change/remove)
 
 ## Package manager
 
-**npm 10 workspaces.** Never `pnpm`, never `yarn`. Install with
-`npm ci --legacy-peer-deps` — the `--legacy-peer-deps` is permanent
-because corporate-bundled `.tgz` packages declare peer ranges that
-conflict with React 19 / Angular 21 on first read. Drop the flag and
-install breaks.
+**npm 10 workspaces.** Never `pnpm`, never `yarn`. Install with plain
+`npm ci` — no `--legacy-peer-deps`, no `--force`. Every workspace
+resolves cleanly against the public npm registry. If a future install
+needs the flag, treat that as a real ERESOLVE bug to investigate, not
+a permanent workaround.
+
+One root `overrides` entry remains: `@openfin/core` is pinned to
+`43.101.4` to keep the workspace direct deps aligned with the version
+that `@openfin/workspace-platform` / `@openfin/notifications` /
+`@openfin/workspace` declare as a transitive (currently `43.101.2`).
+Drop the override only by aligning all five packages on the same
+version in the same change.
 
 ## Package layout
 
@@ -198,7 +204,10 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ## Dep version edits
 
-Before adding or upgrading any dependency, check
-[`docs/DEPS_STANDARD.md`](./docs/DEPS_STANDARD.md). If the new version is
-not already standard, update the standard doc in the same commit. Don't
-drift — the whole reason for this monorepo was to stop drift.
+Pin to the **stable line** for each major (React 19.2.x, Angular 21.1.x,
+@openfin/core 43.101.x), not the latest patch. The Angular demo's
+[`apps/demo-angular/package.json`](./apps/demo-angular/package.json)
+documents the per-package "stable-vs-latest" rationale inline in its
+`//dependencies-registry-notes` block — mirror that pattern when
+introducing version pins elsewhere. Don't drift: the whole reason for
+this monorepo was to stop drift.

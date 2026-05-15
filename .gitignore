@@ -8,9 +8,11 @@ playwright-report/
 .DS_Store
 .claude/
 
-# Tarballs produced by `npm run pack:libs` for the file:// consumption
-# pattern (see docs/plans/plan-2026-05-07/code-organization.md Decision 13).
-/lib/
+# /libs/ tarballs (produced by `npm run pack:libs`) are tracked so a
+# fresh clone + `npm ci` works without first running pack:libs.
+# Regenerate via `npm run pack:libs` whenever a library's source or
+# package.json changes (CI should enforce this in a follow-up).
+
 /cell-format-toolbar*.html
 /toolbar-teal*.html
 

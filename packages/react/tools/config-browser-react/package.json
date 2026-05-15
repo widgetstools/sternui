@@ -21,10 +21,10 @@
   },
   "peerDependencies": {
     "@starui/markets-grid": "*",
-    "ag-grid-community": ">=35.0.0",
-    "ag-grid-react": ">=35.0.0",
-    "react": ">=19.0.0",
-    "react-dom": ">=19.0.0"
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-react": "^35.1.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "peerDependenciesMeta": {
     "@starui/markets-grid": {
