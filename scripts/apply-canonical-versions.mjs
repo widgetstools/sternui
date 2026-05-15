@@ -36,20 +36,43 @@ const CANONICAL = {
   'react-dom':                     { peerDependencies: '^19.2.5' },
 
   // ── Category B: tighten loose peer ranges to match dev pin ───────
-  '@angular/common':               { peerDependencies: '^21.1.0' },
-  '@angular/core':                 { peerDependencies: '^21.1.0' },
-  '@angular/forms':                { peerDependencies: '^21.1.0' },
   'ag-grid-angular':               { peerDependencies: '^35.1.0' },
   'ag-grid-community':             { peerDependencies: '^35.1.0' },
   'ag-grid-enterprise':            { peerDependencies: '^35.1.0' },
   'ag-grid-react':                 { peerDependencies: '^35.1.0' },
-  primeng:                         { peerDependencies: '^21.1.5' },
   rxjs:                            { peerDependencies: '^7.8.2' },
 
   // ── Category C: loose peer that should match app pin ─────────────
   '@stomp/stompjs':                { peerDependencies: '^7.3.0' },
   'lucide-react':                  { peerDependencies: '^0.554.0' },
   '@tanstack/react-query':         { peerDependencies: '^5.80.0' },
+
+  // ── Version-bump pass: align Angular family, OpenFin trio, ng-packagr,
+  //    primeng, turbo. Caret everywhere — apps' deps move from exact pins
+  //    to ^X.Y.Z to match the section convention going forward.
+  '@angular/animations':           { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  // cdk/build/cli haven't released 21.2.13 — latest 21.2.x is 21.2.11.
+  // ^21.2.11 still picks up future patches in the 21.2.x line.
+  '@angular/cdk':                  { dependencies: '^21.2.11', devDependencies: '^21.2.11', peerDependencies: '^21.2.11' },
+  '@angular/common':               { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/compiler':             { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/compiler-cli':         { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/core':                 { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/forms':                { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/platform-browser':     { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/router':               { dependencies: '^21.2.13', devDependencies: '^21.2.13', peerDependencies: '^21.2.13' },
+  '@angular/build':                { devDependencies: '^21.2.11' },
+  '@angular/cli':                  { devDependencies: '^21.2.11' },
+
+  '@openfin/core':                 { dependencies: '^43.102.2', devDependencies: '^43.102.2', peerDependencies: '^43.102.2' },
+  '@openfin/workspace':            { dependencies: '^23.0.22', devDependencies: '^23.0.22', peerDependencies: '^23.0.22' },
+  '@openfin/workspace-platform':   { dependencies: '^23.0.22', devDependencies: '^23.0.22', peerDependencies: '^23.0.22' },
+  '@openfin/notifications':        { dependencies: '^2.13.5', devDependencies: '^2.13.5', peerDependencies: '^2.13.5' },
+  '@openfin/node-adapter':         { dependencies: '^43.102.2', devDependencies: '^43.102.2', peerDependencies: '^43.102.2' },
+
+  primeng:                         { dependencies: '^21.1.7', devDependencies: '^21.1.7', peerDependencies: '^21.1.7' },
+  'ng-packagr':                    { devDependencies: '^21.2.3' },
+  turbo:                           { devDependencies: '^2.9.14' },
 };
 
 function isDir(p) {
