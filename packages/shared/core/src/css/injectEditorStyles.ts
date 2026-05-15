@@ -58,11 +58,14 @@ const EDITOR_CSS = `
   --de-danger-dim:     var(--ds-overlay-negative-soft);
   --de-success:        var(--ds-accent-positive);
 
-  /* ── Radii — kept as literal px (not a token category in design-system) ── */
-  --de-radius-sm: 6px;
-  --de-radius-md: 10px;
-  --de-radius-lg: 14px;
-  --de-radius-xl: 18px;
+  /* ── Radii — flow through --ds-radius-* so editor chrome matches the
+   * design-system's 2px baseline (the system pins sm = md = lg = 2px
+   * for every standard rectangular component; xl = 6px is the opt-in
+   * "intentionally rounder" tier — see primitives.ts). */
+  --de-radius-sm: var(--ds-radius-sm);
+  --de-radius-md: var(--ds-radius-md);
+  --de-radius-lg: var(--ds-radius-lg);
+  --de-radius-xl: var(--ds-radius-xl);
 
   /* ── Shadows — composition tokens kept local to this package ── */
   --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.3);

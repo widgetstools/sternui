@@ -62,8 +62,10 @@ const EDITOR_CSS = `
   --de-accent-foreground:var(--ds-primary-foreground);
   --de-danger:           var(--ds-accent-negative);
 
-  --de-radius-sm: 6px;
-  --de-radius-md: 10px;
+  /* Editor radii flow through --ds-radius-* so chrome matches the
+   * design-system's 2px baseline. */
+  --de-radius-sm: var(--ds-radius-sm);
+  --de-radius-md: var(--ds-radius-md);
 
   font-family: var(--de-font);
   color: var(--de-text);
