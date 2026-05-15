@@ -33,6 +33,10 @@
       "import": "./dist/adapters/agGrid.js",
       "default": "./dist/adapters/agGrid.js"
     },
+    "./tokens": {
+      "types": "./dist/tokens/index.d.ts",
+      "import": "./dist/tokens/index.js"
+    },
     "./tokens/primitives": {
       "types": "./dist/tokens/primitives.d.ts",
       "import": "./dist/tokens/primitives.js"
@@ -44,6 +48,10 @@
     "./tokens/components": {
       "types": "./dist/tokens/components.d.ts",
       "import": "./dist/tokens/components.js"
+    },
+    "./tokens/controls": {
+      "types": "./dist/tokens/controls.d.ts",
+      "import": "./dist/tokens/controls.js"
     },
     "./cell-renderers": {
       "types": "./dist/cellRenderers.d.ts",

@@ -30,7 +30,7 @@ import type {
   RegistryEntry,
 } from "@starui/openfin-platform/config";
 import { ACTION_LAUNCH_COMPONENT } from "@starui/openfin-platform/config";
-import { Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
+import { Input, Popover, PopoverContent, PopoverTrigger } from "@starui/ui";
 import { iconIdToSvgUrl } from "../dock-editor/iconUtils";
 import type { EditorSelection } from "./types";
 
@@ -378,11 +378,11 @@ function AddChildPopover({
           className="flex items-center gap-2 rounded-md px-2 py-1 mb-2 bg-[var(--ds-surface-secondary)] border border-[var(--ds-border-primary)]"
         >
           <Search className="w-3 h-3 text-muted-foreground" />
-          <input
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search components"
-            className="flex-1 bg-transparent text-xs outline-none text-foreground"
+            className="h-auto flex-1 rounded-none border-0 px-0 py-0 text-xs shadow-none bg-transparent text-foreground focus-visible:ring-0"
             autoFocus
           />
         </div>

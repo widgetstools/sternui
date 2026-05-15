@@ -1,4 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { controls } from '@starui/design-system/tokens';
+import { Input } from '../shadcn';
 import { cn } from '../shadcn/utils';
 
 /**
@@ -239,19 +241,26 @@ export interface StepperProps {
 }
 
 export function Stepper({ value, onChange, width = 44, mono = true, ...rest }: StepperProps) {
+  // Stepper is a chromeless numeric field embedded in a TGroup — it
+  // intentionally strips every default Input visual (border, bg, focus
+  // ring, padding) so it reads as a typographic cell, not a form field.
+  // Wrapping shadcn `Input` instead of using a raw `<input>` gives us
+  // forwardRef + displayName + any future a11y/baseline improvements,
+  // while the `className` overrides preserve the original Stepper look.
   return (
-    <input
+    <Input
       value={value}
       onChange={(e) => onChange(e.target.value)}
       data-testid={rest['data-testid']}
       className={cn(
-        'bg-transparent border-none outline-none text-center tabular-nums text-foreground p-0',
+        'bg-transparent border-none rounded-none p-0 h-auto text-center tabular-nums',
+        'focus:ring-0 focus:border-transparent',
         SETTINGS_UI_TEXT,
         mono ? 'font-mono' : 'font-sans',
       )}
       style={{
         width,
-        height: 26,
+        height: controls.sm.height,
       }}
     />
   );

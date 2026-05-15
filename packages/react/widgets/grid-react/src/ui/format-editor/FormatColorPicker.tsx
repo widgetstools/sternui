@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pipette, X } from 'lucide-react';
+import { controls, radius } from '@starui/design-system/tokens';
+import { Input } from '../shadcn';
 
 /**
  * Unified color picker used across the entire app.
@@ -22,6 +24,11 @@ import { Pipette, X } from 'lucide-react';
  */
 
 // ─── Presets ─────────────────────────────────────────────────────────────────
+// Preset swatches are picker AFFORDANCES — the user is choosing an absolute
+// color to apply, not consuming a theme token. They look identical in dark
+// and light themes by design. Same applies to the hue-strip gradient and the
+// SV-pad black/white overlays further below: those are mathematical color
+// spaces, not chrome, and live outside the design-system token surface.
 
 const PRESETS = [
   '#0f172a', '#1e293b', '#334155', '#475569',
@@ -205,15 +212,15 @@ export function FormatColorPicker({
   const swatchStyle = (c: string, selected: boolean): React.CSSProperties => ({
     width: '100%',
     aspectRatio: '1',
-    borderRadius: 4,
+    borderRadius: radius.md,
     padding: 0,
     cursor: 'pointer',
     border: selected ? '2px solid var(--ds-accent-positive)' : '1px solid var(--ds-border-primary)',
     background: c,
     boxShadow: selected
-      ? '0 0 0 2px rgba(45,212,191,0.20)'
+      ? '0 0 0 2px var(--ds-state-focus-ring-bg)'
       : c === '#ffffff' || c === '#e2e8f0'
-        ? 'inset 0 0 0 1px rgba(0,0,0,0.08)'
+        ? 'inset 0 0 0 1px var(--ds-border-primary)'
         : 'none',
   });
 
@@ -229,7 +236,7 @@ export function FormatColorPicker({
         style={{
           width: '100%',
           height: svHeight,
-          borderRadius: 6,
+          borderRadius: radius.xl,
           cursor: 'crosshair',
           position: 'relative',
           overflow: 'hidden',
@@ -237,6 +244,10 @@ export function FormatColorPicker({
           background: `hsl(${h}, 100%, 50%)`,
         }}
       >
+        {/* SV pad overlays + crosshair are intentional: white/black gradients
+            are the HSV color model; the white-bordered crosshair is a
+            deliberate high-contrast cursor designed to remain visible over
+            any underlying hue. None are theme tokens. */}
         <div className="absolute inset-0 bg-gradient-to-r from-white to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
         <div
@@ -265,10 +276,11 @@ export function FormatColorPicker({
         style={{
           width: '100%',
           height: 10,
-          borderRadius: 5,
+          borderRadius: radius.xl,
           cursor: 'pointer',
           position: 'relative',
           marginBottom: 8,
+          // Hue strip = mathematical RGB spectrum, intentionally theme-independent.
           background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
         }}
       >
@@ -290,7 +302,7 @@ export function FormatColorPicker({
       </div>
 
       {/* Preset swatches (8×2) */}
-      <div className="grid grid-cols-8 gap-[3px] mb-1.5">
+      <div className="grid grid-cols-8 gap-1 mb-1.5">
         {PRESETS.map((c) => (
           <button key={c} onClick={() => selectPreset(c)} onMouseDown={(e) => e.preventDefault()} style={swatchStyle(c, hex.toLowerCase() === c.toLowerCase())} />
         ))}
@@ -299,10 +311,10 @@ export function FormatColorPicker({
       {/* Recent colors */}
       {recent.length > 0 && (
         <div className="mb-1.5">
-          <div className="text-[10px] font-semibold tracking-[0.06em] uppercase text-muted-foreground mb-[3px]">
+          <div className="text-[10px] font-semibold tracking-[0.06em] uppercase text-muted-foreground mb-1">
             Recent
           </div>
-          <div className="flex gap-[3px]">
+          <div className="flex gap-1">
             {recent.slice(0, 8).map((c) => (
               <button
                 key={c}
@@ -311,7 +323,7 @@ export function FormatColorPicker({
                 style={{
                   width: 18,
                   height: 18,
-                  borderRadius: 4,
+                  borderRadius: radius.md,
                   padding: 0,
                   cursor: 'pointer',
                   border: hex.toLowerCase() === c.toLowerCase() ? '2px solid var(--ds-accent-positive)' : '1px solid var(--ds-border-primary)',
@@ -324,13 +336,17 @@ export function FormatColorPicker({
       )}
 
       {/* Bottom bar: pipette + chip + hex input + clear */}
-      <div className="flex items-center gap-[5px]">
-        {/* Native color picker (pipette) */}
+      <div className="flex items-center gap-1.5">
+        {/* Native color picker (pipette). Native <input type="color"> is
+            intentional — it surfaces the OS-native color dialog, which no
+            shadcn primitive provides. The visible chip is the <label>; the
+            input itself is transparent and absolutely positioned to catch
+            clicks. */}
         <label
           style={{
-            width: 24,
-            height: 22,
-            borderRadius: 4,
+            width: controls.xs.height,
+            height: controls.xs.height,
+            borderRadius: radius.md,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -352,12 +368,14 @@ export function FormatColorPicker({
           />
         </label>
 
-        {/* Hex input */}
-        <input
+        {/* Hex input — shadcn Input wrap. h-auto cancels the shadcn h-7
+            default so we can size to the xs control tier (24px). */}
+        <Input
           type="text"
           value={hex}
           onChange={(e) => handleHexInput(e.target.value)}
-          className="flex-1 h-[22px] border border-border rounded bg-background text-foreground text-[11px] font-medium font-mono px-2 outline-none min-w-0"
+          className="h-auto flex-1 min-w-0 rounded px-2 font-mono font-medium text-[length:var(--ds-control-sm-font-size)] bg-background"
+          style={{ height: controls.xs.height }}
         />
 
         {/* Clear */}
@@ -369,7 +387,8 @@ export function FormatColorPicker({
             }}
             onMouseDown={(e) => e.preventDefault()}
             title="Clear color"
-            className="w-[22px] h-[22px] rounded flex items-center justify-center cursor-pointer bg-[rgba(248,113,113,0.08)] border-none text-[var(--ds-accent-negative)] shrink-0"
+            className="rounded flex items-center justify-center cursor-pointer bg-[var(--ds-overlay-negative-soft)] border-none text-[var(--ds-accent-negative)] shrink-0"
+            style={{ width: controls.xs.height, height: controls.xs.height }}
           >
             <X size={10} strokeWidth={2} />
           </button>
