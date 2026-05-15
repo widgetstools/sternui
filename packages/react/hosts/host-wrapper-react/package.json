@@ -35,6 +35,7 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@openfin/workspace-platform": "23.0.20",
     "@starui/config-service": "*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.2",

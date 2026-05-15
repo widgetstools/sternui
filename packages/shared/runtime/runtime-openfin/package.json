@@ -26,7 +26,7 @@
     "@starui/runtime-browser": "0.1.0"
   },
   "peerDependencies": {
-    "@openfin/core": "^43.102.2"
+    "@openfin/core": "43.101.2"
   },
   "peerDependenciesMeta": {
     "@openfin/core": {
@@ -34,7 +34,7 @@
     }
   },
   "devDependencies": {
-    "@openfin/core": "^43.102.2",
+    "@openfin/core": "43.101.2",
     "rimraf": "^6.0.1",
     "typescript": "~5.9.3",
     "vitest": "^4.1.4"

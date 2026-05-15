@@ -22,9 +22,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@openfin/core": "^43.102.2",
-    "@openfin/workspace": "^23.0.22",
-    "@openfin/workspace-platform": "^23.0.22",
+    "@openfin/core": "43.101.2",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
     "@starui/icons-svg": "*",
     "@starui/config-service": "*",
     "@starui/shared-types": "*"

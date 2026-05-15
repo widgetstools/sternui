@@ -64,11 +64,21 @@ const CANONICAL = {
   '@angular/build':                { devDependencies: '^21.2.11' },
   '@angular/cli':                  { devDependencies: '^21.2.11' },
 
-  '@openfin/core':                 { dependencies: '^43.102.2', devDependencies: '^43.102.2', peerDependencies: '^43.102.2' },
-  '@openfin/workspace':            { dependencies: '^23.0.22', devDependencies: '^23.0.22', peerDependencies: '^23.0.22' },
-  '@openfin/workspace-platform':   { dependencies: '^23.0.22', devDependencies: '^23.0.22', peerDependencies: '^23.0.22' },
-  '@openfin/notifications':        { dependencies: '^2.13.5', devDependencies: '^2.13.5', peerDependencies: '^2.13.5' },
-  '@openfin/node-adapter':         { dependencies: '^43.102.2', devDependencies: '^43.102.2', peerDependencies: '^43.102.2' },
+  // OpenFin bumps to 43.102.x / 23.0.22 / 2.13.5 introduced a
+  // perceptible perf regression in cold-start + tool-window-open paths
+  // (the paths the Platform.createWindow optimization in
+  // runtime-openfin/popout.ts and openfin-platform/openChildToolWindow.ts
+  // depends on). Reverting to 23.0.20 + 2.13.1, and aligning
+  // @openfin/core to 43.101.2 to match what those packages declare as
+  // a transitive peer — this removes the need for the root override
+  // (43.101.4 was 2 patches ahead of what the packages were built
+  // against, requiring --legacy-peer-deps or an override hack to
+  // suppress the strict peer check).
+  '@openfin/core':                 { dependencies: '43.101.2', devDependencies: '43.101.2', peerDependencies: '43.101.2' },
+  '@openfin/workspace':            { dependencies: '23.0.20', devDependencies: '23.0.20', peerDependencies: '23.0.20' },
+  '@openfin/workspace-platform':   { dependencies: '23.0.20', devDependencies: '23.0.20', peerDependencies: '23.0.20' },
+  '@openfin/notifications':        { dependencies: '2.13.1', devDependencies: '2.13.1', peerDependencies: '2.13.1' },
+  '@openfin/node-adapter':         { dependencies: '43.101.2', devDependencies: '43.101.2', peerDependencies: '43.101.2' },
 
   primeng:                         { dependencies: '^21.1.7', devDependencies: '^21.1.7', peerDependencies: '^21.1.7' },
   'ng-packagr':                    { devDependencies: '^21.2.3' },
