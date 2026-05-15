@@ -25,6 +25,7 @@
   "dependencies": {
     "@starui/core": "*",
     "@starui/grid-react": "*",
+    "@starui/ui": "*",
     "lucide-react": "^0.554.0"
   },
   "devDependencies": {

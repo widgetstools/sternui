@@ -9,6 +9,7 @@
  */
 import * as React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
+import { Button } from '@starui/ui';
 import { cn, Tooltip } from '@starui/grid-react';
 
 export type Orientation = 'horizontal' | 'vertical';
@@ -37,8 +38,16 @@ export function Pill({
   variant = 'icon',
   ...rest
 }: PillProps) {
+  // Wrap shadcn Button so we inherit radix-style focus ring + ref
+  // forwarding + a11y baseline. `variant="ghost" size="icon"` zeroes
+  // out the button's default chrome; the `.fx-pill` class (sourced
+  // from formatter.css and the --ds-* token tree) supplies every
+  // visual property — dimensions, border, hover, active-state colours.
+  // tailwind-merge in shadcn's cn() resolves any class collisions.
   const btn = (
-    <button
+    <Button
+      variant="ghost"
+      size="icon"
       type="button"
       disabled={disabled}
       data-testid={rest['data-testid']}
@@ -46,7 +55,7 @@ export function Pill({
       aria-pressed={typeof active === 'boolean' ? active : undefined}
       data-on={active ? 'true' : undefined}
       className={cn(
-        'fx-pill',
+        'fx-pill h-auto w-auto p-0 hover:bg-transparent hover:text-current',
         variant === 'text' && 'fx-pill--text',
         variant === 'narrow' && 'fx-pill--narrow',
         className,
@@ -61,7 +70,7 @@ export function Pill({
       }}
     >
       {children}
-    </button>
+    </Button>
   );
   if (tooltip) return <Tooltip content={tooltip}>{btn}</Tooltip>;
   return btn;
@@ -208,10 +217,20 @@ export function SegmentedToggle<T extends string>({
   onChange: (next: T) => void;
   ariaLabel: string;
   /** Cosmetic — drives the data-attribute used by CSS for distinct
-   *  hue/weight (still monochromatic, just different shade emphasis). */
+   *  hue/weight (still uses the brand primary as the active fill). */
   variant?: 'target' | 'scope';
   testId?: string;
 }) {
+  // Implementation note — the toolbar tests assert that the active
+  // state flips on `fireEvent.mouseDown`, and consumers depend on the
+  // mousedown-driven UX to survive popover focus traps (a popover's
+  // focus trap can swallow click events but not mousedown). That
+  // contract is incompatible with radix ToggleGroup's click-driven
+  // `onValueChange`, so this primitive stays a hand-rolled radiogroup
+  // of `<button role="radio">` elements. Every visual property still
+  // flows through the design-system token tree via `.fx-seg` /
+  // `.fx-seg__opt` in formatter.css (active fill uses --ds-primary
+  // after the Phase A token swap).
   return (
     <div
       className="fx-seg"
