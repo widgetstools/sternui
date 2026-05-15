@@ -67,7 +67,7 @@ export function ItemCard({
             onClick={onToggleCollapsed}
             aria-expanded={!collapsed}
             title={collapsed ? 'Expand' : 'Collapse'}
-            className="inline-flex items-center justify-center w-[18px] h-[18px] bg-transparent border-none text-muted-foreground cursor-pointer p-0 rounded-sm"
+            className="inline-flex items-center justify-center w-5 h-5 bg-transparent border-none text-muted-foreground cursor-pointer p-0 rounded-sm"
           >
             {collapsed ? <ChevronRight size={12} strokeWidth={2.25} /> : <ChevronDown size={12} strokeWidth={2.25} />}
           </button>

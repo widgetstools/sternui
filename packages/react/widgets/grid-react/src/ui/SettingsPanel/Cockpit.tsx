@@ -169,9 +169,12 @@ export function TBtn({ active, onClick, children, title, width, disabled, ...res
 }
 
 export function TDivider() {
+  // Inset divider sized to controls.xs so it slots cleanly between
+  // toolbar buttons regardless of which control tier surrounds it.
   return (
     <span
-      className="inline-block w-px h-[22px] bg-border mx-1"
+      className="inline-block w-px bg-border mx-1"
+      style={{ height: controls.xs.height }}
       aria-hidden
     />
   );

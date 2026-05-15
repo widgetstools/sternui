@@ -1,3 +1,4 @@
+import { spacing } from '@starui/design-system/tokens';
 import { Band, SubLabel } from '../../SettingsPanel';
 import { CompactColorField } from '../../ColorPicker';
 import type { StyleEditorValue } from '../types';
@@ -17,7 +18,7 @@ export interface ColorSectionProps {
 
 export function ColorSection({ value, onChange, inlineBody, index = '03' }: ColorSectionProps) {
   const body = (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[2.5] }}>
       <div>
         <SubLabel>Text</SubLabel>
         <CompactColorField

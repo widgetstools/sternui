@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Check, ChevronDown, Hash, Info, X } from 'lucide-react';
 import { isValidExcelFormat } from '@starui/core';
+import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
 import { FormatPopover } from '../format-editor';
 import { Caps, IconInput, SubLabel } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';
@@ -9,6 +10,11 @@ import { CURRENCY_QUICK_INSERT, applyCurrencySymbol } from './currencyQuickInser
 import { GROUP_LABELS, groupKeyForPreset } from './presetGroups';
 import { triggerCaption, type SharedBodyProps } from './formatterPickerShared';
 import type { FormatterPreset } from './presetsForDataType';
+
+// Inline data-chip dimension (CURRENT preview, clear, currency-insert) —
+// sits one step tighter than controls.xs so chip rows read as data, not
+// controls. Local-only — chips don't surface in other modules.
+const CHIP_HEIGHT = '22px';
 
 /**
  * Compact (toolbar) presentation of FormatterPicker.
@@ -57,17 +63,17 @@ export function CompactFormatterPicker({
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            height: 26,
-            padding: '0 8px',
+            gap: spacing[1.5],
+            height: controls.sm.height,
+            padding: `0 ${spacing[2]}px`,
             background: 'var(--ds-surface-ground)',
             border: `1px solid ${
               value ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
             }`,
-            borderRadius: 2,
+            borderRadius: radius.md,
             color: value ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
             fontFamily: 'var(--ds-font-sans)',
-            fontSize: 11,
+            fontSize: controls.sm.fontSize,
             cursor: 'pointer',
             transition: 'background 120ms, border-color 120ms, color 120ms',
           }}
@@ -104,19 +110,22 @@ export function CompactFormatterPicker({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
-              height: 22,
-              padding: '0 8px',
+              gap: spacing[1],
+              // CURRENT/clear/currency chips sit 2px tighter than the
+              // controls tier scale — they're inline data chips, not
+              // controls. Local CHIP_HEIGHT keeps the trio aligned.
+              height: CHIP_HEIGHT,
+              padding: `0 ${spacing[2]}px`,
               background: preview
                 ? 'var(--ds-primary-soft)'
                 : 'var(--ds-surface-ground)',
               border: `1px dashed ${
                 preview ? 'var(--ds-border-secondary)' : 'var(--ds-border-primary)'
               }`,
-              borderRadius: 2,
+              borderRadius: radius.md,
               color: preview ? 'var(--ds-primary)' : 'var(--ds-text-faint)',
               fontFamily: 'var(--ds-font-mono)',
-              fontSize: 11,
+              fontSize: controls.sm.fontSize,
               fontVariantNumeric: 'tabular-nums',
               flex: 1,
               whiteSpace: 'nowrap',
@@ -140,12 +149,12 @@ export function CompactFormatterPicker({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 22,
-              height: 22,
+              width: CHIP_HEIGHT,
+              height: CHIP_HEIGHT,
               padding: 0,
               background: 'transparent',
               border: '1px solid var(--ds-border-secondary)',
-              borderRadius: 2,
+              borderRadius: radius.md,
               color: value ? 'var(--ds-accent-negative)' : 'var(--ds-text-faint)',
               cursor: value ? 'pointer' : 'default',
               opacity: value ? 1 : 0.4,
@@ -181,20 +190,20 @@ export function CompactFormatterPicker({
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'flex-start',
-                        gap: 2,
-                        padding: '6px 8px',
+                        gap: spacing[0.5],
+                        padding: `${spacing[1.5]}px ${spacing[2]}px`,
                         background: active
                           ? 'var(--ds-primary-soft)'
                           : 'var(--ds-surface-ground)',
                         border: `1px solid ${
                           active ? 'var(--ds-primary)' : 'var(--ds-border-primary)'
                         }`,
-                        borderRadius: 2,
+                        borderRadius: radius.md,
                         color: active ? 'var(--ds-primary)' : 'var(--ds-text-primary)',
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontFamily: 'inherit',
-                        fontSize: 11,
+                        fontSize: controls.sm.fontSize,
                       }}
                     >
                       <span className="font-semibold leading-[1.1]">{p.label}</span>
@@ -202,7 +211,7 @@ export function CompactFormatterPicker({
                         <span
                           style={{
                             fontFamily: 'var(--ds-font-mono)',
-                            fontSize: 10,
+                            fontSize: typography.fontSize.xs,
                             color: active ? 'var(--ds-primary)' : 'var(--ds-text-faint)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -237,7 +246,7 @@ export function CompactFormatterPicker({
                the input is empty. Saves users from hunting for the
                right keyboard shortcut (especially ₹ / €). */}
           <div className="flex items-center gap-1 flex-wrap">
-            <Caps size={9} color="var(--ds-text-faint)" style={{ paddingRight: 4 }}>
+            <Caps size={9} color="var(--ds-text-faint)" style={{ paddingRight: spacing[1] }}>
               SYMBOL
             </Caps>
             {CURRENCY_QUICK_INSERT.map((c) => (
@@ -256,16 +265,16 @@ export function CompactFormatterPicker({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: 26,
-                  height: 22,
-                  padding: '0 6px',
+                  minWidth: controls.sm.height,
+                  height: CHIP_HEIGHT,
+                  padding: `0 ${spacing[1.5]}px`,
                   background: 'var(--ds-surface-ground)',
                   border: '1px solid var(--ds-border-primary)',
-                  borderRadius: 2,
+                  borderRadius: radius.md,
                   color: 'var(--ds-text-primary)',
                   cursor: 'pointer',
                   fontFamily: 'var(--ds-font-mono)',
-                  fontSize: 11,
+                  fontSize: controls.sm.fontSize,
                   lineHeight: 1,
                   transition: 'background 100ms, border-color 100ms',
                 }}
@@ -397,12 +406,12 @@ function ApplyOrClearButton({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 26,
-        height: 26,
+        width: controls.sm.height,
+        height: controls.sm.height,
         padding: 0,
         background: 'transparent',
         border: '1px solid var(--ds-border-secondary)',
-        borderRadius: 2,
+        borderRadius: radius.md,
         color: disabled ? 'var(--ds-text-faint)' : accentColor,
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.4 : 1,

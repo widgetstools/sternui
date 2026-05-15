@@ -264,10 +264,10 @@ function ProviderRow({ provider, compact }: { provider: DataProviderConfig; comp
   return (
     <span className="flex items-center gap-2 min-w-0 w-full">
       <span className="truncate flex-1 min-w-0">{provider.name}</span>
-      <Badge variant="outline" className="text-[10px] shrink-0 uppercase">{provider.providerType}</Badge>
+      <Badge variant="outline" className="text-[length:var(--ds-font-size-xs)] shrink-0 uppercase">{provider.providerType}</Badge>
       <ScopeBadge provider={provider} />
       {!compact && provider.description && (
-        <span className="text-[11px] text-muted-foreground truncate hidden md:inline">
+        <span className="text-[length:var(--ds-font-size-sm)] text-muted-foreground truncate hidden md:inline">
           {provider.description}
         </span>
       )}
@@ -280,7 +280,7 @@ function ScopeBadge({ provider }: { provider: DataProviderConfig }) {
   return (
     <Badge
       variant={pub ? 'secondary' : 'outline'}
-      className="text-[10px] shrink-0"
+      className="text-[length:var(--ds-font-size-xs)] shrink-0"
       title={pub ? 'Public — visible to everyone in this app' : 'Private — visible to you only'}
     >
       {pub ? 'Public' : 'Private'}

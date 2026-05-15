@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronLeft, Hash } from 'lucide-react';
 import { isValidExcelFormat } from '@starui/core';
+import { controls, radius, spacing } from '@starui/design-system/tokens';
 import { FormatDropdown } from '../format-editor';
 import { Caps, IconInput } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';
@@ -38,7 +39,9 @@ export function InlineFormatterPicker({
   testId,
 }: SharedBodyProps & { defaultCollapsed: boolean; layout?: 'horizontal' | 'vertical' }) {
   const [expanded, setExpanded] = useState(!defaultCollapsed);
-  const rowHeight = 28;
+  // All inline-form rows snap to the md control tier so picker controls
+  // align with sibling editor inputs (28px high).
+  const rowHeight = controls.md.height;
 
   // Vertical layout: stack preset on top, custom input + info below.
   // No collapse chevron (the host section is always-expanded in this
@@ -70,17 +73,17 @@ export function InlineFormatterPicker({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
+                gap: spacing[1.5],
                 width: '100%',
                 height: rowHeight,
-                padding: '0 8px 0 10px',
+                padding: `0 ${spacing[2]}px 0 ${spacing[2.5]}px`,
                 background: 'var(--ds-surface-ground)',
                 border: '1px solid var(--ds-border-primary)',
-                borderRadius: 3,
+                borderRadius: radius.md,
                 color: 'var(--ds-text-primary)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                fontSize: 11,
+                fontSize: controls.sm.fontSize,
                 letterSpacing: '0.02em',
               }}
             >
@@ -135,7 +138,7 @@ export function InlineFormatterPicker({
         onClick={() => setExpanded(true)}
         title="Expand format picker"
         data-testid={testId ? `${testId}-collapsed` : undefined}
-        className="inline-flex items-center gap-1.5 h-7 px-2 bg-background border border-border rounded-sm text-foreground font-sans text-[11px] cursor-pointer transition-[background,border-color] duration-120"
+        className="inline-flex items-center gap-1.5 h-7 px-2 bg-background border border-border rounded-sm text-foreground font-sans text-[length:var(--ds-control-sm-font-size)] cursor-pointer transition-[background,border-color] duration-120"
       >
         <Hash size={12} strokeWidth={1.75} className="opacity-60" />
         <span className="max-w-[140px] whitespace-nowrap overflow-hidden text-ellipsis font-mono tabular-nums">
@@ -190,18 +193,18 @@ export function InlineFormatterPicker({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
+              gap: spacing[1.5],
               height: rowHeight,
               minWidth: 120,
               maxWidth: 240,
-              padding: '0 6px 0 10px',
+              padding: `0 ${spacing[1.5]}px 0 ${spacing[2.5]}px`,
               background: 'var(--ds-surface-ground)',
               border: '1px solid var(--ds-border-primary)',
-              borderRadius: 2,
+              borderRadius: radius.md,
               color: 'var(--ds-text-primary)',
               cursor: 'pointer',
               fontFamily: 'inherit',
-              fontSize: 11,
+              fontSize: controls.sm.fontSize,
               letterSpacing: '0.02em',
             }}
           >
@@ -249,15 +252,15 @@ export function InlineFormatterPicker({
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 4,
+            gap: spacing[1],
             height: rowHeight,
-            padding: '0 8px',
+            padding: `0 ${spacing[2]}px`,
             background: 'var(--ds-primary-soft)',
             border: '1px dashed var(--ds-border-secondary)',
-            borderRadius: 2,
+            borderRadius: radius.md,
             color: 'var(--ds-primary)',
             fontFamily: 'var(--ds-font-mono)',
-            fontSize: 11,
+            fontSize: controls.sm.fontSize,
             fontVariantNumeric: 'tabular-nums',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
