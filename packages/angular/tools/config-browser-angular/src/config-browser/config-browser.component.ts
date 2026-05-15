@@ -57,9 +57,10 @@ const EDITOR_CSS = `
   --de-text-tertiary:  var(--ds-text-muted);
   --de-text-ghost:     var(--ds-text-faint);
 
-  --de-accent:         var(--ds-accent-info);
-  --de-accent-dim:     var(--ds-overlay-info-soft);
-  --de-danger:         var(--ds-accent-negative);
+  --de-accent:           var(--ds-primary);
+  --de-accent-dim:       var(--ds-primary-soft);
+  --de-accent-foreground:var(--ds-primary-foreground);
+  --de-danger:           var(--ds-accent-negative);
 
   --de-radius-sm: 6px;
   --de-radius-md: 10px;
@@ -72,15 +73,15 @@ const EDITOR_CSS = `
 /* PrimeNG input/button chrome */
 .p-inputtext { background: var(--ds-surface-secondary) !important; color: var(--ds-text-primary) !important; border: 1px solid var(--ds-border-primary) !important; }
 .p-inputtext:focus, .p-inputtext:enabled:focus {
-  border-color: var(--ds-accent-info) !important;
-  box-shadow: 0 0 0 2px var(--ds-overlay-info-soft) !important;
+  border-color: var(--ds-primary) !important;
+  box-shadow: 0 0 0 2px var(--ds-primary-soft) !important;
 }
 .p-inputtext::placeholder { color: var(--ds-text-muted) !important; }
 .p-button { font-family: var(--ds-font-sans) !important; }
 .p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger) {
-  background: var(--ds-accent-info) !important;
-  color: var(--ds-text-primary) !important;
-  border: 1px solid var(--ds-accent-info) !important;
+  background: var(--ds-primary) !important;
+  color: var(--ds-primary-foreground) !important;
+  border: 1px solid var(--ds-primary) !important;
 }
 .p-button.p-button-text {
   background: transparent !important;
@@ -170,7 +171,7 @@ const AG_THEME_LIGHT: Theme = themeQuartz.withParams({ ...agGridLightParams });
               <span style="font-size: 10px; font-family: var(--de-mono); padding: 1px 6px;
                            border-radius: 4px; min-width: 22px; text-align: center;"
                     [style.background]="selected().key === t.key ? 'var(--de-accent)' : 'var(--de-bg-surface)'"
-                    [style.color]="selected().key === t.key ? 'var(--de-bg)' : 'var(--de-text-tertiary)'">
+                    [style.color]="selected().key === t.key ? 'var(--de-accent-foreground)' : 'var(--de-text-tertiary)'">
                 {{ countOf(t.key) }}
               </span>
             </button>
@@ -328,7 +329,7 @@ const AG_THEME_LIGHT: Theme = themeQuartz.withParams({ ...agGridLightParams });
               <button type="button" (click)="handleSave()"
                       [disabled]="saving() || !canSave()"
                       [style.background]="canSave() ? 'var(--de-accent)' : 'var(--de-bg-surface)'"
-                      [style.color]="canSave() ? 'var(--ds-text-primary)' : 'var(--de-text-tertiary)'"
+                      [style.color]="canSave() ? 'var(--de-accent-foreground)' : 'var(--de-text-tertiary)'"
                       [style.cursor]="canSave() && !saving() ? 'pointer' : 'not-allowed'"
                       style="height: 30px; padding: 0 16px;
                              border-radius: var(--de-radius-sm); border: none;

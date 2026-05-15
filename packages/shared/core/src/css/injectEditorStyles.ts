@@ -44,12 +44,15 @@ const EDITOR_CSS = `
   --de-text-ghost:     var(--ds-text-faint);
 
   /* ── Semantic colors → design-system accents ──
-   * --de-accent is the PRIMARY BRAND accent — maps to --ds-accent-info
-   * (the design-system info/brand color). NOT --ds-accent-warning (which is
-   * reserved for WARNING semantics). */
-  --de-accent:         var(--ds-accent-info);
-  --de-accent-dim:     var(--ds-overlay-info-soft);
-  --de-accent-subtle:  var(--ds-overlay-info-soft);
+   * --de-accent is the PRIMARY BRAND accent — maps to --ds-primary
+   * (the design-system brand primary, used for CTAs / active states /
+   * focus rings everywhere else in the app). NOT --ds-accent-info
+   * (which is reserved for INFO semantics — status, links, pending).
+   * NOT --ds-accent-warning (reserved for WARNING semantics). */
+  --de-accent:           var(--ds-primary);
+  --de-accent-dim:       var(--ds-primary-soft);
+  --de-accent-subtle:    var(--ds-primary-soft);
+  --de-accent-foreground:var(--ds-primary-foreground);
 
   --de-danger:         var(--ds-accent-negative);
   --de-danger-dim:     var(--ds-overlay-negative-soft);
@@ -65,7 +68,7 @@ const EDITOR_CSS = `
   --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.3);
   --de-shadow-md:   0 4px 12px rgba(0,0,0,0.4);
   --de-shadow-lg:   0 8px 32px rgba(0,0,0,0.5);
-  --de-shadow-glow: 0 0 20px var(--ds-overlay-info-soft);
+  --de-shadow-glow: 0 0 20px var(--ds-primary-soft);
 
   font-family: var(--de-font);
   color: var(--de-text);
@@ -84,7 +87,7 @@ const EDITOR_CSS = `
   --de-shadow-sm:   0 1px 2px rgba(0,0,0,0.06);
   --de-shadow-md:   0 4px 12px rgba(0,0,0,0.08);
   --de-shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
-  --de-shadow-glow: 0 0 20px var(--ds-overlay-info-soft);
+  --de-shadow-glow: 0 0 20px var(--ds-primary-soft);
 }
 
 @keyframes de-fade-in {
