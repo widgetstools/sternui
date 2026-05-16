@@ -38,6 +38,7 @@ import {
   collectAndPruneExpiredTimedEntries,
   CONDITIONAL_DIFF_CACHE_KEY,
   type DiffCacheByApi,
+  extractTriggerColumns,
   getNextTimedExpiry,
   pruneTimedRuleState,
   pruneTimedRuleStateByRuleSet,
@@ -86,6 +87,45 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
     let expiryTimerFiresAt: number | null = null;
     const previousByRow = new Map<string, Map<string, unknown>>();
     clearTimedRuleState();
+
+    // Per-rule trigger columns: every column its expression depends on.
+    // The contract is that the expression is a row-level predicate and
+    // `scope.columns` is the paint surface — when ANY trigger column
+    // ticks, every cell in `scope.columns` for that row must re-evaluate
+    // its `cellClassRules` predicate so the rule's verdict propagates
+    // uniformly across the scope. AG-Grid's default behaviour only
+    // re-evaluates the cell whose own value changed, which is what
+    // produced the "only the first column gets styled" symptom for
+    // diff-driven rules like `[price.old] < [price.new]`.
+    //
+    // Keyed by `rule.id + ':' + rule.expression` so a no-op rule edit
+    // (renaming, toggling colour) doesn't churn the parse cache.
+    const triggersByRule = new Map<string, ReadonlySet<string>>();
+    const triggersCacheKey = (rule: { id: string; expression: string }) =>
+      `${rule.id}::${rule.expression}`;
+    const rebuildTriggersCache = (rules: readonly ConditionalRule[]): void => {
+      const seenKeys = new Set<string>();
+      const engine = platform.resources.expression();
+      for (const r of rules) {
+        const key = triggersCacheKey(r);
+        seenKeys.add(key);
+        if (triggersByRule.has(key)) continue;
+        try {
+          const ast = engine.parse(r.expression) as Parameters<typeof extractTriggerColumns>[0];
+          triggersByRule.set(key, extractTriggerColumns(ast));
+        } catch {
+          // Unparseable expression — no triggers known. Predicate will
+          // already short-circuit via its own try/catch.
+          triggersByRule.set(key, new Set<string>());
+        }
+      }
+      // Evict cache entries for rules that no longer exist OR whose
+      // expression changed (the key changes, so the old entry is now
+      // unreferenced).
+      for (const key of [...triggersByRule.keys()]) {
+        if (!seenKeys.has(key)) triggersByRule.delete(key);
+      }
+    };
 
     /**
      * Force `cellClassRules` / `rowClassRules` to re-evaluate. NEVER call
@@ -309,23 +349,37 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
             continue;
           }
 
+          // Cross-column contract: the expression is a row-level
+          // predicate, and `scope.columns` is the paint surface. Evaluate
+          // ONCE per row (not per scoped column) and — if the predicate
+          // is true — activate every column in `scope.columns`, even
+          // ones whose own value didn't change in this transaction.
+          //
+          // Bounded re-evaluation: skip the rule entirely when NONE of
+          // the columns its expression depends on appear in this row's
+          // changedKeys, so untouched rows don't re-evaluate on every
+          // modelUpdated. Falls back to "always evaluate" when we can't
+          // identify trigger columns (parse failure, literal expression).
+          const triggers = triggersByRule.get(triggersCacheKey(rule));
+          const hasRelevantChange =
+            !triggers || triggers.size === 0 ||
+            changedKeys.some((k) => triggers.has(k));
+          if (!hasRelevantChange) continue;
+          let match = false;
+          try {
+            match = Boolean(
+              engine.parseAndEvaluate(rule.expression, {
+                x: null,
+                value: null,
+                data,
+                columns,
+              }),
+            );
+          } catch {
+            match = false;
+          }
+          if (!match) continue;
           for (const colId of rule.scope.columns) {
-            if (!changedKeys.includes(colId)) continue;
-            const value = data[colId];
-            let match = false;
-            try {
-              match = Boolean(
-                engine.parseAndEvaluate(rule.expression, {
-                  x: value,
-                  value,
-                  data,
-                  columns,
-                }),
-              );
-            } catch {
-              match = false;
-            }
-            if (!match) continue;
             upsertTimedCellActivation(rowId, rule.id, colId, now + ttlMs);
             activatedThisPass = true;
             traceTimed('cell rule activated (model diff)', { rowId, ruleId: rule.id, colId, until: now + ttlMs });
@@ -582,6 +636,18 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
               scopedColId,
               match,
             });
+            if ((globalThis as { __CS_CROSS_COL_TRACE__?: boolean }).__CS_CROSS_COL_TRACE__) {
+              // eslint-disable-next-line no-console
+              console.debug('[cs:cross-col] timed-rule cellValueChanged eval', {
+                changedColId: colId,
+                ruleId: rule.id,
+                expression: rule.expression,
+                scopeColumns: rule.scope.columns,
+                scopedColId,
+                match,
+                ttlMs,
+              });
+            }
             if (!match) continue;
             const rowId = resolveRowId(node);
             if (!rowId) continue;
@@ -611,6 +677,76 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
           armNextExpiry();
           scheduleRefresh();
         }
+
+        // Trigger-driven cross-column repaint.
+        //
+        // When the changed column is a "trigger" (referenced by some
+        // cell-scope rule's expression), AG-Grid's own re-evaluation
+        // covers only THIS cell — but the rule's verdict applies to
+        // the whole `scope.columns` surface. Without this targeted
+        // refresh, a rule like `[price.old] < [price.new]` with scope
+        // `['side','quantity']` would never repaint `side`/`quantity`
+        // when `price` ticks, which is the bug the user reported as
+        // "only the first column gets styled".
+        //
+        // Surface accumulated here goes through the existing
+        // `scheduleTargetedRefresh` batcher so multiple changes in the
+        // same tick coalesce into one `refreshCells` call.
+        const rowIdForRefresh = resolveRowId(node);
+        const crossColTrace = (
+          globalThis as { __CS_CROSS_COL_TRACE__?: boolean }
+        ).__CS_CROSS_COL_TRACE__;
+        if (crossColTrace) {
+          // eslint-disable-next-line no-console
+          console.debug('[cs:cross-col] cellValueChanged', {
+            colId,
+            rowId: rowIdForRefresh,
+            ruleCount: state.rules.length,
+            triggerCacheSize: triggersByRule.size,
+          });
+        }
+        if (rowIdForRefresh) {
+          const colsToRefresh = new Set<string>();
+          for (const rule of state.rules) {
+            if (!rule.enabled) continue;
+            if (rule.scope.type !== 'cell') continue;
+            const cacheKey = triggersCacheKey(rule);
+            const triggers = triggersByRule.get(cacheKey);
+            if (crossColTrace) {
+              // eslint-disable-next-line no-console
+              console.debug('[cs:cross-col] rule check', {
+                ruleId: rule.id,
+                expression: rule.expression,
+                scopeColumns: rule.scope.columns,
+                cacheKey,
+                triggersFound: triggers ? [...triggers] : null,
+                triggersHasChangedCol: triggers ? triggers.has(colId) : false,
+              });
+            }
+            if (!triggers || !triggers.has(colId)) continue;
+            for (const c of rule.scope.columns) {
+              // The changed column is already refreshed by AG-Grid; no
+              // need to enqueue it. Skipping here keeps the targeted
+              // surface minimal.
+              if (c === colId) continue;
+              colsToRefresh.add(c);
+            }
+          }
+          if (colsToRefresh.size > 0) {
+            if (crossColTrace) {
+              // eslint-disable-next-line no-console
+              console.debug('[cs:cross-col] scheduling refresh', {
+                rowId: rowIdForRefresh,
+                columns: [...colsToRefresh],
+              });
+            }
+            scheduleTargetedRefresh([rowIdForRefresh], colsToRefresh, false);
+          } else if (crossColTrace) {
+            // eslint-disable-next-line no-console
+            console.debug('[cs:cross-col] no cols to refresh — either no matching rule or only the changed col was scoped');
+          }
+        }
+
         evaluate();
       };
       api.addEventListener('cellValueChanged', onCellValueChanged);
@@ -635,10 +771,16 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         }
       }
       pruneTimedRuleStateByRuleSet(activeTimedRuleIds);
+      rebuildTriggersCache(state.rules);
       armNextExpiry();
       evaluate();
       scheduleRefresh();
     }));
+    // Seed the triggers cache with whatever rules already exist when
+    // we activate — `platform.subscribe` fires on changes only, not on
+    // mount, so the initial set would otherwise stay invisible until
+    // the user edits a rule.
+    rebuildTriggersCache(platform.getState().rules);
 
     return () => {
       if (refreshRaf != null && typeof window !== 'undefined') {

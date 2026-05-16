@@ -10,7 +10,12 @@ import type {
   RowClassParams,
   ValueFormatterParams,
 } from 'ag-grid-community';
-import type { AnyColDef, CssHandle, ExpressionEngineLike } from '@starui/core';
+import type {
+  AnyColDef,
+  CssHandle,
+  ExpressionEngineLike,
+  ExpressionNode,
+} from '@starui/core';
 import { valueFormatterFromTemplate } from '@starui/core';
 import { cssEscapeColId } from '../column-customization/transforms';
 import type {
@@ -511,6 +516,98 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
       buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, flash, rule.indicator),
     );
   }
+}
+
+// ─── Trigger-column extraction ─────────────────────────────────────────────
+
+/**
+ * Walk a parsed expression AST and collect every column the predicate
+ * depends on. Used by the runtime to know which `cellValueChanged` events
+ * should provoke a refresh of a rule's `scope.columns` — without this,
+ * AG-Grid only re-evaluates `cellClassRules` on the cell whose own value
+ * changed, so a rule like `[price.old] < [price.new]` with scope
+ * `['side','quantity']` would never repaint `side`/`quantity` when
+ * `price` ticks.
+ *
+ * Sources of column dependencies (covers the surfaces the editor docs
+ * and the engine's evaluator actually wire up):
+ *   - `[col]` / `[col.old]` / `[col.new]` — `ColumnRefNode` (suffix
+ *     stripped so the trigger maps back to AG-Grid's emitted colId)
+ *   - `data.col` — `MemberNode` rooted on the `data` variable
+ *   - `columns.col` — `MemberNode` rooted on the `columns` variable
+ *     (the diff-aware columns context)
+ */
+export function extractTriggerColumns(node: ExpressionNode): Set<string> {
+  const out = new Set<string>();
+  walkForTriggers(node, out);
+  return out;
+}
+
+function walkForTriggers(node: ExpressionNode, out: Set<string>): void {
+  switch (node.type) {
+    case 'columnRef': {
+      const id = stripDiffSuffix(node.columnId);
+      if (id) out.add(id);
+      return;
+    }
+    case 'member': {
+      // Drain `data.x` / `columns.x` (and any nested chain off the same
+      // root) into a single top-level trigger column.
+      const root = memberRoot(node);
+      if (root === 'data' || root === 'columns') {
+        const first = firstMemberSegment(node);
+        if (first) out.add(stripDiffSuffix(first));
+        return;
+      }
+      walkForTriggers(node.object, out);
+      return;
+    }
+    case 'binary':
+      walkForTriggers(node.left, out);
+      walkForTriggers(node.right, out);
+      return;
+    case 'unary':
+      walkForTriggers(node.operand, out);
+      return;
+    case 'ternary':
+      walkForTriggers(node.condition, out);
+      walkForTriggers(node.consequent, out);
+      walkForTriggers(node.alternate, out);
+      return;
+    case 'call':
+      for (const a of node.args) walkForTriggers(a, out);
+      return;
+    case 'array':
+      for (const el of node.elements) walkForTriggers(el, out);
+      return;
+    case 'literal':
+    case 'variable':
+      return;
+  }
+}
+
+function memberRoot(node: ExpressionNode): string | null {
+  let cursor: ExpressionNode = node;
+  while (cursor.type === 'member') cursor = cursor.object;
+  return cursor.type === 'variable' ? cursor.name : null;
+}
+
+function firstMemberSegment(node: ExpressionNode): string | null {
+  // For `data.position.id`, find the immediate property after the
+  // `data` variable — that's the AG-Grid colId we trigger on
+  // (AG-Grid emits `cellValueChanged` keyed by the top-level field
+  // even when the column dot-walks into a nested object).
+  let cursor: ExpressionNode = node;
+  let last: string | null = null;
+  while (cursor.type === 'member') {
+    last = cursor.property;
+    cursor = cursor.object;
+  }
+  return last;
+}
+
+function stripDiffSuffix(id: string): string {
+  return id.replace(/\.(old|new)$/i, '');
 }
 
 // ─── Predicate builders ────────────────────────────────────────────────────

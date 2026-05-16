@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CellClassParams, ColDef } from 'ag-grid-community';
+import { ExpressionEngine } from '@starui/core';
 import type { CssHandle, ExpressionEngineLike } from '@starui/core';
 import {
   applyCellRulesToDefs,
   buildRowClassPredicate,
+  extractTriggerColumns,
   reinjectAllRules,
 } from './transforms';
 import type { ConditionalRule } from './state';
@@ -232,5 +234,158 @@ describe('conditional-styling transforms', () => {
     const predicate = buildRowClassPredicate(ENGINE, rowRule);
     expect(predicate({ data: { status: 'WARN' } } as never)).toBe(true);
     expect(predicate({ data: { status: 'OK' } } as never)).toBe(false);
+  });
+});
+
+describe('extractTriggerColumns — runtime can fan out scope-column refreshes from any column the expression depends on', () => {
+  const engine = new ExpressionEngine();
+  const triggersOf = (expression: string): Set<string> =>
+    extractTriggerColumns(engine.parse(expression));
+
+  it('captures bare column refs and strips .old / .new diff suffixes so triggers map back to AG-Grid colIds', () => {
+    expect(triggersOf('[price] > 100')).toEqual(new Set(['price']));
+    expect(triggersOf('[price.old] < [price.new]')).toEqual(new Set(['price']));
+    expect(triggersOf('[a.new] + [b] > [c.old]')).toEqual(new Set(['a', 'b', 'c']));
+  });
+
+  it('extracts the top-level field from `data.x` / `data.x.y` chains — AG-Grid emits cellValueChanged keyed by the top-level field', () => {
+    expect(triggersOf('data.status == "WARN"')).toEqual(new Set(['status']));
+    expect(triggersOf('data.position.id != null')).toEqual(new Set(['position']));
+  });
+
+  it('reads through `columns.x` accessors (the diff-aware columns context)', () => {
+    expect(triggersOf('columns.price > 100')).toEqual(new Set(['price']));
+  });
+
+  it('returns an empty set for expressions that depend on no row state (bare literal or cell-only `x` reference)', () => {
+    expect(triggersOf('true')).toEqual(new Set());
+    expect(triggersOf('x > 100')).toEqual(new Set());
+    expect(triggersOf('1 + 2 == 3')).toEqual(new Set());
+  });
+
+  it('descends into binary, unary, ternary, call, and array nodes so triggers from any branch are captured', () => {
+    expect(triggersOf('[a] > 0 && [b] < 0')).toEqual(new Set(['a', 'b']));
+    expect(triggersOf('!([flag] == true)')).toEqual(new Set(['flag']));
+    expect(triggersOf('[a] > 0 ? [b] : [c]')).toEqual(new Set(['a', 'b', 'c']));
+  });
+});
+
+describe('cross-column scope contract — expression independent of paint surface', () => {
+  // End-to-end check for the bug-report scenario:
+  //   rule expression: `[price.old] > [price.new]`
+  //   scope.columns:   ['side']      (the `price` column is NOT in scope)
+  // Contract: when the diff says price ticked down, the `side` cell
+  // must receive the rule's class even though the `side` cell's own
+  // value did not change.
+  const engine = new ExpressionEngine();
+
+  const diffRule = (overrides: Partial<ConditionalRule> = {}): ConditionalRule => ({
+    id: 'price-down-paint-side',
+    name: 'Price down → paint Side',
+    enabled: true,
+    priority: 0,
+    scope: { type: 'cell', columns: ['side'] },
+    expression: '[price.old] > [price.new]',
+    style: {
+      light: { color: '#b91c1c' },
+      dark: { color: '#fecaca' },
+    },
+    ...overrides,
+  });
+
+  const evalSideCell = (rule: ConditionalRule, priceOld: number, priceNew: number) => {
+    // Build the same diff-cache shape the runtime maintains, with a
+    // single `price` diff entry — the rest of the row data is incidental.
+    const node = {} as object;
+    const api = {} as object;
+    const rowDiffs = new Map<string, { oldValue: unknown; newValue: unknown }>();
+    rowDiffs.set('price', { oldValue: priceOld, newValue: priceNew });
+    const byRow = new WeakMap<object, typeof rowDiffs>();
+    byRow.set(node, rowDiffs);
+    const diffCacheByApi = new WeakMap<object, typeof byRow>();
+    diffCacheByApi.set(api, byRow);
+
+    const [side] = applyCellRulesToDefs(
+      [{ colId: 'side' }, { colId: 'price' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+      diffCacheByApi as never,
+    ) as ColDef[];
+
+    const predicate = side.cellClassRules?.['ds-rule-price-down-paint-side'] as
+      | ((p: CellClassParams) => boolean)
+      | undefined;
+    if (typeof predicate !== 'function') {
+      throw new Error('expected function-form predicate for diff expression');
+    }
+    return predicate({
+      value: 'BUY',
+      data: { side: 'BUY', price: priceNew },
+      column: { getColId: () => 'side' },
+      api,
+      node,
+    } as unknown as CellClassParams);
+  };
+
+  it('paints `side` when [price.old] > [price.new] even though `price` is not in scope.columns', () => {
+    expect(evalSideCell(diffRule(), 110, 100)).toBe(true);
+  });
+
+  it('does not paint `side` when the price diff fails the predicate', () => {
+    expect(evalSideCell(diffRule(), 100, 110)).toBe(false);
+  });
+
+  it('paints every scoped column uniformly when expression depends on a non-scoped trigger column', () => {
+    // Same rule, but scope now covers three columns NONE of which appear
+    // in the expression. The predicate must return true on each of them
+    // for the same row state.
+    const rule = diffRule({ scope: { type: 'cell', columns: ['side', 'quantity', 'tag'] } });
+
+    const node = {} as object;
+    const api = {} as object;
+    const rowDiffs = new Map<string, { oldValue: unknown; newValue: unknown }>();
+    rowDiffs.set('price', { oldValue: 110, newValue: 100 });
+    const byRow = new WeakMap<object, typeof rowDiffs>();
+    byRow.set(node, rowDiffs);
+    const diffCacheByApi = new WeakMap<object, typeof byRow>();
+    diffCacheByApi.set(api, byRow);
+
+    const defs = applyCellRulesToDefs(
+      [{ colId: 'side' }, { colId: 'quantity' }, { colId: 'tag' }, { colId: 'price' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+      diffCacheByApi as never,
+    ) as ColDef[];
+
+    const data = { side: 'BUY', quantity: 5, tag: 'X', price: 100 };
+    const verdictFor = (colId: string, value: unknown) => {
+      const colDef = defs.find((d) => d.colId === colId);
+      const predicate = colDef?.cellClassRules?.['ds-rule-price-down-paint-side'] as
+        | ((p: CellClassParams) => boolean)
+        | undefined;
+      if (typeof predicate !== 'function') {
+        throw new Error(`expected predicate on ${colId}`);
+      }
+      return predicate({
+        value,
+        data,
+        column: { getColId: () => colId },
+        api,
+        node,
+      } as unknown as CellClassParams);
+    };
+
+    expect(verdictFor('side', 'BUY')).toBe(true);
+    expect(verdictFor('quantity', 5)).toBe(true);
+    expect(verdictFor('tag', 'X')).toBe(true);
+    // `price` was deliberately left out of scope.columns — its colDef
+    // must NOT carry the rule's cellClassRules at all.
+    const priceDef = defs.find((d) => d.colId === 'price');
+    expect(priceDef?.cellClassRules?.['ds-rule-price-down-paint-side']).toBeUndefined();
+  });
+
+  it('exposes `price` as the trigger for the same expression so the runtime knows to refresh scoped columns when price ticks', () => {
+    const triggers = extractTriggerColumns(engine.parse(diffRule().expression));
+    expect(triggers).toEqual(new Set(['price']));
   });
 });
