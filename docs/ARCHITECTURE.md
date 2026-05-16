@@ -48,7 +48,7 @@ The repo is organized as a stack of layers. A package may import
 ```
                           ┌──────────────────────────────────┐
    Layer 6 — Apps         │ apps/demo-react   demo-angular   │
-                          │ apps/config-admin-web  …         │
+                          │ apps/markets-ui-react-reference  │
                           └──────────────┬───────────────────┘
                                          │
                           ┌──────────────▼───────────────────┐
@@ -442,8 +442,6 @@ ship today:
 | `apps/demo-react` | React | Flagship demo + Playwright E2E target |
 | `apps/demo-angular` | Angular | Angular-parity demo |
 | `apps/demo-configservice-react` | React | Standalone config-service walkthrough |
-| `apps/config-admin-web` | React | Production config admin (uses config-browser) |
-| `apps/config-service-server` | Node | REST backend for the production config mode |
 | `apps/markets-ui-react-reference` | React | Reference composition for downstream apps |
 
 # Import-boundary summary

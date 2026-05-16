@@ -9,7 +9,7 @@ interface ImportMetaEnv {
    * and writes hit IndexedDB. When set, ConfigManager writes go to
    * REST first then mirror to Dexie; reads still come from Dexie.
    *
-   * See `.env.example` and `apps/config-service-server` for setup.
+   * See `.env.example` for setup.
    */
   readonly VITE_CONFIG_SERVICE_URL?: string;
 }

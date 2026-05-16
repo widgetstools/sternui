@@ -76,13 +76,12 @@ packages/
 | `@starui/angular-registry-editor` | Widget-registry editor UI (Angular) |
 | `@starui/angular-config-browser` | Config-row browser/editor (Angular) |
 
-### `apps/` — runnable demos + reference apps (7)
+### `apps/` — runnable demos + reference apps (6)
 
 | App | What it is |
 |---|---|
 | `demo-react` | **Primary dev target.** Config-driven MarketsGrid demo. `npm run dev` |
 | `demo-angular` | Angular parity demo |
-| `config-service-server` | Reference config-service REST server |
 | `fi-trading-reference` | fi-trading-terminal cockpit preserved for regression (React) |
 | `fi-trading-reference-angular` | fi-trading-terminal cockpit, Angular 21 port |
 | `markets-ui-react-reference` | markets-ui framework's React reference scenarios |

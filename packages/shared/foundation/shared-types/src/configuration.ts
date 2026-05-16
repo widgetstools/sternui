@@ -1,14 +1,8 @@
 // Core AppConfigRow schema for the MarketsUI Configuration Service.
 //
-// This is the contract shared between:
-//   - `@starui/config-service` (Dexie / IndexedDB client)
-//   - `apps/config-service-server` (REST / SQLite backend)
-//   - Every consumer that reads or writes component configurations
-//
-// The shape intentionally matches `AppConfigRow` in
-// `@starui/config-service` 1:1 — switching from local to remote
-// means pointing at a base URL; no field translation happens at the
-// boundary.
+// This is the contract shared between `@starui/config-service`
+// (Dexie / IndexedDB client) and every consumer that reads or writes
+// component configurations.
 
 // ============================================================================
 // AppConfigRow
