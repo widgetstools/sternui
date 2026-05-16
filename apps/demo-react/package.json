@@ -20,7 +20,7 @@
     "@starui/grid-react": "file:../../libs/starui-grid-react-0.1.0-feef4908.tgz",
     "@starui/host-wrapper-react": "file:../../libs/starui-host-wrapper-react-0.1.0-2ea4bb62.tgz",
     "@starui/icons-svg": "file:../../libs/starui-icons-svg-1.0.0-4be1519a.tgz",
-    "@starui/markets-grid": "file:../../libs/starui-markets-grid-0.1.0-5a60d2ef.tgz",
+    "@starui/markets-grid": "file:../../libs/starui-markets-grid-0.1.0-4422ef80.tgz",
     "@starui/runtime-browser": "file:../../libs/starui-runtime-browser-0.1.0-72324651.tgz",
     "@starui/runtime-port": "file:../../libs/starui-runtime-port-0.1.0-420f624f.tgz",
     "@starui/shared-types": "file:../../libs/starui-shared-types-1.0.0-393875f1.tgz",
