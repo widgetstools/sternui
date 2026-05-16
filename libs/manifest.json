@@ -1,31 +1,176 @@
 {
-  "@starui/app-shell-react": "starui-app-shell-react-0.1.0.tgz",
-  "@starui/component-host": "starui-component-host-1.0.0.tgz",
-  "@starui/config-browser": "starui-config-browser-1.0.0.tgz",
-  "@starui/config-browser-angular": "starui-config-browser-angular-1.0.0.tgz",
-  "@starui/config-editor-ui": "starui-config-editor-ui-0.1.0.tgz",
-  "@starui/config-service": "starui-config-service-1.0.0.tgz",
-  "@starui/config-service-angular": "starui-config-service-angular-0.1.0.tgz",
-  "@starui/config-service-react": "starui-config-service-react-0.1.0.tgz",
-  "@starui/core": "starui-core-0.1.0.tgz",
-  "@starui/data-services": "starui-data-services-0.1.0.tgz",
-  "@starui/data-services-angular": "starui-data-services-angular-0.1.0.tgz",
-  "@starui/data-services-react": "starui-data-services-react-0.1.0.tgz",
-  "@starui/design-system": "starui-design-system-0.1.0.tgz",
-  "@starui/grid-react": "starui-grid-react-0.1.0.tgz",
-  "@starui/host-wrapper-angular": "starui-host-wrapper-angular-0.1.0.tgz",
-  "@starui/host-wrapper-react": "starui-host-wrapper-react-0.1.0.tgz",
-  "@starui/icons-svg": "starui-icons-svg-1.0.0.tgz",
-  "@starui/markets-grid": "starui-markets-grid-0.1.0.tgz",
-  "@starui/openfin-platform": "starui-openfin-platform-1.0.0.tgz",
-  "@starui/runtime-browser": "starui-runtime-browser-0.1.0.tgz",
-  "@starui/runtime-openfin": "starui-runtime-openfin-0.1.0.tgz",
-  "@starui/runtime-port": "starui-runtime-port-0.1.0.tgz",
-  "@starui/shared-types": "starui-shared-types-1.0.0.tgz",
-  "@starui/ui": "starui-ui-1.0.0.tgz",
-  "@starui/vite-workspace-aliases": "starui-vite-workspace-aliases-1.0.0.tgz",
-  "@starui/widget-sdk": "starui-widget-sdk-1.0.0.tgz",
-  "@starui/widgets-angular": "starui-widgets-angular-1.0.0.tgz",
-  "@starui/widgets-react": "starui-widgets-react-1.0.0.tgz",
-  "@starui/workspace-setup-react": "starui-workspace-setup-react-1.0.0.tgz"
+  "@starui/app-shell-react": {
+    "filename": "starui-app-shell-react-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/component-host": {
+    "filename": "starui-component-host-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/config-browser": {
+    "filename": "starui-config-browser-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/config-browser-angular": {
+    "filename": "starui-config-browser-angular-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/config-editor-ui": {
+    "filename": "starui-config-editor-ui-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/config-service": {
+    "filename": "starui-config-service-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/config-service-angular": {
+    "filename": "starui-config-service-angular-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/config-service-react": {
+    "filename": "starui-config-service-react-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/core": {
+    "filename": "starui-core-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/data-services": {
+    "filename": "starui-data-services-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/data-services-angular": {
+    "filename": "starui-data-services-angular-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/data-services-react": {
+    "filename": "starui-data-services-react-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/design-system": {
+    "filename": "starui-design-system-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/grid-react": {
+    "filename": "starui-grid-react-0.1.0-7c6573dd.tgz",
+    "version": "0.1.0",
+    "sha": "7c6573dd",
+    "packedAt": "2026-05-16T13:50:14.910Z"
+  },
+  "@starui/host-wrapper-angular": {
+    "filename": "starui-host-wrapper-angular-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/host-wrapper-react": {
+    "filename": "starui-host-wrapper-react-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/icons-svg": {
+    "filename": "starui-icons-svg-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/markets-grid": {
+    "filename": "starui-markets-grid-0.1.0-005cc979.tgz",
+    "version": "0.1.0",
+    "sha": "005cc979",
+    "packedAt": "2026-05-16T13:49:52.737Z"
+  },
+  "@starui/openfin-platform": {
+    "filename": "starui-openfin-platform-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/runtime-browser": {
+    "filename": "starui-runtime-browser-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/runtime-openfin": {
+    "filename": "starui-runtime-openfin-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/runtime-port": {
+    "filename": "starui-runtime-port-0.1.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/shared-types": {
+    "filename": "starui-shared-types-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/ui": {
+    "filename": "starui-ui-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/vite-workspace-aliases": {
+    "filename": "starui-vite-workspace-aliases-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/widget-sdk": {
+    "filename": "starui-widget-sdk-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/widgets-angular": {
+    "filename": "starui-widgets-angular-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/widgets-react": {
+    "filename": "starui-widgets-react-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  },
+  "@starui/workspace-setup-react": {
+    "filename": "starui-workspace-setup-react-1.0.0.tgz",
+    "version": null,
+    "sha": null,
+    "packedAt": null
+  }
 }
