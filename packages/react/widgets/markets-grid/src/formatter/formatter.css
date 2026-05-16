@@ -16,85 +16,49 @@
  * legacy `.ds-tb-*` selectors during the transition.
  */
 
-/* ─── Tokens — bind to host theme via [data-theme] cascade ─────── */
+/* ─── Local formatter knobs ───────────────────────────────────────
+ *
+ * Every `--fx-*` token that mapped cleanly to a design-system token
+ * (`--ds-*`) has been inlined at the consumer call site. The handful
+ * that remain here are genuinely formatter-local — either computed
+ * derivations or local-dimension knobs the design-system doesn't
+ * standardise.
+ */
 
 .fx-shell {
-  --fx-bg:           var(--ds-surface-ground);
-  --fx-bg-soft:      var(--ds-surface-primary);
+  /* Sunken surface — mode-dependent: dark sinks below cells (= ground),
+     light sinks below cards (= secondary). Polarity flips per theme. */
   --fx-bg-sunken:    var(--ds-surface-ground);
-  --fx-line:         var(--ds-border-primary);
-  --fx-line-strong:  var(--ds-border-secondary);
-
-  --fx-ink:          var(--ds-text-primary);
-  --fx-ink-soft:     var(--ds-text-muted);
-  --fx-ink-faint:    var(--ds-text-faint);
-
-  /* Active state uses the brand primary (greyish lavender) so the
-   * toolbar reads as part of the same family as every other React
-   * surface (Workspace Setup / Config Browser / grid customizer).
-   * Inactive icons stay monochromatic (muted ink) for density. */
-  --fx-accent:       var(--ds-primary);
-  --fx-accent-fg:    var(--ds-primary-foreground);
-  --fx-accent-soft:  var(--ds-primary-soft);
-  --fx-accent-line:  var(--ds-primary-ring);
+  /* Idle icon colour — slightly lighter than `--ds-text-muted` so dense
+     rows stay scannable; computed via color-mix on the primary ink. */
   --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 64%, transparent);
-  --fx-icon-pop:     var(--ds-text-primary);
-  --fx-icon-glow:    none;
-  --fx-amber:        var(--ds-accent-warning);
-  --fx-amber-soft:   var(--ds-overlay-warning-soft);
-  --fx-amber-line:   var(--ds-overlay-warning-ring);
-  --fx-danger:       var(--ds-accent-negative);
 
-  /* Standard rectangular formatter chrome — locked to the DS 2px
-   * baseline. Pill-shaped or fully-round affordances reach for
-   * `radius.full` directly via inline styles. */
+  /* Formatter-local sizing — not in `--ds-*` tier because they're
+     specific to this toolbar's rhythm. */
   --fx-radius:       2px;
   --fx-radius-lg:    2px;
   --fx-px-tight:     6px;
   --fx-px-comfy:     10px;
   --fx-px-loose:     16px;
-
   --fx-pill-h:       28px;
   --fx-pill-h-lg:    30px;
 
-  --fx-font-sans:    var(--ds-font-sans);
-  --fx-font-mono:    var(--ds-font-mono);
-
-  /* Internal sizing knobs the layouts use — both surfaces share. */
+  /* Internal typography knobs (10/11/13px slots used across modules). */
   --fx-icon:         13px;
   --fx-eyebrow-fs:   10px;
   --fx-label-fs:     10px;
   --fx-readout-fs:   11px;
 
-  font-family: var(--fx-font-sans);
-  color: var(--fx-ink);
-  background: var(--fx-bg);
+  font-family: var(--ds-font-sans);
+  color: var(--ds-text-primary);
+  background: var(--ds-surface-ground);
 }
 
-/* Light theme — ds-* vars already resolve per-theme via [data-theme].
-   Only override fx-* tokens that need light-specific tuning beyond
-   what the ds-* cascade provides. */
 [data-theme='light'] .fx-shell {
-  --fx-bg:           var(--ds-surface-ground);
-  --fx-bg-soft:      var(--ds-surface-primary);
-  --fx-bg-sunken:    var(--ds-surface-secondary);
-  --fx-line:         var(--ds-border-primary);
-  --fx-line-strong:  var(--ds-border-secondary);
-  --fx-ink:          var(--ds-text-primary);
-  --fx-ink-soft:     var(--ds-text-muted);
-  --fx-ink-faint:    var(--ds-text-faint);
-  /* Light theme — same derivation as dark, brand primary still drives
-   * the active state. */
-  --fx-accent:       var(--ds-primary);
-  --fx-accent-fg:    var(--ds-primary-foreground);
-  --fx-accent-soft:  var(--ds-primary-soft);
-  --fx-accent-line:  var(--ds-primary-ring);
-  --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 56%, transparent);
-  --fx-icon-pop:     var(--ds-text-primary);
-  --fx-icon-glow:    none;
-  --fx-amber:        var(--ds-accent-warning);
-  --fx-amber-soft:   var(--ds-overlay-warning-soft);
-  --fx-amber-line:   var(--ds-overlay-warning-ring);
+  /* Sunken polarity flip + tighter idle-icon tone for light mode.
+     Everything else inherits via the --ds-* cascade. */
+  --fx-bg-sunken: var(--ds-surface-secondary);
+  --fx-icon-rest: color-mix(in srgb, var(--ds-text-primary) 56%, transparent);
 }
 
 /* ─── Shell ─────────────────────────────────────────────────────── */
@@ -156,7 +120,7 @@
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  background: var(--fx-bg);
+  background: var(--ds-surface-ground);
 }
 
 /* ─── Module ────────────────────────────────────────────────────── */
@@ -187,7 +151,7 @@
 .fx-shell--vertical .fx-module {
   display: block;
   padding: 14px 18px 16px;
-  border-bottom: 1px solid var(--fx-line);
+  border-bottom: 1px solid var(--ds-border-primary);
 }
 .fx-shell--vertical .fx-module:last-child {
   border-bottom: none;
@@ -198,18 +162,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--fx-font-mono);
+  font-family: var(--ds-font-mono);
   font-size: var(--fx-eyebrow-fs);
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--fx-ink-faint);
+  color: var(--ds-text-faint);
   line-height: 1;
   white-space: nowrap;
   user-select: none;
 }
 .fx-eyebrow__num {
-  color: var(--fx-accent);
+  color: var(--ds-primary);
   font-weight: 600;
 }
 .fx-eyebrow__sep {
@@ -252,7 +216,7 @@
   display: inline-block;
   width: 1px;
   height: 14px;
-  background: var(--fx-line);
+  background: var(--ds-border-primary);
   margin: 0 4px;
   flex-shrink: 0;
 }
@@ -277,7 +241,7 @@
 }
 .fx-scope:hover > svg,
 .fx-popout:hover > svg {
-  color: var(--fx-icon-pop);
+  color: var(--ds-text-primary);
   filter: none;
   opacity: 1;
 }
@@ -288,10 +252,10 @@
   align-items: stretch;
   border-radius: var(--fx-radius);
   overflow: hidden;
-  border: 1.5px solid var(--fx-line-strong);
+  border: 1.5px solid var(--ds-border-secondary);
 }
 .fx-split:hover {
-  border-color: var(--fx-ink);
+  border-color: var(--ds-text-primary);
 }
 .fx-split .fx-pill {
   border: none;
@@ -301,12 +265,12 @@
 }
 .fx-split .fx-pill[data-on='true'],
 .fx-split .fx-pill[aria-pressed='true'] {
-  background: var(--fx-accent);
-  color: var(--fx-accent-fg);
+  background: var(--ds-primary);
+  color: var(--ds-primary-foreground);
   box-shadow: none;
 }
 .fx-split .fx-pill + .fx-pill {
-  border-left: 1.5px solid var(--fx-line-strong);
+  border-left: 1.5px solid var(--ds-border-secondary);
 }
 
 /* ─── Context strip — target/scope segments + column label + lock + history ─ */
@@ -346,8 +310,8 @@
 .fx-shell--vertical .fx-ctx {
   height: 48px;
   padding: 0 18px;
-  border-bottom: 1px solid var(--fx-line);
-  background: var(--fx-bg);
+  border-bottom: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-ground);
   flex-shrink: 0;
   position: sticky;
   top: 0;
@@ -365,10 +329,10 @@
   padding: 0 10px;
   border-radius: var(--fx-radius);
   background: var(--fx-bg-sunken);
-  border: 1px solid var(--fx-line);
-  font-family: var(--fx-font-mono);
+  border: 1px solid var(--ds-border-primary);
+  font-family: var(--ds-font-mono);
   font-size: var(--fx-readout-fs);
-  color: var(--fx-ink);
+  color: var(--ds-text-primary);
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
@@ -384,18 +348,18 @@
   height: 6px;
   /* Fully round indicator — `radius.full` semantics. */
   border-radius: 50%;
-  background: var(--fx-accent);
-  box-shadow: 0 0 6px var(--fx-accent);
+  background: var(--ds-primary);
+  box-shadow: 0 0 6px var(--ds-primary);
   flex-shrink: 0;
   animation: fxLivePulse 1.6s ease-in-out infinite;
 }
 .fx-col[data-disabled='true'] .fx-col__dot {
-  background: var(--fx-ink-faint);
+  background: var(--ds-text-faint);
   box-shadow: none;
   animation: none;
 }
 .fx-col[data-disabled='true'] {
-  color: var(--fx-ink-faint);
+  color: var(--ds-text-faint);
 }
 .fx-col__name {
   overflow: hidden;
@@ -407,26 +371,26 @@
  * inline rename input. The edit pencil is muted until hover so the
  * chip stays clean when the user is just reading the active column. */
 .fx-col--editable {
-  border: 1px solid var(--fx-line);
+  border: 1px solid var(--ds-border-primary);
   cursor: text;
   padding-right: 8px;
   transition: border-color 120ms, background 120ms;
 }
 .fx-col--editable:hover:not(:disabled) {
-  border-color: var(--fx-accent-line);
-  background: color-mix(in srgb, var(--fx-bg-sunken) 60%, var(--fx-accent-soft));
+  border-color: var(--ds-primary-ring);
+  background: color-mix(in srgb, var(--fx-bg-sunken) 60%, var(--ds-primary-soft));
 }
 .fx-col--editable:disabled {
   cursor: not-allowed;
 }
 .fx-col__edit {
-  color: var(--fx-ink-faint);
+  color: var(--ds-text-faint);
   opacity: 0.5;
   flex-shrink: 0;
   transition: color 120ms, opacity 120ms;
 }
 .fx-col--editable:hover:not(:disabled) .fx-col__edit {
-  color: var(--fx-accent);
+  color: var(--ds-primary);
   opacity: 1;
 }
 
@@ -446,21 +410,21 @@
   height: var(--fx-pill-h);
   padding: 0 10px;
   background: transparent;
-  border: 1px solid var(--fx-line);
+  border: 1px solid var(--ds-border-primary);
   border-radius: var(--fx-radius);
-  font-family: var(--fx-font-mono);
+  font-family: var(--ds-font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--fx-accent);
+  color: var(--ds-primary);
   cursor: pointer;
   transition: all 120ms;
   white-space: nowrap;
 }
 .fx-scope:hover {
-  border-color: var(--fx-accent-line);
-  background: var(--fx-accent-soft);
+  border-color: var(--ds-primary-ring);
+  background: var(--ds-primary-soft);
 }
 .fx-scope__swap {
   opacity: 0.5;
@@ -480,11 +444,11 @@
   height: var(--fx-pill-h);
   padding: 0 10px;
   border-radius: var(--fx-radius);
-  background: var(--fx-amber-soft);
-  border: 1px solid var(--fx-amber-line);
-  font-family: var(--fx-font-mono);
+  background: var(--ds-overlay-warning-soft);
+  border: 1px solid var(--ds-overlay-warning-ring);
+  font-family: var(--ds-font-mono);
   font-size: var(--fx-readout-fs);
-  color: var(--fx-amber);
+  color: var(--ds-accent-warning);
   font-variant-numeric: tabular-nums;
   max-width: 240px;
   overflow: hidden;
@@ -496,12 +460,12 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--fx-amber);
+  color: var(--ds-accent-warning);
   opacity: 0.7;
   flex-shrink: 0;
 }
 .fx-preview__val {
-  color: var(--fx-amber);
+  color: var(--ds-accent-warning);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -513,7 +477,7 @@
   width: 1px;
   align-self: center;
   height: 18px;
-  background: color-mix(in srgb, var(--fx-line) 70%, transparent);
+  background: color-mix(in srgb, var(--ds-border-primary) 70%, transparent);
   margin: 0 2px;
   flex-shrink: 0;
 }
@@ -540,10 +504,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--fx-line);
+  border: 1px solid var(--ds-border-primary);
   border-radius: var(--fx-radius);
-  background: var(--fx-bg-soft);
-  color: var(--fx-ink-soft);
+  background: var(--ds-surface-primary);
+  color: var(--ds-text-muted);
   cursor: pointer;
   transition: color 120ms, border-color 120ms, background 120ms;
   z-index: 3;
@@ -556,14 +520,14 @@
   top: 3px;
   bottom: 3px;
   width: 1px;
-  background: var(--fx-line);
+  background: var(--ds-border-primary);
   pointer-events: none;
 }
 
 .fx-popout:hover {
-  color: var(--fx-accent);
-  border-color: var(--fx-accent-line);
-  background: var(--fx-accent-soft);
+  color: var(--ds-primary);
+  border-color: var(--ds-primary-ring);
+  background: var(--ds-primary-soft);
 }
 
 /* ─── Vertical-mode body / scroll container ────────────────────── */
@@ -574,13 +538,13 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: var(--fx-line-strong) transparent;
+  scrollbar-color: var(--ds-border-secondary) transparent;
 }
 .fx-body::-webkit-scrollbar {
   width: 8px;
 }
 .fx-body::-webkit-scrollbar-thumb {
-  background: var(--fx-line-strong);
+  background: var(--ds-border-secondary);
   border-radius: var(--fx-radius);
 }
 .fx-body::-webkit-scrollbar-track {
@@ -591,8 +555,8 @@
 .fx-footer {
   height: 48px;
   padding: 0 18px;
-  border-top: 1px solid var(--fx-line);
-  background: var(--fx-bg);
+  border-top: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-ground);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -612,15 +576,15 @@
   justify-content: space-between;
   gap: 8px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--fx-line);
+  border-bottom: 1px solid var(--ds-border-primary);
   background: var(--fx-bg-sunken);
   -webkit-app-region: drag;
   flex-shrink: 0;
-  font-family: var(--fx-font-mono);
+  font-family: var(--ds-font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--fx-ink-faint);
+  color: var(--ds-text-faint);
   overflow: hidden;
 }
 /* Long gridIds (UUIDs) ellipsize instead of pushing the close button
@@ -637,7 +601,7 @@
   -webkit-app-region: no-drag;
   background: transparent;
   border: none;
-  color: var(--fx-ink-soft);
+  color: var(--ds-text-muted);
   cursor: pointer;
   width: 22px;
   height: 22px;
@@ -648,8 +612,8 @@
   transition: all 120ms;
 }
 .fx-titlebar__close:hover {
-  background: color-mix(in srgb, var(--fx-danger) 18%, transparent);
-  color: var(--fx-danger);
+  background: color-mix(in srgb, var(--ds-accent-negative) 18%, transparent);
+  color: var(--ds-accent-negative);
 }
 
 /* ─── Stagger reveal on popout open ────────────────────────────── */
