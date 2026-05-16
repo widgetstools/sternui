@@ -29,7 +29,12 @@ export function pillClasses(variant: 'icon' | 'text' | 'narrow' = 'icon'): strin
   return [
     // shadcn `<Button size="sm">` baseline equivalent.
     'inline-flex items-center justify-center whitespace-nowrap shrink-0',
-    'h-7 rounded-[3px] [border:1.5px_solid] border-input bg-transparent',
+    // `border-[1.5px]` only sets border-width (Tailwind preflight
+    // gives border-style: solid by default). `border-input` then
+    // applies the pewter colour. Using the CSS `border:` shorthand
+    // would force border-color back to currentColor (= text-foreground)
+    // and shadow the colour utility — that's the bug we just fixed.
+    'h-7 rounded-[3px] border-[1.5px] border-input bg-transparent',
     'text-foreground text-[11px] leading-none gap-1 font-medium cursor-pointer',
     'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
     // Per-variant min-width + padding + (text variant: mono font).

@@ -33,10 +33,12 @@
      rows stay scannable; computed via color-mix on the primary ink. */
   --fx-icon-rest:    color-mix(in srgb, var(--ds-text-primary) 64%, transparent);
 
-  /* Formatter-local sizing — not in `--ds-*` tier because they're
-     specific to this toolbar's rhythm. */
-  --fx-radius:       2px;
-  --fx-radius-lg:    2px;
+  /* Formatter-local sizing — `--fx-radius` tracks the design-system
+     baseline so the toolbar primitives (column label, segmented
+     toggle, popout, destruct) match the 3px corner of the Pill family
+     and every other component in the app. */
+  --fx-radius:       var(--ds-radius-md, 3px);
+  --fx-radius-lg:    var(--ds-radius-md, 3px);
   --fx-px-tight:     6px;
   --fx-px-comfy:     10px;
   --fx-px-loose:     16px;
