@@ -84,21 +84,12 @@
   row-gap: 6px;
   padding: 6px 48px 6px 12px;
   min-height: 48px;
-  background: var(--ds-surface-primary);
+  background: var(--ds-surface-sunken);
   border-bottom: 1px solid var(--ds-border-primary);
   flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-}
-
-[data-theme='light'] .fx-shell--horizontal {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--ds-surface-primary) 92%, var(--ds-surface-secondary)) 0%,
-      var(--ds-surface-primary) 100%);
-  border-bottom-color: color-mix(in srgb, var(--ds-border-primary) 82%, var(--ds-primary) 18%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.88) inset, 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 /* Panel variant — full vertical layout.
