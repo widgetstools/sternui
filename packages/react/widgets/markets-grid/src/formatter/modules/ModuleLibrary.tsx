@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { ChevronDown, LayoutTemplate } from 'lucide-react';
 import { PopoverCompat as Popover, Tooltip } from '@starui/grid-react';
 import { TemplateManager } from '../../TemplateManager';
-import { Module, type Orientation } from '../primitives';
+import { Module, pillClasses, type Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 export function ModuleLibrary({
@@ -86,7 +86,7 @@ export function ModuleLibrary({
             <Tooltip content="Column templates — apply, save, rename, or delete reusable styling presets">
               <button
                 type="button"
-                className="fx-pill"
+                className={pillClasses()}
                 aria-label="Templates"
                 data-testid="templates-menu-trigger"
                 disabled={state.disabled}

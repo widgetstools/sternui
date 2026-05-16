@@ -10,7 +10,7 @@ import {
   Bold, ChevronDown, Italic, Underline,
 } from 'lucide-react';
 import { PopoverCompat as Popover, Tooltip } from '@starui/grid-react';
-import { Hair, Menu, MenuItem, Module, Pill } from '../primitives';
+import { Hair, Menu, MenuItem, Module, Pill, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const FONT_SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -64,7 +64,7 @@ export function ModuleType({
             <button
               disabled={controlDisabled}
               type="button"
-              className="fx-pill fx-pill--text"
+              className={pillClasses('text')}
               aria-label="Font size"
               data-testid="fmt-panel-font-size"
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}

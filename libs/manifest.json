@@ -102,10 +102,10 @@
     "packedAt": "2026-05-16T16:39:59.162Z"
   },
   "@starui/markets-grid": {
-    "filename": "starui-markets-grid-0.1.0-65bbe272.tgz",
+    "filename": "starui-markets-grid-0.1.0-6e5d8989.tgz",
     "version": "0.1.0",
-    "sha": "65bbe272",
-    "packedAt": "2026-05-16T21:04:57.149Z"
+    "sha": "6e5d8989",
+    "packedAt": "2026-05-16T21:11:29.710Z"
   },
   "@starui/openfin-platform": {
     "filename": "starui-openfin-platform-1.0.0-6db62582.tgz",

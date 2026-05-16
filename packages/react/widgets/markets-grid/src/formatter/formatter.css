@@ -257,115 +257,29 @@
   flex-shrink: 0;
 }
 
-/* ─── Pill — generic toggleable button ──────────────────────────── */
+/* `.fx-pill` / `.fx-pill--text` / `.fx-pill--narrow` moved to
+   primitives.tsx as the `pillClasses(variant)` helper. Consumers
+   (Pill component + raw `<button>` popover triggers) apply the
+   same Tailwind class chain so visuals stay in lock-step without
+   the cascade-conflict bug that the formatter.css version had. */
 
-.fx-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: var(--fx-pill-h);
-  min-width: var(--fx-pill-h);
-  padding: 0 6px;
-  /* Flat — no gradient, no shadow, transparent fill. The border is
-   * what defines the chip. */
-  background: transparent;
-  border: 1.5px solid var(--fx-line-strong);
-  border-radius: var(--fx-radius);
-  color: var(--fx-ink);
-  font-family: var(--fx-font-sans);
-  font-size: 11px;
-  cursor: pointer;
-  user-select: none;
-  transition: color 120ms, border-color 120ms, background 120ms;
-  position: relative;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-[data-theme='light'] .fx-pill {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--ds-text-primary) 32%, transparent);
-  box-shadow: none;
-}
-
-.fx-pill > svg,
+/* Shared icon polish for the remaining fx-* chips that still live
+   in CSS (.fx-scope, .fx-popout). */
 .fx-scope > svg,
 .fx-popout > svg {
   display: block;
   flex-shrink: 0;
   color: var(--fx-icon-rest);
-  /* Monochromatic — no drop-shadow glow on icons. */
   filter: none;
   opacity: 0.96;
   stroke-width: 2;
   transition: color 120ms, opacity 120ms;
 }
-
-.fx-pill:hover:not(:disabled) {
-  color: var(--fx-ink);
-  border-color: var(--fx-ink);
-  background: transparent;
-}
-
-.fx-pill:hover:not(:disabled) > svg,
 .fx-scope:hover > svg,
 .fx-popout:hover > svg {
   color: var(--fx-icon-pop);
   filter: none;
   opacity: 1;
-}
-
-[data-theme='light'] .fx-pill:hover:not(:disabled) {
-  background: transparent;
-  border-color: var(--ds-text-primary);
-}
-
-.fx-pill[data-on='true'],
-.fx-pill[aria-pressed='true'] {
-  /* Active = brand-primary fill with primary-foreground glyph so the
-   * toolbar's "this is on" reads in the same colour family as every
-   * other active CTA in the app. */
-  color: var(--fx-accent-fg);
-  border-color: var(--fx-accent);
-  background: var(--fx-accent);
-  box-shadow: none;
-}
-
-.fx-pill[data-on='true'] > svg,
-.fx-pill[aria-pressed='true'] > svg,
-.fx-split .fx-pill[data-on='true'] > svg,
-.fx-split .fx-pill[aria-pressed='true'] > svg {
-  color: var(--fx-accent-fg);
-  filter: none;
-  opacity: 1;
-}
-.fx-pill:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-.fx-pill:disabled > svg {
-  filter: none;
-  opacity: 0.72;
-}
-.fx-pill:focus-visible {
-  outline: 1px solid var(--fx-accent);
-  outline-offset: 1px;
-}
-
-/* Text-content pill — `← .0`, `.0 →`, denominator number. Slightly wider. */
-.fx-pill--text {
-  font-family: var(--fx-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  padding: 0 8px;
-  min-width: 30px;
-}
-
-/* Narrow chevron-only pill — used as the right half of split pills. */
-.fx-pill--narrow {
-  min-width: 18px;
-  padding: 0 3px;
 }
 
 /* Split-pill housing — joins a primary pill + narrow chevron pill. */
