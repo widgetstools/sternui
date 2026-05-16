@@ -10,7 +10,12 @@ import type {
   RowClassParams,
   ValueFormatterParams,
 } from 'ag-grid-community';
-import type { AnyColDef, CssHandle, ExpressionEngineLike } from '@starui/core';
+import type {
+  AnyColDef,
+  CssHandle,
+  ExpressionEngineLike,
+  ExpressionNode,
+} from '@starui/core';
 import { valueFormatterFromTemplate } from '@starui/core';
 import { cssEscapeColId } from '../column-customization/transforms';
 import type {
@@ -511,6 +516,105 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
       buildCssText(rule.id, rule.scope.type, rule.style.light, rule.style.dark, flash, rule.indicator),
     );
   }
+}
+
+// ─── Trigger-column extraction ─────────────────────────────────────────────
+
+/**
+ * Walk a parsed expression AST and collect every column the predicate
+ * depends on. Used by the runtime to know which value changes should
+ * provoke a refresh / re-evaluation of a rule's `scope.columns` — without
+ * this, AG-Grid only re-evaluates `cellClassRules` on the cell whose own
+ * value changed, so a rule like `[price.old] < [price.new]` with scope
+ * `['side','quantity']` would never repaint `side`/`quantity` when
+ * `price` ticks.
+ *
+ * Triggers are stored as the **full dot-path** that AG-Grid uses as the
+ * column id when `field` walks into a nested object (e.g. `field:
+ * 'position.price'` → colId `'position.price'`). This keeps trigger keys
+ * directly comparable against:
+ *   - AG-Grid's `cellValueChanged` event `column.getColId()`
+ *   - the path-keyed diff snapshot maintained by `processTimedActivations`
+ *
+ * Sources of column dependencies (covers the surfaces the editor docs
+ * and the engine's evaluator actually wire up):
+ *   - `[col]` / `[col.old]` / `[col.new]` — `ColumnRefNode` (diff suffix
+ *     stripped; full nested path preserved)
+ *   - `data.x.y.z` — `MemberNode` chain rooted on the `data` variable,
+ *     collapsed into trigger `'x.y.z'`
+ *   - `columns.x.y.z` — same, rooted on the `columns` (diff-aware) variable
+ */
+export function extractTriggerColumns(node: ExpressionNode): Set<string> {
+  const out = new Set<string>();
+  walkForTriggers(node, out);
+  return out;
+}
+
+function walkForTriggers(node: ExpressionNode, out: Set<string>): void {
+  switch (node.type) {
+    case 'columnRef': {
+      const id = stripDiffSuffix(node.columnId);
+      if (id) out.add(id);
+      return;
+    }
+    case 'member': {
+      // Collapse `data.x.y.z` / `columns.x.y.z` into a single dot-path
+      // trigger — this is the same shape AG-Grid emits as the column id
+      // when a colDef's `field` walks into a nested object.
+      const path = pathFromMemberChain(node);
+      if (path !== null) {
+        const cleaned = stripDiffSuffix(path);
+        if (cleaned) out.add(cleaned);
+        return;
+      }
+      walkForTriggers(node.object, out);
+      return;
+    }
+    case 'binary':
+      walkForTriggers(node.left, out);
+      walkForTriggers(node.right, out);
+      return;
+    case 'unary':
+      walkForTriggers(node.operand, out);
+      return;
+    case 'ternary':
+      walkForTriggers(node.condition, out);
+      walkForTriggers(node.consequent, out);
+      walkForTriggers(node.alternate, out);
+      return;
+    case 'call':
+      for (const a of node.args) walkForTriggers(a, out);
+      return;
+    case 'array':
+      for (const el of node.elements) walkForTriggers(el, out);
+      return;
+    case 'literal':
+    case 'variable':
+      return;
+  }
+}
+
+/**
+ * Walk a member-access chain down to its root. If the root is the
+ * `data` or `columns` variable, return the dot-path of property names
+ * (in source order). Returns `null` for any other root — the caller
+ * keeps recursing through the member's `object` in that case, in case
+ * a sub-expression is itself a column-bearing tree.
+ */
+function pathFromMemberChain(node: ExpressionNode): string | null {
+  const parts: string[] = [];
+  let cursor: ExpressionNode = node;
+  while (cursor.type === 'member') {
+    parts.unshift(cursor.property);
+    cursor = cursor.object;
+  }
+  if (cursor.type !== 'variable') return null;
+  if (cursor.name !== 'data' && cursor.name !== 'columns') return null;
+  return parts.join('.');
+}
+
+function stripDiffSuffix(id: string): string {
+  return id.replace(/\.(old|new)$/i, '');
 }
 
 // ─── Predicate builders ────────────────────────────────────────────────────

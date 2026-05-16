@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CellClassParams, ColDef } from 'ag-grid-community';
+import { ExpressionEngine } from '@starui/core';
 import type { CssHandle, ExpressionEngineLike } from '@starui/core';
 import {
   applyCellRulesToDefs,
   buildRowClassPredicate,
+  extractTriggerColumns,
   reinjectAllRules,
 } from './transforms';
 import type { ConditionalRule } from './state';
@@ -232,5 +234,323 @@ describe('conditional-styling transforms', () => {
     const predicate = buildRowClassPredicate(ENGINE, rowRule);
     expect(predicate({ data: { status: 'WARN' } } as never)).toBe(true);
     expect(predicate({ data: { status: 'OK' } } as never)).toBe(false);
+  });
+});
+
+describe('extractTriggerColumns — runtime can fan out scope-column refreshes from any column the expression depends on', () => {
+  const engine = new ExpressionEngine();
+  const triggersOf = (expression: string): Set<string> =>
+    extractTriggerColumns(engine.parse(expression));
+
+  it('captures bare column refs and strips .old / .new diff suffixes so triggers map back to AG-Grid colIds', () => {
+    expect(triggersOf('[price] > 100')).toEqual(new Set(['price']));
+    expect(triggersOf('[price.old] < [price.new]')).toEqual(new Set(['price']));
+    expect(triggersOf('[a.new] + [b] > [c.old]')).toEqual(new Set(['a', 'b', 'c']));
+  });
+
+  it('emits the full dot-path from `data.x.y.z` chains so triggers match AG-Grid colIds for nested fields', () => {
+    expect(triggersOf('data.status == "WARN"')).toEqual(new Set(['status']));
+    expect(triggersOf('data.position.id != null')).toEqual(new Set(['position.id']));
+    expect(triggersOf('data.x.z.price > 100')).toEqual(new Set(['x.z.price']));
+  });
+
+  it('reads through `columns.x.y` accessors with the same full-path semantics (diff-aware columns context)', () => {
+    expect(triggersOf('columns.price > 100')).toEqual(new Set(['price']));
+    expect(triggersOf('columns.position.qty == 0')).toEqual(new Set(['position.qty']));
+  });
+
+  it('handles nested column refs with diff suffixes — strips `.old`/`.new` from the deepest segment only', () => {
+    expect(triggersOf('[x.z.price.old] < [x.z.price.new]')).toEqual(new Set(['x.z.price']));
+    expect(triggersOf('[position.id] != null')).toEqual(new Set(['position.id']));
+  });
+
+  it('returns an empty set for expressions that depend on no row state (bare literal or cell-only `x` reference)', () => {
+    expect(triggersOf('true')).toEqual(new Set());
+    expect(triggersOf('x > 100')).toEqual(new Set());
+    expect(triggersOf('1 + 2 == 3')).toEqual(new Set());
+  });
+
+  it('descends into binary, unary, ternary, call, and array nodes so triggers from any branch are captured', () => {
+    expect(triggersOf('[a] > 0 && [b] < 0')).toEqual(new Set(['a', 'b']));
+    expect(triggersOf('!([flag] == true)')).toEqual(new Set(['flag']));
+    expect(triggersOf('[a] > 0 ? [b] : [c]')).toEqual(new Set(['a', 'b', 'c']));
+  });
+});
+
+describe('cross-column scope contract — expression independent of paint surface', () => {
+  // End-to-end check for the bug-report scenario:
+  //   rule expression: `[price.old] > [price.new]`
+  //   scope.columns:   ['side']      (the `price` column is NOT in scope)
+  // Contract: when the diff says price ticked down, the `side` cell
+  // must receive the rule's class even though the `side` cell's own
+  // value did not change.
+  const engine = new ExpressionEngine();
+
+  const diffRule = (overrides: Partial<ConditionalRule> = {}): ConditionalRule => ({
+    id: 'price-down-paint-side',
+    name: 'Price down → paint Side',
+    enabled: true,
+    priority: 0,
+    scope: { type: 'cell', columns: ['side'] },
+    expression: '[price.old] > [price.new]',
+    style: {
+      light: { color: '#b91c1c' },
+      dark: { color: '#fecaca' },
+    },
+    ...overrides,
+  });
+
+  const evalSideCell = (rule: ConditionalRule, priceOld: number, priceNew: number) => {
+    // Build the same diff-cache shape the runtime maintains, with a
+    // single `price` diff entry — the rest of the row data is incidental.
+    const node = {} as object;
+    const api = {} as object;
+    const rowDiffs = new Map<string, { oldValue: unknown; newValue: unknown }>();
+    rowDiffs.set('price', { oldValue: priceOld, newValue: priceNew });
+    const byRow = new WeakMap<object, typeof rowDiffs>();
+    byRow.set(node, rowDiffs);
+    const diffCacheByApi = new WeakMap<object, typeof byRow>();
+    diffCacheByApi.set(api, byRow);
+
+    const [side] = applyCellRulesToDefs(
+      [{ colId: 'side' }, { colId: 'price' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+      diffCacheByApi as never,
+    ) as ColDef[];
+
+    const predicate = side.cellClassRules?.['ds-rule-price-down-paint-side'] as
+      | ((p: CellClassParams) => boolean)
+      | undefined;
+    if (typeof predicate !== 'function') {
+      throw new Error('expected function-form predicate for diff expression');
+    }
+    return predicate({
+      value: 'BUY',
+      data: { side: 'BUY', price: priceNew },
+      column: { getColId: () => 'side' },
+      api,
+      node,
+    } as unknown as CellClassParams);
+  };
+
+  it('paints `side` when [price.old] > [price.new] even though `price` is not in scope.columns', () => {
+    expect(evalSideCell(diffRule(), 110, 100)).toBe(true);
+  });
+
+  it('does not paint `side` when the price diff fails the predicate', () => {
+    expect(evalSideCell(diffRule(), 100, 110)).toBe(false);
+  });
+
+  it('paints every scoped column uniformly when expression depends on a non-scoped trigger column', () => {
+    // Same rule, but scope now covers three columns NONE of which appear
+    // in the expression. The predicate must return true on each of them
+    // for the same row state.
+    const rule = diffRule({ scope: { type: 'cell', columns: ['side', 'quantity', 'tag'] } });
+
+    const node = {} as object;
+    const api = {} as object;
+    const rowDiffs = new Map<string, { oldValue: unknown; newValue: unknown }>();
+    rowDiffs.set('price', { oldValue: 110, newValue: 100 });
+    const byRow = new WeakMap<object, typeof rowDiffs>();
+    byRow.set(node, rowDiffs);
+    const diffCacheByApi = new WeakMap<object, typeof byRow>();
+    diffCacheByApi.set(api, byRow);
+
+    const defs = applyCellRulesToDefs(
+      [{ colId: 'side' }, { colId: 'quantity' }, { colId: 'tag' }, { colId: 'price' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+      diffCacheByApi as never,
+    ) as ColDef[];
+
+    const data = { side: 'BUY', quantity: 5, tag: 'X', price: 100 };
+    const verdictFor = (colId: string, value: unknown) => {
+      const colDef = defs.find((d) => d.colId === colId);
+      const predicate = colDef?.cellClassRules?.['ds-rule-price-down-paint-side'] as
+        | ((p: CellClassParams) => boolean)
+        | undefined;
+      if (typeof predicate !== 'function') {
+        throw new Error(`expected predicate on ${colId}`);
+      }
+      return predicate({
+        value,
+        data,
+        column: { getColId: () => colId },
+        api,
+        node,
+      } as unknown as CellClassParams);
+    };
+
+    expect(verdictFor('side', 'BUY')).toBe(true);
+    expect(verdictFor('quantity', 5)).toBe(true);
+    expect(verdictFor('tag', 'X')).toBe(true);
+    // `price` was deliberately left out of scope.columns — its colDef
+    // must NOT carry the rule's cellClassRules at all.
+    const priceDef = defs.find((d) => d.colId === 'price');
+    expect(priceDef?.cellClassRules?.['ds-rule-price-down-paint-side']).toBeUndefined();
+  });
+
+  it('exposes `price` as the trigger for the same expression so the runtime knows to refresh scoped columns when price ticks', () => {
+    const triggers = extractTriggerColumns(engine.parse(diffRule().expression));
+    expect(triggers).toEqual(new Set(['price']));
+  });
+});
+
+describe('nested-field contract — dot-path columns flow through the same surfaces as flat columns', () => {
+  // The bug-report sequel: rules referencing nested fields like
+  // `[position.price.old] < [position.price.new]` with scope on an
+  // unrelated nested column (or a flat one). The trigger must be
+  // produced as the full dot-path so it matches AG-Grid's colId, and
+  // the rowDiffs entry must be keyed the same way so the predicate
+  // resolves `.old`/`.new` from own-property writes — not by
+  // accidentally dot-walking the *current* data.
+  const engine = new ExpressionEngine();
+
+  it('produces the dot-path trigger expected to match AG-Grid colId for nested fields', () => {
+    const ast = engine.parse('[position.price.old] < [position.price.new]');
+    expect(extractTriggerColumns(ast)).toEqual(new Set(['position.price']));
+  });
+
+  it('paints a flat scope column when the trigger is a nested-path expression — the cross-column contract holds for nested triggers too', () => {
+    const rule: ConditionalRule = {
+      id: 'nested-trigger-flat-scope',
+      name: 'Nested trigger → flat paint',
+      enabled: true,
+      priority: 0,
+      scope: { type: 'cell', columns: ['side'] },
+      expression: '[position.price.old] > [position.price.new]',
+      style: { light: { color: 'red' }, dark: { color: 'red' } },
+    };
+
+    const node = {} as object;
+    const api = {} as object;
+    // Diff entry keyed by the same dot-path the trigger / colId use.
+    const rowDiffs = new Map<string, { oldValue: unknown; newValue: unknown }>();
+    rowDiffs.set('position.price', { oldValue: 110, newValue: 100 });
+    const byRow = new WeakMap<object, typeof rowDiffs>();
+    byRow.set(node, rowDiffs);
+    const diffCacheByApi = new WeakMap<object, typeof byRow>();
+    diffCacheByApi.set(api, byRow);
+
+    const [side] = applyCellRulesToDefs(
+      [{ colId: 'side' }, { colId: 'position.price' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+      diffCacheByApi as never,
+    ) as ColDef[];
+
+    const predicate = side.cellClassRules?.['ds-rule-nested-trigger-flat-scope'] as
+      | ((p: CellClassParams) => boolean)
+      | undefined;
+    if (typeof predicate !== 'function') {
+      throw new Error('expected function-form predicate for diff expression');
+    }
+    expect(
+      predicate({
+        value: 'BUY',
+        data: { side: 'BUY', position: { price: 100 } },
+        column: { getColId: () => 'side' },
+        api,
+        node,
+      } as unknown as CellClassParams),
+    ).toBe(true);
+  });
+
+  it('returns false for rows missing the nested path entirely — sparse-row safety', () => {
+    const rule: ConditionalRule = {
+      id: 'sparse',
+      name: 'sparse',
+      enabled: true,
+      priority: 0,
+      scope: { type: 'cell', columns: ['side'] },
+      expression: '[position.price.old] > [position.price.new]',
+      style: { light: { color: 'red' }, dark: { color: 'red' } },
+    };
+
+    const node = {} as object;
+    const api = {} as object;
+    // No diff entry for the nested path — row never carried that field.
+    const byRow = new WeakMap<object, Map<string, { oldValue: unknown; newValue: unknown }>>();
+    byRow.set(node, new Map());
+    const diffCacheByApi = new WeakMap<object, typeof byRow>();
+    diffCacheByApi.set(api, byRow);
+
+    const [side] = applyCellRulesToDefs(
+      [{ colId: 'side' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+      diffCacheByApi as never,
+    ) as ColDef[];
+
+    const predicate = side.cellClassRules?.['ds-rule-sparse'] as
+      | ((p: CellClassParams) => boolean)
+      | undefined;
+    if (typeof predicate !== 'function') {
+      throw new Error('expected predicate');
+    }
+    // `[position.price.old]` and `[position.price.new]` both resolve to
+    // null on a sparse row → `null > null` → false. No styling, no crash.
+    expect(
+      predicate({
+        value: 'BUY',
+        data: { side: 'BUY' },
+        column: { getColId: () => 'side' },
+        api,
+        node,
+      } as unknown as CellClassParams),
+    ).toBe(false);
+  });
+
+  it('without a diff entry, `[nested.path]` (no .old/.new) still resolves to the current value via dot-walk on data', () => {
+    // Sanity: a bare `[position.price]` ref reads the live value
+    // through Object.create(data) prototype + getValueByPath dot-walk.
+    // This guards against a regression where someone "optimises"
+    // buildColumnsContextFromDiffs to drop the prototype linkage.
+    const rule: ConditionalRule = {
+      id: 'bare-nested',
+      name: 'bare',
+      enabled: true,
+      priority: 0,
+      scope: { type: 'cell', columns: ['side'] },
+      expression: '[position.price] > 100',
+      style: { light: { color: 'red' }, dark: { color: 'red' } },
+    };
+
+    const [side] = applyCellRulesToDefs(
+      [{ colId: 'side' }],
+      [rule],
+      engine as unknown as ExpressionEngineLike,
+    ) as ColDef[];
+
+    const predicate = side.cellClassRules?.['ds-rule-bare-nested'] as
+      | ((p: CellClassParams) => boolean)
+      | undefined;
+    if (typeof predicate !== 'function') {
+      throw new Error('expected predicate');
+    }
+    expect(
+      predicate({
+        value: 'BUY',
+        data: { side: 'BUY', position: { price: 150 } },
+        column: { getColId: () => 'side' },
+      } as unknown as CellClassParams),
+    ).toBe(true);
+    expect(
+      predicate({
+        value: 'BUY',
+        data: { side: 'BUY', position: { price: 50 } },
+        column: { getColId: () => 'side' },
+      } as unknown as CellClassParams),
+    ).toBe(false);
+    // Missing nested object → predicate returns false rather than
+    // crashing on the dot-walk.
+    expect(
+      predicate({
+        value: 'BUY',
+        data: { side: 'BUY' },
+        column: { getColId: () => 'side' },
+      } as unknown as CellClassParams),
+    ).toBe(false);
   });
 });
