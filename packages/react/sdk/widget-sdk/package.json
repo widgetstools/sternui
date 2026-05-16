@@ -1,7 +1,7 @@
 {
   "name": "@starui/widget-sdk",
   "version": "1.0.0",
-  "description": "Stern Widget SDK — useWidget hook, WidgetHost, PlatformAdapter, extensibility",
+  "description": "Star Widget SDK — useWidget hook, WidgetHost, PlatformAdapter, extensibility",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,12 +34,12 @@
     "typescript": "~5.9.3"
   },
   "keywords": [
-    "stern",
+    "star",
     "widget",
     "sdk",
     "useWidget",
     "platform-adapter"
   ],
-  "author": "Stern Development Team",
+  "author": "Star Development Team",
   "license": "MIT"
 }

@@ -2,7 +2,7 @@
   "name": "marketsui-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "MarketsUI platform monorepo — config-driven UI framework for capital markets trading apps on OpenFin. Consolidates @grid-customizer, markets-ui, fi-trading-terminal, and stern-2.",
+  "description": "MarketsUI platform monorepo — config-driven UI framework for capital markets trading apps on OpenFin. Consolidates @grid-customizer, markets-ui, fi-trading-terminal, and star.",
   "packageManager": "npm@10.9.0",
   "workspaces": [
     "apps/*",

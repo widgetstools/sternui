@@ -12,7 +12,7 @@ const logger = winston.createLogger({
     winston.format.errors({ stack: true }),
     winston.format.json()
   ),
-  defaultMeta: { service: 'stern-config-service' },
+  defaultMeta: { service: 'star-config-service' },
   transports: [
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),

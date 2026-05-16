@@ -112,7 +112,7 @@ function MarketsGridInner<TData = unknown>(
 
   ensureAgGridRegistered();
 
-  // Canonical stern theme (dark/light follows `[data-theme]` on <html>).
+  // Canonical star theme (dark/light follows `[data-theme]` on <html>).
   // Apps can still pass `theme` for one-off overrides, but the default
   // keeps every grid in lockstep with the host's theme attribute.
   const internalTheme = useGridTheme();

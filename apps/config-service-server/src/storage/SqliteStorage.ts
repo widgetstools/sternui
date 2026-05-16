@@ -28,7 +28,7 @@ export class SqliteStorage implements IConfigurationStorage {
   private SQL: any = null;
 
   constructor(dbPath?: string) {
-    this.dbPath = dbPath || process.env.SQLITE_DATABASE_PATH || './data/stern-configs.db';
+    this.dbPath = dbPath || process.env.SQLITE_DATABASE_PATH || './data/star-configs.db';
     this.ensureDirectoryExists();
   }
 

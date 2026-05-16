@@ -4,7 +4,7 @@ declare const fin: any;
 /**
  * Shared "Save Tab As…" wiring for the OpenFin view-tab context menu.
  *
- * Both the base platform (workspace.ts) and the Stern shell (bootstrap.ts)
+ * Both the base platform (workspace.ts) and the Star shell (bootstrap.ts)
  * register their own WorkspacePlatformOverrideCallback. Both also register
  * their own customActions map. To avoid duplicating the rename plumbing in
  * two places, the menu-template injection helper and the action handler

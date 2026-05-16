@@ -30,7 +30,7 @@ export interface DockConfiguratorInputs {
 }
 
 @Component({
-  selector: 'stern-dock-configurator',
+  selector: 'star-dock-configurator',
   standalone: true,
   imports: [CommonModule, TreeNodeComponent, PropertiesPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -154,7 +154,7 @@ export interface DockConfiguratorInputs {
           <!-- Tree list -->
           <div class="flex-1 overflow-auto py-1">
             <ng-container *ngIf="menuItems.length > 0; else emptyState">
-              <stern-tree-node
+              <star-tree-node
                 *ngFor="let item of menuItems; trackBy: trackById"
                 [item]="item"
                 [level]="0"
@@ -162,7 +162,7 @@ export interface DockConfiguratorInputs {
                 [expandedIds]="expandedIds"
                 (onSelect)="setSelected($event)"
                 (onToggleExpand)="handleToggleExpand($event)"
-              ></stern-tree-node>
+              ></star-tree-node>
             </ng-container>
             <ng-template #emptyState>
               <div class="flex flex-col items-center justify-center py-12 text-center px-4">
@@ -188,11 +188,11 @@ export interface DockConfiguratorInputs {
 
         <!-- Right: Properties Panel -->
         <div class="flex-1 overflow-auto">
-          <stern-properties-panel
+          <star-properties-panel
             *ngIf="selectedItem; else noSelection"
             [item]="selectedItem"
             (onUpdate)="handleUpdate($event.id, $event.updates)"
-          ></stern-properties-panel>
+          ></star-properties-panel>
           <ng-template #noSelection>
             <div class="flex items-center justify-center h-full text-muted-foreground text-sm">
               Select an item to edit its properties

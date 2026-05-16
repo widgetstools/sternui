@@ -79,12 +79,12 @@
     "react-dom": "~19.2.5"
   },
   "keywords": [
-    "stern",
+    "star",
     "widgets",
     "blotter",
     "ag-grid",
     "trading"
   ],
-  "author": "Stern Development Team",
+  "author": "Star Development Team",
   "license": "MIT"
 }

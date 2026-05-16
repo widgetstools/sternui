@@ -28,7 +28,7 @@ export class SqliteAuthStorage implements IAuthStorage {
   private SQL: any = null;
 
   constructor(dbPath?: string) {
-    this.dbPath = dbPath || process.env.AUTH_DATABASE_PATH || './data/stern-auth.db';
+    this.dbPath = dbPath || process.env.AUTH_DATABASE_PATH || './data/star-auth.db';
     this.ensureDirectoryExists();
   }
 

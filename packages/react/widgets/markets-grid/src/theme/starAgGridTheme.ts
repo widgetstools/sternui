@@ -1,5 +1,5 @@
 /**
- * Stern AG Grid themes — canonical dark and light variants built on themeQuartz.
+ * Star AG Grid themes — canonical dark and light variants built on themeQuartz.
  *
  * Source of truth lives here in markets-grid; widgets-react re-exports for
  * back-compat. MarketsGrid resolves the right variant internally via
@@ -11,7 +11,7 @@ import { themeQuartz } from 'ag-grid-community';
 
 // Shared typography — both themes use the same font stack and sizes so
 // switching `data-theme` is a colour-only flip.
-const sternTypography = {
+const starTypography = {
   fontFamily:       { googleFont: 'IBM Plex Mono' },
   fontSize:         12,
   headerFontFamily: { googleFont: 'IBM Plex Mono' },
@@ -21,8 +21,8 @@ const sternTypography = {
 // Keys defined in dark MUST be defined in light, and vice versa —
 // otherwise AG Grid can carry the previous theme's value across a
 // `data-theme` swap (param missing → no CSS reset → stale value).
-export const sternDarkTheme = themeQuartz.withParams({
-  ...sternTypography,
+export const starDarkTheme = themeQuartz.withParams({
+  ...starTypography,
   accentColor:           '#59BCC2',
   // 10% darker than the previous `#1B1D1E` baseline — each RGB channel
   // multiplied by 0.9 so the rest of the dark palette keeps its
@@ -46,8 +46,8 @@ export const sternDarkTheme = themeQuartz.withParams({
   wrapperBorderRadius:   2,
 });
 
-export const sternLightTheme = themeQuartz.withParams({
-  ...sternTypography,
+export const starLightTheme = themeQuartz.withParams({
+  ...starTypography,
   accentColor:           '#70A0A9',
   backgroundColor:       '#F8F8F8',
   borderColor:           '#0000001A',

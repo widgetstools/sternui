@@ -19,7 +19,7 @@ import { createApp } from './app.js';
  * mount logic is what we're verifying.
  *
  * Each test gets its own tmpdir for the SQLite db so they don't
- * collide with the dev `data/stern-configs.db` file.
+ * collide with the dev `data/star-configs.db` file.
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

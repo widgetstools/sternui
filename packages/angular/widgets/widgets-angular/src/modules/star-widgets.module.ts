@@ -6,4 +6,4 @@ import { DataProviderEditorComponent } from '../components/data-provider-editor/
   imports: [DockConfiguratorComponent, DataProviderEditorComponent],
   exports: [DockConfiguratorComponent, DataProviderEditorComponent],
 })
-export class SternWidgetsModule {}
+export class StarWidgetsModule {}

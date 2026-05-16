@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
 import type { DockMenuItem } from '@starui/shared-types';
 
 @Component({
-  selector: 'stern-tree-node',
+  selector: 'star-tree-node',
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,7 +72,7 @@ import type { DockMenuItem } from '@starui/shared-types';
           class="absolute left-0 top-0 bottom-0 border-l border-border"
           [style.margin-left.px]="18 + level * 20"
         ></div>
-        <stern-tree-node
+        <star-tree-node
           *ngFor="let child of item.children; trackBy: trackById"
           [item]="child"
           [level]="level + 1"
@@ -80,7 +80,7 @@ import type { DockMenuItem } from '@starui/shared-types';
           [expandedIds]="expandedIds"
           (onSelect)="onSelect.emit($event)"
           (onToggleExpand)="onToggleExpand.emit($event)"
-        ></stern-tree-node>
+        ></star-tree-node>
       </div>
     </ng-container>
   `,

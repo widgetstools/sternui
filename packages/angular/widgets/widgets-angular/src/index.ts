@@ -15,4 +15,4 @@ export { FieldInferenceService } from './services/field-inference.service';
 export type { FieldInferenceState } from './services/field-inference.service';
 
 // Module
-export { SternWidgetsModule } from './modules/stern-widgets.module';
+export { StarWidgetsModule } from './modules/star-widgets.module';

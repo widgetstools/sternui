@@ -24,7 +24,7 @@ import { AgGridAngular } from 'ag-grid-angular';
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
 @Component({
-  selector: 'stern-stomp-form',
+  selector: 'star-stomp-form',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, AgGridAngular],
   providers: [FieldInferenceService],

@@ -17,7 +17,7 @@ export class BrowserAdapter implements PlatformAdapter {
 
   constructor(private baseUrl: string = '') {
     this.instanceId = crypto.randomUUID();
-    this.channel = new BroadcastChannel('stern-widgets');
+    this.channel = new BroadcastChannel('star-widgets');
 
     // Listen for settings results
     this.channel.onmessage = (event) => {
@@ -47,7 +47,7 @@ export class BrowserAdapter implements PlatformAdapter {
     }
 
     const url = `${this.baseUrl}/widget?${params}`;
-    const win = window.open(url, `stern-widget-${widgetId}`, 'width=1200,height=800');
+    const win = window.open(url, `star-widget-${widgetId}`, 'width=1200,height=800');
 
     if (!win) {
       throw new Error('Failed to open widget window (popup blocked?)');
@@ -110,7 +110,7 @@ export class BrowserAdapter implements PlatformAdapter {
     }
 
     const url = `${this.baseUrl}/settings?${params}`;
-    window.open(url, `stern-settings-${screenId}`, 'width=800,height=600');
+    window.open(url, `star-settings-${screenId}`, 'width=800,height=600');
   }
 
   onSettingsResult(handler: (result: unknown) => void): () => void {

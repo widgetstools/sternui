@@ -33,7 +33,7 @@ const PROVIDER_GRADIENT_CLASSES: Record<ProviderType | string, string> = {
 };
 
 @Component({
-  selector: 'stern-provider-list',
+  selector: 'star-provider-list',
   standalone: true,
   imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,

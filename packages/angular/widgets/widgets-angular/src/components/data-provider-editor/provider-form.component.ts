@@ -22,7 +22,7 @@ import { DataProviderService } from '../../services/data-provider.service';
 import { StompFormComponent } from './stomp-form.component';
 
 @Component({
-  selector: 'stern-provider-form',
+  selector: 'star-provider-form',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, StompFormComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,12 +30,12 @@ import { StompFormComponent } from './stomp-form.component';
     <div class="flex flex-col h-full">
       <!-- STOMP uses its own full 3-tab form -->
       <ng-container *ngIf="formData.providerType === 'stomp'; else genericForm">
-        <stern-stomp-form
+        <star-stomp-form
           [name]="formData.name"
           [config]="stompConfig"
           (onChange)="handleConfigChange($event)"
           (onNameChange)="handleFieldChange('name', $event)"
-        ></stern-stomp-form>
+        ></star-stomp-form>
         <!-- Save/cancel footer for STOMP -->
         <div class="border-t bg-card px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
           <span *ngIf="isDirty" class="text-xs text-amber-600 dark:text-amber-400">Unsaved changes</span>

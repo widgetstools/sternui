@@ -12,7 +12,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import type { DockMenuItem } from '@starui/shared-types';
 
 @Component({
-  selector: 'stern-properties-panel',
+  selector: 'star-properties-panel',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,

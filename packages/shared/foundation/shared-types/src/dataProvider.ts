@@ -1,4 +1,4 @@
-// DataProvider configuration types for Stern Trading Platform
+// DataProvider configuration types for Star Trading Platform
 // These configs are stored as UnifiedConfig with componentType='datasource'
 
 /**

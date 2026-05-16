@@ -2,7 +2,7 @@
   "name": "@starui/design-system",
   "version": "0.1.0",
   "private": true,
-  "description": "MarketsUI design system — primitives, semantic tokens, themes, and framework adapters. Consolidates fi-trading-terminal tokens + stern-2 UI wrappers.",
+  "description": "MarketsUI design system — primitives, semantic tokens, themes, and framework adapters. Consolidates fi-trading-terminal tokens + star UI wrappers.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

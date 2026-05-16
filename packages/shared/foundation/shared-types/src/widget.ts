@@ -1,4 +1,4 @@
-// Widget framework types for Stern Widget Framework
+// Widget framework types for Star Widget Framework
 
 /**
  * Entry in the Widget Route Registry.

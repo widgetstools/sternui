@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Theme } from 'ag-grid-community';
-import { sternDarkTheme, sternLightTheme } from './sternAgGridTheme.js';
+import { starDarkTheme, starLightTheme } from './starAgGridTheme.js';
 
 function readDocumentTheme(): 'dark' | 'light' {
   if (typeof document === 'undefined') return 'dark';
@@ -27,5 +27,5 @@ export function useGridTheme(): Theme {
     return () => observer.disconnect();
   }, []);
 
-  return mode === 'light' ? sternLightTheme : sternDarkTheme;
+  return mode === 'light' ? starLightTheme : starDarkTheme;
 }

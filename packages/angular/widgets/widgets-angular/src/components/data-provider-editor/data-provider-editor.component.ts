@@ -12,7 +12,7 @@ import { ProviderListComponent } from './provider-list.component';
 import { ProviderFormComponent } from './provider-form.component';
 
 @Component({
-  selector: 'stern-data-provider-editor',
+  selector: 'star-data-provider-editor',
   standalone: true,
   imports: [CommonModule, ProviderListComponent, ProviderFormComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,13 +32,13 @@ import { ProviderFormComponent } from './provider-form.component';
         </div>
 
         <div class="flex-1 overflow-hidden">
-          <stern-provider-list
+          <star-provider-list
             #providerList
             [userId]="userId"
             [currentProvider]="currentProvider"
             (onSelect)="setCurrentProvider($event)"
             (onDelete)="handleDelete($event)"
-          ></stern-provider-list>
+          ></star-provider-list>
         </div>
 
         <div class="p-3 border-t border-border bg-card">
@@ -59,12 +59,12 @@ import { ProviderFormComponent } from './provider-form.component';
       <!-- Right: Form or placeholder -->
       <div class="flex-1 overflow-hidden">
         <ng-container *ngIf="currentProvider; else noSelection">
-          <stern-provider-form
+          <star-provider-form
             [provider]="currentProvider"
             [userId]="userId"
             (onClose)="currentProvider = null; cdr.markForCheck()"
             (onSave)="onProviderSaved()"
-          ></stern-provider-form>
+          ></star-provider-form>
         </ng-container>
 
         <ng-template #noSelection>

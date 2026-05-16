@@ -8,7 +8,7 @@
  *
  *   1. **REST mode** (default) — talks to a UnifiedConfig REST API at
  *      `<apiBase>/api/v1/configurations`. Suitable when the platform
- *      runs against a shared backend (matches the stern-2 contract).
+ *      runs against a shared backend (matches the star contract).
  *
  *   2. **Local mode** — routes every CRUD op through an injected
  *      `DataProviderLocalBackend`. Useful when the consumer ships an
@@ -166,7 +166,7 @@ export class DataProviderConfigService {
     };
     return {
       configId: provider.providerId,
-      appId: 'stern-platform',
+      appId: 'star-platform',
       userId: storageUserId,
       componentType: COMPONENT_TYPES.DATA_PROVIDER,
       componentSubType,

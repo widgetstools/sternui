@@ -1,4 +1,4 @@
-// @starui/widgets — Stern Widget Components
+// @starui/widgets — Star Widget Components
 
 // ─── Blotter primitives ──────────────────────────
 export { BlotterToolbar } from './blotter/BlotterToolbar.js';
@@ -31,7 +31,7 @@ export type { BlotterDependencies, BlotterProviderProps } from './BlotterProvide
 export type { IBlotterDataProvider, IActionRegistry } from './interfaces.js';
 
 // ─── AG Grid Theme ───────────────────────────────
-export { sternDarkTheme, sternLightTheme, useAgGridTheme } from './theme/index.js';
+export { starDarkTheme, starLightTheme, useAgGridTheme } from './theme/index.js';
 
 // ─── Provider Editor (v2) and Data Provider Selector (v2) ─────────
 // The v1 mirrored editor/selector are gone; consumers import the

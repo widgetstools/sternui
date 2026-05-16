@@ -1,7 +1,7 @@
 {
   "name": "@starui/config-service-server",
   "version": "1.0.0",
-  "description": "Stern Configuration Service — REST API with hierarchical config support",
+  "description": "Star Configuration Service — REST API with hierarchical config support",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {

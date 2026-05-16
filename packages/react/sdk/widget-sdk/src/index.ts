@@ -1,4 +1,4 @@
-// @starui/widget-sdk — Stern Widget Framework SDK
+// @starui/widget-sdk — Star Widget Framework SDK
 
 // ============================================================================
 // Type Definitions

@@ -30,7 +30,7 @@ async function startServer(): Promise<void> {
       }
     }
 
-    logger.info('Starting Stern Configuration Service', {
+    logger.info('Starting Star Configuration Service', {
       environment: process.env.NODE_ENV || 'development',
       port,
       host,
