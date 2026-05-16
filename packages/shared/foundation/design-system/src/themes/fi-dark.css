@@ -1,134 +1,100 @@
 /*
- * FI Design System — Dark Theme
- * Generated from design-system/tokens/semantic.ts
- *
- * Cool charcoal chrome, electric exchange-terminal accents. Warning is
- * restrained orange (no brown / copper). Brand is electric cyan.
+ * FI Design System — Dark Theme (Stockflux SLATE BLUE)
+ * Canonical values: tokens/stockfluxSlate.ts
+ * Prefer @starui/design-system/css (dist/css/theme.css) in new apps.
  */
 
 :root, [data-theme="dark"] {
-  /* ── shadcn/ui overrides ── */
-  --background: 213 30% 6%;          /* #0a0e14 */
-  --foreground: 220 16% 92%;         /* #e6e9ef */
-  --card: 214 26% 10%;               /* #121820 */
-  --card-foreground: 220 16% 92%;
-  --popover: 214 26% 10%;
-  --popover-foreground: 220 16% 92%;
-  --primary: 251 36% 76%;            /* #b5add8 — pale greyish lavender brand */
-  --primary-foreground: 264 25% 12%;
-  --secondary: 215 22% 18%;          /* #242c38 */
-  --secondary-foreground: 216 15% 70%;
-  --muted: 215 24% 14%;              /* #1a212b */
-  --muted-foreground: 220 9% 46%;    /* #6b7280 */
-  --accent: 215 22% 18%;
-  --accent-foreground: 220 16% 92%;
-  --destructive: 351 100% 65%;       /* #ff4d6d */
-  --destructive-foreground: 343 75% 9%;
-  --border: 216 22% 22%;             /* #323b49 */
-  --input: 216 22% 22%;
-  --ring: 251 36% 76%;
-  --radius: 2px;
+  --background: 215 10% 10%;
+  --foreground: 215 10% 94%;
+  --card: 215 9% 13%;
+  --card-foreground: 215 10% 94%;
+  --popover: 215 9% 16%;
+  --popover-foreground: 215 10% 94%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 8% 18%;
+  --secondary-foreground: 215 10% 94%;
+  --muted: 215 8% 15%;
+  --muted-foreground: 215 6% 60%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 354 86% 65%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 8% 21%;
+  --input: 215 8% 21%;
+  --ring: 217 91% 60%;
+  --radius: 3px;
 
-  /* ── Surface ── */
-  --bn-bg:      #0a0e14;
-  --bn-bg1:     #121820;
-  --bn-bg2:     #1a212b;
-  --bn-bg3:     #242c38;
+  --bn-bg:        #171a1d;
+  --bn-bg-sunken: #1e2125;
+  --bn-bg1:       #212429;
+  --bn-bg2:       #2c2f34;
+  --bn-bg3:       #383c42;
+  --bn-bg4:       #4b4f57;
 
-  /* ── Text ── */
-  --bn-t0:      #e6e9ef;
-  --bn-t1:      #a7b0bd;
-  --bn-t2:      #6b7280;
-  --bn-t3:      #4d586a;
+  --bn-t0:      #ebedef;
+  --bn-t1:      #c1c4c9;
+  --bn-t2:      #8f939a;
+  --bn-t3:      #686d73;
+  --bn-t4:      #494c52;
 
-  /* ── Border ── */
-  --bn-border:  #2e3744;
-  --bn-border2: #323b49;
+  --bn-border:  #2c2f34;
+  --bn-border2: #3e4148;
+  --bn-border3: #565a61;
 
-  /* ── Accent (electric exchange-terminal) ── */
-  --bn-green:   #00f5a0;
-  --bn-green2:  #31ffc1;
-  --bn-red:     #ff3366;
-  --bn-red2:    #ff5c85;
-  --bn-amber:   #ff9f1a;    /* restrained orange — warning semantic only */
-  --bn-blue:    #b5add8;    /* PRIMARY BRAND — pale greyish lavender */
-  --bn-blue2:   #c9c2e4;    /* PRIMARY HOVER */
-  --bn-info:    #48e6ff;    /* informational accent */
-  --bn-cyan:    #00e5ff;    /* highlight accent */
-  --bn-purple:  #b56cff;
+  --bn-green:   #2dd4bf;
+  --bn-green2:  #5eead4;
+  --bn-red:     #f25668;
+  --bn-red2:    #ff7484;
+  --bn-amber:   #f5c14b;
+  --bn-blue:    #3b82f6;
+  --bn-blue2:   #60a5fa;
+  --bn-info:    #38bdf8;
+  --bn-cyan:    #00e5ff;
+  --bn-purple:  #af7de8;
 
-  /* ── Actions ── */
-  --bn-buy-bg:   #00f5a0;
-  --bn-sell-bg:  #ff3366;
-  --bn-cta-text: #1a1726;
-  --bn-logo-bg:  #0a0e14;
+  --bn-buy-bg:   #2dd4bf;
+  --bn-sell-bg:  #f25668;
+  --bn-cta-text: #ffffff;
+  --bn-logo-bg:  #171a1d;
 
-  /* ── Interactive states ── */
-  --bn-focus-ring:    #b5add8;
-  --bn-focus-ring-bg: rgba(181,173,216,0.30);
-  --bn-disabled-bg:   #242c38;
-  --bn-disabled-fg:   #4d586a;
+  --bn-focus-ring:    #3b82f6;
+  --bn-focus-ring-bg: rgba(59,130,246,0.13);
+  --bn-disabled-bg:   #383c42;
+  --bn-disabled-fg:   #494c52;
   --bn-hover-overlay: rgba(255,255,255,0.05);
-  --bn-selection:     rgba(181,173,216,0.24);
+  --bn-selection:     rgba(59,130,246,0.20);
 
-  /* ── Overlay tints (badge / fill / chip) ── */
-  --bn-positive-soft: rgba(0,245,160,0.18);
-  --bn-positive-ring: rgba(0,245,160,0.45);
-  --bn-negative-soft: rgba(255,51,102,0.18);
-  --bn-negative-ring: rgba(255,51,102,0.45);
-  --bn-warning-soft:  rgba(255,159,26,0.16);
-  --bn-warning-ring:  rgba(255,159,26,0.38);
-  --bn-info-soft:     rgba(72,230,255,0.16);
-  --bn-info-ring:     rgba(72,230,255,0.40);
-  --bn-neutral-soft:  rgba(107,114,128,0.20);
-  --bn-neutral-ring:  rgba(107,114,128,0.30);
+  --bn-positive-soft: rgba(45,212,191,0.13);
+  --bn-positive-ring: rgba(45,212,191,0.13);
+  --bn-negative-soft: rgba(242,86,104,0.13);
+  --bn-negative-ring: rgba(242,86,104,0.13);
+  --bn-warning-soft:  rgba(245,193,75,0.13);
+  --bn-warning-ring:  rgba(245,193,75,0.13);
+  --bn-info-soft:     rgba(56,189,248,0.13);
+  --bn-info-ring:     rgba(56,189,248,0.13);
 
-  /* ── CVD alternates ── */
-  --bn-cvd-buy:  #7aa6ff;
-  --bn-cvd-sell: #ff9d4e;
-
-  /* ── Typography ── */
-  --fi-sans:  'Geist', 'Inter', system-ui, sans-serif;
-  --fi-mono:  'JetBrains Mono', monospace;
-  --fi-serif: 'Geist', Georgia, serif;
-  --fi-font-2xs: 9px;
-  --fi-font-xs:  10px;
-  --fi-font-sm:  11px;
-  --fi-font-md:  13px;
-  --fi-font-lg:  18px;
-  --fi-font-xl:  20px;
-
-  /* ── Motion ── */
   --fi-t-instant:   80ms cubic-bezier(0.4,0,0.6,1);
-  --fi-t-fast:      150ms ease;
-  --fi-t-normal:    200ms ease;
-  --fi-t-slow:      500ms ease-out;
-  --fi-t-emphasis:  640ms cubic-bezier(0.2,0.8,0.2,1);
+  --fi-t-fast:      140ms cubic-bezier(0.4,0,0.2,1);
+  --fi-t-normal:    220ms cubic-bezier(0.4,0,0.2,1);
+  --fi-t-slow:      420ms cubic-bezier(0.4,0,0.2,1);
   --fi-t-tick:      900ms cubic-bezier(0.25,0.1,0.25,1);
 
-  /* ── Elevation ── */
-  --fi-shadow-card:    0 1px 2px rgba(0,0,0,0.15);
-  --fi-shadow-overlay: 0 4px 12px rgba(0,0,0,0.25);
-  --fi-glow-focus:     0 0 0 2px rgba(181,173,216,0.42), 0 0 28px rgba(181,173,216,0.20);
+  --ob-bid-fill:   rgba(45,212,191,0.16);
+  --ob-ask-fill:   rgba(242,86,104,0.16);
+  --tt-bid-strip:  rgba(45,212,191,0.05);
+  --tt-ask-strip:  rgba(242,86,104,0.05);
 
-  /* ── Order Book / Trade Ticket fills ── */
-  --ob-bid-fill:   rgba(0,245,160,0.20);
-  --ob-ask-fill:   rgba(255,51,102,0.20);
-  --tt-bid-strip:  rgba(181,173,216,0.14);
-  --tt-ask-strip:  rgba(255,51,102,0.16);
+  --scrollbar-thumb: #3e4148;
 
-  /* ── Misc ── */
-  --scrollbar-thumb: #323b49;
-
-  /* ── Legacy aliases ── */
   --fi-bg0: var(--bn-bg);
   --fi-bg1: var(--bn-bg1);
   --fi-bg2: var(--bn-bg2);
   --fi-bg3: var(--bn-bg3);
-  --fi-bg4: var(--bn-bg3);
   --fi-border: var(--bn-border);
   --fi-border2: var(--bn-border2);
-  --fi-border3: var(--bn-border2);
+  --fi-border3: var(--bn-border3);
   --fi-t0: var(--bn-t0);
   --fi-t1: var(--bn-t1);
   --fi-t2: var(--bn-t2);
@@ -142,7 +108,5 @@
   --bn-yellow: var(--bn-amber);
   --fi-cyan: var(--bn-cyan);
   --fi-purple: var(--bn-purple);
-  --fi-title: var(--bn-t0);
-  --fi-col-header: var(--bn-t1);
   --divider: 1px solid var(--bn-border);
 }

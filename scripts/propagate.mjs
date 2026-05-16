@@ -29,13 +29,30 @@
  *
  * Usage
  * -----
- *   npm run propagate                   # pack ALL workspace libraries, sync apps
- *   npm run propagate -- grid-react     # pack just these packages (short or scoped names)
+ *   npm run propagate                       # pack ALL workspace libraries, sync apps
+ *   npm run propagate -- grid-react         # pack just these packages (short or scoped names)
  *   npm run propagate -- @starui/grid-react @starui/markets-grid
- *   npm run propagate -- --dry-run      # show plan, write nothing
- *   npm run propagate -- --gc           # also delete orphaned tarballs in libs/
- *   npm run propagate -- --no-install   # skip the per-app `npm install` step
- *   npm run propagate -- --no-build     # skip per-package build (use existing dist/)
+ *   npm run propagate -- --dry-run          # show plan, write nothing
+ *   npm run propagate -- --gc               # also delete orphaned tarballs in libs/
+ *   npm run propagate -- --no-install       # skip the per-app `npm install` step
+ *   npm run propagate -- --no-build         # skip per-package build (use existing dist/)
+ *   npm run propagate -- --refresh-lockfile # regenerate root package-lock.json if drift found
+ *   npm run propagate -- --skip-drift-check # bypass pre-flight lockfile drift check
+ *
+ * Lockfile drift
+ * --------------
+ * Tarballs in libs/ are integrity-tracked in the root package-lock.json. If
+ * a tarball is overwritten (by the legacy `pack:libs` script, by hand, or by
+ * a partial propagate run that crashed mid-flight) its sha512 drifts away
+ * from what the lockfile records. From then on, `npm ci` and `npm install`
+ * both fail with EINTEGRITY — including the per-app installs that propagate
+ * itself fires, which means propagate can't recover on its own.
+ *
+ * This script's pre-flight pass detects that drift and fails fast with a
+ * named list of mismatched tarballs. Pass `--refresh-lockfile` to fix it in
+ * the same run (deletes + regenerates package-lock.json before packing).
+ * The post-flight root install is a final converge step that absorbs
+ * integrity for any tarball we just repacked.
  *
  * Output
  * ------
@@ -86,6 +103,8 @@ function parseArgs(argv) {
     gc: flags.has('gc'),
     noInstall: flags.has('no-install'),
     noBuild: flags.has('no-build'),
+    refreshLockfile: flags.has('refresh-lockfile'),
+    skipDriftCheck: flags.has('skip-drift-check'),
     help: flags.has('help'),
   };
 }
@@ -282,6 +301,91 @@ function packWithHash(pkg) {
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Lockfile drift detection + recovery
+// ────────────────────────────────────────────────────────────────────────
+
+const LOCKFILE_PATH = join(REPO_ROOT, 'package-lock.json');
+
+function readLockfile() {
+  if (!existsSync(LOCKFILE_PATH)) return null;
+  try { return JSON.parse(readFileSync(LOCKFILE_PATH, 'utf8')); } catch { return null; }
+}
+
+function sha512Base64(path) {
+  return createHash('sha512').update(readFileSync(path)).digest('base64');
+}
+
+/**
+ * Walk package-lock.json. For every entry whose `resolved` points at a
+ * `file:` tarball under libs/, compute the on-disk sha512 and compare to
+ * the recorded `integrity`. Returns mismatches keyed by tarball filename
+ * (one record per filename — same tarball can appear in many lock
+ * entries, all sharing the same integrity).
+ */
+function detectLockfileDrift() {
+  const lock = readLockfile();
+  if (!lock) return [];
+  const seen = new Map(); // filename → { file, expected, actual, reason, refs }
+  const packages = lock.packages ?? {};
+  for (const [pkgKey, entry] of Object.entries(packages)) {
+    const resolved = entry?.resolved;
+    if (typeof resolved !== 'string' || !resolved.startsWith('file:')) continue;
+    // npm lockfileVersion 3 records the resolution as one of:
+    //   file:libs/foo.tgz           (workspace-root-relative)
+    //   file:../../libs/foo.tgz     (workspace-relative from a nested ws)
+    //   file:/abs/path/libs/foo.tgz (absolute, rarer)
+    // Strip the `file:` prefix and then match the trailing `libs/<x>.tgz`.
+    const path = resolved.slice('file:'.length);
+    const m = path.match(/(?:^|\/)libs\/([^/]+\.tgz)$/);
+    if (!m) continue;
+    const file = m[1];
+    const fullPath = join(LIBS_DIR, file);
+    if (!existsSync(fullPath)) {
+      if (!seen.has(file)) {
+        seen.set(file, { file, expected: entry.integrity ?? null, actual: null, reason: 'missing', refs: [] });
+      }
+      seen.get(file).refs.push(pkgKey || '<root>');
+      continue;
+    }
+    const recorded = entry.integrity ?? '';
+    const actual = `sha512-${sha512Base64(fullPath)}`;
+    if (!recorded) continue; // no integrity recorded — npm will compute it; not drift
+    if (recorded !== actual) {
+      if (!seen.has(file)) {
+        seen.set(file, { file, expected: recorded, actual, reason: 'mismatch', refs: [] });
+      }
+      seen.get(file).refs.push(pkgKey || '<root>');
+    }
+  }
+  return [...seen.values()];
+}
+
+function refreshRootLockfile() {
+  if (args.dryRun) {
+    log('lockfile: would regenerate package-lock.json (dry-run)');
+    return;
+  }
+  log('lockfile: regenerating package-lock.json from current libs/ state');
+  // Remove the lockfile only — leave node_modules in place so the
+  // subsequent install is incremental rather than a full reseed.
+  if (existsSync(LOCKFILE_PATH)) unlinkSync(LOCKFILE_PATH);
+  execSync('npm install', { cwd: REPO_ROOT, stdio: 'inherit' });
+}
+
+function syncRootLockfile() {
+  if (args.noInstall) {
+    log('root install: skipped (--no-install) — lockfile may still reflect pre-pack integrity');
+    return;
+  }
+  if (args.dryRun) {
+    log('root install: would run `npm install` to converge root lockfile (dry-run)');
+    return;
+  }
+  log('root install: converging root lockfile with newly-packed tarballs');
+  execSync('npm install --no-audit --no-fund', { cwd: REPO_ROOT, stdio: 'inherit' });
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // Manifest
 // ────────────────────────────────────────────────────────────────────────
 
@@ -453,6 +557,32 @@ function main() {
     }
   }
 
+  // Pre-flight: detect lockfile drift BEFORE we pack anything. Drift in any
+  // referenced tarball will make the per-app `npm install` step at the end
+  // abort with EINTEGRITY — even for tarballs we aren't repacking this run.
+  // Better to fail (or self-heal) up front than half-way through.
+  if (!args.skipDriftCheck) {
+    const drift = detectLockfileDrift();
+    if (drift.length > 0) {
+      log(`lockfile drift: ${drift.length} tarball(s) in libs/ no longer match package-lock.json integrity`);
+      for (const d of drift) {
+        const detail = d.reason === 'missing' ? '(tarball missing on disk)' : '(sha512 mismatch)';
+        log(`  - ${d.file} ${detail}`);
+      }
+      if (args.refreshLockfile) {
+        refreshRootLockfile();
+      } else {
+        die(
+          'package-lock.json is stale relative to libs/. Re-run with `--refresh-lockfile`\n' +
+          '       to regenerate the lockfile in this same propagate run, or fix the drift\n' +
+          '       manually before re-running. Use `--skip-drift-check` to bypass this guard.',
+        );
+      }
+    } else {
+      log('lockfile drift: none');
+    }
+  }
+
   const packages = discoverPackages();
   const targets = selectTargets(packages, args.names);
   if (targets.length === 0) {
@@ -513,7 +643,28 @@ function main() {
     }
   }
 
+  // Per-app `npm install` updates the root lockfile in workspace mode, but
+  // running an explicit root-level install at the end is the cheapest way
+  // to guarantee the lockfile is fully consistent — including for any
+  // tarball we just rewrote whose integrity hasn't been re-recorded.
+  // Idempotent when there's nothing to do.
+  if (Object.keys(updates).length > 0) {
+    syncRootLockfile();
+  }
+
   if (args.gc) gcOrphanedTarballs(manifest, appPkgPaths);
+
+  // Final assertion: drift must be clean by the end of the run. If a
+  // refresh was promised but didn't actually take, surface it loudly
+  // rather than letting CI discover it later.
+  if (!args.skipDriftCheck && !args.dryRun) {
+    const drift = detectLockfileDrift();
+    if (drift.length > 0) {
+      log(`WARNING: lockfile drift still present after propagate (${drift.length} tarball(s)):`);
+      for (const d of drift) log(`  - ${d.file} (${d.reason})`);
+      log('         `npm ci` from a fresh clone will fail. Investigate before committing.');
+    }
+  }
 
   log(`done — packed ${Object.keys(updates).length}, ${affectedApps.size} app(s) synced`);
 }

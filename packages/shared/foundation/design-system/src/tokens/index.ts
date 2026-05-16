@@ -3,6 +3,11 @@ export {
 } from './primitives';
 export { semantic, dark, light, shared } from './semantic';
 export type { ColorScheme } from './semantic';
+export {
+  stockfluxSlateHex,
+  stockfluxSlateShadcn,
+  stockfluxSlateAgGrid,
+} from './stockfluxSlate';
 export { componentTokens } from './components';
 export { controls } from './controls';
 export type { ControlSize, ControlTier } from './controls';

@@ -6,11 +6,18 @@ const requiredKeys: ReadonlyArray<keyof ColorScheme> = [
   'state', 'overlay', 'cvd', 'scrollbar', 'elevation',
 ];
 
-const requiredPrimaryKeys = ['color', 'hover', 'foreground', 'soft', 'ring'] as const;
-const requiredSurfaceKeys = ['ground', 'primary', 'secondary', 'tertiary', 'quaternary'] as const;
+const requiredPrimaryKeys = [
+  'color', 'hover', 'display', 'highlight', 'pressed', 'foreground', 'soft', 'ring',
+] as const;
+const requiredSurfaceKeys = [
+  'ground', 'sunken', 'primary', 'secondary', 'tertiary', 'quaternary', 'muted', 'popover',
+] as const;
 const requiredAccentKeys = [
   'positive', 'positiveHover', 'negative', 'negativeHover',
   'warning', 'info', 'infoHover', 'highlight', 'purple',
+] as const;
+const requiredTradeKeys = [
+  'flat', 'positiveStrip', 'negativeStrip', 'bidFill', 'askFill',
 ] as const;
 const requiredCvdKeys = ['buy', 'sell'] as const;
 
@@ -34,6 +41,15 @@ describe('ColorScheme contract', () => {
       it.each(requiredAccentKeys)('accent.%s is a non-empty string', (key) => {
         expect(typeof scheme.accent[key]).toBe('string');
         expect(scheme.accent[key].length).toBeGreaterThan(0);
+      });
+
+      it.each(requiredTradeKeys)('trade.%s is a non-empty string', (key) => {
+        expect(typeof scheme.trade[key]).toBe('string');
+        expect(scheme.trade[key].length).toBeGreaterThan(0);
+      });
+
+      it('chart has five entries', () => {
+        expect(scheme.chart).toHaveLength(5);
       });
 
       it.each(requiredCvdKeys)('cvd.%s is a non-empty string', (key) => {

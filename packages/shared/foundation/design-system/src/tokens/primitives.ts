@@ -2,103 +2,93 @@
 //  FI Design System — Primitive Tokens
 //  Raw palette, type scale, spacing, radius, opacity, timing.
 //
-//  Imported direction from fi-trading-terminal/design-system:
-//    - Dark mode keeps high-chroma exchange accents.
-//    - Light mode follows the cool-clinical reference: airy, neutral,
-//      and cobalt-accented.
-//    - No earthy tones, no browns. Warning is pure orange, not copper.
-//    - Cool-neutral charcoal for dark chrome and cool off-white for
-//      light chrome. No warm cream anywhere.
+//  Blue-slate (Stockflux SLATE) palette:
+//    - Industrial-cool pewter chrome with a sapphire brand accent.
+//    - Trading semantics are palette-locked (mint-teal up / rose down)
+//      per Stockflux-design/palettes.css.
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
-  // ── Cool clinical (light chrome) ──────────────────────────
-  // Reference direction: canvas #F8F9FB, crisp white cells/cards,
-  // cobalt primary, and rationed semantic color.
+  // ── Cool paper (light chrome) — Stockflux slate-light sf-bg scale
   paper: {
-    50:  '#ffffff',  // card / grid cells
-    100: '#f8f9fb',  // app ground
-    200: '#f3f5f8',  // raised header / hover
-    300: '#edf1f5',  // pressed / pinned panels
-    400: '#e5eaf1',  // accent band
-    500: '#d8dee8',  // border primary
-    600: '#c4ccd8',  // border secondary
+    50:  '#ffffff',  // sf-bg-1 / sf-bg-2 card
+    75:  '#f8fafc',  // AG Grid odd-row only (not sf-bg-*)
+    100: '#f1f3f6',  // sf-bg ground
+    200: '#e9ecf0',  // sf-bg-3
+    300: '#dde1e7',  // sf-bg-4
+    400: '#c8cdd5',  // sf-bg-5
+    500: '#d4d8de',  // sf-border
+    600: '#b6bbc4',  // sf-border-2
+    700: '#8e94a0',  // sf-border-3
   },
-  // ── Clinical graphite (light text) ────────────────────────
-  // Cool slate text, never pure black; readable without harshness.
+  // ── Pewter ink (light text) — Stockflux slate-light sf-t scale
   ink: {
-    0:   '#111827',  // primary body
-    1:   '#4b5563',  // secondary
-    2:   '#6b7280',  // muted
-    3:   '#9aa3af',  // faint / UI
+    0:   '#18222f',
+    1:   '#2f3a4a',
+    2:   '#525d6c',
+    3:   '#7a8392',
+    4:   '#abb1bb',
   },
-  // ── Cool charcoal (dark chrome) ───────────────────────────
-  // Source: fi-trading-terminal charcoal 700..975 dark scale.
+  // ── Pewter graphite (dark chrome) — Stockflux slate-dark sf-bg scale
   graphite: {
-    975: '#0a0e14',  // ground
-    950: '#121820',  // card
-    900: '#1a212b',  // hover / header
-    850: '#242c38',  // pressed
-    800: '#242c38',  // accent band
-    700: '#323b49',  // border secondary
-    600: '#2e3744',  // border primary
-    500: '#4d586a',  // dark faint text
-    400: '#6b7280',  // dark muted
-    300: '#a7b0bd',  // dark secondary
-    50:  '#e6e9ef',  // dark primary text
+    975: '#171a1d',
+    960: '#1e2125',
+    950: '#212429',
+    900: '#2c2f34',
+    850: '#383c42',
+    800: '#4b4f57',
+    700: '#3e4148',
+    600: '#2c2f34',
+    500: '#686d73',
+    400: '#8f939a',
+    300: '#c1c4c9',
+    50:  '#ebedef',
+    450: '#494c52',  // sf-t-4 disabled
+    650: '#565a61',  // sf-border-3
   },
-  // ── Teal / positive ──────────────────────────────────────
-  // Exchange-terminal teal-green. Dark mode goes electric; light mode
-  // is desaturated for comfort while staying contrast-safe.
+  // ── Teal / positive (Stockflux palette-locked trade up) ──
   teal: {
-    light:    '#1f7a5c',
-    lightHov: '#176247',
-    dark:     '#00f5a0',
-    darkHov:  '#31ffc1',
+    light:    '#0f766e',
+    lightHov: '#0a5d56',
+    dark:     '#2dd4bf',
+    darkHov:  '#5eead4',
   },
-  // ── Red / negative ───────────────────────────────────────
-  // Vivid exchange red. Light mode is softened for reduced visual vibration.
+  // ── Red / negative (Stockflux palette-locked trade down) ──
   rose: {
-    light:    '#a43f4b',
-    lightHov: '#84313b',
-    dark:     '#ff3366',
-    darkHov:  '#ff5c85',
+    light:    '#be1f43',
+    lightHov: '#9e1838',
+    dark:     '#f25668',
+    darkHov:  '#ff7484',
   },
-  // ── Orange / warning ─────────────────────────────────────
-  // Pure orange — not copper, not brown, no yellow character.
+  // ── Warning (Stockflux palette-locked) ──
   amber: {
-    light:    '#8a5f1f',
-    dark:     '#ff9f1a',
+    light:    '#b27607',
+    dark:     '#f5c14b',
   },
-  // ── Brand / info ─────────────────────────────────────────
-  // Primary brand: greyish lavender — separate per-mode shades chosen
-  // for AA contrast against each surface tier. Light = deeper lavender
-  // on white; dark = paler lavender on charcoal. Hover states walk one
-  // step in the direction that increases contrast.
+  // ── Brand / sapphire (sf-teal naming in Stockflux) ──
   brand: {
-    light:    '#6b6498',  // deep greyish lavender — CTA on white
-    lightHov: '#544e7c',  // darker on hover (light mode)
-    dark:     '#b5add8',  // pale greyish lavender — CTA on charcoal
-    darkHov:  '#c9c2e4',  // lighter on hover (dark mode)
+    light:    '#2563eb',
+    lightHov: '#1d4ed8',
+    lightLo:  '#1e40af',
+    dark:     '#3b82f6',
+    darkHov:  '#60a5fa',
+    darkHi:   '#93c5fd',
   },
-  // ── Info / highlight ─────────────────────────────────────
-  // Info is a semantic status/link accent, separate from primary brand.
-  // Highlight is brighter decorative emphasis.
+  // ── Info (Stockflux palette-locked sf-info) ──
   cyan: {
-    light:          '#3d6f99',
-    lightHov:       '#315a7c',
-    dark:           '#48e6ff',
-    darkHov:        '#7eeeff',
+    light:          '#0e7490',
+    lightHov:       '#0c6378',
+    dark:           '#38bdf8',
+    darkHov:        '#7dd3fc',
     highlightLight: '#06b6d4',
     highlightDark:  '#00e5ff',
   },
-  // ── Purple / tertiary ────────────────────────────────────
+  // ── Purple / chart accent (Stockflux slate chart-4) ──
   purple: {
-    light:    '#6650b6',
-    dark:     '#b56cff',
+    light:    '#7631c4',
+    dark:     '#af7de8',
   },
-  // ── CVD-safe alternates ──────────────────────────────────
-  // Deuteranopia/protanopia-safe mapping: blue=buy, orange=sell.
+  // ── CVD-safe alternates ──
   cvd: {
     buyLight:  '#1e4fb8',
     sellLight: '#c2410c',
@@ -109,33 +99,34 @@ export const colors = {
 
 export const typography = {
   fontFamily: {
-    sans:  "'Geist', 'Inter', system-ui, sans-serif",
-    mono:  "'JetBrains Mono', monospace",
+    sans:  "'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif",
+    mono:  "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace",
     serif: "'Geist', Georgia, serif",
-    sansDark: "'Geist', 'Inter', system-ui, sans-serif",
-    monoDark: "'JetBrains Mono', monospace",
+    sansDark: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif",
+    monoDark: "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace",
   },
   fontSize: {
-    '2xs': '9px',
-    xs:    '10px',   // column headers, badges, timestamps, captions
-    sm:    '11px',   // body text, table cells, data values
-    md:    '13px',   // section titles, nav tabs
-    lg:    '18px',   // KPI headline numbers
-    xl:    '20px',   // card headers
-    '2xl': '20px',   // widget headlines
-    '3xl': '26px',   // KPI numbers
-    '4xl': '36px',   // hero
+    '2xs': '10px',
+    xs:    '11px',
+    sm:    '12px',
+    md:    '13px',
+    lg:    '14px',
+    xl:    '16px',
+    '2xl': '20px',
+    '3xl': '28px',
+    '4xl': '40px',
+    '5xl': '56px',
   },
   fontWeight: {
     regular:  400,
-    book:     450,   // optical weight for small body text
+    book:     450,
     medium:   500,
     semibold: 600,
     bold:     700,
   },
   letterSpacing: {
     tight:   '-0.02em',
-    snug:    '-0.01em',
+    snug:    '-0.005em',
     normal:  '0',
     wide:    '0.02em',
     wider:   '0.04em',
@@ -147,6 +138,10 @@ export const typography = {
     snug:    1.35,
     normal:  1.5,
     relaxed: 1.65,
+  },
+  fontVariantNumeric: {
+    tabular: 'tabular-nums',
+    lining:  'lining-nums',
   },
 } as const;
 
@@ -166,24 +161,11 @@ export const spacing = {
   10:  40,
 } as const;
 
-// Design-system radius scale.
-//
-// Standard rectangular components (buttons, inputs, cards, panels,
-// tooltips, popovers, badges, table rows, etc.) all land on the same
-// 2px baseline — `sm`, `md`, and `lg` resolve to the same value so a
-// component asking for "medium" radius doesn't accidentally read as
-// rounder than its peers. Cases that legitimately need higher radii
-// (skeleton loaders, banners, fully-rounded shapes) opt in via `xl`
-// or `full`.
-//
-// Inherently round / pill-shaped controls — pills, avatars, checkbox
-// ticks, toggle-switch tracks + knobs, radio buttons, progress bar
-// caps — should reach for `radius.full` directly.
 export const radius = {
   none: '0px',
-  sm:   '2px',
-  md:   '2px',
-  lg:   '2px',
+  sm:   '3px',
+  md:   '3px',
+  lg:   '3px',
   xl:   '6px',
   full: '9999px',
 } as const;
@@ -197,9 +179,6 @@ export const opacity = {
   solid:  1.0,
 } as const;
 
-// Motion — tuned for data clarity. `tickFlash` is the signature
-// price-cell pulse; never override it below 600ms or users will
-// miss the flash during a fast tape.
 export const transition = {
   instant:   '80ms cubic-bezier(0.4,0,0.6,1)',
   fast:      '140ms cubic-bezier(0.4,0,0.2,1)',
@@ -211,9 +190,9 @@ export const transition = {
 
 export const shadow = {
   none: 'none',
-  sm:   '0 1px 2px rgba(15,23,42,0.08)',
-  md:   '0 1px 2px rgba(15,23,42,0.06), 0 10px 28px rgba(15,23,42,0.10)',
-  lg:   '0 4px 12px rgba(0,0,0,0.25)',
+  sm:   '0 1px 2px rgba(12,29,48,0.06)',
+  md:   '0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset',
+  lg:   '0 12px 32px rgba(12,29,48,0.12), 0 1px 0 rgba(255,255,255,0.6) inset',
 } as const;
 
 export const primitives = {

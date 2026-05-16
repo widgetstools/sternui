@@ -31,7 +31,11 @@ export type { BlotterDependencies, BlotterProviderProps } from './BlotterProvide
 export type { IBlotterDataProvider, IActionRegistry } from './interfaces.js';
 
 // ─── AG Grid Theme ───────────────────────────────
-export { starDarkTheme, starLightTheme, useAgGridTheme } from './theme/index.js';
+// Theme objects live in `@starui/design-system/adapters/ag-grid` —
+// import `agGridDarkTheme` / `agGridLightTheme` from there directly.
+// This hook still reads the runtime `[data-theme]` and returns the
+// matching theme.
+export { useAgGridTheme } from './theme/index.js';
 
 // ─── Provider Editor (v2) and Data Provider Selector (v2) ─────────
 // The v1 mirrored editor/selector are gone; consumers import the
