@@ -131,7 +131,7 @@ export function ModuleEditorFilter({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[160px]">
+          <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
             <DropdownMenuItem
               onSelect={() => actions.setCellEditorKind(undefined)}
               data-testid="fmt-editor-menu-none"
@@ -231,7 +231,7 @@ export function ModuleEditorFilter({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[180px]">
+          <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
             <DropdownMenuItem
               onSelect={() => actions.setFilterPrimaryKind(undefined)}
               data-testid="fmt-filter-menu-none"

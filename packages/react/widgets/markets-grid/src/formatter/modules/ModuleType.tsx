@@ -78,7 +78,7 @@ export function ModuleType({
             </button>
           </Tooltip>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[120px]">
+        <DropdownMenuContent align="start" className="fx-menu min-w-[120px]">
           {FONT_SIZES.map((sz) => (
             <DropdownMenuItem
               key={sz}

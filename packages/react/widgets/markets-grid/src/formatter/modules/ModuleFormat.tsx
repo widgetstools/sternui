@@ -88,7 +88,7 @@ export function ModuleFormat({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[160px]">
+          <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
             {Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => (
               <DropdownMenuItem
                 key={key}
@@ -181,7 +181,7 @@ export function ModuleFormat({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[180px]">
+          <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
             {TICK_MENU.map((m) => {
               const active = currentTickToken(vft) === m.token;
               return (
