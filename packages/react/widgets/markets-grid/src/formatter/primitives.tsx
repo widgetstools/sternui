@@ -15,6 +15,36 @@ import { cn, Tooltip } from '@starui/grid-react';
 export type Orientation = 'horizontal' | 'vertical';
 
 // ─── Pill — generic toggleable button ─────────────────────────────
+//
+// `pillClasses(variant)` is exported as a shared Tailwind class chain
+// so raw `<button>` consumers (e.g. PopoverTrigger children that need
+// their own ref/onMouseDown wiring) can apply the same styling as the
+// Pill component without duplicating the class string. Both Pill and
+// every raw consumer resolve their visuals through the same chain →
+// design-system tokens → `@starui/design-system`.
+
+export function pillClasses(variant: 'icon' | 'text' | 'narrow' = 'icon'): string {
+  // Note: matches what Pill emits below. Any change here ripples to
+  // every raw `<button>` that uses it; keep in sync.
+  return [
+    // shadcn `<Button size="sm">` baseline equivalent.
+    'inline-flex items-center justify-center whitespace-nowrap shrink-0',
+    'h-7 rounded-[3px] [border:1.5px_solid] border-input bg-transparent',
+    'text-foreground text-[11px] leading-none gap-1 font-medium cursor-pointer',
+    'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
+    // Per-variant min-width + padding + (text variant: mono font).
+    variant === 'icon' && 'min-w-7 px-1.5',
+    variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
+    variant === 'narrow' && 'min-w-[18px] px-[3px]',
+    // Rest hover — darken border, keep transparent fill.
+    'hover:bg-transparent hover:text-foreground hover:border-foreground/60',
+    // Active — brand-primary fill (matches every other active CTA).
+    'data-[on=true]:bg-primary data-[on=true]:text-primary-foreground data-[on=true]:border-primary',
+    'data-[on=true]:hover:bg-primary data-[on=true]:hover:border-primary',
+    // Focus ring — 1px brand outline.
+    'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
+  ].filter(Boolean).join(' ');
+}
 
 export interface PillProps {
   active?: boolean;
@@ -59,25 +89,7 @@ export function Pill({
       aria-label={rest['aria-label'] ?? tooltip}
       aria-pressed={typeof active === 'boolean' ? active : undefined}
       data-on={active ? 'true' : undefined}
-      className={cn(
-        // Reset shadcn `size="sm"` chrome that conflicts: keep height,
-        // override radius/padding/text/gap to match the legacy pill.
-        'rounded-[3px] [border:1.5px_solid] border-input',
-        'text-foreground text-[11px] leading-none gap-1 shrink-0 font-medium',
-        'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
-        // Per-variant min-width + padding + (text variant: mono font).
-        variant === 'icon' && 'min-w-7 px-1.5',
-        variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
-        variant === 'narrow' && 'min-w-[18px] px-[3px]',
-        // Rest hover — darken border, keep transparent fill.
-        'hover:bg-transparent hover:text-foreground hover:border-foreground/60',
-        // Active — brand-primary fill (matches every other active CTA).
-        'data-[on=true]:bg-primary data-[on=true]:text-primary-foreground data-[on=true]:border-primary',
-        'data-[on=true]:hover:bg-primary data-[on=true]:hover:border-primary',
-        // Focus ring — 1px brand outline, mirrors `fx-pill:focus-visible`.
-        'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
-        className,
-      )}
+      className={cn(pillClasses(variant), className)}
       onMouseDown={(e) => {
         // Mousedown-driven so popovers / focus traps don't eat the click.
         e.preventDefault();

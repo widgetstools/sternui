@@ -11,7 +11,7 @@ import {
   PopoverTrigger as RadixPopoverTrigger,
   Tooltip,
 } from '@starui/grid-react';
-import { Hair, Module } from '../primitives';
+import { Hair, Module, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 export function ModulePaint({
@@ -34,7 +34,7 @@ export function ModulePaint({
         onChange={(c) => actions.setTextColor(c)}
         compact
         title="Text color"
-        triggerClassName="fx-pill"
+        triggerClassName={pillClasses()}
       />
       <ColorPickerPopover
         disabled={disabled}
@@ -43,7 +43,7 @@ export function ModulePaint({
         onChange={(c) => actions.setBgColor(c)}
         compact
         title="Fill color"
-        triggerClassName="fx-pill"
+        triggerClassName={pillClasses()}
       />
 
       <Hair />
@@ -55,7 +55,7 @@ export function ModulePaint({
               type="button"
               disabled={disabled}
               aria-label="Cell borders"
-              className="fx-pill"
+              className={pillClasses()}
               onMouseDown={(e) => { e.preventDefault(); }}
             >
               <SquareDashed size={13} strokeWidth={1.75} />

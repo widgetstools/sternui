@@ -31,7 +31,7 @@ import {
   type CellEditorKind,
   type FilterKind,
 } from '@starui/grid-react';
-import { Hair, Menu, MenuItem, MenuSep, Module, Pill, SplitPill } from '../primitives';
+import { Hair, Menu, MenuItem, MenuSep, Module, Pill, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const SELECT_KINDS: ReadonlySet<CellEditorKind> = new Set([
@@ -119,7 +119,7 @@ export function ModuleEditorFilter({
                 type="button"
                 disabled={moduleDisabled}
                 aria-label="Cell editor menu"
-                className="fx-pill fx-pill--narrow"
+                className={pillClasses('narrow')}
                 data-testid="fmt-editor-menu-trigger"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
@@ -164,7 +164,7 @@ export function ModuleEditorFilter({
                 <button
                   type="button"
                   aria-label="Configure editor values"
-                  className="fx-pill fx-pill--narrow"
+                  className={pillClasses('narrow')}
                   data-testid="fmt-editor-values-trigger"
                   onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
@@ -221,7 +221,7 @@ export function ModuleEditorFilter({
                 type="button"
                 disabled={moduleDisabled}
                 aria-label="Filter kind menu"
-                className="fx-pill fx-pill--narrow"
+                className={pillClasses('narrow')}
                 data-testid="fmt-filter-menu-trigger"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
@@ -337,7 +337,7 @@ function ValuesSourcePopover({
       <div style={{ display: 'flex', gap: spacing[1.5] }}>
         <button
           type="button"
-          className="fx-pill fx-pill--text"
+          className={pillClasses('text')}
           data-on={draftMode === 'static' ? 'true' : undefined}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDraftMode('static'); }}
           style={{ flex: 1, justifyContent: 'center' }}
@@ -347,7 +347,7 @@ function ValuesSourcePopover({
         </button>
         <button
           type="button"
-          className="fx-pill fx-pill--text"
+          className={pillClasses('text')}
           data-on={draftMode === 'appdata' ? 'true' : undefined}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDraftMode('appdata'); }}
           style={{ flex: 1, justifyContent: 'center' }}
@@ -432,7 +432,7 @@ function ValuesSourcePopover({
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[0.5] }}>
         <button
           type="button"
-          className="fx-pill"
+          className={pillClasses()}
           aria-label="Cancel"
           title="Cancel (Esc)"
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
@@ -443,7 +443,7 @@ function ValuesSourcePopover({
         </button>
         <button
           type="button"
-          className="fx-pill"
+          className={pillClasses()}
           aria-label="Confirm"
           title="Confirm (Enter)"
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleConfirm(); }}

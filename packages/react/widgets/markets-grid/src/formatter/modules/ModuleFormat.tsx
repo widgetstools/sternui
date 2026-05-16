@@ -25,7 +25,7 @@ import {
   isPercentTemplate,
   isTickTemplate,
 } from '../../formatterPresets';
-import { Hair, Menu, MenuItem, MenuSep, Module, Pill, SplitPill } from '../primitives';
+import { Hair, Menu, MenuItem, MenuSep, Module, Pill, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const TICK_MENU = [
@@ -80,7 +80,7 @@ export function ModuleFormat({
                 type="button"
                 disabled={fmtDisabled}
                 aria-label="Currency menu"
-                className="fx-pill fx-pill--narrow"
+                className={pillClasses('narrow')}
                 data-testid="fmt-currency-menu"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
@@ -177,7 +177,7 @@ export function ModuleFormat({
                 type="button"
                 disabled={fmtDisabled}
                 aria-label="Tick precision"
-                className="fx-pill fx-pill--narrow"
+                className={pillClasses('narrow')}
                 data-testid="fmt-tick-menu-trigger"
                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
