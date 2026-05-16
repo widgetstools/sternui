@@ -522,20 +522,27 @@ export function reinjectAllRules(css: CssHandle, rules: ConditionalRule[]): void
 
 /**
  * Walk a parsed expression AST and collect every column the predicate
- * depends on. Used by the runtime to know which `cellValueChanged` events
- * should provoke a refresh of a rule's `scope.columns` — without this,
- * AG-Grid only re-evaluates `cellClassRules` on the cell whose own value
- * changed, so a rule like `[price.old] < [price.new]` with scope
+ * depends on. Used by the runtime to know which value changes should
+ * provoke a refresh / re-evaluation of a rule's `scope.columns` — without
+ * this, AG-Grid only re-evaluates `cellClassRules` on the cell whose own
+ * value changed, so a rule like `[price.old] < [price.new]` with scope
  * `['side','quantity']` would never repaint `side`/`quantity` when
  * `price` ticks.
  *
+ * Triggers are stored as the **full dot-path** that AG-Grid uses as the
+ * column id when `field` walks into a nested object (e.g. `field:
+ * 'position.price'` → colId `'position.price'`). This keeps trigger keys
+ * directly comparable against:
+ *   - AG-Grid's `cellValueChanged` event `column.getColId()`
+ *   - the path-keyed diff snapshot maintained by `processTimedActivations`
+ *
  * Sources of column dependencies (covers the surfaces the editor docs
  * and the engine's evaluator actually wire up):
- *   - `[col]` / `[col.old]` / `[col.new]` — `ColumnRefNode` (suffix
- *     stripped so the trigger maps back to AG-Grid's emitted colId)
- *   - `data.col` — `MemberNode` rooted on the `data` variable
- *   - `columns.col` — `MemberNode` rooted on the `columns` variable
- *     (the diff-aware columns context)
+ *   - `[col]` / `[col.old]` / `[col.new]` — `ColumnRefNode` (diff suffix
+ *     stripped; full nested path preserved)
+ *   - `data.x.y.z` — `MemberNode` chain rooted on the `data` variable,
+ *     collapsed into trigger `'x.y.z'`
+ *   - `columns.x.y.z` — same, rooted on the `columns` (diff-aware) variable
  */
 export function extractTriggerColumns(node: ExpressionNode): Set<string> {
   const out = new Set<string>();
@@ -551,12 +558,13 @@ function walkForTriggers(node: ExpressionNode, out: Set<string>): void {
       return;
     }
     case 'member': {
-      // Drain `data.x` / `columns.x` (and any nested chain off the same
-      // root) into a single top-level trigger column.
-      const root = memberRoot(node);
-      if (root === 'data' || root === 'columns') {
-        const first = firstMemberSegment(node);
-        if (first) out.add(stripDiffSuffix(first));
+      // Collapse `data.x.y.z` / `columns.x.y.z` into a single dot-path
+      // trigger — this is the same shape AG-Grid emits as the column id
+      // when a colDef's `field` walks into a nested object.
+      const path = pathFromMemberChain(node);
+      if (path !== null) {
+        const cleaned = stripDiffSuffix(path);
+        if (cleaned) out.add(cleaned);
         return;
       }
       walkForTriggers(node.object, out);
@@ -586,24 +594,23 @@ function walkForTriggers(node: ExpressionNode, out: Set<string>): void {
   }
 }
 
-function memberRoot(node: ExpressionNode): string | null {
+/**
+ * Walk a member-access chain down to its root. If the root is the
+ * `data` or `columns` variable, return the dot-path of property names
+ * (in source order). Returns `null` for any other root — the caller
+ * keeps recursing through the member's `object` in that case, in case
+ * a sub-expression is itself a column-bearing tree.
+ */
+function pathFromMemberChain(node: ExpressionNode): string | null {
+  const parts: string[] = [];
   let cursor: ExpressionNode = node;
-  while (cursor.type === 'member') cursor = cursor.object;
-  return cursor.type === 'variable' ? cursor.name : null;
-}
-
-function firstMemberSegment(node: ExpressionNode): string | null {
-  // For `data.position.id`, find the immediate property after the
-  // `data` variable — that's the AG-Grid colId we trigger on
-  // (AG-Grid emits `cellValueChanged` keyed by the top-level field
-  // even when the column dot-walks into a nested object).
-  let cursor: ExpressionNode = node;
-  let last: string | null = null;
   while (cursor.type === 'member') {
-    last = cursor.property;
+    parts.unshift(cursor.property);
     cursor = cursor.object;
   }
-  return last;
+  if (cursor.type !== 'variable') return null;
+  if (cursor.name !== 'data' && cursor.name !== 'columns') return null;
+  return parts.join('.');
 }
 
 function stripDiffSuffix(id: string): string {

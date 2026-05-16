@@ -12,6 +12,7 @@
  * underlying rule state changes match.
  */
 import type { Module, PlatformHandle } from '@starui/core';
+import { getValueByPath } from '@starui/shared-types';
 import {
   INITIAL_CONDITIONAL_STYLING,
   type ConditionalRule,
@@ -295,6 +296,39 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
       const activeRowIds = new Set<string>();
       let activatedThisPass = false;
 
+      // Path-keyed diff surface. Drive change detection by AG-Grid's
+      // actual colIds (which carry dot-paths when a colDef's `field`
+      // walks into a nested object), unioned with every column ANY
+      // active rule's expression depends on (rule triggers may reference
+      // fields that are part of the row data but not surfaced as
+      // AG-Grid columns).
+      //
+      // Top-level `Object.entries(data)` walking misses nested changes:
+      //   - For `{ x: { z: { price: 100 } } }`, entries yields `['x']`,
+      //     never `'x.z.price'` — a tick that ONLY changes the deep
+      //     leaf would either be invisible (in-place mutation: `x` is
+      //     the same reference) or recorded under the wrong key (object
+      //     replacement: diff stored under `'x'`, but the expression
+      //     reads `[x.z.price.old]` which doesn't resolve through that
+      //     entry). Both cases produce silent no-ops.
+      //
+      // Resolving each known path via `getValueByPath` walks the
+      // current data on every read, so in-place mutation is detected
+      // correctly and sparse rows (path absent on this row) compare
+      // `undefined`-to-`undefined` cleanly without false positives.
+      const knownPaths = new Set<string>();
+      try {
+        const cols = (api as { getColumns?: () => Array<{ getColId: () => string }> | null }).getColumns?.();
+        if (cols) {
+          for (const c of cols) knownPaths.add(c.getColId());
+        }
+      } catch {
+        /* grid mid-teardown */
+      }
+      for (const [, triggers] of triggersByRule) {
+        for (const t of triggers) knownPaths.add(t);
+      }
+
       const rowDiffCache = diffCacheByApi.get(api as object);
       api.forEachNode((node) => {
         const rowId = resolveRowId(node);
@@ -303,20 +337,26 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
         const data = (node as { data?: Record<string, unknown> }).data ?? {};
         const prev = previousByRow.get(rowId) ?? new Map<string, unknown>();
         const changedKeys: string[] = [];
-        for (const [k, v] of Object.entries(data)) {
-          if (!Object.is(prev.get(k), v)) changedKeys.push(k);
+        const currentByPath = new Map<string, unknown>();
+        for (const path of knownPaths) {
+          const cur = getValueByPath(data, path);
+          currentByPath.set(path, cur);
+          if (!Object.is(prev.get(path), cur)) changedKeys.push(path);
         }
         if (changedKeys.length === 0) return;
 
         // Keep diff context in sync for expressions that use .old/.new refs.
+        // Path-keyed entries so `[x.z.price.old]` resolves through the
+        // own-property write in `buildColumnsContextFromDiffs`, not by
+        // accidentally falling back to dot-walking the current data.
         if (rowDiffCache && typeof node === 'object' && node) {
           let rowDiffs = rowDiffCache.get(node as object);
           if (!rowDiffs) {
             rowDiffs = new Map();
             rowDiffCache.set(node as object, rowDiffs);
           }
-          for (const key of changedKeys) {
-            rowDiffs.set(key, { oldValue: prev.get(key), newValue: data[key] });
+          for (const path of changedKeys) {
+            rowDiffs.set(path, { oldValue: prev.get(path), newValue: currentByPath.get(path) });
           }
         }
 
@@ -386,9 +426,11 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
           }
         }
 
-        const nextPrev = new Map<string, unknown>();
-        for (const [k, v] of Object.entries(data)) nextPrev.set(k, v);
-        previousByRow.set(rowId, nextPrev);
+        // Snapshot keyed by the same paths we just diffed against, so
+        // the next pass can detect deep-leaf changes (in-place or by
+        // object replacement) regardless of whether the parent ref
+        // moved.
+        previousByRow.set(rowId, currentByPath);
       });
 
       // Drop snapshots/timed activations for rows no longer present.
@@ -613,7 +655,11 @@ export const conditionalStylingModule: Module<ConditionalStylingState> = {
             continue;
           }
           for (const scopedColId of rule.scope.columns) {
-            const value = rowData[scopedColId];
+            // Dot-walk for nested fields so `x` / `value` bindings see
+            // the right leaf when a colDef's `field` is e.g.
+            // `'position.price'`. Top-level subscript access would
+            // return `undefined` for any nested column.
+            const value = getValueByPath(rowData, scopedColId);
             let match = false;
             try {
               const columns = buildColumnsContextFromDiffs(
