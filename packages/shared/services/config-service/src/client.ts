@@ -8,9 +8,8 @@
 //   • roles          — role definitions
 //   • permissions    — fine-grained permission definitions
 //
-// The interface mirrors the backend REST contract exposed by
-// `apps/config-service-server` exactly, so switching between local
-// (Dexie) and remote (HTTP) is purely a URL-driven choice:
+// The interface follows a backend REST contract, so switching between
+// local (Dexie) and remote (HTTP) is purely a URL-driven choice:
 //
 //   createConfigClient({ seedUrl: "/seed-config.json" })
 //   createConfigClient({ baseUrl: "https://config-api.example.com/api/v1" })

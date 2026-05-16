@@ -23,8 +23,8 @@ import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
 
 const APP_ID = 'TestApp';
 
-// REST endpoint for `@starui/config-service-server`. Single source of
-// truth: the OpenFin manifest's `customSettings.{useRest, configServiceRestUrl}`
+// REST endpoint for the config service. Single source of truth: the
+// OpenFin manifest's `customSettings.{useRest, configServiceRestUrl}`
 // (resolved by `getConfigServiceRestUrlFromManifest()` to a URL or
 // `undefined`). Same gate every other ConfigManager in the platform
 // reads from — flipping `useRest` in the manifest flips ALL three

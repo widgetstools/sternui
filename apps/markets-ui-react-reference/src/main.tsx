@@ -105,8 +105,8 @@ const runtimePromise = createRuntimeForViews();
 const APP_ID = "markets-ui-react-reference";
 const IDENTITY = { userId: LOGGED_IN_USER_ID, displayName: LOGGED_IN_USER_ID };
 
-// REST endpoint for `@starui/config-service-server`. Single source of
-// truth: the OpenFin manifest's `customSettings.{useRest, configServiceRestUrl}`
+// REST endpoint for the config service. Single source of truth: the
+// OpenFin manifest's `customSettings.{useRest, configServiceRestUrl}`
 // pair. `getConfigServiceRestUrlFromManifest()` enforces the gate
 // (`useRest === true` AND non-empty URL → REST mode; anything else →
 // local Dexie only). Out of OpenFin (plain-browser dev), the helper

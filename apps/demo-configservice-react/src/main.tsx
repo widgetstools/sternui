@@ -40,8 +40,7 @@ const runtime = new BrowserRuntime({
 });
 // Mode is env-driven (see .env.example):
 //   VITE_CONFIG_SERVICE_URL unset → LocalConfigClient (Dexie)
-//   VITE_CONFIG_SERVICE_URL set   → RestConfigClient (talks to
-//                                   apps/config-service-server)
+//   VITE_CONFIG_SERVICE_URL set   → RestConfigClient (HTTP backend)
 // Same client interface either way — leaf consumers don't care.
 const configManager = createConfigClient({
   baseUrl: import.meta.env.VITE_CONFIG_SERVICE_URL || undefined,
