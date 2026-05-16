@@ -44,31 +44,29 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%`;
 }
 
-function schemeVars(scheme: ColorScheme, mode: 'dark' | 'light') {
-  const primaryFg = hexToHsl(scheme.primary.foreground);
-  const destructiveFg =
-    mode === 'dark' ? '343 75% 9%' : '0 0% 100%';
+function schemeVars(scheme: ColorScheme) {
+  const s = scheme.shadcn;
   return `
-    /* ── shadcn/ui overrides ── */
-    --background: ${hexToHsl(scheme.surface.ground)};
-    --foreground: ${hexToHsl(scheme.text.primary)};
-    --card: ${hexToHsl(scheme.surface.primary)};
-    --card-foreground: ${hexToHsl(scheme.text.primary)};
-    --popover: ${hexToHsl(scheme.surface.primary)};
-    --popover-foreground: ${hexToHsl(scheme.text.primary)};
-    --primary: ${hexToHsl(scheme.primary.color)};
-    --primary-foreground: ${primaryFg};
-    --secondary: ${hexToHsl(scheme.surface.tertiary)};
-    --secondary-foreground: ${hexToHsl(scheme.text.secondary)};
-    --muted: ${hexToHsl(scheme.surface.secondary)};
-    --muted-foreground: ${hexToHsl(scheme.text.muted)};
-    --accent: ${hexToHsl(scheme.surface.tertiary)};
-    --accent-foreground: ${hexToHsl(scheme.text.primary)};
-    --destructive: ${hexToHsl(scheme.accent.negative)};
-    --destructive-foreground: ${destructiveFg};
-    --border: ${hexToHsl(scheme.border.primary)};
-    --input: ${hexToHsl(scheme.border.primary)};
-    --ring: ${hexToHsl(scheme.primary.color)};
+    /* ── shadcn/ui overrides (Stockflux SLATE BLUE) ── */
+    --background: ${s.background};
+    --foreground: ${s.foreground};
+    --card: ${s.card};
+    --card-foreground: ${s.cardForeground};
+    --popover: ${s.popover};
+    --popover-foreground: ${s.popoverForeground};
+    --primary: ${s.primary};
+    --primary-foreground: ${s.primaryForeground};
+    --secondary: ${s.secondary};
+    --secondary-foreground: ${s.secondaryForeground};
+    --muted: ${s.muted};
+    --muted-foreground: ${s.mutedForeground};
+    --accent: ${s.accent};
+    --accent-foreground: ${s.accentForeground};
+    --destructive: ${s.destructive};
+    --destructive-foreground: ${s.destructiveForeground};
+    --border: ${s.border};
+    --input: ${s.input};
+    --ring: ${s.ring};
     --radius: ${shared.radius.lg};
 
     --scrollbar-thumb: ${scheme.scrollbar};`;
@@ -77,10 +75,10 @@ function schemeVars(scheme: ColorScheme, mode: 'dark' | 'light') {
 /** Generate the full CSS block for both themes */
 export function generateShadcnCSS(): string {
   return `@layer base {
-  :root, [data-theme="dark"] {${schemeVars(dark, 'dark')}
+  :root, [data-theme="dark"] {${schemeVars(dark)}
   }
 
-  [data-theme="light"] {${schemeVars(light, 'light')}
+  [data-theme="light"] {${schemeVars(light)}
   }
 }`;
 }
@@ -94,26 +92,71 @@ export function getShadcnTokens(mode: 'dark' | 'light') {
 //  Unified CSS Generator — Task 9
 // ─────────────────────────────────────────────────────────────
 
-/** Dark red ink on electric destructive — matches fi-dark.css --destructive-foreground */
-const DARK_DESTRUCTIVE_FOREGROUND_CHANNELS = '343 75% 9%';
+function stockfluxAliasVars(scheme: ColorScheme): string {
+  const h = scheme.surface;
+  const t = scheme.text;
+  const b = scheme.border;
+  const a = scheme.accent;
+  return `
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        ${h.ground};
+    --sf-bg-1:      ${h.sunken};
+    --sf-bg-2:      ${h.primary};
+    --sf-bg-3:      ${h.secondary};
+    --sf-bg-4:      ${h.tertiary};
+    --sf-bg-5:      ${h.quaternary};
+    --sf-t-0:       ${t.primary};
+    --sf-t-1:       ${t.secondary};
+    --sf-t-2:       ${t.muted};
+    --sf-t-3:       ${t.faint};
+    --sf-t-4:       ${t.disabled};
+    --sf-border:    ${b.primary};
+    --sf-border-2:  ${b.secondary};
+    --sf-border-3:  ${b.tertiary};
+    --sf-teal:      ${scheme.primary.display};
+    --sf-teal-hi:   ${scheme.primary.highlight};
+    --sf-teal-lo:   ${scheme.primary.pressed};
+    --sf-teal-soft: ${scheme.primary.soft};
+    --sf-teal-ring: ${scheme.primary.ring};
+    --sf-up:        ${a.positive};
+    --sf-up-hi:     ${a.positiveHover};
+    --sf-up-soft:   ${scheme.overlay.positiveSoft};
+    --sf-up-strip:  ${scheme.trade.positiveStrip};
+    --sf-down:      ${a.negative};
+    --sf-down-hi:   ${a.negativeHover};
+    --sf-down-soft: ${scheme.overlay.negativeSoft};
+    --sf-down-strip:${scheme.trade.negativeStrip};
+    --sf-flat:      ${scheme.trade.flat};
+    --sf-info:      ${a.info};
+    --sf-info-soft: ${scheme.overlay.infoSoft};
+    --sf-warn:      ${a.warning};
+    --sf-warn-soft: ${scheme.overlay.warningSoft};
+    --sf-success:   ${a.positive};
+    --sf-error:     ${a.negative};
+    --sf-bid-fill:  ${scheme.trade.bidFill};
+    --sf-ask-fill:  ${scheme.trade.askFill};
+    --sf-scrollbar: ${scheme.scrollbar};`;
+}
 
 function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
-  const primaryFg = hexToHslChannel(scheme.primary.foreground);
-  const destructiveFg =
-    mode === 'dark' ? DARK_DESTRUCTIVE_FOREGROUND_CHANNELS : '0 0% 100%';
+  const s = scheme.shadcn;
   const successFg = hexToHslChannel(scheme.action.buyText);
   const warningFg =
-    mode === 'dark' ? hexToHslChannel(colors.ink[0]) : '0 0% 100%';
+    mode === 'dark' ? hexToHslChannel(scheme.text.primary) : '0 0% 100%';
 
   return `
     /* ── FI Design System source tokens ── */
     --ds-primary:           ${scheme.primary.color};
     --ds-primary-hover:     ${scheme.primary.hover};
+    --ds-primary-display:   ${scheme.primary.display};
+    --ds-primary-highlight: ${scheme.primary.highlight};
+    --ds-primary-pressed:   ${scheme.primary.pressed};
     --ds-primary-foreground:${scheme.primary.foreground};
     --ds-primary-soft:      ${scheme.primary.soft};
     --ds-primary-ring:      ${scheme.primary.ring};
 
     --ds-surface-ground:     ${scheme.surface.ground};
+    --ds-surface-sunken:     ${scheme.surface.sunken};
     --ds-surface-primary:    ${scheme.surface.primary};
     --ds-surface-secondary:  ${scheme.surface.secondary};
     --ds-surface-tertiary:   ${scheme.surface.tertiary};
@@ -123,9 +166,11 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-text-secondary: ${scheme.text.secondary};
     --ds-text-muted:     ${scheme.text.muted};
     --ds-text-faint:     ${scheme.text.faint};
+    --ds-text-disabled:  ${scheme.text.disabled};
 
     --ds-border-primary:   ${scheme.border.primary};
     --ds-border-secondary: ${scheme.border.secondary};
+    --ds-border-tertiary:  ${scheme.border.tertiary};
 
     --ds-accent-positive:       ${scheme.accent.positive};
     --ds-accent-positive-hover: ${scheme.accent.positiveHover};
@@ -166,32 +211,59 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-elevation-overlay: ${scheme.elevation.overlay};
     --ds-elevation-glow:    ${scheme.elevation.glow};
 
-    /* ── shadcn-compat HSL channel aliases ── */
-    --background:           ${hexToHslChannel(scheme.surface.ground)};
-    --foreground:           ${hexToHslChannel(scheme.text.primary)};
-    --card:                 ${hexToHslChannel(scheme.surface.primary)};
-    --card-foreground:      ${hexToHslChannel(scheme.text.primary)};
-    --popover:              ${hexToHslChannel(scheme.surface.primary)};
-    --popover-foreground:   ${hexToHslChannel(scheme.text.primary)};
-    --primary:              ${hexToHslChannel(scheme.primary.color)};
-    --primary-foreground:   ${primaryFg};
-    --secondary:            ${hexToHslChannel(scheme.surface.tertiary)};
-    --secondary-foreground: ${hexToHslChannel(scheme.text.secondary)};
-    --muted:                ${hexToHslChannel(scheme.surface.secondary)};
-    --muted-foreground:     ${hexToHslChannel(scheme.text.muted)};
-    --accent:               ${hexToHslChannel(scheme.surface.tertiary)};
-    --accent-foreground:    ${hexToHslChannel(scheme.text.primary)};
-    --destructive:          ${hexToHslChannel(scheme.accent.negative)};
-    --destructive-foreground: ${destructiveFg};
-    --success:              ${hexToHslChannel(scheme.accent.positive)};
-    --success-foreground:   ${successFg};
-    --warning:              ${hexToHslChannel(scheme.accent.warning)};
-    --warning-foreground:   ${warningFg};
-    --info:                 ${hexToHslChannel(scheme.accent.info)};
-    --info-foreground:      ${primaryFg};
-    --border:               ${hexToHslChannel(scheme.border.primary)};
-    --input:                ${hexToHslChannel(scheme.border.primary)};
-    --ring:                 ${hexToHslChannel(scheme.primary.color)};
+    --ds-trade-flat:           ${scheme.trade.flat};
+    --ds-trade-positive-strip: ${scheme.trade.positiveStrip};
+    --ds-trade-negative-strip: ${scheme.trade.negativeStrip};
+    --ds-trade-bid-fill:       ${scheme.trade.bidFill};
+    --ds-trade-ask-fill:       ${scheme.trade.askFill};
+
+    --ds-chart-1: ${scheme.chart[0]};
+    --ds-chart-2: ${scheme.chart[1]};
+    --ds-chart-3: ${scheme.chart[2]};
+    --ds-chart-4: ${scheme.chart[3]};
+    --ds-chart-5: ${scheme.chart[4]};
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             ${s.background};
+    --foreground:             ${s.foreground};
+    --card:                   ${s.card};
+    --card-foreground:        ${s.cardForeground};
+    --popover:                ${s.popover};
+    --popover-foreground:     ${s.popoverForeground};
+    --primary:                ${s.primary};
+    --primary-foreground:     ${s.primaryForeground};
+    --secondary:              ${s.secondary};
+    --secondary-foreground:   ${s.secondaryForeground};
+    --muted:                  ${s.muted};
+    --muted-foreground:       ${s.mutedForeground};
+    --accent:                 ${s.accent};
+    --accent-foreground:      ${s.accentForeground};
+    --destructive:            ${s.destructive};
+    --destructive-foreground: ${s.destructiveForeground};
+    --success:                ${hexToHslChannel(scheme.accent.positive)};
+    --success-foreground:     ${successFg};
+    --warning:                ${hexToHslChannel(scheme.accent.warning)};
+    --warning-foreground:     ${warningFg};
+    --info:                   ${hexToHslChannel(scheme.accent.info)};
+    --info-foreground:        ${s.primaryForeground};
+    --border:                 ${s.border};
+    --input:                  ${s.input};
+    --ring:                   ${s.ring};
+
+    --sidebar-background:              ${s.sidebarBackground};
+    --sidebar-foreground:              ${s.sidebarForeground};
+    --sidebar-primary:                 ${s.sidebarPrimary};
+    --sidebar-primary-foreground:      ${s.sidebarPrimaryForeground};
+    --sidebar-accent:                  ${s.sidebarAccent};
+    --sidebar-accent-foreground:       ${s.sidebarAccentForeground};
+    --sidebar-border:                  ${s.sidebarBorder};
+    --sidebar-ring:                    ${s.sidebarRing};
+
+    --chart-1: ${s.chart1};
+    --chart-2: ${s.chart2};
+    --chart-3: ${s.chart3};
+    --chart-4: ${s.chart4};
+    --chart-5: ${s.chart5};
 
     --surface-50:  ${hexToHslChannel(scheme.surface.primary)};
     --surface-100: ${hexToHslChannel(scheme.surface.secondary)};
@@ -232,6 +304,8 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-font-size-2xl: ${typography.fontSize['2xl']};
     --ds-font-size-3xl: ${typography.fontSize['3xl']};
     --ds-font-size-4xl: ${typography.fontSize['4xl']};
+    --ds-font-size-5xl: ${typography.fontSize['5xl']};
+    --ds-font-variant-tabular: ${typography.fontVariantNumeric.tabular};
     --ds-radius-sm:   ${radius.sm};
     --ds-radius-md:   ${radius.md};
     --ds-radius-lg:   ${radius.lg};
@@ -239,10 +313,17 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-radius-full: ${radius.full};
     --radius:         ${radius.md};
 
-    /* ── Motion vars ── */
-    --ds-tx-fast:   ${transition.fast};
-    --ds-tx-normal: ${transition.normal};
-    --ds-tx-slow:   ${transition.slow};
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: ${transition.instant};
+    --ds-tx-fast:    ${transition.fast};
+    --ds-tx-normal:  ${transition.normal};
+    --ds-tx-slow:    ${transition.slow};
+    --ds-tx-tick:    ${transition.tickFlash};
+    --sf-t-instant:  ${transition.instant};
+    --sf-t-fast:     ${transition.fast};
+    --sf-t-normal:   ${transition.normal};
+    --sf-t-slow:     ${transition.slow};
+    --sf-t-tick:     ${transition.tickFlash};
 
     /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
     --ds-control-xs-height:       ${controls.xs.height};
@@ -268,7 +349,41 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ds-control-lg-gap:          ${controls.lg.gap};
     --ds-control-lg-font-size:    ${controls.lg.fontSize};
     --ds-control-lg-icon-size:    ${controls.lg.iconSize};
-    --ds-control-lg-radius:       ${controls.lg.borderRadius};`;
+    --ds-control-lg-radius:       ${controls.lg.borderRadius};
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        ${scheme.surface.ground};
+    --bn-bg-sunken: ${scheme.surface.sunken};
+    --bn-bg1:       ${scheme.surface.primary};
+    --bn-bg2:       ${scheme.surface.secondary};
+    --bn-bg3:       ${scheme.surface.tertiary};
+    --bn-bg4:       ${scheme.surface.quaternary};
+    --bn-t0:        ${scheme.text.primary};
+    --bn-t1:        ${scheme.text.secondary};
+    --bn-t2:        ${scheme.text.muted};
+    --bn-t3:        ${scheme.text.faint};
+    --bn-t4:        ${scheme.text.disabled};
+    --bn-border:    ${scheme.border.primary};
+    --bn-border2:   ${scheme.border.secondary};
+    --bn-border3:   ${scheme.border.tertiary};
+    --bn-green:     ${scheme.accent.positive};
+    --bn-green2:    ${scheme.accent.positiveHover};
+    --bn-red:       ${scheme.accent.negative};
+    --bn-red2:      ${scheme.accent.negativeHover};
+    --bn-amber:     ${scheme.accent.warning};
+    --bn-blue:      ${scheme.primary.color};
+    --bn-blue2:     ${scheme.primary.hover};
+    --bn-info:      ${scheme.accent.info};
+    --bn-cyan:      ${scheme.accent.highlight};
+    --bn-purple:    ${scheme.accent.purple};
+    --bn-buy-bg:    ${scheme.action.buyBg};
+    --bn-sell-bg:   ${scheme.action.sellBg};
+    --bn-cta-text:  ${scheme.action.buyText};
+    --ob-bid-fill:  ${scheme.trade.bidFill};
+    --ob-ask-fill:  ${scheme.trade.askFill};
+    --tt-bid-strip: ${scheme.trade.positiveStrip};
+    --tt-ask-strip: ${scheme.trade.negativeStrip};
+    ${stockfluxAliasVars(scheme)}`;
 }
 
 function cvdOverride(scheme: ColorScheme): string {

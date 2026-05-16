@@ -38,8 +38,8 @@ export interface MarketsGridHostProps<TData> {
   onGridPreDestroyed: () => void;
   theme: MarketsGridProps<TData>['theme'];
   gridId: string;
-  rowHeight: number;
-  headerHeight: number;
+  rowHeight?: number;
+  headerHeight?: number;
   animateRows: boolean;
   sideBar: MarketsGridProps<TData>['sideBar'];
   statusBar: MarketsGridProps<TData>['statusBar'];

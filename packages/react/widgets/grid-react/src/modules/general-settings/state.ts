@@ -239,7 +239,10 @@ export interface GeneralSettingsState {
 
 export const INITIAL_GENERAL_SETTINGS: GeneralSettingsState = {
   // Tier 1
-  rowHeight: 36,
+  // Defaults aligned with `@starui/design-system/adapters/ag-grid`
+  // compact density (rowHeight 30, headerHeight 32) so a fresh profile
+  // matches the theme. Users can still override either via Settings.
+  rowHeight: 30,
   headerHeight: 32,
   pagination: false,
   paginationPageSize: 100,

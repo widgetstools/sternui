@@ -24,8 +24,8 @@ export interface MarketsGridSurfaceProps<TData> {
   readonly theme: MarketsGridProps<TData>['theme'];
   readonly rowData: TData[];
   readonly columnDefs: unknown[];
-  readonly rowHeight: number;
-  readonly headerHeight: number;
+  readonly rowHeight?: number;
+  readonly headerHeight?: number;
   readonly animateRows: boolean;
   readonly sideBar: MarketsGridProps<TData>['sideBar'];
   readonly statusBar: MarketsGridProps<TData>['statusBar'];

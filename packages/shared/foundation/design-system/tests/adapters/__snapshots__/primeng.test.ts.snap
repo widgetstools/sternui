@@ -4,7 +4,7 @@ exports[`primengPreset > matches snapshot 1`] = `
 {
   "components": {
     "button": {
-      "borderRadius": "2px",
+      "borderRadius": "3px",
       "fontWeight": "600",
       "paddingX": "16px",
       "paddingY": "8px",
@@ -14,7 +14,7 @@ exports[`primengPreset > matches snapshot 1`] = `
       "headerCellPadding": "6px 10px",
     },
     "inputtext": {
-      "borderRadius": "2px",
+      "borderRadius": "3px",
       "paddingX": "10px",
       "paddingY": "6px",
     },
@@ -24,12 +24,12 @@ exports[`primengPreset > matches snapshot 1`] = `
   },
   "primitive": {
     "borderRadius": {
-      "lg": "2px",
-      "md": "2px",
+      "lg": "3px",
+      "md": "3px",
       "none": "0px",
-      "sm": "2px",
+      "sm": "3px",
       "xl": "6px",
-      "xs": "2px",
+      "xs": "3px",
     },
   },
   "semantic": {
@@ -135,16 +135,16 @@ exports[`primengPreset > matches snapshot 1`] = `
       "500": "var(--ds-accent-info)",
     },
     "primary": {
-      "100": "#6b6498",
-      "200": "#6b6498",
-      "300": "#6b6498",
-      "400": "#544e7c",
-      "50": "#6b6498",
+      "100": "#2563eb",
+      "200": "#2563eb",
+      "300": "#2563eb",
+      "400": "#1d4ed8",
+      "50": "#2563eb",
       "500": "var(--ds-primary)",
       "600": "var(--ds-primary-hover)",
-      "700": "#544e7c",
-      "800": "#544e7c",
-      "900": "#544e7c",
+      "700": "#1d4ed8",
+      "800": "#1d4ed8",
+      "900": "#1d4ed8",
     },
     "success": {
       "500": "var(--ds-accent-positive)",

@@ -10,6 +10,8 @@ import { useHost } from '@starui/host-wrapper-react';
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
 import { MarketDepth } from './MarketDepth';
+import { DesignSystem } from './DesignSystem';
+import { StockfluxBlotter } from './StockfluxBlotter';
 import { buildShowcasePayload, SHOWCASE_PROFILE_NAME } from './showcaseProfile';
 import { Fixture } from './Fixture';
 import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
@@ -21,7 +23,7 @@ import { FIXTURES, isFixtureName, type FixtureName } from './nestedFixtures';
 export const APP_ID = 'demo-react';
 export const DEMO_USER_ID = 'demo-user';
 
-type View = 'single' | 'dashboard' | 'depth' | 'fixture';
+type View = 'single' | 'dashboard' | 'depth' | 'fixture' | 'design-system' | 'stockflux-blotter';
 const LIVE_TICK_INTERVAL_MS = 300;
 
 /**
@@ -37,6 +39,8 @@ function initialView(): View {
   if (v === 'dashboard') return 'dashboard';
   if (v === 'depth') return 'depth';
   if (v === 'fixture') return 'fixture';
+  if (v === 'design-system') return 'design-system';
+  if (v === 'stockflux-blotter') return 'stockflux-blotter';
   return 'single';
 }
 
@@ -211,6 +215,8 @@ function AppInner({ storage }: { storage: StorageAdapterFactory }) {
     if (view === 'dashboard') q.set('view', 'dashboard');
     else if (view === 'depth') q.set('view', 'depth');
     else if (view === 'fixture') q.set('view', 'fixture');
+    else if (view === 'design-system') q.set('view', 'design-system');
+    else if (view === 'stockflux-blotter') q.set('view', 'stockflux-blotter');
     else q.delete('view');
     const next = `${window.location.pathname}${q.toString() ? `?${q}` : ''}`;
     window.history.replaceState(null, '', next);
@@ -275,6 +281,12 @@ function AppInner({ storage }: { storage: StorageAdapterFactory }) {
           </ViewTab>
           <ViewTab active={view === 'depth'} onClick={() => setView('depth')} testId="view-tab-depth">
             Market depth
+          </ViewTab>
+          <ViewTab active={view === 'design-system'} onClick={() => setView('design-system')} testId="view-tab-design-system">
+            Design system
+          </ViewTab>
+          <ViewTab active={view === 'stockflux-blotter'} onClick={() => setView('stockflux-blotter')} testId="view-tab-stockflux-blotter">
+            Stockflux blotter
           </ViewTab>
         </div>
 
@@ -345,6 +357,14 @@ function AppInner({ storage }: { storage: StorageAdapterFactory }) {
           textTransform: 'uppercase',
         }}>
           Loading showcase…
+        </div>
+      ) : view === 'design-system' ? (
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <DesignSystem />
+        </div>
+      ) : view === 'stockflux-blotter' ? (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <StockfluxBlotter />
         </div>
       ) : view === 'fixture' && fixtureName ? (
         <Fixture
