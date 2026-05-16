@@ -243,17 +243,24 @@ export function SegmentedToggle<T extends string>({
   // focus trap can swallow click events but not mousedown). That
   // contract is incompatible with radix ToggleGroup's click-driven
   // `onValueChange`, so this primitive stays a hand-rolled radiogroup
-  // of `<button role="radio">` elements. Every visual property still
-  // flows through the design-system token tree via `.fx-seg` /
-  // `.fx-seg__opt` in formatter.css (active fill uses --ds-primary
-  // after the Phase A token swap).
+  // of `<button role="radio">` elements. Every visual property flows
+  // through `@starui/design-system` tokens via Tailwind utilities.
   return (
     <div
-      className="fx-seg"
       role="radiogroup"
       aria-label={ariaLabel}
       data-variant={variant}
       data-testid={testId}
+      className={cn(
+        // Container — 28px tall with 2px inner padding (the active
+        // chip floats inside this padding ring). Subtle muted-fill
+        // background distinguishes the segmented control from
+        // surrounding pills.
+        'inline-flex items-stretch h-7 p-[2px] shrink-0 isolate',
+        'rounded-md border border-border',
+        // Container fill — 6% ink tint in dark, 4% ink-on-card in light.
+        'bg-foreground/[0.06] dark:bg-foreground/[0.06]',
+      )}
     >
       {options.map((opt) => {
         const isActive = opt.value === value;
@@ -266,12 +273,29 @@ export function SegmentedToggle<T extends string>({
             aria-label={opt.ariaLabel ?? opt.tooltip}
             data-active={isActive ? 'true' : undefined}
             data-testid={opt.testId}
-            className="fx-seg__opt"
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               if (!isActive) onChange(opt.value);
             }}
+            className={cn(
+              // Option chip — fills the container vertically (h-full
+              // = 22px after the container's 2px padding) and a fixed
+              // 26px width gives each segment a square clickable area.
+              'inline-flex items-center justify-center w-[26px] cursor-pointer select-none',
+              'border-none bg-transparent appearance-none rounded-[3px]',
+              'transition-colors transition-shadow duration-[120ms]',
+              // Rest — muted icon colour.
+              'text-muted-foreground',
+              // Hover (not active) — strengthen to full ink.
+              'hover:text-foreground data-[active=true]:hover:text-primary-foreground',
+              // Active — brand-primary fill, primary-foreground glyph,
+              // subtle inset highlight for the "lift" feel.
+              'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
+              'data-[active=true]:shadow-[0_1px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.18)]',
+              // Focus ring — brand outline, sits 1px outside the chip.
+              'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1',
+            )}
           >
             {opt.icon}
           </button>

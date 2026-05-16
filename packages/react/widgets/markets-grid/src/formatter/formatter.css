@@ -404,80 +404,11 @@
   flex-shrink: 0;
 }
 
-/* ─── SegmentedToggle — dual-label switch ─────────────────────────
- *
- * Bigger than `.fx-pill` so target + scope read as the FIRST thing
- * on the toolbar. Both labels render simultaneously; the active one
- * gets a solid monochromatic fill, the inactive label sits as muted
- * text against the same container. Two variants — `target` and
- * `scope` — differ only by data-attribute hooks so they can be told
- * apart by tests without colour-coding.
- */
-.fx-seg {
-  display: inline-flex;
-  align-items: stretch;
-  height: 28px;
-  padding: 2px;
-  background: color-mix(in srgb, var(--fx-ink) 6%, transparent);
-  border: 1px solid var(--fx-line);
-  border-radius: var(--fx-radius-lg);
-  flex-shrink: 0;
-  isolation: isolate;
-}
-
-[data-theme='light'] .fx-seg {
-  background: color-mix(in srgb, var(--fx-ink) 4%, var(--ds-surface-primary));
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
-}
-
-.fx-seg__opt {
-  appearance: none;
-  border: none;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  border-radius: var(--fx-radius);
-  color: var(--fx-icon-rest);
-  cursor: pointer;
-  user-select: none;
-  transition: color 120ms, background 120ms, box-shadow 120ms;
-}
-
-.fx-seg__opt > svg {
-  display: block;
-  flex-shrink: 0;
-  transition: color 120ms;
-}
-
-.fx-seg__opt:hover:not([data-active='true']) {
-  color: var(--fx-ink);
-}
-
-.fx-seg__opt[data-active='true'] {
-  /* Filled chip — brand-primary fill with primary-foreground glyph,
-   * matching every other active CTA in the app. Inset "lift" shadow
-   * distinguishes the active option from the empty side. */
-  color: var(--fx-accent-fg);
-  background: var(--fx-accent);
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--fx-accent) 18%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--fx-accent-fg) 22%, transparent);
-}
-
-[data-theme='light'] .fx-seg__opt[data-active='true'] {
-  color: var(--fx-accent-fg);
-  background: var(--fx-accent);
-  box-shadow:
-    0 1px 1px rgba(15, 23, 42, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
-
-.fx-seg__opt:focus-visible {
-  outline: 1px solid var(--fx-accent);
-  outline-offset: 1px;
-}
+/* `.fx-seg` / `.fx-seg__opt` moved to primitives.tsx (SegmentedToggle)
+   as Tailwind utilities resolving through `@starui/design-system`
+   tokens. The hand-rolled mousedown-driven radiogroup is preserved
+   (radix ToggleGroup is click-driven, which conflicts with the popover
+   focus-trap survival contract that the formatter tests assert). */
 
 /* When SELECTED scope is active but the user has no column focused,
  * the segment chip still shows but the rest of the toolbar greys
