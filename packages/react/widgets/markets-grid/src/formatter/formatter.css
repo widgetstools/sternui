@@ -248,32 +248,9 @@
   opacity: 1;
 }
 
-/* Split-pill housing — joins a primary pill + narrow chevron pill. */
-.fx-split {
-  display: inline-flex;
-  align-items: stretch;
-  border-radius: var(--fx-radius);
-  overflow: hidden;
-  border: 1.5px solid var(--ds-border-secondary);
-}
-.fx-split:hover {
-  border-color: var(--ds-text-primary);
-}
-.fx-split .fx-pill {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.fx-split .fx-pill[data-on='true'],
-.fx-split .fx-pill[aria-pressed='true'] {
-  background: var(--ds-primary);
-  color: var(--ds-primary-foreground);
-  box-shadow: none;
-}
-.fx-split .fx-pill + .fx-pill {
-  border-left: 1.5px solid var(--ds-border-secondary);
-}
+/* `.fx-split` moved to primitives.tsx as a thin re-export over
+   shadcn's `<ButtonGroup>`. The wrapper handles outer-corner radius,
+   inner-corner squaring, and the -1px gap that joins child borders. */
 
 /* ─── Context strip — target/scope segments + column label + lock + history ─ */
 
@@ -290,14 +267,8 @@
    (radix ToggleGroup is click-driven, which conflicts with the popover
    focus-trap survival contract that the formatter tests assert). */
 
-/* When SELECTED scope is active but the user has no column focused,
- * the segment chip still shows but the rest of the toolbar greys
- * out via per-pill `disabled` — the chips themselves stay enabled
- * so the user can switch to ALL. */
-.fx-ctx[data-scope='all'] ~ * .fx-pill:disabled,
-.fx-ctx[data-scope='all'] ~ * .fx-split:has(.fx-pill:disabled) {
-  /* No-op — kept here to anchor future scope-aware disabled rules. */
-}
+/* (No scope-aware disabled rules here — per-pill `disabled` handles
+   greying out individually. Reserved for future overrides if needed.) */
 
 /* Vertical context strip = sticky header.
  *

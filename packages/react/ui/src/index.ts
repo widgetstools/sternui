@@ -47,6 +47,7 @@ export * from './components/command.js';
 
 // Forms & Inputs
 export * from './components/button.js';
+export * from './components/button-group.js';
 export * from './components/checkbox.js';
 export * from './components/form.js';
 export * from './components/input.js';
