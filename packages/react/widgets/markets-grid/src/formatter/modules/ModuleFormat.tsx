@@ -11,11 +11,7 @@ import {
   ArrowLeft, ArrowRight, ChevronDown, DollarSign, Hash, Percent,
 } from 'lucide-react';
 import type { ValueFormatterTemplate } from '@starui/core';
-import {
-  PopoverCompat as Popover,
-  FormatterPicker,
-  Tooltip,
-} from '@starui/grid-react';
+import { FormatterPicker, Tooltip } from '@starui/grid-react';
 import {
   BPS_TEMPLATE,
   COMMA_TEMPLATE,
@@ -25,7 +21,14 @@ import {
   isPercentTemplate,
   isTickTemplate,
 } from '../../formatterPresets';
-import { Hair, Menu, MenuItem, MenuSep, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@starui/ui';
+import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const TICK_MENU = [
@@ -71,10 +74,8 @@ export function ModuleFormat({
         >
           <DollarSign size={13} strokeWidth={1.75} />
         </Pill>
-        <Popover
-          open={currencyOpen}
-          onOpenChange={setCurrencyOpen}
-          trigger={
+        <DropdownMenu open={currencyOpen} onOpenChange={setCurrencyOpen}>
+          <DropdownMenuTrigger asChild>
             <Tooltip content="Pick a currency (USD, EUR, GBP, JPY, basis points)">
               <button
                 type="button"
@@ -82,30 +83,28 @@ export function ModuleFormat({
                 aria-label="Currency menu"
                 className={pillClasses('narrow')}
                 data-testid="fmt-currency-menu"
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
                 <ChevronDown size={9} strokeWidth={2} />
               </button>
             </Tooltip>
-          }
-        >
-          <Menu>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[160px]">
             {Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => (
-              <MenuItem
+              <DropdownMenuItem
                 key={key}
-                glyph={f.label}
-                name={key}
-                onClick={() => { actions.doFormat(f.template); setCurrencyOpen(false); }}
-              />
+                onSelect={() => actions.doFormat(f.template)}
+              >
+                <span className="w-5 text-[11px] font-mono text-muted-foreground">{f.label}</span>
+                <span>{key}</span>
+              </DropdownMenuItem>
             ))}
-            <MenuSep />
-            <MenuItem
-              glyph="bp"
-              name="Basis points"
-              onClick={() => { actions.doFormat(BPS_TEMPLATE); setCurrencyOpen(false); }}
-            />
-          </Menu>
-        </Popover>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => actions.doFormat(BPS_TEMPLATE)}>
+              <span className="w-5 text-[11px] font-mono text-muted-foreground">bp</span>
+              <span>Basis points</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SplitPill>
 
       <Pill
@@ -168,10 +167,8 @@ export function ModuleFormat({
             ? (TICK_MENU.find((m) => m.token === currentTickToken(vft))?.denominator ?? '32')
             : '32'}
         </Pill>
-        <Popover
-          open={tickMenuOpen}
-          onOpenChange={setTickMenuOpen}
-          trigger={
+        <DropdownMenu open={tickMenuOpen} onOpenChange={setTickMenuOpen}>
+          <DropdownMenuTrigger asChild>
             <Tooltip content="Tick precision — choose denominator (32, 64, 128, 256)">
               <button
                 type="button"
@@ -179,30 +176,29 @@ export function ModuleFormat({
                 aria-label="Tick precision"
                 className={pillClasses('narrow')}
                 data-testid="fmt-tick-menu-trigger"
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
                 <ChevronDown size={9} strokeWidth={1.75} />
               </button>
             </Tooltip>
-          }
-        >
-          <Menu className="min-w-[180px]">
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[180px]">
             {TICK_MENU.map((m) => {
               const active = currentTickToken(vft) === m.token;
               return (
-                <MenuItem
+                <DropdownMenuItem
                   key={m.token}
-                  glyph={active ? '✓' : ''}
-                  name={m.label}
-                  sample={m.sample}
-                  active={active}
-                  onClick={() => { actions.doFormat({ kind: 'tick', tick: m.token }); setTickMenuOpen(false); }}
-                  testId={`fmt-tick-menu-${m.token}`}
-                />
+                  onSelect={() => actions.doFormat({ kind: 'tick', tick: m.token })}
+                  data-testid={`fmt-tick-menu-${m.token}`}
+                  className={active ? 'bg-primary/10 text-primary' : undefined}
+                >
+                  <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
+                  <span className="flex-1">{m.label}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{m.sample}</span>
+                </DropdownMenuItem>
               );
             })}
-          </Menu>
-        </Popover>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SplitPill>
 
       <Hair />

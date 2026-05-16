@@ -31,7 +31,14 @@ import {
   type CellEditorKind,
   type FilterKind,
 } from '@starui/grid-react';
-import { Hair, Menu, MenuItem, MenuSep, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@starui/ui';
+import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const SELECT_KINDS: ReadonlySet<CellEditorKind> = new Set([
@@ -110,10 +117,8 @@ export function ModuleEditorFilter({
             <span style={{ fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>{editorLabel(cellEditorKind)}</span>
           </span>
         </Pill>
-        <Popover
-          open={editorOpen}
-          onOpenChange={setEditorOpen}
-          trigger={
+        <DropdownMenu open={editorOpen} onOpenChange={setEditorOpen}>
+          <DropdownMenuTrigger asChild>
             <Tooltip content="Choose cell editor type (text, number, select, date, …)">
               <button
                 type="button"
@@ -121,37 +126,37 @@ export function ModuleEditorFilter({
                 aria-label="Cell editor menu"
                 className={pillClasses('narrow')}
                 data-testid="fmt-editor-menu-trigger"
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
                 <ChevronDown size={9} strokeWidth={2} />
               </button>
             </Tooltip>
-          }
-        >
-          <Menu className="min-w-[160px]">
-            <MenuItem
-              glyph={cellEditorKind == null ? '✓' : ''}
-              name="None"
-              active={cellEditorKind == null}
-              onClick={() => { actions.setCellEditorKind(undefined); setEditorOpen(false); }}
-              testId="fmt-editor-menu-none"
-            />
-            <MenuSep />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[160px]">
+            <DropdownMenuItem
+              onSelect={() => actions.setCellEditorKind(undefined)}
+              data-testid="fmt-editor-menu-none"
+              className={cellEditorKind == null ? 'bg-primary/10 text-primary' : undefined}
+            >
+              <span className="w-3 text-center text-[11px]">{cellEditorKind == null ? '✓' : ''}</span>
+              <span>None</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {EDITOR_OPTIONS.map((o) => {
               const active = cellEditorKind === o.kind;
               return (
-                <MenuItem
+                <DropdownMenuItem
                   key={o.kind}
-                  glyph={active ? '✓' : ''}
-                  name={o.label}
-                  active={active}
-                  onClick={() => { actions.setCellEditorKind(o.kind); setEditorOpen(false); }}
-                  testId={`fmt-editor-menu-${o.kind}`}
-                />
+                  onSelect={() => actions.setCellEditorKind(o.kind)}
+                  data-testid={`fmt-editor-menu-${o.kind}`}
+                  className={active ? 'bg-primary/10 text-primary' : undefined}
+                >
+                  <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
+                  <span>{o.label}</span>
+                </DropdownMenuItem>
               );
             })}
-          </Menu>
-        </Popover>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {/* Values-source trigger — only meaningful for select-style
             editors. Sits inside the SplitPill so it visually attaches
             to the editor cluster instead of floating loose. */}
@@ -212,10 +217,8 @@ export function ModuleEditorFilter({
             </span>
           </span>
         </Pill>
-        <Popover
-          open={filterOpen}
-          onOpenChange={setFilterOpen}
-          trigger={
+        <DropdownMenu open={filterOpen} onOpenChange={setFilterOpen}>
+          <DropdownMenuTrigger asChild>
             <Tooltip content="Choose filter type (text or number — both add a Set filter)">
               <button
                 type="button"
@@ -223,38 +226,38 @@ export function ModuleEditorFilter({
                 aria-label="Filter kind menu"
                 className={pillClasses('narrow')}
                 data-testid="fmt-filter-menu-trigger"
-                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               >
                 <ChevronDown size={9} strokeWidth={2} />
               </button>
             </Tooltip>
-          }
-        >
-          <Menu className="min-w-[180px]">
-            <MenuItem
-              glyph={filterPrimaryKind == null && !filterIsCustom ? '✓' : ''}
-              name="None"
-              active={filterPrimaryKind == null && !filterIsCustom}
-              onClick={() => { actions.setFilterPrimaryKind(undefined); setFilterOpen(false); }}
-              testId="fmt-filter-menu-none"
-            />
-            <MenuSep />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[180px]">
+            <DropdownMenuItem
+              onSelect={() => actions.setFilterPrimaryKind(undefined)}
+              data-testid="fmt-filter-menu-none"
+              className={filterPrimaryKind == null && !filterIsCustom ? 'bg-primary/10 text-primary' : undefined}
+            >
+              <span className="w-3 text-center text-[11px]">{filterPrimaryKind == null && !filterIsCustom ? '✓' : ''}</span>
+              <span>None</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {FILTER_OPTIONS.map((o) => {
               const active = !filterIsCustom && filterPrimaryKind === o.kind;
               return (
-                <MenuItem
+                <DropdownMenuItem
                   key={o.kind}
-                  glyph={active ? '✓' : ''}
-                  name={o.label}
-                  sample="+ Set"
-                  active={active}
-                  onClick={() => { actions.setFilterPrimaryKind(o.kind); setFilterOpen(false); }}
-                  testId={`fmt-filter-menu-${o.kind}`}
-                />
+                  onSelect={() => actions.setFilterPrimaryKind(o.kind)}
+                  data-testid={`fmt-filter-menu-${o.kind}`}
+                  className={active ? 'bg-primary/10 text-primary' : undefined}
+                >
+                  <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
+                  <span className="flex-1">{o.label}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground">+ Set</span>
+                </DropdownMenuItem>
               );
             })}
-          </Menu>
-        </Popover>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SplitPill>
 
       {/* Floating filter row toggle. */}

@@ -381,87 +381,9 @@ export function TitleBar({
   );
 }
 
-// ─── Menu — shared popover content surface ─────────────────────
-//
-// Rendered inside `<Popover>` from `@starui/grid-react` (which wraps
-// Radix Popover). These primitives provide the styled content — a
-// surface, a row, and a separator — entirely via Tailwind utilities
-// resolving through the `@starui/design-system` token tree:
-//
-//   • `bg-popover` / `text-popover-foreground` → --ds-surface-primary / --ds-text-primary
-//   • `border` / `rounded-md` → --ds-border-primary / --ds-radius-md
-//   • Hover/active fill via `bg-accent` → --ds-surface-secondary
-//   • Active text via `text-primary` → --ds-primary
-//
-// No `.fx-menu*` CSS class dependency. Replaces what used to live in
-// formatter.css `.fx-menu / .fx-menu__item / .fx-menu__sep` rules.
-
-export function Menu({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div
-      role="menu"
-      className={cn(
-        'flex flex-col gap-px p-1 min-w-[160px]',
-        // Surface chrome inherited from popover styles — no extra
-        // background/border here since PopoverCompat already supplies
-        // `bg-popover text-popover-foreground border rounded-md`.
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-export function MenuItem({
-  glyph,
-  name,
-  sample,
-  active,
-  onClick,
-  testId,
-}: {
-  glyph?: React.ReactNode;
-  name: React.ReactNode;
-  sample?: React.ReactNode;
-  active?: boolean;
-  onClick: () => void;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      data-active={active ? 'true' : undefined}
-      data-testid={testId}
-      onClick={onClick}
-      onMouseDown={(e) => e.preventDefault()}
-      className={cn(
-        // Row layout — glyph column (fixed), name (flex), sample (auto)
-        'group/menu-item flex items-center gap-2 w-full text-left',
-        'h-7 px-2 rounded-[3px]',
-        'text-[12px] leading-none font-medium text-foreground',
-        'cursor-pointer select-none',
-        'transition-colors',
-        // Hover + active states use design-system tokens.
-        'hover:bg-accent hover:text-accent-foreground',
-        'data-[active=true]:bg-primary/10 data-[active=true]:text-primary',
-        'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-[-1px] focus-visible:bg-accent',
-      )}
-    >
-      <span className="w-3 text-center text-[11px] text-muted-foreground group-data-[active=true]/menu-item:text-primary">
-        {glyph !== undefined ? glyph : ''}
-      </span>
-      <span className="flex-1 truncate">{name}</span>
-      {sample !== undefined && (
-        <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-          {sample}
-        </span>
-      )}
-    </button>
-  );
-}
-
-export function MenuSep() {
-  return <div role="separator" className="h-px bg-border mx-1 my-1" />;
-}
+// Menu / MenuItem / MenuSep primitives removed in PR #47.
+// Consumers migrated to shadcn `<DropdownMenu>` / `<DropdownMenuItem>` /
+// `<DropdownMenuSeparator>` from `@starui/ui`. The custom primitives
+// duplicated radix DropdownMenu's surface + row + separator with no
+// behavioural win — radix gives us keyboard nav, focus management,
+// escape handling, and ARIA roles for free.
