@@ -1,8 +1,8 @@
 # CLAUDE.md — agent instructions for `marketsui-platform`
 
 This is the consolidated MarketsUI platform monorepo. Four previously-separate
-repos (`widgets`, `markets-ui`, `fi-trading-terminal`, `stern-2`) live here as
-first-class workspaces under `@starui/*`.
+repos (`widgets`, `markets-ui`, `fi-trading-terminal`, and the legacy
+trading-shell repo) live here as first-class workspaces under `@starui/*`.
 
 **Read before editing:**
 

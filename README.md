@@ -7,10 +7,11 @@ single OpenFin workspace.
 
 This monorepo consolidates four previously-fragmented repositories
 (`widgetstools/widgets`, `widgetstools/markets-ui`,
-`widgetstools/fi-trading-terminal`, `nndrao/stern-2`) into a single source
-of truth. See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the
-layer diagram and [`docs/MIGRATION_NOTES.md`](./docs/MIGRATION_NOTES.md) if
-you followed a link from one of the archived repos.
+`widgetstools/fi-trading-terminal`, and the legacy trading-shell repo)
+into a single source of truth. See
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the layer diagram
+and [`docs/MIGRATION_NOTES.md`](./docs/MIGRATION_NOTES.md) if you
+followed a link from one of the archived repos.
 
 ## Stack
 
@@ -25,16 +26,16 @@ you followed a link from one of the archived repos.
 
 ## Monorepo layout
 
-### `packages/` — shared libraries (27, grouped by framework)
+### `packages/` — shared libraries (26, grouped by framework)
 
 ```
 packages/
-├── shared/      vanilla TS / framework-agnostic (12)
+├── shared/      vanilla TS / framework-agnostic (11)
 ├── react/       React-only packages (9)
 └── angular/     Angular-only packages (6)
 ```
 
-#### `packages/shared/` (12)
+#### `packages/shared/` (11)
 
 | Package | What it does |
 |---|---|
@@ -49,7 +50,6 @@ packages/
 | `@starui/runtime-browser` | Browser runtime adapter |
 | `@starui/runtime-openfin` | OpenFin runtime adapter |
 | `@starui/openfin-platform` | markets-ui OpenFin workspace bootstrap |
-| `@starui/openfin-platform-stern` | stern-2 OpenFin platform bootstrap |
 
 #### `packages/react/` (9)
 
@@ -76,7 +76,7 @@ packages/
 | `@starui/angular-registry-editor` | Widget-registry editor UI (Angular) |
 | `@starui/angular-config-browser` | Config-row browser/editor (Angular) |
 
-### `apps/` — runnable demos + reference apps (9)
+### `apps/` — runnable demos + reference apps (7)
 
 | App | What it is |
 |---|---|
@@ -87,8 +87,6 @@ packages/
 | `fi-trading-reference-angular` | fi-trading-terminal cockpit, Angular 21 port |
 | `markets-ui-react-reference` | markets-ui framework's React reference scenarios |
 | `markets-ui-angular-reference` | markets-ui framework's Angular reference scenarios |
-| `stern-reference-react` | stern-2 reference app (React) |
-| `stern-reference-angular` | stern-2 reference app (Angular) |
 
 ### `tools/` — build + migration scripts
 

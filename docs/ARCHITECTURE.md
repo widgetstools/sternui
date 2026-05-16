@@ -197,8 +197,9 @@ Angular. Exports semantic CSS variables (`--bn-*`, `--fi-*`), a
 Tailwind preset, PrimeNG theme, shadcn adapter, and AG-Grid theme
 adapter via subpaths (`./css`, `./tailwind`, `./primeng`,
 `./shadcn`, `./adapters/ag-grid`). Consolidates the
-fi-trading-terminal token system and stern-2 UI wrappers. Every
-themed surface in the repo flows through this package.
+fi-trading-terminal token system and the legacy trading-shell UI
+wrappers. Every themed surface in the repo flows through this
+package.
 
 ### `@starui/icons-svg` (1.0.0)
 
@@ -297,7 +298,7 @@ for platform-config helpers. Only this package and
 
 ### `@starui/widget-sdk` (1.0.0)
 
-The Stern Widget SDK — `useWidget` hook, `WidgetHost`, and the
+The Widget SDK — `useWidget` hook, `WidgetHost`, and the
 `PlatformAdapter` extensibility interface. Defines the contract
 that every hostable React widget implements. Sibling-free
 singleton (no Angular twin yet) because the Angular host stack

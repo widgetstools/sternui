@@ -51,7 +51,7 @@ These packages are NOT on corporate artifactory. They are vendored as `.tgz` fil
 | `react` | `~19.2.5` | fi-trading react-app |
 | `react-dom` | `~19.2.5` | fi-trading react-app |
 
-**Migration note:** stern-2/reference-app currently on `^18.3.1` — **must upgrade to 19.2.5** during consolidation. Every `<FC>` / `useId` / concurrent-mode consumer in stern-2 needs a React 19 review.
+**Migration note:** the legacy trading-shell reference-app currently on `^18.3.1` — **must upgrade to 19.2.5** during consolidation. Every `<FC>` / `useId` / concurrent-mode consumer in that legacy app needs a React 19 review.
 
 ## AG-Grid — pinned EXACT
 
@@ -121,8 +121,6 @@ Affected manifests (all pinned identically):
 ```
 apps/markets-ui-react-reference/public/platform/manifest.fin.json
 apps/markets-ui-angular-reference/public/platform/manifest.fin.json
-apps/stern-reference-react/public/manifest.fin.json
-apps/stern-reference-angular/public/manifest.fin.json
 ```
 
 View manifests under `public/views/*.fin.json` deliberately omit the `runtime` block — views inherit from the platform that hosts them, so a single source of truth lives at the platform-manifest level.
@@ -213,7 +211,7 @@ All Radix packages in fi-trading-terminal/react-app/package.json are corporate-m
 | `ssf` | `^0.11.2` | SheetJS format string parser — used by excelFormatter |
 | `dexie` | `^4.4.2` | **BUMP** from `^4.0.0` |
 | `zustand` | `^5.0.12` | **BUMP** from `^5.0.0` |
-| `uuid` | `^9.0.0` | used by stern-2/widget-sdk |
+| `uuid` | `^9.0.0` | used by widget-sdk |
 
 ## Angular (21.1.0 exact pin)
 
@@ -322,7 +320,7 @@ This section tracks every version change required when consolidating from the 4 
 | `@primeng/themes` | (as-is) | `file:libs/primeng-themes-20.3.0.tgz` | Ensure bundled tgz travels with import |
 | AG-Grid | (not yet integrated) | `35.1.0` exact | Add to angular-tools when wiring grids |
 
-### `stern-2` (nndrao/stern-2) — incoming
+### Legacy trading-shell — incoming
 
 | Package | Was | Now | Impact |
 |---|---|---|---|

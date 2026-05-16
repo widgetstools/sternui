@@ -53,7 +53,7 @@ Touched: `packages/shared/services/config-service/src/ConfigManager.ts`,
 
 `@starui/widgets-react` `ColumnsTab` and `AppDataFields` resolve the AG Grid
 `theme` via `useGridTheme()` from `@starui/markets-grid` (through the package
-`useAgGridTheme()` hook), matching `MarketsGrid` stern Quartz tokens and
+`useAgGridTheme()` hook), matching `MarketsGrid` Quartz theme tokens and
 following `[data-theme]` on `<html>`. The shared `useAgGridTheme()` hook no
 longer keys only on `next-themes` — fixing dark grids inside a light
 `data-theme` shell. Editor grids register `AllEnterpriseModule` once and no
@@ -239,8 +239,8 @@ that arrive at the same schema version but with legacy data.
 
 ## 2026-05-12 — MarketsGrid owns the canonical AG Grid theme
 
-`@starui/markets-grid` now ships the canonical `sternDarkTheme` and
-`sternLightTheme` (built on `themeQuartz`) plus a `useGridTheme` hook that
+`@starui/markets-grid` now ships the canonical AG-Grid dark and light
+themes (built on `themeQuartz`) plus a `useGridTheme` hook that
 reads `[data-theme]` on `<html>` reactively via `MutationObserver`. MarketsGrid
 resolves the theme internally — apps no longer need to construct or pass a
 `theme` prop; flipping `data-theme` is the only knob. The prop remains
@@ -372,12 +372,12 @@ Verification: `npm run test --workspace=@starui/grid-react`, `npm run typecheck 
 **`shadow-[0_20px_60px_rgba(0,0,0,0.45)]`** with **`shadow-[var(--ds-elevation-overlay)]`**.
 Verification: `npm run typecheck -w @starui/config-browser`.
 
-## 2026-05-11 — Remove legacy `@starui/ui` Stern / Coinbase CSS theme
+## 2026-05-11 — Remove legacy `@starui/ui` trading-shell / Coinbase CSS theme
 
-Deleted **`packages/react/ui/src/styles/stern-theme.css`** (duplicate Tailwind +
+Deleted **`packages/react/ui/src/styles/trading-shell-theme.css`** (duplicate Tailwind +
 Coinbase-style `:root` vars). Apps already import **`@starui/design-system/css`**;
 **`@starui/ui`** no longer exports **`./styles`**. **`ThemeProvider`** default
-**`storageKey`** is **`marketsui-theme`** (was **`stern-theme`**). Package metadata
+**`storageKey`** is **`marketsui-theme`** (was the legacy trading-shell key). Package metadata
 and **`check-ds-tokens`** allowlist updated. Verification:
 `npx turbo typecheck build --filter=@starui/ui`.
 
@@ -398,7 +398,7 @@ expression palette/help overlays use `var(--ds-font-sans)`. Verification:
 `@starui/design-system/adapters/ag-grid` `fontFamily.googleFont` now matches
 the Chroma Desk voice in `typography.fontFamily.mono` (JetBrains Mono) for both
 dark and light Quartz params; `agGridLightParams` gains the same `fontFamily`
-so Stern / config-browser light grids are not silent-default to a different face.
+so trading-shell / config-browser light grids are not silent-default to a different face.
 `MarketsGrid` mono inline stack, `formatter.css` `--fx-font-mono`, and the
 demo-react fixture banner align with the mono stack (IBM Plex Mono as secondary
 fallback). Verification: `npm test --workspace=@starui/design-system`,
@@ -1773,11 +1773,11 @@ captures the resulting layout for the living docs.
 
 **Deleted (PR-1 + PR-4):**
 
-- `@starui/openfin-platform-stern` (Stern OpenFin shell).
+- Legacy trading-shell OpenFin platform package.
 - `@starui/dock-editor` and `@starui/registry-editor` (React) plus their
   Angular twins.
-- Reference apps: `stern-reference-react`, `stern-reference-angular`,
-  `fi-trading-reference`, `fi-trading-reference-angular`,
+- Reference apps: the legacy trading-shell React and Angular reference
+  apps, `fi-trading-reference`, `fi-trading-reference-angular`,
   `axe-blotter-demo`, `markets-ui-angular-reference`.
 
 **Living docs updated in lockstep:** root `package.json` workspace globs
@@ -1786,12 +1786,12 @@ captures the resulting layout for the living docs.
 
 ## Removed in 2026-05-08 (PR-1 of code-organization migration)
 
-- Stern OpenFin shell (`@starui/openfin-platform-stern`) and reference apps.
+- Legacy trading-shell OpenFin package and its reference apps.
 - fi-trading reference apps (empty placeholders).
 - axe-blotter demo (out of scope).
 - markets-ui-angular-reference (deferred until Angular parity catches up).
-- Three Stern-only OpenFin hooks (`useViewManager`, `useOpenFinEvents`,
-  `useOpenfinTheme`) that re-exported Stern symbols through
+- Three trading-shell-only OpenFin hooks (`useViewManager`, `useOpenFinEvents`,
+  `useOpenfinTheme`) that re-exported trading-shell symbols through
   `@starui/widgets-react` — removed alongside the shell. No surviving
   app consumed them.
 
@@ -1827,7 +1827,7 @@ captures the resulting layout for the living docs.
   `Button, Input` to `@starui/grid-react`; demo apps add the alias
   in `vite.config.ts`.
 - `core/ui/shadcn/` was moved verbatim — these gc-themed primitives
-  are intentionally divergent from `@starui/ui`'s Stern-themed
+  are intentionally divergent from `@starui/ui`'s trading-shell-themed
   copies (different sizes, focus rings, native-vs-Radix `Select`,
   `usePortalContainer`-routed Popovers). Reconciling the two
   themes is out of scope for PR-8.
@@ -3082,11 +3082,11 @@ Deferred to ANGULAR_PORT Phase 4 (`docs/plans/ANGULAR_PORT.md`) — the plan's A
 
 ## 1.O `@starui/data-plane` — Week 1 + 1.5 (protocol + dual cache + dual provider bases)
 
-Per [`docs/plans/DATA_PLANE.md`](./plans/DATA_PLANE.md). Week 1 delivered protocol + cache + provider bases for keyed-resource mode; Week 1.5 adds the row-stream primitives that match stern-1's production architecture (`/Users/develop/Documents/projects/stern-1/client/src/workers/engine/`).
+Per [`docs/plans/DATA_PLANE.md`](./plans/DATA_PLANE.md). Week 1 delivered protocol + cache + provider bases for keyed-resource mode; Week 1.5 adds the row-stream primitives that match the legacy trading platform's production architecture (under its `client/src/workers/engine/` tree).
 
 ### Why two cache models + two provider bases
 
-Reviewing the existing stern-1 STOMP implementation and the companion `/Users/develop/Documents/projects/stomp-server` surfaced a fundamental distinction the original plan conflated:
+Reviewing the existing legacy STOMP implementation and the companion `/Users/develop/Documents/projects/stomp-server` surfaced a fundamental distinction the original plan conflated:
 
 | Mode | Cache | Provider | Used by |
 |---|---|---|---|
@@ -3109,22 +3109,22 @@ Both coexist in the same package and use the same wire protocol — the client p
 | `src/protocol.test.ts` | 46 tests — round-trip coverage for every message shape under both JSON and native structured clone. |
 | `src/worker/cache.ts` | Keyed-resource cache: `ProviderCache` (per-key LRU + TTL), `CacheState`, `isExpired`, `singleFlight` thundering-herd dedup. |
 | `src/worker/cache.test.ts` | 20 tests — LRU eviction, TTL boundaries, concurrent `singleFlight` dedup, cross-provider isolation. |
-| `src/worker/rowCache.ts` | Row-stream cache: `RowCache<TRow>` — upsert-by-`keyColumn`. Direct port of stern-1's `CacheManager`. Returns `{ accepted, skipped }` so the router can surface diagnostics when `keyColumn` is misconfigured (rows arriving but cache empty). |
+| `src/worker/rowCache.ts` | Row-stream cache: `RowCache<TRow>` — upsert-by-`keyColumn`. Direct port of the legacy trading platform's `CacheManager`. Returns `{ accepted, skipped }` so the router can surface diagnostics when `keyColumn` is misconfigured (rows arriving but cache empty). |
 | `src/worker/rowCache.test.ts` | 10 tests — upsert identity, row-copy-on-insert, skip-when-key-missing, remove, clear. |
 | `src/providers/ProviderBase.ts` | Keyed-resource abstract base with `configure` / `fetch` / `subscribe?` / `teardown` + `track` / `untrack` refcount helpers. |
 | `src/providers/MockProvider.ts` | Keyed-resource synthetic provider for demos + tests. |
 | `src/providers/AppDataProvider.ts` | Keyed-resource reactive k/v — backbone for template bindings (`{{app1.token1}}`). |
 | `src/providers/AppDataProvider.test.ts` | 12 tests — reactivity, unsubscribe-during-fanout safety, teardown. |
-| `src/providers/StreamProviderBase.ts` | Row-stream abstract base. Manages `RowCache`, phase state (snapshot / realtime), listener fan-out, `registerSubscriber` / `shouldReceiveCached` late-joiner tracking, error + connect/disconnect statistics. Direct port of stern-1's `StompEngine` patterns, generalized so `StompStreamProvider`, `WebSocketStreamProvider`, `SocketIOStreamProvider` can all subclass it. |
+| `src/providers/StreamProviderBase.ts` | Row-stream abstract base. Manages `RowCache`, phase state (snapshot / realtime), listener fan-out, `registerSubscriber` / `shouldReceiveCached` late-joiner tracking, error + connect/disconnect statistics. Direct port of the legacy trading platform's `StompEngine` patterns, generalized so `StompStreamProvider`, `WebSocketStreamProvider`, `SocketIOStreamProvider` can all subclass it. |
 | `src/providers/StreamProviderBase.test.ts` | 13 tests — snapshot phase transitions, snapshot-complete idempotency, upsert-on-realtime-update, late-joiner logic (early vs late port detection), listener safety (throwing + self-removing during fan-out), error + lifecycle reporting, reset for reconnects. |
 | `src/index.ts` | Public barrel exporting both modes. |
 
 ### Design decisions worth calling out
 
-- **Correction from earlier Week-1 doc:** my original take called `StompDatasourceProvider` "snapshot-only + not streaming." That's true of `packages/widgets-react/src/provider-editor/stomp/StompDatasourceProvider.ts` (which is a field-inference tool — fetches one snapshot, disconnects). The REAL streaming provider lives in stern-1 (`client/src/workers/engine/StompEngine.ts` + `CacheManager.ts` + `BroadcastManager.ts`). It's full snapshot + realtime with late-joiner support. The row-stream primitives added in Week 1.5 are the porting target for that architecture.
-- **Phase machine is authoritative.** `StreamProviderBase.markSnapshotComplete()` is idempotent; any late `ingestSnapshotBatch()` after completion transparently routes to the update path. This matches stern-1's defensive behaviour and avoids clients seeing mode regressions.
+- **Correction from earlier Week-1 doc:** my original take called `StompDatasourceProvider` "snapshot-only + not streaming." That's true of `packages/widgets-react/src/provider-editor/stomp/StompDatasourceProvider.ts` (which is a field-inference tool — fetches one snapshot, disconnects). The REAL streaming provider lives in the legacy trading platform (`client/src/workers/engine/StompEngine.ts` + `CacheManager.ts` + `BroadcastManager.ts`). It's full snapshot + realtime with late-joiner support. The row-stream primitives added in Week 1.5 are the porting target for that architecture.
+- **Phase machine is authoritative.** `StreamProviderBase.markSnapshotComplete()` is idempotent; any late `ingestSnapshotBatch()` after completion transparently routes to the update path. This matches the legacy trading platform's defensive behaviour and avoids clients seeing mode regressions.
 - **`keyColumn` is REQUIRED for row-stream providers.** Unlike the keyed-resource mode where the caller chooses the key, row-stream rows carry their own identity in a configured field (`positionId`, `tradeId`, etc.). `RowCache` drops rows missing that field and exposes the count via `UpsertResult.skipped` so the protocol's `snapshot-batch.diagnostics.skipped` can surface the misconfiguration at grid bootstrap.
-- **Late-joiner semantics ported 1:1 from stern-1.** A port subscribing during the snapshot phase is marked in `liveSnapshotPorts`. After `snapshot-complete`, `shouldReceiveCached(portId)` returns `false` for those ports — they already received the live data, sending cached rows would duplicate. Ports that subscribed after complete are not in the set, so they get the cached replay.
+- **Late-joiner semantics ported 1:1 from the legacy trading platform.** A port subscribing during the snapshot phase is marked in `liveSnapshotPorts`. After `snapshot-complete`, `shouldReceiveCached(portId)` returns `false` for those ports — they already received the live data, sending cached rows would duplicate. Ports that subscribed after complete are not in the set, so they get the cached replay.
 - **Listener iteration is crash + mutation safe.** `StreamProviderBase.dispatch` snapshots the listener set and catches per-listener exceptions so one bad consumer doesn't kill the provider or break iteration for other listeners. Tested with a listener that removes itself mid-dispatch and one that throws.
 - **Existing `DataProviderEditor` UI stays put.** It persists through `dataProviderConfigService` → the shared-types `ProviderConfig` union. The data-plane consumes the same union verbatim at `configure()` time.
 - **Existing `IBlotterDataProvider` contract kept.** It lives in `@starui/widgets-react/interfaces.ts` and drives `useBlotterDataConnection`. Legacy per-widget adapter; `StreamProviderBase` is the new multiplexed contract. Both coexist during migration.
@@ -3149,10 +3149,10 @@ Week 2 bolts the dispatch + transport surface onto the Week-1/1.5 primitives. No
 
 | File | What it is |
 |---|---|
-| `src/worker/broadcastManager.ts` + 11 tests | Per-provider port registry with targeted + fan-out delivery, dead-port purge on `postMessage` throws, `removePortFromAll` for port-closed cleanup. Direct port of stern-1's `BroadcastManager` generalised to the data-plane's response union. |
+| `src/worker/broadcastManager.ts` + 11 tests | Per-provider port registry with targeted + fan-out delivery, dead-port purge on `postMessage` throws, `removePortFromAll` for port-closed cleanup. Direct port of the legacy trading platform's `BroadcastManager` generalised to the data-plane's response union. |
 | `src/worker/providerFactory.ts` | `ProviderFactory` type + `defaultProviderFactory`. Returns a discriminated `{ shape: 'keyed' \| 'stream', provider }` so the router can branch safely. Wrap to add STOMP / WebSocket / SocketIO without touching router code. |
 | `src/worker/router.ts` + 14 tests | The dispatcher. Handles every opcode: `configure / get / put / subscribe / unsubscribe / invalidate / teardown / ping` (keyed-resource) AND `subscribe-stream / get-cached-rows` (row-stream). Owns: in-flight `ProviderCache` per keyed provider, single-flight dedup on `get`, monotonic per-provider `streamSeq` for row updates, port-id generation (`WeakMap<MessagePort, string>`), auto-teardown on idle — but ONLY for stream providers (keyed providers persist in-memory state and must not lose it when the last subscriber leaves). |
-| `src/worker/entry.ts` | `installWorker({ router })` — wires `self.onconnect` (SharedWorker) AND `self.onmessage` (dedicated Worker bootstrap) into the router. Periodic dead-port sweep at configurable interval (default 30s / 60s timeout, matching stern-1). |
+| `src/worker/entry.ts` | `installWorker({ router })` — wires `self.onconnect` (SharedWorker) AND `self.onmessage` (dedicated Worker bootstrap) into the router. Periodic dead-port sweep at configurable interval (default 30s / 60s timeout, matching the legacy trading platform). |
 | `src/worker/index.ts` | Subpath barrel `@starui/data-plane/worker` for worker assets. |
 | `src/client/DataPlaneClient.ts` + 9 tests | Main-thread SDK. Typed async APIs for every one-shot op (`configure/get/put/invalidate/teardown/ping`) plus `subscribe(k, onUpdate)` / `subscribeStream(listener)` / `getCachedRows()`. `close()` rejects every pending request with `TRANSPORT_CLOSED`. Typed `DataPlaneClientError` (extends `Error`) for every failure so callers can `catch` and branch on `.code` / `.retryable`. |
 | `src/client/fallbacks.ts` | `hasSharedWorker` / `hasDedicatedWorker` probes + `TransportMode` type. |
@@ -3167,7 +3167,7 @@ Week 2 bolts the dispatch + transport surface onto the Week-1/1.5 primitives. No
 - **In-flight dedup for `get`.** Three concurrent `client.get(p, k)` calls for the same `(providerId, key)` invoke `provider.fetch` exactly once and all three resolve with the same value. The router uses the `ProviderCache.singleFlight` helper from Week 1.
 - **Row-stream late-joiner semantics preserved end-to-end.** When a port subscribes during the snapshot phase, `StreamProviderBase.registerSubscriber` marks it in `liveSnapshotPorts`. Post-complete, a `get-cached-rows` from that port replies with an empty batch + immediate complete (no double-delivery). Late joiners get the full cached set with `diagnostics.keyColumn` / `cacheSize` attached so the grid can surface key-column mismatches at bootstrap.
 - **Client-side error routing is explicit.** `onSubscribeError` is optional per subscription; protocol `err` frames with a reqId correlate back to the pending promise, everything else fans out to registered listeners.
-- **Dead-port detection is best-effort.** The `entry.ts` heartbeat sweep is the only reliable signal in a SharedWorker (ports don't fire a `close` event). Clients don't need to send explicit heartbeats — every request counts as liveness. 60s timeout (stern-1's value) is the default; consumers can tune via `installWorker({ deadPortTimeoutMs })`.
+- **Dead-port detection is best-effort.** The `entry.ts` heartbeat sweep is the only reliable signal in a SharedWorker (ports don't fire a `close` event). Clients don't need to send explicit heartbeats — every request counts as liveness. 60s timeout (the legacy trading platform's value) is the default; consumers can tune via `installWorker({ deadPortTimeoutMs })`.
 
 ### Public API surface
 
@@ -3230,7 +3230,7 @@ installWorker({ router });
 
 ## 1.O.W3 — Week 3 (StompStreamProvider — real production STOMP)
 
-Port of stern-1's `StompEngine` onto the Week-1.5 `StreamProviderBase`. Speaks the same wire format as `/Users/develop/Documents/projects/stomp-server/` (the reference broker): subscribe to a listener topic, optionally publish a trigger, consume snapshot batches until a `"Success"`-containing body arrives, then handle every subsequent message as a realtime update.
+Port of the legacy trading platform's `StompEngine` onto the Week-1.5 `StreamProviderBase`. Speaks the same wire format as `/Users/develop/Documents/projects/stomp-server/` (the reference broker): subscribe to a listener topic, optionally publish a trigger, consume snapshot batches until a `"Success"`-containing body arrives, then handle every subsequent message as a realtime update.
 
 ### What landed
 
@@ -3319,7 +3319,7 @@ function PositionsBlotter() {
 ### What's NOT here yet
 
 - `providers/RestStreamProvider.ts` / `WebSocketStreamProvider.ts` / `SocketIOStreamProvider.ts` — the STOMP pattern is trivially transposable to each, but each has quirks (REST polling backoff; WebSocket binary vs JSON; SocketIO event names). Defer until a consumer actually needs one.
-- `worker/iab-bridge.ts` — cross-app routing (stern-1's AppData + OpenFin IAB pattern). Deferred to the `SHELL_AND_REGISTRY.md` plan rather than pinned to this package.
+- `worker/iab-bridge.ts` — cross-app routing (the legacy trading platform's AppData + OpenFin IAB pattern). Deferred to the `SHELL_AND_REGISTRY.md` plan rather than pinned to this package.
 - Angular signal bindings (`@starui/data-plane-angular`) — analogous shape to the React package.
 - `apps/demo-react` integration with a running STOMP server — requires `/Users/develop/Documents/projects/stomp-server` booted, so scoping as a local dev/e2e cycle rather than a CI artifact.
 - E2E: 4-widgets-one-STOMP-topic assertion that only one outbound WebSocket connects.
@@ -4163,7 +4163,7 @@ Key changes:
   `--bn-*`/`--gc-*`/`--fi-*` vars replaced with `--ds-*` equivalents in
   `marketsGrid.css`, `formatter.css`, `ProfileSelector.css`, `HelpPanel.css`,
   and all `.tsx` component files.
-- **`packages/react/widgets/widgets-react/`** — `sternAgGridTheme.ts`
+- **`packages/react/widgets/widgets-react/`** — the AG-Grid theme module
   updated to use `var(--ds-surface-primary)` etc. in `themeQuartz.withParams()`.
   `HostedMarketsGrid.tsx`, `LoadingOverlay.tsx`, `useColorLinking.ts` swept.
 - **`packages/shared/core/`** — `injectEditorStyles.ts` scrollbar/editor CSS

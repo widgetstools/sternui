@@ -30,7 +30,7 @@ Method:
 | Operator tools | `@starui/config-browser` (react), `@starui/workspace-setup-react`, `@starui/config-editor-ui` | `@starui/config-browser-angular` (594 LOC, AG-Grid based) | Config browser parity ✓. Workspace setup + config-editor-ui have no Angular twin (out of scope for grid epic). |
 | Grid React surface | `@starui/grid-react` (162 `.ts` + 250 `.tsx` files across `hooks/`, `modules/{9 modules}/`, `ui/{SettingsPanel,StyleEditor,FormatterPicker,ExpressionEditor,format-editor,ColorPicker,shadcn,PopoutPortal,Poppable,PortalContainer}`) | **Nothing.** No `@starui/grid-angular` exists. | **MISSING — biggest gap.** |
 | Grid host component | `@starui/markets-grid` (`MarketsGrid.tsx` 1281 LOC + 18 sibling files: `FiltersToolbar`, `FormattingToolbar`, `SettingsSheet`, `ProfileSelector`, `HelpPanel`, `TemplateManager`, `DraggableFloat`, `useGridHost`, `streamSafeFloatingFilter[Dom]?` ×3, `formatter/*`, `formatterPresets`, `openfinViewProfile`, etc.) | **Nothing.** | **MISSING — primary deliverable.** |
-| Demo apps | `apps/demo-react`, `apps/demo-configservice-react`, `apps/markets-ui-react-reference` | `apps/demo-angular` exists (38 files), but it's a standalone PrimeNG/Aura trading dashboard with raw `ag-grid-angular` widgets — does NOT mount any future `<stern-markets-grid>` | **Partial — host shell + theming wired, MarketsGrid integration missing.** |
+| Demo apps | `apps/demo-react`, `apps/demo-configservice-react`, `apps/markets-ui-react-reference` | `apps/demo-angular` exists (38 files), but it's a standalone PrimeNG/Aura trading dashboard with raw `ag-grid-angular` widgets — does NOT mount any future `<mui-markets-grid>` | **Partial — host shell + theming wired, MarketsGrid integration missing.** |
 | Generic widgets | `@starui/widgets-react` | `@starui/widgets-angular` — has `DataProviderEditor` (216+233+197+394 LOC = 1040 LOC across 4 files) and `DockConfigurator` (373+134+116 LOC = 623 LOC across 3 files), plus `field-inference.service` and `data-provider.service` | Two named widgets at parity. **No grid surface here.** |
 
 ### Key takeaways
@@ -226,7 +226,7 @@ shell × 4, tailwind/angular config).
 **Reuse path:** `demo-angular` evolves into the reference integration
 once `markets-grid-angular` lands. The trading dashboard widgets stay
 as auxiliary screens; the order-blotter widget can be retrofitted to
-mount `<stern-markets-grid>` once available.
+mount `<mui-markets-grid>` once available.
 
 ---
 

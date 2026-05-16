@@ -8,7 +8,7 @@ real output and the forward backlog in
 
 **Conventions**
 
-- IDs use `STERN-R*` (R for retrospective).
+- IDs use `MG-R*` (R for retrospective).
 - Story-point scale matches the forward plan (Fibonacci 1, 2, 3, 5, 8, 13).
 - Each story lists the commit SHA + file paths so a reviewer can verify scope.
 - All retrospective stories should be Jira-imported with `status=Done`
@@ -45,12 +45,12 @@ without a profile reload.
 
 | Story | Title | SP |
 |---|---|---:|
-| **STERN-R-A1** | New `SettingsRow` primitive — fixed 160px label gutter, hint slot, optional divider mode. Becomes the canonical layout primitive across every panel | 3 |
-| **STERN-R-A2** | New `SummaryChip` primitive — compact monospaced status chip used in cockpit list rows | 2 |
-| **STERN-R-A3** | Refactor `GridOptionsPanel` to `SettingsRow` layout — touches every field in the 7-section general-settings schema (+455 LOC net) | 8 |
-| **STERN-R-A4** | Refactor `ConditionalStylingPanel`, `ColumnSettingsPanel`, `CalculatedColumnsPanel`, `ColumnGroupsPanel` editor/list panes to the unified `SettingsRow` chrome (+275 LOC across panels) | 5 |
-| **STERN-R-A5** | Diff-aware conditional expression context — `cellValueChanged` populates a per-API `WeakMap` of `oldValue`/`newValue` deltas, exposed to the expression engine so rules see both states in the same evaluation pass | 5 |
-| **STERN-R-A6** | New `indicatorIcons.ts` registry (119 LOC) — Lucide icon catalog + `findIndicatorIcon()` lookup powering the conditional-styling indicator picker | 3 |
+| **MG-R-A1** | New `SettingsRow` primitive — fixed 160px label gutter, hint slot, optional divider mode. Becomes the canonical layout primitive across every panel | 3 |
+| **MG-R-A2** | New `SummaryChip` primitive — compact monospaced status chip used in cockpit list rows | 2 |
+| **MG-R-A3** | Refactor `GridOptionsPanel` to `SettingsRow` layout — touches every field in the 7-section general-settings schema (+455 LOC net) | 8 |
+| **MG-R-A4** | Refactor `ConditionalStylingPanel`, `ColumnSettingsPanel`, `CalculatedColumnsPanel`, `ColumnGroupsPanel` editor/list panes to the unified `SettingsRow` chrome (+275 LOC across panels) | 5 |
+| **MG-R-A5** | Diff-aware conditional expression context — `cellValueChanged` populates a per-API `WeakMap` of `oldValue`/`newValue` deltas, exposed to the expression engine so rules see both states in the same evaluation pass | 5 |
+| **MG-R-A6** | New `indicatorIcons.ts` registry (119 LOC) — Lucide icon catalog + `findIndicatorIcon()` lookup powering the conditional-styling indicator picker | 3 |
 
 **Acceptance — epic-level (all verified, all green)**
 - `npx turbo typecheck build test` clean across the monorepo.
@@ -79,26 +79,26 @@ memory bookkeeping under live ticks).
 
 | Story | Title | SP |
 |---|---|---:|
-| **STERN-R-B1** | `activeDurationMs` style window — per-rule auto-revert window. Module-scoped activation map keyed by rowId (cell + row variants), coalesced `setTimeout` pointing at the next-to-expire activation (O(1) timer churn under any tick rate), `pruneTimedRuleState` runs every `modelUpdated` pass | 8 |
-| **STERN-R-B2** | `FlashConfig` schema upgrade — replace stored-but-never-applied `{ flashDuration, fadeDuration }` with `{ mode, color, durationMs }`. `mode: 'oneShot' \| 'pulse'`; `color` one of an 8-entry theme-aware palette (`amber`, `emerald`, `rose`, `sky`, `violet`, `teal`, `orange`, `slate`); `durationMs` covers one full cycle | 5 |
-| **STERN-R-B3** | `FLASH_PALETTE` constant — 8 colours × `{ light, dark, swatch }` triples with tuned alphas so cell text stays legible against the flash overlay in both themes | 2 |
-| **STERN-R-B4** | Deserialize migration — legacy `{ flashDuration, fadeDuration }` collapses to `durationMs`; unknown `mode`/`color` strings coerce to safe defaults. Idempotent re-serialize | 3 |
-| **STERN-R-B5** | Per-rule CSS isolation — each enabled flash rule emits its own `@keyframes ds-flash-<ruleId>` block and scopes `--ds-flash-color` to its own class. Two flashing rules on the same cell stay independent in colour and timing. Header flash gets a dedicated `.ds-flash-hdr-<ruleId>` class so rule cell styling does NOT leak onto headers | 5 |
-| **STERN-R-B6** | `FlashBand` editor rebuilt on `SettingsRow` layout — adds `FLASH` switch+target, `MODE` pill toggle, `COLOR` 8-swatch picker with offset-ring + scale animation on the active swatch, `DURATION` numeric input, `STYLE WINDOW` numeric input (the activeDurationMs control). `role="radiogroup"` + `aria-checked` for accessibility | 5 |
+| **MG-R-B1** | `activeDurationMs` style window — per-rule auto-revert window. Module-scoped activation map keyed by rowId (cell + row variants), coalesced `setTimeout` pointing at the next-to-expire activation (O(1) timer churn under any tick rate), `pruneTimedRuleState` runs every `modelUpdated` pass | 8 |
+| **MG-R-B2** | `FlashConfig` schema upgrade — replace stored-but-never-applied `{ flashDuration, fadeDuration }` with `{ mode, color, durationMs }`. `mode: 'oneShot' \| 'pulse'`; `color` one of an 8-entry theme-aware palette (`amber`, `emerald`, `rose`, `sky`, `violet`, `teal`, `orange`, `slate`); `durationMs` covers one full cycle | 5 |
+| **MG-R-B3** | `FLASH_PALETTE` constant — 8 colours × `{ light, dark, swatch }` triples with tuned alphas so cell text stays legible against the flash overlay in both themes | 2 |
+| **MG-R-B4** | Deserialize migration — legacy `{ flashDuration, fadeDuration }` collapses to `durationMs`; unknown `mode`/`color` strings coerce to safe defaults. Idempotent re-serialize | 3 |
+| **MG-R-B5** | Per-rule CSS isolation — each enabled flash rule emits its own `@keyframes ds-flash-<ruleId>` block and scopes `--ds-flash-color` to its own class. Two flashing rules on the same cell stay independent in colour and timing. Header flash gets a dedicated `.ds-flash-hdr-<ruleId>` class so rule cell styling does NOT leak onto headers | 5 |
+| **MG-R-B6** | `FlashBand` editor rebuilt on `SettingsRow` layout — adds `FLASH` switch+target, `MODE` pill toggle, `COLOR` 8-swatch picker with offset-ring + scale animation on the active swatch, `DURATION` numeric input, `STYLE WINDOW` numeric input (the activeDurationMs control). `role="radiogroup"` + `aria-checked` for accessibility | 5 |
 
 ### Correctness / performance stories (same patch)
 
 | Story | Title | SP |
 |---|---|---:|
-| **STERN-R-B7** | Differential header repaint — `evaluate()` previously stripped + re-added every `ds-flash-hdr-*` / `ds-rule-*` class on every `modelUpdated`, restarting CSS animations every frame. Now diffs against `lastFlashColsByRule` / `lastIndicatorColsByRule` and mutates only the delta. Zero DOM work when matching set is unchanged | 5 |
-| **STERN-R-B8** | Bounded grid refresh — `refreshGridVisuals` no longer calls `redrawRows()` or `refreshHeader()` (they rebuilt row/header DOM, stealing focus from cell editors + floating-filter inputs under live ticks). Only `refreshCells({ force: true })` remains, and it fires at most once per `modelUpdated` pass, and only when a timed activation was actually written | 5 |
-| **STERN-R-B9** | Cleanup invariants — `refreshTimeouts` `Set` replaced by single `expiryTimer` handle; `previousByRow` + `timedRuleStateByRowId` cleared on module activate + teardown; `pruneTimedRuleState` removes stale row IDs every pass. No leaks under multi-hour live-tick session | 5 |
+| **MG-R-B7** | Differential header repaint — `evaluate()` previously stripped + re-added every `ds-flash-hdr-*` / `ds-rule-*` class on every `modelUpdated`, restarting CSS animations every frame. Now diffs against `lastFlashColsByRule` / `lastIndicatorColsByRule` and mutates only the delta. Zero DOM work when matching set is unchanged | 5 |
+| **MG-R-B8** | Bounded grid refresh — `refreshGridVisuals` no longer calls `redrawRows()` or `refreshHeader()` (they rebuilt row/header DOM, stealing focus from cell editors + floating-filter inputs under live ticks). Only `refreshCells({ force: true })` remains, and it fires at most once per `modelUpdated` pass, and only when a timed activation was actually written | 5 |
+| **MG-R-B9** | Cleanup invariants — `refreshTimeouts` `Set` replaced by single `expiryTimer` handle; `previousByRow` + `timedRuleStateByRowId` cleared on module activate + teardown; `pruneTimedRuleState` removes stale row IDs every pass. No leaks under multi-hour live-tick session | 5 |
 
 ### Quality bar (covered under the same epic)
 
 | Story | Title | SP |
 |---|---|---:|
-| **STERN-R-B10** | Test coverage — 4 new vitest cases in `ConditionalStylingPanel.test.tsx` covering: STYLE WINDOW commit through editor, flash mode/color/durationMs commit, legacy `{ flashDuration, fadeDuration }` → `durationMs` migration, unknown-value coercion. Suite up from 10 → 14 conditional-styling tests; grid-react total now 209 passing | 4 |
+| **MG-R-B10** | Test coverage — 4 new vitest cases in `ConditionalStylingPanel.test.tsx` covering: STYLE WINDOW commit through editor, flash mode/color/durationMs commit, legacy `{ flashDuration, fadeDuration }` → `durationMs` migration, unknown-value coercion. Suite up from 10 → 14 conditional-styling tests; grid-react total now 209 passing | 4 |
 
 **Acceptance — epic-level (verified)**
 - All 14 conditional-styling tests pass; 209/209 grid-react.
@@ -119,9 +119,9 @@ overview document for non-engineering audiences.
 
 | Story | Title | SP |
 |---|---|---:|
-| **STERN-R-C1** | Single-file `marketsui-grid-edit-demo-ag35/index.html` — standalone AG-Grid 35 demo bootstrap, no bundler. Used to validate that a profile snapshot generated from the React app loads cleanly outside the React shell | 3 |
-| **STERN-R-C2** | `grrid-config.json` — 1037-line representative profile snapshot covering every module (general-settings, column-customization, calculated-columns, column-groups, conditional-styling with timed window + new flash schema, grid-state, toolbar-visibility, saved-filters). Doubles as a regression-test fixture | 2 |
-| **STERN-R-C3** | `marketsgrid-overview.md` + matching PDF — 202-line stakeholder-facing overview of MarketsGrid: what it does, who it serves, how it sits in the FI Trading Terminal context. Suitable for sharing with product, design, and execs | 3 |
+| **MG-R-C1** | Single-file `marketsui-grid-edit-demo-ag35/index.html` — standalone AG-Grid 35 demo bootstrap, no bundler. Used to validate that a profile snapshot generated from the React app loads cleanly outside the React shell | 3 |
+| **MG-R-C2** | `grrid-config.json` — 1037-line representative profile snapshot covering every module (general-settings, column-customization, calculated-columns, column-groups, conditional-styling with timed window + new flash schema, grid-state, toolbar-visibility, saved-filters). Doubles as a regression-test fixture | 2 |
+| **MG-R-C3** | `marketsgrid-overview.md` + matching PDF — 202-line stakeholder-facing overview of MarketsGrid: what it does, who it serves, how it sits in the FI Trading Terminal context. Suitable for sharing with product, design, and execs | 3 |
 
 **Acceptance — epic-level**
 - `marketsui-grid-edit-demo-ag35/index.html` opened directly in browser renders an AG-Grid v35 instance.
@@ -161,8 +161,8 @@ Suggested CSV for bulk import, matching the forward backlog header:
 ```
 Issue Type,Summary,Description,Epic Link,Labels,Story Points,Components,Status,Resolution
 Epic,"R-A — Unified settings-panel chrome + diff-aware conditional styling",See doc,,delivered grid-react epic,,grid-react,Done,Done
-Story,"New SettingsRow primitive",See STERN-R-A1 spec,STERN-R-A,delivered grid-react story,3,grid-react,Done,Done
-Story,"New SummaryChip primitive",See STERN-R-A2 spec,STERN-R-A,delivered grid-react story,2,grid-react,Done,Done
+Story,"New SettingsRow primitive",See MG-R-A1 spec,MG-R-A,delivered grid-react story,3,grid-react,Done,Done
+Story,"New SummaryChip primitive",See MG-R-A2 spec,MG-R-A,delivered grid-react story,2,grid-react,Done,Done
 ... (one row per story above)
 ```
 

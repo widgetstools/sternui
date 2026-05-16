@@ -21,7 +21,7 @@
 - [ ] `@starui/config-service`
 - [ ] `@starui/component-host`
 - [ ] `@starui/widget-sdk`
-- [ ] `@starui/openfin-platform` / `@starui/openfin-platform-stern`
+- [ ] `@starui/openfin-platform`
 - [ ] `@starui/widgets-react`
 - [ ] `@starui/react-tools` / `@starui/angular-tools`
 - [ ] `@starui/dock-editor` / `@starui/angular-dock-editor`
