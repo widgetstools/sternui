@@ -696,60 +696,9 @@
   display: none;
 }
 
-/* ─── Popover content surfaces (currency menu, font-size, tick) ─── */
-
-.fx-menu {
-  font-family: var(--fx-font-sans);
-  font-size: 11px;
-  color: var(--fx-ink);
-  padding: 4px;
-  min-width: 140px;
-}
-.fx-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 6px 10px;
-  background: transparent;
-  border: none;
-  border-radius: var(--fx-radius);
-  color: var(--fx-ink);
-  font-family: inherit;
-  font-size: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 100ms, color 100ms;
-}
-.fx-menu__item:hover {
-  background: var(--fx-accent-soft);
-  color: var(--fx-accent);
-}
-.fx-menu__item[data-active='true'] {
-  background: var(--fx-accent-soft);
-  color: var(--fx-accent);
-}
-.fx-menu__glyph {
-  width: 14px;
-  font-family: var(--fx-font-mono);
-  font-size: 10px;
-  color: var(--fx-ink-faint);
-  text-align: center;
-  flex-shrink: 0;
-}
-.fx-menu__name {
-  flex: 1;
-}
-.fx-menu__sample {
-  font-family: var(--fx-font-mono);
-  font-size: 10px;
-  color: var(--fx-ink-faint);
-}
-.fx-menu__sep {
-  height: 1px;
-  background: var(--fx-line);
-  margin: 4px 0;
-}
+/* Menu / MenuItem / MenuSep moved to primitives.tsx as Tailwind
+   utilities resolving through `@starui/design-system` tokens. The
+   `.fx-menu*` rules used to live here. */
 
 /* ─── Pop-out trigger ──────────────────────────────────────────── */
 
