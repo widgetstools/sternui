@@ -72,10 +72,10 @@
     "packedAt": "2026-05-16T16:39:59.162Z"
   },
   "@starui/design-system": {
-    "filename": "starui-design-system-0.1.0-eea0b624.tgz",
+    "filename": "starui-design-system-0.1.0-09d9b5a5.tgz",
     "version": "0.1.0",
-    "sha": "eea0b624",
-    "packedAt": "2026-05-16T17:41:24.130Z"
+    "sha": "09d9b5a5",
+    "packedAt": "2026-05-16T19:44:43.132Z"
   },
   "@starui/grid-react": {
     "filename": "starui-grid-react-0.1.0-feef4908.tgz",

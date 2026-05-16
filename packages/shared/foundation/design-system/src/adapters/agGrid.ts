@@ -59,9 +59,12 @@ function gridParams(
     wrapperBorder:      true as const,
     wrapperBorderRadius: 3,
     headerColumnBorder: false as const,
+    // Vertical 1px rule between data-row cells (Stockflux blotter look —
+    // makes columns read as distinct in dense numeric tables).
+    columnBorder:       true as const,
     headerColumnResizeHandleColor: hexToRgba(pack.accent, 0.5),
-    headerColumnResizeHandleHeight: '40%',
-    headerColumnResizeHandleWidth: '2px',
+    headerColumnResizeHandleHeight: '30%',
+    headerColumnResizeHandleWidth: 2,
     rowBorder:          { style: 'solid' as const, width: 1, color: pack.rowBorder },
     rowHeight:          rowH,
     headerHeight:       headerH,

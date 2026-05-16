@@ -16,7 +16,7 @@
     "@starui/core": "file:../../libs/starui-core-0.1.0-d8f06e72.tgz",
     "@starui/data-services": "file:../../libs/starui-data-services-0.1.0-b8784441.tgz",
     "@starui/data-services-react": "file:../../libs/starui-data-services-react-0.1.0-6cabfb16.tgz",
-    "@starui/design-system": "file:../../libs/starui-design-system-0.1.0-eea0b624.tgz",
+    "@starui/design-system": "file:../../libs/starui-design-system-0.1.0-09d9b5a5.tgz",
     "@starui/grid-react": "file:../../libs/starui-grid-react-0.1.0-feef4908.tgz",
     "@starui/host-wrapper-react": "file:../../libs/starui-host-wrapper-react-0.1.0-2ea4bb62.tgz",
     "@starui/icons-svg": "file:../../libs/starui-icons-svg-1.0.0-4be1519a.tgz",
