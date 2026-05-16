@@ -580,6 +580,18 @@
   color: var(--ds-accent-negative);
 }
 
+/* ─── Dropdown menu typography ──────────────────────────────────
+   Apply `fx-menu` to any shadcn `<DropdownMenuContent>` opened from
+   the toolbar so menu items match the 11px dock baseline instead of
+   the default `text-sm` (14px). Tighten padding to keep rows dense
+   without breaking the click target. */
+.fx-menu [role='menuitem'] {
+  font-size: 11px;
+  line-height: 1.2;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
 /* ─── Stagger reveal on popout open ────────────────────────────── */
 
 .fx-shell--vertical .fx-module {
