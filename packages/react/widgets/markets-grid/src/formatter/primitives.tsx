@@ -38,32 +38,48 @@ export function Pill({
   variant = 'icon',
   ...rest
 }: PillProps) {
-  // Wrap shadcn Button so we inherit radix-style focus ring + ref
-  // forwarding + a11y baseline. `variant="ghost" size="icon"` zeroes
-  // out the button's default chrome; the `.fx-pill` class (sourced
-  // from formatter.css and the --ds-* token tree) supplies every
-  // visual property — dimensions, border, hover, active-state colours.
-  // tailwind-merge in shadcn's cn() resolves any class collisions.
+  // Toolbar pill — shadcn `<Button variant="ghost" size="sm">` styled
+  // entirely via Tailwind utilities that resolve through the
+  // `@starui/design-system` token tree (no `.fx-*` CSS dependency).
+  //   • size="sm" → `h-[28px]` (matches the formatter's pill rhythm)
+  //   • `border-input` → `--ds-border-secondary` (the "prominent" tier)
+  //   • `bg-primary` / `text-primary-foreground` on `data-on="true"`
+  //   • `hover:border-foreground/60` strengthens the rest border
+  //
+  // No tailwind/formatter.css cascade fight (the previous wrapper hit
+  // `--fx-pill-h` via formatter.css but `h-auto` from Tailwind utility
+  // layer shadowed it; outcome was 15px-tall pills).
   const btn = (
     <Button
-      variant="ghost"
-      size="icon"
       type="button"
+      variant="ghost"
+      size="sm"
       disabled={disabled}
       data-testid={rest['data-testid']}
       aria-label={rest['aria-label'] ?? tooltip}
       aria-pressed={typeof active === 'boolean' ? active : undefined}
       data-on={active ? 'true' : undefined}
       className={cn(
-        'fx-pill h-auto w-auto p-0 hover:bg-transparent hover:text-current',
-        variant === 'text' && 'fx-pill--text',
-        variant === 'narrow' && 'fx-pill--narrow',
+        // Reset shadcn `size="sm"` chrome that conflicts: keep height,
+        // override radius/padding/text/gap to match the legacy pill.
+        'rounded-[3px] [border:1.5px_solid] border-input',
+        'text-foreground text-[11px] leading-none gap-1 shrink-0 font-medium',
+        'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
+        // Per-variant min-width + padding + (text variant: mono font).
+        variant === 'icon' && 'min-w-7 px-1.5',
+        variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
+        variant === 'narrow' && 'min-w-[18px] px-[3px]',
+        // Rest hover — darken border, keep transparent fill.
+        'hover:bg-transparent hover:text-foreground hover:border-foreground/60',
+        // Active — brand-primary fill (matches every other active CTA).
+        'data-[on=true]:bg-primary data-[on=true]:text-primary-foreground data-[on=true]:border-primary',
+        'data-[on=true]:hover:bg-primary data-[on=true]:hover:border-primary',
+        // Focus ring — 1px brand outline, mirrors `fx-pill:focus-visible`.
+        'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
         className,
       )}
       onMouseDown={(e) => {
-        // Mousedown-driven so popovers / focus traps don't eat the click;
-        // `onClick` would race the active-element change inside Radix
-        // popovers. Mirrors the legacy TBtn behaviour exactly.
+        // Mousedown-driven so popovers / focus traps don't eat the click.
         e.preventDefault();
         e.stopPropagation();
         if (!disabled && onClick) onClick();
