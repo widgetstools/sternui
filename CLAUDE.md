@@ -122,6 +122,47 @@ Every library package uses `"build": "rimraf dist && tsc"` (or
 "cannot overwrite input file" error that Turbo's cache-restore triggers
 on the next run. Don't remove it.
 
+## Propagating package changes to `apps/*` (tarball deps)
+
+Reference apps (`apps/demo-react`) consume libraries via `file:` tarball
+deps in `libs/` — same shape consumers see (Decision 13 in
+code-organization.md). When you change a library and want to see it in
+the demo, run:
+
+```bash
+npm run propagate -- grid-react markets-grid
+```
+
+This repacks just those packages, rewrites every matching `file:` dep in
+`apps/*/package.json`, removes the affected `node_modules/@starui/*` +
+`node_modules/.vite` directories, and runs `npm install` in each
+affected app. With no args (`npm run propagate`), it repacks every
+library under `packages/`.
+
+**Why the dedicated script and not `npm run pack:libs` + `npm install`?**
+Tarballs are named with a short content-hash suffix
+(`starui-grid-react-0.1.0-<sha8>.tgz`). When you re-pack, the filename
+changes if and only if the content did. That sidesteps npm's `file:`
+cache, which keys extractions by (path, integrity) — same path with
+different content silently reuses the stale cached version, which is
+exactly the bug that made earlier sessions chase "the fix isn't taking
+effect" symptoms. With hashed filenames, the cache hit is impossible by
+construction. `pack:libs` (the legacy script) still works but ships
+unhashed tarballs and can trip the cache.
+
+Flags:
+- `--dry-run` — show the plan, write nothing.
+- `--gc` — also delete tarballs in `libs/` that nothing references.
+- `--no-install` — repack + rewrite `package.json` but skip the per-app
+  `npm install` (useful when you'll batch installs separately).
+- `--no-build` — skip the per-package `build` step (use the existing
+  `dist/`).
+
+The manifest at `libs/manifest.json` is the source of truth for the
+currently-published tarball per package. It now stores
+`{ filename, version, sha, packedAt }` per entry; old single-string
+values are still readable so a fresh checkout doesn't break.
+
 ## Testing
 
 - Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
