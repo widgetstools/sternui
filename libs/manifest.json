@@ -102,10 +102,10 @@
     "packedAt": "2026-05-16T21:35:24.101Z"
   },
   "@starui/markets-grid": {
-    "filename": "starui-markets-grid-0.1.0-f0d6abc8.tgz",
+    "filename": "starui-markets-grid-0.1.0-570dab22.tgz",
     "version": "0.1.0",
-    "sha": "f0d6abc8",
-    "packedAt": "2026-05-16T21:35:24.101Z"
+    "sha": "570dab22",
+    "packedAt": "2026-05-16T21:45:51.130Z"
   },
   "@starui/openfin-platform": {
     "filename": "starui-openfin-platform-1.0.0-6db62582.tgz",
@@ -138,10 +138,10 @@
     "packedAt": "2026-05-16T21:35:24.101Z"
   },
   "@starui/ui": {
-    "filename": "starui-ui-1.0.0-aec82d44.tgz",
+    "filename": "starui-ui-1.0.0-eae6ca5c.tgz",
     "version": "1.0.0",
-    "sha": "aec82d44",
-    "packedAt": "2026-05-16T21:35:24.101Z"
+    "sha": "eae6ca5c",
+    "packedAt": "2026-05-16T21:45:51.130Z"
   },
   "@starui/vite-workspace-aliases": {
     "filename": "starui-vite-workspace-aliases-1.0.0-53460f45.tgz",

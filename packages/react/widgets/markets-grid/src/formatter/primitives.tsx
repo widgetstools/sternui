@@ -9,7 +9,7 @@
  */
 import * as React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
-import { Button } from '@starui/ui';
+import { Button, ButtonGroup } from '@starui/ui';
 import { cn, Tooltip } from '@starui/grid-react';
 
 export type Orientation = 'horizontal' | 'vertical';
@@ -110,6 +110,12 @@ export function Pill({
 }
 
 // ─── SplitPill — primary action + chevron menu trigger ────────────
+//
+// Now a thin re-export over shadcn's `<ButtonGroup>`. The wrapper
+// gives every child square inner corners + a 1px negative gap so the
+// primary pill + chevron pill read as one joined control.
+// The legacy `.fx-split` CSS class is gone; consumers don't need to
+// know they're getting shadcn underneath.
 
 export function SplitPill({
   children,
@@ -118,7 +124,7 @@ export function SplitPill({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('fx-split', className)}>{children}</div>;
+  return <ButtonGroup className={className}>{children}</ButtonGroup>;
 }
 
 // ─── Hairline divider between sub-groups inside a module ──────────
