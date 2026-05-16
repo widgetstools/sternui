@@ -585,28 +585,8 @@
   opacity: 1;
 }
 
-/* Inline rename editor — visually replaces the column-label chip in
- * place so the user's mental model of "click the chip, type the new
- * name" stays uninterrupted. Same height + radius + monospace font as
- * the chip; differs only in the focus ring + transparent background. */
-.fx-col-input {
-  height: var(--fx-pill-h);
-  min-width: 160px;
-  max-width: 200px;
-  padding: 0 10px;
-  border-radius: var(--fx-radius);
-  background: var(--fx-bg);
-  border: 1px solid var(--fx-accent-line);
-  color: var(--fx-ink);
-  font-family: var(--fx-font-mono);
-  font-size: var(--fx-readout-fs);
-  outline: none;
-  box-shadow: 0 0 0 1px var(--fx-accent-line);
-}
-.fx-col-input:focus {
-  border-color: var(--fx-accent);
-  box-shadow: 0 0 0 2px var(--fx-accent-soft);
-}
+/* `.fx-col-input` moved to ModuleContext.tsx as a shadcn `<Input>`
+   styled via Tailwind utilities + `@starui/design-system` tokens. */
 
 @keyframes fxLivePulse {
   0%, 100% { opacity: 1; transform: scale(1); }
