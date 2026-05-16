@@ -21,6 +21,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { Tooltip } from '@starui/grid-react';
+import { Input } from '@starui/ui';
 import {
   ColumnLabel,
   Hair,
@@ -73,10 +74,13 @@ function InlineColumnLabel({
       else if (!trimmed) onCommit('');
       setEditing(false);
     };
+    // Inline rename editor — shadcn Input styled to fit the toolbar
+    // rhythm (28px height, mono font, brand-ring on focus). All visual
+    // properties resolve through `@starui/design-system` tokens; no
+    // `.fx-col-input` CSS class needed.
     return (
-      <input
+      <Input
         ref={inputRef}
-        className="fx-col-input"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
@@ -86,6 +90,7 @@ function InlineColumnLabel({
         onBlur={commit}
         data-testid="formatting-col-label-input"
         aria-label="Rename column"
+        className="h-7 min-w-[160px] max-w-[200px] px-2.5 py-0 font-mono text-[11px] border-primary shadow-none focus-visible:ring-2 focus-visible:ring-primary/40"
       />
     );
   }
