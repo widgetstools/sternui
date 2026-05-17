@@ -8,7 +8,10 @@ import {
 import {
   type DockManagerState,
   type SerializedDockLayout,
+  clearLocalStorage,
   deserialize,
+  loadFromLocalStorage,
+  saveToLocalStorage,
   slateDark,
   vsCodeLight,
 } from '@widgetstools/dock-manager-core';
@@ -20,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@starui/ui';
-import { Sun, Moon, CircleHelp } from 'lucide-react';
+import { Sun, Moon, CircleHelp, LayoutTemplate } from 'lucide-react';
 import { Brand } from './components/Brand';
 import { HelpSheet } from './components/HelpSheet';
 import { ProviderEditorPanel } from './panels/ProviderEditorPanel';
@@ -81,7 +84,45 @@ const SERIALIZED_LAYOUT: SerializedDockLayout = {
   nextZIndex: 100,
 };
 
-const INITIAL_LAYOUT: DockManagerState = deserialize(SERIALIZED_LAYOUT).state;
+const DEFAULT_LAYOUT: DockManagerState = deserialize(SERIALIZED_LAYOUT).state;
+
+// Stable key for dock-manager-core's localStorage helpers. Distinct
+// from MarketsGrid's per-grid profile bundles so it can coexist with
+// them in the same browser without collision.
+const DOCK_STORAGE_KEY = 'dataprovider-editor-starui-app:dock-layout';
+
+/**
+ * Load the persisted dock layout if any. Falls back to DEFAULT_LAYOUT
+ * on first run or when the saved blob can't be deserialized (e.g. we
+ * changed the panel set in code and the persisted ids no longer
+ * match).
+ */
+function loadInitialLayout(): DockManagerState {
+  try {
+    const result = loadFromLocalStorage(DOCK_STORAGE_KEY);
+    if (!result) return DEFAULT_LAYOUT;
+    if (result.warnings.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn('[dock-layout] restore warnings:', result.warnings);
+    }
+    // Guard: every panel referenced in the layout must still exist as
+    // a widget. If the code dropped a panel between sessions, drop
+    // the persisted layout instead of mounting a broken state.
+    const knownPanels = new Set(['providerEditor', 'configBrowser', 'gridA', 'gridB', 'stats']);
+    for (const panelId of result.state.panels.keys()) {
+      if (!knownPanels.has(panelId)) {
+        // eslint-disable-next-line no-console
+        console.warn(`[dock-layout] persisted panel '${panelId}' no longer exists — using default layout`);
+        return DEFAULT_LAYOUT;
+      }
+    }
+    return result.state;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[dock-layout] failed to load persisted layout', err);
+    return DEFAULT_LAYOUT;
+  }
+}
 
 export function App() {
   const [theme, setThemeState] = useState<'dark' | 'light'>(
@@ -91,6 +132,50 @@ export function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [pendingEditorProviderId, setPendingEditorProviderId] = useState<string | null>(null);
   const dockRef = useRef<DockManagerCoreHandle | null>(null);
+
+  // Resolve initial dock layout once, at mount. Reading from
+  // localStorage on every render would re-mount DockManagerCore with
+  // a stale state and lose any unsaved drag-in-progress.
+  const [initialLayout] = useState<DockManagerState>(() => loadInitialLayout());
+
+  // Debounced save. onStateChange fires on every drag tick + resize
+  // delta; without debounce we'd hammer localStorage. ~250ms is short
+  // enough to feel instant but coalesces a typical resize gesture into
+  // one write.
+  const saveTimerRef = useRef<number | null>(null);
+  const handleStateChange = useCallback((state: DockManagerState) => {
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      try {
+        saveToLocalStorage(state, DOCK_STORAGE_KEY);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[dock-layout] save failed', err);
+      }
+      saveTimerRef.current = null;
+    }, 250);
+  }, []);
+
+  // Cleanup pending save on unmount so a fast page-tear-down doesn't
+  // leak the timer (the save itself is harmless if it fires after
+  // unmount; this is just hygiene).
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const handleResetLayout = useCallback(() => {
+    if (!window.confirm('Reset dock layout to defaults? This will clear the saved arrangement for this app.')) {
+      return;
+    }
+    try {
+      clearLocalStorage(DOCK_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    window.location.reload();
+  }, []);
 
   const handleToggleTheme = useCallback(() => {
     const next: 'dark' | 'light' = isDark ? 'light' : 'dark';
@@ -170,6 +255,21 @@ export function App() {
                 <Button
                   variant="outline"
                   size="icon"
+                  onClick={handleResetLayout}
+                  aria-label="Reset dock layout to defaults"
+                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                  data-testid="reset-layout"
+                >
+                  <LayoutTemplate size={13} strokeWidth={1.75} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Reset dock layout</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => setHelpOpen(true)}
                   aria-label="Open help"
                   className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
@@ -204,7 +304,8 @@ export function App() {
         <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] shadow-[var(--ds-elevation-card)]">
           <DockManagerCore
             ref={dockRef}
-            initialState={INITIAL_LAYOUT}
+            initialState={initialLayout}
+            onStateChange={handleStateChange}
             widgets={widgets}
             theme={dockTheme}
             className="h-full w-full"
