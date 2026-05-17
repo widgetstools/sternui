@@ -340,7 +340,10 @@ export class ProfileManager {
     // Flip BEFORE mutating so the persist callback always targets the new id.
     this.updateState({ activeId: id });
     writeActiveId(gridId, id);
-    await this.writeSourceId(id);
+    // Skip the await when there's no source — the async wrapper would
+    // create a microtask boundary that React uses to flush pending renders,
+    // adding ~25ms to every switch in the non-OpenFin path.
+    if (this.activeIdSource) await this.writeSourceId(id);
     // Suppress dirty-marking through resetAll + deserializeAll — we're
     // hydrating from disk, not editing.
     this.dirtySuppressDepth++;
@@ -355,7 +358,13 @@ export class ProfileManager {
     this.autoSave?.cancelScheduled();
     this.updateState({ isDirty: false });
     this.platform.events.emit('profile:loaded', { gridId, profileId: id });
-    await this.refresh();
+    // No refresh() here: load() doesn't mutate any profile rows on disk, so
+    // the profile list is unchanged. Calling refresh() would add an `await`
+    // boundary that forces React to flush every render queued by the chain
+    // above (resetAll / deserializeAll / updateState / profile:loaded),
+    // costing ~300ms on hosts with a busy chrome. Other ProfileManager
+    // methods that DO mutate the list (create / remove / rename / clone /
+    // import / save) still refresh.
   }
 
   /** Create a new profile, seeded from the module's `getInitialState()` for
