@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 852" font-family='"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif' style='background:transparent'>
+<defs>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1b2944" flood-opacity="0.08"/>
+  </filter>
+  <marker id="arrow"          markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#38475f"/>
+  </marker>
+  <marker id="arrow-soft"     markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#5b6b8a"/>
+  </marker>
+  <marker id="arrow-accent"   markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#2952cc"/>
+  </marker>
+</defs>
+<text x='40' y='36' style='font-size:18px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>"Save Tab As…" — survives workspace restore</text>
+<text x='40' y='58' style='font-size:12px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>A rename writes both document.title (live) and customData.savedTitle (snapshot).</text>
+<rect x="40" y="68" width="48" height="3" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<rect x="40" y="110" width="880" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="110" width="3" height="100" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='132' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>①  Right-click view tab</text>
+<text x='56' y='154.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>WorkspacePlatformOverride.openViewTabContextMenu</text>
+<text x='56' y='171.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>injects the menu item via injectRenameMenuItem.</text>
+<rect x="40" y="224" width="880" height="114" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="224" width="3" height="114" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='246' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>②  Open frameless popout</text>
+<text x='56' y='268.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>ACTION_RENAME_VIEW_TAB fires.</text>
+<text x='56' y='285.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>openChildWindow(/rename-view-tab) with</text>
+<text x='56' y='302.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>customData = { view, currentTitle }.</text>
+<rect x="40" y="352" width="880" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="352" width="3" height="100" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='374' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>③  Popout form</text>
+<text x='56' y='396.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>shadcn Card + Input seeded with currentTitle.</text>
+<text x='56' y='413.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Enter / Save commits, Esc / Cancel closes.</text>
+<rect x="40" y="466" width="880" height="132" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="466" width="3" height="132" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='488' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>④  On confirm, two writes</text>
+<text x='56' y='510.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>executeJavaScript: document.title = newTitle</text>
+<text x='56' y='527.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>   → workspace tabstrip updates immediately</text>
+<text x='56' y='544.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>view.updateOptions({ customData: { …, savedTitle } })</text>
+<text x='56' y='561.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>   → captured by getSnapshot()</text>
+<rect x="40" y="612" width="880" height="132" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="612" width="3" height="132" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='634' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>⑤  Next workspace load</text>
+<text x='56' y='656.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>OpenFinRuntime.applySavedViewTitle()</text>
+<text x='56' y='673.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>• reads customData.savedTitle</text>
+<text x='56' y='690.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>• reapplies to document.title</text>
+<text x='56' y='707.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>• MutationObserver guards for 3 s post-boot</text>
+<path d="M40 768 H906 L920 782 V848 H40 Z" fill="#fff2d1" stroke="#7c3aed" stroke-width="0.8"/>
+<path d="M906 768 V782 H920" fill="none" stroke="#7c3aed" stroke-width="0.8"/>
+<text x='52' y='786.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Why two writes?  View.updateOptions({ title }) is silently dropped at runtime —</text>
+<text x='52' y='802.5' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>`title` lives on the create-time ViewOptions shape, not on MutableViewOptions.</text>
+<text x='52' y='819.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Hence document.title (live tabstrip) + customData.savedTitle (workspace snapshot).</text>
+</svg>

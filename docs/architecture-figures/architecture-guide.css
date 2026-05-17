@@ -1,0 +1,426 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   MarketsUI Architecture Guide — single-file HTML stylesheet
+   Inspired by the platform's own --ds-* design tokens.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ds-surface-primary: #ffffff;
+  --ds-surface-secondary: #f7f9fc;
+  --ds-surface-tertiary: #eef2f9;
+  --ds-text-primary: #1b2944;
+  --ds-text-secondary: #38475f;
+  --ds-text-muted: #5b6b8a;
+  --ds-text-faint: #8a99b3;
+  --ds-border-primary: #d8dfeb;
+  --ds-border-secondary: #e6ebf3;
+  --ds-accent-info: #1d4ed8;
+  --ds-accent-info-soft: #e6efff;
+  --ds-accent-positive: #0f8a5f;
+  --ds-accent-negative: #b3122f;
+  --ds-accent-warning: #a16207;
+  --ds-code-bg: #f3f5fa;
+  --ds-code-fg: #1b2944;
+  --ds-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --ds-font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
+
+  --content-width: 880px;
+  --toc-width: 280px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ds-surface-primary: #0f1422;
+    --ds-surface-secondary: #161c2c;
+    --ds-surface-tertiary: #1d2438;
+    --ds-text-primary: #e9eef8;
+    --ds-text-secondary: #c9d2e3;
+    --ds-text-muted: #93a0bc;
+    --ds-text-faint: #6b7790;
+    --ds-border-primary: #2a3349;
+    --ds-border-secondary: #232b3e;
+    --ds-accent-info: #7ba6ff;
+    --ds-accent-info-soft: #1a2740;
+    --ds-accent-positive: #4ec9a8;
+    --ds-accent-negative: #ff7a8c;
+    --ds-accent-warning: #ffb95c;
+    --ds-code-bg: #182032;
+    --ds-code-fg: #e9eef8;
+  }
+}
+
+/* ─── Reset / base ──────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--ds-font-sans);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ds-text-primary);
+  background: var(--ds-surface-secondary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Pandoc wraps content in this; we lay it out as a two-column shell */
+body > header,
+body > nav#TOC,
+body > main,
+body > .container,
+body > section.level1,
+body > h1,
+body > h2,
+body > h3,
+body > p,
+body > ul,
+body > ol,
+body > pre,
+body > figure,
+body > div,
+body > blockquote {
+  /* Pandoc default flat layout — we'll wrap in JS-free CSS below */
+}
+
+/* Pandoc 2.x emits TOC as <nav id="TOC">, header as <header id="title-block-header"> */
+header#title-block-header {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 56px 32px 24px;
+  background: var(--ds-surface-primary);
+  border-bottom: 1px solid var(--ds-border-primary);
+}
+header#title-block-header h1.title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+  color: var(--ds-text-primary);
+}
+header#title-block-header p.subtitle {
+  font-size: 18px;
+  color: var(--ds-text-muted);
+  margin: 0 0 12px;
+  font-style: italic;
+}
+header#title-block-header p.date,
+header#title-block-header p.author {
+  font-size: 13px;
+  color: var(--ds-text-faint);
+  margin: 4px 0;
+}
+
+/* TOC styling — fixed sidebar on wide screens, inline collapsible on narrow */
+nav#TOC {
+  background: var(--ds-surface-primary);
+  border: 1px solid var(--ds-border-primary);
+  border-radius: 10px;
+  padding: 18px 22px;
+  font-size: 13px;
+  max-width: var(--content-width);
+  margin: 24px auto;
+}
+nav#TOC::before {
+  content: "Contents";
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ds-text-muted);
+  margin-bottom: 10px;
+}
+nav#TOC ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+nav#TOC > ul > li { margin: 4px 0; }
+nav#TOC ul ul {
+  padding-left: 16px;
+  margin-top: 2px;
+}
+nav#TOC ul ul li { margin: 2px 0; }
+nav#TOC a {
+  color: var(--ds-text-secondary);
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 1px 4px;
+  display: inline-block;
+}
+nav#TOC a:hover {
+  background: var(--ds-accent-info-soft);
+  color: var(--ds-accent-info);
+}
+
+/* Sidebar TOC on wide screens */
+@media (min-width: 1180px) {
+  nav#TOC {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: var(--toc-width);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    margin: 0;
+    box-shadow: 0 2px 12px rgba(15, 25, 60, 0.06);
+  }
+  header#title-block-header,
+  body > section,
+  body > h1,
+  body > h2,
+  body > h3,
+  body > h4,
+  body > p,
+  body > ul,
+  body > ol,
+  body > pre,
+  body > figure,
+  body > blockquote,
+  body > table {
+    margin-right: calc(var(--toc-width) + 48px) !important;
+  }
+}
+
+/* ─── Headings ──────────────────────────────────────────────────────────── */
+h1, h2, h3, h4 {
+  font-family: var(--ds-font-sans);
+  color: var(--ds-text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 56px auto 16px;
+  max-width: var(--content-width);
+  padding: 16px 32px 12px;
+  border-bottom: 2px solid var(--ds-accent-info);
+}
+
+h2 {
+  font-size: 21px;
+  font-weight: 650;
+  margin: 36px auto 14px;
+  max-width: var(--content-width);
+  padding: 0 32px;
+  color: var(--ds-text-primary);
+}
+
+h3 {
+  font-size: 17px;
+  font-weight: 650;
+  margin: 26px auto 10px;
+  max-width: var(--content-width);
+  padding: 0 32px;
+  color: var(--ds-text-secondary);
+}
+
+h4 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 18px auto 8px;
+  max-width: var(--content-width);
+  padding: 0 32px;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Body text ────────────────────────────────────────────────────────── */
+p, ul, ol, blockquote {
+  max-width: var(--content-width);
+  margin: 14px auto;
+  padding: 0 32px;
+}
+p { color: var(--ds-text-secondary); }
+li  { color: var(--ds-text-secondary); margin: 6px 0; }
+strong { color: var(--ds-text-primary); }
+
+a {
+  color: var(--ds-accent-info);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
+}
+a:hover { border-bottom-color: var(--ds-accent-info); }
+
+blockquote {
+  border-left: 3px solid var(--ds-accent-info);
+  background: var(--ds-accent-info-soft);
+  padding: 12px 18px;
+  color: var(--ds-text-secondary);
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+blockquote p { padding: 0; margin: 0; }
+
+/* ─── Code ─────────────────────────────────────────────────────────────── */
+code {
+  font-family: var(--ds-font-mono);
+  font-size: 0.88em;
+  background: var(--ds-code-bg);
+  color: var(--ds-code-fg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--ds-border-secondary);
+}
+
+pre {
+  max-width: var(--content-width);
+  margin: 18px auto;
+  padding: 16px 20px;
+  background: var(--ds-code-bg);
+  border: 1px solid var(--ds-border-secondary);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--ds-font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ds-code-fg);
+}
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: inherit;
+}
+
+/* Pandoc syntax-highlight class tokens (highlight-style=tango approx) */
+code .kw, pre .kw { color: #2952cc; font-weight: 600; }
+code .ot, pre .ot { color: #1d4ed8; }
+code .dt, pre .dt { color: #0f8a5f; }
+code .st, pre .st { color: #b3122f; }
+code .co, pre .co { color: #8a99b3; font-style: italic; }
+code .fu, pre .fu { color: #6b21a8; }
+code .va, pre .va { color: #1b2944; }
+code .op, pre .op { color: #38475f; }
+@media (prefers-color-scheme: dark) {
+  code .kw, pre .kw { color: #7ba6ff; }
+  code .ot, pre .ot { color: #9ec0ff; }
+  code .dt, pre .dt { color: #4ec9a8; }
+  code .st, pre .st { color: #ff7a8c; }
+  code .co, pre .co { color: #6b7790; }
+  code .fu, pre .fu { color: #d4a8ff; }
+}
+
+/* ─── Tables ───────────────────────────────────────────────────────────── */
+table {
+  max-width: var(--content-width);
+  margin: 18px auto;
+  padding: 0 32px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  width: calc(100% - 64px);
+}
+table thead th {
+  background: var(--ds-surface-tertiary);
+  color: var(--ds-text-primary);
+  text-align: left;
+  font-weight: 650;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--ds-border-primary);
+}
+table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ds-border-secondary);
+  vertical-align: top;
+  color: var(--ds-text-secondary);
+}
+table tbody tr:nth-child(even) td { background: var(--ds-surface-secondary); }
+table code { font-size: 12px; }
+
+/* ─── Figures (diagrams) ───────────────────────────────────────────────── */
+figure,
+p:has(> img:only-child) {
+  max-width: var(--content-width);
+  margin: 28px auto;
+  padding: 0 32px;
+  text-align: center;
+}
+
+img, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 12px auto 0;
+  background: var(--ds-surface-primary);
+  border: 1px solid var(--ds-border-primary);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 14px rgba(15, 25, 60, 0.04);
+}
+
+figcaption {
+  font-size: 13px;
+  color: var(--ds-text-muted);
+  font-style: italic;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* When pandoc emits an image inside a paragraph (the default for ![alt](src)),
+   pull the alt text out as a caption via ::after. */
+p > img + br { display: none; }
+p:has(> img):after {
+  content: attr(data-alt);
+  display: block;
+  font-size: 13px;
+  color: var(--ds-text-muted);
+  font-style: italic;
+  margin-top: 10px;
+}
+
+/* ─── Inline emoji-like marks (no font issues — they pass through) ──── */
+.symbol-yes { color: var(--ds-accent-positive); font-weight: 700; }
+.symbol-no  { color: var(--ds-accent-negative); font-weight: 700; }
+
+/* ─── Horizontal rules ─────────────────────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid var(--ds-border-primary);
+  margin: 36px auto;
+  max-width: calc(var(--content-width) - 64px);
+}
+
+/* ─── Print ───────────────────────────────────────────────────────────── */
+@media print {
+  body { background: white; color: black; }
+  nav#TOC { display: none; }
+  header#title-block-header,
+  body > section,
+  body > h1,
+  body > h2,
+  body > h3,
+  body > p,
+  body > ul,
+  body > ol,
+  body > pre,
+  body > figure,
+  body > table {
+    margin-right: auto !important;
+  }
+  img, svg { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+  h1 { page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+  a { color: inherit; border-bottom: none; }
+}
+
+/* ─── Narrow screens ──────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  header#title-block-header { padding: 32px 18px 16px; }
+  header#title-block-header h1.title { font-size: 24px; }
+  h1, h2, h3, h4, p, ul, ol, table, figure, pre, blockquote {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  table { font-size: 13px; }
+  pre { font-size: 12px; }
+}

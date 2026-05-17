@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 660" font-family='"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif' style='background:transparent'>
+<defs>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1b2944" flood-opacity="0.08"/>
+  </filter>
+  <marker id="arrow"          markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#38475f"/>
+  </marker>
+  <marker id="arrow-soft"     markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#5b6b8a"/>
+  </marker>
+  <marker id="arrow-accent"   markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#2952cc"/>
+  </marker>
+</defs>
+<text x='40' y='36' style='font-size:18px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Framework Matrix</text>
+<text x='40' y='58' style='font-size:12px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Three columns (peer-dep), six role rows.</text>
+<rect x="40" y="68" width="48" height="3" rx="1.5" ry="1.5" fill="#2952cc"/>
+<rect x="240" y="110" width="220" height="50" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="240" y="110" width="4" height="50" rx="2" ry="2" fill="#2952cc"/>
+<text x='254' y='134' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>shared/</text>
+<text x='254' y='150' style='font-size:10px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>peer: vanilla TS</text>
+<rect x="470" y="110" width="220" height="50" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="470" y="110" width="4" height="50" rx="2" ry="2" fill="#4f5bd5"/>
+<text x='484' y='134' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>react/</text>
+<text x='484' y='150' style='font-size:10px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>peer: react</text>
+<rect x="700" y="110" width="220" height="50" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="700" y="110" width="4" height="50" rx="2" ry="2" fill="#0f8a5f"/>
+<text x='714' y='134' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>angular/</text>
+<text x='714' y='150' style='font-size:10px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>peer: @angular/*</text>
+<rect x="40" y="180" width="156" height="70" rx="8" ry="8" fill="#f7f9fc" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='56' y='208' style='font-size:12px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Foundation</text>
+<rect x="240" y="180" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='254' y='202' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>shared-types</text>
+<text x='254' y='216' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>design-system</text>
+<text x='254' y='230' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>icons-svg</text>
+<text x='254' y='244' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>vite-workspace-aliases</text>
+<rect x="470" y="180" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='484' y='202' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>ui (shadcn)</text>
+<text x='484' y='216' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— singleton (no -react suffix)</text>
+<rect x="700" y="180" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='714' y='202' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>—</text>
+<text x='714' y='216' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>DS-themed PrimeNG</text>
+<text x='714' y='230' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>via downstream tools</text>
+<rect x="40" y="258" width="156" height="70" rx="8" ry="8" fill="#f7f9fc" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='56' y='286' style='font-size:12px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Runtime</text>
+<rect x="240" y="258" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='254' y='280' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>runtime-port (interface)</text>
+<text x='254' y='294' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>runtime-browser</text>
+<text x='254' y='308' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>runtime-openfin</text>
+<rect x="470" y="258" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='484' y='280' style='font-size:11px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— uses port interface</text>
+<rect x="700" y="258" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='714' y='280' style='font-size:11px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— uses port interface</text>
+<rect x="40" y="336" width="156" height="70" rx="8" ry="8" fill="#f7f9fc" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='56' y='364' style='font-size:12px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Services / Platform</text>
+<rect x="240" y="336" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='254' y='358' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>core</text>
+<text x='254' y='372' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-service</text>
+<text x='254' y='386' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>data-services</text>
+<text x='254' y='400' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>component-host</text>
+<text x='254' y='414' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>openfin-platform</text>
+<rect x="470" y="336" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='484' y='358' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>widget-sdk (singleton)</text>
+<rect x="700" y="336" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='714' y='358' style='font-size:11px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— uses shared</text>
+<rect x="40" y="414" width="156" height="70" rx="8" ry="8" fill="#f7f9fc" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='56' y='442' style='font-size:12px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Hosts / Providers</text>
+<rect x="240" y="414" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='254' y='436' style='font-size:11px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— no shared host</text>
+<rect x="470" y="414" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='484' y='436' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>host-wrapper-react</text>
+<text x='484' y='450' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-service-react</text>
+<text x='484' y='464' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>data-services-react</text>
+<text x='484' y='478' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>app-shell-react</text>
+<rect x="700" y="414" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='714' y='436' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>host-wrapper-angular</text>
+<text x='714' y='450' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-service-angular</text>
+<text x='714' y='464' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>data-services-angular</text>
+<rect x="40" y="492" width="156" height="70" rx="8" ry="8" fill="#f7f9fc" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='56' y='520' style='font-size:12px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Widgets &amp; Shells</text>
+<rect x="240" y="492" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='254' y='514' style='font-size:11px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— none</text>
+<rect x="470" y="492" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='484' y='514' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>markets-grid</text>
+<text x='484' y='528' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>grid-react</text>
+<text x='484' y='542' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>widgets-react (+ hosted/)</text>
+<rect x="700" y="492" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='714' y='514' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>widgets-angular</text>
+<text x='714' y='528' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>(DockConfigurator +</text>
+<text x='714' y='542' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'> DataProviderEditor only)</text>
+<rect x="40" y="570" width="156" height="70" rx="8" ry="8" fill="#f7f9fc" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='56' y='598' style='font-size:12px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Tools / Dev UIs</text>
+<rect x="240" y="570" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='254' y='592' style='font-size:11px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>— none</text>
+<rect x="470" y="570" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='484' y='592' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-browser-react</text>
+<text x='484' y='606' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-editor-ui</text>
+<text x='484' y='620' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>workspace-setup-react</text>
+<rect x="700" y="570" width="220" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0"/>
+<text x='714' y='592' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-browser-angular</text>
+</svg>

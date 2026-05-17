@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 540" font-family='"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif' style='background:transparent'>
+<defs>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1b2944" flood-opacity="0.08"/>
+  </filter>
+  <marker id="arrow"          markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#38475f"/>
+  </marker>
+  <marker id="arrow-soft"     markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#5b6b8a"/>
+  </marker>
+  <marker id="arrow-accent"   markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#2952cc"/>
+  </marker>
+</defs>
+<text x='40' y='36' style='font-size:18px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Module pipeline</text>
+<text x='40' y='58' style='font-size:12px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Modules transform columnDefs / gridOptions in priority order.</text>
+<rect x="40" y="68" width="48" height="3" rx="1.5" ry="1.5" fill="#4f5bd5"/>
+<rect x="40" y="110" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="110" width="3" height="100" rx="1.5" ry="1.5" fill="#2952cc"/>
+<text x='56' y='134' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>general-settings</text>
+<rect x="296" y="120" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='321.0' y='134.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p0</text>
+<text x='56' y='160' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Grid Options</text>
+<text x='56' y='196' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>transform</text>
+<line x1="362" y1="160.0" x2="372" y2="160.0" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="374" y="110" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="374" y="110" width="3" height="100" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='390' y='134' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>column-templates</text>
+<rect x="630" y="120" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='655.0' y='134.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p5</text>
+<text x='390' y='160' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>passive holder</text>
+<text x='390' y='196' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>state only</text>
+<line x1="696" y1="160.0" x2="706" y2="160.0" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="708" y="110" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="708" y="110" width="3" height="100" rx="1.5" ry="1.5" fill="#0e9282"/>
+<text x='724' y='134' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>column-customization</text>
+<rect x="964" y="120" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='989.0' y='134.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p10</text>
+<text x='724' y='160' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>8-band per-column</text>
+<text x='724' y='196' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>transform</text>
+<path d="M1030 160.0 L1034 160.0 L1034 221.0 L34 221.0 L34 282.0 L38 282.0" fill="none" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="232" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="232" width="3" height="100" rx="1.5" ry="1.5" fill="#c2870c"/>
+<text x='56' y='256' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>calculated-columns</text>
+<rect x="296" y="242" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='321.0' y='256.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p15</text>
+<text x='56' y='282' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>virtual columns</text>
+<text x='56' y='318' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>transform</text>
+<line x1="362" y1="282.0" x2="372" y2="282.0" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="374" y="232" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="374" y="232" width="3" height="100" rx="1.5" ry="1.5" fill="#0f8a5f"/>
+<text x='390' y='256' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>column-groups</text>
+<rect x="630" y="242" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='655.0' y='256.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p18</text>
+<text x='390' y='282' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>nestable groups</text>
+<text x='390' y='318' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>transform</text>
+<line x1="696" y1="282.0" x2="706" y2="282.0" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="708" y="232" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="708" y="232" width="3" height="100" rx="1.5" ry="1.5" fill="#c0532c"/>
+<text x='724' y='256' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>conditional-styling</text>
+<rect x="964" y="242" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='989.0' y='256.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p20</text>
+<text x='724' y='282' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>rules + flash</text>
+<text x='724' y='318' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>transform</text>
+<path d="M1030 282.0 L1034 282.0 L1034 343.0 L34 343.0 L34 404.0 L38 404.0" fill="none" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="354" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="354" width="3" height="100" rx="1.5" ry="1.5" fill="#4f5bd5"/>
+<text x='56' y='378' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>grid-state</text>
+<rect x="296" y="364" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='321.0' y='378.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p200</text>
+<text x='56' y='404' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>native AG state</text>
+<text x='56' y='440' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>transform</text>
+<line x1="362" y1="404.0" x2="372" y2="404.0" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="374" y="354" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="374" y="354" width="3" height="100" rx="1.5" ry="1.5" fill="#5b6b8a"/>
+<text x='390' y='378' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>toolbar-visibility</text>
+<rect x="630" y="364" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='655.0' y='378.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p1000</text>
+<text x='390' y='404' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>chrome only</text>
+<text x='390' y='440' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>no transform</text>
+<line x1="696" y1="404.0" x2="706" y2="404.0" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="708" y="354" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="708" y="354" width="3" height="100" rx="1.5" ry="1.5" fill="#5b6b8a"/>
+<text x='724' y='378' style='font-size:13px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>saved-filters</text>
+<rect x="964" y="364" width="50" height="22" rx="11.0" ry="11.0" fill="#eef2f9"/>
+<text x='989.0' y='378.85' style='font-size:11px;font-weight:600;fill:#38475f;text-anchor:middle;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>p1001</text>
+<text x='724' y='404' style='font-size:11px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>host filter shape</text>
+<text x='724' y='440' style='font-size:10px;font-weight:400;fill:#8a99b3;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>no transform</text>
+<path d="M40 460 H1026 L1040 474 V516 H40 Z" fill="#fff2d1" stroke="#4f5bd5" stroke-width="0.8"/>
+<path d="M1026 460 V474 H1040" fill="none" stroke="#4f5bd5" stroke-width="0.8"/>
+<text x='52' y='478.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Modules read each other through ctx.getModuleState&lt;T&gt;(moduleId) — no direct imports between module files.</text>
+<text x='52' y='494.5' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Each exports schemaVersion + initialState + serialize/deserialize/migrate, optional transform*() and activate().</text>
+</svg>

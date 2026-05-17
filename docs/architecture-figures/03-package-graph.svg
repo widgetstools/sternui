@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" font-family='"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif' style='background:transparent'>
+<defs>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1b2944" flood-opacity="0.08"/>
+  </filter>
+  <marker id="arrow"          markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#38475f"/>
+  </marker>
+  <marker id="arrow-soft"     markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#5b6b8a"/>
+  </marker>
+  <marker id="arrow-accent"   markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#2952cc"/>
+  </marker>
+</defs>
+<text x='40' y='36' style='font-size:18px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Five Architectural Rules</text>
+<text x='40' y='58' style='font-size:12px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>The dependencies you have to internalise.  Full package list — see Figure 1.</text>
+<rect x="40" y="68" width="48" height="3" rx="1.5" ry="1.5" fill="#2952cc"/>
+<rect x="40" y="120" width="510" height="170" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="120" width="3" height="170" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='142' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>① runtime-port is the seam</text>
+<text x='56' y='164.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>runtime-port (interface)</text>
+<text x='56' y='181.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>   ↑ implements         ↑ implements</text>
+<text x='56' y='198.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>runtime-browser     runtime-openfin</text>
+<text x='56' y='215.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'></text>
+<text x='56' y='232.2' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Every host wrapper / app shell / hosted-view hook</text>
+<text x='56' y='249.25' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>talks to the interface — never to fin.* directly.</text>
+<rect x="580" y="120" width="480" height="170" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="580" y="120" width="3" height="170" rx="1.5" ry="1.5" fill="#c2870c"/>
+<text x='596' y='142' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>② @openfin/core is firewalled</text>
+<text x='596' y='164.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Only runtime-openfin and openfin-platform</text>
+<text x='596' y='181.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>may import @openfin/core.</text>
+<text x='596' y='198.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'></text>
+<text x='596' y='215.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Every other package that needs OpenFin lifecycle</text>
+<text x='596' y='232.2' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>goes through the RuntimePort interface.</text>
+<text x='596' y='249.25' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>(Rationale: keep the platform browser-runnable.)</text>
+<rect x="40" y="320" width="510" height="170" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="320" width="3" height="170" rx="1.5" ry="1.5" fill="#0e9282"/>
+<text x='56' y='342' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>③ core is vanilla TS</text>
+<text x='56' y='364.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>@starui/core never imports a framework adapter.</text>
+<text x='56' y='381.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'></text>
+<text x='56' y='398.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>      grid-react   →   core           (React side)</text>
+<text x='56' y='415.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>    widgets-angular   →   core        (Angular side)</text>
+<text x='56' y='432.2' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'></text>
+<text x='56' y='449.25' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Both consume the same GridPlatform / ProfileManager</text>
+<text x='56' y='466.3' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>/ ExpressionEngine.  No React in core.</text>
+<rect x="580" y="320" width="480" height="170" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="580" y="320" width="3" height="170" rx="1.5" ry="1.5" fill="#c0532c"/>
+<text x='596' y='342' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>④ providers wrap services</text>
+<text x='596' y='364.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-service-react   ──┐</text>
+<text x='596' y='381.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>config-service-angular ──┤── wrap ──→  config-service</text>
+<text x='596' y='398.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>data-services-react    ──┤</text>
+<text x='596' y='415.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>data-services-angular  ──┘</text>
+<text x='596' y='432.2' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'></text>
+<text x='596' y='449.25' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Hosts get framework-shaped API; services stay vanilla.</text>
+<rect x="40" y="520" width="1020" height="160" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="520" width="3" height="160" rx="1.5" ry="1.5" fill="#4f5bd5"/>
+<text x='56' y='542' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>⑤ apps consume packages — never the reverse</text>
+<text x='56' y='564.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>apps/demo-react · apps/demo-angular · apps/demo-configservice-react</text>
+<text x='56' y='581.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>apps/markets-ui-react-reference · apps/demo-apps/basic-starui-app · apps/stomp-view-server</text>
+<text x='56' y='598.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'></text>
+<text x='56' y='615.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>No package may import from apps/.  Apps are the leaves of the dependency tree.</text>
+<text x='56' y='632.2' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>When in doubt about where new code belongs, ask: "is this a leaf, or is it reusable?"</text>
+</svg>

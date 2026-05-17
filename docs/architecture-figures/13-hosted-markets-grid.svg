@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 808" font-family='"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif' style='background:transparent'>
+<defs>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1b2944" flood-opacity="0.08"/>
+  </filter>
+  <marker id="arrow"          markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#38475f"/>
+  </marker>
+  <marker id="arrow-soft"     markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#5b6b8a"/>
+  </marker>
+  <marker id="arrow-accent"   markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M0,0 L8,5 L0,10 L2,5 Z" fill="#2952cc"/>
+  </marker>
+</defs>
+<text x='40' y='36' style='font-size:18px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>&lt;HostedMarketsGrid&gt; — flat composition</text>
+<text x='40' y='58' style='font-size:12px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>A six-deep stack collapsed into one component. Hooks attach OpenFin lifecycle.</text>
+<rect x="40" y="68" width="48" height="3" rx="1.5" ry="1.5" fill="#0f8a5f"/>
+<rect x="40" y="100" width="520" height="86" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="100" width="3" height="86" rx="1.5" ry="1.5" fill="#c2870c"/>
+<text x='56' y='122' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>useHostedIdentity()</text>
+<text x='56' y='144.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>resolves OpenFin / browser identity</text>
+<text x='56' y='161.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>builds storage factory</text>
+<line x1="300.0" y1="186" x2="300.0" y2="200" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="200" width="520" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="200" width="3" height="70" rx="1.5" ry="1.5" fill="#2952cc"/>
+<text x='56' y='222' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>useAgGridTheme()</text>
+<text x='56' y='244.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>reads [data-theme], returns Quartz theme</text>
+<line x1="300.0" y1="270" x2="300.0" y2="284" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="284" width="520" height="104" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="284" width="3" height="104" rx="1.5" ry="1.5" fill="#7c3aed"/>
+<text x='56' y='306' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>useHostedView()</text>
+<text x='56' y='328.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>useIab · useOpenFinChannel</text>
+<text x='56' y='345.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>useTabsHidden · useWorkspaceSaveEvent</text>
+<text x='56' y='362.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>useColorLinking · useFdc3Channel</text>
+<line x1="300.0" y1="388" x2="300.0" y2="402" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="402" width="520" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="402" width="3" height="70" rx="1.5" ry="1.5" fill="#c0532c"/>
+<text x='56' y='424' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>&lt;DataServicesProvider&gt;</text>
+<text x='56' y='446.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>eager hydration</text>
+<line x1="300.0" y1="472" x2="300.0" y2="486" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="486" width="520" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="486" width="3" height="70" rx="1.5" ry="1.5" fill="#0e9282"/>
+<text x='56' y='508' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>&lt;ConfigManagerLoadingGuard&gt;</text>
+<text x='56' y='530.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>blocks until ConfigManager ready</text>
+<line x1="300.0" y1="556" x2="300.0" y2="570" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="570" width="520" height="104" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="570" width="3" height="104" rx="1.5" ry="1.5" fill="#4f5bd5"/>
+<text x='56' y='592' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>&lt;MarketsGridContainer&gt;</text>
+<text x='56' y='614.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>two-provider model (live + historical)</text>
+<text x='56' y='631.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Shift+Ctrl+P chord toolbar</text>
+<text x='56' y='648.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>gridLevelData persistence</text>
+<line x1="300.0" y1="674" x2="300.0" y2="688" stroke="#8a99b3" stroke-width="1.4" marker-end="url(#arrow-soft)"/>
+<rect x="40" y="688" width="520" height="70" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<rect x="40" y="688" width="3" height="70" rx="1.5" ry="1.5" fill="#0f8a5f"/>
+<text x='56' y='710' style='font-size:14px;font-weight:600;fill:#1b2944;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>&lt;MarketsGrid&gt;</text>
+<text x='56' y='732.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>the actual widget + handle exposed up</text>
+<rect x="600" y="100" width="300" height="180" rx="8" ry="8" fill="#e6efff" stroke="#2952cc" stroke-width="1.0" filter="url(#shadow)"/>
+<text x='616' y='122' style='font-size:11px;font-weight:600;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Before consolidation</text>
+<text x='616' y='142.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'>BlottersMarketsGrid</text>
+<text x='616' y='159.05' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'>→ HostedFeatureView</text>
+<text x='616' y='176.1' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'>  → HostedComponent</text>
+<text x='616' y='193.15' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'>    → BlotterGrid</text>
+<text x='616' y='210.2' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'>      → MarketsGridContainer</text>
+<text x='616' y='227.25' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace'>        → MarketsGrid</text>
+<text x='616' y='260' style='font-size:10px;font-weight:400;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif;font-style:italic'>→ collapsed to the stack on the left.</text>
+<rect x="600" y="300" width="300" height="130" rx="8" ry="8" fill="#ffffff" stroke="#d8dfeb" stroke-width="1.0" filter="url(#shadow)"/>
+<text x='616' y='322' style='font-size:11px;font-weight:600;fill:#5b6b8a;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Net effect</text>
+<text x='616' y='344.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>727 LOC removed across 4 files</text>
+<text x='616' y='360.5' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>≈ 225 LOC of wrapper + hooks</text>
+<text x='616' y='377.0' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Flat props (no gridProps hatch)</text>
+<text x='616' y='393.5' style='font-size:11px;font-weight:400;fill:#38475f;text-anchor:start;font-family:"Inter", "Segoe UI", "Helvetica Neue", system-ui, Arial, sans-serif'>Public contract documented in README</text>
+</svg>
