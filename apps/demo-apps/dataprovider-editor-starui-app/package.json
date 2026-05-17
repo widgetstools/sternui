@@ -21,6 +21,7 @@
     "@starui/shared-types": "file:../../../libs/starui-shared-types-1.0.0-0ba5338e.tgz",
     "@starui/ui": "file:../../../libs/starui-ui-1.0.0-eae6ca5c.tgz",
     "@starui/widgets-react": "file:../../../libs/starui-widgets-react-1.0.0-7f910dd9.tgz",
+    "@stomp/stompjs": "^7.3.0",
     "@tanstack/react-query": "^5.80.0",
     "@widgetstools/dock-manager-core": "^1.0.0",
     "@widgetstools/react-dock-manager": "^1.0.0",
