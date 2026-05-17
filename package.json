@@ -47,6 +47,7 @@
     "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
     "pack:libs": "node scripts/pack-libs.mjs",
     "propagate": "node scripts/propagate.mjs",
+    "mcp:pack": "node mcp/scripts/pack.mjs",
     "clean": "rimraf -g node_modules apps/*/node_modules packages/*/*/node_modules apps/*/dist packages/*/*/dist .turbo",
     "check-ds": "tsx tools/scripts/check-ds-tokens.ts && tsx tools/scripts/check-design-system-deps.ts && tsx tools/scripts/check-react-apps-no-native-select.ts",
     "check:react-apps-select": "tsx tools/scripts/check-react-apps-no-native-select.ts"

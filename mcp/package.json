@@ -1,0 +1,39 @@
+{
+  "name": "@starui/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server that scaffolds StarUI React+shadcn+tailwind web apps and OpenFin workspace apps with bundled @starui/* tarballs.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "starui-mcp-server": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "fragments",
+    "libs",
+    "stomp-view-server",
+    "src/resources",
+    "appConfig.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "typecheck": "tsc --noEmit",
+    "pack:bundle": "node scripts/pack.mjs",
+    "start": "node ./dist/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

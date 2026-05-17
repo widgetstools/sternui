@@ -1,0 +1,22 @@
+{
+  "name": "popout-host",
+  "appliesTo": ["openfin"],
+  "newFiles": [
+    { "src": "popout.ts", "dest": "src/popouts/open{{Name}}Popout.ts" },
+    { "src": "popoutView.tsx", "dest": "src/views/{{Name}}Popout.tsx" }
+  ],
+  "patches": [
+    {
+      "file": "src/main.tsx",
+      "anchor": "// @starui:add-lazy-import-here",
+      "insert": "const {{Name}}Popout = React.lazy(() => import(\"./views/{{Name}}Popout\"));",
+      "idempotencyMarker": "import(\"./views/{{Name}}Popout\")"
+    },
+    {
+      "file": "src/main.tsx",
+      "anchor": "{/* @starui:add-route-here */}",
+      "insert": "<Route path=\"{{route}}\" element={<React.Suspense fallback={LOADING}><{{Name}}Popout /></React.Suspense>} />",
+      "idempotencyMarker": "path=\"{{route}}\""
+    }
+  ]
+}

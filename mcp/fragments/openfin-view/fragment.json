@@ -1,0 +1,28 @@
+{
+  "name": "openfin-view",
+  "appliesTo": ["openfin"],
+  "newFiles": [
+    { "src": "view.tsx", "dest": "src/views/{{ViewName}}.tsx" },
+    { "src": "view.fin.json", "dest": "public/views/view-{{slug}}.fin.json" }
+  ],
+  "patches": [
+    {
+      "file": "src/main.tsx",
+      "anchor": "// @starui:add-lazy-import-here",
+      "insert": "const {{ViewName}} = React.lazy(() => import(\"./views/{{ViewName}}\"));",
+      "idempotencyMarker": "import(\"./views/{{ViewName}}\")"
+    },
+    {
+      "file": "src/main.tsx",
+      "anchor": "{/* @starui:add-route-here */}",
+      "insert": "<Route path=\"{{route}}\" element={<React.Suspense fallback={LOADING}><{{ViewName}} /></React.Suspense>} />",
+      "idempotencyMarker": "path=\"{{route}}\""
+    },
+    {
+      "file": "src/platform/Provider.tsx",
+      "anchor": "// @starui:add-prefetch-here",
+      "insert": "{{ViewName}}: () => import(\"../views/{{ViewName}}\"),",
+      "idempotencyMarker": "import(\"../views/{{ViewName}}\")"
+    }
+  ]
+}

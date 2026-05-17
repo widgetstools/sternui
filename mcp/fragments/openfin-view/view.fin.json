@@ -1,0 +1,11 @@
+{
+  "name": "{{slug}}",
+  "url": "http://localhost:{{port}}{{route}}",
+  "fdc3InteropApi": "2.0",
+  "interop": {
+    "currentContextGroup": "green"
+  },
+  "customData": {
+    "componentType": "{{ViewName}}"
+  }
+}
