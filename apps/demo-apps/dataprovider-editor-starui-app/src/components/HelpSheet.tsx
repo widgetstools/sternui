@@ -45,9 +45,10 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
             </Badge>
           </div>
           <SheetDescription className="text-[12px] leading-relaxed text-[color:var(--ds-text-muted)]">
-            Author Mock provider configs in the editor → pick them in
-            either grid → both grids subscribe through one SharedWorker
-            hub. Browse every Dexie row alongside.
+            Open the editor from <strong>View → Provider Editor</strong>,
+            author a config (Mock/STOMP/REST/AppData), pick it in either
+            grid → both grids subscribe through one SharedWorker hub.
+            Inspect every Dexie row in <strong>View → Config Browser</strong>.
           </SheetDescription>
         </SheetHeader>
 
@@ -115,25 +116,37 @@ function QuickStart() {
       <Section title="What this demo shows" icon={<BookOpen size={12} strokeWidth={1.75} />}>
         <Prose>
           A workspace built entirely from pre-shipped StarUI components.
-          Zero hand-rolled provider-config state. Zero
-          <Code>useProviderStream</Code> / <Code>applyDelta</Code>
-          plumbing. The whole demo is composition.
+          Two MarketsGrid panels docked side-by-side; a Provider Editor
+          and a Config Browser summoned on demand as floating, non-
+          dockable windows from a shadcn Menubar. Zero hand-rolled
+          provider-config state, zero <Code>useProviderStream</Code> /
+          <Code>applyDelta</Code> plumbing — the whole demo is
+          composition. Layout, theme, provider configs, and per-grid
+          state all persist through reload.
         </Prose>
       </Section>
 
-      <Section title="The five panels" icon={<Layers size={12} strokeWidth={1.75} />}>
-        <ItemRow icon={<Database size={13} strokeWidth={1.75} />} name="Provider Editor (left tab 1)" desc="Renders <DataProviderEditor /> from @starui/widgets-react. Full tabbed UI for authoring Stomp / REST / Mock / AppData provider configs; persists to IndexedDB via ConfigManager." />
-        <ItemRow icon={<Database size={13} strokeWidth={1.75} />} name="Config Browser (left tab 2)" desc="Renders <ConfigBrowserPanel /> from @starui/config-browser. Read/write inspector for every Dexie table — appConfig, appRegistry, userProfile, roles, permissions, pendingSync." />
-        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Grid A + Grid B (right)" desc="Two independent <HostedMarketsGrid /> instances. Each has its own profile bundle; both share the same DataServices client (and therefore the same SharedWorker hub)." />
-        <ItemRow icon={<BookOpen size={13} strokeWidth={1.75} />} name="Live stats (bottom)" desc="Reads each grid's persisted picker state from localStorage and echoes the active providerId for each side." />
+      <Section title="The workspace at a glance" icon={<Layers size={12} strokeWidth={1.75} />}>
+        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Grid A + Grid B (docked)" desc="Two independent <HostedMarketsGrid /> instances split horizontally. Each has its own profile bundle and picker state; both share the same DataServices client (one SharedWorker hub fans out to both)." />
+        <ItemRow icon={<BookOpen size={13} strokeWidth={1.75} />} name="Live stats (bottom strip)" desc="Reads each grid's persisted picker state from localStorage and echoes the active providerId per side." />
+        <ItemRow icon={<Database size={13} strokeWidth={1.75} />} name="Provider Editor (floating, on demand)" desc="Open from View → Provider Editor. Floats as a non-dockable window — drag/resize, but can't be docked into the workspace tree. Renders <DataProviderEditor /> from @starui/widgets-react." />
+        <ItemRow icon={<Database size={13} strokeWidth={1.75} />} name="Config Browser (floating, on demand)" desc="Open from View → Config Browser. Same floating semantics. Renders <ConfigBrowserPanel /> from @starui/config-browser — inspects every Dexie table the platform writes to." />
+      </Section>
+
+      <Section title="Header controls" icon={<Layers size={12} strokeWidth={1.75} />}>
+        <ItemRow icon={<Database size={13} strokeWidth={1.75} />} name="View ▾" desc="Menubar entry with checkbox items for Provider Editor and Config Browser. Click to summon → floats at a default position. Click again (or X the floating window) to close." />
+        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Save layout" desc="Persists the current dock state (splits, sizes, active tabs, open floating windows + their positions) to localStorage under the key `dataprovider-editor-starui-app:dock-layout:v3`." />
+        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Reset layout" desc="Confirms, clears the saved blob, reloads to defaults." />
+        <ItemRow icon={<BookOpen size={13} strokeWidth={1.75} />} name="Help · Theme" desc="Toggle this drawer and dark/light theme respectively." />
       </Section>
 
       <Section title="Try it (end-to-end flow)" icon={<BookOpen size={12} strokeWidth={1.75} />}>
-        <Step n={1}>In the <strong>Provider Editor</strong> tab, click <Code>+ Create</Code>, name it <Code>Demo Positions</Code>, pick <Code>Mock</Code> as the transport. Set <Code>dataType: positions</Code>, <Code>rowCount: 200</Code>, <Code>updateIntervalMs: 750</Code>, <Code>enableUpdates: on</Code>.</Step>
-        <Step n={2}>Switch to the <strong>Columns</strong> tab inside the editor. Click <Code>Infer fields</Code> (runs probeMock under the hood). Pick <Code>id</Code> as the <Code>keyColumn</Code> — without this the hub silently drops every row. Save.</Step>
+        <Step n={1}>Click <strong>View → Provider Editor</strong>. The editor opens as a floating window. Click <Code>+ Create</Code>, name it <Code>Demo Positions</Code>, pick <Code>Mock</Code> as the transport. Set <Code>dataType: positions</Code>, <Code>rowCount: 200</Code>, <Code>updateIntervalMs: 750</Code>, <Code>enableUpdates: on</Code>.</Step>
+        <Step n={2}>Switch to the <strong>Columns</strong> tab inside the editor. Click <Code>Infer fields</Code> (runs probeMock for Mock, probeStomp for STOMP, probeRest for REST). Pick <Code>id</Code> as the <Code>keyColumn</Code> — without this the hub silently drops every row. Save.</Step>
         <Step n={3}>In <strong>Grid A</strong>'s toolbar dropdown (top of the grid), pick "Demo Positions". 200 rows of positions populate within ~500 ms; ticks land every 750 ms.</Step>
         <Step n={4}>Pick the <strong>same</strong> config in <strong>Grid B</strong>. Rows appear instantly from the hub's cache — same provider instance, two consumers.</Step>
-        <Step n={5}>Switch to the <strong>Config Browser</strong> tab. The <Code>appConfig</Code> table shows the row you saved, with <Code>componentType: 'data-provider'</Code> and the Mock payload inline.</Step>
+        <Step n={5}>Click <strong>View → Config Browser</strong>. The <Code>appConfig</Code> table shows the row you saved, with <Code>componentType: 'data-provider'</Code> and the Mock payload inline.</Step>
+        <Step n={6}>Drag the splitter between the two grids, resize the floating editor, hit <strong>Save layout</strong>. Reload — everything (dock arrangement, floating window positions, each grid's picker selection, each grid's MarketsGrid profile) survives.</Step>
       </Section>
 
       <Section title="Keyboard shortcuts" icon={<BookOpen size={12} strokeWidth={1.75} />}>
@@ -141,6 +154,35 @@ function QuickStart() {
           <ShortcutRow keys="Ctrl + /"  label="Toggle this help drawer" />
           <ShortcutRow keys="Ctrl + ."  label="Switch theme (dark / light)" />
         </ShortcutTable>
+      </Section>
+
+      <Section title="Persistence map" icon={<Database size={12} strokeWidth={1.75} />}>
+        <Prose>
+          Four independent layers of persistence. They never collide
+          and can be wiped individually.
+        </Prose>
+        <CompareTable>
+          <CompareRow
+            label="Provider configs"
+            manual="IndexedDB · marketsui-config / appConfig"
+            composed="Written by the editor. Visible across both grids' dropdowns and via the Config Browser."
+          />
+          <CompareRow
+            label="Per-grid picker + profile"
+            manual="localStorage · markets-grid-bundle:dataprovider-editor-demo-a (and -demo-b)"
+            composed="Written by MarketsGridContainer's gridLevelData. Stores the active live/historical providerId, mode, and the grid's profile state."
+          />
+          <CompareRow
+            label="Dock layout"
+            manual="localStorage · dataprovider-editor-starui-app:dock-layout:v3"
+            composed="Written when you click Save layout. Restored on every page load via loadFromLocalStorage()."
+          />
+          <CompareRow
+            label="Theme"
+            manual="localStorage · @starui/design-system theme key"
+            composed="Written when you click the theme button. Restored via applyTheme(getTheme()) at boot."
+          />
+        </CompareTable>
       </Section>
     </div>
   );

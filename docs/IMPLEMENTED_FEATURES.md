@@ -1,32 +1,120 @@
 ## 2026-05-17 — new app: `dataprovider-editor-starui-app`
 
 A second demo app under `apps/demo-apps/dataprovider-editor-starui-app/`
-that teaches the **composition** path for DataServices: a `<DataProviderEditor />`
-for authoring provider configs (left tab 1), a `<ConfigBrowserPanel />` for
-inspecting the Dexie store directly (left tab 2), two
-`<HostedMarketsGrid />` instances (right) that share one SharedWorker hub
-and demonstrate cross-tab broadcast, and a localStorage-backed stats strip
-(bottom). Zero hand-rolled provider-config UI, zero `useProviderStream` or
-`applyDelta` calls — everything is wrapped by widgets-react's `HostedMarketsGrid`
-→ `MarketsGridContainer` (which itself owns the in-grid `ProviderToolbar`
+that teaches the **composition** path for DataServices: pre-shipped
+widgets composed into a working DataServices workspace with zero
+hand-rolled provider-config UI and zero `useProviderStream` /
+`applyDelta` plumbing.
+
+### Layout
+
+- **Docked**: two `<HostedMarketsGrid />` panels (Grid A | Grid B)
+  side-by-side, sharing a single DataServices client / SharedWorker
+  hub; a localStorage-backed stats strip at the bottom.
+- **Floating, on-demand**: `<DataProviderEditor />` and
+  `<ConfigBrowserPanel />` are summoned from a shadcn `Menubar` in the
+  header (View → Provider Editor / Config Browser). Both have
+  `dockable: false` + `allowDocking: false` — drag/resize, but they
+  can't be docked into the workspace tree. Menubar uses
+  `MenubarCheckboxItem` so the checkmark reflects whether each panel
+  is currently open; closing via the floating X updates the state
+  via `onWillClose`.
+
+### Header controls
+
+- **View ▾** — toggles editor / browser
+- **Save layout** — `dockRef.current.getApi().getState()` →
+  `saveToLocalStorage(state, 'dataprovider-editor-starui-app:dock-layout:v3')`.
+  Persists splits, sizes, active panel, and any open floating-window
+  positions.
+- **Reset layout** — confirms → `clearLocalStorage(key)` → reload.
+- **Help · Theme** — drawer + dark/light toggle.
+
+### Persistence layers (all independent)
+
+| Layer | Storage |
+|---|---|
+| Provider configs | IndexedDB · `marketsui-config` / `appConfig` |
+| Per-grid picker + profile | localStorage · `markets-grid-bundle:dataprovider-editor-demo-a` (and `-b`) |
+| Dock layout | localStorage · `dataprovider-editor-starui-app:dock-layout:v3` |
+| Theme | localStorage · @starui/design-system theme key |
+
+### Composition
+
+Everything routes through widgets-react's `HostedMarketsGrid` →
+`MarketsGridContainer`, which owns the in-grid `ProviderToolbar`
 picker, the `useDataProviderConfig` + `useResolvedCfg` flow, the
-`dpClient.subscribe` lifecycle, and the snapshot/delta `applyTransactionAsync`
-pipeline). Saved provider configs persist to IndexedDB (`marketsui-config` /
-`appConfig` table) and survive page reloads; the HelpSheet's "vs manual" tab
-contrasts every aspect of this app against the existing
-`mockdata-provider-starui-app`.
+`dpClient.subscribe` lifecycle, and the snapshot/delta
+`applyTransactionAsync` pipeline. The grid's "Edit" toolbar button
+fires `onEditProvider(providerId)` — App.tsx routes that to
+`toggleFloatingPanel('providerEditor')` + `bringToFront` so the
+editor floats forward, pre-focused on that config.
 
-Re-uses the SharedWorker workaround from the first demo (own the
-`new SharedWorker(new URL('./sharedWorker/entry.ts', import.meta.url), ...)`
-call so Vite's worker plugin can statically resolve the entry).
+### Provider transports
 
-**Library packaging fix shipped alongside**: `@starui/icons-svg`'s `files`
-allowlist was missing `allIcons.ts`, breaking `DynamicIcon` for tarball
-consumers — repacked.
+All four supported via `<DataProviderEditor />`'s Connection tab:
+**Mock**, **STOMP**, **REST**, **AppData**. STOMP's keyColumn picker
+sits on the editor's Columns tab (click Infer fields → probeStomp
+→ pick). Stomp's runtime peer dep `@stomp/stompjs` is declared
+explicitly in this demo's `package.json` so a tarball consumer
+outside the workspace gets a working dynamic import.
+
+### HelpSheet tabs
+
+Quick start · Editor · Hosted grid · vs manual. The "vs manual" tab
+is a side-by-side table contrasting this composition app against
+`mockdata-provider-starui-app` (which hand-rolls the same flow to
+teach the parts).
+
+### Library fixes shipped alongside
+
+- **`@starui/icons-svg`** — `files` allowlist was missing
+  `allIcons.ts`, breaking `DynamicIcon` for tarball consumers.
+  Repacked.
+- **`@starui/data-services` STOMP transport** — the lazy
+  `import('@stomp/stompjs')` only checked `m.Client`. Vite's
+  `browser` export condition resolves stompjs to the UMD bundle,
+  which puts the namespace under `m.default.Client`. Updated to
+  try both shapes; clear error if neither exists. Repacked.
+- **`@starui/data-services`** — exposed `startMock` from the public
+  surface (it already shipped in the dist for `probeMock` but
+  wasn't re-exported). Repacked.
+- **`@starui/shared-types`** — declared
+  `keyColumn?: string | readonly string[]` on `MockProviderConfig`
+  so it's first-class for hub-path consumers. Repacked.
+
+### Vite quirks worth knowing for future tarball-installed apps
+
+- **`worker.format: 'es'`** required — the SharedWorker entry's
+  transitive imports need code-splitting; the default IIFE format
+  can't do that.
+- **tsconfig `paths`** pin `@starui/config-service` to the local
+  tarball install so source-only packages like `@starui/config-browser`
+  don't resolve a second copy through the workspace tree (private
+  fields would otherwise make the two ConfigManager class identities
+  incompatible).
+- **SharedWorker construction** — own the
+  `new SharedWorker(new URL('./sharedWorker/entry.ts', import.meta.url), ...)`
+  call site locally. The library's
+  `createDataServicesClient` shortcut points its worker URL at a
+  `.ts` file inside the package, which works under workspace alias
+  but 404s for tarball consumers (published dist only ships `.js`).
+- **Full-bleed components** — `HostedMarketsGrid` and
+  `ConfigBrowserPanel` both render with `position: fixed; inset: 0`
+  internally (designed for OpenFin views that own the whole
+  viewport). Wrap each in a div with `transform: translateZ(0)` so
+  the fixed positioning is relative to the dock panel, not the
+  browser viewport.
 
 Touched: `apps/demo-apps/dataprovider-editor-starui-app/**`,
-`packages/shared/foundation/icons-svg/package.json` (files allowlist),
-`libs/manifest.json` (icons-svg sha bumped), root `package.json` (`dev:dataprovider-editor-starui-app` script).
+`packages/shared/foundation/icons-svg/package.json`,
+`packages/shared/services/data-services/src/runtime/providers/transports/stomp.ts`,
+`packages/shared/services/data-services/src/{index.ts,runtime/providers/index.ts}`,
+`packages/shared/foundation/shared-types/src/dataProvider.ts`,
+`libs/manifest.json`, root `package.json` (added
+`dev:dataprovider-editor-starui-app`),
+`apps/demo-apps/mockdata-provider-starui-app/vite.config.ts`
+(`worker.format: 'es'` to fix prod build for the existing demo too).
 
 ## 2026-05-17 — `MockProviderConfig.keyColumn` is now first-class
 
