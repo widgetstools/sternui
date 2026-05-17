@@ -18,6 +18,11 @@ import {
 import { applyTheme, getTheme } from '@starui/design-system';
 import {
   Button,
+  Menubar,
+  MenubarCheckboxItem,
+  MenubarContent,
+  MenubarMenu,
+  MenubarTrigger,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -31,6 +36,10 @@ import { ConfigBrowserPanel } from './panels/ConfigBrowserPanel';
 import { HostedGridPanel } from './panels/HostedGridPanel';
 import { StatsPanel } from './panels/StatsPanel';
 
+// Default docked layout. Only the grids and the stats strip live in
+// the dock tree — Provider Editor and Config Browser are opened on
+// demand from the View menu and appear as floating, non-dockable
+// panels (see openFloatingPanel below).
 const SERIALIZED_LAYOUT: SerializedDockLayout = {
   version: 1,
   layout: {
@@ -43,42 +52,24 @@ const SERIALIZED_LAYOUT: SerializedDockLayout = {
         type: 'split',
         id: 'top',
         direction: 'horizontal',
-        sizes: [38, 62],
+        sizes: [50, 50],
         children: [
-          {
-            type: 'tabgroup',
-            id: 'tg-left',
-            panels: ['providerEditor', 'configBrowser'],
-            activePanel: 'providerEditor',
-          },
-          {
-            type: 'split',
-            id: 'right',
-            direction: 'vertical',
-            sizes: [50, 50],
-            children: [
-              { type: 'tabgroup', id: 'tg-grid-a', panels: ['gridA'], activePanel: 'gridA' },
-              { type: 'tabgroup', id: 'tg-grid-b', panels: ['gridB'], activePanel: 'gridB' },
-            ],
-          },
+          { type: 'tabgroup', id: 'tg-grid-a', panels: ['gridA'], activePanel: 'gridA' },
+          { type: 'tabgroup', id: 'tg-grid-b', panels: ['gridB'], activePanel: 'gridB' },
         ],
       },
       { type: 'tabgroup', id: 'tg-stats', panels: ['stats'], activePanel: 'stats' },
     ],
   },
   panels: {
-    providerEditor: { id: 'providerEditor', title: 'Provider Editor', widgetType: 'providerEditor', closable: false },
-    configBrowser:  { id: 'configBrowser',  title: 'Config Browser',  widgetType: 'configBrowser',  closable: false },
-    gridA:          { id: 'gridA',          title: 'Grid A',          widgetType: 'gridA',          closable: false },
-    gridB:          { id: 'gridB',          title: 'Grid B',          widgetType: 'gridB',          closable: false },
-    stats:          { id: 'stats',          title: 'Live stats',      widgetType: 'stats',          closable: false },
+    gridA: { id: 'gridA', title: 'Grid A',     widgetType: 'gridA', closable: false },
+    gridB: { id: 'gridB', title: 'Grid B',     widgetType: 'gridB', closable: false },
+    stats: { id: 'stats', title: 'Live stats', widgetType: 'stats', closable: false },
   },
   placements: {
-    providerEditor: { type: 'docked', groupId: 'tg-left' },
-    configBrowser:  { type: 'docked', groupId: 'tg-left' },
-    gridA:          { type: 'docked', groupId: 'tg-grid-a' },
-    gridB:          { type: 'docked', groupId: 'tg-grid-b' },
-    stats:          { type: 'docked', groupId: 'tg-stats' },
+    gridA: { type: 'docked', groupId: 'tg-grid-a' },
+    gridB: { type: 'docked', groupId: 'tg-grid-b' },
+    stats: { type: 'docked', groupId: 'tg-stats' },
   },
   activePaneId: 'gridA',
   nextZIndex: 100,
@@ -86,13 +77,22 @@ const SERIALIZED_LAYOUT: SerializedDockLayout = {
 
 const DEFAULT_LAYOUT: DockManagerState = deserialize(SERIALIZED_LAYOUT).state;
 
-// Stable key for dock-manager-core's localStorage helpers. Distinct
-// from MarketsGrid's per-grid profile bundles so it can coexist with
-// them in the same browser without collision. Bump the `v` suffix
-// whenever the panel set changes so stale blobs get abandoned.
-const DOCK_STORAGE_KEY = 'dataprovider-editor-starui-app:dock-layout:v2';
+// Stable key for dock-manager-core's localStorage helpers. Bump the
+// `v` suffix whenever the docked-panel set changes so stale blobs get
+// abandoned. v3 = editor + browser moved to floating-only.
+const DOCK_STORAGE_KEY = 'dataprovider-editor-starui-app:dock-layout:v3';
 
-const REQUIRED_PANELS = ['providerEditor', 'configBrowser', 'gridA', 'gridB', 'stats'] as const;
+// Panels we always require in the persisted layout. Floating-only
+// panels (editor, configBrowser) are excluded — they may or may not
+// be present depending on whether the user opened them before saving.
+const REQUIRED_PANELS = ['gridA', 'gridB', 'stats'] as const;
+const FLOATING_PANELS = ['providerEditor', 'configBrowser'] as const;
+type FloatingPanelId = (typeof FLOATING_PANELS)[number];
+
+const FLOATING_PANEL_META: Record<FloatingPanelId, { title: string; x: number; y: number; width: number; height: number }> = {
+  providerEditor: { title: 'Provider Editor', x: 80,  y: 80, width: 1000, height: 660 },
+  configBrowser:  { title: 'Config Browser',  x: 140, y: 120, width: 1100, height: 700 },
+};
 
 /**
  * Load the persisted dock layout if any. Falls back to DEFAULT_LAYOUT
@@ -108,21 +108,26 @@ function loadInitialLayout(): DockManagerState {
       // eslint-disable-next-line no-console
       console.warn('[dock-layout] restore warnings:', result.warnings);
     }
-    // Bidirectional guard. The persisted state must include exactly
-    // the panels we know how to render — no more (an unknown id would
-    // crash the widget renderer) and no less (a missing id means the
-    // panel won't appear at all, like the user just hit with stats).
+    // The persisted state must include every REQUIRED docked panel.
+    // Extra panels are tolerated — they may be floating editor /
+    // browser instances the user had open at save time. Any extras
+    // outside the known floating set get logged but kept (they'll
+    // render via the widget registry).
     const persistedIds = new Set(result.state.panels.keys());
     const requiredIds = new Set<string>(REQUIRED_PANELS);
-    const extra = [...persistedIds].filter((id) => !requiredIds.has(id));
+    const floatingIds = new Set<string>(FLOATING_PANELS);
     const missing = [...requiredIds].filter((id) => !persistedIds.has(id));
-    if (extra.length > 0 || missing.length > 0) {
+    if (missing.length > 0) {
       // eslint-disable-next-line no-console
-      console.warn(
-        '[dock-layout] panel set drift — using default layout.',
-        { extra, missing },
-      );
+      console.warn('[dock-layout] required panels missing — using default layout.', { missing });
       return DEFAULT_LAYOUT;
+    }
+    const unknownExtras = [...persistedIds].filter(
+      (id) => !requiredIds.has(id) && !floatingIds.has(id),
+    );
+    if (unknownExtras.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn('[dock-layout] unknown panels in persisted state', { unknownExtras });
     }
     return result.state;
   } catch (err) {
@@ -139,7 +144,73 @@ export function App() {
   const isDark = theme === 'dark';
   const [helpOpen, setHelpOpen] = useState(false);
   const [pendingEditorProviderId, setPendingEditorProviderId] = useState<string | null>(null);
+  const [openFloating, setOpenFloating] = useState<Set<FloatingPanelId>>(() => new Set());
   const dockRef = useRef<DockManagerCoreHandle | null>(null);
+
+  // Toggle a floating panel via the dock-manager API. First open
+  // adds the panel and floats it; subsequent toggles close (remove
+  // from state). `dockable: false` + `allowDocking: false` block
+  // drag-to-dock so the panel can only ever be a floating overlay.
+  const toggleFloatingPanel = useCallback((id: FloatingPanelId) => {
+    const api = dockRef.current?.getApi();
+    if (!api) return;
+    if (api.hasPanel(id)) {
+      api.closePanel(id);
+      setOpenFloating((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+    const meta = FLOATING_PANEL_META[id];
+    api.addPanel({
+      panelId: id,
+      title: meta.title,
+      widgetType: id,
+      dockable: false,
+      floatable: true,
+      closable: true,
+      targetGroupId: 'tg-stats',
+    });
+    api.floatPanel({
+      panelId: id,
+      x: meta.x,
+      y: meta.y,
+      width: meta.width,
+      height: meta.height,
+    });
+    api.updatePanel(id, { allowDocking: false });
+    api.bringToFront(id);
+    setOpenFloating((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Reflect whatever panels are in the persisted layout into
+  // openFloating so the menubar checkmarks match reality on first
+  // paint. Runs once after mount.
+  useEffect(() => {
+    const api = dockRef.current?.getApi();
+    if (!api) return;
+    const present = FLOATING_PANELS.filter((id) => api.hasPanel(id));
+    if (present.length > 0) setOpenFloating(new Set(present));
+  }, []);
+
+  // Keep the menubar checkmarks in sync when the user closes a
+  // floating panel via its X button (rather than via the menu).
+  const handleWillClose = useCallback((_e: unknown, panelId: string) => {
+    if ((FLOATING_PANELS as readonly string[]).includes(panelId)) {
+      setOpenFloating((prev) => {
+        if (!prev.has(panelId as FloatingPanelId)) return prev;
+        const next = new Set(prev);
+        next.delete(panelId as FloatingPanelId);
+        return next;
+      });
+    }
+  }, []);
 
   // Resolve initial dock layout once, at mount. Reading from
   // localStorage on every render would re-mount DockManagerCore with
@@ -179,18 +250,18 @@ export function App() {
     setThemeState(next);
   }, [isDark]);
 
-  // Bring the editor tab to the front when a grid asks to edit its
-  // active provider. dock-manager-core's DockviewApi can move/focus
-  // panels; the simplest reliable hook is the `setActivePanel` action
-  // on the editor's tab-group. We just nudge React state and rely on
-  // the editor panel re-rendering with the new initialProviderId.
+  // When a grid asks to edit a provider, summon the editor panel
+  // (open it if it isn't already) and pre-focus the row.
   const handleEditProvider = useCallback((providerId: string) => {
     setPendingEditorProviderId(providerId);
     const api = dockRef.current?.getApi();
-    // tg-left is the tabgroup holding the editor + browser tabs;
-    // setActivePanel flips the active tab to the editor.
-    api?.setActivePanel?.('tg-left', 'providerEditor');
-  }, []);
+    if (!api) return;
+    if (!api.hasPanel('providerEditor')) {
+      toggleFloatingPanel('providerEditor');
+    } else {
+      api.bringToFront('providerEditor');
+    }
+  }, [toggleFloatingPanel]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -244,6 +315,28 @@ export function App() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[color:var(--ds-surface-ground)] text-[color:var(--ds-text-primary)]">
       <header className="relative flex h-[52px] shrink-0 items-center gap-2 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] pl-4 pr-3">
         <Brand />
+        <div className="ml-2 h-6 w-px bg-[color:var(--ds-border-primary)]" />
+        <Menubar className="h-8 border-none bg-transparent p-0 shadow-none">
+          <MenubarMenu>
+            <MenubarTrigger className="h-7 px-2 font-mono text-[11px] font-medium tracking-tight text-[color:var(--ds-text-secondary)] data-[state=open]:bg-[color:var(--ds-surface-raised)] data-[state=open]:text-[color:var(--ds-text-primary)]">
+              View
+            </MenubarTrigger>
+            <MenubarContent align="start" className="min-w-[220px]">
+              <MenubarCheckboxItem
+                checked={openFloating.has('providerEditor')}
+                onCheckedChange={() => toggleFloatingPanel('providerEditor')}
+              >
+                Provider Editor
+              </MenubarCheckboxItem>
+              <MenubarCheckboxItem
+                checked={openFloating.has('configBrowser')}
+                onCheckedChange={() => toggleFloatingPanel('configBrowser')}
+              >
+                Config Browser
+              </MenubarCheckboxItem>
+            </MenubarContent>
+          </MenubarMenu>
+        </Menubar>
         <div className="ml-auto flex items-center gap-2">
           <TooltipProvider delayDuration={250}>
             <Tooltip>
@@ -316,6 +409,7 @@ export function App() {
           <DockManagerCore
             ref={dockRef}
             initialState={initialLayout}
+            onWillClose={handleWillClose}
             widgets={widgets}
             theme={dockTheme}
             className="h-full w-full"
