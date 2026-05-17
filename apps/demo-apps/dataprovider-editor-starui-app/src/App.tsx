@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@starui/ui';
-import { Sun, Moon, CircleHelp, LayoutTemplate } from 'lucide-react';
+import { Sun, Moon, CircleHelp, LayoutTemplate, Save } from 'lucide-react';
 import { Brand } from './components/Brand';
 import { HelpSheet } from './components/HelpSheet';
 import { ProviderEditorPanel } from './panels/ProviderEditorPanel';
@@ -138,39 +138,19 @@ export function App() {
   // a stale state and lose any unsaved drag-in-progress.
   const [initialLayout] = useState<DockManagerState>(() => loadInitialLayout());
 
-  // Debounced save. onStateChange fires on every drag tick + resize
-  // delta; without debounce we'd hammer localStorage. ~250ms is short
-  // enough to feel instant but coalesces a typical resize gesture into
-  // one write.
-  const saveTimerRef = useRef<number | null>(null);
-  const pendingChangeCountRef = useRef(0);
-  const handleStateChange = useCallback((state: DockManagerState) => {
-    pendingChangeCountRef.current += 1;
-    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = window.setTimeout(() => {
-      const coalesced = pendingChangeCountRef.current;
-      pendingChangeCountRef.current = 0;
-      try {
-        saveToLocalStorage(state, DOCK_STORAGE_KEY);
-        // eslint-disable-next-line no-console
-        console.log(
-          `[dock-layout] saved (coalesced ${coalesced} state-change event${coalesced === 1 ? '' : 's'})`,
-        );
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('[dock-layout] save failed', err);
-      }
-      saveTimerRef.current = null;
-    }, 250);
-  }, []);
-
-  // Cleanup pending save on unmount so a fast page-tear-down doesn't
-  // leak the timer (the save itself is harmless if it fires after
-  // unmount; this is just hygiene).
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
-    };
+  // Explicit save — user-triggered via the header button. Pulls the
+  // current state from the dock-manager API and writes it.
+  const handleSaveLayout = useCallback(() => {
+    const state = dockRef.current?.getState();
+    if (!state) return;
+    try {
+      saveToLocalStorage(state, DOCK_STORAGE_KEY);
+      // eslint-disable-next-line no-console
+      console.log('[dock-layout] saved');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[dock-layout] save failed', err);
+    }
   }, []);
 
   const handleResetLayout = useCallback(() => {
@@ -263,6 +243,21 @@ export function App() {
                 <Button
                   variant="outline"
                   size="icon"
+                  onClick={handleSaveLayout}
+                  aria-label="Save dock layout"
+                  className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
+                  data-testid="save-layout"
+                >
+                  <Save size={13} strokeWidth={1.75} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Save dock layout</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={handleResetLayout}
                   aria-label="Reset dock layout to defaults"
                   className="h-7 w-7 border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] text-[color:var(--ds-text-secondary)] hover:bg-[color:var(--ds-surface-raised)] hover:text-[color:var(--ds-text-primary)]"
@@ -313,7 +308,6 @@ export function App() {
           <DockManagerCore
             ref={dockRef}
             initialState={initialLayout}
-            onStateChange={handleStateChange}
             widgets={widgets}
             theme={dockTheme}
             className="h-full w-full"
