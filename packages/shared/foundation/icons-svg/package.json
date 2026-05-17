@@ -18,6 +18,7 @@
   "files": [
     "svg/**/*.svg",
     "index.ts",
+    "allIcons.ts",
     "react/**/*",
     "angular/**/*"
   ],
