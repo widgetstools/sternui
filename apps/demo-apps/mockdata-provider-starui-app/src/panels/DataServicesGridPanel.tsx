@@ -3,7 +3,7 @@ import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
 } from '@starui/markets-grid';
-import { useProviderStream } from '@starui/data-services-react/runtime';
+import { useProviderStream, useProviderStats } from '@starui/data-services-react/runtime';
 import { useMockConfig } from '../state/MockConfigContext';
 import { useStats } from '../state/StatsContext';
 import { columnDefsByType } from '../data/columnDefsByType';
@@ -54,6 +54,27 @@ function DataServicesGridInner() {
     // eslint-disable-next-line no-console
     console.log('[ds-panel] cfgForHub changed →', cfgForHub);
   }, [cfgForHub]);
+
+  // Probe 1: does `services.ready` resolve? If yes, the SharedWorker is
+  // alive and the AppData mirror round-tripped at least once.
+  useEffect(() => {
+    if (!dataServices) return;
+    // eslint-disable-next-line no-console
+    console.log('[ds-panel] awaiting services.ready ...');
+    dataServices.ready.then(
+      () => console.log('[ds-panel] services.ready RESOLVED — SharedWorker is alive'),
+      (err) => console.error('[ds-panel] services.ready REJECTED', err),
+    );
+  }, []);
+
+  // Probe 2: stats subscription. Hub sends one immediately on attach
+  // and one per second after that — independent of provider deltas.
+  useProviderStats(providerId, {
+    onStats: (stats) => {
+      // eslint-disable-next-line no-console
+      console.log('[ds-panel] onStats:', stats);
+    },
+  });
 
   const handle = useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
     onDelta: (incoming, replace) => {
