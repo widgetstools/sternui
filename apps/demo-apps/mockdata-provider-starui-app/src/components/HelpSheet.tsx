@@ -222,61 +222,233 @@ export const columnDefsByType = {
 function WiringDocs() {
   return (
     <div className="flex flex-col gap-5">
-      <Section title="Path 1 — Direct startMock()" icon={<Plug size={12} strokeWidth={1.75} />}>
+      <Section title="Shared input — the live MockProviderConfig" icon={<Plug size={12} strokeWidth={1.75} />}>
         <Prose>
-          Simplest wiring. <Code>startMock(cfg, emit)</Code> is a pure
-          function that returns a <Code>ProviderHandle</Code> and pushes
-          events into <Code>emit</Code>. No worker, no provider context.
+          Both panels read the same <Code>cfg</Code> object from
+          <Code>MockConfigContext</Code>. Anything you change in the
+          Provider Config panel propagates to both grids. The cfg
+          identity is stable across no-op writes so neither panel
+          re-attaches needlessly.
+        </Prose>
+        <CodeBlock>
+{`// What MockConfigContext gives both panels:
+{
+  providerType: 'mock',
+  dataType:         'positions' | 'trades' | 'orders',
+  rowCount:         50 | 200 | 1000,
+  updateIntervalMs: 250 – 3000,
+  enableUpdates:    true | false,
+}`}
+        </CodeBlock>
+      </Section>
+
+      <Section title="Side-by-side — what each panel adds" icon={<Plug size={12} strokeWidth={1.75} />}>
+        <CompareTable>
+          <CompareRow
+            label="cfg used"
+            direct="cfg as-is from MockConfigContext"
+            ds="cfg + keyColumn (the hub indexes its cache by it; rows missing the field are dropped)"
+          />
+          <CompareRow
+            label="Where the provider runs"
+            direct="In-process, same module, same event loop as the React tree"
+            ds="In a SharedWorker (one per appName), reachable from every tab/window"
+          />
+          <CompareRow
+            label="Lifecycle owner"
+            direct="The panel — useEffect → startMock(cfg, emit) → cleanup calls handle.stop()"
+            ds="The hub — useProviderStream sends an `attach` request; the hub creates the provider on first attach, late-joins on subsequent ones"
+          />
+          <CompareRow
+            label="Boot prerequisite"
+            direct="None — startMock is a pure function"
+            ds="Wrap <App /> in <DataServicesProvider services={...} /> in main.tsx"
+          />
+          <CompareRow
+            label="API surface"
+            direct="startMock(cfg, emit) → ProviderHandle { stop, restart }"
+            ds="useProviderStream(providerId, cfg, { onDelta, onStatus }) → { status, error, refresh }"
+          />
+          <CompareRow
+            label="Snapshot delivery"
+            direct="emit({ rows, replace: true }) once, then per-tick emit({ rows }) deltas"
+            ds="Same shape over the wire — first emit on attach is always replace=true, then live deltas"
+          />
+          <CompareRow
+            label="Restart semantics"
+            direct="handle.restart(extra) overlays extra onto cfg + re-emits"
+            ds="Hook re-runs when cfg identity changes; hub sees the new cfg and starts a new provider (or LATE-JOINER if providerId already running)"
+          />
+        </CompareTable>
+      </Section>
+
+      <Section title="Direct panel — the actual code" icon={<Plug size={12} strokeWidth={1.75} />}>
+        <Prose>
+          What <Code>DirectGridPanel.tsx</Code> ships in this demo.
+          No keyColumn, no provider context.
         </Prose>
         <CodeBlock>
 {`import { startMock } from '@starui/data-services';
 
-const handle = startMock(cfg, (evt) => {
-  if ('rows' in evt) {
-    if (evt.replace) rowsRef.current = [...evt.rows];
-    else rowsRef.current = applyDelta(rowsRef.current, evt.rows, idField);
-    setRows(rowsRef.current);
-  }
-});
-return () => handle.stop();`}
+const { cfg } = useMockConfig();
+const { columnDefs, rowIdField } = columnDefsByType[cfg.dataType];
+
+useEffect(() => {
+  rowsRef.current = [];
+  setRows([]);
+
+  // cfg passed straight through — no keyColumn needed; the
+  // emit callback never goes through the hub's row cache.
+  handleRef.current = startMock(cfg, (evt) => {
+    if ('rows' in evt) {
+      if (evt.replace) rowsRef.current = [...evt.rows];
+      else rowsRef.current = applyDelta(
+        rowsRef.current, evt.rows, rowIdField,
+      );
+      setRows(rowsRef.current);
+    }
+  });
+
+  return () => handleRef.current?.stop();
+}, [cfg, rowIdField]);`}
         </CodeBlock>
       </Section>
 
-      <Section title="Path 2 — useProviderStream()" icon={<Plug size={12} strokeWidth={1.75} />}>
+      <Section title="DataServices panel — the actual code" icon={<Plug size={12} strokeWidth={1.75} />}>
         <Prose>
-          Production wiring. The cfg is sent to a SharedWorker hub that
-          owns the provider instance and broadcasts deltas to every
-          subscribed tab/window.
+          What <Code>DataServicesGridPanel.tsx</Code> ships. Two
+          differences from Direct: the cfg is <strong>widened with
+          keyColumn</strong>, and <code>useProviderStream</code> owns
+          the attach/detach lifecycle.
         </Prose>
         <CodeBlock>
-{`// main.tsx
-const services = createDataServicesClient({ appName, userId });
-<DataServicesProvider services={services}><App /></DataServicesProvider>
+{`import { useProviderStream } from '@starui/data-services-react/runtime';
 
-// panel
-useProviderStream(providerId, cfg, {
-  onDelta: (rows, replace) => { /* same shape as path 1 */ },
+const { cfg } = useMockConfig();
+const { columnDefs, rowIdField } = columnDefsByType[cfg.dataType];
+const providerId = \`mock-\${cfg.dataType}\`;
+
+// REQUIRED for the hub path. The SharedWorker hub dedupes its
+// row cache by cfg.keyColumn and silently drops rows that don't
+// resolve a value. Memoise so identity stays stable.
+const cfgForHub = useMemo<MockProviderConfig>(
+  () => ({ ...cfg, keyColumn: rowIdField }),
+  [cfg, rowIdField],
+);
+
+useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
+  onDelta: (incoming, replace) => {
+    if (replace) rowsRef.current = [...incoming];
+    else rowsRef.current = applyDelta(
+      rowsRef.current, incoming, rowIdField,
+    );
+    setRows(rowsRef.current);
+  },
   onStatus: () => undefined,
 });`}
         </CodeBlock>
       </Section>
 
-      <Section title="When to pick each" icon={<Plug size={12} strokeWidth={1.75} />}>
-        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Pick Direct when…" desc="You only need one provider in a single tab, you want zero infra, or you're embedding in a test." />
-        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Pick DataServices when…" desc="Multiple panels or windows share the same provider, you need provider configs to be persisted as named entities, or you want SharedWorker cross-tab broadcast." />
+      <Section title="DataServices boot — what main.tsx adds" icon={<Plug size={12} strokeWidth={1.75} />}>
+        <Prose>
+          The DataServices path needs a SharedWorker and a
+          <Code>{`<DataServicesProvider>`}</Code> at the root. This demo
+          constructs the worker at the call site (so Vite's worker
+          plugin can statically emit the chunk) rather than via
+          <Code>createDataServicesClient</Code>, because that library
+          shortcut points its worker URL at a <Code>.ts</Code> file
+          relative to the package's own source — which is fine when
+          the package is consumed via a workspace alias but 404s when
+          the package is installed from a tarball (the published dist
+          only ships <Code>.js</Code>).
+        </Prose>
+        <CodeBlock>
+{`// src/sharedWorker/entry.ts — verbatim copy of the package's
+// defaultEntry, minus the REST URL plumbing (this demo is local-only).
+import { installSharedWorkerHub } from '@starui/data-services/runtime/sharedWorker';
+import { createConfigManager } from '@starui/config-service';
+
+const configManager = createConfigManager({});
+await configManager.init();
+await installSharedWorkerHub({ configManager });
+
+// src/dataServices.ts — own the SharedWorker construction.
+const worker = new SharedWorker(
+  new URL('./sharedWorker/entry.ts', import.meta.url),
+  { type: 'module', name: 'mkt-data-services:mockdata-provider-starui-app' },
+);
+
+export const dataServices = bootstrapDataServices({
+  appName: 'mockdata-provider-starui-app',
+  worker,
+  configManager,
+  userId: LOGGED_IN_USER_ID,
+});
+
+// src/main.tsx — wrap the tree.
+<DataServicesProvider services={dataServices}>
+  <App />
+</DataServicesProvider>`}
+        </CodeBlock>
       </Section>
 
-      <Section title="Lifecycle" icon={<Plug size={12} strokeWidth={1.75} />}>
+      <Section title="When to pick each" icon={<Plug size={12} strokeWidth={1.75} />}>
+        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Pick Direct when…" desc="You only need one provider in a single tab, you want zero infra, you're embedding in a test, or your provider config doesn't need to be saved as a named entity." />
+        <ItemRow icon={<Plug size={13} strokeWidth={1.75} />} name="Pick DataServices when…" desc="Multiple panels or windows share the same provider, you need cross-tab broadcast (one provider instance feeds N tabs), or you want provider configs to round-trip through the ConfigManager." />
+      </Section>
+
+      <Section title="Lifecycle (identical for both paths)" icon={<Plug size={12} strokeWidth={1.75} />}>
         <Prose>
           Every provider emits <Code>status: 'loading'</Code> immediately,
           pushes its initial snapshot with <Code>replace: true</Code>,
           transitions to <Code>status: 'ready'</Code>, then starts ticking.
-          <Code>handle.stop()</Code> is idempotent.
-          <Code>handle.restart(extra)</Code> overlays new fields on the
-          current cfg and re-emits.
+          <Code>stop()</Code> is idempotent.
+          <Code>restart(extra)</Code> overlays new fields on the current
+          cfg and re-emits.
         </Prose>
       </Section>
     </div>
+  );
+}
+
+function CompareTable({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-[color:var(--ds-border-primary)]">
+      <table className="w-full text-[11.5px]">
+        <thead>
+          <tr className="bg-[color:var(--ds-surface-sunken)]">
+            <th className="w-[130px] border-r border-[color:var(--ds-border-primary)] px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-text-faint)]">
+              Aspect
+            </th>
+            <th className="w-1/2 border-r border-[color:var(--ds-border-primary)] px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-accent-info)]">
+              Direct
+            </th>
+            <th className="w-1/2 px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--ds-accent-info)]">
+              DataServices
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[color:var(--ds-border-primary)]">
+          {children}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CompareRow({ label, direct, ds }: { label: string; direct: string; ds: string }) {
+  return (
+    <tr className="bg-[color:var(--ds-surface-primary)] align-top">
+      <td className="border-r border-[color:var(--ds-border-primary)] px-3 py-2 font-mono text-[10.5px] font-semibold text-[color:var(--ds-text-primary)]">
+        {label}
+      </td>
+      <td className="border-r border-[color:var(--ds-border-primary)] px-3 py-2 leading-relaxed text-[color:var(--ds-text-secondary)]">
+        {direct}
+      </td>
+      <td className="px-3 py-2 leading-relaxed text-[color:var(--ds-text-secondary)]">
+        {ds}
+      </td>
+    </tr>
   );
 }
 
