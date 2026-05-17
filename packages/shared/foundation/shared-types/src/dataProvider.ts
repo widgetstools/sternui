@@ -238,6 +238,19 @@ export interface MockProviderConfig {
   rowCount?: number;
   enableUpdates?: boolean;
   customData?: any[];
+  /**
+   * Unique-row identity, same semantics as the other streaming
+   * configs. Required when this cfg is attached through the
+   * SharedWorker hub (`useProviderStream` / `client.attach`) — the
+   * hub keys its row cache by `keyColumn` and silently drops rows
+   * that don't resolve a value, so a missing field surfaces as an
+   * empty grid. Safe to omit when calling `startMock` directly
+   * in-process (the in-process path doesn't go through the cache).
+   *
+   * Typical values per dataType: `'cusip'` for positions,
+   * `'tradeId'` for trades, `'id'` for orders.
+   */
+  keyColumn?: string | readonly string[];
 }
 
 /**

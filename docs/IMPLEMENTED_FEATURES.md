@@ -1,3 +1,19 @@
+## 2026-05-17 — `MockProviderConfig.keyColumn` is now first-class
+
+Adds an optional `keyColumn?: string | readonly string[]` field to
+`MockProviderConfig` in `@starui/shared-types`. The
+`SharedWorkerDataServicesHub` already keys its row cache by
+`cfg.keyColumn` and silently drops rows that don't resolve a value —
+without this field declared, mock configs going through
+`useProviderStream` / `client.attach` had to widen via a cast and were
+trivially mis-wireable into an empty grid. The field's JSDoc now
+explicitly documents when it's required (hub path) vs optional
+(in-process `startMock`).
+
+Touched: `packages/shared/foundation/shared-types/src/dataProvider.ts`,
+`apps/demo-apps/mockdata-provider-starui-app/src/panels/DataServicesGridPanel.tsx`
+(drops the cast).
+
 ## 2026-05-17 — new app: `mockdata-provider-starui-app`
 
 `apps/demo-apps/mockdata-provider-starui-app/` is a dock-manager workspace

@@ -57,7 +57,7 @@
     "filename": "starui-data-services-0.1.0-1d75f40a.tgz",
     "version": "0.1.0",
     "sha": "1d75f40a",
-    "packedAt": "2026-05-17T11:46:56.056Z"
+    "packedAt": "2026-05-17T12:36:29.425Z"
   },
   "@starui/data-services-angular": {
     "filename": "starui-data-services-angular-0.1.0-7cccd55a.tgz",
@@ -69,7 +69,7 @@
     "filename": "starui-data-services-react-0.1.0-6cabfb16.tgz",
     "version": "0.1.0",
     "sha": "6cabfb16",
-    "packedAt": "2026-05-17T08:30:29.954Z"
+    "packedAt": "2026-05-17T12:36:29.425Z"
   },
   "@starui/design-system": {
     "filename": "starui-design-system-0.1.0-09d9b5a5.tgz",
@@ -132,10 +132,10 @@
     "packedAt": "2026-05-17T08:30:29.954Z"
   },
   "@starui/shared-types": {
-    "filename": "starui-shared-types-1.0.0-f2db6906.tgz",
+    "filename": "starui-shared-types-1.0.0-0ba5338e.tgz",
     "version": "1.0.0",
-    "sha": "f2db6906",
-    "packedAt": "2026-05-17T08:30:29.954Z"
+    "sha": "0ba5338e",
+    "packedAt": "2026-05-17T12:36:29.425Z"
   },
   "@starui/ui": {
     "filename": "starui-ui-1.0.0-eae6ca5c.tgz",

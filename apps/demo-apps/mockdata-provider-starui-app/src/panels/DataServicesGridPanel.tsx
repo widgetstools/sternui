@@ -10,7 +10,7 @@ import { columnDefsByType } from '../data/columnDefsByType';
 import { applyDelta } from '../data/applyDelta';
 import { dataServices, dataServicesBootstrapError } from '../dataServices';
 import { TriangleAlert } from 'lucide-react';
-import type { ProviderConfig } from '@starui/shared-types';
+import type { MockProviderConfig } from '@starui/shared-types';
 
 const storage = createMarketsGridLocalStorageStorage();
 
@@ -32,12 +32,10 @@ function DataServicesGridInner() {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const rowsRef = useRef<Record<string, unknown>[]>([]);
 
-  // The hub dedupes its row cache by `cfg.keyColumn` and drops rows
-  // that don't resolve a value for it. MockProviderConfig itself
-  // doesn't declare keyColumn, so we widen the cfg here using the same
-  // value as the grid's rowIdField.
-  const cfgForHub = useMemo<ProviderConfig>(
-    () => ({ ...cfg, keyColumn: rowIdField } as ProviderConfig),
+  // The hub dedupes its row cache by `cfg.keyColumn`; supply the same
+  // value the grid uses as `rowIdField` so the two sides agree.
+  const cfgForHub = useMemo<MockProviderConfig>(
+    () => ({ ...cfg, keyColumn: rowIdField }),
     [cfg, rowIdField],
   );
 
