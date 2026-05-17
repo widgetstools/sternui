@@ -10,7 +10,7 @@
   "dependencies": {
     "@starui/config-service": "file:../../../libs/starui-config-service-1.0.0-d9ffa570.tgz",
     "@starui/core": "file:../../../libs/starui-core-0.1.0-7ca3bf3f.tgz",
-    "@starui/data-services": "file:../../../libs/starui-data-services-0.1.0-1d75f40a.tgz",
+    "@starui/data-services": "file:../../../libs/starui-data-services-0.1.0-46364dee.tgz",
     "@starui/data-services-react": "file:../../../libs/starui-data-services-react-0.1.0-6cabfb16.tgz",
     "@starui/design-system": "file:../../../libs/starui-design-system-0.1.0-09d9b5a5.tgz",
     "@starui/grid-react": "file:../../../libs/starui-grid-react-0.1.0-b922fa66.tgz",

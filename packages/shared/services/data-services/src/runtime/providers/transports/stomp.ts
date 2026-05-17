@@ -96,7 +96,22 @@ async function loadDefaultClientCtor(): Promise<new (cfg: StompClientCfg) => Sto
   if (_ctor) return _ctor;
   if (!_ctorPromise) {
     _ctorPromise = import('@stomp/stompjs').then((m) => {
-      _ctor = (m as unknown as { Client: new (cfg: StompClientCfg) => StompClient }).Client;
+      // @stomp/stompjs ships dual ESM + UMD. The ESM bundle exposes
+      // `Client` as a named export; the UMD bundle (selected via the
+      // `browser` export condition in some bundlers) exposes the same
+      // namespace under `default`. Try both so we work in both
+      // resolution modes (Worker→ESM, main-thread/Vite-browser→UMD).
+      type Shape = { Client?: new (cfg: StompClientCfg) => StompClient; default?: { Client?: new (cfg: StompClientCfg) => StompClient } };
+      const shape = m as unknown as Shape;
+      const Ctor = shape.Client ?? shape.default?.Client;
+      if (!Ctor) {
+        throw new Error(
+          '[stomp] @stomp/stompjs loaded but Client constructor not found on the module namespace ' +
+            '(neither `Client` nor `default.Client`). Module keys: ' +
+            Object.keys(shape).join(', '),
+        );
+      }
+      _ctor = Ctor;
       return _ctor;
     });
   }
