@@ -7,6 +7,12 @@ export default defineConfig({
   resolve: {
     extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
   },
+  // SharedWorker entry transitively pulls in enough modules that
+  // Rollup needs code-splitting for the worker bundle; IIFE (Vite's
+  // default worker.format) doesn't support that.
+  worker: {
+    format: 'es',
+  },
   build: {
     chunkSizeWarningLimit: 4500,
     rollupOptions: {
