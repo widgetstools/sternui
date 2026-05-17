@@ -30,7 +30,10 @@ function DataServicesGridInner() {
   const { columnDefs, rowIdField, defaultColDef } = columnDefsByType[dataType];
 
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [streamStatus, setStreamStatus] = useState<string>('mounting');
+  const [streamError, setStreamError] = useState<string | undefined>();
   const rowsRef = useRef<Record<string, unknown>[]>([]);
+  const deltaCountRef = useRef(0);
 
   // The hub dedupes its row cache by `cfg.keyColumn`; supply the same
   // value the grid uses as `rowIdField` so the two sides agree.
@@ -41,11 +44,27 @@ function DataServicesGridInner() {
 
   useEffect(() => {
     rowsRef.current = [];
+    deltaCountRef.current = 0;
     setRows([]);
-  }, [dataType]);
+    // eslint-disable-next-line no-console
+    console.log('[ds-panel] dataType swap →', dataType, 'providerId =', providerId, 'rowIdField =', rowIdField);
+  }, [dataType, providerId, rowIdField]);
 
-  useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[ds-panel] cfgForHub changed →', cfgForHub);
+  }, [cfgForHub]);
+
+  const handle = useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
     onDelta: (incoming, replace) => {
+      deltaCountRef.current += 1;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[ds-panel] onDelta #${deltaCountRef.current}: replace=${replace} incoming.length=${incoming.length}`,
+        incoming.length > 0
+          ? { firstRowKey: incoming[0]?.[rowIdField], firstRow: incoming[0] }
+          : undefined,
+      );
       if (replace) {
         rowsRef.current = [...incoming];
       } else {
@@ -54,11 +73,36 @@ function DataServicesGridInner() {
       setRows(rowsRef.current);
       recordTick('dataservices', Date.now(), rowsRef.current.length);
     },
-    onStatus: () => undefined,
+    onStatus: (s, err) => {
+      // eslint-disable-next-line no-console
+      console.log('[ds-panel] onStatus:', s, err ?? '');
+      setStreamStatus(s);
+      setStreamError(err);
+    },
   });
+
+  // eslint-disable-next-line no-console
+  console.log('[ds-panel] render: status=', streamStatus, 'rows=', rows.length, 'handle.status=', handle.status);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[color:var(--ds-surface-ground)]">
+      <div className="flex shrink-0 items-center gap-3 border-b border-[color:var(--ds-border-primary)] bg-[color:var(--ds-surface-primary)] px-3 py-1.5 font-mono text-[11px] text-[color:var(--ds-text-secondary)]">
+        <span><span className="text-[color:var(--ds-text-faint)]">provider </span><span className="text-[color:var(--ds-text-primary)]">{providerId}</span></span>
+        <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
+        <span><span className="text-[color:var(--ds-text-faint)]">keyColumn </span><span className="text-[color:var(--ds-text-primary)]">{rowIdField}</span></span>
+        <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
+        <span><span className="text-[color:var(--ds-text-faint)]">status </span><span className="text-[color:var(--ds-text-primary)]">{streamStatus}</span></span>
+        <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
+        <span><span className="text-[color:var(--ds-text-faint)]">deltas </span><span className="text-[color:var(--ds-text-primary)]">{deltaCountRef.current}</span></span>
+        <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
+        <span><span className="text-[color:var(--ds-text-faint)]">rows </span><span className="text-[color:var(--ds-text-primary)]">{rows.length}</span></span>
+        {streamError ? (
+          <>
+            <span className="h-3 w-px bg-[color:var(--ds-border-primary)]" />
+            <span className="text-[color:var(--ds-accent-danger,#f43f5e)]">error: {streamError}</span>
+          </>
+        ) : null}
+      </div>
       <MarketsGrid
         key={gridId}
         gridId={gridId}

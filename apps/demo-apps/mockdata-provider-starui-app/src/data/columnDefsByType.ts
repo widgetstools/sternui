@@ -20,7 +20,10 @@ export const columnDefsByType: Record<
   'positions' | 'trades' | 'orders',
   DataTypeConfig
 > = {
-  positions: { columnDefs: positionColumnDefs, rowIdField: 'cusip',   defaultColDef },
+  // Positions cycle the mock universe with a rotating accountIdx when
+  // rowCount > universe size — so cusip alone is NOT unique. The
+  // generator emits a synthetic `id: 'POS-<cusip>-<accountIdx>'`.
+  positions: { columnDefs: positionColumnDefs, rowIdField: 'id',      defaultColDef },
   trades:    { columnDefs: tradeColumnDefs,    rowIdField: 'tradeId', defaultColDef },
   orders:    { columnDefs: orderColumnDefs,    rowIdField: 'id',      defaultColDef },
 };
