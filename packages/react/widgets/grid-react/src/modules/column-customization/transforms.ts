@@ -328,12 +328,14 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
   // Synthetic 'streamSafeMulti*ColumnFilter' kinds aren't real AG-Grid
   // filter types — they're opt-in markers for `agMultiColumnFilter`
   // with our custom column-level floating filter (streamSafeText for
-  // text columns, streamSafeNumber for number columns). Flatten to
-  // the real AG-Grid kind for emission; the floating-filter component
-  // gets planted further down in the multi-filter branch.
+  // text columns, streamSafeNumber for number columns, streamSafeDate
+  // for date columns). Flatten to the real AG-Grid kind for emission;
+  // the floating-filter component gets planted further down in the
+  // multi-filter branch.
   const isStreamSafeMultiText = cfg.kind === 'streamSafeMultiColumnFilter';
   const isStreamSafeMultiNumber = cfg.kind === 'streamSafeMultiNumberColumnFilter';
-  const isStreamSafeMulti = isStreamSafeMultiText || isStreamSafeMultiNumber;
+  const isStreamSafeMultiDate = cfg.kind === 'streamSafeMultiDateColumnFilter';
+  const isStreamSafeMulti = isStreamSafeMultiText || isStreamSafeMultiNumber || isStreamSafeMultiDate;
   if (cfg.kind) merged.filter = isStreamSafeMulti ? 'agMultiColumnFilter' : cfg.kind;
   if (cfg.floatingFilter !== undefined) merged.floatingFilter = cfg.floatingFilter;
 
@@ -364,7 +366,8 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
   const isMultiKind =
     cfg.kind === 'agMultiColumnFilter' ||
     cfg.kind === 'streamSafeMultiColumnFilter' ||
-    cfg.kind === 'streamSafeMultiNumberColumnFilter';
+    cfg.kind === 'streamSafeMultiNumberColumnFilter' ||
+    cfg.kind === 'streamSafeMultiDateColumnFilter';
   if (isMultiKind && cfg.multiFilters && cfg.multiFilters.length > 0) {
     params.filters = cfg.multiFilters.map((mf) => {
       const entry: Record<string, unknown> = { filter: mf.filter };
@@ -397,7 +400,11 @@ export function applyFilterConfigToColDef(merged: ColDef, cfg: ColumnFilterConfi
   // default behaviour — no opinion imposed.
   if (isStreamSafeMulti && cfg.floatingFilter !== false) {
     merged.floatingFilterComponent = (
-      isStreamSafeMultiNumber ? 'streamSafeNumber' : 'streamSafeText'
+      isStreamSafeMultiDate
+        ? 'streamSafeDate'
+        : isStreamSafeMultiNumber
+          ? 'streamSafeNumber'
+          : 'streamSafeText'
     ) as never;
   }
 

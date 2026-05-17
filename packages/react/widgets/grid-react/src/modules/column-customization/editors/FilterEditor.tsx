@@ -35,6 +35,10 @@ export const FILTER_KIND_OPTIONS: Array<{ value: FilterKind; label: string }> = 
   // Same idea, number-flavoured — operator parser (>100, 100-150,
   // >0 and <50, =100 or =200) plus CSV-as-set-values routing.
   { value: 'streamSafeMultiNumberColumnFilter', label: 'Multi + Stream-Safe Floating Filter (Number)' },
+  // Date-flavoured — smart date parsing (ISO, slash/dot, month-name,
+  // quarter, year-only, Unix-epoch, today/yesterday) with the same
+  // operator + range + and/or compound grammar.
+  { value: 'streamSafeMultiDateColumnFilter', label: 'Multi + Stream-Safe Floating Filter (Date)' },
 ];
 
 const BUTTONS_ALL = ['apply', 'clear', 'reset', 'cancel'] as const;
@@ -111,7 +115,9 @@ export function FilterEditor({
                   // unless they had previously disabled the switch.
                   const patch: Partial<ColumnFilterConfig> = { kind: v || undefined };
                   if (
-                    (v === 'streamSafeMultiColumnFilter' || v === 'streamSafeMultiNumberColumnFilter') &&
+                    (v === 'streamSafeMultiColumnFilter' ||
+                      v === 'streamSafeMultiNumberColumnFilter' ||
+                      v === 'streamSafeMultiDateColumnFilter') &&
                     cfg.floatingFilter !== false
                   ) {
                     patch.floatingFilter = true;
@@ -237,7 +243,8 @@ export function FilterEditor({
           {(
             kind === 'agMultiColumnFilter' ||
             kind === 'streamSafeMultiColumnFilter' ||
-            kind === 'streamSafeMultiNumberColumnFilter'
+            kind === 'streamSafeMultiNumberColumnFilter' ||
+            kind === 'streamSafeMultiDateColumnFilter'
           ) && (
             <MultiFilterEditor
               colId={colId}
@@ -382,7 +389,8 @@ function MultiFilterEditor({
                   {FILTER_KIND_OPTIONS.filter((o) =>
   o.value !== 'agMultiColumnFilter' &&
   o.value !== 'streamSafeMultiColumnFilter' &&
-  o.value !== 'streamSafeMultiNumberColumnFilter'
+  o.value !== 'streamSafeMultiNumberColumnFilter' &&
+  o.value !== 'streamSafeMultiDateColumnFilter'
 ).map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -439,7 +447,8 @@ function MultiFilterEditor({
               {FILTER_KIND_OPTIONS.filter((o) =>
   o.value !== 'agMultiColumnFilter' &&
   o.value !== 'streamSafeMultiColumnFilter' &&
-  o.value !== 'streamSafeMultiNumberColumnFilter'
+  o.value !== 'streamSafeMultiNumberColumnFilter' &&
+  o.value !== 'streamSafeMultiDateColumnFilter'
 ).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}

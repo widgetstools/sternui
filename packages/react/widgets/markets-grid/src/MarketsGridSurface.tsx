@@ -16,6 +16,7 @@ import { AgGridReact } from 'ag-grid-react';
 import type { GridReadyEvent } from 'ag-grid-community';
 import { StreamSafeTextFloatingFilter } from './streamSafeFloatingFilter';
 import { StreamSafeNumberFloatingFilter } from './streamSafeNumberFloatingFilter';
+import { StreamSafeDateFloatingFilter } from './streamSafeDateFloatingFilter';
 import type { MarketsGridProps } from './types';
 
 export interface MarketsGridSurfaceProps<TData> {
@@ -98,6 +99,7 @@ export function MarketsGridSurface<TData>({
         components={{
           streamSafeText: StreamSafeTextFloatingFilter,
           streamSafeNumber: StreamSafeNumberFloatingFilter,
+          streamSafeDate: StreamSafeDateFloatingFilter,
         }}
         onGridReady={onGridReady}
         onGridPreDestroyed={onGridPreDestroyed}

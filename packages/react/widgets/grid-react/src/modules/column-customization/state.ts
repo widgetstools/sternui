@@ -42,7 +42,16 @@ export type FilterKind =
   // AG-Grid number-filter models. CSV of bare numbers routes to the
   // set sub-filter when present; everything else to the number
   // sub-filter as a single or compound condition model.
-  | 'streamSafeMultiNumberColumnFilter';
+  | 'streamSafeMultiNumberColumnFilter'
+  // Date-flavoured: agMultiColumnFilter with our streamSafeDate
+  // floating filter. Smart-parses ISO, slash/dot, month-name, quarter,
+  // year-only, Unix-epoch numbers, and relative keywords (today /
+  // yesterday / tomorrow). Operator + range + and/or compound grammar
+  // mirrors streamSafeNumber. Partial inputs (year, month, quarter)
+  // auto-expand to inRange. AG-Grid's date filter lacks >= / <=, so
+  // those are synthesized via inRange with far-past / far-future
+  // sentinels.
+  | 'streamSafeMultiDateColumnFilter';
 
 /** AG-Grid set-filter params we expose in the UI. */
 export interface SetFilterOptions {

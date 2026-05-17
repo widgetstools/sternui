@@ -59,6 +59,7 @@ const EDITOR_OPTIONS: ReadonlyArray<{ kind: CellEditorKind; label: string }> = [
 const FILTER_OPTIONS: ReadonlyArray<{ kind: FilterKind; label: string }> = [
   { kind: 'streamSafeMultiColumnFilter',       label: 'Text'   },
   { kind: 'streamSafeMultiNumberColumnFilter', label: 'Number' },
+  { kind: 'streamSafeMultiDateColumnFilter',   label: 'Date'   },
 ];
 
 function editorLabel(kind: CellEditorKind | undefined): string {
@@ -219,7 +220,7 @@ export function ModuleEditorFilter({
         </Pill>
         <DropdownMenu open={filterOpen} onOpenChange={setFilterOpen}>
           <DropdownMenuTrigger asChild>
-            <Tooltip content="Choose filter type (text or number — both add a Set filter)">
+            <Tooltip content="Choose filter type (text, number, or date — all add a Set filter)">
               <button
                 type="button"
                 disabled={moduleDisabled}
