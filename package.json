@@ -6,6 +6,7 @@
   "packageManager": "npm@10.9.0",
   "workspaces": [
     "apps/*",
+    "apps/demo-apps/*",
     "packages/shared/*",
     "packages/shared/foundation/*",
     "packages/shared/runtime/*",
@@ -32,6 +33,7 @@
     "dev": "turbo dev --filter=@starui/demo-react",
     "dev:demo-react": "turbo dev --filter=@starui/demo-react",
     "dev:demo-configservice-react": "turbo dev --filter=@starui/demo-configservice-react",
+    "dev:basic-starui-app": "turbo dev --filter=@starui/basic-starui-app",
     "dev:demo-angular": "turbo dev --filter=@starui/demo-angular",
     "dev:openfin": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @starui/demo-react -- --no-open\" \"wait-on http://localhost:5190 && node tools/scripts/launch-openfin.mjs http://localhost:5190/openfin/manifest.json\"",
     "dev:openfin:markets-react": "concurrently -k -n vite,openfin -c cyan,magenta \"npm run dev -w @starui/markets-ui-react-reference -- --no-open\" \"wait-on http://localhost:5174 && node tools/scripts/launch-openfin.mjs http://localhost:5174/platform/manifest.fin.json\"",

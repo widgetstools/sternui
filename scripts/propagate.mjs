@@ -422,10 +422,25 @@ function writeManifest(manifest) {
 function findAppPackageJsons() {
   const appsDir = join(REPO_ROOT, 'apps');
   if (!isDirectory(appsDir)) return [];
-  return readdirSync(appsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => join(appsDir, e.name, 'package.json'))
-    .filter((p) => existsSync(p));
+  const out = [];
+  for (const entry of readdirSync(appsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const direct = join(appsDir, entry.name, 'package.json');
+    if (existsSync(direct)) {
+      out.push(direct);
+      continue;
+    }
+    // One level of nesting (e.g. apps/demo-apps/<app>) so the propagate
+    // flow reaches grouped reference apps without dragging every
+    // directory under `apps/` into the sync.
+    const nestedRoot = join(appsDir, entry.name);
+    for (const child of readdirSync(nestedRoot, { withFileTypes: true })) {
+      if (!child.isDirectory()) continue;
+      const nested = join(nestedRoot, child.name, 'package.json');
+      if (existsSync(nested)) out.push(nested);
+    }
+  }
+  return out;
 }
 
 /**
