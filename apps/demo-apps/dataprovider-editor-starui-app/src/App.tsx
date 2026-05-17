@@ -88,8 +88,11 @@ const DEFAULT_LAYOUT: DockManagerState = deserialize(SERIALIZED_LAYOUT).state;
 
 // Stable key for dock-manager-core's localStorage helpers. Distinct
 // from MarketsGrid's per-grid profile bundles so it can coexist with
-// them in the same browser without collision.
-const DOCK_STORAGE_KEY = 'dataprovider-editor-starui-app:dock-layout';
+// them in the same browser without collision. Bump the `v` suffix
+// whenever the panel set changes so stale blobs get abandoned.
+const DOCK_STORAGE_KEY = 'dataprovider-editor-starui-app:dock-layout:v2';
+
+const REQUIRED_PANELS = ['providerEditor', 'configBrowser', 'gridA', 'gridB', 'stats'] as const;
 
 /**
  * Load the persisted dock layout if any. Falls back to DEFAULT_LAYOUT
@@ -105,16 +108,21 @@ function loadInitialLayout(): DockManagerState {
       // eslint-disable-next-line no-console
       console.warn('[dock-layout] restore warnings:', result.warnings);
     }
-    // Guard: every panel referenced in the layout must still exist as
-    // a widget. If the code dropped a panel between sessions, drop
-    // the persisted layout instead of mounting a broken state.
-    const knownPanels = new Set(['providerEditor', 'configBrowser', 'gridA', 'gridB', 'stats']);
-    for (const panelId of result.state.panels.keys()) {
-      if (!knownPanels.has(panelId)) {
-        // eslint-disable-next-line no-console
-        console.warn(`[dock-layout] persisted panel '${panelId}' no longer exists — using default layout`);
-        return DEFAULT_LAYOUT;
-      }
+    // Bidirectional guard. The persisted state must include exactly
+    // the panels we know how to render — no more (an unknown id would
+    // crash the widget renderer) and no less (a missing id means the
+    // panel won't appear at all, like the user just hit with stats).
+    const persistedIds = new Set(result.state.panels.keys());
+    const requiredIds = new Set<string>(REQUIRED_PANELS);
+    const extra = [...persistedIds].filter((id) => !requiredIds.has(id));
+    const missing = [...requiredIds].filter((id) => !persistedIds.has(id));
+    if (extra.length > 0 || missing.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[dock-layout] panel set drift — using default layout.',
+        { extra, missing },
+      );
+      return DEFAULT_LAYOUT;
     }
     return result.state;
   } catch (err) {
