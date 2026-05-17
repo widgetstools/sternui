@@ -1,3 +1,35 @@
+## 2026-05-17 — new app: `mockdata-provider-starui-app`
+
+`apps/demo-apps/mockdata-provider-starui-app/` is a dock-manager workspace
+that teaches `MockDataProvider` usage end-to-end. Four panels in a
+`@widgetstools/react-dock-manager` layout:
+
+- **Provider Config** — live editor for the `MockProviderConfig` object
+  (radio for `dataType`, chips for `rowCount`, slider for
+  `updateIntervalMs`, switch for `enableUpdates`) plus a JSON preview of
+  the cfg and the active column defs.
+- **Direct · startMock()** — calls `startMock(cfg, emit)` in-process and
+  feeds the rows straight into MarketsGrid.
+- **via DataServicesProvider** — uses `useProviderStream(providerId, cfg, …)`
+  from `@starui/data-services-react/runtime` against a SharedWorker hub.
+- **Live stats** — rolling 5-second ticks/s, row count, and last-tick-ago
+  for both grids, sourced from a ref-backed `StatsContext`.
+
+Each MarketsGrid uses a unique `gridId` per (panel × dataType) so the
+built-in profile/layout management bundles six independent localStorage
+profile sets. The 5-tab help drawer covers quick start, provider config
+schema, column defs, wiring (Direct vs DataServices), and the layout
+scheme. Help drawer + keyboard shortcuts (`Ctrl + /`, `Ctrl + .`,
+`Ctrl + 1/2/3`) mirror the basic-starui-app pattern.
+
+Bumped `@starui/data-services` to also expose `startMock` from its public
+surface (it already shipped in the dist for `probeMock`) so callers can
+run the rich mock generator in-process without going through the worker.
+
+Touched: `apps/demo-apps/mockdata-provider-starui-app/**`,
+`packages/shared/services/data-services/src/{index.ts,runtime/providers/index.ts}`,
+`libs/manifest.json`, root `package.json` (added `dev:mockdata-provider-starui-app`).
+
 ## 2026-05-17 — perf: profile-switch wall-clock cut ~5× on localStorage hosts
 
 `ProfileManager.load()` no longer calls `refresh()` at the end — load doesn't
