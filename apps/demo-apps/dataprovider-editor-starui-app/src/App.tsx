@@ -143,11 +143,19 @@ export function App() {
   // enough to feel instant but coalesces a typical resize gesture into
   // one write.
   const saveTimerRef = useRef<number | null>(null);
+  const pendingChangeCountRef = useRef(0);
   const handleStateChange = useCallback((state: DockManagerState) => {
+    pendingChangeCountRef.current += 1;
     if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
     saveTimerRef.current = window.setTimeout(() => {
+      const coalesced = pendingChangeCountRef.current;
+      pendingChangeCountRef.current = 0;
       try {
         saveToLocalStorage(state, DOCK_STORAGE_KEY);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[dock-layout] saved (coalesced ${coalesced} state-change event${coalesced === 1 ? '' : 's'})`,
+        );
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn('[dock-layout] save failed', err);
