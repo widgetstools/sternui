@@ -25,11 +25,13 @@ export {
   probeStomp,
   probeRest,
   probeMock,
+  startMock,
   inferFields,
   type StompProbeResult,
   type StompProbeOpts,
   type RestProbeResult,
   type InferOptions,
+  type MockProviderOpts,
 } from './runtime/providers/index.js';
 
 export {

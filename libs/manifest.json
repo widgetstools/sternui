@@ -54,10 +54,10 @@
     "packedAt": "2026-05-17T09:34:16.685Z"
   },
   "@starui/data-services": {
-    "filename": "starui-data-services-0.1.0-b8784441.tgz",
+    "filename": "starui-data-services-0.1.0-1d75f40a.tgz",
     "version": "0.1.0",
-    "sha": "b8784441",
-    "packedAt": "2026-05-17T08:30:29.954Z"
+    "sha": "1d75f40a",
+    "packedAt": "2026-05-17T11:46:56.056Z"
   },
   "@starui/data-services-angular": {
     "filename": "starui-data-services-angular-0.1.0-7cccd55a.tgz",
