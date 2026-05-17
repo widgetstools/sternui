@@ -1,3 +1,33 @@
+## 2026-05-17 — new app: `dataprovider-editor-starui-app`
+
+A second demo app under `apps/demo-apps/dataprovider-editor-starui-app/`
+that teaches the **composition** path for DataServices: a `<DataProviderEditor />`
+for authoring provider configs (left tab 1), a `<ConfigBrowserPanel />` for
+inspecting the Dexie store directly (left tab 2), two
+`<HostedMarketsGrid />` instances (right) that share one SharedWorker hub
+and demonstrate cross-tab broadcast, and a localStorage-backed stats strip
+(bottom). Zero hand-rolled provider-config UI, zero `useProviderStream` or
+`applyDelta` calls — everything is wrapped by widgets-react's `HostedMarketsGrid`
+→ `MarketsGridContainer` (which itself owns the in-grid `ProviderToolbar`
+picker, the `useDataProviderConfig` + `useResolvedCfg` flow, the
+`dpClient.subscribe` lifecycle, and the snapshot/delta `applyTransactionAsync`
+pipeline). Saved provider configs persist to IndexedDB (`marketsui-config` /
+`appConfig` table) and survive page reloads; the HelpSheet's "vs manual" tab
+contrasts every aspect of this app against the existing
+`mockdata-provider-starui-app`.
+
+Re-uses the SharedWorker workaround from the first demo (own the
+`new SharedWorker(new URL('./sharedWorker/entry.ts', import.meta.url), ...)`
+call so Vite's worker plugin can statically resolve the entry).
+
+**Library packaging fix shipped alongside**: `@starui/icons-svg`'s `files`
+allowlist was missing `allIcons.ts`, breaking `DynamicIcon` for tarball
+consumers — repacked.
+
+Touched: `apps/demo-apps/dataprovider-editor-starui-app/**`,
+`packages/shared/foundation/icons-svg/package.json` (files allowlist),
+`libs/manifest.json` (icons-svg sha bumped), root `package.json` (`dev:dataprovider-editor-starui-app` script).
+
 ## 2026-05-17 — `MockProviderConfig.keyColumn` is now first-class
 
 Adds an optional `keyColumn?: string | readonly string[]` field to
