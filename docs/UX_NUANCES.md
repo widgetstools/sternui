@@ -178,8 +178,9 @@ both so the rewriter has the option.
 | **N32** | Conditional-styling expression scope | Prototype-chain diff scope — same `[…]` syntax handles live + old/new without engine knowing the difference | R |
 | **N33** | Diagnostic logging | Single `createLogger("starui:<pkg>")` contract — 302 bare-console-call legacy is workaround-class debt | W |
 | **N34** | Identity-trust boundary | Server-side dev/prod mode is the only correct place to gate "trust client-supplied userId" — client-side gates leak | A |
+| **N35** | Design system as foundation | DS-tokens-first authoring discipline + single AG-Grid theme + no native controls — three rules that hold the platform's visual coherence | A |
 
-Entries N1–N9, N31, N32, N33, and N34 are fully captured below.
+Entries N1–N9, N31, N32, N33, N34, and N35 are fully captured below.
 Entries N10–N30 are stubs — they name a real, observable nuance that
 the rewrite must preserve, but the full implementation note is not
 yet authored.
@@ -1237,10 +1238,130 @@ risk.
 
 ---
 
+## N35. Design system as foundation — not afterthought
+
+**Classification.** Architectural decision. The platform is
+designed *around* the design system, not retrofitted to one.
+Preserve verbatim.
+
+**Surface.** Every UI surface in the platform — primitives, widgets,
+admin tools, the dock, the formatter dialog, every cell in every
+grid.
+
+**Symptom if missing.** Three observable failure modes, each
+guaranteed once the discipline is broken:
+
+- **Visual drift across packages.** One author's `cellStyle:
+  { backgroundColor: "#0a1929" }` paints differently from another
+  author's `var(--sf-bg)` reference — the first locks in dark mode
+  even when the user flips to light. Drift accumulates over months
+  until the platform looks like four different products bolted
+  together.
+- **Native control inconsistency.** A native `<select>` next to a
+  shadcn `<Select>` reveals the platform's incoherence on first
+  glance: different padding, different focus rings, different
+  open-direction, different keyboard behaviour, different
+  accessibility tree. Users register a vague feeling of
+  unprofessionalism long before they can articulate why.
+- **Per-grid AG-Grid theming.** Two grids on the same page with
+  different `themeQuartz` overrides — slightly different row
+  heights, slightly different header tints, slightly different
+  sort-indicator placement. Imperceptible at first; jarring once
+  noticed; impossible to unfix without coordinating across every
+  package that registered a theme.
+
+**Root cause.** Design systems are commonly treated as a
+"styling layer" applied late in the development cycle. By then,
+authors have already committed to inline styles for speed, native
+controls for familiarity, and per-component theming for "just
+this one case" exceptions. Each shortcut is locally rational;
+collectively they make the platform's visual language
+non-recoverable without rewriting the offending surfaces.
+
+The cure is to make design-system adherence **structural rather
+than aspirational** — bake it into the framework's contracts so
+the wrong patterns are physically harder to write than the right
+ones.
+
+**Implementation note.** Three structural rules, all in §15 as
+non-negotiables (#15, #16, #17), enforced by lint rules
+(planned) and verified at code review:
+
+### Rule 1 — Token-first authoring (§15 #15)
+
+No inline colour / spacing / typography / motion values. Every
+visual property references either:
+
+1. A Tailwind utility class.
+2. A `var(--sf-*)` or shadcn standard variable from
+   `@starui/design-system/tokens.css`.
+
+Layout-only inline styles (`display`, `flex-direction`,
+`grid-template-columns`, explicit dimensions in resizable
+contexts, `position`, `z-index`) are permitted — those are
+structural, not visual.
+
+### Rule 2 — Design-system primitives only (§15 #16)
+
+React: only shadcn primitives from `@starui/react-ui`. No native
+`<input>`, `<select>`, `<textarea>`, `<button>`. The shadcn
+primitives in `@starui/react-ui` are pre-bound to the
+design-system tokens — using them means visual coherence is free
+and getting it wrong is impossible.
+
+Angular (when packages land): only PrimeNG primitives via the
+Aura preset from `@starui/design-system/primeng`. Same logic.
+
+Rationale: native controls cannot be themed to the design system
+consistently across Chrome / Firefox / Safari / OpenFin's
+embedded Chromium. PrimeNG and shadcn both ship per-control
+token bindings that work uniformly. Mixing native + design-system
+controls is the most reliable way to make a platform look
+unprofessional with zero individual lines of bad code.
+
+### Rule 3 — Single AG-Grid theme (§15 #17)
+
+Every AG-Grid instance constructs its theme via
+`SF_AG_THEME(palette, mode)` from
+`@starui/design-system/ag-grid`. The theme switches at runtime
+across every live grid simultaneously via
+`gridApi.setGridOption("theme", next)` coordinated by
+`GridPlatform`. Per-package or per-grid theming is forbidden.
+
+Inline `cellStyle: { backgroundColor: …, color: … }` overrides
+that bypass the theme are equivalent to inline-style violations
+(§15 #15) and are caught by the same review discipline.
+
+**Why this is Architectural and not a Workaround.** A workaround
+patches a symptom whose root cause is elsewhere. The three rules
+above are not patches — they're the **structural commitment** that
+makes the rest of the platform's visual coherence possible.
+Without them, no amount of subsequent design-review work can
+restore coherence after drift has set in (v1's `--bn-*` / `--fi-*`
+/ `--gc-*` / `--ck-*` / `--ds-*` namespace proliferation is the
+historical evidence). With them, drift is impossible by
+construction.
+
+**Cross-references.**
+- `PUBLIC_API_SPEC.md` §11 — design-system foundation: source of
+  truth at `/Users/develop/wfh/StaruI-design`, token namespace,
+  style discipline table, single AG-Grid theme contract,
+  per-theme styling runtime API.
+- `PUBLIC_API_SPEC.md` §1.5 — repository structure: shared/ +
+  react/ + angular/ with anti-duplication rule.
+- `PUBLIC_API_SPEC.md` §15 #15 — no inline colour/spacing/typography.
+- `PUBLIC_API_SPEC.md` §15 #16 — no native form controls.
+- `PUBLIC_API_SPEC.md` §15 #17 — single AG-Grid theme.
+- The source design system: `/Users/develop/wfh/StaruI-design/tokens.css`,
+  `palettes.css`, `aggrid-theme.js`, `shadcn-kit.jsx`,
+  `primeng-preset.ts`.
+
+---
+
 # To document next
 
-Entries N10–N30 are stubs (N31, N32, N33, and N34 were added as
-full entries as those concerns surfaced — Monaco-in-popout, the
+Entries N10–N30 are stubs (N31, N32, N33, N34, and N35 were added
+as full entries as those concerns surfaced — Monaco-in-popout, the
 prototype-chain diff scope, the logging contract, and the
 identity-trust boundary respectively). Adding each remaining stub
 requires:

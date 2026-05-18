@@ -362,6 +362,74 @@ critical**. The hard boundary lives server-side:
 the trust boundary as a classification-Architectural decision — not a
 workaround, this is how the dev/prod separation has to work.
 
+## 1.5 Repository structure and package naming
+
+The rewrite organizes packages into three top-level buckets,
+exactly mirroring the framework-affinity of the code each package
+contains:
+
+```
+packages/
+├── shared/        — framework-agnostic (vanilla TS, no React/Angular)
+├── react/         — React-specific
+└── angular/       — Angular-specific (placeholder for v2 rewrite scope)
+```
+
+### Package naming convention
+
+| Bucket | Package name prefix | Example |
+|---|---|---|
+| `shared/`  | `@starui/<name>`         | `@starui/shared`, `@starui/design-system`, `@starui/openfin` |
+| `react/`   | `@starui/react-<name>`   | `@starui/react-app`, `@starui/react-markets-grid`, `@starui/react-widgets` |
+| `angular/` | `@starui/ng-<name>`      | `@starui/ng-markets-grid` (placeholder) |
+
+The framework prefix in the package name is **mandatory** for
+packages in `react/` or `angular/`. It makes import lines
+self-documenting and prevents accidental cross-framework imports.
+
+```ts
+// Good
+import { MarketsGrid } from "@starui/react-markets-grid";
+
+// Bad — ambiguous; rejected at lint time
+import { MarketsGrid } from "@starui/markets-grid";
+```
+
+### v2 rewrite scope — React only
+
+The current rewrite (v2) ships React packages only. The
+`packages/angular/` bucket exists in the layout to **reserve the
+naming**, but is empty until Angular parity work begins (after
+React feature-completeness).
+
+This is the explicit user direction: **build framework-agnostic
+code right the first time** so Angular parity later is a leaf
+addition, not a refactor. Every line in `packages/shared/` is
+written without React/Angular dependencies; every React-specific
+concern lives in `packages/react/`.
+
+### Anti-duplication rule
+
+If a piece of logic does not import from a React or Angular runtime
+package, it MUST live in `packages/shared/`. Duplication between
+`packages/react/` and `packages/angular/` is a contract violation —
+the only thing that may differ between the two is the rendering
+layer.
+
+```text
+✓ AG-Grid theme factory                  → packages/shared/design-system
+✓ Path accessors (§2.5)                  → packages/shared/shared
+✓ Expression engine                      → packages/shared/shared
+✓ ConfigClient (REST)                    → packages/shared/config-client
+✓ RuntimePort interface                  → packages/shared/runtime-port
+✓ OpenFin workspace platform integration → packages/shared/openfin
+✗ React's <MarketsGrid> wrapper          → packages/react/react-markets-grid
+✗ Angular's <ng-markets-grid> wrapper    → packages/angular/ng-markets-grid
+```
+
+See [`./plans/rewrite-structure-design.md`](./plans/rewrite-structure-design.md)
+for the full package map and file-count budget.
+
 ---
 
 # 2. The Grid Widget
@@ -730,9 +798,11 @@ const PanelChrome, Band, FigmaPanelSection, SubLabel, ObjectTitleRow,
       SummaryChip, SettingsRow, CockpitList, CockpitListItem;
 ```
 
-These are intentionally compact React components scoped to a
-`.gc-sheet-v2` CSS namespace. Token-driven via `--ck-*` and
-`--ds-*` CSS variables.
+These are intentionally compact React components consuming the
+design-system tokens documented in §11.1 (`--sf-*` namespace plus
+shadcn standard variables). v1's per-package token namespaces
+(`--gc-*`, `--ck-*`, `--ds-*`, `--bn-*`, `--fi-*`) are consolidated
+to `--sf-*` in the rewrite.
 
 ## 3.2 Style + format editors
 
@@ -2147,9 +2217,112 @@ Three modes:
 
 ---
 
-# 11. Per-theme styling
+# 11. Design system + per-theme styling
 
-Every style override stores its values under a theme-keyed wrapper:
+The design system is the **foundation** of every UI surface — not an
+afterthought, not a polish step. Tokens, theme files, and component
+choices are decisions made before any UI code is written, and
+enforced thereafter.
+
+## 11.1 Source of truth — StaruI-design
+
+The reference design system lives at
+`/Users/develop/wfh/StaruI-design`. It is the source of truth for
+tokens, AG-Grid theme, shadcn variable bindings, and PrimeNG preset.
+`@starui/design-system` (in `packages/shared/`) packages it for
+consumption by the framework:
+
+| File in StaruI-design | Surfaces in `@starui/design-system` as | Purpose |
+|---|---|---|
+| `tokens.css`         | `@starui/design-system/tokens.css`     | Primary CSS variable definitions — `--sf-*` namespace plus shadcn standard variables (`--background`, `--foreground`, `--primary`, etc.) |
+| `palettes.css`       | `@starui/design-system/palettes.css`   | Five palette variants (teal default); palette switching is a `<html data-palette="…">` attribute flip |
+| `aggrid-theme.js`    | `@starui/design-system/ag-grid`        | `SF_AG_THEME(palette, mode)` factory — the **single AG-Grid theme** used across the monorepo |
+| `primeng-preset.ts`  | `@starui/design-system/primeng`        | Aura preset for Angular (placeholder for now; consumed when Angular packages land) |
+| `primeng-tokens.css` | `@starui/design-system/primeng.css`    | Token bridge `--sf-*` → `--p-*` for PrimeNG (placeholder) |
+
+The shadcn variables in `tokens.css` (e.g. `--primary`,
+`--destructive`, `--border`) are the standard set; they are bound
+to the `--sf-*` palette tokens via `var(--sf-primary)` etc. Every
+shadcn primitive in `@starui/react-ui` consumes them; no primitive
+defines its own colour values.
+
+### Token namespace
+
+The canonical token namespace is `--sf-*` (Stockflux — from the
+design system's heritage). Earlier spec language referencing
+`--ds-*` is retired in this revision; v1's `--ds-*`, `--bn-*`,
+`--fi-*`, `--gc-*`, `--ck-*` namespaces are workaround-class debt
+that the rewrite consolidates to a single namespace.
+
+Sample tokens consumed by every package:
+
+```css
+:root {
+  --sf-bg: #0a1929;
+  --sf-bg-3: #15293e;
+  --sf-t-0: #e6efee;
+  --sf-up: #2dd4bf;        /* buy / uptick */
+  --sf-down: #f25668;      /* sell / downtick */
+  --sf-flat: #8aa0ad;      /* unchanged */
+  --sf-font-sans: 'Inter', system-ui, sans-serif;
+  --sf-font-mono: 'JetBrains Mono', ui-monospace;
+  --sf-t-instant: 80ms cubic-bezier(0.16, 1, 0.3, 1);
+  --sf-t-slow:    420ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* shadcn standard variables bound to --sf-* palette: */
+  --primary: 173 80% 40%;
+  --destructive: 354 86% 65%;
+}
+
+[data-theme="light"] {
+  --sf-bg: #ffffff;
+  --sf-bg-3: #f1f5f9;
+  --sf-t-0: #0f172a;
+  /* …light-mode overrides… */
+}
+```
+
+## 11.2 Style discipline — non-negotiable
+
+| Banned | Required | Where enforced |
+|---|---|---|
+| Inline `style={…}` with colour, spacing, typography, motion values | `className` referencing Tailwind utilities OR design-system tokens via `var(--sf-*)` / `var(--primary)` etc. | §15 #15, ESLint rule planned |
+| Native `<input>` / `<select>` / `<textarea>` / `<button>` | shadcn equivalents from `@starui/react-ui` (Input, Select, Textarea, Button) | §15 #16, ESLint rule planned |
+| Per-package AG-Grid theme | `SF_AG_THEME(palette, mode)` from `@starui/design-system/ag-grid` everywhere | §15 #17, runtime guard |
+| Hardcoded hex / rgb / hsl values in source | Reference `--sf-*` or shadcn variables | §15 #15, ESLint rule planned |
+
+Inline styles ARE permitted for **layout-only properties that don't
+have design-system tokens** — `display`, `flex-direction`,
+`grid-template-columns`, `width`/`height` for explicit pixel sizing
+in resizable contexts, `position`, `z-index`. Colours, spacing,
+typography, motion — never.
+
+## 11.3 Single AG-Grid theme
+
+Every AG-Grid instance in the monorepo uses the same theme,
+produced by:
+
+```ts
+// Package: @starui/design-system/ag-grid
+function SF_AG_THEME(palette: Palette, mode: "dark" | "light"): GridTheme;
+
+type Palette = "teal" | "amethyst" | "sunset" | "forest" | "slate";
+```
+
+Per-grid-instance theming is **not** supported. Theme switches at
+runtime by:
+
+1. Computing the new theme: `const next = SF_AG_THEME(palette, mode)`.
+2. Calling `gridApi.setGridOption("theme", next)` on every live
+   grid (the platform tracks them via `GridPlatform.list()`).
+3. The `data-theme` and `data-palette` attributes on `<html>` are
+   updated atomically inside a `requestAnimationFrame` to prevent
+   the flash documented in `UX_NUANCES.md` N28.
+
+## 11.4 Per-theme styling — the runtime API
+
+Style overrides (cell styles in conditional-styling, column header
+styles, etc.) store values keyed by theme so the same row of data
+paints differently under each mode:
 
 ```ts
 type ThemedCellStyleOverrides = {
@@ -2173,6 +2346,9 @@ Behaviour:
 - Transforms emit CSS for **both** slots scoped by
   `html[data-theme="dark"]` / `html[data-theme="light"]`. Theme
   switching is a pure CSS cascade event — no colDef rebuild.
+- Style values that reference `--sf-*` tokens automatically pick
+  up the active palette without needing to be re-saved on palette
+  switch. Style values that hardcode hex are a §15 #15 violation.
 
 ---
 
@@ -2261,9 +2437,12 @@ These hold across every package:
    uppercase rows are still readable but rewritten on next save.
 3. **OpenFin import-boundary**: only `@starui/openfin` and
    `@starui/runtime` (via the OpenFin plugin) import `@openfin/core`.
-4. **CSS tokens are unified `--ds-*`**. Legacy `--bn-*` / `--fi-*` /
-   `--gc-*` / `--ck-*` are gone. The lint script
-   `tools/scripts/check-ds-tokens.ts` (or equivalent) enforces this.
+4. **CSS tokens are unified under the `--sf-*` namespace** sourced
+   from `@starui/design-system/tokens.css` (originating in
+   `/Users/develop/wfh/StaruI-design/tokens.css`). Legacy `--bn-*`
+   / `--fi-*` / `--gc-*` / `--ck-*` / `--ds-*` namespaces are gone.
+   The shadcn standard variables (`--primary`, `--destructive`,
+   etc.) are bound to `--sf-*` palette tokens. See §11.1.
 5. **Module pipeline ordering**: priority is a strict ordering. Cross-
    module reads must go through `ctx.getModuleState<T>(moduleId)` — no
    direct imports between module files.
@@ -2360,6 +2539,56 @@ Any new implementation must:
     single difference between "convenient developer experience"
     and "shippable privilege-escalation hole" — it is
     non-negotiable.
+14. **Package layout MUST follow the `shared/` + `react/` +
+    `angular/` split documented in §1.5.** Every framework-agnostic
+    line of code lives in `packages/shared/`; every React-specific
+    line in `packages/react/`; every Angular-specific line (when
+    Angular packages land) in `packages/angular/`. Duplication
+    between `packages/react/` and `packages/angular/` is a contract
+    violation — the only thing that may differ between the two is
+    the rendering layer. Package names MUST carry the framework
+    prefix (`@starui/react-*`, `@starui/ng-*`) for framework-
+    specific packages; cross-bucket imports skipping the prefix
+    are rejected at lint time.
+15. **No inline styles for colour, spacing, typography, or motion.**
+    Style values MUST reference the design system: `className` with
+    Tailwind utilities, or `var(--sf-*)` / `var(--primary)` / shadcn
+    standard variables. Layout-only inline styles (`display`,
+    `flex-direction`, `grid-template-columns`, explicit `width` /
+    `height` for resizable contexts, `position`, `z-index`) are
+    permitted; colour / spacing / typography / motion in inline
+    `style={…}` are a contract violation. Hardcoded hex / rgb / hsl
+    values in source are equivalent violations. ESLint rule
+    `@starui/no-inline-style-tokens` planned.
+16. **Only design-system primitives — no native HTML form
+    controls.** React code MUST use shadcn primitives from
+    `@starui/react-ui` (Input, Select, Textarea, Button, Dialog,
+    Popover, etc.) instead of native `<input>`, `<select>`,
+    `<textarea>`, `<button>`. Angular code (when added) MUST use
+    PrimeNG primitives via the Aura preset from
+    `@starui/design-system/primeng`. Native controls are not
+    themeable to the design system tokens consistently across
+    browsers; every native control in source is a contract
+    violation. ESLint rule `@starui/no-native-form-controls`
+    planned.
+17. **Single AG-Grid theme across the monorepo.** Every AG-Grid
+    instance constructs its theme via `SF_AG_THEME(palette, mode)`
+    from `@starui/design-system/ag-grid` (§11.3). Per-package
+    theming, hand-rolled themeQuartz extends, or hardcoded
+    `cellStyle: { backgroundColor: …, color: … }` overrides bypassing
+    the theme are contract violations. The theme switches at runtime
+    via `gridApi.setGridOption("theme", SF_AG_THEME(palette, mode))`
+    on every live grid, coordinated by `GridPlatform`.
+
+### Aspirational target
+
+The rewrite SHOULD land at **under 200 source files** for the
+React-only v2 (vs v1's ~1200). This is not a hard non-negotiable —
+some surfaces may legitimately need more files — but a 6× reduction
+from v1 is the design target, and a final count above 250 should
+be considered a design failure, not a normal outcome. Per-package
+budgets are detailed in
+[`./plans/rewrite-structure-design.md`](./plans/rewrite-structure-design.md).
 
 ---
 
