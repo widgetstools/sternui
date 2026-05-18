@@ -1041,6 +1041,7 @@ const COMPONENT_TYPES: {
   readonly MARKETS_GRID_PROFILE_SET: "markets-grid-profile-set";
   readonly DOCK_CONFIG:               "dock-config";
   readonly COMPONENT_REGISTRY:        "component-registry";
+  readonly WEB_WORKSPACE:             "web-workspace";
 };
 ```
 
@@ -1745,6 +1746,236 @@ interface HostContextValue extends IdentitySnapshot {
   enumerateLiveInstances(): Promise<readonly string[]>;
 }
 ```
+
+## 6.5 Unified component launch — `launchComponent` (PLACEHOLDER)
+
+**Status: API space reserved. Implementation deferred until design
+is finalised.** See
+[`./plans/cross-component-navigation-design.md`](./plans/cross-component-navigation-design.md)
+for the design slot.
+
+Any component should be able to launch any other registered
+component without knowing which surface (OpenFin View, OpenFin
+Window, browser tab, dock-manager panel, popup) the runtime will
+choose. The unified API:
+
+```ts
+interface RuntimePort {
+  // …existing methods…
+
+  /**
+   * PLACEHOLDER — design pending. Optional method until the API
+   * is finalised; runtimes need not implement it yet.
+   *
+   * Open a registered component on the appropriate surface for
+   * the current runtime. The caller supplies the registry id
+   * plus payload; the runtime decides the surface.
+   *
+   * Until this lands, callers use:
+   *   - `openSurface(spec)` for ad-hoc surface launching
+   *   - `ACTION_LAUNCH_COMPONENT` (§9.3) for OpenFin custom actions
+   * Both subsume into `launchComponent` once designed.
+   */
+  launchComponent?(spec: ComponentLaunchSpec): Promise<ComponentLaunchHandle>;
+}
+
+/** PLACEHOLDER — shape may evolve; consumers should not yet rely
+ *  on these types. */
+interface ComponentLaunchSpec {
+  /** Registry id of the component to launch. */
+  readonly componentId: string;
+  /** Optional intent — refines surface choice. */
+  readonly intent?: "edit" | "view" | "popout" | "modal" | "inpage";
+  /** Optional payload for the launched component. */
+  readonly payload?: Readonly<Record<string, unknown>>;
+  /** Optional override of the surface choice (escape hatch). */
+  readonly preferredSurface?: "view" | "window" | "panel" | "popup";
+}
+
+interface ComponentLaunchHandle {
+  readonly surfaceId: string;
+  close(): Promise<void>;
+}
+```
+
+The `?` on `launchComponent` is intentional: it marks the method as
+optional pending design. When the design lands, the `?` is removed,
+runtimes are required to implement it, and §15 #18 binds new code
+to it.
+
+### Why a placeholder now, not just a TODO
+
+The existing scattered launch paths (`openSurface`,
+`ACTION_LAUNCH_COMPONENT` IAB action, ad-hoc per-component window
+creation) accumulate technical debt the longer they sit. Reserving
+the API space documents the future-binding so:
+
+- Implementers know not to grow new ad-hoc launch paths.
+- Type-aware callers can already program against the optional
+  shape (with an `if (runtime.launchComponent)` guard).
+- When the design ships, it slots into a known type signature
+  instead of triggering an interface-shape negotiation that
+  invalidates downstream code.
+
+### What the design has to settle
+
+Open questions captured in `./plans/cross-component-navigation-design.md`:
+
+1. **Registry shape** — where does "the registry" live? `AppConfigRow`
+   with `componentType: "component-registry"` already exists; is it
+   a single row per app, or one row per component definition?
+2. **Surface choice algorithm** — when intent is omitted, how does
+   the runtime decide between View / Window / Panel / Popup?
+   Component-registry metadata, runtime defaults, or both?
+3. **Payload validation** — strongly typed per component, or
+   `unknown` with runtime-side validation?
+4. **Cross-window navigation** — can a launchComponent call from a
+   popped-out OpenFin Window target the main provider window? If
+   so, what happens to focus?
+5. **Browser implementation** — does the BrowserRuntime route
+   `launchComponent` through `react-dock-manager` (§6.6)? Likely
+   yes; specifics deferred.
+
+## 6.6 Web workspace management via `@widgetstools/react-dock-manager`
+
+The `BrowserRuntime` gains workspace-management operations that
+mirror what OpenFin offers natively. The implementation is locked
+in: **`@widgetstools/react-dock-manager`** for React (with
+`@widgetstools/dock-manager-core` underneath) and
+**`@widgetstools/angular-dock-manager`** for the Angular slot.
+
+### Library — already in use
+
+The MCP scaffolder's `web-react` template (`mcp/templates/web-react/`)
+already ships `@widgetstools/react-dock-manager` and
+`@widgetstools/dock-manager-core`. The rewrite consumes the same
+library; no library swap or evaluation in scope.
+
+### What the core exposes (consumed by `BrowserRuntime`)
+
+```ts
+// Surfaces from @widgetstools/dock-manager-core (paraphrased):
+// State + lifecycle
+type DockManagerState = /* … serialisable layout tree … */;
+const createDefaultState: () => DockManagerState;
+const serialize:   (s: DockManagerState) => string;
+const deserialize: (json: string) => DockManagerState;
+const validateState: (s: DockManagerState) => boolean;
+const dockReducer: (s: DockManagerState, action: DockAction) => DockManagerState;
+
+// Imperative API (mounted React component exposes this)
+interface DockviewApi {
+  addPanel(opts: AddPanelOptions): PanelApi;
+  movePanel(opts: MovePanelOptions): void;
+  removePanel(panelId: string): void;
+  floatPanel(opts: FloatPanelOptions): FloatingPanel;
+  popoutPanel(panelId: string): PopoutPanel;
+  // …layout queries: findAllTabGroups, findTabGroupForPanel, etc.
+}
+
+// Theming
+const createTheme: (colours: DockThemeColors) => DockTheme;
+// Built-in themes: vsCodeDark, vsCodeLight, githubLight, etc.
+// StarUI uses createTheme with --sf-* tokens at runtime (§11.1).
+```
+
+### `RuntimePort` workspace operations
+
+Future addition to `RuntimePort` (parallel to today's
+`onWorkspaceSave` event):
+
+```ts
+interface RuntimePort {
+  // …existing…
+
+  /** List the user's saved workspaces. */
+  listWorkspaces?(): Promise<readonly WorkspaceSummary[]>;
+  /** Switch to a different saved workspace. */
+  switchWorkspace?(workspaceId: string): Promise<void>;
+  /** Save the current layout as a new or updated workspace. */
+  saveWorkspace?(opts: { name: string; workspaceId?: string }): Promise<string>;
+  /** Delete a saved workspace. */
+  deleteWorkspace?(workspaceId: string): Promise<void>;
+}
+
+interface WorkspaceSummary {
+  readonly workspaceId: string;
+  readonly name: string;
+  readonly updatedAt: number;
+}
+```
+
+The `?` markers mark these as placeholders pending §6.6's design.
+OpenFinRuntime implements them via the workspace platform's native
+APIs; BrowserRuntime implements them via react-dock-manager + the
+persistence path below.
+
+### Persistence — single componentType
+
+Workspace state persists as an `AppConfigRow` with:
+
+```ts
+{
+  componentType: "web-workspace",
+  componentSubType: "",
+  configId: "<userId>:<appId>:<workspaceId>",
+  payload: {
+    name: string,
+    state: DockManagerState,    // serialised via dock-manager-core
+  },
+  // …standard AppConfigRow fields…
+}
+```
+
+The `COMPONENT_TYPES` constant set (§4.2) carries
+`WEB_WORKSPACE: "web-workspace"`.
+
+### Theming
+
+`react-dock-manager`'s `createTheme(colours)` is called at app
+boot with the design-system `--sf-*` tokens resolved against the
+current palette + mode. The dock theme switches in lockstep with
+the global theme via the same coordination that drives
+`SF_AG_THEME` swaps (§11.3) — `requestAnimationFrame`-coordinated
+to prevent flash (N28).
+
+### Popout panels
+
+`react-dock-manager` ships its own popout/floating-panel mechanism
+(`popoutPanel`, `FloatPanelOptions`). For the **browser case**, this
+is the right path — it manages the popped window's lifecycle, drag-
+back-in, and state synchronisation.
+
+The `PopoutPortal` infrastructure documented in N1–N9 stays for
+the **OpenFin case** (where `fin.Window.create` is the correct
+mechanism per N8 and the dock-manager's popout would not integrate
+with OpenFin's workspace platform). Detection is the same
+`isOpenFin()` check used elsewhere.
+
+### Scope — what this section locks in vs leaves open
+
+**Locked**:
+- The library: `@widgetstools/react-dock-manager` for React;
+  `@widgetstools/angular-dock-manager` for Angular slot.
+- Persistence path: `AppConfigRow` with `componentType: "web-workspace"`.
+- Theming via `createTheme` bound to `--sf-*`.
+- Popout split: dock-manager popouts for browser; `PopoutPortal`
+  for OpenFin.
+
+**Deferred to
+[`./plans/web-workspace-management-design.md`](./plans/web-workspace-management-design.md)**:
+- The exact React component shape (`<WorkspaceHost>` wrapping the
+  Dockview component? or a higher-level `<StarUIWorkspace>`?).
+- Workspace-switching UX (modal dropdown? sidebar list? both?).
+- Default workspace per appId (operator-configurable seed in
+  manifest / config-file).
+- Migration from any existing browser-side localStorage state
+  (react-dock-manager has built-in `loadFromLocalStorage` /
+  `saveToLocalStorage` — used as fallback when offline; primary
+  persistence is the config server).
+- Concurrency: what happens when two browser tabs save different
+  layouts under the same `workspaceId`? Optimistic-lock via the
+  AppConfigRow's `__v` field, same conflict surface as profiles.
 
 ---
 
@@ -2579,6 +2810,25 @@ Any new implementation must:
     the theme are contract violations. The theme switches at runtime
     via `gridApi.setGridOption("theme", SF_AG_THEME(palette, mode))`
     on every live grid, coordinated by `GridPlatform`.
+18. **Future-binding constraints (placeholders).** Two API spaces
+    are reserved with `?`-optional method signatures (§6.5 and
+    §6.6). Once their designs land:
+    - §6.5 `launchComponent` becomes mandatory; all component-
+      launch sites (today's scattered `openSurface` /
+      `ACTION_LAUNCH_COMPONENT` / per-component window creation)
+      MUST route through it. Ad-hoc launch paths are a contract
+      violation from that point.
+    - §6.6 workspace methods (`listWorkspaces`, `switchWorkspace`,
+      `saveWorkspace`, `deleteWorkspace`) become mandatory on
+      `BrowserRuntime` (backed by `@widgetstools/react-dock-manager`)
+      and on `OpenFinRuntime` (backed by the workspace platform).
+      Persistence for both routes through `AppConfigRow` with
+      `componentType: "web-workspace"` (browser) or
+      `componentType: "dock-config"` (OpenFin's existing dock
+      state, §9.5).
+    Until the designs land, callers MAY use the existing
+    mechanisms (`openSurface`, ad-hoc IAB actions); after the
+    designs land, they MUST migrate.
 
 ### Aspirational target
 
