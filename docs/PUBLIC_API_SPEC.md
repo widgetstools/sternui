@@ -1617,6 +1617,16 @@ Any new implementation must:
    `onWorkspaceSave` → `enumerateLiveInstances` → `markAlive`.
    `purgeOrphans({ dryRun: true })` MUST be a real preview — no
    row may be deleted while `dryRun` is true.
+10. **Every nuance in `docs/UX_NUANCES.md` must be preserved.** A
+    rewrite that passes the API contract in this document but
+    fails any catalogued nuance is **incomplete**. The nuance
+    catalogue is the contract for behaviours that don't appear
+    in type signatures: cross-window portal targeting, theme-
+    switch flash avoidance, focus restoration, keyboard
+    shortcuts, animation timing, and so on. See §17 for the
+    binding mechanism. Visual parity is verified against
+    `docs/visual-reference/` per the acceptance criterion in
+    that directory's README.
 
 ---
 
@@ -1681,6 +1691,50 @@ A rewrite may freely:
 The boundary between "must preserve" (§15) and "free to change" (§16)
 is the difference between *user-facing semantics* and *implementation
 detail*. Hold the former, refactor the latter freely.
+
+---
+
+# 17. Visual + behavioural contract
+
+This document specifies the **API**. It does not — and cannot —
+specify the per-component behavioural nuances and visual conventions
+that a trading-floor user has internalised over three years of daily
+use. Those live in two companion artifacts:
+
+| Artifact | Captures |
+|---|---|
+| [`UX_NUANCES.md`](./UX_NUANCES.md) | Numbered nuance catalogue (`N1`, `N2`, …). Each entry names a surface, the symptom-if-missing, the root cause, the implementation note, and the v1 file locations. |
+| [`visual-reference/`](./visual-reference/) | Screenshots of every screen and component-state, captured against the demo apps, with naming convention and Playwright-driven capture workflow documented in `visual-reference/README.md`. |
+
+These artifacts are **part of the contract**, not supplementary
+material. §15 #10 makes preserving every catalogued nuance a
+non-negotiable. A rewrite is accepted only when:
+
+1. Every signature, behaviour, and guarantee in §§1–14 of this
+   document is implemented exactly.
+2. Every nuance entry in `UX_NUANCES.md` (currently N1–N9 fully
+   documented, N10–N30 stubbed) is preserved — verified by
+   reproducing the documented symptom-absent behaviour.
+3. Every screenshot in `visual-reference/` has a matching capture
+   from the rewrite's demo, within the per-test pixel-diff
+   threshold defined in that directory's README.
+
+**Living catalogue.** When a UX-affecting fix lands during the
+rewrite — or any time afterwards — the same PR adds a numbered
+entry to `UX_NUANCES.md` and (where applicable) updates the
+screenshots in `visual-reference/`. The catalogue grows
+monotonically; entries are never deleted, only superseded (with the
+superseding entry referenced inline).
+
+**Why this separation.** The type signatures in this document
+catch contract violations at compile time. The nuance catalogue
+catches behavioural regressions that no type system can see — the
+formatter dialog that pops out but renders its dropdowns on the
+wrong window, the grid that flashes white during a theme swap, the
+profile rename that loses focus mid-edit. Without the catalogue,
+each of these regressions would be re-discovered through user pain
+in production. With the catalogue, the rewrite has a checklist to
+hold itself accountable against.
 
 ---
 
