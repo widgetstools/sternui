@@ -176,10 +176,12 @@ both so the rewriter has the option.
 | N30 | Resizable panels | _TODO — snap to default at 30px, persist size to profile, double-click handle = reset_ | ? |
 | **N31** | Monaco expression editor in popouts | Six separate fixes Monaco needs when its host is a popped-out window | R + W + L |
 | **N32** | Conditional-styling expression scope | Prototype-chain diff scope — same `[…]` syntax handles live + old/new without engine knowing the difference | R |
+| **N33** | Diagnostic logging | Single `createLogger("starui:<pkg>")` contract — 302 bare-console-call legacy is workaround-class debt | W |
 
-Entries N1–N9, N31, and N32 are fully captured below. Entries N10–N30
-are stubs — they name a real, observable nuance that the rewrite must
-preserve, but the full implementation note is not yet authored.
+Entries N1–N9, N31, N32, and N33 are fully captured below. Entries
+N10–N30 are stubs — they name a real, observable nuance that the
+rewrite must preserve, but the full implementation note is not yet
+authored.
 **The stubs are deliberately not empty: their existence is itself
 information** — a rewrite reviewer scanning this index sees that the
 formatter dialog has a non-trivial Excel-format autocomplete that
@@ -1041,11 +1043,102 @@ actually need re-painting.
 
 ---
 
+## N33. Diagnostic logging — `createLogger("starui:<pkg>")` is the only sanctioned path
+
+**Classification.** Workaround-class debt. The contract
+(`createLogger` with `starui:<pkg>` prefix, three severity levels)
+is correct and stable; v1's actual usage is the workaround layer.
+**Re-investigate at rewrite time** — adopt the logger across every
+package, retire the 302 bare `console.*` sites mechanically. The
+rewrite settles this; v1 stays as-is.
+
+**Surface.** Every package that emits diagnostic output —
+effectively the whole codebase.
+
+**Symptom if missing.** Three symptoms, all observable today in v1:
+
+- **No common prefix.** A trader filing a bug attaches a devtools
+  log that mixes `[PopoutPortal]`, `[useFdc3Channel]`,
+  `[markets-grid]`, `[v2/markets-grid]`, `[v2/grid]`, `[v2/hub]`,
+  `[Dock3 theme]`, `[refresh]`, `[0]` (yes, literally `[0]`),
+  `[hardReloadDock]`, and a dozen others. Filtering to one package
+  means filtering each prefix variant separately.
+- **Inconsistent severity.** Some recoverable conditions log at
+  `console.error`, some user-visible errors log at `console.warn`,
+  some "this happened" events log at `console.log` with no
+  level distinction. Devtools severity filters become useless.
+- **No silencing path.** `console.info` chatter cannot be globally
+  muted in production. Operators ship with verbose logging or
+  per-call comment-outs. Neither is sustainable.
+
+**Root cause.** v1 was grown incrementally; each module's author
+chose a prefix that made sense to them at the time, and bare
+`console.*` is the path of least resistance when a contract isn't
+codified. 302 call sites accumulated before the contract existed.
+
+**Implementation note.** The contract has three parts, all
+documented in `PUBLIC_API_SPEC.md` §1.3:
+
+1. **`createLogger(prefix: string): Logger`** — one logger per
+   package, obtained once at module scope (not per call site). The
+   v2 implementation in `@starui-v2/app/log` is the reference; a
+   rewrite implements the same interface in `@starui/shared` or
+   equivalent foundation leaf so every package can import it
+   without cross-bucket dependency hazards.
+
+2. **Prefix format `starui:<pkg-short>`** — per the table in §1.3.
+   Devtools filter on `starui:` shows everything; `starui:grid`
+   narrows to one package. The colon is intentional (matches the
+   convention used by `localStorage` keys and other namespaced
+   string identifiers in the platform).
+
+3. **Three severity levels — `info` / `warn` / `error`.** No
+   `debug` or `trace` in the public interface; deep tracing uses a
+   per-feature opt-in flag on `globalThis` (e.g.
+   `globalThis.__CS_TIMED_TRACE__ = true`) plus a local helper that
+   guards on the flag.
+
+**Enforcement.** The `@starui/eslint-plugin` package's
+`no-bare-console` rule bans direct `console.*` calls outside test
+files, CLI scripts, and the logger module itself. The rule plus
+§15 #12 close the consistency gap end-to-end:
+
+- Spec language makes drift a contract violation reviewers can
+  flag (§15 #12).
+- Lint rule catches drift at PR time (`@starui/no-bare-console`).
+- Adoption is the rewrite's mechanical step — once a package
+  enables the rule, every offending call is forced through the
+  logger or carved out by an explicit `allowFiles` entry.
+
+**Migration.** Not in scope for v1. The 302 sites stay as they are.
+A codemod that converts patterns like
+`console.warn('[PopoutPortal] x:', err)` to
+`log.warn('x', err)` (after seeding `const log = createLogger("starui:grid-react");`
+at the top of the file) is mechanical and lives in the rewrite plan.
+
+**Files (v2 reference).**
+- `packages/app/src/log.ts` (v2 path:
+  `/Users/develop/staruiv2/packages/app/src/log.ts`)
+  — the reference implementation. SSR-safe `typeof console` guard,
+  try/catch around every emit, optional silencing.
+
+**Cross-references.**
+- `PUBLIC_API_SPEC.md` §1.3 — the contract, prefix table,
+  severity guidance, non-negotiable.
+- `PUBLIC_API_SPEC.md` §15 #12 — non-negotiable that bare
+  `console.*` is a contract violation.
+- `packages/tooling/eslint-plugin/src/rules/no-bare-console.ts` —
+  the lint rule.
+- `docs/plans/lint-config-plan.md` — adoption rollout.
+
+---
+
 # To document next
 
-Entries N10–N30 are stubs (N31 and N32 were added as full entries
-as those concerns surfaced — Monaco-in-popout and the prototype-
-chain diff scope respectively). Adding each remaining stub requires:
+Entries N10–N30 are stubs (N31, N32, and N33 were added as full
+entries as those concerns surfaced — Monaco-in-popout, the
+prototype-chain diff scope, and the logging contract respectively).
+Adding each remaining stub requires:
 
 1. Reading the v1 source for the relevant surface.
 2. Writing the entry following the conventions above.

@@ -161,6 +161,73 @@ function setSilenced(value: boolean): void;
 - Never throws — `console.*` failures are caught.
 - Safe in SSR / non-browser contexts (probes `typeof console`).
 
+### Prefix convention
+
+Every package obtains its logger with a stable prefix of the form
+`starui:<pkg-short>`. Examples:
+
+| Package | Prefix |
+|---|---|
+| `@starui/app`     | `starui:app` |
+| `@starui/grid`    | `starui:grid` |
+| `@starui/config`  | `starui:config` |
+| `@starui/data`    | `starui:data` |
+| `@starui/openfin` | `starui:openfin` |
+| `@starui/runtime` | `starui:runtime` |
+| `@starui/widgets` | `starui:widgets` |
+
+Console output is filterable by typing `starui:` into devtools'
+filter box. Cross-package narrowing is `starui:grid`.
+
+### Severity guidance
+
+| Level | Meaning | Example |
+|---|---|---|
+| `info`  | Routine, expected events the operator may want to know happened. | "plugin registered: openfin" |
+| `warn`  | Unusual but recoverable. The system continued; a degraded path was taken. | "missing optional prop, falling back to default" |
+| `error` | Broken state. Something the user can see or that compromises correctness. | "storage factory threw — falling back to in-memory store" |
+
+`debug` and `trace` are deliberately NOT in the interface. Code that
+needs deep tracing uses a per-feature opt-in flag on `globalThis`
+(e.g. `globalThis.__CS_TIMED_TRACE__`) plus a local helper that
+guards on the flag — never a global `console.log`.
+
+### Non-negotiable: no bare `console.*`
+
+Every diagnostic emit goes through a `Logger` obtained from
+`createLogger(...)`. Bare `console.log` / `console.warn` /
+`console.error` / `console.info` / `console.debug` / `console.trace`
+calls outside the logger module, test files, CLI scripts, and ESLint
+rule sources are a contract violation (§15 #12).
+
+The `@starui/eslint-plugin` package ships a `no-bare-console` rule
+that enforces this — see §15 #12 + the
+[lint-config-plan](./plans/lint-config-plan.md) for the roll-out.
+
+### Logger placement constraints
+
+- Each module obtains its logger **once at module scope**, not per
+  call site:
+  ```ts
+  // packages/grid/src/foo.ts
+  import { createLogger } from "@starui/app/log";
+  const log = createLogger("starui:grid");
+
+  export function doThing() {
+    log.warn("thing didn't go", { reason });
+  }
+  ```
+  This is enforced by convention, not lint — the cost of
+  per-call-site `createLogger("…")` is real (object allocation per
+  call) but the lint cost-benefit doesn't justify a rule for it.
+
+- The logger module itself uses bare `console.*` (it has to —
+  someone has to call console). The eslint rule's default
+  `allowFiles` covers `/log.ts` and `/log.tsx`.
+
+- Test files use bare `console.*` freely. Production code paths
+  do not.
+
 ---
 
 # 2. The Grid Widget
@@ -1770,6 +1837,16 @@ Any new implementation must:
     cache between ColDef reads and expression-engine `[…]`
     reference resolution, and canonicalise `.old` / `.new`
     suffixes to one trigger entry as documented in §10.3.
+12. **No bare `console.*` in production source.** Every
+    diagnostic emit MUST go through a `Logger` obtained from
+    `createLogger("starui:<pkg>")` as documented in §1.3. Bare
+    `console.log` / `console.warn` / `console.error` /
+    `console.info` / `console.debug` / `console.trace` outside
+    the logger module, test files, CLI scripts, and ESLint rule
+    sources are a contract violation. Logger prefix MUST match
+    the `starui:<pkg-short>` convention listed in §1.3. The
+    `@starui/eslint-plugin` package's `no-bare-console` rule
+    enforces this at lint time.
 
 ---
 
