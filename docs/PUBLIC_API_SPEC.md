@@ -534,13 +534,19 @@ Behaviour:
 
 ## 4.1 `ConfigClient` — framework-agnostic surface
 
+ConfigService ships **two completely independent implementations** of
+the same `ConfigClient` interface. An app picks exactly one at boot;
+they are **never used together**, there is no dispatcher, and there
+is no sync / write-through / reconciliation between them.
+
+| Environment | Implementation | Storage backend | Bundle cost |
+|---|---|---|---|
+| **Development** | `DexieConfigClient` | Browser IndexedDB (Dexie) | Dexie + impl, ~20 KB gzipped |
+| **Production**  | `RestConfigClient`  | MongoDB (or any) via REST API | impl only, ~3 KB gzipped |
+
 ```ts
 // Package: @starui/config
-function createConfigClient(opts: {
-  readonly baseUrl?: string;
-  readonly db?: Dexie;
-}): ConfigClient;
-
+// Shared interface — both impls expose exactly this surface.
 interface ConfigClient {
   // Generic ops
   getConfig(filter: ConfigFilter): Promise<AppConfigRow | null>;
@@ -558,7 +564,85 @@ interface ConfigClient {
 
   health(): Promise<HealthStatus>;
 }
+```
 
+### Two construction paths
+
+```ts
+// PROD path — REST against the deployed server (MongoDB-backed today,
+// any document store tomorrow).  Production bundles import only this.
+// Package: @starui/config
+function createRestConfigClient(opts: {
+  readonly baseUrl: string;                  // required
+  readonly fetch?: typeof fetch;             // override for testing
+  readonly headers?: Record<string, string>; // e.g. { Authorization: "Bearer …" }
+  readonly retry?: { attempts: number; backoffMs: number };
+}): ConfigClient;
+```
+
+```ts
+// DEV path — Dexie/IndexedDB.  Lives at a SEPARATE subpath so prod
+// bundles tree-shake it out (bundlers see `@starui/config/dev` is
+// never imported in production code paths → Dexie + impl drops out).
+// Package: @starui/config/dev
+function createDexieConfigClient(opts: {
+  /** Dexie database name. Default: "starui-config". */
+  readonly dbName?: string;
+  /** Seed JSON for first-boot bootstrap (auth tables). */
+  readonly seedUrl?: string;
+}): ConfigClient;
+```
+
+### Selection at `<StarUIApp>` boot
+
+The app picks exactly one based on its `config.backend`:
+
+```ts
+interface StarUIConfigConfig {
+  /** "rest" for production (with restUrl required) or "dev" for
+   *  Dexie-backed local development. No default — apps must pick. */
+  readonly backend: "rest" | "dev";
+  /** REST endpoint. Required when backend === "rest". */
+  readonly restUrl?: string;
+  /** Auth header builder for REST mode. */
+  readonly auth?: () => Promise<{ token: string }>;
+  /** Optional seed JSON URL — applies in both modes on a fresh DB. */
+  readonly seedUrl?: string;
+  /** Identity override. */
+  readonly identity?: AppIdentity;
+}
+```
+
+### Behaviour requirements
+
+1. **One client per app, full stop.** No code path runs both. No
+   write-through. No queued offline sync. No `pendingSync` table.
+2. **Dev → Prod is a redeploy, not a migration.** When promoting an
+   environment from dev (Dexie) to prod (REST), profiles live in
+   different stores. The platform makes no attempt to sync them. Users
+   exporting profiles for cross-machine transfer use the existing
+   `ProfileManager.export` / `import` JSON-payload flow.
+3. **No browser-side authority in prod.** `RestConfigClient` does not
+   maintain a local read cache that survives reloads. The server is the
+   source of truth; reads are HTTP. (Per-session in-memory memoisation
+   for repeated reads within a single page load is fine.)
+4. **Optimistic locking lives on the server in prod.** `__v` is
+   incremented server-side; the client surfaces `ProfileSetVersionConflictError`
+   when the server returns 409. In dev (Dexie), the same logic runs
+   in the browser.
+5. **Tree-shakeable boundary.** Production builds importing only from
+   `@starui/config` (no `/dev` subpath) must bundle zero Dexie code.
+
+### What is intentionally NOT in this spec
+
+- A "dual-mode" dispatcher (was `createConfigClient` in v1; **dropped**).
+- A `pendingSync` table or offline-write queue (**dropped**).
+- A `migrateLegacyProfilesIfNeeded` step in production (Dexie is a
+  dev concern; prod never sees it). The function may remain in
+  `@starui/config/dev` for upgrades from older dev environments.
+- Write-through-both semantics inside `ConfigManager` (**dropped**).
+
+```ts
 interface ConfigFilter {
   configId?: string;
   componentType?: string;
@@ -1364,6 +1448,16 @@ Any new implementation must:
 7. **Preserve the URL routes the OpenFin reference shell uses**:
    `/platform/provider`, `/blotters/marketsgrid`, `/dataproviders`,
    `/config-browser`, `/workspace-setup`, `/rename-view-tab`.
+8. **Production deployments use REST exclusively.** The framework
+   provides **no** offline-first behaviour, no IndexedDB-to-REST
+   synchronisation, no `pendingSync` queue, no conflict reconciliation,
+   no dual-write logic. Dev (`@starui/config/dev`, Dexie) and prod
+   (`@starui/config`, REST + MongoDB) are two independent
+   implementations of the same `ConfigClient` interface. Switching from
+   dev to prod is a redeploy with a different `backend:` selector, not
+   a runtime migration. Authority for conflict resolution and
+   optimistic locking lives server-side in prod; the browser is a
+   thin client.
 
 ---
 
@@ -1388,6 +1482,22 @@ A rewrite may freely:
 7. **Replace the SharedWorker bootstrap mechanism** as long as the
    protocol envelope shape and the multiplex-one-connection-per-provider
    guarantee hold.
+8. **Drop the `pendingSync` table** from any ConfigService schema.
+   No sync queue exists in either dev or prod paths.
+9. **Drop `migrateLegacyProfilesIfNeeded`** from the prod path. Legacy
+   in-place migration was a v1 bridge for users who had local Dexie
+   profiles before the REST backend existed. The prod path starts from
+   a server-authoritative store; there is nothing to migrate from.
+10. **Drop write-through-both / dual-write logic.** A `ConfigClient`
+    talks to exactly one backend for its lifetime.
+11. **Drop Dexie from the prod bundle.** `@starui/config` (default
+    import) must tree-shake `dexie` to zero bytes in production.
+    Dexie is only reachable via the explicit `@starui/config/dev`
+    subpath.
+12. **Drop the dispatching `createConfigClient(opts)` factory** that
+    chose between Dexie and REST at runtime. Replaced by two
+    independent factories: `createRestConfigClient` (prod) and
+    `createDexieConfigClient` (dev, behind the `/dev` subpath).
 
 The boundary between "must preserve" (§15) and "free to change" (§16)
 is the difference between *user-facing semantics* and *implementation
