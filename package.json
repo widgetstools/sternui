@@ -22,6 +22,7 @@
     "packages/angular/providers/*",
     "packages/angular/tools/*",
     "packages/angular/widgets/*",
+    "packages/tooling/*",
     "e2e-openfin"
   ],
   "scripts": {
