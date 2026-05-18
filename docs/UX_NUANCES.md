@@ -39,6 +39,21 @@ embedded the kind of knowledge that does not survive a rewrite:
 The function of this document is to capture every such nuance
 **before** the rewrite, so the rewrite preserves it.
 
+**Second function: separate root-cause fixes from workarounds.**
+Three years of iterative pressure mean some of these "fixes" are
+single-line patches that capture multi-day investigations of a
+symptom whose actual root cause was never re-architected. Layered
+on top of each other across the codebase, they account for a
+meaningful slice of the platform's bloat — each workaround adds
+files, conditionals, and explanatory comments that a ground-up
+solution would not need. The **Fix taxonomy** below classifies
+each entry so a rewrite can preserve root-cause fixes verbatim
+while challenging workarounds — and especially layered
+workarounds — at their actual root. The Monaco key-routing chain
+(N31.4 → N31.5 → N31.6) is the worked example: three workarounds
+for one underlying issue (host-shell key-event interception); a
+re-architected event model collapses them back to zero.
+
 **Companion artifact.** `docs/visual-reference/` holds screenshots of
 every screen and component-state, captured against `apps/demo-react`
 and `apps/demo-angular`. The catalogue references those shots where
@@ -75,41 +90,91 @@ added between them.
 
 ---
 
+# Fix taxonomy
+
+Not every nuance in this catalogue carries the same weight for a
+rewrite. Some entries describe how the system *should* work — a
+rewrite should reproduce them faithfully. Others describe
+**workarounds** for a deeper problem that the rewrite has the
+opportunity to solve at the root. Three years of iterative fixes
+mean some behaviours that look load-bearing are actually
+workarounds piled on workarounds. A rewrite that copies them
+faithfully inherits the fragility. A rewrite that re-investigates
+the workaround tags has the chance to collapse layered fixes back
+into a single root-cause solution.
+
+Each fully-written entry below carries a **Classification** tag
+from this set:
+
+| Tag | Meaning | Rewrite guidance |
+|---|---|---|
+| **Root-cause fix** | The correct way to solve a real problem. The behaviour is intentional and stable. | Preserve verbatim. |
+| **Architectural decision** | Not a fix at all — just how the system is correctly designed. | Preserve verbatim. |
+| **Defensive guard** | Handles upstream behaviour (React StrictMode, OpenFin lifecycle, Monaco internals) that the framework cannot change. | Preserve unless the upstream behaviour changes. |
+| **Workaround** | Papers over a symptom whose root cause is elsewhere. Often a single-line fix that captured a multi-day investigation. | Re-investigate root cause; replace if possible; preserve verbatim otherwise. |
+| **Layered workaround** | A workaround sitting on top of another workaround. Especially fragile because removing the lower layer breaks the upper. | **Prioritize unrolling.** |
+
+**Why this distinction matters.** The Monaco key-routing chain
+(N31.4 → N31.5 → N31.6) is the clearest example in this catalogue:
+three workarounds sit on top of one underlying issue (host-shell
+key-event interception in popped windows and transform-using
+containers). A re-architected popout host's event model could
+collapse all three back into zero workarounds. A rewrite that
+preserves them verbatim ships the same fragility plus the
+maintenance burden of three documented hacks.
+
+The N3 (data-theme on `<html>` not `<body>`) and N7 (popout body
+scope tags) entries are similarly cascade-collision workarounds
+that a token-consolidation refactor would obviate. The reset-last
+sub-clause of N4 is a workaround for the parent app setting
+`body { padding: 10px }` — a rewrite host that doesn't set body
+padding doesn't need the `!important` reset chain.
+
+When a rewrite re-encounters one of these surfaces, **start from
+the symptom**, not from the workaround. The catalogue documents
+both so the rewriter has the option.
+
+---
+
 # Index
 
-| # | Surface | Title |
-|---|---|---|
-| **N1** | shadcn primitives in popouts | Portal-using shadcn primitives must target the popout window's document |
-| **N2** | PopoutPortal | StrictMode-safe window registry — defer close, dedupe in-flight create |
-| **N3** | PopoutPortal | Mirror `data-theme` onto popout `<html>`, NOT `<body>` |
-| **N4** | PopoutPortal | Clone parent stylesheets into popout `<head>` + append reset last |
-| **N5** | PopoutPortal | Auto-resize on Radix popover open via MutationObserver |
-| **N6** | PopoutPortal | Close-detection grace period + `readyState === 'complete'` gate |
-| **N7** | PopoutPortal | Seed popout `<body>` with `ds-sheet-v2` + `data-ds-settings` for token inheritance |
-| **N8** | PopoutPortal | OpenFin uses `fin.Window.create` via opener-callback, not `window.open` |
-| **N9** | PopoutPortal | Mount node created in `useEffect`, never `useMemo` |
-| N10 | Grid Customizer | _TODO — popout title bar drag region, edit-commit on blur vs Enter, Escape cancels_ |
-| N11 | Formatter dialog | _TODO — Excel-format token autocomplete, live preview update cadence, color-picker portal target_ |
-| N12 | Profile Manager | _TODO — auto-scroll new profile into view, focus name field after Add, rename-in-place vs dialog_ |
-| N13 | AG-Grid theme | _TODO — themeQuartz CSS-var rebuild on theme switch, rAF-wrapped swap to prevent flash_ |
-| N14 | Workspace Setup wizard | _TODO — step-back preserves form state, Continue disabled until validated_ |
-| N15 | Cell context menu | _TODO — right-click on selected vs unselected cell, copy-with-headers vs copy-cells_ |
-| N16 | Settings sheet | _TODO — animation timing (entry 220ms, exit 180ms), close on outside-click vs Esc only_ |
-| N17 | Column reordering | _TODO — drag handle visibility, drop indicator styling, snap-back on out-of-bounds_ |
-| N18 | Drag-and-drop | _TODO — cursor change to grab/grabbing, drop-indicator z-index above sticky headers_ |
-| N19 | Inline edit | _TODO — commit on Enter / Tab / blur, cancel on Esc, click-out commits not cancels_ |
-| N20 | Toasts | _TODO — top-right under OS chrome offset, max-5 stacked, auto-dismiss 4s success / sticky error_ |
-| N21 | Focus management | _TODO — focus returns to triggering element on dialog close, focus-trap inside modal_ |
-| N22 | Tooltips | _TODO — only render on truncated text, 500ms open delay, 0ms close delay_ |
-| N23 | Multi-select lists | _TODO — Shift = range, Cmd/Ctrl = toggle, plain click = replace, Esc = clear_ |
-| N24 | Loading vs empty | _TODO — spinner + "Loading…" vs illustration + "No data" — never both_ |
-| N25 | Validation | _TODO — on-blur for sync, debounced 300ms for async, on-submit summary for forms_ |
-| N26 | Keyboard shortcuts | _TODO — Cmd/Ctrl-S save, Cmd/Ctrl-F find, Cmd/Ctrl-/ help, Esc closes top dialog_ |
-| N27 | Horizontal scroll preservation | _TODO — AG-Grid scroll position preserved across profile switch_ |
-| N28 | Theme switch atomicity | _TODO — no flash of unstyled grid; themed CSS-var swap inside rAF_ |
-| N29 | Conditional formatting cascade | _TODO — per-cell rule priority order, tie-break by definition order_ |
-| N30 | Resizable panels | _TODO — snap to default at 30px, persist size to profile, double-click handle = reset_ |
-| **N31** | Monaco expression editor in popouts | Six separate fixes Monaco needs when its host is a popped-out window |
+"R" = Root-cause fix · "A" = Architectural decision ·
+"D" = Defensive guard · "W" = Workaround · "L" = Layered workaround
+(prioritize unrolling).
+
+| # | Surface | Title | Class |
+|---|---|---|---|
+| **N1** | shadcn primitives in popouts | Portal-using shadcn primitives must target the popout window's document | R |
+| **N2** | PopoutPortal | StrictMode-safe window registry — defer close, dedupe in-flight create | D |
+| **N3** | PopoutPortal | Mirror `data-theme` onto popout `<html>`, NOT `<body>` | W |
+| **N4** | PopoutPortal | Clone parent stylesheets into popout `<head>` + append reset last | R + W |
+| **N5** | PopoutPortal | Auto-resize on Radix popover open via MutationObserver | W |
+| **N6** | PopoutPortal | Close-detection grace period + `readyState === 'complete'` gate | D |
+| **N7** | PopoutPortal | Seed popout `<body>` with `ds-sheet-v2` + `data-ds-settings` for token inheritance | W |
+| **N8** | PopoutPortal | OpenFin uses `fin.Window.create` via opener-callback, not `window.open` | A |
+| **N9** | PopoutPortal | Mount node created in `useEffect`, never `useMemo` | R |
+| N10 | Grid Customizer | _TODO — popout title bar drag region, edit-commit on blur vs Enter, Escape cancels_ | ? |
+| N11 | Formatter dialog | _TODO — Excel-format token autocomplete, live preview update cadence, color-picker portal target_ | ? |
+| N12 | Profile Manager | _TODO — auto-scroll new profile into view, focus name field after Add, rename-in-place vs dialog_ | ? |
+| N13 | AG-Grid theme | _TODO — themeQuartz CSS-var rebuild on theme switch, rAF-wrapped swap to prevent flash_ | ? |
+| N14 | Workspace Setup wizard | _TODO — step-back preserves form state, Continue disabled until validated_ | ? |
+| N15 | Cell context menu | _TODO — right-click on selected vs unselected cell, copy-with-headers vs copy-cells_ | ? |
+| N16 | Settings sheet | _TODO — animation timing (entry 220ms, exit 180ms), close on outside-click vs Esc only_ | ? |
+| N17 | Column reordering | _TODO — drag handle visibility, drop indicator styling, snap-back on out-of-bounds_ | ? |
+| N18 | Drag-and-drop | _TODO — cursor change to grab/grabbing, drop-indicator z-index above sticky headers_ | ? |
+| N19 | Inline edit | _TODO — commit on Enter / Tab / blur, cancel on Esc, click-out commits not cancels_ | ? |
+| N20 | Toasts | _TODO — top-right under OS chrome offset, max-5 stacked, auto-dismiss 4s success / sticky error_ | ? |
+| N21 | Focus management | _TODO — focus returns to triggering element on dialog close, focus-trap inside modal_ | ? |
+| N22 | Tooltips | _TODO — only render on truncated text, 500ms open delay, 0ms close delay_ | ? |
+| N23 | Multi-select lists | _TODO — Shift = range, Cmd/Ctrl = toggle, plain click = replace, Esc = clear_ | ? |
+| N24 | Loading vs empty | _TODO — spinner + "Loading…" vs illustration + "No data" — never both_ | ? |
+| N25 | Validation | _TODO — on-blur for sync, debounced 300ms for async, on-submit summary for forms_ | ? |
+| N26 | Keyboard shortcuts | _TODO — Cmd/Ctrl-S save, Cmd/Ctrl-F find, Cmd/Ctrl-/ help, Esc closes top dialog_ | ? |
+| N27 | Horizontal scroll preservation | _TODO — AG-Grid scroll position preserved across profile switch_ | ? |
+| N28 | Theme switch atomicity | _TODO — no flash of unstyled grid; themed CSS-var swap inside rAF_ | ? |
+| N29 | Conditional formatting cascade | _TODO — per-cell rule priority order, tie-break by definition order_ | ? |
+| N30 | Resizable panels | _TODO — snap to default at 30px, persist size to profile, double-click handle = reset_ | ? |
+| **N31** | Monaco expression editor in popouts | Six separate fixes Monaco needs when its host is a popped-out window | R + W + L |
 
 Entries N1–N9 and N31 are fully captured below. Entries N10–N30 are
 stubs — they name a real, observable nuance that the rewrite must
@@ -124,6 +189,10 @@ cannot be re-implemented from the spec alone.
 # Entries
 
 ## N1. Portal-using shadcn primitives must target the popout window's document
+
+**Classification.** Root-cause fix. Radix's `Portal` exposes
+`container` exactly for this case; the framework just wires
+context-driven propagation. Preserve verbatim.
 
 **Surface.** Every shadcn/ui primitive built on a Radix `Portal`:
 `Popover`, `DropdownMenu`, `Tooltip`, `HoverCard`, `Select`,
@@ -202,6 +271,11 @@ target without any caller awareness.
 
 ## N2. StrictMode-safe window registry — defer close, dedupe in-flight create
 
+**Classification.** Defensive guard. React 19 StrictMode's
+mount → cleanup → remount cycle is upstream behaviour the
+framework cannot change; the registry is the correct response to
+it. Preserve unless React's StrictMode semantics change.
+
 **Surface.** `PopoutPortal` mount/unmount cycle under React 19
 StrictMode.
 
@@ -247,6 +321,15 @@ lines 20–53, plus `__resetPopoutPortalState` exported for tests
 
 ## N3. Mirror `data-theme` onto popout `<html>`, NOT `<body>`
 
+**Classification.** Workaround. The root cause is a cascade
+collision between two stylesheets (`fi-dark.css` and `globals.css`)
+that both define shadcn color tokens with different selectors and
+different value formats. A rewrite that consolidates token sources
+to a single stylesheet (with consistent value format — either
+HSL-triplet or hex everywhere) obviates this entry. Preserve
+verbatim if the dual-stylesheet setup is kept; revisit if tokens
+are consolidated.
+
 **Surface.** Every themed component (formatter, customizer,
 settings sheet) rendered inside a popout.
 
@@ -291,6 +374,16 @@ above the `useEffect` explaining the cascade interaction.
 ---
 
 ## N4. Clone parent stylesheets into popout `<head>` + append reset last
+
+**Classification.** Mixed. Stylesheet cloning is a **root-cause
+fix** — there is no other way to populate a fresh popout's `<head>`
+with the parent's runtime-injected CSS. Appending the reset
+`<style>` last with `!important` flags is a **workaround** for the
+parent app's `body { padding: 10px }` leaking through the clone.
+A rewrite host that doesn't set body padding obviates the
+`!important` reset chain (cascade-order alone suffices). Preserve
+the clone path verbatim; consider dropping the `!important` flags
+once the host's body padding is gone.
 
 **Surface.** Every styled element rendered inside a popout window.
 
@@ -342,6 +435,14 @@ helper.
 
 ## N5. Auto-resize on Radix popover open via MutationObserver
 
+**Classification.** Workaround. The root cause is a UI decision to
+default the popped toolbar to a height that's smaller than the
+menus the toolbar can open. A rewrite that sizes toolbar popouts
+to the largest menu they can host, or that re-anchors menus to
+attach below the popout window when they'd overflow, obviates the
+observer-driven resize. Preserve verbatim unless the popout sizing
+strategy is rethought.
+
 **Surface.** Toolbar-height popouts that host Radix popovers /
 menus / tooltips internally — e.g. the MarketsGrid
 `FormattingToolbar` popped out at 900×120 px.
@@ -379,6 +480,12 @@ those are rare and the toolbar popout is the only place
 
 ## N6. Close-detection grace period + `readyState === 'complete'` gate
 
+**Classification.** Defensive guard. OpenFin's `about:blank`
+synthetic `beforeunload` and transient `popout.closed === true`
+during initial navigation are upstream lifecycle quirks. The gates
+are the correct response. Preserve unless OpenFin's lifecycle
+changes.
+
 **Surface.** `PopoutPortal` close-detection on OpenFin.
 
 **Symptom if missing.** Popout opens for ~200ms then mysteriously
@@ -410,6 +517,15 @@ thing. Looks like an infinite open-close-open loop.
 ---
 
 ## N7. Seed popout `<body>` with `ds-sheet-v2` + `data-ds-settings` for token inheritance
+
+**Classification.** Workaround. The root cause is the
+design-system scoping cockpit-specific tokens under
+`.ds-sheet-v2 :where(...)` / `[data-ds-settings] :where(...)`
+selectors instead of cascading from `:root`. A rewrite that
+cascades cockpit tokens from `:root` (with explicit scoping only
+for the legitimately-scoped exceptions) obviates the body-seeding
+hack. Preserve verbatim if the scoped-token strategy is kept;
+revisit if the design-system migrates to `:root` cascade.
 
 **Surface.** Portaled content (color pickers, format dropdowns)
 rendered inside a popped Settings Sheet.
@@ -443,6 +559,12 @@ fixes every downstream portal automatically.
 
 ## N8. OpenFin uses `fin.Window.create` via opener-callback, not `window.open`
 
+**Classification.** Architectural decision. Not a fix at all — it
+is the correct way to integrate with the OpenFin workspace
+platform. `window.open` lacks dock affinity, workspace-save
+inclusion, IAB topic propagation, and always-on-top support.
+Preserve verbatim.
+
 **Surface.** Popout-window creation under OpenFin runtime.
 
 **Symptom if missing.** `window.open` in OpenFin returns a window
@@ -475,6 +597,12 @@ window does not save with the workspace.
 ---
 
 ## N9. Mount node created in `useEffect`, never `useMemo`
+
+**Classification.** Root-cause fix. `useMemo` is the wrong tool —
+side effects (`appendChild`) in the render phase are an outright
+bug. `useEffect` with cleanup is the correct React pattern.
+(StrictMode merely surfaces the bug; the bug exists without it.)
+Preserve verbatim.
 
 **Surface.** `PopoutPortal` initial mount under React 19 StrictMode.
 
@@ -517,6 +645,17 @@ useEffect(() => {
 
 ## N31. Monaco expression editor in popouts
 
+**Classification.** Mixed — see per-sub-fix tags below. Three of
+the six fixes are **root-cause** (N31.1, N31.2, N31.3) and should
+be preserved verbatim. The three key-routing fixes (N31.4, N31.5,
+N31.6) are a **layered workaround chain** that papers over a
+single underlying issue — the host shell intercepts keys before
+Monaco's hidden textarea sees them. A re-architected popout host
+event model could collapse all three back into zero workarounds.
+**Prioritize unrolling N31.4 → N31.5 → N31.6 in a rewrite** — they
+are the clearest example in this catalogue of "fixes added on top
+of each other".
+
 **Surface.** The Monaco-backed expression editor used by Conditional
 Styling, Calculated Columns, and any future expression-DSL surface,
 when its host (Settings Sheet, Customizer, Formatter) is popped out
@@ -558,6 +697,10 @@ present in v1:
 
 ### N31.1 — Per-document `EditorDomContext`
 
+**Class: Root-cause fix.** Deriving the document from the
+container's `ownerDocument` is the correct way to host any
+DOM-native library in a multi-window app. Preserve verbatim.
+
 Derive the editor's `{ document, window }` pair from
 `hostRef.current.ownerDocument`, never from the lexical `window` /
 `document`. Pass this `document` reference everywhere Monaco needs a
@@ -573,6 +716,10 @@ export function getElementDomContext(element: HTMLElement | null) {
 ```
 
 ### N31.2 — Per-document overflow widget host with `WeakMap` caching
+
+**Class: Root-cause fix.** Monaco's `overflowWidgetsDomNode` option
+exists precisely for this case. The `WeakMap` keyed by document is
+the correct caching strategy for per-window hosts. Preserve verbatim.
 
 Monaco's suggest-widget, parameter-hints widget, and hover popovers
 escape the editor's `overflow: hidden` parent by mounting into the
@@ -595,6 +742,10 @@ Monaco was first initialized — the parent window. The fix:
    inherited theme tokens match the editor's.
 
 ### N31.3 — Document-targeted theme + styles
+
+**Class: Root-cause fix.** Reading theme attributes and injecting
+styles into the editor's owning document is correct. Preserve
+verbatim.
 
 - `theme: getExpressionTheme(doc)` reads `data-theme` from the
   editor's document, not the parent.
@@ -622,6 +773,15 @@ above are the ds-token bindings that aren't in Monaco's bundle.
 
 ### N31.4 — Popout-aware key bridges via `editor.addCommand`
 
+**Class: Workaround.** Root cause is host-shell key-event
+swallowing in popped windows and transform-using containers
+before keys reach Monaco's hidden textarea. The bridges are a
+backup channel that uses Monaco's command system instead of the
+input pipeline. **Investigate the actual key-routing path in a
+rewrite before preserving these bridges** — a popout host that
+correctly forwards `keydown` to the editor obviates all 13
+re-bindings.
+
 Re-bind every interactive chord through `editor.addCommand` so the
 key reaches Monaco's command system even when the popped host shell
 swallows it before the hidden textarea sees it:
@@ -641,6 +801,13 @@ Visibility of the suggest list is checked with
 the parent's document.
 
 ### N31.5 — Escape-to-close-suggest gated on `hostWin.opener`
+
+**Class: Layered workaround.** Sits on top of N31.4 — required
+*because* the key-bridge approach doesn't naturally cover Escape
+(rebinding it unconditionally would conflict with shell-level
+Escape handlers). The popout-detection gate is itself a
+workaround within a workaround. **If N31.4 is unrolled, N31.5
+unrolls with it.** Until then, preserve verbatim.
 
 `Escape` cannot be re-bound unconditionally because in the main
 window, Monaco's stock Escape handling correctly dismisses the
@@ -667,6 +834,16 @@ user pops back in, the editor is fully re-created (the React tree
 remounts in the parent), so the binding goes away naturally.
 
 ### N31.6 — Force the legacy hidden-textarea input path
+
+**Class: Time-bombed workaround.** Same root cause as N31.4 —
+host-shell key-event swallowing — manifesting on a different
+Monaco code path (EditContext vs textarea). Monaco will eventually
+deprecate the legacy input path; when this option stops being
+honored, the keystroke-drop bug must be solved at the actual root
+cause, not patched. The source comment in `editorOptions.ts`
+references this entry by number to ensure a future Monaco upgrade
+triggers a re-investigation rather than a silent regression.
+**If N31.4 is unrolled, N31.6 unrolls with it.**
 
 Monaco ≥ 0.50 defaults to the new EditContext API for input. In our
 host shells (settings sheet, popped-out windows, transform-using

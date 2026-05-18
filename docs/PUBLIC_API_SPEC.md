@@ -1726,6 +1726,22 @@ screenshots in `visual-reference/`. The catalogue grows
 monotonically; entries are never deleted, only superseded (with the
 superseding entry referenced inline).
 
+**Fix taxonomy — not every nuance is created equal.** Each
+catalogue entry carries a **Classification** tag from this set:
+`Root-cause fix`, `Architectural decision`, `Defensive guard`,
+`Workaround`, `Layered workaround`. The first three should be
+preserved verbatim. The last two flag fixes that paper over a
+deeper problem — a rewrite is encouraged to re-investigate the
+underlying cause and replace the workaround with a root-cause fix
+where possible. Layered workarounds in particular (workarounds
+piled on workarounds, e.g. the Monaco key-routing chain
+N31.4 → N31.5 → N31.6) are signals that the surface they cover is
+overdue for an event-model rethink rather than another patch.
+**Preservation is the floor, not the ceiling.** A rewrite that
+simplifies the workaround chain — provably, with the catalogued
+symptoms still failing to reproduce — is preferred over one that
+copies every layer faithfully.
+
 **Why this separation.** The type signatures in this document
 catch contract violations at compile time. The nuance catalogue
 catches behavioural regressions that no type system can see — the
