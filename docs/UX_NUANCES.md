@@ -177,11 +177,12 @@ both so the rewriter has the option.
 | **N31** | Monaco expression editor in popouts | Six separate fixes Monaco needs when its host is a popped-out window | R + W + L |
 | **N32** | Conditional-styling expression scope | Prototype-chain diff scope — same `[…]` syntax handles live + old/new without engine knowing the difference | R |
 | **N33** | Diagnostic logging | Single `createLogger("starui:<pkg>")` contract — 302 bare-console-call legacy is workaround-class debt | W |
+| **N34** | Identity-trust boundary | Server-side dev/prod mode is the only correct place to gate "trust client-supplied userId" — client-side gates leak | A |
 
-Entries N1–N9, N31, N32, and N33 are fully captured below. Entries
-N10–N30 are stubs — they name a real, observable nuance that the
-rewrite must preserve, but the full implementation note is not yet
-authored.
+Entries N1–N9, N31, N32, N33, and N34 are fully captured below.
+Entries N10–N30 are stubs — they name a real, observable nuance that
+the rewrite must preserve, but the full implementation note is not
+yet authored.
 **The stubs are deliberately not empty: their existence is itself
 information** — a rewrite reviewer scanning this index sees that the
 formatter dialog has a non-trivial Excel-format autocomplete that
@@ -1133,12 +1134,116 @@ at the top of the file) is mechanical and lives in the rewrite plan.
 
 ---
 
+## N34. Identity-trust boundary — server-side dev/prod gate is the only correct place
+
+**Classification.** Architectural decision. Not a fix — it is the
+correct way to gate "trust client-supplied userId" in a system
+that supports both convenient development and shippable
+production. Preserve verbatim.
+
+**Surface.** The boundary between `<StarUIApp>` bootstrap (which
+reads `userId` from manifest / config-file / explicit prop) and
+the StarUI Config Server (which decides whether to trust that
+value). The boundary's *location* is the load-bearing decision.
+
+**Symptom if missing.** A production deployment that accidentally
+ships with "trust client-supplied userId" active is an
+**unconditional privilege-escalation hole**. Anyone with manifest-
+edit access to a deployed app — or anyone who can open devtools
+and modify the in-memory config — can call any ConfigService
+endpoint as any user, read any user's profile, modify any user's
+saved grids and dock layouts, exfiltrate audit data, etc. No
+client-side mitigation closes this; the moment a client decides
+"trust this userId without a token" runs in production, the
+deployment is compromised.
+
+The footgun is unavoidable in design: the *whole point* of the
+manifest/config-file `userId` is to skip authentication during
+development. That convenience MUST exist somewhere. If it lives
+on the client (a `process.env.NODE_ENV === "production"` check in
+the browser, or a "is this build production" flag in the React
+tree), it's defeated by:
+
+- Misconfigured prod builds shipping `NODE_ENV=development` —
+  caught only if you happen to look.
+- DevTools modification of the in-memory flag — trivial.
+- A second deployment using the same JavaScript bundle that
+  inadvertently keeps the dev path active.
+
+None of those failure modes are exotic. All of them ship.
+
+**Root cause.** The dev-vs-prod distinction is a *deployment*
+property, not a *runtime* property. It belongs on the **server**,
+which is deployed once per environment and whose mode is set by
+the operator (not the application).
+
+**Implementation note.** The StarUI Config Server runs in
+**exactly one** of two modes, fixed at server startup:
+
+| Mode | Auth behaviour | Client-supplied userId | Use case |
+|---|---|---|---|
+| `dev`  | Accepts requests without `Authorization` header | Used as authoritative | Local development against `npx @starui/config-server` |
+| `prod` | Requires valid JWT; derives `userId` from `sub` claim | **Ignored** | Every non-development environment |
+
+Hard constraints:
+
+1. The mode is a **server-startup flag** (`STARUI_CONFIG_MODE=dev` /
+   `=prod`, or `--mode=dev` / `--mode=prod` CLI arg). It is **not** a
+   configurable property per-request, per-tenant, or per-user.
+2. The prod binary refuses to start in `dev` mode without an
+   explicit `--i-know-this-is-dev` opt-in flag. Operators
+   accidentally inverting the mode flag get a startup error, not a
+   silent privilege-escalation hole.
+3. The dev binary may be the same artifact as the prod binary or a
+   separate one — implementation choice. Either way, the mode flag
+   is checked once at boot and cached in module-scope state. No
+   request handler may re-read it.
+4. **Client-side code is dev/prod-agnostic.** The browser bundle
+   always sends `Authorization: Bearer <token>` when a token is
+   present, and always sends the `userId` it resolved from the
+   bootstrap chain. The server decides which to trust.
+
+The `<StarUIApp>` bootstrap chain in `PUBLIC_API_SPEC.md` §1.4 is
+the *client-side* mechanism for supplying a userId when no IdP
+handshake has happened. The chain itself is dev/prod-agnostic. The
+production safety lives in the server's `prod` mode ignoring the
+chain's output and trusting only the JWT.
+
+**Why this is Architectural and not a Workaround.** A workaround
+papers over a problem whose root cause is elsewhere; a root-cause
+fix solves a real problem at the right layer. A client-side
+"trust gate" *would* be a workaround — it tries to solve a
+deployment problem at the wrong layer, and breaks in predictable
+ways. The server-side mode flag is the right layer because mode
+**is** a deployment property. There is no simpler design that
+preserves the dev convenience without the privilege-escalation
+risk.
+
+**Files (v2 reference).**
+- The server lives in the (in-progress) repurpose of
+  `/Users/develop/wfh/configservice-old` — see Commit 3 of the
+  current spec sequence for the §4 rewrite.
+- Client-side bootstrap chain in
+  `/Users/develop/staruiv2/packages/app/src/StarUIApp.tsx` (v2
+  reference impl).
+
+**Cross-references.**
+- `PUBLIC_API_SPEC.md` §1.4 — the four-stage bootstrap chain.
+- `PUBLIC_API_SPEC.md` §15 #13 — non-negotiable: no hardcoded
+  user id; hard dev/prod identity-trust boundary; prod binary
+  startup guard.
+- `PUBLIC_API_SPEC.md` §4 (Commit 3) — the StarUI Config Server's
+  dev/prod mode flag.
+
+---
+
 # To document next
 
-Entries N10–N30 are stubs (N31, N32, and N33 were added as full
-entries as those concerns surfaced — Monaco-in-popout, the
-prototype-chain diff scope, and the logging contract respectively).
-Adding each remaining stub requires:
+Entries N10–N30 are stubs (N31, N32, N33, and N34 were added as
+full entries as those concerns surfaced — Monaco-in-popout, the
+prototype-chain diff scope, the logging contract, and the
+identity-trust boundary respectively). Adding each remaining stub
+requires:
 
 1. Reading the v1 source for the relevant surface.
 2. Writing the entry following the conventions above.

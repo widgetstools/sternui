@@ -84,7 +84,9 @@ interface StarUIAppConfig {
   };
   /** Custom RuntimePort instance. Bypasses plugin auction. */
   readonly runtime?: RuntimePort;
-  /** Override user id. Defaults to the platform's "dev1" pin until SSO. */
+  /** Explicit userId override. When set, completely bypasses identity
+   *  resolution (§1.4). Tests use this; production code MUST NOT.
+   *  See §1.4 for the standard identity-resolution chain. */
   readonly userId?: string;
 }
 ```
@@ -92,18 +94,23 @@ interface StarUIAppConfig {
 ### Behaviour
 
 1. **Bootstrap is async.** Children do not render until the runtime,
-   ConfigManager, and (if configured) DataServices are ready.
-2. **Runtime selection auction.** Each plugin's `provideRuntime()` is
+   identity, ConfigManager, and (if configured) DataServices are
+   ready.
+2. **Identity resolves through the bootstrap chain** documented in
+   §1.4. There is no hardcoded default user id. A bootstrap that
+   cannot resolve an identity halts with a recoverable error
+   (rendered through `fallback`).
+3. **Runtime selection auction.** Each plugin's `provideRuntime()` is
    called in registration order. First non-null wins. Falls back to
    `BrowserRuntime`.
-3. **Plugin hooks are isolated.** Errors in any `provideRuntime` /
+4. **Plugin hooks are isolated.** Errors in any `provideRuntime` /
    `onBootstrap` / `onShutdown` are logged and swallowed. One bad
    plugin does not block app boot.
-4. **Cancellation-safe.** Unmount during bootstrap cancels pending
+5. **Cancellation-safe.** Unmount during bootstrap cancels pending
    work and still runs `onShutdown` hooks in reverse order.
-5. **Validates `appId` is a non-empty string.** Throws otherwise
+6. **Validates `appId` is a non-empty string.** Throws otherwise
    (programmer error).
-6. **Logs through `createLogger("starui:app")`.**
+7. **Logs through `createLogger("starui:app")`.**
 
 ## 1.2 `StarUIPlugin` — extension contract
 
@@ -227,6 +234,133 @@ that enforces this — see §15 #12 + the
 
 - Test files use bare `console.*` freely. Production code paths
   do not.
+
+## 1.4 Identity resolution — the bootstrap chain
+
+There is no hardcoded user id anywhere in the platform. Identity
+resolves through a four-stage chain at bootstrap. Stages run in
+order; the first that yields a `userId` wins:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Stage 1: Explicit override                                      │
+│   <StarUIApp userId="…"> wins over everything below.            │
+│   Production code MUST NOT set this. Tests + Storybook may.     │
+├─────────────────────────────────────────────────────────────────┤
+│ Stage 2: Manifest / config-file                                 │
+│   OpenFin: manifest.customSettings.starui.userId                │
+│   Web app: /starui.config.json → { userId: "…" }                │
+│   Empty string / missing → fall through to Stage 3.             │
+├─────────────────────────────────────────────────────────────────┤
+│ Stage 3: Enterprise redirect handshake                          │
+│   Bootstrap navigates to                                        │
+│     config.auth.redirectUrl?return=<encoded-current-url>        │
+│   IdP authenticates, redirects back with #token=…&userId=…      │
+│   StarUIApp reads the hash, stores token in memory, uses userId.│
+├─────────────────────────────────────────────────────────────────┤
+│ Stage 4: Failure                                                │
+│   None of the above yielded a userId. Bootstrap halts; the      │
+│   <StarUIApp fallback={…}> renders with an IdentityError.       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Once a `userId` is resolved, `ConfigService` is called to fetch the
+matching `UserProfile`, `Role[]`, and `Permission[]` rows. The
+resulting `IdentitySnapshot` (§6.1) carries all four — `userId`,
+`roles`, `permissions`, plus the `customData` from manifest /
+config-file (e.g. `desk`, `region`).
+
+### `StarUIAppConfig.auth` — opt-in for the redirect flow
+
+```ts
+interface StarUIAppConfig {
+  // …existing fields…
+  readonly auth?: {
+    /** Enterprise IdP URL. Browser navigates here when no userId is
+     *  resolved from Stage 1 or 2. The URL is expected to honour a
+     *  `?return=<encoded-url>` query parameter and redirect back to
+     *  the application with `#token=…&userId=…` in the URL hash. */
+    readonly redirectUrl: string;
+    /** Optional storage key for the in-memory token. Default:
+     *  "starui:auth:token". The token is never written to localStorage
+     *  or sessionStorage — it lives in module-scope memory only. */
+    readonly tokenStorageKey?: string;
+  };
+}
+```
+
+When `auth.redirectUrl` is absent **and** stages 1–2 yield no userId,
+bootstrap fails with `IdentityError` rather than attempting Stage 3.
+
+### Manifest / config-file schema
+
+```jsonc
+// OpenFin manifest — app.fin.json
+{
+  "platform": { "uuid": "…" },
+  "customSettings": {
+    "starui": {
+      "userId": "anand.nandanwar",        // empty/missing → Stage 3
+      "configServerUrl": "http://localhost:3000",
+      "dockVersion": "v2",
+      "auth": {                            // optional
+        "redirectUrl": "https://auth.intranet/login"
+      }
+    }
+  }
+}
+```
+
+```jsonc
+// Web app — /starui.config.json
+{
+  "appId": "fx-blotter",
+  "userId": "",                            // empty → Stage 3
+  "configServerUrl": "/config",
+  "auth": {
+    "redirectUrl": "https://auth.intranet/login"
+  }
+}
+```
+
+The web-app config file is fetched at bootstrap (`/starui.config.json`
+by convention; overridable via `StarUIAppProps.config.configFileUrl`).
+A 404 is non-fatal — bootstrap proceeds with Stage 3 if `auth` is
+configured at the React level via props, or fails otherwise.
+
+### Token handling
+
+The token returned from Stage 3 (and any token attached via Stage 2
+in OpenFin manifests that include one) lives in **module-scope
+memory** within `@starui/app`. It is:
+
+- **Not** persisted to `localStorage` or `sessionStorage`.
+- **Not** written into any ConfigService row.
+- Attached to every outgoing REST request to the StarUI Config
+  Server as `Authorization: Bearer <token>`.
+
+The token's `sub` claim is the authoritative `userId` server-side.
+Any client-supplied userId is **ignored** by the prod-mode Config
+Server (see §15 #13 and §4 in Commit 3 of this sequence).
+
+### Dev / prod identity-trust boundary
+
+The "manifest can specify userId" convenience is **dev-only safety
+critical**. The hard boundary lives server-side:
+
+- The StarUI Config Server runs in one of two modes:
+  - `dev`: accepts requests without a token; uses the client-supplied
+    `userId` (header, query, or body) as authoritative.
+  - `prod`: refuses any request without a valid JWT; derives `userId`
+    from the token's `sub` claim; **ignores** any client-supplied
+    userId.
+- The mode is a server-startup flag, **not** a configurable property
+  per-request. The prod binary refuses to start in dev mode without
+  an explicit `--i-know-this-is-dev` flag.
+
+§15 #13 makes this non-negotiable. `UX_NUANCES.md` §N34 documents
+the trust boundary as a classification-Architectural decision — not a
+workaround, this is how the dev/prod separation has to work.
 
 ---
 
@@ -1262,6 +1396,9 @@ interface RestProviderConfig {
 // Package: @starui/runtime
 interface RuntimePort {
   readonly name: "browser" | "openfin";
+  /** Consult the bootstrap chain (§1.4) and return the resolved
+   *  identity. MUST NOT return a hardcoded fallback userId. If the
+   *  chain yields no userId, throws `IdentityError`. */
   resolveIdentity(): Promise<IdentitySnapshot>;
   openSurface(spec: SurfaceSpec): Promise<SurfaceHandle>;
   getTheme(): Theme;
@@ -1303,7 +1440,12 @@ interface IdentitySnapshot {
 type Theme = "light" | "dark";
 type SurfaceKind = "popout" | "modal" | "inpage";
 
-const LOGGED_IN_USER_ID = "dev1";              // single-user pin until SSO
+// No hardcoded user id. Identity resolves through the bootstrap
+// chain documented in §1.4 (explicit override → manifest/config-file
+// → enterprise redirect → fail). Any legacy literal like "dev1" is
+// a contract violation. The v1 LOGGED_IN_USER_ID constant is
+// retired; v1's continued use of it is captured as workaround-class
+// technical debt in UX_NUANCES.md §N34.
 const THEME_STORAGE_KEY = "starui:theme";
 const THEME_BROADCAST_CHANNEL = "starui:theme";
 ```
@@ -1936,9 +2078,12 @@ on `onGridReady` and on `profile:loaded`. Schema v3.
 
 These hold across every package:
 
-1. **`userId` is hard-pinned to `LOGGED_IN_USER_ID` (= `"dev1"`)** at
-   every identity resolution point until SSO. Override hooks exist but
-   the production value is fixed.
+1. **`userId` resolves through the §1.4 bootstrap chain** —
+   explicit prop → manifest/config-file → enterprise redirect → fail.
+   No hardcoded fallback. The legacy `LOGGED_IN_USER_ID = "dev1"`
+   constant is retired; v1's continued use of it is documented as
+   workaround-class debt in `UX_NUANCES.md` N34, and any new code
+   carrying such a literal is a §15 #13 contract violation.
 2. **`AppConfigRow.componentType` is kebab-case** everywhere
    (`"markets-grid-profile-set"`, `"dock-config"`, etc.). Legacy
    uppercase rows are still readable but rewritten on next save.
@@ -2027,6 +2172,20 @@ Any new implementation must:
     the `starui:<pkg-short>` convention listed in §1.3. The
     `@starui/eslint-plugin` package's `no-bare-console` rule
     enforces this at lint time.
+13. **No hardcoded user id; hard dev/prod identity-trust boundary.**
+    The platform MUST NOT carry any hardcoded user id constant
+    (the v1 `LOGGED_IN_USER_ID = "dev1"` is retired). Identity
+    MUST resolve through the four-stage bootstrap chain in §1.4.
+    Server-side, the StarUI Config Server (§4, Commit 3) runs in
+    exactly one of two modes: **`dev`** accepts client-supplied
+    userId without a token; **`prod`** ignores any client-supplied
+    userId and derives identity from the JWT `sub` claim only.
+    The mode is a server-startup flag, not a per-request setting.
+    Production binaries MUST refuse to start in `dev` mode without
+    an explicit `--i-know-this-is-dev` flag. This boundary is the
+    single difference between "convenient developer experience"
+    and "shippable privilege-escalation hole" — it is
+    non-negotiable.
 
 ---
 
