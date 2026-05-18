@@ -562,6 +562,11 @@ interface ConfigClient {
   readonly userProfiles: UserProfileOps;
   readonly appRegistry:  AppRegistryOps;
 
+  // Orphan reclamation (see §4.6)
+  markAlive(args: MarkAliveArgs): Promise<void>;
+  listOrphans(args?: OrphanQuery): Promise<OrphanReport>;
+  purgeOrphans(args?: OrphanQuery & { readonly dryRun?: boolean }): Promise<PurgeReport>;
+
   health(): Promise<HealthStatus>;
 }
 ```
@@ -654,11 +659,6 @@ interface ConfigFilter {
 }
 ```
 
-Three concrete implementations:
-- `LocalConfigClient` (Dexie-backed) — created when `baseUrl` omitted
-- `RestConfigClient` (HTTP) — created when `baseUrl` provided
-- `createConfigClient()` (dispatcher) — picks based on opts
-
 ## 4.2 `AppConfigRow` — the bundle row schema
 
 ```ts
@@ -678,6 +678,11 @@ interface AppConfigRow {
   readonly creationTime: number;
   readonly updatedTime: number;
   readonly __v?: number;                // optimistic-lock version
+  /** Last time a runtime plugin reported this row's instanceId as
+   *  reachable from a saved workspace.  `null` / `undefined` means the
+   *  row has never been observed alive — i.e. it is a candidate
+   *  orphan once `neverAliveOlderThan` elapses.  See §4.6. */
+  readonly lastAliveAt?: number | null;
 }
 
 const COMPONENT_TYPES: {
@@ -783,6 +788,135 @@ interface RoleOps {
 }
 // Same shape for PermissionOps, UserProfileOps, AppRegistryOps
 ```
+
+## 4.6 Orphan reclamation
+
+### The problem this section solves
+
+A `Hosted*` widget calls `configClient.saveConfig(...)` the moment it
+mounts with an `instanceId`. Whether that `instanceId` ever ends up
+*referenced* from a saved workspace state is a completely separate
+event, owned by the runtime (OpenFin layouts, browser-tab session
+state, custom shells).
+
+The configClient cannot determine reachability on its own — the
+graph of "which instanceIds are live" lives in the runtime, not in
+the config store. Without explicit reclamation, every component
+instance the user ever opened lingers in the database forever.
+
+Three life states exist for every row:
+
+| State | Definition | Typical cause |
+|---|---|---|
+| **Never alive** | `lastAliveAt == null`, row older than `neverAliveOlderThan` | User opened a widget, closed the app without saving the workspace. |
+| **Stale** | `lastAliveAt` exists but is older than `olderThan` | User removed the view from layout and saved. |
+| **Alive** | `lastAliveAt` within `olderThan`, or row is within `neverAliveOlderThan` of creation | Currently reachable from a saved workspace. |
+
+### Surface
+
+```ts
+// Package: @starui/config
+interface MarkAliveArgs {
+  /** Stable identifier for the workspace whose state is being saved.
+   *  In OpenFin, this is the workspace/page id. In a browser-only
+   *  app, this is whatever the runtime plugin uses to keep workspaces
+   *  distinct (often the URL or a fixed "default" sentinel). */
+  readonly workspaceId: string;
+  /** Every instanceId reachable from this workspace's saved state.
+   *  The set MUST be exhaustive — anything not in it for this
+   *  workspaceId becomes a stale-reference candidate. */
+  readonly liveInstanceIds: readonly string[];
+}
+
+interface OrphanQuery {
+  /** ISO 8601 duration. Rows whose `lastAliveAt` is older than this
+   *  threshold are stale candidates. Default: "P30D" (30 days). */
+  readonly olderThan?: string;
+  /** ISO 8601 duration. Rows where `lastAliveAt` is null AND the row
+   *  is older than this threshold are never-alive candidates.
+   *  Default: "P7D" (7 days). */
+  readonly neverAliveOlderThan?: string;
+  /** Narrow the sweep to one componentType. */
+  readonly componentType?: string;
+}
+
+interface OrphanReport {
+  readonly orphans: readonly OrphanEntry[];
+  readonly thresholds: { readonly olderThan: string; readonly neverAliveOlderThan: string };
+  readonly scannedAt: number;            // Unix epoch ms
+}
+
+interface OrphanEntry {
+  readonly configId: string;
+  readonly componentType: string;
+  readonly componentSubType: string;
+  readonly displayText?: string;
+  readonly creationTime: number;
+  readonly lastAliveAt: number | null;
+  readonly reason: "never-alive" | "stale-reference";
+}
+
+interface PurgeReport extends OrphanReport {
+  readonly deleted: number;              // 0 when dryRun: true
+  readonly dryRun: boolean;
+}
+```
+
+### Behaviour requirements
+
+1. **`markAlive` is idempotent and additive.** Two calls with the
+   same `(workspaceId, instanceId)` pair are equivalent to one. The
+   row's `lastAliveAt` is set to the call's server / client clock.
+2. **`markAlive` is non-destructive.** Rows absent from the call are
+   NOT deleted. Reclamation is a separate explicit step
+   (`purgeOrphans`).
+3. **`listOrphans` is pure.** No row mutation, no side effects.
+4. **`purgeOrphans({ dryRun: true })` is mandatory.** Implementations
+   MUST honour the flag and return the report without deleting.
+5. **Multi-workspace scoping.** A row is alive if ANY workspace's
+   `markAlive` call has referenced its `instanceId` within
+   `olderThan`. Implementations track `lastAliveAt` as the max
+   across all workspaces, not per-workspace.
+6. **Dev (Dexie) vs prod (REST).** Dexie executes the three methods
+   locally. REST exposes them as endpoints
+   (`POST /config/mark-alive`, `GET /config/orphans`,
+   `POST /config/orphans/purge`). In prod, a scheduled cron job
+   (frequency at operator discretion) typically calls `purgeOrphans`
+   server-side with operator-chosen thresholds — the framework does
+   not mandate the cadence.
+7. **Auth-table rows are exempt.** Roles, permissions, userProfile,
+   appRegistry rows are not subject to reclamation — they don't
+   correspond to component instances. Only rows whose
+   `componentType` is in the set of known instance-bearing types
+   (`markets-grid-profile-set`, future widget profile-sets) are
+   eligible. The exact set is server-defined; clients pass
+   `componentType` if they want to narrow further.
+
+### How the runtime triggers reclamation
+
+`RuntimePort.onWorkspaceSave` already exists (§6.1). A runtime
+plugin's responsibility on workspace save is:
+
+```ts
+runtime.onWorkspaceSave(async () => {
+  const liveInstanceIds = await runtime.enumerateLiveInstances();
+  await configClient.markAlive({
+    workspaceId: runtime.currentWorkspaceId(),
+    liveInstanceIds,
+  });
+});
+```
+
+`enumerateLiveInstances()` and `currentWorkspaceId()` are added to
+`RuntimePort` — see §6.1.
+
+### Admin surface
+
+`<ConfigBrowserPanel>` (§8.2) gains an **Orphans** tab that calls
+`listOrphans()` on mount, shows the report grouped by `reason`, and
+exposes a **Purge with dry-run preview** action that calls
+`purgeOrphans({ dryRun: true })` first, surfaces the result, then
+calls `purgeOrphans({ dryRun: false })` on operator confirm.
 
 ---
 
@@ -996,6 +1130,19 @@ interface RuntimePort {
   onWindowClosing(fn: () => void | Promise<void>): Unsubscribe;
   onCustomDataChanged(fn: (cd: unknown) => void): Unsubscribe;
   onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe;
+
+  /** Stable identifier for the workspace whose state would be saved
+   *  by the next `onWorkspaceSave` event. In OpenFin: the active
+   *  workspace/page id. In the browser runtime: a fixed sentinel
+   *  (typically `"default"`) unless the host runtime overrides it. */
+  currentWorkspaceId(): string;
+
+  /** Best-effort enumeration of every `instanceId` reachable from
+   *  the currently-saved workspace state. Used by orphan
+   *  reclamation (§4.6).  The browser runtime returns an empty
+   *  array unless an embedding host provides an implementation. */
+  enumerateLiveInstances(): Promise<readonly string[]>;
+
   dispose(): void;
 }
 
@@ -1069,6 +1216,8 @@ interface HostContextValue extends IdentitySnapshot {
   onWindowClosing(fn: () => void | Promise<void>): Unsubscribe;
   onCustomDataChanged(fn: (cd: unknown) => void): Unsubscribe;
   onWorkspaceSave(fn: () => void | Promise<void>): Unsubscribe;
+  currentWorkspaceId(): string;
+  enumerateLiveInstances(): Promise<readonly string[]>;
 }
 ```
 
@@ -1135,9 +1284,11 @@ function createConfigBrowserAction(opts: {
 }): AdminAction;
 ```
 
-Browses all six ConfigService tables (`appConfig`, `appRegistry`,
-`userProfile`, `roles`, `permissions`, `pendingSync`). Theme syncs
-with OpenFin's `theme-changed` IAB event.
+Browses the ConfigService tables (`appConfig`, `appRegistry`,
+`userProfile`, `roles`, `permissions`). Theme syncs with OpenFin's
+`theme-changed` IAB event. An **Orphans** tab surfaces the orphan
+reclamation API from §4.6 — `listOrphans` on mount, with a
+**Purge (dry-run preview)** action.
 
 ## 8.3 `<WorkspaceSetup>`
 
@@ -1458,6 +1609,14 @@ Any new implementation must:
    a runtime migration. Authority for conflict resolution and
    optimistic locking lives server-side in prod; the browser is a
    thin client.
+9. **Orphan reclamation is part of the public contract.**
+   `ConfigClient` MUST expose `markAlive`, `listOrphans`, and
+   `purgeOrphans` with the semantics in §4.6. `RuntimePort` MUST
+   expose `currentWorkspaceId()` and `enumerateLiveInstances()`.
+   Every runtime plugin that owns workspace persistence MUST wire
+   `onWorkspaceSave` → `enumerateLiveInstances` → `markAlive`.
+   `purgeOrphans({ dryRun: true })` MUST be a real preview — no
+   row may be deleted while `dryRun` is true.
 
 ---
 
@@ -1498,6 +1657,26 @@ A rewrite may freely:
     chose between Dexie and REST at runtime. Replaced by two
     independent factories: `createRestConfigClient` (prod) and
     `createDexieConfigClient` (dev, behind the `/dev` subpath).
+13. **Orphan-reclamation scheduling, batching, and storage strategy
+    are latitude.** The framework mandates the surface (§4.6) and
+    the trigger (§6.1's `onWorkspaceSave` hook); it does not
+    mandate:
+    - Cron cadence in prod (operator-chosen; suggested default
+      daily).
+    - Whether `purgeOrphans` issues a hard `DELETE` or a soft-delete
+      with a `deletedAt` tombstone column. Both satisfy the
+      contract as long as `listOrphans` no longer reports the row
+      afterward.
+    - Whether the REST server uses an aggregation pipeline, a
+      cursor sweep, or a materialised orphan view to compute the
+      report.
+    - Whether `markAlive` writes per-call, debounces in-memory, or
+      coalesces by `workspaceId`. The user-visible guarantee is
+      eventual consistency before the next `listOrphans` scan, not
+      synchronous write.
+    - The exact set of `componentType` values treated as
+      reclamation-eligible (server-defined; clients narrow with
+      `OrphanQuery.componentType` if needed).
 
 The boundary between "must preserve" (§15) and "free to change" (§16)
 is the difference between *user-facing semantics* and *implementation
