@@ -175,9 +175,10 @@ both so the rewriter has the option.
 | N29 | Conditional formatting cascade | _TODO — per-cell rule priority order, tie-break by definition order_ | ? |
 | N30 | Resizable panels | _TODO — snap to default at 30px, persist size to profile, double-click handle = reset_ | ? |
 | **N31** | Monaco expression editor in popouts | Six separate fixes Monaco needs when its host is a popped-out window | R + W + L |
+| **N32** | Conditional-styling expression scope | Prototype-chain diff scope — same `[…]` syntax handles live + old/new without engine knowing the difference | R |
 
-Entries N1–N9 and N31 are fully captured below. Entries N10–N30 are
-stubs — they name a real, observable nuance that the rewrite must
+Entries N1–N9, N31, and N32 are fully captured below. Entries N10–N30
+are stubs — they name a real, observable nuance that the rewrite must
 preserve, but the full implementation note is not yet authored.
 **The stubs are deliberately not empty: their existence is itself
 information** — a rewrite reviewer scanning this index sees that the
@@ -905,11 +906,146 @@ fails to reproduce in the rewritten popout:
 
 ---
 
+## N32. Conditional-styling expression scope — prototype-chain diff trick
+
+**Classification.** Root-cause fix. Genuinely the right design —
+not a workaround. Preserve verbatim.
+
+**Surface.** The evaluation scope passed to the expression engine
+inside conditional-styling rule evaluation. Specifically the object
+returned by `buildColumnsContextFromDiffs(data, rowDiffs)` and the
+`{ x, value, data, columns }` shape passed to
+`engine.parseAndEvaluate(rule.expression, …)`.
+
+**Symptom if missing.** Three flavours of regression, all subtle:
+
+- A rule `[trade.price.last] > 100` evaluates `undefined` even when
+  `data.trade.price.last === 105`, because the scope's
+  `columns.trade.price.last` lookup misses and the engine has no
+  fallback path.
+- A rule `[trade.price.old] > [trade.price.new]` evaluates against
+  the live value for both sides (always equal, always false),
+  because the engine dot-walks the suffix as if it were a literal
+  data path. Cells never flash on tick.
+- A rule referencing a field that happens to be literally named
+  `"x.y"` on the row (some upstream feeds emit dot-containing keys)
+  reads the wrong value — either undefined from a missing nested
+  walk, or the wrong nested value from a coincidental traversal.
+
+**Root cause.** The expression engine resolves `[a.b.c]` references
+by reading properties off the supplied scope. There are three
+classes of reference that must all resolve correctly:
+
+1. **Live nested access** — `[trade.price.last]` reads the current
+   value at `data.trade.price.last`.
+2. **Old/new sibling access** — `[trade.price.last.old]` and
+   `[trade.price.last.new]` read prior/current snapshots from the
+   diff cache.
+3. **Literal flat-key access** — `["weird.key"]` on a row shaped
+   `{ "weird.key": 1, normal: {…} }` reads the literal property.
+
+The naive approach — pass `data` as the scope and have the engine
+do dot-walks — handles (1) but breaks (2) and (3). A more elaborate
+approach — give the engine a custom resolver that knows about
+diffs and literals — solves correctness but pushes complexity into
+the engine and couples it to the conditional-styling runtime.
+
+**Implementation note.** The elegant solution v1 lands on is a
+**prototype-chain scope** built per rule evaluation:
+
+```ts
+function buildColumnsContextFromDiffs(
+  data: Record<string, unknown>,
+  rowDiffs: Map<string, { oldValue: unknown; newValue: unknown }> | undefined,
+): Record<string, unknown> {
+  const out = Object.create(data) as Record<string, unknown>;
+  if (!rowDiffs || rowDiffs.size === 0) return out;
+  for (const [colId, diff] of rowDiffs) {
+    out[`${colId}.old`] = diff.oldValue;   // OWN property — literal string key
+    out[`${colId}.new`] = diff.newValue;   // OWN property — literal string key
+  }
+  return out;
+}
+```
+
+Why this is load-bearing:
+
+1. **`Object.create(data)`** makes `data` the prototype of the
+   returned object. Any property read that misses on `out` falls
+   through to `data` via the prototype chain. So
+   `out.trade.price.last` works without ceremony.
+2. **Own-property writes for `${colId}.old` / `${colId}.new`** use
+   the **literal string** `"trade.price.last.old"` as the property
+   name. The dot is part of the key, not a separator. When the
+   engine reads the bracket reference `[trade.price.last.old]` as a
+   single literal property name lookup, it hits the own property
+   first and gets the diff value. **No engine-level knowledge of
+   suffix semantics required.**
+3. The same lookup pattern handles literal flat keys — if upstream
+   sends `{ "weird.key": 1 }`, that property exists literally on
+   `data` and is reachable via the prototype chain with the same
+   single-property-read approach.
+
+The engine's reference resolution is a one-liner conceptually:
+
+```ts
+function resolveRef(scope: unknown, refPath: string): unknown {
+  // Step 1: literal property lookup (catches own-property writes
+  // from buildColumnsContextFromDiffs AND literal flat keys on data).
+  if (scope && typeof scope === 'object') {
+    const literal = (scope as Record<string, unknown>)[refPath];
+    if (literal !== undefined) return literal;
+  }
+  // Step 2: dot-walk fallback for nested live access.
+  return getPathAccessor(refPath)(scope);
+}
+```
+
+The two-step resolve mirrors what `getValueByPath` does at the data
+level (§2.5), one layer up — and that symmetry is intentional.
+
+**Why this is a root-cause fix and not a workaround.** It is the
+correct interface between three independent concerns: the expression
+engine wants to do one property read per reference; the diff cache
+wants to expose old/new without re-introducing dot-path semantics in
+the engine; the data layer wants to keep its native shape. The
+prototype-chain scope is the contract that lets all three keep
+their invariants. A rewrite that "simplifies" this by, e.g.,
+flattening the diff cache into `data` directly would mutate the
+live row in place; or by giving the engine a custom resolver would
+couple engine to runtime. Both are worse.
+
+**Performance.** `Object.create(data)` is one allocation per row
+per rule evaluation. The own-property writes are O(changed-keys),
+not O(total-keys). The trigger pre-filter
+(§4 of conditional-styling design) ensures untouched rows skip
+evaluation entirely so this allocation only happens on rows that
+actually need re-painting.
+
+**Files (v1).**
+- `packages/react/widgets/grid-react/src/modules/conditional-styling/index.ts`
+  — `buildColumnsContextFromDiffs` at the bottom; usage at the
+  `engine.parseAndEvaluate` call sites inside the modelUpdated
+  handler.
+- `packages/shared/foundation/shared-types/src/dataProvider.ts`
+  — `getValueByPath` with the literal-flat-key priority.
+- `docs/plans/nested-fields-design.md` — the full design that the
+  expression engine §10.3 of PUBLIC_API_SPEC.md is based on.
+
+**Cross-references.**
+- `PUBLIC_API_SPEC.md` §2.5 — `nestedField()` and the shared
+  accessor cache.
+- `PUBLIC_API_SPEC.md` §10.3 — bracket-reference syntax + `prev()`.
+- `PUBLIC_API_SPEC.md` §15 #11 — non-negotiable that bare
+  dot-fields are a contract violation.
+
+---
+
 # To document next
 
-Entries N10–N30 are stubs (N31 was added as a new full entry —
-Monaco-in-popout — because it surfaced as a distinct concern late).
-Adding each remaining stub requires:
+Entries N10–N30 are stubs (N31 and N32 were added as full entries
+as those concerns surfaced — Monaco-in-popout and the prototype-
+chain diff scope respectively). Adding each remaining stub requires:
 
 1. Reading the v1 source for the relevant surface.
 2. Writing the entry following the conventions above.

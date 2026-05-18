@@ -435,6 +435,80 @@ compound `>a and <b`; comma-separated lists); (3) expose a clear
 button; (4) auto-detect `MM/DD` vs `DD/MM` from input shape (date
 filter only).
 
+## 2.5 Nested fields — `nestedField()` factory + path accessors
+
+Every ColDef whose data path contains a dot **MUST** be authored
+through `nestedField()`. Bare `field: "x.y.z"` literals are a
+contract violation (see §15 #11). Rationale and design in
+[`./plans/nested-fields-design.md`](./plans/nested-fields-design.md).
+
+```ts
+// Package: @starui/shared (foundation leaf — vanilla TS)
+
+/** Returns a cached closure that reads `path` from a row.
+ *  Semantics: literal-flat-key priority on the root, then null-safe
+ *  dot-walk. Cached by `path` string so identity is stable. */
+export function getPathAccessor(path: string): (row: unknown) => unknown;
+
+/** Returns a cached closure that writes `value` to `path` on a row,
+ *  creating intermediate plain-object segments as needed.
+ *  Returns `true` if the write changed the value, `false` if no-op. */
+export function getPathSetter(path: string): (row: unknown, value: unknown) => boolean;
+```
+
+```ts
+// Package: @starui/grid
+
+interface NestedFieldOptions {
+  /** Dot-notation path. Also the default colId — be deliberate
+   *  because colId is the persistence key. */
+  readonly path: string;
+  /** Override the column id. Use when v1 state used a different id. */
+  readonly colId?: string;
+  /** Sort comparator. Default: null-safe numeric/string comparator. */
+  readonly comparator?: ColDef['comparator'];
+  /** Change-detection equals. Default: `Object.is`. */
+  readonly equals?: ColDef['equals'];
+  /** When false, the column is read-only and AG-Grid rejects in-place
+   *  edits. Default: true. */
+  readonly writable?: boolean;
+}
+
+export function nestedField(opts: NestedFieldOptions): Partial<ColDef>;
+```
+
+Hooks the factory MUST populate:
+
+| Hook | Contract |
+|---|---|
+| `field`              | Set to `opts.path`. AG-Grid's group/pivot/aggregation auto-features use it. |
+| `colId`              | `opts.colId ?? opts.path`. Stable persistence key. |
+| `valueGetter`        | `(p) => getPathAccessor(opts.path)(p.data)`. Routes every read (sort, filter, render, tooltip, export) through the compiled closure. |
+| `valueSetter`        | `(p) => getPathSetter(opts.path)(p.data, p.newValue)` when `writable !== false`; omitted when `writable === false`. |
+| `comparator`         | `opts.comparator ?? defaultNullSafeComparator`. |
+| `equals`             | `opts.equals ?? Object.is`. |
+| `tooltipValueGetter` | Stringifies the current value via the compiled accessor. |
+| `headerTooltip`      | `opts.path`. |
+
+### Usage
+
+```ts
+{
+  headerName: 'Last Price',
+  ...nestedField({ path: 'trade.price.last' }),
+  cellClass: 'numeric',
+}
+```
+
+### Runtime dev safety net
+
+`GridPlatform` MUST walk the registered ColDefs at startup in dev
+builds and emit a `console.warn('[starui:grid] bare nested field "<path>" — use nestedField()')`
+for any ColDef whose `field` contains `.` but does not appear to
+have been authored through `nestedField()` (heuristic:
+`!valueGetter && !valueSetter` while `field.includes('.')`). Zero
+production cost.
+
 ---
 
 # 3. Grid customizer surfaces (consumed indirectly via `<MarketsGrid>`)
@@ -1435,7 +1509,63 @@ Cross-row aggregation: 9 functions carry `aggregateColumnRefs: true`
 `VARIANCE`, `MIN`, `MAX`). `SUM([price])` sums every row's `price`,
 not the current row's scalar.
 
-## 10.3 Security policy
+## 10.3 Bracket-reference syntax — nested paths + old/new
+
+`[…]` references inside an expression accept dot-notation paths and
+two reserved suffixes for delta access. Full design in
+[`./plans/nested-fields-design.md`](./plans/nested-fields-design.md).
+
+### Path resolution
+
+```text
+[trade.price.last]        // current value at trade.price.last
+[trade.price.last.old]    // prior value (from the conditional-styling diff cache)
+[trade.price.last.new]    // current value (synonym for [trade.price.last] in delta contexts)
+```
+
+Resolution rules:
+
+1. The reference path is canonicalised by stripping a trailing
+   `.old` or `.new` suffix if present.
+2. The canonical path compiles to a closure via `getPathAccessor`
+   (§2.5) — shared cache with ColDef accessors.
+3. At evaluation time the engine looks up the literal reference
+   string (e.g. `"trade.price.last.old"`) on the supplied scope
+   first. Hits resolve through the prototype-chain trick documented
+   in `UX_NUANCES.md` §N32. Misses fall through to the compiled
+   accessor on `params.data`.
+4. **Trigger registration uses the canonical path.** An expression
+   `[a.b.c.old] > [a.b.c.new]` registers one trigger on `a.b.c`, not
+   two. The cross-column trigger pre-filter (§4 of conditional-
+   styling design) consults the trigger set against the row's
+   `changedKeys` so untouched rows skip evaluation entirely.
+
+### `prev([…])` function — cross-field delta
+
+For cross-field delta comparisons where suffix syntax has no
+expression:
+
+```text
+prev([trade.price.last]) > [trade.cost.last]
+```
+
+`prev` is a reserved function registered in the catalogue. Its
+single argument MUST be a bracket reference (compile-time error
+otherwise). Behaviour:
+
+- Resolves to `rowDiffs.get(canonicalPath).oldValue` when a diff
+  entry exists for the path on the current row.
+- Falls back to the current value when no diff entry exists (e.g.
+  first observation of the row).
+- Registers the canonical path as a trigger, identical to a bare
+  `[…]` reference.
+
+The suffix form and `prev()` form share semantics for the
+single-field case — `[a.b.c.old]` is functionally equivalent to
+`prev([a.b.c])`. Authors use whichever reads better in the
+expression.
+
+## 10.4 Security policy
 
 ```ts
 function configureExpressionPolicy(opts: {
@@ -1627,6 +1757,19 @@ Any new implementation must:
     binding mechanism. Visual parity is verified against
     `docs/visual-reference/` per the acceptance criterion in
     that directory's README.
+11. **Nested fields go through `nestedField()`.** Every ColDef
+    whose `field` contains a `.` MUST be authored via the
+    `nestedField()` factory documented in §2.5. Bare
+    `field: "x.y.z"` string literals in ColDef objects are a
+    contract violation regardless of whether they "work" with
+    AG-Grid's built-in dot-walk — they bypass the compiled
+    accessor cache, the consistent `valueSetter`, the stable
+    `colId`, and the runtime dev safety net. Implementations
+    MUST expose `getPathAccessor` and `getPathSetter` from
+    `@starui/shared` as documented in §2.5, share the accessor
+    cache between ColDef reads and expression-engine `[…]`
+    reference resolution, and canonicalise `.old` / `.new`
+    suffixes to one trigger entry as documented in §10.3.
 
 ---
 
