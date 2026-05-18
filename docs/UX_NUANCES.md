@@ -109,8 +109,9 @@ added between them.
 | N28 | Theme switch atomicity | _TODO — no flash of unstyled grid; themed CSS-var swap inside rAF_ |
 | N29 | Conditional formatting cascade | _TODO — per-cell rule priority order, tie-break by definition order_ |
 | N30 | Resizable panels | _TODO — snap to default at 30px, persist size to profile, double-click handle = reset_ |
+| **N31** | Monaco expression editor in popouts | Six separate fixes Monaco needs when its host is a popped-out window |
 
-Entries N1–N9 are fully captured below. Entries N10–N30 are
+Entries N1–N9 and N31 are fully captured below. Entries N10–N30 are
 stubs — they name a real, observable nuance that the rewrite must
 preserve, but the full implementation note is not yet authored.
 **The stubs are deliberately not empty: their existence is itself
@@ -514,9 +515,224 @@ useEffect(() => {
 
 ---
 
+## N31. Monaco expression editor in popouts
+
+**Surface.** The Monaco-backed expression editor used by Conditional
+Styling, Calculated Columns, and any future expression-DSL surface,
+when its host (Settings Sheet, Customizer, Formatter) is popped out
+into a separate browser or OpenFin window.
+
+**Symptom if missing.** Any one or several of:
+- Suggest-widget appears on the parent window while the editor is on
+  the popout — same class of bug as N1 but Monaco is not React-aware
+  so `PortalContainerProvider` does not help.
+- Suggest-widget appears on the popout but with completely wrong
+  colors (light-theme defaults inside a dark-theme popout).
+- Pressing Tab indents instead of accepting a suggestion. Arrow keys
+  move the caret without navigating the open suggestion list.
+- Backspace does nothing inside the popped editor.
+- Escape inside an open suggestion does not dismiss it — only a
+  click outside the editor does.
+- Typing is intermittent: keystrokes drop ~10–20% of the time, more
+  often after a focus switch between popout and parent.
+
+**Root cause.** Monaco is a DOM-native library, not a React-aware
+one. It captures `window` / `document` references at module-load
+time and uses them at runtime for theme registration, overflow
+widget mounting, keyboard event routing, `getComputedStyle`-based
+visibility checks, and worker creation. None of that follows when
+the editor's mount node is in a different document than the one
+the Monaco module first ran against.
+
+In addition, Monaco's input pipeline (hidden-textarea or the newer
+EditContext API in Monaco ≥ 0.50) and its command-key routing are
+both sensitive to the chain of `focusin`/`focusout` events between
+the editor's container, the popout window, and the parent window.
+A popped-out host shell that wraps the editor in containers using
+`transform`, `position: fixed`, or `overflow: hidden` (settings
+sheets do all three) intercepts key events before Monaco's hidden
+textarea sees them.
+
+**Implementation note.** Six separate fixes, all required, all
+present in v1:
+
+### N31.1 — Per-document `EditorDomContext`
+
+Derive the editor's `{ document, window }` pair from
+`hostRef.current.ownerDocument`, never from the lexical `window` /
+`document`. Pass this `document` reference everywhere Monaco needs a
+DOM target: theme registration, overflow host creation,
+`getComputedStyle` calls, placeholder injection.
+
+```ts
+export function getElementDomContext(element: HTMLElement | null) {
+  if (!element) return null;
+  const doc = element.ownerDocument;
+  return { document: doc, window: doc.defaultView ?? window };
+}
+```
+
+### N31.2 — Per-document overflow widget host with `WeakMap` caching
+
+Monaco's suggest-widget, parameter-hints widget, and hover popovers
+escape the editor's `overflow: hidden` parent by mounting into the
+document's `<body>`. By default they target the document where
+Monaco was first initialized — the parent window. The fix:
+
+1. Build a per-document overflow host element, classed
+   `monaco-editor monaco-editor-overflow-widgets-host` (the
+   `monaco-editor` className is **mandatory** — Monaco's widget CSS
+   is scoped under it; without it the suggest-widget renders
+   unstyled).
+2. Cache it in a `WeakMap<Document, HTMLDivElement>` keyed by
+   document, so the popout gets its own host and the parent keeps
+   its own. The `WeakMap` lets browser GC reclaim the popout's host
+   when its document is destroyed.
+3. Pass `overflowWidgetsDomNode: getMonacoOverflowHost(doc)` and
+   `fixedOverflowWidgets: true` in the editor options.
+4. Track theme on the host element itself
+   (`host.classList.add('vs-dark' | 'vs')`) so the popover's
+   inherited theme tokens match the editor's.
+
+### N31.3 — Document-targeted theme + styles
+
+- `theme: getExpressionTheme(doc)` reads `data-theme` from the
+  editor's document, not the parent.
+- Inject a per-document `<style id="ds-expression-editor-monaco-style">`
+  block that binds Monaco widget elements to design-system tokens:
+  ```css
+  .monaco-editor .suggest-widget,
+  .monaco-editor .parameter-hints-widget,
+  .monaco-editor .monaco-hover {
+    background: var(--ds-surface-primary) !important;
+    border: 1px solid var(--ds-border-primary) !important;
+    color: var(--ds-text-primary) !important;
+    box-shadow: var(--ds-elevation-overlay) !important;
+  }
+  ```
+  Idempotent via `doc.getElementById(styleId)` check — safe to call
+  every editor mount.
+- Same pattern for the placeholder text style
+  (`ensurePlaceholderStyle(doc)`).
+
+The stylesheet-clone path in N4 picks up Monaco's runtime-emitted
+`<style>` tags from the parent (Monaco's CSS is injected into
+`document.head` on module load). The per-document `<style>` blocks
+above are the ds-token bindings that aren't in Monaco's bundle.
+
+### N31.4 — Popout-aware key bridges via `editor.addCommand`
+
+Re-bind every interactive chord through `editor.addCommand` so the
+key reaches Monaco's command system even when the popped host shell
+swallows it before the hidden textarea sees it:
+
+- `Tab` → `acceptSelectedSuggestion` if suggest is open, else `tab`
+- `Shift+Tab` → `outdent`
+- `Ctrl+Space` → `editor.action.triggerSuggest`
+- `↓` / `↑` / `Home` / `End` → list-navigation when suggest is open,
+  else cursor movement
+- `Shift+arrow` → selection variants (same conditional)
+- `Backspace` / `Delete` → model-level delete via
+  `deleteFromEditor(monaco, editor, 'backward' | 'forward')`
+
+Visibility of the suggest list is checked with
+`hasVisibleSuggestion(doc)` which uses `doc.defaultView.getComputedStyle`
+— **not** the lexical `window.getComputedStyle`, which would query
+the parent's document.
+
+### N31.5 — Escape-to-close-suggest gated on `hostWin.opener`
+
+`Escape` cannot be re-bound unconditionally because in the main
+window, Monaco's stock Escape handling correctly dismisses the
+suggest widget AND the parent shell uses Escape to close dialogs.
+In the popout, Monaco's stock Escape doesn't reach the suggest-
+widget close handler (same key-routing pathology as N31.4), so the
+suggest list stays open forever.
+
+The fix is to gate the Escape rebind on popout detection:
+```ts
+const hostWin = editor.getDomNode()?.ownerDocument?.defaultView ?? window;
+const auxiliaryPopout = hostWin.opener != null && hostWin.opener !== hostWin;
+if (auxiliaryPopout) {
+  editor.addCommand(monaco.KeyCode.Escape, () => {
+    if (suggestOpen()) trig('hideSuggestWidget');
+  });
+}
+```
+
+`window.opener` is the standard way to detect a `window.open`-created
+popup. `hostWin.opener !== hostWin` defends against a same-window
+self-reference. The check happens at editor-create time; if the
+user pops back in, the editor is fully re-created (the React tree
+remounts in the parent), so the binding goes away naturally.
+
+### N31.6 — Force the legacy hidden-textarea input path
+
+Monaco ≥ 0.50 defaults to the new EditContext API for input. In our
+host shells (settings sheet, popped-out windows, transform-using
+containers) that path drops keystrokes ~10–20% of the time. The
+workaround is to opt out per-editor:
+
+```ts
+editContext: false
+```
+
+This forces Monaco back to the legacy `.inputarea` (hidden textarea)
+input path, which routes through the standard
+`keydown`/`keypress`/`input` events that the key bridges in N31.4
+hook into. The trade-off is loss of IME composition niceties that
+EditContext brings — acceptable for the expression DSL which is
+ASCII-only.
+
+### Composition
+
+All six fixes layer on the existing PopoutPortal infrastructure
+from N1–N9: the popout is created, stylesheets are cloned, the
+React subtree mounts inside the popout's document, the shadcn
+primitives get the right portal target, and Monaco picks up the
+right document via `ownerDocument`. Without **any one** of N31.1
+through N31.6, the symptom returns. They are not orthogonal — they
+are the cumulative result of six separate bug-hunts.
+
+**Files (v1).**
+- `packages/react/widgets/grid-react/src/ui/ExpressionEditor/editorDom.ts` — N31.1, N31.2, N31.3 plumbing
+- `packages/react/widgets/grid-react/src/ui/ExpressionEditor/editorOptions.ts` — N31.2 (`overflowWidgetsDomNode`, `fixedOverflowWidgets`), N31.6 (`editContext: false`)
+- `packages/react/widgets/grid-react/src/ui/ExpressionEditor/expressionEditorKeyBridges.ts` — N31.4 + N31.5
+- `packages/react/widgets/grid-react/src/ui/ExpressionEditor/ExpressionEditorInner.tsx` — orchestration: `getElementDomContext(hostRef.current)` and threading the document through
+- `packages/react/widgets/grid-react/src/ui/ExpressionEditor/monacoEnvironment.ts` — Monaco worker stub (DSL has no TS/CSS/HTML worker needs; a no-op worker satisfies Monaco's plumbing)
+- `packages/react/widgets/grid-react/src/ui/ExpressionEditor/expressionEditorDeletion.ts` — model-level Backspace/Delete impl referenced by N31.4
+
+**Screenshots.**
+- `visual-reference/react/dark/expression-editor/popped-out-with-suggest.png`
+- `visual-reference/react/dark/expression-editor/popped-out-with-help-overlay.png`
+- `visual-reference/popout-broken/monaco-suggest-on-parent.png`
+- `visual-reference/popout-broken/monaco-suggest-unstyled.png`
+
+**Rewrite checklist for the Monaco expression editor.**
+
+A rewrite passes Monaco-popout parity when each of these symptoms
+fails to reproduce in the rewritten popout:
+
+- [ ] Suggest-widget renders inside the popout window, themed
+      against design-system tokens (`var(--ds-surface-primary)` /
+      `var(--ds-text-primary)`).
+- [ ] Tab accepts the highlighted suggestion when the list is open.
+- [ ] ↑/↓ arrows navigate the suggestion list when open, else move
+      the caret.
+- [ ] Backspace and Delete remove characters from the model.
+- [ ] Escape dismisses the suggestion list (popout only).
+- [ ] No keystrokes are dropped during sustained typing or
+      after focus switch between popout and parent.
+- [ ] Help overlay (Ctrl-/) opens inside the popout, not the
+      parent.
+
+---
+
 # To document next
 
-Entries N10–N30 are stubs. Adding each requires:
+Entries N10–N30 are stubs (N31 was added as a new full entry —
+Monaco-in-popout — because it surfaced as a distinct concern late).
+Adding each remaining stub requires:
 
 1. Reading the v1 source for the relevant surface.
 2. Writing the entry following the conventions above.
