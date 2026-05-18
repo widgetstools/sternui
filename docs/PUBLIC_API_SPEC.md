@@ -809,19 +809,19 @@ Behaviour:
 
 ## 4.1 `ConfigClient` — framework-agnostic surface
 
-ConfigService ships **two completely independent implementations** of
-the same `ConfigClient` interface. An app picks exactly one at boot;
-they are **never used together**, there is no dispatcher, and there
-is no sync / write-through / reconciliation between them.
+ConfigService ships **one** `ConfigClient` implementation on the
+browser — a thin REST client. The browser is always a thin client;
+the server is always the source of truth. The server itself
+(documented in §4.7) is shipped as part of the platform and runs
+in either dev mode (SQLite storage, no auth) or prod mode (any
+pluggable storage including MongoDB, JWT auth required).
 
-| Environment | Implementation | Storage backend | Bundle cost |
-|---|---|---|---|
-| **Development** | `DexieConfigClient` | Browser IndexedDB (Dexie) | Dexie + impl, ~20 KB gzipped |
-| **Production**  | `RestConfigClient`  | MongoDB (or any) via REST API | impl only, ~3 KB gzipped |
+The previous spec language describing a dual `DexieConfigClient` /
+`RestConfigClient` split on the client is **retired**. See the
+"Retired" subsection below and §16 latitude for the dropped items.
 
 ```ts
 // Package: @starui/config
-// Shared interface — both impls expose exactly this surface.
 interface ConfigClient {
   // Generic ops
   getConfig(filter: ConfigFilter): Promise<AppConfigRow | null>;
@@ -846,81 +846,88 @@ interface ConfigClient {
 }
 ```
 
-### Two construction paths
+### Single construction path — REST only
 
 ```ts
-// PROD path — REST against the deployed server (MongoDB-backed today,
-// any document store tomorrow).  Production bundles import only this.
 // Package: @starui/config
-function createRestConfigClient(opts: {
-  readonly baseUrl: string;                  // required
-  readonly fetch?: typeof fetch;             // override for testing
-  readonly headers?: Record<string, string>; // e.g. { Authorization: "Bearer …" }
+function createConfigClient(opts: {
+  /** Base URL of the StarUI Config Server (§4.7). Required.
+   *  Resolved at bootstrap from manifest / config-file or
+   *  StarUIAppConfig.config.configServerUrl. */
+  readonly baseUrl: string;
+  /** `fetch` override for testing. */
+  readonly fetch?: typeof fetch;
+  /** Token provider. Invoked before each request that requires auth.
+   *  Returning null means "no auth header" — the server will accept
+   *  the request iff it runs in dev mode (§4.7). */
+  readonly getToken?: () => Promise<string | null>;
+  /** Retry policy on network errors. Default: 3 attempts, 200ms
+   *  starting backoff (exponential). */
   readonly retry?: { attempts: number; backoffMs: number };
-}): ConfigClient;
-```
-
-```ts
-// DEV path — Dexie/IndexedDB.  Lives at a SEPARATE subpath so prod
-// bundles tree-shake it out (bundlers see `@starui/config/dev` is
-// never imported in production code paths → Dexie + impl drops out).
-// Package: @starui/config/dev
-function createDexieConfigClient(opts: {
-  /** Dexie database name. Default: "starui-config". */
-  readonly dbName?: string;
-  /** Seed JSON for first-boot bootstrap (auth tables). */
-  readonly seedUrl?: string;
 }): ConfigClient;
 ```
 
 ### Selection at `<StarUIApp>` boot
 
-The app picks exactly one based on its `config.backend`:
-
 ```ts
 interface StarUIConfigConfig {
-  /** "rest" for production (with restUrl required) or "dev" for
-   *  Dexie-backed local development. No default — apps must pick. */
-  readonly backend: "rest" | "dev";
-  /** REST endpoint. Required when backend === "rest". */
-  readonly restUrl?: string;
-  /** Auth header builder for REST mode. */
-  readonly auth?: () => Promise<{ token: string }>;
-  /** Optional seed JSON URL — applies in both modes on a fresh DB. */
+  /** Base URL of the StarUI Config Server.
+   *  "auto" reads VITE_CONFIG_SERVICE_URL, then the OpenFin manifest's
+   *  customSettings.starui.configServerUrl, then the web config-file's
+   *  configServerUrl. Explicit string overrides all of these. */
+  readonly configServerUrl?: "auto" | string;
+  /** Optional seed JSON URL — applied server-side on a fresh dev DB
+   *  via configservice-old's bootstrap path. Ignored in prod mode. */
   readonly seedUrl?: string;
-  /** Identity override. */
+  /** Identity override (rarely needed; identity normally flows from
+   *  §1.4 bootstrap chain). */
   readonly identity?: AppIdentity;
 }
 ```
 
 ### Behaviour requirements
 
-1. **One client per app, full stop.** No code path runs both. No
-   write-through. No queued offline sync. No `pendingSync` table.
-2. **Dev → Prod is a redeploy, not a migration.** When promoting an
-   environment from dev (Dexie) to prod (REST), profiles live in
-   different stores. The platform makes no attempt to sync them. Users
-   exporting profiles for cross-machine transfer use the existing
-   `ProfileManager.export` / `import` JSON-payload flow.
-3. **No browser-side authority in prod.** `RestConfigClient` does not
-   maintain a local read cache that survives reloads. The server is the
-   source of truth; reads are HTTP. (Per-session in-memory memoisation
-   for repeated reads within a single page load is fine.)
-4. **Optimistic locking lives on the server in prod.** `__v` is
-   incremented server-side; the client surfaces `ProfileSetVersionConflictError`
-   when the server returns 409. In dev (Dexie), the same logic runs
-   in the browser.
-5. **Tree-shakeable boundary.** Production builds importing only from
-   `@starui/config` (no `/dev` subpath) must bundle zero Dexie code.
+1. **One client, one storage authority.** The browser is always a
+   thin REST client. The server is always the source of truth.
+2. **No browser-side authority — period.** The client does not
+   maintain a read cache that survives reloads. Per-session
+   in-memory memoisation for repeated reads within one page load
+   is fine; cross-reload caching is not.
+3. **Optimistic locking lives server-side.** `__v` is incremented
+   server-side on every save; the client surfaces
+   `ProfileSetVersionConflictError` when the server returns 409.
+4. **Auth header attached automatically when `getToken` resolves
+   non-null.** The header is `Authorization: Bearer <token>`. The
+   client never inspects the token — only the server validates it.
+5. **No client-side dev/prod awareness.** The browser bundle is
+   identical between dev and prod deployments. The dev/prod
+   difference lives entirely in the server's startup mode (§15
+   #13).
 
-### What is intentionally NOT in this spec
+### Retired — what this section USED to say
 
-- A "dual-mode" dispatcher (was `createConfigClient` in v1; **dropped**).
-- A `pendingSync` table or offline-write queue (**dropped**).
-- A `migrateLegacyProfilesIfNeeded` step in production (Dexie is a
-  dev concern; prod never sees it). The function may remain in
-  `@starui/config/dev` for upgrades from older dev environments.
-- Write-through-both semantics inside `ConfigManager` (**dropped**).
+The earlier spec described two independent client implementations:
+
+- `DexieConfigClient` at `@starui/config/dev` — IndexedDB-backed
+  for development.
+- `RestConfigClient` at `@starui/config` — REST-backed for
+  production.
+
+This split is **retired**. Reasons:
+
+- Dev and prod paths exercised different code, producing
+  dev-vs-prod parity gaps (the most common kind of "works in dev,
+  breaks in prod" regression).
+- The IndexedDB path duplicated the auth-table / orphan-reclamation
+  / optimistic-lock logic that the server already needed.
+- The "tree-shake Dexie out of prod" guarantee was a
+  bundler-correctness invariant nobody could mechanically verify.
+
+The repurposed `configservice-old` (§4.7) makes the unified path
+practical: dev developers run the server locally against SQLite via
+`npx @starui/config-server`; prod operators run the same server
+against MongoDB (or any pluggable storage). The wire protocol is
+identical end-to-end.
 
 ```ts
 interface ConfigFilter {
@@ -1021,7 +1028,12 @@ function ConfigServiceProvider(props: {
   readonly identity: AppIdentity;
   readonly appId: string;
   readonly seedUrl?: string;
-  readonly restUrl?: string;
+  /** Base URL of the StarUI Config Server (§4.7). When omitted,
+   *  the provider resolves it from the bootstrap chain:
+   *  StarUIAppConfig.config.configServerUrl → OpenFin manifest
+   *  customSettings.starui.configServerUrl → web config-file
+   *  configServerUrl → throws. */
+  readonly configServerUrl?: string;
   readonly children: ReactNode;
 }): JSX.Element;
 
@@ -1192,6 +1204,166 @@ runtime.onWorkspaceSave(async () => {
 exposes a **Purge with dry-run preview** action that calls
 `purgeOrphans({ dryRun: true })` first, surfaces the result, then
 calls `purgeOrphans({ dryRun: false })` on operator confirm.
+
+## 4.7 The StarUI Config Server
+
+`@starui/config-server` is a Node service shipped as part of the
+platform. Developers run it locally for development; operators run
+it in production. The browser-side `ConfigClient` always talks to
+an instance of this server. There is no other config backend.
+
+The server is repurposed from `configservice-old`. The
+configservice-old refactor plan is documented in
+[`./plans/config-server-design.md`](./plans/config-server-design.md);
+this section documents the **public contract** the server MUST
+honour.
+
+### Mode flag
+
+The server runs in exactly one mode, set at startup:
+
+| Mode | `STARUI_CONFIG_MODE` | Auth | Client-supplied userId |
+|---|---|---|---|
+| Dev  | `dev`  | Not required | Used as authoritative (header, query, or body) |
+| Prod | `prod` | JWT required (`Authorization: Bearer …`) | Ignored; derived from token's `sub` claim |
+
+The prod binary refuses to start in `dev` mode without an explicit
+`--i-know-this-is-dev` CLI flag (§15 #13).
+
+### Storage backend
+
+A `Storage` interface abstracts the persistence layer. Two
+implementations ship:
+
+| Backend | Use case | Selection |
+|---|---|---|
+| **SQLite**   | Local dev, single-node deployments | `STARUI_CONFIG_STORAGE=sqlite` (default) + `STARUI_CONFIG_SQLITE_PATH=/var/lib/starui/config.sqlite` |
+| **MongoDB**  | Production at scale | `STARUI_CONFIG_STORAGE=mongo` + `STARUI_CONFIG_MONGO_URL=mongodb://…` + `STARUI_CONFIG_MONGO_DB=starui_config` |
+
+The `Storage` interface MUST be the only point the route handlers
+touch persistence. Adding a third backend (Postgres, DynamoDB,
+etc.) is one new file implementing the interface. Routes never
+know which backend is active.
+
+```ts
+// Server-internal contract; not exported to the browser
+interface Storage {
+  getRow(filter: ConfigFilter, scope: ServerScope): Promise<AppConfigRow | null>;
+  saveRow(row: AppConfigRow, scope: ServerScope): Promise<AppConfigRow>;
+  listRows(filter: ConfigFilter, page: PageOptions, scope: ServerScope): Promise<PaginatedResult<AppConfigRow>>;
+  deleteRow(filter: ConfigFilter, scope: ServerScope): Promise<void>;
+  bulkUpdate(updates: ReadonlyArray<BulkUpdateEntry>, scope: ServerScope): Promise<BulkUpdateResult>;
+  bulkDelete(filters: ReadonlyArray<ConfigFilter>, scope: ServerScope): Promise<BulkDeleteResult>;
+
+  // Identity / auth tables
+  getUserProfile(userId: string, scope: ServerScope): Promise<UserProfile | null>;
+  getUserRoles(userId: string, scope: ServerScope): Promise<readonly Role[]>;
+  getUserPermissions(userId: string, scope: ServerScope): Promise<readonly Permission[]>;
+  // …role + permission CRUD…
+
+  // Orphan reclamation (§4.6)
+  markAlive(args: MarkAliveArgs, scope: ServerScope): Promise<void>;
+  listOrphans(args: OrphanQuery, scope: ServerScope): Promise<OrphanReport>;
+  purgeOrphans(args: OrphanQuery & { dryRun?: boolean }, scope: ServerScope): Promise<PurgeReport>;
+
+  health(): Promise<HealthStatus>;
+}
+
+interface ServerScope {
+  /** Resolved userId — derived from JWT in prod, from request in dev. */
+  readonly userId: string;
+  /** The application requesting the data. */
+  readonly appId: string;
+}
+```
+
+### Wire protocol — REST endpoints
+
+All endpoints are JSON-over-HTTPS. `Authorization: Bearer <token>`
+header required in prod mode; ignored in dev mode. Routes follow
+REST conventions: noun-based paths, HTTP verbs map to operations.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET`    | `/health` | Liveness probe. Returns `{ ok, mode, storage }`. |
+| `GET`    | `/configs` | List rows matching `ConfigFilter` (query params). Paginated. |
+| `GET`    | `/configs/:configId` | Fetch a single row. |
+| `POST`   | `/configs` | Insert a new row. |
+| `PUT`    | `/configs/:configId` | Update a row. 409 on `__v` mismatch. |
+| `DELETE` | `/configs/:configId` | Delete a row. |
+| `POST`   | `/configs/bulk-update` | Batched updates. |
+| `POST`   | `/configs/bulk-delete` | Batched deletes. |
+| `GET`    | `/users/:userId/profile` | Fetch the user's profile row. |
+| `GET`    | `/users/:userId/roles` | Fetch role assignments. |
+| `GET`    | `/users/:userId/permissions` | Flattened permission list. |
+| `GET`    | `/roles` / `POST`/`PUT`/`DELETE` `/roles/:id` | Role CRUD (auth-table sub-ops). |
+| `GET`    | `/permissions` / `POST`/`PUT`/`DELETE` `/permissions/:id` | Permission CRUD. |
+| `POST`   | `/configs/mark-alive` | Orphan reclamation (§4.6). |
+| `GET`    | `/configs/orphans` | List orphans. |
+| `POST`   | `/configs/orphans/purge` | Purge orphans. |
+
+In prod mode, every endpoint validates the JWT and uses
+`token.sub` as the operative `userId`. The route handler's
+`ServerScope.userId` is the JWT subject — full stop. Any
+client-supplied `userId` in path, query, or body is overwritten
+server-side with the token's claim. This is the §15 #13 contract.
+
+### Identity endpoints — the role/permission resolution
+
+When the client's `<StarUIApp>` bootstrap (§1.4) resolves a
+userId, it calls three endpoints in parallel:
+
+```
+GET /users/:userId/profile
+GET /users/:userId/roles
+GET /users/:userId/permissions
+```
+
+The results populate the `IdentitySnapshot` returned by
+`RuntimePort.resolveIdentity()` — `userId`, `roles`,
+`permissions`, plus any `customData` flowed from the manifest /
+config-file.
+
+A 404 on any of the three is treated as "user exists but has no
+data of this kind yet" — the corresponding field of
+`IdentitySnapshot` is the empty array / null. A 401/403 is
+treated as auth failure; bootstrap fails with `IdentityError`.
+
+### Schema — server tables mirror `AppConfigRow`
+
+The SQLite schema is a single `configurations` table whose columns
+mirror `AppConfigRow` (§4.2) one-to-one, plus the auth tables
+(`users`, `roles`, `permissions`, `role_permissions`,
+`user_roles`). The MongoDB schema is one collection per row type
+with identical document shapes. Migrations from the existing
+`configservice-old` schema (`nodes` + `configurations` with a
+hierarchical model) are documented in
+`docs/plans/config-server-design.md`.
+
+### Behaviour requirements
+
+1. **Mode is cached at boot.** No request handler may re-read the
+   mode flag. A mode change requires server restart.
+2. **`prod` ignores client-supplied userId.** Every read/write
+   uses `JWT.sub` as `ServerScope.userId`. The request body /
+   query / path's `userId` field is **overwritten** before reaching
+   the storage layer.
+3. **`dev` accepts the request as-is.** No JWT validation; the
+   request-supplied userId IS the operative one. Useful for local
+   development against curl / Postman / a browser without a real
+   IdP.
+4. **Optimistic locking is server-authoritative.** The server reads
+   the current row's `__v`, compares to the incoming `__v`,
+   increments on success, returns 409 on mismatch. The client
+   never increments `__v`.
+5. **Audit fields are server-stamped.** `createdBy`, `updatedBy`,
+   `creationTime`, `updatedTime` are written server-side from
+   `ServerScope.userId` and `Date.now()`; the client cannot set
+   them.
+6. **Health endpoint always returns `mode`.** The dev/prod
+   distinction is reflected in `/health`'s payload so operators
+   can verify the deployed mode without inspecting the server's
+   environment.
 
 ---
 
@@ -2121,16 +2293,18 @@ Any new implementation must:
 7. **Preserve the URL routes the OpenFin reference shell uses**:
    `/platform/provider`, `/blotters/marketsgrid`, `/dataproviders`,
    `/config-browser`, `/workspace-setup`, `/rename-view-tab`.
-8. **Production deployments use REST exclusively.** The framework
-   provides **no** offline-first behaviour, no IndexedDB-to-REST
-   synchronisation, no `pendingSync` queue, no conflict reconciliation,
-   no dual-write logic. Dev (`@starui/config/dev`, Dexie) and prod
-   (`@starui/config`, REST + MongoDB) are two independent
-   implementations of the same `ConfigClient` interface. Switching from
-   dev to prod is a redeploy with a different `backend:` selector, not
-   a runtime migration. Authority for conflict resolution and
-   optimistic locking lives server-side in prod; the browser is a
-   thin client.
+8. **One ConfigClient implementation, one server.** The browser
+   ships exactly one `ConfigClient` — a thin REST client. The
+   StarUI Config Server (§4.7) is the source of truth in every
+   environment. Dev developers run the server locally against
+   SQLite; prod operators run the same server against MongoDB (or
+   another `Storage` implementation). The dev/prod difference is
+   a server-startup mode flag, never a client-side selector. No
+   offline-first behaviour, no IndexedDB-to-REST synchronisation,
+   no `pendingSync` queue, no conflict reconciliation, no dual-
+   write logic. The earlier `DexieConfigClient` /
+   `RestConfigClient` split is **retired**; consult §4.1's
+   "Retired" subsection for the rationale.
 9. **Orphan reclamation is part of the public contract.**
    `ConfigClient` MUST expose `markAlive`, `listOrphans`, and
    `purgeOrphans` with the semantics in §4.6. `RuntimePort` MUST
@@ -2210,22 +2384,36 @@ A rewrite may freely:
 7. **Replace the SharedWorker bootstrap mechanism** as long as the
    protocol envelope shape and the multiplex-one-connection-per-provider
    guarantee hold.
-8. **Drop the `pendingSync` table** from any ConfigService schema.
-   No sync queue exists in either dev or prod paths.
-9. **Drop `migrateLegacyProfilesIfNeeded`** from the prod path. Legacy
-   in-place migration was a v1 bridge for users who had local Dexie
-   profiles before the REST backend existed. The prod path starts from
-   a server-authoritative store; there is nothing to migrate from.
-10. **Drop write-through-both / dual-write logic.** A `ConfigClient`
-    talks to exactly one backend for its lifetime.
-11. **Drop Dexie from the prod bundle.** `@starui/config` (default
-    import) must tree-shake `dexie` to zero bytes in production.
-    Dexie is only reachable via the explicit `@starui/config/dev`
-    subpath.
-12. **Drop the dispatching `createConfigClient(opts)` factory** that
-    chose between Dexie and REST at runtime. Replaced by two
-    independent factories: `createRestConfigClient` (prod) and
-    `createDexieConfigClient` (dev, behind the `/dev` subpath).
+8. **Drop the `pendingSync` table, the IndexedDB-to-REST sync
+   queue, `migrateLegacyProfilesIfNeeded`, write-through-both
+   semantics, Dexie from the prod bundle, the dispatching
+   `createConfigClient(opts)` factory, and the dual
+   `DexieConfigClient` / `RestConfigClient` implementations.**
+   All of these were artefacts of the previous "two independent
+   client implementations" design now retired in §4.1. The
+   unified REST-server design (§4.7) supersedes the entire
+   cluster.
+9. **Storage-backend choice for the StarUI Config Server is
+   latitude.** §4.7 mandates the `Storage` interface and ships
+   SQLite + MongoDB implementations; adding Postgres, DynamoDB,
+   FoundationDB, or any other backend is one new file. Pick
+   whatever fits the operational profile.
+10. **Server transport detail is latitude.** §4.7's REST shape is
+    the public wire contract; the server is free to use Express,
+    Fastify, Hono, raw `http.createServer`, or anything else, and
+    may add HTTP/2, WebSocket push notifications, or batch
+    endpoints internally without spec change. The browser client
+    only knows the documented REST endpoints.
+11. **Server-side caching, indexing, and query optimisation are
+    latitude.** Materialised views, full-text indexes on
+    `payload`, change-stream emission, etc. — implementation
+    choices. Wire shape and behaviour requirements (§4.7) are
+    the contract.
+12. **Dev-server developer-ergonomics features are latitude.**
+    `npx @starui/config-server` may ship hot-reload of seed JSON,
+    a built-in DB browser, request logging UI, or none of the
+    above. None of those affect the wire contract; all of them
+    are op-in to dev mode and refused at startup in prod mode.
 13. **Orphan-reclamation scheduling, batching, and storage strategy
     are latitude.** The framework mandates the surface (§4.6) and
     the trigger (§6.1's `onWorkspaceSave` hook); it does not
