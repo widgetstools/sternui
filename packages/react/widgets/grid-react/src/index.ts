@@ -35,6 +35,15 @@ export { useActiveThemeMode } from './hooks/useActiveThemeMode';
 // `{ getGridApi, gridId }` shape) through their props.
 export type { GridCoreLike as GridCore } from './hooks/GridContext';
 
+// ─── ColDef helpers ──────────────────────────────────────────────────────
+// See docs/PUBLIC_API_SPEC.md §2.5 — nestedField() is the sanctioned
+// authoring API for every ColDef whose data path contains a dot.
+export {
+  nestedField,
+  defaultNullSafeComparator,
+  type NestedFieldOptions,
+} from './coldef';
+
 // ─── ExpressionEditor ────────────────────────────────────────────────────
 export { ExpressionEditor } from './ui/ExpressionEditor';
 export type {

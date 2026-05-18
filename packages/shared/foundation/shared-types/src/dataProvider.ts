@@ -554,6 +554,125 @@ export function getValueByPath(row: unknown, path: string): unknown {
   return cursor;
 }
 
+// ─── Compiled path accessor cache ─────────────────────────────────────
+// Closure-per-path cache shared between ColDef valueGetters (via
+// `nestedField()` in @starui/grid) and the expression engine's
+// `[…]` reference resolution. See:
+//   - docs/PUBLIC_API_SPEC.md §2.5 (nestedField factory)
+//   - docs/PUBLIC_API_SPEC.md §10.3 (bracket-reference syntax)
+//   - docs/plans/nested-fields-design.md (full design)
+//
+// Identity guarantee: `getPathAccessor(p) === getPathAccessor(p)` for
+// any path `p`. Callers may rely on stable closure identity for
+// memoisation / cache keys.
+
+const accessorCache = new Map<string, (row: unknown) => unknown>();
+const setterCache   = new Map<string, (row: unknown, value: unknown) => boolean>();
+
+/**
+ * Return a cached closure that reads `path` from a row.
+ *
+ * Semantics match {@link getValueByPath}: literal-flat-key priority
+ * on the root, then null-safe dot-walk. The closure is cached by
+ * `path` string so identity is stable across calls — safe to use as
+ * a memoisation key.
+ *
+ * Returns `undefined` for non-object roots.
+ */
+export function getPathAccessor(path: string): (row: unknown) => unknown {
+  const cached = accessorCache.get(path);
+  if (cached) return cached;
+
+  let fn: (row: unknown) => unknown;
+  if (!path.includes('.')) {
+    // Fast path — single segment, no walking.
+    fn = (row) => {
+      if (row == null || typeof row !== 'object') return undefined;
+      return (row as Record<string, unknown>)[path];
+    };
+  } else {
+    const segments = path.split('.');
+    fn = (row) => {
+      if (row == null || typeof row !== 'object') return undefined;
+      const obj = row as Record<string, unknown>;
+      // Step 1 — literal flat key wins on the ROOT only.
+      if (Object.prototype.hasOwnProperty.call(obj, path)) return obj[path];
+      // Step 2 — null-safe dot-walk with cached segments array.
+      let cursor: unknown = obj;
+      for (let i = 0; i < segments.length; i++) {
+        if (cursor == null || typeof cursor !== 'object') return undefined;
+        cursor = (cursor as Record<string, unknown>)[segments[i] as string];
+      }
+      return cursor;
+    };
+  }
+  accessorCache.set(path, fn);
+  return fn;
+}
+
+/**
+ * Return a cached closure that writes `value` to `path` on a row,
+ * creating intermediate plain-object segments as needed.
+ *
+ * Returns `true` if the write changed the value (`!Object.is(old, new)`),
+ * `false` if it was a no-op or the root is not an object. Mutates the
+ * row in place.
+ *
+ * Unlike the read path, the setter does NOT honour the literal-flat-key
+ * priority — writing through `"x.y"` always creates `{ x: { y: value } }`.
+ * The read priority is a defence against weird upstream feeds; the
+ * write is an intentional structural commitment.
+ */
+export function getPathSetter(path: string): (row: unknown, value: unknown) => boolean {
+  const cached = setterCache.get(path);
+  if (cached) return cached;
+
+  let fn: (row: unknown, value: unknown) => boolean;
+  if (!path.includes('.')) {
+    fn = (row, value) => {
+      if (row == null || typeof row !== 'object') return false;
+      const obj = row as Record<string, unknown>;
+      if (Object.is(obj[path], value)) return false;
+      obj[path] = value;
+      return true;
+    };
+  } else {
+    const segments = path.split('.');
+    const lastIdx = segments.length - 1;
+    fn = (row, value) => {
+      if (row == null || typeof row !== 'object') return false;
+      let cursor = row as Record<string, unknown>;
+      for (let i = 0; i < lastIdx; i++) {
+        const seg = segments[i] as string;
+        const next = cursor[seg];
+        if (next == null || typeof next !== 'object') {
+          const made: Record<string, unknown> = {};
+          cursor[seg] = made;
+          cursor = made;
+        } else {
+          cursor = next as Record<string, unknown>;
+        }
+      }
+      const finalSeg = segments[lastIdx] as string;
+      if (Object.is(cursor[finalSeg], value)) return false;
+      cursor[finalSeg] = value;
+      return true;
+    };
+  }
+  setterCache.set(path, fn);
+  return fn;
+}
+
+/**
+ * Test-only helper to reset the path-accessor caches between unit
+ * tests. Not part of the public API — exists so per-test state
+ * doesn't bleed across suites.
+ */
+export function __resetPathAccessorCaches(): void {
+  accessorCache.clear();
+  setterCache.clear();
+}
+
 /**
  * Compose a unique row id from one or more configured key columns.
  *
