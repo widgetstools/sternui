@@ -1526,6 +1526,186 @@ Right-click a view tab → "Save Tab As…" must:
    with a 3-second `MutationObserver` guard so the page's own
    `useEffect(() => { document.title = ... }, [])` can't clobber it.
 
+## 9.5 Dock — version selection, renderer mapping, persistence
+
+The OpenFin plugin supports both Dock V3 (legacy, menu items in a
+content menu opened from the dock button) and Dock V2 (current,
+menu items rendered as dropdowns on the dock itself). The version
+is selected per-application via the OpenFin manifest. The dock
+configuration data model — same one the in-app dock-editor UI
+produces — drives both renderers; only the renderer differs.
+
+### Manifest selector
+
+```jsonc
+// app.fin.json
+{
+  "platform": { "uuid": "…", "icon": "…", "autoShow": false },
+  "customSettings": {
+    "starui": {
+      "dockVersion": "v2"      // "v2" (default) | "v3"
+    }
+  }
+}
+```
+
+- **Default** is `"v2"`. The plugin treats omission and `"v2"`
+  identically.
+- `"v3"` is the explicit opt-out for installs that need the
+  content-menu surface (e.g. legacy deployments where deep
+  nesting plus arbitrary actions has been tuned to the V3 paint).
+
+The plugin reads `manifest.customSettings.starui.dockVersion` at
+bootstrap. The choice is **immutable per workspace launch** —
+flipping versions requires restart. Rationale: the persisted dock
+config is shape-compatible across both, but the OpenFin runtime's
+`Dock.register({...})` call commits to one renderer; runtime swap
+would require unregister-and-reregister with the workspace-platform
+provider, which is fragile and operator-confusing.
+
+### Internal data model — same for both
+
+The dock-editor UI emits and the ConfigService persists a single
+recursive tree:
+
+```ts
+// Package: @starui/openfin/workspace
+type DockEntry =
+  | DockLeafEntry
+  | DockFolderEntry;
+
+interface DockLeafEntry {
+  readonly type: "item";
+  readonly id: string;                  // stable; used as action id
+  readonly label: string;
+  readonly tooltip?: string;
+  readonly iconUrl?: string;
+  readonly actionId: string;            // resolves through CustomActionsMap
+  readonly customData?: Readonly<Record<string, unknown>>;
+}
+
+interface DockFolderEntry {
+  readonly type: "folder";
+  readonly id: string;
+  readonly label: string;
+  readonly tooltip?: string;
+  readonly iconUrl?: string;
+  readonly children: ReadonlyArray<DockEntry>;   // RECURSIVE — folders nest
+}
+
+interface DockConfig {
+  readonly entries: ReadonlyArray<DockEntry>;
+  readonly workspaceComponents?: ReadonlyArray<
+    "home" | "notifications" | "store" | "switchWorkspace"
+  >;
+  readonly disableUserRearrangement?: boolean;
+}
+```
+
+`DockFolderEntry.children` is recursive — folders may contain
+folders. Both renderers honour the full tree depth.
+
+### V2 renderer — `Dock.register` with recursive `CustomDropdownConfig`
+
+```ts
+// Conceptual mapping (pseudo):
+
+function toV2(entry: DockEntry): DockButton {
+  if (entry.type === "item") {
+    return {
+      id: entry.id,
+      tooltip: entry.tooltip ?? entry.label,
+      iconUrl: entry.iconUrl,
+      action: { id: entry.actionId, customData: entry.customData },
+    };
+  }
+  // folder → dropdown
+  return {
+    id: entry.id,
+    type: DockButtonNames.DropdownButton,
+    tooltip: entry.tooltip ?? entry.label,
+    iconUrl: entry.iconUrl,
+    options: entry.children.map(toV2Option),
+  };
+}
+
+function toV2Option(entry: DockEntry): CustomButtonConfig | CustomDropdownConfig {
+  if (entry.type === "item") {
+    return {
+      tooltip: entry.tooltip ?? entry.label,
+      iconUrl: entry.iconUrl,
+      action: { id: entry.actionId, customData: entry.customData },
+    };
+  }
+  // nested folder → nested dropdown (CustomDropdownConfig)
+  return {
+    tooltip: entry.tooltip ?? entry.label,
+    iconUrl: entry.iconUrl,
+    options: entry.children.map(toV2Option),
+  };
+}
+```
+
+The `CustomDropdownConfig.options` type allows arbitrary
+recursion (`(CustomButtonConfig | CustomDropdownConfig)[]`).
+
+### V3 renderer — legacy content-menu entries
+
+Unchanged from v1's existing behaviour. The plugin maps the same
+`DockEntry[]` tree to `ContentMenuEntryType[]` and registers the
+single dock button whose right-click handler opens the content
+menu. v1's `dock.ts` is the reference. The renderer continues to
+honour the full tree depth via the menu's native sub-submenu
+support.
+
+### Persistence
+
+Dock configuration persists as a single `AppConfigRow`:
+
+```ts
+{
+  componentType: "dock-config",   // already in COMPONENT_TYPES (§4.2)
+  componentSubType: "",
+  configId: "<userId>:<appId>:dock",
+  payload: DockConfig,            // the recursive tree above
+  // …standard AppConfigRow fields
+}
+```
+
+The OpenFin plugin wires this into the workspace platform via
+`WorkspacePlatformProvider.getDockProviderConfig` and
+`.saveDockProviderConfig` overrides — both serialise/deserialise
+against the same `DockConfig` shape, with version-specific encoding
+(V2: `DockButton[]`; V3: `ContentMenuEntryType[]`) computed at
+load/save time from the persisted recursive tree. The recursive
+tree is the source of truth; the version-specific encodings are
+ephemeral.
+
+### Custom actions
+
+Action ids in `DockLeafEntry.actionId` resolve through the
+`CustomActionsMap` registered with `workspace-platform.init({
+customActions })`. The reserved action ids in §9.3 (e.g.
+`ACTION_LAUNCH_COMPONENT`, `ACTION_OPEN_REGISTRY_EDITOR`,
+`ACTION_OPEN_DOCK_EDITOR`) are wired by the plugin. App-defined
+actions add to the map via `StarUIPlugin.onBootstrap`.
+
+### Behaviour requirements
+
+1. **Both renderers honour arbitrary nesting.** A folder containing
+   a folder containing items must render correctly under both V2
+   (recursive `CustomDropdownConfig.options`) and V3 (nested
+   content-menu submenus).
+2. **Switching `dockVersion` MUST NOT mutate the persisted
+   `DockConfig`.** The recursive tree is renderer-agnostic;
+   flipping the manifest flag changes only how the tree is
+   painted on next launch.
+3. **The dock-editor UI is renderer-agnostic.** It edits
+   `DockEntry[]` directly. No conditional UI based on
+   `dockVersion`.
+4. **`disableUserRearrangement` and `workspaceComponents`** propagate
+   into the appropriate V2 / V3 config shape unchanged.
+
 ---
 
 # 10. Expression engine
