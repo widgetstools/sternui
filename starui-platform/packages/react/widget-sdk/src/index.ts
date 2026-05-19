@@ -1,0 +1,44 @@
+// @starui/widget-sdk — React bindings for the Star Widget Framework
+
+export type {
+  WidgetConfig,
+  WidgetProps,
+  WidgetContext,
+  PlatformAdapter,
+  ParentIdentity,
+  SettingsScreenContext,
+  ActionContext,
+} from '@starui/widget';
+
+export type { SettingsScreenDefinition } from './types/settings.js';
+
+export type {
+  SlotContent,
+  WidgetEnhancer,
+  WidgetExtensionConfig,
+} from './types/slots.js';
+
+export type { WidgetHostProps } from './types/widgetHost.js';
+
+export { WidgetRegistry } from './registry/WidgetRegistry.js';
+export { WidgetHost, useWidgetHost } from './providers/WidgetHost.js';
+export { useWidget } from './hooks/useWidget.js';
+export { useSettingsScreen } from './hooks/useSettingsScreen.js';
+
+export { BrowserAdapter } from '@starui/widget-browser';
+export {
+  getLayouts,
+  saveLayout,
+  loadLayout,
+  deleteLayout,
+} from '@starui/widget';
+
+export { createConfigClient } from '@starui/host-config';
+export type {
+  ConfigClient,
+  CreateConfigClientOptions,
+} from '@starui/host-config';
+
+export { renderSlot } from './extensibility/renderSlot.js';
+export { createExtendedWidget } from './extensibility/createExtendedWidget.js';
+export { compose } from './extensibility/compose.js';

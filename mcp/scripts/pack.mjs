@@ -4,7 +4,7 @@
  *
  *   1. Mirror /libs/*.tgz + manifest.json → /mcp/libs/
  *   2. Mirror /apps/stomp-view-server/{package.json,tsconfig.json,src,README.md} → /mcp/stomp-view-server/
- *   3. Mirror /docs/{ARCHITECTURE_GUIDE,FEATURE_INVENTORY,IMPLEMENTED_FEATURES}.md → /mcp/src/resources/
+ *   3. Mirror /docs/{ARCHITECTURE_GUIDE,IMPLEMENTED_FEATURES}.md → /mcp/src/resources/
  *   4. Mirror /appConfig.json → /mcp/appConfig.json (seed config dropped into every scaffolded app)
  *   5. Build TypeScript (rimraf dist && tsc)
  *   6. npm pack → rename with content-hash suffix → move to /mcp-dist/
@@ -33,9 +33,9 @@ import { fileURLToPath } from "node:url";
 
 const MCP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_ROOT = resolve(MCP_DIR, "..");
-const LIBS_SRC = join(REPO_ROOT, "libs");
+const LIBS_SRC = join(REPO_ROOT, "starui-platform", "libs");
 const LIBS_DEST = join(MCP_DIR, "libs");
-const STOMP_SRC = join(REPO_ROOT, "apps", "stomp-view-server");
+const STOMP_SRC = join(REPO_ROOT, "starui-platform", "apps", "stomp-view-server");
 const STOMP_DEST = join(MCP_DIR, "stomp-view-server");
 const DOCS_SRC = join(REPO_ROOT, "docs");
 const RESOURCES_DEST = join(MCP_DIR, "src", "resources");
@@ -93,7 +93,7 @@ function sha8OfFile(path) {
 
 function step1MirrorLibs() {
   if (!exists(LIBS_SRC)) {
-    throw new Error(`Missing /libs at repo root. Run 'npm run propagate' first.`);
+    throw new Error(`Missing starui-platform/libs. Run 'npm run propagate --workspace=starui-platform' first.`);
   }
   log(`mirroring libs from ${LIBS_SRC}`);
   rmSync(LIBS_DEST, { recursive: true, force: true });
@@ -111,7 +111,7 @@ function step1MirrorLibs() {
 
 function step2MirrorStomp() {
   if (!exists(STOMP_SRC)) {
-    throw new Error(`Missing /apps/stomp-view-server.`);
+    throw new Error(`Missing starui-platform/apps/stomp-view-server.`);
   }
   log(`mirroring stomp-view-server from ${STOMP_SRC}`);
   copyDir(STOMP_SRC, STOMP_DEST, (name) => {
@@ -129,9 +129,12 @@ function step3MirrorDocs() {
   log(`mirroring architecture docs from ${DOCS_SRC}`);
   copyFlat(DOCS_SRC, RESOURCES_DEST, [
     "ARCHITECTURE_GUIDE.md",
-    "FEATURE_INVENTORY.md",
     "IMPLEMENTED_FEATURES.md",
   ]);
+  const paritySrc = join(REPO_ROOT, "starui-platform", "docs", "PARITY.md");
+  if (exists(paritySrc)) {
+    copyFileSync(paritySrc, join(RESOURCES_DEST, "PARITY.md"));
+  }
   log(`mirrored docs → /mcp/src/resources`);
 }
 

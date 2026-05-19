@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
-import { dark, light } from '../../packages/shared/foundation/design-system/src/tokens/semantic';
-import { contrastRatio } from '../../packages/shared/foundation/design-system/src/internal/wcag';
+import { dark, light } from '../../starui-platform/packages/shared/design-system/src/tokens/semantic';
+import { contrastRatio } from '../../starui-platform/packages/shared/design-system/src/internal/wcag';
 
 interface Row { theme: string; pair: string; ratio: number; min: number; pass: boolean; }
 

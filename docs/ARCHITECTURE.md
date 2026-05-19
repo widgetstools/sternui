@@ -27,8 +27,10 @@ OpenFin and pure-browser runtimes. Every package in this document
 fits into one cell of that matrix, with strict import-boundary
 rules that prevent the layers from contaminating each other.
 
-The repo currently produces 29 publishable packages (the tarballs in
-`libs/`) plus six runnable apps under `apps/`.
+The repo currently produces publishable packages under
+`starui-platform/packages/` (tarballs in `starui-platform/libs/` when
+packed for external consumers) plus runnable apps under
+`starui-platform/apps/`.
 
 > **React is the lead surface.** The Angular packages
 > (`widgets-angular`, `config-browser-angular`,

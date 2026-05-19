@@ -34,8 +34,8 @@ import { join, resolve } from 'node:path';
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 
 const BUCKETS = {
-  'ng-package': ['packages/shared', 'packages/angular'],
-  'react-package': ['packages/shared', 'packages/react'],
+  'ng-package': ['starui-platform/packages/shared', 'starui-platform/packages/angular'],
+  'react-package': ['starui-platform/packages/shared', 'starui-platform/packages/react'],
 };
 
 function isDir(p) {

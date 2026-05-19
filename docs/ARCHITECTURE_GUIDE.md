@@ -16,8 +16,7 @@ It is intentionally **complementary** to two other documents:
 
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — the canonical layer-model
   reference with import-boundary rules.
-- [`FEATURE_INVENTORY.md`](./FEATURE_INVENTORY.md) — the reconciled
-  feature catalogue, mapping every shipped capability to its source.
+- [`starui-platform/docs/PARITY.md`](../starui-platform/docs/PARITY.md) — migration parity gate and current package map.
 
 This document focuses on **interaction** — *how* the layers talk to
 each other, *what* the SharedWorker is doing under the hood, *why*
@@ -871,8 +870,8 @@ A few things to know once you're committing code:
   `check-react-apps-no-native-select` (use shadcn `<Select>`,
   not native `<select>`).
 - **Doc lockstep.** Every feature add / change / remove updates
-  `docs/IMPLEMENTED_FEATURES.md` (historical changelog) and
-  `docs/FEATURE_INVENTORY.md` (current state) in the same commit.
+  `docs/IMPLEMENTED_FEATURES.md` (historical changelog) in the same commit.
+  Current package map: `starui-platform/docs/PARITY.md`.
 
 ---
 
@@ -881,7 +880,7 @@ A few things to know once you're committing code:
 If you're brand new to the codebase and have one hour:
 
 1. Open `docs/ARCHITECTURE.md` for the layer diagram.
-2. Skim `docs/FEATURE_INVENTORY.md` §1–§5 to see the package map.
+2. Skim `starui-platform/docs/PARITY.md` to see the current package map.
 3. Open `packages/react/widgets/markets-grid/src/MarketsGrid.tsx` —
    this is the widget root. Trace the props, the `forwardRef`
    handle, the storage factory, and the `DEFAULT_MODULES` import.

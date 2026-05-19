@@ -1,5 +1,7 @@
 node_modules/
 dist/
+!dist/packages/
+!dist/packages/**
 .vite/
 .turbo/
 test-results/

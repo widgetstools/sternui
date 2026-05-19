@@ -1,0 +1,35 @@
+{
+  "name": "@starui/host-data-react",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React bindings for @starui/host-data",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime/index.tsx"
+  },
+  "scripts": {
+    "build": "echo '@starui/host-data-react: consumed as source (no emit)'",
+    "typecheck": "tsc --noEmit",
+    "test": "echo '@starui/host-data-react: no tests yet'"
+  },
+  "peerDependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "dependencies": {
+    "@starui/host-data": "*",
+    "@starui/types": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.2",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  }
+}

@@ -60,44 +60,38 @@ const SKIP_DIRS = new Set([
 // design-system package itself is allowed to define hex; everywhere
 // else must reference --ds-* vars.
 const ALLOW_PATHS = [
-  'packages/shared/foundation/design-system/src/',
+  'starui-platform/packages/shared/design-system/src/',
   'patch/',  // working dir, deleted at end of migration
   // --- Legitimate hex data (not styling) ---
-  'packages/shared/foundation/icons-svg/',           // SVG fill/stroke data
-  'packages/shared/platform/openfin-platform/src/',  // native platform dock/workspace colors (OpenFin API)
-  'packages/shared/foundation/design-system/tests/', // WCAG contrast tests use raw hex
-  'packages/shared/services/component-host/src/saveConfig.ts',           // console.log %c debug colors (no CSS var support)
-  'packages/shared/services/data-services/src/runtime/client/SharedWorkerDataServicesClient.ts', // console.log %c debug colors
-  'packages/react/widgets/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx', // console.log %c debug colors
-  'packages/react/widgets/grid-react/src/ui/ExpressionEditor/language.ts', // Monaco editor token theme
-  // --- Recharts wrapper: #ccc/#fff are CSS attribute selectors matching Recharts SVG attributes ---
-  'packages/react/ui/src/components/chart.tsx',
-  // --- Color picker components: hex values are color swatch data, not styling ---
-  'packages/react/widgets/grid-react/src/ui/format-editor/FormatColorPicker.tsx',
-  'packages/react/widgets/grid-react/src/ui/format-editor/types.ts',
-  'packages/react/widgets/grid-react/src/ui/ColorPicker/CompactColorField.tsx',
-  'packages/react/widgets/grid-react/src/ui/shadcn/color-picker.tsx',
-  'packages/react/widgets/grid-react/src/ui/StyleEditor/BorderStyleEditor.tsx',
-  'packages/react/widgets/grid-react/src/modules/conditional-styling/styleBridge.ts',
-  'packages/react/widgets/grid-react/src/modules/conditional-styling/ConditionalStylingPanel.tsx',
+  'starui-platform/packages/shared/icons-svg/',
+  'starui-platform/packages/shared/openfin-platform/src/',
+  'starui-platform/packages/shared/design-system/tests/',
+  'starui-platform/packages/react/widgets-react/src/v2/markets-grid-container/MarketsGridContainer.tsx',
+  'starui-platform/packages/react/grid/src/customizer/ui/ExpressionEditor/language.ts',
+  'starui-platform/packages/react/ui/src/components/chart.tsx',
+  'starui-platform/packages/react/grid/src/customizer/ui/format-editor/FormatColorPicker.tsx',
+  'starui-platform/packages/react/grid/src/customizer/ui/format-editor/types.ts',
+  'starui-platform/packages/react/grid/src/customizer/ui/ColorPicker/CompactColorField.tsx',
+  'starui-platform/packages/react/grid/src/customizer/ui/shadcn/color-picker.tsx',
+  'starui-platform/packages/react/grid/src/customizer/ui/StyleEditor/BorderStyleEditor.tsx',
+  'starui-platform/packages/react/grid/src/customizer/modules/conditional-styling/styleBridge.ts',
+  'starui-platform/packages/react/grid/src/customizer/modules/conditional-styling/ConditionalStylingPanel.tsx',
   // --- Tool scripts themselves ---
   'tools/',
   // --- Test files: hex in assertion fixtures ---
-  'e2e/',
-  'packages/react/widgets/markets-grid/src/FormattingToolbar.test.tsx',
-  'packages/react/widgets/grid-react/src/modules/column-customization/formattingActions.test.ts',
-  'packages/react/widgets/grid-react/src/modules/column-templates/snapshotTemplate.test.ts',
-  'packages/react/widgets/widgets-react/src/hosted/__tests__/useColorLinking.test.tsx',
-  'packages/react/widgets/widgets-react/src/hosted/useColorLinking.ts', // OpenFin color group values (hex) are platform-provided
-  // --- Demo app profile/fixture data files: hex values are user-chosen cell colors stored as data ---
-  'apps/demo-react/src/showcaseProfile.ts',
-  'apps/demo-react/src/nestedFixtures.ts',
-  'apps/demo-configservice-react/src/showcaseProfile.ts',
-  'apps/demo-angular/src/app/services/trading-data.service.ts',
-  // --- Design system showcase: displays raw hex values intentionally ---
-  'apps/demo-angular/src/app/widgets/design-system.widget.ts',
-  // --- Angular demo app logo SVG: graphic element colors ---
-  'apps/demo-angular/src/app/app.ts',
+  'starui-platform/e2e/',
+  'starui-platform/packages/react/grid/src/widget/FormattingToolbar.test.tsx',
+  'starui-platform/packages/react/grid/src/customizer/modules/column-customization/formattingActions.test.ts',
+  'starui-platform/packages/react/grid/src/customizer/modules/column-templates/snapshotTemplate.test.ts',
+  'starui-platform/packages/react/widgets-react/src/hosted/__tests__/useColorLinking.test.tsx',
+  'starui-platform/packages/react/widgets-react/src/hosted/useColorLinking.ts',
+  // --- Demo app profile/fixture data files ---
+  'starui-platform/apps/demo-react/src/showcaseProfile.ts',
+  'starui-platform/apps/demo-react/src/nestedFixtures.ts',
+  'starui-platform/apps/demo-configservice-react/src/showcaseProfile.ts',
+  'starui-platform/apps/demo-angular/src/app/services/trading-data.service.ts',
+  'starui-platform/apps/demo-angular/src/app/widgets/design-system.widget.ts',
+  'starui-platform/apps/demo-angular/src/app/app.ts',
 ];
 
 function walk(dir: string, root: string, out: string[]): void {

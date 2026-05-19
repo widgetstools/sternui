@@ -1,0 +1,93 @@
+{
+  "@starui/app": {
+    "filename": "starui-app-0.1.0-69aa2a68.tgz",
+    "distFilename": "starui-app-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "69aa2a68",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/config-browser": {
+    "filename": "starui-config-browser-0.1.0-8b365252.tgz",
+    "distFilename": "starui-config-browser-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "8b365252",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/engine": {
+    "filename": "starui-engine-0.1.0-8857e852.tgz",
+    "distFilename": "starui-engine-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "8857e852",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/grid": {
+    "filename": "starui-grid-0.1.0-2f362c48.tgz",
+    "distFilename": "starui-grid-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "2f362c48",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/host": {
+    "filename": "starui-host-0.1.0-dfd70528.tgz",
+    "distFilename": "starui-host-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "dfd70528",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/host-browser": {
+    "filename": "starui-host-browser-0.1.0-ec8ebe19.tgz",
+    "distFilename": "starui-host-browser-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "ec8ebe19",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/host-config": {
+    "filename": "starui-host-config-0.1.0-fb7a266a.tgz",
+    "distFilename": "starui-host-config-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "fb7a266a",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/host-data": {
+    "filename": "starui-host-data-0.1.0-4b887fcd.tgz",
+    "distFilename": "starui-host-data-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "4b887fcd",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/host-data-react": {
+    "filename": "starui-host-data-react-0.1.0-8304f96a.tgz",
+    "distFilename": "starui-host-data-react-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "8304f96a",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/host-openfin": {
+    "filename": "starui-host-openfin-0.1.0-fdb0d808.tgz",
+    "distFilename": "starui-host-openfin-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "fdb0d808",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/openfin-platform": {
+    "filename": "starui-openfin-platform-0.1.0-54f20002.tgz",
+    "distFilename": "starui-openfin-platform-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "54f20002",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/types": {
+    "filename": "starui-types-0.1.0-f2508363.tgz",
+    "distFilename": "starui-types-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "f2508363",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  },
+  "@starui/widgets": {
+    "filename": "starui-widgets-0.1.0-6740c17b.tgz",
+    "distFilename": "starui-widgets-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "6740c17b",
+    "packedAt": "2026-05-19T18:45:16.046Z"
+  }
+}

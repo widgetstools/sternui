@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.angular.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@starui/engine": ["../../shared/engine/src/index.ts"],
+      "@starui/types": ["../../shared/types/src/index.ts"],
+      "@starui/host": ["../../shared/host/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.spec.ts"]
+}

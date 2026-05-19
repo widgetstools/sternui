@@ -19,8 +19,8 @@ export const RESOURCES: ResourceDescriptor[] = [
   },
   {
     uri: "starui://feature-inventory",
-    name: "Feature Inventory",
-    description: "Catalog of features available across the starui packages.",
+    name: "Platform Parity",
+    description: "Package parity gate for starui-platform (legacy → current map).",
     mimeType: "text/markdown",
   },
   {
@@ -97,7 +97,7 @@ export function readResource(uri: string): { mimeType: string; text: string } | 
     case "starui://architecture":
       return { mimeType: r.mimeType, text: readFileSafe(join(resourcesDir(), "ARCHITECTURE_GUIDE.md")) };
     case "starui://feature-inventory":
-      return { mimeType: r.mimeType, text: readFileSafe(join(resourcesDir(), "FEATURE_INVENTORY.md")) };
+      return { mimeType: r.mimeType, text: readFileSafe(join(resourcesDir(), "PARITY.md")) };
     case "starui://implemented-features":
       return { mimeType: r.mimeType, text: readFileSafe(join(resourcesDir(), "IMPLEMENTED_FEATURES.md")) };
     case "starui://gotchas":

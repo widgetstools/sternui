@@ -1,3 +1,20 @@
+## 2026-05-19 — React→shared extraction (framework-agnostic code)
+
+Moved vanilla TS out of `packages/react/` into shared packages (Angular parity):
+
+- **`@starui/host-openfin`** — `subscribeWindowOptions`, `openFinWindowOpener`, `debugOpenFin` (deduped from `@starui/widgets` / `@starui/grid`)
+- **`@starui/engine`** — customizer module state/transforms, `nestedField`, `filtersToolbarLogic`, `createMarketsGridLocalStorageStorage`, `StyleEditorValue` types, `StorageAdapterFactory` types
+- **`@starui/host`** — `buildGridHostContext`, `storageFactoryForPersistence`, `defineStarGridPlugin`
+- **`@starui/host-config`** — config browser table metadata (`CONFIG_BROWSER_TABLES`)
+- **`@starui/openfin-platform`** — `./test-bridge`, `./dock-editor` (icons + URL helpers)
+
+React packages keep thin re-export shims / React panel registration only.
+
+Touched: `packages/shared/{engine,host,host-openfin,host-config,openfin-platform}/`,
+`packages/react/{grid,app,widgets,widgets-react,config-browser,host-wrapper-react,workspace-setup-react}/`.
+
+---
+
 ## 2026-05-17 — new app: `dataprovider-editor-starui-app`
 
 A second demo app under `apps/demo-apps/dataprovider-editor-starui-app/`

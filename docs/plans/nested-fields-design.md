@@ -60,7 +60,7 @@ The prototype-chain scope is non-obvious and is documented as
 | **D1** | Keep both `[path].old` / `[path].new` suffix syntax AND an explicit `prev([path])` function. | Suffix covers single-field delta (the 90% case) compactly. `prev()` is necessary for cross-field deltas (`prev([a]) > [b]`) where suffix has no expression. The expression engine documents both. |
 | **D2** | Factory function `nestedField({...})` returning `Partial<ColDef>`. | Composes with spread (`{ headerName, ...nestedField({...}), cellClass }`); no class ceremony; single place to evolve when AG-Grid adds new field-consuming hooks. |
 | **D3** | Dot-only paths in v1 — no `trades[0].price` array indexing. | Array indexing brings parser complexity (bracketed-int vs bracketed-ref) and a UX question of whether to expose array indices at all. Defer. |
-| **D4** | Diff cache stays scoped to conditional-styling. | Promoting it to grid-platform-level would pay for sort-by-delta, group-by-delta, etc. — features that don't exist yet. Scope-creep avoided. |
+| **D4** | Diff cache stays scoped to conditional-styling. | Promoting it to starui-platform-level would pay for sort-by-delta, group-by-delta, etc. — features that don't exist yet. Scope-creep avoided. |
 | **D5** | Closure-per-path accessors, NOT `new Function()` codegen. | Codegen is 2× faster on long paths but breaks strict CSP. Typical path depth is 2–4, where closures are already fast. CSP cost outweighs the marginal speedup. |
 | **D6** | Path-accessor and path-setter caches live in `@starui/shared` (vanilla TS), not in `@starui/grid`. | Used by both AG-Grid wiring AND the expression engine. Foundation leaf — no framework deps. |
 
@@ -259,7 +259,7 @@ this design doc — captured in the follow-up plan.
 
 1. The custom ESLint rule.
 2. The codemod for the rewrite.
-3. Promote the diff cache to grid-platform level if/when
+3. Promote the diff cache to starui-platform level if/when
    sort-by-delta becomes a real feature (currently a "no" per D4).
 4. Array-element path support (`trades[0].price`) if/when a real
    use case appears (currently a "no" per D3).

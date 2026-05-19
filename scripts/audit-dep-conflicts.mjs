@@ -22,7 +22,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
-const ROOTS = ['packages', 'apps'];
+const ROOTS = ['starui-platform/packages', 'starui-platform/apps'];
 
 function isDir(p) {
   try { return statSync(p).isDirectory(); } catch { return false; }

@@ -1131,7 +1131,7 @@ at the top of the file) is mechanical and lives in the rewrite plan.
   `console.*` is a contract violation.
 - `packages/tooling/eslint-plugin/src/rules/no-bare-console.ts` —
   the lint rule.
-- `docs/plans/lint-config-plan.md` — adoption rollout.
+- ESLint filename-case enforcement (follow-up PR).
 
 ---
 

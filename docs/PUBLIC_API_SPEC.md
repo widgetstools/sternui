@@ -28,7 +28,7 @@ document wins; reality is a bug.
 
 **What this is not:** an internal architecture guide. For "how is
 this implemented" see [`ARCHITECTURE_GUIDE.md`](./ARCHITECTURE_GUIDE.md).
-For "what features exist" see [`FEATURE_INVENTORY.md`](./FEATURE_INVENTORY.md).
+For "what features exist" see [`starui-platform/docs/PARITY.md`](../starui-platform/docs/PARITY.md) and [`IMPLEMENTED_FEATURES.md`](./IMPLEMENTED_FEATURES.md).
 
 **TypeScript signatures are normative.** Where this document shows
 `interface X { ... }`, an implementation must export exactly that
@@ -2686,7 +2686,7 @@ These hold across every package:
 
 Any new implementation must:
 
-1. **Cover every section in `FEATURE_INVENTORY.md`** by file path or
+1. **Cover every row in `starui-platform/docs/PARITY.md`** by file path or
    by deliberate "feature dropped" entry in the rewrite's release notes.
 2. **Honour every signature in this document, exactly.** Type
    compatibility is the public-API contract.

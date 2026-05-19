@@ -1,0 +1,90 @@
+{
+  "name": "@starui/widgets-react",
+  "version": "1.0.0",
+  "description": "MarketsUI React widgets — HostedMarketsGrid and trading primitives",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./v2/markets-grid-container": {
+      "import": "./dist/v2/markets-grid-container/index.js",
+      "types": "./dist/v2/markets-grid-container/index.d.ts"
+    },
+    "./v2/provider-editor": {
+      "import": "./dist/v2/provider-editor/index.js",
+      "types": "./dist/v2/provider-editor/index.d.ts"
+    },
+    "./v2/data-provider-selector": {
+      "import": "./dist/v2/data-provider-selector/index.js",
+      "types": "./dist/v2/data-provider-selector/index.d.ts"
+    },
+    "./hosted": {
+      "import": "./dist/hosted/index.js",
+      "types": "./dist/hosted/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-react": "^35.1.0",
+    "ag-grid-enterprise": "^35.1.0",
+    "@tanstack/react-query": "^5.80.0",
+    "lucide-react": "^0.554.0",
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
+    "@starui/grid": "*"
+  },
+  "dependencies": {
+    "@starui/grid": "*",
+    "@starui/host-config": "*",
+    "@starui/host-data": "*",
+    "@starui/design-system": "*",
+    "@starui/host-data-react": "*",
+    "@starui/host-openfin": "*",
+    "@starui/shared-types": "*",
+    "@starui/widget-sdk": "*",
+    "@starui/ui": "*",
+    "@stomp/stompjs": "^7.3.0"
+  },
+  "devDependencies": {
+    "@openfin/workspace": "23.0.20",
+    "@openfin/workspace-platform": "23.0.20",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "ag-grid-react": "35.1.0",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4",
+    "jsdom": "^29.0.2",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/dom": "^10.4.0",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5"
+  },
+  "keywords": [
+    "star",
+    "widgets",
+    "blotter",
+    "ag-grid",
+    "trading"
+  ],
+  "author": "Star Development Team",
+  "license": "MIT"
+}

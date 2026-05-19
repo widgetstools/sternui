@@ -1,8 +1,10 @@
 mcp# CLAUDE.md — agent instructions for `marketsui-platform`
 
-This is the consolidated MarketsUI platform monorepo. Four previously-separate
-repos (`widgets`, `markets-ui`, `fi-trading-terminal`, and the legacy
-trading-shell repo) live here as first-class workspaces under `@starui/*`.
+This is the consolidated MarketsUI platform monorepo. The **active codebase**
+lives under **`starui-platform/`** — libraries, apps, and e2e. The repo root
+delegates build/dev/test/e2e to that workspace and hosts shared docs/tooling.
+Legacy root `packages/` has been removed; all `@starui/*` development happens
+inside `starui-platform/packages/`.
 
 **Read before editing:**
 
@@ -27,42 +29,38 @@ version in the same change.
 
 ## Package layout
 
-Workspace packages live under `packages/` in three framework buckets,
-each split into role-based sub-buckets (per
-[`docs/plans/plan-2026-05-07/code-organization.md`](./docs/plans/plan-2026-05-07/code-organization.md)):
+All workspace packages live under **`starui-platform/packages/`** in three
+framework buckets (per
+[`starui-platform/docs/PARITY.md`](./starui-platform/docs/PARITY.md) and [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)):
 
-- `packages/shared/` — vanilla TS, framework-agnostic
-  - `core/` — grid platform (GridPlatform, ProfileManager, expression engine, persistence, etc.)
-  - `foundation/` — pure leaves: `shared-types`, `design-system`, `icons-svg`, `tokens-primeng`
-  - `runtime/` — `runtime-port` (interface) + `runtime-browser` / `runtime-openfin` impls
-  - `services/` — vanilla services: `config-service`, `data-services`, `component-host`
-  - `platform/` — runtime shells: `openfin-platform`
-- `packages/react/` — React-only packages
-  - `ui/` — shadcn primitives (no twin → no `-react` suffix)
-  - `sdk/widget-sdk/` — widget contract (no twin → no suffix)
-  - `widgets/` — `markets-grid`, `grid-react` (extracted from core), `widgets-react`
-  - `hosts/host-wrapper-react/`
-  - `providers/data-services-react/` — Provider + hook shells around `shared/services`
-  - `tools/` — dev/operator UIs: `config-browser-react`, `workspace-setup-react`
-- `packages/angular/` — Angular-only packages (parity catching up)
-  - `hosts/host-wrapper-angular/`
-  - `tools/config-browser-angular/`
-  - `widgets/widgets-angular/`
+- `starui-platform/packages/shared/` — vanilla TS, framework-agnostic
+  - `engine/` — GridPlatform, ProfileManager, expression engine, modules
+  - `design-system/`, `shared-types/`, `types/`, `icons-svg/` — foundation leaves
+  - `host/`, `host-browser/`, `host-openfin/` — host port + runtime adapters
+  - `host-config/`, `host-data/` — config + data-services
+  - `widget/`, `widget-browser/` — widget PlatformAdapter contract + browser impl
+  - `openfin-platform/` — OpenFin workspace shell
+- `starui-platform/packages/react/` — React-only packages
+  - `ui/` — shadcn primitives (no `-react` suffix)
+  - `grid/` — MarketsGrid widget + customizer (`@starui/grid`; replaces legacy `@starui/markets-grid` + `@starui/grid-react`)
+  - `app/`, `widgets/`, `widgets-react/`, `widget-sdk/` (React bindings; contract in `@starui/widget`)
+  - `host-wrapper-react/`, `host-data-react/`
+  - `config-browser/`, `workspace-setup-react/`
+- `starui-platform/packages/angular/` — Angular scaffolds (parity catching up)
 
-The workspaces glob in root `package.json` enumerates each sub-bucket
-explicitly (npm 10 doesn't do `packages/**`). When adding a new package:
+**Apps** live under `starui-platform/apps/` and consume libraries via npm
+workspace `"*"` deps — not root `file:` tarballs.
+
+The root `package.json` workspaces glob enumerates `starui-platform/**`
+paths explicitly (npm 10 doesn't do `packages/**`). When adding a new package:
 
 1. Pick the framework bucket by peer dep (vanilla → `shared/`, React →
    `react/`, Angular → `angular/`).
-2. Pick the sub-bucket by role (foundation leaf, runtime, service, host,
-   provider, sdk, widget, tool, platform shell).
-3. Package name carries the framework suffix when a twin can exist
-   (`config-browser-react` / `config-browser-angular`); drop the suffix
-   for framework-singletons (`ui`, `widget-sdk`, `tokens-primeng`).
+2. Pick the sub-bucket by role (foundation leaf, host, service, widget, tool).
+3. Package name carries the framework suffix when a twin can exist; drop the
+   suffix for framework-singletons (`ui`, `widget-sdk`, `grid`).
 4. `tsconfig.json` `"extends"` is `"../../../../tsconfig.base.json"`
-   (4 levels) for sub-bucketed packages;
-   `"../../../tsconfig.base.json"` (3 levels) for root-of-bucket
-   exceptions (`shared/core/`, `react/ui/`).
+   (4 levels) from sub-bucketed packages under `starui-platform/`.
 
 ## File naming
 
@@ -91,11 +89,11 @@ matching Angular Style Guide. Don't switch — Angular tooling and
 muscle memory both depend on it.
 
 **Carve-outs (kebab-case allowed despite the above)**:
-- `packages/react/ui/src/components/**` — shadcn-ui CLI generates kebab
+- `starui-platform/packages/react/ui/src/components/**` — shadcn-ui CLI generates kebab
   filenames (`alert-dialog.tsx`, `dropdown-menu.tsx`); renaming would
   diverge from `npx shadcn add ...` future regenerations
-- `packages/react/widgets/grid-react/src/ui/shadcn/**` — same (gc-themed
-  shadcn copy carried over from the `core/ui/shadcn/` extraction in PR-8)
+- `starui-platform/packages/react/grid/src/customizer/ui/shadcn/**` — gc-themed
+  shadcn copy carried over from the legacy grid-react extraction
 
 **Public subpath exports** in `package.json` `"exports"` may use kebab
 even when they point at camelCase files (subpath name is the package's
@@ -111,10 +109,10 @@ PR. Until then: convention enforcement happens in code review.
 **Turborepo 2.** Scripts at root:
 
 ```bash
-npm run build       # turbo build — everything
-npm run typecheck   # turbo typecheck — every package
+npm run build       # turbo build — starui-platform
+npm run typecheck   # turbo typecheck — starui-platform
 npm test            # turbo test — Vitest
-npm run e2e         # turbo e2e — Playwright
+npm run e2e         # Playwright — starui-platform/e2e
 ```
 
 Every library package uses `"build": "rimraf dist && tsc"` (or
@@ -122,51 +120,25 @@ Every library package uses `"build": "rimraf dist && tsc"` (or
 "cannot overwrite input file" error that Turbo's cache-restore triggers
 on the next run. Don't remove it.
 
-## Propagating package changes to `apps/*` (tarball deps)
+## Propagating package changes (external tarball consumers)
 
-Reference apps (`apps/demo-react`) consume libraries via `file:` tarball
-deps in `libs/` — same shape consumers see (Decision 13 in
-code-organization.md). When you change a library and want to see it in
-the demo, run:
+In-repo apps use workspace `"*"` deps — edit a package, run `npm run build`
+(or `npm run dev:demo-react`) and changes are picked up via workspace linking.
 
-```bash
-npm run propagate -- grid-react markets-grid
-```
+`npm run propagate` (delegates to `starui-platform/scripts/propagate.mjs`) still
+packs libraries to content-hashed tarballs in `starui-platform/libs/` for
+**external** consumers (MCP scaffolds, corporate hand-off). Flags:
 
-This repacks just those packages, rewrites every matching `file:` dep in
-`apps/*/package.json`, removes the affected `node_modules/@starui/*` +
-`node_modules/.vite` directories, and runs `npm install` in each
-affected app. With no args (`npm run propagate`), it repacks every
-library under `packages/`.
-
-**Why the dedicated script and not `npm run pack:libs` + `npm install`?**
-Tarballs are named with a short content-hash suffix
-(`starui-grid-react-0.1.0-<sha8>.tgz`). When you re-pack, the filename
-changes if and only if the content did. That sidesteps npm's `file:`
-cache, which keys extractions by (path, integrity) — same path with
-different content silently reuses the stale cached version, which is
-exactly the bug that made earlier sessions chase "the fix isn't taking
-effect" symptoms. With hashed filenames, the cache hit is impossible by
-construction. `pack:libs` (the legacy script) still works but ships
-unhashed tarballs and can trip the cache.
-
-Flags:
 - `--dry-run` — show the plan, write nothing.
-- `--gc` — also delete tarballs in `libs/` that nothing references.
-- `--no-install` — repack + rewrite `package.json` but skip the per-app
-  `npm install` (useful when you'll batch installs separately).
-- `--no-build` — skip the per-package `build` step (use the existing
-  `dist/`).
+- `--gc` — delete orphaned tarballs in `starui-platform/libs/`.
+- `--no-install` / `--no-build` — skip install or per-package build steps.
 
-The manifest at `libs/manifest.json` is the source of truth for the
-currently-published tarball per package. It now stores
-`{ filename, version, sha, packedAt }` per entry; old single-string
-values are still readable so a fresh checkout doesn't break.
+Manifest: `starui-platform/libs/manifest.json`.
 
 ## Testing
 
 - Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
-- Playwright 1.59 against `apps/demo-react`. Baseline: 195/214 passing
+- Playwright 1.59 against `starui-platform/apps/demo-react`. Baseline: 195/214 passing
   (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
 
 ## UI stack rules (non-negotiable)
@@ -178,9 +150,8 @@ Every UI component — new or updated — MUST:
    or the semantic exports from `@starui/design-system/tokens/semantic`.
 
 2. **Use the framework-matching primitive library:**
-   - **React** → shadcn/ui (via `@starui/ui` + `@starui/core`'s
-     settings-panel primitives). **No native `<input>` / `<textarea>` /
-     `<select>`.** Always wrap with the shadcn equivalent.
+   - **React** → shadcn/ui (via `@starui/ui` + `@starui/grid` customizer
+     primitives). **No native `<input>` / `<textarea>` / `<select>`.**
    - **Angular** → PrimeNG (themed via `@starui/tokens-primeng`).
      `pInputText`, `pButton`, `pDropdown`, `pDialog`, etc.
 
@@ -198,14 +169,10 @@ one instead.
 Enforced via convention (ESLint enforcement is a follow-up). See
 `docs/ARCHITECTURE.md` for the full layer diagram. Key rules:
 
-- Foundation packages (`shared-types`, `design-system`, `tokens-primeng`,
-  `icons-svg`) must not import from anywhere except each other.
-- `core` must not import from framework adapters (`widgets-angular`,
-  `widgets-react`, `grid-react`).
-- `widgets-angular` must not import from `widgets-react` (siblings, not
-  consumers).
-- Only `runtime-openfin` and `openfin-platform` may import from
-  `@openfin/core`.
+- Foundation packages (`shared-types`, `design-system`, `icons-svg`) must
+  not import from anywhere except each other.
+- `@starui/engine` must not import from framework adapters (`widgets-react`, `grid`).
+- Only `host-openfin` and `openfin-platform` may import from `@openfin/core`.
 - Apps import from packages, never the reverse.
 
 ## Pre-implementation checklist
@@ -231,7 +198,7 @@ After every feature add / update / fix / removal:
    same commit or immediate `docs:` follow-up. Don't ask the user first;
    just do it.
 2. Run `npx turbo typecheck build test` and ensure green.
-3. If interaction changes, add/update e2e spec under `e2e/`.
+3. If interaction changes, add/update e2e spec under `starui-platform/e2e/`.
 4. Commit messages: conventional prefixes (`feat(pkg):`, `fix(pkg):`,
    `chore:`, `docs:`, `test:`, `ci:`, `refactor(pkg):`).
 
@@ -247,7 +214,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 Pin to the **stable line** for each major (React 19.2.x, Angular 21.1.x,
 @openfin/core 43.101.x), not the latest patch. The Angular demo's
-[`apps/demo-angular/package.json`](./apps/demo-angular/package.json)
+[`starui-platform/apps/demo-angular/package.json`](./starui-platform/apps/demo-angular/package.json)
 documents the per-package "stable-vs-latest" rationale inline in its
 `//dependencies-registry-notes` block — mirror that pattern when
 introducing version pins elsewhere. Don't drift: the whole reason for
