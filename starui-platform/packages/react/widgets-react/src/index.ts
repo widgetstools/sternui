@@ -1,4 +1,4 @@
-// @starui/widgets — Star Widget Components
+// @starui/widgets-react — Star Widget Components
 
 // ─── Blotter primitives ──────────────────────────
 export { BlotterToolbar } from './blotter/BlotterToolbar.js';

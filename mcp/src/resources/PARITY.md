@@ -22,7 +22,7 @@
 | App shell | `@starui/app-shell-react` + providers | `@starui/app` (`StarGridApp`) | **Ported** |
 | Demo app | `apps/demo-react` | `starui-platform/apps/demo-react` | **Ported** (zero `@starui/*`) |
 | OpenFin workspace shell | `@starui/openfin-platform` | `@starui/openfin-platform` | **Ported** |
-| Hosted wrappers | `@starui/widgets-react/hosted` | `@starui/widgets/hosted` | **Ported** |
+| Hosted wrappers | `@starui/widgets-react/hosted` | `@starui/widgets-react/hosted` | **Ported** |
 | Config browser tool | `@starui/config-browser-react` | `@starui/config-browser` | **Ported** |
 | Data provider editor | `@starui/config-editor-ui` | — | **Deferred** |
 | Workspace setup | `@starui/workspace-setup-react` | — | **Deferred** |
@@ -50,7 +50,7 @@ npm run e2e         # 10 core MarketsGrid specs vs @starui/demo-react on :5190
 - [x] AG Grid 35 theming via design-system adapters
 - [x] `host: GridHostContext` wiring
 - [x] OpenFin popout helpers (`@starui/grid/runtime/openfin`)
-- [x] `HostedMarketsGrid` + `MarketsGridContainer` (`@starui/widgets`)
+- [x] `HostedMarketsGrid` + `MarketsGridContainer` (`@starui/widgets-react`)
 - [x] OpenFin workspace shell + config subpath (`@starui/openfin-platform`)
 - [x] Config browser dev tool (`@starui/config-browser`)
 

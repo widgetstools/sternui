@@ -244,7 +244,7 @@ function HostedGridDocs() {
       <Section title="The component" icon={<Plug size={12} strokeWidth={1.75} />}>
         <Prose>
           <Code>{`<HostedMarketsGrid />`}</Code> from
-          <Code>@starui/widgets/hosted</Code> is a wrapping shell
+          <Code>@starui/widgets-react/hosted</Code> is a wrapping shell
           that owns identity (instanceId / appId / userId), resolves a
           ConfigManager, mounts <Code>{`<DataServicesProvider>`}</Code>
           if needed, picks an AG-Grid theme, and delegates to

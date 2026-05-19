@@ -2,7 +2,7 @@
   "name": "@starui/widgets-angular",
   "version": "0.1.0",
   "private": true,
-  "description": "HostedMarketsGrid + containers — Angular twin of @starui/widgets (scaffold)",
+  "description": "HostedMarketsGrid + containers — Angular twin of @starui/widgets-react (scaffold)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

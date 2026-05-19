@@ -52,7 +52,7 @@ npm run e2e         # 10 core MarketsGrid specs vs @starui/demo-react on :5190
 - [x] AG Grid 35 theming via design-system adapters
 - [x] `host: GridHostContext` wiring
 - [x] OpenFin popout helpers (`@starui/grid/runtime/openfin`)
-- [x] `HostedMarketsGrid` + `MarketsGridContainer` (`@starui/widgets`)
+- [x] `HostedMarketsGrid` + `MarketsGridContainer` (`@starui/widgets-react`)
 - [x] OpenFin workspace shell + config subpath (`@starui/openfin-platform`)
 - [x] Config browser dev tool (`@starui/config-browser`)
 

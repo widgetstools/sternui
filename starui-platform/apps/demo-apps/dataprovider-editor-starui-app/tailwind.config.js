@@ -10,8 +10,7 @@ export default {
     '../../../packages/react/grid/src/**/*.{ts,tsx}',
     './node_modules/@starui/ui/dist/**/*.{js,mjs}',
     './node_modules/@starui/grid/**/*.{ts,tsx,js,mjs}',
-    './node_modules/@starui/widgets/**/*.{ts,tsx,js,mjs}',
-    './node_modules/@starui/config-browser/**/*.{ts,tsx,js,mjs}',
     './node_modules/@starui/widgets-react/dist/**/*.{js,mjs}',
+    './node_modules/@starui/config-browser/**/*.{ts,tsx,js,mjs}',
   ],
 };

@@ -18,7 +18,6 @@
     "@starui/host": "*",
     "@starui/types": "*",
     "@starui/ui": "*",
-    "@starui/widgets": "*",
     "@starui/widgets-react": "*",
     "@stomp/stompjs": "^7.3.0",
     "@tanstack/react-query": "^5.80.0",

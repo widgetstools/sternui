@@ -43,7 +43,7 @@ framework buckets (per
 - `starui-platform/packages/react/` — React-only packages
   - `ui/` — shadcn primitives (no `-react` suffix)
   - `grid/` — MarketsGrid widget + customizer (`@starui/grid`; replaces legacy `@starui/markets-grid` + `@starui/grid-react`)
-  - `app/`, `widgets/`, `widgets-react/`, `widget-sdk/` (React bindings; contract in `@starui/widget`)
+  - `app/`, `widgets-react/`, `widget-sdk/` (React bindings; contract in `@starui/widget`)
   - `host-wrapper-react/`, `host-data-react/`
   - `config-browser/`, `workspace-setup-react/`
 - `starui-platform/packages/angular/` — Angular scaffolds (parity catching up)

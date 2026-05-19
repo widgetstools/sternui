@@ -63,7 +63,7 @@ starui-platform/
 | `@starui/grid` | MarketsGrid widget + grid customizer modules |
 | `@starui/app` | App shell helpers |
 | `@starui/widget-sdk` | Widget registry + launch contract |
-| `@starui/widgets` / `@starui/widgets-react` | Blotter / chart / heatmap widgets |
+| `@starui/widgets-react` | Blotter / chart / heatmap widgets + hosted shells |
 | `@starui/host-wrapper-react` | React HostWrapper + identity context |
 | `@starui/host-data-react` | React hooks over `@starui/host-data` |
 | `@starui/config-browser` | Config-row browser/editor |

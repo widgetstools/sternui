@@ -1,3 +1,11 @@
+## 2026-05-19 — retire `@starui/widgets`; canonical React package is `@starui/widgets-react`
+
+Removed duplicate `packages/react/widgets/` (source-only fork of hosted +
+MarketsGridContainer). All consumers now import `@starui/widgets-react`
+(`./hosted`, `./v2/*`). Angular twin docs reference `@starui/widgets-react`.
+
+---
+
 ## 2026-05-19 — React→shared extraction (framework-agnostic code)
 
 Moved vanilla TS out of `packages/react/` into shared packages (Angular parity):

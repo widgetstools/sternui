@@ -54,7 +54,8 @@ packages/
     ├── ui/                  # @starui/ui (shadcn primitives)
     ├── grid/
     ├── app/
-    ├── widgets/
+    ├── widgets-react/
+    ├── widget-sdk/
     ├── host-data-react/
     └── config-browser/
 └── angular/                 # Angular twins of react/ (scaffold — day 2)
@@ -80,7 +81,7 @@ packages/
 @starui/host-data-react    DataServicesProvider + hooks
 @starui/host-openfin       OpenFin RuntimePort
 @starui/openfin-platform   Workspace shell + ./config + ./plugin
-@starui/widgets            HostedMarketsGrid + MarketsGridContainer
+@starui/widgets-react     HostedMarketsGrid + MarketsGridContainer + blotter
 @starui/config-browser     Config browser dev tool
 @starui/app                StarGridApp declarative root
 ```

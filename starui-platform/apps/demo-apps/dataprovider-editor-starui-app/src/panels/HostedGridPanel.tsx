@@ -1,4 +1,4 @@
-import { HostedMarketsGrid } from '@starui/widgets/hosted';
+import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
 import { dataServices } from '../dataServices';
 
 interface HostedGridPanelProps {

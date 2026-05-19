@@ -82,12 +82,5 @@
     "version": "0.1.0",
     "sha": "f2508363",
     "packedAt": "2026-05-19T18:45:16.046Z"
-  },
-  "@starui/widgets": {
-    "filename": "starui-widgets-0.1.0-6740c17b.tgz",
-    "distFilename": "starui-widgets-0.1.0.tgz",
-    "version": "0.1.0",
-    "sha": "6740c17b",
-    "packedAt": "2026-05-19T18:45:16.046Z"
   }
 }

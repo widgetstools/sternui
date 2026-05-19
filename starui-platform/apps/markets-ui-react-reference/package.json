@@ -28,7 +28,6 @@
     "@starui/openfin-platform": "*",
     "@starui/types": "*",
     "@starui/ui": "*",
-    "@starui/widgets": "*",
     "@starui/host-wrapper-react": "*",
     "@starui/widgets-react": "*",
     "@starui/workspace-setup-react": "*",
