@@ -73,3 +73,7 @@ export {
   normalizeKeyColumns,
   __resetPathAccessorCaches,
 } from './rowPath.js';
+
+export * from './dataProvider.js';
+export * from './fieldSelector.js';
+export * from './configuration.js';

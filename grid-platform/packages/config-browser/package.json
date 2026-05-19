@@ -1,0 +1,44 @@
+{
+  "name": "@stargrid/config-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./icons": "./src/icons.tsx"
+  },
+  "scripts": {
+    "build": "echo '@stargrid/config-browser: consumed as source (no emit)'",
+    "typecheck": "tsc --noEmit",
+    "test": "echo '@stargrid/config-browser: no tests yet'"
+  },
+  "dependencies": {
+    "@stargrid/design-system": "*",
+    "@stargrid/engine": "*",
+    "@stargrid/host-config": "*",
+    "@stargrid/openfin-platform": "*",
+    "@stargrid/ui": "*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.554.0",
+    "tailwind-merge": "^3.5.0"
+  },
+  "peerDependencies": {
+    "@stargrid/grid": "*",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-react": "^35.1.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "peerDependenciesMeta": {
+    "@stargrid/grid": { "optional": true }
+  },
+  "devDependencies": {
+    "@stargrid/grid": "*",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "~5.9.3"
+  }
+}

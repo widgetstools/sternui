@@ -29,6 +29,7 @@ import {
 import type { MarketsGridHandle, MarketsGridProps } from './types';
 import { isMarketsGridLocalStorageStorageFactory } from './createMarketsGridLocalStorageStorage';
 import { useGridHost } from './useGridHost';
+import { resolveMarketsGridHost } from './resolveMarketsGridHost';
 import { MarketsGridHost } from './MarketsGridHost';
 
 let _agRegistered = false;
@@ -112,6 +113,7 @@ function MarketsGridInner<TData = unknown>(
     tabsHidden,
     onCaptionChange,
     onSavingChange,
+    host,
   } = props;
 
   ensureAgGridRegistered();
@@ -124,12 +126,27 @@ function MarketsGridInner<TData = unknown>(
 
   const gridRef = useRef<AgGridReact<TData>>(null);
 
+  const effectiveInstanceId = instanceId ?? gridId;
+
+  const hostResolved = resolveMarketsGridHost(host, {
+    appId,
+    userId,
+    instanceId: effectiveInstanceId,
+    gridId,
+    appData,
+  });
+
+  const resolvedAppId = hostResolved.appId ?? appId;
+  const resolvedUserId = hostResolved.userId ?? userId;
+  const resolvedInstanceId = hostResolved.instanceId ?? effectiveInstanceId;
+  const resolvedAppData = hostResolved.appData ?? appData;
+
   const { platform, columnDefs, gridOptions, onGridReady, onGridPreDestroyed } = useGridHost({
     gridId,
     rowIdField,
     modules,
     baseColumnDefs: baseColumnDefs as never,
-    appData,
+    appData: resolvedAppData,
   });
 
   const handleGridReady = useCallback(
@@ -153,7 +170,7 @@ function MarketsGridInner<TData = unknown>(
   // `instanceId` explicitly (from customData / launch env). Standalone
   // consumers omit it; we fall back to `gridId` so the key is still
   // stable per-grid.
-  const effectiveInstanceId = instanceId ?? gridId;
+  // (effectiveInstanceId computed above via resolveMarketsGridHost)
 
   // Required-companion assertion: a storage factory combined with an
   // empty identity is almost always a bug (rows land in whatever
@@ -163,25 +180,35 @@ function MarketsGridInner<TData = unknown>(
   // users who then wonder why profiles vanish.
   if (
     storage &&
-    (!appId || !userId) &&
+    (!resolvedAppId || !resolvedUserId) &&
     !isMarketsGridLocalStorageStorageFactory(storage)
   ) {
     throw new Error(
       '<MarketsGrid storage={...}> requires `appId` and `userId` props unless `storage` is ' +
         '`createMarketsGridLocalStorageStorage()`. ConfigService-backed factories scope rows by ' +
         '(appId, userId, instanceId); without both identities the factory cannot produce a correctly-scoped adapter. ' +
-        `Received: appId=${JSON.stringify(appId)}, userId=${JSON.stringify(userId)}.`,
+        `Received: appId=${JSON.stringify(resolvedAppId)}, userId=${JSON.stringify(resolvedUserId)}.`,
     );
   }
 
-  // Storage precedence: factory > direct adapter > MemoryAdapter default.
-  // Factory receives an opts object carrying the resolved identity
-  // triple; factories can ignore `appId`/`userId` if they only key on
-  // instanceId (local-storage, in-memory), or honor them (ConfigService).
+  // Storage precedence: factory > direct adapter > host.storage > MemoryAdapter default.
   const resolvedAdapter = useMemo<StorageAdapter | undefined>(() => {
-    if (storage) return storage({ instanceId: effectiveInstanceId, appId, userId, gridId });
-    return storageAdapter as StorageAdapter | undefined;
-  }, [storage, storageAdapter, effectiveInstanceId, appId, userId, gridId]);
+    if (storage) {
+      return storage({
+        instanceId: resolvedInstanceId,
+        appId: resolvedAppId,
+        userId: resolvedUserId,
+        gridId,
+      });
+    }
+    return resolveMarketsGridHost(host, {
+      appId: resolvedAppId,
+      userId: resolvedUserId,
+      instanceId: resolvedInstanceId,
+      gridId,
+      storageAdapter: storageAdapter as StorageAdapter | undefined,
+    }).storageAdapter;
+  }, [storage, storageAdapter, host, resolvedInstanceId, resolvedAppId, resolvedUserId, gridId]);
 
   // Dev-only nudge — when neither a `storage` factory nor a direct
   // `storageAdapter` is wired, the inner Host falls through to a
@@ -192,6 +219,7 @@ function MarketsGridInner<TData = unknown>(
   if (
     !storage &&
     !storageAdapter &&
+    !host &&
     !_memoryAdapterWarned &&
     typeof process !== 'undefined' &&
     process.env?.NODE_ENV !== 'production'
@@ -201,7 +229,7 @@ function MarketsGridInner<TData = unknown>(
     console.warn(
       '[MarketsGrid] No storage prop provided. Using in-memory storage — ' +
       'profiles, layouts and grid-level-data WILL be lost on reload. ' +
-      'Wire @starui/config-service via createConfigServiceStorage(...) to persist.',
+      'Wire @stargrid/host-config via createConfigServiceStorage(...) or pass `host` with storage to persist.',
     );
   }
 
@@ -240,9 +268,9 @@ function MarketsGridInner<TData = unknown>(
         onGridLevelDataLoad={onGridLevelDataLoad}
         headerExtras={headerExtras}
         componentName={componentName}
-        instanceId={instanceId}
-        appId={appId}
-        userId={userId}
+        instanceId={resolvedInstanceId}
+        appId={resolvedAppId}
+        userId={resolvedUserId}
         caption={caption}
         tabsHidden={tabsHidden}
         onCaptionChange={onCaptionChange}

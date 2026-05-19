@@ -23,10 +23,20 @@ src/
 ## Dependencies
 
 - `@stargrid/engine`, `@stargrid/types`, `@stargrid/host` — StarGrid platform
-- `@starui/ui`, `@starui/design-system` — **removed** (Phase 4: use `@stargrid/ui`, `@stargrid/design-system`)
+- `@stargrid/ui`, `@stargrid/design-system` — design system + primitives
 
-## Phase 3 follow-ups
+## Host integration
 
-- [ ] Wire `host: GridHostContext` prop on `MarketsGrid`
-- [ ] Port `@starui/ui` + `@starui/design-system` → `@stargrid/*` (Phase 4)
-- [ ] Remove duplicate shadcn copy in `customizer/ui/shadcn/`
+Pass an optional `host: GridHostContext` prop to wire runtime identity, storage,
+data, and config without the legacy provider stack:
+
+```tsx
+<MarketsGrid
+  host={createGridHostContext({ runtime, storage, data, config })}
+  gridId="blotter"
+  rowData={rows}
+  columnDefs={cols}
+/>
+```
+
+Explicit `appId`, `userId`, `storage`, and `appData` props override host defaults.

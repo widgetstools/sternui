@@ -1,0 +1,16 @@
+@import '../../../packages/grid/src/widget/styles/marketsGrid.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-border; }
+  html, body, #root { height: 100%; width: 100%; }
+  body {
+    background: var(--ds-surface-ground);
+    color: var(--ds-text-primary);
+    font-family: var(--ds-font-sans), -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}

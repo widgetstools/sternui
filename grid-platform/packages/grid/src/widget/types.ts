@@ -1,11 +1,6 @@
 import type { ColDef, GridApi, SideBarDef, StatusPanelDef, Theme } from 'ag-grid-community';
-import type {
-  AnyModule,
-  AppDataLookup,
-  GridPlatform,
-  MarketsGridLocalStorageConfig,
-  StorageAdapter,
-} from '@stargrid/engine';
+import type { AnyModule, AppDataLookup, GridPlatform, MarketsGridLocalStorageConfig, StorageAdapter } from '@stargrid/engine';
+import type { GridHostContext } from '@stargrid/host';
 import type { UseProfileManagerResult } from '@stargrid/grid/customizer';
 
 export type { MarketsGridLocalStorageConfig } from '@stargrid/engine';
@@ -26,6 +21,13 @@ export interface SavedFilter {
  * app configures the grid.
  */
 export interface MarketsGridProps<TData = unknown> {
+  /**
+   * Optional host context — runtime, storage, data, and config ports.
+   * When provided, identity defaults and storage/appData fall back to
+   * the host unless explicit props override them.
+   */
+  host?: GridHostContext;
+
   /** Unique id per grid instance. Profile snapshots key off this. */
   gridId: string;
   /** Row data. Kept reactive — swapping triggers the usual AG-Grid diff. */

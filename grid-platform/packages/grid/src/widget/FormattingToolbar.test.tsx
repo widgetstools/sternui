@@ -16,6 +16,7 @@
  */
 import * as React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Column, GridApi } from 'ag-grid-community';
 import { GridPlatform } from '@stargrid/engine';
@@ -320,6 +321,7 @@ describe('FormattingToolbar — ALL + HEADER scope writes to globalHeaderStyle',
   }
 
   it('header font size lands on globalHeaderStyle, not per-column overrides', async () => {
+    const user = userEvent.setup();
     const fake = makeFakeApi(COLS, ['price']);
     mountToolbar({ platform, api: fake.api });
 
@@ -327,9 +329,9 @@ describe('FormattingToolbar — ALL + HEADER scope writes to globalHeaderStyle',
 
     const sizeButton = screen.getByTestId('fmt-panel-font-size') as HTMLButtonElement;
     expect(sizeButton.disabled).toBe(false);
-    act(() => fireEvent.click(sizeButton));
+    await user.click(sizeButton);
     const option = await screen.findByText('16px');
-    act(() => fireEvent.click(option));
+    await user.click(option);
 
     const cust = platform.store.getModuleState<ColumnCustomizationState>('column-customization');
     expect(cust?.globalHeaderStyle?.dark?.typography?.fontSize).toBe(16);
