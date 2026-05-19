@@ -1,0 +1,124 @@
+/* ───────────────────────────────────────────────────────────────────
+ * ProfileSelector — profile picker popover chrome.
+ *
+ * AUDIT i5 partial migration: this stylesheet hosts the STATIC layout
+ * and chrome that the component used to author inline. State-dependent
+ * styles (active-row highlight, hover background, dirty-dot color)
+ * remain inline in ProfileSelector.tsx because they branch on React
+ * state and would require additional data-* attributes to hand off
+ * cleanly to CSS. Migrating those is a cosmetic-only change best done
+ * with a visual-regression verification pass.
+ *
+ * Tokens come from the cockpit CSS vars (`--ck-*`) when the selector
+ * is mounted inside `.ds-sheet`, and from the market-grid surface
+ * defaults otherwise.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.ds-profile-selector {
+  display: inline-flex;
+}
+
+/* Popover container chrome — mirrors `.ds-popout` from grid-chrome.css
+ * so the layout picker reads as a sibling surface to the grid customizer:
+ * surface-ground body that floats above the host with a defined border,
+ * overlay-grade shadow, and a 1px inset highlight to ground it visually.
+ * The header tier (`.ds-ps-header` below) sits on `surface-primary` so
+ * it pops clearly off the body. */
+.ds-ps-shell {
+  /* Fixed height so the popover doesn't reflow as layouts are added /
+   * removed; the list owns the overflow and scrolls inside this box. */
+  display: flex;
+  flex-direction: column;
+  height: 480px;
+  max-height: calc(100vh - 48px);
+  background: var(--ds-surface-ground);
+  border: 1px solid var(--ds-border-secondary);
+  box-shadow: var(--ds-elevation-overlay), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+[data-theme='light'] .ds-ps-shell {
+  box-shadow: var(--ds-elevation-overlay), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Header strip — same shape as `.ds-popout-title` (36px tall, surface
+ * primary, bottom hairline border) so the picker shares the
+ * customizer's visual language without adopting its busy chrome. */
+.ds-ps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 36px;
+  padding: 0 14px;
+  background: var(--ds-surface-primary);
+  border-bottom: 1px solid var(--ds-border-primary);
+  flex-shrink: 0;
+}
+
+.ds-ps-header-label {
+  font-family: var(--ds-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-primary);
+}
+
+.ds-ps-header-count {
+  font-family: var(--ds-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-faint);
+}
+
+/* Scrollable body wrapping the profile rows — fills the remaining
+ * vertical space between the fixed header and the save/import/export
+ * footer sections. */
+.ds-ps-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--ds-surface-ground);
+}
+
+/* Footer sections (Save current as, Export / Import) sit below the
+ * scrolling list and never scroll themselves. */
+.ds-ps-footer {
+  flex-shrink: 0;
+}
+
+.ds-ps-empty {
+  padding: 18px 12px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ds-text-muted);
+}
+
+/* Leading 14×14 slot that holds either a check (active) or a dot
+   (inactive) before the profile name. */
+.ds-ps-row-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.ds-ps-row-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ds-text-muted) 45%, transparent);
+}
+
+/* Inactive-row hover tint — kept in CSS so the row can serve as the
+   `data-row-hover-target` for nested GhostIconButtons without each
+   button needing its own React hover state. The active row owns its
+   own (stronger) background via inline `data-active` styling. */
+.ds-ps-row:not([data-active='true']):hover {
+  background: color-mix(in srgb, var(--ds-text-primary) 5%, transparent) !important;
+}

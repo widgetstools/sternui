@@ -1,0 +1,46 @@
+/* ───────────────────────────────────────────────────────────────────
+ * HelpPanel — static layout chrome for the settings-sheet help tab.
+ *
+ * AUDIT i5 partial migration: this stylesheet hosts the structural
+ * layout (grid shell, nav rail, content pane, paragraph defaults).
+ * Button active/hover states stay inline because they branch on
+ * React state. Cheat-sheet inline styles (code blocks, emoji grid)
+ * also remain inline since they're either one-offs or state-driven.
+ * Full migration is deferred; this establishes the entry point.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.ds-help-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--ds-font-sans);
+}
+
+.ds-help-nav {
+  border-right: 1px solid var(--ds-border-primary);
+  padding: 12px 6px;
+  overflow-y: auto;
+  background: var(--ds-surface-secondary);
+}
+
+.ds-help-nav-footer {
+  margin-top: 18px;
+  padding: 0 10px;
+  font-size: 10px;
+  color: var(--ds-text-faint);
+}
+
+.ds-help-nav-footer code {
+  font-family: var(--ds-font-mono);
+}
+
+.ds-help-content {
+  overflow-y: auto;
+  color: var(--ds-text-primary);
+}
+
+.ds-help-p {
+  margin: 6px 0;
+  color: var(--ds-text-secondary);
+}

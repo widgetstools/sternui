@@ -67,6 +67,9 @@ export interface AppDataSnapshot {
 export {
   COMPOSITE_KEY_SEPARATOR,
   composeRowId,
+  getPathAccessor,
+  getPathSetter,
   getValueByPath,
   normalizeKeyColumns,
+  __resetPathAccessorCaches,
 } from './rowPath.js';

@@ -1,24 +1,32 @@
-# @stargrid/grid (Phase 3 stub)
+# @stargrid/grid
 
-Merged MarketsGrid product surface — combines legacy `@starui/markets-grid` +
-`@starui/grid-react` into one package with subpath exports.
+Merged MarketsGrid product surface (Phase 3).
 
-## Planned exports
+## Layout
 
 ```
-@stargrid/grid              MarketsGrid root component
-@stargrid/grid/modules/*    Module pipeline panels
-@stargrid/grid/primitives/* Settings-panel primitives
-@stargrid/grid/styles.css   Widget stylesheet
+src/
+├── widget/       MarketsGrid chrome, toolbars, formatter (was @starui/markets-grid)
+├── customizer/   Module pipeline UI, hooks, editors (was @starui/grid-react)
+└── runtime/      OpenFin popout helpers (removed from @stargrid/engine)
 ```
 
-## Host integration
+## Exports
 
-MarketsGrid accepts `host: GridHostContext` instead of wiring providers externally.
+| Import | Surface |
+|---|---|
+| `@stargrid/grid` | `MarketsGrid`, storage helpers, types |
+| `@stargrid/grid/customizer` | Hooks, modules, settings-panel primitives |
+| `@stargrid/grid/styles.css` | Widget stylesheet |
+| `@stargrid/grid/runtime/openfin` | `isOpenFin`, `openFinWindowOpener` |
 
-## Source
+## Dependencies
 
-- `../../packages/react/widgets/markets-grid/`
-- `../../packages/react/widgets/grid-react/`
+- `@stargrid/engine`, `@stargrid/types`, `@stargrid/host` — StarGrid platform
+- `@starui/ui`, `@starui/design-system` — bridged from legacy monorepo until Phase 4
 
-Remove duplicate shadcn copy; consume `@stargrid/ui` instead.
+## Phase 3 follow-ups
+
+- [ ] Wire `host: GridHostContext` prop on `MarketsGrid`
+- [ ] Port `@starui/ui` + `@starui/design-system` → `@stargrid/*` (Phase 4)
+- [ ] Remove duplicate shadcn copy in `customizer/ui/shadcn/`

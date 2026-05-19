@@ -1,0 +1,139 @@
+/**
+ * Popover — built on @radix-ui/react-popover.
+ *
+ * Radix handles portal rendering, collision detection (flip + shift),
+ * focus management, and accessibility out of the box. This wrapper adds
+ * the project's visual styling (--gc-* tokens with dark fallbacks) and
+ * re-exports the Radix primitives with the names consumers already use.
+ *
+ * Usage:
+ *   <Popover>
+ *     <PopoverTrigger asChild>
+ *       <button>Open</button>
+ *     </PopoverTrigger>
+ *     <PopoverContent>
+ *       …picker / editor / menu…
+ *     </PopoverContent>
+ *   </Popover>
+ *
+ * For backward compatibility with the old `<Popover trigger={…}>…</Popover>`
+ * API used by FormattingToolbar, see `PopoverCompat` at the bottom.
+ */
+
+import * as React from 'react';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
+import { cn } from './utils';
+import { useResolvedPortalContainer } from '../PortalContainer';
+
+const Popover = PopoverPrimitive.Root;
+const PopoverTrigger = PopoverPrimitive.Trigger;
+const PopoverAnchor = PopoverPrimitive.Anchor;
+const PopoverClose = PopoverPrimitive.Close;
+
+const PopoverContent = React.forwardRef<
+  React.ComponentRef<typeof PopoverPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
+>(({ className, align = 'start', sideOffset = 4, children, style, ...props }, ref) => {
+  // Route the Radix portal into the PortalContainer context's target
+  // (popout body when inside PopoutPortal, document.body otherwise).
+  // Undefined = Radix falls back to its own default.
+  const portalContainer = useResolvedPortalContainer();
+  return (
+  <PopoverPrimitive.Portal container={portalContainer}>
+    <PopoverPrimitive.Content
+      ref={ref}
+      align={align}
+      sideOffset={sideOffset}
+      collisionPadding={8}
+      data-ds-settings=""
+      className={cn(
+        // Base layout
+        'z-[2147483647] w-72 rounded-md p-2.5',
+        // Theme — use gc-* vars with dark fallbacks for portal context
+        'bg-[var(--ds-surface-primary)] text-[var(--ds-text-primary)]',
+        'border border-[var(--ds-border-primary)]',
+        'shadow-card',
+        // Font
+        'font-[var(--ds-font-sans)] text-[11px]',
+        // Animations
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+        'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
+        'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
+        'data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
+        className,
+      )}
+      onMouseDown={(e) => {
+        // Prevent focus-steal from inputs; stop propagation so parent
+        // click handlers don't close anything. Form controls keep their
+        // native mousedown so cursor positioning, option selection, etc.
+        // continue to work.
+        e.stopPropagation();
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION' && tag !== 'TEXTAREA') {
+          e.preventDefault();
+        }
+      }}
+      // Token-backed opaque background — inline (load-bearing over
+      // the Tailwind arbitrary-value class above) so it always wins.
+      // Caller-supplied `style` wins for non-background properties
+      // (spread last). `outline: none` suppresses the browser's
+      // default focus ring on the Radix-focused Content element.
+      style={{
+        background: 'var(--ds-surface-primary)',
+        color: 'var(--ds-text-primary)',
+        outline: 'none',
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </PopoverPrimitive.Content>
+  </PopoverPrimitive.Portal>
+  );
+});
+PopoverContent.displayName = PopoverPrimitive.Content.displayName;
+
+/**
+ * Backward-compatible wrapper matching the old `<Popover trigger={…}>…</Popover>`
+ * API. Used by FormattingToolbar's font-size, save-as, and number-format popovers.
+ * New code should use `<Popover>/<PopoverTrigger>/<PopoverContent>` directly.
+ */
+function PopoverCompat({
+  trigger,
+  children,
+  align = 'start',
+  className,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  trigger: React.ReactNode;
+  children: React.ReactNode;
+  align?: 'start' | 'center' | 'end';
+  className?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  return (
+    <Popover open={controlledOpen} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <span className="inline-flex cursor-pointer">{trigger}</span>
+      </PopoverTrigger>
+      <PopoverContent align={align} className={cn('w-auto', className)}>
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAnchor,
+  PopoverClose,
+  PopoverCompat,
+};
+
+// Default export is the compat wrapper so existing `import { Popover }` works.
+export { PopoverCompat as default };

@@ -55,3 +55,7 @@ See also: [design spec](../../docs/superpowers/specs/2026-05-19-grid-platform-de
 ## Phase 2 packages (shipped)
 
 - `@stargrid/engine` — vanilla grid platform (ported from `@starui/core`, OpenFin shim removed)
+
+## Phase 3 packages (shipped)
+
+- `@stargrid/grid` — merged MarketsGrid + customizer (`widget/`, `customizer/`, `runtime/openFin`)

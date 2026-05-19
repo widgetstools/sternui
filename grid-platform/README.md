@@ -9,7 +9,7 @@ the product**, **host ports as the integration surface**.
 |---|---|---|
 | 1 | `@stargrid/types`, `@stargrid/host`, `@stargrid/host-browser` | **Done** |
 | 2 | `@stargrid/engine` (port of `@starui/core`) | **Done** |
-| 3 | `@stargrid/grid` + `@stargrid/grid-react` | Planned |
+| 3 | `@stargrid/grid` + `@stargrid/grid-react` | **Done** (292/319 tests; ui bridge pending phase 4) |
 | 4 | `@stargrid/design-system` + `@stargrid/ui` | Planned |
 | 5 | `@stargrid/host-data`, `@stargrid/host-config`, `@stargrid/host-openfin` | Planned |
 | 6 | `@stargrid/app` + demo + parity gate | Planned |

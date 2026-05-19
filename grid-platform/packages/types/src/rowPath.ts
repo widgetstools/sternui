@@ -45,3 +45,80 @@ export function composeRowId(
   }
   return parts.join(COMPOSITE_KEY_SEPARATOR);
 }
+
+const accessorCache = new Map<string, (row: unknown) => unknown>();
+const setterCache = new Map<string, (row: unknown, value: unknown) => boolean>();
+
+export function getPathAccessor(path: string): (row: unknown) => unknown {
+  const cached = accessorCache.get(path);
+  if (cached) return cached;
+
+  let fn: (row: unknown) => unknown;
+  if (!path.includes('.')) {
+    fn = (row) => {
+      if (row == null || typeof row !== 'object') return undefined;
+      return (row as Record<string, unknown>)[path];
+    };
+  } else {
+    const segments = path.split('.');
+    fn = (row) => {
+      if (row == null || typeof row !== 'object') return undefined;
+      const obj = row as Record<string, unknown>;
+      if (Object.prototype.hasOwnProperty.call(obj, path)) return obj[path];
+      let cursor: unknown = obj;
+      for (let i = 0; i < segments.length; i++) {
+        if (cursor == null || typeof cursor !== 'object') return undefined;
+        cursor = (cursor as Record<string, unknown>)[segments[i] as string];
+      }
+      return cursor;
+    };
+  }
+  accessorCache.set(path, fn);
+  return fn;
+}
+
+export function getPathSetter(path: string): (row: unknown, value: unknown) => boolean {
+  const cached = setterCache.get(path);
+  if (cached) return cached;
+
+  let fn: (row: unknown, value: unknown) => boolean;
+  if (!path.includes('.')) {
+    fn = (row, value) => {
+      if (row == null || typeof row !== 'object') return false;
+      const obj = row as Record<string, unknown>;
+      if (Object.is(obj[path], value)) return false;
+      obj[path] = value;
+      return true;
+    };
+  } else {
+    const segments = path.split('.');
+    const lastIdx = segments.length - 1;
+    fn = (row, value) => {
+      if (row == null || typeof row !== 'object') return false;
+      let cursor = row as Record<string, unknown>;
+      for (let i = 0; i < lastIdx; i++) {
+        const seg = segments[i] as string;
+        const next = cursor[seg];
+        if (next == null || typeof next !== 'object') {
+          const made: Record<string, unknown> = {};
+          cursor[seg] = made;
+          cursor = made;
+        } else {
+          cursor = next as Record<string, unknown>;
+        }
+      }
+      const finalSeg = segments[lastIdx] as string;
+      if (Object.is(cursor[finalSeg], value)) return false;
+      cursor[finalSeg] = value;
+      return true;
+    };
+  }
+  setterCache.set(path, fn);
+  return fn;
+}
+
+/** Test-only: reset path accessor caches between suites. */
+export function __resetPathAccessorCaches(): void {
+  accessorCache.clear();
+  setterCache.clear();
+}
