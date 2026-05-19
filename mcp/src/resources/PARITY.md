@@ -11,8 +11,8 @@
 | Grid platform core | `@starui/core` | `@starui/engine` | **Ported** |
 | MarketsGrid widget | `@starui/markets-grid` | `@starui/grid/widget` | **Ported** |
 | Grid customizer | `@starui/grid-react` | `@starui/grid/customizer` | **Ported** (merged) |
-| Design tokens + CSS | `@starui/design-system` | `@starui/design-system` (`packages/shared/design-system`) | **Ported** — in-repo |
-| shadcn primitives | `@starui/ui` | `@starui/ui` (`packages/react/ui`) | **Ported** — in-repo |
+| Design tokens + CSS | `@starui/design-system` | `@starui/design-system` (`packages/design-system/design-system`) | **Ported** — in-repo |
+| shadcn primitives | `@starui/ui` | `@starui/ui` (`packages/react-ui/ui`) | **Ported** — in-repo |
 | Shared types | `@starui/shared-types` | `@starui/shared-types` (`packages/shared/shared-types`) | **Ported** — in-repo |
 | Runtime port | `@starui/runtime-port` + browser | `@starui/host` + `@starui/host-browser` | **Ported** |
 | Config persistence | `@starui/config-service` | `@starui/host-config` | **Ported** |
@@ -22,7 +22,9 @@
 | App shell | `@starui/app-shell-react` + providers | `@starui/app` (`StarGridApp`) | **Ported** |
 | Demo app | `apps/demo-react` | `starui-platform/apps/demo-react` | **Ported** (zero `@starui/*`) |
 | OpenFin workspace shell | `@starui/openfin-platform` | `@starui/openfin-platform` | **Ported** |
-| Hosted wrappers | `@starui/widgets-react/hosted` | `@starui/widgets-react/hosted` | **Ported** |
+| Widget contract (agnostic) | (in `@starui/widget-sdk`) | `@starui/widget` (`packages/shared/widget`) | **Ported** |
+| Widget browser adapter | (in `@starui/widget-sdk`) | `@starui/widget-browser` | **Ported** |
+| Widget SDK (React) | `@starui/widget-sdk` | `@starui/widget-sdk` (`packages/react-core/widget-sdk`) | **Ported** — React-only |
 | Config browser tool | `@starui/config-browser-react` | `@starui/config-browser` | **Ported** |
 | Data provider editor | `@starui/config-editor-ui` | — | **Deferred** |
 | Workspace setup | `@starui/workspace-setup-react` | — | **Deferred** |

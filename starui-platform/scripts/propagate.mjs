@@ -142,14 +142,7 @@ function loadRootPackage() {
 }
 
 const PACK_EXCLUDE = new Set([
-  '@starui/ui',
-  '@starui/design-system',
-  '@starui/shared-types',
-  '@starui/icons-svg',
-  '@starui/host-wrapper-react',
-  '@starui/workspace-setup-react',
-  '@starui/widgets-react',
-  '@starui/widget-sdk',
+  // Empty — all workspace libraries are packable after ten-bucket reorg.
 ]);
 
 function discoverPackages() {

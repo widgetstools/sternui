@@ -41,10 +41,20 @@ See also: root [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) and [`docs/A
 
 ## Folder layout
 
+Ten architecture buckets under `packages/` — see
+[`docs/PACKAGE_ORGANIZATION.md`](./PACKAGE_ORGANIZATION.md):
+
 ```
-packages/shared/   — vanilla TS (types, shared-types, design-system, host, engine, host-*)
-packages/react/    — React (ui, grid, app, widgets, host-data-react, config-browser)
-packages/angular/  — Angular twins of react/ (grid, app, widgets, host-data-angular, config-browser)
+packages/design-system/   — (1) tokens, icons
+packages/angular-ui/      — (2) PrimeNG controls (scaffold)
+packages/react-ui/        — (3) shadcn primitives
+packages/angular-grid/    — (4) @starui/grid-angular
+packages/react-grid/      — (5) @starui/grid
+packages/data/            — (6) host-data, host-config
+packages/openfin/         — (7) host-openfin, openfin-platform
+packages/angular-core/    — (8) app, widgets, config-browser
+packages/react-core/      — (9) app, widgets-react, tools
+packages/shared/          — (10) engine, host, types, widget contract
 ```
 
 ## Import rules

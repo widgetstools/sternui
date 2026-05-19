@@ -6,7 +6,7 @@ export default {
   content: [
     './index.html',
     './src/**/*.{ts,tsx}',
-    '../../packages/react/ui/src/**/*.{ts,tsx}',
-    '../../packages/react/grid/src/**/*.{ts,tsx}',
+    '../../packages/react-ui/ui/src/**/*.{ts,tsx}',
+    '../../packages/react-grid/grid/src/**/*.{ts,tsx}',
   ],
 };

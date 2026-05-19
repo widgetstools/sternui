@@ -5,9 +5,16 @@
   "description": "StarUI — modular Markets UI platform with host ports for browser and OpenFin",
   "packageManager": "npm@10.9.0",
   "workspaces": [
+    "packages/design-system/*",
+    "packages/angular-ui/*",
+    "packages/react-ui/*",
+    "packages/angular-grid/*",
+    "packages/react-grid/*",
+    "packages/data/*",
+    "packages/openfin/*",
+    "packages/angular-core/*",
+    "packages/react-core/*",
     "packages/shared/*",
-    "packages/react/*",
-    "packages/angular/*",
     "apps/*",
     "apps/demo-apps/*"
   ],

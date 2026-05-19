@@ -29,38 +29,34 @@ version in the same change.
 
 ## Package layout
 
-All workspace packages live under **`starui-platform/packages/`** in three
-framework buckets (per
-[`starui-platform/docs/PARITY.md`](./starui-platform/docs/PARITY.md) and [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)):
+All workspace packages live under **`starui-platform/packages/`** in ten
+architecture buckets (see
+[`starui-platform/docs/PACKAGE_ORGANIZATION.md`](./starui-platform/docs/PACKAGE_ORGANIZATION.md)):
 
-- `starui-platform/packages/shared/` — vanilla TS, framework-agnostic
-  - `engine/` — GridPlatform, ProfileManager, expression engine, modules
-  - `design-system/`, `shared-types/`, `types/`, `icons-svg/` — foundation leaves
-  - `host/`, `host-browser/`, `host-openfin/` — host port + runtime adapters
-  - `host-config/`, `host-data/` — config + data-services
-  - `widget/`, `widget-browser/` — widget PlatformAdapter contract + browser impl
-  - `openfin-platform/` — OpenFin workspace shell
-- `starui-platform/packages/react/` — React-only packages
-  - `ui/` — shadcn primitives (no `-react` suffix)
-  - `grid/` — MarketsGrid widget + customizer (`@starui/grid`; replaces legacy `@starui/markets-grid` + `@starui/grid-react`)
-  - `app/`, `widgets-react/`, `widget-sdk/` (React bindings; contract in `@starui/widget`)
-  - `host-wrapper-react/`, `host-data-react/`
-  - `config-browser/`, `workspace-setup-react/`
-- `starui-platform/packages/angular/` — Angular scaffolds (parity catching up)
+| # | Bucket | Path | Packages |
+|---|--------|------|----------|
+| 1 | UI Design System | `design-system/` | `design-system`, `icons-svg` |
+| 2 | Angular UI Controls | `angular-ui/` | *(scaffold — PrimeNG/tokens)* |
+| 3 | React UI Controls | `react-ui/` | `ui` |
+| 4 | Angular Grid | `angular-grid/` | `grid` → `@starui/grid-angular` |
+| 5 | React Grid | `react-grid/` | `grid` → `@starui/grid` |
+| 6 | Data Utilities | `data/` | `host-config`, `host-data`, `host-data-react`, `host-data-angular` |
+| 7 | OpenFin Utils | `openfin/` | `host-openfin`, `openfin-platform` |
+| 8 | Angular Core | `angular-core/` | `app`, `widgets`, `config-browser` |
+| 9 | React Core | `react-core/` | `app`, `widgets-react`, `widget-sdk`, `host-wrapper-react`, `config-browser`, `workspace-setup-react` |
+| 10 | Core / Shared | `shared/` | `types`, `shared-types`, `engine`, `host`, `host-browser`, `widget`, `widget-browser` |
 
 **Apps** live under `starui-platform/apps/` and consume libraries via npm
-workspace `"*"` deps — not root `file:` tarballs.
+workspace `"*"` deps.
 
-The root `package.json` workspaces glob enumerates `starui-platform/**`
-paths explicitly (npm 10 doesn't do `packages/**`). When adding a new package:
+The root `package.json` workspaces glob enumerates each bucket explicitly
+(npm 10 doesn't do `packages/**`). When adding a new package:
 
-1. Pick the framework bucket by peer dep (vanilla → `shared/`, React →
-   `react/`, Angular → `angular/`).
-2. Pick the sub-bucket by role (foundation leaf, host, service, widget, tool).
-3. Package name carries the framework suffix when a twin can exist; drop the
+1. Pick the architecture bucket by role (see table above).
+2. Package name carries the framework suffix when a twin can exist; drop the
    suffix for framework-singletons (`ui`, `widget-sdk`, `grid`).
-4. `tsconfig.json` `"extends"` is `"../../../../tsconfig.base.json"`
-   (4 levels) from sub-bucketed packages under `starui-platform/`.
+3. `tsconfig.json` `"extends"` is `"../../../tsconfig.base.json"` (3 levels)
+   from `packages/<bucket>/<package>/`.
 
 ## File naming
 
@@ -89,10 +85,10 @@ matching Angular Style Guide. Don't switch — Angular tooling and
 muscle memory both depend on it.
 
 **Carve-outs (kebab-case allowed despite the above)**:
-- `starui-platform/packages/react/ui/src/components/**` — shadcn-ui CLI generates kebab
+- `starui-platform/packages/react-ui/ui/src/components/**` — shadcn-ui CLI generates kebab
   filenames (`alert-dialog.tsx`, `dropdown-menu.tsx`); renaming would
   diverge from `npx shadcn add ...` future regenerations
-- `starui-platform/packages/react/grid/src/customizer/ui/shadcn/**` — gc-themed
+- `starui-platform/packages/react-grid/grid/src/customizer/ui/shadcn/**` — gc-themed
   shadcn copy carried over from the legacy grid-react extraction
 
 **Public subpath exports** in `package.json` `"exports"` may use kebab

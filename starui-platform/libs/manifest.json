@@ -1,86 +1,191 @@
 {
   "@starui/app": {
-    "filename": "starui-app-0.1.0-69aa2a68.tgz",
+    "filename": "starui-app-0.1.0-7ea4d3d5.tgz",
     "distFilename": "starui-app-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "69aa2a68",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "7ea4d3d5",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/app-angular": {
+    "filename": "starui-app-angular-0.1.0-7205bd61.tgz",
+    "distFilename": "starui-app-angular-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "7205bd61",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/config-browser": {
-    "filename": "starui-config-browser-0.1.0-8b365252.tgz",
+    "filename": "starui-config-browser-0.1.0-485a781f.tgz",
     "distFilename": "starui-config-browser-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "8b365252",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "485a781f",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/config-browser-angular": {
+    "filename": "starui-config-browser-angular-0.1.0-0d894808.tgz",
+    "distFilename": "starui-config-browser-angular-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "0d894808",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/design-system": {
+    "filename": "starui-design-system-0.1.0-a0da9f4b.tgz",
+    "distFilename": "starui-design-system-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "a0da9f4b",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/engine": {
-    "filename": "starui-engine-0.1.0-8857e852.tgz",
+    "filename": "starui-engine-0.1.0-22929bbf.tgz",
     "distFilename": "starui-engine-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "8857e852",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "22929bbf",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/grid": {
-    "filename": "starui-grid-0.1.0-2f362c48.tgz",
+    "filename": "starui-grid-0.1.0-b501a52a.tgz",
     "distFilename": "starui-grid-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "2f362c48",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "b501a52a",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/grid-angular": {
+    "filename": "starui-grid-angular-0.1.0-1cee70b3.tgz",
+    "distFilename": "starui-grid-angular-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "1cee70b3",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/host": {
-    "filename": "starui-host-0.1.0-dfd70528.tgz",
+    "filename": "starui-host-0.1.0-988d041c.tgz",
     "distFilename": "starui-host-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "dfd70528",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "988d041c",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/host-browser": {
     "filename": "starui-host-browser-0.1.0-ec8ebe19.tgz",
     "distFilename": "starui-host-browser-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "ec8ebe19",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/host-config": {
-    "filename": "starui-host-config-0.1.0-fb7a266a.tgz",
+    "filename": "starui-host-config-0.1.0-6464f3f4.tgz",
     "distFilename": "starui-host-config-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "fb7a266a",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "6464f3f4",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/host-data": {
     "filename": "starui-host-data-0.1.0-4b887fcd.tgz",
     "distFilename": "starui-host-data-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "4b887fcd",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/host-data-angular": {
+    "filename": "starui-host-data-angular-0.1.0-bcf3569d.tgz",
+    "distFilename": "starui-host-data-angular-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "bcf3569d",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/host-data-react": {
-    "filename": "starui-host-data-react-0.1.0-8304f96a.tgz",
+    "filename": "starui-host-data-react-0.1.0-5e773bfa.tgz",
     "distFilename": "starui-host-data-react-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "8304f96a",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "5e773bfa",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/host-openfin": {
-    "filename": "starui-host-openfin-0.1.0-fdb0d808.tgz",
+    "filename": "starui-host-openfin-0.1.0-4c8b2c54.tgz",
     "distFilename": "starui-host-openfin-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "fdb0d808",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "4c8b2c54",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/host-wrapper-react": {
+    "filename": "starui-host-wrapper-react-0.1.0-68170279.tgz",
+    "distFilename": "starui-host-wrapper-react-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "68170279",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/icons-svg": {
+    "filename": "starui-icons-svg-1.0.0-0b83197e.tgz",
+    "distFilename": "starui-icons-svg-1.0.0.tgz",
+    "version": "1.0.0",
+    "sha": "0b83197e",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/openfin-platform": {
-    "filename": "starui-openfin-platform-0.1.0-54f20002.tgz",
+    "filename": "starui-openfin-platform-0.1.0-08f56d2d.tgz",
     "distFilename": "starui-openfin-platform-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "54f20002",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "sha": "08f56d2d",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/shared-types": {
+    "filename": "starui-shared-types-1.0.0-491e1dca.tgz",
+    "distFilename": "starui-shared-types-1.0.0.tgz",
+    "version": "1.0.0",
+    "sha": "491e1dca",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   },
   "@starui/types": {
     "filename": "starui-types-0.1.0-f2508363.tgz",
     "distFilename": "starui-types-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "f2508363",
-    "packedAt": "2026-05-19T18:45:16.046Z"
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/ui": {
+    "filename": "starui-ui-1.0.0-eae6ca5c.tgz",
+    "distFilename": "starui-ui-1.0.0.tgz",
+    "version": "1.0.0",
+    "sha": "eae6ca5c",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/widget": {
+    "filename": "starui-widget-0.1.0-32cefea9.tgz",
+    "distFilename": "starui-widget-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "32cefea9",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/widget-browser": {
+    "filename": "starui-widget-browser-0.1.0-3742fe32.tgz",
+    "distFilename": "starui-widget-browser-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "3742fe32",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/widget-sdk": {
+    "filename": "starui-widget-sdk-1.0.0-9659a724.tgz",
+    "distFilename": "starui-widget-sdk-1.0.0.tgz",
+    "version": "1.0.0",
+    "sha": "9659a724",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/widgets-angular": {
+    "filename": "starui-widgets-angular-0.1.0-f9d9e9f6.tgz",
+    "distFilename": "starui-widgets-angular-0.1.0.tgz",
+    "version": "0.1.0",
+    "sha": "f9d9e9f6",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/widgets-react": {
+    "filename": "starui-widgets-react-1.0.0-92f48d6d.tgz",
+    "distFilename": "starui-widgets-react-1.0.0.tgz",
+    "version": "1.0.0",
+    "sha": "92f48d6d",
+    "packedAt": "2026-05-19T21:31:13.318Z"
+  },
+  "@starui/workspace-setup-react": {
+    "filename": "starui-workspace-setup-react-1.0.0-fb9c77ea.tgz",
+    "distFilename": "starui-workspace-setup-react-1.0.0.tgz",
+    "version": "1.0.0",
+    "sha": "fb9c77ea",
+    "packedAt": "2026-05-19T21:31:13.318Z"
   }
 }

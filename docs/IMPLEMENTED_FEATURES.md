@@ -1,3 +1,28 @@
+## 2026-05-19 — ten-bucket package layout (engineering architecture)
+
+Reorganized `starui-platform/packages/` from `shared/` + `react/` + `angular/`
+into ten architecture buckets. **`@starui/*` npm names unchanged** — only
+filesystem paths moved.
+
+| Bucket | Path |
+|--------|------|
+| 1 UI Design System | `packages/design-system/` |
+| 2 Angular UI Controls | `packages/angular-ui/` (scaffold) |
+| 3 React UI Controls | `packages/react-ui/` |
+| 4 Angular Grid | `packages/angular-grid/` |
+| 5 React Grid | `packages/react-grid/` |
+| 6 Data Utilities | `packages/data/` |
+| 7 OpenFin Utils | `packages/openfin/` |
+| 8 Angular Core | `packages/angular-core/` |
+| 9 React Core | `packages/react-core/` |
+| 10 Core / Shared | `packages/shared/` |
+
+Canonical map: [`starui-platform/docs/PACKAGE_ORGANIZATION.md`](../starui-platform/docs/PACKAGE_ORGANIZATION.md).
+Updated root + platform `package.json` workspaces, app Tailwind/CSS paths,
+`CLAUDE.md`, `ARCHITECTURE.md`, `PARITY.md`.
+
+---
+
 ## 2026-05-19 — retire `@starui/widgets`; canonical React package is `@starui/widgets-react`
 
 Removed duplicate `packages/react/widgets/` (source-only fork of hosted +
