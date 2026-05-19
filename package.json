@@ -46,6 +46,7 @@
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
     "test:e2e:openfin": "npm run test:e2e -w @starui/e2e-openfin",
+    "test:e2e:openfin:cdp": "npm run test:e2e -w @starui/e2e-openfin -- specs/02-cdp-smoke.e2e.spec.ts",
     "pack:libs": "node scripts/pack-libs.mjs",
     "propagate": "node scripts/propagate.mjs",
     "mcp:pack": "node mcp/scripts/pack.mjs",

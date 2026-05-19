@@ -52,7 +52,7 @@ beforeAll(async () => {
   for (const w of (list.data ?? [])) {
     if (w?.workspaceId) await platform.bridge.deleteWorkspace(w.workspaceId);
   }
-}, 90_000);
+}, 120_000);
 
 afterAll(async () => {
   if (platform) await platform.quit();

@@ -20,25 +20,23 @@ These specs are intentionally NOT part of the default `npm test` run — see
 
 ## Pre-requisites
 
-1. **Markets-UI dev server reachable at `http://localhost:5174`.** In a
-   separate terminal run:
+1. **Markets-UI E2E dev server on port 5197.** The suite auto-starts
+   `@starui/markets-ui-react-reference` via `globalSetup.ts` if nothing
+   is listening. Do **not** point tests at port 5174 unless that port is
+   definitely this repo's reference app — another Vite app on 5174 will
+   boot OpenFin without the test bridge.
+
+   Manual start (optional):
    ```
-   npm run dev -w @starui/markets-ui-react-reference
+   npm run dev -w @starui/markets-ui-react-reference -- --port 5197
    ```
-   The dev server installs the test bridge (`apps/markets-ui-react-reference/src/test-bridge/install.ts`) only when `import.meta.env.DEV === true`, so this flow doesn't apply to production builds.
 
 2. **OpenFin runtime.** `@openfin/node-adapter` auto-downloads the runtime
-   binary (~100MB) on first launch. After that it's cached under
-   `%LOCALAPPDATA%/OpenFin` (Windows) or `~/.openfin` (macOS/Linux).
+   binary (~100MB) on first launch.
 
-3. **A display.** OpenFin doesn't run headless. On Linux CI you need
-   `xvfb-run` or similar; on Windows runners you need `windows-latest`
-   with desktop session enabled. macOS GUI runners work directly.
+3. **A display.** OpenFin doesn't run headless. On Linux CI use `xvfb-run`.
 
-4. Workspace install up to date:
-   ```
-   npm ci --legacy-peer-deps
-   ```
+4. Workspace install: `npm ci`
 
 ## Running
 
@@ -48,11 +46,18 @@ From the repo root:
 npm run test:e2e:openfin
 ```
 
-…which is shorthand for `npm test -w @starui/e2e-openfin`. To target a
-non-default manifest URL:
+…which is shorthand for `npm test -w @starui/e2e-openfin`. Default manifest:
 
 ```
-MUI_MANIFEST_URL=http://localhost:5174/platform/manifest.fin.json npm run test:e2e:openfin
+http://localhost:5197/platform/manifest.e2e.fin.json
+```
+
+(CDP port **9190**, dedicated security realm `marketsui-e2e`.)
+
+Override manifest URL:
+
+```
+MUI_MANIFEST_URL=http://localhost:5197/platform/manifest.e2e.fin.json npm run test:e2e:openfin
 ```
 
 Each spec runs sequentially (`pool: 'forks'`, `singleFork: true` in
@@ -61,21 +66,29 @@ shared Dexie DBs would just confuse each other.
 
 ## How it works
 
-1. Spec `beforeAll` calls `launchPlatform(manifestUrl)` from `helpers/platform.ts`.
-2. `launchPlatform` invokes `@openfin/node-adapter`'s `launch()` to boot
-   the runtime against the supplied manifest, then `connect()` to obtain
-   a `fin` proxy over a local websocket.
-3. The provider window loads `/platform/provider`, which calls `initWorkspace()`. In dev mode it then dynamically imports
-   `apps/markets-ui-react-reference/src/test-bridge/install.ts` which
+1. `globalSetup.ts` ensures `@starui/markets-ui-react-reference` is reachable at port 5174 (starts it if needed).
+2. Spec `beforeAll` calls `launchPlatform(manifestUrl)` from `helpers/platform.ts`.
+3. `launchPlatform` invokes `@openfin/node-adapter`'s `launch()` to boot
+   the runtime, waits for CDP port **9090**, connects the `fin` proxy,
+   waits for the provider window, then polls the test bridge channel.
+4. The provider window loads `/platform/provider`, which calls `initWorkspace()`. In dev mode it then dynamically imports
+   `@starui/host-wrapper-react/test-bridge` which
    creates an OpenFin Channel named `marketsui-test-bridge`.
-4. The helper's `BridgeClient` connects to that channel and exposes
+5. The helper's `BridgeClient` connects to that channel and exposes
    typed methods (`saveWorkspace`, `getWorkspaces`, `getWorkspace`,
    `deleteWorkspace`, `ping`).
-5. Each spec calls those methods, which the bridge proxies into
+6. Each spec calls those methods, which the bridge proxies into
    `WorkspacePlatform.getCurrentSync().Storage.*` — these route through
    the override in `packages/openfin-platform/src/workspace-persistence.ts`
    which writes/reads ConfigService rows.
-6. `afterAll` quits the platform.
+7. `afterAll` quits the platform.
+
+### Playwright CDP path
+
+For UI-level assertions (multi-window, dock, views), see
+`specs/cdp-smoke.e2e.spec.ts` and `helpers/cdp.ts`. Playwright attaches
+via `connectOverCDP` to the same `--remote-debugging-port=9090` the
+manifest declares.
 
 ## CI implications
 
@@ -99,7 +112,7 @@ If you want to wire these into CI:
 1. Drop a file at `specs/<your-name>.e2e.spec.ts`.
 2. Use `launchPlatform()` in `beforeAll` and `quit()` in `afterAll`.
 3. If you need new bridge actions, add them to
-   `apps/markets-ui-react-reference/src/test-bridge/install.ts` AND
+   `@starui/host-wrapper-react/src/test-bridge/install.ts` AND
    `e2e-openfin/helpers/platform.ts`'s `BridgeClient` interface.
 
 ## Files
@@ -110,14 +123,17 @@ e2e-openfin/
 ├── package.json                       (workspace; test script + node-adapter dep)
 ├── vitest.config.ts                   (long timeouts, sequential, node env)
 ├── helpers/
-│   └── platform.ts                    (launchPlatform + BridgeClient typed wrapper)
+│   ├── platform.ts                    (launchPlatform + BridgeClient typed wrapper)
+│   └── cdp.ts                         (CDP poll + Playwright attach helpers)
+├── globalSetup.ts                     (auto-start dev server if needed)
 └── specs/
-    └── workspace-persistence.e2e.spec.ts  (Phase 1 — workspace round-trip)
+    ├── workspace-persistence.e2e.spec.ts  (Phase 1 — workspace round-trip)
+    └── cdp-smoke.e2e.spec.ts              (Playwright CDP attach smoke)
 ```
 
 The bridge's in-app side lives at:
 ```
-apps/markets-ui-react-reference/src/test-bridge/install.ts
+packages/react/hosts/host-wrapper-react/src/test-bridge/install.ts
 ```
 
 …installed lazily from `Provider.tsx` only when `import.meta.env.DEV` is
