@@ -1,0 +1,25 @@
+{
+  "name": "stargrid-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StarGrid — modular MarketsGrid platform with host ports for browser and OpenFin",
+  "packageManager": "npm@10.9.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "clean": "rimraf -g node_modules packages/*/node_modules packages/*/dist .turbo"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "turbo": "^2.9.14",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@stargrid/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared types for the StarGrid platform — identity, theme, surfaces",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  }
+}
