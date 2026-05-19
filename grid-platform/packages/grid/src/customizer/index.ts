@@ -121,7 +121,7 @@ export type {
   StepperProps,
 } from './ui/SettingsPanel';
 
-// ─── shadcn primitives (ds-themed; distinct from @starui/ui) ─────────────
+// ─── shadcn primitives (ds-themed; distinct from @stargrid/ui) ─────────────
 export { Button, buttonVariants } from './ui/shadcn/button';
 export type { ButtonProps } from './ui/shadcn/button';
 export { GhostIconButton } from './ui/shadcn/ghost-icon-button';

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { controls, typography } from '@starui/design-system/tokens';
+import { controls, typography } from '@stargrid/design-system/tokens';
 import { Input } from '../shadcn';
 import { cn } from '../shadcn/utils';
 

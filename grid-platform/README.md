@@ -9,8 +9,8 @@ the product**, **host ports as the integration surface**.
 |---|---|---|
 | 1 | `@stargrid/types`, `@stargrid/host`, `@stargrid/host-browser` | **Done** |
 | 2 | `@stargrid/engine` (port of `@starui/core`) | **Done** |
-| 3 | `@stargrid/grid` + `@stargrid/grid-react` | **Done** (292/319 tests; ui bridge pending phase 4) |
-| 4 | `@stargrid/design-system` + `@stargrid/ui` | Planned |
+| 3 | `@stargrid/grid` | **Done** |
+| 4 | `@stargrid/design-system` + `@stargrid/ui` | **Done** (378/386 grid tests) |
 | 5 | `@stargrid/host-data`, `@stargrid/host-config`, `@stargrid/host-openfin` | Planned |
 | 6 | `@stargrid/app` + demo + parity gate | Planned |
 
@@ -36,10 +36,12 @@ npm run test
 ## Package map
 
 ```
-@stargrid/types         Foundation types (identity, theme, surfaces)
-@stargrid/host          Port interfaces + GridHostContext
-@stargrid/host-browser  Browser RuntimePort implementation
-@stargrid/engine        (stub) Vanilla grid engine
-@stargrid/grid          (stub) MarketsGrid product surface
-@stargrid/host-openfin  (stub) OpenFin plugin
+@stargrid/types            Foundation types (identity, theme, surfaces)
+@stargrid/host             Port interfaces + GridHostContext
+@stargrid/host-browser     Browser RuntimePort implementation
+@stargrid/engine           Vanilla grid platform
+@stargrid/design-system    Tokens, CSS, AG/shadcn adapters
+@stargrid/ui               shadcn/Radix primitives
+@stargrid/grid             MarketsGrid + customizer (merged)
+@stargrid/host-openfin     (stub) OpenFin plugin
 ```

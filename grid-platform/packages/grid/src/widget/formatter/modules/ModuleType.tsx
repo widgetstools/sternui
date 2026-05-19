@@ -15,7 +15,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@starui/ui';
+} from '@stargrid/ui';
 import { Hair, Module, Pill, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

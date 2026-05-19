@@ -7,7 +7,9 @@
       "@stargrid/grid/customizer": ["./src/customizer/index.ts"],
       "@stargrid/engine": ["../engine/src/index.ts"],
       "@stargrid/types": ["../types/src/index.ts"],
-      "@stargrid/host": ["../host/src/index.ts"]
+      "@stargrid/host": ["../host/src/index.ts"],
+      "@stargrid/ui": ["../ui/src/index.ts"],
+      "@stargrid/design-system": ["../design-system/src/index.ts"]
     },
     "noEmit": true
   },

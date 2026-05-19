@@ -7,7 +7,7 @@
  * header (panel) via the stylesheet.
  */
 import { useEffect, useRef, useState } from 'react';
-import { spacing } from '@starui/design-system/tokens';
+import { spacing } from '@stargrid/design-system/tokens';
 import {
   CaseUpper,
   Grid2x2,
@@ -21,7 +21,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { Tooltip } from '@stargrid/grid/customizer';
-import { Input } from '@starui/ui';
+import { Input } from '@stargrid/ui';
 import {
   ColumnLabel,
   Hair,
@@ -76,7 +76,7 @@ function InlineColumnLabel({
     };
     // Inline rename editor — shadcn Input styled to fit the toolbar
     // rhythm (28px height, mono font, brand-ring on focus). All visual
-    // properties resolve through `@starui/design-system` tokens; no
+    // properties resolve through `@stargrid/design-system` tokens; no
     // `.fx-col-input` CSS class needed.
     return (
       <Input

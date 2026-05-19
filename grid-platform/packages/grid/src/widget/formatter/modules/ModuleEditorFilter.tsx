@@ -18,7 +18,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Filter, FilterX, MoreVertical, Pencil, X } from 'lucide-react';
-import { spacing, typography } from '@starui/design-system/tokens';
+import { spacing, typography } from '@stargrid/design-system/tokens';
 import {
   Input,
   PopoverCompat as Popover,
@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@starui/ui';
+} from '@stargrid/ui';
 import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

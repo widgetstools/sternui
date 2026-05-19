@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pipette, X } from 'lucide-react';
-import { controls, radius } from '@starui/design-system/tokens';
+import { controls, radius } from '@stargrid/design-system/tokens';
 import { Input } from '../shadcn';
 
 /**

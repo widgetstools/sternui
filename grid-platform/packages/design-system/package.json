@@ -1,0 +1,84 @@
+{
+  "name": "@stargrid/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StarGrid design system — tokens, themes, CSS, framework adapters",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./css": "./dist/css/theme.css",
+    "./tailwind": {
+      "types": "./dist/adapters/tailwind.d.ts",
+      "import": "./dist/adapters/tailwind.js",
+      "default": "./dist/adapters/tailwind.js"
+    },
+    "./primeng": {
+      "types": "./dist/adapters/primeng.d.ts",
+      "import": "./dist/adapters/primeng.js",
+      "default": "./dist/adapters/primeng.js"
+    },
+    "./shadcn": {
+      "types": "./dist/adapters/shadcn.d.ts",
+      "import": "./dist/adapters/shadcn.js",
+      "default": "./dist/adapters/shadcn.js"
+    },
+    "./adapters/ag-grid": {
+      "types": "./dist/adapters/agGrid.d.ts",
+      "import": "./dist/adapters/agGrid.js",
+      "default": "./dist/adapters/agGrid.js"
+    },
+    "./tokens": {
+      "types": "./dist/tokens/index.d.ts",
+      "import": "./dist/tokens/index.js"
+    },
+    "./tokens/primitives": {
+      "types": "./dist/tokens/primitives.d.ts",
+      "import": "./dist/tokens/primitives.js"
+    },
+    "./tokens/semantic": {
+      "types": "./dist/tokens/semantic.d.ts",
+      "import": "./dist/tokens/semantic.js"
+    },
+    "./tokens/components": {
+      "types": "./dist/tokens/components.d.ts",
+      "import": "./dist/tokens/components.js"
+    },
+    "./tokens/controls": {
+      "types": "./dist/tokens/controls.d.ts",
+      "import": "./dist/tokens/controls.js"
+    },
+    "./cell-renderers": {
+      "types": "./dist/cellRenderers.d.ts",
+      "import": "./dist/cellRenderers.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json && tsx scripts/build-css.ts",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "ag-grid-community": "^35.1.0",
+    "tailwindcss": "3.4.1"
+  },
+  "dependencies": {
+    "@stargrid/types": "*",
+    "tailwindcss-animate": "^1.0.7",
+    "tailwindcss-primeui": "^0.6.1"
+  },
+  "devDependencies": {
+    "ag-grid-community": "35.1.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "files": ["dist", "src/styles"]
+}

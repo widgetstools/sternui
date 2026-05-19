@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "allowImportingTsExtensions": false,
+    "composite": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "src/themes/**/*.css"],
+  "references": [{ "path": "../types" }]
+}

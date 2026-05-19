@@ -1,4 +1,4 @@
-import { spacing } from '@starui/design-system/tokens';
+import { spacing } from '@stargrid/design-system/tokens';
 import { Band, SubLabel } from '../../SettingsPanel';
 import { CompactColorField } from '../../ColorPicker';
 import type { StyleEditorValue } from '../types';

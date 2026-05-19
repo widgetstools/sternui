@@ -11,14 +11,14 @@
  */
 import { Check, Eraser, Trash2 } from 'lucide-react';
 import { Tooltip } from '@stargrid/grid/customizer';
-import { Button, cn } from '@starui/ui';
+import { Button, cn } from '@stargrid/ui';
 import type { Orientation } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 // Shared destructive-pill styling. shadcn `<Button variant="outline">`
 // gives us the focus ring + a11y baseline; the className supplies the
 // destructive-tinted border/text and primary-tinted "confirmed" state.
-// Every colour resolves through `@starui/design-system` tokens — no
+// Every colour resolves through `@stargrid/design-system` tokens — no
 // `.fx-destruct` CSS class needed.
 const destructPillClass = cn(
   // Horizontal-mode default: 28×28 icon button (matches Pill rhythm).

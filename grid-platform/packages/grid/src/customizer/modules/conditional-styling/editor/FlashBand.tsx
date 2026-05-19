@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
+import { controls, radius, spacing, typography } from '@stargrid/design-system/tokens';
 import {
   Band,
   Caps,

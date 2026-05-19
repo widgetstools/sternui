@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CircleDot, Sliders, Target } from 'lucide-react';
-import { controls, typography } from '@starui/design-system/tokens';
+import { controls, typography } from '@stargrid/design-system/tokens';
 import { Caps, IconInput, LedBar, Mono, SummaryChip } from '../../../ui/SettingsPanel';
 import { Select, Switch } from '../../../ui/shadcn';
 import type { ConditionalRule, FlashTarget } from '../state';

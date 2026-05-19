@@ -23,7 +23,7 @@ src/
 ## Dependencies
 
 - `@stargrid/engine`, `@stargrid/types`, `@stargrid/host` — StarGrid platform
-- `@starui/ui`, `@starui/design-system` — bridged from legacy monorepo until Phase 4
+- `@starui/ui`, `@starui/design-system` — **removed** (Phase 4: use `@stargrid/ui`, `@stargrid/design-system`)
 
 ## Phase 3 follow-ups
 

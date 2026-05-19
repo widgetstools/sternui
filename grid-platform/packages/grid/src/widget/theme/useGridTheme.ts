@@ -11,7 +11,7 @@ import type { Theme } from 'ag-grid-community';
 import {
   agGridDarkTheme,
   agGridLightTheme,
-} from '@starui/design-system/adapters/ag-grid';
+} from '@stargrid/design-system/adapters/ag-grid';
 
 function readDocumentTheme(): 'dark' | 'light' {
   if (typeof document === 'undefined') return 'dark';

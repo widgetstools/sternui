@@ -59,3 +59,8 @@ See also: [design spec](../../docs/superpowers/specs/2026-05-19-grid-platform-de
 ## Phase 3 packages (shipped)
 
 - `@stargrid/grid` — merged MarketsGrid + customizer (`widget/`, `customizer/`, `runtime/openFin`)
+
+## Phase 4 packages (shipped)
+
+- `@stargrid/design-system` — tokens, CSS, framework adapters
+- `@stargrid/ui` — shadcn/Radix primitives

@@ -6,7 +6,7 @@
  * disables the whole module since headers don't carry formatters.
  */
 import { useState } from 'react';
-import { spacing } from '@starui/design-system/tokens';
+import { spacing } from '@stargrid/design-system/tokens';
 import {
   ArrowLeft, ArrowRight, ChevronDown, DollarSign, Hash, Percent,
 } from 'lucide-react';
@@ -27,7 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@starui/ui';
+} from '@stargrid/ui';
 import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 

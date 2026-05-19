@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { controls } from '@starui/design-system/tokens';
+import { controls } from '@stargrid/design-system/tokens';
 
 /**
  * Sharp-toggle group — 28×26 butt-joined buttons inside a hairline

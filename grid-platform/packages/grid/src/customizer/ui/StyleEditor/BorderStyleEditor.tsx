@@ -19,7 +19,7 @@ import type { BorderSpec } from '@stargrid/engine';
  */
 const BORDER_STYLE_EDITOR_CSS = `
 /* BorderStyleEditor — scoped to .ds-be-editor.
-   All values reference --ds-* vars from @starui/design-system/css. */
+   All values reference --ds-* vars from @stargrid/design-system/css. */
 
 .ds-be-editor {
   /* Local variable shortcuts for readability */

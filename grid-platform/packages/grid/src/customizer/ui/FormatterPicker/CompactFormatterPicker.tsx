@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Check, ChevronDown, Hash, Info, X } from 'lucide-react';
 import { isValidExcelFormat } from '@stargrid/engine';
-import { controls, radius, spacing, typography } from '@starui/design-system/tokens';
+import { controls, radius, spacing, typography } from '@stargrid/design-system/tokens';
 import { FormatPopover } from '../format-editor';
 import { Caps, IconInput, SubLabel } from '../SettingsPanel';
 import { ExcelReferencePopover } from './ExcelReferencePopover';

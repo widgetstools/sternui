@@ -8,7 +8,7 @@ import {
   Strikethrough,
   Underline,
 } from 'lucide-react';
-import { radius, spacing } from '@starui/design-system/tokens';
+import { radius, spacing } from '@stargrid/design-system/tokens';
 import {
   Band,
   Caps,

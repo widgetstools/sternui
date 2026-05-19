@@ -19,7 +19,7 @@
     "build": "echo '@stargrid/grid: consumed as source (no emit)'"
   },
   "peerDependencies": {
-    "@starui/design-system": "*",
+    "@stargrid/design-system": "*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "ag-grid-community": "^35.1.0",
@@ -30,8 +30,8 @@
     "@stargrid/engine": "*",
     "@stargrid/host": "*",
     "@stargrid/types": "*",
-    "@starui/ui": "file:../../../../packages/react/ui",
-    "@starui/design-system": "file:../../../../packages/shared/foundation/design-system",
+    "@stargrid/design-system": "*",
+    "@stargrid/ui": "*",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
     "class-variance-authority": "^0.7.1",
@@ -43,7 +43,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@starui/design-system": "file:../../../../packages/shared/foundation/design-system",
+    "@stargrid/design-system": "*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

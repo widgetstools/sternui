@@ -14,7 +14,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@starui/ui';
+} from '@stargrid/ui';
 import { cn } from './utils';
 
 /** Radix `Select.Item` forbids `value=""` — map real `""` options through this sentinel. */

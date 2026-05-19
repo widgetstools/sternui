@@ -78,7 +78,7 @@ function MarketsGridInner<TData = unknown>(
     modules = DEFAULT_MODULES,
     // Row + header heights default to whatever the active AG Grid theme
     // provides (currently `agGridDarkTheme` / `agGridLightTheme` from
-    // `@starui/design-system/adapters/ag-grid` — compact = 30/32).
+    // `@stargrid/design-system/adapters/ag-grid` — compact = 30/32).
     // Apps pass explicit values only when they need a non-theme size.
     rowHeight,
     headerHeight,

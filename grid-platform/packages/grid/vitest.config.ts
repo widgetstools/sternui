@@ -5,13 +5,27 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@stargrid/grid': resolve(__dirname, 'src/index.ts'),
-      '@stargrid/grid/customizer': resolve(__dirname, 'src/customizer/index.ts'),
-      '@stargrid/engine': resolve(__dirname, '../engine/src/index.ts'),
-      '@stargrid/types': resolve(__dirname, '../types/src/index.ts'),
-      '@stargrid/host': resolve(__dirname, '../host/src/index.ts'),
-    },
+    dedupe: ['react', 'react-dom'],
+    alias: [
+      {
+        find: '@stargrid/design-system/adapters/ag-grid',
+        replacement: resolve(__dirname, '../design-system/dist/adapters/agGrid.js'),
+      },
+      {
+        find: '@stargrid/design-system/tokens',
+        replacement: resolve(__dirname, '../design-system/dist/tokens/index.js'),
+      },
+      {
+        find: '@stargrid/design-system',
+        replacement: resolve(__dirname, '../design-system/dist/index.js'),
+      },
+      { find: '@stargrid/grid/customizer', replacement: resolve(__dirname, 'src/customizer/index.ts') },
+      { find: '@stargrid/grid', replacement: resolve(__dirname, 'src/index.ts') },
+      { find: '@stargrid/engine', replacement: resolve(__dirname, '../engine/src/index.ts') },
+      { find: '@stargrid/types', replacement: resolve(__dirname, '../types/src/index.ts') },
+      { find: '@stargrid/host', replacement: resolve(__dirname, '../host/src/index.ts') },
+      { find: '@stargrid/ui', replacement: resolve(__dirname, '../ui/dist/index.js') },
+    ],
   },
   test: {
     environment: 'jsdom',
