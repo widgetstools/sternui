@@ -84,6 +84,7 @@
   },
   "overrides": {
     "@openfin/core": "43.101.2",
+    "esbuild": "0.28.0",
     "hono": "^4.12.20"
   }
 }

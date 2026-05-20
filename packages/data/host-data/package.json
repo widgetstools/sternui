@@ -29,7 +29,9 @@
     },
     "./assets/data-services-worker.mjs": "./dist/assets/data-services-worker.mjs"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "rimraf dist tsconfig.tsbuildinfo && tsc --project tsconfig.json && node scripts/buildWorker.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
@@ -51,7 +53,7 @@
   "devDependencies": {
     "@stomp/stompjs": "^7.3.0",
     "@types/node": "^22.19.17",
-    "esbuild": "^0.27.7",
+    "esbuild": "^0.28.0",
     "rimraf": "^6.0.1",
     "typescript": "~5.9.3",
     "vitest": "^4.1.4"
