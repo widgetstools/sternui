@@ -20,8 +20,8 @@
     "e2e-openfin"
   ],
   "scripts": {
-    "build": "turbo build",
-    "typecheck": "turbo typecheck",
+    "build": "turbo build --filter=!./apps/** && turbo build --filter=./apps/**",
+    "typecheck": "turbo typecheck --filter=!./apps/** && turbo typecheck --filter=./apps/**",
     "test": "turbo test",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
@@ -74,7 +74,8 @@
     "node": ">=20.0.0"
   },
   "overrides": {
-    "@openfin/core": "43.101.2"
+    "@openfin/core": "43.101.2",
+    "hono": "^4.12.20"
   },
   "dependencies": {
     "ci": "^2.3.0"

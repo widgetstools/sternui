@@ -71,7 +71,7 @@
   "devDependencies": {
     "ag-grid-community": "35.1.0",
     "rimraf": "^6.0.1",
-    "tsx": "^4.19.2",
+    "tsx": "^4.22.2",
     "typescript": "~5.9.3",
     "vitest": "^4.1.4"
   },
