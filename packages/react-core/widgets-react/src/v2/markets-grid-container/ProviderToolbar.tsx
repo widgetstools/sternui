@@ -122,6 +122,12 @@ interface ProviderPickerProps {
 }
 
 function ProviderPicker({ label, value, providers, onChange, disabled }: ProviderPickerProps) {
+  const testId = label === 'Live'
+    ? 'provider-live-select'
+    : label === 'Hist'
+      ? 'provider-hist-select'
+      : undefined;
+
   return (
     <div className="flex items-center gap-1.5 text-xs">
       <span className="text-muted-foreground font-medium">{label}:</span>
@@ -130,7 +136,7 @@ function ProviderPicker({ label, value, providers, onChange, disabled }: Provide
         onValueChange={(v) => onChange(v === '__none__' ? null : v)}
         disabled={disabled}
       >
-        <SelectTrigger className="h-7 text-xs min-w-[180px]">
+        <SelectTrigger className="h-7 text-xs min-w-[180px]" data-testid={testId}>
           <SelectValue placeholder="None" />
         </SelectTrigger>
         <SelectContent>

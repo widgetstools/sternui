@@ -10,7 +10,7 @@ import {
 import './grid-chrome.css';
 import { AgGridReact } from 'ag-grid-react';
 import { AllEnterpriseModule, ModuleRegistry } from 'ag-grid-enterprise';
-import type { GridReadyEvent } from 'ag-grid-community';
+import type { ColDef, GridReadyEvent } from 'ag-grid-community';
 import { useGridTheme } from './theme/useGridTheme.js';
 import { installAgGridSetFilterValidateGuard } from './agGridSetFilterValidateGuard';
 import { type AnyModule, type StorageAdapter } from '@starui/engine';
@@ -164,19 +164,25 @@ function MarketsGridInner<TData = unknown>(
     hostOverrideKeys,
   });
 
-  const columnDefsCountRef = useRef(0);
-  columnDefsCountRef.current = Array.isArray(columnDefs) ? columnDefs.length : 0;
+  // When the host passes `defaultColDef`, surface host-override wiring
+  // replaces the pipeline object entirely — module-controlled fields
+  // (enableCellChangeFlash, wrapText, defaultSortable, …) would never
+  // reach AgGridReact. Merge pipeline output under host props so Grid
+  // Options panel changes still apply while host keys win on conflict.
+  const effectiveDefaultColDef = useMemo((): ColDef<TData> | undefined => {
+    const pipelineDef = gridOptions.defaultColDef as ColDef<TData> | undefined;
+    if (!defaultColDef) return pipelineDef;
+    if (!pipelineDef) return defaultColDef as ColDef<TData>;
+    return { ...pipelineDef, ...(defaultColDef as ColDef<TData>) };
+  }, [gridOptions.defaultColDef, defaultColDef]);
 
   const handleGridReady = useCallback(
     (event: GridReadyEvent) => {
-      // eslint-disable-next-line no-console
-      console.log(`[v2/markets-grid] AG-Grid onGridReady gridId=%s rowIdField=%s columns=%d`,
-        gridId, rowIdField, columnDefsCountRef.current);
       onGridReady(event);
       event.api.sizeColumnsToFit();
       onGridReadyProp?.(event);
     },
-    [onGridReady, onGridReadyProp, gridId, rowIdField],
+    [onGridReady, onGridReadyProp],
   );
 
   const rootStyle = useMemo(
@@ -267,7 +273,7 @@ function MarketsGridInner<TData = unknown>(
         animateRows={animateRows}
         sideBar={sideBar}
         statusBar={statusBar}
-        defaultColDef={defaultColDef}
+        defaultColDef={effectiveDefaultColDef}
         showToolbar={showToolbar}
         showFiltersToolbar={showFiltersToolbar}
         showFormattingToolbar={showFormattingToolbar}

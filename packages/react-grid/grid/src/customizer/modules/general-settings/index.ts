@@ -278,6 +278,13 @@ export const generalSettingsModule: Module<GeneralSettingsState> = {
     } as unknown as Partial<GridOptions>;
   },
 
+  transformColumnDefs(defs, s) {
+    return defs.map((colDef) => ({
+      ...colDef,
+      enableCellChangeFlash: s.enableCellChangeFlash,
+    }));
+  },
+
   SettingsPanel: GridOptionsPanel,
 };
 
