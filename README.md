@@ -68,6 +68,7 @@ from packages, never the reverse. Full rules in [`docs/ARCHITECTURE.md`](./docs/
 | `demo-configservice-react` | 5191 | `npm run dev:demo-configservice-react` |
 | `mockdata-provider-starui-app` | 5192 | `npm run dev:mockdata-provider-starui-app` |
 | `dataprovider-editor-starui-app` | 5193 | `npm run dev:dataprovider-editor-starui-app` |
+| `my-stomp-app` | 5200 | `npm run dev:my-stomp-app` |
 | `basic-starui-app` | 5194 | `npm run dev:basic-starui-app` |
 | `markets-ui-react-reference` | 5174 | `npm run dev:markets-ui-react-reference` |
 | `demo-angular` | 4200 | `npm run dev:demo-angular` |
@@ -288,6 +289,7 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 | [`docs/PACKAGE_ORGANIZATION.md`](./docs/PACKAGE_ORGANIZATION.md) | Ten-bucket layout |
 | [`docs/PARITY.md`](./docs/PARITY.md) | Package parity gate |
 | [`docs/guides/consumer-app-sharedworker-and-tailwind.md`](./docs/guides/consumer-app-sharedworker-and-tailwind.md) | SharedWorker + Tailwind pitfalls for consumer apps |
+| [`docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md`](./docs/STOMP_DATAPROVIDER_MARKETSGRID_GUIDE.md) | Fresh app + STOMP provider + MarketsGrid end-to-end |
 | [`CLAUDE.md`](./CLAUDE.md) | Agent / contributor conventions |
 
 ## Platform tooling

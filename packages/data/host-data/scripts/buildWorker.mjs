@@ -28,7 +28,11 @@ await esbuild.build({
   sourcemap: true,
   logLevel: 'info',
   packages: 'bundle',
-  mainFields: ['module', 'main'],
-  conditions: ['import', 'module', 'browser', 'default'],
+  // Prefer ESM over the package's `browser` UMD entry for @stomp/stompjs.
+  mainFields: ['module', 'import', 'main'],
+  conditions: ['import', 'module', 'default'],
+  alias: {
+    '@stomp/stompjs': path.join(pkgRoot, '../../../node_modules/@stomp/stompjs/esm6/index.js'),
+  },
   legalComments: 'none',
 });

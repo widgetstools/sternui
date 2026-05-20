@@ -8,6 +8,7 @@ import {
   reactResolveConfig,
   appDirFromConfig,
   staruiHostDataWorkerAssetPlugin,
+  stompJsEsmAlias,
 } from './staruiConsumerAliases.mjs';
 
 export { appDirFromConfig };
@@ -27,7 +28,7 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
     },
     resolve: {
       dedupe: reactResolve.dedupe,
-      alias: [...reactResolve.alias, ...staruiViteAliases(appDir)],
+      alias: [stompJsEsmAlias(appDir), ...reactResolve.alias, ...staruiViteAliases(appDir)],
       extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
     },
     server: {

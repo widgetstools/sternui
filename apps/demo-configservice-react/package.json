@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/data": "file:../../libs/starui-data-0.1.0-9490a7c8.tgz",
+    "@starui/data": "file:../../libs/starui-data-0.1.0-445cc792.tgz",
     "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-f7f9a521.tgz",
     "@starui/openfin": "file:../../libs/starui-openfin-0.1.0-1c33ad32.tgz",
     "@starui/react-core": "file:../../libs/starui-react-core-1.0.0-244be681.tgz",

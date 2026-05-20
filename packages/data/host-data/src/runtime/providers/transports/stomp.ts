@@ -92,25 +92,48 @@ export type StompClientFactory = (cfg: StompClientCfg) => StompClient;
 let _ctorPromise: Promise<new (cfg: StompClientCfg) => StompClient> | null = null;
 let _ctor: (new (cfg: StompClientCfg) => StompClient) | null = null;
 
+/** Resolve Client from @stomp/stompjs ESM or UMD interop shapes (Vite/Rollup). */
+export function resolveStompClientCtor(
+  mod: unknown,
+): new (cfg: StompClientCfg) => StompClient {
+  const root = mod as Record<string, unknown>;
+  const defaultNs =
+    root.default && typeof root.default === 'object'
+      ? (root.default as Record<string, unknown>)
+      : undefined;
+
+  const candidates: unknown[] = [
+    root.Client,
+    defaultNs?.Client,
+    typeof root.default === 'function' ? root.default : undefined,
+    root.StompJs && typeof root.StompJs === 'object'
+      ? (root.StompJs as Record<string, unknown>).Client
+      : undefined,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'function') {
+      return candidate as new (cfg: StompClientCfg) => StompClient;
+    }
+  }
+
+  const keys = [
+    ...Object.keys(root),
+    ...(defaultNs ? Object.keys(defaultNs).map((k) => `default.${k}`) : []),
+  ].join(', ');
+
+  throw new Error(
+    '[stomp] @stomp/stompjs loaded but Client constructor not found on the module namespace ' +
+      '(tried `Client`, `default.Client`, `default` as ctor, `StompJs.Client`). Module keys: ' +
+      keys,
+  );
+}
+
 async function loadDefaultClientCtor(): Promise<new (cfg: StompClientCfg) => StompClient> {
   if (_ctor) return _ctor;
   if (!_ctorPromise) {
     _ctorPromise = import('@stomp/stompjs').then((m) => {
-      // @stomp/stompjs ships dual ESM + UMD. The ESM bundle exposes
-      // `Client` as a named export; the UMD bundle (selected via the
-      // `browser` export condition in some bundlers) exposes the same
-      // namespace under `default`. Try both so we work in both
-      // resolution modes (Worker→ESM, main-thread/Vite-browser→UMD).
-      type Shape = { Client?: new (cfg: StompClientCfg) => StompClient; default?: { Client?: new (cfg: StompClientCfg) => StompClient } };
-      const shape = m as unknown as Shape;
-      const Ctor = shape.Client ?? shape.default?.Client;
-      if (!Ctor) {
-        throw new Error(
-          '[stomp] @stomp/stompjs loaded but Client constructor not found on the module namespace ' +
-            '(neither `Client` nor `default.Client`). Module keys: ' +
-            Object.keys(shape).join(', '),
-        );
-      }
+      const Ctor = resolveStompClientCtor(m);
       _ctor = Ctor;
       return _ctor;
     });

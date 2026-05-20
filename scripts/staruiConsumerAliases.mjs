@@ -269,6 +269,15 @@ export function staruiTailwindContent(appDir) {
   return staruiTailwindContentImpl(appDir);
 }
 
+/** Force ESM entry — browser export resolves to UMD which breaks dynamic `import()` Client lookup. */
+export function stompJsEsmAlias(appDir) {
+  const monoRoot = monoRootFromApp(appDir);
+  return {
+    find: /^@stomp\/stompjs$/,
+    replacement: join(monoRoot, 'node_modules/@stomp/stompjs/esm6/index.js'),
+  };
+}
+
 /** Paths Vite may read when aliases resolve into hoisted node_modules. */
 export function staruiServerFsAllow(appDir) {
   const monoRoot = monoRootFromApp(appDir);

@@ -31,11 +31,11 @@
       "@starui/host-data-angular",
       "@starui/host-data-react"
     ],
-    "filename": "starui-data-0.1.0-9490a7c8.tgz",
+    "filename": "starui-data-0.1.0-445cc792.tgz",
     "distFilename": "starui-data-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "9490a7c8",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "sha": "445cc792",
+    "packedAt": "2026-05-20T16:27:47.667Z"
   },
   "@starui/design-system": {
     "bucket": "design-system",

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { startStomp, probeStomp } from './stomp';
+import { startStomp, probeStomp, resolveStompClientCtor } from './stomp';
 import type { ProviderEmitEvent } from '../Provider';
 import type { StompProviderConfig } from '@starui/types';
 
@@ -83,6 +83,22 @@ function cfg(overrides: Partial<StompProviderConfig> = {}): StompProviderConfig 
     ...overrides,
   } as StompProviderConfig;
 }
+
+describe('resolveStompClientCtor', () => {
+  class FakeCtor {}
+
+  it('resolves named Client export', () => {
+    expect(resolveStompClientCtor({ Client: FakeCtor })).toBe(FakeCtor);
+  });
+
+  it('resolves default.Client (UMD interop)', () => {
+    expect(resolveStompClientCtor({ default: { Client: FakeCtor } })).toBe(FakeCtor);
+  });
+
+  it('throws with module keys when Client is missing', () => {
+    expect(() => resolveStompClientCtor({})).toThrow(/Module keys:/);
+  });
+});
 
 describe('startStomp', () => {
   it('emits loading, connects, subscribes, publishes the trigger', async () => {
