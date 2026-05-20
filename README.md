@@ -296,6 +296,308 @@ CI runs package and consumer jobs separately; see `.github/workflows/ci.yml`.
 - `scripts/propagate.mjs` — build and pack bucket tarballs
 - `scripts/verify-apps.mjs` — dev-server smoke check
 
+## Developer guide
+
+Step-by-step commands for the three common audiences in this repo, plus
+propagate, clean, and test workflows.
+
+### Prerequisites
+
+```bash
+node -v    # ≥ 20
+npm -v     # 10.x (npm 10 workspaces)
+npm ci     # from repo root — always start here on a fresh clone
+```
+
+On a **fresh clone**, demo apps depend on tarballs under `libs/`. If install
+errors mention missing `file:../../libs/*.tgz`, run propagate once before
+developing apps (see below).
+
+---
+
+### Build by audience
+
+#### 1. Library developers (packages only)
+
+You edit code under `packages/` and use workspace `"*"` links between libraries.
+Demo apps are **not** involved.
+
+```bash
+# Compile all libraries
+npm run build:packages
+
+# Typecheck libraries only
+npm run typecheck:packages
+
+# Unit tests (Vitest) across libraries
+npm test
+# same as: npm run test:packages
+
+# Single package
+npm run build -w @starui/grid
+npm run typecheck -w @starui/engine
+npm test -w @starui/grid
+```
+
+Use this loop while changing `@starui/engine`, `@starui/grid`, `@starui/ui`, etc.
+No propagate step is required until demo apps or external consumers need the change.
+
+#### 2. Demo-app / consumer developers (apps in `apps/`)
+
+Apps install StarUI as **bucket tarballs** from `libs/` (same model as
+Artifactory consumers). After library changes, tarballs must be refreshed.
+
+```bash
+# Full consumer pipeline (CI parity) — packages → propagate → apps
+npm run build
+
+# Typecheck the same path
+npm run typecheck
+
+# CI gate before merge (build + typecheck apps)
+npm run verify:consumer
+
+# Check committed tarballs are current (no repack)
+npm run check:tarballs
+```
+
+**Fast local dev** — skip tarballs and alias live package source (not used in CI):
+
+```bash
+STARUI_DEV_SOURCE=1 npm run dev:demo-react
+STARUI_DEV_SOURCE=1 npm run dev:markets-ui-react-reference
+```
+
+If edits to packages do not show up in the browser, clear the Vite prebundle cache:
+
+```bash
+rm -rf node_modules/.vite apps/*/node_modules/.vite
+```
+
+#### 3. External consumers (outside this repo)
+
+External teams install bucket tarballs from Artifactory (or a copied `libs/*.tgz`
+set), not the monorepo workspace.
+
+1. Install the buckets your app needs (e.g. `@starui/react-grid`, `@starui/react-core`).
+2. Copy [`scripts/staruiConsumerVite.mjs`](./scripts/staruiConsumerVite.mjs) and
+   [`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs) into
+   the app (or use your internal scaffold).
+3. Build and test in **your** app CI — StarUI does not publish per-member npm
+   packages; each tarball bundles every package in an architecture bucket.
+
+To produce tarballs from this monorepo for hand-off:
+
+```bash
+npm run build:packages
+npm run propagate
+# tarballs land in libs/ — see libs/manifest.json for filenames + members
+```
+
+---
+
+### Building apps
+
+Production builds for all demo / reference apps:
+
+```bash
+# Requires fresh libs/ tarballs — runs build:packages + propagate first
+npm run build:consumer
+
+# Apps only (fails if libs/ tarballs are missing or stale)
+npm run build:apps
+```
+
+Build a **single app**:
+
+```bash
+npm run build --workspace=@starui/demo-react
+npm run build --workspace=@starui/markets-ui-react-reference
+npm run build --workspace=@starui/demo-angular
+```
+
+Preview a production build locally:
+
+```bash
+npm run build --workspace=@starui/demo-react
+npm run preview --workspace=@starui/demo-react
+```
+
+Dev servers (no production build):
+
+```bash
+npm run dev                              # demo-react → :5190
+npm run dev:markets-ui-react-reference     # reference app → :5174
+npm run dev:demo-angular                   # Angular demo → :4200
+npm run verify:apps                        # smoke-check all dev server ports
+```
+
+---
+
+### Propagate packages (tarballs → `libs/`)
+
+`propagate` builds architecture-bucket tarballs, writes `libs/manifest.json`,
+updates demo-app `package.json` tarball paths, and runs `npm install` where needed.
+
+```bash
+# Pack all buckets (typical after library changes)
+npm run propagate
+
+# Preview without writing files
+npm run propagate -- --dry-run
+
+# Pack one bucket only
+npm run propagate -- react-grid
+npm run propagate -- react-core
+npm run propagate -- @starui/grid          # resolves to containing bucket
+
+# Remove orphaned tarballs in libs/
+npm run propagate -- --gc
+
+# Repack without rebuilding packages (use when only manifest/sync needed)
+npm run propagate -- --no-build
+
+# Repack without reinstalling app node_modules
+npm run propagate -- --no-install
+
+# Rewrite app tarball paths from manifest (no pack)
+npm run sync:app-deps
+```
+
+**When to propagate**
+
+| You changed… | Run |
+|---|---|
+| Any package under `packages/` that demo apps consume | `npm run propagate` |
+| Only docs / e2e / scripts (no package code) | Nothing |
+| Before opening a PR that touches libraries | `npm run verify:consumer` |
+| Before committing tarball updates | `npm run check:tarballs` |
+
+Each bucket tarball name includes a content SHA, e.g.
+`libs/starui-react-grid-0.1.0-df49405b.tgz`. `libs/manifest.json` maps
+`@starui/react-grid` → filename and lists member packages inside the bundle.
+
+---
+
+### Clean
+
+Remove installed dependencies, compiled output, and Turbo cache:
+
+```bash
+npm run clean
+```
+
+Then reinstall:
+
+```bash
+npm ci
+npm run propagate    # if libs/ was empty or you need fresh tarballs
+```
+
+To clear **Vite dev cache only** (stale hot reload after package edits):
+
+```bash
+rm -rf node_modules/.vite apps/*/node_modules/.vite
+```
+
+---
+
+### Run tests
+
+#### Unit tests (Vitest — libraries)
+
+```bash
+# All library packages
+npm test
+
+# One package
+npm test -w @starui/grid
+npm test -w @starui/engine
+
+# Watch mode (from a package directory)
+npm run test:watch -w @starui/grid
+```
+
+#### Typecheck
+
+```bash
+npm run typecheck:packages    # libraries only
+npm run typecheck:apps        # apps only (needs current libs/ tarballs)
+npm run typecheck             # full consumer path (default)
+```
+
+#### Consumer verification (pre-merge)
+
+```bash
+npm run verify:consumer       # build:consumer + typecheck:apps
+npm run check:tarballs        # ensure committed libs/*.tgz match built packages
+npm run check:deps            # package cycle check
+```
+
+---
+
+### Run E2E tests
+
+Browser E2E uses Playwright in `e2e/`. Dev servers are started automatically
+(see `playwright.config.ts`).
+
+```bash
+# Full suite (demo-react :5190, demo-configservice :5191, reference :5174)
+npm run e2e
+
+# Interactive / debug UI
+npm run e2e:ui
+npm run e2e:headed
+
+# Single spec or file
+npx playwright test e2e/reference-cell-flash.spec.ts
+npx playwright test e2e/v2-general-settings.spec.ts
+
+# Reference-app integration specs (5174 server uses STARUI_DEV_SOURCE=1)
+npx playwright test e2e/hosted-markets-grid.spec.ts
+npx playwright test e2e/reference-cell-flash.spec.ts
+
+# Filter by title
+npx playwright test -g "cell flash"
+```
+
+OpenFin CDP smoke tests (separate workspace):
+
+```bash
+npm run test:e2e:openfin
+npm run test:e2e:openfin:cdp
+```
+
+**E2E web servers**
+
+| Port | App | Specs |
+|---|---|---|
+| 5190 | `demo-react` | Most `v2-*.spec.ts`, design-system specs |
+| 5191 | `demo-configservice-react` | Config-service integration |
+| 5174 | `markets-ui-react-reference` | `hosted-markets-grid`, `reference-cell-flash`, … |
+
+If Playwright fails to pick up recent package changes for the reference app,
+clear Vite cache and rerun:
+
+```bash
+rm -rf node_modules/.vite apps/markets-ui-react-reference/node_modules/.vite
+STARUI_DEV_SOURCE=1 npx playwright test e2e/reference-cell-flash.spec.ts
+```
+
+---
+
+### Quick reference
+
+| Goal | Command |
+|---|---|
+| First-time setup | `npm ci && npm run propagate` |
+| Edit libraries | `npm run build:packages && npm test` |
+| Edit libraries + test in demo app | `npm run propagate && STARUI_DEV_SOURCE=1 npm run dev` |
+| Pre-merge CI check | `npm run verify:consumer && npm test && npm run e2e` |
+| Production build all apps | `npm run build` |
+| Fresh tarball hand-off | `npm run build:packages && npm run propagate` |
+| Nuke and reinstall | `npm run clean && npm ci && npm run propagate` |
+
 ## Copyright
 
 Internal Wells Fargo Capital Markets project. Not open-source.
