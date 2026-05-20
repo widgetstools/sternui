@@ -121,11 +121,7 @@ test.describe('v2 FormattingToolbar', () => {
   test('toolbar moves into enabled state once a cell is selected', async ({ page }) => {
     const colId = await getFirstDataColId(page);
     await selectCell(page, colId);
-    const enabled = await page.evaluate(() => {
-      const tb = document.querySelector('[data-testid="formatting-toolbar"]');
-      return tb?.className?.includes('ds-toolbar-enabled') ?? false;
-    });
-    expect(enabled).toBe(true);
+    await expect(page.getByRole('button', { name: 'Bold' })).toBeEnabled();
   });
 
   test('Bold writes typography.bold and emits font-weight 700', async ({ page }) => {
@@ -179,7 +175,8 @@ test.describe('v2 FormattingToolbar', () => {
     expect(['700', 'bold']).toContain(await getCellStyle(page, colId, 'font-weight'));
     expect(await getCellStyle(page, colId, 'font-style')).toBe('italic');
 
-    await clickToolbarBtn(page, 'Clear all styles');
+    await page.locator('[data-testid="formatting-clear-selected"]').click();
+    await page.locator('[data-testid="formatting-clear-selected-confirm-btn"]').click();
     await page.waitForTimeout(400);
 
     expect(['400', 'normal']).toContain(await getCellStyle(page, colId, 'font-weight'));
@@ -203,11 +200,10 @@ test.describe('v2 FormattingToolbar', () => {
     expect(['700', 'bold']).toContain(fontWeight);
   });
 
-  test('Save as template button stays enabled and clickable when a cell is selected', async ({ page }) => {
+  test('Templates menu stays enabled when a styled cell is selected', async ({ page }) => {
     const colId = await getFirstDataColId(page);
     await selectCell(page, colId);
     await clickToolbarBtn(page, 'Bold');
-    const saveBtn = page.getByRole('button', { name: 'Save as template' });
-    await expect(saveBtn).toBeEnabled();
+    await expect(page.locator('[data-testid="templates-menu-trigger"]')).toBeEnabled();
   });
 });

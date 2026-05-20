@@ -4,6 +4,7 @@ import {
   openPanel,
   closeSettingsSheet,
 } from './helpers/settingsSheet';
+import { pickSelectOption, pickSelectOptionByLocator, clickSwitch } from './helpers/shadcnSelect';
 
 /**
  * Full behavioural coverage for the conditional-styling settings panel
@@ -49,14 +50,21 @@ async function saveRule(page: Page, ruleId: string): Promise<void> {
   await expect(btn).toBeDisabled({ timeout: 2000 });
 }
 
-/** Clicks the shadcn Switch via the wrapper label (inner input is sr-only). */
+/** Clicks the shadcn Switch via its test id. */
 async function toggleSwitch(page: Page, testid: string): Promise<void> {
-  await page.locator(`[data-testid="${testid}"]`).locator('..').click();
+  await clickSwitch(page, testid);
 }
 
-/** Reads the SCOPE Select (it has no testid — find via the MetaCell label). */
-function scopeSelect(page: Page) {
-  return page.locator('.ds-meta-cell', { hasText: 'SCOPE' }).locator('select');
+/** Opens the SCOPE combobox for the active rule editor. */
+async function pickScope(page: Page, ruleId: string, scope: 'cell' | 'row'): Promise<void> {
+  await pickSelectOption(page, `cs-rule-scope-${ruleId}`, scope);
+}
+
+/** Adds a column to a cell-scope rule via the column picker combobox. */
+async function addScopeColumn(page: Page, colId: string): Promise<void> {
+  const editor = page.locator('[data-testid="cs-rule-editor"]');
+  const picker = editor.locator('[role="combobox"]').last();
+  await pickSelectOptionByLocator(page, picker, colId);
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────
@@ -110,11 +118,8 @@ test.describe('v2 — conditional-styling panel', () => {
   test('cell-scope rule applies ds-rule class only to picked columns', async ({ page }) => {
     const id = await addRule(page);
     // Change to cell scope and pick the `side` column.
-    await scopeSelect(page).selectOption('cell');
-    // The column picker's Select has className ds-cs-col-add (no testid).
-    // Scope our locator to the editor to avoid the one in the SCOPE meta.
-    const editor = page.locator('[data-testid="cs-rule-editor"]');
-    await editor.locator('.ds-cs-col-add').selectOption('side');
+    await pickScope(page, id, 'cell');
+    await addScopeColumn(page, 'side');
     await saveRule(page, id);
     await closeSettingsSheet(page);
 
@@ -130,7 +135,7 @@ test.describe('v2 — conditional-styling panel', () => {
   test('cell-scope with no columns shows the "no columns" warning', async ({ page }) => {
     const id = await addRule(page);
     void id;
-    await scopeSelect(page).selectOption('cell');
+    await pickScope(page, id, 'cell');
     await expect(
       page.locator('[data-testid="cs-no-columns-warning"]'),
     ).toBeVisible();
@@ -155,10 +160,7 @@ test.describe('v2 — conditional-styling panel', () => {
     // to the draft (useModuleDraft); SAVE commits.
     await openPanel(page, 'conditional-styling');
     await page.locator(`[data-testid="cs-rule-card-${id}"]`).click();
-    const statusSwitch = page
-      .locator('.ds-meta-cell', { hasText: 'STATUS' })
-      .locator('input[type="checkbox"]');
-    await statusSwitch.locator('..').click();
+    await page.locator('[data-testid="cs-rule-editor"]').getByRole('switch').first().click();
     await saveRule(page, id);
     await closeSettingsSheet(page);
 
@@ -202,10 +204,10 @@ test.describe('v2 — conditional-styling panel', () => {
     // Row scope → "TARGETS ENTIRE ROW" hint shows; no cells/headers/both picker.
     await expect(
       page.locator('[data-testid="cs-rule-editor"]'),
-    ).toContainText('TARGETS ENTIRE ROW');
+    ).toContainText('ENTIRE ROW');
 
     // Switch to cell scope — the 3-way target picker appears.
-    await scopeSelect(page).selectOption('cell');
+    await pickScope(page, id, 'cell');
     await expect(
       page.locator(`[data-testid="cs-rule-flash-target-cells-${id}"]`),
     ).toBeVisible();

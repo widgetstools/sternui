@@ -4,6 +4,7 @@ import {
   openPanel,
   closeSettingsSheet,
 } from './helpers/settingsSheet';
+import { pickSelectOption } from './helpers/shadcnSelect';
 
 /**
  * Full behavioural coverage for the column-groups settings panel
@@ -54,9 +55,7 @@ async function createGroupWithColumns(
   const id = await createGroup(page);
   await page.locator(`[data-testid="cg-name-${id}"]`).fill(name);
   for (const colId of colIds) {
-    await page
-      .locator(`[data-testid="cg-add-col-${id}"]`)
-      .selectOption(colId);
+    await pickSelectOption(page, `cg-add-col-${id}`, colId);
   }
   await saveGroup(page, id);
   return id;
@@ -163,11 +162,11 @@ test.describe('v2 — column-groups panel', () => {
     });
     // Use a specific count via the list rail's own wrapper — every group
     // becomes a `cg-popout-list-item` with a `cg-group-<id>` testid.
-    const allGroupButtons = await page
-      .locator('button[data-testid^="cg-group-"]')
+    const allGroupItems = await page
+      .locator('[data-testid^="cg-group-"]:not([data-testid*="editor"])')
       .count();
     // One parent + one subgroup after commit.
-    expect(allGroupButtons).toBeGreaterThanOrEqual(2);
+    expect(allGroupItems).toBeGreaterThanOrEqual(2);
   });
 
   test('move-up / move-down reorder sibling top-level groups', async ({ page }) => {

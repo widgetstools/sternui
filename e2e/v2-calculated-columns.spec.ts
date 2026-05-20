@@ -9,25 +9,13 @@ import {
  * Full behavioural coverage for the calculated-columns settings panel
  * (CalculatedColumnsPanel, documented in IMPLEMENTED_FEATURES.md §1.8).
  *
- * Scope notes:
+ * The module ships with zero virtual columns — users add columns through
+ * the panel. Tests exercise add / rename / delete / save / persistence.
  *
- * - The module seeds a demo `grossPnl` virtual column via
- *   `getInitialState`. The panel surfaces it correctly (editor mounts,
- *   state reads through, rename / delete round-trip). AG-Grid's own
- *   column-state machinery handles the grid-side rendering — depending
- *   on profile / grid-state interaction the seed may or may not
- *   appear in the main header on first render. We verify grid-side
- *   integration via the `[col-id="<id>"]` header presence AFTER the
- *   user adds their own virtual column via the UI (which is the path
- *   the grid-state module doesn't touch on mount).
- *
- * - Expression editing uses the ExpressionEditor's commit path. The
- *   editor lazy-loads Monaco, so we try the FallbackInput first and
- *   fall back to keyboard typing if Monaco has already mounted.
+ * Expression editing uses the ExpressionEditor's commit path. The
+ * editor lazy-loads Monaco, so we rely on default expressions for most
+ * flows; expression parsing has its own unit tests.
  */
-
-// Seed id from module.getInitialState — documented in §1.8.
-const SEED_COL_ID = 'grossPnl';
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -82,57 +70,33 @@ test.describe('v2 — calculated-columns panel', () => {
     await bootCleanDemo(page);
   });
 
-  test('fresh profile seeds the demo grossPnl virtual column in the panel', async ({ page }) => {
+  test('fresh profile starts with no virtual columns', async ({ page }) => {
     await openPanel(page, 'calculated-columns');
-    await expect(page.locator(`[data-testid="cc-virtual-${SEED_COL_ID}"]`)).toBeVisible();
-    await expect(
-      page.locator(`[data-testid="cc-virtual-editor-${SEED_COL_ID}"]`),
-    ).toBeVisible();
-    await expect(
-      page.locator(`[data-testid="cc-virtual-header-${SEED_COL_ID}"]`),
-    ).toHaveValue('Gross P&L');
+    await expect(page.locator('[data-testid^="cc-virtual-"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="cc-add-virtual-btn"]')).toBeVisible();
   });
 
-  test('seed column carries its expression in the editor', async ({ page }) => {
-    await openPanel(page, 'calculated-columns');
-    const editor = page.locator(`[data-testid="cc-virtual-editor-${SEED_COL_ID}"]`);
-    await expect(editor).toContainText('[price] * [quantity] / 1000');
-  });
-
-  test('adding a virtual column creates a new item alongside the seed', async ({ page }) => {
+  test('adding a virtual column creates a new item with default header', async ({ page }) => {
     const id = await addVirtualColumn(page);
-    expect(id).not.toBe(SEED_COL_ID);
-    await expect(page.locator(`[data-testid="cc-virtual-${SEED_COL_ID}"]`)).toBeVisible();
     await expect(page.locator(`[data-testid="cc-virtual-${id}"]`)).toBeVisible();
     await expect(
       page.locator(`[data-testid="cc-virtual-header-${id}"]`),
     ).toHaveValue('New Column');
   });
 
-  test('renaming the seed column persists after save + re-select', async ({ page }) => {
-    await openPanel(page, 'calculated-columns');
-    const headerInput = page.locator(`[data-testid="cc-virtual-header-${SEED_COL_ID}"]`);
+  test('renaming a virtual column persists after save + re-select', async ({ page }) => {
+    const id = await addVirtualColumn(page);
+    const headerInput = page.locator(`[data-testid="cc-virtual-header-${id}"]`);
     await headerInput.fill('Daily P&L');
-    await saveVirtual(page, SEED_COL_ID);
-    // Re-select from the list rail to re-hydrate from committed state.
-    await page.locator(`[data-testid="cc-virtual-${SEED_COL_ID}"]`).click();
+    await saveVirtual(page, id);
+    await page.locator(`[data-testid="cc-virtual-${id}"]`).click();
     await expect(headerInput).toHaveValue('Daily P&L');
   });
 
-  // ── Grid-side rendering (user-added column in main header) ──
-  // Deferred: the demo's combination of `sideBar.toolPanels:
-  // ['columns', 'filters']` + `grid-state` module + AG-Grid column
-  // persistence means newly-added virtual columns are known to
-  // AG-Grid (they appear in the filter tool panel) but the main
-  // grid header doesn't reflect them without an explicit
-  // `api.setColumnVisible(colId, true)` nudge. Exercising this flow
-  // requires the grid-state interaction to be resolved first.
-  // Tracked separately from this panel-coverage pass.
-
   test('value-formatter picker mounts in the editor', async ({ page }) => {
-    await openPanel(page, 'calculated-columns');
+    const id = await addVirtualColumn(page);
     await expect(
-      page.locator(`[data-testid="cc-virtual-fmt-${SEED_COL_ID}-trigger"]`),
+      page.locator(`[data-testid="cc-virtual-fmt-${id}-trigger"]`),
     ).toBeVisible();
   });
 
@@ -142,11 +106,6 @@ test.describe('v2 — calculated-columns panel', () => {
     const colIdInput = page.locator(`[data-testid="cc-virtual-colid-${id}"]`);
     await colIdInput.fill('pnl_custom');
     await colIdInput.press('Enter');
-    // Editor's SAVE testid is keyed to the ORIGINAL colId. After save
-    // commits, the editor re-keys to the new colId — the old SAVE
-    // button stops existing rather than "disabled", so we can't use
-    // the standard saveVirtual helper here. Click + verify list rail
-    // rehydrated instead.
     await page.locator(`[data-testid="cc-virtual-save-${id}"]`).click();
     await expect(
       page.locator(`[data-testid="cc-virtual-pnl_custom"]`),
@@ -154,24 +113,9 @@ test.describe('v2 — calculated-columns panel', () => {
     await expect(page.locator(`[data-testid="cc-virtual-${id}"]`)).toHaveCount(0);
   });
 
-  test('deleting the seed column removes it from the panel', async ({ page }) => {
-    await openPanel(page, 'calculated-columns');
-    await page
-      .locator(`[data-testid="cc-virtual-delete-${SEED_COL_ID}"]`)
-      .click();
-    await expect(
-      page.locator(`[data-testid="cc-virtual-${SEED_COL_ID}"]`),
-    ).toHaveCount(0);
-    await expect(
-      page.locator(`[data-testid="cc-virtual-editor-${SEED_COL_ID}"]`),
-    ).toHaveCount(0);
-  });
-
   test('deleting a user-added column removes it from the panel', async ({ page }) => {
     const id = await addVirtualColumn(page);
-    await page
-      .locator(`[data-testid="cc-virtual-header-${id}"]`)
-      .fill('Deletable');
+    await page.locator(`[data-testid="cc-virtual-header-${id}"]`).fill('Deletable');
     await saveVirtual(page, id);
     await page.locator(`[data-testid="cc-virtual-delete-${id}"]`).click();
     await expect(page.locator(`[data-testid="cc-virtual-${id}"]`)).toHaveCount(0);
@@ -193,14 +137,10 @@ test.describe('v2 — calculated-columns panel', () => {
   });
 
   test('rename persists across reload', async ({ page }) => {
-    await openPanel(page, 'calculated-columns');
-    await page
-      .locator(`[data-testid="cc-virtual-header-${SEED_COL_ID}"]`)
-      .fill('Persistent Name');
-    await saveVirtual(page, SEED_COL_ID);
+    const id = await addVirtualColumn(page);
+    await page.locator(`[data-testid="cc-virtual-header-${id}"]`).fill('Persistent Name');
+    await saveVirtual(page, id);
     await closeSettingsSheet(page);
-    // Profiles are explicit-save now — click Save before reloading or
-    // the rename evaporates with the in-memory state.
     await page.locator('[data-testid="save-all-btn"]').click();
     await page.waitForTimeout(200);
 
@@ -209,8 +149,9 @@ test.describe('v2 — calculated-columns panel', () => {
     await page.waitForSelector('.ag-body-viewport .ag-row', { timeout: 15_000 });
 
     await openPanel(page, 'calculated-columns');
+    await page.locator(`[data-testid="cc-virtual-${id}"]`).click();
     await expect(
-      page.locator(`[data-testid="cc-virtual-header-${SEED_COL_ID}"]`),
+      page.locator(`[data-testid="cc-virtual-header-${id}"]`),
     ).toHaveValue('Persistent Name');
   });
 
@@ -218,7 +159,6 @@ test.describe('v2 — calculated-columns panel', () => {
     const first = await addVirtualColumn(page);
     const second = await addVirtualColumn(page);
     expect(first).not.toBe(second);
-    await expect(page.locator(`[data-testid="cc-virtual-${SEED_COL_ID}"]`)).toBeVisible();
     await expect(page.locator(`[data-testid="cc-virtual-${first}"]`)).toBeVisible();
     await expect(page.locator(`[data-testid="cc-virtual-${second}"]`)).toBeVisible();
   });

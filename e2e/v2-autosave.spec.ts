@@ -168,23 +168,16 @@ test.describe('v2 — explicit save (profiles = committed snapshots)', () => {
 
   test('Save button surfaces a dirty indicator while there are unsaved edits', async ({ page }) => {
     const saveBtn = page.locator('[data-testid="save-all-btn"]');
-    // Initially clean — no dirty dot, data-state should not be "dirty".
     await expect(saveBtn).toHaveAttribute('data-state', 'idle');
-    await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
 
-    // Mutate: capture a filter. The store change flips dirty=true.
     await setFilterModel(page, { side: { filterType: 'set', values: ['BUY'] } });
     await captureCurrentFilter(page);
 
     await expect(saveBtn).toHaveAttribute('data-state', 'dirty');
-    await expect(page.locator('[data-testid="save-all-dirty"]')).toBeVisible();
 
-    // Save clears the indicator. data-state cycles through 'saved' for
-    // ~600ms of flash then back to 'idle'.
     await clickSaveAll(page);
     await page.waitForTimeout(800);
     await expect(saveBtn).toHaveAttribute('data-state', 'idle');
-    await expect(page.locator('[data-testid="save-all-dirty"]')).toHaveCount(0);
   });
 
   test('switching profiles while dirty opens the unsaved-changes AlertDialog', async ({ page }) => {

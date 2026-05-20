@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { bootCleanDemo, openPanel, closeSettingsSheet } from './helpers/settingsSheet';
+import { pickSelectOption } from './helpers/shadcnSelect';
 import {
   createProfile,
   cloneProfile,
@@ -45,7 +46,7 @@ async function createGroupWithColumns(page: Page, name: string, colIds: string[]
   const id = await createGroup(page);
   await page.locator(`[data-testid="cg-name-${id}"]`).fill(name);
   for (const colId of colIds) {
-    await page.locator(`[data-testid="cg-add-col-${id}"]`).selectOption(colId);
+    await pickSelectOption(page, `cg-add-col-${id}`, colId);
   }
   await saveGroup(page, id);
   return id;

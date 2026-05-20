@@ -4,6 +4,7 @@ import {
   openPanel,
   closeSettingsSheet,
 } from './helpers/settingsSheet';
+import { expectSelectDisplay, pickSelectOption } from './helpers/shadcnSelect';
 
 /**
  * Full behavioural coverage for the column-customization settings panel
@@ -51,13 +52,10 @@ async function commitInput(page: Page, testid: string, value: string): Promise<v
 }
 
 /**
- * Toggles a shadcn Switch — the native <input type=checkbox> is sr-only,
- * so neither `.click()` (intercepted by the visual div) nor `.setChecked()`
- * (same underlying pointer action) reaches it. We click the wrapping
- * <label>, which forwards to the input via label-input association.
+ * Toggles a shadcn/Radix Switch wired with `data-testid`.
  */
 async function toggleSwitch(page: Page, testid: string): Promise<void> {
-  await page.locator(`[data-testid="${testid}"]`).locator('..').click();
+  await page.locator(`[data-testid="${testid}"]`).click();
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────
@@ -135,18 +133,14 @@ test.describe('v2 — column-customization panel', () => {
 
   test('02 LAYOUT — pin right persists the assignment (applies on next mount)', async ({ page }) => {
     await selectColumn(page, 'side');
-    await page
-      .locator('[data-testid="cols-side-pinned"]')
-      .selectOption('right');
+    await pickSelectOption(page, 'cols-side-pinned', 'right');
     await saveColumn(page, 'side');
 
     // `initialPinned` applies on first render only — re-open the editor and
     // verify the draft persisted. The grid-side reflection is exercised by
     // the reload path in the HEADER rename test.
     await page.locator('[data-testid="cols-item-side"]').click();
-    await expect(
-      page.locator('[data-testid="cols-side-pinned"]'),
-    ).toHaveValue('right');
+    await expectSelectDisplay(page, 'cols-side-pinned', 'right');
   });
 
   test('02 LAYOUT — initial-hide persists the assignment (applies on next mount)', async ({ page }) => {
@@ -163,17 +157,13 @@ test.describe('v2 — column-customization panel', () => {
 
   test('02 LAYOUT — sortable tri-state persists "off" selection', async ({ page }) => {
     await selectColumn(page, 'trader');
-    await page
-      .locator('[data-testid="cols-trader-sortable"]')
-      .selectOption('off');
+    await pickSelectOption(page, 'cols-trader-sortable', 'off');
     await saveColumn(page, 'trader');
 
     // Verify persistence via Select value after navigating away + back.
     await page.locator('[data-testid="cols-item-id"]').click();
     await page.locator('[data-testid="cols-item-trader"]').click();
-    await expect(
-      page.locator('[data-testid="cols-trader-sortable"]'),
-    ).toHaveValue('off');
+    await expectSelectDisplay(page, 'cols-trader-sortable', 'off');
   });
 
   test('04 CELL STYLE — StyleEditor is present inside the band', async ({ page }) => {
@@ -198,9 +188,7 @@ test.describe('v2 — column-customization panel', () => {
   test('07 FILTER — toggling "On" reveals the filter-kind picker', async ({ page }) => {
     await selectColumn(page, 'security');
     // Master enable defaults to "default". Flip to "on".
-    await page
-      .locator('[data-testid="cols-security-filter-enabled"]')
-      .selectOption('on');
+    await pickSelectOption(page, 'cols-security-filter-enabled', 'on');
     // Filter-kind picker appears only when enabled state is NOT "off".
     await expect(
       page.locator('[data-testid="cols-security-filter-kind"]'),
@@ -213,12 +201,8 @@ test.describe('v2 — column-customization panel', () => {
 
   test('07 FILTER — selecting agSetColumnFilter reveals the set-filter options band', async ({ page }) => {
     await selectColumn(page, 'security');
-    await page
-      .locator('[data-testid="cols-security-filter-enabled"]')
-      .selectOption('on');
-    await page
-      .locator('[data-testid="cols-security-filter-kind"]')
-      .selectOption('agSetColumnFilter');
+    await pickSelectOption(page, 'cols-security-filter-enabled', 'on');
+    await pickSelectOption(page, 'cols-security-filter-kind', 'agSetColumnFilter');
     // Set-filter-specific options become visible.
     await expect(
       page.locator('[data-testid="cols-security-setfilter-minifilter"]'),
@@ -230,12 +214,8 @@ test.describe('v2 — column-customization panel', () => {
 
   test('07 FILTER — selecting agMultiColumnFilter reveals the sub-filter editor', async ({ page }) => {
     await selectColumn(page, 'security');
-    await page
-      .locator('[data-testid="cols-security-filter-enabled"]')
-      .selectOption('on');
-    await page
-      .locator('[data-testid="cols-security-filter-kind"]')
-      .selectOption('agMultiColumnFilter');
+    await pickSelectOption(page, 'cols-security-filter-enabled', 'on');
+    await pickSelectOption(page, 'cols-security-filter-kind', 'agMultiColumnFilter');
     await expect(
       page.locator('[data-testid="cols-security-multi-add"]'),
     ).toBeVisible();
@@ -256,9 +236,7 @@ test.describe('v2 — column-customization panel', () => {
 
   test('08 ROW GROUPING — custom aggFunc reveals the expression textarea', async ({ page }) => {
     await selectColumn(page, 'notional');
-    await page
-      .locator('[data-testid="cols-notional-rg-aggfunc"]')
-      .selectOption('custom');
+    await pickSelectOption(page, 'cols-notional-rg-aggfunc', 'custom');
     await expect(
       page.locator('[data-testid="cols-notional-rg-custom-expr"]'),
     ).toBeVisible();
@@ -266,14 +244,12 @@ test.describe('v2 — column-customization panel', () => {
 
   test('meta band — OVERRIDES count updates as fields commit', async ({ page }) => {
     await selectColumn(page, 'venue');
-    const editor = page.locator('[data-testid="cols-editor-venue"]');
-    // Initial: 0 overrides.
-    await expect(editor.locator('.ds-meta-cell').nth(2)).toContainText('0');
+    await expect(page.locator('[data-testid="cols-meta-overrides-venue"]')).toContainText('0');
 
     await commitInput(page, 'cols-venue-header-name', 'Venue Hall');
     await saveColumn(page, 'venue');
 
-    await expect(editor.locator('.ds-meta-cell').nth(2)).toContainText('1');
+    await expect(page.locator('[data-testid="cols-meta-overrides-venue"]')).toContainText('1');
   });
 
   test('discard reverts an unsaved draft back to committed state', async ({ page }) => {
