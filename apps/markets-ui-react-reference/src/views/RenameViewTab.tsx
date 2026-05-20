@@ -2,7 +2,7 @@
 declare const fin: any;
 
 import { useEffect, useRef, useState } from 'react';
-import { Button, Input } from '@starui/grid-react';
+import { Button, Input } from '@starui/grid/customizer';
 
 interface RenameCustomData {
   view: { uuid: string; name: string };
@@ -158,7 +158,7 @@ export default function RenameViewTab() {
         <Button
           type="button"
           variant="ghost"
-          size="md"
+          size="default"
           onClick={() => void closeWindow()}
         >
           Cancel
@@ -166,7 +166,7 @@ export default function RenameViewTab() {
         <Button
           type="button"
           variant="default"
-          size="md"
+          size="default"
           disabled={!canSave}
           onClick={() => void handleSave()}
         >

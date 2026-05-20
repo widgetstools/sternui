@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
-import { DataServicesProvider } from '@starui/data-services-react/runtime';
-import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
+import { DataServicesProvider } from '@starui/host-data-react/runtime';
+import { LOGGED_IN_USER_ID } from '@starui/types';
 import { App } from './App';
 import { dataServices } from './dataServices';
 import './globals.css';

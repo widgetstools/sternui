@@ -1,12 +1,7 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@starui/config-service": ["./node_modules/@starui/config-service/dist"],
-      "@starui/config-service/*": ["./node_modules/@starui/config-service/dist/*"]
-    }
+    "noEmit": true
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

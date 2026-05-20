@@ -27,7 +27,7 @@ import {
 } from '@starui/design-system/adapters/ag-grid';
 import { Badge, Button, Input } from '@starui/ui';
 import { FileText, Search, Settings as SettingsIcon } from 'lucide-react';
-import { useHost } from '@starui/host-wrapper-react';
+import { useStarGridApp } from '@starui/app';
 
 // Stockflux's blotter uses enterprise features (sideBar, cellSelection,
 // row grouping, aggregations). Matching for apples-to-apples comparison.
@@ -355,7 +355,7 @@ const defaultColDef: ColDef = {
 type Kind = 'trades' | 'positions';
 
 export function StockfluxBlotter() {
-  const { theme } = useHost();
+  const { theme } = useStarGridApp();
   const isDark = theme === 'dark';
   const [kind, setKind] = useState<Kind>('trades');
   const [trades] = useState(() => buildTrades(60));

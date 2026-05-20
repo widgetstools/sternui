@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { applyTheme, getTheme } from '@starui/design-system';
-import { DataServicesProvider } from '@starui/data-services-react/runtime';
+import { DataServicesProvider } from '@starui/host-data-react/runtime';
 import { App } from './App';
 import { dataServices } from './dataServices';
 import { MockConfigProvider } from './state/MockConfigContext';

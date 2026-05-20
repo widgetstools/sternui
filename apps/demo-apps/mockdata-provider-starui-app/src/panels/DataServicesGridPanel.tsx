@@ -2,15 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
-} from '@starui/markets-grid';
-import { useProviderStream, useProviderStats } from '@starui/data-services-react/runtime';
+} from '@starui/grid';
+import { useProviderStream, useProviderStats } from '@starui/host-data-react/runtime';
 import { useMockConfig } from '../state/MockConfigContext';
 import { useStats } from '../state/StatsContext';
 import { columnDefsByType } from '../data/columnDefsByType';
 import { applyDelta } from '../data/applyDelta';
 import { dataServices, dataServicesBootstrapError } from '../dataServices';
 import { TriangleAlert } from 'lucide-react';
-import type { MockProviderConfig } from '@starui/shared-types';
+import type { MockProviderConfig } from '@starui/types';
 
 const storage = createMarketsGridLocalStorageStorage();
 

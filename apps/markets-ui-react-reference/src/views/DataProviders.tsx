@@ -17,10 +17,8 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { DataServicesProvider } from '@starui/data-services-react/runtime';
 import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
-import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
-import { dataServices } from '../dataServices.mainThread';
+import { LOGGED_IN_USER_ID } from '@starui/types';
 
 // userId is single-user-pinned across the codebase — no env override,
 // no customData/URL pickup. See LOGGED_IN_USER_ID in runtime-port.
@@ -72,9 +70,7 @@ function DataProviders() {
         </span>
       </header>
       <div className="flex-1 min-h-0">
-        <DataServicesProvider services={dataServices} userId={userId}>
-          <DataProviderEditor userId={userId} initialProviderId={initialProviderId} />
-        </DataServicesProvider>
+        <DataProviderEditor userId={userId} initialProviderId={initialProviderId} />
       </div>
     </div>
   );

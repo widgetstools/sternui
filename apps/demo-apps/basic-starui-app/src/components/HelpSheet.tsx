@@ -159,7 +159,7 @@ function QuickStart() {
       <Section title="What this demo shows">
         <Prose>
           A streaming-ready bond blotter built on{' '}
-          <Code>@starui/markets-grid</Code>. Every column, filter, format,
+          <Code>@starui/grid</Code>. Every column, filter, format,
           template, and saved layout is round-tripped to{' '}
           <Code>localStorage</Code> under a single JSON document — refresh the
           page and your layout returns exactly as you left it.

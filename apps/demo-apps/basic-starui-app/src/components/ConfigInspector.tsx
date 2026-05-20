@@ -23,7 +23,7 @@ import { Database, Copy, RefreshCw, Trash2, CheckCircle2 } from 'lucide-react';
 import {
   marketsGridLocalStorageBundleKey,
   type MarketsGridLocalStorageConfig,
-} from '@starui/core';
+} from '@starui/engine';
 
 interface ConfigInspectorProps {
   gridId: string;

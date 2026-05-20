@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { MockProviderConfig } from '@starui/shared-types';
+import type { MockProviderConfig } from '@starui/types';
 
 const DEFAULT_CFG: MockProviderConfig = {
   providerType: 'mock',

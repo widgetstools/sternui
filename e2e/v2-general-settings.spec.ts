@@ -19,9 +19,9 @@ import {
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-/** Clicks the shadcn Switch via the wrapper label (sr-only input). */
+/** Clicks the Radix Switch root (role=switch). */
 async function toggleSwitch(page: Page, testid: string): Promise<void> {
-  await page.locator(`[data-testid="${testid}"]`).locator('..').click();
+  await page.locator(`[data-testid="${testid}"]`).click();
 }
 
 /** Commits an IconInput value via Enter + waits a tick. */

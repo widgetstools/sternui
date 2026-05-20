@@ -1,5 +1,5 @@
 import { themeQuartz } from 'ag-grid-community';
-import { agGridLightParams, agGridDarkParams } from '@design-system/adapters/agGrid';
+import { agGridLightParams, agGridDarkParams } from '@starui/design-system/adapters/ag-grid';
 
 export const fiGridTheme = themeQuartz
   .withParams(agGridLightParams as any, 'light')

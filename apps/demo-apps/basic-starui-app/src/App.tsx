@@ -3,11 +3,11 @@ import {
   MarketsGrid,
   createMarketsGridLocalStorageStorage,
   type MarketsGridHandle,
-} from '@starui/markets-grid';
+} from '@starui/grid';
 import {
   marketsGridLocalStorageBundleKey,
   activeProfileKey,
-} from '@starui/core';
+} from '@starui/engine';
 import {
   applyTheme,
   getTheme,

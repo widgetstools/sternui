@@ -9,9 +9,20 @@ This monorepo consolidates four previously-fragmented repositories
 (`widgetstools/widgets`, `widgetstools/markets-ui`,
 `widgetstools/fi-trading-terminal`, and the legacy trading-shell repo)
 into a single source of truth. See
-[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the layer diagram
-and [`docs/MIGRATION_NOTES.md`](./docs/MIGRATION_NOTES.md) if you
-followed a link from one of the archived repos.
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the layer diagram.
+
+## Monorepo layout
+
+```
+starui/                      # repo root (npm workspace root)
+├── packages/                # ten architecture buckets (@starui/* libraries)
+├── apps/                    # runnable demos + reference apps
+├── docs/                    # architecture, feature inventory, guides
+├── scripts/                 # propagate, Vite/Tailwind consumer helpers
+├── tools/                   # OpenFin launcher + dev utilities
+├── e2e/                     # Playwright suite (primary target: demo-react)
+└── e2e-openfin/             # OpenFin CDP smoke tests
+```
 
 ## Stack
 
@@ -24,75 +35,55 @@ followed a link from one of the archived repos.
 - **Radix UI** + shadcn primitives, **CodeMirror 6** for expression editing
 - **Vitest** 4 + **Playwright** 1.59 for tests
 
-## Monorepo layout
-
-### `packages/` — shared libraries (26, grouped by framework)
-
-```
-packages/
-├── shared/      vanilla TS / framework-agnostic (11)
-├── react/       React-only packages (9)
-└── angular/     Angular-only packages (6)
-```
-
-#### `packages/shared/` (11)
+### `packages/shared/` (vanilla)
 
 | Package | What it does |
 |---|---|
-| `@starui/shared-types` | Cross-cutting interfaces (IDataProvider, WidgetContext, FieldNode…) |
-| `@starui/core` | Module system, ProfileManager, ExpressionEngine, settings primitives |
-| `@starui/design-system` | Tailwind config, terminal palette, cockpit styles, tokens |
+| `@starui/types` / `@starui/shared-types` | Cross-cutting interfaces (IDataProvider, FieldNode, …) |
+| `@starui/engine` | GridPlatform, ProfileManager, expression engine, modules |
+| `@starui/design-system` | Tokens, themes, AG-Grid / PrimeNG / shadcn adapters |
 | `@starui/icons-svg` | Shared icon bundle |
-| `@starui/config-service` | Dexie + REST dual-mode config storage |
-| `@starui/component-host` | Identity resolver + debounced saver (with `/react` + `/angular` subpaths) |
-| `@starui/data-services` | SharedWorker-backed data-services runtime + one-shot probes (StompProbe et al.) |
-| `@starui/runtime-port` | Runtime adapter interface |
-| `@starui/runtime-browser` | Browser runtime adapter |
-| `@starui/runtime-openfin` | OpenFin runtime adapter |
-| `@starui/openfin-platform` | markets-ui OpenFin workspace bootstrap |
+| `@starui/host-config` | Dexie + REST config storage |
+| `@starui/host-data` | SharedWorker-backed data-services runtime |
+| `@starui/host` | Host port interface |
+| `@starui/host-browser` / `@starui/host-openfin` | Browser / OpenFin host adapters |
+| `@starui/openfin-platform` | OpenFin workspace bootstrap |
 
-#### `packages/react/` (9)
+### `packages/react/`
 
 | Package | What it does |
 |---|---|
-| `@starui/ui` | Low-level shadcn-ui components (Button, Card, Badge…) |
-| `@starui/markets-grid` | MarketsGrid host, FormattingToolbar, FiltersToolbar, SettingsSheet |
-| `@starui/widget-sdk` | Widget registry, launch spec, WidgetContext |
-| `@starui/widgets-react` | Blotter / chart / heatmap widgets |
+| `@starui/ui` | shadcn-ui primitives |
+| `@starui/grid` | MarketsGrid widget + grid customizer modules |
+| `@starui/app` | App shell helpers |
+| `@starui/widget-sdk` | Widget registry + launch contract |
+| `@starui/widgets-react` | Blotter / chart / heatmap widgets + hosted shells |
 | `@starui/host-wrapper-react` | React HostWrapper + identity context |
-| `@starui/data-services-react` | React hooks over `@starui/data-services` |
-| `@starui/dock-editor` (`dock-editor-react`) | Dock configurator UI (React) |
-| `@starui/registry-editor` (`registry-editor-react`) | Widget-registry editor UI (React) |
-| `@starui/config-browser` (`config-browser-react`) | Config-row browser/editor (React) |
+| `@starui/host-data-react` | React hooks over `@starui/host-data` |
+| `@starui/config-browser` | Config-row browser/editor |
+| `@starui/workspace-setup-react` | Workspace setup UI |
 
-#### `packages/angular/` (6)
+### `apps/`
 
-| Package | What it does |
-|---|---|
-| `@starui/angular` | Angular adapters + DI integration |
-| `@starui/host-wrapper-angular` | Angular HostWrapper + DI service |
-| `@starui/tokens-primeng` | PrimeNG theme bridge |
-| `@starui/angular-dock-editor` | Dock configurator UI (Angular) |
-| `@starui/angular-registry-editor` | Widget-registry editor UI (Angular) |
-| `@starui/angular-config-browser` | Config-row browser/editor (Angular) |
+| App | Port | Command |
+|---|---|---|
+| `demo-react` | 5190 | `npm run dev:demo-react` |
+| `demo-configservice-react` | 5191 | `npm run dev:demo-configservice-react` |
+| `mockdata-provider-starui-app` | 5192 | `npm run dev:mockdata-provider-starui-app` |
+| `dataprovider-editor-starui-app` | 5193 | `npm run dev:dataprovider-editor-starui-app` |
+| `basic-starui-app` | 5194 | `npm run dev:basic-starui-app` |
+| `markets-ui-react-reference` | 5174 | `npm run dev:markets-ui-react-reference` |
+| `demo-angular` | 4200 | `npm run dev:demo-angular` |
+| `stomp-view-server` | 8081 | `npm run dev:stomp` |
 
-### `apps/` — runnable demos + reference apps (6)
+Run `npm run verify:apps` from the repo root to smoke-test all dev servers.
 
-| App | What it is |
-|---|---|
-| `demo-react` | **Primary dev target.** Config-driven MarketsGrid demo. `npm run dev` |
-| `demo-angular` | Angular parity demo |
-| `fi-trading-reference` | fi-trading-terminal cockpit preserved for regression (React) |
-| `fi-trading-reference-angular` | fi-trading-terminal cockpit, Angular 21 port |
-| `markets-ui-react-reference` | markets-ui framework's React reference scenarios |
-| `markets-ui-angular-reference` | markets-ui framework's Angular reference scenarios |
+### Platform tooling (inside ``)
 
-### `tools/` — build + migration scripts
+- `tools/scripts/launch-openfin.mjs` — launch a demo inside OpenFin
+- `docs/` — architecture, feature inventory, guides
 
-- `tools/scripts/normalize-deps.mjs` — one-shot dep-pin normalizer per `docs/DEPS_STANDARD.md`
-- `tools/scripts/launch-openfin.mjs` — launch the demo inside OpenFin
-
-## Grid modules (9 shipped under `@starui/core`)
+## Grid modules (shipped under `@starui/grid`)
 
 | Module | Priority | Purpose |
 |---|---|---|
@@ -109,9 +100,7 @@ packages/
 ## Getting started
 
 ```bash
-# Install (--legacy-peer-deps required for bundled corporate .tgz packages —
-# see docs/DEPS_STANDARD.md for rationale)
-npm ci --legacy-peer-deps
+npm ci
 
 # React demo at http://localhost:5190
 npm run dev
@@ -126,28 +115,27 @@ npm run dev:openfin
 ## Scripts (root)
 
 ```bash
-npm run build        # turbo build — everything
-npm run typecheck    # turbo typecheck — every package
-npm test             # turbo test — Vitest across packages
-npm run e2e          # turbo e2e — Playwright
-npm run lint         # turbo lint (opt-in per package)
-npm run clean        # nuke all node_modules + dist + .turbo caches
+npm run build        # turbo build — all workspaces
+npm run typecheck    # turbo typecheck — all workspaces
+npm test             # turbo test — Vitest
+npm run e2e          # Playwright (e2e)
+npm run clean        # nuke node_modules + dist + .turbo caches
 ```
 
-Package-scoped commands work with the `-w` flag:
+Package-scoped commands use the `-w` flag:
 
 ```bash
-npm run build -w @starui/core
-npm test  -w @starui/markets-grid
+npm run build -w @starui/engine
+npm test  -w @starui/grid
 ```
 
 ## Hosting components in the reference apps
 
-Both `apps/markets-ui-react-reference` and `apps/markets-ui-angular-reference`
-expose components via plain client-side routes. The reference apps ship a
-generic `HostedComponent` wrapper that handles the hosting concerns once —
-identity resolution, ConfigService wiring, debug overlay, document title —
-so each route's view file only owns its own content.
+Both `apps/markets-ui-react-reference` and future Angular
+reference apps expose components via plain client-side routes. The reference
+apps ship a generic `HostedComponent` wrapper that handles the hosting
+concerns once — identity resolution, ConfigService wiring, debug overlay,
+document title — so each route's view file only owns its own content.
 
 ### What the wrapper provides
 
@@ -286,21 +274,13 @@ shows up identically in plain browser dev (same Dexie DB, same row).
 
 ## Key docs
 
-- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md) — layer diagram + import
-  boundaries for the 27-package monorepo
-- [**MIGRATION_NOTES.md**](./docs/MIGRATION_NOTES.md) — map from old repo
-  URLs to new paths (for anyone following a link to an archived repo)
-- [**DEPS_STANDARD.md**](./docs/DEPS_STANDARD.md) — canonical dep versions
-  + per-package migration notes
-- [**CONSOLIDATION_DECISIONS.md**](./docs/CONSOLIDATION_DECISIONS.md) —
-  per-package resolution matrix for the 4-repo merge
-- [**E2E_STATUS.md**](./docs/E2E_STATUS.md) — current Playwright baseline
-- [**IMPLEMENTED_FEATURES.md**](./docs/IMPLEMENTED_FEATURES.md) —
-  kept in lockstep with the code
-- [**FORMATS_AND_EXPRESSIONS.md**](./docs/FORMATS_AND_EXPRESSIONS.md) —
-  Excel-format + expression-engine reference
-- [**MARKETSUI_DESIGN.md**](./docs/MARKETSUI_DESIGN.md) —
-  1033-line design authority for the overall platform
+- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md) — layer model + import boundaries
+- [**ARCHITECTURE_GUIDE.md**](./docs/ARCHITECTURE_GUIDE.md) — onboarding guide with diagrams
+- [**IMPLEMENTED_FEATURES.md**](./docs/IMPLEMENTED_FEATURES.md) — changelog kept in lockstep with code
+- [**UX_NUANCES.md**](./docs/UX_NUANCES.md) — behavioral nuance spec (must preserve on rewrites)
+- [**PUBLIC_API_SPEC.md**](./docs/PUBLIC_API_SPEC.md) — public API contract
+- [**PARITY.md**](./docs/PARITY.md) — package parity gate
+- [**plans/nested-fields-design.md**](./docs/plans/nested-fields-design.md) — nested field path design
 
 ## Testing
 

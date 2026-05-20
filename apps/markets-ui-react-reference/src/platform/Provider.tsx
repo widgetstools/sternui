@@ -87,17 +87,13 @@ function Provider() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    // Cast: this app's tsconfig pins `types` to fin/fdc3/svg only, so
-    // `vite/client` types aren't ambient — narrow the access locally.
-    const isDev = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV;
-
     // Initialise the platform first; only AFTER initWorkspace() has fully
-    // resolved (which means @openfin/workspace-platform's init() has
-    // returned and `WorkspacePlatform.getCurrentSync()` is usable) install
-    // the e2e test bridge. Without this chaining, out-of-runtime e2e
-    // specs would race the platform-api-ready signal and see
-    // "The targeted Platform is not currently running" on their first
-    // Storage.getWorkspaces() call.
+    // resolved install the e2e test bridge.
+    const isDev = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV;
+    const e2eBridge =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("e2eBridge") === "1";
+
     initWorkspace({
       dockIcon: "http://localhost:5174/dock-provider.png",
       onProgress: setMessage,
@@ -105,11 +101,7 @@ function Provider() {
       components: { home: false, store: false },
     })
       .then(() => {
-        if (!isDev) return undefined;
-        // Test bridge is dev-only — code-split out of production builds.
-        // Exposes a small set of WorkspacePlatform.Storage operations over
-        // an OpenFin Channel so out-of-runtime test code (e2e-openfin/)
-        // can drive saved-workspace lifecycle. See e2e-openfin/README.md.
+        if (!isDev && !e2eBridge) return undefined;
         return import("@starui/host-wrapper-react/test-bridge").then((m) => m.installTestBridge());
       })
       .then(() => {

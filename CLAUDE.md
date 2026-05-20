@@ -1,8 +1,8 @@
-mcp# CLAUDE.md — agent instructions for `marketsui-platform`
+# CLAUDE.md — agent instructions for `starui` (MarketsUI platform monorepo)
 
-This is the consolidated MarketsUI platform monorepo. Four previously-separate
-repos (`widgets`, `markets-ui`, `fi-trading-terminal`, and the legacy
-trading-shell repo) live here as first-class workspaces under `@starui/*`.
+This is the consolidated MarketsUI platform monorepo. Libraries, apps,
+docs, tooling, and e2e tests all live at the **repo root** (`packages/`,
+`apps/`, `docs/`, `scripts/`, `tools/`, `e2e/`).
 
 **Read before editing:**
 
@@ -27,42 +27,34 @@ version in the same change.
 
 ## Package layout
 
-Workspace packages live under `packages/` in three framework buckets,
-each split into role-based sub-buckets (per
-[`docs/plans/plan-2026-05-07/code-organization.md`](./docs/plans/plan-2026-05-07/code-organization.md)):
+All workspace packages live under **`packages/`** in ten
+architecture buckets (see
+[`docs/PACKAGE_ORGANIZATION.md`](./docs/PACKAGE_ORGANIZATION.md)):
 
-- `packages/shared/` — vanilla TS, framework-agnostic
-  - `core/` — grid platform (GridPlatform, ProfileManager, expression engine, persistence, etc.)
-  - `foundation/` — pure leaves: `shared-types`, `design-system`, `icons-svg`, `tokens-primeng`
-  - `runtime/` — `runtime-port` (interface) + `runtime-browser` / `runtime-openfin` impls
-  - `services/` — vanilla services: `config-service`, `data-services`, `component-host`
-  - `platform/` — runtime shells: `openfin-platform`
-- `packages/react/` — React-only packages
-  - `ui/` — shadcn primitives (no twin → no `-react` suffix)
-  - `sdk/widget-sdk/` — widget contract (no twin → no suffix)
-  - `widgets/` — `markets-grid`, `grid-react` (extracted from core), `widgets-react`
-  - `hosts/host-wrapper-react/`
-  - `providers/data-services-react/` — Provider + hook shells around `shared/services`
-  - `tools/` — dev/operator UIs: `config-browser-react`, `workspace-setup-react`
-- `packages/angular/` — Angular-only packages (parity catching up)
-  - `hosts/host-wrapper-angular/`
-  - `tools/config-browser-angular/`
-  - `widgets/widgets-angular/`
+| # | Bucket | Path | Packages |
+|---|--------|------|----------|
+| 1 | UI Design System | `design-system/` | `design-system`, `icons-svg` |
+| 2 | Angular UI Controls | `angular-ui/` | *(scaffold — PrimeNG/tokens)* |
+| 3 | React UI Controls | `react-ui/` | `ui` |
+| 4 | Angular Grid | `angular-grid/` | `grid` → `@starui/grid-angular` |
+| 5 | React Grid | `react-grid/` | `grid` → `@starui/grid` |
+| 6 | Data Utilities | `data/` | `host-config`, `host-data`, `host-data-react`, `host-data-angular` |
+| 7 | OpenFin Utils | `openfin/` | `host-openfin`, `openfin-platform` |
+| 8 | Angular Core | `angular-core/` | `app`, `widgets`, `config-browser` |
+| 9 | React Core | `react-core/` | `app`, `widgets-react`, `widget-sdk`, `host-wrapper-react`, `config-browser`, `workspace-setup-react` |
+| 10 | Core / Shared | `shared/` | `types`, `shared-types`, `engine`, `host`, `host-browser`, `widget`, `widget-browser` |
 
-The workspaces glob in root `package.json` enumerates each sub-bucket
-explicitly (npm 10 doesn't do `packages/**`). When adding a new package:
+**Apps** live under `apps/` and consume libraries via npm
+workspace `"*"` deps.
 
-1. Pick the framework bucket by peer dep (vanilla → `shared/`, React →
-   `react/`, Angular → `angular/`).
-2. Pick the sub-bucket by role (foundation leaf, runtime, service, host,
-   provider, sdk, widget, tool, platform shell).
-3. Package name carries the framework suffix when a twin can exist
-   (`config-browser-react` / `config-browser-angular`); drop the suffix
-   for framework-singletons (`ui`, `widget-sdk`, `tokens-primeng`).
-4. `tsconfig.json` `"extends"` is `"../../../../tsconfig.base.json"`
-   (4 levels) for sub-bucketed packages;
-   `"../../../tsconfig.base.json"` (3 levels) for root-of-bucket
-   exceptions (`shared/core/`, `react/ui/`).
+The root `package.json` workspaces glob enumerates each bucket explicitly
+(npm 10 doesn't do `packages/**`). When adding a new package:
+
+1. Pick the architecture bucket by role (see table above).
+2. Package name carries the framework suffix when a twin can exist; drop the
+   suffix for framework-singletons (`ui`, `widget-sdk`, `grid`).
+3. `tsconfig.json` `"extends"` is `"../../../tsconfig.base.json"` (3 levels)
+   from `packages/<bucket>/<package>/`.
 
 ## File naming
 
@@ -91,11 +83,11 @@ matching Angular Style Guide. Don't switch — Angular tooling and
 muscle memory both depend on it.
 
 **Carve-outs (kebab-case allowed despite the above)**:
-- `packages/react/ui/src/components/**` — shadcn-ui CLI generates kebab
+- `packages/react-ui/ui/src/components/**` — shadcn-ui CLI generates kebab
   filenames (`alert-dialog.tsx`, `dropdown-menu.tsx`); renaming would
   diverge from `npx shadcn add ...` future regenerations
-- `packages/react/widgets/grid-react/src/ui/shadcn/**` — same (gc-themed
-  shadcn copy carried over from the `core/ui/shadcn/` extraction in PR-8)
+- `packages/react-grid/grid/src/customizer/ui/shadcn/**` — gc-themed
+  shadcn copy carried over from the legacy grid-react extraction
 
 **Public subpath exports** in `package.json` `"exports"` may use kebab
 even when they point at camelCase files (subpath name is the package's
@@ -111,10 +103,10 @@ PR. Until then: convention enforcement happens in code review.
 **Turborepo 2.** Scripts at root:
 
 ```bash
-npm run build       # turbo build — everything
-npm run typecheck   # turbo typecheck — every package
+npm run build       # turbo build — all workspaces
+npm run typecheck   # turbo typecheck — all workspaces
 npm test            # turbo test — Vitest
-npm run e2e         # turbo e2e — Playwright
+npm run e2e         # Playwright — e2e
 ```
 
 Every library package uses `"build": "rimraf dist && tsc"` (or
@@ -122,46 +114,23 @@ Every library package uses `"build": "rimraf dist && tsc"` (or
 "cannot overwrite input file" error that Turbo's cache-restore triggers
 on the next run. Don't remove it.
 
-## Propagating package changes to `apps/*` (tarball deps)
+## Propagating package changes (external tarball consumers)
 
-Reference apps (`apps/demo-react`) consume libraries via `file:` tarball
-deps in `libs/` — same shape consumers see (Decision 13 in
-code-organization.md). When you change a library and want to see it in
-the demo, run:
+In-repo apps use workspace `"*"` deps — edit a package, run `npm run build`
+(or `npm run dev:demo-react`) and changes are picked up via workspace linking.
 
-```bash
-npm run propagate -- grid-react markets-grid
-```
+`npm run propagate` (delegates to `scripts/propagate.mjs`) builds
+and packs **one tarball per architecture bucket** flat under `libs/`
+(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). Each bundle contains all workspace
+packages in that bucket. Flags:
 
-This repacks just those packages, rewrites every matching `file:` dep in
-`apps/*/package.json`, removes the affected `node_modules/@starui/*` +
-`node_modules/.vite` directories, and runs `npm install` in each
-affected app. With no args (`npm run propagate`), it repacks every
-library under `packages/`.
-
-**Why the dedicated script and not `npm run pack:libs` + `npm install`?**
-Tarballs are named with a short content-hash suffix
-(`starui-grid-react-0.1.0-<sha8>.tgz`). When you re-pack, the filename
-changes if and only if the content did. That sidesteps npm's `file:`
-cache, which keys extractions by (path, integrity) — same path with
-different content silently reuses the stale cached version, which is
-exactly the bug that made earlier sessions chase "the fix isn't taking
-effect" symptoms. With hashed filenames, the cache hit is impossible by
-construction. `pack:libs` (the legacy script) still works but ships
-unhashed tarballs and can trip the cache.
-
-Flags:
 - `--dry-run` — show the plan, write nothing.
-- `--gc` — also delete tarballs in `libs/` that nothing references.
-- `--no-install` — repack + rewrite `package.json` but skip the per-app
-  `npm install` (useful when you'll batch installs separately).
-- `--no-build` — skip the per-package `build` step (use the existing
-  `dist/`).
+- `--gc` — delete orphaned tarballs in `libs/`.
+- `--no-install` / `--no-build` — skip install or per-package build steps.
+- Pass a bucket name (`react-core`) or member package (`grid`) to pack one bucket.
 
-The manifest at `libs/manifest.json` is the source of truth for the
-currently-published tarball per package. It now stores
-`{ filename, version, sha, packedAt }` per entry; old single-string
-values are still readable so a fresh checkout doesn't break.
+Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
+`members` array (legacy member names resolve for MCP scaffolding).
 
 ## Testing
 
@@ -178,9 +147,8 @@ Every UI component — new or updated — MUST:
    or the semantic exports from `@starui/design-system/tokens/semantic`.
 
 2. **Use the framework-matching primitive library:**
-   - **React** → shadcn/ui (via `@starui/ui` + `@starui/core`'s
-     settings-panel primitives). **No native `<input>` / `<textarea>` /
-     `<select>`.** Always wrap with the shadcn equivalent.
+   - **React** → shadcn/ui (via `@starui/ui` + `@starui/grid` customizer
+     primitives). **No native `<input>` / `<textarea>` / `<select>`.**
    - **Angular** → PrimeNG (themed via `@starui/tokens-primeng`).
      `pInputText`, `pButton`, `pDropdown`, `pDialog`, etc.
 
@@ -198,14 +166,10 @@ one instead.
 Enforced via convention (ESLint enforcement is a follow-up). See
 `docs/ARCHITECTURE.md` for the full layer diagram. Key rules:
 
-- Foundation packages (`shared-types`, `design-system`, `tokens-primeng`,
-  `icons-svg`) must not import from anywhere except each other.
-- `core` must not import from framework adapters (`widgets-angular`,
-  `widgets-react`, `grid-react`).
-- `widgets-angular` must not import from `widgets-react` (siblings, not
-  consumers).
-- Only `runtime-openfin` and `openfin-platform` may import from
-  `@openfin/core`.
+- Foundation packages (`shared-types`, `design-system`, `icons-svg`) must
+  not import from anywhere except each other.
+- `@starui/engine` must not import from framework adapters (`widgets-react`, `grid`).
+- Only `host-openfin` and `openfin-platform` may import from `@openfin/core`.
 - Apps import from packages, never the reverse.
 
 ## Pre-implementation checklist

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MarketsGrid, type StorageAdapterFactory } from '@starui/markets-grid';
-import { activeProfileKey } from '@starui/core';
-import type { ProfileSnapshot } from '@starui/core';
+import { MarketsGrid, type StorageAdapterFactory } from '@starui/grid';
+import { activeProfileKey } from '@starui/engine';
+import type { ProfileSnapshot } from '@starui/engine';
 
 import { generateNestedOrders, nestedColumnDefs } from './nestedData';
 import type { FixtureSpec } from './nestedFixtures';

@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
-import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@starui/markets-grid';
-import { activeProfileKey } from '@starui/core';
-import type { ProfileSnapshot } from '@starui/core';
+import { MarketsGrid, type AdminAction, type StorageAdapterFactory } from '@starui/grid';
+import { activeProfileKey } from '@starui/engine';
+import type { ProfileSnapshot } from '@starui/engine';
 import {
   createConfigManager,
   createConfigServiceStorage,
   type ConfigManager,
-} from '@starui/config-service';
+} from '@starui/host-config';
 // /config subpath avoids the @openfin/workspace-platform module-load
 // that would otherwise throw in this plain-browser dev harness.
 import {
@@ -17,7 +17,7 @@ import {
 } from '@starui/openfin-platform/config';
 import { createConfigBrowserAction } from '@starui/config-browser';
 import { Sun, Moon, User, Database } from 'lucide-react';
-import { useHost } from '@starui/host-wrapper-react';
+import { useStarGridApp } from '@starui/app';
 import { agGridDarkParams, agGridLightParams } from '@starui/design-system/adapters/ag-grid';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
@@ -230,7 +230,7 @@ function AppInner() {
   // in one call. The previous `gc-theme` key and manual setAttribute
   // are gone — both windows (App and ConfigBrowserPopout) read the
   // same canonical key.
-  const { theme, setTheme } = useHost();
+  const { theme, setTheme } = useStarGridApp();
   const isDark = theme === 'dark';
   const [view, setView] = useState<View>(initialView);
   // Grid API captured via onGridReady — used to stream tick updates
@@ -473,7 +473,7 @@ function AppInner() {
           {/* ConfigService indicator — visual proof that profiles are
               being persisted through the factory, not a direct adapter. */}
           <span
-            title="Profiles persist via @starui/config-service — scoped by (appId, userId, instanceId)"
+            title="Profiles persist via @starui/host-config — scoped by (appId, userId, instanceId)"
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               height: 26, padding: '0 10px', borderRadius: 5,

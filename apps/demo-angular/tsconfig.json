@@ -15,10 +15,7 @@
     "target": "ES2022",
     "module": "preserve",
     "moduleResolution": "bundler",
-    "baseUrl": ".",
-    "paths": {
-      "@design-system/*": ["../../packages/shared/foundation/design-system/src/*"]
-    }
+    "baseUrl": "."
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

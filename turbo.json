@@ -1,42 +1,21 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "ui": "stream",
   "tasks": {
-    "check-ds": {
-      "outputs": [],
-      "cache": false
-    },
     "build": {
-      "dependsOn": ["^build", "check-ds"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "inputs": ["src/**", "tsconfig*.json", "package.json", "vite.config.*", "tailwind.config.*", "postcss.config.*"]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "outputs": [],
-      "inputs": ["src/**", "tsconfig*.json", "package.json"]
+      "outputs": []
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": [],
-      "inputs": ["src/**", "test/**", "tsconfig*.json", "vitest.config.*", "vite.config.*", "package.json"]
-    },
-    "test:watch": {
-      "cache": false,
-      "persistent": true
-    },
-    "lint": {
-      "outputs": [],
-      "inputs": ["src/**", "eslint.config.*", ".eslintrc*", "package.json"]
-    },
-    "dev": {
-      "cache": false,
-      "persistent": true
+      "outputs": []
     },
     "e2e": {
-      "dependsOn": ["build"],
-      "outputs": ["playwright-report/**", "test-results/**"],
-      "cache": false
+      "cache": false,
+      "outputs": []
     }
   }
 }

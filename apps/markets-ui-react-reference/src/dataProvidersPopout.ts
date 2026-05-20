@@ -14,7 +14,7 @@
  * That duplication is gone; the runtime port is the single seam.
  */
 
-import type { RuntimePort } from '@starui/runtime-port';
+import type { RuntimePort } from '@starui/host';
 
 const POPOUT_NAME = 'data-providers';
 const POPOUT_WIDTH = 1180;

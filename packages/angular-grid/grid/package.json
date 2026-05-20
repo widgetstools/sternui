@@ -1,0 +1,37 @@
+{
+  "name": "@starui/grid-angular",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MarketsGrid + grid customizer — Angular twin of @starui/grid (scaffold)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "echo '@starui/grid-angular: scaffold (no emit)'",
+    "typecheck": "tsc --noEmit",
+    "test": "echo '@starui/grid-angular: no tests yet'"
+  },
+  "peerDependencies": {
+    "@angular/common": "^21.1.0",
+    "@angular/core": "^21.1.0",
+    "ag-grid-angular": "^35.1.0",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-enterprise": "^35.1.0"
+  },
+  "dependencies": {
+    "@starui/engine": "*",
+    "@starui/host": "*",
+    "@starui/types": "*"
+  },
+  "devDependencies": {
+    "@angular/common": "^21.1.0",
+    "@angular/core": "^21.1.0",
+    "ag-grid-angular": "35.1.0",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "typescript": "~5.9.3"
+  }
+}

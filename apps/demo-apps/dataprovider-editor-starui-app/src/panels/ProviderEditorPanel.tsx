@@ -1,5 +1,5 @@
 import { DataProviderEditor } from '@starui/widgets-react/v2/provider-editor';
-import { LOGGED_IN_USER_ID } from '@starui/runtime-port';
+import { LOGGED_IN_USER_ID } from '@starui/types';
 
 interface ProviderEditorPanelProps {
   initialProviderId?: string | null;

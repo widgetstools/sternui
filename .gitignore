@@ -1,7 +1,10 @@
 node_modules/
 dist/
+!dist/packages/
+!dist/packages/**
 .vite/
 .turbo/
+.propagate-staging/
 test-results/
 playwright-report/
 *.tsbuildinfo

@@ -288,7 +288,7 @@ function WiringDocs() {
           No keyColumn, no provider context.
         </Prose>
         <CodeBlock>
-{`import { startMock } from '@starui/data-services';
+{`import { startMock } from '@starui/host-data';
 
 const { cfg } = useMockConfig();
 const { columnDefs, rowIdField } = columnDefsByType[cfg.dataType];
@@ -322,7 +322,7 @@ useEffect(() => {
           the attach/detach lifecycle.
         </Prose>
         <CodeBlock>
-{`import { useProviderStream } from '@starui/data-services-react/runtime';
+{`import { useProviderStream } from '@starui/host-data-react/runtime';
 
 const { cfg } = useMockConfig();
 const { columnDefs, rowIdField } = columnDefsByType[cfg.dataType];
@@ -365,8 +365,8 @@ useProviderStream<Record<string, unknown>>(providerId, cfgForHub, {
         <CodeBlock>
 {`// src/sharedWorker/entry.ts — verbatim copy of the package's
 // defaultEntry, minus the REST URL plumbing (this demo is local-only).
-import { installSharedWorkerHub } from '@starui/data-services/runtime/sharedWorker';
-import { createConfigManager } from '@starui/config-service';
+import { installSharedWorkerHub } from '@starui/host-data/runtime/sharedWorker';
+import { createConfigManager } from '@starui/host-config';
 
 const configManager = createConfigManager({});
 await configManager.init();

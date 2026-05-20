@@ -3,7 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
 /* MarketsGrid toolbar + filter chrome. Consumes --bn-* / --fi-* tokens. */
-@import '../../../packages/react/widgets/markets-grid/src/styles/marketsGrid.css';
+@import '../../../packages/react-grid/grid/src/widget/styles/marketsGrid.css';
 
 /* Tailwind v3 directives — utilities resolve via the shadcn-compatible
    aliases exported by the design-system tokens. */

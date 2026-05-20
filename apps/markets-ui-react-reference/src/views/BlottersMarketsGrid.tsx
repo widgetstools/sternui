@@ -6,7 +6,7 @@
 
 import { useCallback, type ReactNode } from 'react';
 import { HostedMarketsGrid } from '@starui/widgets-react/hosted';
-import { useHost } from '@starui/host-wrapper-react';
+import { useStarGridApp } from '@starui/app';
 import { dataServices } from '../dataServices.mainThread';
 import { openProviderEditorPopout } from '../dataProvidersPopout';
 
@@ -22,7 +22,7 @@ function BlottersMarketsGrid(): ReactNode {
   // editor popout via the single transport-agnostic `openSurface()` API.
   // The previous `isOpenFin()` branching inside `dataProvidersPopout`
   // is gone; the helper delegates to whichever runtime is mounted.
-  const { runtime } = useHost();
+  const { runtime } = useStarGridApp();
   const handleEditProvider = useCallback(
     (providerId: string) => {
       void openProviderEditorPopout(runtime, { providerId });

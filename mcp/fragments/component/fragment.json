@@ -1,7 +1,0 @@
-{
-  "name": "component",
-  "appliesTo": ["web", "openfin"],
-  "newFiles": [
-    { "src": "component.tsx", "dest": "src/components/{{Name}}.tsx" }
-  ]
-}

@@ -20,7 +20,7 @@
  */
 import { useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
-import { MarketsGrid, type StorageAdapterFactory } from '@starui/markets-grid';
+import { MarketsGrid, type StorageAdapterFactory } from '@starui/grid';
 
 import { generateOrders, generateEquityOrders, type Order } from './data';
 import { APP_ID, DEMO_USER_ID } from './App';

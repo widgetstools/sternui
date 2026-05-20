@@ -1,5 +1,5 @@
 @import '@starui/design-system/css';
-@import '@starui/markets-grid/styles.css';
+@import '@starui/grid/styles.css';
 @import '@widgetstools/react-dock-manager/styles.css';
 
 @tailwind base;

@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
-import { MarketsGrid, type StorageAdapterFactory } from '@starui/markets-grid';
-import { activeProfileKey } from '@starui/core';
-import type { ProfileSnapshot } from '@starui/core';
+import { MarketsGrid, type StorageAdapterFactory } from '@starui/grid';
+import { activeProfileKey } from '@starui/engine';
+import type { ProfileSnapshot } from '@starui/engine';
 import { Sun, Moon } from 'lucide-react';
 import { Button, cn } from '@starui/ui';
-import { useHost } from '@starui/host-wrapper-react';
+import { useStarGridApp } from '@starui/app';
+import { ProfileSetVersionConflictError } from '@starui/host-config';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
 import { Dashboard } from './Dashboard';
@@ -92,6 +93,15 @@ const defaultColDef: ColDef<Order> = {
   resizable: true,
 };
 
+/** Stable AG-Grid chrome refs — inline literals on every App render defeat MarketsGridSurface memo. */
+const DEMO_BLOTTER_SIDE_BAR = { toolPanels: ['columns', 'filters'] };
+const DEMO_BLOTTER_STATUS_BAR = {
+  statusPanels: [
+    { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' as const },
+    { statusPanel: 'agSelectedRowCountComponent', align: 'left' as const },
+  ],
+};
+
 // ─── Showcase seeding ──────────────────────────────────────────────────
 //
 // On first boot (per gridId), seed the "Showcase" profile through the
@@ -100,67 +110,75 @@ const defaultColDef: ColDef<Order> = {
 // calculated / tick-flashed view. Skipped on subsequent loads
 // (idempotent: we match by name).
 
-const GRID_ID = 'demo-blotter-v2';
+export const GRID_ID = 'demo-blotter-v2';
 const SEEDED_FLAG_KEY = `gc-showcase-seeded:${GRID_ID}`;
 
+/** StrictMode-safe: one in-flight seed per page session. */
+let showcaseSeedPromise: Promise<void> | null = null;
+
+function hasShowcaseProfile(
+  profiles: ReadonlyArray<{ name: string }>,
+): boolean {
+  return profiles.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase());
+}
+
 async function ensureShowcaseSeed(storage: StorageAdapterFactory): Promise<void> {
-  // One-shot guard: if the flag's set, bail. We still check storage in
-  // case the user manually cleared IndexedDB but kept localStorage.
-  try {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem(SEEDED_FLAG_KEY)) {
-      return;
+  if (showcaseSeedPromise) return showcaseSeedPromise;
+
+  showcaseSeedPromise = (async () => {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem(SEEDED_FLAG_KEY)) {
+        return;
+      }
+
+      const adapter = storage({ instanceId: GRID_ID, appId: APP_ID, userId: DEMO_USER_ID });
+      const existing = await adapter.listProfiles(GRID_ID);
+      if (hasShowcaseProfile(existing)) {
+        try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
+        return;
+      }
+
+      const payload = buildShowcasePayload(GRID_ID);
+      const now = Date.now();
+      const id = 'showcase';
+      const snap: ProfileSnapshot = {
+        id,
+        gridId: GRID_ID,
+        name: payload.profile.name,
+        state: payload.profile.state,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      try {
+        await adapter.saveProfile(snap);
+      } catch (err) {
+        // Migration or a parallel StrictMode seed may have won the write.
+        if (err instanceof ProfileSetVersionConflictError) {
+          const latest = await adapter.listProfiles(GRID_ID);
+          if (!hasShowcaseProfile(latest)) throw err;
+        } else {
+          throw err;
+        }
+      }
+
+      try { localStorage.setItem(activeProfileKey(GRID_ID), id); } catch { /* */ }
+      try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
+    } catch (err) {
+      showcaseSeedPromise = null;
+      throw err;
     }
-  } catch { /* access denied — press on */ }
+  })();
 
-  const adapter = storage({ instanceId: GRID_ID, appId: APP_ID, userId: DEMO_USER_ID });
-  const existing = await adapter.listProfiles(GRID_ID);
-  if (existing.some((p) => p.name.toLowerCase() === SHOWCASE_PROFILE_NAME.toLowerCase())) {
-    try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
-    return;
-  }
-
-  const payload = buildShowcasePayload(GRID_ID);
-  const now = Date.now();
-  const id = 'showcase';
-  const snap: ProfileSnapshot = {
-    id,
-    gridId: GRID_ID,
-    name: payload.profile.name,
-    state: payload.profile.state,
-    createdAt: now,
-    updatedAt: now,
-  };
-  await adapter.saveProfile(snap);
-
-  // Point the active-profile pointer at the fresh snapshot so the first
-  // MarketsGrid render lands here (avoids a default-profile → showcase
-  // flicker). Safe even if the key's already set — we're on first boot.
-  try { localStorage.setItem(activeProfileKey(GRID_ID), id); } catch { /* */ }
-  try { localStorage.setItem(SEEDED_FLAG_KEY, '1'); } catch { /* */ }
+  return showcaseSeedPromise;
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-export interface AppProps {
-  /** Storage factory resolved from main.tsx after ConfigManager.init. */
-  storageReady: Promise<StorageAdapterFactory>;
-}
+export function App() {
+  const { theme, setTheme, storageFactory } = useStarGridApp();
 
-export function App({ storageReady }: AppProps) {
-  // Gate the inner app on storage resolution. storageReady is a stable
-  // module-level promise from main.tsx so this useEffect runs once.
-  // Note: the factory is itself a function, so we must call setState
-  // with `() => factory` — otherwise React treats the factory as an
-  // updater and invokes it with the previous state, which throws when
-  // the factory dereferences scope.instanceId on `null`.
-  const [storage, setStorage] = useState<StorageAdapterFactory | null>(null);
-  useEffect(() => {
-    let alive = true;
-    storageReady.then((s) => { if (alive) setStorage(() => s); });
-    return () => { alive = false; };
-  }, [storageReady]);
-
-  if (!storage) {
+  if (!storageFactory) {
     return (
       <div
         data-testid="storage-loading"
@@ -177,17 +195,19 @@ export function App({ storageReady }: AppProps) {
     );
   }
 
-  return <AppInner storage={storage} />;
+  return <AppInner storage={storageFactory} theme={theme} setTheme={setTheme} />;
 }
 
-function AppInner({ storage }: { storage: StorageAdapterFactory }) {
+function AppInner({
+  storage,
+  theme,
+  setTheme,
+}: {
+  storage: StorageAdapterFactory;
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+}) {
   const [rowData] = useState(() => generateOrders(500));
-  // Theme flows through the runtime's single state holder — `useHost()`
-  // returns the live value and gives us `setTheme` as a one-call writer
-  // that updates DOM, localStorage (`starui:theme`), and broadcasts to
-  // peer windows. The previous `gc-theme` localStorage key + manual
-  // `setAttribute` is gone; the runtime owns all three.
-  const { theme, setTheme } = useHost();
   const isDark = theme === 'dark';
   const [view, setView] = useState<View>(initialView);
   const [fixtureName] = useState<FixtureName | null>(initialFixtureName);
@@ -227,9 +247,14 @@ function AppInner({ storage }: { storage: StorageAdapterFactory }) {
   // exists in the bundled row — so React 19 StrictMode double-mount is safe.
   useEffect(() => {
     let alive = true;
-    ensureShowcaseSeed(storage).finally(() => {
-      if (alive) setSeeded(true);
-    });
+    void ensureShowcaseSeed(storage)
+      .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.warn('[demo-react] showcase seed failed:', err);
+      })
+      .finally(() => {
+        if (alive) setSeeded(true);
+      });
     return () => { alive = false; };
   }, [storage]);
 
@@ -396,13 +421,8 @@ function AppInner({ storage }: { storage: StorageAdapterFactory }) {
             showFiltersToolbar
             showFormattingToolbar
             onGridReady={handleGridReady}
-            sideBar={{ toolPanels: ['columns', 'filters'] }}
-            statusBar={{
-              statusPanels: [
-                { statusPanel: 'agTotalAndFilteredRowCountComponent', align: 'left' },
-                { statusPanel: 'agSelectedRowCountComponent', align: 'left' },
-              ],
-            }}
+            sideBar={DEMO_BLOTTER_SIDE_BAR}
+            statusBar={DEMO_BLOTTER_STATUS_BAR}
           />
         </div>
       ) : view === 'dashboard' ? (

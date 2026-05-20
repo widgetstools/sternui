@@ -1,0 +1,21 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@starui/grid": ["./src/index.ts"],
+      "@starui/grid/customizer": ["./src/customizer/index.ts"],
+      "@starui/engine": ["../../shared/engine/src/index.ts"],
+      "@starui/types": ["../../shared/types/src/index.ts"],
+      "@starui/host": ["../../shared/host/src/index.ts"]
+    },
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  "references": [
+    { "path": "../../shared/types" },
+    { "path": "../../shared/host" },
+    { "path": "../../shared/engine" }
+  ]
+}

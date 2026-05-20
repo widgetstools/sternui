@@ -3,18 +3,20 @@
  * OpenFin platform-launch helper for end-to-end tests.
  *
  * Wraps @openfin/node-adapter so specs can `await launchPlatform()` and get
- * back a connected `fin` proxy plus a `quit()` cleanup. Mirrors the pattern
- * already in `tools/scripts/launch-openfin.mjs` and the per-app launch.mjs
- * files but adds:
- *   - Test-bridge IAB channel client wired up automatically
- *   - Polling helpers for "wait until X is true" state assertions
- *   - Idempotent quit() that swallows already-disconnected errors
+ * back a connected `fin` proxy plus a `quit()` cleanup.
+ *
+ * Also waits for the CDP endpoint (remote-debugging-port) and the dev-only
+ * test-bridge IAB channel. Channel.connect() blocks until the provider
+ * creates the channel — each attempt is raced with a short timeout so
+ * polling does not hang the whole suite.
  */
 
 import { connect, launch } from '@openfin/node-adapter';
 import { setDefaultResultOrder } from 'node:dns';
+import { waitForCdpEndpoint, waitForCdpPage } from './cdp.js';
 
 const TEST_BRIDGE_CHANNEL = 'marketsui-test-bridge';
+const DEFAULT_CDP_PORT = Number(process.env.OPENFIN_CDP_PORT ?? 9090);
 
 try { setDefaultResultOrder('ipv4first'); } catch { /* old node */ }
 
@@ -39,20 +41,35 @@ export interface BridgeClient {
   deleteWorkspace(id: string): Promise<BridgeReply<null>>;
 }
 
+export interface LaunchPlatformOptions {
+  /** Poll budget for CDP + provider window. Default 60s. */
+  bootTimeoutMs?: number;
+  /** Poll budget for test-bridge channel. Default 90s. */
+  bridgeTimeoutMs?: number;
+  cdpPort?: number;
+}
+
 /**
  * Launch the OpenFin platform from a manifest URL, connect via node-adapter,
- * and return a handle including a ready-to-use test-bridge client.
- *
- * Waits for the bridge to be installable (the provider window must boot,
- * call `installTestBridge()`, and create the channel). Polls up to 30s.
+ * wait for CDP + provider, then return a handle including the test-bridge client.
  */
-export async function launchPlatform(manifestUrl: string): Promise<LaunchedPlatform> {
-  // 1. Boot OpenFin against the manifest
+export async function launchPlatform(
+  manifestUrl: string,
+  opts: LaunchPlatformOptions = {},
+): Promise<LaunchedPlatform> {
+  const bootTimeoutMs = opts.bootTimeoutMs ?? 60_000;
+  const bridgeTimeoutMs = opts.bridgeTimeoutMs ?? 90_000;
+  const cdpPort = opts.cdpPort ?? DEFAULT_CDP_PORT;
+
   console.log(`[e2e-openfin] launching ${manifestUrl}`);
-  const port = await launch({ manifestUrl });
+  const adapterPort = await launch({ manifestUrl });
+
+  console.log(`[e2e-openfin] waiting for CDP on port ${cdpPort}`);
+  await waitForCdpEndpoint(cdpPort, { timeoutMs: bootTimeoutMs });
+
   const fin = await connect({
     uuid: `mui-e2e-${Date.now()}`,
-    address: `ws://127.0.0.1:${port}`,
+    address: `ws://127.0.0.1:${adapterPort}`,
     nonPersistent: true,
   });
 
@@ -63,22 +80,25 @@ export async function launchPlatform(manifestUrl: string): Promise<LaunchedPlatf
   }
   console.log(`[e2e-openfin] connected — platform uuid: ${platformUuid}`);
 
-  // 2. Wait for the test bridge channel to come up. The provider window
-  //    must finish initWorkspace() and load the dynamic import, which can
-  //    take a beat on cold runtime starts.
-  const bridgeRaw = await waitFor(
-    () => fin.InterApplicationBus.Channel.connect(TEST_BRIDGE_CHANNEL).catch(() => null),
-    { timeoutMs: 30_000, intervalMs: 250, label: 'test bridge channel' },
-  );
-  if (!bridgeRaw) {
-    throw new Error('[e2e-openfin] test bridge channel never appeared');
+  const providerUrl: string | undefined = manifest?.platform?.providerUrl;
+  if (providerUrl) {
+    console.log(`[e2e-openfin] waiting for provider window: ${providerUrl}`);
+    await waitForCdpPage(
+      (t) => t.type === 'page' && t.url.startsWith(providerUrl.split('?')[0] ?? providerUrl),
+      { port: cdpPort, timeoutMs: bootTimeoutMs },
+    );
   }
-  console.log(`[e2e-openfin] connected to test bridge`);
 
-  // 3. Wrap the channel in a typed dispatcher. Each method maps to a
-  //    bridge action registered in apps/markets-ui-react-reference/src/
-  //    test-bridge/install.ts.
-  const bridge: BridgeClient = {
+  const bridgeRaw = await waitForBridgeChannel(fin, bridgeTimeoutMs);
+  if (!bridgeRaw) {
+    throw new Error(
+      '[e2e-openfin] test bridge channel never appeared — is the dev server running in DEV mode ' +
+        'and did initWorkspace() complete? See e2e-openfin/README.md',
+    );
+  }
+  console.log('[e2e-openfin] connected to test bridge');
+
+  const bridgeClient: BridgeClient = {
     ping: () => bridgeRaw.dispatch('ping') as Promise<BridgeReply<string>>,
     saveWorkspace: (ws) => bridgeRaw.dispatch('saveWorkspace', ws) as Promise<BridgeReply<null>>,
     getWorkspaces: () => bridgeRaw.dispatch('getWorkspaces') as Promise<BridgeReply<any[]>>,
@@ -86,7 +106,8 @@ export async function launchPlatform(manifestUrl: string): Promise<LaunchedPlatf
     deleteWorkspace: (id) => bridgeRaw.dispatch('deleteWorkspace', { id }) as Promise<BridgeReply<null>>,
   };
 
-  // 4. Quit handler — wraps the platform once and idempotently quits it
+  await waitForPlatformReady(bridgeClient, bootTimeoutMs);
+
   let quitting = false;
   const quit = async (): Promise<void> => {
     if (quitting) return;
@@ -94,6 +115,7 @@ export async function launchPlatform(manifestUrl: string): Promise<LaunchedPlatf
     try {
       const platform = fin.Platform.wrapSync({ uuid: platformUuid });
       await platform.quit();
+      await sleep(1_500);
     } catch (err) {
       const msg = String((err as any)?.message ?? err);
       if (!msg.includes('no longer connected') && !msg.includes('already')) {
@@ -102,32 +124,43 @@ export async function launchPlatform(manifestUrl: string): Promise<LaunchedPlatf
     }
   };
 
-  return { fin, manifest, bridge, quit };
+  return { fin, manifest, bridge: bridgeClient, quit };
 }
 
-interface WaitForOpts {
-  timeoutMs: number;
-  intervalMs: number;
-  label: string;
+/** Storage API needs WorkspacePlatform.getCurrentSync(); ping alone is not enough. */
+async function waitForPlatformReady(bridge: BridgeClient, timeoutMs: number): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const list = await bridge.getWorkspaces();
+    if (list.ok) {
+      console.log('[e2e-openfin] platform storage API ready');
+      return;
+    }
+    await sleep(500);
+  }
+  throw new Error(`[e2e-openfin] platform storage API not ready after ${timeoutMs}ms`);
 }
 
 /**
- * Poll an async predicate until it returns a truthy value or the timeout
- * expires. Returns the truthy value or null on timeout. Used to wait for
- * the OpenFin runtime to publish channels / ready signals.
+ * Poll for the test-bridge channel. Each connect attempt is capped so OpenFin's
+ * blocking "Waiting for connection…" log does not stall the suite.
  */
-async function waitFor<T>(
-  fn: () => Promise<T | null | undefined>,
-  opts: WaitForOpts,
-): Promise<T | null> {
+async function waitForBridgeChannel(fin: any, timeoutMs: number): Promise<any | null> {
   const start = Date.now();
-  while (Date.now() - start < opts.timeoutMs) {
-    const result = await fn();
-    if (result) return result;
-    await sleep(opts.intervalMs);
+  while (Date.now() - start < timeoutMs) {
+    const channel = await tryConnectChannel(fin, 750);
+    if (channel) return channel;
+    await sleep(500);
   }
-  console.warn(`[e2e-openfin] waitFor('${opts.label}') timed out after ${opts.timeoutMs}ms`);
+  console.warn(`[e2e-openfin] test bridge not found after ${timeoutMs}ms`);
   return null;
+}
+
+async function tryConnectChannel(fin: any, attemptTimeoutMs: number): Promise<any | null> {
+  return Promise.race([
+    fin.InterApplicationBus.Channel.connect(TEST_BRIDGE_CHANNEL).catch(() => null),
+    sleep(attemptTimeoutMs).then(() => null),
+  ]);
 }
 
 function sleep(ms: number): Promise<void> {
