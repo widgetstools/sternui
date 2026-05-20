@@ -238,6 +238,7 @@ describe('useFilterModel — AG-Grid wiring', () => {
     act(() => fake.fireEvent('filterChanged'));
     expect(result.current.hasNewFilter).toBe(true);
 
+    const callsBefore = fake.setFilterModelCalls.length;
     act(() => result.current.addFromLive());
 
     const saved = readFilters(platform);
@@ -245,9 +246,10 @@ describe('useFilterModel — AG-Grid wiring', () => {
     expect(saved[0].filterModel).toEqual(liveModel);
     expect(saved[0].active).toBe(true);
 
-    // The hook should also have pushed the merged active model back
-    // into AG-Grid (the in-session "push on filters change" effect).
-    expect(fake.setFilterModelCalls.length).toBeGreaterThanOrEqual(1);
+    // pushActiveFilterModel skips redundant setFilterModel when the live
+    // grid model already matches the merged active pills.
+    expect(fake.setFilterModelCalls.length).toBe(callsBefore);
+    expect(fake.api.getFilterModel()).toEqual(liveModel);
   });
 
   it('addFromLive is a no-op when the live model is empty', () => {
