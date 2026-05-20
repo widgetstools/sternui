@@ -66,6 +66,7 @@ const SNAPSHOT_CHUNK_SIZE = 500;
 
 interface StompClient {
   connected: boolean;
+  reconnectDelay: number;
   onConnect: (() => void) | undefined;
   onStompError: ((frame: { headers: Record<string, string> }) => void) | undefined;
   onWebSocketError: ((event: unknown) => void) | undefined;
@@ -76,7 +77,7 @@ interface StompClient {
   ): { unsubscribe(): void };
   publish(params: { destination: string; body?: string }): void;
   activate(): void;
-  deactivate(): Promise<void> | void;
+  deactivate(options?: { force?: boolean }): Promise<void> | void;
 }
 
 interface StompClientCfg {
@@ -154,6 +155,31 @@ export interface StompOpts {
   passthroughSnapshot?: boolean;
 }
 
+/** Tear down STOMP subscription + session; disable auto-reconnect. */
+async function teardownStompConnection(
+  client: StompClient | null,
+  sub: { unsubscribe(): void } | null,
+): Promise<void> {
+  if (sub) {
+    try { sub.unsubscribe(); } catch { /* ignore */ }
+  }
+  if (!client) return;
+
+  client.onConnect = undefined;
+  client.onStompError = undefined;
+  client.onWebSocketError = undefined;
+  client.onDisconnect = undefined;
+  client.reconnectDelay = 0;
+
+  try {
+    await client.deactivate();
+  } catch {
+    try {
+      await client.deactivate({ force: true });
+    } catch { /* ignore */ }
+  }
+}
+
 // ─── start() — long-running provider ───────────────────────────────
 
 export function startStomp(
@@ -174,9 +200,30 @@ export function startStomp(
     client: null as StompClient | null,
     sub: null as { unsubscribe(): void } | null,
     snapshotComplete: !buffering, // no buffering → start in live phase
+    receivingSnapshot: false,
     snapshotBuffer: [] as unknown[],
     overlay: undefined as Record<string, unknown> | undefined,
     stopped: false,
+    /** Bumped on stop/restart so in-flight connect callbacks are ignored. */
+    connectGeneration: 0,
+    /** True after the first successful STOMP session (subscribe + trigger). */
+    hadSuccessfulConnect: false,
+    /** When set, the next onConnect restarts the snapshot from scratch. */
+    reconnectRestartPending: false,
+  };
+
+  const beginSnapshotPhase = () => {
+    state.snapshotComplete = !buffering;
+    state.receivingSnapshot = false;
+    state.snapshotBuffer = [];
+    emit({ rows: [], replace: true });
+    emit({ status: 'loading' });
+  };
+
+  const markDisconnected = () => {
+    if (state.stopped || !state.hadSuccessfulConnect) return;
+    state.reconnectRestartPending = true;
+    emit({ status: 'error', error: 'Provider disconnected' });
   };
 
   const flushSnapshot = () => {
@@ -203,6 +250,7 @@ export function startStomp(
     const keyColumn = (cfg as { keyColumn?: string | readonly string[] }).keyColumn;
     const buffer = dedupSnapshotBuffer(state.snapshotBuffer, keyColumn);
     state.snapshotBuffer = [];
+    state.receivingSnapshot = false;
     // eslint-disable-next-line no-console
     console.log(
       `[v2/stomp] flushSnapshot: ${buffer.length} rows in ${
@@ -252,8 +300,11 @@ export function startStomp(
     }
 
     if (!state.snapshotComplete) {
-      // Snapshot phase: accumulate in memory, no emit yet. Bytes are
-      // still surfaced so Diagnostics can show the upstream activity.
+      // Snapshot phase: accumulate in memory, no row emit yet. Bytes are
+      // still surfaced so Diagnostics can show upstream activity.
+      if (rows.length > 0) {
+        state.receivingSnapshot = true;
+      }
       state.snapshotBuffer.push(...rows);
       emit({ byteSize });
       return;
@@ -266,6 +317,8 @@ export function startStomp(
 
   const start = async () => {
     if (state.stopped) return;
+    const generation = ++state.connectGeneration;
+    state.receivingSnapshot = false;
     emit({ status: 'loading' });
 
     let client: StompClient;
@@ -273,6 +326,7 @@ export function startStomp(
       const Ctor = opts.createClient
         ? null
         : await loadDefaultClientCtor();
+      if (state.stopped || generation !== state.connectGeneration) return;
       const factory: StompClientFactory = opts.createClient
         ?? ((c) => new Ctor!(c));
       client = factory({
@@ -285,12 +339,17 @@ export function startStomp(
       emit({ status: 'error', error: err instanceof Error ? err.message : String(err) });
       return;
     }
-    if (state.stopped) return;
+    if (state.stopped || generation !== state.connectGeneration) return;
 
     state.client = client;
 
     client.onConnect = () => {
-      if (state.stopped) return;
+      if (state.stopped || generation !== state.connectGeneration) return;
+      if (state.reconnectRestartPending) {
+        state.reconnectRestartPending = false;
+        beginSnapshotPhase();
+      }
+      state.hadSuccessfulConnect = true;
       try {
         state.sub = client.subscribe(cfg.listenerTopic, (msg) => handleFrame(msg.body));
       } catch (err) {
@@ -309,10 +368,20 @@ export function startStomp(
         }
       }
     };
+    client.onDisconnect = () => {
+      if (state.stopped || generation !== state.connectGeneration) return;
+      markDisconnected();
+    };
     client.onWebSocketError = () => {
-      emit({ status: 'error', error: 'WebSocket connection failed' });
+      if (state.stopped || generation !== state.connectGeneration) return;
+      if (state.hadSuccessfulConnect) {
+        markDisconnected();
+      } else {
+        emit({ status: 'error', error: 'WebSocket connection failed' });
+      }
     };
     client.onStompError = (frame) => {
+      if (state.stopped || generation !== state.connectGeneration) return;
       emit({ status: 'error', error: frame.headers['message'] ?? 'STOMP error' });
     };
 
@@ -325,14 +394,14 @@ export function startStomp(
 
   const stop = async () => {
     state.stopped = true;
-    try {
-      state.sub?.unsubscribe();
-    } catch { /* ignore */ }
+    state.connectGeneration += 1;
+    const client = state.client;
+    const sub = state.sub;
     state.sub = null;
-    try {
-      await state.client?.deactivate();
-    } catch { /* ignore */ }
     state.client = null;
+    state.receivingSnapshot = false;
+    state.snapshotBuffer = [];
+    await teardownStompConnection(client, sub);
   };
 
   // Kick off async start so listeners attached after `startStomp`
@@ -344,21 +413,17 @@ export function startStomp(
     stop,
     restart: async (extra) => {
       state.overlay = extra;
-      // Tear down the old connection, reset state, wipe consumer view.
-      try { state.sub?.unsubscribe(); } catch { /* ignore */ }
+      state.connectGeneration += 1;
+      const client = state.client;
+      const sub = state.sub;
       state.sub = null;
-      try { await state.client?.deactivate(); } catch { /* ignore */ }
       state.client = null;
+      await teardownStompConnection(client, sub);
       // Reset snapshot tracking. `snapshotComplete` returns to its
       // initial value (`!buffering`) so the new connection re-buffers
-      // its snapshot phase if buffering is enabled. Buffer is empty
-      // either way — we either flushed it on the previous end-token,
-      // or we never used it (passthrough / no-token path).
-      state.snapshotComplete = !buffering;
-      state.snapshotBuffer = [];
-      emit({ rows: [], replace: true });
-      // Allow the new start() to proceed (resets stopped flag, but
-      // only if the consumer didn't call stop() in between).
+      // its snapshot phase if buffering is enabled.
+      state.reconnectRestartPending = false;
+      beginSnapshotPhase();
       if (!state.stopped) void start();
     },
   };

@@ -262,6 +262,16 @@ export interface MarketsGridProps<TData = unknown> {
    * busy indicator that mirrors the snapshot-loading overlay.
    */
   onSavingChange?: (saving: boolean) => void;
+
+  /**
+   * When true, the live data stream is disconnected and row values may
+   * be stale. Shows a flashing banner in the grid header and disables
+   * cell editing until cleared.
+   */
+  dataStale?: boolean;
+
+  /** Message shown in the stale-data banner. A default is used when omitted. */
+  dataStaleMessage?: string;
 }
 
 /**

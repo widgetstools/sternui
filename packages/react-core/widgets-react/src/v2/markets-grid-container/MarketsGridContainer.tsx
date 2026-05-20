@@ -413,8 +413,22 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   // snapshot loading overlay component for visual consistency, just
   // with a "Saving…" caption.
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  // True when the live provider stops or the transport disconnects.
+  // Grid data may be stale; MarketsGrid shows a flashing banner and
+  // disables cell editing until status returns to ready.
+  const [providerDisconnected, setProviderDisconnected] = useState(false);
+  const [disconnectDetail, setDisconnectDetail] = useState<string | undefined>();
   const isLoadingSnapshot = subscriptionKey !== null && subscriptionKey !== resolvedSubKey;
   const showLoadingOverlay = isLoadingSnapshot || isRefetching || isSavingProfile;
+
+  const dataStaleMessage = disconnectDetail
+    ? `Grid data is stale — ${disconnectDetail}. Edits are disabled until the connection is restored.`
+    : undefined;
+
+  useEffect(() => {
+    setProviderDisconnected(false);
+    setDisconnectDetail(undefined);
+  }, [activeId]);
 
   // Render-time log of the gating inputs so you can see WHY the
   // subscribe effect isn't firing yet (or that it IS gated correctly
@@ -443,6 +457,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     // visibility is already true via the derived isLoadingSnapshot
     // flag (subscriptionKey changed → resolvedSubKey is stale).
     setLoadRowCount(undefined);
+    setProviderDisconnected(false);
+    setDisconnectDetail(undefined);
     // Capture the key that's loading right now so async callbacks
     // mark the right subscription resolved (in case the user picks a
     // different provider before this one's snapshot arrives).
@@ -495,15 +511,26 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       );
       if (cancelled) return;
 
-      // 'loading' enters the snapshot phase — show the overlay
-      // (relevant for peer-triggered re-snapshots; on initial mount
-      // the isLoadingSnapshot derived flag already handles this).
-      if (s === 'loading') setIsRefetching(true);
+      if (s === 'loading') {
+        setIsRefetching(true);
+        setProviderDisconnected(false);
+        setDisconnectDetail(undefined);
+        // Re-entering snapshot after disconnect/restart — reset the
+        // commit gate so loading→ready applies fresh rowData.
+        if (providerStatusRef.current === 'ready' || providerStatusRef.current === 'error') {
+          pendingAddIds.clear();
+          snapshotApplied = false;
+          snapshotBuf = [];
+        }
+        providerStatusRef.current = 'loading';
+      }
 
       // Error path — tear down overlay immediately and surface to
       // caller. Overrides the loading→ready commit path.
       if (err) {
         providerStatusRef.current = s;
+        setProviderDisconnected(true);
+        setDisconnectDetail(err);
         setResolvedSubKey(thisSubKey);
         setIsRefetching(false);
         (onError ?? defaultOnError)(new Error(err));
@@ -564,6 +591,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             setResolvedSubKey(thisSubKey);
           }
           setIsRefetching(false);
+          setProviderDisconnected(false);
+          setDisconnectDetail(undefined);
           providerStatusRef.current = 'ready';
         });
         // Do NOT update providerStatusRef synchronously here — see
@@ -885,6 +914,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
             caption={effectiveCaption}
             onCaptionChange={handleCaptionChange}
             onSavingChange={setIsSavingProfile}
+            dataStale={providerDisconnected}
+            dataStaleMessage={dataStaleMessage}
           />
           {showLoadingOverlay && (
             <MarketsGridLoadingOverlay

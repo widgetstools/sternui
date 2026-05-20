@@ -30,6 +30,7 @@ import { useMarketsGridController } from './useMarketsGridController';
 import { PrimaryToolbar } from './PrimaryToolbar';
 import { UnsavedSwitchDialog } from './UnsavedSwitchDialog';
 import { MarketsGridSurface } from './MarketsGridSurface';
+import { StaleDataBanner } from './StaleDataBanner';
 
 export interface MarketsGridHostProps<TData> {
   rowData: TData[];
@@ -72,6 +73,8 @@ export interface MarketsGridHostProps<TData> {
   tabsHidden: boolean | undefined;
   onCaptionChange: ((next: string) => void) | undefined;
   onSavingChange: ((saving: boolean) => void) | undefined;
+  dataStale: boolean;
+  dataStaleMessage: string | undefined;
 }
 
 export function MarketsGridHost<TData>({
@@ -115,6 +118,8 @@ export function MarketsGridHost<TData>({
   tabsHidden,
   onCaptionChange,
   onSavingChange,
+  dataStale,
+  dataStaleMessage,
 }: MarketsGridHostProps<TData>) {
   // All state, effects, refs, and side-effect callbacks live in the
   // controller hook (`./useMarketsGridController`). This component is
@@ -163,7 +168,16 @@ export function MarketsGridHost<TData>({
       style={rootStyle}
       data-grid-id={gridId}
       data-header-case={headerCaseAttr}
+      data-stale={dataStale ? 'true' : undefined}
     >
+      {dataStale ? (
+        <StaleDataBanner
+          message={
+            dataStaleMessage ??
+            'Grid data is stale — provider disconnected. Edits are disabled until the connection is restored.'
+          }
+        />
+      ) : null}
       {/* Header extras — slot for consumer-supplied chrome that needs
            to live INSIDE the grid's frame but ABOVE the filters/format
            toolbars. The data-services container uses this for the

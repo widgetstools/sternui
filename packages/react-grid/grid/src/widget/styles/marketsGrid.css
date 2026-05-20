@@ -687,6 +687,44 @@
   }
 }
 
+/* ─── Stale data banner (disconnected provider) ───────────────────── */
+
+.ds-stale-data-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 12px;
+  font-family: var(--ds-font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: var(--ds-accent-warning);
+  background: color-mix(in srgb, var(--ds-accent-warning) 12%, var(--ds-surface-primary));
+  border-bottom: 1px solid color-mix(in srgb, var(--ds-accent-warning) 35%, transparent);
+  animation: ds-stale-data-flash 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.ds-stale-data-banner svg {
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+@keyframes ds-stale-data-flash {
+  0%,
+  100% {
+    opacity: 1;
+    background: color-mix(in srgb, var(--ds-accent-warning) 12%, var(--ds-surface-primary));
+  }
+  50% {
+    opacity: 0.82;
+    background: color-mix(in srgb, var(--ds-accent-warning) 22%, var(--ds-surface-primary));
+  }
+}
+
 /* ─── Toolbar visibility pills ─────────────────────────────────────── */
 
 .ds-toolbar-pills-dock {

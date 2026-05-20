@@ -90,15 +90,28 @@ function Live({ providerId, cfg }: { providerId: string; cfg: ProviderConfig | n
           </div>
         )}
 
+        <Card title="Snapshot">
+          <Stat
+            label="Fetch time"
+            value={fmtSnapshotFetch(stats?.snapshotFetchMs, status)}
+          />
+          <Stat label="Rows loaded" value={fmtInt(stats?.rowCount)} />
+        </Card>
+
         <Card title="Throughput">
-          <Stat label="Rows" value={fmtInt(stats?.rowCount)} />
-          <Stat label="Messages" value={fmtInt(stats?.msgCount)} />
-          <Stat label="Rate" value={stats ? `${stats.msgPerSec.toFixed(1)} msg/s` : '—'} />
+          <Stat label="Messages (upstream)" value={fmtInt(stats?.msgCount)} />
+          <Stat label="Upstream rate" value={stats ? `${stats.msgPerSec.toFixed(1)} msg/s` : '—'} />
           <Stat label="Bytes" value={fmtBytes(stats?.byteCount)} />
         </Card>
 
-        <Card title="Lifecycle">
+        <Card title="Client publishing">
+          <Stat label="Published" value={fmtInt(stats?.publishCount)} />
+          <Stat label="Publish rate" value={stats ? `${stats.publishPerSec.toFixed(1)} msg/s` : '—'} />
+          <Stat label="Publish rate (1m avg)" value={stats ? `${stats.publishPerMin.toFixed(1)} msg/min` : '—'} />
           <Stat label="Subscribers" value={fmtInt(stats?.subscriberCount)} />
+        </Card>
+
+        <Card title="Lifecycle">
           <Stat label="Started" value={fmtTime(stats?.startedAt)} />
           <Stat label="Last message" value={stats?.lastMessageAt ? fmtTime(stats.lastMessageAt) : '—'} />
           <Stat label="Errors" value={fmtInt(stats?.errorCount)} />
@@ -159,6 +172,18 @@ function fmtBytes(n: number | undefined): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function fmtDuration(ms: number | undefined | null): string {
+  if (ms == null) return '—';
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  return `${(ms / 1000).toFixed(2)} s`;
+}
+
+function fmtSnapshotFetch(ms: number | null | undefined, status: ProviderStatus | null): string {
+  if (ms != null) return fmtDuration(ms);
+  if (status === 'loading') return 'In progress…';
+  return '—';
 }
 
 function fmtTime(epochMs: number | undefined | null): string {

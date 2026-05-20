@@ -15,6 +15,7 @@ import type { StompProviderConfig } from '@starui/types';
 
 interface FakeClient {
   connected: boolean;
+  reconnectDelay: number;
   onConnect?: () => void;
   onWebSocketError?: () => void;
   onStompError?: (frame: { headers: Record<string, string> }) => void;
@@ -22,7 +23,7 @@ interface FakeClient {
   publish(p: { destination: string; body?: string }): void;
   subscribe(d: string, cb: (msg: { body: string; headers: Record<string, string> }) => void): { unsubscribe(): void };
   activate(): void;
-  deactivate(): Promise<void> | void;
+  deactivate(options?: { force?: boolean }): Promise<void> | void;
 }
 
 interface FakeController {
@@ -37,8 +38,12 @@ interface FakeController {
   publishLog: Array<{ destination: string; body: string }>;
   /** Whether deactivate() has been called. */
   deactivated: boolean;
+  /** Whether deactivate({ force: true }) was used. */
+  forceDeactivated: boolean;
   /** Whether the subscription is currently active. */
   subscribed: boolean;
+  /** reconnectDelay after teardown (should be 0). */
+  reconnectDelay: number;
 }
 
 function makeFakeClient(): FakeController {
@@ -51,13 +56,17 @@ function makeFakeClient(): FakeController {
     },
     deliver(body) { onMessage?.({ body, headers: {} }); },
     fireError(message) { ctrl.client.onStompError?.({ headers: { message: message ?? '' } }); },
-    fireWsError() { ctrl.client.onWebSocketError?.(); },
-    publishLog: [],
+  fireWsError() { ctrl.client.onWebSocketError?.(); },
+  fireDisconnect() { ctrl.client.onDisconnect?.(); },
+  publishLog: [],
     deactivated: false,
+    forceDeactivated: false,
     subscribed: false,
+    reconnectDelay: 5000,
   };
   ctrl.client = {
     connected: false,
+    reconnectDelay: ctrl.reconnectDelay,
     publish: (p) => { ctrl.publishLog.push({ destination: p.destination, body: p.body ?? '' }); },
     subscribe: (_d, cb) => {
       onMessage = cb;
@@ -65,7 +74,13 @@ function makeFakeClient(): FakeController {
       return { unsubscribe() { onMessage = null; ctrl.subscribed = false; } };
     },
     activate: () => { /* no-op until tests fire onConnect */ },
-    deactivate: () => { ctrl.deactivated = true; ctrl.client.connected = false; },
+    deactivate: (options) => {
+      ctrl.deactivated = true;
+      ctrl.forceDeactivated = Boolean(options?.force);
+      ctrl.client.connected = false;
+      ctrl.client.reconnectDelay = 0;
+      ctrl.reconnectDelay = 0;
+    },
   };
   return ctrl;
 }
@@ -207,6 +222,8 @@ describe('startStomp', () => {
     await Promise.resolve();
 
     expect(controllers[0].deactivated).toBe(true);
+    expect(controllers[0].subscribed).toBe(false);
+    expect(controllers[0].client.reconnectDelay).toBe(0);
     expect(controllers).toHaveLength(2);
     controllers[1].fireConnect();
 
@@ -217,6 +234,25 @@ describe('startStomp', () => {
     expect(JSON.parse(lastPublish.body)).toEqual({ clientId: 'X', asOfDate: '2026-04-01' });
   });
 
+  it('stop() unsubscribes, disables reconnect, and deactivates the client', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    const handle = startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    expect(ctrl.subscribed).toBe(true);
+
+    await handle.stop();
+
+    expect(ctrl.subscribed).toBe(false);
+    expect(ctrl.deactivated).toBe(true);
+    expect(ctrl.client.reconnectDelay).toBe(0);
+
+    events.length = 0;
+    ctrl.deliver(JSON.stringify({ id: 'r1', x: 1 }));
+    expect(events.filter((e) => 'rows' in e)).toHaveLength(0);
+  });
+
   it('surfaces WebSocket failure as status:error', async () => {
     const events: ProviderEmitEvent[] = [];
     const ctrl = makeFakeClient();
@@ -224,6 +260,40 @@ describe('startStomp', () => {
     await Promise.resolve();
     ctrl.fireWsError();
     expect(events.find((e) => 'status' in e && e.status === 'error')).toBeTruthy();
+  });
+
+  it('reconnect after disconnect restarts snapshot and returns to ready', async () => {
+    const events: ProviderEmitEvent[] = [];
+    const ctrl = makeFakeClient();
+    startStomp(cfg(), (e) => events.push(e), { createClient: () => ctrl.client });
+    await Promise.resolve();
+    ctrl.fireConnect();
+    ctrl.deliver(JSON.stringify([{ id: 'r1', x: 1 }]));
+    ctrl.deliver('Success');
+    events.length = 0;
+
+    ctrl.fireDisconnect();
+    expect(events.find((e) => 'status' in e && e.status === 'error')).toMatchObject({
+      status: 'error',
+      error: 'Provider disconnected',
+    });
+
+    ctrl.fireConnect();
+    expect(events.find((e) => 'status' in e && e.status === 'loading')).toBeTruthy();
+    expect(events.find((e) => 'rows' in e && (e as { replace?: boolean }).replace)).toMatchObject({
+      rows: [],
+      replace: true,
+    });
+    expect(ctrl.publishLog.length).toBe(2);
+
+    events.length = 0;
+    ctrl.deliver(JSON.stringify([{ id: 'r1', x: 2 }]));
+    ctrl.deliver('Success');
+
+    const deltas = events.filter((e): e is { rows: readonly unknown[]; replace?: boolean } => 'rows' in e);
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].rows).toEqual([{ id: 'r1', x: 2 }]);
+    expect(events.find((e) => 'status' in e && e.status === 'ready')).toBeTruthy();
   });
 });
 

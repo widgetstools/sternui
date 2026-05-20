@@ -40,8 +40,16 @@ export interface ProviderStats {
   byteCount: number;
   /** Cumulative messages parsed. */
   msgCount: number;
-  /** Sliding-window throughput (last 5s). */
+  /** Sliding-window upstream throughput (last 5s). */
   msgPerSec: number;
+  /** Milliseconds from start/restart until first `ready` status. Null while snapshot in flight. */
+  snapshotFetchMs: number | null;
+  /** Cumulative fan-out delta posts to data subscribers after snapshot ready. */
+  publishCount: number;
+  /** Sliding-window publish throughput to subscribers (last 5s avg). */
+  publishPerSec: number;
+  /** Rolling 60s average publish rate to subscribers (msg/min). */
+  publishPerMin: number;
   /** Number of attached data-mode listeners. */
   subscriberCount: number;
   /** Epoch ms — when start() was first called. */

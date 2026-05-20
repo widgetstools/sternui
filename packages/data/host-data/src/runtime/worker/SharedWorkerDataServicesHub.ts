@@ -76,9 +76,34 @@ const DEBUG = false;
  */
 const LATE_JOIN_CHUNK_SIZE = 500;
 
+/** Reset every diagnostics counter when a provider (re)starts. */
+function resetProviderStats(slot: ProviderSlot, now = Date.now()): void {
+  slot.byteCount = 0;
+  slot.msgCount = 0;
+  slot.msgsByBucket.fill(0);
+  slot.bucketIdx = 0;
+  slot.startedAt = now;
+  slot.lastMessageAt = null;
+  slot.errorCount = 0;
+  slot.lastError = undefined;
+  slot.snapshotFetchStartedAt = now;
+  slot.snapshotFetchMs = null;
+  slot.snapshotReady = false;
+  slot.publishCount = 0;
+  slot.pubsByBucket.fill(0);
+  slot.pubsByMinBucket.fill(0);
+  slot.minBucketIdx = 0;
+  slot.publishWindowSeconds = 0;
+}
+
 export interface PortLike {
   postMessage(message: unknown): void;
 }
+
+/** Sliding-window length for upstream + publish /s averages. */
+const SEC_WINDOW = 5;
+/** Sliding-window length for publish /min rolling total. */
+const MIN_WINDOW = 60;
 
 interface ProviderSlot {
   handle: ProviderHandle;
@@ -94,6 +119,19 @@ interface ProviderSlot {
   startedAt: number;
   lastMessageAt: number | null;
   errorCount: number;
+  /** Epoch ms — start of the current snapshot fetch (reset on restart). */
+  snapshotFetchStartedAt: number;
+  /** Duration of the last completed snapshot fetch, or null while in flight. */
+  snapshotFetchMs: number | null;
+  /** True once the provider has emitted `ready` for the current cycle. */
+  snapshotReady: boolean;
+  /** Fan-out delta posts to data subscribers after snapshot ready. */
+  publishCount: number;
+  pubsByBucket: number[];
+  pubsByMinBucket: number[];
+  minBucketIdx: number;
+  /** Seconds elapsed since snapshot ready (capped at MIN_WINDOW). */
+  publishWindowSeconds: number;
 }
 
 interface DataListener {
@@ -295,6 +333,7 @@ export class SharedWorkerDataServicesHub {
       if (DEBUG) console.log(`[v2/hub] attach CREATE subId=${req.subId} provider=${req.providerId}`);
       slot = this.createProvider(req.providerId, req.cfg);
       this.providers.set(req.providerId, slot);
+      this.ensureStatsSampler();
     } else if (req.extra) {
       // Existing provider + restart payload: kick it.
       // eslint-disable-next-line no-console
@@ -330,20 +369,28 @@ export class SharedWorkerDataServicesHub {
   }
 
   private handleStop(req: StopRequest): void {
-    const slot = this.providers.get(req.providerId);
+    void this.stopProvider(req.providerId);
+  }
+
+  private async stopProvider(providerId: string): Promise<void> {
+    const slot = this.providers.get(providerId);
     if (!slot) return;
-    void slot.handle.stop();
-    this.providers.delete(req.providerId);
-    // Inform subscribers (data + stats) that the provider is gone.
-    const dataListeners = this.dataListeners.get(req.providerId);
+
+    // Drop from the registry first so late STOMP frames cannot fan-out
+    // while deactivate() is still in flight.
+    this.providers.delete(providerId);
+
+    const dataListeners = this.dataListeners.get(providerId);
     if (dataListeners) {
       for (const l of dataListeners.values()) {
         l.port.postMessage({ subId: l.subId, kind: 'status', status: 'error', error: 'Provider stopped.' } satisfies Event);
       }
-      this.dataListeners.delete(req.providerId);
+      this.dataListeners.delete(providerId);
     }
-    this.statsListeners.delete(req.providerId);
+    this.statsListeners.delete(providerId);
     this.maybeStopStatsSampler();
+
+    await slot.handle.stop();
   }
 
   // ─── AppData handlers (Step 2) ─────────────────────────────────
@@ -424,6 +471,7 @@ export class SharedWorkerDataServicesHub {
 
   private createProvider(providerId: string, cfg: ProviderConfig): ProviderSlot {
     const cache = new Map<string, unknown>();
+    const now = Date.now();
     const slot: ProviderSlot = {
       handle: undefined as unknown as ProviderHandle, // set immediately below
       cfg,
@@ -431,11 +479,19 @@ export class SharedWorkerDataServicesHub {
       status: 'loading',
       byteCount: 0,
       msgCount: 0,
-      msgsByBucket: [0, 0, 0, 0, 0],
+      msgsByBucket: Array.from({ length: SEC_WINDOW }, () => 0),
       bucketIdx: 0,
-      startedAt: Date.now(),
+      startedAt: now,
       lastMessageAt: null,
       errorCount: 0,
+      snapshotFetchStartedAt: now,
+      snapshotFetchMs: null,
+      snapshotReady: false,
+      publishCount: 0,
+      pubsByBucket: Array.from({ length: SEC_WINDOW }, () => 0),
+      pubsByMinBucket: Array.from({ length: MIN_WINDOW }, () => 0),
+      minBucketIdx: 0,
+      publishWindowSeconds: 0,
     };
 
     const emit: ProviderEmit = (event: ProviderEmitEvent) => {
@@ -447,6 +503,7 @@ export class SharedWorkerDataServicesHub {
   }
 
   private applyEmit(providerId: string, slot: ProviderSlot, event: ProviderEmitEvent): void {
+    if (!this.providers.has(providerId)) return;
     if ('rows' in event) {
       const keyColumn = (slot.cfg as { keyColumn?: string | readonly string[] }).keyColumn;
       if (event.replace) slot.cache.clear();
@@ -489,7 +546,7 @@ export class SharedWorkerDataServicesHub {
       // entirely; the cache also skips them, and they couldn't be
       // routed by the consumer's `getRowId` either.
       const broadcastRows = event.replace ? [...slot.cache.values()] : [...batch.values()];
-      this.broadcastData(providerId, {
+      this.broadcastData(providerId, slot, {
         kind: 'delta',
         rows: broadcastRows,
         replace: event.replace,
@@ -499,12 +556,20 @@ export class SharedWorkerDataServicesHub {
     }
 
     if ('status' in event) {
+      if (event.status === 'loading') {
+        resetProviderStats(slot);
+        this.flushStatsToListeners(providerId);
+      } else if (event.status === 'ready' && !slot.snapshotReady) {
+        slot.snapshotFetchMs = Date.now() - slot.snapshotFetchStartedAt;
+        slot.snapshotReady = true;
+        slot.publishWindowSeconds = 0;
+      }
       slot.status = event.status;
       if (event.status === 'error') {
         slot.errorCount += 1;
         slot.lastError = event.error;
       }
-      this.broadcastData(providerId, {
+      this.broadcastData(providerId, slot, {
         kind: 'status',
         status: event.status,
         error: event.error,
@@ -548,6 +613,7 @@ export class SharedWorkerDataServicesHub {
     );
     if (cacheRows.length === 0) {
       port.postMessage({ subId, kind: 'delta', rows: [], replace: true } satisfies Event);
+      this.recordPublish(slot, 1);
     } else {
       for (let offset = 0; offset < cacheRows.length; offset += LATE_JOIN_CHUNK_SIZE) {
         const chunk = cacheRows.slice(offset, offset + LATE_JOIN_CHUNK_SIZE);
@@ -557,6 +623,7 @@ export class SharedWorkerDataServicesHub {
           rows: chunk,
           replace: offset === 0,
         } satisfies Event);
+        this.recordPublish(slot, 1);
       }
     }
     port.postMessage({
@@ -586,9 +653,10 @@ export class SharedWorkerDataServicesHub {
     this.ensureStatsSampler();
   }
 
-  private broadcastData(providerId: string, eventTemplate: Event): void {
+  private broadcastData(providerId: string, slot: ProviderSlot, eventTemplate: Event): void {
     const listeners = this.dataListeners.get(providerId);
     if (!listeners) return;
+    const countPublish = slot.snapshotReady && eventTemplate.kind === 'delta';
     if (DEBUG) {
       // eslint-disable-next-line no-console
       if (eventTemplate.kind === 'delta') {
@@ -601,7 +669,16 @@ export class SharedWorkerDataServicesHub {
     }
     for (const l of listeners.values()) {
       l.port.postMessage({ ...eventTemplate, subId: l.subId } as Event);
+      if (countPublish) this.recordPublish(slot, 1);
     }
+  }
+
+  /** Count one fan-out delta post to a data subscriber (post-snapshot only). */
+  private recordPublish(slot: ProviderSlot, count: number): void {
+    if (!slot.snapshotReady) return;
+    slot.publishCount += count;
+    slot.pubsByBucket[slot.bucketIdx] += count;
+    slot.pubsByMinBucket[slot.minBucketIdx] += count;
   }
 
   // ─── Stats sampler ─────────────────────────────────────────────
@@ -612,9 +689,22 @@ export class SharedWorkerDataServicesHub {
   }
 
   private maybeStopStatsSampler(): void {
-    if (this.statsListeners.size === 0 && this.statsTimer !== null) {
+    // Keep rotating sliding-window buckets while any provider is running,
+    // even with no stats listeners — otherwise publish/min buckets stall
+    // and accumulate unbounded counts in a single slot.
+    if (this.providers.size === 0 && this.statsTimer !== null) {
       this.clearTimer(this.statsTimer);
       this.statsTimer = null;
+    }
+  }
+
+  private flushStatsToListeners(providerId: string): void {
+    const listeners = this.statsListeners.get(providerId);
+    const slot = this.providers.get(providerId);
+    if (!listeners || !slot) return;
+    const stats = this.snapshotStats(providerId, slot);
+    for (const l of listeners.values()) {
+      l.port.postMessage({ subId: l.subId, kind: 'stats', stats } satisfies Event);
     }
   }
 
@@ -624,6 +714,12 @@ export class SharedWorkerDataServicesHub {
     for (const slot of this.providers.values()) {
       slot.bucketIdx = (slot.bucketIdx + 1) % slot.msgsByBucket.length;
       slot.msgsByBucket[slot.bucketIdx] = 0;
+      slot.pubsByBucket[slot.bucketIdx] = 0;
+      slot.minBucketIdx = (slot.minBucketIdx + 1) % slot.pubsByMinBucket.length;
+      slot.pubsByMinBucket[slot.minBucketIdx] = 0;
+      if (slot.snapshotReady) {
+        slot.publishWindowSeconds = Math.min(MIN_WINDOW, slot.publishWindowSeconds + 1);
+      }
     }
 
     for (const [providerId, listeners] of this.statsListeners) {
@@ -640,11 +736,20 @@ export class SharedWorkerDataServicesHub {
     const subscriberCount = this.dataListeners.get(providerId)?.size ?? 0;
     const sumBuckets = slot.msgsByBucket.reduce((a, b) => a + b, 0);
     const msgPerSec = sumBuckets / slot.msgsByBucket.length;
+    const pubSumBuckets = slot.pubsByBucket.reduce((a, b) => a + b, 0);
+    const publishPerSec = pubSumBuckets / slot.pubsByBucket.length;
+    const rollingMinTotal = slot.pubsByMinBucket.reduce((a, b) => a + b, 0);
+    const minWindow = Math.max(1, Math.min(slot.publishWindowSeconds, MIN_WINDOW));
+    const publishPerMin = (rollingMinTotal / minWindow) * 60;
     return {
       rowCount: slot.cache.size,
       byteCount: slot.byteCount,
       msgCount: slot.msgCount,
       msgPerSec,
+      snapshotFetchMs: slot.snapshotFetchMs,
+      publishCount: slot.publishCount,
+      publishPerSec,
+      publishPerMin,
       subscriberCount,
       startedAt: slot.startedAt,
       lastMessageAt: slot.lastMessageAt,

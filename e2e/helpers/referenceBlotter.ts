@@ -130,6 +130,38 @@ export async function waitForProviderRows(page: Page): Promise<void> {
   ).not.toHaveCount(0, { timeout: 20_000 });
 }
 
+/** Alt+Shift+P / Meta+Shift+P — reveal the provider toolbar strip. */
+export async function revealProviderToolbar(page: Page): Promise<void> {
+  await page.keyboard.down('Alt');
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('KeyP');
+  await page.keyboard.up('Shift');
+  await page.keyboard.up('Alt');
+  await expect(page.getByTitle('Edit selected provider')).toBeVisible({ timeout: 10_000 });
+}
+
+/** Stop the active live provider via Diagnostics → Stop. */
+export async function stopLiveProviderFromDiagnostics(page: Page): Promise<void> {
+  await page.getByTitle('Edit selected provider').click();
+  await expect(page.getByTestId('provider-editor-dialog')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('tab', { name: 'Diagnostics' }).click();
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.keyboard.press('Escape');
+}
+
+/** Grid admin action wired by MarketsGridContainer — restarts the provider. */
+export async function refreshProviderFromGridAdmin(page: Page): Promise<void> {
+  await page.locator('[data-testid="admin-action-refresh-provider"]').click();
+}
+
+export async function waitForStaleDataBanner(page: Page): Promise<void> {
+  await expect(page.getByTestId('stale-data-banner')).toBeVisible({ timeout: 15_000 });
+}
+
+export async function waitForStaleDataBannerHidden(page: Page): Promise<void> {
+  await expect(page.getByTestId('stale-data-banner')).toHaveCount(0, { timeout: 20_000 });
+}
+
 export async function readMidPriceSnapshot(page: Page): Promise<string> {
   const texts = await page
     .locator(`[data-grid-id="${REFERENCE_GRID_ID}"] [col-id="midPrice"]`)

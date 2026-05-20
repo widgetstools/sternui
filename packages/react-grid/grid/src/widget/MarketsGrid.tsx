@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   type ForwardedRef,
@@ -114,6 +115,8 @@ function MarketsGridInner<TData = unknown>(
     tabsHidden,
     onCaptionChange,
     onSavingChange,
+    dataStale = false,
+    dataStaleMessage,
     host,
   } = props;
 
@@ -164,6 +167,25 @@ function MarketsGridInner<TData = unknown>(
     hostOverrideKeys,
   });
 
+  const dataStaleRef = useRef(dataStale);
+  dataStaleRef.current = dataStale;
+
+  const applyStaleEditGuard = useCallback((api: GridReadyEvent['api']) => {
+    const stale = dataStaleRef.current;
+    api.setGridOption('readOnlyEdit', stale);
+    api.setGridOption('suppressClickEdit', stale);
+    if (stale) {
+      api.stopEditing();
+    }
+  }, []);
+
+  useEffect(() => {
+    const api = platform.api.api;
+    if (!api) return;
+    if ((api as unknown as { isDestroyed?: () => boolean }).isDestroyed?.()) return;
+    applyStaleEditGuard(api);
+  }, [platform, dataStale, applyStaleEditGuard]);
+
   // When the host passes `defaultColDef`, surface host-override wiring
   // replaces the pipeline object entirely — module-controlled fields
   // (enableCellChangeFlash, wrapText, defaultSortable, …) would never
@@ -179,10 +201,11 @@ function MarketsGridInner<TData = unknown>(
   const handleGridReady = useCallback(
     (event: GridReadyEvent) => {
       onGridReady(event);
+      applyStaleEditGuard(event.api);
       event.api.sizeColumnsToFit();
       onGridReadyProp?.(event);
     },
-    [onGridReady, onGridReadyProp],
+    [onGridReady, onGridReadyProp, applyStaleEditGuard],
   );
 
   const rootStyle = useMemo(
@@ -300,6 +323,8 @@ function MarketsGridInner<TData = unknown>(
         tabsHidden={tabsHidden}
         onCaptionChange={onCaptionChange}
         onSavingChange={onSavingChange}
+        dataStale={dataStale}
+        dataStaleMessage={dataStaleMessage}
       />
     </GridProvider>
   );

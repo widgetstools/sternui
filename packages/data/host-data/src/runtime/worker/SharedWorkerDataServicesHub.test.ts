@@ -309,18 +309,21 @@ describe('SharedWorkerDataServicesHub — broadcast fan-out', () => {
 });
 
 describe('SharedWorkerDataServicesHub — stats sampler', () => {
-  it('arms on first stats listener, disarms when last detaches', () => {
+  it('arms on first provider start, stays armed until the last provider stops', () => {
     const timers = makeFakeTimers();
     const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
     const port = makePort();
     hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg() });
 
-    expect(timers.armed).toBe(false);
+    expect(timers.armed).toBe(true);
 
     hub.handleRequest(port, { kind: 'attach', subId: 'stats', providerId: 'p1', mode: 'stats' });
     expect(timers.armed).toBe(true);
 
     hub.handleRequest(port, { kind: 'detach', subId: 'stats' });
+    expect(timers.armed).toBe(true);
+
+    hub.handleRequest(port, { kind: 'stop', providerId: 'p1' });
     expect(timers.armed).toBe(false);
   });
 
@@ -343,6 +346,100 @@ describe('SharedWorkerDataServicesHub — stats sampler', () => {
     timers.tick();
     const tickStats = port.messages.find((m) => m.kind === 'stats');
     expect(tickStats).toBeTruthy();
+  });
+
+  it('tracks snapshot fetch duration and post-snapshot publish rates', () => {
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const portA = makePort();
+    const portB = makePort();
+    hub.handleRequest(portA, { kind: 'attach', subId: 'data-a', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(portB, { kind: 'attach', subId: 'data-b', providerId: 'p1', mode: 'data' });
+    const ctrl = controllers.get('default')!;
+
+    // Snapshot phase — not counted as client publishes.
+    ctrl.emit({ rows: [{ id: 'r1' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+
+    hub.handleRequest(portA, { kind: 'attach', subId: 'stats', providerId: 'p1', mode: 'stats' });
+    const afterReady = portA.messages.find((m) => m.kind === 'stats') as { stats: {
+      snapshotFetchMs: number | null;
+      publishCount: number;
+      publishPerSec: number;
+    } };
+    expect(afterReady.stats.snapshotFetchMs).not.toBeNull();
+    expect(afterReady.stats.publishCount).toBe(0);
+
+    portA.messages.length = 0;
+    // Live tick — fan-out to two data listeners.
+    ctrl.emit({ rows: [{ id: 'r1', x: 2 }] });
+    timers.tick();
+    const liveStats = portA.messages.find((m) => m.kind === 'stats') as { stats: {
+      publishCount: number;
+      publishPerSec: number;
+      publishPerMin: number;
+    } };
+    expect(liveStats.stats.publishCount).toBe(2);
+    expect(liveStats.stats.publishPerSec).toBeGreaterThan(0);
+    expect(liveStats.stats.publishPerMin).toBeGreaterThan(0);
+  });
+
+  it('resets all diagnostics counters when the provider emits loading (restart)', () => {
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg() });
+    hub.handleRequest(port, { kind: 'attach', subId: 'stats', providerId: 'p1', mode: 'stats' });
+    const ctrl = controllers.get('default')!;
+
+    ctrl.emit({ rows: [{ id: 'r1' }, { id: 'r2' }] });
+    ctrl.emit({ status: 'ready' });
+    ctrl.emit({ rows: [{ id: 'r1', x: 99 }] });
+    timers.tick();
+
+    port.messages.length = 0;
+    ctrl.emit({ rows: [], replace: true });
+    ctrl.emit({ status: 'loading' });
+
+    const resetStats = port.messages.find((m) => m.kind === 'stats') as { stats: {
+      rowCount: number;
+      msgCount: number;
+      publishCount: number;
+      msgPerSec: number;
+      publishPerSec: number;
+      publishPerMin: number;
+      snapshotFetchMs: number | null;
+      errorCount: number;
+    } };
+    expect(resetStats).toBeTruthy();
+    expect(resetStats.stats.rowCount).toBe(0);
+    expect(resetStats.stats.msgCount).toBe(0);
+    expect(resetStats.stats.publishCount).toBe(0);
+    expect(resetStats.stats.msgPerSec).toBe(0);
+    expect(resetStats.stats.publishPerSec).toBe(0);
+    expect(resetStats.stats.publishPerMin).toBe(0);
+    expect(resetStats.stats.snapshotFetchMs).toBeNull();
+    expect(resetStats.stats.errorCount).toBe(0);
+  });
+
+  it('rotates publish/min buckets while only data listeners are attached', () => {
+    const timers = makeFakeTimers();
+    const hub = new SharedWorkerDataServicesHub({ setTimer: timers.set, clearTimer: timers.clear });
+    const port = makePort();
+    hub.handleRequest(port, { kind: 'attach', subId: 'data', providerId: 'p1', mode: 'data', cfg: cfg() });
+    const ctrl = controllers.get('default')!;
+
+    ctrl.emit({ rows: [{ id: 'r1' }], replace: true });
+    ctrl.emit({ status: 'ready' });
+    port.messages.length = 0;
+
+    ctrl.emit({ rows: [{ id: 'r1', x: 2 }] });
+    timers.tick();
+
+    hub.handleRequest(port, { kind: 'attach', subId: 'stats', providerId: 'p1', mode: 'stats' });
+    const stats = port.messages.find((m) => m.kind === 'stats') as { stats: { publishPerMin: number; publishPerSec: number } };
+    expect(stats.stats.publishPerSec).toBeGreaterThan(0);
+    expect(stats.stats.publishPerMin).toBeGreaterThan(0);
   });
 });
 
