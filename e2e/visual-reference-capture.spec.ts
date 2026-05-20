@@ -1,11 +1,9 @@
 /**
- * Visual-reference capture — drives v1's demo-react through every
- * customizer surface and writes one PNG per state into
- * `/Users/develop/wfh/docs/visual-reference/v1/`.
+ * Visual-reference capture — drives demo-react through every customizer
+ * surface and writes one PNG per state under `docs/visual-reference/v1/`
+ * (override with `VR_OUT`).
  *
- * This spec is the v1 capture half of the contract described in
- * `/Users/develop/wfh/docs/visual-reference/README.md`.
- * It is NOT part of the regular e2e suite — opt in explicitly:
+ * Opt-in only — not part of the regular e2e suite:
  *
  *   npx playwright test e2e/visual-reference-capture.spec.ts
  *
@@ -14,9 +12,8 @@
  * paths in lockstep with what the smoke specs assert — if a testid /
  * trigger renames, both break together.
  *
- * Output directory is configurable via the `VR_OUT` env var (falls
- * back to the v2 monorepo's docs/visual-reference/v1/). Set to a
- * scratch dir during iteration:
+ * Output directory: `VR_OUT` env var, defaulting to
+ * `<repo>/docs/visual-reference/v1/`. Set to a scratch dir during iteration:
  *
  *   VR_OUT=/tmp/vr npx playwright test e2e/visual-reference-capture.spec.ts
  *
@@ -24,7 +21,7 @@
  *   - The spec covers both `[data-theme="dark"]` (default) and
  *     `[data-theme="light"]` for every surface. Themes are toggled
  *     via the demo's existing theme switcher — no DOM-injection
- *     shortcut, matching the README's rule on capture realism.
+ *     shortcut, matching capture realism expectations.
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -40,7 +37,7 @@ import {
 
 const VR_OUT =
   process.env.VR_OUT ??
-  '/Users/develop/wfh/docs/visual-reference/v1';
+  join(process.cwd(), 'docs', 'visual-reference', 'v1');
 
 type Theme = 'dark' | 'light';
 

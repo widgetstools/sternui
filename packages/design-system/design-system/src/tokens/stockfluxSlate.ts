@@ -1,8 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 //  Stockflux SLATE BLUE — canonical reference values
-//  Source: Stockflux-design/palettes.css [data-palette="slate"]
-//         + aggrid-theme.js palettes.slate
-//  Do not drift: parity tests assert against this module.
+//  Source: Stockflux SLATE palette (slate dark/light + AG Grid pack).
 // ─────────────────────────────────────────────────────────────
 
 /** AG Grid v33+ color pack — `aggrid-theme.js` → `palettes.slate` */

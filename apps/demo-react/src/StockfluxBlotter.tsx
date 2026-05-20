@@ -1,6 +1,5 @@
 /*
- * StockfluxBlotter — port of /Users/develop/wfh/Stockflux-design/blotter.jsx
- * + /Users/develop/wfh/Stockflux-design/showcase.jsx BlotterSection.
+ * StockfluxBlotter — Stockflux-style blotter comparison surface for demo-react.
  *
  * Apples-to-apples comparison surface: same data shape, same column defs,
  * same cell-renderer styling — but driven by our `@starui/design-system`

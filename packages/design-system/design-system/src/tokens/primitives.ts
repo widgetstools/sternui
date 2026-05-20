@@ -4,8 +4,7 @@
 //
 //  Blue-slate (Stockflux SLATE) palette:
 //    - Industrial-cool pewter chrome with a sapphire brand accent.
-//    - Trading semantics are palette-locked (mint-teal up / rose down)
-//      per Stockflux-design/palettes.css.
+//    - Trading semantics are palette-locked (mint-teal up / rose down).
 // ─────────────────────────────────────────────────────────────
 
 export const colors = {
