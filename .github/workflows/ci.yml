@@ -34,8 +34,8 @@ jobs:
       - name: npm ci
         run: npm ci
 
-  typecheck:
-    name: Typecheck (all packages)
+  packages:
+    name: Packages (build + typecheck + test)
     needs: install
     runs-on: ubuntu-latest
     steps:
@@ -45,12 +45,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Turbo typecheck
-        run: npx turbo typecheck
+      - name: Build packages
+        run: npm run build:packages
+      - name: Typecheck packages
+        run: npm run typecheck:packages
+      - name: Unit tests (packages)
+        run: npm run test:packages
 
-  build:
-    name: Build (all packages + apps)
-    needs: install
+  consumer:
+    name: Consumer apps (tarball build + typecheck)
+    needs: packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,8 +63,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Turbo build
-        run: npx turbo build
+      - name: Build packages
+        run: npm run build:packages
+      - name: Pack bucket tarballs + sync apps
+        run: node scripts/propagate.mjs
+      - name: Build consumer apps
+        run: npm run build:apps
+      - name: Typecheck consumer apps
+        run: npm run typecheck:apps
       - name: Upload demo-react bundle
         uses: actions/upload-artifact@v4
         with:
@@ -69,9 +79,9 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-  test:
-    name: Unit tests (Vitest)
-    needs: install
+  tarballs:
+    name: Tarball freshness (committed libs/)
+    needs: packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,14 +90,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Turbo test
-        run: npx turbo test
+      - name: Verify libs/ tarballs match package build output
+        run: npm run check:tarballs
 
   cross-platform:
-    name: Build + typecheck (${{ matrix.os }})
-    # Runs independently so it doesn't block the fast Ubuntu path.
-    # Verifies that npm install, tsc, and turbo build complete cleanly
-    # on macOS (arm64 runners) and Windows x64/arm64.
+    name: Consumer verify (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -107,5 +114,5 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: Turbo typecheck + build
-        run: npx turbo typecheck build
+      - name: Consumer build + typecheck
+        run: npm run verify:consumer

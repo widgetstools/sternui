@@ -33,15 +33,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Build dependencies
-        # Build EVERY workspace package — Playwright's webServer config
-        # in playwright.config.ts starts dev servers for demo-react,
-        # demo-configservice-react, AND markets-ui-react-reference. The
-        # other two still import @starui/vite-workspace-aliases in their
-        # vite.config.ts, and that package has main:"dist/index.js" so
-        # its dist/ must exist before the dev server tries to load it.
-        # The previous `--filter=@starui/demo-react...` was too narrow.
-        run: npx turbo build
+      - name: Build packages + refresh consumer tarballs
+        run: npm run build:packages && node scripts/propagate.mjs --skip-drift-check
 
       - name: Run Playwright
         run: npx playwright test

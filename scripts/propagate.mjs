@@ -22,6 +22,7 @@
  *   npm run propagate -- --gc                 # remove orphaned tarballs
  *   npm run propagate -- --no-install --no-build
  *   npm run propagate -- --refresh-lockfile
+ *   npm run check:tarballs              # --check-only — fail if libs/ tarballs are stale
  */
 
 import { createHash } from 'node:crypto';
@@ -71,6 +72,7 @@ function parseArgs(argv) {
     noBuild: flags.has('no-build'),
     refreshLockfile: flags.has('refresh-lockfile'),
     skipDriftCheck: flags.has('skip-drift-check'),
+    checkOnly: flags.has('check-only'),
     help: flags.has('help'),
   };
 }
@@ -283,9 +285,9 @@ function rawPackFilename(name, version) {
   return `${base}-${version}.tgz`;
 }
 
-function rawPack(cwd) {
+function rawPack(cwd, packDestination = LIBS_DIR) {
   const stdout = execSync(
-    `npm pack --pack-destination "${LIBS_DIR}" --json`,
+    `npm pack --pack-destination "${packDestination}" --json`,
     { cwd, stdio: ['ignore', 'pipe', 'inherit'] },
   ).toString();
   const jsonStart = stdout.indexOf('[');
@@ -620,10 +622,84 @@ function gcOrphanedDist(manifest) {
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Check-only — verify committed tarballs match a fresh pack (no writes)
+// ────────────────────────────────────────────────────────────────────────
+
+function computeBucketSha(bucket) {
+  const checkDir = join(STAGING_ROOT, 'check-pack');
+  mkdirSync(checkDir, { recursive: true });
+  for (const entry of readdirSync(checkDir)) {
+    if (entry.endsWith('.tgz')) unlinkSync(join(checkDir, entry));
+  }
+  const stageDir = stageBucket(bucket);
+  const packedFlat = rawPack(stageDir, checkDir);
+  const flatPath = join(checkDir, packedFlat);
+  const sha = sha8OfFile(flatPath);
+  unlinkSync(flatPath);
+  rmSync(stageDir, { recursive: true, force: true });
+  return sha;
+}
+
+function runCheckOnly() {
+  log('CHECK ONLY — comparing libs/ tarballs to a fresh pack (no writes)');
+  const buckets = discoverBuckets();
+  const targets = selectBuckets(buckets, args.names);
+  if (targets.length === 0) die('no architecture buckets selected');
+
+  const manifest = readManifest();
+  const stale = [];
+
+  for (const bucket of targets) {
+    for (const member of bucket.members) {
+      try {
+        buildMember(member);
+      } catch (err) {
+        die(`build failed for ${member.name}: ${err.message ?? err}`);
+      }
+    }
+    const prev = manifest[bucket.name];
+    const sha = computeBucketSha(bucket);
+    const libsPath = prev?.filename ? join(LIBS_DIR, prev.filename) : null;
+    const onDisk = libsPath && existsSync(libsPath) ? sha8OfFile(libsPath) : null;
+
+    if (!prev?.sha || prev.sha !== sha || onDisk !== sha) {
+      stale.push({
+        bucket: bucket.name,
+        expectedSha: prev?.sha ?? '(none)',
+        computedSha: sha,
+        onDiskSha: onDisk ?? '(missing)',
+        filename: prev?.filename ?? '(none)',
+      });
+    } else {
+      log(`fresh: ${bucket.name} (${sha})`);
+    }
+  }
+
+  rmSync(STAGING_ROOT, { recursive: true, force: true });
+
+  if (stale.length === 0) {
+    log(`done — ${targets.length} bucket tarball(s) match current package build output`);
+    return;
+  }
+
+  for (const s of stale) {
+    log(`stale: ${s.bucket} manifest=${s.expectedSha} computed=${s.computedSha} on-disk=${s.onDiskSha} file=${s.filename}`);
+  }
+  die(
+    `${stale.length} bucket tarball(s) are stale relative to packages/. `
+      + 'Run `npm run propagate` and commit libs/ + package-lock.json changes.',
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // Main
 // ────────────────────────────────────────────────────────────────────────
 
 function main() {
+  if (args.checkOnly) {
+    runCheckOnly();
+    return;
+  }
   log(`repo root: ${REPO_ROOT}`);
   if (args.dryRun) log('DRY RUN — no files will be written');
   if (!isDirectory(LIBS_DIR)) {

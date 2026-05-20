@@ -103,8 +103,8 @@ PR. Until then: convention enforcement happens in code review.
 **Turborepo 2.** Scripts at root:
 
 ```bash
-npm run build       # turbo build — all workspaces
-npm run typecheck   # turbo typecheck — all workspaces
+npm run build       # build:consumer — packages, propagate tarballs, apps
+npm run typecheck   # typecheck:consumer — packages build, propagate, app tsc
 npm test            # turbo test — Vitest
 npm run e2e         # Playwright — e2e
 ```

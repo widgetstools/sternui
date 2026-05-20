@@ -30,7 +30,7 @@ starui/                      # repo root (npm workspace root)
 - **React** 19.2.5 + **TypeScript** 5.9.3 + **Vite** 7.3.2
 - **Angular** 21.1.0 (with `ng-packagr` for the library packages)
 - **AG-Grid Enterprise** 35.1.0 (`themeQuartz`, `iconSetMaterial`)
-- **OpenFin** 42.103.x (Core / Workspace / Dock-Manager)
+- **OpenFin** 43.101.x (Core / Workspace / Dock-Manager)
 - **Zustand** for runtime module state, **Dexie** (IndexedDB) for local persistence
 - **Radix UI** + shadcn primitives, **CodeMirror 6** for expression editing
 - **Vitest** 4 + **Playwright** 1.59 for tests
@@ -78,7 +78,26 @@ starui/                      # repo root (npm workspace root)
 
 Run `npm run verify:apps` from the repo root to smoke-test all dev servers.
 
-### Platform tooling (inside ``)
+### Demo apps vs framework consumers
+
+Apps under `apps/` are **consumer contract tests** — they install StarUI the
+same way external teams do: **bucket tarballs** from `libs/` (standing in for
+Artifactory), not workspace `"*"` member deps. Source still imports member
+packages (`@starui/app`, `@starui/grid`, …); Vite resolves them via
+[`scripts/staruiConsumerVite.mjs`](./scripts/staruiConsumerVite.mjs) and
+[`scripts/staruiConsumerAliases.mjs`](./scripts/staruiConsumerAliases.mjs).
+
+| Audience | Installs | Builds with |
+|---|---|---|
+| **Framework consumers** (production) | Artifactory / `.tgz` buckets | Their app CI + consumer Vite config |
+| **Monorepo devs** (packages) | Workspace `"*"` between libraries | `build:packages`, `typecheck:packages`, `test:packages` |
+| **Monorepo demo apps** | `file:../../libs/*.tgz` per bucket | `build:consumer`, `verify:consumer` |
+
+After changing library code that demo apps consume, run `npm run propagate`
+(or the full `npm run build:consumer`) so `libs/` tarballs and app lockfile
+refs stay in sync.
+
+### Platform tooling
 
 - `tools/scripts/launch-openfin.mjs` — launch a demo inside OpenFin
 - `docs/` — architecture, feature inventory, guides
@@ -112,21 +131,105 @@ npm run dev:demo-angular
 npm run dev:openfin
 ```
 
-## Scripts (root)
+## Build & test pipelines
+
+The monorepo runs **two pipelines**. Turbo's task graph only sees direct
+workspace deps; demo apps declare **bucket tarballs**, not member packages, so
+app builds are orchestrated explicitly.
+
+```text
+Packages (libraries)                Consumer (demo apps)
+─────────────────────               ────────────────────
+turbo build --filter=!./apps/**     npm run propagate
+turbo typecheck (packages)    →     turbo build --filter=./apps/**
+turbo test (packages)               turbo typecheck (apps)
+```
+
+### Root scripts
+
+| Script | What it does |
+|---|---|
+| `build:packages` | Build all libraries under `packages/` |
+| `build:apps` | Build demo apps (requires packages + fresh tarballs) |
+| `build:consumer` | `build:packages` → `propagate` → `build:apps` |
+| `typecheck:packages` | `tsc --noEmit` on libraries |
+| `typecheck:apps` | `tsc --noEmit` on demo apps |
+| `typecheck:consumer` | `build:packages` → `propagate` → `typecheck:apps` |
+| `test:packages` | Vitest across library packages |
+| `check:tarballs` | Fail if committed `libs/*.tgz` are stale vs built packages |
+| `verify:consumer` | `build:consumer` + `typecheck:apps` (CI parity) |
+| `propagate` | Build, pack architecture-bucket tarballs to `libs/`, sync app deps |
+| `sync:app-deps` | Rewrite app `package.json` tarball paths from `libs/manifest.json` |
+
+Shorthand (default to **consumer** path):
 
 ```bash
-npm run build        # turbo build — all workspaces
-npm run typecheck    # turbo typecheck — all workspaces
-npm test             # turbo test — Vitest
-npm run e2e          # Playwright (e2e)
-npm run clean        # nuke node_modules + dist + .turbo caches
+npm run build        # same as build:consumer
+npm run typecheck    # same as typecheck:consumer
+npm test             # same as test:packages
 ```
+
+### Typical workflows
+
+**Library development (fast loop):**
+
+```bash
+npm run build:packages
+npm run typecheck:packages
+npm run test:packages
+```
+
+**Before merge / after library changes that affect apps:**
+
+```bash
+npm run verify:consumer
+# or: npm run propagate && npm run build:apps && npm run typecheck:apps
+```
+
+**Check committed tarballs without repacking:**
+
+```bash
+npm run check:tarballs
+```
+
+**Optional dev fast path** — alias demo apps to live `packages/` source
+(skips tarball fidelity; never used in CI):
+
+```bash
+STARUI_DEV_SOURCE=1 npm run dev:demo-react
+```
+
+### Tarballs & Artifactory
+
+- `npm run propagate` packs one `.tgz` per architecture bucket under
+  `libs/` (e.g. `@starui/react-core` bundles `@starui/app`, `@starui/widgets-react`, …).
+- `libs/manifest.json` maps bucket → filename, members, content SHA.
+- Committed tarballs let `npm ci` work on a fresh clone; CI runs
+  `check:tarballs` to reject stale `libs/` after package changes.
+- External consumers install the same buckets from Artifactory and wire
+  Vite through `staruiConsumerVite.mjs` (copy from `scripts/` or your
+  internal scaffold).
 
 Package-scoped commands use the `-w` flag:
 
 ```bash
 npm run build -w @starui/engine
 npm test  -w @starui/grid
+```
+
+## Scripts (root)
+
+See [Build & test pipelines](#build--test-pipelines) above for the full
+reference. Quick commands:
+
+```bash
+npm run build              # build:consumer
+npm run typecheck          # typecheck:consumer
+npm run test               # test:packages
+npm run check:tarballs     # stale tarball gate
+npm run propagate          # repack libs/
+npm run e2e                # Playwright
+npm run clean              # nuke node_modules + dist + .turbo
 ```
 
 ## Hosting components in the reference apps
@@ -284,12 +387,12 @@ shows up identically in plain browser dev (same Dexie DB, same row).
 
 ## Testing
 
-- **Unit:** Vitest 4 across all packages. `npm test`.
-  Current baseline: **298 tests** passing (242 `core` + 56 `markets-grid`).
+- **Unit (packages):** Vitest 4 — `npm run test:packages` (alias: `npm test`).
+- **Consumer verify:** `npm run verify:consumer` — full tarball + app build/typecheck.
 - **E2E:** Playwright against `apps/demo-react`. `npm run e2e`.
-  Current baseline: **195 / 214** passing (see
-  [E2E_STATUS.md](./docs/E2E_STATUS.md) for the 19 pre-existing failures
-  tracked for follow-up).
+  See [E2E_STATUS.md](./docs/E2E_STATUS.md) for known failures.
+
+CI runs packages and consumer jobs separately; see `.github/workflows/ci.yml`.
 
 ## Copyright
 

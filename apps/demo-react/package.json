@@ -9,12 +9,12 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@starui/data": "file:../../libs/starui-data-0.1.0-ab21cc4d.tgz",
-    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-1b7b7218.tgz",
+    "@starui/data": "file:../../libs/starui-data-0.1.0-9490a7c8.tgz",
+    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-f7f9a521.tgz",
     "@starui/react-core": "file:../../libs/starui-react-core-1.0.0-7c866d40.tgz",
-    "@starui/react-grid": "file:../../libs/starui-react-grid-0.1.0-814704d0.tgz",
+    "@starui/react-grid": "file:../../libs/starui-react-grid-0.1.0-fbd6f1a3.tgz",
     "@starui/react-ui": "file:../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
-    "@starui/shared": "file:../../libs/starui-shared-1.0.0-1b49d91a.tgz",
+    "@starui/shared": "file:../../libs/starui-shared-1.0.0-383c9ea2.tgz",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",
     "ag-grid-react": "35.1.0",

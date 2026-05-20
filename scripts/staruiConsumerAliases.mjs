@@ -85,6 +85,40 @@ function readMemberExports(bucket, folder) {
   return entries;
 }
 
+/**
+ * Read member export map from an installed bucket tarball (Artifactory / libs/).
+ * Returns null when the bucket is not installed as a bundled tarball.
+ */
+function readInstalledMemberExports(bucketPkgPath, bucketName, member) {
+  if (!existsSync(bucketPkgPath)) return null;
+  const bucketPkg = JSON.parse(readFileSync(bucketPkgPath, 'utf8'));
+  if (!isBucketBundlePackage(bucketPkg, bucketName)) return null;
+
+  const short = member.split('/').pop();
+  const hoist = member === bucketName;
+  const entries = {};
+  const raw = bucketPkg.exports ?? {};
+
+  for (const [exportKey, targetVal] of Object.entries(raw)) {
+    const target = resolveExportTarget(targetVal);
+    if (!target || typeof target !== 'string') continue;
+
+    if (hoist) {
+      if (exportKey === '.') entries['.'] = target;
+      else if (exportKey.startsWith('./')) entries[exportKey.slice(1)] = target;
+      continue;
+    }
+
+    const prefix = `./${short}`;
+    if (exportKey === prefix) entries['.'] = target;
+    else if (exportKey.startsWith(`${prefix}/`)) {
+      entries[exportKey.slice(prefix.length)] = target;
+    }
+  }
+
+  return Object.keys(entries).length > 0 ? entries : null;
+}
+
 function isBucketBundlePackage(pkgJson, bucketName) {
   return (
     pkgJson.name === bucketName &&
@@ -134,7 +168,9 @@ export function staruiViteAliases(appDir) {
   const manifest = readManifest();
   if (!manifest) return [];
 
-  const nmRoot = join(REPO_ROOT, 'node_modules');
+  const monoRoot = monoRootFromApp(appDir);
+  const nmRoot = join(monoRoot, 'node_modules');
+  const useDevSource = process.env.STARUI_DEV_SOURCE === '1';
   const aliases = [];
   const seen = new Set();
 
@@ -148,14 +184,34 @@ export function staruiViteAliases(appDir) {
   for (const [bucketName, entry] of Object.entries(manifest)) {
     if (!entry?.members?.length || !entry.bucket) continue;
     const bucketShort = bucketName.split('/').pop();
+    const bucketDir = join(nmRoot, '@starui', bucketShort);
+    const bucketPkgPath = join(bucketDir, 'package.json');
+
     for (const member of entry.members) {
       const folder = findMemberFolder(entry.bucket, member);
       const short = member.split('/').pop();
-      const memberRoot = installedMemberRoot(nmRoot, bucketName, bucketShort, member, folder);
 
-      for (const [exportKey, relTarget] of Object.entries(readMemberExports(entry.bucket, folder))) {
-        const suffix = exportKey === '.' ? '' : exportKey.slice(1);
-        const absTarget = join(memberRoot, relTarget.replace(/^\.\//, ''));
+      let exportEntries = null;
+      let resolveRoot = bucketDir;
+
+      if (!useDevSource) {
+        exportEntries = readInstalledMemberExports(bucketPkgPath, bucketName, member);
+      }
+      if (!exportEntries) {
+        exportEntries = readMemberExports(entry.bucket, folder);
+        resolveRoot = installedMemberRoot(nmRoot, bucketName, bucketShort, member, folder);
+      }
+
+      for (const [exportKey, relTarget] of Object.entries(exportEntries)) {
+        const absTarget = join(resolveRoot, relTarget.replace(/^\.\//, ''));
+        const suffix =
+          exportKey === '.'
+            ? ''
+            : exportKey.startsWith('./')
+              ? exportKey.slice(1)
+              : exportKey.startsWith('/')
+                ? exportKey
+                : `/${exportKey}`;
 
         if (exportKey === '.') {
           const memberExact = member.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

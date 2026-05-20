@@ -8,11 +8,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/data": "file:../../../libs/starui-data-0.1.0-ab21cc4d.tgz",
-    "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-1b7b7218.tgz",
-    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-814704d0.tgz",
+    "@starui/data": "file:../../../libs/starui-data-0.1.0-9490a7c8.tgz",
+    "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-f7f9a521.tgz",
+    "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-fbd6f1a3.tgz",
     "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
-    "@starui/shared": "file:../../../libs/starui-shared-1.0.0-1b49d91a.tgz",
+    "@starui/shared": "file:../../../libs/starui-shared-1.0.0-383c9ea2.tgz",
     "@widgetstools/dock-manager-core": "^1.0.0",
     "@widgetstools/react-dock-manager": "^1.0.0",
     "ag-grid-community": "35.1.0",

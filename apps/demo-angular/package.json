@@ -31,7 +31,7 @@
     "@angular/platform-browser": "^21.2.13",
     "@angular/router": "^21.2.13",
     "@primeng/themes": "20.3.0",
-    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-1b7b7218.tgz",
+    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-f7f9a521.tgz",
     "@widgetstools/angular-dock-manager": "1.0.0",
     "@widgetstools/dock-manager-core": "1.0.0",
     "ag-grid-angular": "35.1.0",

@@ -20,9 +20,18 @@
     "e2e-openfin"
   ],
   "scripts": {
-    "build": "turbo build --filter=!./apps/** && turbo build --filter=./apps/**",
-    "typecheck": "turbo typecheck --filter=!./apps/** && turbo typecheck --filter=./apps/**",
-    "test": "turbo test",
+    "build:packages": "turbo build --filter=!./apps/**",
+    "build:apps": "turbo build --filter=./apps/**",
+    "build:consumer": "npm run build:packages && node scripts/propagate.mjs && npm run build:apps",
+    "build": "npm run build:consumer",
+    "typecheck:packages": "turbo typecheck --filter=!./apps/**",
+    "typecheck:apps": "turbo typecheck --filter=./apps/**",
+    "typecheck:consumer": "npm run build:packages && node scripts/propagate.mjs --skip-drift-check && npm run typecheck:apps",
+    "typecheck": "npm run typecheck:consumer",
+    "test:packages": "turbo test --filter=!./apps/**",
+    "test": "npm run test:packages",
+    "check:tarballs": "npm run build:packages && node scripts/propagate.mjs --check-only --no-install",
+    "verify:consumer": "npm run build:consumer && npm run typecheck:apps",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:ui": "playwright test --ui",
@@ -76,8 +85,5 @@
   "overrides": {
     "@openfin/core": "43.101.2",
     "hono": "^4.12.20"
-  },
-  "dependencies": {
-    "ci": "^2.3.0"
   }
 }
