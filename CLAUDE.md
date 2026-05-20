@@ -1,10 +1,8 @@
-mcp# CLAUDE.md — agent instructions for `marketsui-platform`
+# CLAUDE.md — agent instructions for `starui` (MarketsUI platform monorepo)
 
-This is the consolidated MarketsUI platform monorepo. The **active codebase**
-lives under **`starui-platform/`** — libraries, apps, and e2e. The repo root
-delegates build/dev/test/e2e to that workspace and hosts shared docs/tooling.
-Legacy root `packages/` has been removed; all `@starui/*` development happens
-inside `starui-platform/packages/`.
+This is the consolidated MarketsUI platform monorepo. Libraries, apps,
+docs, tooling, and e2e tests all live at the **repo root** (`packages/`,
+`apps/`, `docs/`, `scripts/`, `tools/`, `e2e/`).
 
 **Read before editing:**
 
@@ -29,9 +27,9 @@ version in the same change.
 
 ## Package layout
 
-All workspace packages live under **`starui-platform/packages/`** in ten
+All workspace packages live under **`packages/`** in ten
 architecture buckets (see
-[`starui-platform/docs/PACKAGE_ORGANIZATION.md`](./starui-platform/docs/PACKAGE_ORGANIZATION.md)):
+[`docs/PACKAGE_ORGANIZATION.md`](./docs/PACKAGE_ORGANIZATION.md)):
 
 | # | Bucket | Path | Packages |
 |---|--------|------|----------|
@@ -46,7 +44,7 @@ architecture buckets (see
 | 9 | React Core | `react-core/` | `app`, `widgets-react`, `widget-sdk`, `host-wrapper-react`, `config-browser`, `workspace-setup-react` |
 | 10 | Core / Shared | `shared/` | `types`, `shared-types`, `engine`, `host`, `host-browser`, `widget`, `widget-browser` |
 
-**Apps** live under `starui-platform/apps/` and consume libraries via npm
+**Apps** live under `apps/` and consume libraries via npm
 workspace `"*"` deps.
 
 The root `package.json` workspaces glob enumerates each bucket explicitly
@@ -85,10 +83,10 @@ matching Angular Style Guide. Don't switch — Angular tooling and
 muscle memory both depend on it.
 
 **Carve-outs (kebab-case allowed despite the above)**:
-- `starui-platform/packages/react-ui/ui/src/components/**` — shadcn-ui CLI generates kebab
+- `packages/react-ui/ui/src/components/**` — shadcn-ui CLI generates kebab
   filenames (`alert-dialog.tsx`, `dropdown-menu.tsx`); renaming would
   diverge from `npx shadcn add ...` future regenerations
-- `starui-platform/packages/react-grid/grid/src/customizer/ui/shadcn/**` — gc-themed
+- `packages/react-grid/grid/src/customizer/ui/shadcn/**` — gc-themed
   shadcn copy carried over from the legacy grid-react extraction
 
 **Public subpath exports** in `package.json` `"exports"` may use kebab
@@ -105,10 +103,10 @@ PR. Until then: convention enforcement happens in code review.
 **Turborepo 2.** Scripts at root:
 
 ```bash
-npm run build       # turbo build — starui-platform
-npm run typecheck   # turbo typecheck — starui-platform
+npm run build       # turbo build — all workspaces
+npm run typecheck   # turbo typecheck — all workspaces
 npm test            # turbo test — Vitest
-npm run e2e         # Playwright — starui-platform/e2e
+npm run e2e         # Playwright — e2e
 ```
 
 Every library package uses `"build": "rimraf dist && tsc"` (or
@@ -121,20 +119,23 @@ on the next run. Don't remove it.
 In-repo apps use workspace `"*"` deps — edit a package, run `npm run build`
 (or `npm run dev:demo-react`) and changes are picked up via workspace linking.
 
-`npm run propagate` (delegates to `starui-platform/scripts/propagate.mjs`) still
-packs libraries to content-hashed tarballs in `starui-platform/libs/` for
-**external** consumers (MCP scaffolds, corporate hand-off). Flags:
+`npm run propagate` (delegates to `scripts/propagate.mjs`) builds
+and packs **one tarball per architecture bucket** flat under `libs/`
+(e.g. `starui-react-grid-0.1.0-<sha8>.tgz`). Each bundle contains all workspace
+packages in that bucket. Flags:
 
 - `--dry-run` — show the plan, write nothing.
-- `--gc` — delete orphaned tarballs in `starui-platform/libs/`.
+- `--gc` — delete orphaned tarballs in `libs/`.
 - `--no-install` / `--no-build` — skip install or per-package build steps.
+- Pass a bucket name (`react-core`) or member package (`grid`) to pack one bucket.
 
-Manifest: `starui-platform/libs/manifest.json`.
+Manifest: `libs/manifest.json` maps `@starui/<bucket>` → tarball +
+`members` array (legacy member names resolve for MCP scaffolding).
 
 ## Testing
 
 - Vitest 4 + jsdom 29 for unit tests. Baseline: 653 passing.
-- Playwright 1.59 against `starui-platform/apps/demo-react`. Baseline: 195/214 passing
+- Playwright 1.59 against `apps/demo-react`. Baseline: 195/214 passing
   (19 failures are pre-existing — see [`docs/E2E_STATUS.md`](./docs/E2E_STATUS.md)).
 
 ## UI stack rules (non-negotiable)
@@ -194,7 +195,7 @@ After every feature add / update / fix / removal:
    same commit or immediate `docs:` follow-up. Don't ask the user first;
    just do it.
 2. Run `npx turbo typecheck build test` and ensure green.
-3. If interaction changes, add/update e2e spec under `starui-platform/e2e/`.
+3. If interaction changes, add/update e2e spec under `e2e/`.
 4. Commit messages: conventional prefixes (`feat(pkg):`, `fix(pkg):`,
    `chore:`, `docs:`, `test:`, `ci:`, `refactor(pkg):`).
 
@@ -210,7 +211,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 Pin to the **stable line** for each major (React 19.2.x, Angular 21.1.x,
 @openfin/core 43.101.x), not the latest patch. The Angular demo's
-[`starui-platform/apps/demo-angular/package.json`](./starui-platform/apps/demo-angular/package.json)
+[`apps/demo-angular/package.json`](./apps/demo-angular/package.json)
 documents the per-package "stable-vs-latest" rationale inline in its
 `//dependencies-registry-notes` block — mirror that pattern when
 introducing version pins elsewhere. Don't drift: the whole reason for

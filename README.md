@@ -9,9 +9,20 @@ This monorepo consolidates four previously-fragmented repositories
 (`widgetstools/widgets`, `widgetstools/markets-ui`,
 `widgetstools/fi-trading-terminal`, and the legacy trading-shell repo)
 into a single source of truth. See
-[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the layer diagram
-and [`docs/MIGRATION_NOTES.md`](./docs/MIGRATION_NOTES.md) if you
-followed a link from one of the archived repos.
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the layer diagram.
+
+## Monorepo layout
+
+```
+starui/                      # repo root (npm workspace root)
+├── packages/                # ten architecture buckets (@starui/* libraries)
+├── apps/                    # runnable demos + reference apps
+├── docs/                    # architecture, feature inventory, guides
+├── scripts/                 # propagate, Vite/Tailwind consumer helpers
+├── tools/                   # OpenFin launcher + dev utilities
+├── e2e/                     # Playwright suite (primary target: demo-react)
+└── e2e-openfin/             # OpenFin CDP smoke tests
+```
 
 ## Stack
 
@@ -24,24 +35,7 @@ followed a link from one of the archived repos.
 - **Radix UI** + shadcn primitives, **CodeMirror 6** for expression editing
 - **Vitest** 4 + **Playwright** 1.59 for tests
 
-## Monorepo layout
-
-**`starui-platform/`** is the active codebase — all libraries, apps, and e2e
-tests live here. The repo root is a thin npm-workspace shell that delegates
-build/dev/e2e to `starui-platform` and hosts shared tooling (`tools/`, `mcp/`,
-`docs/`).
-
-```
-starui-platform/
-├── packages/
-│   ├── shared/     vanilla TS — engine, host ports, design-system, types, …
-│   ├── react/      React — @starui/grid, @starui/ui, widgets, tools, …
-│   └── angular/    Angular scaffolds (parity catching up)
-├── apps/           runnable demos + reference apps
-└── e2e/            Playwright suite (primary target: demo-react)
-```
-
-### `starui-platform/packages/shared/` (vanilla)
+### `packages/shared/` (vanilla)
 
 | Package | What it does |
 |---|---|
@@ -55,7 +49,7 @@ starui-platform/
 | `@starui/host-browser` / `@starui/host-openfin` | Browser / OpenFin host adapters |
 | `@starui/openfin-platform` | OpenFin workspace bootstrap |
 
-### `starui-platform/packages/react/`
+### `packages/react/`
 
 | Package | What it does |
 |---|---|
@@ -69,7 +63,7 @@ starui-platform/
 | `@starui/config-browser` | Config-row browser/editor |
 | `@starui/workspace-setup-react` | Workspace setup UI |
 
-### `starui-platform/apps/`
+### `apps/`
 
 | App | Port | Command |
 |---|---|---|
@@ -84,11 +78,10 @@ starui-platform/
 
 Run `npm run verify:apps` from the repo root to smoke-test all dev servers.
 
-### Root tooling
+### Platform tooling (inside ``)
 
 - `tools/scripts/launch-openfin.mjs` — launch a demo inside OpenFin
-- `mcp/` — StarUI MCP server (scaffolding, lib upgrades)
-- `docs/` — architecture, feature inventory, migration notes
+- `docs/` — architecture, feature inventory, guides
 
 ## Grid modules (shipped under `@starui/grid`)
 
@@ -122,14 +115,14 @@ npm run dev:openfin
 ## Scripts (root)
 
 ```bash
-npm run build        # turbo build — starui-platform
-npm run typecheck    # turbo typecheck — starui-platform
+npm run build        # turbo build — all workspaces
+npm run typecheck    # turbo typecheck — all workspaces
 npm test             # turbo test — Vitest
-npm run e2e          # Playwright (starui-platform/e2e)
+npm run e2e          # Playwright (e2e)
 npm run clean        # nuke node_modules + dist + .turbo caches
 ```
 
-Package-scoped commands use the `-w` flag against `starui-platform` workspaces:
+Package-scoped commands use the `-w` flag:
 
 ```bash
 npm run build -w @starui/engine
@@ -138,7 +131,7 @@ npm test  -w @starui/grid
 
 ## Hosting components in the reference apps
 
-Both `starui-platform/apps/markets-ui-react-reference` and future Angular
+Both `apps/markets-ui-react-reference` and future Angular
 reference apps expose components via plain client-side routes. The reference
 apps ship a generic `HostedComponent` wrapper that handles the hosting
 concerns once — identity resolution, ConfigService wiring, debug overlay,
@@ -286,14 +279,14 @@ shows up identically in plain browser dev (same Dexie DB, same row).
 - [**IMPLEMENTED_FEATURES.md**](./docs/IMPLEMENTED_FEATURES.md) — changelog kept in lockstep with code
 - [**UX_NUANCES.md**](./docs/UX_NUANCES.md) — behavioral nuance spec (must preserve on rewrites)
 - [**PUBLIC_API_SPEC.md**](./docs/PUBLIC_API_SPEC.md) — public API contract
-- [**starui-platform/docs/PARITY.md**](./starui-platform/docs/PARITY.md) — package parity gate
+- [**PARITY.md**](./docs/PARITY.md) — package parity gate
 - [**plans/nested-fields-design.md**](./docs/plans/nested-fields-design.md) — nested field path design
 
 ## Testing
 
 - **Unit:** Vitest 4 across all packages. `npm test`.
   Current baseline: **298 tests** passing (242 `core` + 56 `markets-grid`).
-- **E2E:** Playwright against `starui-platform/apps/demo-react`. `npm run e2e`.
+- **E2E:** Playwright against `apps/demo-react`. `npm run e2e`.
   Current baseline: **195 / 214** passing (see
   [E2E_STATUS.md](./docs/E2E_STATUS.md) for the 19 pre-existing failures
   tracked for follow-up).

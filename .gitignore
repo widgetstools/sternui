@@ -4,6 +4,7 @@ dist/
 !dist/packages/**
 .vite/
 .turbo/
+.propagate-staging/
 test-results/
 playwright-report/
 *.tsbuildinfo

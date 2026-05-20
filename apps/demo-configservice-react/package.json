@@ -1,0 +1,38 @@
+{
+  "name": "@starui/demo-configservice-react",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Integration demo: MarketsGrid + @starui/host-config storage factory — profile persistence scoped by (appId, userId, instanceId) through the ConfigService, with a user switcher that shows per-user profile isolation.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@starui/data": "file:../../libs/starui-data-0.1.0-ab21cc4d.tgz",
+    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-1b7b7218.tgz",
+    "@starui/openfin": "file:../../libs/starui-openfin-0.1.0-1c33ad32.tgz",
+    "@starui/react-core": "file:../../libs/starui-react-core-1.0.0-7c866d40.tgz",
+    "@starui/react-grid": "file:../../libs/starui-react-grid-0.1.0-814704d0.tgz",
+    "@starui/react-ui": "file:../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
+    "@starui/shared": "file:../../libs/starui-shared-1.0.0-1b49d91a.tgz",
+    "ag-grid-community": "35.1.0",
+    "ag-grid-enterprise": "35.1.0",
+    "ag-grid-react": "35.1.0",
+    "lucide-react": "^0.554.0",
+    "react": "~19.2.5",
+    "react-dom": "~19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "~4.5.2",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
+    "tailwindcss": "3.4.1",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "~5.9.3",
+    "vite": "~7.3.2"
+  }
+}
