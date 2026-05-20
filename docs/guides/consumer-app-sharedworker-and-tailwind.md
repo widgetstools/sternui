@@ -21,42 +21,56 @@ repo flatten and bucket-tarball migration, and the patterns that prevent recurre
 
 ### Root causes (there were three)
 
-#### 1. Worker URL must be constructed at the **app call site**
+#### 1. Prefer the bundled worker asset (no app-local worker file)
 
-Vite's worker plugin only recognises the literal pattern:
+`@starui/host-data` ships a self-contained worker at
+`dist/assets/data-services-worker.mjs` (esbuild bundle of `defaultEntry.ts`).
+Import its URL at the **app call site** with Vite's `?url` suffix, then
+bootstrap:
 
 ```ts
-new SharedWorker(new URL('./sharedWorker/entry.ts', import.meta.url), {
-  type: 'module',
-  name: 'mkt-data-services:<app-id>',
+import { bootstrapDataServicesWithWorkerAsset } from '@starui/host-data';
+import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+
+export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl, {
+  appName: 'my-app',
+  userId: LOGGED_IN_USER_ID,
+  configServiceRestUrl, // optional — stamped as ?configServiceRestUrl=…
 });
 ```
 
-**Do not** use `createDataServicesClient()` from `@starui/host-data` in Vite apps. That
-factory lives inside the library; once Vite prebundles `@starui/host-data` into
-`node_modules/.vite/deps/`, `import.meta.url` resolves to the deps chunk and the worker
-URL 404s.
+Add to `src/vite-env.d.ts`:
 
-**Do** follow the mockdata demo pattern:
+```ts
+declare module '@starui/host-data/assets/data-services-worker.mjs?url' {
+  const url: string;
+  export default url;
+}
+```
 
-- `src/dataServices.ts` (or `dataServices.mainThread.ts`) — construct `SharedWorker` + call
-  `bootstrapDataServices({ worker, configManager, ... })`
-- `src/sharedWorker/entry.ts` — app-local worker entry that calls `installSharedWorkerHub`
+Apps using `staruiConsumerViteConfig()` get a Vite plugin that resolves the
+`?url` import to the bundled worker file. Root `@starui/*` aliases use exact
+match so subpaths like `/assets/...` are not swallowed by the package entry.
 
 See:
 
 - `apps/markets-ui-react-reference/src/dataServices.mainThread.ts`
-- `apps/markets-ui-react-reference/src/sharedWorker/entry.ts`
 - `apps/demo-apps/mockdata-provider-starui-app/src/dataServices.ts`
+
+**Do not** use `createDataServicesClient()` in Vite apps — its
+`new URL(..., import.meta.url)` lives inside the library and breaks once
+Vite prebundles `@starui/host-data` into `.vite/deps/`.
+
+**Legacy escape hatch:** app-local `sharedWorker/entry.ts` that calls
+`installSharedWorkerHub` + `bootstrapDataServices({ worker, ... })` when
+you need bespoke worker wiring beyond the default hub.
 
 Pass REST config to the worker via query param on the script URL (main thread reads
 OpenFin manifest once; worker reads `self.location.search`):
 
 ```ts
-const workerUrl = new URL('./sharedWorker/entry.ts', import.meta.url);
-if (configServiceRestUrl) {
-  workerUrl.searchParams.set('configServiceRestUrl', configServiceRestUrl);
-}
+// handled by bootstrapDataServicesWithWorkerAsset / createDataServicesWorker
+configServiceRestUrl: await getConfigServiceRestUrlFromManifest()
 ```
 
 #### 2. Worker boot race — register `onconnect` before any `await`

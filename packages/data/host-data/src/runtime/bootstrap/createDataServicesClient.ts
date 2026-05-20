@@ -25,17 +25,17 @@
  *   4. Calls `bootstrapDataServices(...)` and returns the bundle.
  *
  * Worker URL constraint (Vite + tarball consumers):
- *   Vite's worker plugin scans for the literal
- *     `new SharedWorker(new URL('./...', import.meta.url), {...})`
- *   at the **app call site**. When this factory runs inside
- *   `@starui/host-data`, Vite prebundling (`.vite/deps/`) rewrites
- *   `import.meta.url` so the worker script 404s ("Failed to fetch a
- *   worker script"). Tarball-installed apps MUST keep an app-local
- *   `sharedWorker/entry.ts` and call `bootstrapDataServices({ worker })`
- *   directly — see `apps/demo-apps/mockdata-provider-starui-app`.
+ *   Prefer the bundled worker asset + `bootstrapDataServicesWithWorkerAsset`:
  *
- *   This factory remains useful for non-Vite bundlers or tests that
- *   resolve the package source without prebundling.
+ *     import workerAssetUrl from '@starui/host-data/assets/data-services-worker.mjs?url';
+ *     export const dataServices = bootstrapDataServicesWithWorkerAsset(workerAssetUrl, { ... });
+ *
+ *   The `?url` import must stay in app code; the library ships a
+ *   pre-built `dist/assets/data-services-worker.mjs` (esbuild bundle).
+ *
+ *   Legacy alternatives: app-local `sharedWorker/entry.ts`, or this
+ *   factory for non-Vite bundlers/tests that resolve source without
+ *   prebundling.
  *
  * Escape hatch:
  *   Apps that need bespoke worker setup (extra services, custom

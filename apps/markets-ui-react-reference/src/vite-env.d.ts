@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module '@starui/host-data/assets/data-services-worker.mjs?url' {
+  const url: string;
+  export default url;
+}
+
 // ─── Custom environment variables ───────────────────────────────────
 //
 // Add a typed entry here when introducing a new VITE_* variable.

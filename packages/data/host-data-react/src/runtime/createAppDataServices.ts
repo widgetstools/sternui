@@ -1,5 +1,5 @@
 import {
-  createDataServicesClient,
+  bootstrapDataServicesWithWorkerAsset,
   type DataServices,
 } from '@starui/host-data/runtime';
 import { LOGGED_IN_USER_ID } from '@starui/types';
@@ -7,6 +7,11 @@ import { LOGGED_IN_USER_ID } from '@starui/types';
 export interface CreateAppDataServicesOpts {
   appName: string;
   userId?: string;
+  /**
+   * Resolved URL of `@starui/host-data/assets/data-services-worker.mjs`
+   * from a Vite `?url` import at the app call site.
+   */
+  workerScriptUrl: string;
   /** Static REST URL — forwarded to the SharedWorker via scriptURL query param. */
   configServiceRestUrl?: string;
   /** Async resolver (e.g. OpenFin manifest read on the main thread). */
@@ -15,7 +20,8 @@ export interface CreateAppDataServicesOpts {
 
 /**
  * One-call app bootstrap for the data-services SharedWorker bundle.
- * Wraps `createDataServicesClient` so apps never ship a local worker entry.
+ * Uses the library's esbuild-bundled worker asset — no app-local
+ * `sharedWorker/entry.ts` required.
  */
 export async function createAppDataServices(
   opts: CreateAppDataServicesOpts,
@@ -26,7 +32,7 @@ export async function createAppDataServices(
       ? await opts.resolveConfigServiceRestUrl()
       : undefined);
 
-  return createDataServicesClient({
+  return bootstrapDataServicesWithWorkerAsset(opts.workerScriptUrl, {
     appName: opts.appName,
     userId: opts.userId ?? LOGGED_IN_USER_ID,
     configServiceRestUrl,

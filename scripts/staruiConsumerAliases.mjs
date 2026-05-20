@@ -157,15 +157,55 @@ export function staruiViteAliases(appDir) {
         const suffix = exportKey === '.' ? '' : exportKey.slice(1);
         const absTarget = join(memberRoot, relTarget.replace(/^\.\//, ''));
 
-        add(`${member}${suffix}`, absTarget);
-        if (member !== bucketName) {
-          add(`${bucketName}/${short}${suffix}`, absTarget);
+        if (exportKey === '.') {
+          const memberExact = member.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          add(new RegExp(`^${memberExact}$`), absTarget);
+          if (member !== bucketName) {
+            const bucketExact = `${bucketName}/${short}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            add(new RegExp(`^${bucketExact}$`), absTarget);
+          }
+        } else {
+          add(`${member}${suffix}`, absTarget);
+          if (member !== bucketName) {
+            add(`${bucketName}/${short}${suffix}`, absTarget);
+          }
         }
       }
     }
   }
 
   return aliases.sort((a, b) => String(b.find).length - String(a.find).length);
+}
+
+const HOST_DATA_WORKER_ASSET_RE =
+  /^@starui\/(?:data\/)?host-data\/assets\/data-services-worker\.mjs\?url$/;
+
+/** Resolve `@starui/host-data/assets/data-services-worker.mjs?url` for Vite. */
+export function resolveHostDataWorkerAssetUrl(source, appDir) {
+  if (!HOST_DATA_WORKER_ASSET_RE.test(source)) return null;
+
+  const monoRoot = monoRootFromApp(appDir);
+  const candidates = [
+    join(monoRoot, 'node_modules/@starui/host-data/dist/assets/data-services-worker.mjs'),
+    join(REPO_ROOT, 'packages/data/host-data/dist/assets/data-services-worker.mjs'),
+    join(monoRoot, 'node_modules/@starui/data/host-data/dist/assets/data-services-worker.mjs'),
+  ];
+  const workerPath = candidates.find((p) => existsSync(p));
+  return workerPath ? `${workerPath}?url` : null;
+}
+
+/**
+ * Vite plugin — keeps `?url` asset handling for the bundled SharedWorker.
+ * @param {string} appDir absolute path to the app root
+ */
+export function staruiHostDataWorkerAssetPlugin(appDir) {
+  return {
+    name: 'starui-host-data-worker-asset-url',
+    enforce: 'pre',
+    resolveId(source) {
+      return resolveHostDataWorkerAssetUrl(source, appDir);
+    },
+  };
 }
 
 /** Tailwind `content` globs — absolute paths; prefer tailwindContentGlobs.mjs in tailwind.config.js. */

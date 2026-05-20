@@ -70,6 +70,11 @@ export {
   type DataServices,
   createDataServicesClient,
   type CreateDataServicesClientOpts,
+  createDataServicesWorker,
+  DATA_SERVICES_WORKER_ASSET,
+  type CreateDataServicesWorkerOpts,
+  bootstrapDataServicesWithWorkerAsset,
+  type BootstrapDataServicesWithWorkerAssetOpts,
 } from './bootstrap/index.js';
 
 // Client — SharedWorker MessagePort wrapper. Most consumers reach the
