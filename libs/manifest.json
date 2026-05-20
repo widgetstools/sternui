@@ -71,11 +71,11 @@
       "@starui/widgets-react",
       "@starui/workspace-setup-react"
     ],
-    "filename": "starui-react-core-1.0.0-244be681.tgz",
+    "filename": "starui-react-core-1.0.0-abcb0d2d.tgz",
     "distFilename": "starui-react-core-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "244be681",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "sha": "abcb0d2d",
+    "packedAt": "2026-05-20T17:36:53.751Z"
   },
   "@starui/react-grid": {
     "bucket": "react-grid",

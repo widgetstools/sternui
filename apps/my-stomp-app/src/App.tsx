@@ -104,7 +104,10 @@ export function App() {
         <p className="font-mono text-[10px] text-[color:var(--ds-text-faint)]">
           Start stomp-view-server: <code className="text-[color:var(--ds-text-secondary)]">npm run dev:stomp</code>
           {' · '}
-          Select <strong className="text-[color:var(--ds-text-secondary)]">STOMP Positions (local)</strong> in the grid Provider toolbar
+          Press <strong className="text-[color:var(--ds-text-secondary)]">Alt+Shift+P</strong> (Win/Linux) or{' '}
+          <strong className="text-[color:var(--ds-text-secondary)]">Option+Shift+P</strong> /{' '}
+          <strong className="text-[color:var(--ds-text-secondary)]">Cmd+Shift+P</strong> (Mac) to show the Provider toolbar, then select{' '}
+          <strong className="text-[color:var(--ds-text-secondary)]">STOMP Positions (local)</strong>
         </p>
       </footer>
     </div>

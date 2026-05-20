@@ -8,6 +8,9 @@
  * Chord syntax: `'Shift+Ctrl+P'` → matches event with shiftKey,
  * ctrlKey, no metaKey, no altKey, and key === 'P' (case-insensitive).
  *
+ * Pass a single chord or an array — useful for cross-platform toggles
+ * (e.g. Alt+Shift+P on Windows/Linux and Option/Meta variants on macOS).
+ *
  * Single chord only — sequences are out of scope (the data-plane
  * redesign explicitly chose a single chord for the toolbar reveal).
  */
@@ -33,8 +36,16 @@ function parseChord(chord: string): ParsedChord {
   };
 }
 
+function matchesChord(ev: KeyboardEvent, parsed: ParsedChord): boolean {
+  if (ev.shiftKey !== parsed.shift) return false;
+  if (ev.ctrlKey !== parsed.ctrl) return false;
+  if (ev.altKey !== parsed.alt) return false;
+  if (ev.metaKey !== parsed.meta) return false;
+  return ev.key.toLowerCase() === parsed.key;
+}
+
 export function useChordHotkey(
-  chord: string,
+  chord: string | readonly string[],
   handler: (e: KeyboardEvent) => void,
   opts: { target?: HTMLElement | Document | null; enabled?: boolean } = {},
 ): void {
@@ -48,16 +59,15 @@ export function useChordHotkey(
     if (opts.enabled === false) return;
     const target = opts.target ?? (typeof document !== 'undefined' ? document : null);
     if (!target) return;
-    const parsed = parseChord(chord);
+    const parsedList = (Array.isArray(chord) ? chord : [chord]).map(parseChord);
 
     const listener = (e: Event) => {
       const ev = e as KeyboardEvent;
-      if (ev.shiftKey !== parsed.shift) return;
-      if (ev.ctrlKey !== parsed.ctrl) return;
-      if (ev.altKey !== parsed.alt) return;
-      if (ev.metaKey !== parsed.meta) return;
-      if (ev.key.toLowerCase() !== parsed.key) return;
-      handlerRef.current(ev);
+      for (const parsed of parsedList) {
+        if (!matchesChord(ev, parsed)) continue;
+        handlerRef.current(ev);
+        return;
+      }
     };
     target.addEventListener('keydown', listener);
     return () => target.removeEventListener('keydown', listener);

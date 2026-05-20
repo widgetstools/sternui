@@ -341,7 +341,7 @@ export function PositionsBlotter() {
 
 User flow:
 
-1. Open the grid's **Provider** toolbar control.
+1. Press **Alt+Shift+P** (Windows/Linux) or **Option+Shift+P** / **Cmd+Shift+P** (macOS) to reveal the grid's **Provider** toolbar.
 2. Select your saved STOMP provider from the live-provider list.
 3. The grid subscribes, shows loading until snapshot completes, then streams live deltas.
 

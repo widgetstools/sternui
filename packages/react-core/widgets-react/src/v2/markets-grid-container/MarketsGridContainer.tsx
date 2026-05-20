@@ -5,7 +5,7 @@
  *   - Picker toolbar is mounted INSIDE MarketsGrid via the
  *     `headerExtras` slot — it lives inside the grid's own chrome,
  *     not as a separate strip above it.
- *   - Toolbar is visible by default. Alt+Shift+P toggles it off/on.
+ *   - Toolbar is hidden by default. Alt+Shift+P / Meta+Shift+P toggles it.
  *   - Provider selection persists at the GRID level (not per-profile)
  *     in the SAME storage row MarketsGrid uses for its profile-set,
  *     via the StorageAdapter's `loadGridLevelData / saveGridLevelData`
@@ -38,9 +38,13 @@ import {
   useDataServices,
 } from '@starui/host-data-react/runtime';
 import { composeRowId, getValueByPath } from '@starui/shared-types';
+import { LOGGED_IN_USER_ID } from '@starui/types';
 import { ProviderToolbar, type ProviderMode } from './ProviderToolbar.js';
+import { ProviderEditorDialog } from './ProviderEditorDialog.js';
 import { useChordHotkey } from './useChordHotkey.js';
+import { PROVIDER_TOOLBAR_TOGGLE_CHORDS } from './providerToolbarHotkeys.js';
 import { MarketsGridLoadingOverlay } from './LoadingOverlay.js';
+import { isOpenFinRuntime } from './openFinRuntime.js';
 
 const EMPTY: never[] = [];
 
@@ -63,9 +67,9 @@ export interface MarketsGridContainerProps<TData extends Record<string, unknown>
    */
   historicalDateAppDataRef?: string;
   /**
-   * Called when the user clicks the toolbar's Edit button. The
-   * consumer is expected to open the editor (typically as a popout
-   * window via `data-plane-popout.ts`'s helper).
+   * OpenFin only: called when the user clicks the toolbar Edit button.
+   * In a browser runtime the container opens {@link DataProviderEditor}
+   * in a shadcn dialog instead.
    */
   onEditProvider?(providerId: string): void;
   /** Surface stream errors. Defaults to console.error. */
@@ -156,9 +160,11 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   const [selection, setSelection] = useState<ProviderSelection>(DEFAULT_SELECTION);
   const [persistedCaption, setPersistedCaption] = useState<string | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
-  // Provider toolbar starts visible — Alt+Shift+P toggles it off/on.
-  const [pickerVisible, setPickerVisible] = useState(true);
+  // Provider toolbar hidden until the user toggles it via chord hotkeys.
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [asOfDate, setAsOfDate] = useState<string | null>(null);
+  const [providerEditorOpen, setProviderEditorOpen] = useState(false);
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
 
   // Initial load. If the adapter doesn't implement grid-level data
   // (older third-party adapters), or there's no adapter at all, we
@@ -239,18 +245,10 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // ── Hotkey ────────────────────────────────────────────────────────
   //
-  // Alt+Shift+P toggles the provider toolbar. The toolbar is visible
-  // by default; the chord lets users hide it (and re-show it) without
-  // a config flag.
-  //
-  // Chord choice: Alt+Shift+P. The original plan called for
-  // Ctrl+Shift+P but every major browser binds that to "open
-  // incognito / private window" — Chromium intercepts it before the
-  // page-level keydown listener runs. Alt+Shift+P is unbound in
-  // Chrome / Firefox / Edge / Safari / OpenFin and is mnemonic for
-  // "Provider".
+  // Alt+Shift+P (Option on Mac) and Meta+Shift+P (Command on Mac) toggle
+  // the provider toolbar. Hidden by default — developer/support affordance.
   const toggleToolbar = useCallback(() => setPickerVisible((v) => !v), []);
-  useChordHotkey('Alt+Shift+P', (e) => {
+  useChordHotkey(PROVIDER_TOOLBAR_TOGGLE_CHORDS, (e) => {
     e.preventDefault();
     toggleToolbar();
   });
@@ -338,8 +336,8 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
   //
   // The grid mounts twice across a normal session:
   //   1. The "no provider" placeholder grid (empty cols, sentinel
-  //      rowIdField). The toolbar is visible by default so the user
-  //      can pick a provider from the empty state.
+  //      rowIdField). Press Alt+Shift+P / Meta+Shift+P to reveal the
+  //      toolbar and pick a provider from the empty state.
   //   2. The real data-attached grid, mounted with a key that includes
   //      the provider id and key column.
   //
@@ -798,8 +796,29 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
 
   // ── Toolbar slot content ──────────────────────────────────────────
   //
-  // Passed via `headerExtras`; null when the user has toggled the
-  // toolbar off via Alt+Shift+P.
+  // Passed via `headerExtras`; null until the user toggles the toolbar
+  // via Alt+Shift+P / Meta+Shift+P.
+  const handleProviderEdit = useCallback((providerId: string) => {
+    if (isOpenFinRuntime()) {
+      onEditProvider?.(providerId);
+      return;
+    }
+    setEditingProviderId(providerId);
+    setProviderEditorOpen(true);
+  }, [onEditProvider]);
+
+  const providerEditorDialog = (
+    <ProviderEditorDialog
+      open={providerEditorOpen}
+      providerId={editingProviderId}
+      userId={props.userId ?? LOGGED_IN_USER_ID}
+      onOpenChange={(open) => {
+        setProviderEditorOpen(open);
+        if (!open) setEditingProviderId(null);
+      }}
+    />
+  );
+
   const headerExtras = pickerVisible ? (
     <ProviderToolbar
       liveProviders={liveList.configs}
@@ -813,16 +832,19 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       onModeChange={setMode}
       onAsOfDateChange={setAsOfDateAndPersist}
       onRefresh={refresh}
-      onEdit={(id) => onEditProvider?.(id)}
+      onEdit={handleProviderEdit}
     />
   ) : null;
 
   // ── Render ────────────────────────────────────────────────────────
   if (!loaded) {
     return (
-      <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-        Loading…
-      </div>
+      <>
+        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+          Loading…
+        </div>
+        {providerEditorDialog}
+      </>
     );
   }
 
@@ -848,54 +870,59 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
       ...userAdminActions,
     ];
     return (
-      <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
-        <MarketsGrid<TData>
-          {...(marketsGridProps as MarketsGridProps<TData>)}
-          key={`${activeId}::${rowIdFieldKey}`}
-          rowData={EMPTY as TData[]}
-          rowIdField={rowIdField}
-          columnDefs={columnDefs}
-          appData={appDataLookup}
-          onReady={onReady}
-          headerExtras={headerExtras}
-          adminActions={adminActionsWithRefresh}
-          caption={effectiveCaption}
-          onCaptionChange={handleCaptionChange}
-          onSavingChange={setIsSavingProfile}
-        />
-        {showLoadingOverlay && (
-          <MarketsGridLoadingOverlay
-            title={
-              isSavingProfile
-                ? 'Saving…'
-                : activeProviderName
-                  ? `Loading ${activeProviderName}`
-                  : 'Loading market data'
-            }
-            message={isSavingProfile ? 'Persisting profile' : undefined}
-            rowCount={isSavingProfile ? undefined : loadRowCount}
+      <>
+        <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
+          <MarketsGrid<TData>
+            {...(marketsGridProps as MarketsGridProps<TData>)}
+            key={`${activeId}::${rowIdFieldKey}`}
+            rowData={EMPTY as TData[]}
+            rowIdField={rowIdField}
+            columnDefs={columnDefs}
+            appData={appDataLookup}
+            onReady={onReady}
+            headerExtras={headerExtras}
+            adminActions={adminActionsWithRefresh}
+            caption={effectiveCaption}
+            onCaptionChange={handleCaptionChange}
+            onSavingChange={setIsSavingProfile}
           />
-        )}
-      </div>
+          {showLoadingOverlay && (
+            <MarketsGridLoadingOverlay
+              title={
+                isSavingProfile
+                  ? 'Saving…'
+                  : activeProviderName
+                    ? `Loading ${activeProviderName}`
+                    : 'Loading market data'
+              }
+              message={isSavingProfile ? 'Persisting profile' : undefined}
+              rowCount={isSavingProfile ? undefined : loadRowCount}
+            />
+          )}
+        </div>
+        {providerEditorDialog}
+      </>
     );
   }
 
   // No provider selected (or cfg still resolving): mount MarketsGrid
-  // with a sentinel rowIdField so the toolbar slot is reachable. The
-  // toolbar is visible by default so the user can pick a provider;
-  // Alt+Shift+P toggles it.
+  // with a sentinel rowIdField. Reveal the toolbar (Alt+Shift+P /
+  // Meta+Shift+P) to pick a provider; chord toggles visibility.
   return (
-    <MarketsGrid<TData>
-      {...(marketsGridProps as MarketsGridProps<TData>)}
-      key="__no_provider__"
-      rowData={EMPTY as TData[]}
-      rowIdField="__none__"
-      columnDefs={EMPTY as unknown as ColDef<TData>[]}
-      appData={appDataLookup}
-      headerExtras={headerExtras}
-      caption={effectiveCaption}
-      onCaptionChange={handleCaptionChange}
-    />
+    <>
+      <MarketsGrid<TData>
+        {...(marketsGridProps as MarketsGridProps<TData>)}
+        key="__no_provider__"
+        rowData={EMPTY as TData[]}
+        rowIdField="__none__"
+        columnDefs={EMPTY as unknown as ColDef<TData>[]}
+        appData={appDataLookup}
+        headerExtras={headerExtras}
+        caption={effectiveCaption}
+        onCaptionChange={handleCaptionChange}
+      />
+      {providerEditorDialog}
+    </>
   );
 }
 

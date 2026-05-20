@@ -15,4 +15,5 @@ export {
 } from './MarketsGridContainer.js';
 export { ProviderToolbar, type ProviderMode, type ProviderToolbarProps } from './ProviderToolbar.js';
 export { DatePicker, type DatePickerProps } from './DatePicker.js';
+export { PROVIDER_TOOLBAR_TOGGLE_CHORDS, PROVIDER_TOOLBAR_TOGGLE_HINT } from './providerToolbarHotkeys.js';
 export { useChordHotkey } from './useChordHotkey.js';

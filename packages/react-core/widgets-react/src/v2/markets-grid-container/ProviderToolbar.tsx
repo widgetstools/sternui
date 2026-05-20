@@ -1,5 +1,5 @@
 /**
- * ProviderToolbar — top strip the user reveals via Shift+Ctrl+P.
+ * ProviderToolbar — top strip revealed via Alt+Shift+P / Meta+Shift+P.
  *
  * Layout:
  *   [Live: <picker> ▾]  [Hist: <picker> ▾]  ( ○ Live  ● Hist )
