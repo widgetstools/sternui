@@ -31,7 +31,7 @@ import { ModuleFormat } from './modules/ModuleFormat';
 import { ModuleLibrary } from './modules/ModuleLibrary';
 import { ModulePaint } from './modules/ModulePaint';
 import { ModuleType } from './modules/ModuleType';
-import { ModuleDivider, TitleBar } from './primitives';
+import { ModuleDivider, PanelGroup, TitleBar, ToolbarGroup } from './primitives';
 import './formatter.css';
 import type { FormatterActions, FormatterState } from './state';
 
@@ -135,19 +135,40 @@ export function FormatterToolbar({
         if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
       }}
     >
-      <ModuleContext state={state} actions={actions} />
-      <ModuleDivider />
-      <ModuleType state={state} actions={actions} />
-      <ModuleDivider />
-      <ModulePaint state={state} actions={actions} />
-      <ModuleDivider />
-      <ModuleFormat state={state} actions={actions} />
-      <ModuleDivider />
-      <ModuleEditorFilter state={state} actions={actions} />
-      <ModuleDivider />
-      <ModuleLibrary state={state} actions={actions} orientation="horizontal" colLabel={state.colLabel} />
-      <ModuleDivider />
-      <ModuleClear state={state} actions={actions} orientation="horizontal" />
+      <div className="fx-toolbar-rows">
+        <div className="fx-toolbar-row" data-fx-row="style">
+          <ToolbarGroup label="Scope" testId="fmt-group-scope">
+            <ModuleContext state={state} actions={actions} />
+          </ToolbarGroup>
+          <ToolbarGroup label="Type" testId="fmt-group-type">
+            <ModuleType state={state} actions={actions} />
+          </ToolbarGroup>
+          <ToolbarGroup label="Paint" testId="fmt-group-paint">
+            <ModulePaint state={state} actions={actions} />
+          </ToolbarGroup>
+          <ToolbarGroup label="Format" testId="fmt-group-format">
+            <ModuleFormat state={state} actions={actions} />
+          </ToolbarGroup>
+        </div>
+
+        <div className="fx-toolbar-row" data-fx-row="behavior">
+          <ToolbarGroup label="Edit" testId="fmt-group-edit">
+            <ModuleEditorFilter state={state} actions={actions} />
+          </ToolbarGroup>
+          <ToolbarGroup label="Templates" testId="fmt-group-templates">
+            <ModuleLibrary
+              state={state}
+              actions={actions}
+              orientation="horizontal"
+              colLabel={state.colLabel}
+            />
+          </ToolbarGroup>
+          <span className="fx-toolbar-row__spacer" aria-hidden />
+          <ToolbarGroup label="Clear" variant="destruct" testId="fmt-group-clear">
+            <ModuleClear state={state} actions={actions} orientation="horizontal" />
+          </ToolbarGroup>
+        </div>
+      </div>
 
       {popoutSlot}
     </div>
@@ -178,20 +199,41 @@ export function FormatterPanel({
         <TitleBar text={titleText} onClose={onClose} testId="fmt-panel-titlebar" />
       )}
 
-      <header data-testid="fmt-panel-header" className="fx-ctx" style={{ position: 'relative' }}>
-        <ModuleContext state={state} actions={actions} />
+      <header data-testid="fmt-panel-header" className="fx-panel-header">
+        <PanelGroup label="Scope" testId="fmt-panel-group-scope">
+          <ModuleContext state={state} actions={actions} />
+        </PanelGroup>
       </header>
 
       <div className="fx-body" data-testid="fmt-panel-body">
-        <ModuleType state={state} actions={actions} />
-        <ModulePaint state={state} actions={actions} />
-        <ModuleFormat state={state} actions={actions} />
-        <ModuleEditorFilter state={state} actions={actions} />
-        <ModuleLibrary state={state} actions={actions} orientation="vertical" colLabel={state.colLabel} />
+        <div className="fx-panel-sections">
+          <PanelGroup label="Type" sectionIndex="02" testId="fmt-panel-group-type">
+            <ModuleType state={state} actions={actions} />
+          </PanelGroup>
+          <PanelGroup label="Paint" sectionIndex="03" testId="fmt-panel-group-paint">
+            <ModulePaint state={state} actions={actions} />
+          </PanelGroup>
+          <PanelGroup label="Format" sectionIndex="04" testId="fmt-panel-group-format">
+            <ModuleFormat state={state} actions={actions} />
+          </PanelGroup>
+          <PanelGroup label="Edit" sectionIndex="05" testId="fmt-panel-group-edit">
+            <ModuleEditorFilter state={state} actions={actions} />
+          </PanelGroup>
+          <PanelGroup label="Templates" sectionIndex="06" testId="fmt-panel-group-templates">
+            <ModuleLibrary
+              state={state}
+              actions={actions}
+              orientation="vertical"
+              colLabel={state.colLabel}
+            />
+          </PanelGroup>
+        </div>
       </div>
 
       <footer className="fx-footer">
-        <ModuleClear state={state} actions={actions} orientation="vertical" />
+        <PanelGroup label="Clear" variant="destruct" testId="fmt-panel-group-clear">
+          <ModuleClear state={state} actions={actions} orientation="vertical" />
+        </PanelGroup>
       </footer>
     </div>
   );

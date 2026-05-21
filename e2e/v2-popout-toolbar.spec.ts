@@ -145,13 +145,10 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     const before = await page.evaluate(() => document.querySelectorAll('[data-radix-popper-content-wrapper]').length);
     expect(before).toBe(0);
 
-    // Trigger the Text color picker inside the panel. The compact
-    // ColorPickerPopover renders an unlabeled button with
-    // `.ds-tbtn` — pick the first one under the panel's COLOR
-    // section (section index 02).
+    // Trigger the Text color picker inside the panel's Paint section.
     const clicked = await page.evaluate(() => {
       const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
-      const btn = iframe?.contentDocument?.querySelector('[data-section-index="02"] button') as HTMLElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-section-index="03"] button[aria-label="Text color"]') as HTMLElement | null;
       if (!btn) return false;
       btn.click();
       return true;
@@ -196,7 +193,7 @@ test.describe('v2 — formatting toolbar pop-out window', () => {
     // panel design). Fixed-size panel should NOT trigger a resize.
     await page.evaluate(() => {
       const iframe = document.querySelector('iframe[data-popout-iframe^="ds-popout-toolbar-"]') as HTMLIFrameElement | null;
-      const btn = iframe?.contentDocument?.querySelector('[data-section-index="02"] button') as HTMLElement | null;
+      const btn = iframe?.contentDocument?.querySelector('[data-section-index="03"] button[aria-label="Text color"]') as HTMLElement | null;
       btn?.click();
     });
     await page.waitForTimeout(300);

@@ -10,7 +10,7 @@
     "distFilename": "starui-angular-core-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "8b37d994",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/angular-grid": {
     "bucket": "angular-grid",
@@ -21,7 +21,7 @@
     "distFilename": "starui-angular-grid-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "50e8232f",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/data": {
     "bucket": "data",
@@ -35,7 +35,7 @@
     "distFilename": "starui-data-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "68634979",
-    "packedAt": "2026-05-20T23:17:13.101Z"
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/design-system": {
     "bucket": "design-system",
@@ -43,11 +43,11 @@
       "@starui/design-system",
       "@starui/icons-svg"
     ],
-    "filename": "starui-design-system-1.0.0-f7f9a521.tgz",
+    "filename": "starui-design-system-1.0.0-9bd365c9.tgz",
     "distFilename": "starui-design-system-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "f7f9a521",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "sha": "9bd365c9",
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/openfin": {
     "bucket": "openfin",
@@ -59,7 +59,7 @@
     "distFilename": "starui-openfin-0.1.0.tgz",
     "version": "0.1.0",
     "sha": "1c33ad32",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/react-core": {
     "bucket": "react-core",
@@ -71,22 +71,22 @@
       "@starui/widgets-react",
       "@starui/workspace-setup-react"
     ],
-    "filename": "starui-react-core-1.0.0-2fdbab87.tgz",
+    "filename": "starui-react-core-1.0.0-531597ed.tgz",
     "distFilename": "starui-react-core-1.0.0.tgz",
     "version": "1.0.0",
-    "sha": "2fdbab87",
-    "packedAt": "2026-05-20T23:17:13.101Z"
+    "sha": "531597ed",
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/react-grid": {
     "bucket": "react-grid",
     "members": [
       "@starui/grid"
     ],
-    "filename": "starui-react-grid-0.1.0-88bf9c99.tgz",
+    "filename": "starui-react-grid-0.1.0-8b183f6a.tgz",
     "distFilename": "starui-react-grid-0.1.0.tgz",
     "version": "0.1.0",
-    "sha": "88bf9c99",
-    "packedAt": "2026-05-20T23:17:13.101Z"
+    "sha": "8b183f6a",
+    "packedAt": "2026-05-20T23:37:36.934Z"
   },
   "@starui/react-ui": {
     "bucket": "react-ui",
@@ -97,7 +97,7 @@
     "distFilename": "starui-react-ui-1.0.0.tgz",
     "version": "1.0.0",
     "sha": "6c4543f9",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "packedAt": "2026-05-20T23:33:00.785Z"
   },
   "@starui/shared": {
     "bucket": "shared",
@@ -114,6 +114,6 @@
     "distFilename": "starui-shared-1.0.0.tgz",
     "version": "1.0.0",
     "sha": "383c9ea2",
-    "packedAt": "2026-05-20T14:36:53.929Z"
+    "packedAt": "2026-05-20T23:33:00.785Z"
   }
 }

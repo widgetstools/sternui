@@ -70,26 +70,238 @@
   isolation: isolate;
 }
 
-/* Toolbar variant — single horizontal row, dense.
-   Height matches the primary toolbar row (48px) so stacked rows share
-   the same rhythm. Background tracks `.ds-primary-row` exactly so the
-   filters bar, formatter toolbar, and primary action row read as one
-   continuous surface. flex-wrap kept for narrow viewports — when the
-   row wraps, height becomes a min-height implicitly. */
+/* Toolbar variant — intentional two-row layout with labeled groups.
+   Row 1: scope + typography/colour/number format.
+   Row 2: editor/filter + templates + destructive clear (right-aligned).
+   Background tracks `.ds-primary-row` so the formatter reads as one
+   continuous surface with the primary action row above the grid. */
 .fx-shell--horizontal {
   display: flex;
-  align-items: center;
-  align-content: center;
-  column-gap: 8px;
-  row-gap: 6px;
-  padding: 6px 48px 6px 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 6px 48px 8px 12px;
   min-height: 48px;
   background: var(--ds-surface-sunken);
   border-bottom: 1px solid var(--ds-border-primary);
-  flex-wrap: wrap;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Two-row scaffold — replaces accidental flex-wrap wrapping. */
+.fx-toolbar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fx-toolbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: var(--fx-pill-h);
+  min-width: 0;
+}
+
+.fx-toolbar-row__spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+/* Labeled cluster — subtle inset chrome groups controls by function. */
+.fx-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--fx-pill-h);
+  padding: 2px 8px 2px 6px;
+  border-radius: calc(var(--fx-radius) + 2px);
+  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
+  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
+  flex-shrink: 0;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.fx-toolbar-group__label {
+  font-family: var(--ds-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  padding-right: 2px;
+  flex-shrink: 0;
+}
+
+.fx-toolbar-group__body {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+/* Scope strip fills the group so undo/redo can pin to the trailing edge. */
+.fx-toolbar-group[data-testid='fmt-group-scope'] .fx-toolbar-group__body {
+  flex: 1;
+  min-width: 0;
+}
+.fx-toolbar-group[data-testid='fmt-group-scope'] .fx-ctx {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Destruct cluster — warm outline so it reads as "danger zone". */
+.fx-toolbar-group--destruct {
+  border-color: color-mix(in srgb, var(--ds-accent-negative) 28%, var(--ds-border-primary));
+  background: color-mix(in srgb, var(--ds-accent-negative) 4%, var(--fx-bg-sunken));
+}
+.fx-toolbar-group--destruct .fx-toolbar-group__label {
+  color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--ds-text-faint));
+}
+
+/* Inside a group, modules lose outer spacing — the group chrome
+   provides the visual boundary. */
+.fx-toolbar-group .fx-module {
+  min-height: 0;
+}
+.fx-toolbar-group .fx-module__body {
+  gap: 6px;
+}
+
+/* Undo/redo pinned to the trailing edge of the scope strip. */
+.fx-ctx__history {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ─── Vertical popout — panel header, section cards, footer ─────── */
+
+.fx-panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--ds-border-primary);
+  background: var(--ds-surface-ground);
+}
+
+.fx-panel-header .fx-panel-group {
+  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
+  border-radius: calc(var(--fx-radius) + 2px);
+  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
+}
+
+.fx-panel-header .fx-panel-group__label {
+  padding: 6px 10px 4px;
+}
+
+.fx-panel-header .fx-panel-group__body {
+  padding: 8px 10px 10px;
+}
+
+.fx-panel-header .fx-ctx {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  position: static;
+  top: auto;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  column-gap: 10px;
+  border-bottom: none;
+  background: transparent;
+}
+
+.fx-panel-header .fx-col {
+  flex: 1 1 160px;
+  min-width: 120px;
+  max-width: none;
+}
+
+.fx-panel-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 16px;
+}
+
+.fx-panel-group {
+  border-radius: calc(var(--fx-radius) + 2px);
+  border: 1px solid color-mix(in srgb, var(--ds-border-primary) 85%, transparent);
+  background: color-mix(in srgb, var(--fx-bg-sunken) 72%, var(--ds-surface-primary));
+  overflow: hidden;
+}
+
+.fx-panel-group__label {
+  display: block;
+  margin: 0;
+  padding: 8px 12px 6px;
+  font-family: var(--ds-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+  line-height: 1;
+  border-bottom: 1px solid color-mix(in srgb, var(--ds-border-primary) 70%, transparent);
+  user-select: none;
+}
+
+.fx-panel-group__body {
+  padding: 10px 12px 12px;
+}
+
+.fx-panel-group--destruct {
+  border-color: color-mix(in srgb, var(--ds-accent-negative) 28%, var(--ds-border-primary));
+  background: color-mix(in srgb, var(--ds-accent-negative) 4%, var(--fx-bg-sunken));
+}
+.fx-panel-group--destruct .fx-panel-group__label {
+  color: color-mix(in srgb, var(--ds-accent-negative) 72%, var(--ds-text-faint));
+}
+
+/* Inside a panel card, module eyebrows duplicate the group label. */
+.fx-panel-group .fx-module {
+  display: block;
+  padding: 0;
+  border-bottom: none;
+}
+.fx-panel-group .fx-eyebrow {
+  display: none;
+}
+.fx-panel-group .fx-module__body {
+  gap: 8px;
+}
+
+.fx-footer .fx-panel-group {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+}
+.fx-footer .fx-panel-group__label {
+  padding: 0 0 8px;
+  border-bottom: none;
+}
+.fx-footer .fx-panel-group__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
 }
 
 /* Panel variant — full vertical layout.
@@ -457,11 +669,9 @@
 
 .fx-popout {
   position: absolute;
-  /* Pinned to the FIRST row of the toolbar — shell padding (6px) + half
-   * the pill (14px) puts the centre at 20px from the top, which keeps
-   * the popout aligned with the first row regardless of whether the
-   * shell has wrapped. */
-  top: 10px;
+  /* Vertically centred on the full toolbar (one or two rows). */
+  top: 50%;
+  transform: translateY(-50%);
   right: 12px;
   width: var(--fx-pill-h);
   height: var(--fx-pill-h);
@@ -594,16 +804,16 @@
 
 /* ─── Stagger reveal on popout open ────────────────────────────── */
 
-.fx-shell--vertical .fx-module {
+.fx-shell--vertical .fx-panel-sections > .fx-panel-group {
   opacity: 0;
   transform: translateY(4px);
   animation: fxReveal 240ms ease-out forwards;
 }
-.fx-shell--vertical .fx-module:nth-child(1) { animation-delay: 40ms; }
-.fx-shell--vertical .fx-module:nth-child(2) { animation-delay: 80ms; }
-.fx-shell--vertical .fx-module:nth-child(3) { animation-delay: 120ms; }
-.fx-shell--vertical .fx-module:nth-child(4) { animation-delay: 160ms; }
-.fx-shell--vertical .fx-module:nth-child(5) { animation-delay: 200ms; }
+.fx-shell--vertical .fx-panel-sections > .fx-panel-group:nth-child(1) { animation-delay: 40ms; }
+.fx-shell--vertical .fx-panel-sections > .fx-panel-group:nth-child(2) { animation-delay: 80ms; }
+.fx-shell--vertical .fx-panel-sections > .fx-panel-group:nth-child(3) { animation-delay: 120ms; }
+.fx-shell--vertical .fx-panel-sections > .fx-panel-group:nth-child(4) { animation-delay: 160ms; }
+.fx-shell--vertical .fx-panel-sections > .fx-panel-group:nth-child(5) { animation-delay: 200ms; }
 
 @keyframes fxReveal {
   to { opacity: 1; transform: translateY(0); }
@@ -612,7 +822,7 @@
 /* Reduce motion. */
 @media (prefers-reduced-motion: reduce) {
   .fx-col__dot,
-  .fx-shell--vertical .fx-module,
+  .fx-shell--vertical .fx-panel-sections > .fx-panel-group,
   .fx-pill,
   .fx-scope__swap {
     animation: none !important;

@@ -167,6 +167,75 @@ export function ModuleDivider() {
   return <span aria-hidden className="fx-divider" />;
 }
 
+// ─── ToolbarGroup — labeled cluster in the horizontal strip ───────
+
+export function ToolbarGroup({
+  label,
+  children,
+  variant = 'default',
+  testId,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  variant?: 'default' | 'destruct';
+  testId?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'fx-toolbar-group',
+        variant === 'destruct' && 'fx-toolbar-group--destruct',
+        className,
+      )}
+      data-testid={testId}
+      role="group"
+      aria-label={label}
+    >
+      <span className="fx-toolbar-group__label" aria-hidden>
+        {label}
+      </span>
+      <div className="fx-toolbar-group__body">{children}</div>
+    </div>
+  );
+}
+
+// ─── PanelGroup — labeled section card in the vertical popout ─────
+
+export function PanelGroup({
+  label,
+  children,
+  variant = 'default',
+  testId,
+  className,
+  sectionIndex,
+}: {
+  label: string;
+  children: React.ReactNode;
+  variant?: 'default' | 'destruct';
+  testId?: string;
+  className?: string;
+  /** Legacy hook for e2e — mirrors the old module section indices. */
+  sectionIndex?: string;
+}) {
+  return (
+    <section
+      className={cn(
+        'fx-panel-group',
+        variant === 'destruct' && 'fx-panel-group--destruct',
+        className,
+      )}
+      data-testid={testId}
+      data-section-index={sectionIndex}
+      aria-label={label}
+    >
+      <h3 className="fx-panel-group__label">{label}</h3>
+      <div className="fx-panel-group__body">{children}</div>
+    </section>
+  );
+}
+
 // ─── Column label readout — sunken chip with live dot ────────────
 
 export function ColumnLabel({
