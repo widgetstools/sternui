@@ -33,14 +33,11 @@ import {
   type StockfluxPaletteName,
 } from '@starui/design-system';
 import { PALETTE_STORAGE_KEY } from '@starui/types';
+import { stockfluxIconStrokeColors } from './stockfluxOpenFinPalette';
 
 /** Lucide-style palette icon for the content-menu folder. */
 const PALETTE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>';
-
-// ─── Theme icon colors ──────────────────────────────────────────────
-const ICON_COLOR_DARK_THEME = "#ffffff";
-const ICON_COLOR_LIGHT_THEME = "#1a1a2e";
 
 // ─── IAB topics + action IDs ────────────────────────────────────────
 // Lifted into ./iabTopics.ts so non-OpenFin consumers (Config Browser
@@ -287,12 +284,13 @@ function flattenContentMenuForV22(
  *
  * Dock3 ContentMenuEntry.icon supports { dark, light } — the platform
  * automatically picks the correct variant based on the active theme.
- * White icons for dark mode, dark navy icons for light mode.
+ * Stroke color follows the active Stockflux palette accent per scheme.
  */
 function contentMenuIcon(svgString: string): { dark: string; light: string } {
+  const { dark, light } = stockfluxIconStrokeColors(readDockPalette());
   return {
-    dark: svgToDataUrl(svgString, ICON_COLOR_DARK_THEME),   // white on dark background
-    light: svgToDataUrl(svgString, ICON_COLOR_LIGHT_THEME), // navy on light background
+    dark: svgToDataUrl(svgString, dark),
+    light: svgToDataUrl(svgString, light),
   };
 }
 
@@ -378,13 +376,14 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
  */
 function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEntryType[] {
   // User-configured dropdown buttons → content menu folders with children
+  const iconColors = stockfluxIconStrokeColors(readDockPalette());
   const userMenus = editorConfig
     ? toDock3UserContentMenu(
         editorConfig,
         generateIconFromId,
         recolorIconifyUrl,
-        ICON_COLOR_DARK_THEME,
-        ICON_COLOR_LIGHT_THEME,
+        iconColors.dark,
+        iconColors.light,
       )
     : [];
 
@@ -410,13 +409,14 @@ function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEn
  */
 function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
   // User-configured favorites
+  const iconColors = stockfluxIconStrokeColors(readDockPalette());
   const userFavorites = editorConfig
     ? toDock3Favorites(
         editorConfig,
         generateIconFromId,
         recolorIconifyUrl,
-        ICON_COLOR_DARK_THEME,
-        ICON_COLOR_LIGHT_THEME,
+        iconColors.dark,
+        iconColors.light,
       )
     : [];
 

@@ -36,6 +36,10 @@ import { resolveRestUrl } from './manifestConfig';
 import { registerNotifications } from './notifications';
 import { registerStore } from './store';
 import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
+import {
+  buildOpenFinThemePalettes,
+  readInitialStockfluxPalette,
+} from './stockfluxOpenFinPalette';
 import { createWorkspacePersistenceOverride } from './workspacePersistence';
 import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
@@ -404,18 +408,7 @@ async function initializePlatform(
       {
         label: "Default",
         default: "dark",
-        palettes: {
-          dark: {
-            brandPrimary: theme?.brandPrimary ?? "#0A76D3",
-            brandSecondary: theme?.brandSecondary ?? "#383A40",
-            backgroundPrimary: theme?.backgroundPrimary ?? "#1E1F23",
-          },
-          light: {
-            brandPrimary: theme?.brandPrimary ?? "#0A76D3",
-            brandSecondary: theme?.brandSecondary ?? "#383A40",
-            backgroundPrimary: "#FAFBFE",
-          },
-        },
+        palettes: buildOpenFinThemePalettes(readInitialStockfluxPalette(), theme),
       },
     ],
     customActions: buildCustomActions({

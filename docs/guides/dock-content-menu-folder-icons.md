@@ -16,7 +16,7 @@ The Dock3 content menu is a two-column control:
 | Left (root) | SPG, Color palette, Tools | **No** — folders show label + chevron only |
 | Right (submenu) | Workspace Setup, Data Providers, … | **Yes** — each `type: "item"` has `icon` |
 
-Submenu items already used `contentMenuIcon()` with theme-aware SVG data URLs. Root folders did not, because the platform API and UI library omit folder icons.
+Submenu items already used `contentMenuIcon()` with theme-aware SVG data URLs (stroke color follows the active Stockflux palette accent — see [openfin-stockflux-theme-bridge.md](./openfin-stockflux-theme-bridge.md)). Root folders did not, because the platform API and UI library omit folder icons.
 
 ---
 
