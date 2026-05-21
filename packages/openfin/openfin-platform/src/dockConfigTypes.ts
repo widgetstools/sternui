@@ -1,3 +1,5 @@
+import { DockButtonNames, type DockButton } from "@openfin/workspace";
+
 // ─── Serializable types (safe for IndexedDB / JSON) ─────────────────
 
 export interface DockActionButtonConfig {
@@ -106,6 +108,173 @@ export interface ContentMenuFolderEntry {
 }
 
 export type ContentMenuEntryType = ContentMenuItemEntry | ContentMenuFolderEntry;
+
+// ─── Converter: serializable config → legacy Dock.register buttons ──
+
+function resolveIconUrlForTheme(
+  icon: DockEntryIcon,
+  theme: "dark" | "light",
+): string {
+  if (typeof icon === "string") return icon;
+  return icon[theme] ?? icon.dark ?? icon.light ?? "";
+}
+
+function menuItemToLegacyDockOption(
+  item: DockMenuItemConfig,
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): DockButton {
+  const icon = makeDualIcon(item, generateIcon, recolorUrl, darkColor, lightColor);
+  const iconUrl = resolveIconUrlForTheme(icon, theme);
+
+  if (item.options && item.options.length > 0) {
+    return {
+      type: DockButtonNames.DropdownButton,
+      id: item.id,
+      tooltip: item.tooltip,
+      iconUrl,
+      options: item.options.map((child) =>
+        menuItemToLegacyDockOption(child, generateIcon, recolorUrl, darkColor, lightColor, theme),
+      ),
+    };
+  }
+
+  return {
+    id: item.id,
+    tooltip: item.tooltip,
+    iconUrl,
+    action: {
+      id: item.actionId ?? item.id,
+      customData: item.customData,
+    },
+  };
+}
+
+/** Bar action buttons only (Dock3 "favorites" equivalent). */
+export function toLegacyDockActionButtons(
+  config: DockEditorConfig,
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): DockButton[] {
+  return config.buttons
+    .filter((btn): btn is DockActionButtonConfig => btn.type === "ActionButton")
+    .map((btn) => {
+      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+      return {
+        id: btn.id,
+        tooltip: btn.tooltip,
+        iconUrl: resolveIconUrlForTheme(icon, theme),
+        action: {
+          id: btn.actionId,
+          customData: btn.customData,
+        },
+      };
+    });
+}
+
+function contentMenuEntryToLegacyOption(
+  entry: ContentMenuEntryType,
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): DockButton {
+  if (entry.type === "folder") {
+    const iconUrl = entry.icon
+      ? resolveIconUrlForTheme(entry.icon, theme)
+      : undefined;
+    return {
+      type: DockButtonNames.DropdownButton,
+      id: entry.id,
+      tooltip: entry.label,
+      ...(iconUrl ? { iconUrl } : {}),
+      options: entry.children.map((child) =>
+        contentMenuEntryToLegacyOption(child, generateIcon, recolorUrl, darkColor, lightColor, theme),
+      ),
+    };
+  }
+
+  const iconUrl = resolveIconUrlForTheme(entry.icon, theme);
+  const actionId = entry.itemData?.actionId ?? entry.id;
+  return {
+    id: entry.id,
+    tooltip: entry.label,
+    iconUrl,
+    action: {
+      id: actionId,
+      customData: entry.itemData,
+    },
+  };
+}
+
+/**
+ * Convert Dock3 content-menu folders (e.g. SPG) to legacy bar dropdowns.
+ * Uses the same tree as `toDock3UserContentMenu()` so dock3/legacy stay aligned.
+ */
+export function contentMenuFoldersToLegacyDropdowns(
+  entries: ContentMenuEntryType[],
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): DockButton[] {
+  return entries
+    .filter((entry): entry is ContentMenuFolderEntry => entry.type === "folder")
+    .map((folder) =>
+      contentMenuEntryToLegacyOption(
+        folder,
+        generateIcon,
+        recolorUrl,
+        darkColor,
+        lightColor,
+        theme,
+      ) as DockButton,
+    );
+}
+
+/** @deprecated Use toLegacyDockActionButtons + contentMenuFoldersToLegacyDropdowns */
+export function toLegacyDockButtons(
+  config: DockEditorConfig,
+  generateIcon: (iconId: string, color: string) => string,
+  recolorUrl: (url: string, color: string) => string,
+  darkColor: string,
+  lightColor: string,
+  theme: "dark" | "light",
+): DockButton[] {
+  const folders: ContentMenuFolderEntry[] = config.buttons
+    .filter((btn): btn is DockDropdownButtonConfig => btn.type === "DropdownButton")
+    .map((btn) => {
+      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
+      return {
+        type: "folder" as const,
+        id: btn.id,
+        label: btn.tooltip,
+        icon,
+        children: btn.options.map((item) =>
+          menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
+        ),
+      };
+    });
+  return [
+    ...toLegacyDockActionButtons(config, generateIcon, recolorUrl, darkColor, lightColor, theme),
+    ...contentMenuFoldersToLegacyDropdowns(
+      folders,
+      generateIcon,
+      recolorUrl,
+      darkColor,
+      lightColor,
+      theme,
+    ),
+  ];
+}
 
 // ─── Converter: serializable config → Dock3 DockEntry[] ─────────────
 

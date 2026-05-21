@@ -1,14 +1,14 @@
 import {
-  DEFAULT_STOCKFLUX_PALETTE,
-  isStockfluxPaletteName,
-  type StockfluxPaletteName,
-} from './tokens/stockflux';
+  DEFAULT_STARUI_PALETTE,
+  isStarUIPaletteName,
+  type StarUIPaletteName,
+} from './tokens/starui';
 
 export type HostThemeMode = 'dark' | 'light';
 
 export interface HostAppearance {
   theme: HostThemeMode;
-  palette: StockfluxPaletteName;
+  palette: StarUIPaletteName;
 }
 
 /** Active `data-theme` on `<html>` (defaults to dark). */
@@ -17,17 +17,20 @@ export function readDocumentThemeMode(): HostThemeMode {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 }
 
-/** Active Stockflux palette (`data-palette` or default slate). */
-export function readStockfluxPalette(): StockfluxPaletteName {
-  if (typeof document === 'undefined') return DEFAULT_STOCKFLUX_PALETTE;
+/** Active StarUI palette (`data-palette` or default slate). */
+export function readStarUIPalette(): StarUIPaletteName {
+  if (typeof document === 'undefined') return DEFAULT_STARUI_PALETTE;
   const attr = document.documentElement.getAttribute('data-palette');
-  if (attr && isStockfluxPaletteName(attr)) return attr;
-  return DEFAULT_STOCKFLUX_PALETTE;
+  if (attr && isStarUIPaletteName(attr)) return attr;
+  return DEFAULT_STARUI_PALETTE;
 }
 
 export function readHostAppearance(): HostAppearance {
   return {
     theme: readDocumentThemeMode(),
-    palette: readStockfluxPalette(),
+    palette: readStarUIPalette(),
   };
 }
+
+/** @deprecated Use `readStarUIPalette` */
+export const readStockfluxPalette = readStarUIPalette;

@@ -25,15 +25,27 @@ import {
   svgToDataUrl,
   marketIconToDataUrl,
 } from "./icons/allIcons.js";
-import type { PlatformSettings } from './types';
+import type { DockType, PlatformSettings } from './types';
+import {
+  buildFullLegacyDockButtons,
+  getLegacyDockRegistration,
+  isLegacyDockActive,
+  registerLegacyDockProvider,
+  showLegacyDock,
+  shutdownLegacyDockProvider,
+} from './dockLegacy';
 import {
   applyTheme,
-  isStockfluxPaletteName,
-  STOCKFLUX_PALETTE_NAMES,
-  type StockfluxPaletteName,
+  getTheme,
+  isStarUIPaletteName,
+  STARUI_PALETTE_NAMES,
+  type StarUIPaletteName,
 } from '@starui/design-system';
-import { PALETTE_STORAGE_KEY } from '@starui/types';
-import { stockfluxIconStrokeColors } from './stockfluxOpenFinPalette';
+import {
+  dockMenuIconStrokeColors,
+  persistDockPaletteSelection,
+  readDockPalette,
+} from './staruiOpenFinPalette';
 
 /** Lucide-style palette icon for the content-menu folder. */
 const PALETTE_SVG =
@@ -46,6 +58,7 @@ const PALETTE_SVG =
 // through this file. Re-exported here for back-compat.
 import {
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_DOCK_CONFIG_RESET,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
   IAB_PALETTE_CHANGED,
@@ -68,6 +81,7 @@ import {
 } from './iabTopics';
 export {
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_DOCK_CONFIG_RESET,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
   IAB_PALETTE_CHANGED,
@@ -91,6 +105,9 @@ export {
 
 // ─── Module-level state ──────────────────────────────────────────────
 
+/** Active dock implementation selected at register time. */
+let activeDockType: DockType = "dock3";
+
 /** The Dock3 provider instance returned by Dock.init(). */
 let dockProvider: any;
 
@@ -109,6 +126,10 @@ let iabSubscribed = false;
 /** Stored IAB subscription handlers for cleanup. */
 let iabConfigHandler: ((config: any) => void) | null = null;
 let iabReloadHandler: (() => void) | null = null;
+let iabResetHandler: (() => void) | null = null;
+
+/** Receive dock-editor / workspace-setup IAB from any child window. */
+const IAB_SUBSCRIBE_ANY = { uuid: "*" };
 
 /** Theme toggle icons. */
 let themeToggleDarkIcon: string | undefined;
@@ -168,36 +189,21 @@ function recolorIconifyUrl(iconUrl: string, color: string): string {
 // correct icon variant after the user flips themes.
 
 function readDockTheme(): "dark" | "light" {
+  const theme = getTheme().theme;
   try {
-    const attr = document.documentElement.getAttribute("data-theme");
-    if (attr === "light" || attr === "dark") return attr;
+    document.documentElement.setAttribute("data-theme", theme);
+    document.body.dataset["agThemeMode"] = theme;
   } catch { /* non-browser */ }
-  try {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light") return "light";
-  } catch { /* storage unavailable */ }
-  return "dark";
+  return theme;
 }
 
-function readDockPalette(): StockfluxPaletteName {
-  try {
-    const attr = document.documentElement.getAttribute("data-palette");
-    if (attr && isStockfluxPaletteName(attr)) return attr;
-  } catch { /* non-browser */ }
-  try {
-    const stored = localStorage.getItem(PALETTE_STORAGE_KEY);
-    if (stored && isStockfluxPaletteName(stored)) return stored;
-  } catch { /* storage unavailable */ }
-  return "slate";
-}
-
-function paletteMenuLabel(name: StockfluxPaletteName, active: boolean): string {
+function paletteMenuLabel(name: StarUIPaletteName, active: boolean): string {
   const label = name.charAt(0).toUpperCase() + name.slice(1);
   return active ? `✓ ${label}` : label;
 }
 
 /**
- * Stockflux palette picker — checkmark on the active palette; choosing
+ * StarUI palette picker — checkmark on the active palette; choosing
  * an item publishes `palette-changed` to every OpenFin window (same
  * fan-out model as `theme-changed`).
  */
@@ -208,7 +214,7 @@ function buildPaletteContentMenuFolder(): ContentMenuEntryType {
     id: "palette-menu",
     label: "Color palette",
     icon: contentMenuIcon(PALETTE_SVG),
-    children: STOCKFLUX_PALETTE_NAMES.map((name) => ({
+    children: STARUI_PALETTE_NAMES.map((name) => ({
       type: "item" as const,
       id: `palette-${name}`,
       label: paletteMenuLabel(name, active === name),
@@ -284,10 +290,10 @@ function flattenContentMenuForV22(
  *
  * Dock3 ContentMenuEntry.icon supports { dark, light } — the platform
  * automatically picks the correct variant based on the active theme.
- * Stroke color follows the active Stockflux palette accent per scheme.
+ * Stroke color is fixed (slate); not tied to the dock palette picker.
  */
 function contentMenuIcon(svgString: string): { dark: string; light: string } {
-  const { dark, light } = stockfluxIconStrokeColors(readDockPalette());
+  const { dark, light } = dockMenuIconStrokeColors();
   return {
     dark: svgToDataUrl(svgString, dark),
     light: svgToDataUrl(svgString, light),
@@ -376,7 +382,7 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
  */
 function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEntryType[] {
   // User-configured dropdown buttons → content menu folders with children
-  const iconColors = stockfluxIconStrokeColors(readDockPalette());
+  const iconColors = dockMenuIconStrokeColors();
   const userMenus = editorConfig
     ? toDock3UserContentMenu(
         editorConfig,
@@ -409,7 +415,7 @@ function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEn
  */
 function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
   // User-configured favorites
-  const iconColors = stockfluxIconStrokeColors(readDockPalette());
+  const iconColors = dockMenuIconStrokeColors();
   const userFavorites = editorConfig
     ? toDock3Favorites(
         editorConfig,
@@ -446,6 +452,17 @@ function buildAllFavorites(editorConfig?: DockEditorConfig): Dock3Entry[] {
  *
  * @param onAction Callback to dispatch action IDs to workspace.ts handlers
  */
+/**
+ * Refresh dock UI after palette/theme changes (both implementations).
+ */
+export async function refreshDockAppearance(): Promise<void> {
+  if (activeDockType === "legacy") {
+    await applyLegacyDockConfig();
+  } else {
+    await applyDock3Config();
+  }
+}
+
 export async function registerDock(
   platformSettings: PlatformSettings,
   apps?: App[],
@@ -454,7 +471,21 @@ export async function registerDock(
   lightIcon?: string,
   _roles?: string[],
   onAction?: (actionId: string, customData?: any) => Promise<void>,
+  dockType: DockType = "dock3",
 ): Promise<any> {
+  activeDockType = dockType;
+
+  if (dockType === "legacy") {
+    return registerLegacyDock(
+      platformSettings,
+      apps,
+      dockIcon,
+      darkIcon,
+      lightIcon,
+      onAction,
+    );
+  }
+
   // Idempotency guard. The OpenFin v22 starter creates exactly one
   // Dock3Provider per platform window; calling Dock.init() again
   // produces a second provider that competes with the first for the
@@ -523,44 +554,7 @@ export async function registerDock(
     await injectContentMenuFolderIcons(menuEntries, theme);
     console.log("Dock3 provider initialized.");
 
-    // IAB subscriptions — set up once only
-    if (!iabSubscribed) {
-      iabSubscribed = true;
-
-      try {
-        iabConfigHandler = async (config: DockEditorConfig) => {
-          console.log("Received dock config update via IAB.");
-          await saveDockConfig(config);
-          lastEditorConfig = config;
-          await applyDock3Config();
-        };
-        await fin.InterApplicationBus.subscribe(
-          { uuid: fin.me.identity.uuid },
-          IAB_DOCK_CONFIG_UPDATE,
-          iabConfigHandler,
-        );
-      } catch (iabError) {
-        console.error("Could not subscribe to dock-config-update IAB topic.", iabError);
-      }
-
-      try {
-        iabReloadHandler = async () => {
-          console.log("Reloading dock after config import.");
-          const saved = await loadDockConfig();
-          if (saved) {
-            lastEditorConfig = saved;
-          }
-          await applyDock3Config();
-        };
-        await fin.InterApplicationBus.subscribe(
-          { uuid: fin.me.identity.uuid },
-          IAB_RELOAD_AFTER_IMPORT,
-          iabReloadHandler,
-        );
-      } catch (iabError) {
-        console.error("Could not subscribe to reload-dock-after-import IAB topic.", iabError);
-      }
-    }
+    await setupDockIabSubscriptions();
 
     return dockProvider;
   } catch (error) {
@@ -581,7 +575,142 @@ export async function registerDock(
  */
 export async function recolorDockIcons(isDark: boolean): Promise<void> {
   console.log(`Recoloring dock icons for ${isDark ? "dark" : "light"} theme.`);
-  await applyDock3Config();
+  await refreshDockAppearance();
+}
+
+// ─── Legacy dock (Dock.register) ─────────────────────────────────────
+
+async function registerLegacyDock(
+  platformSettings: PlatformSettings,
+  apps?: App[],
+  dockIcon?: string,
+  darkIcon?: string,
+  lightIcon?: string,
+  onAction?: (actionId: string, customData?: any) => Promise<void>,
+): Promise<any> {
+  if (isLegacyDockActive()) {
+    console.log("Legacy dock already initialized — refreshing config in place.");
+    storedPlatformSettings = platformSettings;
+    storedIcon = dockIcon ?? platformSettings.icon;
+    themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
+    themeToggleLightIcon = lightIcon ?? DEFAULT_LIGHT_THEME_ICON;
+    actionDispatcher = onAction;
+    if (!lastEditorConfig) {
+      const saved = await loadDockConfig();
+      lastEditorConfig = saved ?? appsToEditorConfig(apps ?? [], platformSettings.icon);
+    }
+    await applyLegacyDockConfig();
+    return getLegacyDockRegistration();
+  }
+
+  console.log("Initializing legacy dock provider.");
+  storedPlatformSettings = platformSettings;
+  storedIcon = dockIcon ?? platformSettings.icon;
+  themeToggleDarkIcon = darkIcon ?? DEFAULT_DARK_THEME_ICON;
+  themeToggleLightIcon = lightIcon ?? DEFAULT_LIGHT_THEME_ICON;
+  actionDispatcher = onAction;
+
+  const savedConfig = await loadDockConfig();
+  lastEditorConfig = savedConfig ?? appsToEditorConfig(apps ?? [], platformSettings.icon);
+
+  await setupDockIabSubscriptions();
+  await applyLegacyDockConfig();
+  return getLegacyDockRegistration();
+}
+
+async function applyLegacyDockConfig(): Promise<void> {
+  if (!storedPlatformSettings || !storedIcon) {
+    console.error("Cannot update legacy dock: not initialized yet.");
+    return;
+  }
+
+  const theme = readDockTheme();
+  const themeToggleIcon =
+    theme === "dark"
+      ? (themeToggleDarkIcon ?? DEFAULT_DARK_THEME_ICON)
+      : (themeToggleLightIcon ?? DEFAULT_LIGHT_THEME_ICON);
+
+  const buttons = buildFullLegacyDockButtons(
+    lastEditorConfig,
+    theme,
+    themeToggleIcon,
+    generateIconFromId,
+    recolorIconifyUrl,
+  );
+
+  await registerLegacyDockProvider({
+    id: storedPlatformSettings.id,
+    title: storedPlatformSettings.title,
+    icon: storedIcon,
+    buttons,
+  });
+  await showLegacyDock();
+}
+
+async function setupDockIabSubscriptions(): Promise<void> {
+  if (iabSubscribed) return;
+  iabSubscribed = true;
+
+  try {
+    iabConfigHandler = async (config: DockEditorConfig) => {
+      console.log("Received dock config update via IAB.");
+      await saveDockConfig(config);
+      lastEditorConfig = config;
+      await refreshDockAppearance();
+    };
+    await fin.InterApplicationBus.subscribe(
+      IAB_SUBSCRIBE_ANY,
+      IAB_DOCK_CONFIG_UPDATE,
+      iabConfigHandler,
+    );
+  } catch (iabError) {
+    console.error("Could not subscribe to dock-config-update IAB topic.", iabError);
+  }
+
+  try {
+    iabResetHandler = async () => {
+      console.log("Dock config reset via IAB.");
+      const saved = await loadDockConfig();
+      lastEditorConfig =
+        saved ?? { version: 1, buttons: [], updatedAt: new Date().toISOString() };
+      await refreshDockAppearance();
+    };
+    await fin.InterApplicationBus.subscribe(
+      IAB_SUBSCRIBE_ANY,
+      IAB_DOCK_CONFIG_RESET,
+      iabResetHandler,
+    );
+  } catch (iabError) {
+    console.error("Could not subscribe to dock-config-reset IAB topic.", iabError);
+  }
+
+  try {
+    iabReloadHandler = async () => {
+      console.log("Reloading dock after config import.");
+      const saved = await loadDockConfig();
+      if (saved) {
+        lastEditorConfig = saved;
+      }
+      await refreshDockAppearance();
+    };
+    await fin.InterApplicationBus.subscribe(
+      IAB_SUBSCRIBE_ANY,
+      IAB_RELOAD_AFTER_IMPORT,
+      iabReloadHandler,
+    );
+  } catch (iabError) {
+    console.error("Could not subscribe to reload-dock-after-import IAB topic.", iabError);
+  }
+}
+
+/** Soft reload for legacy dock — update buttons in place (no deregister). */
+async function reloadLegacyDockFromConfig(): Promise<void> {
+  const saved = await loadDockConfig();
+  lastEditorConfig =
+    saved ?? { version: 1, buttons: [], updatedAt: new Date().toISOString() };
+  await applyLegacyDockConfig();
+  await showLegacyDock();
+  console.log("Legacy dock reloaded from config (soft).");
 }
 
 /**
@@ -603,16 +732,15 @@ export async function reloadDockFromConfig(): Promise<void> {
   if (saved) {
     lastEditorConfig = saved;
   }
-  // For the user-initiated "Reload Dock" action we want a guaranteed
-  // visual refresh — the soft `updateConfig()` path (used for IAB
-  // background updates) sometimes propagates config without re-rendering
-  // favorites/content-menu in v22.
-  //
-  // The supported v22 API for forcing a full Dock3 re-bootstrap is
-  // `dockProvider.shutdown()` + a fresh `Dock.init()` (NOT a window URL
-  // reload — that desynchronises the IAB channel client from the
-  // provider and produces "client disconnected from target provider"
-  // on subsequent clicks).
+
+  // Legacy dock: `Dock.deregister()` hides the bar and re-register is
+  // unreliable on some runtimes — update provider config in place instead.
+  if (activeDockType === "legacy" || isLegacyDockActive()) {
+    await reloadLegacyDockFromConfig();
+    return;
+  }
+
+  // Dock3: full shutdown + re-init when soft updateConfig is insufficient.
   await hardReloadDock();
   console.log("Dock reloaded from config.");
 }
@@ -638,9 +766,9 @@ export async function reloadDockFromConfig(): Promise<void> {
  * is preferable to leaving the user with no working dock.
  */
 async function hardReloadDock(): Promise<void> {
-  if (!dockProvider || !storedPlatformSettings) {
-    console.warn("[hardReloadDock] Provider not initialised — using soft updateConfig.");
-    await applyDock3Config();
+  if (!storedPlatformSettings) {
+    console.warn("[hardReloadDock] Provider not initialised — using soft update.");
+    await refreshDockAppearance();
     return;
   }
 
@@ -651,7 +779,19 @@ async function hardReloadDock(): Promise<void> {
     darkIcon: themeToggleDarkIcon,
     lightIcon: themeToggleLightIcon,
     dispatcher: actionDispatcher,
+    dockType: activeDockType,
   };
+
+  if (activeDockType === "legacy" || isLegacyDockActive()) {
+    await reloadLegacyDockFromConfig();
+    return;
+  }
+
+  if (!dockProvider) {
+    console.warn("[hardReloadDock] Dock3 provider missing — using soft updateConfig.");
+    await applyDock3Config();
+    return;
+  }
 
   try {
     await dockProvider.shutdown();
@@ -669,14 +809,21 @@ async function hardReloadDock(): Promise<void> {
     try {
       if (iabConfigHandler) {
         await fin.InterApplicationBus.unsubscribe(
-          { uuid: fin.me.identity.uuid },
+          IAB_SUBSCRIBE_ANY,
           IAB_DOCK_CONFIG_UPDATE,
           iabConfigHandler,
         );
       }
+      if (iabResetHandler) {
+        await fin.InterApplicationBus.unsubscribe(
+          IAB_SUBSCRIBE_ANY,
+          IAB_DOCK_CONFIG_RESET,
+          iabResetHandler,
+        );
+      }
       if (iabReloadHandler) {
         await fin.InterApplicationBus.unsubscribe(
-          { uuid: fin.me.identity.uuid },
+          IAB_SUBSCRIBE_ANY,
           IAB_RELOAD_AFTER_IMPORT,
           iabReloadHandler,
         );
@@ -700,6 +847,7 @@ async function hardReloadDock(): Promise<void> {
       snapshot.lightIcon,
       undefined,             // roles passthrough; registerDock currently ignores
       snapshot.dispatcher,
+      snapshot.dockType,
     );
     console.log("[hardReloadDock] Dock3 provider re-initialised.");
   } catch (err) {
@@ -834,13 +982,12 @@ function buildDock3Override() {
 
           if (data?.actionId === ACTION_SET_PALETTE || String(entry?.id ?? "").startsWith("palette-")) {
             const raw = data?.palette ?? String(entry?.id ?? "").replace(/^palette-/, "");
-            if (!isStockfluxPaletteName(raw)) return;
+            if (!isStarUIPaletteName(raw)) return;
             const palette = raw;
             const theme = readDockTheme();
-            applyTheme({ theme, palette });
-            try { document.body.dataset["agThemeMode"] = theme; } catch { /* */ }
+            persistDockPaletteSelection(palette);
             await applyDock3Config();
-            console.log(`[Dock3 palette] ${palette} (theme=${theme})`);
+            console.log(`[Dock3 palette] ${palette} (theme=${theme}, submenu checkmarks only)`);
             try {
               await fin.InterApplicationBus.publish(IAB_PALETTE_CHANGED, { palette, theme });
             } catch (iabErr) {
@@ -886,7 +1033,7 @@ function buildDock3Override() {
 export async function updateDockButtons(config: DockEditorConfig): Promise<void> {
   await saveDockConfig(config);
   lastEditorConfig = config;
-  await applyDock3Config();
+  await refreshDockAppearance();
 }
 
 /**
@@ -905,14 +1052,21 @@ export async function shutdownDock(): Promise<void> {
     try {
       if (iabConfigHandler) {
         await fin.InterApplicationBus.unsubscribe(
-          { uuid: fin.me.identity.uuid },
+          IAB_SUBSCRIBE_ANY,
           IAB_DOCK_CONFIG_UPDATE,
           iabConfigHandler,
         );
       }
+      if (iabResetHandler) {
+        await fin.InterApplicationBus.unsubscribe(
+          IAB_SUBSCRIBE_ANY,
+          IAB_DOCK_CONFIG_RESET,
+          iabResetHandler,
+        );
+      }
       if (iabReloadHandler) {
         await fin.InterApplicationBus.unsubscribe(
-          { uuid: fin.me.identity.uuid },
+          IAB_SUBSCRIBE_ANY,
           IAB_RELOAD_AFTER_IMPORT,
           iabReloadHandler,
         );
@@ -923,9 +1077,12 @@ export async function shutdownDock(): Promise<void> {
     iabSubscribed = false;
     iabConfigHandler = null;
     iabReloadHandler = null;
+    iabResetHandler = null;
   }
 
-  if (dockProvider) {
+  if (activeDockType === "legacy" || isLegacyDockActive()) {
+    await shutdownLegacyDockProvider();
+  } else if (dockProvider) {
     try {
       await dockProvider.shutdown();
       console.log("Dock3 provider shut down.");
@@ -953,6 +1110,7 @@ export async function shutdownDock(): Promise<void> {
  * which calls `dockProvider.shutdown()` immediately before this.
  */
 function resetDockState(): void {
+  activeDockType = "dock3";
   dockProvider = undefined;
   storedPlatformSettings = undefined;
   storedIcon = undefined;
@@ -960,6 +1118,7 @@ function resetDockState(): void {
   iabSubscribed = false;
   iabConfigHandler = null;
   iabReloadHandler = null;
+  iabResetHandler = null;
   themeToggleDarkIcon = undefined;
   themeToggleLightIcon = undefined;
   actionDispatcher = undefined;

@@ -10,8 +10,8 @@ import type {
 import {
   applyTheme,
   getTheme,
-  isStockfluxPaletteName,
-  type StockfluxPaletteName,
+  isStarUIPaletteName,
+  type StarUIPaletteName,
 } from '@starui/design-system';
 import { THEME_STORAGE_KEY } from '@starui/types';
 import type { RuntimePort } from '@starui/host';
@@ -109,7 +109,6 @@ export class OpenFinRuntime implements RuntimePort {
       this.attachViewWatchers();
       this.attachPlatformWorkspaceWatcher();
       this.attachThemeBroadcastListener();
-      this.attachPaletteBroadcastListener();
     }
   }
 
@@ -365,27 +364,6 @@ export class OpenFinRuntime implements RuntimePort {
     this.disposers.push(() => observer.disconnect());
   }
 
-  /** Subscribe to `palette-changed` from the dock content menu. */
-  private attachPaletteBroadcastListener(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const finGlobal = (globalThis as any).fin;
-    const iab = finGlobal?.InterApplicationBus;
-    if (!iab?.subscribe || !finGlobal?.me?.identity?.uuid) return;
-    const handler = (msg: unknown) => {
-      const parsed = readPalettePayload(msg);
-      if (!parsed) return;
-      applyTheme({ theme: parsed.theme ?? this.detectTheme(), palette: parsed.palette });
-    };
-    try {
-      void iab.subscribe({ uuid: '*' }, 'palette-changed', handler);
-      this.disposers.push(() => {
-        try { void iab.unsubscribe({ uuid: '*' }, 'palette-changed', handler); } catch { /* swallow */ }
-      });
-    } catch {
-      /* swallow — IAB not reachable */
-    }
-  }
-
   private attachThemeBroadcastListener(): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const finGlobal = (globalThis as any).fin;
@@ -538,20 +516,10 @@ function readThemePayload(msg: unknown): Theme | null {
   return null;
 }
 
-function readPaletteFromPayload(msg: unknown): StockfluxPaletteName | null {
+function readPaletteFromPayload(msg: unknown): StarUIPaletteName | null {
   if (!msg || typeof msg !== 'object') return null;
   const raw = (msg as { palette?: unknown }).palette;
-  return typeof raw === 'string' && isStockfluxPaletteName(raw) ? raw : null;
-}
-
-function readPalettePayload(
-  msg: unknown,
-): { palette: StockfluxPaletteName; theme?: Theme } | null {
-  if (!msg || typeof msg !== 'object') return null;
-  const m = msg as { palette?: unknown; theme?: unknown };
-  if (typeof m.palette !== 'string' || !isStockfluxPaletteName(m.palette)) return null;
-  const theme = m.theme === 'dark' || m.theme === 'light' ? m.theme : undefined;
-  return { palette: m.palette, theme };
+  return typeof raw === 'string' && isStarUIPaletteName(raw) ? raw : null;
 }
 
 /** Shallow-equal helper — sufficient for customData payloads which are

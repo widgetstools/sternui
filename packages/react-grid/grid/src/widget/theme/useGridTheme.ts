@@ -11,18 +11,18 @@ import type { Theme } from 'ag-grid-community';
 import { buildAgGridTheme } from '@starui/design-system/adapters/ag-grid';
 import {
   readDocumentThemeMode,
-  readStockfluxPalette,
+  readStarUIPalette,
 } from '@starui/design-system';
 
 export function useGridTheme(): Theme {
   const [mode, setMode] = useState(readDocumentThemeMode);
-  const [palette, setPalette] = useState(readStockfluxPalette);
+  const [palette, setPalette] = useState(readStarUIPalette);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const sync = () => {
       setMode(readDocumentThemeMode());
-      setPalette(readStockfluxPalette());
+      setPalette(readStarUIPalette());
     };
     sync();
     const html = document.documentElement;

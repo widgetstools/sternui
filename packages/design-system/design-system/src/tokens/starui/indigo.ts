@@ -1,7 +1,7 @@
-import type { StockfluxPalettePack } from './types';
+import type { StarUIPalettePack } from './types';
 
-/** Stockflux INDIGO — `palettes.css` + `aggrid-theme.js` */
-export const stockfluxIndigoPack: StockfluxPalettePack = {
+/** StarUI INDIGO — `palettes.css` + `aggrid-theme.js` */
+export const staruiIndigoPack: StarUIPalettePack = {
   agGrid: {
     dark: {
       bg: '#181a1d',

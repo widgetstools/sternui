@@ -20,19 +20,19 @@ export {
   type Mode,
 } from './applyTheme';
 export {
-  STOCKFLUX_PALETTES,
-  STOCKFLUX_PALETTE_NAMES,
-  DEFAULT_STOCKFLUX_PALETTE,
-  getStockfluxPack,
-  isStockfluxPaletteName,
+  STARUI_PALETTES,
+  STARUI_PALETTE_NAMES,
+  DEFAULT_STARUI_PALETTE,
+  getStarUIPack,
+  isStarUIPaletteName,
   schemesByPalette,
   getColorScheme,
-  type StockfluxPaletteName,
+  type StarUIPaletteName,
 } from './tokens';
 export { buildAgGridParams, buildAgGridTheme, type AgGridThemeOptions } from './adapters/agGrid';
 export {
   readDocumentThemeMode,
-  readStockfluxPalette,
+  readStarUIPalette,
   readHostAppearance,
   type HostAppearance,
   type HostThemeMode,
@@ -44,3 +44,17 @@ export {
   BookNameRenderer, ChangeValueRenderer, YtdValueRenderer,
   RfqStatusRenderer,
 } from './cellRenderers';
+
+/** @deprecated Use StarUI-named exports (`STARUI_PALETTES`, `readStarUIPalette`, etc.) */
+export {
+  DEFAULT_STARUI_PALETTE as DEFAULT_STOCKFLUX_PALETTE,
+  STARUI_PALETTE_NAMES as STOCKFLUX_PALETTE_NAMES,
+  STARUI_PALETTES as STOCKFLUX_PALETTES,
+  getStarUIPack as getStockfluxPack,
+  isStarUIPaletteName as isStockfluxPaletteName,
+} from './tokens';
+export type {
+  StarUIPaletteName as StockfluxPaletteName,
+  StarUIPalettePack as StockfluxPalettePack,
+} from './tokens';
+export { readStarUIPalette as readStockfluxPalette } from './readHostAppearance';

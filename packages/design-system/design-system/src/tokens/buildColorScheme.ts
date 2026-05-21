@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────
-//  ColorScheme builder — maps Stockflux hex/shadcn packs to semantic tokens
+//  ColorScheme builder — maps StarUI hex/shadcn packs to semantic tokens
 // ─────────────────────────────────────────────────────────────
 
 import { colors } from './primitives';
 import type { ColorScheme } from './colorScheme';
-import type { StockfluxHexMode, StockfluxPalettePack, StockfluxShadcnMode } from './stockflux/types';
+import type { StarUIHexMode, StarUIPalettePack, StarUIShadcnMode } from './starui/types';
 
 export function buildColorScheme(
-  hex: StockfluxHexMode,
-  shadcn: StockfluxShadcnMode,
+  hex: StarUIHexMode,
+  shadcn: StarUIShadcnMode,
   mode: 'dark' | 'light',
 ): ColorScheme {
   const isDark = mode === 'dark';
@@ -124,7 +124,7 @@ export function buildColorScheme(
   };
 }
 
-export function buildSchemesForPack(pack: StockfluxPalettePack): { dark: ColorScheme; light: ColorScheme } {
+export function buildSchemesForPack(pack: StarUIPalettePack): { dark: ColorScheme; light: ColorScheme } {
   return {
     dark:  buildColorScheme(pack.hex.dark, pack.shadcn.dark, 'dark'),
     light: buildColorScheme(pack.hex.light, pack.shadcn.light, 'light'),

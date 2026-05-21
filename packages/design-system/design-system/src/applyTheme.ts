@@ -4,10 +4,10 @@
 
 import { PALETTE_STORAGE_KEY, THEME_STORAGE_KEY } from '@starui/shared-types';
 import {
-  DEFAULT_STOCKFLUX_PALETTE,
-  isStockfluxPaletteName,
-  type StockfluxPaletteName,
-} from './tokens/stockflux';
+  DEFAULT_STARUI_PALETTE,
+  isStarUIPaletteName,
+  type StarUIPaletteName,
+} from './tokens/starui';
 
 export type Mode = 'dark' | 'light';
 
@@ -15,7 +15,7 @@ export { PALETTE_STORAGE_KEY } from '@starui/shared-types';
 
 export interface ThemeOptions {
   theme: Mode;
-  palette?: StockfluxPaletteName;
+  palette?: StarUIPaletteName;
   cvd?: boolean;
 }
 
@@ -23,9 +23,9 @@ const CVD_KEY = 'starui:cvd';
 const LEGACY_KEY = '@starui/theme';
 const LEGACY_THEME_KEY = 'starui:theme';
 
-function applyPaletteAttribute(palette: StockfluxPaletteName): void {
+function applyPaletteAttribute(palette: StarUIPaletteName): void {
   if (typeof document === 'undefined') return;
-  if (palette === DEFAULT_STOCKFLUX_PALETTE) {
+  if (palette === DEFAULT_STARUI_PALETTE) {
     document.documentElement.removeAttribute('data-palette');
   } else {
     document.documentElement.setAttribute('data-palette', palette);
@@ -34,7 +34,7 @@ function applyPaletteAttribute(palette: StockfluxPaletteName): void {
 
 export function applyTheme(opts: ThemeOptions): void {
   if (typeof document === 'undefined') return;
-  const palette = opts.palette ?? DEFAULT_STOCKFLUX_PALETTE;
+  const palette = opts.palette ?? DEFAULT_STARUI_PALETTE;
 
   document.documentElement.setAttribute('data-theme', opts.theme);
   applyPaletteAttribute(palette);
@@ -61,15 +61,15 @@ export function applyTheme(opts: ThemeOptions): void {
 
 export function getTheme(): ThemeOptions {
   if (typeof localStorage === 'undefined') {
-    return { theme: 'dark', palette: DEFAULT_STOCKFLUX_PALETTE };
+    return { theme: 'dark', palette: DEFAULT_STARUI_PALETTE };
   }
   try {
     const theme = localStorage.getItem(THEME_STORAGE_KEY)
       ?? localStorage.getItem(LEGACY_THEME_KEY);
     const paletteRaw = localStorage.getItem(PALETTE_STORAGE_KEY);
-    const palette = paletteRaw && isStockfluxPaletteName(paletteRaw)
+    const palette = paletteRaw && isStarUIPaletteName(paletteRaw)
       ? paletteRaw
-      : DEFAULT_STOCKFLUX_PALETTE;
+      : DEFAULT_STARUI_PALETTE;
     const cvd = localStorage.getItem(CVD_KEY) === 'on';
 
     if (theme === 'dark' || theme === 'light') {
@@ -81,15 +81,15 @@ export function getTheme(): ThemeOptions {
     if (legacy) {
       const parsed = JSON.parse(legacy) as Partial<ThemeOptions & { palette?: string }>;
       if (parsed.theme === 'dark' || parsed.theme === 'light') {
-        const legacyPalette = parsed.palette && isStockfluxPaletteName(parsed.palette)
+        const legacyPalette = parsed.palette && isStarUIPaletteName(parsed.palette)
           ? parsed.palette
-          : DEFAULT_STOCKFLUX_PALETTE;
+          : DEFAULT_STARUI_PALETTE;
         const base: ThemeOptions = { theme: parsed.theme, palette: legacyPalette };
         return parsed.cvd ? { ...base, cvd: true } : base;
       }
     }
-    return { theme: 'dark', palette: DEFAULT_STOCKFLUX_PALETTE };
+    return { theme: 'dark', palette: DEFAULT_STARUI_PALETTE };
   } catch {
-    return { theme: 'dark', palette: DEFAULT_STOCKFLUX_PALETTE };
+    return { theme: 'dark', palette: DEFAULT_STARUI_PALETTE };
   }
 }

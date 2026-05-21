@@ -1,7 +1,7 @@
-import type { StockfluxPalettePack } from './types';
+import type { StarUIPalettePack } from './types';
 
-/** Stockflux signature TEAL — `tokens.css` default + `aggrid-theme.js` */
-export const stockfluxTealPack: StockfluxPalettePack = {
+/** StarUI signature TEAL — `tokens.css` default + `aggrid-theme.js` */
+export const staruiTealPack: StarUIPalettePack = {
   agGrid: {
     dark: {
       bg: '#0d1219',

@@ -15,16 +15,18 @@
 
 // ─── IAB topic names ────────────────────────────────────────────────
 export const IAB_DOCK_CONFIG_UPDATE = "dock-config-update";
+/** Published by workspace-setup when the user resets dock layout. */
+export const IAB_DOCK_CONFIG_RESET = "dock-config-reset";
 export const IAB_RELOAD_AFTER_IMPORT = "reload-dock-after-import";
 export const IAB_THEME_CHANGED = "theme-changed";
-/** Stockflux brand palette id (`teal` | `indigo` | `amber` | `slate` | `grey`). */
+/** StarUI brand palette id (`teal` | `indigo` | `amber` | `slate` | `grey`). */
 export const IAB_PALETTE_CHANGED = "palette-changed";
 export const IAB_REGISTRY_CONFIG_UPDATE = "registry-config-update";
 
 // ─── Action ID constants ─────────────────────────────────────────────
 export const ACTION_LAUNCH_APP           = "launch-app";
 export const ACTION_TOGGLE_THEME         = "toggle-theme";
-/** Content-menu action — `itemData.palette` is a Stockflux palette id. */
+/** Content-menu action — `itemData.palette` is a StarUI palette id. */
 export const ACTION_SET_PALETTE          = "set-palette";
 export const ACTION_OPEN_DOCK_EDITOR     = "open-dock-editor";
 export const ACTION_RELOAD_DOCK          = "reload-dock";

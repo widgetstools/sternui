@@ -19,14 +19,17 @@ export {
 } from './openChildToolWindow.js';
 
 // ─── Dock management ─────────────────────────────────────────────────
+export type { DockType } from './types';
 export {
   updateDockButtons,
   getDefaultEditorConfig,
   recolorDockIcons,
+  refreshDockAppearance,
   shutdownDock,
   // IAB topic names — exported so packages that publish/subscribe
   // to these topics use the same string constant, not separate literals.
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_DOCK_CONFIG_RESET,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
   IAB_PALETTE_CHANGED,
@@ -101,6 +104,7 @@ export type {
 export {
   toDock3Favorites,
   toDock3UserContentMenu,
+  toLegacyDockButtons,
   appsToEditorConfig,
   type DockEditorConfig,
   type DockButtonConfig,

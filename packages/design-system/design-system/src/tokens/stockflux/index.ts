@@ -1,43 +1,26 @@
-import { stockfluxAmberPack } from './amber';
-import { stockfluxGreyPack } from './grey';
-import { stockfluxIndigoPack } from './indigo';
-import { stockfluxSlatePack } from './slate';
-import { stockfluxTealPack } from './teal';
-import {
-  DEFAULT_STOCKFLUX_PALETTE,
-  STOCKFLUX_PALETTE_NAMES,
-  type StockfluxPaletteName,
-  type StockfluxPalettePack,
-} from './types';
-
+/**
+ * @deprecated Import from `./starui` or `@starui/design-system` StarUI exports instead.
+ */
 export {
-  DEFAULT_STOCKFLUX_PALETTE,
-  STOCKFLUX_PALETTE_NAMES,
-  type StockfluxPaletteName,
-  type StockfluxPalettePack,
-  type StockfluxHexMode,
-  type StockfluxShadcnMode,
-  type StockfluxAgGridMode,
-} from './types';
+  DEFAULT_STARUI_PALETTE as DEFAULT_STOCKFLUX_PALETTE,
+  STARUI_PALETTE_NAMES as STOCKFLUX_PALETTE_NAMES,
+  STARUI_PALETTES as STOCKFLUX_PALETTES,
+  getStarUIPack as getStockfluxPack,
+  isStarUIPaletteName as isStockfluxPaletteName,
+  staruiTealPack as stockfluxTealPack,
+  staruiIndigoPack as stockfluxIndigoPack,
+  staruiAmberPack as stockfluxAmberPack,
+  staruiSlatePack as stockfluxSlatePack,
+  staruiGreyPack as stockfluxGreyPack,
+  staruiSlateHex as stockfluxSlateHex,
+  staruiSlateShadcn as stockfluxSlateShadcn,
+  staruiSlateAgGrid as stockfluxSlateAgGrid,
+} from '../starui';
 
-export { stockfluxTealPack } from './teal';
-export { stockfluxIndigoPack } from './indigo';
-export { stockfluxAmberPack } from './amber';
-export { stockfluxSlatePack, stockfluxSlateHex, stockfluxSlateShadcn, stockfluxSlateAgGrid } from './slate';
-export { stockfluxGreyPack } from './grey';
-
-export const STOCKFLUX_PALETTES: Record<StockfluxPaletteName, StockfluxPalettePack> = {
-  teal:   stockfluxTealPack,
-  indigo: stockfluxIndigoPack,
-  amber:  stockfluxAmberPack,
-  slate:  stockfluxSlatePack,
-  grey:   stockfluxGreyPack,
-};
-
-export function getStockfluxPack(palette: StockfluxPaletteName): StockfluxPalettePack {
-  return STOCKFLUX_PALETTES[palette];
-}
-
-export function isStockfluxPaletteName(value: string): value is StockfluxPaletteName {
-  return (STOCKFLUX_PALETTE_NAMES as readonly string[]).includes(value);
-}
+export type {
+  StarUIPaletteName as StockfluxPaletteName,
+  StarUIPalettePack as StockfluxPalettePack,
+  StarUIHexMode as StockfluxHexMode,
+  StarUIShadcnMode as StockfluxShadcnMode,
+  StarUIAgGridMode as StockfluxAgGridMode,
+} from '../starui';

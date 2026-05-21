@@ -1,28 +1,28 @@
 // ─────────────────────────────────────────────────────────────
-//  AG Grid Theme Params — Stockflux palettes (ag-grid v33+)
+//  AG Grid Theme Params — StarUI palettes (ag-grid v33+)
 // ─────────────────────────────────────────────────────────────
 
 import { iconSetQuartzBold, themeQuartz, type Theme } from 'ag-grid-community';
 import { getColorScheme } from '../tokens/semantic';
 import {
-  DEFAULT_STOCKFLUX_PALETTE,
-  getStockfluxPack,
-  type StockfluxAgGridMode,
-  type StockfluxPaletteName,
-} from '../tokens/stockflux';
+  DEFAULT_STARUI_PALETTE,
+  getStarUIPack,
+  type StarUIAgGridMode,
+  type StarUIPaletteName,
+} from '../tokens/starui';
 import { typography } from '../tokens/primitives';
 
 export type AgGridDensity = 'compact' | 'comfort' | 'ultra';
 
 export interface AgGridThemeOptions {
-  palette?: StockfluxPaletteName;
+  palette?: StarUIPaletteName;
   mode?: 'dark' | 'light';
   density?: AgGridDensity;
 }
 
 function gridParams(
-  pack: StockfluxAgGridMode,
-  palette: StockfluxPaletteName,
+  pack: StarUIAgGridMode,
+  palette: StarUIPaletteName,
   mode: 'dark' | 'light',
   density: AgGridDensity = 'compact',
 ) {
@@ -106,15 +106,15 @@ function hexToRgba(hex: string, a: number): string {
 const themeCache = new Map<string, Theme>();
 
 export function buildAgGridParams(options: AgGridThemeOptions = {}) {
-  const palette = options.palette ?? DEFAULT_STOCKFLUX_PALETTE;
+  const palette = options.palette ?? DEFAULT_STARUI_PALETTE;
   const mode = options.mode ?? 'dark';
   const density = options.density ?? 'compact';
-  const pack = getStockfluxPack(palette).agGrid[mode];
+  const pack = getStarUIPack(palette).agGrid[mode];
   return gridParams(pack, palette, mode, density);
 }
 
 export function buildAgGridTheme(options: AgGridThemeOptions = {}): Theme {
-  const palette = options.palette ?? DEFAULT_STOCKFLUX_PALETTE;
+  const palette = options.palette ?? DEFAULT_STARUI_PALETTE;
   const mode = options.mode ?? 'dark';
   const density = options.density ?? 'compact';
   const key = `${palette}-${mode}-${density}`;

@@ -1,7 +1,17 @@
 import type { App } from "@openfin/workspace";
 
+/** OpenFin dock implementation: Dock3 (default) or legacy bar dropdowns. */
+export type DockType = "dock3" | "legacy";
+
 export interface CustomSettings {
   apps?: App[];
+
+  /**
+   * Dock implementation. `dock3` uses `Dock.init()` (favorites + content menu).
+   * `legacy` uses `Dock.register()` from `@openfin/workspace` (bar-level dropdowns).
+   * @default "dock3"
+   */
+  dockType?: DockType;
 
   /**
    * URL to a JSON file containing seed data for first-run initialization.
@@ -47,7 +57,26 @@ export interface PlatformSettings {
 export type UserRole = "admin" | "developer" | "support" | "user";
 
 export interface WorkspaceConfig {
-  /** Theme palette override */
+  /**
+   * Dock implementation. Overrides manifest `customSettings.dockType` when set.
+   * @default "dock3"
+   */
+  dockType?: DockType;
+
+  /**
+   * When true, `init()` passes StarUI-derived `CustomPaletteSet` colors into
+   * OpenFin workspace chrome (dock companion, notifications). Default **false**
+   * leaves OpenFin's built-in theme untouched.
+   */
+  useStarUIOpenFinTheme?: boolean;
+
+  /** @deprecated Renamed to {@link useStarUIOpenFinTheme}. */
+  useStockfluxOpenFinTheme?: boolean;
+
+  /**
+   * Optional overrides when `useStarUIOpenFinTheme` is true (maps into
+   * `buildOpenFinThemePalettes`).
+   */
   theme?: {
     brandPrimary?: string;
     brandSecondary?: string;

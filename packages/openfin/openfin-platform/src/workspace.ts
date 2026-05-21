@@ -2,7 +2,13 @@
 declare const fin: any;
 import type OpenFin from "@openfin/core";
 import { Home, Storefront, type App } from "@openfin/workspace";
-import { init, type WorkspacePlatformOverrideCallback } from "@openfin/workspace-platform";
+import {
+  ColorSchemeOptionType,
+  getCurrentSync,
+  init,
+  type WorkspacePlatformOverrideCallback,
+} from "@openfin/workspace-platform";
+import { applyTheme, DEFAULT_STARUI_PALETTE, getTheme } from "@starui/design-system";
 import { createConfigManager, type ConfigManager } from "@starui/host-config";
 import {
   setConfigManager,
@@ -14,6 +20,7 @@ import {
 } from './db';
 import {
   registerDock,
+  refreshDockAppearance,
   reloadDockFromConfig,
   ACTION_LAUNCH_APP,
   ACTION_OPEN_DOCK_EDITOR,
@@ -35,11 +42,11 @@ import { launchApp, launchRegisteredComponent } from './launch';
 import { resolveRestUrl } from './manifestConfig';
 import { registerNotifications } from './notifications';
 import { registerStore } from './store';
-import type { CustomSettings, PlatformSettings, WorkspaceConfig } from './types';
+import type { CustomSettings, DockType, PlatformSettings, WorkspaceConfig } from './types';
 import {
   buildOpenFinThemePalettes,
-  readInitialStockfluxPalette,
-} from './stockfluxOpenFinPalette';
+  OPENFIN_CHROME_PALETTE,
+} from './staruiOpenFinPalette';
 import { createWorkspacePersistenceOverride } from './workspacePersistence';
 import { gcOrphanedConfigs } from './workspaceGc';
 import { buildCustomActions } from './internal/customActions';
@@ -50,22 +57,39 @@ import {
 } from './openChildToolWindow.js';
 
 /**
- * Read the current theme from this window's documentElement.
- * Falls back to localStorage, then "dark" as the last resort.
- * Used by the theme toggle handlers to determine the current state
- * without depending on OpenFin's `platform.Theme.getSelectedScheme()`
- * (which can desync due to a known promise-never-resolves quirk).
+ * Read the persisted theme (`starui:theme` via design-system `getTheme()`).
+ * Used by toggle handlers instead of OpenFin `getSelectedScheme()` (can hang).
  */
 function readCurrentTheme(): "dark" | "light" {
+  return getTheme().theme;
+}
+
+/**
+ * Restore persisted **appearance mode** (dark/light) on the provider window.
+ * Does not push StarUI brand palette into OpenFin — content views apply
+ * their own `applyTheme(getTheme())` from `main.tsx`.
+ */
+function restorePersistedTheme(): "dark" | "light" {
+  const { theme, cvd } = getTheme();
+  applyTheme({ theme, palette: DEFAULT_STARUI_PALETTE, cvd });
   try {
-    const attr = document.documentElement.getAttribute("data-theme");
-    if (attr === "light" || attr === "dark") return attr;
+    document.body.dataset["agThemeMode"] = theme;
   } catch { /* non-browser */ }
+  return theme;
+}
+
+/** Align OpenFin workspace chrome (dock bar, browsers) with persisted theme. */
+function syncOpenFinThemeScheme(theme: "dark" | "light"): void {
   try {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light") return "light";
-  } catch { /* storage unavailable */ }
-  return "dark";
+    const platform = getCurrentSync();
+    const scheme =
+      theme === "light" ? ColorSchemeOptionType.Light : ColorSchemeOptionType.Dark;
+    void platform.Theme.setSelectedScheme(scheme).catch((err: unknown) => {
+      console.warn("[initWorkspace] setSelectedScheme failed:", err);
+    });
+  } catch (err) {
+    console.warn("[initWorkspace] syncOpenFinThemeScheme failed:", err);
+  }
 }
 
 /**
@@ -110,11 +134,10 @@ async function runThemeToggle(
 function applyLocalDataTheme(isDark: boolean): void {
   try {
     const theme = isDark ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-    document.body.dataset["agThemeMode"] = theme;
-    // Canonical `starui:theme` key — same key the `RuntimePort`
-    // implementations read/write so windows agree across reloads.
-    try { localStorage.setItem("starui:theme", theme); } catch { /* non-browser or locked */ }
+    applyTheme({ theme, palette: getTheme().palette });
+    try {
+      document.body.dataset["agThemeMode"] = theme;
+    } catch { /* non-browser */ }
   } catch {
     /* not running in a DOM-capable context */
   }
@@ -184,6 +207,9 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   };
 
   log("Workspace platform initializing");
+
+  const persistedTheme = restorePersistedTheme();
+  log(`Restored persisted theme: ${persistedTheme}`);
 
   const settings = await getManifestCustomSettings();
 
@@ -276,6 +302,12 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   const platform = fin.Platform.getCurrentSync();
   await platform.once("platform-api-ready", async () => {
     try {
+      const theme = restorePersistedTheme();
+      syncOpenFinThemeScheme(theme);
+
+      const dockType: DockType =
+        config?.dockType ?? settings.customSettings?.dockType ?? "dock3";
+
       await initializeWorkspaceComponents(
         settings.platformSettings,
         settings.customSettings,
@@ -285,7 +317,14 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
         config?.themeToggleDarkIcon,
         config?.themeToggleLightIcon,
         config?.roles,
+        dockType,
       );
+
+      // Re-apply dock icons/chrome after OpenFin scheme sync (legacy reads theme at register).
+      if (components.dock) {
+        await refreshDockAppearance();
+      }
+
       log("Workspace platform initialized");
     } catch (err) {
       console.error("Failed to initialize workspace components:", err);
@@ -333,7 +372,12 @@ export async function initWorkspace(config?: WorkspaceConfig): Promise<void> {
   })();
 
   // init() starts the platform and triggers "platform-api-ready" above
-  await initializePlatform(settings.platformSettings, config?.theme, workspaceOverride);
+  await initializePlatform(
+    settings.platformSettings,
+    config?.useStarUIOpenFinTheme ?? config?.useStockfluxOpenFinTheme,
+    config?.theme,
+    workspaceOverride,
+  );
 }
 
 // ─── Export config helper ─────────────────────────────────────────────
@@ -384,15 +428,16 @@ async function exportAllConfig(cm: ConfigManager): Promise<void> {
 // ─── Platform initialization ─────────────────────────────────────────
 
 /**
- * Initialize the OpenFin workspace platform with theme config and
- * custom action handlers for the dock buttons.
+ * Initialize the OpenFin workspace platform and custom action handlers.
+ * OpenFin's built-in theme is used unless `useStarUIOpenFinTheme` is true.
  */
 async function initializePlatform(
   platformSettings: PlatformSettings,
-  theme?: WorkspaceConfig["theme"],
+  useStarUIOpenFinTheme?: boolean,
+  themeOverrides?: WorkspaceConfig["theme"],
   overrideCallback?: WorkspacePlatformOverrideCallback,
 ): Promise<void> {
-  await init({
+  const initOptions: Parameters<typeof init>[0] = {
     ...(overrideCallback ? { overrideCallback } : {}),
     browser: {
       defaultWindowOptions: {
@@ -404,20 +449,25 @@ async function initializePlatform(
         },
       },
     },
-    theme: [
-      {
-        label: "Default",
-        default: "dark",
-        palettes: buildOpenFinThemePalettes(readInitialStockfluxPalette(), theme),
-      },
-    ],
     customActions: buildCustomActions({
       runThemeToggle,
       openChildWindow,
       getConfigManager: () => configManager,
       exportAllConfig,
     }),
-  });
+  };
+
+  if (useStarUIOpenFinTheme) {
+    initOptions.theme = [
+      {
+        label: "Default",
+        default: restorePersistedTheme(),
+        palettes: buildOpenFinThemePalettes(OPENFIN_CHROME_PALETTE, themeOverrides),
+      },
+    ];
+  }
+
+  await init(initOptions);
 }
 
 // ─── Dock3 action dispatcher ──────────────────────────────────────────
@@ -596,6 +646,7 @@ async function initializeWorkspaceComponents(
   themeToggleDarkIcon?: string,
   themeToggleLightIcon?: string,
   roles?: string[],
+  dockType: DockType = "dock3",
 ): Promise<void> {
   log("Initializing workspace components");
 
@@ -624,7 +675,16 @@ async function initializeWorkspaceComponents(
       }
     };
 
-    await registerDock(platformSettings, customSettings?.apps, dockIcon, themeToggleDarkIcon, themeToggleLightIcon, roles, dockActionDispatcher);
+    await registerDock(
+      platformSettings,
+      customSettings?.apps,
+      dockIcon,
+      themeToggleDarkIcon,
+      themeToggleLightIcon,
+      roles,
+      dockActionDispatcher,
+      dockType,
+    );
   }
 
   if (components.notifications) {

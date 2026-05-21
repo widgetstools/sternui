@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   readDocumentThemeMode,
-  readStockfluxPalette,
+  readStarUIPalette,
   readHostAppearance,
 } from '../src/readHostAppearance';
 
@@ -30,11 +30,11 @@ describe('readHostAppearance', () => {
 
   it('reads palette from data-palette', () => {
     html.setAttribute('data-palette', 'indigo');
-    expect(readStockfluxPalette()).toBe('indigo');
+    expect(readStarUIPalette()).toBe('indigo');
   });
 
   it('ignores invalid data-palette', () => {
     html.setAttribute('data-palette', 'neon');
-    expect(readStockfluxPalette()).toBe('slate');
+    expect(readStarUIPalette()).toBe('slate');
   });
 });

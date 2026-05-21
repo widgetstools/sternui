@@ -7,6 +7,8 @@ import {
   type CustomActionsMap,
 } from '@openfin/workspace-platform';
 import { type App } from '@openfin/workspace';
+import { applyTheme, getTheme, isStarUIPaletteName } from '@starui/design-system';
+import { persistDockPaletteSelection } from '../staruiOpenFinPalette';
 import type { ConfigManager } from '@starui/host-config';
 import {
   ACTION_EXPORT_CONFIG,
@@ -19,12 +21,15 @@ import {
   ACTION_OPEN_REGISTRY_EDITOR,
   ACTION_OPEN_WORKSPACE_SETUP,
   ACTION_RELOAD_DOCK,
+  ACTION_SET_PALETTE,
   ACTION_SHOW_DEVTOOLS,
   ACTION_INSPECT_SHARED_WORKER,
   ACTION_TOGGLE_PROVIDER,
   ACTION_TOGGLE_THEME,
+  IAB_PALETTE_CHANGED,
   IAB_THEME_CHANGED,
   recolorDockIcons,
+  refreshDockAppearance,
   reloadDockFromConfig,
 } from '../dock';
 import { launchApp, launchRegisteredComponent } from '../launch';
@@ -110,21 +115,47 @@ export function buildCustomActions(deps: CustomActionDeps): CustomActionsMap {
     // This entry is kept for fallback / non-dock callers (e.g. a custom
     // browser button if one is ever added). It uses `runThemeToggle`
     // for safe re-entry coalescing.
+    [ACTION_SET_PALETTE]: async (e): Promise<void> => {
+      if (e.callerType !== CustomActionCallerType.CustomDropdownItem) return;
+      const cd = (e.customData ?? {}) as { palette?: string };
+      const palette = cd.palette;
+      if (!palette || !isStarUIPaletteName(palette)) return;
+      const theme = getTheme().theme;
+      // Updates ✓ checkmarks in the Color palette submenu only — no applyTheme,
+      // no OpenFin CustomPaletteSet, no dock icon recolor.
+      persistDockPaletteSelection(palette);
+      await refreshDockAppearance();
+      try {
+        await fin.InterApplicationBus.publish(IAB_PALETTE_CHANGED, { palette, theme });
+      } catch (iabErr) {
+        console.warn('[set-palette] IAB publish failed:', iabErr);
+      }
+    },
+
     [ACTION_TOGGLE_THEME]: async (e): Promise<void> => {
-      if (e.callerType !== CustomActionCallerType.CustomButton) return;
+      // Legacy dock invokes customActions from the provider window — do not
+      // await setSelectedScheme (same deadlock as Dock3 launchEntry notes).
       await runThemeToggle(async (isDark) => {
+        const themeStr = isDark ? "dark" : "light";
+        const palette = getTheme().palette;
+        applyTheme({ theme: themeStr, palette });
+        try { document.body.dataset["agThemeMode"] = themeStr; } catch { /* */ }
+
         const platform = getCurrentSync();
         const next = isDark ? ColorSchemeOptionType.Dark : ColorSchemeOptionType.Light;
-        try {
-          await platform.Theme.setSelectedScheme(next);
-        } catch (schemeErr) {
-          console.warn('setSelectedScheme failed:', schemeErr);
-        }
+        void platform.Theme.setSelectedScheme(next).catch((schemeErr: unknown) => {
+          console.warn("setSelectedScheme failed:", schemeErr);
+        });
+
         await recolorDockIcons(isDark);
         try {
-          await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { isDark });
+          await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, {
+            theme: themeStr,
+            isDark,
+            palette,
+          });
         } catch (iabErr) {
-          console.warn('IAB publish failed:', iabErr);
+          console.warn("IAB publish failed:", iabErr);
         }
       });
     },

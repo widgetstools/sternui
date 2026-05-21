@@ -8,7 +8,7 @@ import type {
 } from '@starui/types';
 import { PALETTE_STORAGE_KEY, THEME_BROADCAST_CHANNEL, THEME_STORAGE_KEY } from '@starui/types';
 
-const STOCKFLUX_PALETTES = new Set(['teal', 'indigo', 'amber', 'slate', 'grey']);
+const STARUI_PALETTES = new Set(['teal', 'indigo', 'amber', 'slate', 'grey']);
 import { resolveBrowserIdentity, type IdentityOverrides } from './identity.js';
 
 export interface BrowserRuntimeOptions {
@@ -156,12 +156,12 @@ export class BrowserRuntime implements RuntimePort {
   private detectPalette(): string {
     if (typeof document !== 'undefined') {
       const attr = document.documentElement.getAttribute('data-palette');
-      if (attr && STOCKFLUX_PALETTES.has(attr)) return attr;
+      if (attr && STARUI_PALETTES.has(attr)) return attr;
     }
     if (typeof window !== 'undefined') {
       try {
         const stored = window.localStorage.getItem(PALETTE_STORAGE_KEY);
-        if (stored && STOCKFLUX_PALETTES.has(stored)) return stored;
+        if (stored && STARUI_PALETTES.has(stored)) return stored;
       } catch { /* swallow */ }
     }
     return 'slate';

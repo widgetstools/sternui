@@ -56,6 +56,7 @@ export {
 // ── IAB topic + action-ID constants (pure strings, no runtime deps) ──
 export {
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_DOCK_CONFIG_RESET,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
   IAB_PALETTE_CHANGED,

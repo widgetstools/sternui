@@ -1,7 +1,7 @@
-import type { StockfluxPalettePack } from './types';
+import type { StarUIPalettePack } from './types';
 
-/** Stockflux SLATE BLUE — `palettes.css` + `aggrid-theme.js` */
-export const stockfluxSlatePack: StockfluxPalettePack = {
+/** StarUI SLATE BLUE — `palettes.css` + `aggrid-theme.js` */
+export const staruiSlatePack: StarUIPalettePack = {
   agGrid: {
     dark: {
       bg: '#171a1d',
@@ -208,7 +208,7 @@ export const stockfluxSlatePack: StockfluxPalettePack = {
   },
 };
 
-/** @deprecated Use `stockfluxSlatePack` — kept for existing imports */
-export const stockfluxSlateAgGrid = stockfluxSlatePack.agGrid;
-export const stockfluxSlateShadcn = stockfluxSlatePack.shadcn;
-export const stockfluxSlateHex = stockfluxSlatePack.hex;
+/** @deprecated Use `staruiSlatePack` — kept for existing imports */
+export const staruiSlateAgGrid = staruiSlatePack.agGrid;
+export const staruiSlateShadcn = staruiSlatePack.shadcn;
+export const staruiSlateHex = staruiSlatePack.hex;

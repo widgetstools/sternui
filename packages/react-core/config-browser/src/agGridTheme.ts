@@ -7,12 +7,12 @@ import type { Theme } from "ag-grid-community";
 import { buildAgGridTheme } from "@starui/design-system/adapters/ag-grid";
 import {
   readDocumentThemeMode,
-  readStockfluxPalette,
+  readStarUIPalette,
 } from "@starui/design-system";
 
 export function agGridThemeFor(theme: "dark" | "light"): Theme {
   return buildAgGridTheme({
-    palette: readStockfluxPalette(),
+    palette: readStarUIPalette(),
     mode: theme,
     density: "compact",
   });
@@ -24,7 +24,7 @@ export function agGridThemeFor(theme: "dark" | "light"): Theme {
  */
 export function agGridThemeForDocument(): Theme {
   return buildAgGridTheme({
-    palette: readStockfluxPalette(),
+    palette: readStarUIPalette(),
     mode: readDocumentThemeMode(),
     density: "compact",
   });

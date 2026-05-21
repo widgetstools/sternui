@@ -11,6 +11,7 @@ import {
   clearDockConfig,
   loadRegistryConfig,
   IAB_DOCK_CONFIG_UPDATE,
+  IAB_DOCK_CONFIG_RESET,
   IAB_REGISTRY_CONFIG_UPDATE,
   type ConfigScope,
   type DockEditorConfig,
@@ -378,7 +379,7 @@ export function useDockEditor(opts: UseDockEditorOptions = {}): UseDockEditorRet
     // Publish empty config so dock reverts to defaults
     try {
       if (typeof fin !== "undefined") {
-        await fin.InterApplicationBus.publish("dock-config-reset", {});
+        await fin.InterApplicationBus.publish(IAB_DOCK_CONFIG_RESET, {});
       }
     } catch (err) {
       console.warn("Failed to publish dock config reset:", err);

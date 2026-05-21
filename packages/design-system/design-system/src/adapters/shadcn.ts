@@ -23,10 +23,10 @@
 
 import { dark, light, shared, schemesByPalette } from '../tokens/semantic';
 import {
-  DEFAULT_STOCKFLUX_PALETTE,
-  STOCKFLUX_PALETTE_NAMES,
-  type StockfluxPaletteName,
-} from '../tokens/stockflux';
+  DEFAULT_STARUI_PALETTE,
+  STARUI_PALETTE_NAMES,
+  type StarUIPaletteName,
+} from '../tokens/starui';
 import type { ColorScheme } from '../tokens/colorScheme';
 import { colors, typography, radius, transition } from '../tokens/primitives';
 import { controls } from '../tokens/controls';
@@ -97,7 +97,7 @@ export function getShadcnTokens(mode: 'dark' | 'light') {
 //  Unified CSS Generator — Task 9
 // ─────────────────────────────────────────────────────────────
 
-function stockfluxAliasVars(scheme: ColorScheme): string {
+function staruiAliasVars(scheme: ColorScheme): string {
   const h = scheme.surface;
   const t = scheme.text;
   const b = scheme.border;
@@ -388,7 +388,7 @@ function dsVars(scheme: ColorScheme, mode: 'dark' | 'light'): string {
     --ob-ask-fill:  ${scheme.trade.askFill};
     --tt-bid-strip: ${scheme.trade.positiveStrip};
     --tt-ask-strip: ${scheme.trade.negativeStrip};
-    ${stockfluxAliasVars(scheme)}`;
+    ${staruiAliasVars(scheme)}`;
 }
 
 function cvdOverride(scheme: ColorScheme): string {
@@ -404,8 +404,8 @@ function cvdOverride(scheme: ColorScheme): string {
 }
 
 function paletteThemeBlocks(): string {
-  return STOCKFLUX_PALETTE_NAMES
-    .filter((name): name is StockfluxPaletteName => name !== DEFAULT_STOCKFLUX_PALETTE)
+  return STARUI_PALETTE_NAMES
+    .filter((name): name is StarUIPaletteName => name !== DEFAULT_STARUI_PALETTE)
     .map((palette) => {
       const schemes = schemesByPalette[palette];
       return `

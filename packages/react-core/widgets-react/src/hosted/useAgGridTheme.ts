@@ -2,7 +2,7 @@
  * Theme helper for hosted blotters — single source of AG-Grid styling.
  *
  * Uses `buildAgGridTheme({ palette, mode, density: 'ultra' })` from the
- * design-system so Stockflux palette + dark/light follow the same
+ * design-system so StarUI palette + dark/light follow the same
  * `data-theme` / `data-palette` contract as `useGridTheme` in
  * `@starui/grid`. OpenFin dock palette picks publish via IAB →
  * `applyTheme()` on child windows → MutationObserver here rebinds the
@@ -18,17 +18,17 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Theme } from 'ag-grid-community';
 import {
   readDocumentThemeMode,
-  readStockfluxPalette,
-  type StockfluxPaletteName,
+  readStarUIPalette,
+  type StarUIPaletteName,
 } from '@starui/design-system';
 import { buildAgGridTheme } from '@starui/design-system/adapters/ag-grid';
 
 export type AgGridThemeMode = 'auto' | 'dark' | 'light';
 
-function readAppearance(): { mode: 'dark' | 'light'; palette: StockfluxPaletteName } {
+function readAppearance(): { mode: 'dark' | 'light'; palette: StarUIPaletteName } {
   return {
     mode: readDocumentThemeMode(),
-    palette: readStockfluxPalette(),
+    palette: readStarUIPalette(),
   };
 }
 

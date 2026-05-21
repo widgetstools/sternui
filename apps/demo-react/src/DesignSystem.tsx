@@ -1,6 +1,6 @@
 /*
  * Design-system showcase — exercises @starui/ui components against
- * Stockflux tokens. Palette + theme apply via applyTheme() on <html>.
+ * StarUI tokens. Palette + theme apply via applyTheme() on <html>.
  *
  * Rendered under ?view=design-system (see App.tsx for routing).
  */
@@ -9,8 +9,8 @@ import { useCallback, useSyncExternalStore } from 'react';
 import {
   applyTheme,
   getTheme,
-  STOCKFLUX_PALETTE_NAMES,
-  type StockfluxPaletteName,
+  STARUI_PALETTE_NAMES,
+  type StarUIPaletteName,
 } from '@starui/design-system';
 import {
   Badge,
@@ -27,7 +27,7 @@ import {
 } from '@starui/ui';
 import { ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Info, Plus, Search } from 'lucide-react';
 
-const PALETTE_LABELS: Record<StockfluxPaletteName, string> = {
+const PALETTE_LABELS: Record<StarUIPaletteName, string> = {
   teal: 'Teal',
   indigo: 'Indigo',
   amber: 'Amber',
@@ -44,18 +44,18 @@ function subscribeTheme(cb: () => void) {
   return () => observer.disconnect();
 }
 
-function readPalette(): StockfluxPaletteName {
+function readPalette(): StarUIPaletteName {
   const attr = document.documentElement.getAttribute('data-palette');
-  if (attr && (STOCKFLUX_PALETTE_NAMES as readonly string[]).includes(attr)) {
-    return attr as StockfluxPaletteName;
+  if (attr && (STARUI_PALETTE_NAMES as readonly string[]).includes(attr)) {
+    return attr as StarUIPaletteName;
   }
   return 'slate';
 }
 
 export function DesignSystem() {
-  const palette = useSyncExternalStore(subscribeTheme, readPalette, () => 'slate' as StockfluxPaletteName);
+  const palette = useSyncExternalStore(subscribeTheme, readPalette, () => 'slate' as StarUIPaletteName);
 
-  const setPalette = useCallback((next: StockfluxPaletteName) => {
+  const setPalette = useCallback((next: StarUIPaletteName) => {
     const current = getTheme();
     applyTheme({ theme: current.theme, palette: next, cvd: current.cvd });
   }, []);
@@ -96,8 +96,8 @@ function Header({
   palette,
   onPaletteChange,
 }: {
-  palette: StockfluxPaletteName;
-  onPaletteChange: (p: StockfluxPaletteName) => void;
+  palette: StarUIPaletteName;
+  onPaletteChange: (p: StarUIPaletteName) => void;
 }) {
   return (
     <div className="flex flex-col gap-4 border-b pb-6" style={{ borderColor: 'var(--ds-border-primary)' }}>
@@ -105,7 +105,7 @@ function Header({
         className="text-[10px] font-bold uppercase tracking-[0.12em]"
         style={{ color: 'var(--ds-accent-info)' }}
       >
-        StarUI · Stockflux {PALETTE_LABELS[palette]}
+        StarUI · {PALETTE_LABELS[palette]}
       </span>
       <h1 className="text-[40px] font-bold tracking-tight" style={{ color: 'var(--ds-text-primary)' }}>
         Design system
@@ -116,7 +116,7 @@ function Header({
         Toggle dark/light from the app header.
       </p>
       <div className="flex flex-wrap gap-2">
-        {STOCKFLUX_PALETTE_NAMES.map((name) => (
+        {STARUI_PALETTE_NAMES.map((name) => (
           <Button
             key={name}
             size="sm"

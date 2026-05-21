@@ -1,4 +1,4 @@
-import type { StockfluxShadcnMode } from './stockflux/types';
+import type { StarUIShadcnMode } from './starui/types';
 
 /** Semantic color roles — one scheme per palette × mode */
 export interface ColorScheme {
@@ -99,5 +99,5 @@ export interface ColorScheme {
     overlay: string;
     glow:    string;
   };
-  shadcn: StockfluxShadcnMode;
+  shadcn: StarUIShadcnMode;
 }

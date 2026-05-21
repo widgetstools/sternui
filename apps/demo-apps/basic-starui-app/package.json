@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-3fb9b1a0.tgz",
+    "@starui/design-system": "file:../../../libs/starui-design-system-1.0.0-abbbe0ae.tgz",
     "@starui/react-grid": "file:../../../libs/starui-react-grid-0.1.0-2d4614b9.tgz",
     "@starui/react-ui": "file:../../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
     "@starui/shared": "file:../../../libs/starui-shared-1.0.0-c259642a.tgz",

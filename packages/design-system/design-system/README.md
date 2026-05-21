@@ -29,15 +29,16 @@ Already a workspace dep of every consuming package. Nothing to install.
 4. Apps pick up the change on next dev reload.
 5. The contrast audit (`tests/tokens/contrast-audit.test.ts`) runs as part of `npm test` — fixes must keep WCAG ratios in spec.
 
-## Stockflux palettes (teal · indigo · amber · slate · grey)
+## StarUI palettes (teal · indigo · amber · slate · grey)
 
 Reference kit: `staruidesign1` (`tokens.css`, `palettes.css`, `aggrid-theme.js`).
 
 - **Default product palette:** `slate` (omit `data-palette` on `<html>`).
-- **Runtime:** `applyTheme({ theme: 'dark' | 'light', palette?: StockfluxPaletteName, cvd?: boolean })`.
+- **Runtime:** `applyTheme({ theme: 'dark' | 'light', palette?: StarUIPaletteName, cvd?: boolean })`.
 - **Storage:** `starui:theme`, `starui:palette`, `starui:cvd`.
 - **AG Grid:** `buildAgGridTheme({ palette, mode, density })` from `@starui/design-system/adapters/ag-grid`.
-- **Token modules:** `src/tokens/stockflux/{teal,indigo,amber,slate,grey}.ts`.
+- **Token modules:** `src/tokens/starui/{teal,indigo,amber,slate,grey}.ts`.
+- **Deprecated:** `StockfluxPaletteName`, `STOCKFLUX_PALETTES`, and `src/tokens/stockflux/` re-export shim.
 
 ## How to add a theme variant (e.g. a high-contrast mode)
 

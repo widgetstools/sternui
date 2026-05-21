@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-//  Stockflux palette packs — shared shapes (reference: staruidesign1)
+//  StarUI palette packs — shared shapes (reference: staruidesign1)
 // ─────────────────────────────────────────────────────────────
 
-export type StockfluxPaletteName = 'teal' | 'indigo' | 'amber' | 'slate' | 'grey';
+export type StarUIPaletteName = 'teal' | 'indigo' | 'amber' | 'slate' | 'grey';
 
-export const DEFAULT_STOCKFLUX_PALETTE: StockfluxPaletteName = 'slate';
+export const DEFAULT_STARUI_PALETTE: StarUIPaletteName = 'slate';
 
-export const STOCKFLUX_PALETTE_NAMES: readonly StockfluxPaletteName[] = [
+export const STARUI_PALETTE_NAMES: readonly StarUIPaletteName[] = [
   'teal',
   'indigo',
   'amber',
@@ -14,7 +14,7 @@ export const STOCKFLUX_PALETTE_NAMES: readonly StockfluxPaletteName[] = [
   'grey',
 ] as const;
 
-export interface StockfluxHexMode {
+export interface StarUIHexMode {
   bg: string;
   bg1: string;
   bg2: string;
@@ -57,7 +57,7 @@ export interface StockfluxHexMode {
   sidebarGround: string;
 }
 
-export interface StockfluxShadcnMode {
+export interface StarUIShadcnMode {
   background: string;
   foreground: string;
   card: string;
@@ -92,7 +92,7 @@ export interface StockfluxShadcnMode {
   chart5: string;
 }
 
-export interface StockfluxAgGridMode {
+export interface StarUIAgGridMode {
   bg: string;
   fg: string;
   chrome: string;
@@ -116,8 +116,8 @@ export interface StockfluxAgGridMode {
   toggleOff: string;
 }
 
-export interface StockfluxPalettePack {
-  hex: { dark: StockfluxHexMode; light: StockfluxHexMode };
-  shadcn: { dark: StockfluxShadcnMode; light: StockfluxShadcnMode };
-  agGrid: { dark: StockfluxAgGridMode; light: StockfluxAgGridMode };
+export interface StarUIPalettePack {
+  hex: { dark: StarUIHexMode; light: StarUIHexMode };
+  shadcn: { dark: StarUIShadcnMode; light: StarUIShadcnMode };
+  agGrid: { dark: StarUIAgGridMode; light: StarUIAgGridMode };
 }

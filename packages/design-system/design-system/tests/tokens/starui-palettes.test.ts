@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import {
-  STOCKFLUX_PALETTE_NAMES,
-  STOCKFLUX_PALETTES,
-  DEFAULT_STOCKFLUX_PALETTE,
-} from '../../src/tokens/stockflux';
+  STARUI_PALETTE_NAMES,
+  STARUI_PALETTES,
+  DEFAULT_STARUI_PALETTE,
+} from '../../src/tokens/starui';
 import { schemesByPalette, getColorScheme } from '../../src/tokens/semantic';
 
-describe('Stockflux palettes', () => {
+describe('StarUI palettes', () => {
   it('exposes five named palettes', () => {
-    expect(STOCKFLUX_PALETTE_NAMES).toEqual(['teal', 'indigo', 'amber', 'slate', 'grey']);
-    expect(DEFAULT_STOCKFLUX_PALETTE).toBe('slate');
+    expect(STARUI_PALETTE_NAMES).toEqual(['teal', 'indigo', 'amber', 'slate', 'grey']);
+    expect(DEFAULT_STARUI_PALETTE).toBe('slate');
   });
 
-  it.each(STOCKFLUX_PALETTE_NAMES)('%s pack has dark/light hex and agGrid', (name) => {
-    const pack = STOCKFLUX_PALETTES[name];
+  it.each(STARUI_PALETTE_NAMES)('%s pack has dark/light hex and agGrid', (name) => {
+    const pack = STARUI_PALETTES[name];
     expect(pack.hex.dark.bg).toMatch(/^#/);
     expect(pack.hex.light.bg).toMatch(/^#/);
     expect(pack.agGrid.dark.accent).toMatch(/^#/);
@@ -21,7 +21,7 @@ describe('Stockflux palettes', () => {
   });
 
   it('trading up/down are palette-locked across brand palettes', () => {
-    for (const name of STOCKFLUX_PALETTE_NAMES) {
+    for (const name of STARUI_PALETTE_NAMES) {
       if (name === 'teal') continue;
       const { dark } = schemesByPalette[name];
       const tealDark = schemesByPalette.teal.dark;

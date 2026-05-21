@@ -1,13 +1,13 @@
 /*
- * StockfluxBlotter — Stockflux-style blotter comparison surface for demo-react.
+ * StarUIBlotter — StarUI-style blotter comparison surface for demo-react.
  *
  * Apples-to-apples comparison surface: same data shape, same column defs,
  * same cell-renderer styling — but driven by our `@starui/design-system`
- * tokens (`--ds-*` vs Stockflux's `--sf-*`) and our shadcn primitives
+ * tokens (`--ds-*` vs legacy reference's `--sf-*`) and our shadcn primitives
  * from `@starui/ui`. Any visual delta is a real theme delta, not a
  * structural one.
  *
- * Renders under ?view=stockflux-blotter.
+ * Renders under ?view=starui-blotter.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -28,11 +28,11 @@ import { Badge, Button, Input } from '@starui/ui';
 import { FileText, Search, Settings as SettingsIcon } from 'lucide-react';
 import { useStarGridApp } from '@starui/app';
 
-// Stockflux's blotter uses enterprise features (sideBar, cellSelection,
+// legacy reference's blotter uses enterprise features (sideBar, cellSelection,
 // row grouping, aggregations). Matching for apples-to-apples comparison.
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
-// ─── Seed data (verbatim from Stockflux blotter.jsx) ─────────────────────
+// ─── Seed data (verbatim from legacy reference blotter.jsx) ─────────────────────
 
 const SF_TICKERS: Array<[string, string, number, string]> = [
   ['AAPL', 'Apple Inc.', 186.42, 'NASDAQ'],
@@ -166,7 +166,7 @@ function buildPositions(): Position[] {
   });
 }
 
-// ─── Formatters (verbatim from Stockflux) ─────────────────────────────────
+// ─── Formatters (verbatim from legacy reference) ─────────────────────────────────
 
 const sfFmt = {
   qty:   (v: number | null) => v?.toLocaleString('en-US') ?? '',
@@ -175,7 +175,7 @@ const sfFmt = {
   time:  (d: Date | null) => d?.toLocaleTimeString('en-GB', { hour12: false }) ?? '',
 };
 
-// ─── Cell renderers (Stockflux behaviour, --ds-* tokens) ─────────────────
+// ─── Cell renderers (legacy reference behaviour, --ds-* tokens) ─────────────────
 
 function SideRenderer({ value }: ICellRendererParams) {
   if (!value) return null;
@@ -342,7 +342,7 @@ const defaultColDef: ColDef = {
   resizable: true,
   filter: true,
   floatingFilter: true,
-  // Stockflux pattern: keep the column-menu icon (⋮) always visible
+  // legacy reference pattern: keep the column-menu icon (⋮) always visible
   // next to each header label. Together with the resize handle this
   // gives the column-divider look in the header row.
   suppressHeaderMenuButton: false,
@@ -353,7 +353,7 @@ const defaultColDef: ColDef = {
 
 type Kind = 'trades' | 'positions';
 
-export function StockfluxBlotter() {
+export function StarUIBlotter() {
   const { theme } = useStarGridApp();
   const isDark = theme === 'dark';
   const [kind, setKind] = useState<Kind>('trades');
