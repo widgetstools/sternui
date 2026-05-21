@@ -35,7 +35,7 @@ const destructPillClass = cn(
   // Confirmed (one click before destructive fires) — flip to brand
   // primary so the user sees the click registered, second click
   // commits.
-  'data-[confirmed=true]:bg-primary/10 data-[confirmed=true]:border-primary/35 data-[confirmed=true]:text-primary',
+  'data-[confirmed=true]:bg-[color:var(--ds-primary-soft)] data-[confirmed=true]:border-[color:var(--ds-primary-ring)] data-[confirmed=true]:text-[color:var(--ds-primary)]',
 );
 
 // Vertical mode override — full-width pill with text label, taller.

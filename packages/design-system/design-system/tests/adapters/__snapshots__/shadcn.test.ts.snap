@@ -50,7 +50,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-state-disabled-bg:   #383c42;
     --ds-state-disabled-fg:   #494c52;
     --ds-state-hover-overlay: rgba(255,255,255,0.05);
-    --ds-state-selection:     rgba(59,130,246,0.20);
+    --ds-state-selection:     rgba(59,130,246,0.13);
 
     --ds-overlay-positive-soft:  rgba(45,212,191,0.13);
     --ds-overlay-positive-ring:  rgba(45,212,191,0.13);
@@ -330,7 +330,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
     --ds-state-disabled-bg:   #dde1e7;
     --ds-state-disabled-fg:   #abb1bb;
     --ds-state-hover-overlay: rgba(0,0,0,0.045);
-    --ds-state-selection:     rgba(37,99,235,0.12);
+    --ds-state-selection:     rgba(37,99,235,0.10);
 
     --ds-overlay-positive-soft:  rgba(15,118,110,0.10);
     --ds-overlay-positive-ring:  rgba(15,118,110,0.10);
@@ -347,7 +347,7 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
 
     --ds-elevation-card:    0 1px 2px rgba(12,29,48,0.06);
     --ds-elevation-overlay: 0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset;
-    --ds-elevation-glow:    0 0 0 3px rgba(37,99,235,0.22);
+    --ds-elevation-glow:    0 0 0 3px rgba(37,99,235,0.28);
 
     --ds-trade-flat:           #525d6c;
     --ds-trade-positive-strip: rgba(15,118,110,0.04);
@@ -574,6 +574,2330 @@ exports[`generateUnifiedCSS > matches snapshot 1`] = `
   }
 
   [data-theme="light"][data-cvd="on"] {
+    --ds-accent-positive:       #1e4fb8;
+    --ds-accent-positive-hover: #1e4fb8;
+    --ds-accent-negative:       #c2410c;
+    --ds-accent-negative-hover: #c2410c;
+    --ds-action-buy-bg:         #1e4fb8;
+    --ds-action-sell-bg:        #c2410c;
+    --success:                  221 72% 42%;
+    --destructive:              17 88% 40%;
+  }
+  [data-palette="teal"][data-theme="dark"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #14b8a6;
+    --ds-primary-hover:     #2dd4bf;
+    --ds-primary-display:   #2dd4bf;
+    --ds-primary-highlight: #5eead4;
+    --ds-primary-pressed:   #14b8a6;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(45,212,191,0.12);
+    --ds-primary-ring:      rgba(45,212,191,0.42);
+
+    --ds-surface-ground:     #0d1219;
+    --ds-surface-sunken:     #161c25;
+    --ds-surface-primary:    #1a212a;
+    --ds-surface-secondary:  #2a323d;
+    --ds-surface-tertiary:   #363e49;
+    --ds-surface-quaternary: #454e5a;
+
+    --ds-text-primary:   #f1f4f6;
+    --ds-text-secondary: #cfd5da;
+    --ds-text-muted:     #8c969d;
+    --ds-text-faint:     #636c74;
+    --ds-text-disabled:  #424950;
+
+    --ds-border-primary:   #2d3540;
+    --ds-border-secondary: #3f4854;
+    --ds-border-tertiary:  #485058;
+
+    --ds-accent-positive:       #2dd4bf;
+    --ds-accent-positive-hover: #5eead4;
+    --ds-accent-negative:       #f25668;
+    --ds-accent-negative-hover: #ff7484;
+    --ds-accent-warning:        #f5c14b;
+    --ds-accent-info:           #38bdf8;
+    --ds-accent-info-hover:     #7dd3fc;
+    --ds-accent-highlight:      #00e5ff;
+    --ds-accent-purple:         #af7de8;
+
+    --ds-action-buy-bg:    #2dd4bf;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #f25668;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #14b8a6;
+    --ds-state-focus-ring-bg: rgba(45,212,191,0.12);
+    --ds-state-disabled-bg:   #363e49;
+    --ds-state-disabled-fg:   #424950;
+    --ds-state-hover-overlay: rgba(255,255,255,0.05);
+    --ds-state-selection:     rgba(45,212,191,0.12);
+
+    --ds-overlay-positive-soft:  rgba(45,212,191,0.13);
+    --ds-overlay-positive-ring:  rgba(45,212,191,0.13);
+    --ds-overlay-negative-soft:  rgba(242,86,104,0.13);
+    --ds-overlay-negative-ring:  rgba(242,86,104,0.13);
+    --ds-overlay-warning-soft:   rgba(245,193,75,0.13);
+    --ds-overlay-warning-ring:   rgba(245,193,75,0.13);
+    --ds-overlay-info-soft:      rgba(56,189,248,0.13);
+    --ds-overlay-info-ring:      rgba(56,189,248,0.13);
+    --ds-overlay-neutral-soft:   rgba(143,147,154,0.13);
+    --ds-overlay-neutral-ring:   rgba(143,147,154,0.24);
+
+    --ds-scrollbar:  #2c4660;
+
+    --ds-elevation-card:    0 1px 2px rgba(0,0,0,0.4);
+    --ds-elevation-overlay: 0 4px 12px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(45,212,191,0.42);
+
+    --ds-trade-flat:           #8aa0ad;
+    --ds-trade-positive-strip: rgba(45,212,191,0.06);
+    --ds-trade-negative-strip: rgba(242,86,104,0.06);
+    --ds-trade-bid-fill:       rgba(45,212,191,0.16);
+    --ds-trade-ask-fill:       rgba(242,86,104,0.16);
+
+    --ds-chart-1: #14b8a6;
+    --ds-chart-2: #2dd4bf;
+    --ds-chart-3: #f5c14b;
+    --ds-chart-4: #af7de8;
+    --ds-chart-5: #f25668;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             215 18% 7%;
+    --foreground:             210 8% 94%;
+    --card:                   215 14% 11%;
+    --card-foreground:        210 8% 94%;
+    --popover:                215 13% 18%;
+    --popover-foreground:     210 8% 94%;
+    --primary:                173 80% 40%;
+    --primary-foreground:     211 47% 8%;
+    --secondary:              215 11% 22%;
+    --secondary-foreground:   210 8% 94%;
+    --muted:                  215 12% 17%;
+    --muted-foreground:       210 6% 58%;
+    --accent:                 172 66% 50%;
+    --accent-foreground:      211 47% 8%;
+    --destructive:            354 86% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                172 66% 50%;
+    --success-foreground:     0 0% 100%;
+    --warning:                42 89% 63%;
+    --warning-foreground:     204 22% 95%;
+    --info:                   198 93% 60%;
+    --info-foreground:        211 47% 8%;
+    --border:                 215 14% 21%;
+    --input:                  215 14% 21%;
+    --ring:                   172 66% 50%;
+
+    --sidebar-background:              215 22% 6%;
+    --sidebar-foreground:              210 8% 94%;
+    --sidebar-primary:                 172 66% 50%;
+    --sidebar-primary-foreground:      215 18% 7%;
+    --sidebar-accent:                  215 13% 16%;
+    --sidebar-accent-foreground:       210 8% 94%;
+    --sidebar-border:                  215 14% 18%;
+    --sidebar-ring:                    172 66% 50%;
+
+    --chart-1: 172 66% 50%;
+    --chart-2: 199 89% 60%;
+    --chart-3: 268 70% 70%;
+    --chart-4: 45 93% 60%;
+    --chart-5: 354 86% 65%;
+
+    --surface-50:  214 24% 13%;
+    --surface-100: 215 18% 20%;
+    --surface-200: 215 15% 25%;
+    --surface-300: 214 13% 31%;
+    --surface-400: 214 14% 29%;
+    --surface-500: 215 17% 21%;
+    --surface-600: 208 8% 42%;
+    --surface-700: 205 8% 58%;
+    --surface-800: 207 13% 83%;
+    --surface-900: 204 22% 95%;
+    --surface-950: 215 32% 7%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #14b8a6;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #1a212a;
+    --p-surface-100:          #2a323d;
+    --p-surface-200:          #363e49;
+    --p-surface-900:          #f1f4f6;
+    --p-surface-950:          #0d1219;
+    --p-text-color:           #f1f4f6;
+    --p-text-muted-color:     #8c969d;
+    --p-content-background:   #1a212a;
+    --p-content-border-color: #2d3540;
+    --p-content-color:        #f1f4f6;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #0d1219;
+    --bn-bg-sunken: #161c25;
+    --bn-bg1:       #1a212a;
+    --bn-bg2:       #2a323d;
+    --bn-bg3:       #363e49;
+    --bn-bg4:       #454e5a;
+    --bn-t0:        #f1f4f6;
+    --bn-t1:        #cfd5da;
+    --bn-t2:        #8c969d;
+    --bn-t3:        #636c74;
+    --bn-t4:        #424950;
+    --bn-border:    #2d3540;
+    --bn-border2:   #3f4854;
+    --bn-border3:   #485058;
+    --bn-green:     #2dd4bf;
+    --bn-green2:    #5eead4;
+    --bn-red:       #f25668;
+    --bn-red2:      #ff7484;
+    --bn-amber:     #f5c14b;
+    --bn-blue:      #14b8a6;
+    --bn-blue2:     #2dd4bf;
+    --bn-info:      #38bdf8;
+    --bn-cyan:      #00e5ff;
+    --bn-purple:    #af7de8;
+    --bn-buy-bg:    #2dd4bf;
+    --bn-sell-bg:   #f25668;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(45,212,191,0.16);
+    --ob-ask-fill:  rgba(242,86,104,0.16);
+    --tt-bid-strip: rgba(45,212,191,0.06);
+    --tt-ask-strip: rgba(242,86,104,0.06);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #0d1219;
+    --sf-bg-1:      #161c25;
+    --sf-bg-2:      #1a212a;
+    --sf-bg-3:      #2a323d;
+    --sf-bg-4:      #363e49;
+    --sf-bg-5:      #454e5a;
+    --sf-t-0:       #f1f4f6;
+    --sf-t-1:       #cfd5da;
+    --sf-t-2:       #8c969d;
+    --sf-t-3:       #636c74;
+    --sf-t-4:       #424950;
+    --sf-border:    #2d3540;
+    --sf-border-2:  #3f4854;
+    --sf-border-3:  #485058;
+    --sf-teal:      #2dd4bf;
+    --sf-teal-hi:   #5eead4;
+    --sf-teal-lo:   #14b8a6;
+    --sf-teal-soft: rgba(45,212,191,0.12);
+    --sf-teal-ring: rgba(45,212,191,0.42);
+    --sf-up:        #2dd4bf;
+    --sf-up-hi:     #5eead4;
+    --sf-up-soft:   rgba(45,212,191,0.13);
+    --sf-up-strip:  rgba(45,212,191,0.06);
+    --sf-down:      #f25668;
+    --sf-down-hi:   #ff7484;
+    --sf-down-soft: rgba(242,86,104,0.13);
+    --sf-down-strip:rgba(242,86,104,0.06);
+    --sf-flat:      #8aa0ad;
+    --sf-info:      #38bdf8;
+    --sf-info-soft: rgba(56,189,248,0.13);
+    --sf-warn:      #f5c14b;
+    --sf-warn-soft: rgba(245,193,75,0.13);
+    --sf-success:   #2dd4bf;
+    --sf-error:     #f25668;
+    --sf-bid-fill:  rgba(45,212,191,0.16);
+    --sf-ask-fill:  rgba(242,86,104,0.16);
+    --sf-scrollbar: #2c4660;
+  }
+
+  [data-palette="teal"][data-theme="light"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #0f766e;
+    --ds-primary-hover:     #0a5d56;
+    --ds-primary-display:   #0f766e;
+    --ds-primary-highlight: #0a5d56;
+    --ds-primary-pressed:   #115e54;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(15,118,110,0.10);
+    --ds-primary-ring:      rgba(15,118,110,0.32);
+
+    --ds-surface-ground:     #f3f7f9;
+    --ds-surface-sunken:     #ffffff;
+    --ds-surface-primary:    #ffffff;
+    --ds-surface-secondary:  #eef3f6;
+    --ds-surface-tertiary:   #e3ecf0;
+    --ds-surface-quaternary: #d4e0e7;
+
+    --ds-text-primary:   #06121f;
+    --ds-text-secondary: #1c344d;
+    --ds-text-muted:     #3e5663;
+    --ds-text-faint:     #7d92a0;
+    --ds-text-disabled:  #b1bfc8;
+
+    --ds-border-primary:   #c5d1da;
+    --ds-border-secondary: #a6b6c2;
+    --ds-border-tertiary:  #98aab6;
+
+    --ds-accent-positive:       #0f766e;
+    --ds-accent-positive-hover: #0a5d56;
+    --ds-accent-negative:       #be1f43;
+    --ds-accent-negative-hover: #9e1838;
+    --ds-accent-warning:        #b27607;
+    --ds-accent-info:           #0e7490;
+    --ds-accent-info-hover:     #0c6378;
+    --ds-accent-highlight:      #06b6d4;
+    --ds-accent-purple:         #7631c4;
+
+    --ds-action-buy-bg:    #0f766e;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #be1f43;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #0f766e;
+    --ds-state-focus-ring-bg: rgba(15,118,110,0.10);
+    --ds-state-disabled-bg:   #e3ecf0;
+    --ds-state-disabled-fg:   #b1bfc8;
+    --ds-state-hover-overlay: rgba(0,0,0,0.045);
+    --ds-state-selection:     rgba(15,118,110,0.10);
+
+    --ds-overlay-positive-soft:  rgba(15,118,110,0.10);
+    --ds-overlay-positive-ring:  rgba(15,118,110,0.10);
+    --ds-overlay-negative-soft:  rgba(190,31,67,0.10);
+    --ds-overlay-negative-ring:  rgba(190,31,67,0.10);
+    --ds-overlay-warning-soft:   rgba(178,118,7,0.11);
+    --ds-overlay-warning-ring:   rgba(178,118,7,0.11);
+    --ds-overlay-info-soft:      rgba(14,116,144,0.10);
+    --ds-overlay-info-ring:      rgba(14,116,144,0.10);
+    --ds-overlay-neutral-soft:   rgba(82,93,108,0.08);
+    --ds-overlay-neutral-ring:   rgba(82,93,108,0.14);
+
+    --ds-scrollbar:  #a6b6c2;
+
+    --ds-elevation-card:    0 1px 2px rgba(12,29,48,0.06);
+    --ds-elevation-overlay: 0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(15,118,110,0.32);
+
+    --ds-trade-flat:           #3e5663;
+    --ds-trade-positive-strip: rgba(15,118,110,0.05);
+    --ds-trade-negative-strip: rgba(190,31,67,0.05);
+    --ds-trade-bid-fill:       rgba(15,118,110,0.13);
+    --ds-trade-ask-fill:       rgba(190,31,67,0.11);
+
+    --ds-chart-1: #0f766e;
+    --ds-chart-2: #0f766e;
+    --ds-chart-3: #b27607;
+    --ds-chart-4: #7631c4;
+    --ds-chart-5: #be1f43;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             200 40% 97%;
+    --foreground:             211 60% 7%;
+    --card:                   0 0% 100%;
+    --card-foreground:        211 60% 7%;
+    --popover:                0 0% 100%;
+    --popover-foreground:     211 60% 7%;
+    --primary:                175 78% 26%;
+    --primary-foreground:     0 0% 100%;
+    --secondary:              200 28% 92%;
+    --secondary-foreground:   211 47% 16%;
+    --muted:                  200 28% 92%;
+    --muted-foreground:       208 18% 38%;
+    --accent:                 175 78% 26%;
+    --accent-foreground:      0 0% 100%;
+    --destructive:            350 78% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                175 77% 26%;
+    --success-foreground:     0 0% 100%;
+    --warning:                39 92% 36%;
+    --warning-foreground:     0 0% 100%;
+    --info:                   193 82% 31%;
+    --info-foreground:        0 0% 100%;
+    --border:                 205 24% 78%;
+    --input:                  205 24% 78%;
+    --ring:                   175 78% 26%;
+
+    --sidebar-background:              200 40% 97%;
+    --sidebar-foreground:              211 60% 7%;
+    --sidebar-primary:                 175 78% 26%;
+    --sidebar-primary-foreground:      0 0% 100%;
+    --sidebar-accent:                  200 28% 92%;
+    --sidebar-accent-foreground:       211 47% 16%;
+    --sidebar-border:                  205 24% 78%;
+    --sidebar-ring:                    175 78% 26%;
+
+    --chart-1: 175 78% 26%;
+    --chart-2: 199 89% 38%;
+    --chart-3: 268 60% 48%;
+    --chart-4: 35 85% 42%;
+    --chart-5: 350 78% 42%;
+
+    --surface-50:  0 0% 100%;
+    --surface-100: 203 31% 95%;
+    --surface-200: 198 30% 92%;
+    --surface-300: 202 28% 87%;
+    --surface-400: 206 19% 71%;
+    --surface-500: 206 22% 81%;
+    --surface-600: 204 16% 56%;
+    --surface-700: 201 23% 32%;
+    --surface-800: 211 47% 21%;
+    --surface-900: 211 68% 7%;
+    --surface-950: 200 33% 96%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #0f766e;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #ffffff;
+    --p-surface-100:          #eef3f6;
+    --p-surface-200:          #e3ecf0;
+    --p-surface-900:          #06121f;
+    --p-surface-950:          #f3f7f9;
+    --p-text-color:           #06121f;
+    --p-text-muted-color:     #3e5663;
+    --p-content-background:   #ffffff;
+    --p-content-border-color: #c5d1da;
+    --p-content-color:        #06121f;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #f3f7f9;
+    --bn-bg-sunken: #ffffff;
+    --bn-bg1:       #ffffff;
+    --bn-bg2:       #eef3f6;
+    --bn-bg3:       #e3ecf0;
+    --bn-bg4:       #d4e0e7;
+    --bn-t0:        #06121f;
+    --bn-t1:        #1c344d;
+    --bn-t2:        #3e5663;
+    --bn-t3:        #7d92a0;
+    --bn-t4:        #b1bfc8;
+    --bn-border:    #c5d1da;
+    --bn-border2:   #a6b6c2;
+    --bn-border3:   #98aab6;
+    --bn-green:     #0f766e;
+    --bn-green2:    #0a5d56;
+    --bn-red:       #be1f43;
+    --bn-red2:      #9e1838;
+    --bn-amber:     #b27607;
+    --bn-blue:      #0f766e;
+    --bn-blue2:     #0a5d56;
+    --bn-info:      #0e7490;
+    --bn-cyan:      #06b6d4;
+    --bn-purple:    #7631c4;
+    --bn-buy-bg:    #0f766e;
+    --bn-sell-bg:   #be1f43;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(15,118,110,0.13);
+    --ob-ask-fill:  rgba(190,31,67,0.11);
+    --tt-bid-strip: rgba(15,118,110,0.05);
+    --tt-ask-strip: rgba(190,31,67,0.05);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #f3f7f9;
+    --sf-bg-1:      #ffffff;
+    --sf-bg-2:      #ffffff;
+    --sf-bg-3:      #eef3f6;
+    --sf-bg-4:      #e3ecf0;
+    --sf-bg-5:      #d4e0e7;
+    --sf-t-0:       #06121f;
+    --sf-t-1:       #1c344d;
+    --sf-t-2:       #3e5663;
+    --sf-t-3:       #7d92a0;
+    --sf-t-4:       #b1bfc8;
+    --sf-border:    #c5d1da;
+    --sf-border-2:  #a6b6c2;
+    --sf-border-3:  #98aab6;
+    --sf-teal:      #0f766e;
+    --sf-teal-hi:   #0a5d56;
+    --sf-teal-lo:   #115e54;
+    --sf-teal-soft: rgba(15,118,110,0.10);
+    --sf-teal-ring: rgba(15,118,110,0.32);
+    --sf-up:        #0f766e;
+    --sf-up-hi:     #0a5d56;
+    --sf-up-soft:   rgba(15,118,110,0.10);
+    --sf-up-strip:  rgba(15,118,110,0.05);
+    --sf-down:      #be1f43;
+    --sf-down-hi:   #9e1838;
+    --sf-down-soft: rgba(190,31,67,0.10);
+    --sf-down-strip:rgba(190,31,67,0.05);
+    --sf-flat:      #3e5663;
+    --sf-info:      #0e7490;
+    --sf-info-soft: rgba(14,116,144,0.10);
+    --sf-warn:      #b27607;
+    --sf-warn-soft: rgba(178,118,7,0.11);
+    --sf-success:   #0f766e;
+    --sf-error:     #be1f43;
+    --sf-bid-fill:  rgba(15,118,110,0.13);
+    --sf-ask-fill:  rgba(190,31,67,0.11);
+    --sf-scrollbar: #a6b6c2;
+  }
+
+  [data-palette="teal"][data-theme="dark"][data-cvd="on"] {
+    --ds-accent-positive:       #7aa6ff;
+    --ds-accent-positive-hover: #7aa6ff;
+    --ds-accent-negative:       #ff9d4e;
+    --ds-accent-negative-hover: #ff9d4e;
+    --ds-action-buy-bg:         #7aa6ff;
+    --ds-action-sell-bg:        #ff9d4e;
+    --success:                  220 100% 74%;
+    --destructive:              27 100% 65%;
+  }
+
+  [data-palette="teal"][data-theme="light"][data-cvd="on"] {
+    --ds-accent-positive:       #1e4fb8;
+    --ds-accent-positive-hover: #1e4fb8;
+    --ds-accent-negative:       #c2410c;
+    --ds-accent-negative-hover: #c2410c;
+    --ds-action-buy-bg:         #1e4fb8;
+    --ds-action-sell-bg:        #c2410c;
+    --success:                  221 72% 42%;
+    --destructive:              17 88% 40%;
+  }
+  [data-palette="indigo"][data-theme="dark"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #6366f1;
+    --ds-primary-hover:     #818cf8;
+    --ds-primary-display:   #818cf8;
+    --ds-primary-highlight: #a5b4fc;
+    --ds-primary-pressed:   #6366f1;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(99,102,241,0.12);
+    --ds-primary-ring:      rgba(99,102,241,0.36);
+
+    --ds-surface-ground:     #0e1013;
+    --ds-surface-sunken:     #161a1e;
+    --ds-surface-primary:    #1a1e22;
+    --ds-surface-secondary:  #272b32;
+    --ds-surface-tertiary:   #3a3e48;
+    --ds-surface-quaternary: #525864;
+
+    --ds-text-primary:   #f4f5f6;
+    --ds-text-secondary: #d4d6da;
+    --ds-text-muted:     #92949a;
+    --ds-text-faint:     #6a6c73;
+    --ds-text-disabled:  #494b51;
+
+    --ds-border-primary:   #272b32;
+    --ds-border-secondary: #3d3f45;
+    --ds-border-tertiary:  #56585f;
+
+    --ds-accent-positive:       #2dd4bf;
+    --ds-accent-positive-hover: #5eead4;
+    --ds-accent-negative:       #f25668;
+    --ds-accent-negative-hover: #ff7484;
+    --ds-accent-warning:        #f5c14b;
+    --ds-accent-info:           #38bdf8;
+    --ds-accent-info-hover:     #7dd3fc;
+    --ds-accent-highlight:      #00e5ff;
+    --ds-accent-purple:         #af7de8;
+
+    --ds-action-buy-bg:    #2dd4bf;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #f25668;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #6366f1;
+    --ds-state-focus-ring-bg: rgba(99,102,241,0.12);
+    --ds-state-disabled-bg:   #3a3e48;
+    --ds-state-disabled-fg:   #494b51;
+    --ds-state-hover-overlay: rgba(255,255,255,0.05);
+    --ds-state-selection:     rgba(99,102,241,0.12);
+
+    --ds-overlay-positive-soft:  rgba(45,212,191,0.13);
+    --ds-overlay-positive-ring:  rgba(45,212,191,0.13);
+    --ds-overlay-negative-soft:  rgba(242,86,104,0.13);
+    --ds-overlay-negative-ring:  rgba(242,86,104,0.13);
+    --ds-overlay-warning-soft:   rgba(245,193,75,0.13);
+    --ds-overlay-warning-ring:   rgba(245,193,75,0.13);
+    --ds-overlay-info-soft:      rgba(56,189,248,0.13);
+    --ds-overlay-info-ring:      rgba(56,189,248,0.13);
+    --ds-overlay-neutral-soft:   rgba(143,147,154,0.13);
+    --ds-overlay-neutral-ring:   rgba(143,147,154,0.24);
+
+    --ds-scrollbar:  #3d3f45;
+
+    --ds-elevation-card:    0 1px 2px rgba(0,0,0,0.4);
+    --ds-elevation-overlay: 0 4px 12px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(99,102,241,0.36);
+
+    --ds-trade-flat:           #92949a;
+    --ds-trade-positive-strip: rgba(45,212,191,0.05);
+    --ds-trade-negative-strip: rgba(242,86,104,0.05);
+    --ds-trade-bid-fill:       rgba(45,212,191,0.16);
+    --ds-trade-ask-fill:       rgba(242,86,104,0.16);
+
+    --ds-chart-1: #6366f1;
+    --ds-chart-2: #2dd4bf;
+    --ds-chart-3: #f5c14b;
+    --ds-chart-4: #af7de8;
+    --ds-chart-5: #f25668;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             232 12% 7%;
+    --foreground:             230 10% 96%;
+    --card:                   232 10% 10%;
+    --card-foreground:        230 10% 96%;
+    --popover:                232 10% 13%;
+    --popover-foreground:     230 10% 96%;
+    --primary:                234 89% 68%;
+    --primary-foreground:     232 30% 3%;
+    --secondary:              232 6% 18%;
+    --secondary-foreground:   230 10% 96%;
+    --muted:                  232 6% 15%;
+    --muted-foreground:       230 5% 60%;
+    --accent:                 234 89% 68%;
+    --accent-foreground:      0 0% 100%;
+    --destructive:            354 86% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                172 66% 50%;
+    --success-foreground:     0 0% 100%;
+    --warning:                42 89% 63%;
+    --warning-foreground:     210 10% 96%;
+    --info:                   198 93% 60%;
+    --info-foreground:        232 30% 3%;
+    --border:                 232 6% 21%;
+    --input:                  232 6% 21%;
+    --ring:                   234 89% 68%;
+
+    --sidebar-background:              232 10% 8%;
+    --sidebar-foreground:              230 10% 96%;
+    --sidebar-primary:                 234 89% 68%;
+    --sidebar-primary-foreground:      232 30% 3%;
+    --sidebar-accent:                  232 6% 15%;
+    --sidebar-accent-foreground:       230 10% 96%;
+    --sidebar-border:                  232 6% 18%;
+    --sidebar-ring:                    234 89% 68%;
+
+    --chart-1: 234 89% 70%;
+    --chart-2: 172 66% 50%;
+    --chart-3: 199 89% 60%;
+    --chart-4: 45 93% 60%;
+    --chart-5: 354 86% 65%;
+
+    --surface-50:  210 13% 12%;
+    --surface-100: 218 12% 17%;
+    --surface-200: 223 11% 25%;
+    --surface-300: 220 10% 36%;
+    --surface-400: 225 6% 25%;
+    --surface-500: 218 12% 17%;
+    --surface-600: 227 4% 43%;
+    --surface-700: 225 4% 59%;
+    --surface-800: 220 7% 84%;
+    --surface-900: 210 10% 96%;
+    --surface-950: 216 15% 6%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #6366f1;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #1a1e22;
+    --p-surface-100:          #272b32;
+    --p-surface-200:          #3a3e48;
+    --p-surface-900:          #f4f5f6;
+    --p-surface-950:          #0e1013;
+    --p-text-color:           #f4f5f6;
+    --p-text-muted-color:     #92949a;
+    --p-content-background:   #1a1e22;
+    --p-content-border-color: #272b32;
+    --p-content-color:        #f4f5f6;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #0e1013;
+    --bn-bg-sunken: #161a1e;
+    --bn-bg1:       #1a1e22;
+    --bn-bg2:       #272b32;
+    --bn-bg3:       #3a3e48;
+    --bn-bg4:       #525864;
+    --bn-t0:        #f4f5f6;
+    --bn-t1:        #d4d6da;
+    --bn-t2:        #92949a;
+    --bn-t3:        #6a6c73;
+    --bn-t4:        #494b51;
+    --bn-border:    #272b32;
+    --bn-border2:   #3d3f45;
+    --bn-border3:   #56585f;
+    --bn-green:     #2dd4bf;
+    --bn-green2:    #5eead4;
+    --bn-red:       #f25668;
+    --bn-red2:      #ff7484;
+    --bn-amber:     #f5c14b;
+    --bn-blue:      #6366f1;
+    --bn-blue2:     #818cf8;
+    --bn-info:      #38bdf8;
+    --bn-cyan:      #00e5ff;
+    --bn-purple:    #af7de8;
+    --bn-buy-bg:    #2dd4bf;
+    --bn-sell-bg:   #f25668;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(45,212,191,0.16);
+    --ob-ask-fill:  rgba(242,86,104,0.16);
+    --tt-bid-strip: rgba(45,212,191,0.05);
+    --tt-ask-strip: rgba(242,86,104,0.05);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #0e1013;
+    --sf-bg-1:      #161a1e;
+    --sf-bg-2:      #1a1e22;
+    --sf-bg-3:      #272b32;
+    --sf-bg-4:      #3a3e48;
+    --sf-bg-5:      #525864;
+    --sf-t-0:       #f4f5f6;
+    --sf-t-1:       #d4d6da;
+    --sf-t-2:       #92949a;
+    --sf-t-3:       #6a6c73;
+    --sf-t-4:       #494b51;
+    --sf-border:    #272b32;
+    --sf-border-2:  #3d3f45;
+    --sf-border-3:  #56585f;
+    --sf-teal:      #818cf8;
+    --sf-teal-hi:   #a5b4fc;
+    --sf-teal-lo:   #6366f1;
+    --sf-teal-soft: rgba(99,102,241,0.12);
+    --sf-teal-ring: rgba(99,102,241,0.36);
+    --sf-up:        #2dd4bf;
+    --sf-up-hi:     #5eead4;
+    --sf-up-soft:   rgba(45,212,191,0.13);
+    --sf-up-strip:  rgba(45,212,191,0.05);
+    --sf-down:      #f25668;
+    --sf-down-hi:   #ff7484;
+    --sf-down-soft: rgba(242,86,104,0.13);
+    --sf-down-strip:rgba(242,86,104,0.05);
+    --sf-flat:      #92949a;
+    --sf-info:      #38bdf8;
+    --sf-info-soft: rgba(56,189,248,0.13);
+    --sf-warn:      #f5c14b;
+    --sf-warn-soft: rgba(245,193,75,0.13);
+    --sf-success:   #2dd4bf;
+    --sf-error:     #f25668;
+    --sf-bid-fill:  rgba(45,212,191,0.16);
+    --sf-ask-fill:  rgba(242,86,104,0.16);
+    --sf-scrollbar: #3d3f45;
+  }
+
+  [data-palette="indigo"][data-theme="light"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #4f46e5;
+    --ds-primary-hover:     #4338ca;
+    --ds-primary-display:   #4f46e5;
+    --ds-primary-highlight: #4338ca;
+    --ds-primary-pressed:   #3730a3;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(79,70,229,0.10);
+    --ds-primary-ring:      rgba(79,70,229,0.28);
+
+    --ds-surface-ground:     #f5f5f7;
+    --ds-surface-sunken:     #ffffff;
+    --ds-surface-primary:    #ffffff;
+    --ds-surface-secondary:  #edeef1;
+    --ds-surface-tertiary:   #e2e3e8;
+    --ds-surface-quaternary: #cdcfd6;
+
+    --ds-text-primary:   #181a1f;
+    --ds-text-secondary: #1f222a;
+    --ds-text-muted:     #51545c;
+    --ds-text-faint:     #797c84;
+    --ds-text-disabled:  #aaadb4;
+
+    --ds-border-primary:   #c8cad0;
+    --ds-border-secondary: #a8aab4;
+    --ds-border-tertiary:  #94969d;
+
+    --ds-accent-positive:       #0f766e;
+    --ds-accent-positive-hover: #0a5d56;
+    --ds-accent-negative:       #be1f43;
+    --ds-accent-negative-hover: #9e1838;
+    --ds-accent-warning:        #b27607;
+    --ds-accent-info:           #0e7490;
+    --ds-accent-info-hover:     #0c6378;
+    --ds-accent-highlight:      #06b6d4;
+    --ds-accent-purple:         #7631c4;
+
+    --ds-action-buy-bg:    #0f766e;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #be1f43;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #4f46e5;
+    --ds-state-focus-ring-bg: rgba(79,70,229,0.10);
+    --ds-state-disabled-bg:   #e2e3e8;
+    --ds-state-disabled-fg:   #aaadb4;
+    --ds-state-hover-overlay: rgba(0,0,0,0.045);
+    --ds-state-selection:     rgba(79,70,229,0.10);
+
+    --ds-overlay-positive-soft:  rgba(15,118,110,0.10);
+    --ds-overlay-positive-ring:  rgba(15,118,110,0.10);
+    --ds-overlay-negative-soft:  rgba(190,31,67,0.10);
+    --ds-overlay-negative-ring:  rgba(190,31,67,0.10);
+    --ds-overlay-warning-soft:   rgba(178,118,7,0.11);
+    --ds-overlay-warning-ring:   rgba(178,118,7,0.11);
+    --ds-overlay-info-soft:      rgba(14,116,144,0.10);
+    --ds-overlay-info-ring:      rgba(14,116,144,0.10);
+    --ds-overlay-neutral-soft:   rgba(82,93,108,0.08);
+    --ds-overlay-neutral-ring:   rgba(82,93,108,0.14);
+
+    --ds-scrollbar:  #a8aab4;
+
+    --ds-elevation-card:    0 1px 2px rgba(12,29,48,0.06);
+    --ds-elevation-overlay: 0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(79,70,229,0.28);
+
+    --ds-trade-flat:           #51545c;
+    --ds-trade-positive-strip: rgba(15,118,110,0.04);
+    --ds-trade-negative-strip: rgba(190,31,67,0.04);
+    --ds-trade-bid-fill:       rgba(15,118,110,0.13);
+    --ds-trade-ask-fill:       rgba(190,31,67,0.11);
+
+    --ds-chart-1: #4f46e5;
+    --ds-chart-2: #0f766e;
+    --ds-chart-3: #b27607;
+    --ds-chart-4: #7631c4;
+    --ds-chart-5: #be1f43;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             232 10% 97%;
+    --foreground:             232 14% 12%;
+    --card:                   0 0% 100%;
+    --card-foreground:        232 14% 12%;
+    --popover:                0 0% 100%;
+    --popover-foreground:     232 14% 12%;
+    --primary:                239 84% 56%;
+    --primary-foreground:     0 0% 100%;
+    --secondary:              232 8% 92%;
+    --secondary-foreground:   232 14% 18%;
+    --muted:                  232 8% 92%;
+    --muted-foreground:       232 6% 38%;
+    --accent:                 239 84% 56%;
+    --accent-foreground:      0 0% 100%;
+    --destructive:            350 78% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                175 77% 26%;
+    --success-foreground:     0 0% 100%;
+    --warning:                39 92% 36%;
+    --warning-foreground:     0 0% 100%;
+    --info:                   193 82% 31%;
+    --info-foreground:        0 0% 100%;
+    --border:                 232 7% 84%;
+    --input:                  232 7% 84%;
+    --ring:                   239 84% 56%;
+
+    --sidebar-background:              232 10% 97%;
+    --sidebar-foreground:              232 14% 12%;
+    --sidebar-primary:                 239 84% 56%;
+    --sidebar-primary-foreground:      0 0% 100%;
+    --sidebar-accent:                  232 8% 92%;
+    --sidebar-accent-foreground:       232 14% 18%;
+    --sidebar-border:                  232 7% 84%;
+    --sidebar-ring:                    239 84% 56%;
+
+    --chart-1: 239 84% 56%;
+    --chart-2: 172 76% 32%;
+    --chart-3: 199 89% 38%;
+    --chart-4: 35 85% 42%;
+    --chart-5: 350 78% 42%;
+
+    --surface-50:  0 0% 100%;
+    --surface-100: 225 12% 94%;
+    --surface-200: 230 12% 90%;
+    --surface-300: 227 10% 82%;
+    --surface-400: 230 7% 68%;
+    --surface-500: 225 8% 80%;
+    --surface-600: 224 4% 50%;
+    --surface-700: 224 6% 34%;
+    --surface-800: 224 15% 14%;
+    --surface-900: 223 13% 11%;
+    --surface-950: 240 11% 96%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #4f46e5;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #ffffff;
+    --p-surface-100:          #edeef1;
+    --p-surface-200:          #e2e3e8;
+    --p-surface-900:          #181a1f;
+    --p-surface-950:          #f5f5f7;
+    --p-text-color:           #181a1f;
+    --p-text-muted-color:     #51545c;
+    --p-content-background:   #ffffff;
+    --p-content-border-color: #c8cad0;
+    --p-content-color:        #181a1f;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #f5f5f7;
+    --bn-bg-sunken: #ffffff;
+    --bn-bg1:       #ffffff;
+    --bn-bg2:       #edeef1;
+    --bn-bg3:       #e2e3e8;
+    --bn-bg4:       #cdcfd6;
+    --bn-t0:        #181a1f;
+    --bn-t1:        #1f222a;
+    --bn-t2:        #51545c;
+    --bn-t3:        #797c84;
+    --bn-t4:        #aaadb4;
+    --bn-border:    #c8cad0;
+    --bn-border2:   #a8aab4;
+    --bn-border3:   #94969d;
+    --bn-green:     #0f766e;
+    --bn-green2:    #0a5d56;
+    --bn-red:       #be1f43;
+    --bn-red2:      #9e1838;
+    --bn-amber:     #b27607;
+    --bn-blue:      #4f46e5;
+    --bn-blue2:     #4338ca;
+    --bn-info:      #0e7490;
+    --bn-cyan:      #06b6d4;
+    --bn-purple:    #7631c4;
+    --bn-buy-bg:    #0f766e;
+    --bn-sell-bg:   #be1f43;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(15,118,110,0.13);
+    --ob-ask-fill:  rgba(190,31,67,0.11);
+    --tt-bid-strip: rgba(15,118,110,0.04);
+    --tt-ask-strip: rgba(190,31,67,0.04);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #f5f5f7;
+    --sf-bg-1:      #ffffff;
+    --sf-bg-2:      #ffffff;
+    --sf-bg-3:      #edeef1;
+    --sf-bg-4:      #e2e3e8;
+    --sf-bg-5:      #cdcfd6;
+    --sf-t-0:       #181a1f;
+    --sf-t-1:       #1f222a;
+    --sf-t-2:       #51545c;
+    --sf-t-3:       #797c84;
+    --sf-t-4:       #aaadb4;
+    --sf-border:    #c8cad0;
+    --sf-border-2:  #a8aab4;
+    --sf-border-3:  #94969d;
+    --sf-teal:      #4f46e5;
+    --sf-teal-hi:   #4338ca;
+    --sf-teal-lo:   #3730a3;
+    --sf-teal-soft: rgba(79,70,229,0.10);
+    --sf-teal-ring: rgba(79,70,229,0.28);
+    --sf-up:        #0f766e;
+    --sf-up-hi:     #0a5d56;
+    --sf-up-soft:   rgba(15,118,110,0.10);
+    --sf-up-strip:  rgba(15,118,110,0.04);
+    --sf-down:      #be1f43;
+    --sf-down-hi:   #9e1838;
+    --sf-down-soft: rgba(190,31,67,0.10);
+    --sf-down-strip:rgba(190,31,67,0.04);
+    --sf-flat:      #51545c;
+    --sf-info:      #0e7490;
+    --sf-info-soft: rgba(14,116,144,0.10);
+    --sf-warn:      #b27607;
+    --sf-warn-soft: rgba(178,118,7,0.11);
+    --sf-success:   #0f766e;
+    --sf-error:     #be1f43;
+    --sf-bid-fill:  rgba(15,118,110,0.13);
+    --sf-ask-fill:  rgba(190,31,67,0.11);
+    --sf-scrollbar: #a8aab4;
+  }
+
+  [data-palette="indigo"][data-theme="dark"][data-cvd="on"] {
+    --ds-accent-positive:       #7aa6ff;
+    --ds-accent-positive-hover: #7aa6ff;
+    --ds-accent-negative:       #ff9d4e;
+    --ds-accent-negative-hover: #ff9d4e;
+    --ds-action-buy-bg:         #7aa6ff;
+    --ds-action-sell-bg:        #ff9d4e;
+    --success:                  220 100% 74%;
+    --destructive:              27 100% 65%;
+  }
+
+  [data-palette="indigo"][data-theme="light"][data-cvd="on"] {
+    --ds-accent-positive:       #1e4fb8;
+    --ds-accent-positive-hover: #1e4fb8;
+    --ds-accent-negative:       #c2410c;
+    --ds-accent-negative-hover: #c2410c;
+    --ds-action-buy-bg:         #1e4fb8;
+    --ds-action-sell-bg:        #c2410c;
+    --success:                  221 72% 42%;
+    --destructive:              17 88% 40%;
+  }
+  [data-palette="amber"][data-theme="dark"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #f59e0b;
+    --ds-primary-hover:     #fbbf24;
+    --ds-primary-display:   #fbbf24;
+    --ds-primary-highlight: #fcd34d;
+    --ds-primary-pressed:   #f59e0b;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(245,158,11,0.13);
+    --ds-primary-ring:      rgba(245,158,11,0.40);
+
+    --ds-surface-ground:     #0a0907;
+    --ds-surface-sunken:     #1a1814;
+    --ds-surface-primary:    #1c1a14;
+    --ds-surface-secondary:  #2e2a20;
+    --ds-surface-tertiary:   #3e392c;
+    --ds-surface-quaternary: #544c3a;
+
+    --ds-text-primary:   #f8f4ea;
+    --ds-text-secondary: #d4cebe;
+    --ds-text-muted:     #9b958a;
+    --ds-text-faint:     #716c62;
+    --ds-text-disabled:  #4b4740;
+
+    --ds-border-primary:   #2b2820;
+    --ds-border-secondary: #3b372d;
+    --ds-border-tertiary:  #534e3f;
+
+    --ds-accent-positive:       #2dd4bf;
+    --ds-accent-positive-hover: #5eead4;
+    --ds-accent-negative:       #f25668;
+    --ds-accent-negative-hover: #ff7484;
+    --ds-accent-warning:        #f5c14b;
+    --ds-accent-info:           #38bdf8;
+    --ds-accent-info-hover:     #7dd3fc;
+    --ds-accent-highlight:      #00e5ff;
+    --ds-accent-purple:         #af7de8;
+
+    --ds-action-buy-bg:    #2dd4bf;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #f25668;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #f59e0b;
+    --ds-state-focus-ring-bg: rgba(245,158,11,0.13);
+    --ds-state-disabled-bg:   #3e392c;
+    --ds-state-disabled-fg:   #4b4740;
+    --ds-state-hover-overlay: rgba(255,255,255,0.05);
+    --ds-state-selection:     rgba(245,158,11,0.13);
+
+    --ds-overlay-positive-soft:  rgba(45,212,191,0.13);
+    --ds-overlay-positive-ring:  rgba(45,212,191,0.13);
+    --ds-overlay-negative-soft:  rgba(242,86,104,0.13);
+    --ds-overlay-negative-ring:  rgba(242,86,104,0.13);
+    --ds-overlay-warning-soft:   rgba(245,193,75,0.13);
+    --ds-overlay-warning-ring:   rgba(245,193,75,0.13);
+    --ds-overlay-info-soft:      rgba(56,189,248,0.13);
+    --ds-overlay-info-ring:      rgba(56,189,248,0.13);
+    --ds-overlay-neutral-soft:   rgba(143,147,154,0.13);
+    --ds-overlay-neutral-ring:   rgba(143,147,154,0.24);
+
+    --ds-scrollbar:  #3b372d;
+
+    --ds-elevation-card:    0 1px 2px rgba(0,0,0,0.4);
+    --ds-elevation-overlay: 0 4px 12px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(245,158,11,0.40);
+
+    --ds-trade-flat:           #9b958a;
+    --ds-trade-positive-strip: rgba(45,212,191,0.05);
+    --ds-trade-negative-strip: rgba(242,86,104,0.05);
+    --ds-trade-bid-fill:       rgba(45,212,191,0.16);
+    --ds-trade-ask-fill:       rgba(242,86,104,0.16);
+
+    --ds-chart-1: #f59e0b;
+    --ds-chart-2: #2dd4bf;
+    --ds-chart-3: #f5c14b;
+    --ds-chart-4: #af7de8;
+    --ds-chart-5: #f25668;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             30 12% 4%;
+    --foreground:             36 14% 96%;
+    --card:                   30 10% 8%;
+    --card-foreground:        36 14% 96%;
+    --popover:                30 7% 13%;
+    --popover-foreground:     36 14% 96%;
+    --primary:                38 92% 50%;
+    --primary-foreground:     30 30% 8%;
+    --secondary:              30 6% 16%;
+    --secondary-foreground:   36 14% 96%;
+    --muted:                  30 6% 13%;
+    --muted-foreground:       32 6% 60%;
+    --accent:                 38 92% 50%;
+    --accent-foreground:      30 30% 8%;
+    --destructive:            354 86% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                172 66% 50%;
+    --success-foreground:     0 0% 100%;
+    --warning:                42 89% 63%;
+    --warning-foreground:     43 50% 95%;
+    --info:                   198 93% 60%;
+    --info-foreground:        30 30% 8%;
+    --border:                 30 6% 19%;
+    --input:                  30 6% 19%;
+    --ring:                   38 92% 50%;
+
+    --sidebar-background:              30 10% 4%;
+    --sidebar-foreground:              36 14% 96%;
+    --sidebar-primary:                 38 92% 50%;
+    --sidebar-primary-foreground:      30 30% 8%;
+    --sidebar-accent:                  30 6% 13%;
+    --sidebar-accent-foreground:       36 14% 96%;
+    --sidebar-border:                  30 6% 16%;
+    --sidebar-ring:                    38 92% 50%;
+
+    --chart-1: 38 92% 60%;
+    --chart-2: 172 66% 50%;
+    --chart-3: 199 89% 60%;
+    --chart-4: 12 80% 60%;
+    --chart-5: 354 86% 65%;
+
+    --surface-50:  45 17% 9%;
+    --surface-100: 43 18% 15%;
+    --surface-200: 43 17% 21%;
+    --surface-300: 42 18% 28%;
+    --surface-400: 43 13% 20%;
+    --surface-500: 44 15% 15%;
+    --surface-600: 40 7% 41%;
+    --surface-700: 39 8% 57%;
+    --surface-800: 44 20% 79%;
+    --surface-900: 43 50% 95%;
+    --surface-950: 40 18% 3%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #f59e0b;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #1c1a14;
+    --p-surface-100:          #2e2a20;
+    --p-surface-200:          #3e392c;
+    --p-surface-900:          #f8f4ea;
+    --p-surface-950:          #0a0907;
+    --p-text-color:           #f8f4ea;
+    --p-text-muted-color:     #9b958a;
+    --p-content-background:   #1c1a14;
+    --p-content-border-color: #2b2820;
+    --p-content-color:        #f8f4ea;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #0a0907;
+    --bn-bg-sunken: #1a1814;
+    --bn-bg1:       #1c1a14;
+    --bn-bg2:       #2e2a20;
+    --bn-bg3:       #3e392c;
+    --bn-bg4:       #544c3a;
+    --bn-t0:        #f8f4ea;
+    --bn-t1:        #d4cebe;
+    --bn-t2:        #9b958a;
+    --bn-t3:        #716c62;
+    --bn-t4:        #4b4740;
+    --bn-border:    #2b2820;
+    --bn-border2:   #3b372d;
+    --bn-border3:   #534e3f;
+    --bn-green:     #2dd4bf;
+    --bn-green2:    #5eead4;
+    --bn-red:       #f25668;
+    --bn-red2:      #ff7484;
+    --bn-amber:     #f5c14b;
+    --bn-blue:      #f59e0b;
+    --bn-blue2:     #fbbf24;
+    --bn-info:      #38bdf8;
+    --bn-cyan:      #00e5ff;
+    --bn-purple:    #af7de8;
+    --bn-buy-bg:    #2dd4bf;
+    --bn-sell-bg:   #f25668;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(45,212,191,0.16);
+    --ob-ask-fill:  rgba(242,86,104,0.16);
+    --tt-bid-strip: rgba(45,212,191,0.05);
+    --tt-ask-strip: rgba(242,86,104,0.05);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #0a0907;
+    --sf-bg-1:      #1a1814;
+    --sf-bg-2:      #1c1a14;
+    --sf-bg-3:      #2e2a20;
+    --sf-bg-4:      #3e392c;
+    --sf-bg-5:      #544c3a;
+    --sf-t-0:       #f8f4ea;
+    --sf-t-1:       #d4cebe;
+    --sf-t-2:       #9b958a;
+    --sf-t-3:       #716c62;
+    --sf-t-4:       #4b4740;
+    --sf-border:    #2b2820;
+    --sf-border-2:  #3b372d;
+    --sf-border-3:  #534e3f;
+    --sf-teal:      #fbbf24;
+    --sf-teal-hi:   #fcd34d;
+    --sf-teal-lo:   #f59e0b;
+    --sf-teal-soft: rgba(245,158,11,0.13);
+    --sf-teal-ring: rgba(245,158,11,0.40);
+    --sf-up:        #2dd4bf;
+    --sf-up-hi:     #5eead4;
+    --sf-up-soft:   rgba(45,212,191,0.13);
+    --sf-up-strip:  rgba(45,212,191,0.05);
+    --sf-down:      #f25668;
+    --sf-down-hi:   #ff7484;
+    --sf-down-soft: rgba(242,86,104,0.13);
+    --sf-down-strip:rgba(242,86,104,0.05);
+    --sf-flat:      #9b958a;
+    --sf-info:      #38bdf8;
+    --sf-info-soft: rgba(56,189,248,0.13);
+    --sf-warn:      #f5c14b;
+    --sf-warn-soft: rgba(245,193,75,0.13);
+    --sf-success:   #2dd4bf;
+    --sf-error:     #f25668;
+    --sf-bid-fill:  rgba(45,212,191,0.16);
+    --sf-ask-fill:  rgba(242,86,104,0.16);
+    --sf-scrollbar: #3b372d;
+  }
+
+  [data-palette="amber"][data-theme="light"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #92400e;
+    --ds-primary-hover:     #7c2d12;
+    --ds-primary-display:   #92400e;
+    --ds-primary-highlight: #7c2d12;
+    --ds-primary-pressed:   #631e09;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(146,64,14,0.10);
+    --ds-primary-ring:      rgba(146,64,14,0.28);
+
+    --ds-surface-ground:     #f6f1e8;
+    --ds-surface-sunken:     #ffffff;
+    --ds-surface-primary:    #ffffff;
+    --ds-surface-secondary:  #efe9db;
+    --ds-surface-tertiary:   #e3dbc9;
+    --ds-surface-quaternary: #cdc2a8;
+
+    --ds-text-primary:   #1a140c;
+    --ds-text-secondary: #36281a;
+    --ds-text-muted:     #6c5d44;
+    --ds-text-faint:     #8e7e62;
+    --ds-text-disabled:  #b5a888;
+
+    --ds-border-primary:   #c9bb98;
+    --ds-border-secondary: #a99a76;
+    --ds-border-tertiary:  #94876a;
+
+    --ds-accent-positive:       #0f766e;
+    --ds-accent-positive-hover: #0a5d56;
+    --ds-accent-negative:       #be1f43;
+    --ds-accent-negative-hover: #9e1838;
+    --ds-accent-warning:        #b27607;
+    --ds-accent-info:           #0e7490;
+    --ds-accent-info-hover:     #0c6378;
+    --ds-accent-highlight:      #06b6d4;
+    --ds-accent-purple:         #7631c4;
+
+    --ds-action-buy-bg:    #0f766e;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #be1f43;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #92400e;
+    --ds-state-focus-ring-bg: rgba(146,64,14,0.10);
+    --ds-state-disabled-bg:   #e3dbc9;
+    --ds-state-disabled-fg:   #b5a888;
+    --ds-state-hover-overlay: rgba(0,0,0,0.045);
+    --ds-state-selection:     rgba(146,64,14,0.10);
+
+    --ds-overlay-positive-soft:  rgba(15,118,110,0.10);
+    --ds-overlay-positive-ring:  rgba(15,118,110,0.10);
+    --ds-overlay-negative-soft:  rgba(190,31,67,0.10);
+    --ds-overlay-negative-ring:  rgba(190,31,67,0.10);
+    --ds-overlay-warning-soft:   rgba(178,118,7,0.11);
+    --ds-overlay-warning-ring:   rgba(178,118,7,0.11);
+    --ds-overlay-info-soft:      rgba(14,116,144,0.10);
+    --ds-overlay-info-ring:      rgba(14,116,144,0.10);
+    --ds-overlay-neutral-soft:   rgba(82,93,108,0.08);
+    --ds-overlay-neutral-ring:   rgba(82,93,108,0.14);
+
+    --ds-scrollbar:  #a99a76;
+
+    --ds-elevation-card:    0 1px 2px rgba(12,29,48,0.06);
+    --ds-elevation-overlay: 0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(146,64,14,0.28);
+
+    --ds-trade-flat:           #6c5d44;
+    --ds-trade-positive-strip: rgba(15,118,110,0.04);
+    --ds-trade-negative-strip: rgba(190,31,67,0.04);
+    --ds-trade-bid-fill:       rgba(15,118,110,0.13);
+    --ds-trade-ask-fill:       rgba(190,31,67,0.11);
+
+    --ds-chart-1: #92400e;
+    --ds-chart-2: #0f766e;
+    --ds-chart-3: #b27607;
+    --ds-chart-4: #7631c4;
+    --ds-chart-5: #be1f43;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             36 24% 96%;
+    --foreground:             28 30% 12%;
+    --card:                   0 0% 100%;
+    --card-foreground:        28 30% 12%;
+    --popover:                0 0% 100%;
+    --popover-foreground:     28 30% 12%;
+    --primary:                25 90% 30%;
+    --primary-foreground:     0 0% 100%;
+    --secondary:              36 22% 90%;
+    --secondary-foreground:   28 30% 18%;
+    --muted:                  36 22% 90%;
+    --muted-foreground:       32 14% 38%;
+    --accent:                 25 90% 30%;
+    --accent-foreground:      0 0% 100%;
+    --destructive:            350 78% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                175 77% 26%;
+    --success-foreground:     0 0% 100%;
+    --warning:                39 92% 36%;
+    --warning-foreground:     0 0% 100%;
+    --info:                   193 82% 31%;
+    --info-foreground:        0 0% 100%;
+    --border:                 36 18% 80%;
+    --input:                  36 18% 80%;
+    --ring:                   25 90% 30%;
+
+    --sidebar-background:              36 24% 96%;
+    --sidebar-foreground:              28 30% 12%;
+    --sidebar-primary:                 25 90% 30%;
+    --sidebar-primary-foreground:      0 0% 100%;
+    --sidebar-accent:                  36 22% 90%;
+    --sidebar-accent-foreground:       28 30% 18%;
+    --sidebar-border:                  36 18% 80%;
+    --sidebar-ring:                    25 90% 30%;
+
+    --chart-1: 25 90% 30%;
+    --chart-2: 172 76% 32%;
+    --chart-3: 199 89% 38%;
+    --chart-4: 12 75% 45%;
+    --chart-5: 350 78% 42%;
+
+    --surface-50:  0 0% 100%;
+    --surface-100: 42 38% 90%;
+    --surface-200: 42 32% 84%;
+    --surface-300: 42 27% 73%;
+    --surface-400: 42 23% 56%;
+    --surface-500: 43 31% 69%;
+    --surface-600: 38 18% 47%;
+    --surface-700: 37 23% 35%;
+    --surface-800: 30 35% 16%;
+    --surface-900: 34 37% 7%;
+    --surface-950: 39 44% 94%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #92400e;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #ffffff;
+    --p-surface-100:          #efe9db;
+    --p-surface-200:          #e3dbc9;
+    --p-surface-900:          #1a140c;
+    --p-surface-950:          #f6f1e8;
+    --p-text-color:           #1a140c;
+    --p-text-muted-color:     #6c5d44;
+    --p-content-background:   #ffffff;
+    --p-content-border-color: #c9bb98;
+    --p-content-color:        #1a140c;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #f6f1e8;
+    --bn-bg-sunken: #ffffff;
+    --bn-bg1:       #ffffff;
+    --bn-bg2:       #efe9db;
+    --bn-bg3:       #e3dbc9;
+    --bn-bg4:       #cdc2a8;
+    --bn-t0:        #1a140c;
+    --bn-t1:        #36281a;
+    --bn-t2:        #6c5d44;
+    --bn-t3:        #8e7e62;
+    --bn-t4:        #b5a888;
+    --bn-border:    #c9bb98;
+    --bn-border2:   #a99a76;
+    --bn-border3:   #94876a;
+    --bn-green:     #0f766e;
+    --bn-green2:    #0a5d56;
+    --bn-red:       #be1f43;
+    --bn-red2:      #9e1838;
+    --bn-amber:     #b27607;
+    --bn-blue:      #92400e;
+    --bn-blue2:     #7c2d12;
+    --bn-info:      #0e7490;
+    --bn-cyan:      #06b6d4;
+    --bn-purple:    #7631c4;
+    --bn-buy-bg:    #0f766e;
+    --bn-sell-bg:   #be1f43;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(15,118,110,0.13);
+    --ob-ask-fill:  rgba(190,31,67,0.11);
+    --tt-bid-strip: rgba(15,118,110,0.04);
+    --tt-ask-strip: rgba(190,31,67,0.04);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #f6f1e8;
+    --sf-bg-1:      #ffffff;
+    --sf-bg-2:      #ffffff;
+    --sf-bg-3:      #efe9db;
+    --sf-bg-4:      #e3dbc9;
+    --sf-bg-5:      #cdc2a8;
+    --sf-t-0:       #1a140c;
+    --sf-t-1:       #36281a;
+    --sf-t-2:       #6c5d44;
+    --sf-t-3:       #8e7e62;
+    --sf-t-4:       #b5a888;
+    --sf-border:    #c9bb98;
+    --sf-border-2:  #a99a76;
+    --sf-border-3:  #94876a;
+    --sf-teal:      #92400e;
+    --sf-teal-hi:   #7c2d12;
+    --sf-teal-lo:   #631e09;
+    --sf-teal-soft: rgba(146,64,14,0.10);
+    --sf-teal-ring: rgba(146,64,14,0.28);
+    --sf-up:        #0f766e;
+    --sf-up-hi:     #0a5d56;
+    --sf-up-soft:   rgba(15,118,110,0.10);
+    --sf-up-strip:  rgba(15,118,110,0.04);
+    --sf-down:      #be1f43;
+    --sf-down-hi:   #9e1838;
+    --sf-down-soft: rgba(190,31,67,0.10);
+    --sf-down-strip:rgba(190,31,67,0.04);
+    --sf-flat:      #6c5d44;
+    --sf-info:      #0e7490;
+    --sf-info-soft: rgba(14,116,144,0.10);
+    --sf-warn:      #b27607;
+    --sf-warn-soft: rgba(178,118,7,0.11);
+    --sf-success:   #0f766e;
+    --sf-error:     #be1f43;
+    --sf-bid-fill:  rgba(15,118,110,0.13);
+    --sf-ask-fill:  rgba(190,31,67,0.11);
+    --sf-scrollbar: #a99a76;
+  }
+
+  [data-palette="amber"][data-theme="dark"][data-cvd="on"] {
+    --ds-accent-positive:       #7aa6ff;
+    --ds-accent-positive-hover: #7aa6ff;
+    --ds-accent-negative:       #ff9d4e;
+    --ds-accent-negative-hover: #ff9d4e;
+    --ds-action-buy-bg:         #7aa6ff;
+    --ds-action-sell-bg:        #ff9d4e;
+    --success:                  220 100% 74%;
+    --destructive:              27 100% 65%;
+  }
+
+  [data-palette="amber"][data-theme="light"][data-cvd="on"] {
+    --ds-accent-positive:       #1e4fb8;
+    --ds-accent-positive-hover: #1e4fb8;
+    --ds-accent-negative:       #c2410c;
+    --ds-accent-negative-hover: #c2410c;
+    --ds-action-buy-bg:         #1e4fb8;
+    --ds-action-sell-bg:        #c2410c;
+    --success:                  221 72% 42%;
+    --destructive:              17 88% 40%;
+  }
+  [data-palette="grey"][data-theme="dark"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #e3e4e6;
+    --ds-primary-hover:     #fbfbfc;
+    --ds-primary-display:   #fbfbfc;
+    --ds-primary-highlight: #ffffff;
+    --ds-primary-pressed:   #e3e4e6;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(248,249,250,0.08);
+    --ds-primary-ring:      rgba(248,249,250,0.28);
+
+    --ds-surface-ground:     #070708;
+    --ds-surface-sunken:     #101113;
+    --ds-surface-primary:    #15161a;
+    --ds-surface-secondary:  #252628;
+    --ds-surface-tertiary:   #34363a;
+    --ds-surface-quaternary: #46474c;
+
+    --ds-text-primary:   #fbfbfc;
+    --ds-text-secondary: #dadcde;
+    --ds-text-muted:     #a1a2a5;
+    --ds-text-faint:     #717275;
+    --ds-text-disabled:  #515255;
+
+    --ds-border-primary:   #15171b;
+    --ds-border-secondary: #3e3f43;
+    --ds-border-tertiary:  #515255;
+
+    --ds-accent-positive:       #2dd4bf;
+    --ds-accent-positive-hover: #5eead4;
+    --ds-accent-negative:       #f25668;
+    --ds-accent-negative-hover: #ff7484;
+    --ds-accent-warning:        #f5c14b;
+    --ds-accent-info:           #38bdf8;
+    --ds-accent-info-hover:     #7dd3fc;
+    --ds-accent-highlight:      #00e5ff;
+    --ds-accent-purple:         #af7de8;
+
+    --ds-action-buy-bg:    #2dd4bf;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #f25668;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #e3e4e6;
+    --ds-state-focus-ring-bg: rgba(248,249,250,0.08);
+    --ds-state-disabled-bg:   #34363a;
+    --ds-state-disabled-fg:   #515255;
+    --ds-state-hover-overlay: rgba(255,255,255,0.05);
+    --ds-state-selection:     rgba(248,249,250,0.08);
+
+    --ds-overlay-positive-soft:  rgba(45,212,191,0.13);
+    --ds-overlay-positive-ring:  rgba(45,212,191,0.13);
+    --ds-overlay-negative-soft:  rgba(242,86,104,0.13);
+    --ds-overlay-negative-ring:  rgba(242,86,104,0.13);
+    --ds-overlay-warning-soft:   rgba(245,193,75,0.13);
+    --ds-overlay-warning-ring:   rgba(245,193,75,0.13);
+    --ds-overlay-info-soft:      rgba(56,189,248,0.13);
+    --ds-overlay-info-ring:      rgba(56,189,248,0.13);
+    --ds-overlay-neutral-soft:   rgba(143,147,154,0.13);
+    --ds-overlay-neutral-ring:   rgba(143,147,154,0.24);
+
+    --ds-scrollbar:  #404040;
+
+    --ds-elevation-card:    0 1px 2px rgba(0,0,0,0.4);
+    --ds-elevation-overlay: 0 4px 12px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(248,249,250,0.28);
+
+    --ds-trade-flat:           #a3a3a3;
+    --ds-trade-positive-strip: rgba(45,212,191,0.05);
+    --ds-trade-negative-strip: rgba(242,86,104,0.05);
+    --ds-trade-bid-fill:       rgba(45,212,191,0.16);
+    --ds-trade-ask-fill:       rgba(242,86,104,0.16);
+
+    --ds-chart-1: #e3e4e6;
+    --ds-chart-2: #2dd4bf;
+    --ds-chart-3: #f5c14b;
+    --ds-chart-4: #af7de8;
+    --ds-chart-5: #f25668;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             220 6% 3%;
+    --foreground:             220 5% 97%;
+    --card:                   220 6% 7%;
+    --card-foreground:        220 5% 97%;
+    --popover:                220 4% 12%;
+    --popover-foreground:     220 5% 97%;
+    --primary:                220 4% 88%;
+    --primary-foreground:     220 8% 9%;
+    --secondary:              220 4% 14%;
+    --secondary-foreground:   220 5% 97%;
+    --muted:                  220 4% 11%;
+    --muted-foreground:       220 4% 60%;
+    --accent:                 220 4% 14%;
+    --accent-foreground:      220 5% 97%;
+    --destructive:            354 86% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                172 66% 50%;
+    --success-foreground:     0 0% 100%;
+    --warning:                42 89% 63%;
+    --warning-foreground:     240 14% 99%;
+    --info:                   198 93% 60%;
+    --info-foreground:        220 8% 9%;
+    --border:                 220 4% 18%;
+    --input:                  220 4% 18%;
+    --ring:                   220 4% 88%;
+
+    --sidebar-background:              220 4% 4%;
+    --sidebar-foreground:              220 5% 97%;
+    --sidebar-primary:                 220 4% 88%;
+    --sidebar-primary-foreground:      220 8% 9%;
+    --sidebar-accent:                  220 4% 11%;
+    --sidebar-accent-foreground:       220 5% 97%;
+    --sidebar-border:                  220 4% 15%;
+    --sidebar-ring:                    220 4% 88%;
+
+    --chart-1: 220 4% 88%;
+    --chart-2: 172 66% 50%;
+    --chart-3: 199 89% 60%;
+    --chart-4: 45 93% 60%;
+    --chart-5: 354 86% 65%;
+
+    --surface-50:  228 11% 9%;
+    --surface-100: 220 4% 15%;
+    --surface-200: 220 5% 22%;
+    --surface-300: 230 4% 29%;
+    --surface-400: 228 4% 25%;
+    --surface-500: 220 13% 9%;
+    --surface-600: 225 2% 45%;
+    --surface-700: 225 2% 64%;
+    --surface-800: 210 6% 86%;
+    --surface-900: 240 14% 99%;
+    --surface-950: 240 7% 3%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #e3e4e6;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #15161a;
+    --p-surface-100:          #252628;
+    --p-surface-200:          #34363a;
+    --p-surface-900:          #fbfbfc;
+    --p-surface-950:          #070708;
+    --p-text-color:           #fbfbfc;
+    --p-text-muted-color:     #a1a2a5;
+    --p-content-background:   #15161a;
+    --p-content-border-color: #15171b;
+    --p-content-color:        #fbfbfc;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #070708;
+    --bn-bg-sunken: #101113;
+    --bn-bg1:       #15161a;
+    --bn-bg2:       #252628;
+    --bn-bg3:       #34363a;
+    --bn-bg4:       #46474c;
+    --bn-t0:        #fbfbfc;
+    --bn-t1:        #dadcde;
+    --bn-t2:        #a1a2a5;
+    --bn-t3:        #717275;
+    --bn-t4:        #515255;
+    --bn-border:    #15171b;
+    --bn-border2:   #3e3f43;
+    --bn-border3:   #515255;
+    --bn-green:     #2dd4bf;
+    --bn-green2:    #5eead4;
+    --bn-red:       #f25668;
+    --bn-red2:      #ff7484;
+    --bn-amber:     #f5c14b;
+    --bn-blue:      #e3e4e6;
+    --bn-blue2:     #fbfbfc;
+    --bn-info:      #38bdf8;
+    --bn-cyan:      #00e5ff;
+    --bn-purple:    #af7de8;
+    --bn-buy-bg:    #2dd4bf;
+    --bn-sell-bg:   #f25668;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(45,212,191,0.16);
+    --ob-ask-fill:  rgba(242,86,104,0.16);
+    --tt-bid-strip: rgba(45,212,191,0.05);
+    --tt-ask-strip: rgba(242,86,104,0.05);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #070708;
+    --sf-bg-1:      #101113;
+    --sf-bg-2:      #15161a;
+    --sf-bg-3:      #252628;
+    --sf-bg-4:      #34363a;
+    --sf-bg-5:      #46474c;
+    --sf-t-0:       #fbfbfc;
+    --sf-t-1:       #dadcde;
+    --sf-t-2:       #a1a2a5;
+    --sf-t-3:       #717275;
+    --sf-t-4:       #515255;
+    --sf-border:    #15171b;
+    --sf-border-2:  #3e3f43;
+    --sf-border-3:  #515255;
+    --sf-teal:      #fbfbfc;
+    --sf-teal-hi:   #ffffff;
+    --sf-teal-lo:   #e3e4e6;
+    --sf-teal-soft: rgba(248,249,250,0.08);
+    --sf-teal-ring: rgba(248,249,250,0.28);
+    --sf-up:        #2dd4bf;
+    --sf-up-hi:     #5eead4;
+    --sf-up-soft:   rgba(45,212,191,0.13);
+    --sf-up-strip:  rgba(45,212,191,0.05);
+    --sf-down:      #f25668;
+    --sf-down-hi:   #ff7484;
+    --sf-down-soft: rgba(242,86,104,0.13);
+    --sf-down-strip:rgba(242,86,104,0.05);
+    --sf-flat:      #a3a3a3;
+    --sf-info:      #38bdf8;
+    --sf-info-soft: rgba(56,189,248,0.13);
+    --sf-warn:      #f5c14b;
+    --sf-warn-soft: rgba(245,193,75,0.13);
+    --sf-success:   #2dd4bf;
+    --sf-error:     #f25668;
+    --sf-bid-fill:  rgba(45,212,191,0.16);
+    --sf-ask-fill:  rgba(242,86,104,0.16);
+    --sf-scrollbar: #404040;
+  }
+
+  [data-palette="grey"][data-theme="light"] {
+    /* ── FI Design System source tokens ── */
+    --ds-primary:           #040506;
+    --ds-primary-hover:     #15171b;
+    --ds-primary-display:   #040506;
+    --ds-primary-highlight: #15171b;
+    --ds-primary-pressed:   #3e3f43;
+    --ds-primary-foreground:#ffffff;
+    --ds-primary-soft:      rgba(12,13,14,0.06);
+    --ds-primary-ring:      rgba(12,13,14,0.18);
+
+    --ds-surface-ground:     #fbfbfc;
+    --ds-surface-sunken:     #ffffff;
+    --ds-surface-primary:    #ffffff;
+    --ds-surface-secondary:  #f2f3f4;
+    --ds-surface-tertiary:   #e6e7e9;
+    --ds-surface-quaternary: #d3d4d6;
+
+    --ds-text-primary:   #040506;
+    --ds-text-secondary: #15171b;
+    --ds-text-muted:     #515257;
+    --ds-text-faint:     #717276;
+    --ds-text-disabled:  #a1a2a5;
+
+    --ds-border-primary:   #e3e4e6;
+    --ds-border-secondary: #dadcde;
+    --ds-border-tertiary:  #a1a2a5;
+
+    --ds-accent-positive:       #0f766e;
+    --ds-accent-positive-hover: #0a5d56;
+    --ds-accent-negative:       #be1f43;
+    --ds-accent-negative-hover: #9e1838;
+    --ds-accent-warning:        #b27607;
+    --ds-accent-info:           #0e7490;
+    --ds-accent-info-hover:     #0c6378;
+    --ds-accent-highlight:      #06b6d4;
+    --ds-accent-purple:         #7631c4;
+
+    --ds-action-buy-bg:    #0f766e;
+    --ds-action-buy-fg:    #ffffff;
+    --ds-action-sell-bg:   #be1f43;
+    --ds-action-sell-fg:   #ffffff;
+
+    --ds-state-focus-ring:    #040506;
+    --ds-state-focus-ring-bg: rgba(12,13,14,0.06);
+    --ds-state-disabled-bg:   #e6e7e9;
+    --ds-state-disabled-fg:   #a1a2a5;
+    --ds-state-hover-overlay: rgba(0,0,0,0.045);
+    --ds-state-selection:     rgba(12,13,14,0.06);
+
+    --ds-overlay-positive-soft:  rgba(15,118,110,0.10);
+    --ds-overlay-positive-ring:  rgba(15,118,110,0.10);
+    --ds-overlay-negative-soft:  rgba(190,31,67,0.10);
+    --ds-overlay-negative-ring:  rgba(190,31,67,0.10);
+    --ds-overlay-warning-soft:   rgba(178,118,7,0.11);
+    --ds-overlay-warning-ring:   rgba(178,118,7,0.11);
+    --ds-overlay-info-soft:      rgba(14,116,144,0.10);
+    --ds-overlay-info-ring:      rgba(14,116,144,0.10);
+    --ds-overlay-neutral-soft:   rgba(82,93,108,0.08);
+    --ds-overlay-neutral-ring:   rgba(82,93,108,0.14);
+
+    --ds-scrollbar:  #c2c4c8;
+
+    --ds-elevation-card:    0 1px 2px rgba(12,29,48,0.06);
+    --ds-elevation-overlay: 0 2px 8px rgba(12,29,48,0.08), 0 1px 0 rgba(255,255,255,0.6) inset;
+    --ds-elevation-glow:    0 0 0 3px rgba(12,13,14,0.18);
+
+    --ds-trade-flat:           #525252;
+    --ds-trade-positive-strip: rgba(15,118,110,0.04);
+    --ds-trade-negative-strip: rgba(190,31,67,0.04);
+    --ds-trade-bid-fill:       rgba(15,118,110,0.13);
+    --ds-trade-ask-fill:       rgba(190,31,67,0.11);
+
+    --ds-chart-1: #040506;
+    --ds-chart-2: #0f766e;
+    --ds-chart-3: #b27607;
+    --ds-chart-4: #7631c4;
+    --ds-chart-5: #be1f43;
+
+    /* ── shadcn-compat HSL channel aliases (Stockflux SLATE BLUE) ── */
+    --background:             220 6% 98%;
+    --foreground:             220 8% 9%;
+    --card:                   0 0% 100%;
+    --card-foreground:        220 8% 9%;
+    --popover:                0 0% 100%;
+    --popover-foreground:     220 8% 9%;
+    --primary:                220 8% 9%;
+    --primary-foreground:     220 6% 98%;
+    --secondary:              220 5% 92%;
+    --secondary-foreground:   220 8% 18%;
+    --muted:                  220 5% 92%;
+    --muted-foreground:       220 6% 40%;
+    --accent:                 220 5% 92%;
+    --accent-foreground:      220 8% 9%;
+    --destructive:            350 78% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --success:                175 77% 26%;
+    --success-foreground:     0 0% 100%;
+    --warning:                39 92% 36%;
+    --warning-foreground:     0 0% 100%;
+    --info:                   193 82% 31%;
+    --info-foreground:        220 6% 98%;
+    --border:                 220 5% 84%;
+    --input:                  220 5% 84%;
+    --ring:                   220 8% 9%;
+
+    --sidebar-background:              220 6% 98%;
+    --sidebar-foreground:              220 8% 9%;
+    --sidebar-primary:                 220 8% 9%;
+    --sidebar-primary-foreground:      220 6% 98%;
+    --sidebar-accent:                  220 5% 92%;
+    --sidebar-accent-foreground:       220 8% 18%;
+    --sidebar-border:                  220 5% 84%;
+    --sidebar-ring:                    220 8% 9%;
+
+    --chart-1: 220 8% 9%;
+    --chart-2: 172 76% 32%;
+    --chart-3: 199 89% 38%;
+    --chart-4: 35 85% 42%;
+    --chart-5: 350 78% 42%;
+
+    --surface-50:  0 0% 100%;
+    --surface-100: 210 8% 95%;
+    --surface-200: 220 6% 91%;
+    --surface-300: 220 4% 83%;
+    --surface-400: 210 6% 86%;
+    --surface-500: 220 6% 90%;
+    --surface-600: 228 2% 45%;
+    --surface-700: 230 4% 33%;
+    --surface-800: 220 13% 9%;
+    --surface-900: 210 20% 2%;
+    --surface-950: 240 14% 99%;
+
+    /* ── PrimeNG var bridge (for tailwindcss-primeui) ── */
+    --p-primary-color:        #040506;
+    --p-primary-color-text:   #ffffff;
+    --p-surface-50:           #ffffff;
+    --p-surface-100:          #f2f3f4;
+    --p-surface-200:          #e6e7e9;
+    --p-surface-900:          #040506;
+    --p-surface-950:          #fbfbfc;
+    --p-text-color:           #040506;
+    --p-text-muted-color:     #515257;
+    --p-content-background:   #ffffff;
+    --p-content-border-color: #e3e4e6;
+    --p-content-color:        #040506;
+
+    /* ── Typography vars ── */
+    --ds-font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', 'Geist', sans-serif;
+    --ds-font-mono:  'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --ds-font-serif: 'Geist', Georgia, serif;
+    --ds-font-size-2xs: 10px;
+    --ds-font-size-xs:  11px;
+    --ds-font-size-sm:  12px;
+    --ds-font-size-md:  13px;
+    --ds-font-size-lg:  14px;
+    --ds-font-size-xl:  16px;
+    --ds-font-size-2xl: 20px;
+    --ds-font-size-3xl: 28px;
+    --ds-font-size-4xl: 40px;
+    --ds-font-size-5xl: 56px;
+    --ds-font-variant-tabular: tabular-nums;
+    --ds-radius-sm:   3px;
+    --ds-radius-md:   3px;
+    --ds-radius-lg:   3px;
+    --ds-radius-xl:   6px;
+    --ds-radius-full: 9999px;
+    --radius:         3px;
+
+    /* ── Motion vars (Stockflux tokens.css) ── */
+    --ds-tx-instant: 80ms cubic-bezier(0.4,0,0.6,1);
+    --ds-tx-fast:    140ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-normal:  220ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-slow:    420ms cubic-bezier(0.4,0,0.2,1);
+    --ds-tx-tick:    900ms cubic-bezier(0.25,0.1,0.25,1);
+    --sf-t-instant:  80ms cubic-bezier(0.4,0,0.6,1);
+    --sf-t-fast:     140ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-normal:   220ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-slow:     420ms cubic-bezier(0.4,0,0.2,1);
+    --sf-t-tick:     900ms cubic-bezier(0.25,0.1,0.25,1);
+
+    /* ── Control density tiers (compact controls — see tokens/controls.ts) ── */
+    --ds-control-xs-height:       24px;
+    --ds-control-xs-padding-x:    8px;
+    --ds-control-xs-gap:          4px;
+    --ds-control-xs-font-size:    12px;
+    --ds-control-xs-icon-size:    12px;
+    --ds-control-xs-radius:       3px;
+    --ds-control-sm-height:       26px;
+    --ds-control-sm-padding-x:    10px;
+    --ds-control-sm-gap:          6px;
+    --ds-control-sm-font-size:    12px;
+    --ds-control-sm-icon-size:    14px;
+    --ds-control-sm-radius:       3px;
+    --ds-control-md-height:       28px;
+    --ds-control-md-padding-x:    12px;
+    --ds-control-md-gap:          6px;
+    --ds-control-md-font-size:    13px;
+    --ds-control-md-icon-size:    14px;
+    --ds-control-md-radius:       3px;
+    --ds-control-lg-height:       30px;
+    --ds-control-lg-padding-x:    12px;
+    --ds-control-lg-gap:          8px;
+    --ds-control-lg-font-size:    13px;
+    --ds-control-lg-icon-size:    16px;
+    --ds-control-lg-radius:       3px;
+
+    /* ── Legacy bn-* / fi-* aliases (apps + cell renderers) ── */
+    --bn-bg:        #fbfbfc;
+    --bn-bg-sunken: #ffffff;
+    --bn-bg1:       #ffffff;
+    --bn-bg2:       #f2f3f4;
+    --bn-bg3:       #e6e7e9;
+    --bn-bg4:       #d3d4d6;
+    --bn-t0:        #040506;
+    --bn-t1:        #15171b;
+    --bn-t2:        #515257;
+    --bn-t3:        #717276;
+    --bn-t4:        #a1a2a5;
+    --bn-border:    #e3e4e6;
+    --bn-border2:   #dadcde;
+    --bn-border3:   #a1a2a5;
+    --bn-green:     #0f766e;
+    --bn-green2:    #0a5d56;
+    --bn-red:       #be1f43;
+    --bn-red2:      #9e1838;
+    --bn-amber:     #b27607;
+    --bn-blue:      #040506;
+    --bn-blue2:     #15171b;
+    --bn-info:      #0e7490;
+    --bn-cyan:      #06b6d4;
+    --bn-purple:    #7631c4;
+    --bn-buy-bg:    #0f766e;
+    --bn-sell-bg:   #be1f43;
+    --bn-cta-text:  #ffffff;
+    --ob-bid-fill:  rgba(15,118,110,0.13);
+    --ob-ask-fill:  rgba(190,31,67,0.11);
+    --tt-bid-strip: rgba(15,118,110,0.04);
+    --tt-ask-strip: rgba(190,31,67,0.04);
+    
+    /* ── Stockflux --sf-* aliases (SLATE BLUE) ── */
+    --sf-bg:        #fbfbfc;
+    --sf-bg-1:      #ffffff;
+    --sf-bg-2:      #ffffff;
+    --sf-bg-3:      #f2f3f4;
+    --sf-bg-4:      #e6e7e9;
+    --sf-bg-5:      #d3d4d6;
+    --sf-t-0:       #040506;
+    --sf-t-1:       #15171b;
+    --sf-t-2:       #515257;
+    --sf-t-3:       #717276;
+    --sf-t-4:       #a1a2a5;
+    --sf-border:    #e3e4e6;
+    --sf-border-2:  #dadcde;
+    --sf-border-3:  #a1a2a5;
+    --sf-teal:      #040506;
+    --sf-teal-hi:   #15171b;
+    --sf-teal-lo:   #3e3f43;
+    --sf-teal-soft: rgba(12,13,14,0.06);
+    --sf-teal-ring: rgba(12,13,14,0.18);
+    --sf-up:        #0f766e;
+    --sf-up-hi:     #0a5d56;
+    --sf-up-soft:   rgba(15,118,110,0.10);
+    --sf-up-strip:  rgba(15,118,110,0.04);
+    --sf-down:      #be1f43;
+    --sf-down-hi:   #9e1838;
+    --sf-down-soft: rgba(190,31,67,0.10);
+    --sf-down-strip:rgba(190,31,67,0.04);
+    --sf-flat:      #525252;
+    --sf-info:      #0e7490;
+    --sf-info-soft: rgba(14,116,144,0.10);
+    --sf-warn:      #b27607;
+    --sf-warn-soft: rgba(178,118,7,0.11);
+    --sf-success:   #0f766e;
+    --sf-error:     #be1f43;
+    --sf-bid-fill:  rgba(15,118,110,0.13);
+    --sf-ask-fill:  rgba(190,31,67,0.11);
+    --sf-scrollbar: #c2c4c8;
+  }
+
+  [data-palette="grey"][data-theme="dark"][data-cvd="on"] {
+    --ds-accent-positive:       #7aa6ff;
+    --ds-accent-positive-hover: #7aa6ff;
+    --ds-accent-negative:       #ff9d4e;
+    --ds-accent-negative-hover: #ff9d4e;
+    --ds-action-buy-bg:         #7aa6ff;
+    --ds-action-sell-bg:        #ff9d4e;
+    --success:                  220 100% 74%;
+    --destructive:              27 100% 65%;
+  }
+
+  [data-palette="grey"][data-theme="light"][data-cvd="on"] {
     --ds-accent-positive:       #1e4fb8;
     --ds-accent-positive-hover: #1e4fb8;
     --ds-accent-negative:       #c2410c;

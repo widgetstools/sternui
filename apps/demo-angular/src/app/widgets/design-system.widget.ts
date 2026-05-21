@@ -1230,17 +1230,18 @@ export class DesignSystemWidget {
   // ── 6. Code snippets ──
   primengCode = `// app.config.ts
 import { providePrimeNG } from 'primeng/config';
-import { definePreset } from 'primeng/api';
-import { Aura } from 'primeng/themes';
-import { generatePrimeNGPreset } from '@fi/design-system/adapters/primeng';
+import { definePreset } from '@primeng/themes';
+import Aura from '@primeng/themes/aura';
+import { primengPreset } from '@starui/design-system/primeng';
+// Or per-palette: import { StarUISlatePreset } from '@starui/design-system/primeng/presets';
 
-const FiTheme = definePreset(Aura, generatePrimeNGPreset());
+const ChromaDeskPreset = definePreset(Aura, primengPreset);
 
 export const appConfig = {
   providers: [
     providePrimeNG({
       theme: {
-        preset: FiTheme,
+        preset: ChromaDeskPreset,
         options: {
           darkModeSelector: '[data-theme="dark"]',
         },

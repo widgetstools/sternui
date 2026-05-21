@@ -99,6 +99,8 @@ export interface ContentMenuFolderEntry {
   type: "folder";
   id: string;
   label: string;
+  /** Theme-aware icon — injected into the dock companion UI (OpenFin folder rows omit icons natively). */
+  icon?: DockEntryIcon;
   children: ContentMenuEntryType[];
   bookmarked?: boolean;
 }
@@ -191,6 +193,7 @@ function menuItemToContentMenuEntry(
       type: "folder",
       id: item.id,
       label: item.tooltip,
+      icon,
       children: item.options.map((child) =>
         menuItemToContentMenuEntry(child, generateIcon, recolorUrl, darkColor, lightColor),
       ),
@@ -228,10 +231,12 @@ export function toDock3UserContentMenu(
       const children = btn.options.map((item) =>
         menuItemToContentMenuEntry(item, generateIcon, recolorUrl, darkColor, lightColor),
       );
+      const icon = makeDualIcon(btn, generateIcon, recolorUrl, darkColor, lightColor);
       return {
         type: "folder",
         id: btn.id,
         label: btn.tooltip,
+        icon,
         children,
       };
     });

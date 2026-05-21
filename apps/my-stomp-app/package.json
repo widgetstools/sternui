@@ -8,12 +8,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@starui/data": "file:../../libs/starui-data-0.1.0-68634979.tgz",
-    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-9bd365c9.tgz",
-    "@starui/react-core": "file:../../libs/starui-react-core-1.0.0-531597ed.tgz",
-    "@starui/react-grid": "file:../../libs/starui-react-grid-0.1.0-8b183f6a.tgz",
+    "@starui/data": "file:../../libs/starui-data-0.1.0-3f8b5e1a.tgz",
+    "@starui/design-system": "file:../../libs/starui-design-system-1.0.0-3fb9b1a0.tgz",
+    "@starui/react-core": "file:../../libs/starui-react-core-1.0.0-36301081.tgz",
+    "@starui/react-grid": "file:../../libs/starui-react-grid-0.1.0-2d4614b9.tgz",
     "@starui/react-ui": "file:../../libs/starui-react-ui-1.0.0-6c4543f9.tgz",
-    "@starui/shared": "file:../../libs/starui-shared-1.0.0-383c9ea2.tgz",
+    "@starui/shared": "file:../../libs/starui-shared-1.0.0-c259642a.tgz",
     "@stomp/stompjs": "^7.3.0",
     "ag-grid-community": "35.1.0",
     "ag-grid-enterprise": "35.1.0",

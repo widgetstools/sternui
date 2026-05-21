@@ -160,6 +160,12 @@ function readManifest() {
   return null;
 }
 
+/** Live workspace package root when developing inside the monorepo. */
+function workspaceMemberRoot(bucket, folder) {
+  const root = join(REPO_ROOT, 'packages', bucket, folder);
+  return existsSync(join(root, 'package.json')) ? root : null;
+}
+
 /**
  * @param {string} appDir absolute path to the app root (where vite.config lives)
  * @returns {{ find: string | RegExp, replacement: string }[]}
@@ -194,7 +200,13 @@ export function staruiViteAliases(appDir) {
       let exportEntries = null;
       let resolveRoot = bucketDir;
 
-      if (!useDevSource) {
+      // Prefer workspace sources in-repo so Vite does not serve stale nested
+      // copies from bucket tarballs (e.g. shared-types before PALETTE_STORAGE_KEY).
+      const wsRoot = workspaceMemberRoot(entry.bucket, folder);
+      if (wsRoot) {
+        exportEntries = readMemberExports(entry.bucket, folder);
+        resolveRoot = wsRoot;
+      } else if (!useDevSource) {
         exportEntries = readInstalledMemberExports(bucketPkgPath, bucketName, member);
       }
       if (!exportEntries) {
@@ -290,8 +302,23 @@ export function staruiServerFsAllow(appDir) {
   ];
 }
 
+/** Pre-warm Monaco expression editor so the first settings open does not race dep discovery. */
+export function staruiDevWarmupClientFiles() {
+  return [
+    join(
+      REPO_ROOT,
+      'packages/react-grid/grid/src/customizer/ui/ExpressionEditor/ExpressionEditorInner.tsx',
+    ),
+  ];
+}
+
 export function staruiOptimizeDeps() {
   return {
+    include: [
+      // ExpressionEditor lazy-chunk imports this from an @fs-resolved grid path;
+      // without pre-bundling, dev can throw "Failed to fetch dynamically imported module".
+      'monaco-editor',
+    ],
     exclude: [
       '@stomp/stompjs',
       // Keep host-data out of the deps prebundle — prebundling breaks

@@ -1,30 +1,31 @@
 /**
- * AG-Grid theming bridge for config-browser-react.
- *
- * Surface / border / focus / range / accent colors flow from the design-system
- * adapter (agGridDarkParams / agGridLightParams). Only tool-specific overrides
- * (input chrome, resize handle, header row border, wrapper border) are kept here.
- * Flipping [data-theme="light"|"dark"] re-skins the grid automatically via
- * the CSS variables resolved by the adapter.
+ * @deprecated Prefer `useGridTheme()` from `@starui/grid` — palette-aware and
+ * reactive to `[data-theme]` / `[data-palette]`. Kept for callers that need a
+ * one-shot theme outside React; new code should not import this module.
  */
-import { themeQuartz } from "ag-grid-community";
 import type { Theme } from "ag-grid-community";
-import { agGridDarkParams, agGridLightParams } from "@starui/design-system/adapters/ag-grid";
-
-// Tool-specific overrides: input chrome + structural borders not covered by adapter.
-const overrides = {
-  headerColumnResizeHandleColor: "var(--ds-border-secondary)",
-  wrapperBorder:    "solid 1px var(--ds-border-primary)",
-  headerRowBorder:  "solid 1px var(--ds-border-primary)",
-  columnBorder:     { style: "solid" as const, width: 1, color: "var(--ds-border-primary)" },
-  inputBackgroundColor: "var(--ds-surface-secondary)",
-  inputBorder:      "solid 1px var(--ds-border-primary)",
-  inputTextColor:   "var(--ds-text-primary)",
-};
-
-const agGridThemeDark: Theme  = themeQuartz.withParams({ ...agGridDarkParams,  ...overrides });
-const agGridThemeLight: Theme = themeQuartz.withParams({ ...agGridLightParams, ...overrides });
+import { buildAgGridTheme } from "@starui/design-system/adapters/ag-grid";
+import {
+  readDocumentThemeMode,
+  readStockfluxPalette,
+} from "@starui/design-system";
 
 export function agGridThemeFor(theme: "dark" | "light"): Theme {
-  return theme === "dark" ? agGridThemeDark : agGridThemeLight;
+  return buildAgGridTheme({
+    palette: readStockfluxPalette(),
+    mode: theme,
+    density: "compact",
+  });
+}
+
+/**
+ * Snapshot of the host document appearance (palette + mode). Use inside
+ * `useMemo` when you cannot call `useGridTheme()` (non-React bootstrap).
+ */
+export function agGridThemeForDocument(): Theme {
+  return buildAgGridTheme({
+    palette: readStockfluxPalette(),
+    mode: readDocumentThemeMode(),
+    density: "compact",
+  });
 }

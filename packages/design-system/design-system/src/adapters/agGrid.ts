@@ -1,33 +1,32 @@
 // ─────────────────────────────────────────────────────────────
-//  AG Grid Theme Params — Stockflux SLATE BLUE (ag-grid v33+)
-//
-//  Color pack is sourced from tokens/stockfluxSlate.ts (aggrid-theme.js
-//  `palettes.slate`) so grid chrome cannot drift from the reference kit.
+//  AG Grid Theme Params — Stockflux palettes (ag-grid v33+)
 // ─────────────────────────────────────────────────────────────
 
 import { iconSetQuartzBold, themeQuartz, type Theme } from 'ag-grid-community';
-import { dark, light, type ColorScheme } from '../tokens/semantic';
-import { stockfluxSlateAgGrid } from '../tokens/stockfluxSlate';
+import { getColorScheme } from '../tokens/semantic';
+import {
+  DEFAULT_STOCKFLUX_PALETTE,
+  getStockfluxPack,
+  type StockfluxAgGridMode,
+  type StockfluxPaletteName,
+} from '../tokens/stockflux';
 import { typography } from '../tokens/primitives';
 
-type Density = 'compact' | 'comfort' | 'ultra';
-type AgPack =
-  | (typeof stockfluxSlateAgGrid)['dark']
-  | (typeof stockfluxSlateAgGrid)['light'];
+export type AgGridDensity = 'compact' | 'comfort' | 'ultra';
 
-function hexToRgba(hex: string, a: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${a})`;
+export interface AgGridThemeOptions {
+  palette?: StockfluxPaletteName;
+  mode?: 'dark' | 'light';
+  density?: AgGridDensity;
 }
 
 function gridParams(
-  pack: AgPack,
-  scheme: ColorScheme,
+  pack: StockfluxAgGridMode,
+  palette: StockfluxPaletteName,
   mode: 'dark' | 'light',
-  density: Density = 'compact',
+  density: AgGridDensity = 'compact',
 ) {
+  const scheme = getColorScheme(palette, mode);
   const rowH    = density === 'ultra' ? 22 : density === 'comfort' ? 38 : 30;
   const headerH = density === 'ultra' ? 26 : density === 'comfort' ? 40 : 32;
   const fontPx  = density === 'ultra' ? 11 : density === 'comfort' ? 13 : 12;
@@ -59,8 +58,6 @@ function gridParams(
     wrapperBorder:      true as const,
     wrapperBorderRadius: 3,
     headerColumnBorder: false as const,
-    // Vertical 1px rule between data-row cells (Stockflux blotter look —
-    // makes columns read as distinct in dense numeric tables).
     columnBorder:       true as const,
     headerColumnResizeHandleColor: hexToRgba(pack.accent, 0.5),
     headerColumnResizeHandleHeight: '30%',
@@ -99,19 +96,46 @@ function gridParams(
   };
 }
 
-export const agGridDarkParams         = gridParams(stockfluxSlateAgGrid.dark,  dark,  'dark',  'compact');
-export const agGridLightParams        = gridParams(stockfluxSlateAgGrid.light, light, 'light', 'compact');
-export const agGridComfortDarkParams  = gridParams(stockfluxSlateAgGrid.dark,  dark,  'dark',  'comfort');
-export const agGridComfortLightParams = gridParams(stockfluxSlateAgGrid.light, light, 'light', 'comfort');
-export const agGridBlotterDarkParams  = gridParams(stockfluxSlateAgGrid.dark,  dark,  'dark',  'ultra');
-export const agGridBlotterLightParams = gridParams(stockfluxSlateAgGrid.light, light, 'light', 'ultra');
+function hexToRgba(hex: string, a: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
-const bake = (params: ReturnType<typeof gridParams>): Theme =>
-  themeQuartz.withPart(iconSetQuartzBold).withParams(params);
+const themeCache = new Map<string, Theme>();
 
-export const agGridDarkTheme         = bake(agGridDarkParams);
-export const agGridLightTheme        = bake(agGridLightParams);
-export const agGridComfortDarkTheme  = bake(agGridComfortDarkParams);
-export const agGridComfortLightTheme = bake(agGridComfortLightParams);
-export const agGridBlotterDarkTheme  = bake(agGridBlotterDarkParams);
-export const agGridBlotterLightTheme = bake(agGridBlotterLightParams);
+export function buildAgGridParams(options: AgGridThemeOptions = {}) {
+  const palette = options.palette ?? DEFAULT_STOCKFLUX_PALETTE;
+  const mode = options.mode ?? 'dark';
+  const density = options.density ?? 'compact';
+  const pack = getStockfluxPack(palette).agGrid[mode];
+  return gridParams(pack, palette, mode, density);
+}
+
+export function buildAgGridTheme(options: AgGridThemeOptions = {}): Theme {
+  const palette = options.palette ?? DEFAULT_STOCKFLUX_PALETTE;
+  const mode = options.mode ?? 'dark';
+  const density = options.density ?? 'compact';
+  const key = `${palette}-${mode}-${density}`;
+  const cached = themeCache.get(key);
+  if (cached) return cached;
+  const baked = themeQuartz.withPart(iconSetQuartzBold).withParams(buildAgGridParams(options));
+  themeCache.set(key, baked);
+  return baked;
+}
+
+/** Slate · dark · compact (default product grid chrome) */
+export const agGridDarkParams         = buildAgGridParams({ palette: 'slate', mode: 'dark',  density: 'compact' });
+export const agGridLightParams        = buildAgGridParams({ palette: 'slate', mode: 'light', density: 'compact' });
+export const agGridComfortDarkParams  = buildAgGridParams({ palette: 'slate', mode: 'dark',  density: 'comfort' });
+export const agGridComfortLightParams = buildAgGridParams({ palette: 'slate', mode: 'light', density: 'comfort' });
+export const agGridBlotterDarkParams  = buildAgGridParams({ palette: 'slate', mode: 'dark',  density: 'ultra' });
+export const agGridBlotterLightParams = buildAgGridParams({ palette: 'slate', mode: 'light', density: 'ultra' });
+
+export const agGridDarkTheme         = buildAgGridTheme({ palette: 'slate', mode: 'dark',  density: 'compact' });
+export const agGridLightTheme        = buildAgGridTheme({ palette: 'slate', mode: 'light', density: 'compact' });
+export const agGridComfortDarkTheme  = buildAgGridTheme({ palette: 'slate', mode: 'dark',  density: 'comfort' });
+export const agGridComfortLightTheme = buildAgGridTheme({ palette: 'slate', mode: 'light', density: 'comfort' });
+export const agGridBlotterDarkTheme  = buildAgGridTheme({ palette: 'slate', mode: 'dark',  density: 'ultra' });
+export const agGridBlotterLightTheme = buildAgGridTheme({ palette: 'slate', mode: 'light', density: 'ultra' });

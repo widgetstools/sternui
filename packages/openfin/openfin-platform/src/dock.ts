@@ -10,6 +10,7 @@ import {
   type DockEditorConfig,
   type Dock3Entry,
   type ContentMenuEntryType,
+  type DockEntryIcon,
 } from './dockConfigTypes';
 import {
   SETTINGS_SVG,
@@ -20,10 +21,22 @@ import {
   SUN_SVG,
   MOON_SVG,
   EYE_SVG,
+  TOOLS_SVG,
   svgToDataUrl,
   marketIconToDataUrl,
 } from "./icons/allIcons.js";
 import type { PlatformSettings } from './types';
+import {
+  applyTheme,
+  isStockfluxPaletteName,
+  STOCKFLUX_PALETTE_NAMES,
+  type StockfluxPaletteName,
+} from '@starui/design-system';
+import { PALETTE_STORAGE_KEY } from '@starui/types';
+
+/** Lucide-style palette icon for the content-menu folder. */
+const PALETTE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>';
 
 // ─── Theme icon colors ──────────────────────────────────────────────
 const ICON_COLOR_DARK_THEME = "#ffffff";
@@ -38,9 +51,11 @@ import {
   IAB_DOCK_CONFIG_UPDATE,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
+  IAB_PALETTE_CHANGED,
   IAB_REGISTRY_CONFIG_UPDATE,
   ACTION_LAUNCH_APP,
   ACTION_TOGGLE_THEME,
+  ACTION_SET_PALETTE,
   ACTION_OPEN_DOCK_EDITOR,
   ACTION_RELOAD_DOCK,
   ACTION_SHOW_DEVTOOLS,
@@ -58,9 +73,11 @@ export {
   IAB_DOCK_CONFIG_UPDATE,
   IAB_RELOAD_AFTER_IMPORT,
   IAB_THEME_CHANGED,
+  IAB_PALETTE_CHANGED,
   IAB_REGISTRY_CONFIG_UPDATE,
   ACTION_LAUNCH_APP,
   ACTION_TOGGLE_THEME,
+  ACTION_SET_PALETTE,
   ACTION_OPEN_DOCK_EDITOR,
   ACTION_RELOAD_DOCK,
   ACTION_SHOW_DEVTOOLS,
@@ -165,6 +182,45 @@ function readDockTheme(): "dark" | "light" {
   return "dark";
 }
 
+function readDockPalette(): StockfluxPaletteName {
+  try {
+    const attr = document.documentElement.getAttribute("data-palette");
+    if (attr && isStockfluxPaletteName(attr)) return attr;
+  } catch { /* non-browser */ }
+  try {
+    const stored = localStorage.getItem(PALETTE_STORAGE_KEY);
+    if (stored && isStockfluxPaletteName(stored)) return stored;
+  } catch { /* storage unavailable */ }
+  return "slate";
+}
+
+function paletteMenuLabel(name: StockfluxPaletteName, active: boolean): string {
+  const label = name.charAt(0).toUpperCase() + name.slice(1);
+  return active ? `✓ ${label}` : label;
+}
+
+/**
+ * Stockflux palette picker — checkmark on the active palette; choosing
+ * an item publishes `palette-changed` to every OpenFin window (same
+ * fan-out model as `theme-changed`).
+ */
+function buildPaletteContentMenuFolder(): ContentMenuEntryType {
+  const active = readDockPalette();
+  return {
+    type: "folder",
+    id: "palette-menu",
+    label: "Color palette",
+    icon: contentMenuIcon(PALETTE_SVG),
+    children: STOCKFLUX_PALETTE_NAMES.map((name) => ({
+      type: "item" as const,
+      id: `palette-${name}`,
+      label: paletteMenuLabel(name, active === name),
+      icon: contentMenuIcon(PALETTE_SVG),
+      itemData: { actionId: ACTION_SET_PALETTE, palette: name },
+    })),
+  };
+}
+
 function pickIconVariant(
   icon: string | { dark: string; light: string } | undefined,
   theme: "dark" | "light",
@@ -202,12 +258,15 @@ function flattenContentMenuForV22(
 ): any[] {
   return entries.map((entry) => {
     if (entry.type === "folder") {
-      // v22 ContentMenuEntry folder has no icon field — children only.
+      const icon = pickIconVariant(entry.icon, theme);
       return {
         type: "folder" as const,
         id: entry.id,
         label: entry.label,
         children: flattenContentMenuForV22(entry.children, theme),
+        // OpenFin's published ContentMenuEntry folder type omits `icon`, but
+        // we pass it for forward-compat and inject companion CSS (see below).
+        ...(icon ? { icon } : {}),
       };
     }
     return {
@@ -243,20 +302,6 @@ function contentMenuIcon(svgString: string): { dark: string; light: string } {
  */
 function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
   return [
-    {
-      type: "item",
-      id: "tool-dock-editor",
-      label: "Dock Editor",
-      icon: contentMenuIcon(SETTINGS_SVG),
-      itemData: { actionId: ACTION_OPEN_DOCK_EDITOR },
-    },
-    {
-      type: "item",
-      id: "tool-registry-editor",
-      label: "Component Registry",
-      icon: contentMenuIcon(SETTINGS_SVG),
-      itemData: { actionId: ACTION_OPEN_REGISTRY_EDITOR },
-    },
     {
       type: "item",
       id: "tool-workspace-setup",
@@ -343,15 +388,18 @@ function buildContentMenuEntries(editorConfig?: DockEditorConfig): ContentMenuEn
       )
     : [];
 
+  const paletteFolder = buildPaletteContentMenuFolder();
+
   // System tools folder
   const toolsFolder: ContentMenuEntryType = {
     type: "folder",
     id: "system-tools",
     label: "Tools",
+    icon: contentMenuIcon(TOOLS_SVG),
     children: buildSystemContentMenuEntries(),
   };
 
-  return [...userMenus, toolsFolder];
+  return [...userMenus, paletteFolder, toolsFolder];
 }
 
 // ─── Build favorites from editor config ──────────────────────────────
@@ -454,7 +502,8 @@ export async function registerDock(
   // Build the initial Dock3 config
   const theme = readDockTheme();
   const favorites = flattenFavoritesForV22(buildAllFavorites(lastEditorConfig), theme);
-  const contentMenu = flattenContentMenuForV22(buildContentMenuEntries(lastEditorConfig), theme);
+  const menuEntries = buildContentMenuEntries(lastEditorConfig);
+  const contentMenu = flattenContentMenuForV22(menuEntries, theme);
 
   try {
     dockProvider = await Dock.init({
@@ -471,6 +520,7 @@ export async function registerDock(
       override: buildDock3Override(),
     });
 
+    await injectContentMenuFolderIcons(menuEntries, theme);
     console.log("Dock3 provider initialized.");
 
     // IAB subscriptions — set up once only
@@ -684,12 +734,14 @@ function buildDock3Override() {
             // CustomIcon. v22 CustomIcon calls .startsWith() on the icon
             // and crashes on objects.
             const favs = flattenFavoritesForV22(buildAllFavorites(saved), theme);
-            const menu = flattenContentMenuForV22(buildContentMenuEntries(saved), theme);
+            const menuEntries = buildContentMenuEntries(saved);
+            const menu = flattenContentMenuForV22(menuEntries, theme);
             this['config'] = {
               ...this['config'],
               favorites: favs as any[],
               contentMenu: menu as any[],
             };
+            await injectContentMenuFolderIcons(menuEntries, theme);
           }
           return this['config'];
         } catch (err) {
@@ -763,16 +815,36 @@ function buildDock3Override() {
             //     `theme` (new schema) and `isDark` (legacy) so windows
             //     running pre-runtime-reducer code stay in sync.
             const themeStr = isDark ? "dark" : "light";
-            try { document.documentElement.setAttribute("data-theme", themeStr); } catch { /* */ }
+            applyTheme({ theme: themeStr, palette: readDockPalette() });
             try { document.body.dataset["agThemeMode"] = themeStr; } catch { /* */ }
-            try { localStorage.setItem("starui:theme", themeStr); } catch { /* */ }
             await applyDock3Config();
             console.log(`[Dock3 theme] About to publish IAB '${IAB_THEME_CHANGED}' with { theme: '${themeStr}', isDark: ${isDark} } from uuid='${fin.me?.identity?.uuid}'.`);
             try {
-              await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, { theme: themeStr, isDark });
+              await fin.InterApplicationBus.publish(IAB_THEME_CHANGED, {
+                theme: themeStr,
+                isDark,
+                palette: readDockPalette(),
+              });
               console.log("[Dock3 theme] IAB publish resolved.");
             } catch (iabErr) {
               console.warn("[Dock3 theme] IAB publish failed:", iabErr);
+            }
+            return;
+          }
+
+          if (data?.actionId === ACTION_SET_PALETTE || String(entry?.id ?? "").startsWith("palette-")) {
+            const raw = data?.palette ?? String(entry?.id ?? "").replace(/^palette-/, "");
+            if (!isStockfluxPaletteName(raw)) return;
+            const palette = raw;
+            const theme = readDockTheme();
+            applyTheme({ theme, palette });
+            try { document.body.dataset["agThemeMode"] = theme; } catch { /* */ }
+            await applyDock3Config();
+            console.log(`[Dock3 palette] ${palette} (theme=${theme})`);
+            try {
+              await fin.InterApplicationBus.publish(IAB_PALETTE_CHANGED, { palette, theme });
+            } catch (iabErr) {
+              console.warn("[Dock3 palette] IAB publish failed:", iabErr);
             }
             return;
           }
@@ -893,6 +965,64 @@ function resetDockState(): void {
   actionDispatcher = undefined;
 }
 
+// ─── Content-menu folder icons (OpenFin UI gap) ─────────────────────
+//
+// @openfin/ui-library ContentMenu renders icons only for `type: "item"`.
+// Folder rows (SPG, Color palette, Tools, nested dropdowns) get a chevron
+// but no leading icon — see ContentMenuEntry in workspace 23.x shapes and
+// ContentMenuItem (`iconUrl` only when `type === "item"`).
+//
+// We inject per-folder background icons into the dock companion window
+// (`#content-menu-item-<id>`) after each config push so top-level rows
+// align visually with their submenu items.
+
+const CONTENT_MENU_FOLDER_ICON_STYLE_ID = "starui-content-menu-folder-icons";
+
+function collectContentMenuFolders(
+  entries: ContentMenuEntryType[],
+): Array<{ id: string; icon?: DockEntryIcon }> {
+  const folders: Array<{ id: string; icon?: DockEntryIcon }> = [];
+  for (const entry of entries) {
+    if (entry.type === "folder") {
+      if (entry.icon) folders.push({ id: entry.id, icon: entry.icon });
+      folders.push(...collectContentMenuFolders(entry.children));
+    }
+  }
+  return folders;
+}
+
+async function injectContentMenuFolderIcons(
+  entries: ContentMenuEntryType[],
+  theme: "dark" | "light",
+): Promise<void> {
+  if (!dockProvider?.getWindowSync) return;
+
+  const rules: string[] = [];
+  for (const { id, icon } of collectContentMenuFolders(entries)) {
+    const url = pickIconVariant(icon, theme);
+    if (!url) continue;
+    rules.push(
+      `#content-menu-item-${id}{background-image:url(${JSON.stringify(url)});background-repeat:no-repeat;background-position:10px center;background-size:16px 16px;padding-left:34px!important}`,
+    );
+  }
+
+  const css = rules.join("\n");
+  try {
+    const dockWindow = dockProvider.getWindowSync();
+    await dockWindow.executeJavaScript(`(() => {
+      let el = document.getElementById(${JSON.stringify(CONTENT_MENU_FOLDER_ICON_STYLE_ID)});
+      if (!el) {
+        el = document.createElement("style");
+        el.id = ${JSON.stringify(CONTENT_MENU_FOLDER_ICON_STYLE_ID)};
+        document.head.appendChild(el);
+      }
+      el.textContent = ${JSON.stringify(css)};
+    })()`);
+  } catch (err) {
+    console.warn("[Dock3] Could not inject content-menu folder icons:", err);
+  }
+}
+
 // ─── Internal helpers ────────────────────────────────────────────────
 
 /**
@@ -907,7 +1037,8 @@ async function applyDock3Config(): Promise<void> {
 
   const theme = readDockTheme();
   const favorites = flattenFavoritesForV22(buildAllFavorites(lastEditorConfig), theme);
-  const contentMenu = flattenContentMenuForV22(buildContentMenuEntries(lastEditorConfig), theme);
+  const menuEntries = buildContentMenuEntries(lastEditorConfig);
+  const contentMenu = flattenContentMenuForV22(menuEntries, theme);
 
   try {
     await dockProvider.updateConfig({
@@ -920,6 +1051,7 @@ async function applyDock3Config(): Promise<void> {
         hideDragHandle: true,
       },
     });
+    await injectContentMenuFolderIcons(menuEntries, theme);
     console.log("Dock3 config updated.");
   } catch (error) {
     console.error("Failed to update Dock3 config.", error);

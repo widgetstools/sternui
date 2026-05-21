@@ -4,6 +4,7 @@
 import {
   staruiViteAliases,
   staruiOptimizeDeps,
+  staruiDevWarmupClientFiles,
   staruiServerFsAllow,
   reactResolveConfig,
   appDirFromConfig,
@@ -34,6 +35,9 @@ export function staruiConsumerViteConfig(appDir, opts = {}) {
     server: {
       fs: {
         allow: staruiServerFsAllow(appDir),
+      },
+      warmup: {
+        clientFiles: staruiDevWarmupClientFiles(),
       },
     },
     ...(opts.worker ? { worker: { format: 'es' } } : {}),

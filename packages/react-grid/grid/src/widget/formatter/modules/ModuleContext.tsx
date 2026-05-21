@@ -20,28 +20,38 @@ import {
   Undo2,
 } from 'lucide-react';
 import { Tooltip } from '@starui/grid/customizer';
-import { Input } from '@starui/ui';
+import { cn, Input } from '@starui/ui';
 import {
   ColumnLabel,
   Hair,
   Pill,
   SegmentedToggle,
+  formatterColEditIconClass,
+  formatterColEditablePanelClass,
+  formatterColEditableToolbarClass,
+  formatterColPanelClass,
+  formatterColToolbarClass,
+  type FormatterSurface,
 } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 interface Props {
   state: FormatterState;
   actions: FormatterActions;
+  surface?: FormatterSurface;
+  inPanelHeader?: boolean;
 }
 
 function InlineColumnLabel({
   colLabel,
   disabled,
   onCommit,
+  surface = 'toolbar',
 }: {
   colLabel: string;
   disabled?: boolean;
   onCommit: (next: string) => void;
+  surface?: FormatterSurface;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(colLabel);
@@ -89,7 +99,7 @@ function InlineColumnLabel({
         onBlur={commit}
         data-testid="formatting-col-label-input"
         aria-label="Rename column"
-        className="h-7 min-w-[160px] max-w-[200px] px-2.5 py-0 font-mono text-[11px] border-primary shadow-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="h-7 min-w-[160px] max-w-[200px] px-2.5 py-0 font-mono text-[11px] border-[color:var(--ds-primary)] shadow-none focus-visible:ring-2 focus-visible:ring-[color:var(--ds-primary-ring)]"
       />
     );
   }
@@ -98,24 +108,45 @@ function InlineColumnLabel({
     <Tooltip content={disabled ? 'Select a single column to rename' : 'Click to rename column'}>
       <button
         type="button"
-        className="fx-col fx-col--editable"
+        className={cn(
+          'group',
+          surface === 'panel' ? formatterColPanelClass : formatterColToolbarClass,
+          surface === 'panel' ? formatterColEditablePanelClass : formatterColEditableToolbarClass,
+        )}
         data-disabled={disabled ? 'true' : undefined}
         data-testid="formatting-col-label"
         disabled={disabled}
         onClick={() => { if (!disabled) setEditing(true); }}
         onMouseDown={(e) => e.preventDefault()}
       >
-        <span className="fx-col__dot" aria-hidden />
-        <span className="fx-col__name">{colLabel}</span>
-        <Pencil size={10} strokeWidth={1.75} className="fx-col__edit" aria-hidden />
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0 bg-[color:var(--ds-primary)] shadow-[0_0_6px_var(--ds-primary)] animate-[fxLivePulse_1.6s_ease-in-out_infinite]"
+          aria-hidden
+        />
+        <span className="truncate">{colLabel}</span>
+        <Pencil size={10} strokeWidth={1.75} className={formatterColEditIconClass} aria-hidden />
       </button>
     </Tooltip>
   );
 }
 
-export function ModuleContext({ state, actions }: Props) {
+export function ModuleContext({
+  state,
+  actions,
+  surface = 'toolbar',
+  inPanelHeader,
+}: Props) {
   return (
-    <div className="fx-ctx" data-module-index="01" data-target={state.target} data-scope={state.scope}>
+    <div
+      className={cn(
+        'fx-ctx flex items-center flex-wrap shrink-0 min-w-0',
+        surface === 'toolbar' ? 'gap-2 max-w-full' : 'gap-2.5 row-gap-2',
+        inPanelHeader && 'h-auto min-h-0 p-0 overflow-visible static border-0 bg-transparent',
+      )}
+      data-module-index="01"
+      data-target={state.target}
+      data-scope={state.scope}
+    >
       {/* Two compact icon-only toggles — first thing the eye lands on.
           Together they answer "what am I editing?" (cells vs headers)
           and "for which columns?" (selected vs every column). Each
@@ -168,6 +199,7 @@ export function ModuleContext({ state, actions }: Props) {
           colLabel={state.colLabel}
           disabled={state.disabled}
           onCommit={actions.setHeaderName}
+          surface={surface}
         />
       ) : (
         <Tooltip content={state.colIds.length > 0 ? state.colIds.join(', ') : 'Click a cell or header to pick a column'}>
@@ -176,6 +208,7 @@ export function ModuleContext({ state, actions }: Props) {
               colLabel={state.colLabel}
               disabled={state.disabled}
               testId="formatting-col-label"
+              surface={surface}
             />
           </div>
         </Tooltip>
@@ -196,7 +229,7 @@ export function ModuleContext({ state, actions }: Props) {
         )}
       </Pill>
 
-      <Hair />
+      <Hair toolbar={surface === 'toolbar'} />
       <Pill
         tooltip={
           state.headerCaseUppercase
@@ -225,7 +258,7 @@ export function ModuleContext({ state, actions }: Props) {
         <MessageSquareText size={12} strokeWidth={1.75} />
       </Pill>
 
-      <div className="fx-ctx__history">
+      <div className="inline-flex items-center gap-1.5 ml-auto shrink-0">
         <Pill
           tooltip="Undo"
           disabled={!state.canUndo}

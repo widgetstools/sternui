@@ -1,65 +1,66 @@
 /**
  * Theme helper for hosted blotters — single source of AG-Grid styling.
  *
- * Composes `themeQuartz.withParams(...)` against the design-system's
- * `agGridBlotter{Light,Dark}Params` preset. No local color, font, or
- * spacing constants live here: updating the design-system preset
- * re-themes every blotter that uses this hook at once.
+ * Uses `buildAgGridTheme({ palette, mode, density: 'ultra' })` from the
+ * design-system so Stockflux palette + dark/light follow the same
+ * `data-theme` / `data-palette` contract as `useGridTheme` in
+ * `@starui/grid`. OpenFin dock palette picks publish via IAB →
+ * `applyTheme()` on child windows → MutationObserver here rebinds the
+ * AG Grid theme.
  *
  * The mode argument has three forms:
  *   - `'light'` / `'dark'` — explicit, no DOM observation.
- *   - `'auto'` (default) — follow the host app's `[data-theme]`
- *     attribute on `<html>`. A MutationObserver keeps the resolved
- *     theme reactive to runtime theme switches.
- *
- * The hook is intentionally provider-agnostic. Different hosts use
- * different theme contexts (next-themes, the reference app's local
- * `ThemeContext`, OpenFin's IAB broadcast); they all converge on
- * `[data-theme]` on `<html>`, which is what this hook reads.
+ *   - `'auto'` (default) — follow `[data-theme]` and `[data-palette]`
+ *     on `<html>`.
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { themeQuartz, type Theme } from 'ag-grid-community';
+import type { Theme } from 'ag-grid-community';
 import {
-  agGridBlotterDarkParams,
-  agGridBlotterLightParams,
+  readDocumentThemeMode,
+  readStockfluxPalette,
+  type StockfluxPaletteName,
 } from '@starui/design-system';
+import { buildAgGridTheme } from '@starui/design-system/adapters/ag-grid';
 
 export type AgGridThemeMode = 'auto' | 'dark' | 'light';
 
-function readDocumentTheme(): 'dark' | 'light' {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+function readAppearance(): { mode: 'dark' | 'light'; palette: StockfluxPaletteName } {
+  return {
+    mode: readDocumentThemeMode(),
+    palette: readStockfluxPalette(),
+  };
 }
 
 /**
  * Returns the AG-Grid `Theme` object for a hosted blotter, reactive to
- * the host's theme attribute when `mode` is `'auto'`.
+ * the host's theme + palette attributes when `mode` is `'auto'`.
  */
 export function useAgGridTheme(mode: AgGridThemeMode = 'auto'): Theme {
-  const [resolved, setResolved] = useState<'dark' | 'light'>(() =>
-    mode === 'auto' ? readDocumentTheme() : mode,
-  );
+  const [appearance, setAppearance] = useState(readAppearance);
 
   useEffect(() => {
-    if (mode !== 'auto') {
-      setResolved(mode);
-      return;
-    }
     if (typeof document === 'undefined') return;
 
-    setResolved(readDocumentTheme());
+    const sync = () => {
+      const next = readAppearance();
+      setAppearance(mode === 'auto' ? next : { palette: next.palette, mode });
+    };
+    sync();
     const html = document.documentElement;
-    const observer = new MutationObserver(() => {
-      setResolved(readDocumentTheme());
+    const observer = new MutationObserver(sync);
+    observer.observe(html, {
+      attributes: true,
+      attributeFilter: ['data-theme', 'data-palette'],
     });
-    observer.observe(html, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, [mode]);
 
-  const isDark = resolved === 'dark';
+  const resolvedMode = mode === 'auto' ? appearance.mode : mode;
+  const palette = appearance.palette;
+
   return useMemo(
-    () => themeQuartz.withParams(isDark ? agGridBlotterDarkParams : agGridBlotterLightParams),
-    [isDark],
+    () => buildAgGridTheme({ palette, mode: resolvedMode, density: 'ultra' }),
+    [palette, resolvedMode],
   );
 }

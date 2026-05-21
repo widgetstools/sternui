@@ -53,24 +53,45 @@ describe('applyTheme', () => {
 
   it('getTheme reads back theme + cvd from canonical keys', () => {
     applyTheme({ theme: 'light', cvd: true });
-    expect(getTheme()).toEqual({ theme: 'light', cvd: true });
+    expect(getTheme()).toEqual({ theme: 'light', palette: 'slate', cvd: true });
   });
 
   it('getTheme omits cvd when not persisted', () => {
     applyTheme({ theme: 'light', cvd: false });
-    expect(getTheme()).toEqual({ theme: 'light' });
+    expect(getTheme()).toEqual({ theme: 'light', palette: 'slate' });
   });
 
   it('getTheme returns dark default when nothing persisted', () => {
     localStorage.removeItem('starui:theme');
     localStorage.removeItem('starui:cvd');
-    expect(getTheme()).toEqual({ theme: 'dark' });
+    localStorage.removeItem('starui:palette');
+    expect(getTheme()).toEqual({ theme: 'dark', palette: 'slate' });
+  });
+
+  it('sets data-palette for non-default palettes', () => {
+    applyTheme({ theme: 'dark', palette: 'teal' });
+    expect(document.documentElement.setAttribute).toHaveBeenCalledWith('data-palette', 'teal');
+  });
+
+  it('removes data-palette when palette is slate (default)', () => {
+    applyTheme({ theme: 'dark', palette: 'slate' });
+    expect(document.documentElement.removeAttribute).toHaveBeenCalledWith('data-palette');
+  });
+
+  it('persists palette under starui:palette', () => {
+    applyTheme({ theme: 'dark', palette: 'amber' });
+    expect(localStorage.getItem('starui:palette')).toBe('amber');
+  });
+
+  it('getTheme reads back palette', () => {
+    applyTheme({ theme: 'light', palette: 'indigo' });
+    expect(getTheme()).toEqual({ theme: 'light', palette: 'indigo' });
   });
 
   it('migrates from the legacy "@starui/theme" JSON blob on first read', () => {
     // Pre-existing user with the old JSON-blob storage layout.
     localStorage.setItem('@starui/theme', JSON.stringify({ theme: 'light', cvd: true }));
-    expect(getTheme()).toEqual({ theme: 'light', cvd: true });
+    expect(getTheme()).toEqual({ theme: 'light', palette: 'slate', cvd: true });
     // The next applyTheme() rewrites under the canonical keys and clears
     // the legacy blob so we don't keep reading it.
     applyTheme({ theme: 'light', cvd: true });

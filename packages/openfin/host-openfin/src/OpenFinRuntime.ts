@@ -7,6 +7,12 @@ import type {
   Theme,
   Unsubscribe,
 } from '@starui/types';
+import {
+  applyTheme,
+  getTheme,
+  isStockfluxPaletteName,
+  type StockfluxPaletteName,
+} from '@starui/design-system';
 import { THEME_STORAGE_KEY } from '@starui/types';
 import type { RuntimePort } from '@starui/host';
 import type { IdentityOverrides } from '@starui/host-browser';
@@ -103,6 +109,7 @@ export class OpenFinRuntime implements RuntimePort {
       this.attachViewWatchers();
       this.attachPlatformWorkspaceWatcher();
       this.attachThemeBroadcastListener();
+      this.attachPaletteBroadcastListener();
     }
   }
 
@@ -358,13 +365,27 @@ export class OpenFinRuntime implements RuntimePort {
     this.disposers.push(() => observer.disconnect());
   }
 
-  /**
-   * Subscribe to the OpenFin IAB `theme-changed` topic. Peer windows
-   * publishing through `setTheme()` reach us here; we write DOM +
-   * storage locally so other watchers (CSS-driven UI, MutationObserver)
-   * see a consistent state, then update internal state. No re-publish
-   * (IAB already fanned out to all subscribers).
-   */
+  /** Subscribe to `palette-changed` from the dock content menu. */
+  private attachPaletteBroadcastListener(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finGlobal = (globalThis as any).fin;
+    const iab = finGlobal?.InterApplicationBus;
+    if (!iab?.subscribe || !finGlobal?.me?.identity?.uuid) return;
+    const handler = (msg: unknown) => {
+      const parsed = readPalettePayload(msg);
+      if (!parsed) return;
+      applyTheme({ theme: parsed.theme ?? this.detectTheme(), palette: parsed.palette });
+    };
+    try {
+      void iab.subscribe({ uuid: '*' }, 'palette-changed', handler);
+      this.disposers.push(() => {
+        try { void iab.unsubscribe({ uuid: '*' }, 'palette-changed', handler); } catch { /* swallow */ }
+      });
+    } catch {
+      /* swallow — IAB not reachable */
+    }
+  }
+
   private attachThemeBroadcastListener(): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const finGlobal = (globalThis as any).fin;
@@ -373,6 +394,8 @@ export class OpenFinRuntime implements RuntimePort {
     const handler = (msg: unknown) => {
       const next = readThemePayload(msg);
       if (!next) return;
+      const palette = readPaletteFromPayload(msg) ?? getTheme().palette;
+      applyTheme({ theme: next, palette });
       this.writeTheme(next);
       this.applyThemeChange(next);
     };
@@ -513,6 +536,22 @@ function readThemePayload(msg: unknown): Theme | null {
   if (m.theme === 'dark' || m.theme === 'light') return m.theme;
   if (typeof m.isDark === 'boolean') return m.isDark ? 'dark' : 'light';
   return null;
+}
+
+function readPaletteFromPayload(msg: unknown): StockfluxPaletteName | null {
+  if (!msg || typeof msg !== 'object') return null;
+  const raw = (msg as { palette?: unknown }).palette;
+  return typeof raw === 'string' && isStockfluxPaletteName(raw) ? raw : null;
+}
+
+function readPalettePayload(
+  msg: unknown,
+): { palette: StockfluxPaletteName; theme?: Theme } | null {
+  if (!msg || typeof msg !== 'object') return null;
+  const m = msg as { palette?: unknown; theme?: unknown };
+  if (typeof m.palette !== 'string' || !isStockfluxPaletteName(m.palette)) return null;
+  const theme = m.theme === 'dark' || m.theme === 'light' ? m.theme : undefined;
+  return { palette: m.palette, theme };
 }
 
 /** Shallow-equal helper — sufficient for customData payloads which are

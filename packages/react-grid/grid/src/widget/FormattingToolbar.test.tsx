@@ -315,8 +315,8 @@ describe('FormattingToolbar — ALL + HEADER scope writes to globalHeaderStyle',
     act(() => fireEvent.mouseDown(screen.getByTestId('formatting-target-header')));
     act(() => fireEvent.mouseDown(screen.getByTestId('formatting-scope-all')));
     await waitFor(() => {
-      expect(screen.getByTestId('formatting-target-header').getAttribute('data-active')).toBe('true');
-      expect(screen.getByTestId('formatting-scope-all').getAttribute('data-active')).toBe('true');
+      expect(screen.getByTestId('formatting-target-header').getAttribute('data-on')).toBe('true');
+      expect(screen.getByTestId('formatting-scope-all').getAttribute('data-on')).toBe('true');
     });
   }
 

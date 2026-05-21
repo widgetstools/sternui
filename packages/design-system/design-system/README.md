@@ -14,9 +14,10 @@ Already a workspace dep of every consuming package. Nothing to install.
 | `@starui/design-system` | tokens, `componentTokens()`, `applyTheme`, `getTheme`, cell renderers |
 | `@starui/design-system/css` | the bundled stylesheet — import once in app's globals.css/styles.scss |
 | `@starui/design-system/tailwind` | `tailwindPreset` for tailwind.config.js |
-| `@starui/design-system/primeng` | `primengPreset` for `definePreset(Aura, …)` |
+| `@starui/design-system/primeng` | `primengPreset` (CSS-var driven; follows `data-palette`) |
+| `@starui/design-system/primeng/presets` | `StarUIPresets` — static `definePreset` per palette (teal–grey) |
 | `@starui/design-system/shadcn` | `generateUnifiedCSS()` (advanced — apps don't usually need this directly) |
-| `@starui/design-system/adapters/ag-grid` | `agGridDarkParams` / `agGridLightParams` |
+| `@starui/design-system/adapters/ag-grid` | `buildAgGridTheme`, legacy `agGridDarkParams` / `agGridLightParams` |
 | `@starui/design-system/tokens/{primitives,semantic,components}` | direct token access |
 | `@starui/design-system/cell-renderers` | AG Grid cell renderer components |
 
@@ -27,6 +28,16 @@ Already a workspace dep of every consuming package. Nothing to install.
 3. Run `npm run build --workspace=@starui/design-system` to regenerate `dist/css/theme.css`.
 4. Apps pick up the change on next dev reload.
 5. The contrast audit (`tests/tokens/contrast-audit.test.ts`) runs as part of `npm test` — fixes must keep WCAG ratios in spec.
+
+## Stockflux palettes (teal · indigo · amber · slate · grey)
+
+Reference kit: `staruidesign1` (`tokens.css`, `palettes.css`, `aggrid-theme.js`).
+
+- **Default product palette:** `slate` (omit `data-palette` on `<html>`).
+- **Runtime:** `applyTheme({ theme: 'dark' | 'light', palette?: StockfluxPaletteName, cvd?: boolean })`.
+- **Storage:** `starui:theme`, `starui:palette`, `starui:cvd`.
+- **AG Grid:** `buildAgGridTheme({ palette, mode, density })` from `@starui/design-system/adapters/ag-grid`.
+- **Token modules:** `src/tokens/stockflux/{teal,indigo,amber,slate,grey}.ts`.
 
 ## How to add a theme variant (e.g. a high-contrast mode)
 

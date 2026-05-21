@@ -21,6 +21,7 @@ import {
   useGridPlatform,
   type PoppableHandle,
 } from '@starui/grid/customizer';
+import { formatterPopoutClass } from './formatter/primitives';
 import {
   ClearAllDialog,
   ClearSelectedDialog,
@@ -101,7 +102,7 @@ export const FormattingToolbar = forwardRef<FormattingToolbarHandle, FormattingT
                   actions={actions}
                   popoutSlot={
                     <PopoutButton
-                      className="fx-popout"
+                      className={formatterPopoutClass}
                       title="Open toolbar in a separate window"
                       data-testid="formatting-popout-btn"
                       icon={<ExternalLink size={13} strokeWidth={2.25} />}

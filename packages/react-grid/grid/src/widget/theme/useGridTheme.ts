@@ -6,29 +6,36 @@
  * — they all converge on the host attribute.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Theme } from 'ag-grid-community';
+import { buildAgGridTheme } from '@starui/design-system/adapters/ag-grid';
 import {
-  agGridDarkTheme,
-  agGridLightTheme,
-} from '@starui/design-system/adapters/ag-grid';
-
-function readDocumentTheme(): 'dark' | 'light' {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-}
+  readDocumentThemeMode,
+  readStockfluxPalette,
+} from '@starui/design-system';
 
 export function useGridTheme(): Theme {
-  const [mode, setMode] = useState<'dark' | 'light'>(readDocumentTheme);
+  const [mode, setMode] = useState(readDocumentThemeMode);
+  const [palette, setPalette] = useState(readStockfluxPalette);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    setMode(readDocumentTheme());
+    const sync = () => {
+      setMode(readDocumentThemeMode());
+      setPalette(readStockfluxPalette());
+    };
+    sync();
     const html = document.documentElement;
-    const observer = new MutationObserver(() => setMode(readDocumentTheme()));
-    observer.observe(html, { attributes: true, attributeFilter: ['data-theme'] });
+    const observer = new MutationObserver(sync);
+    observer.observe(html, {
+      attributes: true,
+      attributeFilter: ['data-theme', 'data-palette'],
+    });
     return () => observer.disconnect();
   }, []);
 
-  return mode === 'light' ? agGridLightTheme : agGridDarkTheme;
+  return useMemo(
+    () => buildAgGridTheme({ palette, mode, density: 'compact' }),
+    [palette, mode],
+  );
 }

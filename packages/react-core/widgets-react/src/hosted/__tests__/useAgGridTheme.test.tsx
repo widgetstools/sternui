@@ -1,39 +1,66 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { themeQuartz } from 'ag-grid-community';
-import {
-  agGridBlotterDarkParams,
-  agGridBlotterLightParams,
-} from '@starui/design-system';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildAgGridTheme } from '@starui/design-system/adapters/ag-grid';
 import { useAgGridTheme } from '../useAgGridTheme.js';
+
+vi.mock('@starui/design-system/adapters/ag-grid', () => ({
+  buildAgGridTheme: vi.fn(() => ({ __brand: 'ag-theme' })),
+}));
 
 afterEach(() => {
   cleanup();
   document.documentElement.removeAttribute('data-theme');
-  vi.restoreAllMocks();
+  document.documentElement.removeAttribute('data-palette');
+  vi.clearAllMocks();
 });
 
-describe('useAgGridTheme — params source', () => {
-  it('passes the design-system blotter dark params to themeQuartz.withParams when resolved dark', () => {
-    const spy = vi.spyOn(themeQuartz, 'withParams');
+describe('useAgGridTheme — palette + mode', () => {
+  it('builds ultra-density theme from document palette and mode', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-palette', 'teal');
     renderHook(() => useAgGridTheme('auto'));
-    const lastCall = spy.mock.calls[spy.mock.calls.length - 1];
-    expect(lastCall?.[0]).toEqual(agGridBlotterDarkParams);
+    expect(buildAgGridTheme).toHaveBeenCalledWith({
+      palette: 'teal',
+      mode: 'dark',
+      density: 'ultra',
+    });
   });
 
-  it('passes the design-system blotter light params when resolved light', () => {
-    const spy = vi.spyOn(themeQuartz, 'withParams');
-    document.documentElement.setAttribute('data-theme', 'light');
-    renderHook(() => useAgGridTheme('auto'));
-    const lastCall = spy.mock.calls[spy.mock.calls.length - 1];
-    expect(lastCall?.[0]).toEqual(agGridBlotterLightParams);
+  it('rebuilds when [data-palette] changes', async () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-palette', 'slate');
+    const { result } = renderHook(() => useAgGridTheme('auto'));
+    const first = result.current;
+
+    await act(async () => {
+      document.documentElement.setAttribute('data-palette', 'indigo');
+      await Promise.resolve();
+    });
+
+    expect(buildAgGridTheme).toHaveBeenLastCalledWith({
+      palette: 'indigo',
+      mode: 'dark',
+      density: 'ultra',
+    });
+    expect(result.current).not.toBe(first);
+  });
+
+  it('explicit light mode ignores document theme attribute', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-palette', 'amber');
+    renderHook(() => useAgGridTheme('light'));
+    expect(buildAgGridTheme).toHaveBeenCalledWith({
+      palette: 'amber',
+      mode: 'light',
+      density: 'ultra',
+    });
   });
 });
 
 describe('useAgGridTheme — context reactivity', () => {
   beforeEach(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-palette', 'slate');
   });
 
   it('switches theme when [data-theme] flips on <html>', async () => {
@@ -42,18 +69,14 @@ describe('useAgGridTheme — context reactivity', () => {
 
     await act(async () => {
       document.documentElement.setAttribute('data-theme', 'light');
-      // Allow MutationObserver microtask to dispatch.
       await Promise.resolve();
     });
 
     expect(result.current).not.toBe(darkTheme);
-  });
-
-  it('explicit "light" mode ignores the document attribute', async () => {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    const spy = vi.spyOn(themeQuartz, 'withParams');
-    renderHook(() => useAgGridTheme('light'));
-    const lastCall = spy.mock.calls[spy.mock.calls.length - 1];
-    expect(lastCall?.[0]).toEqual(agGridBlotterLightParams);
+    expect(buildAgGridTheme).toHaveBeenLastCalledWith({
+      palette: 'slate',
+      mode: 'light',
+      density: 'ultra',
+    });
   });
 });

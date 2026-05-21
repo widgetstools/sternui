@@ -6,6 +6,7 @@ import type { ProfileSnapshot } from '@starui/engine';
 import { Sun, Moon } from 'lucide-react';
 import { Button, cn } from '@starui/ui';
 import { useStarGridApp } from '@starui/app';
+import { applyTheme, getTheme } from '@starui/design-system';
 import { ProfileSetVersionConflictError } from '@starui/host-config';
 
 import { generateOrders, startLiveTicking, type Order } from './data';
@@ -209,6 +210,19 @@ function AppInner({
 }) {
   const [rowData] = useState(() => generateOrders(500));
   const isDark = theme === 'dark';
+
+  const applyThemeMode = useCallback(
+    (next: 'dark' | 'light') => {
+      const current = getTheme();
+      applyTheme({
+        theme: next,
+        palette: current.palette,
+        cvd: current.cvd,
+      });
+      setTheme(next);
+    },
+    [setTheme],
+  );
   const [view, setView] = useState<View>(initialView);
   const [fixtureName] = useState<FixtureName | null>(initialFixtureName);
   // Grid API captured via onGridReady — used to stream tick updates
@@ -355,7 +369,7 @@ function AppInner({
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            onClick={() => applyThemeMode(isDark ? 'light' : 'dark')}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             className="h-[26px] w-[26px]"
           >

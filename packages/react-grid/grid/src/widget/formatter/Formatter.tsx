@@ -14,6 +14,7 @@
  * these components are pure render functions that take props.
  */
 
+import { cn } from '@starui/ui';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,8 +32,17 @@ import { ModuleFormat } from './modules/ModuleFormat';
 import { ModuleLibrary } from './modules/ModuleLibrary';
 import { ModulePaint } from './modules/ModulePaint';
 import { ModuleType } from './modules/ModuleType';
-import { ModuleDivider, PanelGroup, TitleBar, ToolbarGroup } from './primitives';
+import { PanelGroup, TitleBar, ToolbarGroup } from './primitives';
 import './formatter.css';
+
+const shellBase =
+  'fx-shell relative isolate font-sans text-foreground bg-[var(--ds-surface-ground)]';
+const shellHorizontal = [
+  'fx-shell--horizontal flex flex-row items-start gap-0 py-2 pl-3 pr-12 min-h-7',
+  'w-full max-w-full box-border bg-[var(--ds-surface-sunken)] border-b border-[color:var(--ds-border-primary)]',
+].join(' ');
+const shellVertical =
+  'fx-shell--vertical flex flex-col h-full w-full min-h-0 min-w-0 overflow-hidden';
 import type { FormatterActions, FormatterState } from './state';
 
 // ─── Shared confirm dialog ────────────────────────────────────────
@@ -128,46 +138,45 @@ export function FormatterToolbar({
 }) {
   return (
     <div
-      className="fx-shell fx-shell--horizontal"
+      className={cn(shellBase, shellHorizontal)}
       data-testid="formatting-toolbar"
       onMouseDown={(e) => {
         const tag = (e.target as HTMLElement).tagName;
         if (tag !== 'SELECT' && tag !== 'INPUT' && tag !== 'OPTION') e.preventDefault();
       }}
     >
-      <div className="fx-toolbar-rows">
-        <div className="fx-toolbar-row" data-fx-row="style">
-          <ToolbarGroup label="Scope" testId="fmt-group-scope">
-            <ModuleContext state={state} actions={actions} />
-          </ToolbarGroup>
-          <ToolbarGroup label="Type" testId="fmt-group-type">
-            <ModuleType state={state} actions={actions} />
-          </ToolbarGroup>
-          <ToolbarGroup label="Paint" testId="fmt-group-paint">
-            <ModulePaint state={state} actions={actions} />
-          </ToolbarGroup>
-          <ToolbarGroup label="Format" testId="fmt-group-format">
-            <ModuleFormat state={state} actions={actions} />
-          </ToolbarGroup>
-        </div>
-
-        <div className="fx-toolbar-row" data-fx-row="behavior">
-          <ToolbarGroup label="Edit" testId="fmt-group-edit">
-            <ModuleEditorFilter state={state} actions={actions} />
-          </ToolbarGroup>
-          <ToolbarGroup label="Templates" testId="fmt-group-templates">
-            <ModuleLibrary
-              state={state}
-              actions={actions}
-              orientation="horizontal"
-              colLabel={state.colLabel}
-            />
-          </ToolbarGroup>
-          <span className="fx-toolbar-row__spacer" aria-hidden />
-          <ToolbarGroup label="Clear" variant="destruct" testId="fmt-group-clear">
-            <ModuleClear state={state} actions={actions} orientation="horizontal" />
-          </ToolbarGroup>
-        </div>
+      <div className="flex flex-1 flex-wrap items-center content-center min-w-0 gap-x-0 gap-y-2.5">
+        <ToolbarGroup label="Scope" testId="fmt-group-scope">
+          <ModuleContext state={state} actions={actions} />
+        </ToolbarGroup>
+        <ToolbarGroup label="Type" testId="fmt-group-type">
+          <ModuleType state={state} actions={actions} />
+        </ToolbarGroup>
+        <ToolbarGroup label="Paint" testId="fmt-group-paint">
+          <ModulePaint state={state} actions={actions} />
+        </ToolbarGroup>
+        <ToolbarGroup label="Format" testId="fmt-group-format">
+          <ModuleFormat state={state} actions={actions} />
+        </ToolbarGroup>
+        <ToolbarGroup label="Edit" testId="fmt-group-edit">
+          <ModuleEditorFilter state={state} actions={actions} />
+        </ToolbarGroup>
+        <ToolbarGroup label="Templates" testId="fmt-group-templates">
+          <ModuleLibrary
+            state={state}
+            actions={actions}
+            orientation="horizontal"
+            colLabel={state.colLabel}
+          />
+        </ToolbarGroup>
+        <ToolbarGroup
+          label="Clear"
+          variant="destruct"
+          testId="fmt-group-clear"
+          trail
+        >
+          <ModuleClear state={state} actions={actions} orientation="horizontal" />
+        </ToolbarGroup>
       </div>
 
       {popoutSlot}
@@ -192,21 +201,32 @@ export function FormatterPanel({
 }) {
   return (
     <div
-      className="fx-shell fx-shell--vertical"
+      className={cn(shellBase, shellVertical)}
       data-testid="formatting-properties-panel"
     >
       {frameless && titleText && onClose && (
         <TitleBar text={titleText} onClose={onClose} testId="fmt-panel-titlebar" />
       )}
 
-      <header data-testid="fmt-panel-header" className="fx-panel-header">
-        <PanelGroup label="Scope" testId="fmt-panel-group-scope">
-          <ModuleContext state={state} actions={actions} />
+      <header
+        data-testid="fmt-panel-header"
+        className="sticky top-0 z-[2] shrink-0 px-3 pt-2 pb-2.5 border-b border-[color:var(--ds-border-primary)] bg-[var(--ds-surface-ground)]"
+      >
+        <PanelGroup label="Scope" testId="fmt-panel-group-scope" inHeader>
+          <ModuleContext
+            state={state}
+            actions={actions}
+            surface="panel"
+            inPanelHeader
+          />
         </PanelGroup>
       </header>
 
-      <div className="fx-body" data-testid="fmt-panel-body">
-        <div className="fx-panel-sections">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:var(--ds-border-secondary)_transparent]"
+        data-testid="fmt-panel-body"
+      >
+        <div className="fx-panel-sections flex flex-col gap-2.5 px-3.5 py-3 pb-4">
           <PanelGroup label="Type" sectionIndex="02" testId="fmt-panel-group-type">
             <ModuleType state={state} actions={actions} />
           </PanelGroup>
@@ -230,8 +250,8 @@ export function FormatterPanel({
         </div>
       </div>
 
-      <footer className="fx-footer">
-        <PanelGroup label="Clear" variant="destruct" testId="fmt-panel-group-clear">
+      <footer className="h-12 px-[18px] border-t border-[color:var(--ds-border-primary)] bg-[var(--ds-surface-ground)] shrink-0 flex items-center gap-2">
+        <PanelGroup label="Clear" variant="destruct" testId="fmt-panel-group-clear" inFooter>
           <ModuleClear state={state} actions={actions} orientation="vertical" />
         </PanelGroup>
       </footer>

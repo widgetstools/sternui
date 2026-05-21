@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@starui/ui';
-import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import { Hair, Module, Pill, formatterMenuActiveClass, formatterMenuClass, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const TICK_MENU = [
@@ -88,7 +88,7 @@ export function ModuleFormat({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
+          <DropdownMenuContent align="start" className={`${formatterMenuClass} min-w-[160px]`}>
             {Object.entries(CURRENCY_FORMATTERS).map(([key, f]) => (
               <DropdownMenuItem
                 key={key}
@@ -181,7 +181,7 @@ export function ModuleFormat({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
+          <DropdownMenuContent align="start" className={`${formatterMenuClass} min-w-[180px]`}>
             {TICK_MENU.map((m) => {
               const active = currentTickToken(vft) === m.token;
               return (
@@ -189,7 +189,7 @@ export function ModuleFormat({
                   key={m.token}
                   onSelect={() => actions.doFormat({ kind: 'tick', tick: m.token })}
                   data-testid={`fmt-tick-menu-${m.token}`}
-                  className={active ? 'bg-primary/10 text-primary' : undefined}
+                  className={active ? formatterMenuActiveClass : undefined}
                 >
                   <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
                   <span className="flex-1">{m.label}</span>

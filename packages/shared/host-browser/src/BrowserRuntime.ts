@@ -6,7 +6,9 @@ import type {
   Theme,
   Unsubscribe,
 } from '@starui/types';
-import { THEME_BROADCAST_CHANNEL, THEME_STORAGE_KEY } from '@starui/types';
+import { PALETTE_STORAGE_KEY, THEME_BROADCAST_CHANNEL, THEME_STORAGE_KEY } from '@starui/types';
+
+const STOCKFLUX_PALETTES = new Set(['teal', 'indigo', 'amber', 'slate', 'grey']);
 import { resolveBrowserIdentity, type IdentityOverrides } from './identity.js';
 
 export interface BrowserRuntimeOptions {
@@ -32,6 +34,9 @@ export class BrowserRuntime implements RuntimePort {
     const search = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
     this.identityCache = resolveBrowserIdentity(search, options.identity);
     this.currentTheme = this.detectTheme();
+    if (typeof document !== 'undefined') {
+      this.syncDocumentAppearance(this.currentTheme, this.detectPalette());
+    }
 
     if (typeof window !== 'undefined') {
       this.attachThemeWatchers();
@@ -148,14 +153,40 @@ export class BrowserRuntime implements RuntimePort {
     return 'light';
   }
 
-  private writeTheme(theme: Theme): void {
+  private detectPalette(): string {
+    if (typeof document !== 'undefined') {
+      const attr = document.documentElement.getAttribute('data-palette');
+      if (attr && STOCKFLUX_PALETTES.has(attr)) return attr;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(PALETTE_STORAGE_KEY);
+        if (stored && STOCKFLUX_PALETTES.has(stored)) return stored;
+      } catch { /* swallow */ }
+    }
+    return 'slate';
+  }
+
+  private syncDocumentAppearance(theme: Theme, palette: string): void {
     if (typeof document !== 'undefined') {
       try { document.documentElement.setAttribute('data-theme', theme); } catch { /* swallow */ }
       try { document.body.dataset['agThemeMode'] = theme; } catch { /* swallow */ }
+      try {
+        if (palette === 'slate') {
+          document.documentElement.removeAttribute('data-palette');
+        } else {
+          document.documentElement.setAttribute('data-palette', palette);
+        }
+      } catch { /* swallow */ }
     }
     if (typeof window !== 'undefined') {
       try { window.localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* swallow */ }
+      try { window.localStorage.setItem(PALETTE_STORAGE_KEY, palette); } catch { /* swallow */ }
     }
+  }
+
+  private writeTheme(theme: Theme): void {
+    this.syncDocumentAppearance(theme, this.detectPalette());
   }
 
   private applyThemeChange(theme: Theme): void {
@@ -177,7 +208,10 @@ export class BrowserRuntime implements RuntimePort {
     }
     if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
       const observer = new MutationObserver(() => { this.applyThemeChange(this.detectTheme()); });
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme', 'data-palette'],
+      });
       this.disposers.push(() => observer.disconnect());
     }
   }

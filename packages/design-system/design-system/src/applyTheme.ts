@@ -1,37 +1,21 @@
 // ─────────────────────────────────────────────────────────────
-//  applyTheme — flip <html data-theme> and <html data-cvd> to
-//  match the user's preference and persist to localStorage.
-//
-//  Apps call applyTheme(getTheme()) once at module scope before
-//  ReactDOM.createRoot(...).render(...). This sets the right
-//  attribute on <html> BEFORE first paint so there's no FOUC.
-//
-//  Storage keys (post-theme-reducer):
-//    `starui:theme` — the canonical theme storage key shared with
-//      `@starui/runtime-port`'s THEME_STORAGE_KEY constant. Stored
-//      as the bare string `'dark'` | `'light'`. The runtime port
-//      reads and writes this key on every cross-window broadcast,
-//      so the design-system MUST use the same key — otherwise
-//      `applyTheme()` on boot and `runtime.setTheme()` at runtime
-//      would write divergent values and the next boot would pick
-//      whichever ran last.
-//    `starui:cvd` — colour-vision-deficiency toggle. Separate key
-//      so the theme reducer can store a plain string in
-//      `starui:theme` (rather than parse JSON). Stored as the
-//      string `'on'` or absent (default off).
-//
-//  Backwards compatibility: the legacy `@starui/theme` JSON blob
-//  is read on first boot if the canonical keys are absent, then
-//  rewritten to the new shape. After the first migration, future
-//  reads only hit the new keys.
+//  applyTheme — flip <html data-theme>, data-palette, data-cvd
 // ─────────────────────────────────────────────────────────────
 
-import { THEME_STORAGE_KEY } from '@starui/shared-types';
+import { PALETTE_STORAGE_KEY, THEME_STORAGE_KEY } from '@starui/shared-types';
+import {
+  DEFAULT_STOCKFLUX_PALETTE,
+  isStockfluxPaletteName,
+  type StockfluxPaletteName,
+} from './tokens/stockflux';
 
 export type Mode = 'dark' | 'light';
 
+export { PALETTE_STORAGE_KEY } from '@starui/shared-types';
+
 export interface ThemeOptions {
   theme: Mode;
+  palette?: StockfluxPaletteName;
   cvd?: boolean;
 }
 
@@ -39,50 +23,73 @@ const CVD_KEY = 'starui:cvd';
 const LEGACY_KEY = '@starui/theme';
 const LEGACY_THEME_KEY = 'starui:theme';
 
+function applyPaletteAttribute(palette: StockfluxPaletteName): void {
+  if (typeof document === 'undefined') return;
+  if (palette === DEFAULT_STOCKFLUX_PALETTE) {
+    document.documentElement.removeAttribute('data-palette');
+  } else {
+    document.documentElement.setAttribute('data-palette', palette);
+  }
+}
+
 export function applyTheme(opts: ThemeOptions): void {
   if (typeof document === 'undefined') return;
+  const palette = opts.palette ?? DEFAULT_STOCKFLUX_PALETTE;
+
   document.documentElement.setAttribute('data-theme', opts.theme);
+  applyPaletteAttribute(palette);
+
   if (opts.cvd) {
     document.documentElement.setAttribute('data-cvd', 'on');
   } else {
     document.documentElement.removeAttribute('data-cvd');
   }
+
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, opts.theme);
+      localStorage.setItem(PALETTE_STORAGE_KEY, palette);
       if (opts.cvd) {
         localStorage.setItem(CVD_KEY, 'on');
       } else {
         localStorage.removeItem(CVD_KEY);
       }
-      // Clear the legacy key once the new ones are populated — keeps
-      // a future getTheme() from re-reading stale JSON if the new keys
-      // are ever cleared.
       localStorage.removeItem(LEGACY_KEY);
     } catch { /* private mode / quota */ }
   }
 }
 
 export function getTheme(): ThemeOptions {
-  if (typeof localStorage === 'undefined') return { theme: 'dark' };
+  if (typeof localStorage === 'undefined') {
+    return { theme: 'dark', palette: DEFAULT_STOCKFLUX_PALETTE };
+  }
   try {
     const theme = localStorage.getItem(THEME_STORAGE_KEY)
       ?? localStorage.getItem(LEGACY_THEME_KEY);
+    const paletteRaw = localStorage.getItem(PALETTE_STORAGE_KEY);
+    const palette = paletteRaw && isStockfluxPaletteName(paletteRaw)
+      ? paletteRaw
+      : DEFAULT_STOCKFLUX_PALETTE;
     const cvd = localStorage.getItem(CVD_KEY) === 'on';
+
     if (theme === 'dark' || theme === 'light') {
-      return cvd ? { theme, cvd: true } : { theme };
+      const base: ThemeOptions = { theme, palette };
+      return cvd ? { ...base, cvd: true } : base;
     }
-    // Legacy migration — old `@starui/theme` JSON blob. Read once,
-    // then `applyTheme()` will rewrite to the new keys on next call.
+
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
-      const parsed = JSON.parse(legacy) as Partial<ThemeOptions>;
+      const parsed = JSON.parse(legacy) as Partial<ThemeOptions & { palette?: string }>;
       if (parsed.theme === 'dark' || parsed.theme === 'light') {
-        return parsed.cvd ? { theme: parsed.theme, cvd: true } : { theme: parsed.theme };
+        const legacyPalette = parsed.palette && isStockfluxPaletteName(parsed.palette)
+          ? parsed.palette
+          : DEFAULT_STOCKFLUX_PALETTE;
+        const base: ThemeOptions = { theme: parsed.theme, palette: legacyPalette };
+        return parsed.cvd ? { ...base, cvd: true } : base;
       }
     }
-    return { theme: 'dark' };
+    return { theme: 'dark', palette: DEFAULT_STOCKFLUX_PALETTE };
   } catch {
-    return { theme: 'dark' };
+    return { theme: 'dark', palette: DEFAULT_STOCKFLUX_PALETTE };
   }
 }

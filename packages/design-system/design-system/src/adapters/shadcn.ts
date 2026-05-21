@@ -21,8 +21,13 @@
 //    --p-*        PrimeNG / tailwindcss-primeui aliases
 // ─────────────────────────────────────────────────────────────
 
-import { dark, light, shared } from '../tokens/semantic';
-import type { ColorScheme } from '../tokens/semantic';
+import { dark, light, shared, schemesByPalette } from '../tokens/semantic';
+import {
+  DEFAULT_STOCKFLUX_PALETTE,
+  STOCKFLUX_PALETTE_NAMES,
+  type StockfluxPaletteName,
+} from '../tokens/stockflux';
+import type { ColorScheme } from '../tokens/colorScheme';
 import { colors, typography, radius, transition } from '../tokens/primitives';
 import { controls } from '../tokens/controls';
 import { hexToHslChannel } from '../internal/wcag';
@@ -398,6 +403,27 @@ function cvdOverride(scheme: ColorScheme): string {
     --destructive:              ${hexToHslChannel(scheme.cvd.sell)};`;
 }
 
+function paletteThemeBlocks(): string {
+  return STOCKFLUX_PALETTE_NAMES
+    .filter((name): name is StockfluxPaletteName => name !== DEFAULT_STOCKFLUX_PALETTE)
+    .map((palette) => {
+      const schemes = schemesByPalette[palette];
+      return `
+  [data-palette="${palette}"][data-theme="dark"] {${dsVars(schemes.dark, 'dark')}
+  }
+
+  [data-palette="${palette}"][data-theme="light"] {${dsVars(schemes.light, 'light')}
+  }
+
+  [data-palette="${palette}"][data-theme="dark"][data-cvd="on"] {${cvdOverride(schemes.dark)}
+  }
+
+  [data-palette="${palette}"][data-theme="light"][data-cvd="on"] {${cvdOverride(schemes.light)}
+  }`;
+    })
+    .join('');
+}
+
 export function generateUnifiedCSS(): string {
   return `@layer base {
   :root, [data-theme="dark"] {${dsVars(dark, 'dark')}
@@ -410,6 +436,6 @@ export function generateUnifiedCSS(): string {
   }
 
   [data-theme="light"][data-cvd="on"] {${cvdOverride(light)}
-  }
+  }${paletteThemeBlocks()}
 }`;
 }

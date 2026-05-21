@@ -1,11 +1,17 @@
 /*
  * Design-system showcase — exercises @starui/ui components against
- * the blue-slate token set. This page is the visual-review surface:
- * if a token swap regresses something, you see it here first.
+ * Stockflux tokens. Palette + theme apply via applyTheme() on <html>.
  *
  * Rendered under ?view=design-system (see App.tsx for routing).
  */
 
+import { useCallback, useSyncExternalStore } from 'react';
+import {
+  applyTheme,
+  getTheme,
+  STOCKFLUX_PALETTE_NAMES,
+  type StockfluxPaletteName,
+} from '@starui/design-system';
 import {
   Badge,
   Button,
@@ -21,11 +27,43 @@ import {
 } from '@starui/ui';
 import { ArrowUp, ArrowDown, AlertCircle, CheckCircle2, Info, Plus, Search } from 'lucide-react';
 
+const PALETTE_LABELS: Record<StockfluxPaletteName, string> = {
+  teal: 'Teal',
+  indigo: 'Indigo',
+  amber: 'Amber',
+  slate: 'Slate',
+  grey: 'Grey',
+};
+
+function subscribeTheme(cb: () => void) {
+  const observer = new MutationObserver(cb);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme', 'data-palette'],
+  });
+  return () => observer.disconnect();
+}
+
+function readPalette(): StockfluxPaletteName {
+  const attr = document.documentElement.getAttribute('data-palette');
+  if (attr && (STOCKFLUX_PALETTE_NAMES as readonly string[]).includes(attr)) {
+    return attr as StockfluxPaletteName;
+  }
+  return 'slate';
+}
+
 export function DesignSystem() {
+  const palette = useSyncExternalStore(subscribeTheme, readPalette, () => 'slate' as StockfluxPaletteName);
+
+  const setPalette = useCallback((next: StockfluxPaletteName) => {
+    const current = getTheme();
+    applyTheme({ theme: current.theme, palette: next, cvd: current.cvd });
+  }, []);
+
   return (
     <div className="min-h-full overflow-auto" style={{ background: 'var(--ds-surface-ground)' }}>
       <div className="mx-auto max-w-6xl px-8 py-10 flex flex-col gap-12">
-        <Header />
+        <Header palette={palette} onPaletteChange={setPalette} />
         <Section title="Buttons" eyebrow="01 · CTA + chrome">
           <ButtonGallery />
         </Section>
@@ -54,23 +92,41 @@ export function DesignSystem() {
 
 // ─── Layout primitives ────────────────────────────────────────────────────
 
-function Header() {
+function Header({
+  palette,
+  onPaletteChange,
+}: {
+  palette: StockfluxPaletteName;
+  onPaletteChange: (p: StockfluxPaletteName) => void;
+}) {
   return (
-    <div className="flex flex-col gap-2 border-b pb-6" style={{ borderColor: 'var(--ds-border-primary)' }}>
+    <div className="flex flex-col gap-4 border-b pb-6" style={{ borderColor: 'var(--ds-border-primary)' }}>
       <span
         className="text-[10px] font-bold uppercase tracking-[0.12em]"
         style={{ color: 'var(--ds-accent-info)' }}
       >
-        StarUI · Stockflux blue-slate
+        StarUI · Stockflux {PALETTE_LABELS[palette]}
       </span>
       <h1 className="text-[40px] font-bold tracking-tight" style={{ color: 'var(--ds-text-primary)' }}>
         Design system
       </h1>
       <p className="text-sm leading-relaxed max-w-2xl" style={{ color: 'var(--ds-text-muted)' }}>
-        Industrial-cool pewter chrome with a sapphire brand accent. Trade semantics
-        (mint-teal up / rose down) stay palette-locked. Toggle dark/light from the header
-        to verify both modes.
+        Five institutional palettes (teal, indigo, amber, slate, grey). Brand chrome
+        swaps per palette; trade semantics (mint-teal up / rose down) stay locked.
+        Toggle dark/light from the app header.
       </p>
+      <div className="flex flex-wrap gap-2">
+        {STOCKFLUX_PALETTE_NAMES.map((name) => (
+          <Button
+            key={name}
+            size="sm"
+            variant={palette === name ? 'default' : 'outline'}
+            onClick={() => onPaletteChange(name)}
+          >
+            {PALETTE_LABELS[name]}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

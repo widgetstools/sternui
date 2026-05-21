@@ -38,7 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@starui/ui';
-import { Hair, Module, Pill, pillClasses, SplitPill } from '../primitives';
+import { Hair, Module, Pill, formatterMenuActiveClass, formatterMenuClass, pillClasses, SplitPill } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const SELECT_KINDS: ReadonlySet<CellEditorKind> = new Set([
@@ -132,11 +132,11 @@ export function ModuleEditorFilter({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[160px]">
+          <DropdownMenuContent align="start" className={`${formatterMenuClass} min-w-[160px]`}>
             <DropdownMenuItem
               onSelect={() => actions.setCellEditorKind(undefined)}
               data-testid="fmt-editor-menu-none"
-              className={cellEditorKind == null ? 'bg-primary/10 text-primary' : undefined}
+              className={cellEditorKind == null ? formatterMenuActiveClass : undefined}
             >
               <span className="w-3 text-center text-[11px]">{cellEditorKind == null ? '✓' : ''}</span>
               <span>None</span>
@@ -149,7 +149,7 @@ export function ModuleEditorFilter({
                   key={o.kind}
                   onSelect={() => actions.setCellEditorKind(o.kind)}
                   data-testid={`fmt-editor-menu-${o.kind}`}
-                  className={active ? 'bg-primary/10 text-primary' : undefined}
+                  className={active ? formatterMenuActiveClass : undefined}
                 >
                   <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
                   <span>{o.label}</span>
@@ -232,11 +232,11 @@ export function ModuleEditorFilter({
               </button>
             </Tooltip>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="fx-menu min-w-[180px]">
+          <DropdownMenuContent align="start" className={`${formatterMenuClass} min-w-[180px]`}>
             <DropdownMenuItem
               onSelect={() => actions.setFilterPrimaryKind(undefined)}
               data-testid="fmt-filter-menu-none"
-              className={filterPrimaryKind == null && !filterIsCustom ? 'bg-primary/10 text-primary' : undefined}
+              className={filterPrimaryKind == null && !filterIsCustom ? formatterMenuActiveClass : undefined}
             >
               <span className="w-3 text-center text-[11px]">{filterPrimaryKind == null && !filterIsCustom ? '✓' : ''}</span>
               <span>None</span>
@@ -249,7 +249,7 @@ export function ModuleEditorFilter({
                   key={o.kind}
                   onSelect={() => actions.setFilterPrimaryKind(o.kind)}
                   data-testid={`fmt-filter-menu-${o.kind}`}
-                  className={active ? 'bg-primary/10 text-primary' : undefined}
+                  className={active ? formatterMenuActiveClass : undefined}
                 >
                   <span className="w-3 text-center text-[11px]">{active ? '✓' : ''}</span>
                   <span className="flex-1">{o.label}</span>
@@ -329,7 +329,7 @@ function ValuesSourcePopover({
 
   return (
     <div
-      className="fx-menu"
+      className="rounded-md border border-[color:var(--ds-border-primary)] bg-[var(--ds-surface-primary)]"
       style={{ width: 320, padding: spacing[2.5], display: 'flex', flexDirection: 'column', gap: spacing[2.5] }}
       data-testid="fmt-editor-values-popover"
       onKeyDown={(e) => {

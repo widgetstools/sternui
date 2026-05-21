@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@starui/ui';
-import { Hair, Module, Pill, pillClasses } from '../primitives';
+import { Hair, Module, Pill, formatterMenuActiveClass, formatterMenuClass, pillClasses } from '../primitives';
 import type { FormatterActions, FormatterState } from '../state';
 
 const FONT_SIZES = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -78,12 +78,12 @@ export function ModuleType({
             </button>
           </Tooltip>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="fx-menu min-w-[120px]">
+        <DropdownMenuContent align="start" className={`${formatterMenuClass} min-w-[120px]`}>
           {FONT_SIZES.map((sz) => (
             <DropdownMenuItem
               key={sz}
               onSelect={() => actions.setFontSizePx(sz)}
-              className={fmt.fontSize === sz ? 'bg-primary/10 text-primary' : undefined}
+              className={fmt.fontSize === sz ? formatterMenuActiveClass : undefined}
             >
               <span className="w-3 text-center text-[11px] text-muted-foreground">
                 {fmt.fontSize === sz ? '·' : ''}

@@ -15,6 +15,7 @@ import {
   slateDark,
   vsCodeLight,
 } from '@widgetstools/dock-manager-core';
+import { applyTheme } from '@starui/design-system';
 import { TICKER_STRIP, type TickerItem } from './services/trading-data.service';
 import { SharedStateService } from './services/shared-state.service';
 
@@ -669,8 +670,7 @@ export class App implements OnDestroy {
     effect(() => {
       if (isPlatformBrowser(this.platformId)) {
         const mode = this.isDark() ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', mode);
-        document.body.dataset['agThemeMode'] = mode;
+        applyTheme({ theme: mode });
       }
     });
     effect(() => {

@@ -9,6 +9,7 @@ export const LOGGED_IN_USER_ID = 'dev1';
 export type Theme = 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'starui:theme';
+export const PALETTE_STORAGE_KEY = 'starui:palette';
 
 export const THEME_BROADCAST_CHANNEL = 'starui:theme';
 

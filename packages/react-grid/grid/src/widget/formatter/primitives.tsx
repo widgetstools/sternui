@@ -1,52 +1,70 @@
 /**
- * Shared primitives for the formatter surfaces.
- *
- * Both `<FormattingToolbar />` (horizontal) and
- * `<FormattingPropertiesPanel />` (vertical) compose modules out of
- * these atoms — the same primitive renders in both contexts and the
- * `.fx-shell--horizontal` / `.fx-shell--vertical` parent class handles
- * the layout switch via the stylesheet. No layout branching in JS.
+ * Formatter primitives — shadcn controls + Tailwind layout (`--ds-*` tokens).
+ * Keyframes / OpenFin drag: `formatter.css` only.
  */
 import * as React from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
 import { Button, ButtonGroup } from '@starui/ui';
 import { cn, Tooltip } from '@starui/grid/customizer';
 
-export type Orientation = 'horizontal' | 'vertical';
+// ─── Shared token strings (palette-aware) ─────────────────────────
 
-// ─── Pill — generic toggleable button ─────────────────────────────
-//
-// `pillClasses(variant)` is exported as a shared Tailwind class chain
-// so raw `<button>` consumers (e.g. PopoverTrigger children that need
-// their own ref/onMouseDown wiring) can apply the same styling as the
-// Pill component without duplicating the class string. Both Pill and
-// every raw consumer resolve their visuals through the same chain →
-// design-system tokens → `@starui/design-system`.
+export const formatterMenuActiveClass =
+  'bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]';
+
+const chipActiveClass =
+  'data-[on=true]:border-[color:var(--ds-primary)] data-[on=true]:bg-[color:var(--ds-primary)] data-[on=true]:text-[color:var(--ds-primary-foreground)]';
+
+export const formatterMenuClass =
+  'fx-menu [&_[role=menuitem]]:text-[11px] [&_[role=menuitem]]:leading-[1.2] [&_[role=menuitem]]:py-[5px]';
+
+const toolbarBodyClass =
+  'inline-flex items-center gap-1.5 min-w-0 flex-nowrap [&_button]:border-transparent [&_button]:bg-transparent [&_button:hover:not(:disabled):not([data-on=true])]:border-[color:color-mix(in_srgb,var(--ds-border-primary)_70%,transparent)] [&_button:hover:not(:disabled):not([data-on=true])]:bg-[color:color-mix(in_srgb,var(--ds-surface-tertiary)_55%,transparent)] [&_button[data-on=true]]:border-[color:var(--ds-primary)] [&_button[data-on=true]]:bg-[color:var(--ds-primary)] [&_button[data-on=true]]:text-[color:var(--ds-primary-foreground)]';
+
+/** Pop-out trigger (hosted on toolbar trailing edge). */
+export const formatterPopoutClass = [
+  'absolute top-1/2 -translate-y-1/2 right-3 z-[3] w-7 h-7 inline-flex items-center justify-center',
+  'rounded-[3px] border border-[color:var(--ds-border-primary)] bg-[var(--ds-surface-primary)]',
+  'text-muted-foreground cursor-pointer transition-[color,border-color,background] duration-[120ms]',
+  'hover:text-[color:var(--ds-primary)] hover:border-[color:var(--ds-primary-ring)] hover:bg-[color:var(--ds-primary-soft)]',
+  'before:content-[""] before:absolute before:left-[-11px] before:top-[3px] before:bottom-[3px] before:w-px before:bg-[color:var(--ds-border-primary)] before:pointer-events-none',
+  '[&_svg]:block [&_svg]:shrink-0',
+].join(' ');
+
+const colDotClass =
+  'w-1.5 h-1.5 rounded-full shrink-0 bg-[color:var(--ds-primary)] shadow-[0_0_6px_var(--ds-primary)] animate-[fxLivePulse_1.6s_ease-in-out_infinite] [[data-disabled=true]_&]:bg-[color:var(--ds-text-faint)] [[data-disabled=true]_&]:shadow-none [[data-disabled=true]_&]:animate-none';
+
+export const formatterColToolbarClass =
+  'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[3px] border-0 bg-[color:color-mix(in_srgb,var(--ds-surface-tertiary)_35%,transparent)] font-mono text-[11px] text-foreground max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis';
+
+export const formatterColPanelClass =
+  'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[3px] bg-[var(--ds-surface-ground)] border border-[color:var(--ds-border-primary)] font-mono text-[11px] text-foreground flex-1 min-w-0 max-w-none overflow-hidden whitespace-nowrap text-ellipsis';
+
+export const formatterColEditableToolbarClass =
+  'group cursor-text pr-2 border-0 hover:bg-[color:color-mix(in_srgb,var(--ds-primary-soft)_55%,var(--ds-surface-tertiary))] disabled:cursor-not-allowed';
+
+export const formatterColEditablePanelClass =
+  'group cursor-text pr-2 border border-[color:var(--ds-border-primary)] transition-[border-color,background] duration-[120ms] hover:border-[color:var(--ds-primary-ring)] hover:bg-[color:color-mix(in_srgb,var(--ds-surface-ground)_60%,var(--ds-primary-soft))] disabled:cursor-not-allowed';
+
+export const formatterColEditIconClass =
+  'text-[color:var(--ds-text-faint)] opacity-50 shrink-0 transition-[color,opacity] duration-[120ms] group-hover:opacity-100 group-hover:text-[color:var(--ds-primary)] group-disabled:opacity-50';
+
+// ─── Types ─────────────────────────────────────────────────────────
+
+export type Orientation = 'horizontal' | 'vertical';
+export type FormatterSurface = 'toolbar' | 'panel';
 
 export function pillClasses(variant: 'icon' | 'text' | 'narrow' = 'icon'): string {
-  // Note: matches what Pill emits below. Any change here ripples to
-  // every raw `<button>` that uses it; keep in sync.
   return [
-    // shadcn `<Button size="sm">` baseline equivalent.
     'inline-flex items-center justify-center whitespace-nowrap shrink-0',
-    // `border-[1.5px]` only sets border-width (Tailwind preflight
-    // gives border-style: solid by default). `border-input` then
-    // applies the pewter colour. Using the CSS `border:` shorthand
-    // would force border-color back to currentColor (= text-foreground)
-    // and shadow the colour utility — that's the bug we just fixed.
     'h-7 rounded-[3px] border-[1.5px] border-input bg-transparent',
     'text-foreground text-[11px] leading-none gap-1 font-medium cursor-pointer',
     'transition-colors disabled:opacity-[0.38] disabled:cursor-not-allowed',
-    // Per-variant min-width + padding + (text variant: mono font).
     variant === 'icon' && 'min-w-7 px-1.5',
     variant === 'text' && 'min-w-[30px] px-2 font-mono text-[10px] tracking-[0.04em]',
     variant === 'narrow' && 'min-w-[18px] px-[3px]',
-    // Rest hover — darken border, keep transparent fill.
     'hover:bg-transparent hover:text-foreground hover:border-foreground/60',
-    // Active — brand-primary fill (matches every other active CTA).
-    'data-[on=true]:bg-primary data-[on=true]:text-primary-foreground data-[on=true]:border-primary',
-    'data-[on=true]:hover:bg-primary data-[on=true]:hover:border-primary',
-    // Focus ring — 1px brand outline.
+    chipActiveClass,
     'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1 focus-visible:ring-0',
   ].filter(Boolean).join(' ');
 }
@@ -73,17 +91,6 @@ export function Pill({
   variant = 'icon',
   ...rest
 }: PillProps) {
-  // Toolbar pill — shadcn `<Button variant="ghost" size="sm">` styled
-  // entirely via Tailwind utilities that resolve through the
-  // `@starui/design-system` token tree (no `.fx-*` CSS dependency).
-  //   • size="sm" → `h-[28px]` (matches the formatter's pill rhythm)
-  //   • `border-input` → `--ds-border-secondary` (the "prominent" tier)
-  //   • `bg-primary` / `text-primary-foreground` on `data-on="true"`
-  //   • `hover:border-foreground/60` strengthens the rest border
-  //
-  // No tailwind/formatter.css cascade fight (the previous wrapper hit
-  // `--fx-pill-h` via formatter.css but `h-auto` from Tailwind utility
-  // layer shadowed it; outcome was 15px-tall pills).
   const btn = (
     <Button
       type="button"
@@ -96,7 +103,6 @@ export function Pill({
       data-on={active ? 'true' : undefined}
       className={cn(pillClasses(variant), className)}
       onMouseDown={(e) => {
-        // Mousedown-driven so popovers / focus traps don't eat the click.
         e.preventDefault();
         e.stopPropagation();
         if (!disabled && onClick) onClick();
@@ -109,14 +115,6 @@ export function Pill({
   return btn;
 }
 
-// ─── SplitPill — primary action + chevron menu trigger ────────────
-//
-// Now a thin re-export over shadcn's `<ButtonGroup>`. The wrapper
-// gives every child square inner corners + a 1px negative gap so the
-// primary pill + chevron pill read as one joined control.
-// The legacy `.fx-split` CSS class is gone; consumers don't need to
-// know they're getting shadcn underneath.
-
 export function SplitPill({
   children,
   className,
@@ -127,47 +125,40 @@ export function SplitPill({
   return <ButtonGroup className={className}>{children}</ButtonGroup>;
 }
 
-// ─── Hairline divider between sub-groups inside a module ──────────
-
-export function Hair() {
-  return <span aria-hidden className="fx-hair" />;
+export function Hair({ toolbar }: { toolbar?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'inline-block shrink-0 bg-[color:var(--ds-border-primary)]',
+        toolbar ? 'w-px h-4 mx-1.5' : 'w-px h-3.5 mx-1',
+      )}
+    />
+  );
 }
 
-// ─── Module — eyebrow + body. One component, two layouts. ─────────
-
 export interface ModuleProps {
-  /** Two-digit index — `'01'` … `'05'`. */
   index: string;
-  /** Display label, ALL-CAPS. */
   label: string;
-  /** Module body. */
   children: React.ReactNode;
-  /** Optional class hook. */
   className?: string;
-  /** Optional data-testid for the module wrapper. */
   testId?: string;
 }
 
 export function Module({ index, label, children, className, testId }: ModuleProps) {
   return (
-    <div className={cn('fx-module', className)} data-module-index={index} data-testid={testId}>
-      <span className="fx-eyebrow">
-        <span className="fx-eyebrow__num">{index}</span>
-        <span className="fx-eyebrow__sep">·</span>
-        <span className="fx-eyebrow__lbl">{label}</span>
-      </span>
-      <div className="fx-module__body">{children}</div>
+    <div
+      className={cn('flex items-center gap-1.5 min-h-7', className)}
+      data-module-index={index}
+      data-testid={testId}
+      aria-label={label}
+    >
+      <div className="fx-module__body inline-flex items-center flex-nowrap gap-1.5 shrink-0">
+        {children}
+      </div>
     </div>
   );
 }
-
-// ─── Divider between modules in horizontal mode ──────────────────
-
-export function ModuleDivider() {
-  return <span aria-hidden className="fx-divider" />;
-}
-
-// ─── ToolbarGroup — labeled cluster in the horizontal strip ───────
 
 export function ToolbarGroup({
   label,
@@ -175,33 +166,57 @@ export function ToolbarGroup({
   variant = 'default',
   testId,
   className,
+  trail,
 }: {
   label: string;
   children: React.ReactNode;
   variant?: 'default' | 'destruct';
   testId?: string;
   className?: string;
+  trail?: boolean;
 }) {
+  const isScope = testId === 'fmt-group-scope';
   return (
     <div
       className={cn(
-        'fx-toolbar-group',
-        variant === 'destruct' && 'fx-toolbar-group--destruct',
+        'inline-flex items-center gap-1.5 min-h-7 pr-1.5 shrink-0 max-w-full min-w-0',
+        'not-first:pl-3 not-first:ml-1 not-first:border-l not-first:border-[color:var(--ds-border-primary)]',
+        trail && 'ml-auto shrink-0 grow-0',
         className,
       )}
       data-testid={testId}
       role="group"
       aria-label={label}
     >
-      <span className="fx-toolbar-group__label" aria-hidden>
+      <span
+        className={cn(
+          'font-mono text-[9px] font-semibold tracking-[0.14em] uppercase text-[color:var(--ds-text-faint)]',
+          'leading-none whitespace-nowrap select-none pr-0.5 shrink-0',
+          variant === 'destruct' &&
+            'text-[color:color-mix(in_srgb,var(--ds-accent-negative)_72%,var(--ds-text-faint))]',
+        )}
+        aria-hidden
+      >
         {label}
       </span>
-      <div className="fx-toolbar-group__body">{children}</div>
+      <div
+        className={cn(
+          'fx-toolbar-group__body',
+          toolbarBodyClass,
+          isScope && 'min-w-0 flex-[0_1_auto]',
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
 
-// ─── PanelGroup — labeled section card in the vertical popout ─────
+const panelGroupShellClass =
+  'fx-panel-group rounded-[5px] border border-[color:color-mix(in_srgb,var(--ds-border-primary)_85%,transparent)] bg-[color:color-mix(in_srgb,var(--ds-surface-ground)_72%,var(--ds-surface-primary))] overflow-hidden';
+
+const panelGroupLabelClass =
+  'fx-panel-group-label block m-0 px-3 pt-2 pb-1.5 font-mono text-[9px] font-semibold tracking-[0.14em] uppercase text-[color:var(--ds-text-faint)] leading-none border-b border-[color:color-mix(in_srgb,var(--ds-border-primary)_70%,transparent)] select-none';
 
 export function PanelGroup({
   label,
@@ -210,70 +225,91 @@ export function PanelGroup({
   testId,
   className,
   sectionIndex,
+  inHeader,
+  inFooter,
 }: {
   label: string;
   children: React.ReactNode;
   variant?: 'default' | 'destruct';
   testId?: string;
   className?: string;
-  /** Legacy hook for e2e — mirrors the old module section indices. */
   sectionIndex?: string;
+  inHeader?: boolean;
+  inFooter?: boolean;
 }) {
   return (
     <section
       className={cn(
-        'fx-panel-group',
-        variant === 'destruct' && 'fx-panel-group--destruct',
+        inHeader
+          ? [
+              'rounded-[5px] border border-[color:color-mix(in_srgb,var(--ds-border-primary)_85%,transparent)]',
+              'bg-[color:color-mix(in_srgb,var(--ds-surface-ground)_72%,var(--ds-surface-primary))]',
+              '[&_.fx-panel-group-label]:px-2.5 [&_.fx-panel-group-label]:pt-1.5 [&_.fx-panel-group-label]:pb-1',
+              '[&_.fx-panel-group-body]:px-2.5 [&_.fx-panel-group-body]:pt-2 [&_.fx-panel-group-body]:pb-2.5',
+            ].join(' ')
+          : panelGroupShellClass,
+        variant === 'destruct' &&
+          'border-[color:color-mix(in_srgb,var(--ds-accent-negative)_28%,var(--ds-border-primary))] bg-[color:color-mix(in_srgb,var(--ds-accent-negative)_4%,var(--ds-surface-ground))]',
+        inFooter &&
+          'flex-1 min-w-0 border-0 bg-transparent [&_.fx-panel-group-label]:p-0 [&_.fx-panel-group-label]:pb-2 [&_.fx-panel-group-label]:border-0 [&_.fx-panel-group-body]:flex [&_.fx-panel-group-body]:flex-wrap [&_.fx-panel-group-body]:items-center [&_.fx-panel-group-body]:gap-2 [&_.fx-panel-group-body]:p-0',
         className,
       )}
       data-testid={testId}
       data-section-index={sectionIndex}
       aria-label={label}
     >
-      <h3 className="fx-panel-group__label">{label}</h3>
-      <div className="fx-panel-group__body">{children}</div>
+      <h3
+        className={cn(
+          panelGroupLabelClass,
+          variant === 'destruct' &&
+            'text-[color:color-mix(in_srgb,var(--ds-accent-negative)_72%,var(--ds-text-faint))]',
+        )}
+      >
+        {label}
+      </h3>
+      <div className="fx-panel-group-body p-2.5 px-3 pb-3 [&_.fx-eyebrow]:hidden [&_.fx-module__body]:gap-2">
+        {children}
+      </div>
     </section>
   );
 }
-
-// ─── Column label readout — sunken chip with live dot ────────────
 
 export function ColumnLabel({
   colLabel,
   disabled,
   testId,
+  surface = 'toolbar',
 }: {
   colLabel: string;
   disabled?: boolean;
   testId?: string;
+  surface?: FormatterSurface;
 }) {
   return (
     <span
-      className="fx-col"
+      className={surface === 'panel' ? formatterColPanelClass : formatterColToolbarClass}
       data-disabled={disabled ? 'true' : undefined}
       data-testid={testId}
     >
-      <span className="fx-col__dot" aria-hidden />
-      <span className="fx-col__name">{colLabel}</span>
+      <span className={colDotClass} aria-hidden />
+      <span className="truncate">{colLabel}</span>
     </span>
   );
 }
-
-// ─── Scope toggle — CELL ⇄ HEADER (legacy single-label form) ──────
-//
-// Kept for the vertical popped panel and any consumer still using the
-// arrow-swap presentation. Horizontal toolbar uses `SegmentedToggle`
-// below for a clearer dual-label look.
 
 export function ScopeToggle({
   target,
   onToggle,
   testId,
+  surface = 'panel',
 }: {
   target: 'cell' | 'header';
   onToggle: () => void;
   testId?: string;
+  surface?: FormatterSurface;
 }) {
+  const base =
+    'group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[3px] font-mono text-[9px] font-semibold tracking-[0.18em] uppercase text-[color:var(--ds-primary)] cursor-pointer transition-all duration-[120ms] whitespace-nowrap';
   return (
     <button
       type="button"
@@ -282,32 +318,31 @@ export function ScopeToggle({
       aria-label={`Edit ${target === 'cell' ? 'cell' : 'header'} (click to switch)`}
       data-testid={testId}
       data-target={target}
-      className="fx-scope"
+      className={cn(
+        base,
+        surface === 'toolbar'
+          ? 'border-0 bg-[color:color-mix(in_srgb,var(--ds-surface-tertiary)_35%,transparent)] hover:bg-[color:var(--ds-primary-soft)]'
+          : 'bg-transparent border border-[color:var(--ds-border-primary)] hover:border-[color:var(--ds-primary-ring)] hover:bg-[color:var(--ds-primary-soft)]',
+      )}
       onClick={onToggle}
       onMouseDown={(e) => e.preventDefault()}
       title={`Click to edit ${target === 'cell' ? 'header' : 'cell'}`}
     >
       <span>{target.toUpperCase()}</span>
-      <ArrowLeftRight size={9} strokeWidth={2} className="fx-scope__swap" aria-hidden />
+      <ArrowLeftRight
+        size={9}
+        strokeWidth={2}
+        className="opacity-50 transition-[transform,opacity] duration-200 group-hover:opacity-100 group-hover:rotate-180"
+        aria-hidden
+      />
     </button>
   );
 }
 
-// ─── SegmentedToggle — two-icon switch with both options visible ──
-//
-// Icon-only segmented control. Both options show simultaneously; the
-// active option is filled, the inactive option is dim. Each option
-// carries its own tooltip so the meaning is one hover away. Used for
-// CELLS ⇄ HEADERS and SELECTED ⇄ ALL — same shape, different icons.
-// Stays compact (≈64px wide) so it doesn't dominate the toolbar.
-
 export interface SegmentedToggleOption<T extends string> {
   value: T;
-  /** Pre-rendered icon node — use a lucide icon at `size={14}`. */
   icon: React.ReactNode;
-  /** Hover tooltip — describes what the option means. */
   tooltip: string;
-  /** Optional ARIA label override; defaults to the tooltip. */
   ariaLabel?: string;
   testId?: string;
 }
@@ -317,42 +352,21 @@ export function SegmentedToggle<T extends string>({
   options,
   onChange,
   ariaLabel,
-  variant,
   testId,
 }: {
   value: T;
   options: [SegmentedToggleOption<T>, SegmentedToggleOption<T>];
   onChange: (next: T) => void;
   ariaLabel: string;
-  /** Cosmetic — drives the data-attribute used by CSS for distinct
-   *  hue/weight (still uses the brand primary as the active fill). */
   variant?: 'target' | 'scope';
   testId?: string;
 }) {
-  // Implementation note — the toolbar tests assert that the active
-  // state flips on `fireEvent.mouseDown`, and consumers depend on the
-  // mousedown-driven UX to survive popover focus traps (a popover's
-  // focus trap can swallow click events but not mousedown). That
-  // contract is incompatible with radix ToggleGroup's click-driven
-  // `onValueChange`, so this primitive stays a hand-rolled radiogroup
-  // of `<button role="radio">` elements. Every visual property flows
-  // through `@starui/design-system` tokens via Tailwind utilities.
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      data-variant={variant}
       data-testid={testId}
-      className={cn(
-        // Container — 28px tall with 2px inner padding (the active
-        // chip floats inside this padding ring). Subtle muted-fill
-        // background distinguishes the segmented control from
-        // surrounding pills.
-        'inline-flex items-stretch h-7 p-[2px] shrink-0 isolate',
-        'rounded-md border border-border',
-        // Container fill — 6% ink tint in dark, 4% ink-on-card in light.
-        'bg-foreground/[0.06] dark:bg-foreground/[0.06]',
-      )}
+      className="inline-flex items-stretch h-7 p-0.5 shrink-0 isolate rounded-[3px] border border-[color:var(--ds-border-primary)] bg-[color:color-mix(in_srgb,var(--ds-surface-tertiary)_40%,transparent)]"
     >
       {options.map((opt) => {
         const isActive = opt.value === value;
@@ -363,7 +377,7 @@ export function SegmentedToggle<T extends string>({
             role="radio"
             aria-checked={isActive}
             aria-label={opt.ariaLabel ?? opt.tooltip}
-            data-active={isActive ? 'true' : undefined}
+            data-on={isActive ? 'true' : undefined}
             data-testid={opt.testId}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -371,22 +385,11 @@ export function SegmentedToggle<T extends string>({
               if (!isActive) onChange(opt.value);
             }}
             className={cn(
-              // Option chip — fills the container vertically (h-full
-              // = 22px after the container's 2px padding) and a fixed
-              // 26px width gives each segment a square clickable area.
-              'inline-flex items-center justify-center w-[26px] cursor-pointer select-none',
-              'border-none bg-transparent appearance-none rounded-[3px]',
-              'transition-colors transition-shadow duration-[120ms]',
-              // Rest — muted icon colour.
-              'text-muted-foreground',
-              // Hover (not active) — strengthen to full ink.
-              'hover:text-foreground data-[active=true]:hover:text-primary-foreground',
-              // Active — brand-primary fill, primary-foreground glyph,
-              // subtle inset highlight for the "lift" feel.
-              'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
-              'data-[active=true]:shadow-[0_1px_0_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.18)]',
-              // Focus ring — brand outline, sits 1px outside the chip.
-              'focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary focus-visible:outline-offset-1',
+              'inline-flex items-center justify-center w-[26px] h-full p-0 appearance-none cursor-pointer select-none rounded-[3px]',
+              'border border-transparent bg-transparent text-muted-foreground',
+              'transition-[color,background,border-color] duration-[120ms] hover:text-foreground',
+              chipActiveClass,
+              'focus-visible:outline focus-visible:outline-1 focus-visible:outline-[color:var(--ds-primary)] focus-visible:outline-offset-1',
             )}
           >
             {opt.icon}
@@ -402,8 +405,6 @@ export function SegmentedToggle<T extends string>({
   );
 }
 
-// ─── Preview readout — phosphor amber, monospace ─────────────────
-
 export function PreviewReadout({
   value,
   testId,
@@ -413,16 +414,18 @@ export function PreviewReadout({
 }) {
   return (
     <Tooltip content="Live preview — current format against a sample value">
-      <span className="fx-preview" data-testid={testId}>
-        <span className="fx-preview__lbl">Preview</span>
-        <span className="fx-preview__val">{value || '—'}</span>
+      <span
+        className="inline-flex items-center gap-2 h-7 px-2.5 rounded-[3px] max-w-[240px] overflow-hidden whitespace-nowrap text-ellipsis font-mono text-[11px] tabular-nums bg-[color:var(--ds-overlay-warning-soft)] border border-[color:var(--ds-overlay-warning-ring)] text-[color:var(--ds-accent-warning)]"
+        data-testid={testId}
+      >
+        <span className="text-[8px] font-semibold tracking-[0.22em] uppercase opacity-70 shrink-0">
+          Preview
+        </span>
+        <span className="truncate font-medium">{value || '—'}</span>
       </span>
     </Tooltip>
   );
 }
-
-// ─── Title bar — only renders inside the popped panel under
-//     OpenFin's frameless mode. ────────────────────────────────────
 
 export function TitleBar({
   text,
@@ -434,11 +437,14 @@ export function TitleBar({
   testId?: string;
 }) {
   return (
-    <div className="fx-titlebar" data-testid={testId}>
+    <div
+      className="fx-titlebar-host h-8 flex items-center justify-between gap-2 px-3 border-b border-[color:var(--ds-border-primary)] bg-[var(--ds-surface-ground)] shrink-0 font-mono text-[10px] tracking-[0.12em] uppercase text-[color:var(--ds-text-faint)] overflow-hidden [&>span]:flex-1 [&>span]:min-w-0 [&>span]:truncate"
+      data-testid={testId}
+    >
       <span>{text}</span>
       <button
         type="button"
-        className="fx-titlebar__close"
+        className="fx-titlebar-close bg-transparent border-0 text-muted-foreground cursor-pointer w-[22px] h-[22px] inline-flex items-center justify-center rounded-[3px] transition-all duration-[120ms] hover:bg-[color:color-mix(in_srgb,var(--ds-accent-negative)_18%,transparent)] hover:text-[color:var(--ds-accent-negative)]"
         onClick={onClose}
         aria-label="Close"
         data-testid="fmt-panel-close"
@@ -449,10 +455,3 @@ export function TitleBar({
     </div>
   );
 }
-
-// Menu / MenuItem / MenuSep primitives removed in PR #47.
-// Consumers migrated to shadcn `<DropdownMenu>` / `<DropdownMenuItem>` /
-// `<DropdownMenuSeparator>` from `@starui/ui`. The custom primitives
-// duplicated radix DropdownMenu's surface + row + separator with no
-// behavioural win — radix gives us keyboard nav, focus management,
-// escape handling, and ARIA roles for free.

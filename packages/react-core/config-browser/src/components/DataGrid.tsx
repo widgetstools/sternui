@@ -8,12 +8,13 @@ import {
   SetFilterModule,
   StatusBarModule,
 } from "ag-grid-enterprise";
-import { agGridThemeFor } from "../agGridTheme";
+import { useGridTheme } from "@starui/grid";
 
 ModuleRegistry.registerModules([AllCommunityModule, MultiFilterModule, SetFilterModule, StatusBarModule]);
 
 interface DataGridProps {
   rows: any[];
+  /** Host light/dark; grid chrome also follows `data-palette` via `useGridTheme`. */
   theme: "dark" | "light";
   quickFilter: string;
   primaryKey: string;
@@ -33,6 +34,8 @@ export function DataGrid({
   primaryKey,
   onRowClick,
 }: DataGridProps) {
+  const gridTheme = useGridTheme();
+
   const columnDefs = useMemo<ColDef[]>((): ColDef[] => {
     if (rows.length === 0) return [];
     const keys = Object.keys(rows[0]);
@@ -100,9 +103,9 @@ export function DataGrid({
       headerHeight: 34,
       suppressCellFocus: true,
       animateRows: true,
-      theme: agGridThemeFor(theme),
+      theme: gridTheme,
     }),
-    [theme],
+    [gridTheme],
   );
 
   const handleRowClick = (e: RowClickedEvent) => {
@@ -112,7 +115,7 @@ export function DataGrid({
   return (
     <div style={{ flex: 1, minHeight: 0, width: "100%", position: "relative" }}>
       <AgGridReact
-        theme={agGridThemeFor(theme)}
+        theme={gridTheme}
         rowData={rows}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
