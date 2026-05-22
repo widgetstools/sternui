@@ -90,6 +90,25 @@ describe('importConfigBundle', () => {
     expect(row?.appId).toBe('LocalApp');
   });
 
+  it('rewrites scoped configId when appId is re-owned on import', async () => {
+    await importConfigBundle({
+      appConfig: [
+        appConfigRow({
+          configId: 'component-registry::ScaffoldApp::system',
+          appId: 'ScaffoldApp',
+          userId: 'system',
+          componentType: 'component-registry',
+          payload: { entries: [{ id: 'grid-markets-blotter' }], version: 2 },
+        }),
+      ],
+    });
+    const row = cm.configs.get('component-registry::LocalApp::system');
+    expect(row?.appId).toBe('LocalApp');
+    expect(row?.userId).toBe('system');
+    expect((row?.payload as { entries: { id: string }[] }).entries[0]?.id).toBe('grid-markets-blotter');
+    expect(cm.configs.has('component-registry::ScaffoldApp::system')).toBe(false);
+  });
+
   it('preserves rows with empty appId (legacy pre-scoping)', async () => {
     await importConfigBundle({
       appConfig: [appConfigRow({ configId: 'legacy', appId: '', userId: 'winuser' })],

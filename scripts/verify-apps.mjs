@@ -20,6 +20,7 @@ const VITE_APPS = [
   ['@starui/basic-starui-app', 5194],
   ['@starui/mockdata-provider-starui-app', 5192],
   ['@starui/dataprovider-editor-starui-app', 5193],
+  ['@starui/openfin-scaffold-demo', 5180],
 ];
 
 const flags = new Set(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => a.slice(2)));

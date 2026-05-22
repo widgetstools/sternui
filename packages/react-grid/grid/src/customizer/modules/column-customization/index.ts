@@ -274,3 +274,11 @@ export {
   type ScopeKind,
   type FormatterKind,
 } from './formattingActions';
+export {
+  applyFiAutoFormatReducer,
+  mergeFiConditionalStylingReducer,
+  buildFiAutoFormatAssignments,
+  buildFiConditionalStylingRules,
+  classifyFiFieldFromPath,
+  FI_CONDITIONAL_STYLING_RULES,
+} from '@starui/engine';

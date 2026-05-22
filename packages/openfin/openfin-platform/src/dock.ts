@@ -245,22 +245,8 @@ function buildSystemContentMenuEntries(): ContentMenuEntryType[] {
   return [
     {
       type: "item",
-      id: "tool-dock-editor",
-      label: "Dock Editor",
-      icon: contentMenuIcon(SETTINGS_SVG),
-      itemData: { actionId: ACTION_OPEN_DOCK_EDITOR },
-    },
-    {
-      type: "item",
-      id: "tool-registry-editor",
-      label: "Component Registry",
-      icon: contentMenuIcon(SETTINGS_SVG),
-      itemData: { actionId: ACTION_OPEN_REGISTRY_EDITOR },
-    },
-    {
-      type: "item",
       id: "tool-workspace-setup",
-      label: "Workspace Setup (new)",
+      label: "Workspace Setup",
       icon: contentMenuIcon(SETTINGS_SVG),
       itemData: { actionId: ACTION_OPEN_WORKSPACE_SETUP },
     },

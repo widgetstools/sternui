@@ -170,7 +170,8 @@ await dataServices.ready; // must resolve, not hang
 | PostCSS / Tailwind config load error mentioning `import.meta` | ESM-only code imported from `tailwind.config.js` (jiti cannot evaluate it) |
 | Library UI unstyled (missing utilities in `@starui/ui`, grids, widgets) | `content` globs don't scan tarball paths under `node_modules/@starui/...` |
 | Styles worked before flatten/tarball migration, broken after | Stale relative paths (e.g. old `starui-platform/packages/...`) in `content` |
-| Vite warning: `duration-[120ms] is ambiguous` | Harmless Tailwind 3.x warning; escape as `duration-&lsqb;120ms&rsqb;` or ignore |
+| Vite warning: `Nested CSS was detected` | Add `tailwindcss/nesting` before `tailwindcss` in PostCSS — use `scripts/postcss.consumer.config.mjs` |
+| Vite warning: `duration-[120ms] is ambiguous` | Use `transition-duration-[120ms]` instead of `duration-[120ms]` (conflicts with `duration-*` scale) |
 
 ### Root cause: PostCSS loads Tailwind config through jiti
 

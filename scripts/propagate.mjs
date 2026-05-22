@@ -541,6 +541,17 @@ function appReferencesLibTarball(appPkgPath, packageName) {
   return false;
 }
 
+/** Drop hoisted root node_modules/@starui/* buckets so `npm install` re-extracts tarballs. */
+function refreshRootTarballInstalls(updates) {
+  if (args.noInstall || args.dryRun) return;
+  for (const name of Object.keys(updates)) {
+    const path = join(REPO_ROOT, 'node_modules', name);
+    if (!existsSync(path)) continue;
+    rmSync(path, { recursive: true, force: true });
+    log(`root refresh: removed node_modules/${name}`);
+  }
+}
+
 function installApp(appDir, depsToRefresh) {
   if (args.noInstall) {
     log(`install: ${relative(REPO_ROOT, appDir)} — skipped (--no-install)`);
@@ -782,8 +793,9 @@ function main() {
     const appDir = resolve(appPkgPath, '..');
     const deps = affectedApps.get(appDir) ?? new Set();
     for (const r of rewritten) deps.add(r);
-    for (const [name, entry] of Object.entries(updates)) {
-      if (!entry.contentChanged) continue;
+    // Always refresh file: tarball installs — npm does not re-extract when the
+    // libs/*.tgz path is unchanged even if tarball bytes changed (same sha).
+    for (const [name] of Object.keys(updates)) {
       if (appReferencesLibTarball(appPkgPath, name)) deps.add(name);
     }
     if (deps.size > 0) affectedApps.set(appDir, deps);
@@ -796,7 +808,10 @@ function main() {
     }
   }
 
-  if (Object.keys(updates).length > 0) syncRootLockfile();
+  if (Object.keys(updates).length > 0) {
+    refreshRootTarballInstalls(updates);
+    syncRootLockfile();
+  }
 
   if (args.gc) {
     gcOrphanedTarballs(manifest, appPkgPaths);

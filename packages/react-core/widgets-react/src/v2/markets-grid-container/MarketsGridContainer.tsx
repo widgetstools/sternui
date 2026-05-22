@@ -359,6 +359,18 @@ export function MarketsGridContainer<TData extends Record<string, unknown> = Rec
     const k = expectedKeyRef.current;
     if (k) {
       setStamped({ key: k, api: handle.gridApi as unknown as GridApi<TData> });
+      // Provider column defs mount after the profile manager may have
+      // booted on the empty-state grid. Re-apply the active profile so
+      // column-customization formatters and conditional-styling rules
+      // bind to the live column set (imported Default profile, etc.).
+      const profileId = handle.profiles?.activeProfileId ?? '__default__';
+      // Defer one frame so provider column defs and the platform store tick
+      // have settled before column-customization binds formatters.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          void handle.profiles?.loadProfile(profileId);
+        });
+      });
     }
     onReadyProp?.(handle);
   }, [onReadyProp]);

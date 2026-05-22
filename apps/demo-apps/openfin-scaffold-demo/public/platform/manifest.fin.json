@@ -1,0 +1,51 @@
+{
+  "licenseKey": "openfin-demo-license-key",
+  "runtime": {
+    "arguments": "--enable-mesh --security-realm=starui-openfin-scaffold --remote-debugging-port=9091",
+    "version": "43.142.101.2"
+  },
+  "devtools_port": 9091,
+  "platform": {
+    "uuid": "starui-openfin-scaffold",
+    "icon": "http://localhost:5180/dock-icon.svg",
+    "autoShow": false,
+    "providerUrl": "http://localhost:5180/platform/provider",
+    "preventQuitOnLastWindowClosed": true
+  },
+  "shortcut": {
+    "company": "StarUI",
+    "description": "OpenFin scaffold demonstrating MarketsUI workspace tooling.",
+    "icon": "http://localhost:5180/dock-icon.svg",
+    "name": "StarUI OpenFin Scaffold",
+    "target": ["desktop", "start-menu"]
+  },
+  "customSettings": {
+    "seedConfigUrl": "http://localhost:5180/seed-config.json",
+    "useRest": false,
+    "configServiceRestUrl": "http://localhost:3001/api/v1",
+    "apps": [
+      {
+        "appId": "scaffold-blotter",
+        "name": "scaffold-blotter",
+        "title": "Markets Blotter",
+        "description": "Hosted MarketsGrid bound to a DataProvider",
+        "manifest": "http://localhost:5180/views/blotter.fin.json",
+        "manifestType": "view",
+        "icons": [{ "src": "http://localhost:5180/dock-icon.svg" }],
+        "publisher": "StarUI",
+        "tags": ["view", "grid"]
+      },
+      {
+        "appId": "scaffold-interop",
+        "name": "scaffold-interop",
+        "title": "Interop Demo",
+        "description": "FDC3 + OpenFin notifications sample view",
+        "manifest": "http://localhost:5180/views/interop.fin.json",
+        "manifestType": "view",
+        "icons": [{ "src": "http://localhost:5180/dock-icon.svg" }],
+        "publisher": "StarUI",
+        "tags": ["view", "fdc3"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,3490 @@
+[
+  {
+    "configId": "positions.dp",
+    "appId": "TestApp",
+    "userId": "system",
+    "componentType": "data-provider",
+    "componentSubType": "stomp",
+    "isTemplate": false,
+    "displayText": "positions.dp",
+    "payload": {
+      "providerType": "stomp",
+      "websocketUrl": "ws://localhost:8081",
+      "listenerTopic": "/snapshot/positions/TRADER001",
+      "requestMessage": "/snapshot/positions/TRADER001/1000/50",
+      "requestBody": "",
+      "snapshotEndToken": "Success",
+      "snapshotTimeoutMs": 60000,
+      "dataType": "positions",
+      "keyColumn": "positionId",
+      "autoStart": false,
+      "columnDefinitions": [
+        {
+          "field": "positionId",
+          "headerName": "Position ID",
+          "cellDataType": "text",
+          "width": 120,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "cusip",
+          "headerName": "CUSIP",
+          "cellDataType": "text",
+          "width": 108,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "isin",
+          "headerName": "ISIN",
+          "cellDataType": "text",
+          "width": 90,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "ticker",
+          "headerName": "Tkr",
+          "cellDataType": "text",
+          "width": 90,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "instrumentName",
+          "headerName": "Instrument",
+          "cellDataType": "text",
+          "width": 220,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "instrumentType",
+          "headerName": "Product",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "productFamily",
+          "headerName": "Family",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "bookName",
+          "headerName": "Book",
+          "cellDataType": "text",
+          "width": 90,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "desk",
+          "headerName": "Desk",
+          "cellDataType": "text",
+          "width": 90,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "trader",
+          "headerName": "Trader",
+          "cellDataType": "text",
+          "width": 90,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "portfolio",
+          "headerName": "Portfolio",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "region",
+          "headerName": "Region",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "country",
+          "headerName": "Country",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "currency",
+          "headerName": "Ccy",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "quantity",
+          "headerName": "Qty",
+          "cellDataType": "number",
+          "width": 96,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "notionalAmount",
+          "headerName": "Notional",
+          "cellDataType": "number",
+          "width": 120,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "marketValue",
+          "headerName": "Mkt Value",
+          "cellDataType": "number",
+          "width": 120,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "bookValue",
+          "headerName": "Book Value",
+          "cellDataType": "number",
+          "width": 120,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "accruedInterest",
+          "headerName": "Accrued",
+          "cellDataType": "number",
+          "width": 120,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "totalValue",
+          "headerName": "Total Value",
+          "cellDataType": "number",
+          "width": 120,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "averagePrice",
+          "headerName": "Avg Px",
+          "cellDataType": "number",
+          "width": 88,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "currentPrice",
+          "headerName": "Px",
+          "cellDataType": "number",
+          "width": 88,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "priceSource",
+          "headerName": "Px Src",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "pnl",
+          "headerName": "P&L",
+          "cellDataType": "number",
+          "width": 108,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "unrealizedPnl",
+          "headerName": "Unreal P&L",
+          "cellDataType": "number",
+          "width": 108,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "realizedPnl",
+          "headerName": "Real P&L",
+          "cellDataType": "number",
+          "width": 108,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "dailyPnl",
+          "headerName": "P&L (D)",
+          "cellDataType": "number",
+          "width": 108,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "mtdPnl",
+          "headerName": "P&L (MTD)",
+          "cellDataType": "number",
+          "width": 108,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "ytdPnl",
+          "headerName": "P&L (YTD)",
+          "cellDataType": "number",
+          "width": 108,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "maturityDate",
+          "headerName": "Maturity",
+          "cellDataType": "dateString",
+          "width": 108,
+          "filter": "agDateColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "issueDate",
+          "headerName": "Issue",
+          "cellDataType": "dateString",
+          "width": 108,
+          "filter": "agDateColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "couponRate",
+          "headerName": "Cpn %",
+          "cellDataType": "number",
+          "width": 82,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "couponFrequency",
+          "headerName": "Cpn Freq",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "nextCouponDate",
+          "headerName": "Next Cpn",
+          "cellDataType": "dateString",
+          "width": 108,
+          "filter": "agDateColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "yield",
+          "headerName": "Yield",
+          "cellDataType": "number",
+          "width": 82,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "yieldToMaturity",
+          "headerName": "YTM",
+          "cellDataType": "number",
+          "width": 82,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "modifiedDuration",
+          "headerName": "Mod Dur",
+          "cellDataType": "number",
+          "width": 80,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "effectiveDuration",
+          "headerName": "Eff Dur",
+          "cellDataType": "number",
+          "width": 80,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "convexity",
+          "headerName": "Convexity",
+          "cellDataType": "number",
+          "width": 80,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "spread",
+          "headerName": "Spread",
+          "cellDataType": "number",
+          "width": 86,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "assetSwapSpread",
+          "headerName": "ASW",
+          "cellDataType": "number",
+          "width": 86,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "zSpread",
+          "headerName": "Z-Spread",
+          "cellDataType": "number",
+          "width": 86,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "oas",
+          "headerName": "OAS",
+          "cellDataType": "number",
+          "width": 86,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "dv01",
+          "headerName": "DV01",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "pv01",
+          "headerName": "PV01",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "cs01",
+          "headerName": "CS01",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "rating.composite",
+          "headerName": "Rating",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "rating.sp",
+          "headerName": "S&P",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "rating.moody",
+          "headerName": "Moody's",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "issuer.name",
+          "headerName": "Issuer",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "issuer.sector",
+          "headerName": "Sector",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "issuer.country",
+          "headerName": "Country",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "issuer.creditRating",
+          "headerName": "Issuer Rtg",
+          "cellDataType": "text",
+          "width": 100,
+          "filter": "agSetColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "marketData.bidPrice",
+          "headerName": "Bid",
+          "cellDataType": "number",
+          "width": 88,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "marketData.midPrice",
+          "headerName": "Mid",
+          "cellDataType": "number",
+          "width": 88,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "marketData.askPrice",
+          "headerName": "Ask",
+          "cellDataType": "number",
+          "width": 88,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "marketData.lastTradePrice",
+          "headerName": "Last",
+          "cellDataType": "number",
+          "width": 88,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "marketData.lastTradeTime",
+          "headerName": "Last Trade",
+          "cellDataType": "dateString",
+          "width": 160,
+          "filter": "agTextColumnFilter",
+          "sortable": true,
+          "resizable": true
+        },
+        {
+          "field": "marketData.volume",
+          "headerName": "Volume",
+          "cellDataType": "number",
+          "width": 120,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "riskMetrics.var95",
+          "headerName": "VaR 95%",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "riskMetrics.var99",
+          "headerName": "VaR 99%",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "liquidity.bidAskSpread",
+          "headerName": "Bid-Ask",
+          "cellDataType": "number",
+          "width": 86,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "liquidity.liquidityScore",
+          "headerName": "Liq Score",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "performance.dailyReturn",
+          "headerName": "Ret (D)",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "performance.mtdReturn",
+          "headerName": "Ret (MTD)",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "performance.ytdReturn",
+          "headerName": "Ret (YTD)",
+          "cellDataType": "number",
+          "width": 90,
+          "filter": "agNumberColumnFilter",
+          "sortable": true,
+          "resizable": true,
+          "type": "numericColumn"
+        },
+        {
+          "field": "asOfDate",
+          "headerName": "As Of",
+          "cellDataType": "dateString",
+          "width": 108,
+          "filter": "agDateColumnFilter",
+          "sortable": true,
+          "resizable": true
+        }
+      ],
+      "__providerMeta": {
+        "description": "Positions snapshot + live deltas from stomp-view-server (npm run dev:stomp)",
+        "tags": [
+          "stomp",
+          "positions",
+          "local"
+        ],
+        "isDefault": false,
+        "public": true
+      }
+    },
+    "createdBy": "system",
+    "updatedBy": "system",
+    "creationTime": "2026-05-21T00:00:00.000Z",
+    "updatedTime": "2026-05-21T00:00:00.000Z"
+  },
+  {
+    "configId": "component-registry::TestApp::system",
+    "appId": "TestApp",
+    "userId": "system",
+    "componentType": "component-registry",
+    "componentSubType": "",
+    "isTemplate": false,
+    "displayText": "Component Registry",
+    "payload": {
+      "version": 2,
+      "entries": [
+        {
+          "id": "grid-markets-blotter",
+          "hostUrl": "http://localhost:5180/views/blotter",
+          "iconId": "lucide:layout-grid",
+          "componentType": "GRID",
+          "componentSubType": "markets",
+          "configId": "grid-markets-blotter",
+          "displayName": "SPG Positions Blotter",
+          "createdAt": "2026-05-21T00:00:00.000Z",
+          "type": "internal",
+          "usesHostConfig": true,
+          "appId": "TestApp",
+          "configServiceUrl": "",
+          "singleton": false
+        },
+        {
+          "id": "view-interop",
+          "hostUrl": "http://localhost:5180/views/interop",
+          "iconId": "lucide:radio",
+          "componentType": "VIEW",
+          "componentSubType": "interop",
+          "configId": "view-interop",
+          "displayName": "FDC3 Interop",
+          "createdAt": "2026-05-21T00:00:00.000Z",
+          "type": "internal",
+          "usesHostConfig": true,
+          "appId": "TestApp",
+          "configServiceUrl": "",
+          "singleton": true
+        }
+      ]
+    },
+    "createdBy": "system",
+    "updatedBy": "system",
+    "creationTime": "2026-05-21T00:00:00.000Z",
+    "updatedTime": "2026-05-21T00:00:00.000Z"
+  },
+  {
+    "configId": "dock-config",
+    "appId": "TestApp",
+    "userId": "dev1",
+    "componentType": "dock-config",
+    "componentSubType": "",
+    "isTemplate": false,
+    "displayText": "Dock Configuration",
+    "payload": {
+      "version": 1,
+      "updatedAt": "2026-05-21T00:00:00.000Z",
+      "buttons": [
+        {
+          "type": "DropdownButton",
+          "id": "star-spg",
+          "tooltip": "STAR-SPG",
+          "iconUrl": "",
+          "iconId": "lucide:layers",
+          "options": [
+            {
+              "id": "star-spg-blotter",
+              "tooltip": "SPG Positions Blotter",
+              "iconUrl": "",
+              "iconId": "lucide:table-2",
+              "actionId": "launch-component",
+              "customData": {
+                "registryEntryId": "grid-markets-blotter"
+              }
+            },
+            {
+              "id": "star-spg-interop",
+              "tooltip": "FDC3 Interop",
+              "iconUrl": "",
+              "iconId": "lucide:radio",
+              "actionId": "launch-component",
+              "customData": {
+                "registryEntryId": "view-interop"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "createdBy": "dev1",
+    "updatedBy": "dev1",
+    "creationTime": "2026-05-21T00:00:00.000Z",
+    "updatedTime": "2026-05-21T00:00:00.000Z"
+  },
+  {
+    "configId": "openfin-scaffold-blotter",
+    "appId": "TestApp",
+    "userId": "dev1",
+    "componentType": "markets-grid-profile-set",
+    "componentSubType": "",
+    "isTemplate": false,
+    "displayText": "MarketsGrid · openfin-scaffold-blotter",
+    "payload": {
+      "version": 1,
+      "profiles": [
+        {
+          "id": "__default__",
+          "gridId": "openfin-scaffold-blotter",
+          "name": "Default",
+          "createdAt": 1779421003101,
+          "updatedAt": 1779421003101,
+          "state": {
+            "column-customization": {
+              "v": 1,
+              "data": {
+                "assignments": {
+                  "positionId": {
+                    "colId": "positionId",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "cusip": {
+                    "colId": "cusip",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "isin": {
+                    "colId": "isin",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "ticker": {
+                    "colId": "ticker",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "instrumentName": {
+                    "colId": "instrumentName",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "instrumentType": {
+                    "colId": "instrumentType",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "productFamily": {
+                    "colId": "productFamily",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "bookName": {
+                    "colId": "bookName",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "desk": {
+                    "colId": "desk",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "trader": {
+                    "colId": "trader",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "portfolio": {
+                    "colId": "portfolio",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "region": {
+                    "colId": "region",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "country": {
+                    "colId": "country",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "currency": {
+                    "colId": "currency",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "quantity": {
+                    "colId": "quantity",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "notionalAmount": {
+                    "colId": "notionalAmount",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "marketValue": {
+                    "colId": "marketValue",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "bookValue": {
+                    "colId": "bookValue",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "accruedInterest": {
+                    "colId": "accruedInterest",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "totalValue": {
+                    "colId": "totalValue",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "averagePrice": {
+                    "colId": "averagePrice",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "currentPrice": {
+                    "colId": "currentPrice",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "priceSource": {
+                    "colId": "priceSource",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "pnl": {
+                    "colId": "pnl",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0;[Red]−#,##0;[Blue]0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "unrealizedPnl": {
+                    "colId": "unrealizedPnl",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0;[Red]−#,##0;[Blue]0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "realizedPnl": {
+                    "colId": "realizedPnl",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0;[Red]−#,##0;[Blue]0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "dailyPnl": {
+                    "colId": "dailyPnl",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0;[Red]−#,##0;[Blue]0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "mtdPnl": {
+                    "colId": "mtdPnl",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0;[Red]−#,##0;[Blue]0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "ytdPnl": {
+                    "colId": "ytdPnl",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0;[Red]−#,##0;[Blue]0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "maturityDate": {
+                    "colId": "maturityDate",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "yyyy-mm-dd"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    }
+                  },
+                  "issueDate": {
+                    "colId": "issueDate",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "yyyy-mm-dd"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    }
+                  },
+                  "couponRate": {
+                    "colId": "couponRate",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000\"%\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "couponFrequency": {
+                    "colId": "couponFrequency",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "nextCouponDate": {
+                    "colId": "nextCouponDate",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "yyyy-mm-dd"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    }
+                  },
+                  "yield": {
+                    "colId": "yield",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000\"%\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "yieldToMaturity": {
+                    "colId": "yieldToMaturity",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000\"%\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "modifiedDuration": {
+                    "colId": "modifiedDuration",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "effectiveDuration": {
+                    "colId": "effectiveDuration",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "convexity": {
+                    "colId": "convexity",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "spread": {
+                    "colId": "spread",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0\" bps\";[Red]#,##0\" bps\";[Blue]0\" bps\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "assetSwapSpread": {
+                    "colId": "assetSwapSpread",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0\" bps\";[Red]#,##0\" bps\";[Blue]0\" bps\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "zSpread": {
+                    "colId": "zSpread",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0\" bps\";[Red]#,##0\" bps\";[Blue]0\" bps\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "oas": {
+                    "colId": "oas",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0\" bps\";[Red]#,##0\" bps\";[Blue]0\" bps\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "dv01": {
+                    "colId": "dv01",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "pv01": {
+                    "colId": "pv01",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "cs01": {
+                    "colId": "cs01",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "rating.composite": {
+                    "colId": "rating.composite",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "rating.sp": {
+                    "colId": "rating.sp",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "rating.moody": {
+                    "colId": "rating.moody",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "issuer.name": {
+                    "colId": "issuer.name",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "issuer.sector": {
+                    "colId": "issuer.sector",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "issuer.country": {
+                    "colId": "issuer.country",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "issuer.creditRating": {
+                    "colId": "issuer.creditRating",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "left"
+                        }
+                      }
+                    }
+                  },
+                  "marketData.bidPrice": {
+                    "colId": "marketData.bidPrice",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "marketData.midPrice": {
+                    "colId": "marketData.midPrice",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "marketData.askPrice": {
+                    "colId": "marketData.askPrice",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "marketData.lastTradePrice": {
+                    "colId": "marketData.lastTradePrice",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.000"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "marketData.lastTradeTime": {
+                    "colId": "marketData.lastTradeTime",
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    }
+                  },
+                  "marketData.volume": {
+                    "colId": "marketData.volume",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        },
+                        "typography": {
+                          "bold": true
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "riskMetrics.var95": {
+                    "colId": "riskMetrics.var95",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "riskMetrics.var99": {
+                    "colId": "riskMetrics.var99",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "liquidity.bidAskSpread": {
+                    "colId": "liquidity.bidAskSpread",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "[Green]+#,##0\" bps\";[Red]#,##0\" bps\";[Blue]0\" bps\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "liquidity.liquidityScore": {
+                    "colId": "liquidity.liquidityScore",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "#,##0.00"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "performance.dailyReturn": {
+                    "colId": "performance.dailyReturn",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "0.00\"%\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "performance.mtdReturn": {
+                    "colId": "performance.mtdReturn",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "0.00\"%\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "performance.ytdReturn": {
+                    "colId": "performance.ytdReturn",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "0.00\"%\""
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "right"
+                        }
+                      }
+                    }
+                  },
+                  "asOfDate": {
+                    "colId": "asOfDate",
+                    "valueFormatterTemplate": {
+                      "kind": "excelFormat",
+                      "format": "yyyy-mm-dd"
+                    },
+                    "cellStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    },
+                    "headerStyleOverrides": {
+                      "dark": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      },
+                      "light": {
+                        "alignment": {
+                          "horizontal": "center"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "conditional-styling": {
+              "v": 1,
+              "data": {
+                "rules": [
+                  {
+                    "id": "fi-px-tick-up-averagePrice",
+                    "name": "Px tick up · averagePrice",
+                    "enabled": true,
+                    "priority": 8,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "averagePrice"
+                      ]
+                    },
+                    "expression": "[averagePrice.new] > [averagePrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-up-solid",
+                      "color": "#047857",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "emerald",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-down-averagePrice",
+                    "name": "Px tick down · averagePrice",
+                    "enabled": true,
+                    "priority": 9,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "averagePrice"
+                      ]
+                    },
+                    "expression": "[averagePrice.new] < [averagePrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-down-solid",
+                      "color": "#b91c1c",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "rose",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-up-currentPrice",
+                    "name": "Px tick up · currentPrice",
+                    "enabled": true,
+                    "priority": 8,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "currentPrice"
+                      ]
+                    },
+                    "expression": "[currentPrice.new] > [currentPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-up-solid",
+                      "color": "#047857",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "emerald",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-down-currentPrice",
+                    "name": "Px tick down · currentPrice",
+                    "enabled": true,
+                    "priority": 9,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "currentPrice"
+                      ]
+                    },
+                    "expression": "[currentPrice.new] < [currentPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-down-solid",
+                      "color": "#b91c1c",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "rose",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-up-marketData-bidPrice",
+                    "name": "Px tick up · marketData.bidPrice",
+                    "enabled": true,
+                    "priority": 8,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.bidPrice"
+                      ]
+                    },
+                    "expression": "[marketData.bidPrice.new] > [marketData.bidPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-up-solid",
+                      "color": "#047857",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "emerald",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-down-marketData-bidPrice",
+                    "name": "Px tick down · marketData.bidPrice",
+                    "enabled": true,
+                    "priority": 9,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.bidPrice"
+                      ]
+                    },
+                    "expression": "[marketData.bidPrice.new] < [marketData.bidPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-down-solid",
+                      "color": "#b91c1c",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "rose",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-up-marketData-midPrice",
+                    "name": "Px tick up · marketData.midPrice",
+                    "enabled": true,
+                    "priority": 8,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.midPrice"
+                      ]
+                    },
+                    "expression": "[marketData.midPrice.new] > [marketData.midPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-up-solid",
+                      "color": "#047857",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "emerald",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-down-marketData-midPrice",
+                    "name": "Px tick down · marketData.midPrice",
+                    "enabled": true,
+                    "priority": 9,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.midPrice"
+                      ]
+                    },
+                    "expression": "[marketData.midPrice.new] < [marketData.midPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-down-solid",
+                      "color": "#b91c1c",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "rose",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-up-marketData-askPrice",
+                    "name": "Px tick up · marketData.askPrice",
+                    "enabled": true,
+                    "priority": 8,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.askPrice"
+                      ]
+                    },
+                    "expression": "[marketData.askPrice.new] > [marketData.askPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-up-solid",
+                      "color": "#047857",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "emerald",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-down-marketData-askPrice",
+                    "name": "Px tick down · marketData.askPrice",
+                    "enabled": true,
+                    "priority": 9,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.askPrice"
+                      ]
+                    },
+                    "expression": "[marketData.askPrice.new] < [marketData.askPrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-down-solid",
+                      "color": "#b91c1c",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "rose",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-up-marketData-lastTradePrice",
+                    "name": "Px tick up · marketData.lastTradePrice",
+                    "enabled": true,
+                    "priority": 8,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.lastTradePrice"
+                      ]
+                    },
+                    "expression": "[marketData.lastTradePrice.new] > [marketData.lastTradePrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-up-solid",
+                      "color": "#047857",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "emerald",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-px-tick-down-marketData-lastTradePrice",
+                    "name": "Px tick down · marketData.lastTradePrice",
+                    "enabled": true,
+                    "priority": 9,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "marketData.lastTradePrice"
+                      ]
+                    },
+                    "expression": "[marketData.lastTradePrice.new] < [marketData.lastTradePrice.old]",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    },
+                    "activeDurationMs": 1200,
+                    "indicator": {
+                      "icon": "triangle-down-solid",
+                      "color": "#b91c1c",
+                      "target": "cells",
+                      "position": "left-middle"
+                    },
+                    "flash": {
+                      "enabled": true,
+                      "target": "cells",
+                      "mode": "oneShot",
+                      "color": "rose",
+                      "durationMs": 600
+                    }
+                  },
+                  {
+                    "id": "fi-pnl-positive-daily",
+                    "name": "P&L (D) positive",
+                    "enabled": true,
+                    "priority": 20,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "dailyPnl",
+                        "unrealizedPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "pnl"
+                      ]
+                    },
+                    "expression": "[dailyPnl] > 0",
+                    "style": {
+                      "light": {
+                        "color": "#047857",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#34d399",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "id": "fi-pnl-negative-daily",
+                    "name": "P&L (D) negative",
+                    "enabled": true,
+                    "priority": 21,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "dailyPnl",
+                        "unrealizedPnl",
+                        "mtdPnl",
+                        "ytdPnl",
+                        "pnl"
+                      ]
+                    },
+                    "expression": "[dailyPnl] < 0",
+                    "style": {
+                      "light": {
+                        "color": "#b91c1c",
+                        "fontWeight": "600"
+                      },
+                      "dark": {
+                        "color": "#f87171",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "id": "fi-yield-hy",
+                    "name": "High yield (>5%)",
+                    "enabled": true,
+                    "priority": 30,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "yield",
+                        "yieldToMaturity"
+                      ]
+                    },
+                    "expression": "[yield] > 5",
+                    "style": {
+                      "light": {
+                        "backgroundColor": "#fef9c3"
+                      },
+                      "dark": {
+                        "backgroundColor": "rgba(250, 204, 21, 0.18)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "fi-spread-wide",
+                    "name": "Wide OAS (>200)",
+                    "enabled": true,
+                    "priority": 40,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "oas",
+                        "spread",
+                        "zSpread"
+                      ]
+                    },
+                    "expression": "[oas] > 200",
+                    "style": {
+                      "light": {
+                        "backgroundColor": "#fecaca",
+                        "color": "#991b1b"
+                      },
+                      "dark": {
+                        "backgroundColor": "rgba(220, 38, 38, 0.22)",
+                        "color": "#fca5a5"
+                      }
+                    }
+                  },
+                  {
+                    "id": "fi-whale-notional",
+                    "name": "Large notional (>10M)",
+                    "enabled": true,
+                    "priority": 50,
+                    "scope": {
+                      "type": "cell",
+                      "columns": [
+                        "notionalAmount",
+                        "marketValue"
+                      ]
+                    },
+                    "expression": "[notionalAmount] > 10000000",
+                    "style": {
+                      "light": {
+                        "backgroundColor": "#fef3c7",
+                        "fontWeight": "700"
+                      },
+                      "dark": {
+                        "backgroundColor": "rgba(245, 158, 11, 0.2)",
+                        "color": "#fcd34d",
+                        "fontWeight": "700"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "gridLevelData": {
+        "liveProviderId": "positions.dp",
+        "historicalProviderId": null,
+        "mode": "live"
+      }
+    },
+    "createdBy": "dev1",
+    "updatedBy": "dev1",
+    "creationTime": "2026-05-21T00:00:00.000Z",
+    "updatedTime": "2026-05-21T00:00:00.000Z"
+  }
+]

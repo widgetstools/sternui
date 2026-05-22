@@ -142,6 +142,29 @@
   height: 90vh;
 }
 
+/* Right drawer (shadcn/vaul) — panel fills the drawer surface */
+.ds-popout.is-drawer {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.ds-popout.is-drawer.is-maximized {
+  width: 100%;
+  height: 100%;
+}
+
 /* Popped mode — window IS the overlay; fill edge-to-edge */
 .ds-popout.is-popped {
   position: static;

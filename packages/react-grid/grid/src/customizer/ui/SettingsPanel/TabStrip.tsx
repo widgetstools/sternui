@@ -39,7 +39,7 @@ export function TabStrip({ items, value, onChange, trailing, ...rest }: TabStrip
               disabled={item.disabled}
               aria-pressed={active ? 'true' : 'false'}
               className={[
-                'inline-flex items-center gap-1.5 px-3.5 py-2 font-sans font-medium tracking-[0.02em] bg-transparent border-none cursor-pointer -mb-px transition-colors duration-[120ms] text-[length:var(--ds-font-size-sm)]',
+                'inline-flex items-center gap-1.5 px-3.5 py-2 font-sans font-medium tracking-[0.02em] bg-transparent border-none cursor-pointer -mb-px transition-colors transition-duration-[120ms] text-[length:var(--ds-font-size-sm)]',
                 active
                   ? 'text-foreground font-semibold border-b-2 border-primary'
                   : item.disabled

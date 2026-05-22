@@ -21,6 +21,7 @@ export {
   applyRowGroupingConfigToColDef,
 } from './modules/column-customization/transforms.js';
 export * from './modules/column-customization/formattingActions.js';
+export * from '../fiTrading/index.js';
 
 export * from './modules/column-groups/state.js';
 export {

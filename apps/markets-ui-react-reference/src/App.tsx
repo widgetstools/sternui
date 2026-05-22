@@ -44,7 +44,7 @@ function App() {
             <CardTitle>Administration</CardTitle>
             <CardDescription>
               Authoring tools live in the dock&apos;s ▾ Tools menu — Workspace Setup,
-              Data Providers, Component Registry, Config Browser, etc. The links
+              Data Providers, Config Browser, etc. The links
               below are dev-mode shortcuts for use outside OpenFin.
             </CardDescription>
           </CardHeader>

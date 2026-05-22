@@ -29,8 +29,13 @@ import {
   applyFilterPrimaryKindReducer,
   applyFloatingFilterReducer,
   applyFormatterReducer,
+  applyFiAutoFormatReducer,
   applyHeaderNameReducer,
   applyTemplateToColumnsReducer,
+  classifyFiFieldFromPath,
+  CONDITIONAL_STYLING_MODULE_ID,
+  mergeFiConditionalStylingReducer,
+  type ConditionalStylingState,
   applyTypographyReducer,
   clearAllStylesInProfileReducer,
   clearAllStylesReducer,
@@ -229,6 +234,8 @@ export interface FormatterActions {
   /** Toggle every column header caption between natural case and UPPERCASE. */
   toggleHeaderCaseUppercase: () => void;
   toggleCellTooltips: () => void;
+  /** Apply FI vendor presets to every visible column + standard highlight rules. */
+  applyFiAutoFormat: () => void;
 }
 
 export interface UseFormatterResult {
@@ -274,6 +281,7 @@ export function useFormatter(): UseFormatterResult {
   const [saveAsTplName, setSaveAsTplName] = useState('');
 
   const [custState, setCustState] = useModuleState<ColumnCustomizationState>('column-customization');
+  const [, setStyleState] = useModuleState<ConditionalStylingState>(CONDITIONAL_STYLING_MODULE_ID);
   const [tplState, setTplState] = useModuleState<ColumnTemplatesState>('column-templates');
   const [generalSettingsState, setGeneralSettingsState] = useModuleState<GeneralSettingsState>(
     GENERAL_SETTINGS_MODULE_ID,
@@ -626,6 +634,21 @@ export function useFormatter(): UseFormatterResult {
     doFormat(numberTemplate(getCurrentDecimals() + 1));
   }, [doFormat, getCurrentDecimals]);
 
+  const applyFiAutoFormat = useCallback(() => {
+    const api = platform.api.api;
+    if (!api) return;
+    const allColIds = readAllColumnIds(api);
+    if (allColIds.length === 0) return;
+    const cellDataTypes: Record<string, string | undefined> = {};
+    for (const id of allColIds) {
+      cellDataTypes[id] = readCellDataType(api, id);
+    }
+    setCustStateWithHistory(applyFiAutoFormatReducer(allColIds, cellDataTypes));
+    const priceColIds = allColIds.filter((id) => classifyFiFieldFromPath(id) === 'price');
+    undoRedo.push();
+    setStyleState(mergeFiConditionalStylingReducer(priceColIds));
+  }, [platform.api.api, setCustStateWithHistory, setStyleState, undoRedo]);
+
   // Borders — multi-side diffing routed through one undoable step.
   const applyBordersMap = useCallback(
     (next: { top?: BorderSpec; right?: BorderSpec; bottom?: BorderSpec; left?: BorderSpec }) => {
@@ -766,6 +789,7 @@ export function useFormatter(): UseFormatterResult {
       toggleFloatingFilter,
       toggleHeaderCaseUppercase,
       toggleCellTooltips,
+      applyFiAutoFormat,
     },
   };
 }

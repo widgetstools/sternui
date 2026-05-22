@@ -328,11 +328,20 @@ export function useConfigBrowser(): UseConfigBrowserReturn {
     if (!row || typeof row !== 'object') return row;
     if (selectedKey !== 'appConfig') return row;
     const next = { ...row };
+    const priorAppId = typeof row.appId === 'string' ? row.appId : '';
     if (typeof row.userId === 'string' && row.userId !== '' && row.userId !== 'system') {
       next.userId = hostEnv.userId ?? row.userId;
     }
     if (typeof row.appId === 'string' && row.appId !== '') {
       next.appId = hostEnv.appId || row.appId;
+    }
+    if (
+      typeof row.configId === 'string' &&
+      priorAppId &&
+      next.appId &&
+      priorAppId !== next.appId
+    ) {
+      next.configId = row.configId.replaceAll(`::${priorAppId}::`, `::${next.appId}::`);
     }
     return next;
   }, [selectedKey, hostEnv.appId, hostEnv.userId]);

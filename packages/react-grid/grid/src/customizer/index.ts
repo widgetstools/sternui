@@ -147,6 +147,10 @@ export {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
+  Drawer,
+  DrawerContent,
+  DrawerOverlay,
+  DrawerClose,
   cn,
 } from '@starui/ui';
 export type { ButtonProps } from '@starui/ui';
@@ -270,6 +274,9 @@ export {
   applyFilterPrimaryKindReducer,
   applyFloatingFilterReducer,
   applyFormatterReducer,
+  applyFiAutoFormatReducer,
+  mergeFiConditionalStylingReducer,
+  classifyFiFieldFromPath,
   applyTemplateToColumnsReducer,
   removeTemplateRefFromAssignmentsReducer,
   clearAllStylesReducer,

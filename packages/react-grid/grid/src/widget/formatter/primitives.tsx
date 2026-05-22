@@ -376,7 +376,7 @@ export function SegmentedToggle<T extends string>({
               // 26px width gives each segment a square clickable area.
               'inline-flex items-center justify-center w-[26px] cursor-pointer select-none',
               'border-none bg-transparent appearance-none rounded-[3px]',
-              'transition-colors transition-shadow duration-[120ms]',
+              'transition-colors transition-shadow transition-duration-[120ms]',
               // Rest — muted icon colour.
               'text-muted-foreground',
               // Hover (not active) — strengthen to full ink.

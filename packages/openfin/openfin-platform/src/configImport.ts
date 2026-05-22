@@ -105,16 +105,32 @@ const EMPTY_TABLE_RESULT = (): ImportTableResult => ({
  *   - `appId === ''` — pre-scoped legacy rows; leave them alone so the
  *     existing back-compat fallbacks still find them.
  */
+/** When import re-owns `appId`, keep scoped `configId` keys in sync (e.g.
+ *  `component-registry::ScaffoldApp::system` → `::TestApp::`). */
+function rewriteConfigIdAppScope(configId: string, fromAppId: string, toAppId: string): string {
+  if (!fromAppId || !toAppId || fromAppId === toAppId) return configId;
+  return configId.replaceAll(`::${fromAppId}::`, `::${toAppId}::`);
+}
+
 function reownAppConfigRow(
   row: AppConfigRow,
   hostEnv: { appId: string; userId?: string },
 ): AppConfigRow {
   const next: AppConfigRow = { ...row };
+  const priorAppId = typeof row.appId === 'string' ? row.appId : '';
   if (typeof row.userId === 'string' && row.userId !== '' && row.userId !== 'system') {
     next.userId = hostEnv.userId ?? row.userId;
   }
   if (typeof row.appId === 'string' && row.appId !== '') {
     next.appId = hostEnv.appId || row.appId;
+  }
+  if (
+    typeof row.configId === 'string' &&
+    priorAppId &&
+    next.appId &&
+    priorAppId !== next.appId
+  ) {
+    next.configId = rewriteConfigIdAppScope(row.configId, priorAppId, next.appId);
   }
   // Tolerate legacy exports that used `config` instead of `payload`.
   if ((next as any).config && !(next as any).payload) {

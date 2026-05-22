@@ -5,11 +5,14 @@ import {
 } from '@starui/engine';
 import { isOpenFin } from '../runtime/openFin.js';
 import {
+  Drawer,
+  DrawerContent,
   Popover,
   PopoverContent,
   PopoverTrigger,
   Poppable,
   SharpBtn,
+  cn,
   useDirtyCount,
   useGridPlatform,
   type PoppableHandle,
@@ -157,7 +160,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
       'ds-sheet-v2',
       'ds-popout',
       maximized && !popped ? 'is-maximized' : '',
-      popped ? 'is-popped' : '',
+      popped ? 'is-popped' : 'is-drawer',
       frameless ? 'is-frameless' : '',
     ]
       .filter(Boolean)
@@ -464,24 +467,44 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle, SettingsSheetProps>
       // FormattingPropertiesPanel frameless pattern.
       frame={false}
     >
-      {({ popped, PopoutButton, close }) => (
-        <div
-          data-ds-settings=""
-          data-testid="v2-settings-sheet"
-          data-popped={popped ? 'true' : undefined}
-        >
-          {/* Backdrop only in inline mode — the OS window IS the
-              overlay when popped. */}
-          {!popped && (
+      {({ popped, PopoutButton, close }) => {
+        const sheet = buildSheet({ popped, PopoutButton, close });
+        if (popped) {
+          return (
             <div
-              className="ds-popout-backdrop"
-              onClick={onClose}
-              data-testid="v2-settings-overlay"
-            />
-          )}
-          {buildSheet({ popped, PopoutButton, close })}
-        </div>
-      )}
+              data-ds-settings=""
+              data-testid="v2-settings-sheet"
+              data-popped="true"
+            >
+              {sheet}
+            </div>
+          );
+        }
+        return (
+          <Drawer
+            open
+            direction="right"
+            shouldScaleBackground={false}
+            onOpenChange={(next) => {
+              if (!next) onClose();
+            }}
+          >
+            <DrawerContent
+              hideHandle
+              overlayTestId="v2-settings-overlay"
+              data-testid="v2-settings-sheet"
+              data-ds-settings=""
+              className={cn(
+                'ds-sheet-v2 p-0 outline-none',
+                'bg-[var(--ds-surface-ground)] border-[var(--ds-border-secondary)] shadow-[var(--ds-elevation-overlay)]',
+                maximized ? 'w-[min(94vw,1400px)] max-w-none' : 'w-[min(820px,96vw)] max-w-none',
+              )}
+            >
+              {sheet}
+            </DrawerContent>
+          </Drawer>
+        );
+      }}
     </Poppable>
   );
 });

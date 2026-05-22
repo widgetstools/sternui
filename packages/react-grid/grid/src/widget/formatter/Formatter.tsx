@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@starui/grid/customizer';
+import { ModuleAutoFormat } from './modules/ModuleAutoFormat';
 import { ModuleClear } from './modules/ModuleClear';
 import { ModuleContext } from './modules/ModuleContext';
 import { ModuleEditorFilter } from './modules/ModuleEditorFilter';
@@ -163,6 +164,9 @@ export function FormatterToolbar({
               colLabel={state.colLabel}
             />
           </ToolbarGroup>
+          <ToolbarGroup label="FI" testId="fmt-group-fi-auto">
+            <ModuleAutoFormat state={state} actions={actions} orientation="horizontal" />
+          </ToolbarGroup>
           <span className="fx-toolbar-row__spacer" aria-hidden />
           <ToolbarGroup label="Clear" variant="destruct" testId="fmt-group-clear">
             <ModuleClear state={state} actions={actions} orientation="horizontal" />
@@ -226,6 +230,9 @@ export function FormatterPanel({
               orientation="vertical"
               colLabel={state.colLabel}
             />
+          </PanelGroup>
+          <PanelGroup label="FI auto-format" sectionIndex="07" testId="fmt-panel-group-fi-auto">
+            <ModuleAutoFormat state={state} actions={actions} orientation="vertical" />
           </PanelGroup>
         </div>
       </div>

@@ -42,6 +42,8 @@
     "dev:basic-starui-app": "npm run dev --workspace=@starui/basic-starui-app",
     "dev:mockdata-provider-starui-app": "npm run dev --workspace=@starui/mockdata-provider-starui-app",
     "dev:dataprovider-editor-starui-app": "npm run dev --workspace=@starui/dataprovider-editor-starui-app",
+    "dev:openfin-scaffold-demo": "npm run dev --workspace=@starui/openfin-scaffold-demo",
+    "start:openfin-scaffold-demo": "npm run start:openfin --workspace=@starui/openfin-scaffold-demo",
     "dev:my-stomp-app": "npm run dev --workspace=@starui/my-stomp-app",
     "dev:markets-ui-react-reference": "npm run dev --workspace=@starui/markets-ui-react-reference",
     "dev:stomp": "npm run dev --workspace=@starui/stomp-view-server",

@@ -66,7 +66,7 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
     <div
       data-error={error ? 'true' : 'false'}
       className={[
-        'inline-flex items-center flex-1 min-w-0 h-7 rounded-sm bg-background border px-2 gap-1.5 transition-colors duration-[120ms]',
+        'inline-flex items-center flex-1 min-w-0 h-7 rounded-sm bg-background border px-2 gap-1.5 transition-colors transition-duration-[120ms]',
         error ? 'border-destructive' : 'border-border',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-text',
         'focus-within:border-primary',
